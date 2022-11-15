@@ -252,6 +252,13 @@ DROP TABLE t1_redundant;
 # ------------------------------------------------------------
 # TEMP record with different possibilities
 # ------------------------------------------------------------
+show create table t2_redundant;
+Table	Create Table
+t2_redundant	CREATE TABLE `t2_redundant` (
+  `c1` char(10) DEFAULT NULL,
+  `c2` char(10) DEFAULT NULL,
+  `c3` char(10) DEFAULT 'c3_def'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 Select * from t2_redundant;
 c1	c2	c3
 r1c1	r1c2	c3_def
@@ -535,6 +542,13 @@ DROP TABLE t1_dynamic;
 # ------------------------------------------------------------
 # TEMP record with different possibilities
 # ------------------------------------------------------------
+show create table t2_dynamic;
+Table	Create Table
+t2_dynamic	CREATE TABLE `t2_dynamic` (
+  `c1` char(10) DEFAULT NULL,
+  `c2` char(10) DEFAULT NULL,
+  `c3` char(10) DEFAULT 'c3_def'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 Select * from t2_dynamic;
 c1	c2	c3
 r1c1	r1c2	c3_def
@@ -818,6 +832,13 @@ DROP TABLE t1_compact;
 # ------------------------------------------------------------
 # TEMP record with different possibilities
 # ------------------------------------------------------------
+show create table t2_compact;
+Table	Create Table
+t2_compact	CREATE TABLE `t2_compact` (
+  `c1` char(10) DEFAULT NULL,
+  `c2` char(10) DEFAULT NULL,
+  `c3` char(10) DEFAULT 'c3_def'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 Select * from t2_compact;
 c1	c2	c3
 r1c1	r1c2	c3_def

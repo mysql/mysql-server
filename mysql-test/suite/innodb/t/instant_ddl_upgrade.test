@@ -39,21 +39,21 @@
 #  Insert into t1_compact values ("r3c1", "r3c2", "r3c3", "r3c4");
 #  Select * from t1_compact;
 #
-#  Create table t2_redundant (c1 char(10), c2 char(10));
+#  Create table t2_redundant (c1 char(10), c2 char(10))  ROW_FORMAT=REDUNDANT;
 #  Insert into t2_redundant values ("r1c1", "r1c2");
 #  Select * from t2_redundant;
 #  Alter table t2_redundant add column c3 char(10) default "c3_def", algorithm=INSTANT;
 #  Insert into t2_redundant values ("r2c1", "r2c2", "r2c3");
 #  Select * from t2_redundant;
 #
-#  Create table t2_dynamic (c1 char(10), c2 char(10));
+#  Create table t2_dynamic (c1 char(10), c2 char(10)) ROW_FORMAT=DYNAMIC;
 #  Insert into t2_dynamic values ("r1c1", "r1c2");
 #  Select * from t2_dynamic;
 #  Alter table t2_dynamic add column c3 char(10) default "c3_def", algorithm=INSTANT;
 #  Insert into t2_dynamic values ("r2c1", "r2c2", "r2c3");
 #  Select * from t2_dynamic;
 #
-#  Create table t2_compact (c1 char(10), c2 char(10));
+#  Create table t2_compact (c1 char(10), c2 char(10)) ROW_FORMAT=COMPACT;
 #  Insert into t2_compact values ("r1c1", "r1c2");
 #  Select * from t2_compact;
 #  Alter table t2_compact add column c3 char(10) default "c3_def", algorithm=INSTANT;

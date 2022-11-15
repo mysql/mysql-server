@@ -1,0 +1,78 @@
+# Test to check error message printed if both INSTANT and VERSION bits
+# are found set in record. This repro follows bug33788578 which will
+# come to the corresponding code path
+CREATE TABLE t1 (a TEXT) ENGINE=INNODB;
+INSERT INTO t1 (a) VALUES ('foo');
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 0, algorithm=instant;
+SELECT * FROM t1;
+a	b
+foo	0
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t1 ADD PRIMARY KEY (b);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	5	0	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+a	0	5	16711932	0
+b	1	6	1027	1
+SELECT * FROM t1;
+a	b
+foo	0
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` text,
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+# Simulate both record and instant bits set when reading record
+SET DEBUG = '+d,innodb_rec_instant_version_bit_set';
+UPDATE t1 SET b = 1;
+SET DEBUG = '-d,ER_IB_REC_INSTANT_VERSION_BIT_SET';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	5	0	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+a	0	5	16711932	0
+b	1	6	1027	1
+SELECT * FROM t1;
+a	b
+foo	1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` text,
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	5	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+a	0	5	16711932	0
+b	1	6	1283	0
+SELECT * FROM t1;
+a	b
+foo	1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` text,
+  `b` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+# Expect found
+Pattern "Record has both instant and version bit set in Table" found
+DROP TABLE t1;

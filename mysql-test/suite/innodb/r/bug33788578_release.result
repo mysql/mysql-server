@@ -1,0 +1,57 @@
+# Scenario 1: Fixes bug 34736760
+# 1.1: Redundant
+CREATE TABLE t1_redundant (num INT PRIMARY KEY) ROW_FORMAT=REDUNDANT;
+# Insert dummy data to increase time taken to complete ALTER rebuild
+# Table is inserted with 1, 2, 3, .. , 1000000
+SET SESSION cte_max_recursion_depth=10000000;
+INSERT INTO t1_redundant WITH RECURSIVE v AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM v WHERE n <= 1000000) SELECT n FROM v;
+ALTER TABLE t1_redundant ADD col INT DEFAULT 1, ALGORITHM=INSTANT;
+SELECT * FROM t1_redundant LIMIT 15;
+num	col
+1	1
+2	1
+3	1
+4	1
+5	1
+6	1
+7	1
+8	1
+9	1
+10	1
+11	1
+12	1
+13	1
+14	1
+15	1
+# Prepare the new instant column
+ALTER TABLE t1_redundant DROP PRIMARY KEY, ADD PRIMARY KEY (num, col);
+# Run the DML in online
+DELETE FROM t1_redundant WHERE num=1;
+SELECT * FROM t1_redundant LIMIT 15;
+num	col
+2	1
+3	1
+4	1
+5	1
+6	1
+7	1
+8	1
+9	1
+10	1
+11	1
+12	1
+13	1
+14	1
+15	1
+16	1
+SHOW CREATE TABLE t1_redundant;
+Table	Create Table
+t1_redundant	CREATE TABLE `t1_redundant` (
+  `num` int NOT NULL,
+  `col` int NOT NULL DEFAULT '1',
+  PRIMARY KEY (`num`,`col`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t1_redundant EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1_redundant	check	status	OK
+DROP TABLE t1_redundant;

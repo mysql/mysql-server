@@ -740,6 +740,164 @@ static inline uint32_t rec_get_n_fields_instant(const rec_t *rec,
   return (n_fields);
 }
 
+/* For INSTANT ADD/DROP, we may have following 5 types of rec for table :
+  +----------------------------------------------------------------------------+
+  |              SCENARIO                         |        STATE               |
+  |----------------------------------+------------+---------+------------------|
+  |            Row property          | V <= 8.0.28| Bit set | Stored on row    |
+  +----------------------------------+------------+---------+------------------+
+  | INSERTED before 1st INSTANT ADD  |     Y      | NONE    | N/A              |
+  |----------------------------------+------------+---------+------------------|
+  | INSERTED after 1st INSTANT ADD   |     Y      | INSTANT | # of fields      |
+  |----------------------------------+------------+---------+------------------|
+  | INSERTED before INSTANT ADD/DROP |     Y      | VERSION | Version = 0      |
+  |----------------------------------+------------+---------+------------------|
+  | INSERTED before INSTANT ADD/DROP |     N      | NONE    | N/A              |
+  |----------------------------------+------------+---------+------------------|
+  | INSERTED after INSTANT ADD/DROP  |     Y/N    | VERSION | row version      |
+  +----------------------------------------------------------------------------+
+*/
+enum REC_INSERT_STATE {
+  /* Record was inserted before first instant add done in the earlier
+  implementation. */
+  INSERTED_BEFORE_INSTANT_ADD_OLD_IMPLEMENTATION,
+  /* Record was inserted after first instant add done in the earlier
+  implementation. */
+  INSERTED_AFTER_INSTANT_ADD_OLD_IMPLEMENTATION,
+  /* Record was inserted after upgrade but before first instant add done in the
+  new implementation. */
+  INSERTED_AFTER_UPGRADE_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION,
+  /* Record was inserted before first instant add/drop done in the new
+  implementation. */
+  INSERTED_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION,
+  /* Record was inserted after first instant add/drop done in the new
+  implementation. */
+  INSERTED_AFTER_INSTANT_ADD_NEW_IMPLEMENTATION,
+  /* Record belongs to table with no verison no instant */
+  INSERTED_INTO_TABLE_WITH_NO_INSTANT_NO_VERSION,
+  NONE
+};
+
+static inline enum REC_INSERT_STATE get_rec_insert_state(
+    const dict_index_t *index, const rec_t *rec, bool temp) {
+  ut_ad(dict_table_is_comp(index->table) || temp);
+
+  if (!index->has_instant_cols_or_row_versions()) {
+    return INSERTED_INTO_TABLE_WITH_NO_INSTANT_NO_VERSION;
+  }
+
+  /* Position just before info-bits where version will be there if any */
+  const byte *v_ptr =
+      (byte *)rec -
+      ((temp ? REC_N_TMP_EXTRA_BYTES : REC_N_NEW_EXTRA_BYTES) + 1);
+  const bool is_versioned =
+      (temp) ? rec_new_temp_is_versioned(rec) : rec_new_is_versioned(rec);
+  const uint8_t version = (is_versioned) ? (uint8_t)(*v_ptr) : UINT8_UNDEFINED;
+
+  const bool is_instant = (temp) ? rec_get_instant_flag_new_temp(rec)
+                                 : rec_get_instant_flag_new(rec);
+
+  /* Only one of the two bits could be set */
+  DBUG_EXECUTE_IF("innodb_rec_instant_version_bit_set", {
+    ib::error() << "Record has both instant and version bit set in Table '"
+                << index->table_name << "', Index '" << index->name()
+                << "'. This indicates that the table may be corrupt. Please "
+                   "run CHECK TABLE before proceeding.";
+  });
+
+  if (is_versioned && is_instant) {
+    ib::error() << "Record has both instant and version bit set in Table '"
+                << index->table_name << "', Index '" << index->name()
+                << "'. This indicates that the table may be corrupt. Please "
+                   "run CHECK TABLE before proceeding.";
+  }
+  ut_ad(!is_versioned || !is_instant);
+
+  enum REC_INSERT_STATE rec_insert_state = REC_INSERT_STATE::NONE;
+  if (is_versioned) {
+    ut_a(is_valid_row_version(version));
+    if (version == 0) {
+      ut_ad(index->has_instant_cols());
+      rec_insert_state =
+          INSERTED_AFTER_UPGRADE_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION;
+    } else {
+      ut_ad(index->has_row_versions());
+      rec_insert_state = INSERTED_AFTER_INSTANT_ADD_NEW_IMPLEMENTATION;
+    }
+  } else if (is_instant) {
+    ut_ad(index->table->has_instant_cols());
+    rec_insert_state = INSERTED_AFTER_INSTANT_ADD_OLD_IMPLEMENTATION;
+  } else if (index->table->has_instant_cols()) {
+    rec_insert_state = INSERTED_BEFORE_INSTANT_ADD_OLD_IMPLEMENTATION;
+  } else {
+    rec_insert_state = INSERTED_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION;
+  }
+
+  ut_ad(rec_insert_state != REC_INSERT_STATE::NONE);
+  return rec_insert_state;
+}
+
+/* Following function is to set NULLS and LENS pointers correctly for a temp
+record generated for a record from REDUNDANT FORAMT
+@param[in]      index   record descriptor
+@param[in,out]  rec     temp record
+@param[out]     n_null  number of nullable columns in record
+@param[out]     nulls   pointer to nullbit map in temp record
+@param[out]     lens    pointer to lens in temp record
+@returns the row version stored in record or nondefault fields in record */
+static inline enum REC_INSERT_STATE init_nulls_lens_for_temp_redundant(
+    const dict_index_t *index, const rec_t *rec, uint16_t *n_null,
+    const byte **nulls, const byte **lens, uint16_t &non_default_fields,
+    uint8_t &row_version) {
+  ut_ad(!dict_table_is_comp(index->table));
+
+  non_default_fields = static_cast<uint16_t>(dict_index_get_n_fields(index));
+
+  row_version = UINT8_UNDEFINED;
+
+  /* Set nulls just before the record */
+  *nulls = rec - 1;
+
+  enum REC_INSERT_STATE rec_insert_state =
+      get_rec_insert_state(index, rec, true);
+
+  if (rec_insert_state == INSERTED_INTO_TABLE_WITH_NO_INSTANT_NO_VERSION) {
+    *n_null = index->n_nullable;
+    *lens = *nulls - UT_BITS_IN_BYTES(*n_null);
+    return rec_insert_state;
+  }
+
+  /* info-bits must be present. Shift nulls before that. */
+  *nulls -= REC_N_TMP_EXTRA_BYTES;
+
+  switch (rec_insert_state) {
+    case INSERTED_BEFORE_INSTANT_ADD_OLD_IMPLEMENTATION:
+    case INSERTED_AFTER_INSTANT_ADD_OLD_IMPLEMENTATION:
+    case INSERTED_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION: {
+      *n_null = index->get_nullable_in_version(0);
+      *lens = *nulls - UT_BITS_IN_BYTES(*n_null);
+    } break;
+
+    case INSERTED_AFTER_UPGRADE_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION:
+    case INSERTED_AFTER_INSTANT_ADD_NEW_IMPLEMENTATION: {
+      /* Read the version information */
+      row_version = (uint8_t)(**nulls);
+      ut_a(is_valid_row_version(row_version));
+
+      /* Shift nulls before the record version */
+      *nulls -= 1;
+      *n_null = index->get_nullable_in_version(row_version);
+    } break;
+
+    case INSERTED_INTO_TABLE_WITH_NO_INSTANT_NO_VERSION:
+    default:
+      ut_a(0);
+  }
+
+  *lens = *nulls - UT_BITS_IN_BYTES(*n_null);
+  return rec_insert_state;
+}
+
 /** Determines the information about null bytes and variable length bytes
 for a new-style temporary record
 @param[in]      rec             physical record
@@ -747,12 +905,13 @@ for a new-style temporary record
 @param[out]     nulls           the start of null bytes
 @param[out]     lens            the start of variable length bytes
 @param[out]     n_null          number of null fields
-@return the row version of record */
-static inline uint16_t rec_init_null_and_len_temp(const rec_t *rec,
-                                                  const dict_index_t *index,
-                                                  const byte **nulls,
-                                                  const byte **lens,
-                                                  uint16_t *n_null) {
+@param[out]     non_default_fields    non default fields from record
+@param[out]     row_version     row version of the record
+@return the row inserted state */
+static inline enum REC_INSERT_STATE rec_init_null_and_len_temp(
+    const rec_t *rec, const dict_index_t *index, const byte **nulls,
+    const byte **lens, uint16_t *n_null, uint16_t &non_default_fields,
+    uint8_t &row_version) {
   /* Following is the format for TEMP record.
   +----+----+-------------------+--------------------+
   | OP | ES |<-- Extra info --> | F1 | F2 | ...  | Fn|
@@ -765,67 +924,80 @@ static inline uint16_t rec_init_null_and_len_temp(const rec_t *rec,
    <------ LENS ------>
 
    where
-    info-bits => present iff instant bit or version bit is set.
+    info-bits => Present iff table has INSTANT/VERSION
     version   => version number iff version bit is set.
   */
 
-  uint16_t non_default_fields =
-      static_cast<uint16_t>(dict_index_get_n_fields(index));
+  /* Redundant format */
+  if (!dict_table_is_comp(index->table)) {
+    return init_nulls_lens_for_temp_redundant(index, rec, n_null, nulls, lens,
+                                              non_default_fields, row_version);
+  }
 
+  non_default_fields = static_cast<uint16_t>(dict_index_get_n_fields(index));
+
+  row_version = UINT8_UNDEFINED;
+
+  /* Set nulls just before the record */
   *nulls = rec - 1;
 
-  if (!index->has_instant_cols_or_row_versions()) {
+  const enum REC_INSERT_STATE rec_insert_state =
+      get_rec_insert_state(index, rec, true);
+
+  if (rec_insert_state == INSERTED_INTO_TABLE_WITH_NO_INSTANT_NO_VERSION) {
     *n_null = index->n_nullable;
     *lens = *nulls - UT_BITS_IN_BYTES(*n_null);
-    return (non_default_fields);
+    return rec_insert_state;
   }
 
-  uint8_t row_version = 0;
-  uint16_t ret = 0;
-
-  /* info bits are copied for record with versions or instant columns.
-  nulls must be before that. */
+  /* info-bits must be present. Shift nulls before that. */
   *nulls -= REC_N_TMP_EXTRA_BYTES;
 
-  if (rec_new_temp_is_versioned(rec)) {
-    ut_ad(index->table->has_row_versions());
+  switch (rec_insert_state) {
+    case INSERTED_AFTER_INSTANT_ADD_NEW_IMPLEMENTATION:
+    case INSERTED_AFTER_UPGRADE_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION: {
+      /* Read the version information */
+      row_version = (uint8_t)(**nulls);
+      ut_a(is_valid_row_version(row_version));
 
-    /* Read the version information */
-    row_version = (uint8_t)(**nulls);
-    /* For temp records, we write 0 as well for row_verison */
-    ut_ad(row_version <= MAX_ROW_VERSION);
+      /* Shift nulls before the record version */
+      *nulls -= 1;
 
-    /* Skip the version info */
-    *nulls -= 1;
+      *n_null = index->get_nullable_in_version(row_version);
+    } break;
 
-    *n_null = index->get_nullable_in_version(row_version);
-    ret = (uint16_t)row_version;
-  } else if (rec_get_instant_flag_new_temp(rec)) {
-    /* Row inserted after first instant ADD COLUMN V1 */
-    ut_ad(index->table->has_instant_cols());
-    uint16_t length;
-    non_default_fields =
-        rec_get_n_fields_instant(rec, REC_N_TMP_EXTRA_BYTES, &length);
-    ut_ad(length == 1 || length == 2);
+    case INSERTED_AFTER_INSTANT_ADD_OLD_IMPLEMENTATION: {
+      /* Row inserted after first instant ADD COLUMN V1 */
+      ut_ad(index->table->has_instant_cols());
+      uint16_t length;
+      non_default_fields =
+          rec_get_n_fields_instant(rec, REC_N_TMP_EXTRA_BYTES, &length);
+      ut_ad(length == 1 || length == 2);
 
-    *nulls -= length;
-    *n_null = index->get_n_nullable_before(non_default_fields);
-    ret = non_default_fields;
-  } else if (index->table->has_instant_cols()) {
-    /* Row inserted before first INSTANT ADD COLUMN in V1 */
-    *n_null = index->get_nullable_before_instant_add_drop();
-    non_default_fields = index->get_instant_fields();
-    ret = non_default_fields;
-  } else {
-    /* Row inserted before first INSTANT ADD/DROP in V2 */
-    ut_ad(row_version == 0);
-    *n_null = index->get_nullable_before_instant_add_drop();
-    ret = (uint16_t)row_version;
+      /* Shift nulls before "number of fields" */
+      *nulls -= length;
+      *n_null = index->get_n_nullable_before(non_default_fields);
+    } break;
+
+    case INSERTED_BEFORE_INSTANT_ADD_OLD_IMPLEMENTATION: {
+      *n_null = index->get_nullable_before_instant_add_drop();
+      non_default_fields = index->get_instant_fields();
+    } break;
+
+    case INSERTED_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION: {
+      /* Row inserted before first INSTANT ADD/DROP in V2 */
+      *n_null = index->get_nullable_before_instant_add_drop();
+    } break;
+
+    case INSERTED_INTO_TABLE_WITH_NO_INSTANT_NO_VERSION:
+    default:
+      ut_a(0);
   }
 
+  /* Position lens */
   *lens = *nulls - UT_BITS_IN_BYTES(*n_null);
 
-  return (ret);
+  return (rec_insert_state);
 }
 
 /** Determines the information about null bytes and variable length bytes
@@ -835,106 +1007,85 @@ for a new style record
 @param[out]     nulls           the start of null bytes
 @param[out]     lens            the start of variable length bytes
 @param[out]     n_null          number of null fields
+@param[out]     non_default_fields    non default fields from record
+@param[out]     row_version     row version of the record
 @return number of fields with no default or the row version of record */
-static inline uint16_t rec_init_null_and_len_comp(const rec_t *rec,
-                                                  const dict_index_t *index,
-                                                  const byte **nulls,
-                                                  const byte **lens,
-                                                  uint16_t *n_null) {
-  uint16_t non_default_fields =
-      static_cast<uint16_t>(dict_index_get_n_fields(index));
+static inline enum REC_INSERT_STATE rec_init_null_and_len_comp(
+    const rec_t *rec, const dict_index_t *index, const byte **nulls,
+    const byte **lens, uint16_t *n_null, uint16_t &non_default_fields,
+    uint8_t &row_version) {
+  non_default_fields = static_cast<uint16_t>(dict_index_get_n_fields(index));
+
+  row_version = UINT8_UNDEFINED;
 
   /* Position nulls */
   *nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
 
-  if (!index->has_instant_cols_or_row_versions()) {
-    ut_ad(!rec_get_instant_flag_new(rec));
-    ut_ad(!rec_new_is_versioned(rec));
+  const enum REC_INSERT_STATE rec_insert_state =
+      get_rec_insert_state(index, rec, false);
 
-    *n_null = index->n_nullable;
+  switch (rec_insert_state) {
+    case INSERTED_INTO_TABLE_WITH_NO_INSTANT_NO_VERSION: {
+      ut_ad(!rec_get_instant_flag_new(rec));
+      ut_ad(!rec_new_is_versioned(rec));
 
-    /* Position lens */
-    *lens = *nulls - UT_BITS_IN_BYTES(*n_null);
-    return (non_default_fields);
-  }
+      *n_null = index->n_nullable;
+    } break;
 
-  /* For INSTANT ADD/DROP, we may have following 5 types of rec for table :
-  +----------------------------------------------------------------------------+
-  |              SCENARIO                         |        STATE               |
-  |----------------------------------+------------+---------+------------------|
-  |            Row property          | V < 8.0.28 | Bit set | Stored on row    |
-  +----------------------------------+------------+---------+------------------+
-  | INSERTED before 1st INSTANT ADD  |     Y      | NONE    | N/A              |
-  |----------------------------------+------------+---------+------------------|
-  | INSERTED after 1st INSTANT ADD   |     Y      | INSTANT | # of fields      |
-  |----------------------------------+------------+---------+------------------|
-  | INSERTED before INSTANT ADD/DROP |     Y      | VERSION | Version = 0      |
-  |----------------------------------+------------+---------+------------------|
-  | INSERTED before INSTANT ADD/DROP |     N      | NONE    | N/A              |
-  |----------------------------------+------------+---------+------------------|
-  | INSERTED after INSTANT ADD/DROP  |     Y/N    | VERSION | row version      |
-  +----------------------------------------------------------------------------+
-  */
-
-  /* Only one of the two bits could be set */
-  ut_ad(!rec_new_is_versioned(rec) || !rec_get_instant_flag_new(rec));
-
-  uint8_t row_version = 0;
-  uint16_t ret = 0;
-
-  if (rec_new_is_versioned(rec)) {
-    ut_ad(!rec_get_instant_flag_new(rec));
-
-    /* Read the row version from record */
-    row_version = (uint8_t)(**nulls);
+    case INSERTED_AFTER_INSTANT_ADD_NEW_IMPLEMENTATION:
+    case INSERTED_AFTER_UPGRADE_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION: {
+      /* Read the row version from record */
+      row_version = (uint8_t)(**nulls);
+      ut_ad(is_valid_row_version(row_version));
 
 #ifdef UNIV_DEBUG
-    if (strcmp(index->name, RECOVERY_INDEX_TABLE_NAME) != 0) {
-      if (row_version > 0) {
-        /* Row inserted after first instant ADD/DROP COLUMN V2 */
-        ut_ad(index->table->has_row_versions());
-      } else {
-        /* Upgraded table. Row inserted before V2 INSTANT ADD/DROP */
-        ut_ad(index->table->is_upgraded_instant());
+      if (strcmp(index->name, RECOVERY_INDEX_TABLE_NAME) != 0) {
+        if (row_version > 0) {
+          /* Row inserted after first instant ADD/DROP COLUMN V2 */
+          ut_ad(index->table->has_row_versions());
+        } else {
+          /* Upgraded table. Row inserted before V2 INSTANT ADD/DROP */
+          ut_ad(index->table->is_upgraded_instant());
+        }
       }
-    }
 #endif
 
-    /* Reposition nulls */
-    *nulls -= 1;
-    *n_null = index->get_nullable_in_version(row_version);
-    ret = (uint16_t)row_version;
-  } else if (rec_get_instant_flag_new(rec)) {
-    ut_ad(!rec_new_is_versioned(rec));
-    ut_ad(index->table->has_instant_cols());
+      /* Reposition nulls to skip version */
+      *nulls -= 1;
+      *n_null = index->get_nullable_in_version(row_version);
+    } break;
 
-    /* Row inserted after first instant ADD COLUMN V1 */
-    uint16_t length;
-    non_default_fields =
-        rec_get_n_fields_instant(rec, REC_N_NEW_EXTRA_BYTES, &length);
-    ut_ad(length == 1 || length == 2);
+    case INSERTED_AFTER_INSTANT_ADD_OLD_IMPLEMENTATION: {
+      /* Row inserted after first instant ADD COLUMN V1 */
+      uint16_t length;
+      non_default_fields =
+          rec_get_n_fields_instant(rec, REC_N_NEW_EXTRA_BYTES, &length);
+      ut_ad(length == 1 || length == 2);
 
-    /* Reposition nulls */
-    *nulls -= length;
-    *n_null = index->calculate_n_instant_nullable(non_default_fields);
-    ret = non_default_fields;
-  } else if (index->table->has_instant_cols()) {
-    /* Row inserted before first INSTANT ADD COLUMN in V1 */
-    *n_null = index->get_nullable_before_instant_add_drop();
-    non_default_fields = index->get_instant_fields();
-    ret = non_default_fields;
-  } else { /* Not an INSTANT upgraded table */
-    /* Row inserted before first INSTANT ADD/DROP in V2 */
-    ut_ad(row_version == 0);
-    *n_null = index->get_nullable_before_instant_add_drop();
-    ret = (uint16_t)row_version;
+      /* Reposition nulls to skip number of fields */
+      *nulls -= length;
+      *n_null = index->calculate_n_instant_nullable(non_default_fields);
+    } break;
+
+    case INSERTED_BEFORE_INSTANT_ADD_OLD_IMPLEMENTATION: {
+      *n_null = index->get_nullable_before_instant_add_drop();
+      non_default_fields = index->get_instant_fields();
+    } break;
+
+    case INSERTED_BEFORE_INSTANT_ADD_NEW_IMPLEMENTATION: {
+      /* Row inserted before first INSTANT ADD/DROP in V2 */
+      *n_null = index->get_nullable_before_instant_add_drop();
+    } break;
+
+    default:
+      ut_ad(false);
   }
 
   /* Position lens */
   *lens = *nulls - UT_BITS_IN_BYTES(*n_null);
 
   /* Return record version or non_default_field stored */
-  return (ret);
+  return (rec_insert_state);
 }
 
 /** Determine the offset to each field in a leaf-page record in

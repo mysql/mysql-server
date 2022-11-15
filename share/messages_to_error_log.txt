@@ -12045,6 +12045,15 @@ ER_REQUIRE_TABLE_PRIMARY_KEY_CHECK_GENERATE_WITH_GR_IN_REPO
 ER_CHECK_TABLE_INSTANT_VERSION_BIT_SET
    eng "Record has both instant and version bit set."
 
+ER_GRP_RPL_PAXOS_SINGLE_LEADER_DIFF_FROM_OLD_GRP
+  eng "This member is configured with a group_replication_paxos_single_leader option value of 1 and it is trying to join a group with Communication Protocol Version below 8.0.27. In order to join this group, group_replication_paxos_single_leader value must be configured to the value 0. This member will now exit the group."
+
+ER_IB_WRN_IGNORE_REDO_LOG_CAPACITY
+  eng "Ignored the innodb-redo-log-capacity option in the Innodb read-only mode. Server is using active redo log files."
+
+ER_IB_PRIMARY_KEY_IS_INSTANT
+  eng "Unexpected INSTANLY Added / Dropped column: '%s' at position %lu for Table '%s', Index '%s' while getting Primary Key for row logging"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

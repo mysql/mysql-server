@@ -1,0 +1,74 @@
+CREATE TABLE t1 (a TEXT) ENGINE=INNODB;
+INSERT INTO t1 (a) VALUES ('foo');
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 0, algorithm=instant;
+SELECT * FROM t1;
+a	b
+foo	0
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t1 ADD PRIMARY KEY (b);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	5	0	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+a	0	5	16711932	0
+b	1	6	1027	1
+SELECT * FROM t1;
+a	b
+foo	0
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` text,
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+# Simulate incorrect instant field fetch when reading field from record written with primary index
+SET DEBUG = '+d,incorrect_instant_add_drop_field_fetched';
+UPDATE t1 SET b = 1;
+ERROR HY000: Incorrect key file for table 't1'; try to repair it
+SET DEBUG = '-d,incorrect_instant_add_drop_field_fetched';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	5	0	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+a	0	5	16711932	0
+b	1	6	1027	1
+SELECT * FROM t1;
+a	b
+foo	0
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` text,
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+ERROR HY000: Index PRIMARY is corrupted
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1	5	0	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+a	0	5	16711932	0
+b	1	6	1027	1
+SELECT * FROM t1;
+a	b
+foo	0
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` text,
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;

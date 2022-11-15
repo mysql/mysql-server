@@ -1,0 +1,68 @@
+--source include/have_debug.inc
+
+--echo # Test to check error message printed if both INSTANT and VERSION bits
+--echo # are found set in record. This repro follows bug33788578 which will
+--echo # come to the corresponding code path
+
+--disable_query_log
+call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Record has both instant and version bit set in Table *");
+--enable_query_log
+
+CREATE TABLE t1 (a TEXT) ENGINE=INNODB;
+INSERT INTO t1 (a) VALUES ('foo');
+
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 0, algorithm=instant;
+SELECT * FROM t1;
+
+--let $table_name = t1
+
+connect (con1,localhost,root,,);
+
+connection con1;
+
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+send;
+
+ALTER TABLE t1 ADD PRIMARY KEY (b);
+
+connection default;
+
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+
+--source suite/innodb/include/print_instant_part_metadata.inc
+SELECT * FROM t1;
+SHOW CREATE TABLE t1;
+CHECK TABLE t1;
+
+--echo # Simulate both record and instant bits set when reading record
+
+SET DEBUG = '+d,innodb_rec_instant_version_bit_set';
+
+UPDATE t1 SET b = 1;
+
+SET DEBUG = '-d,ER_IB_REC_INSTANT_VERSION_BIT_SET';
+
+--source suite/innodb/include/print_instant_part_metadata.inc
+SELECT * FROM t1;
+SHOW CREATE TABLE t1;
+CHECK TABLE t1;
+
+SET DEBUG_SYNC='now SIGNAL update_done';
+
+connection con1;
+reap;
+
+connection default;
+disconnect con1;
+
+--source suite/innodb/include/print_instant_part_metadata.inc
+SELECT * FROM t1;
+SHOW CREATE TABLE t1;
+CHECK TABLE t1;
+
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--echo # Expect found
+--let SEARCH_PATTERN= Record has both instant and version bit set in Table
+--source include/search_pattern.inc
+
+DROP TABLE t1;

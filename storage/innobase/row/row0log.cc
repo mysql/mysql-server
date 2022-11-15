@@ -293,6 +293,7 @@ void row_log_online_op(
   ut_ad(dtuple_get_n_fields(tuple) == dict_index_get_n_fields(index));
   ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_S) ||
         rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
+  ut_ad(!index->is_clustered());
 
   if (index->is_corrupted()) {
     return;
@@ -304,6 +305,7 @@ void row_log_online_op(
   because here we do not encode extra_size+1 (and reserve 0 as the
   end-of-chunk marker). */
 
+  /* Secondary index, version doesn't matter */
   size = rec_get_serialize_size(index, tuple->fields, tuple->n_fields, nullptr,
                                 &extra_size, MAX_ROW_VERSION);
   ut_ad(size >= extra_size);
@@ -352,7 +354,7 @@ void row_log_online_op(
   }
 
   rec_serialize_dtuple(b + extra_size, index, tuple->fields, tuple->n_fields,
-                       nullptr);
+                       nullptr, MAX_ROW_VERSION);
   b += size;
 
   if (mrec_size >= avail_size) {
@@ -603,7 +605,7 @@ void row_log_table_delete(
         dtuple_get_nth_field(old_pk, old_pk->n_fields - 2)->len);
   ut_ad(DATA_ROLL_PTR_LEN ==
         dtuple_get_nth_field(old_pk, old_pk->n_fields - 1)->len);
-  old_pk_size =
+  old_pk_size = /* because it's PK, (changed or not), version doesn't matter */
       rec_get_serialize_size(new_index, old_pk->fields, old_pk->n_fields,
                              nullptr, &old_pk_extra_size, MAX_ROW_VERSION);
   ut_ad(old_pk_extra_size < 0x100);
@@ -623,13 +625,13 @@ void row_log_table_delete(
     *b++ = static_cast<byte>(old_pk_extra_size);
 
     rec_serialize_dtuple(b + old_pk_extra_size, new_index, old_pk->fields,
-                         old_pk->n_fields, nullptr);
+                         old_pk->n_fields, nullptr, MAX_ROW_VERSION);
 
     b += old_pk_size;
 
     /* log virtual columns */
     if (ventry->n_v_fields > 0) {
-      rec_serialize_dtuple(b, new_index, nullptr, 0, ventry);
+      rec_serialize_dtuple(b, new_index, nullptr, 0, ventry, MAX_ROW_VERSION);
       b += mach_read_from_2(b);
     } else if (index->table->n_v_cols) {
       mach_write_to_2(b, 2);
@@ -667,12 +669,13 @@ static void row_log_table_low_redundant(const rec_t *rec,
   ut_ad(!dict_table_is_comp(index->table)); /* redundant row format */
   ut_ad(new_index->is_clustered());
 
-  uint8_t rec_version = 0;
-  bool has_instant_version = false;
+  uint8_t rec_version = UINT8_UNDEFINED;
+  bool rec_has_version = false;
   if (rec_old_is_versioned(rec)) {
-    ut_ad(index->has_row_versions());
-    has_instant_version = true;
     rec_version = rec_get_instant_row_version_old(rec);
+    ut_ad(is_valid_row_version(rec_version));
+    ut_ad(index->has_row_versions() || rec_version == 0);
+    rec_has_version = true;
   }
 
   const auto n_total_fields = index->get_n_total_fields();
@@ -726,9 +729,8 @@ static void row_log_table_low_redundant(const rec_t *rec,
   ulint size = rec_get_serialize_size(index, tuple->fields, tuple->n_fields,
                                       ventry, &extra_size, rec_version);
 
-  /* If INSTANT, we need 2 extra bytes to store info bits and version */
-  uint32_t additional_size_for_instant =
-      index->has_row_versions() ? (has_instant_version ? 2 : 1) : 0;
+  const size_t additional_size_for_instant = get_extra_bytes_for_temp_redundant(
+      index, is_valid_row_version(rec_version));
 
   extra_size += additional_size_for_instant;
 
@@ -758,6 +760,7 @@ static void row_log_table_low_redundant(const rec_t *rec,
     ut_ad(DATA_ROLL_PTR_LEN ==
           dtuple_get_nth_field(old_pk, old_pk->n_fields - 1)->len);
 
+    /* PK fileds, version doesn't matter. */
     old_pk_size =
         rec_get_serialize_size(new_index, old_pk->fields, old_pk->n_fields,
                                nullptr, &old_pk_extra_size, MAX_ROW_VERSION);
@@ -772,9 +775,9 @@ static void row_log_table_low_redundant(const rec_t *rec,
 
     if (old_pk_size) {
       *b++ = static_cast<byte>(old_pk_extra_size);
-
+      /* It's PK fields for new table, version doesn't matter. */
       rec_serialize_dtuple(b + old_pk_extra_size, new_index, old_pk->fields,
-                           old_pk->n_fields, ventry);
+                           old_pk->n_fields, ventry, UINT8_UNDEFINED);
       b += old_pk_size;
     }
 
@@ -792,30 +795,30 @@ static void row_log_table_low_redundant(const rec_t *rec,
                          ventry, rec_version);
 
     /* Write instant metadata in 1 or 2 bytes */
-    if (index->has_row_versions()) {
-      /* Write info bit in 1 byte to indicate INSTANT */
+    if (index->has_instant_cols_or_row_versions()) {
+      /* Write infobit in 1 byte */
       byte *temp_rec = b + extra_size;
       rec_set_info_bits_new_temp(temp_rec, rec_get_info_bits(rec, false));
-      if (has_instant_version) {
+      if (rec_has_version) {
         rec_new_temp_set_versioned(temp_rec, true);
         /* Write the record version in 1 byte */
         byte *temp_version = temp_rec - 2;
         memcpy(temp_version, &rec_version, sizeof(uint8_t));
-        b += 1;
       } else {
         rec_new_temp_set_versioned(temp_rec, false);
       }
-
-      /* Move 'b' to past INSTANT metadata */
-      b += 1;
     }
+
+    /* Move 'b' to past INSTANT metadata */
+    b += additional_size_for_instant;
 
     /* Move 'b' to past record data */
     b += size;
 
     if (num_v) {
       if (o_ventry) {
-        rec_serialize_dtuple(b, new_index, nullptr, 0, o_ventry);
+        rec_serialize_dtuple(b, new_index, nullptr, 0, o_ventry,
+                             MAX_ROW_VERSION);
         b += mach_read_from_2(b);
       }
     } else if (index->table->n_v_cols) {
@@ -881,8 +884,9 @@ static void row_log_table_low(const rec_t *rec, const dtuple_t *ventry,
   ut_ad(rec_get_status(rec) == REC_STATUS_ORDINARY);
 
   /* Check the instant to decide copying info bit or not */
-  ulint omit_size = REC_N_NEW_EXTRA_BYTES -
-                    (index->has_row_versions() ? REC_N_TMP_EXTRA_BYTES : 0);
+  ulint omit_size =
+      REC_N_NEW_EXTRA_BYTES -
+      (index->has_instant_cols_or_row_versions() ? REC_N_TMP_EXTRA_BYTES : 0);
 
   ulint extra_size = rec_offs_extra_size(offsets) - omit_size;
 
@@ -922,7 +926,7 @@ static void row_log_table_low(const rec_t *rec, const dtuple_t *ventry,
           dtuple_get_nth_field(old_pk, old_pk->n_fields - 2)->len);
     ut_ad(DATA_ROLL_PTR_LEN ==
           dtuple_get_nth_field(old_pk, old_pk->n_fields - 1)->len);
-
+    /* PK fields. version doesn't matter. */
     old_pk_size =
         rec_get_serialize_size(new_index, old_pk->fields, old_pk->n_fields,
                                nullptr, &old_pk_extra_size, MAX_ROW_VERSION);
@@ -938,9 +942,9 @@ static void row_log_table_low(const rec_t *rec, const dtuple_t *ventry,
       ut_ad(!insert);
 
       *b++ = static_cast<byte>(old_pk_extra_size);
-
+      /* PK fields. version doesn't matter. */
       rec_serialize_dtuple(b + old_pk_extra_size, new_index, old_pk->fields,
-                           old_pk->n_fields, nullptr);
+                           old_pk->n_fields, nullptr, MAX_ROW_VERSION);
       b += old_pk_size;
     }
 
@@ -960,13 +964,14 @@ static void row_log_table_low(const rec_t *rec, const dtuple_t *ventry,
     if (ventry && ventry->n_v_fields > 0) {
       uint64_t new_v_size;
 
-      rec_serialize_dtuple(b, new_index, nullptr, 0, ventry);
+      rec_serialize_dtuple(b, new_index, nullptr, 0, ventry, MAX_ROW_VERSION);
       new_v_size = mach_read_from_2(b);
       b += new_v_size;
 
       /* Nothing for new entry to be logged, skip the old one too. */
       if (new_v_size != 2 && o_ventry != nullptr) {
-        rec_serialize_dtuple(b, new_index, nullptr, 0, o_ventry);
+        rec_serialize_dtuple(b, new_index, nullptr, 0, o_ventry,
+                             MAX_ROW_VERSION);
         b += mach_read_from_2(b);
       }
     } else if (index->table->n_v_cols) {
@@ -1039,7 +1044,16 @@ static dberr_t row_log_table_get_pk_col(dict_index_t *index,
   const byte *field;
   ulint len;
 
-  field = rec_get_nth_field(nullptr, rec, offsets, i, &len);
+  field = rec_get_nth_field_instant(rec, offsets, i, index, &len);
+
+  DBUG_EXECUTE_IF("incorrect_instant_add_drop_field_fetched", field = nullptr;);
+
+  ut_ad(len != UNIV_SQL_ADD_COL_DEFAULT);
+  if (field == nullptr) {
+    ib::error(ER_IB_PRIMARY_KEY_IS_INSTANT, index->get_field(i)->name(),
+              ulong{i}, index->table_name, index->name());
+    return (DB_INDEX_CORRUPT);
+  }
 
   if (len == UNIV_SQL_NULL) {
     return (DB_INVALID_NULL);

@@ -918,7 +918,7 @@ This is only needed for table after instant ADD/DROP COLUMN.
 static inline void rec_set_instant_row_version_new(rec_t *rec,
                                                    uint8_t row_version) {
   /* Note : row_version might be 0 while storing a new row in upgraded table */
-  ut_ad(row_version <= MAX_ROW_VERSION);
+  ut_ad(is_valid_row_version(row_version));
 
   byte *ptr = rec - (REC_N_NEW_EXTRA_BYTES + 1);
   *ptr = static_cast<byte>(row_version);
@@ -933,7 +933,7 @@ static inline uint8_t rec_get_instant_row_version_new(const rec_t *rec) {
   const byte *ptr = rec - (REC_N_NEW_EXTRA_BYTES + 1);
   row_version = *ptr;
   /* For upgraded table, we store version 0 */
-  ut_ad(row_version <= MAX_ROW_VERSION);
+  ut_ad(is_valid_row_version(row_version));
 
   return row_version;
 }
@@ -945,7 +945,7 @@ This is only needed for table after instant ADD/DROP COLUMN.
 static inline void rec_set_instant_row_version_old(rec_t *rec,
                                                    uint8_t row_version) {
   /* Note : row_version might be 0 while storing a new row in upgraded table */
-  ut_ad(row_version <= MAX_ROW_VERSION);
+  ut_ad(is_valid_row_version(row_version));
 
   byte *ptr = rec - (REC_N_OLD_EXTRA_BYTES + 1);
   *ptr = static_cast<byte>(row_version);
@@ -958,7 +958,7 @@ This is only needed for table after instant ADD/DROP COLUMN.
 static inline uint8_t rec_get_instant_row_version_old(const rec_t *rec) {
   const byte *ptr = rec - (REC_N_OLD_EXTRA_BYTES + 1);
   uint8_t row_version = *ptr;
-  ut_ad(row_version <= MAX_ROW_VERSION);
+  ut_ad(is_valid_row_version(row_version));
 
   return row_version;
 }

@@ -1,0 +1,366 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_lowercase0.inc
+
+--echo # Scenario 1: Bug 33788578 for simple table
+--echo # 1.1: Redundant
+CREATE TABLE t1_redundant (a TEXT) ENGINE=INNODB, ROW_FORMAT=REDUNDANT;
+INSERT INTO t1_redundant (a) VALUES ('foo');
+--let $table_name = t1_redundant
+--let $pk_col = b
+--let $upd_col = b
+--eval ALTER TABLE $table_name ADD COLUMN $pk_col INT DEFAULT 0, ALGORITHM=INSTANT;
+--source suite/innodb/include/bug33788578.inc
+
+--echo # 1.2: Compact
+CREATE TABLE t1_compact (a TEXT) ENGINE=INNODB, ROW_FORMAT=COMPACT;
+INSERT INTO t1_compact (a) VALUES ('foo');
+--let $table_name = t1_compact
+--let $pk_col = b
+--let $upd_col = b
+--eval ALTER TABLE $table_name ADD COLUMN $pk_col INT DEFAULT 0, ALGORITHM=INSTANT;
+--source suite/innodb/include/bug33788578.inc
+
+--echo # 1.3: Dynamic
+CREATE TABLE t1_dynamic (a TEXT) ENGINE=INNODB, ROW_FORMAT=DYNAMIC;
+INSERT INTO t1_dynamic (a) VALUES ('foo');
+--let $table_name = t1_dynamic
+--let $pk_col = b
+--let $upd_col = b
+--eval ALTER TABLE $table_name ADD COLUMN $pk_col INT DEFAULT 0, ALGORITHM=INSTANT;
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Scenario 2: Delete scenarios
+--echo # 2.1 Redundant
+CREATE TABLE t1_redundant (a TEXT) ENGINE=INNODB, ROW_FORMAT=REDUNDANT;
+INSERT INTO t1_redundant VALUES ('foo');
+ALTER TABLE t1_redundant ADD COLUMN col INT DEFAULT 20, ALGORITHM=INSTANT;
+INSERT INTO t1_redundant VALUES ('row2', 22);
+--let $table_name = t1_redundant
+--let $pk_col = b
+--let $del_col = col
+--let $del_val = 22
+--let $sel_col = a
+--let $sel_val = row2
+--eval ALTER TABLE $table_name ADD COLUMN $pk_col INT DEFAULT 0, ALGORITHM=INSTANT;
+--source suite/innodb/include/bug33788578_del.inc
+
+--echo # 2.2 Compact
+CREATE TABLE t1_compact (a TEXT) ENGINE=INNODB, ROW_FORMAT=COMPACT;
+INSERT INTO t1_compact VALUES ('foo');
+ALTER TABLE t1_compact ADD COLUMN col INT DEFAULT 20, ALGORITHM=INSTANT;
+INSERT INTO t1_compact VALUES ('row2', 22);
+--let $table_name = t1_compact
+--let $pk_col = b
+--let $del_col = col
+--let $del_val = 22
+--let $sel_col = a
+--let $sel_val = row2
+--eval ALTER TABLE $table_name ADD COLUMN $pk_col INT DEFAULT 0, ALGORITHM=INSTANT;
+--source suite/innodb/include/bug33788578_del.inc
+
+--echo # 2.3 Dynamic
+CREATE TABLE t1_dynamic (a TEXT) ENGINE=INNODB, ROW_FORMAT=DYNAMIC;
+INSERT INTO t1_dynamic VALUES ('foo');
+ALTER TABLE t1_dynamic ADD COLUMN col INT DEFAULT 20, ALGORITHM=INSTANT;
+INSERT INTO t1_dynamic VALUES ('row2', 22);
+--let $table_name = t1_dynamic
+--let $pk_col = b
+--let $del_col = col
+--let $del_val = 22
+--let $sel_col = a
+--let $sel_val = row2
+--eval ALTER TABLE $table_name ADD COLUMN $pk_col INT DEFAULT 0, ALGORITHM=INSTANT;
+--source suite/innodb/include/bug33788578_del.inc
+
+--echo # Scenario 2: Upgrade from previous instant algorithm
+--echo # Table was created in version 8.0.28 with:
+--echo # -----------------------------------------
+--echo # DROP DATABASE IF EXISTS test;
+--echo # CREATE DATABASE IF NOT EXISTS test;
+--echo # USE test;
+--echo #
+--echo # CREATE TABLE t1_redundant (c1 TEXT) ENGINE=INNODB, ROW_FORMAT=REDUNDANT;
+--echo # ALTER TABLE t1_redundant ADD COLUMN c2 INT DEFAULT 0, ALGORITHM=INSTANT;
+--echo # INSERT INTO t1_redundant VALUES ("c2", 2);
+--echo #
+--echo # CREATE TABLE t1_dynamic (c1 TEXT) ENGINE=INNODB, ROW_FORMAT=DYNAMIC;
+--echo # ALTER TABLE t1_dynamic ADD COLUMN c2 INT DEFAULT 0, ALGORITHM=INSTANT;
+--echo # INSERT INTO t1_dynamic VALUES ("c2", 2);
+--echo #
+--echo # CREATE TABLE t1_compact (c1 TEXT) ENGINE=INNODB, ROW_FORMAT=COMPACT;
+--echo # ALTER TABLE t1_compact ADD COLUMN c2 INT DEFAULT 0, ALGORITHM=INSTANT;
+--echo # INSERT INTO t1_compact VALUES ("c2", 2);
+--echo #
+--echo # CREATE TABLE t2_redundant (c1 TEXT) ENGINE=INNODB, ROW_FORMAT=REDUNDANT;
+--echo # ALTER TABLE t2_redundant ADD COLUMN c2 INT DEFAULT 0, ALGORITHM=INSTANT;
+--echo # INSERT INTO t2_redundant VALUES ("c2", 2);
+--echo #
+--echo # CREATE TABLE t2_dynamic (c1 TEXT) ENGINE=INNODB, ROW_FORMAT=DYNAMIC;
+--echo # ALTER TABLE t2_dynamic ADD COLUMN c2 INT DEFAULT 0, ALGORITHM=INSTANT;
+--echo # INSERT INTO t2_dynamic VALUES ("c2", 2);
+--echo #
+--echo # CREATE TABLE t2_compact (c1 TEXT) ENGINE=INNODB, ROW_FORMAT=COMPACT;
+--echo # ALTER TABLE t2_compact ADD COLUMN c2 INT DEFAULT 0, ALGORITHM=INSTANT;
+--echo # INSERT INTO t2_compact VALUES ("c2", 2);
+--echo #
+--echo # CREATE TABLE t3_redundant (c1 TEXT) ENGINE=INNODB, ROW_FORMAT=REDUNDANT;
+--echo # INSERT INTO t3_redundant VALUES ('foo');
+--echo # ALTER TABLE t3_redundant ADD COLUMN c2 INT DEFAULT 20, ALGORITHM=INSTANT;
+--echo # INSERT INTO t3_redundant VALUES ('row2', 22);
+--echo #
+--echo # CREATE TABLE t3_dynamic (c1 TEXT) ENGINE=INNODB, ROW_FORMAT=DYNAMIC;
+--echo # INSERT INTO t3_dynamic VALUES ('foo');
+--echo # ALTER TABLE t3_dynamic ADD COLUMN c2 INT DEFAULT 20, ALGORITHM=INSTANT;
+--echo # INSERT INTO t3_dynamic VALUES ('row2', 22);
+--echo #
+--echo # CREATE TABLE t3_compact (c1 TEXT) ENGINE=INNODB, ROW_FORMAT=COMPACT;
+--echo # INSERT INTO t3_compact VALUES ('foo');
+--echo # ALTER TABLE t3_compact ADD COLUMN c2 INT DEFAULT 20, ALGORITHM=INSTANT;
+--echo # INSERT INTO t3_compact VALUES ('row2', 22);
+--echo #
+--echo # CREATE TABLE t4_redundant (c1 text, c2 int default 20, c3 int not null) ROW_FORMAT=REDUNDANT, ENGINE=INNODB;
+--echo # ALTER TABLE t4_redundant ADD COLUMN c4 INT NOT NULL DEFAULT 40, ALGORITHM=INSTANT;
+--echo # INSERT INTO t4_redundant VALUES ("row1", 2, 3, 4);
+--echo # INSERT INTO t4_redundant (c1, c3) VALUES ("row2", 33);
+--echo # INSERT INTO t4_redundant VALUES ("row3", 222, 333, 444);
+
+--echo # -----------------------------------------
+--echo # Replace data directory for upgrade
+--source include/shutdown_mysqld.inc
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/bug33788578.zip $MYSQL_TMP_DIR/bug33788578.zip
+--file_exists $MYSQL_TMP_DIR/bug33788578.zip
+--exec unzip -qo $MYSQL_TMP_DIR/bug33788578.zip -d $MYSQL_TMP_DIR
+let $DATADIR = $MYSQL_TMP_DIR/data;
+
+--echo # Restart the server
+--replace_result $DATADIR DATADIR
+--let $restart_parameters = restart: --datadir=$DATADIR
+--let $wait_counter=3000
+--source include/start_mysqld.inc
+
+SHOW TABLES;
+
+--echo # Upgrade Scenario 1: Bug 33788578 for upgraded table
+--echo # 1.1 Dynamic
+--let $table_name = t1_dynamic
+--let $pk_col = b
+--let $upd_col = b
+--eval ALTER TABLE $table_name ADD COLUMN $pk_col INT DEFAULT 0, ALGORITHM=INSTANT;
+--source suite/innodb/include/bug33788578.inc
+
+--echo # 1.2 Compact
+--let $table_name = t1_compact
+--let $pk_col = b
+--let $upd_col = b
+--eval ALTER TABLE $table_name ADD COLUMN $pk_col INT DEFAULT 0, ALGORITHM=INSTANT;
+--source suite/innodb/include/bug33788578.inc
+
+--echo # 1.3 Redundant
+--let $table_name = t1_redundant
+--let $pk_col = b
+--let $upd_col = b
+--eval ALTER TABLE $table_name ADD COLUMN $pk_col INT DEFAULT 0, ALGORITHM=INSTANT;
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Upgrade Scenario 2: set primary key as previous instant added
+--echo # 2.1 Dynamic
+--let $table_name = t2_dynamic
+--let $pk_col = b
+--let $upd_col = c2
+--eval ALTER TABLE $table_name ADD COLUMN $pk_col INT DEFAULT 0, ALGORITHM=INSTANT;
+--source suite/innodb/include/bug33788578.inc
+
+--echo # 2.2 Compact
+--let $table_name = t2_compact
+--let $pk_col = b
+--let $upd_col = c2
+--eval ALTER TABLE $table_name ADD COLUMN $pk_col INT DEFAULT 0, ALGORITHM=INSTANT;
+--source suite/innodb/include/bug33788578.inc
+
+--echo # 2.3 Redundant
+--let $table_name = t2_redundant
+--let $pk_col = b
+--let $upd_col = c2
+--eval ALTER TABLE $table_name ADD COLUMN $pk_col INT DEFAULT 0, ALGORITHM=INSTANT;
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Upgrade scenario 3: delete during online DDL
+--echo # 3.1 Dynamic
+--let $table_name = t3_dynamic
+--let $pk_col = b
+--let $del_col = c2
+--let $del_val = 22
+--let $sel_col = c1
+--let $sel_val = row2
+--eval ALTER TABLE $table_name ADD COLUMN $pk_col INT DEFAULT 0, ALGORITHM=INSTANT;
+--source suite/innodb/include/bug33788578_del.inc
+
+--echo # 3.2 Compact
+--let $table_name = t3_compact
+--let $pk_col = b
+--let $del_col = c2
+--let $del_val = 22
+--let $sel_col = c1
+--let $sel_val = row2
+--eval ALTER TABLE $table_name ADD COLUMN $pk_col INT DEFAULT 0, ALGORITHM=INSTANT;
+--source suite/innodb/include/bug33788578_del.inc
+
+--echo # 3.3 Redundant
+--let $table_name = t3_redundant
+--let $pk_col = b
+--let $del_col = c2
+--let $del_val = 22
+--let $sel_col = c1
+--let $sel_val = row2
+--eval ALTER TABLE $table_name ADD COLUMN $pk_col INT DEFAULT 0, ALGORITHM=INSTANT;
+--source suite/innodb/include/bug33788578_del.inc
+
+--echo # Redundant related scenarios
+--echo # 1. index->table->has_row_versions() is false
+SELECT * FROM t4_redundant;
+SHOW CREATE TABLE t4_redundant;
+CHECK TABLE t4_redundant;
+
+connect (con1,localhost,root,,);
+
+connection con1;
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+send;
+ALTER TABLE t4_redundant ADD PRIMARY KEY (c3);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+
+SELECT * FROM t4_redundant;
+SHOW CREATE TABLE t4_redundant;
+CHECK TABLE t4_redundant;
+
+UPDATE t4_redundant SET c2 = 2222;
+
+SELECT * FROM t4_redundant;
+SHOW CREATE TABLE t4_redundant;
+CHECK TABLE t4_redundant;
+
+SET DEBUG_SYNC='now SIGNAL update_done';
+
+connection con1;
+reap;
+
+connection default;
+disconnect con1;
+
+SELECT * FROM t4_redundant;
+SHOW CREATE TABLE t4_redundant;
+CHECK TABLE t4_redundant;
+
+DROP TABLE t4_redundant;
+
+--echo # 2. index->table->has_row_versions() is true and rec_new_temp_is_versioned(rec) is false
+
+CREATE TABLE t5_redundant (c1 TEXT, c2 INT DEFAULT 20, c3 INT NOT NULL) ROW_FORMAT=REDUNDANT, ENGINE=INNODB;
+
+INSERT INTO t5_redundant VALUES ("row1", 2, 3);
+INSERT INTO t5_redundant (c1, c3) VALUES ("row2", 33);
+
+ALTER TABLE t5_redundant ADD COLUMN c4 INT NOT NULL DEFAULT 40, ALGORITHM=INSTANT;
+
+SELECT * FROM t5_redundant;
+SHOW CREATE TABLE t5_redundant;
+CHECK TABLE t5_redundant;
+
+connect (con1,localhost,root,,);
+
+connection con1;
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+send;
+ALTER TABLE t5_redundant ADD PRIMARY KEY (c3);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+
+SELECT * FROM t5_redundant;
+SHOW CREATE TABLE t5_redundant;
+CHECK TABLE t5_redundant;
+
+UPDATE t5_redundant SET c2 = 2222;
+
+SELECT * FROM t5_redundant;
+SHOW CREATE TABLE t5_redundant;
+CHECK TABLE t5_redundant;
+
+SET DEBUG_SYNC='now SIGNAL update_done';
+
+connection con1;
+reap;
+
+connection default;
+disconnect con1;
+
+SELECT * FROM t5_redundant;
+SHOW CREATE TABLE t5_redundant;
+CHECK TABLE t5_redundant;
+
+DROP TABLE t5_redundant;
+
+--echo # 3. index->table->has_row_versions() is true and rec_new_temp_is_versioned(rec) is true
+
+CREATE TABLE t6_redundant (c1 TEXT, c2 INT DEFAULT 20, c3 INT NOT NULL) ROW_FORMAT=REDUNDANT, ENGINE=INNODB;
+
+ALTER TABLE t6_redundant ADD COLUMN c4 INT NOT NULL DEFAULT 40, ALGORITHM=INSTANT;
+
+INSERT INTO t6_redundant VALUES ("row1", 2, 3, 4);
+INSERT INTO t6_redundant (c1, c3) VALUES ("row2", 33);
+
+SELECT * FROM t6_redundant;
+SHOW CREATE TABLE t6_redundant;
+CHECK TABLE t6_redundant;
+
+connect (con1,localhost,root,,);
+
+connection con1;
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+send;
+ALTER TABLE t6_redundant ADD PRIMARY KEY (c3);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+
+SELECT * FROM t6_redundant;
+SHOW CREATE TABLE t6_redundant;
+CHECK TABLE t6_redundant;
+
+UPDATE t6_redundant SET c2 = 2222;
+
+SELECT * FROM t6_redundant;
+SHOW CREATE TABLE t6_redundant;
+CHECK TABLE t6_redundant;
+
+SET DEBUG_SYNC='now SIGNAL update_done';
+
+connection con1;
+reap;
+
+connection default;
+disconnect con1;
+
+SELECT * FROM t6_redundant;
+SHOW CREATE TABLE t6_redundant;
+CHECK TABLE t6_redundant;
+
+DROP TABLE t6_redundant;
+
+--echo # Cleanup
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Remove temp files used
+--file_exists $MYSQL_TMP_DIR/bug33788578.zip
+--force-rmdir $MYSQL_TMP_DIR/data
+--remove_file $MYSQL_TMP_DIR/bug33788578.zip
+
+--echo # Restart server to restore server state
+let $restart_parameters =;
+--source include/start_mysqld.inc
+
+--echo # End

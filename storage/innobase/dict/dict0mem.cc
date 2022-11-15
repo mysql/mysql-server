@@ -620,12 +620,12 @@ bool dict_index_t::is_usable(const trx_t *trx) const {
 
 void dict_index_t::create_nullables(uint32_t current_row_version) {
   ut_ad(is_clustered());
-  ut_ad(current_row_version <= MAX_ROW_VERSION);
+  ut_ad(is_valid_row_version(current_row_version));
 
   memset(nullables, 0, (MAX_ROW_VERSION + 1) * sizeof(nullables[0]));
 
   auto update_nullable = [&](size_t start_version, bool is_increment) {
-    ut_ad(start_version <= MAX_ROW_VERSION);
+    ut_ad(is_valid_row_version(start_version));
     for (size_t i = start_version; i <= current_row_version; i++) {
       ut_ad(is_increment || nullables[i] > 0);
 

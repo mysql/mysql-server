@@ -1,0 +1,16 @@
+--source include/have_nodebug.inc
+
+--echo # Scenario 1: Fixes bug 34736760
+--echo # 1.1: Redundant
+--let $table_name = t1_redundant
+--let $pk_col = num
+--let $new_col = col
+
+eval CREATE TABLE $table_name ($pk_col INT PRIMARY KEY) ROW_FORMAT=REDUNDANT;
+
+--echo # Insert dummy data to increase time taken to complete ALTER rebuild
+--echo # Table is inserted with 1, 2, 3, .. , 1000000
+SET SESSION cte_max_recursion_depth=10000000;
+eval INSERT INTO $table_name WITH RECURSIVE v AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM v WHERE n <= 1000000) SELECT n FROM v;
+
+--source suite/innodb/include/bug33788578_release.inc
