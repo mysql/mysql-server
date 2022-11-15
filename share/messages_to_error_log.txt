@@ -1703,7 +1703,7 @@ ER_RPL_CANT_CREATE_REPLICA_THREAD
 ER_RPL_REPLICA_IO_THREAD_WAS_KILLED
   eng "The replica IO thread%s was killed while executing initialization query '%s'"
 
-ER_RPL_REPLICA_SOURCE_UUID_HAS_CHANGED
+OBSOLETE_ER_RPL_REPLICA_SOURCE_UUID_HAS_CHANGED
   eng "The source's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was %s."
 
 ER_RPL_REPLICA_USES_CHECKSUM_AND_SOURCE_PRE_50
@@ -1742,7 +1742,7 @@ ER_RPL_MTA_RECOVERY_COMPLETE
 ER_RPL_REPLICA_CANT_INIT_RELAY_LOG_POSITION
   eng "Error initializing relay log position%s: %s"
 
-ER_RPL_REPLICA_CONNECTED_TO_SOURCE_REPLICATION_STARTED
+OBSOLETE_ER_RPL_REPLICA_CONNECTED_TO_SOURCE_REPLICATION_STARTED
   eng "Replica I/O thread%s: connected to source '%s@%s:%d',replication started in log '%s' at position %s"
 
 ER_RPL_REPLICA_IO_THREAD_KILLED
@@ -12056,6 +12056,24 @@ ER_IB_PRIMARY_KEY_IS_INSTANT
 
 ER_THREAD_POOL_IDLE_CONNECTION_CLOSED
    eng "%s"
+
+ER_RPL_ASYNC_NEXT_FAILOVER_CHANNEL_SELECTED
+  eng "The connection has timed out after %lu retries connecting to '%s@%s:%d'%s, and therefore the MySQL server is going to attempt an asynchronous replication connection failover, to '%s@%s:%d'"
+
+ER_RPL_REPLICA_SOURCE_UUID_HAS_NOT_CHANGED
+  eng "The Replica which was connected to source \'%s:%d\', is now connected to new source \'%s:%d\', but still has the same server_uuid %s."
+
+ER_RPL_REPLICA_SOURCE_UUID_HAS_CHANGED_HOST_PORT_UNCHANGED
+  eng "The server_uuid for source server \'%s:%d\' has changed from %s to %s. This should not happen unless you have changed it manually."
+
+ER_RPL_REPLICA_SOURCE_UUID_HOST_PORT_HAS_CHANGED
+  eng "The source server has changed from \'%s:%d\' with server_uuid %s, to \'%s:%d\' with server_uuid %s."
+
+ER_RPL_REPLICA_CONNECTED_TO_SOURCE_RPL_STARTED_FILE_BASED
+  eng "Replica receiver thread%s: connected to source \'%s@%s:%d\' with server_uuid=%s, server_id=%d. Starting replication from file '%s', position '%s'."
+
+ER_RPL_REPLICA_CONNECTED_TO_SOURCE_RPL_STARTED_GTID_BASED
+  eng "Replica receiver thread%s: connected to source \'%s@%s:%d\' with server_uuid=%s, server_id=%d. Starting GTID-based replication."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

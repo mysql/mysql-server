@@ -29,10 +29,6 @@ let $connect_retry= 20;
 --echo *** Preparing ***
 --source include/sync_slave_sql_with_master.inc
 
---disable_query_log
-call mtr.add_suppression("The source's UUID has changed, although this should not happen unless you have changed it manually.");
---enable_query_log
-
 --source include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;

@@ -285,7 +285,7 @@ CREATE TABLE t2(a int);
 --let $assert_text= Receiver thread should report - Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF.
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_select= Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF
---let $assert_only_after= Replica I/O thread for channel '': connected to source
+--let $assert_only_after= Replica receiver thread for channel '': connected to source
 --let $assert_count= 1
 --source include/assert_grep.inc
 
@@ -370,7 +370,7 @@ START SLAVE IO_THREAD;
 --let $assert_text= While gtid-mode=on, slave expects an anonymous event to get ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON.
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_select= Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON
---let $assert_only_after= Replica I/O thread for channel '': connected to source
+--let $assert_only_after= Replica receiver thread for channel '': connected to source
 --let $assert_count= 2
 --source include/assert_grep.inc
 
@@ -399,7 +399,7 @@ CREATE TABLE t4(a int);
 --let $assert_text= While gtid-mode=on, slave expects an anonymous event to get ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON.
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_select= Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON
---let $assert_only_after= Replica I/O thread for channel '': connected to source
+--let $assert_only_after= Replica receiver thread for channel '': connected to source
 --let $assert_count= 1
 --source include/assert_grep.inc
 

@@ -53,9 +53,6 @@ include/assert.inc [Verify channel ch1 IO_THREAD is ON and connected to server1]
 ############################################################
 # 5. Clean up.
 [connection server4]
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("The source's UUID has changed, although this should not happen unless you have changed it manually.");
-SET SESSION sql_log_bin = 1;
 include/stop_slave.inc [FOR CHANNEL 'ch1']
 include/rpl_reset_slave.inc
 SELECT asynchronous_connection_failover_delete_managed('ch1', 'GROUP');

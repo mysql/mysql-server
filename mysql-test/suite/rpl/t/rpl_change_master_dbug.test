@@ -28,7 +28,7 @@ START SLAVE io_thread;
 --let $slave_io_errno= 2005
 -- source include/wait_for_slave_io_to_stop.inc
 -- let $error= query_get_value("SHOW SLAVE STATUS", Last_IO_Error, 1)
-if (!`SELECT "$error" LIKE "%retries: 3%"`)
+if (!`SELECT "$error" LIKE "%attempt 3%"`)
 {
   -- source include/show_rpl_debug_info.inc
   -- echo Unexpected retry count value! Got: $error

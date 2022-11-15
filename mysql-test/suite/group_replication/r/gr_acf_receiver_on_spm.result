@@ -3,9 +3,6 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("The source's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
-SET SESSION sql_log_bin = 1;
 [connection server2]
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Can't start replica IO THREAD of channel 'ch1' when group replication is running with single-primary mode on a secondary member.");
@@ -14,7 +11,6 @@ call mtr.add_suppression("Run function 'thread_start' in plugin 'group_replicati
 call mtr.add_suppression("Run function 'applier_start' in plugin 'group_replication' failed");
 call mtr.add_suppression("Failed to run 'thread_start' hook");
 call mtr.add_suppression("Failed to run 'applier_start' hook");
-call mtr.add_suppression("The source's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
 SET SESSION sql_log_bin = 1;
 
 # 1. Create a replication channel to replicate from server4 to

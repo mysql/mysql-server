@@ -22,9 +22,6 @@ include/rpl_sync.inc
 [connection server_4]
 SET @old_debug= @@GLOBAL.DEBUG;
 SET GLOBAL debug = '+d,async_conn_failover_disable_weight_check';
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("The source's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
-SET SESSION sql_log_bin= 1;
 include/assert.inc ['There is one row on replica']
 #
 # 3. Verify Asynchronous Replication Connection Failover is initially

@@ -809,6 +809,17 @@ class Master_info : public Rpl_info {
     receiver position related information might be outdated.
   */
   bool m_is_receiver_position_info_invalid;
+
+ public:
+  /*
+    Hostname of the server where master_uuid was last read.
+  */
+  std::string m_uuid_from_host{};
+
+  /*
+    Port of the server where master_uuid was last read.
+  */
+  uint m_uuid_from_port{0};
 };
 
 #endif /* RPL_MI_H */

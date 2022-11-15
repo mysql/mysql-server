@@ -1100,7 +1100,8 @@ static bool restart_io_thread(THD *thd, const std::string &channel_name,
   }
 
   if (Async_conn_failover_manager::do_auto_conn_failover(
-          mi, force_sender_with_highest_weight)) {
+          mi, force_sender_with_highest_weight) !=
+      Async_conn_failover_manager::DoAutoConnFailoverError::no_error) {
     LogErr(WARNING_LEVEL, ER_RPL_REPLICA_MONITOR_IO_THREAD_RECONNECT_CHANNEL,
            "choosing the source for", channel_name.c_str());
     channel_map.unlock();

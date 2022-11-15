@@ -190,7 +190,7 @@ INSERT INTO global_suppressions VALUES
  ("You have an error in your SQL syntax"),
  ("deprecated"),
  ("equal MySQL server ids"),
- ("error .*connecting to source"),
+ ("Error .*connecting to source"),
  ("error reading log entry"),
  ("lower_case_table_names is set"),
  ("skip-name-resolve mode"),

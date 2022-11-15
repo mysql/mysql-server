@@ -2567,11 +2567,42 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi) {
       // Fatal error
       ret = 1;
     } else {
-      if (mi->master_uuid[0] != 0 && strcmp(mi->master_uuid, master_row[0]))
-        LogErr(WARNING_LEVEL, ER_RPL_REPLICA_SOURCE_UUID_HAS_CHANGED,
-               mi->master_uuid);
+      if (mi->master_uuid[0] != 0) {
+        if (strcmp(mi->master_uuid, master_row[0])) {
+          bool is_host_port_unchanged{false};
+          char new_source_uuid[UUID_LENGTH + 1];
+          strncpy(new_source_uuid, master_row[0], UUID_LENGTH);
+          new_source_uuid[UUID_LENGTH] = 0;
+          if (!mi->m_uuid_from_host.empty() && mi->m_uuid_from_port != 0) {
+            if (mi->m_uuid_from_host.compare(mi->host) == 0 &&
+                mi->m_uuid_from_port == mi->port) {
+              is_host_port_unchanged = true;
+            }
+          }
+          if (is_host_port_unchanged) {
+            LogErr(WARNING_LEVEL,
+                   ER_RPL_REPLICA_SOURCE_UUID_HAS_CHANGED_HOST_PORT_UNCHANGED,
+                   mi->host, mi->port, mi->master_uuid, new_source_uuid);
+          } else {
+            LogErr(INFORMATION_LEVEL,
+                   ER_RPL_REPLICA_SOURCE_UUID_HOST_PORT_HAS_CHANGED,
+                   mi->m_uuid_from_host.c_str(), mi->m_uuid_from_port,
+                   mi->master_uuid, mi->host, mi->port, new_source_uuid);
+          }
+        } else {
+          if (!mi->m_uuid_from_host.empty() && mi->m_uuid_from_port != 0 &&
+              mi->m_uuid_from_host.compare(mi->host) != 0 &&
+              mi->m_uuid_from_port != mi->port) {
+            LogErr(WARNING_LEVEL, ER_RPL_REPLICA_SOURCE_UUID_HAS_NOT_CHANGED,
+                   mi->m_uuid_from_host.c_str(), mi->m_uuid_from_port, mi->host,
+                   mi->port, mi->master_uuid);
+          }
+        }
+      }
       strncpy(mi->master_uuid, master_row[0], UUID_LENGTH);
       mi->master_uuid[UUID_LENGTH] = 0;
+      mi->m_uuid_from_host.assign(mi->host);
+      mi->m_uuid_from_port = mi->port;
     }
   } else if (mysql_errno(mysql) != ER_UNKNOWN_SYSTEM_VARIABLE) {
     if (is_network_error(mysql_errno(mysql))) {
@@ -5295,6 +5326,8 @@ extern "C" void *handle_slave_io(void *arg) {
   uint retry_count;
   bool suppress_warnings;
   int ret;
+  Async_conn_failover_manager::SourceQuorumStatus quorum_status{
+      Async_conn_failover_manager::SourceQuorumStatus::no_error};
   Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
@@ -5367,14 +5400,7 @@ extern "C" void *handle_slave_io(void *arg) {
 
     THD_STAGE_INFO(thd, stage_connecting_to_source);
 
-    if (!safe_connect(thd, mysql, mi)) {
-      LogErr(
-          SYSTEM_LEVEL, ER_RPL_REPLICA_CONNECTED_TO_SOURCE_REPLICATION_STARTED,
-          mi->get_for_channel_str(), mi->get_user(), mi->host, mi->port,
-          mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(), llbuff));
-    } else {
-      LogErr(INFORMATION_LEVEL, ER_RPL_REPLICA_IO_THREAD_KILLED,
-             mi->get_for_channel_str());
+    if (safe_connect(thd, mysql, mi)) {
       goto err;
     }
 
@@ -5414,30 +5440,70 @@ extern "C" void *handle_slave_io(void *arg) {
 
     THD_STAGE_INFO(thd, stage_checking_source_version);
     ret = get_master_version_and_clock(mysql, mi);
-    if (!ret) ret = get_master_uuid(mysql, mi);
+    if (!ret) {
+      ret = get_master_uuid(mysql, mi);
+    }
     if (!ret) ret = io_thread_init_commands(mysql, mi);
 
+    quorum_status = Async_conn_failover_manager::SourceQuorumStatus::no_error;
     if (!ret && mi->is_source_connection_auto_failover()) {
-      ret = Async_conn_failover_manager::get_source_quorum_status(mysql, mi);
+      quorum_status =
+          Async_conn_failover_manager::get_source_quorum_status(mysql, mi);
+      switch (quorum_status) {
+        case Async_conn_failover_manager::SourceQuorumStatus::fatal_error:
+        case Async_conn_failover_manager::SourceQuorumStatus::no_quorum_error:
+          ret = 1;
+          break;
+        case Async_conn_failover_manager::SourceQuorumStatus::
+            transient_network_error:
+          ret = 2;
+          break;
+        case Async_conn_failover_manager::SourceQuorumStatus::no_error:
+        default:
+          break;
+      }
     }
 
-    if (ret == 1) /* Fatal error */
-      goto err;
+    if (DBUG_EVALUATE_IF("simulate_reconnect_after_failed_registration", 1,
+                         0)) {
+      ret = 2;
+    }
 
-    if (ret == 2 || DBUG_EVALUATE_IF(
-                        "simulate_reconnect_after_failed_registration", 1, 0)) {
-      if (check_io_slave_killed(
-              mi->info_thd, mi,
-              "Replica I/O thread killed "
-              "while calling get_source_version_and_clock(...)"))
+    switch (ret) {
+      case 0: {
+        if (mi && mi->is_auto_position()) {
+          LogErr(SYSTEM_LEVEL,
+                 ER_RPL_REPLICA_CONNECTED_TO_SOURCE_RPL_STARTED_GTID_BASED,
+                 mi->get_for_channel_str(), mi->get_user(), mi->host, mi->port,
+                 mi->master_uuid, mi->master_id);
+        } else {
+          LogErr(SYSTEM_LEVEL,
+                 ER_RPL_REPLICA_CONNECTED_TO_SOURCE_RPL_STARTED_FILE_BASED,
+                 mi->get_for_channel_str(), mi->get_user(), mi->host, mi->port,
+                 mi->master_uuid, mi->master_id, mi->get_io_rpl_log_name(),
+                 llstr(mi->get_master_log_pos(), llbuff));
+        }
+        break;
+      }
+      case 1:
+        /* Fatal error */
         goto err;
-      suppress_warnings = false;
-      /* Try to reconnect because the error was caused by a transient network
-       * problem */
-      if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
-                           reconnect_messages_after_failed_registration))
-        goto err;
-      goto connected;
+        break;
+      case 2: {
+        if (check_io_slave_killed(
+                mi->info_thd, mi,
+                "Replica I/O thread killed "
+                "while calling get_master_version_and_clock(...)"))
+          goto err;
+        suppress_warnings = false;
+        /* Try to reconnect because the error was caused by a transient network
+         * problem */
+        if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
+                             reconnect_messages_after_failed_registration))
+          goto err;
+        goto connected;
+        break;
+      }
     }
 
     /*
@@ -5681,10 +5747,20 @@ extern "C" void *handle_slave_io(void *arg) {
       connection to another source is attempted.
     */
     if (mi->is_source_connection_auto_failover() &&
-        !is_group_replication_member_secondary() &&
-        (!io_slave_killed(thd, mi) ||
-         (!io_slave_killed(thd, mi) && mi->is_network_error()))) {
+        !is_group_replication_member_secondary() && !io_slave_killed(thd, mi) &&
+        (mi->is_network_error() ||
+         quorum_status !=
+             Async_conn_failover_manager::SourceQuorumStatus::no_error)) {
       DBUG_EXECUTE_IF("async_conn_failover_crash", DBUG_SUICIDE(););
+
+      /*
+        Channel connection details (host, port) values can change after
+        call to Async_conn_failover_manager::do_auto_conn_failover() function
+        to get the next available sender.
+      */
+      std::string old_user(mi->get_user());
+      std::string old_host(mi->host);
+      uint old_port = mi->port;
 
       /*
         Get the sender to connect to.
@@ -5692,29 +5768,36 @@ extern "C" void *handle_slave_io(void *arg) {
         channel_map lock cannot be acquired by this channel IO thread,
         then this channel IO thread does skip the next sender selection.
       */
-      Async_conn_failover_manager::enum_do_auto_conn_failover_error
-          update_source_error =
-              Async_conn_failover_manager::ACF_RETRIABLE_ERROR;
+      Async_conn_failover_manager::DoAutoConnFailoverError update_source_error =
+          Async_conn_failover_manager::DoAutoConnFailoverError::retriable_error;
       if (!channel_map.tryrdlock()) {
         update_source_error =
             Async_conn_failover_manager::do_auto_conn_failover(mi, false);
         channel_map.unlock();
       }
       DBUG_EXECUTE_IF("replica_retry_count_exceed", {
-        if (Async_conn_failover_manager::ACF_NO_ERROR == update_source_error) {
+        if (Async_conn_failover_manager::DoAutoConnFailoverError::no_error ==
+            update_source_error) {
           rpl_replica_debug_point(DBUG_RPL_S_RETRY_COUNT_EXCEED, thd);
         }
       });
 
-      if (Async_conn_failover_manager::ACF_NO_SOURCES_ERROR !=
-          update_source_error) {
+      if (Async_conn_failover_manager::DoAutoConnFailoverError::
+              no_sources_error != update_source_error) {
         /* Wait before reconnect to avoid resources starvation. */
         my_sleep(1000000);
 
         /* After waiting, recheck that a STOP REPLICA did not happen. */
-        if (!io_slave_killed(thd, mi)) {
+        if (!check_io_slave_killed(
+                thd, mi,
+                "Replica I/O thread killed while "
+                "attempting asynchronous connection failover")) {
           /* Reconnect. */
           if (mysql) {
+            LogErr(SYSTEM_LEVEL, ER_RPL_ASYNC_NEXT_FAILOVER_CHANNEL_SELECTED,
+                   mi->retry_count, old_user.c_str(), old_host.c_str(),
+                   old_port, mi->get_for_channel_str(), mi->get_user(),
+                   mi->host, mi->port);
             thd->clear_active_vio();
             mysql_close(mysql);
             mi->mysql = nullptr;
@@ -8377,7 +8460,11 @@ int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi, bool reconnect,
   while (!connected) {
     replica_was_killed = is_io_thread ? io_slave_killed(thd, mi)
                                       : monitor_io_replica_killed(thd, mi);
-    if (replica_was_killed) break;
+    if (replica_was_killed) {
+      LogErr(INFORMATION_LEVEL, ER_RPL_REPLICA_IO_THREAD_KILLED,
+             mi->get_for_channel_str());
+      break;
+    }
 
     if (reconnect) {
       connected = !mysql_reconnect(mysql);
@@ -8399,11 +8486,12 @@ int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi, bool reconnect,
     suppress_warnings = false;
     if (is_io_thread) {
       mi->report(ERROR_LEVEL, last_errno,
-                 "error %s to source '%s@%s:%d'"
-                 " - retry-time: %d retries: %lu message: %s",
+                 "Error %s to source '%s@%s:%d'."
+                 " This was attempt %lu/%lu, with a delay of %d seconds between"
+                 " attempts. Message: %s",
                  (reconnect ? "reconnecting" : "connecting"), mi->get_user(),
-                 tmp_host, tmp_port, mi->connect_retry, err_count + 1,
-                 mysql_error(mysql));
+                 tmp_host, tmp_port, err_count + 1, mi->retry_count,
+                 mi->connect_retry, mysql_error(mysql));
     }
 
     /*

@@ -69,10 +69,6 @@ if (!$have_xcom_stack) {
   --let $group_b_group_seeds= "localhost:$SERVER_MYPORT_3,localhost:$SERVER_MYPORT_4"
 }
 
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("The source's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
-SET SESSION sql_log_bin = 1;
-
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 SET SESSION sql_log_bin = 0;
@@ -82,7 +78,6 @@ call mtr.add_suppression("Run function 'thread_start' in plugin 'group_replicati
 call mtr.add_suppression("Run function 'applier_start' in plugin 'group_replication' failed");
 call mtr.add_suppression("Failed to run 'thread_start' hook");
 call mtr.add_suppression("Failed to run 'applier_start' hook");
-call mtr.add_suppression("The source's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
 SET SESSION sql_log_bin = 1;
 
 
