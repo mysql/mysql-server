@@ -3960,6 +3960,45 @@ TEST_P(ConnectionTest, classic_protocol_unknown_command) {
   ASSERT_NO_ERROR(cli.ping());
 }
 
+/**
+ * check that server doesn't report "Aborted Clients".
+ */
+TEST_P(ConnectionTest, classic_protocol_quit_no_aborted_connections) {
+  SCOPED_TRACE("// connecting to server directly");
+  auto admin_res = shared_servers()[0]->admin_cli();
+  ASSERT_NO_ERROR(admin_res);
+
+  auto admin_cli = std::move(*admin_res);
+
+  auto before_res = query_one_result(admin_cli,
+                                     "SELECT VARIABLE_VALUE "
+                                     "FROM performance_schema.global_status "
+                                     "WHERE variable_name = 'Aborted_clients'");
+  ASSERT_NO_ERROR(before_res);
+
+  SCOPED_TRACE("// connecting to server through router");
+  {
+    MysqlClient cli;
+
+    cli.username("root");
+    cli.password("");
+
+    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                                shared_router()->port(GetParam())));
+
+    // and close again.
+  }
+
+  auto after_res = query_one_result(admin_cli,
+                                    "SELECT VARIABLE_VALUE "
+                                    "FROM performance_schema.global_status "
+                                    "WHERE variable_name = 'Aborted_clients'");
+  ASSERT_NO_ERROR(after_res);
+
+  SCOPED_TRACE("// expect no new aborted clients");
+  EXPECT_EQ((*before_res)[0][0], (*after_res)[0][0]);
+}
+
 INSTANTIATE_TEST_SUITE_P(Spec, ConnectionTest,
                          ::testing::ValuesIn(connection_params),
                          [](auto &info) {

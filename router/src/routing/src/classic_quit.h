@@ -33,6 +33,7 @@ class QuitProcessor : public Processor {
 
   enum class Stage {
     Command,
+    ClientShutdown,
     Done,
   };
 
@@ -43,6 +44,7 @@ class QuitProcessor : public Processor {
 
  private:
   stdx::expected<Result, std::error_code> command();
+  stdx::expected<Result, std::error_code> client_shutdown();
 
   Stage stage_{Stage::Command};
 };
