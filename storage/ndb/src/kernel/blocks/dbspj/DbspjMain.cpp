@@ -7462,14 +7462,10 @@ Dbspj::scanFrag_parallelism(Ptr<Request> requestPtr,
    * the 'bytes' limit being exhausted first.
    */
   Uint32 batchSizeRows = availableBatchRows;
-  if (data.m_totalBytes > 0)
+  if (data.m_recSizeStat.isValid())
   {
-    /**
-     * Average row size = m_totalBytes/m_totalRows. Thus we expect to fit:
-     * availableBatchBytes/size, or simplified, without double divides:
-     */
-    const Uint32 batchLimitedByBytes = (availableBatchBytes * data.m_totalRows)
-                                       / data.m_totalBytes;
+    const double estmRecSize = data.m_recSizeStat.getUpperEstimate();
+    const Uint32 batchLimitedByBytes = availableBatchBytes / estmRecSize;
     if (batchSizeRows > batchLimitedByBytes)
       batchSizeRows = batchLimitedByBytes;
   }
@@ -8347,6 +8343,11 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
       data.m_recsPrKeyStat.sample(recsPrKey);
       data.m_completedKeys = 0;
       data.m_completedRows = 0;
+    }
+    if (data.m_totalRows > 0)
+    {
+      const double recSize = double(data.m_totalBytes) / data.m_totalRows;
+      data.m_recSizeStat.sample(recSize);
     }
 
     const bool all_started_completed =

@@ -779,6 +779,11 @@ public:
     IncrementalStatistics m_recsPrKeyStat;
 
     /**
+     * Statistics for the 'BatchByteSize' consumed for each record.
+     */
+    IncrementalStatistics m_recSizeStat;
+
+    /**
      * Total number of key/bounds in the process of being sent to
      * the fragments. (Not yet sent)
      */
@@ -823,6 +828,7 @@ public:
       m_parallelism(0),
       m_corrIdStart(0),
       m_recsPrKeyStat(),
+      m_recSizeStat(),
       m_keysToSend(0),
       m_completedKeys(0),
       m_completedRows(0),
