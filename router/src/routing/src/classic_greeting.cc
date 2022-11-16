@@ -399,10 +399,19 @@ ClientGreetor::client_greeting() {
   if (!src_protocol->shared_capabilities().test(
           classic_protocol::capabilities::pos::ssl)) {
     // client wants to stay with plaintext
-    if (src_protocol->auth_method_name() == AuthCachingSha2Password::kName &&
-        msg.auth_method_data() == "\x00"sv) {
+
+    if (msg.auth_method_data() == "\x00"sv) {
       // password is empty.
       src_protocol->password("");
+    } else {
+      const bool client_conn_is_secure =
+          connection()->socket_splicer()->client_conn().is_secure_transport();
+
+      if (client_conn_is_secure &&
+          src_protocol->auth_method_name() == AuthCachingSha2Password::kName) {
+        stage(Stage::RequestPlaintextPassword);
+        return Result::Again;
+      }
     }
 
     stage(Stage::Accepted);
@@ -570,10 +579,8 @@ ClientGreetor::client_greeting_after_tls() {
 
     stage(Stage::Accepted);
     return Result::Again;
-  } else if (kCapturePlaintextPassword &&
-             src_protocol->auth_method_name() ==
-                 AuthCachingSha2Password::kName &&
-             src_channel->is_tls()) {
+  } else if (kCapturePlaintextPassword && src_protocol->auth_method_name() ==
+                                              AuthCachingSha2Password::kName) {
     stage(Stage::RequestPlaintextPassword);
     return Result::Again;
   } else {
