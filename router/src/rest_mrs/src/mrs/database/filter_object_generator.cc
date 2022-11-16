@@ -128,12 +128,19 @@ std::string FilterObjectGenerator::get_result() const {
   return where_ + order_;
 }
 
+void FilterObjectGenerator::reset() {
+  where_.clear();
+  order_.clear();
+  has_order_ = false;
+  has_filter_ = false;
+}
+
 void FilterObjectGenerator::parse(const Document &doc) {
   if (!doc.IsObject())
     throw std::runtime_error("`FilterObject` must be a json object.");
 
-  where_.clear();
-  order_.clear();
+  reset();
+
   parse_orderby_asof_wmember(doc.GetObject());
 }
 
@@ -331,9 +338,11 @@ void FilterObjectGenerator::parse_complex_or(Value *value) {
   }
 }
 
+bool FilterObjectGenerator::has_order() const { return has_order_; }
+
 void FilterObjectGenerator::parse_wmember(const char *name, Value *value) {
   using namespace std::literals::string_literals;
-
+  has_filter_ = true;
   argument_.push_back(name);
   if (parse_complex_object(name, value)) return;
   if (parse_simple_object(value)) return;
@@ -392,6 +401,7 @@ void FilterObjectGenerator::prase_order(Object object) {
 
     order_ += asc ? " ASC" : " DESC";
   }
+  has_order_ = true;
 }
 
 }  // namespace database

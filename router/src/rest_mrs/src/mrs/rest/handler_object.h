@@ -56,6 +56,11 @@ class HandlerObject : public Handler {
   uint32_t get_access_rights() const override;
 
   Route *route_;
+
+ private:
+  Result handle_post_and_post(rest::RequestContext *ctxt,
+                              const std::vector<uint8_t> &document,
+                              const bool upsert, std::string pk_value);
 };
 
 }  // namespace rest

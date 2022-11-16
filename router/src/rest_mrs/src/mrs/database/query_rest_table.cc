@@ -211,17 +211,11 @@ const mysqlrouter::sqlstring &QueryRestTable::build_where(
   return where_;
 }
 
-static rapidjson::Document json(const std::string &j) {
-  rapidjson::Document result;
-  helper::json::text_to(&result, j);
-  return result;
-}
-
 void extend_where(mysqlrouter::sqlstring &where, const std::string &query) {
   using namespace std::literals::string_literals;
   if (query.empty()) return;
   FilterObjectGenerator fog;
-  fog.parse(json(query));
+  fog.parse(helper::json::text_to_document(query));
   auto result = fog.get_result();
   if (result.empty()) return;
 

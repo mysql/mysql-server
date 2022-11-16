@@ -74,7 +74,7 @@ class UserManagerFixture : public Test {
     std::string query_user{
         "SELECT id, auth_app_id, name, email, vendor_user_id, "
         "login_permitted FROM mysql_rest_service_metadata.auth_user "
-        "WHERE auth_app_id=2 and vendor_user_id='"};
+        "WHERE `auth_app_id`=2 and vendor_user_id='"};
     query_user.append(u.user[4]).append("' ");
     EXPECT_CALL(session_, query(StrEq(query_user), _, _))
         .WillOnce(
@@ -83,7 +83,7 @@ class UserManagerFixture : public Test {
 
     std::string query_user_privileges{
         "SELECT p.service_id, p.db_schema_id, p.db_object_id, "
-        "BIT_OR\\(p.crud_operation\\) as crud FROM.* auth_user_id="};
+        "BIT_OR\\(p.crud_operations\\) as crud FROM.* auth_user_id="};
     query_user_privileges.append(u.user[0]).append("\\)");
 
     EXPECT_CALL(session_, query(ContainsRegex(query_user_privileges), _, _))
@@ -134,6 +134,7 @@ TEST_F(UserManagerFixture, fetch_user_from_database) {
 
   ASSERT_TRUE(user.has_user_id);
   ASSERT_EQ(k_user_4000040400004_id, user.user_id);
+
   ASSERT_EQ(1, user.privileges.size());
   ASSERT_EQ(1, user.privileges[0].service_id);
   ASSERT_EQ(2, user.privileges[0].crud);
