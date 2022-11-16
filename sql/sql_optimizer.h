@@ -1247,12 +1247,14 @@ double find_worst_seeks(const TABLE *table, double num_rows,
   @param thd            thread handler
   @param field          field that is looked up through an index
   @param right_item     value used to perform look up
+  @param can_evaluate   whether the function is allowed to evaluate right_item
+                        (if true, right_item must be const-for-execution)
   @param[out] subsumes  true if an exact comparison can be done, false otherwise
 
   @returns false if success, true if error
  */
 bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
-                                    bool *subsumes);
+                                    bool can_evaluate, bool *subsumes);
 
 /**
   Checks if we need to create iterators for this query. We usually have to. The

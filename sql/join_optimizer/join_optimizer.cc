@@ -1759,6 +1759,10 @@ struct KeypartForRef {
   // Tables used by the condition. Necessarily includes the table “field”
   // is part of.
   table_map used_tables;
+
+  // Is it safe to evaluate "val" during optimization? It must be
+  // const_for_execution() and contain no subqueries or stored procedures.
+  bool can_evaluate;
 };
 
 int WasPushedDownToRef(Item *condition, const KeypartForRef *keyparts,
@@ -1802,6 +1806,8 @@ bool CostingReceiver::ProposeRefAccess(
       static_cast<int>(usable_keyparts)) {
     // It is inevitable that we fail the (parameter_tables ==
     // allowed_parameter_tables) test below, so error out earlier.
+    // TODO(khatlen): This restriction must be lifted in order to allow
+    // multi-table join predicates to be sargable, such as t1.id = t2.x + t3.x.
     return false;
   }
 
@@ -1820,29 +1826,17 @@ bool CostingReceiver::ProposeRefAccess(
       Item_func_eq *item = down_cast<Item_func_eq *>(
           m_graph->predicates[sp.predicate_index].condition);
       if (sp.field->eq(keyinfo.field)) {
-        // x = const.
-        if (sp.is_constant) {
+        const table_map other_side_tables =
+            sp.other_side->used_tables() & ~PSEUDO_TABLE_BITS;
+        if (IsSubset(other_side_tables, allowed_parameter_tables)) {
+          parameter_tables |= other_side_tables;
           matched_this_keypart = true;
           keyparts[keypart_idx].field = sp.field;
           keyparts[keypart_idx].condition = item;
           keyparts[keypart_idx].val = sp.other_side;
           keyparts[keypart_idx].null_rejecting = true;
           keyparts[keypart_idx].used_tables = item->used_tables();
-          ++matched_keyparts;
-          length += keyinfo.store_length;
-          break;
-        }
-
-        // x = other_table.field.
-        if (sp.other_side->type() == Item::FIELD_ITEM &&
-            IsSubset(sp.other_side->used_tables(), allowed_parameter_tables)) {
-          parameter_tables |= sp.other_side->used_tables();
-          matched_this_keypart = true;
-          keyparts[keypart_idx].field = sp.field;
-          keyparts[keypart_idx].condition = item;
-          keyparts[keypart_idx].val = sp.other_side;
-          keyparts[keypart_idx].null_rejecting = true;
-          keyparts[keypart_idx].used_tables = item->used_tables();
+          keyparts[keypart_idx].can_evaluate = sp.can_evaluate;
           ++matched_keyparts;
           length += keyinfo.store_length;
           break;
@@ -1964,7 +1958,7 @@ bool CostingReceiver::ProposeRefAccess(
     const KeypartForRef &keypart = keyparts[keypart_idx];
     bool subsumes;
     if (ref_lookup_subsumes_comparison(m_thd, keypart.field, keypart.val,
-                                       &subsumes)) {
+                                       keypart.can_evaluate, &subsumes)) {
       return true;
     }
     if (subsumes) {
@@ -2083,7 +2077,8 @@ bool HasConstantEqualityForField(
     const Field *field) {
   return std::any_of(sargable_predicates.begin(), sargable_predicates.end(),
                      [field](const SargablePredicate &sp) {
-                       return sp.is_constant && field->eq(sp.field);
+                       return sp.other_side->const_for_execution() &&
+                              field->eq(sp.field);
                      });
 }
 
@@ -2107,10 +2102,8 @@ bool CostingReceiver::ProposeAllUniqueIndexLookupsWithConstantKey(int node_idx,
   }
 
   TABLE *const table = m_graph->nodes[node_idx].table;
-  if (table->pos_in_table_list->is_recursive_reference() ||
-      Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS)) {
-    return false;
-  }
+  assert(!table->pos_in_table_list->is_recursive_reference());
+  assert(!Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS));
 
   for (const ActiveIndexInfo &index_info : *m_active_indexes) {
     if (index_info.table != table) {
@@ -6170,7 +6163,8 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       continue;
     }
     Field *field = down_cast<Item_field *>(left)->field;
-    if (force_table != nullptr && force_table != field->table) {
+    TABLE *table = field->table;
+    if (force_table != nullptr && force_table != table) {
       continue;
     }
     if (field->part_of_key.is_clear_all()) {
@@ -6178,7 +6172,11 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       // key, though, but we include them for now.)
       continue;
     }
-    JoinHypergraph::Node *node = FindNodeWithTable(graph, field->table);
+    if (Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS)) {
+      // Can't use index lookups on this table, so not sargable.
+      continue;
+    }
+    JoinHypergraph::Node *node = FindNodeWithTable(graph, table);
     if (node == nullptr) {
       // A field in a different query block, so not sargable for us.
       continue;
@@ -6191,6 +6189,22 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       assert(CompatibleTypesForIndexLookup(eq_item, field, right));
     } else if (!CompatibleTypesForIndexLookup(eq_item, field, right)) {
       continue;
+    }
+
+    const table_map used_tables_left = table->pos_in_table_list->map();
+    const table_map used_tables_right = right->used_tables();
+
+    if (Overlaps(used_tables_left, used_tables_right)) {
+      // Not sargable if the tables on the left and right side overlap, such as
+      // t1.x = t1.y + t2.x. Will not be sargable in the opposite direction
+      // either, so "break" instead of "continue".
+      break;
+    }
+
+    if (Overlaps(used_tables_right, RAND_TABLE_BIT)) {
+      // Non-deterministic predicates are not sargable. Will not be sargable in
+      // the opposite direction either, so "break" instead of "continue".
+      break;
     }
 
     if (trace != nullptr) {
@@ -6222,19 +6236,18 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       graph->sargable_join_predicates.emplace(eq_item, predicate_index);
     }
 
-    // Remember if this predicate is field = const. Don't consider items with
-    // subqueries or stored procedures constant, as we don't want to execute
-    // them during optimization.
-    const bool is_constant =
-        (right->const_for_execution() && !right->has_subquery() &&
-         !right->is_expensive()) ||
-        right->used_tables() == OUTER_REF_TABLE_BIT;
+    // Can we evaluate the right side of the predicate during optimization (in
+    // ref_lookup_subsumes_comparison())? Don't consider items with subqueries
+    // or stored procedures constant, as we don't want to execute them during
+    // optimization.
+    const bool can_evaluate = right->const_for_execution() &&
+                              !right->has_subquery() && !right->is_expensive();
 
     node->sargable_predicates.push_back(
-        {predicate_index, field, right, is_constant});
+        {predicate_index, field, right, can_evaluate});
 
     // No need to check the opposite order. We have no indexes on constants.
-    if (is_constant) break;
+    if (can_evaluate) break;
   }
 }
 

@@ -8812,7 +8812,7 @@ static Item *part_of_refkey(TABLE *table, Index_lookup *ref,
 }
 
 bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
-                                    bool *subsumes) {
+                                    bool can_evaluate, bool *subsumes) {
   *subsumes = false;
   right_item = right_item->real_item();
   if (right_item->type() == Item::FIELD_ITEM) {
@@ -8824,8 +8824,10 @@ bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
     return false;
   }
   bool right_is_null = true;
-  if (right_item->const_for_execution()) {
-    right_is_null = right_item->is_null();
+  if (can_evaluate) {
+    assert(evaluate_during_optimization(right_item,
+                                        thd->lex->current_query_block()));
+    right_is_null = right_item->is_nullable() && right_item->is_null();
     if (thd->is_error()) return true;
   }
   if (!right_is_null) {
@@ -8864,6 +8866,7 @@ bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
         !(field->type() == MYSQL_TYPE_FLOAT && field->decimals() > 0))  // 2
     {
       *subsumes = !right_item->save_in_field_no_warnings(field, true);
+      if (thd->is_error()) return true;
     }
   }
   return false;
@@ -8909,7 +8912,9 @@ static bool test_if_ref(THD *thd, Item_field *left_item, Item *right_item,
       (join_tab->type() != JT_REF_OR_NULL)) {
     Item *ref_item = part_of_refkey(field->table, &join_tab->ref(), field);
     if (ref_item != nullptr && ref_item->eq(right_item, true)) {
-      if (ref_lookup_subsumes_comparison(thd, field, right_item, redundant)) {
+      if (ref_lookup_subsumes_comparison(thd, field, right_item,
+                                         right_item->const_for_execution(),
+                                         redundant)) {
         return true;
       }
     }

@@ -57,9 +57,10 @@ struct SargablePredicate {
   Field *field;
   Item *other_side;
 
-  /// True if "other_side" is constant during execution. (And true const; no
-  /// execution of queries or stored procedures during optimization.)
-  bool is_constant;
+  /// True if it is safe to evaluate "other_side" during optimization. It must
+  /// be constant during execution. Also, it should not contain subqueries or
+  /// stored procedures, which we do not want to execute during optimization.
+  bool can_evaluate;
 };
 
 /**
