@@ -5811,11 +5811,12 @@ static mysql_state_machine_status authsm_handle_change_user_result(
     ctx->state_function = authsm_run_second_authenticate_user;
   } else if (is_auth_next_factor_packet(mysql)) {
     ctx->state_function = authsm_init_multi_auth;
+  } else if (is_OK_packet(mysql, ctx->pkt_length)) {
+    read_ok_ex(mysql, ctx->pkt_length);
+    ctx->state_function = authsm_finish_auth;
   } else {
-    if (is_OK_packet(mysql, ctx->pkt_length)) {
-      read_ok_ex(mysql, ctx->pkt_length);
-      ctx->state_function = authsm_finish_auth;
-    }
+    set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+    return STATE_MACHINE_FAILED;
   }
 
   return STATE_MACHINE_CONTINUE;
