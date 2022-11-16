@@ -1,12 +1,12 @@
 source include/have_ndb.inc;
 
 let $MGMPORT_REGEX = `select concat('/',substring_index(@@ndb_connectstring,':',-1),'/<MGM-PORT>/')`;
-let $DYNPORT_REGEX = /42949([0-5][0-9]|6[0-6])[0-9][0-9][0-9]/<DYNAMIC-PORT>/;
+let $DYNPORT_REGEX = /42949([0-5][0-9]|6[0-6])[0-9][0-9][0-9]|4194[23][0-9][0-9]K/<DYNAMIC-PORT>/;
 disable_query_log;
 eval select '$MYSQLTEST_VARDIR' into @vardir;
 enable_query_log;
 let $VARDIR_REGEX = `select concat('/', replace(@vardir, '/', '.'), '/MYSQLTEST_VARDIR/')`;
-let $SHMKEY2_REGEX = /ShmKey,[0-9]*,/ShmKey,<SHM-KEY>,/;
+let $SHMKEY2_REGEX = /ShmKey,[0-9]+[GMK]?,/ShmKey,<SHM-KEY>,/;
 let $MGMPORT_VARDIR_REGEX = $MGMPORT_REGEX $VARDIR_REGEX;
 let $MGM_DYN_PORT_SHMKEY2_REGEX = $MGMPORT_REGEX $DYNPORT_REGEX $SHMKEY2_REGEX;
 
