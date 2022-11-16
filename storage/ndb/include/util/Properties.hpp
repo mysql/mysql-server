@@ -163,10 +163,6 @@ public:
     class IteratorImpl *m_iterImpl;
   };
   friend class Properties::Iterator;
-
-  Uint32 getPackedSize() const;
-  bool unpack(const Uint32 * buf, Uint32 bufLen);
-  bool unpack(UtilBuffer &buf);
   
   Uint32 getPropertiesErrno() const { return propErrno; }
   Uint32 getOSErrno() const { return osErrno; }
@@ -213,47 +209,10 @@ extern const Uint32 E_PROPERTIES_INVALID_TYPE;
 extern const Uint32 E_PROPERTIES_ELEMENT_ALREADY_EXISTS;
 
 /**
- * Invalid version on properties file you are trying to read
- */
-extern const Uint32 E_PROPERTIES_INVALID_VERSION_WHILE_UNPACKING;
-
-/**
- * When unpacking an buffer
- *  found that buffer is to short
- *
- * Probably an invalid buffer
- */
-extern const Uint32 E_PROPERTIES_INVALID_BUFFER_TO_SHORT;
-
-/**
- * Error when packing, can not allocate working buffer
- *   
- * Note: OS error is set
- */
-extern const Uint32 E_PROPERTIES_ERROR_MALLOC_WHILE_PACKING;
-
-/**
  * Error when unpacking, can not allocate working buffer
  *   
  * Note: OS error is set
  */
 extern const Uint32 E_PROPERTIES_ERROR_MALLOC_WHILE_UNPACKING;
-
-/**
- * Error when unpacking, invalid checksum
- *   
- */
-extern const Uint32 E_PROPERTIES_INVALID_CHECKSUM;
-
-/**
- * Error when unpacking
- *   No of items > 0 while size of buffer (left) <= 0
- */
-extern const Uint32 E_PROPERTIES_BUFFER_TO_SMALL_WHILE_UNPACKING;
-
-inline bool
-Properties::unpack(UtilBuffer &buf) {
-  return unpack((const Uint32 *)buf.get_data(), buf.length());
-}
 
 #endif
