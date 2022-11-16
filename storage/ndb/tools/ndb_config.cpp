@@ -204,17 +204,17 @@ bool paraminfo_order(const ConfigInfo::ParamInfo* x, const ConfigInfo::ParamInfo
 {
   // Move mandatory parameters first
   int cmp = int(x->_default != MANDATORY) - int(y->_default != MANDATORY);
-  if (cmp != 0) return (cmp <= 0);
+  if (cmp != 0) return (cmp < 0);
 
   // Move parameters with names starting with _ last
   cmp = int(x->_fname[0] == '_') - int(y->_fname[0] == '_');
-  if (cmp != 0) return (cmp <= 0);
+  if (cmp != 0) return (cmp < 0);
 
   cmp = native_strcasecmp(x->_fname, y->_fname);
-  if (cmp != 0) return (cmp <= 0);
+  if (cmp != 0) return (cmp < 0);
 
   cmp = native_strcasecmp(x->_section, y->_section);
-  return (cmp <= 0);
+  return (cmp < 0);
 }
 
 static
