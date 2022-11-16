@@ -114,6 +114,12 @@ typename Handler::Result text_to_handler(const Container &c) {
   return text_to<Handler, Container>(&handler, c);
 }
 
+inline rapidjson::Document text_to_document(const std::string &str) {
+  rapidjson::Document result;
+  text_to(&result, str);
+  return result;
+}
+
 }  // namespace json
 }  // namespace helper
 

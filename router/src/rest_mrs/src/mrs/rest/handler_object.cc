@@ -24,6 +24,7 @@
 
 #include "mrs/rest/handler_object.h"
 
+#include <string>
 #include <string_view>
 
 #include "mysql/harness/logging/logging.h"
@@ -35,6 +36,7 @@
 #include "helper/media_detector.h"
 #include "mrs/database/query_rest_sp_media.h"
 #include "mrs/database/query_rest_table.h"
+#include "mrs/database/query_rest_table_delete.h"
 #include "mrs/database/query_rest_table_insert.h"
 #include "mrs/database/query_rest_table_single_row.h"
 #include "mrs/http/url.h"
@@ -233,8 +235,16 @@ Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
   throw http::Error(HttpStatusCode::InternalError);
 }  // namespace rest
 
-Result HandlerObject::handle_post([[maybe_unused]] rest::RequestContext *ctxt,
+Result HandlerObject::handle_post(rest::RequestContext *ctxt,
                                   const std::vector<uint8_t> &document) {
+  return handle_post_and_post(ctxt, document, false, {});
+}
+
+Result HandlerObject::handle_post_and_post(
+    [[maybe_unused]] rest::RequestContext *ctxt,
+    const std::vector<uint8_t> &document, const bool upsert,
+    std::string pk_value) {
+  assert(upsert && !pk_value.empty());
   auto &requests_uri = ctxt->request->get_uri();
   log_debug("Object::handle_post '%s'", requests_uri.get_path().c_str());
 
@@ -243,19 +253,32 @@ Result HandlerObject::handle_post([[maybe_unused]] rest::RequestContext *ctxt,
 
   // TODO(lkotula): return error msg ? (Shouldn't be in review)
   if (json_doc.HasParseError()) {
-    throw http::Error(HttpStatusCode::BadRequest);
+    throw http::Error(HttpStatusCode::BadRequest,
+                      "Invalid JSON document inside the HTTP request.");
   }
 
   if (json_doc.GetType() != rapidjson::kObjectType)
-    throw http::Error(HttpStatusCode::BadRequest);
+    throw http::Error(HttpStatusCode::BadRequest,
+                      "Invalid JSON document inside the HTTP request, must be "
+                      "an JSON object.");
 
   database::QueryRestObjectInsert insert;
   const auto &columns = route_->get_cached_columnes();
-  std::string pk_value = "";
 
   auto it = json_doc.FindMember(route_->get_cached_primary().c_str());
   if (it != json_doc.MemberEnd()) {
-    pk_value.assign((*it).name.GetString(), (*it).name.GetStringLength());
+    if (!upsert) {
+      pk_value = to_string(&(*it).value);
+    } else {
+      uint64_t pk_value_numeric = std::stoull(pk_value);
+      (*it).value.SetUint64(pk_value_numeric);
+    }
+  } else if (upsert) {
+    uint64_t pk_value_numeric = std::stoull(pk_value);
+    rapidjson::Value v{pk_value_numeric};
+    json_doc.AddMember(
+        rapidjson::StringRef(route_->get_cached_primary().c_str()), v,
+        json_doc.GetAllocator());
   }
 
   log_debug("level1 %s", (ctxt->user.has_user_id ? "yes" : "no"));
@@ -280,8 +303,14 @@ Result HandlerObject::handle_post([[maybe_unused]] rest::RequestContext *ctxt,
 
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
-  insert.execute(session.get(), route_->get_schema_name(),
-                 route_->get_object_name(), keys_iterators, values_iterators);
+  if (!upsert) {
+    insert.execute(session.get(), route_->get_schema_name(),
+                   route_->get_object_name(), keys_iterators, values_iterators);
+  } else {
+    insert.execute_with_upsert(session.get(), route_->get_schema_name(),
+                               route_->get_object_name(), keys_iterators,
+                               values_iterators);
+  }
 
   if (!route_->get_cached_primary().empty()) {
     database::QueryRestTableSingleRow fetch_one;
@@ -304,15 +333,48 @@ Result HandlerObject::handle_post([[maybe_unused]] rest::RequestContext *ctxt,
   return {};
 }
 
-Result HandlerObject::handle_delete([
-    [maybe_unused]] rest::RequestContext *ctxt) {
-  // TODO(lkotula): Implement me (Shouldn't be in review)
-  throw http::Error(HttpStatusCode::NotImplemented);
+Result HandlerObject::handle_delete(rest::RequestContext *ctxt) {
+  auto &requests_uri = ctxt->request->get_uri();
+  http::Url uri_param(requests_uri);
+  auto query = uri_param.get_query_parameter("q");
+  auto path = requests_uri.get_path();
+  auto last_path =
+      http::Url::extra_path_element(route_->get_rest_path_raw(), path);
+  if (!last_path.empty())
+    throw http::Error(
+        HttpStatusCode::BadRequest,
+        "To delete entries in the object, use only 'filter' selector.");
+
+  auto session =
+      get_session(ctxt->sql_session_cache.get(), route_->get_cache());
+  mrs::database::QueryRestObjectDelete d;
+  d.execute(session.get(), route_->get_schema_name(), route_->get_object_name(),
+            query);
+
+  helper::json::SerializerToText stt;
+  {
+    auto obj = stt.add_object();
+    obj->member_add_value("itemsDeleted", session->affected_rows());
+  }
+
+  return {stt.get_result(), helper::MediaType::typeJson};
 }
 
 Result HandlerObject::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
-  // TODO(lkotula): Implement me (Shouldn't be in review)
-  throw http::Error(HttpStatusCode::NotImplemented);
+  auto &requests_uri = ctxt->request->get_uri();
+  auto path = requests_uri.get_path();
+  log_debug("Object::handle_put '%s'", path.c_str());
+  auto last_path =
+      http::Url::extra_path_element(route_->get_rest_path_raw(), path);
+
+  if (last_path.empty())
+    throw http::Error(HttpStatusCode::BadRequest,
+                      "Key value is required inside the URL.");
+
+  auto &input_buffer = ctxt->request->get_input_buffer();
+  auto size = input_buffer.length();
+  return handle_post_and_post(ctxt, input_buffer.pop_front(size), true,
+                              last_path);
 }
 
 Handler::Authorization HandlerObject::requires_authentication() const {

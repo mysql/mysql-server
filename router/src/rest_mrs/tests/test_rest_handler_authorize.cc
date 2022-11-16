@@ -87,6 +87,8 @@ class HandlerAuthorizeTests : public Test {
         .WillRepeatedly(ReturnRef(mock_input_headers_));
     EXPECT_CALL(mock_request_, get_output_buffer())
         .WillRepeatedly(ReturnRef(mock_output_buffer_));
+    EXPECT_CALL(mock_request_, get_input_buffer())
+        .WillRepeatedly(ReturnRef(mock_input_buffer_));
     EXPECT_CALL(mock_request_, get_method()).WillOnce(Return(type));
     EXPECT_CALL(mock_input_headers_, get(StrEq("Cookie")))
         .WillRepeatedly(Return(cookie));
@@ -98,6 +100,7 @@ class HandlerAuthorizeTests : public Test {
   StrictMock<MockHttpHeaders> mock_output_headers_;
   StrictMock<MockHttpHeaders> mock_input_headers_;
   StrictMock<MockHttpBuffer> mock_output_buffer_;
+  StrictMock<MockHttpBuffer> mock_input_buffer_;
   StrictMock<MockHttpRequest> mock_request_;
   StrictMock<MockMysqlCacheManager> mock_cache_manager_;
   std::unique_ptr<BaseRequestHandler> request_handler_;
@@ -108,18 +111,8 @@ class HandlerAuthorizeTests : public Test {
   std::unique_ptr<HandlerAuthorize> sut_;
 };
 
-TEST_F(HandlerAuthorizeTests, unauthorized_access_when_no_handler) {
-  expectGeneric(HttpMethod::Get, "mrs_auth_redirect=localhost");
-
-  EXPECT_CALL(mock_output_headers_,
-              add(StrEq("Location"), StrEq("localhost?status=unauthorized")));
-  EXPECT_CALL(mock_request_, send_reply(HttpStatusCode::TemporaryRedirect));
-
-  request_handler_->handle_request(mock_request_);
-}
-
 TEST_F(HandlerAuthorizeTests, unauthorized_access_when_method_post) {
-  expectGeneric(HttpMethod::Post, "mrs_auth_redirect=localhost");
+  expectGeneric(HttpMethod::Post, "localhost");
 
   EXPECT_CALL(mock_output_headers_,
               add(StrEq("Location"),
@@ -130,7 +123,7 @@ TEST_F(HandlerAuthorizeTests, unauthorized_access_when_method_post) {
 }
 
 TEST_F(HandlerAuthorizeTests, unauthorized_access_when_method_delete) {
-  expectGeneric(HttpMethod::Delete, "mrs_auth_redirect=localhost");
+  expectGeneric(HttpMethod::Delete, "localhost");
 
   EXPECT_CALL(mock_output_headers_,
               add(StrEq("Location"),
@@ -141,7 +134,7 @@ TEST_F(HandlerAuthorizeTests, unauthorized_access_when_method_delete) {
 }
 
 TEST_F(HandlerAuthorizeTests, unauthorized_access_when_method_put) {
-  expectGeneric(HttpMethod::Put, "mrs_auth_redirect=localhost");
+  expectGeneric(HttpMethod::Put, "localhost");
 
   EXPECT_CALL(mock_output_headers_,
               add(StrEq("Location"),
@@ -166,8 +159,7 @@ TEST_F(HandlerAuthorizeTests, do_the_authentication) {
       .WillOnce(Return(true));
 
   EXPECT_CALL(mock_output_headers_,
-              add(StrEq("Set-Cookie"),
-                  StrEq("mrs_auth_redirect=localhost; Max-Age=900")));
+              add(StrEq("Set-Cookie"), StrEq("localhost; Max-Age=900")));
   EXPECT_CALL(mock_output_headers_,
               add(StrEq("Location"), StrEq("localhost?status=authorized")));
 
@@ -191,8 +183,7 @@ TEST_F(HandlerAuthorizeTests, do_the_authentication_fails) {
       .WillOnce(Return(false));
 
   EXPECT_CALL(mock_output_headers_,
-              add(StrEq("Set-Cookie"),
-                  StrEq("mrs_auth_redirect=localhost; Max-Age=900")));
+              add(StrEq("Set-Cookie"), StrEq("localhost; Max-Age=900")));
   EXPECT_CALL(mock_output_headers_,
               add(StrEq("Location"), StrEq("localhost?status=unauthorized")));
 

@@ -46,6 +46,7 @@ class FilterObjectGenerator {
  public:
   void parse(const Document &doc);
   std::string get_result() const;
+  bool has_order() const;
 
  private:
   void parse_complex_or(Value *value);
@@ -58,6 +59,10 @@ class FilterObjectGenerator {
   void parse_wmember(const char *name, Value *value);
   void parse_match(Value *value);
 
+  void reset();
+
+  bool has_filter_{false};
+  bool has_order_{false};
   std::string where_;
   std::list<std::string> argument_;
   std::string order_;
