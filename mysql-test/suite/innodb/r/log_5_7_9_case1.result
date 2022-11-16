@@ -12,7 +12,7 @@
 # Verify...
 Pattern "Redo log format is v1\. The redo log was created before MySQL 8\.0\." found
 Pattern "Redo log is from an earlier version" found
-Pattern "The latest found checkpoint is at lsn =" not found
+Pattern "The latest found checkpoint is at lsn =" found
 Pattern "Upgrading redo log: .*, LSN=" found
 Pattern "innodb-unknown-compound-v" found
 # Case 1A: Start MySQL... (attempt 2)

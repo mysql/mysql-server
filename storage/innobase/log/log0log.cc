@@ -1581,6 +1581,10 @@ static dberr_t log_sys_handle_creator(log_t &log) {
       ib::error(ER_IB_MSG_LOG_FILES_CREATED_BY_CLONE_AND_READ_ONLY_MODE);
       return DB_ERROR;
     }
+    if (log.m_format < Log_format::CURRENT) {
+      ib::error(ER_IB_MSG_LOG_UPGRADE_CLONED_DB, ulong{to_int(log.m_format)});
+      return DB_ERROR;
+    }
     ib::info(ER_IB_MSG_LOG_FILES_CREATED_BY_CLONE);
 
   } else if (!str_starts_with(creator_name, "MySQL ")) {

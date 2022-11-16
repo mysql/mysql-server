@@ -203,6 +203,13 @@ bool recv_page_is_brand_new(buf_block_t *block);
 [[nodiscard]] dberr_t recv_recovery_from_checkpoint_start(log_t &log,
                                                           lsn_t flush_lsn);
 
+/** Determine if a redo log from a version before MySQL 8.0.30 is clean.
+@param[in,out]  log             redo log
+@return error code
+@retval DB_SUCCESS  if the redo log is clean
+@retval DB_ERROR    if the redo log is corrupted or dirty */
+dberr_t recv_verify_log_is_clean_pre_8_0_30(log_t &log);
+
 /** Complete the recovery from the latest checkpoint.
 @param[in]      aborting        true if the server has to abort due to an error
 @return recovered persistent metadata or nullptr if aborting*/

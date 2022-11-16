@@ -875,7 +875,9 @@ void recv_sys_free() {
 @return error code
 @retval DB_SUCCESS  if the redo log is clean
 @retval DB_ERROR    if the redo log is corrupted or dirty */
-static dberr_t recv_log_recover_pre_8_0_30(log_t &log) {
+dberr_t recv_verify_log_is_clean_pre_8_0_30(log_t &log) {
+  ut_a(log.m_format < Log_format::CURRENT);
+
   const size_t n_files = log_files_number_of_existing_files(log.m_files);
   ut_a(n_files >= 2);
 
@@ -904,20 +906,24 @@ static dberr_t recv_log_recover_pre_8_0_30(log_t &log) {
     if (!file_handle.is_open()) {
       return DB_CANNOT_OPEN_FILE;
     }
+
     const dberr_t err =
         log_checkpoint_header_read(file_handle, hdr_no, header_buf);
     if (err != DB_SUCCESS) {
       return DB_ERROR;
     }
+
     Checkpoint_header h;
     if (!checkpoint_header_deserialize(header_buf, h)) {
       continue;
     }
+
     if (!checkpoint_found || h.m_checkpoint_no > chkp_header.m_checkpoint_no) {
       chkp_header = h;
       checkpoint_found = true;
     }
   }
+
   if (!checkpoint_found) {
     ib::error(ER_IB_MSG_RECOVERY_CHECKPOINT_NOT_FOUND);
     return DB_ERROR;
@@ -966,22 +972,13 @@ static dberr_t recv_log_recover_pre_8_0_30(log_t &log) {
     return DB_ERROR;
   }
 
-  /* Start at the beginning of the next block to avoid a need to rewrite
-  real data bytes for checkpoint_lsn-1, checkpoint_lsn-2, .. inside the
-  same log block to which the checkpoint_lsn belongs to. */
-  const lsn_t checkpoint_lsn =
-      ut_uint64_align_up(chkp_header.m_checkpoint_lsn, OS_FILE_LOG_BLOCK_SIZE) +
-      LOG_BLOCK_HDR_SIZE;
+  /* This lsn might be larger than flushed_lsn found in system tablespace if the
+  shutdown wasn't slow. This isn't officially supported scenario, but we can
+  handle it if redo was logically empty, by creating new redo with start_lsn
+  larger than the checkpoint_lsn found here. */
+  recv_sys->checkpoint_lsn = chkp_header.m_checkpoint_lsn;
 
-  recv_sys->parse_start_lsn = checkpoint_lsn;
-  recv_sys->bytes_to_ignore_before_checkpoint = 0;
-  recv_sys->recovered_lsn = checkpoint_lsn;
-  recv_sys->previous_recovered_lsn = checkpoint_lsn;
-  recv_sys->checkpoint_lsn = checkpoint_lsn;
-  recv_sys->scanned_lsn = checkpoint_lsn;
-  recv_sys->last_block_first_mtr_boundary = 0;
-
-  return log_start(log, checkpoint_lsn, checkpoint_lsn);
+  return DB_SUCCESS;
 }
 
 /** Describes location of a single checkpoint. */
@@ -3843,29 +3840,6 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
   }
 
   recv_recovery_on = true;
-
-  switch (log.m_format) {
-    case Log_format::CURRENT:
-      break;
-
-    case Log_format::VERSION_5_7_9:
-    case Log_format::VERSION_8_0_1:
-    case Log_format::VERSION_8_0_3:
-    case Log_format::VERSION_8_0_19:
-    case Log_format::VERSION_8_0_28:
-
-      /* Check if the redo log from an older known redo log
-      version is from a clean shutdown. */
-      return recv_log_recover_pre_8_0_30(log);
-
-    default:
-      ib::error(ER_IB_MSG_LOG_FORMAT_NOT_SUPPORTED, ulong{to_int(log.m_format)},
-                ulong{to_int(Log_format::CURRENT)});
-
-      ut_ad(0);
-      recv_sys->found_corrupt_log = true;
-      return DB_ERROR;
-  }
 
   ut_a(log.m_format == Log_format::CURRENT);
 

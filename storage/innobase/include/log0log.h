@@ -222,6 +222,8 @@ call is finished. The proper order of calls looks like this:
 and this sequence is executed inside srv_start() in srv0start.cc (interleaved
 with remaining logic of the srv_start())
 
+@note Note this function also verifies that REDO logs are in known format.
+
 @param[in]    expect_no_files   true means we should return DB_ERROR if log
                                 files are present in the directory before
                                 proceeding any further

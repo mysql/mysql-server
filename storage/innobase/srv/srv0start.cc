@@ -1508,9 +1508,61 @@ static dberr_t srv_init_abort_low(bool create_new_db,
   return (err);
 }
 
-dberr_t srv_start(bool create_new_db) {
-  lsn_t flushed_lsn;
+/** Recreate REDO log files.
+@param[in,out] flushed_lsn flushed_lsn
+@return DB_SUCCESS or error code */
+static dberr_t recreate_redo_files(lsn_t &flushed_lsn) {
+  ut_d(log_sys->disable_redo_writes = true);
 
+  /* Emit a message to the error log. */
+  const auto target_size = log_sys->m_capacity.target_physical_capacity();
+  const auto target_size_in_M = target_size / (1024 * 1024UL);
+  ib::info(ER_IB_MSG_LOG_FILES_UPGRADE, ulonglong{target_size_in_M},
+           ulonglong{flushed_lsn});
+
+  RECOVERY_CRASH(5);
+  RECOVERY_CRASH(6);
+  ib::info(ER_IB_MSG_LOG_FILES_REWRITING);
+
+  /* Remove all existing log files. */
+  log_files_remove(*log_sys);
+
+  log_sys_close();
+  ut_a(log_sys == nullptr);
+
+  /* The checkpoint_lsn found could be larger than flushed_lsn in the system
+  tables space in case the shutdown wasn't slow. In such case we should start
+  from an lsn at least equal to checkpoint_lsn as pages in the tablespace will
+  have lsns larger than flushed_lsn. */
+  if (recv_sys->checkpoint_lsn != 0) {
+    ut_ad(flushed_lsn <= recv_sys->checkpoint_lsn);
+    flushed_lsn = std::max(flushed_lsn, recv_sys->checkpoint_lsn);
+  }
+
+  /* This is to provide the property that data byte at given lsn never
+  changes and avoid the need to rewrite the block with flushed_lsn. */
+  flushed_lsn = ut_uint64_align_up(flushed_lsn, OS_FILE_LOG_BLOCK_SIZE) +
+                LOG_BLOCK_HDR_SIZE;
+
+  /* `true` parameter makes sure new files are created */
+  dberr_t err = log_sys_init(true, flushed_lsn, flushed_lsn);
+  if (err != DB_SUCCESS) {
+    return err;
+  }
+
+  ut_d(log_sys->disable_redo_writes = false);
+
+  fil_open_system_tablespace_files();
+
+  err = log_start(*log_sys, flushed_lsn, flushed_lsn);
+  if (err != DB_SUCCESS) {
+    return err;
+  }
+
+  return DB_SUCCESS;
+}
+
+dberr_t srv_start(bool create_new_db) {
   page_no_t sum_of_data_file_sizes;
   page_no_t tablespace_size_in_header;
   dberr_t err;
@@ -1832,6 +1884,7 @@ dberr_t srv_start(bool create_new_db) {
 
   /* Open or create the data files. */
   page_no_t sum_of_new_sizes;
+  lsn_t flushed_lsn;
 
   err = srv_sys_space.open_or_create(false, create_new_db, &sum_of_new_sizes,
                                      &flushed_lsn);
@@ -1946,15 +1999,6 @@ dberr_t srv_start(bool create_new_db) {
     }
 
   } else {
-    bool log_upgrade = log_sys->m_format < Log_format::CURRENT;
-    DBUG_EXECUTE_IF("log_force_upgrade", log_upgrade = true;);
-
-    if (log_upgrade && srv_read_only_mode) {
-      ib::error(ER_IB_MSG_LOG_UPGRADE_IN_READ_ONLY_MODE,
-                ulong{to_int(log_sys->m_format)});
-      return srv_init_abort(DB_ERROR);
-    }
-
     /* Load the reserved boundaries of the legacy dblwr buffer, this is
     required to check for stray reads and writes trying to access this
     reserved region in the sys tablespace.
@@ -1986,7 +2030,35 @@ dberr_t srv_start(bool create_new_db) {
       flushed_lsn = new_files_lsn;
     }
 
+    ut_a(log_sys->m_format <= Log_format::CURRENT);
+
+    const bool log_upgrade = log_sys->m_format < Log_format::CURRENT;
+
+    if (log_upgrade) {
+      if (srv_read_only_mode) {
+        ib::error(ER_IB_MSG_LOG_UPGRADE_IN_READ_ONLY_MODE,
+                  ulong{to_int(log_sys->m_format)});
+        return srv_init_abort(DB_ERROR);
+      }
+
+      /* Check if the redo log from an older known redo log
+      version is from a clean shutdown. */
+      err = recv_verify_log_is_clean_pre_8_0_30(*log_sys);
+      if (err != DB_SUCCESS) {
+        return srv_init_abort(err);
+      }
+
+      /* Redo logs are clean. We need to recreate REDO files */
+      err = recreate_redo_files(flushed_lsn);
+      if (err != DB_SUCCESS) {
+        return srv_init_abort(err);
+      }
+    }
+
     err = recv_recovery_from_checkpoint_start(*log_sys, flushed_lsn);
+    if (err != DB_SUCCESS) {
+      return srv_init_abort(err);
+    }
 
     if (err == DB_SUCCESS) {
       arch_page_sys->post_recovery_init();
@@ -2001,7 +2073,7 @@ dberr_t srv_start(bool create_new_db) {
 
     ut_ad(clone_check_recovery_crashpoint(recv_sys->is_cloned_db));
 
-    const bool redo_writes_allowed = !srv_read_only_mode && !log_upgrade;
+    const bool redo_writes_allowed = !srv_read_only_mode;
 
     ut_a(srv_force_recovery < SRV_FORCE_NO_LOG_REDO || !redo_writes_allowed);
 
@@ -2133,115 +2205,7 @@ dberr_t srv_start(bool create_new_db) {
 
     log_sys->m_allow_checkpoints.store(true, std::memory_order_release);
 
-    if (log_upgrade) {
-      /* Prepare to replace the redo log files. */
-      ut_a(!srv_read_only_mode);
-
-      if (recv_sys->is_cloned_db) {
-        ib::error(ER_IB_MSG_LOG_UPGRADE_CLONED_DB,
-                  ulong{to_int(log_sys->m_format)});
-        return srv_init_abort(DB_ERROR);
-      }
-
-      /* For non-empty redo log, upgrade is rejected, so there is even
-      no attempt to parse it, so no way to discover it's corrupted. */
-      if (recv_sys->found_corrupt_log) {
-        ib::error(ER_IB_MSG_LOG_UPGRADE_CORRUPTION__UNEXPECTED,
-                  ulong{to_int(log_sys->m_format)});
-        ut_d(ut_error);
-        ut_o(return srv_init_abort(DB_ERROR));
-      }
-
-      /* For non-empty redo log, upgrade is rejected, so there is even
-      no way to reconstruct non empty srv_dict_metadata. */
-      if (srv_dict_metadata != nullptr && !srv_dict_metadata->empty()) {
-        ib::error(ER_IB_MSG_LOG_UPGRADE_NON_PERSISTED_DD_METADATA__UNEXPECTED,
-                  ulong{to_int(log_sys->m_format)});
-        ut_d(ut_error);
-        ut_o(return srv_init_abort(DB_ERROR));
-      }
-
-      buf_pool_wait_for_no_pending_io();
-
-      flushed_lsn = log_sys->flushed_to_disk_lsn.load();
-
-      ut_ad(buf_pool_pending_io_reads_count() == 0);
-
-      ut_d(log_sys->disable_redo_writes = true);
-
-      {
-        /* Emit a message to the error log. */
-        const auto target_size = log_sys->m_capacity.target_physical_capacity();
-        const auto target_size_in_M = target_size / (1024 * 1024UL);
-        if (log_upgrade) {
-          ib::info(ER_IB_MSG_LOG_FILES_UPGRADE, ulonglong{target_size_in_M},
-                   ulonglong{flushed_lsn});
-
-        } else {
-          const auto current_size =
-              log_files_size_of_existing_files(log_sys->m_files);
-          const auto current_size_in_M = current_size / (1024 * 1024UL);
-          ib::info(ER_IB_MSG_LOG_FILES_RESIZE_ON_START,
-                   ulonglong{current_size_in_M}, ulonglong{target_size_in_M},
-                   ulonglong{flushed_lsn});
-        }
-      }
-
-      /* Prepare to delete the old redo log files. */
-      buf_flush_sync_all_buf_pools();
-
-      RECOVERY_CRASH(5);
-
-      if (flushed_lsn < log_get_lsn(*log_sys) ||
-          buf_pool_get_oldest_modification_lwm() != 0) {
-        ib::error(ER_IB_MSG_LOG_UPGRADE_FLUSH_FAILED__UNEXPECTED,
-                  ulong{to_int(log_sys->m_format)});
-        ut_d(ut_error);
-        ut_o(return srv_init_abort(DB_ERROR));
-      }
-
-      /* Stamp the LSN to the data files. */
-      err = fil_write_flushed_lsn(flushed_lsn);
-      ut_a(err == DB_SUCCESS);
-
-      RECOVERY_CRASH(6);
-
-      ib::info(ER_IB_MSG_LOG_FILES_REWRITING);
-
-      /* Remove all existing log files. */
-      log_files_remove(*log_sys);
-
-      log_sys_close();
-      ut_a(log_sys == nullptr);
-
-      /* Finish clone file recovery before creating new log files. We
-      roll forward to remove any intermediate files here. */
-      clone_files_recovery(true);
-
-      /* This is to provide the property that data byte at given lsn never
-      changes and avoid the need to rewrite the block with flushed_lsn. */
-      flushed_lsn = ut_uint64_align_up(flushed_lsn, OS_FILE_LOG_BLOCK_SIZE) +
-                    LOG_BLOCK_HDR_SIZE;
-
-      err = log_sys_init(true, flushed_lsn, flushed_lsn);
-
-      if (err != DB_SUCCESS) {
-        return srv_init_abort(err);
-      }
-
-      ut_d(log_sys->disable_redo_writes = false);
-
-      fil_open_system_tablespace_files();
-
-      err = log_start(*log_sys, flushed_lsn, flushed_lsn);
-
-      if (err != DB_SUCCESS) {
-        return srv_init_abort(err);
-      }
-
-      log_start_background_threads(*log_sys);
-
-    } else if (recv_sys->is_cloned_db || recv_sys->is_meb_db) {
+    if (recv_sys->is_cloned_db || recv_sys->is_meb_db) {
       buf_pool_wait_for_no_pending_io();
 
       /* Reset creator for log */
