@@ -399,10 +399,19 @@ ClientGreetor::client_greeting() {
   if (!src_protocol->shared_capabilities().test(
           classic_protocol::capabilities::pos::ssl)) {
     // client wants to stay with plaintext
-    if (src_protocol->auth_method_name() == AuthCachingSha2Password::kName &&
-        msg.auth_method_data() == "\x00"sv) {
+
+    if (msg.auth_method_data() == "\x00"sv) {
       // password is empty.
       src_protocol->password("");
+    } else {
+      const bool client_conn_is_secure =
+          connection()->socket_splicer()->client_conn().is_secure_transport();
+
+      if (client_conn_is_secure &&
+          src_protocol->auth_method_name() == AuthCachingSha2Password::kName) {
+        stage(Stage::RequestPlaintextPassword);
+        return Result::Again;
+      }
     }
 
     stage(Stage::Accepted);
@@ -570,10 +579,8 @@ ClientGreetor::client_greeting_after_tls() {
 
     stage(Stage::Accepted);
     return Result::Again;
-  } else if (kCapturePlaintextPassword &&
-             src_protocol->auth_method_name() ==
-                 AuthCachingSha2Password::kName &&
-             src_channel->is_tls()) {
+  } else if (kCapturePlaintextPassword && src_protocol->auth_method_name() ==
+                                              AuthCachingSha2Password::kName) {
     stage(Stage::RequestPlaintextPassword);
     return Result::Again;
   } else {
@@ -1767,10 +1774,12 @@ ServerFirstAuthenticator::client_greeting() {
   auto *src_protocol = connection()->client_protocol();
   auto *dst_protocol = connection()->server_protocol();
 
-  bool server_supports_tls = dst_protocol->server_capabilities().test(
+  const bool server_supports_tls = dst_protocol->server_capabilities().test(
       classic_protocol::capabilities::pos::ssl);
-  bool client_uses_tls = src_protocol->shared_capabilities().test(
+  const bool client_uses_tls = src_protocol->shared_capabilities().test(
       classic_protocol::capabilities::pos::ssl);
+  const bool client_is_secure =
+      client_uses_tls || socket_splicer->client_conn().is_secure_transport();
 
   if (connection()->dest_ssl_mode() == SslMode::kAsClient && client_uses_tls &&
       !server_supports_tls) {
@@ -1808,12 +1817,13 @@ ServerFirstAuthenticator::client_greeting() {
       client_caps.set(classic_protocol::capabilities::pos::ssl);
       break;
     case SslMode::kAsClient:
-      client_caps.set(classic_protocol::capabilities::pos::ssl,
-                      client_uses_tls);
+      if (connection()->source_ssl_mode() != SslMode::kPassthrough) {
+        // don't check caps on passthrough.
+        client_caps.set(classic_protocol::capabilities::pos::ssl,
+                        client_is_secure);
+      }
       break;
     case SslMode::kPassthrough:
-      // don't check caps on passthrough.
-      break;
     case SslMode::kDefault:
       log_debug("dest_ssl_mode::Default ... should not happen.");
 

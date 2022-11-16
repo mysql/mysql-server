@@ -803,96 +803,98 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
   auto src_channel = socket_splicer->client_channel();
   auto src_protocol = connection()->client_protocol();
 
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::client::Query>(
-          src_channel, src_protocol);
-  if (!msg_res) return recv_client_failed(msg_res.error());
+  if (connection()->connection_sharing_possible()) {
+    auto msg_res =
+        ClassicFrame::recv_msg<classic_protocol::message::client::Query>(
+            src_channel, src_protocol);
+    if (!msg_res) return recv_client_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("query::command: " +
-                              msg_res->statement().substr(0, 1024)));
+    trace(Tracer::Event().stage("query::command: " +
+                                msg_res->statement().substr(0, 1024)));
 
-  if (connection()->connection_sharing_allowed()) {
-    // the diagnostics-area is only maintained, if connection-sharing is
-    // allowed.
-    //
-    // Otherwise, all queries for the to the diagnostics area MUST go to the
-    // server.
-    auto intercept_res =
-        intercept_diagnostics_area_queries(msg_res->statement());
-    if (intercept_res) {
-      if (std::holds_alternative<std::monostate>(*intercept_res)) {
-        // no match
-      } else if (std::holds_alternative<ShowWarnings>(*intercept_res)) {
-        discard_current_msg(src_channel, src_protocol);
+    if (connection()->connection_sharing_allowed()) {
+      // the diagnostics-area is only maintained, if connection-sharing is
+      // allowed.
+      //
+      // Otherwise, all queries for the to the diagnostics area MUST go to the
+      // server.
+      auto intercept_res =
+          intercept_diagnostics_area_queries(msg_res->statement());
+      if (intercept_res) {
+        if (std::holds_alternative<std::monostate>(*intercept_res)) {
+          // no match
+        } else if (std::holds_alternative<ShowWarnings>(*intercept_res)) {
+          discard_current_msg(src_channel, src_protocol);
 
-        auto cmd = std::get<ShowWarnings>(*intercept_res);
+          auto cmd = std::get<ShowWarnings>(*intercept_res);
 
-        auto send_res = show_warnings(connection(), cmd.only_errors(),
-                                      cmd.row_count(), cmd.offset());
-        if (!send_res) return send_client_failed(send_res.error());
+          auto send_res = show_warnings(connection(), cmd.only_errors(),
+                                        cmd.row_count(), cmd.offset());
+          if (!send_res) return send_client_failed(send_res.error());
 
-        stage(Stage::Done);
-        return Result::SendToClient;
-      } else if (std::holds_alternative<ShowWarningCount>(*intercept_res)) {
-        discard_current_msg(src_channel, src_protocol);
+          stage(Stage::Done);
+          return Result::SendToClient;
+        } else if (std::holds_alternative<ShowWarningCount>(*intercept_res)) {
+          discard_current_msg(src_channel, src_protocol);
 
-        auto cmd = std::get<ShowWarningCount>(*intercept_res);
+          auto cmd = std::get<ShowWarningCount>(*intercept_res);
 
-        auto send_res =
-            show_warning_count(connection(), cmd.only_errors(), cmd.scope());
-        if (!send_res) return send_client_failed(send_res.error());
+          auto send_res =
+              show_warning_count(connection(), cmd.only_errors(), cmd.scope());
+          if (!send_res) return send_client_failed(send_res.error());
 
-        stage(Stage::Done);
-        return Result::SendToClient;
+          stage(Stage::Done);
+          return Result::SendToClient;
+        }
       }
     }
-  }
 
-  stmt_classified_ = classify(msg_res->statement(), true);
+    stmt_classified_ = classify(msg_res->statement(), true);
 
-  trace(Tracer::Event().stage("query::classified: " +
-                              mysqlrouter::to_string(stmt_classified_)));
+    trace(Tracer::Event().stage("query::classified: " +
+                                mysqlrouter::to_string(stmt_classified_)));
 
-  // SET session_track... is forbidden if router sets session-trackers on the
-  // server-side.
-  if ((stmt_classified_ & StmtClassifier::ForbiddenSetWithConnSharing) &&
-      connection()->connection_sharing_possible()) {
-    discard_current_msg(src_channel, src_protocol);
+    // SET session_track... is forbidden if router sets session-trackers on the
+    // server-side.
+    if ((stmt_classified_ & StmtClassifier::ForbiddenSetWithConnSharing) &&
+        connection()->connection_sharing_possible()) {
+      discard_current_msg(src_channel, src_protocol);
 
-    trace(Tracer::Event().stage("query::forbidden"));
+      trace(Tracer::Event().stage("query::forbidden"));
 
-    auto send_res =
-        ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-            src_channel, src_protocol,
-            {ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION,
-             "The system variable cannot be set when connection sharing is "
-             "enabled",
-             "HY000"});
-    if (!send_res) return send_client_failed(send_res.error());
+      auto send_res =
+          ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+              src_channel, src_protocol,
+              {ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION,
+               "The system variable cannot be set when connection sharing is "
+               "enabled",
+               "HY000"});
+      if (!send_res) return send_client_failed(send_res.error());
 
-    stage(Stage::Done);
-    return Result::SendToClient;
-  }
+      stage(Stage::Done);
+      return Result::SendToClient;
+    }
 
-  // functions are forbidden if the connection can be shared
-  // (e.g. config allows sharing and outside a transaction)
-  if ((stmt_classified_ & StmtClassifier::ForbiddenFunctionWithConnSharing) &&
-      connection()->connection_sharing_allowed()) {
-    discard_current_msg(src_channel, src_protocol);
+    // functions are forbidden if the connection can be shared
+    // (e.g. config allows sharing and outside a transaction)
+    if ((stmt_classified_ & StmtClassifier::ForbiddenFunctionWithConnSharing) &&
+        connection()->connection_sharing_allowed()) {
+      discard_current_msg(src_channel, src_protocol);
 
-    trace(Tracer::Event().stage("query::forbidden"));
+      trace(Tracer::Event().stage("query::forbidden"));
 
-    auto send_res =
-        ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-            src_channel, src_protocol,
-            {ER_NO_ACCESS_TO_NATIVE_FCT,
-             "Access to native function is rejected when connection sharing is "
-             "enabled",
-             "HY000"});
-    if (!send_res) return send_client_failed(send_res.error());
+      auto send_res = ClassicFrame::send_msg<
+          classic_protocol::message::server::Error>(
+          src_channel, src_protocol,
+          {ER_NO_ACCESS_TO_NATIVE_FCT,
+           "Access to native function is rejected when connection sharing is "
+           "enabled",
+           "HY000"});
+      if (!send_res) return send_client_failed(send_res.error());
 
-    stage(Stage::Done);
-    return Result::SendToClient;
+      stage(Stage::Done);
+      return Result::SendToClient;
+    }
   }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();

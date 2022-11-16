@@ -53,6 +53,7 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
 #include "mysql/harness/stdx/filesystem.h"
+#include "mysql/harness/stdx/ranges.h"  // enumerate
 #include "mysql/harness/tls_context.h"
 #include "mysql/harness/utility/string.h"  // join
 #include "mysqlrouter/classic_protocol_codec_frame.h"
@@ -63,11 +64,13 @@
 #include "mysqlrouter/utils.h"
 #include "openssl_version.h"  // ROUTER_OPENSSL_VERSION
 #include "process_manager.h"
+#include "procs.h"
 #include "rest_api_testutils.h"
 #include "router/src/routing/tests/mysql_client.h"
 #include "router_component_test.h"
 #include "router_test_helpers.h"
 #include "scope_guard.h"
+#include "stdx_expected_no_error.h"
 #include "tcp_port_pool.h"
 #include "test/temp_directory.h"
 
@@ -88,36 +91,6 @@ using ::testing::StartsWith;
 
 static constexpr const auto kIdleServerConnectionsSleepTime{10ms};
 
-template <class T, class E>
-::testing::AssertionResult StdxExpectedSuccess(const char *expr,
-                                               const stdx::expected<T, E> &e) {
-  if (e) return ::testing::AssertionSuccess();
-
-  return ::testing::AssertionFailure() << "Expected: " << expr << " succeeds.\n"
-                                       << "  Actual: " << e.error() << "\n";
-}
-
-template <class T, class E>
-::testing::AssertionResult StdxExpectedFailure(const char *expr,
-                                               const stdx::expected<T, E> &e) {
-  if (!e) return ::testing::AssertionSuccess();
-
-  if constexpr (std::is_void_v<T>) {
-    return ::testing::AssertionFailure() << "Expected: " << expr << " fails.\n"
-                                         << "  Actual: succeeded\n";
-  } else {
-    return ::testing::AssertionFailure()
-           << "Expected: " << expr << " fails.\n"
-           << "  Actual: " << ::testing::PrintToString(e.value()) << "\n";
-  }
-}
-
-#define EXPECT_NO_ERROR(x) EXPECT_PRED_FORMAT1(StdxExpectedSuccess, (x))
-#define ASSERT_NO_ERROR(x) ASSERT_PRED_FORMAT1(StdxExpectedSuccess, (x))
-
-#define EXPECT_ERROR(x) EXPECT_PRED_FORMAT1(StdxExpectedFailure, (x))
-#define ASSERT_ERROR(x) ASSERT_PRED_FORMAT1(StdxExpectedFailure, (x))
-
 static constexpr const std::string_view kDisabled{"DISABLED"};
 static constexpr const std::string_view kRequired{"REQUIRED"};
 static constexpr const std::string_view kPreferred{"PREFERRED"};
@@ -127,51 +100,6 @@ static constexpr const std::string_view kAsClient{"AS_CLIENT"};
 std::ostream &operator<<(std::ostream &os, MysqlError e) {
   os << e.sql_state() << " (" << e.value() << ") " << e.message();
   return os;
-}
-
-/*
- * a iterator that wraps an iterable and returns a counter the
- * deref'ed wrapped iterable.
- *
- * @tparam T a iterable
- *
- * @code
- * for (auto [ndx, vc]: enumerate(std::vector<int>{1, 23, 42})) {
- *   std::cerr << "[" << ndx << "] " << v << "\n";
- * }
- *
- * // [0] 1
- * // [1] 23
- * // [2] 42
- * @endcode
- */
-template <class T, class TIter = decltype(std::begin(std::declval<T>())),
-          class = decltype(std::end(std::declval<T>()))>
-constexpr auto enumerate(T &&iterable) {
-  struct iterator {
-    size_t i;
-
-    TIter iter;
-
-    bool operator!=(const iterator &other) const { return iter != other.iter; }
-
-    void operator++() {
-      ++i;
-      ++iter;
-    }
-
-    auto operator*() const { return std::tie(i, *iter); }
-  };
-
-  struct iterable_wrapper {
-    T iterable;
-
-    auto begin() { return iterator{0, std::begin(iterable)}; }
-
-    auto end() { return iterator{0, std::end(iterable)}; }
-  };
-
-  return iterable_wrapper{std::forward<T>(iterable)};
 }
 
 /**
@@ -244,7 +172,7 @@ stdx::expected<std::array<std::string, N>, MysqlError> query_one(
   }
 
   std::array<std::string, N> out;
-  for (auto [ndx, f] : enumerate(out)) {
+  for (auto [ndx, f] : stdx::views::enumerate(out)) {
     f = (*rows_it)[ndx];
   }
 
@@ -316,45 +244,6 @@ WHERE t.PROCESSLIST_ID = CONNECTION_ID()
   AND COUNT_STAR > 0
 ORDER BY EVENT_NAME)");
 }
-
-class Procs : public ProcessManager {
- public:
-  [[nodiscard]] mysql_harness::Path get_origin() const {
-    return ProcessManager::get_origin();
-  }
-
-  /**
-   * shutdown and stop monitoring of processes.
-   */
-  void clear() {
-    if (::testing::Test::HasFatalFailure() || dump_logs_) {
-      dump_all();
-    }
-
-    ProcessManager::clear();
-  }
-
-  void shutdown_all() { ProcessManager::shutdown_all(); }
-
-  ~Procs() override {
-    shutdown_all();
-    ensure_clean_exit();
-
-    if (::testing::Test::HasFatalFailure() || dump_logs_) {
-      dump_all();
-    }
-  }
-
-  void dump_logs() { dump_logs_ = true; }
-
-  auto wait_for_exit(
-      std::chrono::milliseconds timeout = kDefaultWaitForExitTimeout) {
-    return ProcessManager::wait_for_exit(timeout);
-  }
-
- private:
-  bool dump_logs_{false};
-};
 
 struct ConnectionParam {
   std::string testname;
@@ -506,7 +395,7 @@ class SharedServer {
     return mysqld_dir_.name();
   }
 
-  Procs &process_manager() { return procs_; }
+  integration_tests::Procs &process_manager() { return procs_; }
 #ifdef _WIN32
 #define EXE_EXTENSION ".exe"
 #else
@@ -886,7 +775,7 @@ WHERE id != CONNECTION_ID() AND
   static TempDirectory *mysqld_init_once_dir_;
   TempDirectory mysqld_dir_{"mysqld"};
 
-  Procs procs_;
+  integration_tests::Procs procs_;
   TcpPortPool &port_pool_;
 
   static const constexpr char server_host_[] = "127.0.0.1";
@@ -905,7 +794,7 @@ class SharedRouter {
   SharedRouter(TcpPortPool &port_pool)
       : port_pool_(port_pool), rest_port_{port_pool_.get_next_available()} {}
 
-  Procs &process_manager() { return procs_; }
+  integration_tests::Procs &process_manager() { return procs_; }
 
   static std::vector<std::string> destinations_from_shared_servers(
       const std::array<SharedServer *, 1> &servers) {
@@ -1062,7 +951,7 @@ class SharedRouter {
   }
 
  private:
-  Procs procs_;
+  integration_tests::Procs procs_;
   TcpPortPool &port_pool_;
 
   TempDirectory conf_dir_;
@@ -1471,11 +1360,33 @@ TEST_P(ConnectionTest, classic_protocol_native_over_socket) {
                                  shared_router()->socket_path(GetParam()));
   ASSERT_NO_ERROR(connect_res);
 
-  auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
-  ASSERT_NO_ERROR(cmd_res);
+  {
+    auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
+    ASSERT_NO_ERROR(cmd_res);
 
-  EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(account.username + "@localhost",
-                                                "<NULL>")));
+    EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(
+                              account.username + "@localhost", "<NULL>")));
+  }
+
+  {
+    auto cmd_res = query_one_result(cli,
+                                    "SELECT VARIABLE_VALUE "
+                                    " FROM performance_schema.session_status "
+                                    "WHERE variable_name LIKE 'Ssl_cipher'");
+    ASSERT_NO_ERROR(cmd_res);
+
+    if (GetParam().server_ssl_mode == kPreferred ||
+        GetParam().server_ssl_mode == kRequired ||
+        (GetParam().server_ssl_mode == kAsClient &&
+         (GetParam().client_ssl_mode == kPreferred ||
+          GetParam().client_ssl_mode == kRequired))) {
+      // some cipher is set
+      EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(Not(IsEmpty()))));
+    } else {
+      // no cipher is set
+      EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(IsEmpty())));
+    }
+  }
 }
 
 TEST_P(ConnectionTest, classic_protocol_change_user_native_over_socket) {
@@ -4069,6 +3980,45 @@ TEST_P(ConnectionTest, classic_protocol_unknown_command) {
   SCOPED_TRACE(
       "// after an invalid command, normal commands should still work.");
   ASSERT_NO_ERROR(cli.ping());
+}
+
+/**
+ * check that server doesn't report "Aborted Clients".
+ */
+TEST_P(ConnectionTest, classic_protocol_quit_no_aborted_connections) {
+  SCOPED_TRACE("// connecting to server directly");
+  auto admin_res = shared_servers()[0]->admin_cli();
+  ASSERT_NO_ERROR(admin_res);
+
+  auto admin_cli = std::move(*admin_res);
+
+  auto before_res = query_one_result(admin_cli,
+                                     "SELECT VARIABLE_VALUE "
+                                     "FROM performance_schema.global_status "
+                                     "WHERE variable_name = 'Aborted_clients'");
+  ASSERT_NO_ERROR(before_res);
+
+  SCOPED_TRACE("// connecting to server through router");
+  {
+    MysqlClient cli;
+
+    cli.username("root");
+    cli.password("");
+
+    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                                shared_router()->port(GetParam())));
+
+    // and close again.
+  }
+
+  auto after_res = query_one_result(admin_cli,
+                                    "SELECT VARIABLE_VALUE "
+                                    "FROM performance_schema.global_status "
+                                    "WHERE variable_name = 'Aborted_clients'");
+  ASSERT_NO_ERROR(after_res);
+
+  SCOPED_TRACE("// expect no new aborted clients");
+  EXPECT_EQ((*before_res)[0][0], (*after_res)[0][0]);
 }
 
 INSTANTIATE_TEST_SUITE_P(Spec, ConnectionTest,

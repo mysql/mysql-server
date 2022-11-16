@@ -50,45 +50,17 @@
 #include "mysqlxclient/xquery_result.h"
 #include "openssl_version.h"  // ROUTER_OPENSSL_VERSION
 #include "process_manager.h"
+#include "procs.h"
 #include "router/src/routing/tests/mysql_client.h"
 #include "router_component_test.h"
 #include "router_test_helpers.h"
 #include "scope_guard.h"
+#include "stdx_expected_no_error.h"
 #include "tcp_port_pool.h"
 
 using namespace std::string_literals;
 using namespace std::chrono_literals;
 using namespace std::string_view_literals;
-
-template <class T, class E>
-::testing::AssertionResult StdxExpectedSuccess(const char *expr,
-                                               const stdx::expected<T, E> &e) {
-  if (e) return ::testing::AssertionSuccess();
-
-  return ::testing::AssertionFailure() << "Expected: " << expr << " succeeds.\n"
-                                       << "  Actual: " << e.error() << "\n";
-}
-
-template <class T, class E>
-::testing::AssertionResult StdxExpectedFailure(const char *expr,
-                                               const stdx::expected<T, E> &e) {
-  if (!e) return ::testing::AssertionSuccess();
-
-  if constexpr (std::is_void_v<T>) {
-    return ::testing::AssertionFailure() << "Expected: " << expr << " fails.\n"
-                                         << "  Actual: succeeded\n";
-  } else {
-    return ::testing::AssertionFailure()
-           << "Expected: " << expr << " fails.\n"
-           << "  Actual: " << ::testing::PrintToString(e.value()) << "\n";
-  }
-}
-
-#define EXPECT_NO_ERROR(x) EXPECT_PRED_FORMAT1(StdxExpectedSuccess, (x))
-#define ASSERT_NO_ERROR(x) ASSERT_PRED_FORMAT1(StdxExpectedSuccess, (x))
-
-#define EXPECT_ERROR(x) EXPECT_PRED_FORMAT1(StdxExpectedFailure, (x))
-#define ASSERT_ERROR(x) ASSERT_PRED_FORMAT1(StdxExpectedFailure, (x))
 
 static constexpr const std::string_view kDisabled{"DISABLED"};
 static constexpr const std::string_view kRequired{"REQUIRED"};
@@ -151,27 +123,6 @@ class TextFormatParser {
   google::protobuf::TextFormat::Parser parser_;
 
   StringErrorCollector errors_;
-};
-
-class Procs : public ProcessManager {
- public:
-  [[nodiscard]] mysql_harness::Path get_origin() const {
-    return ProcessManager::get_origin();
-  }
-
-  ~Procs() override {
-    shutdown_all();
-    ensure_clean_exit();
-
-    if (::testing::Test::HasFatalFailure() || dump_logs_) {
-      dump_all();
-    }
-  }
-
-  void dump_logs() { dump_logs_ = true; }
-
- private:
-  bool dump_logs_{false};
 };
 
 struct ReuseConnectionParam {
@@ -267,7 +218,7 @@ class SharedServer {
     return mysqld_dir_.name();
   }
 
-  Procs &process_manager() { return procs_; }
+  integration_tests::Procs &process_manager() { return procs_; }
 
   void initialize_server() {
     auto bindir = process_manager().get_origin();
@@ -545,7 +496,7 @@ class SharedServer {
  private:
   TempDirectory mysqld_dir_{"mysqld"};
 
-  Procs procs_;
+  integration_tests::Procs procs_;
   TcpPortPool &port_pool_;
 
   static const constexpr char server_host_[] = "127.0.0.1";
@@ -561,7 +512,7 @@ class SharedServer {
 class SharedRouter {
  public:
   SharedRouter(TcpPortPool &port_pool) : port_pool_(port_pool) {}
-  Procs &process_manager() { return procs_; }
+  integration_tests::Procs &process_manager() { return procs_; }
 
   void spawn_router(const std::string &server_host, uint16_t server_port,
                     uint16_t server_mysqlx_port) {
@@ -645,7 +596,7 @@ class SharedRouter {
   }
 
  private:
-  Procs procs_;
+  integration_tests::Procs procs_;
   TcpPortPool &port_pool_;
 
   TempDirectory conf_dir_;
