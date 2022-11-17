@@ -54,6 +54,7 @@
 #include "portlib/NdbTick.h"
 #include "portlib/ndb_sockaddr.h"
 #include "util/NdbSocket.h"
+#include "util/TlsKeyManager.hpp"
 
 #ifndef _WIN32
 /*
@@ -232,6 +233,12 @@ public:
    *   they need to get initialized
    */
   bool init(TransporterReceiveHandle&);
+
+  /**
+   * Initialize TLS context. Cannot be called prior to init(NodeId).
+   * Returns true on success.
+   */
+  bool init_tls(const char * search_path, int node_type, bool is_primary);
 
   /**
      Perform handshaking of a client connection to accept it
@@ -568,6 +575,7 @@ private:
   Uint32 nMultiTransporters;
   Uint32 nTCPTransporters;
   Uint32 nSHMTransporters;
+  TlsKeyManager m_tls_keys;
 
 #ifdef ERROR_INSERT
   NodeBitmask m_blocked;

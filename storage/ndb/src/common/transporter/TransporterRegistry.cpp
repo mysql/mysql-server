@@ -489,6 +489,15 @@ TransporterRegistry::init(TransporterReceiveHandle& recvhandle)
 }
 
 bool
+TransporterRegistry::init_tls(const char * searchPath, int nodeType,
+                              bool isPrimary)
+{
+  require(localNodeId);
+  m_tls_keys.init(searchPath, localNodeId, nodeType, isPrimary);
+  return m_tls_keys.ctx();
+}
+
+bool
 TransporterRegistry::connect_server(NdbSocket & socket,
                                     BaseString & msg,
                                     bool& close_with_reset,
