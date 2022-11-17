@@ -47,6 +47,7 @@ OPT_EXTERN(const char *,opt_ndb_connectstring,=0);
 OPT_EXTERN(int, opt_connect_retry_delay,NONE);
 OPT_EXTERN(int, opt_connect_retries,NONE);
 OPT_EXTERN(const char *,opt_charsets_dir,=0);
+OPT_EXTERN(const char *,opt_tls_search_path,=NDB_TLS_SEARCH_PATH);
 
 #ifndef NDEBUG
 OPT_EXTERN(const char *,opt_debug,= 0);
@@ -140,6 +141,12 @@ static constexpr struct my_option connect_retries =
     " to the cluster. -1 for eternal retries",
     &opt_connect_retries, nullptr, nullptr, GET_INT, REQUIRED_ARG,
     12, -1, INT_MAX, nullptr, 0, nullptr};
+
+static constexpr struct my_option tls_search_path =
+  { "ndb-tls-search-path", NDB_OPT_NOSHORT,
+    "List of directories containing TLS keys and certificates",
+    &opt_tls_search_path, nullptr, nullptr, GET_STR, REQUIRED_ARG,
+    0, 0, 0, nullptr, 0, nullptr};
 
 #ifndef NDEBUG
 static constexpr struct my_option debug =

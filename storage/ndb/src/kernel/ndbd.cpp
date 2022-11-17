@@ -1030,7 +1030,7 @@ ndbd_run(bool foreground, int report_fd,
          const char* connect_str, int force_nodeid, const char* bind_address,
          bool no_start, bool initial, bool initialstart,
          unsigned allocated_nodeid, int connect_retries, int connect_delay,
-         size_t logbuffer_size)
+         size_t logbuffer_size, const char * tls_search_path)
 {
   log_memusage("ndbd_run");
   LogBuffer* logBuf = new LogBuffer(logbuffer_size);
@@ -1169,6 +1169,7 @@ ndbd_run(bool foreground, int report_fd,
 
   theConfig->setupConfiguration();
 
+  globalTransporterRegistry.init_tls(tls_search_path, NODE_TYPE_DB, true);
 
   /**
     Printout various information about the threads in the

@@ -78,6 +78,10 @@ public:
   {
     configure_tls(searchPath, NODE_TYPE_API, primary);
   }
+  void mgm_configure_tls(const char * searchPath)
+  {
+    configure_tls(searchPath, NODE_TYPE_MGM, true);
+  }
 
   /*
     (Re)configure the TransporterFacade

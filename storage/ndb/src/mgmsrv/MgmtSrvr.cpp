@@ -249,6 +249,7 @@ MgmtSrvr::MgmtSrvr(const MgmtOpts& opts) :
   m_local_config(NULL),
   _ownReference(0),
   m_config_manager(NULL),
+  m_tls_search_path(opts.tls_search_path),
   m_need_restart(false),
   theFacade(NULL),
   _isStopThread(false),
@@ -391,21 +392,20 @@ MgmtSrvr::init()
 
   assert(_ownNodeId);
 
-  DBUG_RETURN(true);
-}
-
-
-bool
-MgmtSrvr::start_transporter(const Config* config)
-{
-  DBUG_ENTER("MgmtSrvr::start_transporter");
-
   theFacade= new TransporterFacade(0);
   if (theFacade == 0)
   {
     g_eventLogger->error("Could not create TransporterFacade.");
     DBUG_RETURN(false);
   }
+
+  DBUG_RETURN(true);
+}
+
+bool
+MgmtSrvr::start_transporter(const Config* config)
+{
+  DBUG_ENTER("MgmtSrvr::start_transporter");
 
   assert(_blockNumber == 0); // Blocknumber shouldn't been allocated yet
 
@@ -571,6 +571,10 @@ bool
 MgmtSrvr::start()
 {
   DBUG_ENTER("MgmtSrvr::start");
+
+  /* Configure TLS */
+  require(m_tls_search_path);
+  theFacade->mgm_configure_tls(m_tls_search_path);
 
   /* Start transporter */
   if(!start_transporter(m_local_config))

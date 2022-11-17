@@ -76,6 +76,7 @@ static struct my_option my_long_options[] =
   NdbStdOpt::ndb_nodeid,
   NdbStdOpt::connect_retry_delay, //used
   NdbStdOpt::connect_retries, // used
+  NdbStdOpt::tls_search_path,
   NDB_STD_OPT_DEBUG
   { "core-file", NDB_OPT_NOSHORT, "Write core on errors.",\
     &opt_core, nullptr, nullptr, GET_BOOL, NO_ARG,
@@ -265,7 +266,7 @@ real_main(int argc, char** argv)
              opt_ndb_connectstring, opt_ndb_nodeid, opt_bind_address,
              opt_no_start, opt_initial, opt_initialstart,
              opt_allocated_nodeid, opt_connect_retries, opt_connect_retry_delay,
-             opt_logbuffer_size);
+             opt_logbuffer_size, opt_tls_search_path);
   }
 
   /**

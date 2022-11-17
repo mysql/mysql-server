@@ -112,10 +112,13 @@ public:
     int print_full_config;
     const char* configdir;
     int verbose;
-    MgmtOpts() : configdir(MYSQLCLUSTERDIR) {}
     int reload;
     int initial;
     NodeBitmask nowait_nodes;
+    const char* tls_search_path;
+
+    MgmtOpts() : configdir(MYSQLCLUSTERDIR),
+                 tls_search_path(NDB_TLS_SEARCH_PATH) {}
   };
 
   MgmtSrvr(); // Not implemented
@@ -452,6 +455,8 @@ private:
   BlockReference _ownReference;
 
   class ConfigManager* m_config_manager;
+
+  const char * m_tls_search_path { nullptr };
 
   bool m_need_restart;
 

@@ -95,6 +95,11 @@ ENDIF()
 
 NDB_ADD_TEST(ndb_version-t version.cpp LIBS ndbgeneral)
 
+SET_PROPERTY(SOURCE ndb_opts.cpp
+             PROPERTY COMPILE_DEFINITIONS
+             NDB_TLS_SEARCH_PATH="${WITH_NDB_TLS_SEARCH_PATH}")
+
+
 FOREACH(tests
     NdbPack
     mysql_utils_test
