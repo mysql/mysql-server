@@ -1048,7 +1048,7 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
                       get_num_cols_added(ha_alter_info)) < REC_MAX_N_FIELDS)) {
           if (ha_alter_info->alter_info->requested_algorithm ==
               Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
-            my_error(ER_TOO_MANY_FIELDS, MYF(0),
+            my_error(ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_FIELDS, MYF(0),
                      m_prebuilt->table->name.m_name);
             return HA_ALTER_ERROR;
           }
@@ -10155,7 +10155,8 @@ enum_alter_inplace_result ha_innopart::check_if_supported_inplace_alter(
                     get_num_cols_added(ha_alter_info)) < REC_MAX_N_FIELDS)) {
         if (ha_alter_info->alter_info->requested_algorithm ==
             Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
-          my_error(ER_TOO_MANY_FIELDS, MYF(0), m_prebuilt->table->name.m_name);
+          my_error(ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_FIELDS, MYF(0),
+                   m_prebuilt->table->name.m_name);
           return HA_ALTER_ERROR;
         }
         /* INSTANT can't be done any more. Fall back to INPLACE. */
