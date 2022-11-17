@@ -113,6 +113,7 @@
 #include "template_utils.h"
 #include "thr_lock.h"  // TL_READ
 
+using std::find;
 using std::function;
 
 static const enum_walk walk_options =
@@ -7683,30 +7684,34 @@ bool Query_block::lift_fulltext_from_having_to_select_list(THD *thd) {
   Item *having_cond = m_having_cond;
   if (having_cond == nullptr) return false;
 
-  const size_t first_added_item = fields.size();
+  Prealloced_array<Item **, 8> refs_to_fulltext(PSI_NOT_INSTRUMENTED);
 
-  // Add all full-text search calls as hidden elements of the SELECT list.
-  if (WalkItem(
-          having_cond, enum_walk::PREFIX | enum_walk::POSTFIX,
-          NonAggregatedFullTextSearchVisitor([this](Item_func_match *item) {
-            add_hidden_item(item);
-            return false;
-          }))) {
+  // Add all full-text search calls as hidden elements of the SELECT list, if
+  // they are not already there.
+  if (WalkItem(having_cond, enum_walk::PREFIX | enum_walk::POSTFIX,
+               NonAggregatedFullTextSearchVisitor(
+                   [this, thd, &refs_to_fulltext](Item_func_match *item) {
+                     const auto it = find(fields.begin(), fields.end(), item);
+                     Item **ref =
+                         it != fields.end() ? &*it : add_hidden_item(item);
+                     // The above is sufficient for the hypergraph optimizer.
+                     // The old optimizer additionally needs to have references
+                     // from the HAVING clause to the corresponding elements in
+                     // the SELECT list, so that it knows that it should read
+                     // results from a temporary table instead of evaluating the
+                     // expressions if they have been materialized. So we wrap
+                     // these items in an Item_ref later.
+                     if (!thd->lex->using_hypergraph_optimizer) {
+                       return refs_to_fulltext.push_back(ref);
+                     }
+                     return false;
+                   }))) {
     return true;
   }
 
-  if (thd->lex->using_hypergraph_optimizer) {
-    return false;
-  }
-
-  // The above is sufficient for the hypergraph optimizer. The old optimizer
-  // additionally needs to have pointers from the HAVING clause to the
-  // corresponding elements in the SELECT list, so that it knows that it should
-  // read results from a temporary table instead of evaluating the expressions
-  // if they have been materialized. So we insert Item_refs.
-
-  for (size_t i = first_added_item; i < fields.size(); ++i) {
-    Item **item_to_replace = &base_ref_items[i];
+  // Add Item_ref indirection in the old optimizer.
+  for (Item **item_to_replace : refs_to_fulltext) {
+    assert(!thd->lex->using_hypergraph_optimizer);
     having_cond = TransformItem(having_cond, [&](Item *sub_item) -> Item * {
       if (sub_item == *item_to_replace) {
         return new (thd->mem_root)
