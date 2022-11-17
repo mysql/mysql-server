@@ -2639,7 +2639,7 @@ Dbspj::batchComplete(Signal* signal, Ptr<Request> requestPtr)
      * Cleanup the TreeNode branches getting another
      * batch of result rows.
      */
-    cleanupBatch(requestPtr);
+    cleanupBatch(requestPtr, /*done=*/true);
   }
 }
 
@@ -2974,11 +2974,14 @@ Dbspj::getResultRef(Ptr<Request> requestPtr)
 }
 
 /**
- * Cleanup resources in preparation for a SCAN_NEXTREQ
- * requesting a new batch of rows.
+ * Cleanup resources allocated while fetching last batch, and prepare for more
+ * rows to be returned from the still 'm_active_tree_nodes', or nodes having
+ * them as parents. If not 'done' this batch was a sub-batch withing the current
+ * REQuest - SPJ will request more batches before a sendConf() to the client.
+ * When 'done' a SCAN_NEXTREQ is required to fetch a new batch of rows.
  */
 void
-Dbspj::cleanupBatch(Ptr<Request> requestPtr)
+Dbspj::cleanupBatch(Ptr<Request> requestPtr, bool done)
 {
   /**
    * Needs to be at least 1 active otherwise we should have
@@ -3047,7 +3050,8 @@ Dbspj::cleanupBatch(Ptr<Request> requestPtr)
       {
         jam();
         (this->*(treeNodePtr.p->m_info->m_parent_batch_cleanup))(requestPtr,
-                                                                 treeNodePtr);
+                                                                 treeNodePtr,
+                                                                 done);
       }
     }
   }
@@ -6417,7 +6421,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
       data.m_fragCount = 0;
 
       /**
-       * As this is the root node, fragId is already contained in the REQuest
+       * As this is the root node, fragId is already contained in the REQuest.
        * Fill in the set of 'm_fragments' to be SCAN'ed by this REQ.
        */
       {
@@ -7686,9 +7690,6 @@ Dbspj::scanFrag_send(Signal* signal,
     data.m_keysToSend = keysToSend;
   }
 
-  data.m_corrIdStart = 0;
-  data.m_totalRows = 0;
-  data.m_totalBytes = 0;
   data.m_rows_received = 0;
   data.m_rows_expecting = 0;
 
@@ -9251,10 +9252,20 @@ Dbspj::scanFrag_release_rangekeys(Ptr<Request> requestPtr,
  */
 void
 Dbspj::scanFrag_parent_batch_cleanup(Ptr<Request> requestPtr,
-                                     Ptr<TreeNode> treeNodePtr)
+                                     Ptr<TreeNode> treeNodePtr,
+                                     bool done)
 {
   DEBUG("scanFrag_parent_batch_cleanup");
   scanFrag_release_rangekeys(requestPtr,treeNodePtr);
+
+  if (done)
+  {
+    // Reset client batch state counters
+    ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
+    data.m_corrIdStart = 0;
+    data.m_totalRows = 0;
+    data.m_totalBytes = 0;
+  }
 }
 
 /**

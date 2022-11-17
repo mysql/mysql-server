@@ -593,7 +593,7 @@ public:
      * This function is called on the *child* by the *parent* when
      *   child should release buffers related to parents current batch
      */
-    void (Dbspj::*m_parent_batch_cleanup)(Ptr<Request>,Ptr<TreeNode>);
+    void (Dbspj::*m_parent_batch_cleanup)(Ptr<Request>,Ptr<TreeNode>,bool);
 
     /**
      * This function is called when getting a SCAN_NEXTREQ
@@ -1507,6 +1507,9 @@ private:
 
   void dumpExecPlan(Ptr<Request>, Ptr<TreeNode> node);
 
+  /**
+   * Prepare and execute
+   */
   void prepare(Signal*, Ptr<Request>);
   void checkPrepareComplete(Signal*, Ptr<Request>);
   void checkBatchComplete(Signal*, Ptr<Request>);
@@ -1515,7 +1518,7 @@ private:
   void sendConf(Signal*, Ptr<Request>, bool is_complete);
   void complete(Signal*, Ptr<Request>);
   void cleanup(Ptr<Request>, bool in_hash);
-  void cleanupBatch(Ptr<Request>);
+  void cleanupBatch(Ptr<Request>, bool done);
   void abort(Signal*, Ptr<Request>, Uint32 errCode);
   Uint32 nodeFail(Signal*, Ptr<Request>, NdbNodeBitmask mask);
 
@@ -1679,7 +1682,7 @@ private:
   void scanFrag_abort(Signal*, Ptr<Request>, Ptr<TreeNode>);
   Uint32 scanFrag_execNODE_FAILREP(Signal*signal, Ptr<Request>, Ptr<TreeNode>,
                                    NdbNodeBitmask);
-  void scanFrag_parent_batch_cleanup(Ptr<Request>, Ptr<TreeNode>);
+  void scanFrag_parent_batch_cleanup(Ptr<Request>, Ptr<TreeNode>, bool);
   void scanFrag_cleanup(Ptr<Request>, Ptr<TreeNode>);
 
   void scanFrag_release_rangekeys(Ptr<Request>, Ptr<TreeNode>);
