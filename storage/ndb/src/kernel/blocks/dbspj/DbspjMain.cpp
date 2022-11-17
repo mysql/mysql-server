@@ -1882,29 +1882,6 @@ Dbspj::buildExecPlan(Ptr<Request> requestPtr)
   Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
   list.first(treeRootPtr);
 
-  /**
-   * Brute force solution to ensure that all rows in
-   * batch are sorted if requested:
-   *
-   * In a scan-scan (MULTI_SCAN) request the result is effectively
-   * generated as a cross product between the scans. If the child-scans
-   * batches need another NEXTREQ to retrieve remaining rows, the parent
-   * scans result rows will effectively be repeated together with the new
-   * rows from the child scans.
-   * By restricting the parent scan to a batch size of one row, the
-   * parent rows will still be sorted, even if multiple child batches
-   * has to be fetched.
-   */
-  if (treeRootPtr.p->m_bits & TreeNode::T_SORTED_ORDER &&
-      requestPtr.p->m_bits & Request::RT_MULTI_SCAN)
-  {
-    jam();
-    ndbassert(treeRootPtr.p->m_bits & TreeNode::T_SCAN_PARALLEL);
-    ScanFragData& data = treeRootPtr.p->m_scanFrag_data;
-    ScanFragReq* const dst = reinterpret_cast<ScanFragReq*>(data.m_scanFragReq);
-    dst->batch_size_rows = 1;
-  }
-
   setupAncestors(requestPtr, treeRootPtr, RNIL);
 
   if (requestPtr.p->isScan())
@@ -2445,7 +2422,6 @@ Dbspj::dumpExecPlan(Ptr<Request>  requestPtr,
     dumpExecPlan(requestPtr, nextPtr);
   }
 }
-
 
 Uint32
 Dbspj::createNode(Build_context& ctx, Ptr<Request> requestPtr,
@@ -6692,6 +6668,30 @@ Dbspj::parseScanFrag(Build_context& ctx,
       treeNodePtr.p->m_bits |= TreeNode::T_SCAN_PARALLEL;
     }
 
+    /**
+     * SPJ implementation of sorted result is quirky, and comes with some
+     * performance impact.
+     *
+     * Even if we can specify sorted result order for an index scan, we might
+     * need multiple batch rounds to retrieve results from the scan children
+     * of the ordered index scan ('MULTI_SCAN'). As the ancestor rows for such
+     * MULTI_SCANs are repeated together with the newly retrieved child-rows,
+     * the ordered rows will become unordered. Note that there are no such
+     * problems if all children of the ordered index scan are single row lookup
+     * operations, thus the 'MULTI-SCAN' flag.
+     *
+     * We work around this limitation by retrieving only a single row at a time
+     * from the ordered index scan:
+     *  - T_SORTED_ORDER is set on the ordered index scan treeNode(below)
+     *  - When sending a SCAN_FRAGREQ or SCAN_NEXTREQ, 'batch_size_rows=1'
+     *    is set in the REQuest if 'T_SORTED_ORDER && MULTI_SCAN'.
+     *  - As an optimization we might send more SCAN_NEXTREQs when the
+     *    previous REQ has completed, if there is free batch buffer space.
+     *  Note:
+     *  - 'Only a single row at a time' also implies that we fetch from
+     *     a single fragment only.
+     *  - We support T_SORTED_ORDER only for the root-treeNode
+     */
     if (paramBits & Params::SFP_SORTED_ORDER)
     {
       jam();
@@ -6801,7 +6801,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
   if (conf->reorgFlag)
   {
     jam();
-    ScanFragReq * dst = (ScanFragReq*)data.m_scanFragReq;
+    ScanFragReq *dst = reinterpret_cast<ScanFragReq*>(data.m_scanFragReq);
     ScanFragReq::setReorgFlag(dst->requestInfo, ScanFragReq::REORG_NOT_MOVED);
   }
   if (treeNodePtr.p->m_bits & TreeNode::T_CONST_PRUNE)
@@ -7784,6 +7784,18 @@ Dbspj::scanFrag_send(Signal* signal,
   req->variableData[1] = requestPtr.p->m_rootResultData;
   req->batch_size_bytes = bs_bytes;
   req->batch_size_rows = MIN(bs_rows,MAX_PARALLEL_OP_PER_SCAN);
+
+  /**
+   * A SORTED_ORDER scan need to fetch one row at a time from the treeNode
+   * to be ordered - See reasoning where we set the T_SORTED_ORDER bit.
+   */
+  if (treeNodePtr.p->m_bits & TreeNode::T_SORTED_ORDER &&
+      requestPtr.p->m_bits & Request::RT_MULTI_SCAN)
+  {
+    jam();
+    req->batch_size_rows = bs_rows = 1;
+    ndbrequire(data.m_parallelism == 1);
+  }
 
   Uint32 requestsSent = 0;
   Uint32 err = checkTableError(treeNodePtr);
@@ -8804,7 +8816,7 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
   }
 
   ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
-  const ScanFragReq * org = (const ScanFragReq*)data.m_scanFragReq;
+  const ScanFragReq *org = reinterpret_cast<ScanFragReq*>(data.m_scanFragReq);
   ndbassert(data.m_frags_outstanding == 0);
 
   data.m_corrIdStart = 0;
@@ -8838,10 +8850,21 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
 #endif
   }
 
-  const Uint32 bs_rows = MIN(org->batch_size_rows/data.m_parallelism,
-                             MAX_PARALLEL_OP_PER_SCAN);
+  Uint32 bs_rows = MIN(org->batch_size_rows/data.m_parallelism,
+                       MAX_PARALLEL_OP_PER_SCAN);
   const Uint32 bs_bytes = org->batch_size_bytes/data.m_parallelism;
   ndbassert(bs_rows > 0);
+
+  /**
+   * A SORTED_ORDER scan need to fetch one row at a time from the treeNode
+   * to be ordered - See reasoning where we set the T_SORTED_ORDER bit.
+   */
+  if (treeNodePtr.p->m_bits & TreeNode::T_SORTED_ORDER &&
+      requestPtr.p->m_bits & Request::RT_MULTI_SCAN)
+  {
+    bs_rows = 1;
+  }
+
   ScanFragNextReq* req =
     reinterpret_cast<ScanFragNextReq*>(signal->getDataPtrSend());
   req->requestInfo = 0;
