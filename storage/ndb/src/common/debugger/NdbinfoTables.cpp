@@ -1283,6 +1283,19 @@ DECLARE_NDBINFO_TABLE(CPUDATA_20SEC, 10) =
   }
 };
 
+DECLARE_NDBINFO_TABLE(CERTIFICATES, 5) =
+{ { "certificates", 5, 0,
+    [] (const Ndbinfo::Counts &c) { return c.data_nodes * c.all_nodes; },
+    "Certificates in current use for TLS connections" },
+  {
+    { "reporting_node_id", Ndbinfo::Number, "Reporting node" },
+    { "node_id",           Ndbinfo::Number, "Peer node" },
+    { "name",              Ndbinfo::String, "Certificate subject common name" },
+    { "serial",            Ndbinfo::String, "Certificate serial number" },
+    { "expires",           Ndbinfo::Number, "Certificate expiration date" }
+  }
+};
+
 #define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (const Ndbinfo::Table*)&ndbinfo_##x }
 
 static
@@ -1340,7 +1353,8 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(CPUDATA),
   DBINFOTBL(CPUDATA_50MS),
   DBINFOTBL(CPUDATA_1SEC),
-  DBINFOTBL(CPUDATA_20SEC)
+  DBINFOTBL(CPUDATA_20SEC),
+  DBINFOTBL(CERTIFICATES)
 };
 
 static int no_ndbinfo_tables =

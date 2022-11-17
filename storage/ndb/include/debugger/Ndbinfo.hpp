@@ -96,7 +96,8 @@ public:
     CPUDATA_TABLEID =            45,
     CPUDATA_50MS_TABLEID =       46,
     CPUDATA_1SEC_TABLEID =       47,
-    CPUDATA_20SEC_TABLEID =      48
+    CPUDATA_20SEC_TABLEID =      48,
+    CERTIFICATES_TABLEID =       49
   };
 
   enum BufferId {

@@ -86,6 +86,10 @@ static struct view {
     {"ndbinfo", "blocks",
      "SELECT block_number, block_name "
      "FROM `ndbinfo`.`ndb$blocks`"},
+    {"ndbinfo", "certificates",
+     "SELECT distinct node_id as Node_id, name as Name, "
+     "from_unixtime(expires, '%d-%b-%Y') as Expires, serial as Serial "
+     "FROM `ndbinfo`.ndb$certificates"},
     {"ndbinfo", "cluster_locks",
      "SELECT "
      "`ndbinfo`.`ndb$acc_operations`.`node_id` AS `node_id`,"
