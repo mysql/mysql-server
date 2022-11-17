@@ -8866,7 +8866,61 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
     bs_rows = 1;
   }
 
-  ScanFragNextReq* req =
+  const Uint32 sentFragCount =
+    scanFrag_send_NEXTREQ(signal,
+                          requestPtr,
+                          treeNodePtr,
+                          data.m_parallelism,
+                          bs_bytes, bs_rows);
+
+  Uint32 frags_started = 0;
+  if (sentFragCount < data.m_parallelism)
+  {
+    /**
+     * Then start new fragments until we reach data.m_parallelism.
+     */
+    jam();
+    ndbassert(data.m_frags_not_started > 0);
+    frags_started =
+      scanFrag_send(signal,
+                    requestPtr,
+                    treeNodePtr,
+                    data.m_parallelism - sentFragCount,
+                    bs_bytes, bs_rows);
+  }
+
+  /**
+   * sendSignal() or scanFrag_send() might have failed to send:
+   * Check that we really did send something before
+   * updating outstanding & active.
+   */
+  if (likely(sentFragCount+frags_started > 0))
+  {
+    jam();
+    ndbrequire(data.m_batch_chunks > 0);
+    data.m_batch_chunks++;
+
+    requestPtr.p->m_outstanding++;
+    requestPtr.p->m_completed_tree_nodes.clear(treeNodePtr.p->m_node_no);
+    ndbassert(treeNodePtr.p->m_state == TreeNode::TN_ACTIVE);
+  }
+}
+
+/**
+ * send SCAN_NEXTREQs to the number of fragments specified in
+ * noOfFrags. Return number of REQs actually sent.
+ */
+Uint32
+Dbspj::scanFrag_send_NEXTREQ(Signal* signal,
+                             Ptr<Request> requestPtr,
+                             Ptr<TreeNode> treeNodePtr,
+                             Uint32 noOfFrags,
+                             Uint32 bs_bytes,
+                             Uint32 bs_rows)
+{
+  jam();
+  ScanFragData &data = treeNodePtr.p->m_scanFrag_data;
+  ScanFragNextReq *req =
     reinterpret_cast<ScanFragNextReq*>(signal->getDataPtrSend());
   req->requestInfo = 0;
   ScanFragNextReq::setCorrFactorFlag(req->requestInfo);
@@ -8883,7 +8937,7 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
      */
     Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
     list.first(fragPtr);
-    while (sentFragCount < data.m_parallelism && !fragPtr.isNull())
+    while (sentFragCount < noOfFrags && !fragPtr.isNull())
     {
       jam();
       ndbassert(fragPtr.p->m_state == ScanFragHandle::SFH_WAIT_NEXTREQ ||
@@ -8898,7 +8952,7 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
         data.m_corrIdStart += bs_rows;
         data.m_frags_outstanding++;
 
-        DEBUG("scanFrag_execSCAN_NEXTREQ to: " << hex
+        DEBUG("scanFrag_send_NEXTREQ to: " << hex
               << fragPtr.p->m_ref
               << ", m_node_no=" << treeNodePtr.p->m_node_no
               << ", senderData: " << req->senderData);
@@ -8918,38 +8972,7 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
       list.next(fragPtr);
     }
   }
-
-  Uint32 frags_started = 0;
-  if (sentFragCount < data.m_parallelism)
-  {
-    /**
-     * Then start new fragments until we reach data.m_parallelism.
-     */
-    jam();
-    ndbassert(data.m_frags_not_started > 0);
-    frags_started =
-      scanFrag_send(signal,
-                     requestPtr,
-                     treeNodePtr,
-                     data.m_parallelism - sentFragCount,
-                     bs_bytes,
-                     bs_rows);
-  }
-  /**
-   * sendSignal() or scanFrag_send() might have failed to send:
-   * Check that we really did send something before 
-   * updating outstanding & active.
-   */
-  if (likely(sentFragCount+frags_started > 0))
-  {
-    jam();
-    ndbrequire(data.m_batch_chunks > 0);
-    data.m_batch_chunks++;
-
-    requestPtr.p->m_outstanding++;
-    requestPtr.p->m_completed_tree_nodes.clear(treeNodePtr.p->m_node_no);
-    ndbassert(treeNodePtr.p->m_state == TreeNode::TN_ACTIVE);
-  }
+  return sentFragCount;
 }
 
 void

@@ -1672,6 +1672,13 @@ private:
                        Uint32 noOfFrags,
                        Uint32 bs_bytes,
                        Uint32 bs_rows);
+  Uint32 scanFrag_send_NEXTREQ(
+                       Signal* signal,
+                       Ptr<Request> requestPtr,
+                       Ptr<TreeNode> treeNodePtr,
+                       Uint32 noOfFrags,
+                       Uint32 bs_bytes,
+                       Uint32 bs_rows);
   void scanFrag_batchComplete(Signal* signal);
   Uint32 scanFrag_findFrag(Local_ScanFragHandle_list &, Ptr<ScanFragHandle>&,
                            Uint32 fragId);
