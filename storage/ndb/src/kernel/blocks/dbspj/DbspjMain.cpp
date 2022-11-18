@@ -2610,7 +2610,64 @@ Dbspj::batchComplete(Signal* signal, Ptr<Request> requestPtr)
       ndbassert(is_complete);
     }
 
+    // Remember the active treeNodes the completed scan returned rows from
+    const TreeNodeBitMask activated_tree_nodes(requestPtr.p->m_active_tree_nodes);
     prepareNextBatch(signal, requestPtr);
+
+    /**
+     * If we completed a T_SORTED_ORDER request, it would have fetched only a
+     * single row from the ordered treeRoot, likely leaving lots of unused
+     * batch buffers. Instead of waiting for the client to request a NEXTREQ,
+     * we may initiate from here instead, iff:
+     *  - Fragments scan is not complete and we had no errors
+     *  - It is (still) the ORDERED rootTreeNode(==0) we expect results from.
+     */
+    if (!is_complete &&
+        requestPtr.p->m_errCode == 0 &&
+        requestPtr.p->m_cnt_active == 1 &&
+        requestPtr.p->m_active_tree_nodes.get(0) &&
+        requestPtr.p->m_active_tree_nodes.equal(activated_tree_nodes) &&
+        requestPtr.p->m_bits & Request::RT_MULTI_SCAN)
+    {
+      Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
+      Ptr<TreeNode> treeNodePtr;
+      list.first(treeNodePtr);
+      const Ptr<TreeNode> treeRootPtr(treeNodePtr);
+      ndbassert(treeRootPtr.p->m_state == TreeNode::TN_ACTIVE);
+
+      if (treeRootPtr.p->m_bits & TreeNode::T_SORTED_ORDER)
+      {
+        Uint32 availableBatchRows, availableBatchBytes;  // Unused
+        const Uint32 batchRows = scanFrag_getBatchSizes(treeNodePtr,
+                                                        availableBatchBytes,
+                                                        availableBatchRows);
+        /**
+         * Is an ORDERED treeNode and a candidate for fetching more.
+         */
+        if (batchRows > 0)
+        {
+          jam();
+          const ScanFragData &data = treeRootPtr.p->m_scanFrag_data;
+          const ScanFragReq *org =
+              reinterpret_cast<const ScanFragReq*>(data.m_scanFragReq);
+
+          // Prepare to receive more rows from the NEXTREQ
+          cleanupBatch(requestPtr, /*done=*/false);
+
+          const Uint32 bs_rows  = 1;
+          const Uint32 bs_bytes = (org->batch_size_bytes - data.m_totalBytes);
+          ndbassert(requestPtr.p->m_rootFragCnt == 1);
+          scanFrag_send_NEXTREQ(signal,
+                                requestPtr,
+                                treeRootPtr,
+                                1, bs_bytes, bs_rows);
+
+          requestPtr.p->m_outstanding++;
+          requestPtr.p->m_completed_tree_nodes.clear(treeRootPtr.p->m_node_no);
+          return;  // More rows to be fetched -> no sendConf() yet
+        }
+      }
+    }
     sendConf(signal, requestPtr, is_complete);
   }
   else if (is_complete && need_complete_phase)
@@ -7131,6 +7188,8 @@ Dbspj::scanFrag_start(Signal* signal,
   treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
 
   scanFrag_send(signal, requestPtr, treeNodePtr);
+  // Register node which started the scan (reflect client expectations)
+  requestPtr.p->m_active_tree_nodes.set(treeNodePtr.p->m_node_no);
 }//Dbspj::scanFrag_start
 
 Uint32
