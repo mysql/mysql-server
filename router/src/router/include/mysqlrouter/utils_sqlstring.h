@@ -98,7 +98,7 @@ class ROUTER_LIB_EXPORT sqlstring {
                                                       Iterator end);
 
     template <typename Container>
-    static std::pair<Derived, Derived> from_container(const Container &c);
+    static std::pair<Derived, Derived> from_container(Container &c);
 
    protected:
     Iterator it_;
@@ -263,7 +263,7 @@ template <typename Iterator, typename Derived>
 template <typename Container>
 std::pair<Derived, Derived>
 sqlstring::CustomContainerIterator<Iterator, Derived>::from_container(
-    const Container &c) {
+    Container &c) {
   return std::make_pair<Derived, Derived>(c.begin(), c.end());
 }
 
