@@ -53,6 +53,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
+#include "sql/error_handler.h"  // Internal_error_handler
 #include "sql/log.h"
 #include "sql/mysqld.h"
 #include "sql/persisted_variable.h"  // Persisted_variables_cache
@@ -360,9 +361,25 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     if (mysqld_server_started) {
       Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
       if (pv != nullptr) {
+        THD *thd = current_thd;
+        assert(thd != nullptr);
+
         mysql_rwlock_wrlock(&LOCK_system_variables_hash);
         mysql_mutex_lock(&LOCK_plugin);
+        // ignore the SET PERSIST errors, as they're reported into the log
+        class Error_to_warning_error_handler : public Internal_error_handler {
+         public:
+          bool handle_condition(THD *, uint, const char *,
+                                Sql_condition::enum_severity_level *level,
+                                const char *) {
+            if (*level == Sql_condition::SL_ERROR)
+              *level = Sql_condition::SL_WARNING;
+            return false;
+          }
+        } err_to_warning;
+        thd->push_internal_handler(&err_to_warning);
         bool error = pv->set_persisted_options(true);
+        thd->pop_internal_handler();
         mysql_mutex_unlock(&LOCK_plugin);
         mysql_rwlock_unlock(&LOCK_system_variables_hash);
         if (error)
