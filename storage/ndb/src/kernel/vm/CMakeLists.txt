@@ -113,6 +113,7 @@ FOREACH(testprog
     SegmentList
     TransientPagePool
     TransientSlotPool
+    testDataBuffer
     )
   NDB_ADD_TEST("${testprog}-t" "${testprog}.cpp"
     LIBS ${ALL_UNIT_TEST_LIBS} ${ALL_UNIT_TEST_LIBS})
