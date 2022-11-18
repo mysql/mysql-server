@@ -48,7 +48,12 @@ namespace {
 
 using MemberIterator = rapidjson::Document::MemberIterator;
 using sqlstring = mysqlrouter::sqlstring;
+using SqlStrings = std::vector<sqlstring>;
+using rapidjson::StringRef;
 
+class SqlValueIterator
+    : public sqlstring::CustomContainerIterator<SqlStrings::iterator,
+                                                SqlStrings::iterator> {};
 class JsonKeyIterator
     : public sqlstring::CustomContainerIterator<MemberIterator,
                                                 JsonKeyIterator> {
@@ -67,15 +72,6 @@ static std::string to_string(rapidjson::Value *v) {
 
   return helper::json::to_string(v);
 }
-
-class JsonValueIterator
-    : public sqlstring::CustomContainerIterator<MemberIterator,
-                                                JsonValueIterator> {
- public:
-  using CustomContainerIterator::CustomContainerIterator;
-
-  std::string operator*() { return to_string(&it_->value); }
-};
 
 }  // namespace
 
@@ -244,7 +240,7 @@ Result HandlerObject::handle_post_and_post(
     [[maybe_unused]] rest::RequestContext *ctxt,
     const std::vector<uint8_t> &document, const bool upsert,
     std::string pk_value) {
-  assert(upsert && !pk_value.empty());
+  assert((upsert && !pk_value.empty()) || !upsert);
   auto &requests_uri = ctxt->request->get_uri();
   log_debug("Object::handle_post '%s'", requests_uri.get_path().c_str());
 
@@ -285,22 +281,33 @@ Result HandlerObject::handle_post_and_post(
   if (route_->get_user_row_ownership().user_ownership_enforced) {
     if (!ctxt->user.has_user_id)
       throw http::Error(HttpStatusCode::Unauthorized);
-
-    rapidjson::Document::AllocatorType &allocator = json_doc.GetAllocator();
     auto &key = route_->get_user_row_ownership().user_ownership_column;
-    auto uid = ctxt->user.user_id.to_string();
     json_doc.RemoveMember(key.c_str());
-    json_doc.AddMember(rapidjson::StringRef(key.c_str(), key.length()),
-                       rapidjson::Value(uid.c_str(), uid.length()), allocator);
+    json_doc.AddMember(StringRef(key.c_str(), key.length()), rapidjson::Value(),
+                       json_doc.GetAllocator());
   }
 
+  auto json_obj = json_doc.GetObject();
+  std::vector<sqlstring> values;
+  values.reserve(json_obj.MemberCount());
+  auto ownership_enforce =
+      route_->get_user_row_ownership().user_ownership_enforced;
+  auto &ownership_column =
+      route_->get_user_row_ownership().user_ownership_column;
+  for (auto &member : json_obj) {
+    if (ownership_enforce && ownership_column == member.name.GetString()) {
+      log_debug("pushing user_ud as sqlstirng");
+      values.push_back(sqlstring("?") << to_sqlstring(ctxt->user.user_id));
+    } else {
+      values.push_back(sqlstring("?") << to_string(&member.value));
+    }
+  }
   // TODO(lkotula): Step1. Remember column types and look at json-type.
   // Step2. Choose best conversions for both types or return an error.(Shouldn't
   // be in review)
   auto keys_iterators = JsonKeyIterator::from_iterators(json_doc.MemberBegin(),
                                                         json_doc.MemberEnd());
-  auto values_iterators = JsonValueIterator::from_iterators(
-      json_doc.MemberBegin(), json_doc.MemberEnd());
+  auto values_iterators = SqlValueIterator::from_container(values);
 
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
