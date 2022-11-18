@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "mrs/database/entry/auth_privilege.h"
+#include "mrs/database/entry/auth_user.h"
 #include "mrs/database/helper/query.h"
 
 namespace mrs {
@@ -37,7 +38,8 @@ class QueryEntriesAuthPrivileges : public Query {
  public:
   using Privileges = std::vector<entry::AuthPrivilege>;
 
-  virtual void query_user(MySQLSession *session, uint64_t user_id,
+  virtual void query_user(MySQLSession *session,
+                          const entry::AuthUser::UserId &user_id,
                           Privileges *out_privileges);
 
  private:

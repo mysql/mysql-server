@@ -22,37 +22,28 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_AUTH_USER_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_AUTH_USER_H_
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+#include "helper/string/hex.h"
 
-#include "mrs/database/entry/auth_user.h"
-#include "mrs/database/helper/query.h"
+using namespace helper::string;
 
-namespace mrs {
-namespace database {
+TEST(helper_string, hex_c_array_one_byte_with_zeros1) {
+  uint8_t buffer[1]{0x0A};
+  ASSERT_EQ("0a", hex(buffer));
+}
 
-class QueryEntryAuthUser : private Query {
- public:
-  using AuthUser = entry::AuthUser;
-  using UserId = AuthUser::UserId;
+TEST(helper_string, hex_c_array_one_byte_with_zeros2) {
+  uint8_t buffer[1]{0xA0};
+  ASSERT_EQ("a0", hex(buffer));
+}
 
- public:
-  virtual bool query_user(MySQLSession *session, const AuthUser *user);
-  virtual AuthUser::UserId insert_user(
-      MySQLSession *session, const AuthUser *user,
-      const helper::Optional<uint64_t> &default_role_id);
-  virtual bool update_user(MySQLSession *session, const AuthUser *user);
+TEST(helper_string, hex_c_array_one_byte) {
+  uint8_t buffer[1]{0xAA};
+  ASSERT_EQ("aa", hex(buffer));
+}
 
-  virtual const AuthUser &get_user();
-
- private:
-  void on_row(const Row &r) override;
-
-  int loaded_{0};
-  AuthUser user_data_;
-};
-
-}  // namespace database
-}  // namespace mrs
-
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_AUTH_USER_H_
+TEST(helper_string, hex_c_array_several_bytes) {
+  uint8_t buffer[3]{0xAA, 0xcd, 0x12};
+  ASSERT_EQ("aacd12", hex(buffer));
+}

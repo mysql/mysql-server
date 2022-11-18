@@ -26,7 +26,7 @@
 #include <gtest/gtest.h>
 
 #include "helper/cache/cache.h"
-#include "helper/random_string.h"
+#include "helper/string/random.h"
 #include "mrs/database/entry/auth_user.h"
 
 using namespace helper::cache;
@@ -34,10 +34,11 @@ using namespace mrs::database::entry;
 using namespace testing;
 
 using UserIndex = AuthUser::UserIndex;
+using UserId = AuthUser::UserId;
 using Lru = helper::cache::policy::Lru;
 
 const char *const kUserVendorId = "123456789";
-const int kUserId = 15;
+const AuthUser::UserId kUserId{15, 0};
 
 class MrsCacheUserData : public Test {
  public:
@@ -53,16 +54,16 @@ class MrsCacheUserData : public Test {
   using UserCache = Cache<UserIndex, AuthUser, noOfEntries, Lru>;
 
   AuthUser create_other_user() {
-    static int other_user_id = kUserId + 10000;
+    static uint64_t other_user_id = 10000;
     AuthUser u;
 
     u.has_user_id = true;
-    u.user_id = other_user_id++;
+    u.user_id = UserId{{static_cast<uint8_t>(other_user_id++), 0}};
     u.name = helper::generate_string<10>();
     u.email =
         helper::generate_string<10>() + "@" + helper::generate_string<10>();
     u.login_permitted = rand() % 2;
-    u.vendor_user_id = std::to_string(u.user_id + 42200000);
+    u.vendor_user_id = std::to_string(u.user_id.num.lower_id + 42200000);
 
     return u;
   }

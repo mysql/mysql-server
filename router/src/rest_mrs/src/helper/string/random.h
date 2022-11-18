@@ -22,8 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_HELPER_RANDOM_STRING_H_
-#define ROUTER_SRC_HELPER_RANDOM_STRING_H_
+#ifndef ROUTER_SRC_HELPER_STRING_RANDOM_H_
+#define ROUTER_SRC_HELPER_STRING_RANDOM_H_
 
 namespace helper {
 
@@ -92,4 +92,4 @@ inline std::string generate_string() {
 
 }  // namespace helper
 
-#endif  // ROUTER_SRC_HELPER_RANDOM_STRING_H_
+#endif  // ROUTER_SRC_HELPER_STRING_RANDOM_H_

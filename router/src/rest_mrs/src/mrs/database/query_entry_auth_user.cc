@@ -29,6 +29,7 @@
 #include "helper/mysql_row.h"
 #include "mrs/database/query_entries_auth_privileges.h"
 #include "mrs/database/query_user_groups.h"
+#include "mrs/database/query_uuid.h"
 
 namespace mrs {
 namespace database {
@@ -45,7 +46,10 @@ bool QueryEntryAuthUser::query_user(MySQLSession *session,
       "FROM mysql_rest_service_metadata.auth_user WHERE !=? ?"};
 
   query_ << (user_data->has_user_id ? "id" : "auth_app_id");
-  query_ << (user_data->has_user_id ? user_data->user_id : user_data->app_id);
+  if (user_data->has_user_id)
+    query_ << to_sqlstring(user_data->user_id);
+  else
+    query_ << user_data->app_id;
 
   do {
     //    if (user_data->has_user_id) {
@@ -87,16 +91,20 @@ bool QueryEntryAuthUser::query_user(MySQLSession *session,
   return true;
 }
 
-uint64_t QueryEntryAuthUser::insert_user(
+AuthUser::UserId QueryEntryAuthUser::insert_user(
     MySQLSession *session, const AuthUser *user,
     const helper::Optional<uint64_t> &default_role_id) {
   assert(!user->has_user_id);
+  QueryUuid query_uuid;
+  query_uuid.generate_uuid(session);
+  auto uuid = query_uuid.get_result();
   query_ = {
-      "INSERT INTO mysql_rest_service_metadata.auth_user(auth_app_id, name, "
-      "email, vendor_user_id, login_permitted) VALUES(?, ?, ?, ?, ?)"};
+      "INSERT INTO mysql_rest_service_metadata.auth_user(id, auth_app_id, "
+      "name, "
+      "email, vendor_user_id, login_permitted) VALUES(?, ?, ?, ?, ?, ?)"};
 
-  query_ << user->app_id << user->name << user->email << user->vendor_user_id
-         << user->login_permitted;
+  query_ << to_sqlstring(uuid) << user->app_id << user->name << user->email
+         << user->vendor_user_id << user->login_permitted;
 
   query(session);
 
@@ -110,7 +118,7 @@ uint64_t QueryEntryAuthUser::insert_user(
     query(session);
   }
 
-  return user_id;
+  return uuid;
 }
 
 bool QueryEntryAuthUser::update_user(MySQLSession *session,
@@ -122,7 +130,7 @@ bool QueryEntryAuthUser::update_user(MySQLSession *session,
       "email=?, vendor_user_id=?, login_permitted=? WHERE id=?"};
 
   query_ << user->app_id << user->name << user->email << user->vendor_user_id
-         << user->login_permitted << user->user_id;
+         << user->login_permitted << to_sqlstring(user->user_id);
 
   query(session);
   return true;
@@ -131,10 +139,13 @@ bool QueryEntryAuthUser::update_user(MySQLSession *session,
 void QueryEntryAuthUser::on_row(const Row &row) {
   if (row.size() < 1) return;
 
+  auto user_id_converter = [](UserId *id, const char *db_value) {
+    memcpy(id->raw, db_value, 16);
+  };
   helper::MySQLRow mysql_row(row);
 
   user_data_.has_user_id = true;
-  mysql_row.unserialize(&user_data_.user_id);
+  mysql_row.unserialize_with_converter(&user_data_.user_id, user_id_converter);
   mysql_row.unserialize(&user_data_.app_id);
   mysql_row.unserialize(&user_data_.name);
   mysql_row.unserialize(&user_data_.email);

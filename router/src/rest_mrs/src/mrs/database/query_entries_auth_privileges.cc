@@ -28,9 +28,9 @@
 namespace mrs {
 namespace database {
 
-void QueryEntriesAuthPrivileges::query_user(MySQLSession *session,
-                                            uint64_t user_id,
-                                            Privileges *out_privileges) {
+void QueryEntriesAuthPrivileges::query_user(
+    MySQLSession *session, const entry::AuthUser::UserId &user_id,
+    Privileges *out_privileges) {
   privileges_ = out_privileges;
   privileges_->clear();
   query_ =
@@ -67,7 +67,7 @@ void QueryEntriesAuthPrivileges::query_user(MySQLSession *session,
       "          )) "
       "GROUP BY p.service_id, p.db_schema_id, p.db_object_id";
 
-  query_ << user_id << user_id;
+  query_ << to_sqlstring(user_id) << to_sqlstring(user_id);
 
   query(session);
 }

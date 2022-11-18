@@ -28,6 +28,7 @@
 #include <set>
 #include <utility>
 
+#include "mrs/database/entry/auth_user.h"
 #include "mrs/database/helper/query.h"
 
 namespace mrs {
@@ -38,14 +39,15 @@ class QueryUserGroups : private Query {
   using Set = std::set<uint64_t>;
 
  public:
-  virtual void query_groups(MySQLSession *session, uint64_t user_id,
+  virtual void query_groups(MySQLSession *session,
+                            const entry::AuthUser::UserId &user_id,
                             Set *out_group_ids) {
     out_group_ids->clear();
     set_ = out_group_ids;
     query_.reset(
         "SELECT user_group_id FROM mysql_rest_service_metadata.user_has_group "
         "WHERE auth_user_id=?;");
-    query_ << user_id;
+    query_ << to_sqlstring(user_id);
     query(session);
   }
 

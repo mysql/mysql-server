@@ -288,9 +288,10 @@ Result HandlerObject::handle_post_and_post(
 
     rapidjson::Document::AllocatorType &allocator = json_doc.GetAllocator();
     auto &key = route_->get_user_row_ownership().user_ownership_column;
+    auto uid = ctxt->user.user_id.to_string();
     json_doc.RemoveMember(key.c_str());
     json_doc.AddMember(rapidjson::StringRef(key.c_str(), key.length()),
-                       rapidjson::Value(ctxt->user.user_id), allocator);
+                       rapidjson::Value(uid.c_str(), uid.length()), allocator);
   }
 
   // TODO(lkotula): Step1. Remember column types and look at json-type.

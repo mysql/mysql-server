@@ -122,7 +122,7 @@ std::string HandlerAuthorizeCommon::append_status_parameters(
 
   if (HttpStatusCode::Ok == error.status) {
     http::Url::append_query_parameter(uri, "user_id",
-                                      std::to_string(ctxt->user.user_id));
+                                      ctxt->user.user_id.to_string());
     http::Url::append_query_parameter(uri, "user_name", ctxt->user.name);
   } else if (HttpStatusCode::Unauthorized != error.status) {
     http::Url::append_query_parameter(uri, "message", error.message);

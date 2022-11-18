@@ -53,6 +53,7 @@ ADD_HARNESS_PLUGIN(rest_mrs
   mrs/database/query_entry_parameter.cc
   mrs/database/query_factory.cc
   mrs/database/query_entry_group_row_security.cc
+  mrs/database/query_uuid.cc
   mrs/database/query_rest_table.cc
   mrs/database/query_rest_table_single_row.cc
   mrs/database/query_rest_sp.cc

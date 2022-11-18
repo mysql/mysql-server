@@ -63,7 +63,7 @@ void QueryRestTable::query_entries(
     const std::string &schema, const std::string &object, const uint32_t offset,
     const uint32_t limit, const std::string &url_route,
     const std::string &primary, const bool is_default_limit,
-    const RowUserOwnership &row_user, uint64_t *user_id,
+    const RowUserOwnership &row_user, UserId *user_id,
     const std::vector<RowGroupOwnership> &row_groups,
     const std::set<uint64_t> &user_groups, const std::string &q) {
   if (columns.empty()) throw std::invalid_argument("Empty column list.");
@@ -86,7 +86,7 @@ void QueryRestTable::on_row(const Row &r) {
 }
 
 const mysqlrouter::sqlstring &QueryRestTable::build_where(
-    const RowUserOwnership &row_user, uint64_t *user_id,
+    const RowUserOwnership &row_user, UserId *user_id,
     const std::vector<RowGroupOwnership> &row_groups,
     const std::set<uint64_t> &user_groups) {
   using MatchLevel = entry::RowGroupOwnership::MatchLevel;
@@ -123,7 +123,8 @@ const mysqlrouter::sqlstring &QueryRestTable::build_where(
         "JOIN cte c ON c.id=h.reporting_to_user_id"
         ") SELECT * FROM cte) OR ! is NULL)");
 
-    where_ << user_ownership_column << *user_id << user_ownership_column;
+    where_ << user_ownership_column << to_sqlstring(*user_id)
+           << user_ownership_column;
 
     return where_;
   }
@@ -195,7 +196,7 @@ const mysqlrouter::sqlstring &QueryRestTable::build_where(
   }
   query += ")) ";
   where_.reset(query.c_str());
-  where_ << user_ownership_column << *user_id;
+  where_ << user_ownership_column << to_sqlstring(*user_id);
 
   for (auto &group : row_groups) {
     where_ << group.row_group_ownership_column << user_groups
@@ -231,7 +232,7 @@ void QueryRestTable::build_query(
     const std::vector<Column> &columns, const std::string &schema,
     const std::string &object, const uint32_t offset, const uint32_t limit,
     const std::string &url, const std::string &primary,
-    const RowUserOwnership &row_user, uint64_t *user_id,
+    const RowUserOwnership &row_user, UserId *user_id,
     const std::vector<RowGroupOwnership> &row_groups,
     const std::set<uint64_t> &user_groups, const std::string &query) {
   auto where = build_where(row_user, user_id, row_groups, user_groups);

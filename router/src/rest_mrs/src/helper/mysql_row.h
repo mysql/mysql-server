@@ -153,7 +153,7 @@ class MySQLRow {
     out_value->from_string(in_value);
   }
 
-  void convert(void * /*out_value*/, const char * /*in_value*/) {}
+  //  void convert(void * /*out_value*/, const char * /*in_value*/) {}
 
   uint32_t field_index_{0};
   const Row &row_;
