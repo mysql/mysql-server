@@ -1542,7 +1542,7 @@ log_service_look_up:
 
   // We made an URN, but failed to load: release the URN.
   if (*urn != nullptr) {
-    my_free(urn);
+    my_free(*urn);
     *urn = nullptr;
   }
 
