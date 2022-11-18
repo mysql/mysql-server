@@ -1225,10 +1225,6 @@ class ShareConnectionTestWithRestartedServer
   void TearDown() override {
     for (auto &inter : intermediate_routers_) {
       if (!inter->is_running()) {
-        if (::testing::Test::HasFatalFailure()) {
-          inter->process_manager().dump_logs();
-        }
-
         inter->process_manager().clear();
       }
     }
