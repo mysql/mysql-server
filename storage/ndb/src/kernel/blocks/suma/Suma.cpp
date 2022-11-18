@@ -275,8 +275,9 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   c_masterNodeId = getOwnNodeId();
 
   c_nodeGroup = c_noNodesInGroup = 0;
-  for (int i = 0; i < MAX_REPLICAS; i++) {
-    c_nodesInGroup[i]   = 0;
+  for (Uint32 i = 0; i < MAX_REPLICAS; i++)
+  {
+    c_nodesInGroup[i] = 0;
   }
 
   m_first_free_page= RNIL;
@@ -698,6 +699,14 @@ bool
 valid_seq(Uint32 n, Uint32 r, Uint16 dst[])
 {
   Uint16 tmp[MAX_REPLICAS];
+ /**
+  * Set to 0 the unused entries in m_nodes 
+  */
+  for (Uint32 i = r; i < MAX_REPLICAS; i++)
+  {
+    dst[i] = 0;
+  }
+  
   for (Uint32 i = 0; i<r; i++)
   {
     tmp[i] = n % r;
@@ -4826,7 +4835,7 @@ Suma::get_responsible_node(Uint32 bucket) const
   Uint32 node;
   ndbrequire(bucket < NO_OF_BUCKETS);
   const Bucket* ptr = c_buckets + bucket;
-  for(Uint32 i = 0; i<MAX_REPLICAS; i++)
+  for(Uint32 i = 0; i < c_noNodesInGroup; i++)
   {
     node= ptr->m_nodes[i];
     if(c_alive_nodes.get(node))
@@ -4850,7 +4859,7 @@ Suma::get_responsible_node(Uint32 bucket, const NdbNodeBitmask& mask) const
   Uint32 node;
   ndbrequire(bucket < NO_OF_BUCKETS);
   const Bucket* ptr = c_buckets + bucket;
-  for(Uint32 i = 0; i<MAX_REPLICAS; i++)
+  for(Uint32 i = 0; i < c_noNodesInGroup; i++)
   {
     node= ptr->m_nodes[i];
     if(mask.get(node))
