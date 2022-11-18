@@ -2637,14 +2637,17 @@ Dbspj::batchComplete(Signal* signal, Ptr<Request> requestPtr)
 
       if (treeRootPtr.p->m_bits & TreeNode::T_SORTED_ORDER)
       {
-        Uint32 availableBatchRows, availableBatchBytes;  // Unused
-        const Uint32 batchRows = scanFrag_getBatchSizes(treeNodePtr,
-                                                        availableBatchBytes,
-                                                        availableBatchRows);
         /**
          * Is an ORDERED treeNode and a candidate for fetching more.
+         * Experiments has shown that it performanve wise is better to stop
+         * filling the batch buffers while we could still return the entire
+         * set of related child rows. ::estmMaxKeys() estimates how many
+         * root-rows we can fetch and still fit the full set of child rows.
+         * Note that this is only an optimization, a missed estimate is
+         * not critical.
          */
-        if (batchRows > 0)
+        const double maxKeys = estmMaxKeys(requestPtr,treeRootPtr);
+        if (maxKeys >= 2.0)  // Can Fit one more root-row (with margins)
         {
           jam();
           const ScanFragData &data = treeRootPtr.p->m_scanFrag_data;
@@ -7703,6 +7706,64 @@ Dbspj::scanFrag_parallelism(Ptr<Request> requestPtr,
   return parallelism;
 }  // scanFrag_parallelism
 
+
+/**
+ * Estimate how many keys we can supply in a REQuest to the treeNode branch
+ * before overflowing the available batch buffer space in any of the
+ * (child-) treenodes in the branch. For non pruned scans we asssume that
+ *  fragments scan requests are sent to all of the fragments.
+ */
+double
+Dbspj::estmMaxKeys(Ptr<Request> requestPtr,
+                   Ptr<TreeNode> treeNodePtr,
+                   double fanout)
+{
+  double maxKeys = 99999.99;
+
+  if (treeNodePtr.p->isScan())
+  {
+    /**
+     * Multiply the fanout with 'records pr key' estimate for this treeNode.
+     * Note that for a lookup the 'records pr key' is assumed to be 1::1.
+     * (It can be lower, we do not collect that statistic (yet) though)
+     */
+    const ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
+    if (data.m_recsPrKeyStat.isValid())
+    {
+      if (treeNodePtr.p->isLeaf())
+        fanout *= data.m_recsPrKeyStat.getUpperEstimate();
+      else
+        fanout *= data.m_recsPrKeyStat.getMean();
+    }
+    const bool pruned = treeNodePtr.p->m_bits &
+        (TreeNode::T_PRUNE_PATTERN | TreeNode::T_CONST_PRUNE);
+    if (!pruned) {
+      // Fanout statistics is pr. fragment we scan
+      fanout *= data.m_fragCount;
+    }
+
+    Uint32 availableBatchRows, availableBatchBytes;  // Unused
+    const Uint32 batchRows = scanFrag_getBatchSize(treeNodePtr,
+                                                   availableBatchBytes,
+                                                   availableBatchRows);
+    maxKeys = static_cast<double>(batchRows) / fanout;
+  }
+
+  LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
+  Local_dependency_map const childList(pool, treeNodePtr.p->m_child_nodes);
+  Dependency_map::ConstDataBufferIterator it;
+  for (childList.first(it); !it.isNull(); childList.next(it))
+  {
+    jam();
+    Ptr<TreeNode> childPtr;
+    ndbrequire(m_treenode_pool.getPtr(childPtr, *it.data));
+
+    const double estmKeys = estmMaxKeys(requestPtr, childPtr, fanout);
+    if (estmKeys < maxKeys)
+      maxKeys = estmKeys;
+  }
+  return maxKeys;
+}
 
 void
 Dbspj::scanFrag_send(Signal* signal,

@@ -1712,6 +1712,10 @@ private:
                               Ptr<TreeNode> treeNodePtr,
                               Uint32 batchRows);
 
+  double estmMaxKeys(Ptr<Request> requestPtr,
+                     Ptr<TreeNode> treeNodePtr,
+                     double fanout = 1.0);
+
   Uint32 check_own_location_domain(const Uint32 *nodes, Uint32 node_count);
   void send_close_scan(Signal*, Ptr<ScanFragHandle>, Ptr<Request>);
   /**
