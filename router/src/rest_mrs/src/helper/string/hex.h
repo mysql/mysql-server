@@ -53,10 +53,10 @@ inline uint8_t unhex_character(const char c) {
   static_assert('A' < 'a');
   if (c > 'f')
     throw std::runtime_error("Invalid character in hexadecimal value.");
-  if (c >= 'a') return c - 'a';
+  if (c >= 'a') return c - 'a' + 10;
   if (c > 'F')
     throw std::runtime_error("Invalid character in hexadecimal value.");
-  if (c >= 'A') return c - 'A';
+  if (c >= 'A') return c - 'A' + 10;
   if (c > '9')
     throw std::runtime_error("Invalid character in hexadecimal value.");
   if (c >= '0') return c - '0';
