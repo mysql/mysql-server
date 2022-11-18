@@ -25,6 +25,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include "helper/string/hex.h"
+#include "mrs/database/entry/auth_user.h"
 
 using namespace helper::string;
 
@@ -46,4 +47,28 @@ TEST(helper_string, hex_c_array_one_byte) {
 TEST(helper_string, hex_c_array_several_bytes) {
   uint8_t buffer[3]{0xAA, 0xcd, 0x12};
   ASSERT_EQ("aacd12", hex(buffer));
+}
+
+class UserIdContainer {
+ public:
+  using UserId = mrs::database::entry::AuthUser::UserId;
+  auto begin() const { return std::begin(user_id_.raw); }
+  auto end() const { return std::end(user_id_.raw); }
+  void push_back(uint8_t value) { user_id_.raw[push_index_++] = value; }
+  auto get_user_id() const { return user_id_; }
+
+ private:
+  UserId user_id_;
+  uint64_t push_index_{0};
+};
+
+TEST(helper_string_unhex, first) {
+  auto user_id =
+      helper::string::unhex<UserIdContainer>("11ed67759d414ca7b69502001709c99c")
+          .get_user_id();
+
+  ASSERT_EQ(0x11, user_id.raw[0]);
+  ASSERT_EQ(0xed, user_id.raw[1]);
+  ASSERT_EQ(0x67, user_id.raw[2]);
+  ASSERT_EQ("11ed67759d414ca7b69502001709c99c", user_id.to_string());
 }
