@@ -108,13 +108,11 @@ AuthUser::UserId QueryEntryAuthUser::insert_user(
 
   query(session);
 
-  auto user_id = session->last_insert_id();
-
   if (default_role_id) {
     query_ = {
         "INSERT INTO mysql_rest_service_metadata.user_has_role(auth_user_id, "
         "auth_role_id, comments) VALUES(?, ?, \"Default role.\")"};
-    query_ << user_id << default_role_id.value();
+    query_ << to_sqlstring(uuid) << default_role_id.value();
     query(session);
   }
 

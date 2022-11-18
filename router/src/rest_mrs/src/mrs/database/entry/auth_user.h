@@ -45,8 +45,9 @@ struct AuthUser {
     constexpr static uint64_t k_size = 16;
 
     UserId() {
-      num.higher_id = 0;
-      num.lower_id = 0;
+      memset(raw, 0, k_size);
+      //      num.higher_id = 0;
+      //      num.lower_id = 0;
     }
 
     UserId(std::initializer_list<uint8_t> v) {
@@ -56,31 +57,38 @@ struct AuthUser {
 
     UserId(const UserId &id) { *this = id; }
 
-    union {
-      struct {
-        uint64_t lower_id;
-        uint64_t higher_id;
-      } num;
-      uint8_t raw[k_size];
-    };
+#pragma pack(push, 1)
+    //    union {
+    //      struct {
+    //        uint64_t lower_id;
+    //        uint64_t higher_id;
+    //      } num;
+    //      uint8_t raw[k_size];
+    //    };
+    uint8_t raw[k_size];
+#pragma pack(pop)
 
     void operator=(const UserId &other) {
-      num.lower_id = other.num.lower_id;
-      num.higher_id = other.num.higher_id;
+      memcpy(raw, other.raw, k_size);
+      //      num.lower_id = other.num.lower_id;
+      //      num.higher_id = other.num.higher_id;
     }
 
     bool operator==(const UserId &other) const {
-      if (num.lower_id != other.num.lower_id) return false;
+      return 0 == memcmp(raw, other.raw, k_size);
+      //      if (num.lower_id != other.num.lower_id) return false;
 
-      return num.higher_id == other.num.higher_id;
+      //      return num.higher_id == other.num.higher_id;
     }
 
     bool operator!=(const UserId &other) const { return !(*this == other); }
 
     bool operator<(const UserId &other) const {
-      if (num.higher_id < other.num.higher_id) return true;
+      for (int i = k_size - 1; i >= 0; --i) {
+        if (raw[i] < other.raw[i]) return true;
+      }
 
-      return num.lower_id < other.num.lower_id;
+      return false;
     }
 
     std::string to_string() const { return helper::string::hex(raw); }

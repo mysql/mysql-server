@@ -302,18 +302,14 @@ std::string AuthorizeManager::get_jwt_token(uint64_t service_id, Session *s) {
   using namespace rapidjson;
   Document payload;
   auto exp = current_timestamp(session_manager_.get_timeout());
+  auto user_id_hex = helper::string::hex(s->user.user_id.raw);
 
   payload.SetObject();
-  payload.AddMember(StringRef("user_id"),
-                    StringRef(helper::string::hex(s->user.user_id.raw).c_str()),
+  payload.AddMember(StringRef("user_id"), StringRef(user_id_hex.c_str()),
                     payload.GetAllocator());
 
   if (!s->user.email.empty())
     payload.AddMember(StringRef("email"), StringRef(s->user.email.c_str()),
-                      payload.GetAllocator());
-
-  if (!s->user.name.empty())
-    payload.AddMember(StringRef("full_name"), StringRef(s->user.name.c_str()),
                       payload.GetAllocator());
 
   payload.AddMember(StringRef("exp"), StringRef(exp.c_str()),
