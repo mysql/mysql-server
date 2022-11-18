@@ -63,7 +63,7 @@ class MrsCacheUserData : public Test {
     u.email =
         helper::generate_string<10>() + "@" + helper::generate_string<10>();
     u.login_permitted = rand() % 2;
-    u.vendor_user_id = std::to_string(u.user_id.num.lower_id + 42200000);
+    u.vendor_user_id = std::to_string(other_user_id + 42200000);
 
     return u;
   }

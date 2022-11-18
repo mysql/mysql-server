@@ -28,6 +28,7 @@
 #include <cassert>
 #include <iomanip>
 #include <sstream>
+#include <stdexcept>
 #include <type_traits>
 
 namespace helper {
@@ -47,13 +48,28 @@ std::string hex(const Container &c) {
   return os.str();
 }
 
+inline uint8_t unhex_character(const char c) {
+  static_assert('0' < 'A');
+  static_assert('A' < 'a');
+  if (c > 'f')
+    throw std::runtime_error("Invalid character in hexadecimal value.");
+  if (c >= 'a') return c - 'a';
+  if (c > 'F')
+    throw std::runtime_error("Invalid character in hexadecimal value.");
+  if (c >= 'A') return c - 'A';
+  if (c > '9')
+    throw std::runtime_error("Invalid character in hexadecimal value.");
+  if (c >= '0') return c - '0';
+  throw std::runtime_error("Invalid character in hexadecimal value.");
+}
+
 template <typename Container>
 Container unhex(const std::string &h) {
   Container result;
   assert(h.size() % 2 == 0);
 
   for (std::size_t i = 1; i < h.size(); i += 2) {
-    uint8_t v = h[i - 1] * 16 + h[i];
+    uint8_t v = unhex_character(h[i - 1]) * 16 + unhex_character(h[i]);
     result.push_back(v);
   }
   return result;
