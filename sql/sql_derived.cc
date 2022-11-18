@@ -506,21 +506,36 @@ bool copy_field_info(THD *thd, Item *orig_expr, Item *cloned_expr) {
           m_field(field) {}
   };
   mem_root_deque<Field_info> field_info(thd->mem_root);
-
+  Query_block *depended_from = nullptr;
+  Name_resolution_context *context = nullptr;
   // Collect information for fields from the original expression
-  if (WalkItem(orig_expr, enum_walk::POSTFIX, [&field_info](Item *inner_item) {
-        if (inner_item->type() == Item::FIELD_ITEM) {
-          Item_field *field = down_cast<Item_field *>(inner_item);
-          if (field_info.push_back(Field_info(
-                  field->context, field->table_ref, field->depended_from,
-                  field->cached_table, field->field)))
-            return true;
-        }
-        return false;
-      }))
+  if (WalkItem(orig_expr, enum_walk::PREFIX,
+               [&field_info, &depended_from, &context](Item *inner_item) {
+                 if (inner_item->type() == Item::REF_ITEM ||
+                     inner_item->type() == Item::FIELD_ITEM) {
+                   Item_ident *ident = down_cast<Item_ident *>(inner_item);
+                   assert(depended_from == nullptr ||
+                          depended_from == ident->depended_from ||
+                          depended_from == ident->context->query_block);
+                   if (ident->depended_from != nullptr)
+                     depended_from = ident->depended_from;
+                   if (context == nullptr ||
+                       ident->context->query_block->nest_level >=
+                           context->query_block->nest_level)
+                     context = ident->context;
+                 }
+                 if (inner_item->type() == Item::FIELD_ITEM) {
+                   Item_field *field = down_cast<Item_field *>(inner_item);
+                   if (field_info.push_back(
+                           Field_info(context, field->table_ref, depended_from,
+                                      field->cached_table, field->field)))
+                     return true;
+                 }
+                 return false;
+               }))
     return true;
   // Copy the information to the fields in the cloned expression.
-  WalkItem(cloned_expr, enum_walk::POSTFIX, [&field_info](Item *inner_item) {
+  WalkItem(cloned_expr, enum_walk::PREFIX, [&field_info](Item *inner_item) {
     if (inner_item->type() == Item::FIELD_ITEM) {
       assert(!field_info.empty());
       Item_field *field = down_cast<Item_field *>(inner_item);
