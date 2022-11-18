@@ -33,6 +33,7 @@
 using namespace testing;
 using mrs::users::UserManager;
 using AuthUser = UserManager::AuthUser;
+using UserId = AuthUser::UserId;
 using SqlSessionCache = UserManager::SqlSessionCache;
 using mysqlrouter::MySQLSession;
 using RowProcessor = MySQLSession::RowProcessor;
@@ -43,11 +44,12 @@ class UserManagerFixture : public Test {
  public:
   struct UserDatabase {
     UserDatabase(const Row &u, const std::vector<Row> &p,
-                 const std::vector<Row> &g = {})
-        : user{u}, privileges{p}, groups{g} {}
+                 const std::vector<Row> &g = {}, const std::string &id = {})
+        : user{u}, privileges{p}, groups{g}, sql_id{id} {}
     Row user;
     std::vector<Row> privileges;
     std::vector<Row> groups;
+    std::string sql_id;
   };
 
   void SetUp() override {
@@ -58,7 +60,9 @@ class UserManagerFixture : public Test {
   AuthUser get_user_from_row(const Row &u, bool set_id = true) {
     AuthUser result;
     result.has_user_id = set_id;
-    if (set_id) result.user_id = atol(u[0]);
+    if (set_id) {
+      memcpy(result.user_id.raw, u[0], 16);
+    }
 
     result.app_id = atol(u[1]);
     result.name = u[2];
@@ -84,7 +88,7 @@ class UserManagerFixture : public Test {
     std::string query_user_privileges{
         "SELECT p.service_id, p.db_schema_id, p.db_object_id, "
         "BIT_OR\\(p.crud_operations\\) as crud FROM.* auth_user_id="};
-    query_user_privileges.append(u.user[0]).append("\\)");
+    query_user_privileges.append(u.sql_id).append("\\)");
 
     EXPECT_CALL(session_, query(ContainsRegex(query_user_privileges), _, _))
         .WillOnce(Invoke([u](Unused, const RowProcessor &rp, Unused) {
@@ -95,7 +99,7 @@ class UserManagerFixture : public Test {
     std::string query_user_groups{
         "SELECT user_group_id FROM mysql_rest_service_metadata.user_has_group "
         "WHERE auth_user_id="};
-    query_user_groups.append(u.user[0]);
+    query_user_groups.append(u.sql_id);
 
     EXPECT_CALL(session_, query(ContainsRegex(query_user_groups), _, _))
         .WillOnce(Invoke([u](Unused, const RowProcessor &rp, Unused) {
@@ -106,9 +110,15 @@ class UserManagerFixture : public Test {
 
   StrictMock<MockMySQLSession> session_;
 
-  const uint64_t k_user_4000040400004_id = 4;
-  const Row k_row_for_user_4000040400004{
-      "4", "2", "John Doe", "john_doe@doe.com", "4000040400004", "1"};
+  const UserId k_user_4000040400004_id{4, 0};
+  const std::string k_user_4000040400004_id_sql_str{
+      "X'04000000000000000000000000000000'"};
+  const char k_id_4000040400004[16]{0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                    0x00, 0x00, 0x00, 0x00};
+  const Row k_row_for_user_4000040400004{k_id_4000040400004, "2",
+                                         "John Doe",         "john_doe@doe.com",
+                                         "4000040400004",    "1"};
   const std::vector<Row> k_row_for_user_4000040400004_privs{
       Row{"1", nullptr, nullptr, "2"}};
   const AuthUser k_user_4000040400004{
@@ -127,8 +137,10 @@ TEST_F(UserManagerFixture, fetch_user_from_database) {
   user.name = "John Doe";
   user.vendor_user_id = "4000040400004";
 
-  expect_query_user(
-      {k_row_for_user_4000040400004, k_row_for_user_4000040400004_privs});
+  expect_query_user({k_row_for_user_4000040400004,
+                     k_row_for_user_4000040400004_privs,
+                     {},
+                     k_user_4000040400004_id_sql_str});
 
   ASSERT_TRUE(um.user_get(&user, &cache));
 
@@ -152,8 +164,10 @@ TEST_F(UserManagerFixture, fetch_user_from_database_once) {
   user1.name = "John Doe";
   user1.vendor_user_id = "4000040400004";
 
-  expect_query_user(
-      {k_row_for_user_4000040400004, k_row_for_user_4000040400004_privs});
+  expect_query_user({k_row_for_user_4000040400004,
+                     k_row_for_user_4000040400004_privs,
+                     {},
+                     k_user_4000040400004_id_sql_str});
 
   // First call, UserManager is going to cache data returned from database.
   ASSERT_TRUE(um.user_get(&user1, &cache));
@@ -191,6 +205,7 @@ TEST_F(UserManagerFixture, fetch_user_from_database_once) {
  * In this case router needs to update the database entry.
  */
 TEST_F(UserManagerFixture, fetch_user_from_db_and_update) {
+  using namespace std::string_literals;
   const int k_app_id = 2;
   SqlSessionCache cache{nullptr, &session_};
   UserManager um{false, 3};
@@ -203,15 +218,18 @@ TEST_F(UserManagerFixture, fetch_user_from_db_and_update) {
   user.name = "John Doe";
   user.vendor_user_id = "4000040400004";
 
-  expect_query_user(
-      {k_row_for_user_4000040400004, k_row_for_user_4000040400004_privs});
+  expect_query_user({k_row_for_user_4000040400004,
+                     k_row_for_user_4000040400004_privs,
+                     {},
+                     k_user_4000040400004_id_sql_str});
 
   EXPECT_CALL(session_,
               query(StrEq("UPDATE mysql_rest_service_metadata.auth_user SET "
                           "auth_app_id=2,name='John Doe', "
                           "email='new_john_doe@doe.com', "
                           "vendor_user_id='4000040400004', "
-                          "login_permitted=1 WHERE id=4"),
+                          "login_permitted=1 WHERE id="s +
+                          k_user_4000040400004_id_sql_str),
                     _, _));
 
   ASSERT_TRUE(um.user_get(&user, &cache));

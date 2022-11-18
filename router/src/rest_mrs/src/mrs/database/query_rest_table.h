@@ -31,9 +31,11 @@
 #include <vector>
 
 #include "helper/mysql_column.h"
+#include "mrs/database/entry/auth_user.h"
 #include "mrs/database/entry/row_group_ownership.h"
 #include "mrs/database/entry/row_user_ownership.h"
 #include "mrs/database/helper/query.h"
+
 #include "mrs/json/response_json_template.h"
 
 namespace mrs {
@@ -42,6 +44,7 @@ namespace database {
 class QueryRestTable : private Query {
  public:
   using Column = helper::Column;
+  using UserId = entry::AuthUser::UserId;
   using RowGroupOwnership = entry::RowGroupOwnership;
   using RowUserOwnership = entry::RowUserOwnership;
 
@@ -53,7 +56,7 @@ class QueryRestTable : private Query {
       const std::string &schema, const std::string &object,
       const uint32_t offset, const uint32_t limit, const std::string &url,
       const std::string &primary, const bool is_default_limit,
-      const RowUserOwnership &user_ownership = {}, uint64_t *user_id = nullptr,
+      const RowUserOwnership &user_ownership = {}, UserId *user_id = nullptr,
       const VectorOfRowGroupOwnershp &row_groups = {},
       const std::set<uint64_t> &user_groups = {},
       const std::string &query = {});
@@ -69,14 +72,14 @@ class QueryRestTable : private Query {
   void on_metadata(unsigned number, MYSQL_FIELD *fields) override;
 
   const mysqlrouter::sqlstring &build_where(
-      const RowUserOwnership &row_user, uint64_t *user_id,
+      const RowUserOwnership &row_user, UserId *user_id,
       const std::vector<RowGroupOwnership> &row_groups,
       const std::set<uint64_t> &user_groups);
   void build_query(const std::vector<Column> &columns,
                    const std::string &schema, const std::string &object,
                    const uint32_t offset, const uint32_t limit,
                    const std::string &url, const std::string &primary,
-                   const RowUserOwnership &user_row, uint64_t *user_id,
+                   const RowUserOwnership &user_row, UserId *user_id,
                    const std::vector<RowGroupOwnership> &row_groups,
                    const std::set<uint64_t> &user_groups,
                    const std::string &query);

@@ -35,7 +35,7 @@
 #include "helper/container/map.h"
 #include "helper/json/rapid_json_to_map.h"
 #include "helper/json/to_string.h"
-#include "helper/random_string.h"
+#include "helper/string/random.h"
 #include "mrs/database/entry/auth_user.h"
 #include "mrs/http/url.h"
 #include "mrs/rest/request_context.h"

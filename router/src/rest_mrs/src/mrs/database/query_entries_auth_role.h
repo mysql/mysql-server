@@ -26,6 +26,7 @@
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRIES_AUTH_ROLE_H_
 
 #include "mrs/database/entry/auth_role.h"
+#include "mrs/database/entry/auth_user.h"
 #include "mrs/database/helper/query.h"
 
 namespace mrs {
@@ -33,7 +34,8 @@ namespace database {
 
 class QueryEntriesAuthRole : public Query {
  public:
-  virtual void query(MySQLSession *session, const uint64_t user_id);
+  virtual void query(MySQLSession *session,
+                     const entry::AuthUser::UserId user_id);
 
   std::vector<entry::AuthRole> result;
 

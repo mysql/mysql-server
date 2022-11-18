@@ -45,7 +45,7 @@
 #include "helper/container/generic.h"
 #include "helper/container/map.h"
 #include "helper/make_shared_ptr.h"
-#include "helper/replace_string.h"
+#include "helper/string/replace.h"
 #include "helper/token/jwt.h"
 
 #include "mysql/harness/logging/logging.h"
@@ -60,6 +60,19 @@ using JwtHolder = helper::JwtHolder;
 using Jwt = helper::Jwt;
 using Handlers = AuthorizeManager::AuthHandlers;
 using AuthorizeHandlerPtr = AuthorizeManager::AuthorizeHandlerPtr;
+
+class UserIdContainer {
+ public:
+  using UserId = database::entry::AuthUser::UserId;
+  auto begin() const { return std::begin(user_id_.raw); }
+  auto end() const { return std::end(user_id_.raw); }
+  void push_back(uint8_t value) { user_id_.raw[push_index_++] = value; }
+  auto get_user_id() const { return user_id_; }
+
+ private:
+  UserId user_id_;
+  uint64_t push_index_{0};
+};
 
 static Jwt get_bearer_token_jwt(const HttpHeaders &headers) {
   auto authorization = headers.get(WwwAuthenticationHandler::kAuthorization);
@@ -291,7 +304,8 @@ std::string AuthorizeManager::get_jwt_token(uint64_t service_id, Session *s) {
   auto exp = current_timestamp(session_manager_.get_timeout());
 
   payload.SetObject();
-  payload.AddMember(StringRef("user_id"), s->user.user_id,
+  payload.AddMember(StringRef("user_id"),
+                    StringRef(helper::string::hex(s->user.user_id.raw).c_str()),
                     payload.GetAllocator());
 
   if (!s->user.email.empty())
@@ -312,7 +326,7 @@ std::string AuthorizeManager::get_jwt_token(uint64_t service_id, Session *s) {
   auto token = jwt.sign(jwt_secret_);
 
   std::string session_id = std::to_string(service_id) + "." +
-                           std::to_string(s->user.user_id) + "." + exp;
+                           s->user.user_id.to_string() + "." + exp;
   if (session_manager_.get_session(session_id)) return session_id;
 
   auto session = session_manager_.new_session(session_id);
@@ -368,12 +382,13 @@ std::string AuthorizeManager::authorize(const uint64_t service_id,
   auto json_exp = jwt.get_payload_claim_custom("exp");
   auto json_sid = jwt.get_payload_claim_custom("service_id");
 
-  if (!json_uid->IsUint64()) return {};
+  if (!json_uid->IsString()) return {};
   log_debug("JWT token  supported algorithm");
   if (!json_exp->IsString()) return {};
   if (!json_sid->IsUint64()) return {};
 
-  auto user_id = json_uid->GetUint64();
+  auto user_id = helper::string::unhex<UserIdContainer>(json_uid->GetString())
+                     .get_user_id();
   auto exp = json_exp->GetString();
   auto sid = json_sid->GetUint64();
 
@@ -387,7 +402,7 @@ std::string AuthorizeManager::authorize(const uint64_t service_id,
     return {};
   }
 
-  std::string session_id = std::to_string(user_id) + "." + exp;
+  std::string session_id = user_id.to_string() + "." + exp;
   if (session_manager_.get_session(session_id)) {
     log_debug("Session for token already exsits: %s", session_id.c_str());
     return session_id;
@@ -398,7 +413,7 @@ std::string AuthorizeManager::authorize(const uint64_t service_id,
   auto instance =
       cache_manager_->get_instance(collector::kMySQLConnectionMetadata);
   if (user_manager_.user_get_by_id(user_id, &session->user, &instance)) {
-    log_debug("Found user %i", static_cast<int>(user_id));
+    log_debug("Found user %s", user_id.to_string().c_str());
     session->state = http::SessionManager::Session::kUserVerified;
     return session_id;
   }

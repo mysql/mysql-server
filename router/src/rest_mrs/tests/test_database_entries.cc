@@ -22,37 +22,25 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_AUTH_USER_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_AUTH_USER_H_
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+#include <vector>
 
-#include "mrs/database/entry/auth_user.h"
-#include "mrs/database/helper/query.h"
+#include "helper/make_shared_ptr.h"
+#include "mrs/database/entry/entry.h"
+#include "mrs/database/query_rest_table.h"
 
-namespace mrs {
-namespace database {
+#include "mock/mock_session.h"
 
-class QueryEntryAuthUser : private Query {
- public:
-  using AuthUser = entry::AuthUser;
-  using UserId = AuthUser::UserId;
+using testing::Test;
 
- public:
-  virtual bool query_user(MySQLSession *session, const AuthUser *user);
-  virtual AuthUser::UserId insert_user(
-      MySQLSession *session, const AuthUser *user,
-      const helper::Optional<uint64_t> &default_role_id);
-  virtual bool update_user(MySQLSession *session, const AuthUser *user);
+using namespace mrs::database::entry;
+using UserId = AuthUser::UserId;
 
-  virtual const AuthUser &get_user();
-
- private:
-  void on_row(const Row &r) override;
-
-  int loaded_{0};
-  AuthUser user_data_;
-};
-
-}  // namespace database
-}  // namespace mrs
-
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_AUTH_USER_H_
+TEST(AuthUser, to_string) {
+  ASSERT_EQ("00000000000000000000000000000000", UserId().to_string());
+  ASSERT_EQ("04000000000000000000000000000000", UserId({0x04}).to_string());
+  ASSERT_EQ(
+      "00000000000000000000000000000004",
+      UserId({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x04}).to_string());
+}

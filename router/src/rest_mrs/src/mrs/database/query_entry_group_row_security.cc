@@ -50,13 +50,16 @@ void QueryEntryGroupRowSecurity::on_row(const Row &row) {
   if (row.size() < 1) return;
 
   helper::MySQLRow mysql_row(row);
+  auto converter = [](MatchLevel *out_ml, const char *db_value) {
+    *out_ml = static_cast<MatchLevel>(atoi(db_value));
+  };
 
   auto &entry = row_group_security_.emplace_back();
 
   mysql_row.unserialize(&entry.hierarhy_id);
   mysql_row.unserialize(&entry.row_group_ownership_column);
   mysql_row.unserialize(&entry.level);
-  mysql_row.unserialize(&entry.match);
+  mysql_row.unserialize_with_converter(&entry.match, converter);
 }
 
 }  // namespace database

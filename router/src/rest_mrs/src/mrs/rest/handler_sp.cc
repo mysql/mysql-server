@@ -147,7 +147,7 @@ Result HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
 
     if (ownership.user_ownership_enforced &&
         (ownership.user_ownership_column == el.bind_column_name)) {
-      result += std::to_string(ctxt->user.user_id);
+      result += to_sqlstring(ctxt->user.user_id).str();
     } else if (el.mode ==
                mrs::database::entry::Parameter::ParameterMode::parameterIn) {
       auto it = doc.FindMember(el.name.c_str());
@@ -215,7 +215,7 @@ Result HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
 
     if (ownership.user_ownership_enforced &&
         (ownership.user_ownership_column == el.bind_column_name)) {
-      result += std::to_string(ctxt->user.user_id);
+      result += to_sqlstring(ctxt->user.user_id).str();
     } else if (el.mode ==
                mrs::database::entry::Parameter::ParameterMode::parameterIn) {
       auto idx = helper::container::index_of(keys, el.name);

@@ -72,7 +72,7 @@ AuthUser *UserManager::cache_get(AuthUser *out_user, bool *out_is_different) {
   return nullptr;
 }
 
-bool UserManager::user_get_by_id(uint64_t user_id, AuthUser *out_user,
+bool UserManager::user_get_by_id(UserId user_id, AuthUser *out_user,
                                  SqlSessionCache *out_cache) {
   bool needs_update = false;
   ReadLock lock{mutex_user_cache_};

@@ -22,37 +22,20 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_AUTH_USER_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_AUTH_USER_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_HELPER_STRING_REPLACE_H_
+#define ROUTER_SRC_REST_MRS_SRC_HELPER_STRING_REPLACE_H_
 
-#include "mrs/database/entry/auth_user.h"
-#include "mrs/database/helper/query.h"
+#include <string>
 
-namespace mrs {
-namespace database {
+namespace helper {
 
-class QueryEntryAuthUser : private Query {
- public:
-  using AuthUser = entry::AuthUser;
-  using UserId = AuthUser::UserId;
+template <typename Function>
+void replace_if(std::string &value, Function &&to_replace, char replace_with) {
+  for (char &c : value) {
+    if (to_replace(c)) c = replace_with;
+  }
+}
 
- public:
-  virtual bool query_user(MySQLSession *session, const AuthUser *user);
-  virtual AuthUser::UserId insert_user(
-      MySQLSession *session, const AuthUser *user,
-      const helper::Optional<uint64_t> &default_role_id);
-  virtual bool update_user(MySQLSession *session, const AuthUser *user);
+}  // namespace helper
 
-  virtual const AuthUser &get_user();
-
- private:
-  void on_row(const Row &r) override;
-
-  int loaded_{0};
-  AuthUser user_data_;
-};
-
-}  // namespace database
-}  // namespace mrs
-
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_AUTH_USER_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_HELPER_STRING_REPLACE_H_

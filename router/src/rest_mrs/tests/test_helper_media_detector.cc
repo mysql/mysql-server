@@ -25,7 +25,7 @@
 #include <gtest/gtest.h>
 
 #include "helper/media_detector.h"
-#include "helper/random_string.h"
+#include "helper/string/random.h"
 
 using helper::MediaDetector;
 using helper::MediaType;

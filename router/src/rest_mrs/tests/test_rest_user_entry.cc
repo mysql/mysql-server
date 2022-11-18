@@ -30,8 +30,10 @@
 using namespace mrs::database::entry;
 using namespace testing;
 
+using UserId = AuthUser::UserId;
+
 const char *const kUserVendorId = "123456789";
-const int kUserId = 15;
+const UserId kUserId{{15, 0}};
 
 class MrsDatabaseEntry : public Test {
  public:
@@ -53,7 +55,7 @@ TEST_F(MrsDatabaseEntry, auth_user_indexing_not_matching_empty_idx) {
 }
 
 TEST_F(MrsDatabaseEntry, auth_user_indexing_not_matching_other_id) {
-  AuthUser::UserIndex idx{10};
+  AuthUser::UserIndex idx{UserId{10, 0}};
 
   ASSERT_FALSE(idx == user);
 }

@@ -52,7 +52,7 @@ class UserManager {
       : limit_to_existing_users_{limit_to_existing_users},
         default_role_id_{default_role_id} {}
 
-  bool user_get_by_id(uint64_t user_id, AuthUser *out_user,
+  bool user_get_by_id(UserId user_id, AuthUser *out_user,
                       SqlSessionCache *out_cache);
   bool user_get(AuthUser *out_user, SqlSessionCache *out_cache);
   void user_invalidate(const UserId id);

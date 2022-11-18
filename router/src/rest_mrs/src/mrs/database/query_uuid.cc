@@ -22,20 +22,41 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_HELPER_REPLACE_STRING_H_
-#define ROUTER_SRC_REST_MRS_SRC_HELPER_REPLACE_STRING_H_
+#include <array>
+#include <stdexcept>
 
-#include <string>
+#include "mrs/database/query_uuid.h"
 
-namespace helper {
+namespace mrs {
+namespace database {
 
-template <typename Function>
-void replace_if(std::string &value, Function &&to_replace, char replace_with) {
-  for (char &c : value) {
-    if (to_replace(c)) c = replace_with;
-  }
+using UserId = QueryUuid::UserId;
+
+QueryUuid::QueryUuid() {
+  query_ = "SELECT `mysql_rest_service_metadata`.`get_sequence_id`();";
 }
 
-}  // namespace helper
+void QueryUuid::generate_uuid(MySQLSession *session) { query(session); }
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_HELPER_REPLACE_STRING_H_
+UserId QueryUuid::get_result() {
+  UserId result;
+  memcpy(result.raw, uuid_.data(), uuid_.size());
+  return result;
+}
+
+void QueryUuid::on_metadata(unsigned number, MYSQL_FIELD *fields) {
+  if (1 != number)
+    throw std::runtime_error(
+        "Function `mysql_rest_service_metadata`.`get_sequence_id`, returned "
+        "invalid data.");
+
+  if (fields[0].length != uuid_.size())
+    throw std::runtime_error("Generated UUID has invalid size.");
+}
+
+void QueryUuid::on_row(const Row &r) {
+  memcpy(uuid_.data(), r[0], uuid_.size());
+}
+
+}  // namespace database
+}  // namespace mrs

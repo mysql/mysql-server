@@ -22,37 +22,44 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_AUTH_USER_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_AUTH_USER_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_HELPER_STRING_HEX_H_
+#define ROUTER_SRC_REST_MRS_SRC_HELPER_STRING_HEX_H_
 
-#include "mrs/database/entry/auth_user.h"
-#include "mrs/database/helper/query.h"
+#include <cassert>
+#include <iomanip>
+#include <sstream>
+#include <type_traits>
 
-namespace mrs {
-namespace database {
+namespace helper {
+namespace string {
 
-class QueryEntryAuthUser : private Query {
- public:
-  using AuthUser = entry::AuthUser;
-  using UserId = AuthUser::UserId;
+template <typename Container>
+std::string hex(const Container &c) {
+  std::ostringstream os;
+  auto end = std::end(c);
+  auto it = std::begin(c);
+  static_assert(sizeof(decltype(*it)) == 1);
 
- public:
-  virtual bool query_user(MySQLSession *session, const AuthUser *user);
-  virtual AuthUser::UserId insert_user(
-      MySQLSession *session, const AuthUser *user,
-      const helper::Optional<uint64_t> &default_role_id);
-  virtual bool update_user(MySQLSession *session, const AuthUser *user);
+  for (; it != end; ++it) {
+    os << std::setfill('0') << std::setw(2) << std::hex;
+    os << (int)*it;
+  }
+  return os.str();
+}
 
-  virtual const AuthUser &get_user();
+template <typename Container>
+Container unhex(const std::string &h) {
+  Container result;
+  assert(h.size() % 2 == 0);
 
- private:
-  void on_row(const Row &r) override;
+  for (std::size_t i = 1; i < h.size(); i += 2) {
+    uint8_t v = h[i - 1] * 16 + h[i];
+    result.push_back(v);
+  }
+  return result;
+}
 
-  int loaded_{0};
-  AuthUser user_data_;
-};
+}  // namespace string
+}  // namespace helper
 
-}  // namespace database
-}  // namespace mrs
-
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_AUTH_USER_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_HELPER_STRING_HEX_H_

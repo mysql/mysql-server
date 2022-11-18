@@ -209,7 +209,7 @@ bool Oauth2Handler::is_authorized(Session *session, AuthUser *user) {
   if (session->state != Session::kUserVerified) return false;
 
   *user = session->user;
-  log_debug("is_authorized session-user:%i", (int)user->user_id);
+  log_debug("is_authorized session-user:%s", user->user_id.to_string().c_str());
 
   return true;
 }

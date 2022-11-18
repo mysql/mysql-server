@@ -25,19 +25,67 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_ENTRY_AUTH_USER_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_ENTRY_AUTH_USER_H_
 
+#include <cstring>
+#include <initializer_list>
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
 
+#include "helper/string/hex.h"
 #include "mrs/database/entry/auth_privilege.h"
+#include "mysqlrouter/utils_sqlstring.h"
 
 namespace mrs {
 namespace database {
 namespace entry {
 
 struct AuthUser {
-  using UserId = uint64_t;
+  struct UserId {
+    constexpr static uint64_t k_size = 16;
+
+    UserId() {
+      num.higher_id = 0;
+      num.lower_id = 0;
+    }
+
+    UserId(std::initializer_list<uint8_t> v) {
+      memset(raw, 0, sizeof(raw));
+      std::copy(v.begin(), v.end(), std::begin(raw));
+    }
+
+    UserId(const UserId &id) { *this = id; }
+
+    union {
+      struct {
+        uint64_t lower_id;
+        uint64_t higher_id;
+      } num;
+      uint8_t raw[k_size];
+    };
+
+    void operator=(const UserId &other) {
+      num.lower_id = other.num.lower_id;
+      num.higher_id = other.num.higher_id;
+    }
+
+    bool operator==(const UserId &other) const {
+      if (num.lower_id != other.num.lower_id) return false;
+
+      return num.higher_id == other.num.higher_id;
+    }
+
+    bool operator!=(const UserId &other) const { return !(*this == other); }
+
+    bool operator<(const UserId &other) const {
+      if (num.higher_id < other.num.higher_id) return true;
+
+      return num.lower_id < other.num.lower_id;
+    }
+
+    std::string to_string() const { return helper::string::hex(raw); }
+  };
+
   class UserIndex {
    public:
     UserIndex() {}
@@ -74,7 +122,7 @@ struct AuthUser {
     }
 
     bool has_user_id{false};
-    UserId user_id{0};
+    UserId user_id{};
     std::string vendor_user_id;
   };
 
@@ -119,13 +167,19 @@ struct AuthUser {
   }
 };
 
+inline mysqlrouter::sqlstring to_sqlstring(const AuthUser::UserId &ud) {
+  mysqlrouter::sqlstring result{"X?"};
+  result << ud.to_string();
+  return result;
+}
+
 inline std::string to_string(const AuthUser &ud) {
   using std::to_string;
   std::string result{"{"};
   bool first = true;
   std::map<std::string, std::string> map;
 
-  if (ud.has_user_id) map["user_id"] = std::to_string(ud.user_id);
+  if (ud.has_user_id) map["user_id"] = ud.user_id.to_string();
   if (!ud.name.empty()) map["name"] = ud.name;
   if (!ud.email.empty()) map["email"] = ud.email;
   if (!ud.vendor_user_id.empty()) map["vendor_user_id"] = ud.vendor_user_id;
