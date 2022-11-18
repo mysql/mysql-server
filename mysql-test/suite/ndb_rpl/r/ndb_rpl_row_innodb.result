@@ -1,0 +1,132 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+SET binlog_format = ROW;
+[connection master]
+create table t1 (a int key, b int) engine innodb;
+create table t2 (a int key, b int) engine innodb;
+
+include/sync_slave_sql_with_master.inc
+alter table t1 engine ndb;
+alter table t2 engine ndb;
+
+*** Test 1 ***
+
+[connection master]
+insert into t1 values (1,2);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+include/sync_slave_sql_with_master.inc
+select log_name, start_pos from mysql.ndb_apply_status
+
+*** Test 1B ***
+
+[connection master]
+begin;
+insert into t1 values (2,3);
+insert into t2 values (3,4);
+commit;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+include/sync_slave_sql_with_master.inc
+select log_name, start_pos from mysql.ndb_apply_status
+[connection master]
+DROP TABLE test.t1, test.t2;
+include/sync_slave_sql_with_master.inc
+SHOW TABLES;
+Tables_in_test
+
+*** Test 2 ***
+
+[connection master]
+DROP DATABASE IF EXISTS tpcb;
+CREATE DATABASE tpcb;
+
+CREATE TABLE tpcb.account (id INT, bid INT, balance DECIMAL(10,2),
+filler CHAR(255), PRIMARY KEY(id));
+
+CREATE TABLE tpcb.branch (bid INT, balance DECIMAL(10,2), filler VARCHAR(255),
+PRIMARY KEY(bid));
+
+CREATE TABLE tpcb.teller (tid INT, balance DECIMAL(10,2), filler VARCHAR(255),
+PRIMARY KEY(tid));
+
+CREATE TABLE tpcb.history (id MEDIUMINT NOT NULL AUTO_INCREMENT,aid INT,
+tid INT, bid INT,  amount DECIMAL(10,2),
+tdate DATETIME, teller CHAR(20), uuidf LONGBLOB,
+filler CHAR(80),PRIMARY KEY (id));
+
+--- Create stored procedures & functions ---
+
+
+*** Stored Procedures Created ***
+
+include/sync_slave_sql_with_master.inc
+USE tpcb;
+ALTER TABLE account ENGINE NDB;
+ALTER TABLE branch ENGINE NDB;
+ALTER TABLE teller ENGINE NDB;
+ALTER TABLE history ENGINE NDB;
+[connection master]
+COMMIT
+COMMIT
+COMMIT
+COMMIT
+COMMIT
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+include/sync_slave_sql_with_master.inc
+select log_name, start_pos from mysql.ndb_apply_status
+
+** Test 3 **
+
+[connection master]
+FLUSH LOGS;
+COMMIT
+COMMIT
+COMMIT
+COMMIT
+COMMIT
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Xid	#	#	COMMIT /* XID */
+include/sync_slave_sql_with_master.inc
+select log_name, start_pos from mysql.ndb_apply_status
+
+** Test 4 **
+
+[connection master]
+include/rpl_reset.inc
+
+[connection master]
+COMMIT
+COMMIT
+COMMIT
+COMMIT
+COMMIT
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+include/sync_slave_sql_with_master.inc
+select log_name, start_pos from mysql.ndb_apply_status
+include/diff_tables.inc [tpcb.account, master:tpcb.account]
+include/diff_tables.inc [tpcb.teller, master:tpcb.teller]
+include/diff_tables.inc [tpcb.branch, master:tpcb.branch]
+include/diff_tables.inc [tpcb.history, master:tpcb.history]
+[connection master]
+DROP DATABASE tpcb;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

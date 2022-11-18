@@ -27,7 +27,7 @@
 # binlog.001	420304	Update_rows	1	420392	table_id: 272 flags: STMT_END_F
 # binlog.001	420753	Xid	1	420784	COMMIT /* xid=5090 */
 #
-# Then log_name = binlog.001, start_pos = 419917 and end_pos = 420780 should
+# Then log_name = binlog.001, start_pos = 419917 and end_pos = 420784 should
 # end up in ndb_apply_status on replica when this group has been replicated.
 #
 # ###############################################
