@@ -8,14 +8,10 @@
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` text,
-  `c2` int DEFAULT '0',
-  `b` int DEFAULT '1'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT * FROM t1;
-c1	c2	b
-r1c1	0	1
-r2c1	2	1
+  `c1` varchar(10) DEFAULT NULL,
+  `c2` varchar(10) DEFAULT 'def_c2',
+  `c3` varchar(10) DEFAULT 'def_c3'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	Warning	InnoDB: The B-tree of index GEN_CLUST_INDEX is corrupted.

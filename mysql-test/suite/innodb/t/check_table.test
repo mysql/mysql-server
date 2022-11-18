@@ -10,6 +10,25 @@
 --echo # SETUP #
 --echo #########
 
+# ------------------------------------------------------------
+# datadir is created as following
+#
+# on 8.0.28
+#  Create table t1 (c1 varchar(10));
+#  Alter table t1 add column c2 varchar(10) default "def_c2", algorithm=instant;
+#  Alter table t1 add column c3 varchar(10) default "def_c3", algorithm=instant;
+#  Insert into t1 values ("r1c1", "r1c2", "r1c3");
+#  Insert into t1 values ("r2c1", "r2c2", "r2c3");
+#
+#  <UPGRADE to 8.0.31>
+#
+# on 8.0.31
+#  Insert into t1 values ("r3c1", "r3c2", "def_c3");
+#  Start transaction;
+#  Update t1 set c1="r3331c1" where c1="r3c1";
+#  Rollback;
+# ------------------------------------------------------------
+
 --disable_query_log
 call mtr.add_suppression("Record has both instant and version bit set");
 call mtr.add_suppression("Apparent corruption in space .* page .* index `GEN_CLUST_INDEX`");
@@ -33,7 +52,6 @@ let $DATADIR = $MYSQL_TMP_DIR/data;
 --source include/start_mysqld.inc
 
 SHOW CREATE TABLE t1;
-SELECT * FROM t1;
 
 CHECK TABLE t1;
 
