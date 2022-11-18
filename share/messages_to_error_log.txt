@@ -12054,6 +12054,9 @@ ER_IB_WRN_IGNORE_REDO_LOG_CAPACITY
 ER_IB_PRIMARY_KEY_IS_INSTANT
   eng "Unexpected INSTANLY Added / Dropped column: '%s' at position %lu for Table '%s', Index '%s' while getting Primary Key for row logging"
 
+ER_THREAD_POOL_IDLE_CONNECTION_CLOSED
+   eng "%s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
