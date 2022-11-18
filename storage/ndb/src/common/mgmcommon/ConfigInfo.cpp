@@ -2498,6 +2498,24 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
+    CFG_DB_DISK_PAGE_BUFFER_ENTRIES,
+    "DiskPageBufferEntries",
+    DB_TOKEN,
+    "Determines number of unique disk page requests to allocate. "
+    "Specified as multiple of number of buffer pages "
+    "i.e. number of 32k pages in DiskPageBufferMemory. "
+    "Each entry takes about 100 bytes. "
+    "Large disk data transactions "
+    "may require increasing the default.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "10",
+    "1",
+    STR_VALUE(MAX_INT32)
+  },
+
+  {
     CFG_DB_ENABLE_REDO_CONTROL,
     "EnableRedoControl",
     DB_TOKEN,
@@ -3308,24 +3326,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     "0",
     STR_VALUE(MAX_INT_RNIL)
-  },
-
-  {
-    CFG_DB_DISK_PAGE_BUFFER_ENTRIES,
-    "DiskPageBufferEntries",
-    DB_TOKEN,
-    "Determines number of unique disk page requests to allocate. "
-    "Specified as multiple of number of buffer pages "
-    "i.e. number of 32k pages in DiskPageBufferMemory. "
-    "Each entry takes about 100 bytes. "
-    "Large disk data transactions "
-    "may require increasing the default.",
-    ConfigInfo::CI_USED,
-    false,
-    ConfigInfo::CI_INT,
-    "10",
-    "1",
-    STR_VALUE(MAX_INT32)
   },
 
   /****************************************************************************
