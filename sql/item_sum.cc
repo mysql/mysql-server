@@ -3022,10 +3022,8 @@ bool Item_sum_hybrid::get_time(MYSQL_TIME *ltime) {
 String *Item_sum_hybrid::val_str(String *str) {
   assert(fixed == 1);
   if (m_is_window_function) {
-    if (wf_common_init()) return nullptr;
-    bool ret = false;
-    m_optimize ? ret = compute() : add();
-    if (ret) return nullptr;
+    if (wf_common_init()) return error_str();
+    if (m_optimize ? compute() : add()) return error_str();
   }
   if (null_value) return nullptr;
 
