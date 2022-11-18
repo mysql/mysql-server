@@ -325,3 +325,38 @@ EXPLAIN
         -> Table scan on x2  (rows=1000) (actual rows=1000 loops=1)
 
 DROP TABLE num, t1, t2;
+#
+# Bug#34682561: Assertion `!eq_items.is_empty()' failed
+#               in make_join_hypergraph.cc
+#
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT f1 FROM t1
+WHERE EXISTS (SELECT t2.f1
+FROM (t1 AS t2 JOIN t1 AS t3 ON (t3.f1 = t2.f2))
+LEFT JOIN t1 AS t4 ON TRUE
+WHERE t4.f1 = t3.f1 OR t3.f2 >= t2.f2)
+GROUP BY f1;
+EXPLAIN
+-> Group (no aggregates)  (rows=0.1)
+    -> Nested loop semijoin  (rows=0.1)
+        -> Sort: t1.f1  (rows=1)
+            -> Table scan on t1  (rows=1)
+        -> Filter: (((t3.f1 = t2.f2) and (t2.f2 = t4.f1)) or (t3.f2 >= t3.f1))  (rows=0.1)
+            -> Nested loop left join  (rows=0.1)
+                -> Nested loop inner join  (rows=0.1)
+                    -> Table scan on t2  (rows=1)
+                    -> Filter: (t3.f1 = t2.f2)  (rows=0.1)
+                        -> Table scan on t3  (rows=1)
+                -> Table scan on t4  (rows=1)
+
+SELECT f1 FROM t1
+WHERE EXISTS (SELECT t2.f1
+FROM (t1 AS t2 JOIN t1 AS t3 ON (t3.f1 = t2.f2))
+LEFT JOIN t1 AS t4 ON TRUE
+WHERE t4.f1 = t3.f1 OR t3.f2 >= t2.f2)
+GROUP BY f1;
+f1
+DROP TABLE t1;

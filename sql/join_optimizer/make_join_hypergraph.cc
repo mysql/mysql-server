@@ -3495,8 +3495,9 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
     // don't need to worry about it.
     UnflattenInnerJoins(root);
 
-    if (CanonicalizeConditions(thd, GetVisibleTables(root),
-                               &where_conditions)) {
+    if (CanonicalizeConditions(
+            thd, GetVisibleTables(root->left) | GetVisibleTables(root->right),
+            &where_conditions)) {
       return true;
     }
 
