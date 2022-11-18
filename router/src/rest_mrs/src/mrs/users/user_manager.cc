@@ -84,7 +84,7 @@ bool UserManager::user_get_by_id(UserId user_id, AuthUser *out_user,
     found_user = query_user(out_cache, out_user, &needs_update);
   }
 
-  if (!found_user->login_permitted) return false;
+  if (!found_user || !found_user->login_permitted) return false;
 
   *out_user = *found_user;
 
