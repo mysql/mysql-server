@@ -22,7 +22,7 @@ t1_redundant	CREATE TABLE `t1_redundant` (
   `c2` char(10) DEFAULT NULL,
   `c3` char(10) DEFAULT 'c3_def',
   `c4` char(10) DEFAULT 'c4_def'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 /*!50100 PARTITION BY RANGE (`c1`)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
@@ -388,6 +388,20 @@ DROP TABLE t1_redundant;
 #
 #     Partition p0, p1, p2 are truncated.
 # ------------------------------------------------------------
+SHOW CREATE TABLE t2_redundant;
+Table	Create Table
+t2_redundant	CREATE TABLE `t2_redundant` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` text,
+  `c5` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+/*!50100 PARTITION BY RANGE (`c1`)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (300) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t2_redundant ORDER BY c1;
 c1	c2	c3	c4	c5
 390	1	1	3	NULL
@@ -560,7 +574,7 @@ t1_dynamic	CREATE TABLE `t1_dynamic` (
   `c2` char(10) DEFAULT NULL,
   `c3` char(10) DEFAULT 'c3_def',
   `c4` char(10) DEFAULT 'c4_def'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 /*!50100 PARTITION BY RANGE (`c1`)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
@@ -926,6 +940,20 @@ DROP TABLE t1_dynamic;
 #
 #     Partition p0, p1, p2 are truncated.
 # ------------------------------------------------------------
+SHOW CREATE TABLE t2_dynamic;
+Table	Create Table
+t2_dynamic	CREATE TABLE `t2_dynamic` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` text,
+  `c5` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+/*!50100 PARTITION BY RANGE (`c1`)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (300) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t2_dynamic ORDER BY c1;
 c1	c2	c3	c4	c5
 390	1	1	3	NULL
@@ -1098,7 +1126,7 @@ t1_compact	CREATE TABLE `t1_compact` (
   `c2` char(10) DEFAULT NULL,
   `c3` char(10) DEFAULT 'c3_def',
   `c4` char(10) DEFAULT 'c4_def'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 /*!50100 PARTITION BY RANGE (`c1`)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
@@ -1464,6 +1492,20 @@ DROP TABLE t1_compact;
 #
 #     Partition p0, p1, p2 are truncated.
 # ------------------------------------------------------------
+SHOW CREATE TABLE t2_compact;
+Table	Create Table
+t2_compact	CREATE TABLE `t2_compact` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` text,
+  `c5` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+/*!50100 PARTITION BY RANGE (`c1`)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (300) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t2_compact ORDER BY c1;
 c1	c2	c3	c4	c5
 390	1	1	3	NULL
