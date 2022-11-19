@@ -1,0 +1,1594 @@
+# Scenario 1: Bug 33788578 for simple table
+# 1.1: Redundant
+CREATE TABLE t1_redundant (a TEXT) ENGINE=INNODB, ROW_FORMAT=REDUNDANT;
+INSERT INTO t1_redundant (a) VALUES ('foo');
+ALTER TABLE t1_redundant ADD COLUMN b INT DEFAULT 0, ALGORITHM=INSTANT;;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_redundant	5	0	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+a	0	5	16711932	0
+b	1	6	1027	1
+SELECT * FROM t1_redundant;;
+a	b
+foo	0
+SHOW CREATE TABLE t1_redundant;;
+Table	Create Table
+t1_redundant	CREATE TABLE `t1_redundant` (
+  `a` text,
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t1_redundant;;
+Table	Op	Msg_type	Msg_text
+test.t1_redundant	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t1_redundant ADD PRIMARY KEY (b);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_redundant	5	0	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+a	0	5	16711932	0
+b	1	6	1027	1
+SELECT * FROM t1_redundant;
+a	b
+foo	0
+SHOW CREATE TABLE t1_redundant;
+Table	Create Table
+t1_redundant	CREATE TABLE `t1_redundant` (
+  `a` text,
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t1_redundant;
+Table	Op	Msg_type	Msg_text
+test.t1_redundant	check	status	OK
+UPDATE t1_redundant SET b = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_redundant	5	0	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+a	0	5	16711932	0
+b	1	6	1027	1
+SELECT * FROM t1_redundant;
+a	b
+foo	1
+SHOW CREATE TABLE t1_redundant;
+Table	Create Table
+t1_redundant	CREATE TABLE `t1_redundant` (
+  `a` text,
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t1_redundant;
+Table	Op	Msg_type	Msg_text
+test.t1_redundant	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_redundant	5	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+a	0	5	16711932	0
+b	1	6	1283	0
+SELECT * FROM t1_redundant;
+a	b
+foo	1
+SHOW CREATE TABLE t1_redundant;
+Table	Create Table
+t1_redundant	CREATE TABLE `t1_redundant` (
+  `a` text,
+  `b` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t1_redundant;
+Table	Op	Msg_type	Msg_text
+test.t1_redundant	check	status	OK
+DROP TABLE t1_redundant;
+# 1.2: Compact
+CREATE TABLE t1_compact (a TEXT) ENGINE=INNODB, ROW_FORMAT=COMPACT;
+INSERT INTO t1_compact (a) VALUES ('foo');
+ALTER TABLE t1_compact ADD COLUMN b INT DEFAULT 0, ALGORITHM=INSTANT;;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_compact	5	0	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+a	0	5	16711932	0
+b	1	6	1027	1
+SELECT * FROM t1_compact;;
+a	b
+foo	0
+SHOW CREATE TABLE t1_compact;;
+Table	Create Table
+t1_compact	CREATE TABLE `t1_compact` (
+  `a` text,
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t1_compact;;
+Table	Op	Msg_type	Msg_text
+test.t1_compact	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t1_compact ADD PRIMARY KEY (b);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_compact	5	0	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+a	0	5	16711932	0
+b	1	6	1027	1
+SELECT * FROM t1_compact;
+a	b
+foo	0
+SHOW CREATE TABLE t1_compact;
+Table	Create Table
+t1_compact	CREATE TABLE `t1_compact` (
+  `a` text,
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t1_compact;
+Table	Op	Msg_type	Msg_text
+test.t1_compact	check	status	OK
+UPDATE t1_compact SET b = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_compact	5	0	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+a	0	5	16711932	0
+b	1	6	1027	1
+SELECT * FROM t1_compact;
+a	b
+foo	1
+SHOW CREATE TABLE t1_compact;
+Table	Create Table
+t1_compact	CREATE TABLE `t1_compact` (
+  `a` text,
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t1_compact;
+Table	Op	Msg_type	Msg_text
+test.t1_compact	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_compact	5	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+a	0	5	16711932	0
+b	1	6	1283	0
+SELECT * FROM t1_compact;
+a	b
+foo	1
+SHOW CREATE TABLE t1_compact;
+Table	Create Table
+t1_compact	CREATE TABLE `t1_compact` (
+  `a` text,
+  `b` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t1_compact;
+Table	Op	Msg_type	Msg_text
+test.t1_compact	check	status	OK
+DROP TABLE t1_compact;
+# 1.3: Dynamic
+CREATE TABLE t1_dynamic (a TEXT) ENGINE=INNODB, ROW_FORMAT=DYNAMIC;
+INSERT INTO t1_dynamic (a) VALUES ('foo');
+ALTER TABLE t1_dynamic ADD COLUMN b INT DEFAULT 0, ALGORITHM=INSTANT;;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_dynamic	5	0	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+a	0	5	16711932	0
+b	1	6	1027	1
+SELECT * FROM t1_dynamic;;
+a	b
+foo	0
+SHOW CREATE TABLE t1_dynamic;;
+Table	Create Table
+t1_dynamic	CREATE TABLE `t1_dynamic` (
+  `a` text,
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t1_dynamic;;
+Table	Op	Msg_type	Msg_text
+test.t1_dynamic	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t1_dynamic ADD PRIMARY KEY (b);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_dynamic	5	0	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+a	0	5	16711932	0
+b	1	6	1027	1
+SELECT * FROM t1_dynamic;
+a	b
+foo	0
+SHOW CREATE TABLE t1_dynamic;
+Table	Create Table
+t1_dynamic	CREATE TABLE `t1_dynamic` (
+  `a` text,
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t1_dynamic;
+Table	Op	Msg_type	Msg_text
+test.t1_dynamic	check	status	OK
+UPDATE t1_dynamic SET b = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_dynamic	5	0	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+a	0	5	16711932	0
+b	1	6	1027	1
+SELECT * FROM t1_dynamic;
+a	b
+foo	1
+SHOW CREATE TABLE t1_dynamic;
+Table	Create Table
+t1_dynamic	CREATE TABLE `t1_dynamic` (
+  `a` text,
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t1_dynamic;
+Table	Op	Msg_type	Msg_text
+test.t1_dynamic	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_dynamic	5	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+a	0	5	16711932	0
+b	1	6	1283	0
+SELECT * FROM t1_dynamic;
+a	b
+foo	1
+SHOW CREATE TABLE t1_dynamic;
+Table	Create Table
+t1_dynamic	CREATE TABLE `t1_dynamic` (
+  `a` text,
+  `b` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t1_dynamic;
+Table	Op	Msg_type	Msg_text
+test.t1_dynamic	check	status	OK
+DROP TABLE t1_dynamic;
+# Scenario 2: Delete scenarios
+# 2.1 Redundant
+CREATE TABLE t1_redundant (a TEXT) ENGINE=INNODB, ROW_FORMAT=REDUNDANT;
+INSERT INTO t1_redundant VALUES ('foo');
+ALTER TABLE t1_redundant ADD COLUMN col INT DEFAULT 20, ALGORITHM=INSTANT;
+INSERT INTO t1_redundant VALUES ('row2', 22);
+ALTER TABLE t1_redundant ADD COLUMN b INT DEFAULT 0, ALGORITHM=INSTANT;;
+SELECT * FROM t1_redundant;;
+a	col	b
+foo	20	0
+row2	22	0
+SHOW CREATE TABLE t1_redundant;;
+Table	Create Table
+t1_redundant	CREATE TABLE `t1_redundant` (
+  `a` text,
+  `col` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t1_redundant;;
+Table	Op	Msg_type	Msg_text
+test.t1_redundant	check	status	OK
+UPDATE t1_redundant SET b = 1 WHERE a = 'row2';;
+SELECT * FROM t1_redundant;;
+a	col	b
+foo	20	0
+row2	22	1
+SHOW CREATE TABLE t1_redundant;;
+Table	Create Table
+t1_redundant	CREATE TABLE `t1_redundant` (
+  `a` text,
+  `col` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t1_redundant;;
+Table	Op	Msg_type	Msg_text
+test.t1_redundant	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t1_redundant ADD PRIMARY KEY (b);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+SELECT * FROM t1_redundant;
+a	col	b
+foo	20	0
+row2	22	1
+SHOW CREATE TABLE t1_redundant;
+Table	Create Table
+t1_redundant	CREATE TABLE `t1_redundant` (
+  `a` text,
+  `col` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t1_redundant;
+Table	Op	Msg_type	Msg_text
+test.t1_redundant	check	status	OK
+DELETE FROM t1_redundant WHERE col = '22';
+SELECT * FROM t1_redundant;
+a	col	b
+foo	20	0
+SHOW CREATE TABLE t1_redundant;
+Table	Create Table
+t1_redundant	CREATE TABLE `t1_redundant` (
+  `a` text,
+  `col` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t1_redundant;
+Table	Op	Msg_type	Msg_text
+test.t1_redundant	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+SELECT * FROM t1_redundant;
+a	col	b
+foo	20	0
+SHOW CREATE TABLE t1_redundant;
+Table	Create Table
+t1_redundant	CREATE TABLE `t1_redundant` (
+  `a` text,
+  `col` int DEFAULT '20',
+  `b` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t1_redundant;
+Table	Op	Msg_type	Msg_text
+test.t1_redundant	check	status	OK
+DROP TABLE t1_redundant;
+# 2.2 Compact
+CREATE TABLE t1_compact (a TEXT) ENGINE=INNODB, ROW_FORMAT=COMPACT;
+INSERT INTO t1_compact VALUES ('foo');
+ALTER TABLE t1_compact ADD COLUMN col INT DEFAULT 20, ALGORITHM=INSTANT;
+INSERT INTO t1_compact VALUES ('row2', 22);
+ALTER TABLE t1_compact ADD COLUMN b INT DEFAULT 0, ALGORITHM=INSTANT;;
+SELECT * FROM t1_compact;;
+a	col	b
+foo	20	0
+row2	22	0
+SHOW CREATE TABLE t1_compact;;
+Table	Create Table
+t1_compact	CREATE TABLE `t1_compact` (
+  `a` text,
+  `col` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t1_compact;;
+Table	Op	Msg_type	Msg_text
+test.t1_compact	check	status	OK
+UPDATE t1_compact SET b = 1 WHERE a = 'row2';;
+SELECT * FROM t1_compact;;
+a	col	b
+foo	20	0
+row2	22	1
+SHOW CREATE TABLE t1_compact;;
+Table	Create Table
+t1_compact	CREATE TABLE `t1_compact` (
+  `a` text,
+  `col` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t1_compact;;
+Table	Op	Msg_type	Msg_text
+test.t1_compact	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t1_compact ADD PRIMARY KEY (b);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+SELECT * FROM t1_compact;
+a	col	b
+foo	20	0
+row2	22	1
+SHOW CREATE TABLE t1_compact;
+Table	Create Table
+t1_compact	CREATE TABLE `t1_compact` (
+  `a` text,
+  `col` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t1_compact;
+Table	Op	Msg_type	Msg_text
+test.t1_compact	check	status	OK
+DELETE FROM t1_compact WHERE col = '22';
+SELECT * FROM t1_compact;
+a	col	b
+foo	20	0
+SHOW CREATE TABLE t1_compact;
+Table	Create Table
+t1_compact	CREATE TABLE `t1_compact` (
+  `a` text,
+  `col` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t1_compact;
+Table	Op	Msg_type	Msg_text
+test.t1_compact	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+SELECT * FROM t1_compact;
+a	col	b
+foo	20	0
+SHOW CREATE TABLE t1_compact;
+Table	Create Table
+t1_compact	CREATE TABLE `t1_compact` (
+  `a` text,
+  `col` int DEFAULT '20',
+  `b` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t1_compact;
+Table	Op	Msg_type	Msg_text
+test.t1_compact	check	status	OK
+DROP TABLE t1_compact;
+# 2.3 Dynamic
+CREATE TABLE t1_dynamic (a TEXT) ENGINE=INNODB, ROW_FORMAT=DYNAMIC;
+INSERT INTO t1_dynamic VALUES ('foo');
+ALTER TABLE t1_dynamic ADD COLUMN col INT DEFAULT 20, ALGORITHM=INSTANT;
+INSERT INTO t1_dynamic VALUES ('row2', 22);
+ALTER TABLE t1_dynamic ADD COLUMN b INT DEFAULT 0, ALGORITHM=INSTANT;;
+SELECT * FROM t1_dynamic;;
+a	col	b
+foo	20	0
+row2	22	0
+SHOW CREATE TABLE t1_dynamic;;
+Table	Create Table
+t1_dynamic	CREATE TABLE `t1_dynamic` (
+  `a` text,
+  `col` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t1_dynamic;;
+Table	Op	Msg_type	Msg_text
+test.t1_dynamic	check	status	OK
+UPDATE t1_dynamic SET b = 1 WHERE a = 'row2';;
+SELECT * FROM t1_dynamic;;
+a	col	b
+foo	20	0
+row2	22	1
+SHOW CREATE TABLE t1_dynamic;;
+Table	Create Table
+t1_dynamic	CREATE TABLE `t1_dynamic` (
+  `a` text,
+  `col` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t1_dynamic;;
+Table	Op	Msg_type	Msg_text
+test.t1_dynamic	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t1_dynamic ADD PRIMARY KEY (b);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+SELECT * FROM t1_dynamic;
+a	col	b
+foo	20	0
+row2	22	1
+SHOW CREATE TABLE t1_dynamic;
+Table	Create Table
+t1_dynamic	CREATE TABLE `t1_dynamic` (
+  `a` text,
+  `col` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t1_dynamic;
+Table	Op	Msg_type	Msg_text
+test.t1_dynamic	check	status	OK
+DELETE FROM t1_dynamic WHERE col = '22';
+SELECT * FROM t1_dynamic;
+a	col	b
+foo	20	0
+SHOW CREATE TABLE t1_dynamic;
+Table	Create Table
+t1_dynamic	CREATE TABLE `t1_dynamic` (
+  `a` text,
+  `col` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t1_dynamic;
+Table	Op	Msg_type	Msg_text
+test.t1_dynamic	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+SELECT * FROM t1_dynamic;
+a	col	b
+foo	20	0
+SHOW CREATE TABLE t1_dynamic;
+Table	Create Table
+t1_dynamic	CREATE TABLE `t1_dynamic` (
+  `a` text,
+  `col` int DEFAULT '20',
+  `b` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t1_dynamic;
+Table	Op	Msg_type	Msg_text
+test.t1_dynamic	check	status	OK
+DROP TABLE t1_dynamic;
+# Scenario 2: Upgrade from previous instant algorithm
+# Table was created in version 8.0.28 with:
+# -----------------------------------------
+# DROP DATABASE IF EXISTS test;
+# CREATE DATABASE IF NOT EXISTS test;
+# USE test;
+#
+# CREATE TABLE t1_redundant (c1 TEXT) ENGINE=INNODB, ROW_FORMAT=REDUNDANT;
+# ALTER TABLE t1_redundant ADD COLUMN c2 INT DEFAULT 0, ALGORITHM=INSTANT;
+# INSERT INTO t1_redundant VALUES ("c2", 2);
+#
+# CREATE TABLE t1_dynamic (c1 TEXT) ENGINE=INNODB, ROW_FORMAT=DYNAMIC;
+# ALTER TABLE t1_dynamic ADD COLUMN c2 INT DEFAULT 0, ALGORITHM=INSTANT;
+# INSERT INTO t1_dynamic VALUES ("c2", 2);
+#
+# CREATE TABLE t1_compact (c1 TEXT) ENGINE=INNODB, ROW_FORMAT=COMPACT;
+# ALTER TABLE t1_compact ADD COLUMN c2 INT DEFAULT 0, ALGORITHM=INSTANT;
+# INSERT INTO t1_compact VALUES ("c2", 2);
+#
+# CREATE TABLE t2_redundant (c1 TEXT) ENGINE=INNODB, ROW_FORMAT=REDUNDANT;
+# ALTER TABLE t2_redundant ADD COLUMN c2 INT DEFAULT 0, ALGORITHM=INSTANT;
+# INSERT INTO t2_redundant VALUES ("c2", 2);
+#
+# CREATE TABLE t2_dynamic (c1 TEXT) ENGINE=INNODB, ROW_FORMAT=DYNAMIC;
+# ALTER TABLE t2_dynamic ADD COLUMN c2 INT DEFAULT 0, ALGORITHM=INSTANT;
+# INSERT INTO t2_dynamic VALUES ("c2", 2);
+#
+# CREATE TABLE t2_compact (c1 TEXT) ENGINE=INNODB, ROW_FORMAT=COMPACT;
+# ALTER TABLE t2_compact ADD COLUMN c2 INT DEFAULT 0, ALGORITHM=INSTANT;
+# INSERT INTO t2_compact VALUES ("c2", 2);
+#
+# CREATE TABLE t3_redundant (c1 TEXT) ENGINE=INNODB, ROW_FORMAT=REDUNDANT;
+# INSERT INTO t3_redundant VALUES ('foo');
+# ALTER TABLE t3_redundant ADD COLUMN c2 INT DEFAULT 20, ALGORITHM=INSTANT;
+# INSERT INTO t3_redundant VALUES ('row2', 22);
+#
+# CREATE TABLE t3_dynamic (c1 TEXT) ENGINE=INNODB, ROW_FORMAT=DYNAMIC;
+# INSERT INTO t3_dynamic VALUES ('foo');
+# ALTER TABLE t3_dynamic ADD COLUMN c2 INT DEFAULT 20, ALGORITHM=INSTANT;
+# INSERT INTO t3_dynamic VALUES ('row2', 22);
+#
+# CREATE TABLE t3_compact (c1 TEXT) ENGINE=INNODB, ROW_FORMAT=COMPACT;
+# INSERT INTO t3_compact VALUES ('foo');
+# ALTER TABLE t3_compact ADD COLUMN c2 INT DEFAULT 20, ALGORITHM=INSTANT;
+# INSERT INTO t3_compact VALUES ('row2', 22);
+#
+# CREATE TABLE t4_redundant (c1 text, c2 int default 20, c3 int not null) ROW_FORMAT=REDUNDANT, ENGINE=INNODB;
+# ALTER TABLE t4_redundant ADD COLUMN c4 INT NOT NULL DEFAULT 40, ALGORITHM=INSTANT;
+# INSERT INTO t4_redundant VALUES ("row1", 2, 3, 4);
+# INSERT INTO t4_redundant (c1, c3) VALUES ("row2", 33);
+# INSERT INTO t4_redundant VALUES ("row3", 222, 333, 444);
+# -----------------------------------------
+# Replace data directory for upgrade
+# Restart the server
+# restart: --datadir=DATADIR
+SHOW TABLES;
+Tables_in_test
+t1_compact
+t1_dynamic
+t1_redundant
+t2_compact
+t2_dynamic
+t2_redundant
+t3_compact
+t3_dynamic
+t3_redundant
+t4_redundant
+# Upgrade Scenario 1: Bug 33788578 for upgraded table
+# 1.1 Dynamic
+ALTER TABLE t1_dynamic ADD COLUMN b INT DEFAULT 0, ALGORITHM=INSTANT;;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_dynamic	6	1	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	1
+b	2	6	1027	1
+SELECT * FROM t1_dynamic;;
+c1	c2	b
+c2	2	0
+SHOW CREATE TABLE t1_dynamic;;
+Table	Create Table
+t1_dynamic	CREATE TABLE `t1_dynamic` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t1_dynamic;;
+Table	Op	Msg_type	Msg_text
+test.t1_dynamic	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t1_dynamic ADD PRIMARY KEY (b);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_dynamic	6	1	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	1
+b	2	6	1027	1
+SELECT * FROM t1_dynamic;
+c1	c2	b
+c2	2	0
+SHOW CREATE TABLE t1_dynamic;
+Table	Create Table
+t1_dynamic	CREATE TABLE `t1_dynamic` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t1_dynamic;
+Table	Op	Msg_type	Msg_text
+test.t1_dynamic	check	status	OK
+UPDATE t1_dynamic SET b = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_dynamic	6	1	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	1
+b	2	6	1027	1
+SELECT * FROM t1_dynamic;
+c1	c2	b
+c2	2	1
+SHOW CREATE TABLE t1_dynamic;
+Table	Create Table
+t1_dynamic	CREATE TABLE `t1_dynamic` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t1_dynamic;
+Table	Op	Msg_type	Msg_text
+test.t1_dynamic	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_dynamic	6	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	0
+b	2	6	1283	0
+SELECT * FROM t1_dynamic;
+c1	c2	b
+c2	2	1
+SHOW CREATE TABLE t1_dynamic;
+Table	Create Table
+t1_dynamic	CREATE TABLE `t1_dynamic` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t1_dynamic;
+Table	Op	Msg_type	Msg_text
+test.t1_dynamic	check	status	OK
+DROP TABLE t1_dynamic;
+# 1.2 Compact
+ALTER TABLE t1_compact ADD COLUMN b INT DEFAULT 0, ALGORITHM=INSTANT;;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_compact	6	1	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	1
+b	2	6	1027	1
+SELECT * FROM t1_compact;;
+c1	c2	b
+c2	2	0
+SHOW CREATE TABLE t1_compact;;
+Table	Create Table
+t1_compact	CREATE TABLE `t1_compact` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t1_compact;;
+Table	Op	Msg_type	Msg_text
+test.t1_compact	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t1_compact ADD PRIMARY KEY (b);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_compact	6	1	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	1
+b	2	6	1027	1
+SELECT * FROM t1_compact;
+c1	c2	b
+c2	2	0
+SHOW CREATE TABLE t1_compact;
+Table	Create Table
+t1_compact	CREATE TABLE `t1_compact` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t1_compact;
+Table	Op	Msg_type	Msg_text
+test.t1_compact	check	status	OK
+UPDATE t1_compact SET b = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_compact	6	1	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	1
+b	2	6	1027	1
+SELECT * FROM t1_compact;
+c1	c2	b
+c2	2	1
+SHOW CREATE TABLE t1_compact;
+Table	Create Table
+t1_compact	CREATE TABLE `t1_compact` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t1_compact;
+Table	Op	Msg_type	Msg_text
+test.t1_compact	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_compact	6	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	0
+b	2	6	1283	0
+SELECT * FROM t1_compact;
+c1	c2	b
+c2	2	1
+SHOW CREATE TABLE t1_compact;
+Table	Create Table
+t1_compact	CREATE TABLE `t1_compact` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t1_compact;
+Table	Op	Msg_type	Msg_text
+test.t1_compact	check	status	OK
+DROP TABLE t1_compact;
+# 1.3 Redundant
+ALTER TABLE t1_redundant ADD COLUMN b INT DEFAULT 0, ALGORITHM=INSTANT;;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_redundant	6	1	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	1
+b	2	6	1027	1
+SELECT * FROM t1_redundant;;
+c1	c2	b
+c2	2	0
+SHOW CREATE TABLE t1_redundant;;
+Table	Create Table
+t1_redundant	CREATE TABLE `t1_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t1_redundant;;
+Table	Op	Msg_type	Msg_text
+test.t1_redundant	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t1_redundant ADD PRIMARY KEY (b);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_redundant	6	1	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	1
+b	2	6	1027	1
+SELECT * FROM t1_redundant;
+c1	c2	b
+c2	2	0
+SHOW CREATE TABLE t1_redundant;
+Table	Create Table
+t1_redundant	CREATE TABLE `t1_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t1_redundant;
+Table	Op	Msg_type	Msg_text
+test.t1_redundant	check	status	OK
+UPDATE t1_redundant SET b = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_redundant	6	1	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	1
+b	2	6	1027	1
+SELECT * FROM t1_redundant;
+c1	c2	b
+c2	2	1
+SHOW CREATE TABLE t1_redundant;
+Table	Create Table
+t1_redundant	CREATE TABLE `t1_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t1_redundant;
+Table	Op	Msg_type	Msg_text
+test.t1_redundant	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t1_redundant	6	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	0
+b	2	6	1283	0
+SELECT * FROM t1_redundant;
+c1	c2	b
+c2	2	1
+SHOW CREATE TABLE t1_redundant;
+Table	Create Table
+t1_redundant	CREATE TABLE `t1_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t1_redundant;
+Table	Op	Msg_type	Msg_text
+test.t1_redundant	check	status	OK
+DROP TABLE t1_redundant;
+# Upgrade Scenario 2: set primary key as previous instant added
+# 2.1 Dynamic
+ALTER TABLE t2_dynamic ADD COLUMN b INT DEFAULT 0, ALGORITHM=INSTANT;;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t2_dynamic	6	1	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	1
+b	2	6	1027	1
+SELECT * FROM t2_dynamic;;
+c1	c2	b
+c2	2	0
+SHOW CREATE TABLE t2_dynamic;;
+Table	Create Table
+t2_dynamic	CREATE TABLE `t2_dynamic` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t2_dynamic;;
+Table	Op	Msg_type	Msg_text
+test.t2_dynamic	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t2_dynamic ADD PRIMARY KEY (b);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t2_dynamic	6	1	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	1
+b	2	6	1027	1
+SELECT * FROM t2_dynamic;
+c1	c2	b
+c2	2	0
+SHOW CREATE TABLE t2_dynamic;
+Table	Create Table
+t2_dynamic	CREATE TABLE `t2_dynamic` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t2_dynamic;
+Table	Op	Msg_type	Msg_text
+test.t2_dynamic	check	status	OK
+UPDATE t2_dynamic SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t2_dynamic	6	1	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	1
+b	2	6	1027	1
+SELECT * FROM t2_dynamic;
+c1	c2	b
+c2	1	0
+SHOW CREATE TABLE t2_dynamic;
+Table	Create Table
+t2_dynamic	CREATE TABLE `t2_dynamic` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t2_dynamic;
+Table	Op	Msg_type	Msg_text
+test.t2_dynamic	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t2_dynamic	6	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	0
+b	2	6	1283	0
+SELECT * FROM t2_dynamic;
+c1	c2	b
+c2	1	0
+SHOW CREATE TABLE t2_dynamic;
+Table	Create Table
+t2_dynamic	CREATE TABLE `t2_dynamic` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t2_dynamic;
+Table	Op	Msg_type	Msg_text
+test.t2_dynamic	check	status	OK
+DROP TABLE t2_dynamic;
+# 2.2 Compact
+ALTER TABLE t2_compact ADD COLUMN b INT DEFAULT 0, ALGORITHM=INSTANT;;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t2_compact	6	1	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	1
+b	2	6	1027	1
+SELECT * FROM t2_compact;;
+c1	c2	b
+c2	2	0
+SHOW CREATE TABLE t2_compact;;
+Table	Create Table
+t2_compact	CREATE TABLE `t2_compact` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t2_compact;;
+Table	Op	Msg_type	Msg_text
+test.t2_compact	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t2_compact ADD PRIMARY KEY (b);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t2_compact	6	1	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	1
+b	2	6	1027	1
+SELECT * FROM t2_compact;
+c1	c2	b
+c2	2	0
+SHOW CREATE TABLE t2_compact;
+Table	Create Table
+t2_compact	CREATE TABLE `t2_compact` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t2_compact;
+Table	Op	Msg_type	Msg_text
+test.t2_compact	check	status	OK
+UPDATE t2_compact SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t2_compact	6	1	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	1
+b	2	6	1027	1
+SELECT * FROM t2_compact;
+c1	c2	b
+c2	1	0
+SHOW CREATE TABLE t2_compact;
+Table	Create Table
+t2_compact	CREATE TABLE `t2_compact` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t2_compact;
+Table	Op	Msg_type	Msg_text
+test.t2_compact	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t2_compact	6	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	0
+b	2	6	1283	0
+SELECT * FROM t2_compact;
+c1	c2	b
+c2	1	0
+SHOW CREATE TABLE t2_compact;
+Table	Create Table
+t2_compact	CREATE TABLE `t2_compact` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t2_compact;
+Table	Op	Msg_type	Msg_text
+test.t2_compact	check	status	OK
+DROP TABLE t2_compact;
+# 2.3 Redundant
+ALTER TABLE t2_redundant ADD COLUMN b INT DEFAULT 0, ALGORITHM=INSTANT;;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t2_redundant	6	1	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	1
+b	2	6	1027	1
+SELECT * FROM t2_redundant;;
+c1	c2	b
+c2	2	0
+SHOW CREATE TABLE t2_redundant;;
+Table	Create Table
+t2_redundant	CREATE TABLE `t2_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t2_redundant;;
+Table	Op	Msg_type	Msg_text
+test.t2_redundant	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t2_redundant ADD PRIMARY KEY (b);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t2_redundant	6	1	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	1
+b	2	6	1027	1
+SELECT * FROM t2_redundant;
+c1	c2	b
+c2	2	0
+SHOW CREATE TABLE t2_redundant;
+Table	Create Table
+t2_redundant	CREATE TABLE `t2_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t2_redundant;
+Table	Op	Msg_type	Msg_text
+test.t2_redundant	check	status	OK
+UPDATE t2_redundant SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t2_redundant	6	1	1
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	1
+b	2	6	1027	1
+SELECT * FROM t2_redundant;
+c1	c2	b
+c2	1	0
+SHOW CREATE TABLE t2_redundant;
+Table	Create Table
+t2_redundant	CREATE TABLE `t2_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t2_redundant;
+Table	Op	Msg_type	Msg_text
+test.t2_redundant	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/t2_redundant	6	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c1	0	5	16711932	0
+c2	1	6	1027	0
+b	2	6	1283	0
+SELECT * FROM t2_redundant;
+c1	c2	b
+c2	1	0
+SHOW CREATE TABLE t2_redundant;
+Table	Create Table
+t2_redundant	CREATE TABLE `t2_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '0',
+  `b` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t2_redundant;
+Table	Op	Msg_type	Msg_text
+test.t2_redundant	check	status	OK
+DROP TABLE t2_redundant;
+# Upgrade scenario 3: delete during online DDL
+# 3.1 Dynamic
+ALTER TABLE t3_dynamic ADD COLUMN b INT DEFAULT 0, ALGORITHM=INSTANT;;
+SELECT * FROM t3_dynamic;;
+c1	c2	b
+foo	20	0
+row2	22	0
+SHOW CREATE TABLE t3_dynamic;;
+Table	Create Table
+t3_dynamic	CREATE TABLE `t3_dynamic` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t3_dynamic;;
+Table	Op	Msg_type	Msg_text
+test.t3_dynamic	check	status	OK
+UPDATE t3_dynamic SET b = 1 WHERE c1 = 'row2';;
+SELECT * FROM t3_dynamic;;
+c1	c2	b
+foo	20	0
+row2	22	1
+SHOW CREATE TABLE t3_dynamic;;
+Table	Create Table
+t3_dynamic	CREATE TABLE `t3_dynamic` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t3_dynamic;;
+Table	Op	Msg_type	Msg_text
+test.t3_dynamic	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t3_dynamic ADD PRIMARY KEY (b);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+SELECT * FROM t3_dynamic;
+c1	c2	b
+foo	20	0
+row2	22	1
+SHOW CREATE TABLE t3_dynamic;
+Table	Create Table
+t3_dynamic	CREATE TABLE `t3_dynamic` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t3_dynamic;
+Table	Op	Msg_type	Msg_text
+test.t3_dynamic	check	status	OK
+DELETE FROM t3_dynamic WHERE c2 = '22';
+SELECT * FROM t3_dynamic;
+c1	c2	b
+foo	20	0
+SHOW CREATE TABLE t3_dynamic;
+Table	Create Table
+t3_dynamic	CREATE TABLE `t3_dynamic` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t3_dynamic;
+Table	Op	Msg_type	Msg_text
+test.t3_dynamic	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+SELECT * FROM t3_dynamic;
+c1	c2	b
+foo	20	0
+SHOW CREATE TABLE t3_dynamic;
+Table	Create Table
+t3_dynamic	CREATE TABLE `t3_dynamic` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `b` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE t3_dynamic;
+Table	Op	Msg_type	Msg_text
+test.t3_dynamic	check	status	OK
+DROP TABLE t3_dynamic;
+# 3.2 Compact
+ALTER TABLE t3_compact ADD COLUMN b INT DEFAULT 0, ALGORITHM=INSTANT;;
+SELECT * FROM t3_compact;;
+c1	c2	b
+foo	20	0
+row2	22	0
+SHOW CREATE TABLE t3_compact;;
+Table	Create Table
+t3_compact	CREATE TABLE `t3_compact` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t3_compact;;
+Table	Op	Msg_type	Msg_text
+test.t3_compact	check	status	OK
+UPDATE t3_compact SET b = 1 WHERE c1 = 'row2';;
+SELECT * FROM t3_compact;;
+c1	c2	b
+foo	20	0
+row2	22	1
+SHOW CREATE TABLE t3_compact;;
+Table	Create Table
+t3_compact	CREATE TABLE `t3_compact` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t3_compact;;
+Table	Op	Msg_type	Msg_text
+test.t3_compact	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t3_compact ADD PRIMARY KEY (b);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+SELECT * FROM t3_compact;
+c1	c2	b
+foo	20	0
+row2	22	1
+SHOW CREATE TABLE t3_compact;
+Table	Create Table
+t3_compact	CREATE TABLE `t3_compact` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t3_compact;
+Table	Op	Msg_type	Msg_text
+test.t3_compact	check	status	OK
+DELETE FROM t3_compact WHERE c2 = '22';
+SELECT * FROM t3_compact;
+c1	c2	b
+foo	20	0
+SHOW CREATE TABLE t3_compact;
+Table	Create Table
+t3_compact	CREATE TABLE `t3_compact` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t3_compact;
+Table	Op	Msg_type	Msg_text
+test.t3_compact	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+SELECT * FROM t3_compact;
+c1	c2	b
+foo	20	0
+SHOW CREATE TABLE t3_compact;
+Table	Create Table
+t3_compact	CREATE TABLE `t3_compact` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `b` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE t3_compact;
+Table	Op	Msg_type	Msg_text
+test.t3_compact	check	status	OK
+DROP TABLE t3_compact;
+# 3.3 Redundant
+ALTER TABLE t3_redundant ADD COLUMN b INT DEFAULT 0, ALGORITHM=INSTANT;;
+SELECT * FROM t3_redundant;;
+c1	c2	b
+foo	20	0
+row2	22	0
+SHOW CREATE TABLE t3_redundant;;
+Table	Create Table
+t3_redundant	CREATE TABLE `t3_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t3_redundant;;
+Table	Op	Msg_type	Msg_text
+test.t3_redundant	check	status	OK
+UPDATE t3_redundant SET b = 1 WHERE c1 = 'row2';;
+SELECT * FROM t3_redundant;;
+c1	c2	b
+foo	20	0
+row2	22	1
+SHOW CREATE TABLE t3_redundant;;
+Table	Create Table
+t3_redundant	CREATE TABLE `t3_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t3_redundant;;
+Table	Op	Msg_type	Msg_text
+test.t3_redundant	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t3_redundant ADD PRIMARY KEY (b);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+SELECT * FROM t3_redundant;
+c1	c2	b
+foo	20	0
+row2	22	1
+SHOW CREATE TABLE t3_redundant;
+Table	Create Table
+t3_redundant	CREATE TABLE `t3_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t3_redundant;
+Table	Op	Msg_type	Msg_text
+test.t3_redundant	check	status	OK
+DELETE FROM t3_redundant WHERE c2 = '22';
+SELECT * FROM t3_redundant;
+c1	c2	b
+foo	20	0
+SHOW CREATE TABLE t3_redundant;
+Table	Create Table
+t3_redundant	CREATE TABLE `t3_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `b` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t3_redundant;
+Table	Op	Msg_type	Msg_text
+test.t3_redundant	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+SELECT * FROM t3_redundant;
+c1	c2	b
+foo	20	0
+SHOW CREATE TABLE t3_redundant;
+Table	Create Table
+t3_redundant	CREATE TABLE `t3_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `b` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t3_redundant;
+Table	Op	Msg_type	Msg_text
+test.t3_redundant	check	status	OK
+DROP TABLE t3_redundant;
+# Redundant related scenarios
+# 1. index->table->has_row_versions() is false
+SELECT * FROM t4_redundant;
+c1	c2	c3	c4
+row1	2	3	4
+row2	20	33	40
+row3	222	333	444
+SHOW CREATE TABLE t4_redundant;
+Table	Create Table
+t4_redundant	CREATE TABLE `t4_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `c3` int NOT NULL,
+  `c4` int NOT NULL DEFAULT '40'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t4_redundant;
+Table	Op	Msg_type	Msg_text
+test.t4_redundant	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t4_redundant ADD PRIMARY KEY (c3);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+SELECT * FROM t4_redundant;
+c1	c2	c3	c4
+row1	2	3	4
+row2	20	33	40
+row3	222	333	444
+SHOW CREATE TABLE t4_redundant;
+Table	Create Table
+t4_redundant	CREATE TABLE `t4_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `c3` int NOT NULL,
+  `c4` int NOT NULL DEFAULT '40'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t4_redundant;
+Table	Op	Msg_type	Msg_text
+test.t4_redundant	check	status	OK
+UPDATE t4_redundant SET c2 = 2222;
+SELECT * FROM t4_redundant;
+c1	c2	c3	c4
+row1	2222	3	4
+row2	2222	33	40
+row3	2222	333	444
+SHOW CREATE TABLE t4_redundant;
+Table	Create Table
+t4_redundant	CREATE TABLE `t4_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `c3` int NOT NULL,
+  `c4` int NOT NULL DEFAULT '40'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t4_redundant;
+Table	Op	Msg_type	Msg_text
+test.t4_redundant	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+SELECT * FROM t4_redundant;
+c1	c2	c3	c4
+row1	2222	3	4
+row2	2222	33	40
+row3	2222	333	444
+SHOW CREATE TABLE t4_redundant;
+Table	Create Table
+t4_redundant	CREATE TABLE `t4_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `c3` int NOT NULL,
+  `c4` int NOT NULL DEFAULT '40',
+  PRIMARY KEY (`c3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t4_redundant;
+Table	Op	Msg_type	Msg_text
+test.t4_redundant	check	status	OK
+DROP TABLE t4_redundant;
+# 2. index->table->has_row_versions() is true and rec_new_temp_is_versioned(rec) is false
+CREATE TABLE t5_redundant (c1 TEXT, c2 INT DEFAULT 20, c3 INT NOT NULL) ROW_FORMAT=REDUNDANT, ENGINE=INNODB;
+INSERT INTO t5_redundant VALUES ("row1", 2, 3);
+INSERT INTO t5_redundant (c1, c3) VALUES ("row2", 33);
+ALTER TABLE t5_redundant ADD COLUMN c4 INT NOT NULL DEFAULT 40, ALGORITHM=INSTANT;
+SELECT * FROM t5_redundant;
+c1	c2	c3	c4
+row1	2	3	40
+row2	20	33	40
+SHOW CREATE TABLE t5_redundant;
+Table	Create Table
+t5_redundant	CREATE TABLE `t5_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `c3` int NOT NULL,
+  `c4` int NOT NULL DEFAULT '40'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t5_redundant;
+Table	Op	Msg_type	Msg_text
+test.t5_redundant	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t5_redundant ADD PRIMARY KEY (c3);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+SELECT * FROM t5_redundant;
+c1	c2	c3	c4
+row1	2	3	40
+row2	20	33	40
+SHOW CREATE TABLE t5_redundant;
+Table	Create Table
+t5_redundant	CREATE TABLE `t5_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `c3` int NOT NULL,
+  `c4` int NOT NULL DEFAULT '40'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t5_redundant;
+Table	Op	Msg_type	Msg_text
+test.t5_redundant	check	status	OK
+UPDATE t5_redundant SET c2 = 2222;
+SELECT * FROM t5_redundant;
+c1	c2	c3	c4
+row1	2222	3	40
+row2	2222	33	40
+SHOW CREATE TABLE t5_redundant;
+Table	Create Table
+t5_redundant	CREATE TABLE `t5_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `c3` int NOT NULL,
+  `c4` int NOT NULL DEFAULT '40'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t5_redundant;
+Table	Op	Msg_type	Msg_text
+test.t5_redundant	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+SELECT * FROM t5_redundant;
+c1	c2	c3	c4
+row1	2222	3	40
+row2	2222	33	40
+SHOW CREATE TABLE t5_redundant;
+Table	Create Table
+t5_redundant	CREATE TABLE `t5_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `c3` int NOT NULL,
+  `c4` int NOT NULL DEFAULT '40',
+  PRIMARY KEY (`c3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t5_redundant;
+Table	Op	Msg_type	Msg_text
+test.t5_redundant	check	status	OK
+DROP TABLE t5_redundant;
+# 3. index->table->has_row_versions() is true and rec_new_temp_is_versioned(rec) is true
+CREATE TABLE t6_redundant (c1 TEXT, c2 INT DEFAULT 20, c3 INT NOT NULL) ROW_FORMAT=REDUNDANT, ENGINE=INNODB;
+ALTER TABLE t6_redundant ADD COLUMN c4 INT NOT NULL DEFAULT 40, ALGORITHM=INSTANT;
+INSERT INTO t6_redundant VALUES ("row1", 2, 3, 4);
+INSERT INTO t6_redundant (c1, c3) VALUES ("row2", 33);
+SELECT * FROM t6_redundant;
+c1	c2	c3	c4
+row1	2	3	4
+row2	20	33	40
+SHOW CREATE TABLE t6_redundant;
+Table	Create Table
+t6_redundant	CREATE TABLE `t6_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `c3` int NOT NULL,
+  `c4` int NOT NULL DEFAULT '40'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t6_redundant;
+Table	Op	Msg_type	Msg_text
+test.t6_redundant	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE t6_redundant ADD PRIMARY KEY (c3);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+SELECT * FROM t6_redundant;
+c1	c2	c3	c4
+row1	2	3	4
+row2	20	33	40
+SHOW CREATE TABLE t6_redundant;
+Table	Create Table
+t6_redundant	CREATE TABLE `t6_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `c3` int NOT NULL,
+  `c4` int NOT NULL DEFAULT '40'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t6_redundant;
+Table	Op	Msg_type	Msg_text
+test.t6_redundant	check	status	OK
+UPDATE t6_redundant SET c2 = 2222;
+SELECT * FROM t6_redundant;
+c1	c2	c3	c4
+row1	2222	3	4
+row2	2222	33	40
+SHOW CREATE TABLE t6_redundant;
+Table	Create Table
+t6_redundant	CREATE TABLE `t6_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `c3` int NOT NULL,
+  `c4` int NOT NULL DEFAULT '40'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t6_redundant;
+Table	Op	Msg_type	Msg_text
+test.t6_redundant	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+SELECT * FROM t6_redundant;
+c1	c2	c3	c4
+row1	2222	3	4
+row2	2222	33	40
+SHOW CREATE TABLE t6_redundant;
+Table	Create Table
+t6_redundant	CREATE TABLE `t6_redundant` (
+  `c1` text,
+  `c2` int DEFAULT '20',
+  `c3` int NOT NULL,
+  `c4` int NOT NULL DEFAULT '40',
+  PRIMARY KEY (`c3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t6_redundant;
+Table	Op	Msg_type	Msg_text
+test.t6_redundant	check	status	OK
+DROP TABLE t6_redundant;
+# Cleanup
+# Shutdown server
+# Remove temp files used
+# Restart server to restore server state
+# restart
+# End

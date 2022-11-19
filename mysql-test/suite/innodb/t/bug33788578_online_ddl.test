@@ -1,0 +1,582 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_lowercase0.inc
+
+--echo # Online DDL test on ALTER .. ADD PRIMRAY KEY with UPDATE SET on all possible row combinations
+--echo #
+--echo # What this test is doing:
+--echo #
+--echo # Upgrade server to latest version
+--echo # Keep a zipped copy of upgraded datadir
+--echo #
+--echo # For the primary key columns
+--echo # --let $pk_col = c0  {
+--echo #
+--echo #   For all row formats
+--echo #   --let $row_format = [ta1b1, ta1b2, ta1b3, ta1b4, ta2b2, ta2b4, ta3b2, ta3b3, ta3b4] {
+--echo #     --source suite/innodb/include/bug33788578_online_ddl.inc
+--echo #
+--echo #     For all tables
+--echo #     --let $table_name = [ta1b1, ta1b2, ta1b3, ta1b4, ta2b2, ta2b4, ta3b2, ta3b3, ta3b4]_$row_format {
+--echo #       Do the online DDL
+--echo #       --let $upd_col = c2/c6/c10 depending on table
+--echo #       --source suite/innodb/include/bug33788578.inc
+--echo #     }
+--echo #   }
+--echo # }
+--echo # Check comments near end of file to see what a1b1, a2b4, etc., means
+
+--echo # This column will be made as the primary key in online DDL. TODO: extend test to include all possible primary key columns
+--echo # TODO: extend test to update other columns : maybe instant added ones too;
+--let $pk_col = c0
+
+--echo # Upgrade previous tables to current
+--source include/shutdown_mysqld.inc
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/bug33788578_online_ddl.zip $MYSQL_TMP_DIR/bug33788578_online_ddl.zip
+--file_exists $MYSQL_TMP_DIR/bug33788578_online_ddl.zip
+--exec unzip -qo $MYSQL_TMP_DIR/bug33788578_online_ddl.zip -d $MYSQL_TMP_DIR
+let $DATADIR = $MYSQL_TMP_DIR/data;
+
+--echo # Restart the server
+--replace_result $DATADIR DATADIR
+--let $restart_parameters = restart: --datadir=$DATADIR
+--let $wait_counter=3000
+--source include/start_mysqld.inc
+
+SHOW TABLES;
+
+--echo # For all REDUNDANT tables:
+--let $row_format = redundant
+--echo # Prepare the table
+--source suite/innodb/include/bug33788578_online_ddl_prepare.inc
+--echo # For each table, do online ddl
+--echo # Run online ddl for ta1b1
+--let $table_name = ta1b1_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta1b2
+--let $table_name = ta1b2_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta1b3
+--let $table_name = ta1b3_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta1b4
+--let $table_name = ta1b4_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta2b2
+--let $table_name = ta2b2_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta2b4
+--let $table_name = ta2b4_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta3b2
+--let $table_name = ta3b2_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta3b3
+--let $table_name = ta3b3_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta3b4
+--let $table_name = ta3b4_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # For all COMPACT tables:
+--let $row_format = compact
+--echo # Prepare the table
+--source suite/innodb/include/bug33788578_online_ddl_prepare.inc
+--echo # For each table, do online ddl
+--echo # Run online ddl for ta1b1
+--let $table_name = ta1b1_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta1b2
+--let $table_name = ta1b2_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta1b3
+--let $table_name = ta1b3_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta1b4
+--let $table_name = ta1b4_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta2b2
+--let $table_name = ta2b2_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta2b4
+--let $table_name = ta2b4_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta3b2
+--let $table_name = ta3b2_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta3b3
+--let $table_name = ta3b3_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta3b4
+--let $table_name = ta3b4_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # For all DYNAMIC tables:
+--let $row_format = dynamic
+--echo # Prepare the table
+--source suite/innodb/include/bug33788578_online_ddl_prepare.inc
+--echo # For each table, do online ddl
+--echo # Run online ddl for ta1b1
+--let $table_name = ta1b1_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta1b2
+--let $table_name = ta1b2_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta1b3
+--let $table_name = ta1b3_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta1b4
+--let $table_name = ta1b4_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta2b2
+--let $table_name = ta2b2_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta2b4
+--let $table_name = ta2b4_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta3b2
+--let $table_name = ta3b2_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta3b3
+--let $table_name = ta3b3_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Run online ddl for ta3b4
+--let $table_name = ta3b4_$row_format
+--let $upd_col = c2
+--source suite/innodb/include/bug33788578.inc
+
+--echo # Cleanup
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Remove temp files used
+--file_exists $MYSQL_TMP_DIR/bug33788578_online_ddl.zip
+--force-rmdir $MYSQL_TMP_DIR/data
+--remove_file $MYSQL_TMP_DIR/bug33788578_online_ddl.zip
+
+--echo # Restart server to restore server state
+let $restart_parameters =;
+--source include/start_mysqld.inc
+
+# Table create in 8.0.28:
+# 
+# ======
+# 8.0.28
+# ======
+# 
+# DROP DATABASE IF EXISTS test;
+# CREATE DATABASE IF NOT EXISTS test;
+# USE test;
+# --           --
+# -- REDUNDANT --
+# --           --
+# 
+# -- 1. ta1b1_redundant: --
+# --  [8.0.28] --
+#         CREATE TABLE ta1b1_redundant (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=REDUNDANT, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         INSERT INTO ta1b1_redundant VALUES (1, "row1", 2, 3, 4, 5);
+#         INSERT INTO ta1b1_redundant (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+#     -- UPGRADE --
+# 
+# -- 2. ta1b2_redundant: --
+# --  [8.0.28] --
+#         CREATE TABLE ta1b2_redundant (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=REDUNDANT, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         INSERT INTO ta1b2_redundant VALUES (1, "row1", 2, 3, 4, 5);
+#         INSERT INTO ta1b2_redundant (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# --  [8.0.28] --
+#         ALTER TABLE ta1b2_redundant ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta1b2_redundant ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+#     -- UPGRADE --
+# 
+# -- 3. ta1b3_redundant: --
+# --  [8.0.28] --
+#         CREATE TABLE ta1b3_redundant (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=REDUNDANT, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         INSERT INTO ta1b3_redundant VALUES (1, "row1", 2, 3, 4, 5);
+#         INSERT INTO ta1b3_redundant (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+#     -- UPGRADE --
+# 
+# -- 4. ta1b4_redundant: --
+# --  [8.0.28] --
+#         CREATE TABLE ta1b4_redundant (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=REDUNDANT, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         INSERT INTO ta1b4_redundant VALUES (1, "row1", 2, 3, 4, 5);
+#         INSERT INTO ta1b4_redundant (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# --  [8.0.28] --
+#         ALTER TABLE ta1b4_redundant ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta1b4_redundant ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+#     -- UPGRADE --
+# 
+# -- 5. ta2b2_redundant: --
+# --  [8.0.28] --
+#         CREATE TABLE ta2b2_redundant (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=REDUNDANT, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         ALTER TABLE ta2b2_redundant ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta2b2_redundant ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+# --  [8.0.28] --
+#         INSERT INTO ta2b2_redundant VALUES (1, "row1", 2, 3, 4, 5, 6, 7, 8, 9);
+#         INSERT INTO ta2b2_redundant (c0, c1, c3, c5, c7, c9) VALUES (2, "row2", 33, 55, 77, 99);
+#     
+#     -- UPGRADE --
+# 
+# -- 6. ta2b4_redundant: --
+# --  [8.0.28] --
+#         CREATE TABLE ta2b4_redundant (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=REDUNDANT, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         ALTER TABLE ta2b4_redundant ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta2b4_redundant ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+# --  [8.0.28] --
+#         INSERT INTO ta2b4_redundant VALUES (1, "row1", 2, 3, 4, 5, 6, 7, 8, 9);
+#         INSERT INTO ta2b4_redundant (c0, c1, c3, c5, c7, c9) VALUES (2, "row2", 33, 55, 77, 99);
+#     
+#     -- UPGRADE --
+# 
+# -- 7. ta3b2_redundant: --
+# --  [8.0.28] --
+#         CREATE TABLE ta3b2_redundant (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=REDUNDANT, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         ALTER TABLE ta3b2_redundant ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta3b2_redundant ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+#     -- UPGRADE --
+# 
+# -- 8. ta3b3_redundant: --
+# --  [8.0.28] --
+#         CREATE TABLE ta3b3_redundant (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=REDUNDANT, ENGINE=INNODB;
+# 
+#     -- UPGRADE --
+# 
+# -- 9. ta3b4_redundant: --
+# --  [8.0.28] --
+#         CREATE TABLE ta3b4_redundant (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=REDUNDANT, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         ALTER TABLE ta3b4_redundant ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta3b4_redundant ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+#     -- UPGRADE --
+# 
+# --         --
+# -- COMPACT --
+# --         --
+# 
+# -- 1. ta1b1_compact: --
+# --  [8.0.28] --
+#         CREATE TABLE ta1b1_compact (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=COMPACT, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         INSERT INTO ta1b1_compact VALUES (1, "row1", 2, 3, 4, 5);
+#         INSERT INTO ta1b1_compact (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+#     -- UPGRADE --
+# 
+# -- 2. ta1b2_compact: --
+# --  [8.0.28] --
+#         CREATE TABLE ta1b2_compact (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=COMPACT, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         INSERT INTO ta1b2_compact VALUES (1, "row1", 2, 3, 4, 5);
+#         INSERT INTO ta1b2_compact (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# --  [8.0.28] --
+#         ALTER TABLE ta1b2_compact ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta1b2_compact ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+#     -- UPGRADE --
+# 
+# -- 3. ta1b3_compact: --
+# --  [8.0.28] --
+#         CREATE TABLE ta1b3_compact (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=COMPACT, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         INSERT INTO ta1b3_compact VALUES (1, "row1", 2, 3, 4, 5);
+#         INSERT INTO ta1b3_compact (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+#     -- UPGRADE --
+# 
+# -- 4. ta1b4_compact: --
+# --  [8.0.28] --
+#         CREATE TABLE ta1b4_compact (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=COMPACT, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         INSERT INTO ta1b4_compact VALUES (1, "row1", 2, 3, 4, 5);
+#         INSERT INTO ta1b4_compact (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# --  [8.0.28] --
+#         ALTER TABLE ta1b4_compact ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta1b4_compact ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+#     -- UPGRADE --
+# 
+# -- 5. ta2b2_compact: --
+# --  [8.0.28] --
+#         CREATE TABLE ta2b2_compact (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=COMPACT, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         ALTER TABLE ta2b2_compact ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta2b2_compact ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+# --  [8.0.28] --
+#         INSERT INTO ta2b2_compact VALUES (1, "row1", 2, 3, 4, 5, 6, 7, 8, 9);
+#         INSERT INTO ta2b2_compact (c0, c1, c3, c5, c7, c9) VALUES (2, "row2", 33, 55, 77, 99);
+#     
+#     -- UPGRADE --
+# 
+# -- 6. ta2b4_compact: --
+# --  [8.0.28] --
+#         CREATE TABLE ta2b4_compact (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=COMPACT, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         ALTER TABLE ta2b4_compact ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta2b4_compact ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+# --  [8.0.28] --
+#         INSERT INTO ta2b4_compact VALUES (1, "row1", 2, 3, 4, 5, 6, 7, 8, 9);
+#         INSERT INTO ta2b4_compact (c0, c1, c3, c5, c7, c9) VALUES (2, "row2", 33, 55, 77, 99);
+#     
+#     -- UPGRADE --
+# 
+# -- 7. ta3b2_compact: --
+# --  [8.0.28] --
+#         CREATE TABLE ta3b2_compact (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=COMPACT, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         ALTER TABLE ta3b2_compact ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta3b2_compact ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+#     -- UPGRADE --
+# 
+# -- 8. ta3b3_compact: --
+# --  [8.0.28] --
+#         CREATE TABLE ta3b3_compact (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=COMPACT, ENGINE=INNODB;
+# 
+#     -- UPGRADE --
+# 
+# -- 9. ta3b4_compact: --
+# --  [8.0.28] --
+#         CREATE TABLE ta3b4_compact (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=COMPACT, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         ALTER TABLE ta3b4_compact ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta3b4_compact ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+#     -- UPGRADE --
+# 
+# --         --
+# -- DYNAMIC --
+# --         --
+# 
+# -- 1. ta1b1_dynamic: --
+# --  [8.0.28] --
+#         CREATE TABLE ta1b1_dynamic (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=DYNAMIC, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         INSERT INTO ta1b1_dynamic VALUES (1, "row1", 2, 3, 4, 5);
+#         INSERT INTO ta1b1_dynamic (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+#     -- UPGRADE --
+# 
+# -- 2. ta1b2_dynamic: --
+# --  [8.0.28] --
+#         CREATE TABLE ta1b2_dynamic (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=DYNAMIC, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         INSERT INTO ta1b2_dynamic VALUES (1, "row1", 2, 3, 4, 5);
+#         INSERT INTO ta1b2_dynamic (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# --  [8.0.28] --
+#         ALTER TABLE ta1b2_dynamic ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta1b2_dynamic ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+#     -- UPGRADE --
+# 
+# -- 3. ta1b3_dynamic: --
+# --  [8.0.28] --
+#         CREATE TABLE ta1b3_dynamic (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=DYNAMIC, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         INSERT INTO ta1b3_dynamic VALUES (1, "row1", 2, 3, 4, 5);
+#         INSERT INTO ta1b3_dynamic (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+#     -- UPGRADE --
+# 
+# -- 4. ta1b4_dynamic: --
+# --  [8.0.28] --
+#         CREATE TABLE ta1b4_dynamic (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=DYNAMIC, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         INSERT INTO ta1b4_dynamic VALUES (1, "row1", 2, 3, 4, 5);
+#         INSERT INTO ta1b4_dynamic (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+# --  [8.0.28] --
+#         ALTER TABLE ta1b4_dynamic ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta1b4_dynamic ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+#     -- UPGRADE --
+# 
+# -- 5. ta2b2_dynamic: --
+# --  [8.0.28] --
+#         CREATE TABLE ta2b2_dynamic (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=DYNAMIC, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         ALTER TABLE ta2b2_dynamic ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta2b2_dynamic ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+# --  [8.0.28] --
+#         INSERT INTO ta2b2_dynamic VALUES (1, "row1", 2, 3, 4, 5, 6, 7, 8, 9);
+#         INSERT INTO ta2b2_dynamic (c0, c1, c3, c5, c7, c9) VALUES (2, "row2", 33, 55, 77, 99);
+#     
+#     -- UPGRADE --
+# 
+# -- 6. ta2b4_dynamic: --
+# --  [8.0.28] --
+#         CREATE TABLE ta2b4_dynamic (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=DYNAMIC, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         ALTER TABLE ta2b4_dynamic ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta2b4_dynamic ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+# --  [8.0.28] --
+#         INSERT INTO ta2b4_dynamic VALUES (1, "row1", 2, 3, 4, 5, 6, 7, 8, 9);
+#         INSERT INTO ta2b4_dynamic (c0, c1, c3, c5, c7, c9) VALUES (2, "row2", 33, 55, 77, 99);
+#     
+#     -- UPGRADE --
+# 
+# -- 7. ta3b2_dynamic: --
+# --  [8.0.28] --
+#         CREATE TABLE ta3b2_dynamic (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=DYNAMIC, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         ALTER TABLE ta3b2_dynamic ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta3b2_dynamic ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+#     -- UPGRADE --
+# 
+# -- 8. ta3b3_dynamic: --
+# --  [8.0.28] --
+#         CREATE TABLE ta3b3_dynamic (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=DYNAMIC, ENGINE=INNODB;
+# 
+#     -- UPGRADE --
+# 
+# -- 9. ta3b4_dynamic: --
+# --  [8.0.28] --
+#         CREATE TABLE ta3b4_dynamic (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ROW_FORMAT=DYNAMIC, ENGINE=INNODB;
+# 
+# --  [8.0.28] --
+#         ALTER TABLE ta3b4_dynamic ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta3b4_dynamic ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+#     -- UPGRADE --
+# 
+# What does an, bn mean: see also: (https://confluence.oraclecorp.com/confluence/display/~mayank.prasad@oracle.com/ROW+LOG+with+Online++DDL)
+# ===============================================================================================
+# Index(b)                None(b1)            Instant(b2)         Version(b3)         Instant&Version(b4)
+# Row(a)
+# ===============================================================================================
+# None(a1)                T[n]000             T[n]000             V[0]100             V[0]100
+# Instant(a2)             xxxxxxx             T[n]100             xxxxxxx             V[0]100
+# Version(a3)             xxxxxxx             T[n]110             V[n]110             V[n]110
+# ===============================================================================================
+# 
+# ta1b1:
+#     [8.0.28]
+#         CREATE TABLE ta1b1 (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ENGINE=INNODB;
+# 
+#     [8.0.28]
+#         INSERT INTO ta1b1 VALUES (1, "row1", 2, 3, 4, 5);
+#         INSERT INTO ta1b1 (c0, c1, c3, c5) VALUES (2, "row2", 33, 55);
+# 
+#     -- UPGRADE --
+#     
+#     [trunk]
+#         -- Do online DDL --
+# 
+# ta3b4:
+#     [8.0.28]
+#         CREATE TABLE ta3b4 (c0 INT, c1 TEXT, c2 INT, c3 INT NOT NULL, c4 INT DEFAULT 40, c5 INT NOT NULL DEFAULT 50) ENGINE=INNODB;
+# 
+#     [8.0.28]
+#         ALTER TABLE ta3b4 ADD COLUMN c6 INT, ADD COLUMN c7 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta3b4 ADD COLUMN c8 INT DEFAULT 80, ADD COLUMN c9 INT NOT NULL DEFAULT 90, ALGORITHM=INSTANT;
+# 
+#     -- UPGRADE --
+# 
+#     [trunk]
+#         ALTER TABLE ta3b4 ADD COLUMN c10 INT, ADD COLUMN c11 INT NOT NULL, ALGORITHM=INSTANT;
+#         ALTER TABLE ta3b4 ADD COLUMN c12 INT DEFAULT 120, ADD COLUMN c13 INT NOT NULL DEFAULT 130, ALGORITHM=INSTANT;
+# 
+#     [trunk]
+#         INSERT INTO ta3b4 VALUES (1, "row1", 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
+#         INSERT INTO ta3b4 (c0, c1, c3, c5, c7, c9, c11, c13) VALUES (2, "row2", 33, 55, 77, 99, 1111, 1313);
+# 
+#     [trunk]
+#         -- Do online DDL --
+# 
+# End

@@ -108,6 +108,8 @@ if ($is_debug)
   --echo # ------------------------------------------------------------
   --source include/count_sessions.inc
 
+  eval show create table t2_$row_format;
+
   eval Select * from t2_$row_format;
   eval Insert into t2_$row_format values ("r3c1", "r3c2", "r3c3");
   eval Select * from t2_$row_format;

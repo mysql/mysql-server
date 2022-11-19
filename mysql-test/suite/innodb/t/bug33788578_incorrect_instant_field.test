@@ -1,0 +1,57 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Unexpected INSTANLY Added / Dropped *");
+call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* We detected index corruption in an InnoDB *");
+--enable_query_log
+
+CREATE TABLE t1 (a TEXT) ENGINE=INNODB;
+INSERT INTO t1 (a) VALUES ('foo');
+
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT 0, algorithm=instant;
+SELECT * FROM t1;
+
+--let $table_name = t1
+
+connect (con1,localhost,root,,);
+
+connection con1;
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+send;
+ALTER TABLE t1 ADD PRIMARY KEY (b);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+
+--source suite/innodb/include/print_instant_part_metadata.inc
+SELECT * FROM t1;
+SHOW CREATE TABLE t1;
+CHECK TABLE t1;
+
+--echo # Simulate incorrect instant field fetch when reading field from record written with primary index
+
+SET DEBUG = '+d,incorrect_instant_add_drop_field_fetched';
+--error ER_NOT_KEYFILE
+UPDATE t1 SET b = 1;
+
+SET DEBUG = '-d,incorrect_instant_add_drop_field_fetched';
+
+--source suite/innodb/include/print_instant_part_metadata.inc
+SELECT * FROM t1;
+SHOW CREATE TABLE t1;
+CHECK TABLE t1;
+SET DEBUG_SYNC='now SIGNAL update_done';
+
+connection con1;
+--error ER_INDEX_CORRUPT
+reap;
+
+connection default;
+disconnect con1;
+
+--source suite/innodb/include/print_instant_part_metadata.inc
+SELECT * FROM t1;
+SHOW CREATE TABLE t1;
+CHECK TABLE t1;
+DROP TABLE t1;

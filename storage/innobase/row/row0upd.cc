@@ -2768,7 +2768,8 @@ static bool row_upd_check_autoinc_counter(const upd_node_t *node, mtr_t *mtr) {
   big_rec_t *big_rec = nullptr;
   btr_pcur_t *pcur;
   btr_cur_t *btr_cur;
-  dberr_t err;
+  dberr_t err = DB_SUCCESS;
+  bool persist_autoinc = false;
   const dtuple_t *rebuilt_old_pk = nullptr;
   trx_id_t trx_id = thr_get_trx(thr)->id;
   trx_t *trx = thr_get_trx(thr);
@@ -2788,11 +2789,17 @@ static bool row_upd_check_autoinc_counter(const upd_node_t *node, mtr_t *mtr) {
   if (dict_index_is_online_ddl(index)) {
     rebuilt_old_pk = row_log_table_get_pk(btr_cur_get_rec(btr_cur), index,
                                           offsets, nullptr, &heap);
+    if (row_log_table_get_error(index) == DB_INDEX_CORRUPT) {
+      err = DB_CORRUPTION;
+
+      mtr->commit();
+      goto func_exit;
+    }
   }
 
   /* Check and log if necessary at the beginning, to prevent any
   further potential deadlock */
-  bool persist_autoinc = row_upd_check_autoinc_counter(node, mtr);
+  persist_autoinc = row_upd_check_autoinc_counter(node, mtr);
 
   /* Try optimistic updating of the record, keeping changes within
   the page; we do not check locks because we assume the x-lock on the

@@ -1,0 +1,4403 @@
+# Online DDL test on ALTER .. ADD PRIMRAY KEY with UPDATE SET on all possible row combinations
+#
+# What this test is doing:
+#
+# Upgrade server to latest version
+# Keep a zipped copy of upgraded datadir
+#
+# For the primary key columns
+# --let  = c0  {
+#
+#   For all row formats
+#   --let  = [ta1b1, ta1b2, ta1b3, ta1b4, ta2b2, ta2b4, ta3b2, ta3b3, ta3b4] {
+#     --source suite/innodb/include/bug33788578_online_ddl.inc
+#
+#     For all tables
+#     --let  = [ta1b1, ta1b2, ta1b3, ta1b4, ta2b2, ta2b4, ta3b2, ta3b3, ta3b4]_ {
+#       Do the online DDL
+#       --let  = c2/c6/c10 depending on table
+#       --source suite/innodb/include/bug33788578.inc
+#     }
+#   }
+# }
+# Check comments near end of file to see what a1b1, a2b4, etc., means
+# This column will be made as the primary key in online DDL. TODO: extend test to include all possible primary key columns
+# TODO: extend test to update other columns : maybe instant added ones too;
+# Upgrade previous tables to current
+# Restart the server
+# restart: --datadir=DATADIR
+SHOW TABLES;
+Tables_in_test
+ta1b1_compact
+ta1b1_dynamic
+ta1b1_redundant
+ta1b2_compact
+ta1b2_dynamic
+ta1b2_redundant
+ta1b3_compact
+ta1b3_dynamic
+ta1b3_redundant
+ta1b4_compact
+ta1b4_dynamic
+ta1b4_redundant
+ta2b2_compact
+ta2b2_dynamic
+ta2b2_redundant
+ta2b4_compact
+ta2b4_dynamic
+ta2b4_redundant
+ta3b2_compact
+ta3b2_dynamic
+ta3b2_redundant
+ta3b3_compact
+ta3b3_dynamic
+ta3b3_redundant
+ta3b4_compact
+ta3b4_dynamic
+ta3b4_redundant
+# For all REDUNDANT tables:
+# Prepare the table
+# Processing alters:
+# b1, b2: no alter add in trunk
+# b3: alter add
+ALTER TABLE ta1b3_redundant ADD COLUMN c10 INT, ADD COLUMN c11 INT NOT NULL, ALGORITHM=INSTANT;;
+ALTER TABLE ta1b3_redundant ADD COLUMN c12 INT DEFAULT 120, ADD COLUMN c13 INT NOT NULL DEFAULT 130, ALGORITHM=INSTANT;;
+ALTER TABLE ta3b3_redundant ADD COLUMN c10 INT, ADD COLUMN c11 INT NOT NULL, ALGORITHM=INSTANT;;
+ALTER TABLE ta3b3_redundant ADD COLUMN c12 INT DEFAULT 120, ADD COLUMN c13 INT NOT NULL DEFAULT 130, ALGORITHM=INSTANT;;
+# b4: alter add
+ALTER TABLE ta1b4_redundant ADD COLUMN c10 INT, ADD COLUMN c11 INT NOT NULL, ALGORITHM=INSTANT;;
+ALTER TABLE ta1b4_redundant ADD COLUMN c12 INT DEFAULT 120, ADD COLUMN c13 INT NOT NULL DEFAULT 130, ALGORITHM=INSTANT;;
+ALTER TABLE ta2b4_redundant ADD COLUMN c10 INT, ADD COLUMN c11 INT NOT NULL, ALGORITHM=INSTANT;;
+ALTER TABLE ta2b4_redundant ADD COLUMN c12 INT DEFAULT 120, ADD COLUMN c13 INT NOT NULL DEFAULT 130, ALGORITHM=INSTANT;;
+ALTER TABLE ta3b4_redundant ADD COLUMN c10 INT, ADD COLUMN c11 INT NOT NULL, ALGORITHM=INSTANT;;
+ALTER TABLE ta3b4_redundant ADD COLUMN c12 INT DEFAULT 120, ADD COLUMN c13 INT NOT NULL DEFAULT 130, ALGORITHM=INSTANT;;
+# Processing row inserts:
+# a3: rows have version from new table
+INSERT INTO ta3b3_redundant VALUES (1, "row1", 2, 3, 4, 5, 10, 11, 12, 13);;
+INSERT INTO ta3b3_redundant (c0, c1, c3, c5, c11, c13) VALUES (2, "row2", 33, 55, 1111, 1313);;
+INSERT INTO ta3b4_redundant VALUES (1, "row1", 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);;
+INSERT INTO ta3b4_redundant (c0, c1, c3, c5, c7, c9, c11, c13) VALUES (2, "row2", 33, 55, 77, 99, 1111, 1313);;
+# For each table, do online ddl
+# Run online ddl for ta1b1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b1_redundant	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+SELECT * FROM ta1b1_redundant;;
+c0	c1	c2	c3	c4	c5
+1	row1	2	3	4	5
+2	row2	NULL	33	40	55
+SHOW CREATE TABLE ta1b1_redundant;;
+Table	Create Table
+ta1b1_redundant	CREATE TABLE `ta1b1_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta1b1_redundant;;
+Table	Op	Msg_type	Msg_text
+test.ta1b1_redundant	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta1b1_redundant ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b1_redundant	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+SELECT * FROM ta1b1_redundant;
+c0	c1	c2	c3	c4	c5
+1	row1	2	3	4	5
+2	row2	NULL	33	40	55
+SHOW CREATE TABLE ta1b1_redundant;
+Table	Create Table
+ta1b1_redundant	CREATE TABLE `ta1b1_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta1b1_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta1b1_redundant	check	status	OK
+UPDATE ta1b1_redundant SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b1_redundant	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+SELECT * FROM ta1b1_redundant;
+c0	c1	c2	c3	c4	c5
+1	row1	1	3	4	5
+2	row2	1	33	40	55
+SHOW CREATE TABLE ta1b1_redundant;
+Table	Create Table
+ta1b1_redundant	CREATE TABLE `ta1b1_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta1b1_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta1b1_redundant	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b1_redundant	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+SELECT * FROM ta1b1_redundant;
+c0	c1	c2	c3	c4	c5
+1	row1	1	3	4	5
+2	row2	1	33	40	55
+SHOW CREATE TABLE ta1b1_redundant;
+Table	Create Table
+ta1b1_redundant	CREATE TABLE `ta1b1_redundant` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta1b1_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta1b1_redundant	check	status	OK
+DROP TABLE ta1b1_redundant;
+# Run online ddl for ta1b2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b2_redundant	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta1b2_redundant;;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	2	3	4	5	NULL	0	80	90
+2	row2	NULL	33	40	55	NULL	0	80	90
+SHOW CREATE TABLE ta1b2_redundant;;
+Table	Create Table
+ta1b2_redundant	CREATE TABLE `ta1b2_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta1b2_redundant;;
+Table	Op	Msg_type	Msg_text
+test.ta1b2_redundant	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta1b2_redundant ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b2_redundant	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta1b2_redundant;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	2	3	4	5	NULL	0	80	90
+2	row2	NULL	33	40	55	NULL	0	80	90
+SHOW CREATE TABLE ta1b2_redundant;
+Table	Create Table
+ta1b2_redundant	CREATE TABLE `ta1b2_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta1b2_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta1b2_redundant	check	status	OK
+UPDATE ta1b2_redundant SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b2_redundant	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta1b2_redundant;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	1	3	4	5	NULL	0	80	90
+2	row2	1	33	40	55	NULL	0	80	90
+SHOW CREATE TABLE ta1b2_redundant;
+Table	Create Table
+ta1b2_redundant	CREATE TABLE `ta1b2_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta1b2_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta1b2_redundant	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b2_redundant	13	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	0
+c7	7	6	1283	0
+c8	8	6	1027	0
+c9	9	6	1283	0
+SELECT * FROM ta1b2_redundant;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	1	3	4	5	NULL	0	80	90
+2	row2	1	33	40	55	NULL	0	80	90
+SHOW CREATE TABLE ta1b2_redundant;
+Table	Create Table
+ta1b2_redundant	CREATE TABLE `ta1b2_redundant` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta1b2_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta1b2_redundant	check	status	OK
+DROP TABLE ta1b2_redundant;
+# Run online ddl for ta1b3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b3_redundant	13	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	1
+c11	7	6	1283	1
+c12	8	6	1027	1
+c13	9	6	1283	1
+SELECT * FROM ta1b3_redundant;;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	2	3	4	5	NULL	0	120	130
+2	row2	NULL	33	40	55	NULL	0	120	130
+SHOW CREATE TABLE ta1b3_redundant;;
+Table	Create Table
+ta1b3_redundant	CREATE TABLE `ta1b3_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta1b3_redundant;;
+Table	Op	Msg_type	Msg_text
+test.ta1b3_redundant	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta1b3_redundant ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b3_redundant	13	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	1
+c11	7	6	1283	1
+c12	8	6	1027	1
+c13	9	6	1283	1
+SELECT * FROM ta1b3_redundant;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	2	3	4	5	NULL	0	120	130
+2	row2	NULL	33	40	55	NULL	0	120	130
+SHOW CREATE TABLE ta1b3_redundant;
+Table	Create Table
+ta1b3_redundant	CREATE TABLE `ta1b3_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta1b3_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta1b3_redundant	check	status	OK
+UPDATE ta1b3_redundant SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b3_redundant	13	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	1
+c11	7	6	1283	1
+c12	8	6	1027	1
+c13	9	6	1283	1
+SELECT * FROM ta1b3_redundant;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	1	3	4	5	NULL	0	120	130
+2	row2	1	33	40	55	NULL	0	120	130
+SHOW CREATE TABLE ta1b3_redundant;
+Table	Create Table
+ta1b3_redundant	CREATE TABLE `ta1b3_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta1b3_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta1b3_redundant	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b3_redundant	13	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	0
+c11	7	6	1283	0
+c12	8	6	1027	0
+c13	9	6	1283	0
+SELECT * FROM ta1b3_redundant;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	1	3	4	5	NULL	0	120	130
+2	row2	1	33	40	55	NULL	0	120	130
+SHOW CREATE TABLE ta1b3_redundant;
+Table	Create Table
+ta1b3_redundant	CREATE TABLE `ta1b3_redundant` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta1b3_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta1b3_redundant	check	status	OK
+DROP TABLE ta1b3_redundant;
+# Run online ddl for ta1b4
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b4_redundant	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta1b4_redundant;;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	2	3	4	5	NULL	0	80	90	NULL	0	120	130
+2	row2	NULL	33	40	55	NULL	0	80	90	NULL	0	120	130
+SHOW CREATE TABLE ta1b4_redundant;;
+Table	Create Table
+ta1b4_redundant	CREATE TABLE `ta1b4_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta1b4_redundant;;
+Table	Op	Msg_type	Msg_text
+test.ta1b4_redundant	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta1b4_redundant ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b4_redundant	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta1b4_redundant;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	2	3	4	5	NULL	0	80	90	NULL	0	120	130
+2	row2	NULL	33	40	55	NULL	0	80	90	NULL	0	120	130
+SHOW CREATE TABLE ta1b4_redundant;
+Table	Create Table
+ta1b4_redundant	CREATE TABLE `ta1b4_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta1b4_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta1b4_redundant	check	status	OK
+UPDATE ta1b4_redundant SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b4_redundant	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta1b4_redundant;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	1	3	4	5	NULL	0	80	90	NULL	0	120	130
+2	row2	1	33	40	55	NULL	0	80	90	NULL	0	120	130
+SHOW CREATE TABLE ta1b4_redundant;
+Table	Create Table
+ta1b4_redundant	CREATE TABLE `ta1b4_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta1b4_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta1b4_redundant	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b4_redundant	17	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	0
+c7	7	6	1283	0
+c8	8	6	1027	0
+c9	9	6	1283	0
+c10	10	6	1027	0
+c11	11	6	1283	0
+c12	12	6	1027	0
+c13	13	6	1283	0
+SELECT * FROM ta1b4_redundant;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	1	3	4	5	NULL	0	80	90	NULL	0	120	130
+2	row2	1	33	40	55	NULL	0	80	90	NULL	0	120	130
+SHOW CREATE TABLE ta1b4_redundant;
+Table	Create Table
+ta1b4_redundant	CREATE TABLE `ta1b4_redundant` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta1b4_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta1b4_redundant	check	status	OK
+DROP TABLE ta1b4_redundant;
+# Run online ddl for ta2b2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b2_redundant	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta2b2_redundant;;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	2	3	4	5	6	7	8	9
+2	row2	NULL	33	40	55	NULL	77	80	99
+SHOW CREATE TABLE ta2b2_redundant;;
+Table	Create Table
+ta2b2_redundant	CREATE TABLE `ta2b2_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta2b2_redundant;;
+Table	Op	Msg_type	Msg_text
+test.ta2b2_redundant	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta2b2_redundant ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b2_redundant	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta2b2_redundant;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	2	3	4	5	6	7	8	9
+2	row2	NULL	33	40	55	NULL	77	80	99
+SHOW CREATE TABLE ta2b2_redundant;
+Table	Create Table
+ta2b2_redundant	CREATE TABLE `ta2b2_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta2b2_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta2b2_redundant	check	status	OK
+UPDATE ta2b2_redundant SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b2_redundant	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta2b2_redundant;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	1	3	4	5	6	7	8	9
+2	row2	1	33	40	55	NULL	77	80	99
+SHOW CREATE TABLE ta2b2_redundant;
+Table	Create Table
+ta2b2_redundant	CREATE TABLE `ta2b2_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta2b2_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta2b2_redundant	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b2_redundant	13	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	0
+c7	7	6	1283	0
+c8	8	6	1027	0
+c9	9	6	1283	0
+SELECT * FROM ta2b2_redundant;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	1	3	4	5	6	7	8	9
+2	row2	1	33	40	55	NULL	77	80	99
+SHOW CREATE TABLE ta2b2_redundant;
+Table	Create Table
+ta2b2_redundant	CREATE TABLE `ta2b2_redundant` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta2b2_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta2b2_redundant	check	status	OK
+DROP TABLE ta2b2_redundant;
+# Run online ddl for ta2b4
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b4_redundant	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta2b4_redundant;;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	2	3	4	5	6	7	8	9	NULL	0	120	130
+2	row2	NULL	33	40	55	NULL	77	80	99	NULL	0	120	130
+SHOW CREATE TABLE ta2b4_redundant;;
+Table	Create Table
+ta2b4_redundant	CREATE TABLE `ta2b4_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta2b4_redundant;;
+Table	Op	Msg_type	Msg_text
+test.ta2b4_redundant	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta2b4_redundant ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b4_redundant	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta2b4_redundant;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	2	3	4	5	6	7	8	9	NULL	0	120	130
+2	row2	NULL	33	40	55	NULL	77	80	99	NULL	0	120	130
+SHOW CREATE TABLE ta2b4_redundant;
+Table	Create Table
+ta2b4_redundant	CREATE TABLE `ta2b4_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta2b4_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta2b4_redundant	check	status	OK
+UPDATE ta2b4_redundant SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b4_redundant	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta2b4_redundant;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	1	3	4	5	6	7	8	9	NULL	0	120	130
+2	row2	1	33	40	55	NULL	77	80	99	NULL	0	120	130
+SHOW CREATE TABLE ta2b4_redundant;
+Table	Create Table
+ta2b4_redundant	CREATE TABLE `ta2b4_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta2b4_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta2b4_redundant	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b4_redundant	17	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	0
+c7	7	6	1283	0
+c8	8	6	1027	0
+c9	9	6	1283	0
+c10	10	6	1027	0
+c11	11	6	1283	0
+c12	12	6	1027	0
+c13	13	6	1283	0
+SELECT * FROM ta2b4_redundant;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	1	3	4	5	6	7	8	9	NULL	0	120	130
+2	row2	1	33	40	55	NULL	77	80	99	NULL	0	120	130
+SHOW CREATE TABLE ta2b4_redundant;
+Table	Create Table
+ta2b4_redundant	CREATE TABLE `ta2b4_redundant` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta2b4_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta2b4_redundant	check	status	OK
+DROP TABLE ta2b4_redundant;
+# Run online ddl for ta3b2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b2_redundant	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta3b2_redundant;;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+SHOW CREATE TABLE ta3b2_redundant;;
+Table	Create Table
+ta3b2_redundant	CREATE TABLE `ta3b2_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta3b2_redundant;;
+Table	Op	Msg_type	Msg_text
+test.ta3b2_redundant	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta3b2_redundant ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b2_redundant	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta3b2_redundant;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+SHOW CREATE TABLE ta3b2_redundant;
+Table	Create Table
+ta3b2_redundant	CREATE TABLE `ta3b2_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta3b2_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta3b2_redundant	check	status	OK
+UPDATE ta3b2_redundant SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b2_redundant	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta3b2_redundant;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+SHOW CREATE TABLE ta3b2_redundant;
+Table	Create Table
+ta3b2_redundant	CREATE TABLE `ta3b2_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta3b2_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta3b2_redundant	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b2_redundant	13	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	0
+c7	7	6	1283	0
+c8	8	6	1027	0
+c9	9	6	1283	0
+SELECT * FROM ta3b2_redundant;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+SHOW CREATE TABLE ta3b2_redundant;
+Table	Create Table
+ta3b2_redundant	CREATE TABLE `ta3b2_redundant` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta3b2_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta3b2_redundant	check	status	OK
+DROP TABLE ta3b2_redundant;
+# Run online ddl for ta3b3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b3_redundant	13	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	1
+c11	7	6	1283	1
+c12	8	6	1027	1
+c13	9	6	1283	1
+SELECT * FROM ta3b3_redundant;;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	2	3	4	5	10	11	12	13
+2	row2	NULL	33	40	55	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b3_redundant;;
+Table	Create Table
+ta3b3_redundant	CREATE TABLE `ta3b3_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta3b3_redundant;;
+Table	Op	Msg_type	Msg_text
+test.ta3b3_redundant	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta3b3_redundant ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b3_redundant	13	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	1
+c11	7	6	1283	1
+c12	8	6	1027	1
+c13	9	6	1283	1
+SELECT * FROM ta3b3_redundant;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	2	3	4	5	10	11	12	13
+2	row2	NULL	33	40	55	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b3_redundant;
+Table	Create Table
+ta3b3_redundant	CREATE TABLE `ta3b3_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta3b3_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta3b3_redundant	check	status	OK
+UPDATE ta3b3_redundant SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b3_redundant	13	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	1
+c11	7	6	1283	1
+c12	8	6	1027	1
+c13	9	6	1283	1
+SELECT * FROM ta3b3_redundant;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	1	3	4	5	10	11	12	13
+2	row2	1	33	40	55	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b3_redundant;
+Table	Create Table
+ta3b3_redundant	CREATE TABLE `ta3b3_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta3b3_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta3b3_redundant	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b3_redundant	13	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	0
+c11	7	6	1283	0
+c12	8	6	1027	0
+c13	9	6	1283	0
+SELECT * FROM ta3b3_redundant;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	1	3	4	5	10	11	12	13
+2	row2	1	33	40	55	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b3_redundant;
+Table	Create Table
+ta3b3_redundant	CREATE TABLE `ta3b3_redundant` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta3b3_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta3b3_redundant	check	status	OK
+DROP TABLE ta3b3_redundant;
+# Run online ddl for ta3b4
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b4_redundant	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta3b4_redundant;;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	2	3	4	5	6	7	8	9	10	11	12	13
+2	row2	NULL	33	40	55	NULL	77	80	99	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b4_redundant;;
+Table	Create Table
+ta3b4_redundant	CREATE TABLE `ta3b4_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta3b4_redundant;;
+Table	Op	Msg_type	Msg_text
+test.ta3b4_redundant	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta3b4_redundant ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b4_redundant	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta3b4_redundant;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	2	3	4	5	6	7	8	9	10	11	12	13
+2	row2	NULL	33	40	55	NULL	77	80	99	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b4_redundant;
+Table	Create Table
+ta3b4_redundant	CREATE TABLE `ta3b4_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta3b4_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta3b4_redundant	check	status	OK
+UPDATE ta3b4_redundant SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b4_redundant	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta3b4_redundant;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	1	3	4	5	6	7	8	9	10	11	12	13
+2	row2	1	33	40	55	NULL	77	80	99	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b4_redundant;
+Table	Create Table
+ta3b4_redundant	CREATE TABLE `ta3b4_redundant` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta3b4_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta3b4_redundant	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b4_redundant	17	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	0
+c7	7	6	1283	0
+c8	8	6	1027	0
+c9	9	6	1283	0
+c10	10	6	1027	0
+c11	11	6	1283	0
+c12	12	6	1027	0
+c13	13	6	1283	0
+SELECT * FROM ta3b4_redundant;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	1	3	4	5	6	7	8	9	10	11	12	13
+2	row2	1	33	40	55	NULL	77	80	99	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b4_redundant;
+Table	Create Table
+ta3b4_redundant	CREATE TABLE `ta3b4_redundant` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE ta3b4_redundant;
+Table	Op	Msg_type	Msg_text
+test.ta3b4_redundant	check	status	OK
+DROP TABLE ta3b4_redundant;
+# For all COMPACT tables:
+# Prepare the table
+# Processing alters:
+# b1, b2: no alter add in trunk
+# b3: alter add
+ALTER TABLE ta1b3_compact ADD COLUMN c10 INT, ADD COLUMN c11 INT NOT NULL, ALGORITHM=INSTANT;;
+ALTER TABLE ta1b3_compact ADD COLUMN c12 INT DEFAULT 120, ADD COLUMN c13 INT NOT NULL DEFAULT 130, ALGORITHM=INSTANT;;
+ALTER TABLE ta3b3_compact ADD COLUMN c10 INT, ADD COLUMN c11 INT NOT NULL, ALGORITHM=INSTANT;;
+ALTER TABLE ta3b3_compact ADD COLUMN c12 INT DEFAULT 120, ADD COLUMN c13 INT NOT NULL DEFAULT 130, ALGORITHM=INSTANT;;
+# b4: alter add
+ALTER TABLE ta1b4_compact ADD COLUMN c10 INT, ADD COLUMN c11 INT NOT NULL, ALGORITHM=INSTANT;;
+ALTER TABLE ta1b4_compact ADD COLUMN c12 INT DEFAULT 120, ADD COLUMN c13 INT NOT NULL DEFAULT 130, ALGORITHM=INSTANT;;
+ALTER TABLE ta2b4_compact ADD COLUMN c10 INT, ADD COLUMN c11 INT NOT NULL, ALGORITHM=INSTANT;;
+ALTER TABLE ta2b4_compact ADD COLUMN c12 INT DEFAULT 120, ADD COLUMN c13 INT NOT NULL DEFAULT 130, ALGORITHM=INSTANT;;
+ALTER TABLE ta3b4_compact ADD COLUMN c10 INT, ADD COLUMN c11 INT NOT NULL, ALGORITHM=INSTANT;;
+ALTER TABLE ta3b4_compact ADD COLUMN c12 INT DEFAULT 120, ADD COLUMN c13 INT NOT NULL DEFAULT 130, ALGORITHM=INSTANT;;
+# Processing row inserts:
+# a3: rows have version from new table
+INSERT INTO ta3b3_compact VALUES (1, "row1", 2, 3, 4, 5, 10, 11, 12, 13);;
+INSERT INTO ta3b3_compact (c0, c1, c3, c5, c11, c13) VALUES (2, "row2", 33, 55, 1111, 1313);;
+INSERT INTO ta3b4_compact VALUES (1, "row1", 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);;
+INSERT INTO ta3b4_compact (c0, c1, c3, c5, c7, c9, c11, c13) VALUES (2, "row2", 33, 55, 77, 99, 1111, 1313);;
+# For each table, do online ddl
+# Run online ddl for ta1b1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b1_compact	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+SELECT * FROM ta1b1_compact;;
+c0	c1	c2	c3	c4	c5
+1	row1	2	3	4	5
+2	row2	NULL	33	40	55
+SHOW CREATE TABLE ta1b1_compact;;
+Table	Create Table
+ta1b1_compact	CREATE TABLE `ta1b1_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta1b1_compact;;
+Table	Op	Msg_type	Msg_text
+test.ta1b1_compact	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta1b1_compact ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b1_compact	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+SELECT * FROM ta1b1_compact;
+c0	c1	c2	c3	c4	c5
+1	row1	2	3	4	5
+2	row2	NULL	33	40	55
+SHOW CREATE TABLE ta1b1_compact;
+Table	Create Table
+ta1b1_compact	CREATE TABLE `ta1b1_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta1b1_compact;
+Table	Op	Msg_type	Msg_text
+test.ta1b1_compact	check	status	OK
+UPDATE ta1b1_compact SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b1_compact	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+SELECT * FROM ta1b1_compact;
+c0	c1	c2	c3	c4	c5
+1	row1	1	3	4	5
+2	row2	1	33	40	55
+SHOW CREATE TABLE ta1b1_compact;
+Table	Create Table
+ta1b1_compact	CREATE TABLE `ta1b1_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta1b1_compact;
+Table	Op	Msg_type	Msg_text
+test.ta1b1_compact	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b1_compact	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+SELECT * FROM ta1b1_compact;
+c0	c1	c2	c3	c4	c5
+1	row1	1	3	4	5
+2	row2	1	33	40	55
+SHOW CREATE TABLE ta1b1_compact;
+Table	Create Table
+ta1b1_compact	CREATE TABLE `ta1b1_compact` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta1b1_compact;
+Table	Op	Msg_type	Msg_text
+test.ta1b1_compact	check	status	OK
+DROP TABLE ta1b1_compact;
+# Run online ddl for ta1b2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b2_compact	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta1b2_compact;;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	2	3	4	5	NULL	0	80	90
+2	row2	NULL	33	40	55	NULL	0	80	90
+SHOW CREATE TABLE ta1b2_compact;;
+Table	Create Table
+ta1b2_compact	CREATE TABLE `ta1b2_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta1b2_compact;;
+Table	Op	Msg_type	Msg_text
+test.ta1b2_compact	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta1b2_compact ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b2_compact	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta1b2_compact;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	2	3	4	5	NULL	0	80	90
+2	row2	NULL	33	40	55	NULL	0	80	90
+SHOW CREATE TABLE ta1b2_compact;
+Table	Create Table
+ta1b2_compact	CREATE TABLE `ta1b2_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta1b2_compact;
+Table	Op	Msg_type	Msg_text
+test.ta1b2_compact	check	status	OK
+UPDATE ta1b2_compact SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b2_compact	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta1b2_compact;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	1	3	4	5	NULL	0	80	90
+2	row2	1	33	40	55	NULL	0	80	90
+SHOW CREATE TABLE ta1b2_compact;
+Table	Create Table
+ta1b2_compact	CREATE TABLE `ta1b2_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta1b2_compact;
+Table	Op	Msg_type	Msg_text
+test.ta1b2_compact	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b2_compact	13	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	0
+c7	7	6	1283	0
+c8	8	6	1027	0
+c9	9	6	1283	0
+SELECT * FROM ta1b2_compact;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	1	3	4	5	NULL	0	80	90
+2	row2	1	33	40	55	NULL	0	80	90
+SHOW CREATE TABLE ta1b2_compact;
+Table	Create Table
+ta1b2_compact	CREATE TABLE `ta1b2_compact` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta1b2_compact;
+Table	Op	Msg_type	Msg_text
+test.ta1b2_compact	check	status	OK
+DROP TABLE ta1b2_compact;
+# Run online ddl for ta1b3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b3_compact	13	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	1
+c11	7	6	1283	1
+c12	8	6	1027	1
+c13	9	6	1283	1
+SELECT * FROM ta1b3_compact;;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	2	3	4	5	NULL	0	120	130
+2	row2	NULL	33	40	55	NULL	0	120	130
+SHOW CREATE TABLE ta1b3_compact;;
+Table	Create Table
+ta1b3_compact	CREATE TABLE `ta1b3_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta1b3_compact;;
+Table	Op	Msg_type	Msg_text
+test.ta1b3_compact	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta1b3_compact ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b3_compact	13	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	1
+c11	7	6	1283	1
+c12	8	6	1027	1
+c13	9	6	1283	1
+SELECT * FROM ta1b3_compact;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	2	3	4	5	NULL	0	120	130
+2	row2	NULL	33	40	55	NULL	0	120	130
+SHOW CREATE TABLE ta1b3_compact;
+Table	Create Table
+ta1b3_compact	CREATE TABLE `ta1b3_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta1b3_compact;
+Table	Op	Msg_type	Msg_text
+test.ta1b3_compact	check	status	OK
+UPDATE ta1b3_compact SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b3_compact	13	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	1
+c11	7	6	1283	1
+c12	8	6	1027	1
+c13	9	6	1283	1
+SELECT * FROM ta1b3_compact;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	1	3	4	5	NULL	0	120	130
+2	row2	1	33	40	55	NULL	0	120	130
+SHOW CREATE TABLE ta1b3_compact;
+Table	Create Table
+ta1b3_compact	CREATE TABLE `ta1b3_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta1b3_compact;
+Table	Op	Msg_type	Msg_text
+test.ta1b3_compact	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b3_compact	13	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	0
+c11	7	6	1283	0
+c12	8	6	1027	0
+c13	9	6	1283	0
+SELECT * FROM ta1b3_compact;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	1	3	4	5	NULL	0	120	130
+2	row2	1	33	40	55	NULL	0	120	130
+SHOW CREATE TABLE ta1b3_compact;
+Table	Create Table
+ta1b3_compact	CREATE TABLE `ta1b3_compact` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta1b3_compact;
+Table	Op	Msg_type	Msg_text
+test.ta1b3_compact	check	status	OK
+DROP TABLE ta1b3_compact;
+# Run online ddl for ta1b4
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b4_compact	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta1b4_compact;;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	2	3	4	5	NULL	0	80	90	NULL	0	120	130
+2	row2	NULL	33	40	55	NULL	0	80	90	NULL	0	120	130
+SHOW CREATE TABLE ta1b4_compact;;
+Table	Create Table
+ta1b4_compact	CREATE TABLE `ta1b4_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta1b4_compact;;
+Table	Op	Msg_type	Msg_text
+test.ta1b4_compact	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta1b4_compact ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b4_compact	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta1b4_compact;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	2	3	4	5	NULL	0	80	90	NULL	0	120	130
+2	row2	NULL	33	40	55	NULL	0	80	90	NULL	0	120	130
+SHOW CREATE TABLE ta1b4_compact;
+Table	Create Table
+ta1b4_compact	CREATE TABLE `ta1b4_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta1b4_compact;
+Table	Op	Msg_type	Msg_text
+test.ta1b4_compact	check	status	OK
+UPDATE ta1b4_compact SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b4_compact	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta1b4_compact;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	1	3	4	5	NULL	0	80	90	NULL	0	120	130
+2	row2	1	33	40	55	NULL	0	80	90	NULL	0	120	130
+SHOW CREATE TABLE ta1b4_compact;
+Table	Create Table
+ta1b4_compact	CREATE TABLE `ta1b4_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta1b4_compact;
+Table	Op	Msg_type	Msg_text
+test.ta1b4_compact	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b4_compact	17	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	0
+c7	7	6	1283	0
+c8	8	6	1027	0
+c9	9	6	1283	0
+c10	10	6	1027	0
+c11	11	6	1283	0
+c12	12	6	1027	0
+c13	13	6	1283	0
+SELECT * FROM ta1b4_compact;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	1	3	4	5	NULL	0	80	90	NULL	0	120	130
+2	row2	1	33	40	55	NULL	0	80	90	NULL	0	120	130
+SHOW CREATE TABLE ta1b4_compact;
+Table	Create Table
+ta1b4_compact	CREATE TABLE `ta1b4_compact` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta1b4_compact;
+Table	Op	Msg_type	Msg_text
+test.ta1b4_compact	check	status	OK
+DROP TABLE ta1b4_compact;
+# Run online ddl for ta2b2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b2_compact	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta2b2_compact;;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	2	3	4	5	6	7	8	9
+2	row2	NULL	33	40	55	NULL	77	80	99
+SHOW CREATE TABLE ta2b2_compact;;
+Table	Create Table
+ta2b2_compact	CREATE TABLE `ta2b2_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta2b2_compact;;
+Table	Op	Msg_type	Msg_text
+test.ta2b2_compact	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta2b2_compact ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b2_compact	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta2b2_compact;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	2	3	4	5	6	7	8	9
+2	row2	NULL	33	40	55	NULL	77	80	99
+SHOW CREATE TABLE ta2b2_compact;
+Table	Create Table
+ta2b2_compact	CREATE TABLE `ta2b2_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta2b2_compact;
+Table	Op	Msg_type	Msg_text
+test.ta2b2_compact	check	status	OK
+UPDATE ta2b2_compact SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b2_compact	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta2b2_compact;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	1	3	4	5	6	7	8	9
+2	row2	1	33	40	55	NULL	77	80	99
+SHOW CREATE TABLE ta2b2_compact;
+Table	Create Table
+ta2b2_compact	CREATE TABLE `ta2b2_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta2b2_compact;
+Table	Op	Msg_type	Msg_text
+test.ta2b2_compact	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b2_compact	13	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	0
+c7	7	6	1283	0
+c8	8	6	1027	0
+c9	9	6	1283	0
+SELECT * FROM ta2b2_compact;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	1	3	4	5	6	7	8	9
+2	row2	1	33	40	55	NULL	77	80	99
+SHOW CREATE TABLE ta2b2_compact;
+Table	Create Table
+ta2b2_compact	CREATE TABLE `ta2b2_compact` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta2b2_compact;
+Table	Op	Msg_type	Msg_text
+test.ta2b2_compact	check	status	OK
+DROP TABLE ta2b2_compact;
+# Run online ddl for ta2b4
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b4_compact	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta2b4_compact;;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	2	3	4	5	6	7	8	9	NULL	0	120	130
+2	row2	NULL	33	40	55	NULL	77	80	99	NULL	0	120	130
+SHOW CREATE TABLE ta2b4_compact;;
+Table	Create Table
+ta2b4_compact	CREATE TABLE `ta2b4_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta2b4_compact;;
+Table	Op	Msg_type	Msg_text
+test.ta2b4_compact	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta2b4_compact ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b4_compact	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta2b4_compact;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	2	3	4	5	6	7	8	9	NULL	0	120	130
+2	row2	NULL	33	40	55	NULL	77	80	99	NULL	0	120	130
+SHOW CREATE TABLE ta2b4_compact;
+Table	Create Table
+ta2b4_compact	CREATE TABLE `ta2b4_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta2b4_compact;
+Table	Op	Msg_type	Msg_text
+test.ta2b4_compact	check	status	OK
+UPDATE ta2b4_compact SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b4_compact	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta2b4_compact;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	1	3	4	5	6	7	8	9	NULL	0	120	130
+2	row2	1	33	40	55	NULL	77	80	99	NULL	0	120	130
+SHOW CREATE TABLE ta2b4_compact;
+Table	Create Table
+ta2b4_compact	CREATE TABLE `ta2b4_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta2b4_compact;
+Table	Op	Msg_type	Msg_text
+test.ta2b4_compact	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b4_compact	17	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	0
+c7	7	6	1283	0
+c8	8	6	1027	0
+c9	9	6	1283	0
+c10	10	6	1027	0
+c11	11	6	1283	0
+c12	12	6	1027	0
+c13	13	6	1283	0
+SELECT * FROM ta2b4_compact;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	1	3	4	5	6	7	8	9	NULL	0	120	130
+2	row2	1	33	40	55	NULL	77	80	99	NULL	0	120	130
+SHOW CREATE TABLE ta2b4_compact;
+Table	Create Table
+ta2b4_compact	CREATE TABLE `ta2b4_compact` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta2b4_compact;
+Table	Op	Msg_type	Msg_text
+test.ta2b4_compact	check	status	OK
+DROP TABLE ta2b4_compact;
+# Run online ddl for ta3b2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b2_compact	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta3b2_compact;;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+SHOW CREATE TABLE ta3b2_compact;;
+Table	Create Table
+ta3b2_compact	CREATE TABLE `ta3b2_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta3b2_compact;;
+Table	Op	Msg_type	Msg_text
+test.ta3b2_compact	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta3b2_compact ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b2_compact	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta3b2_compact;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+SHOW CREATE TABLE ta3b2_compact;
+Table	Create Table
+ta3b2_compact	CREATE TABLE `ta3b2_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta3b2_compact;
+Table	Op	Msg_type	Msg_text
+test.ta3b2_compact	check	status	OK
+UPDATE ta3b2_compact SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b2_compact	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta3b2_compact;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+SHOW CREATE TABLE ta3b2_compact;
+Table	Create Table
+ta3b2_compact	CREATE TABLE `ta3b2_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta3b2_compact;
+Table	Op	Msg_type	Msg_text
+test.ta3b2_compact	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b2_compact	13	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	0
+c7	7	6	1283	0
+c8	8	6	1027	0
+c9	9	6	1283	0
+SELECT * FROM ta3b2_compact;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+SHOW CREATE TABLE ta3b2_compact;
+Table	Create Table
+ta3b2_compact	CREATE TABLE `ta3b2_compact` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta3b2_compact;
+Table	Op	Msg_type	Msg_text
+test.ta3b2_compact	check	status	OK
+DROP TABLE ta3b2_compact;
+# Run online ddl for ta3b3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b3_compact	13	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	1
+c11	7	6	1283	1
+c12	8	6	1027	1
+c13	9	6	1283	1
+SELECT * FROM ta3b3_compact;;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	2	3	4	5	10	11	12	13
+2	row2	NULL	33	40	55	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b3_compact;;
+Table	Create Table
+ta3b3_compact	CREATE TABLE `ta3b3_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta3b3_compact;;
+Table	Op	Msg_type	Msg_text
+test.ta3b3_compact	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta3b3_compact ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b3_compact	13	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	1
+c11	7	6	1283	1
+c12	8	6	1027	1
+c13	9	6	1283	1
+SELECT * FROM ta3b3_compact;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	2	3	4	5	10	11	12	13
+2	row2	NULL	33	40	55	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b3_compact;
+Table	Create Table
+ta3b3_compact	CREATE TABLE `ta3b3_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta3b3_compact;
+Table	Op	Msg_type	Msg_text
+test.ta3b3_compact	check	status	OK
+UPDATE ta3b3_compact SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b3_compact	13	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	1
+c11	7	6	1283	1
+c12	8	6	1027	1
+c13	9	6	1283	1
+SELECT * FROM ta3b3_compact;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	1	3	4	5	10	11	12	13
+2	row2	1	33	40	55	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b3_compact;
+Table	Create Table
+ta3b3_compact	CREATE TABLE `ta3b3_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta3b3_compact;
+Table	Op	Msg_type	Msg_text
+test.ta3b3_compact	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b3_compact	13	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	0
+c11	7	6	1283	0
+c12	8	6	1027	0
+c13	9	6	1283	0
+SELECT * FROM ta3b3_compact;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	1	3	4	5	10	11	12	13
+2	row2	1	33	40	55	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b3_compact;
+Table	Create Table
+ta3b3_compact	CREATE TABLE `ta3b3_compact` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta3b3_compact;
+Table	Op	Msg_type	Msg_text
+test.ta3b3_compact	check	status	OK
+DROP TABLE ta3b3_compact;
+# Run online ddl for ta3b4
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b4_compact	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta3b4_compact;;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	2	3	4	5	6	7	8	9	10	11	12	13
+2	row2	NULL	33	40	55	NULL	77	80	99	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b4_compact;;
+Table	Create Table
+ta3b4_compact	CREATE TABLE `ta3b4_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta3b4_compact;;
+Table	Op	Msg_type	Msg_text
+test.ta3b4_compact	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta3b4_compact ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b4_compact	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta3b4_compact;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	2	3	4	5	6	7	8	9	10	11	12	13
+2	row2	NULL	33	40	55	NULL	77	80	99	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b4_compact;
+Table	Create Table
+ta3b4_compact	CREATE TABLE `ta3b4_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta3b4_compact;
+Table	Op	Msg_type	Msg_text
+test.ta3b4_compact	check	status	OK
+UPDATE ta3b4_compact SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b4_compact	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta3b4_compact;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	1	3	4	5	6	7	8	9	10	11	12	13
+2	row2	1	33	40	55	NULL	77	80	99	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b4_compact;
+Table	Create Table
+ta3b4_compact	CREATE TABLE `ta3b4_compact` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta3b4_compact;
+Table	Op	Msg_type	Msg_text
+test.ta3b4_compact	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b4_compact	17	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	0
+c7	7	6	1283	0
+c8	8	6	1027	0
+c9	9	6	1283	0
+c10	10	6	1027	0
+c11	11	6	1283	0
+c12	12	6	1027	0
+c13	13	6	1283	0
+SELECT * FROM ta3b4_compact;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	1	3	4	5	6	7	8	9	10	11	12	13
+2	row2	1	33	40	55	NULL	77	80	99	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b4_compact;
+Table	Create Table
+ta3b4_compact	CREATE TABLE `ta3b4_compact` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+CHECK TABLE ta3b4_compact;
+Table	Op	Msg_type	Msg_text
+test.ta3b4_compact	check	status	OK
+DROP TABLE ta3b4_compact;
+# For all DYNAMIC tables:
+# Prepare the table
+# Processing alters:
+# b1, b2: no alter add in trunk
+# b3: alter add
+ALTER TABLE ta1b3_dynamic ADD COLUMN c10 INT, ADD COLUMN c11 INT NOT NULL, ALGORITHM=INSTANT;;
+ALTER TABLE ta1b3_dynamic ADD COLUMN c12 INT DEFAULT 120, ADD COLUMN c13 INT NOT NULL DEFAULT 130, ALGORITHM=INSTANT;;
+ALTER TABLE ta3b3_dynamic ADD COLUMN c10 INT, ADD COLUMN c11 INT NOT NULL, ALGORITHM=INSTANT;;
+ALTER TABLE ta3b3_dynamic ADD COLUMN c12 INT DEFAULT 120, ADD COLUMN c13 INT NOT NULL DEFAULT 130, ALGORITHM=INSTANT;;
+# b4: alter add
+ALTER TABLE ta1b4_dynamic ADD COLUMN c10 INT, ADD COLUMN c11 INT NOT NULL, ALGORITHM=INSTANT;;
+ALTER TABLE ta1b4_dynamic ADD COLUMN c12 INT DEFAULT 120, ADD COLUMN c13 INT NOT NULL DEFAULT 130, ALGORITHM=INSTANT;;
+ALTER TABLE ta2b4_dynamic ADD COLUMN c10 INT, ADD COLUMN c11 INT NOT NULL, ALGORITHM=INSTANT;;
+ALTER TABLE ta2b4_dynamic ADD COLUMN c12 INT DEFAULT 120, ADD COLUMN c13 INT NOT NULL DEFAULT 130, ALGORITHM=INSTANT;;
+ALTER TABLE ta3b4_dynamic ADD COLUMN c10 INT, ADD COLUMN c11 INT NOT NULL, ALGORITHM=INSTANT;;
+ALTER TABLE ta3b4_dynamic ADD COLUMN c12 INT DEFAULT 120, ADD COLUMN c13 INT NOT NULL DEFAULT 130, ALGORITHM=INSTANT;;
+# Processing row inserts:
+# a3: rows have version from new table
+INSERT INTO ta3b3_dynamic VALUES (1, "row1", 2, 3, 4, 5, 10, 11, 12, 13);;
+INSERT INTO ta3b3_dynamic (c0, c1, c3, c5, c11, c13) VALUES (2, "row2", 33, 55, 1111, 1313);;
+INSERT INTO ta3b4_dynamic VALUES (1, "row1", 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);;
+INSERT INTO ta3b4_dynamic (c0, c1, c3, c5, c7, c9, c11, c13) VALUES (2, "row2", 33, 55, 77, 99, 1111, 1313);;
+# For each table, do online ddl
+# Run online ddl for ta1b1
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b1_dynamic	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+SELECT * FROM ta1b1_dynamic;;
+c0	c1	c2	c3	c4	c5
+1	row1	2	3	4	5
+2	row2	NULL	33	40	55
+SHOW CREATE TABLE ta1b1_dynamic;;
+Table	Create Table
+ta1b1_dynamic	CREATE TABLE `ta1b1_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta1b1_dynamic;;
+Table	Op	Msg_type	Msg_text
+test.ta1b1_dynamic	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta1b1_dynamic ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b1_dynamic	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+SELECT * FROM ta1b1_dynamic;
+c0	c1	c2	c3	c4	c5
+1	row1	2	3	4	5
+2	row2	NULL	33	40	55
+SHOW CREATE TABLE ta1b1_dynamic;
+Table	Create Table
+ta1b1_dynamic	CREATE TABLE `ta1b1_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta1b1_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta1b1_dynamic	check	status	OK
+UPDATE ta1b1_dynamic SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b1_dynamic	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+SELECT * FROM ta1b1_dynamic;
+c0	c1	c2	c3	c4	c5
+1	row1	1	3	4	5
+2	row2	1	33	40	55
+SHOW CREATE TABLE ta1b1_dynamic;
+Table	Create Table
+ta1b1_dynamic	CREATE TABLE `ta1b1_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta1b1_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta1b1_dynamic	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b1_dynamic	9	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+SELECT * FROM ta1b1_dynamic;
+c0	c1	c2	c3	c4	c5
+1	row1	1	3	4	5
+2	row2	1	33	40	55
+SHOW CREATE TABLE ta1b1_dynamic;
+Table	Create Table
+ta1b1_dynamic	CREATE TABLE `ta1b1_dynamic` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta1b1_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta1b1_dynamic	check	status	OK
+DROP TABLE ta1b1_dynamic;
+# Run online ddl for ta1b2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b2_dynamic	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta1b2_dynamic;;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	2	3	4	5	NULL	0	80	90
+2	row2	NULL	33	40	55	NULL	0	80	90
+SHOW CREATE TABLE ta1b2_dynamic;;
+Table	Create Table
+ta1b2_dynamic	CREATE TABLE `ta1b2_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta1b2_dynamic;;
+Table	Op	Msg_type	Msg_text
+test.ta1b2_dynamic	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta1b2_dynamic ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b2_dynamic	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta1b2_dynamic;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	2	3	4	5	NULL	0	80	90
+2	row2	NULL	33	40	55	NULL	0	80	90
+SHOW CREATE TABLE ta1b2_dynamic;
+Table	Create Table
+ta1b2_dynamic	CREATE TABLE `ta1b2_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta1b2_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta1b2_dynamic	check	status	OK
+UPDATE ta1b2_dynamic SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b2_dynamic	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta1b2_dynamic;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	1	3	4	5	NULL	0	80	90
+2	row2	1	33	40	55	NULL	0	80	90
+SHOW CREATE TABLE ta1b2_dynamic;
+Table	Create Table
+ta1b2_dynamic	CREATE TABLE `ta1b2_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta1b2_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta1b2_dynamic	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b2_dynamic	13	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	0
+c7	7	6	1283	0
+c8	8	6	1027	0
+c9	9	6	1283	0
+SELECT * FROM ta1b2_dynamic;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	1	3	4	5	NULL	0	80	90
+2	row2	1	33	40	55	NULL	0	80	90
+SHOW CREATE TABLE ta1b2_dynamic;
+Table	Create Table
+ta1b2_dynamic	CREATE TABLE `ta1b2_dynamic` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta1b2_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta1b2_dynamic	check	status	OK
+DROP TABLE ta1b2_dynamic;
+# Run online ddl for ta1b3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b3_dynamic	13	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	1
+c11	7	6	1283	1
+c12	8	6	1027	1
+c13	9	6	1283	1
+SELECT * FROM ta1b3_dynamic;;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	2	3	4	5	NULL	0	120	130
+2	row2	NULL	33	40	55	NULL	0	120	130
+SHOW CREATE TABLE ta1b3_dynamic;;
+Table	Create Table
+ta1b3_dynamic	CREATE TABLE `ta1b3_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta1b3_dynamic;;
+Table	Op	Msg_type	Msg_text
+test.ta1b3_dynamic	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta1b3_dynamic ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b3_dynamic	13	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	1
+c11	7	6	1283	1
+c12	8	6	1027	1
+c13	9	6	1283	1
+SELECT * FROM ta1b3_dynamic;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	2	3	4	5	NULL	0	120	130
+2	row2	NULL	33	40	55	NULL	0	120	130
+SHOW CREATE TABLE ta1b3_dynamic;
+Table	Create Table
+ta1b3_dynamic	CREATE TABLE `ta1b3_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta1b3_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta1b3_dynamic	check	status	OK
+UPDATE ta1b3_dynamic SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b3_dynamic	13	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	1
+c11	7	6	1283	1
+c12	8	6	1027	1
+c13	9	6	1283	1
+SELECT * FROM ta1b3_dynamic;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	1	3	4	5	NULL	0	120	130
+2	row2	1	33	40	55	NULL	0	120	130
+SHOW CREATE TABLE ta1b3_dynamic;
+Table	Create Table
+ta1b3_dynamic	CREATE TABLE `ta1b3_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta1b3_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta1b3_dynamic	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b3_dynamic	13	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	0
+c11	7	6	1283	0
+c12	8	6	1027	0
+c13	9	6	1283	0
+SELECT * FROM ta1b3_dynamic;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	1	3	4	5	NULL	0	120	130
+2	row2	1	33	40	55	NULL	0	120	130
+SHOW CREATE TABLE ta1b3_dynamic;
+Table	Create Table
+ta1b3_dynamic	CREATE TABLE `ta1b3_dynamic` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta1b3_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta1b3_dynamic	check	status	OK
+DROP TABLE ta1b3_dynamic;
+# Run online ddl for ta1b4
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b4_dynamic	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta1b4_dynamic;;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	2	3	4	5	NULL	0	80	90	NULL	0	120	130
+2	row2	NULL	33	40	55	NULL	0	80	90	NULL	0	120	130
+SHOW CREATE TABLE ta1b4_dynamic;;
+Table	Create Table
+ta1b4_dynamic	CREATE TABLE `ta1b4_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta1b4_dynamic;;
+Table	Op	Msg_type	Msg_text
+test.ta1b4_dynamic	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta1b4_dynamic ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b4_dynamic	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta1b4_dynamic;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	2	3	4	5	NULL	0	80	90	NULL	0	120	130
+2	row2	NULL	33	40	55	NULL	0	80	90	NULL	0	120	130
+SHOW CREATE TABLE ta1b4_dynamic;
+Table	Create Table
+ta1b4_dynamic	CREATE TABLE `ta1b4_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta1b4_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta1b4_dynamic	check	status	OK
+UPDATE ta1b4_dynamic SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b4_dynamic	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta1b4_dynamic;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	1	3	4	5	NULL	0	80	90	NULL	0	120	130
+2	row2	1	33	40	55	NULL	0	80	90	NULL	0	120	130
+SHOW CREATE TABLE ta1b4_dynamic;
+Table	Create Table
+ta1b4_dynamic	CREATE TABLE `ta1b4_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta1b4_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta1b4_dynamic	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta1b4_dynamic	17	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	0
+c7	7	6	1283	0
+c8	8	6	1027	0
+c9	9	6	1283	0
+c10	10	6	1027	0
+c11	11	6	1283	0
+c12	12	6	1027	0
+c13	13	6	1283	0
+SELECT * FROM ta1b4_dynamic;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	1	3	4	5	NULL	0	80	90	NULL	0	120	130
+2	row2	1	33	40	55	NULL	0	80	90	NULL	0	120	130
+SHOW CREATE TABLE ta1b4_dynamic;
+Table	Create Table
+ta1b4_dynamic	CREATE TABLE `ta1b4_dynamic` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta1b4_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta1b4_dynamic	check	status	OK
+DROP TABLE ta1b4_dynamic;
+# Run online ddl for ta2b2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b2_dynamic	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta2b2_dynamic;;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	2	3	4	5	6	7	8	9
+2	row2	NULL	33	40	55	NULL	77	80	99
+SHOW CREATE TABLE ta2b2_dynamic;;
+Table	Create Table
+ta2b2_dynamic	CREATE TABLE `ta2b2_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta2b2_dynamic;;
+Table	Op	Msg_type	Msg_text
+test.ta2b2_dynamic	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta2b2_dynamic ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b2_dynamic	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta2b2_dynamic;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	2	3	4	5	6	7	8	9
+2	row2	NULL	33	40	55	NULL	77	80	99
+SHOW CREATE TABLE ta2b2_dynamic;
+Table	Create Table
+ta2b2_dynamic	CREATE TABLE `ta2b2_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta2b2_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta2b2_dynamic	check	status	OK
+UPDATE ta2b2_dynamic SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b2_dynamic	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta2b2_dynamic;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	1	3	4	5	6	7	8	9
+2	row2	1	33	40	55	NULL	77	80	99
+SHOW CREATE TABLE ta2b2_dynamic;
+Table	Create Table
+ta2b2_dynamic	CREATE TABLE `ta2b2_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta2b2_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta2b2_dynamic	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b2_dynamic	13	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	0
+c7	7	6	1283	0
+c8	8	6	1027	0
+c9	9	6	1283	0
+SELECT * FROM ta2b2_dynamic;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+1	row1	1	3	4	5	6	7	8	9
+2	row2	1	33	40	55	NULL	77	80	99
+SHOW CREATE TABLE ta2b2_dynamic;
+Table	Create Table
+ta2b2_dynamic	CREATE TABLE `ta2b2_dynamic` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta2b2_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta2b2_dynamic	check	status	OK
+DROP TABLE ta2b2_dynamic;
+# Run online ddl for ta2b4
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b4_dynamic	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta2b4_dynamic;;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	2	3	4	5	6	7	8	9	NULL	0	120	130
+2	row2	NULL	33	40	55	NULL	77	80	99	NULL	0	120	130
+SHOW CREATE TABLE ta2b4_dynamic;;
+Table	Create Table
+ta2b4_dynamic	CREATE TABLE `ta2b4_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta2b4_dynamic;;
+Table	Op	Msg_type	Msg_text
+test.ta2b4_dynamic	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta2b4_dynamic ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b4_dynamic	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta2b4_dynamic;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	2	3	4	5	6	7	8	9	NULL	0	120	130
+2	row2	NULL	33	40	55	NULL	77	80	99	NULL	0	120	130
+SHOW CREATE TABLE ta2b4_dynamic;
+Table	Create Table
+ta2b4_dynamic	CREATE TABLE `ta2b4_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta2b4_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta2b4_dynamic	check	status	OK
+UPDATE ta2b4_dynamic SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b4_dynamic	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta2b4_dynamic;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	1	3	4	5	6	7	8	9	NULL	0	120	130
+2	row2	1	33	40	55	NULL	77	80	99	NULL	0	120	130
+SHOW CREATE TABLE ta2b4_dynamic;
+Table	Create Table
+ta2b4_dynamic	CREATE TABLE `ta2b4_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta2b4_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta2b4_dynamic	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta2b4_dynamic	17	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	0
+c7	7	6	1283	0
+c8	8	6	1027	0
+c9	9	6	1283	0
+c10	10	6	1027	0
+c11	11	6	1283	0
+c12	12	6	1027	0
+c13	13	6	1283	0
+SELECT * FROM ta2b4_dynamic;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	1	3	4	5	6	7	8	9	NULL	0	120	130
+2	row2	1	33	40	55	NULL	77	80	99	NULL	0	120	130
+SHOW CREATE TABLE ta2b4_dynamic;
+Table	Create Table
+ta2b4_dynamic	CREATE TABLE `ta2b4_dynamic` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta2b4_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta2b4_dynamic	check	status	OK
+DROP TABLE ta2b4_dynamic;
+# Run online ddl for ta3b2
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b2_dynamic	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta3b2_dynamic;;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+SHOW CREATE TABLE ta3b2_dynamic;;
+Table	Create Table
+ta3b2_dynamic	CREATE TABLE `ta3b2_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta3b2_dynamic;;
+Table	Op	Msg_type	Msg_text
+test.ta3b2_dynamic	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta3b2_dynamic ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b2_dynamic	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta3b2_dynamic;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+SHOW CREATE TABLE ta3b2_dynamic;
+Table	Create Table
+ta3b2_dynamic	CREATE TABLE `ta3b2_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta3b2_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta3b2_dynamic	check	status	OK
+UPDATE ta3b2_dynamic SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b2_dynamic	13	6	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+SELECT * FROM ta3b2_dynamic;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+SHOW CREATE TABLE ta3b2_dynamic;
+Table	Create Table
+ta3b2_dynamic	CREATE TABLE `ta3b2_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta3b2_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta3b2_dynamic	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b2_dynamic	13	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	0
+c7	7	6	1283	0
+c8	8	6	1027	0
+c9	9	6	1283	0
+SELECT * FROM ta3b2_dynamic;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9
+SHOW CREATE TABLE ta3b2_dynamic;
+Table	Create Table
+ta3b2_dynamic	CREATE TABLE `ta3b2_dynamic` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta3b2_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta3b2_dynamic	check	status	OK
+DROP TABLE ta3b2_dynamic;
+# Run online ddl for ta3b3
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b3_dynamic	13	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	1
+c11	7	6	1283	1
+c12	8	6	1027	1
+c13	9	6	1283	1
+SELECT * FROM ta3b3_dynamic;;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	2	3	4	5	10	11	12	13
+2	row2	NULL	33	40	55	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b3_dynamic;;
+Table	Create Table
+ta3b3_dynamic	CREATE TABLE `ta3b3_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta3b3_dynamic;;
+Table	Op	Msg_type	Msg_text
+test.ta3b3_dynamic	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta3b3_dynamic ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b3_dynamic	13	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	1
+c11	7	6	1283	1
+c12	8	6	1027	1
+c13	9	6	1283	1
+SELECT * FROM ta3b3_dynamic;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	2	3	4	5	10	11	12	13
+2	row2	NULL	33	40	55	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b3_dynamic;
+Table	Create Table
+ta3b3_dynamic	CREATE TABLE `ta3b3_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta3b3_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta3b3_dynamic	check	status	OK
+UPDATE ta3b3_dynamic SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b3_dynamic	13	0	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	1
+c11	7	6	1283	1
+c12	8	6	1027	1
+c13	9	6	1283	1
+SELECT * FROM ta3b3_dynamic;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	1	3	4	5	10	11	12	13
+2	row2	1	33	40	55	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b3_dynamic;
+Table	Create Table
+ta3b3_dynamic	CREATE TABLE `ta3b3_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta3b3_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta3b3_dynamic	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b3_dynamic	13	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c10	6	6	1027	0
+c11	7	6	1283	0
+c12	8	6	1027	0
+c13	9	6	1283	0
+SELECT * FROM ta3b3_dynamic;
+c0	c1	c2	c3	c4	c5	c10	c11	c12	c13
+1	row1	1	3	4	5	10	11	12	13
+2	row2	1	33	40	55	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b3_dynamic;
+Table	Create Table
+ta3b3_dynamic	CREATE TABLE `ta3b3_dynamic` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta3b3_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta3b3_dynamic	check	status	OK
+DROP TABLE ta3b3_dynamic;
+# Run online ddl for ta3b4
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b4_dynamic	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta3b4_dynamic;;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	2	3	4	5	6	7	8	9	10	11	12	13
+2	row2	NULL	33	40	55	NULL	77	80	99	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b4_dynamic;;
+Table	Create Table
+ta3b4_dynamic	CREATE TABLE `ta3b4_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta3b4_dynamic;;
+Table	Op	Msg_type	Msg_text
+test.ta3b4_dynamic	check	status	OK
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL update_now WAIT_FOR update_done';
+ALTER TABLE ta3b4_dynamic ADD PRIMARY KEY (c0);
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b4_dynamic	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta3b4_dynamic;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	2	3	4	5	6	7	8	9	10	11	12	13
+2	row2	NULL	33	40	55	NULL	77	80	99	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b4_dynamic;
+Table	Create Table
+ta3b4_dynamic	CREATE TABLE `ta3b4_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta3b4_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta3b4_dynamic	check	status	OK
+UPDATE ta3b4_dynamic SET c2 = 1;
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b4_dynamic	17	6	2
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1027	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	1
+c7	7	6	1283	1
+c8	8	6	1027	1
+c9	9	6	1283	1
+c10	10	6	1027	1
+c11	11	6	1283	1
+c12	12	6	1027	1
+c13	13	6	1283	1
+SELECT * FROM ta3b4_dynamic;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	1	3	4	5	6	7	8	9	10	11	12	13
+2	row2	1	33	40	55	NULL	77	80	99	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b4_dynamic;
+Table	Create Table
+ta3b4_dynamic	CREATE TABLE `ta3b4_dynamic` (
+  `c0` int DEFAULT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta3b4_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta3b4_dynamic	check	status	OK
+SET DEBUG_SYNC='now SIGNAL update_done';
+# Metadata from INFORMATION_SCHEMA.TABLES
+NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS
+test/ta3b4_dynamic	17	0	0
+# Metadata from INFORMATION_SCHEMA.COLUMNS
+NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT
+c0	0	6	1283	0
+c1	1	5	16711932	0
+c2	2	6	1027	0
+c3	3	6	1283	0
+c4	4	6	1027	0
+c5	5	6	1283	0
+c6	6	6	1027	0
+c7	7	6	1283	0
+c8	8	6	1027	0
+c9	9	6	1283	0
+c10	10	6	1027	0
+c11	11	6	1283	0
+c12	12	6	1027	0
+c13	13	6	1283	0
+SELECT * FROM ta3b4_dynamic;
+c0	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13
+1	row1	1	3	4	5	6	7	8	9	10	11	12	13
+2	row2	1	33	40	55	NULL	77	80	99	NULL	1111	120	1313
+SHOW CREATE TABLE ta3b4_dynamic;
+Table	Create Table
+ta3b4_dynamic	CREATE TABLE `ta3b4_dynamic` (
+  `c0` int NOT NULL,
+  `c1` text,
+  `c2` int DEFAULT NULL,
+  `c3` int NOT NULL,
+  `c4` int DEFAULT '40',
+  `c5` int NOT NULL DEFAULT '50',
+  `c6` int DEFAULT NULL,
+  `c7` int NOT NULL,
+  `c8` int DEFAULT '80',
+  `c9` int NOT NULL DEFAULT '90',
+  `c10` int DEFAULT NULL,
+  `c11` int NOT NULL,
+  `c12` int DEFAULT '120',
+  `c13` int NOT NULL DEFAULT '130',
+  PRIMARY KEY (`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+CHECK TABLE ta3b4_dynamic;
+Table	Op	Msg_type	Msg_text
+test.ta3b4_dynamic	check	status	OK
+DROP TABLE ta3b4_dynamic;
+# Cleanup
+# Shutdown server
+# Remove temp files used
+# Restart server to restore server state
+# restart

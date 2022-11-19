@@ -199,7 +199,8 @@ dberr_t Key_sort_buffer::serialize(IO_buffer io_buffer, Function &&f) noexcept {
 
     {
       const auto p = ptr + extra_size;
-      rec_serialize_dtuple(p, m_index, fields, n_fields, nullptr);
+      rec_serialize_dtuple(p, m_index, fields, n_fields, nullptr,
+                           MAX_ROW_VERSION);
     }
 
     ptr += size;
