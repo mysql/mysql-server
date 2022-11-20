@@ -1051,7 +1051,7 @@ static dberr_t row_log_table_get_pk_col(dict_index_t *index,
   ut_ad(len != UNIV_SQL_ADD_COL_DEFAULT);
   if (field == nullptr) {
     ib::error(ER_IB_PRIMARY_KEY_IS_INSTANT, index->get_field(i)->name(),
-              ulong{i}, index->table_name, index->name());
+              ulong(i), index->table_name, index->name());
     return (DB_INDEX_CORRUPT);
   }
 
