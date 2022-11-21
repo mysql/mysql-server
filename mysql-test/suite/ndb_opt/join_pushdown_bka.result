@@ -8182,6 +8182,67 @@ table1.col_int_key = table2.col_int_key AND
 table1.pk = table3.pk;
 pk	col_int_key	col_int	pk	col_int_key	col_int	pk	col_int_key	col_int
 drop table t;
+##################
+#
+# Bug#34723413 A 'pushed join' should not start with a scan-table
+#              returning very few rows .
+#
+##################
+create table t10 (
+k int not null auto_increment,
+i int,
+primary key(k),
+key(i)
+) engine = ndbcluster;
+insert into t10(i) values (1),(2),(3),(4),(5),(6),(7),(8),(9),(0);
+create table t100 like t10;
+insert into t100(i)
+select x.i from t10 as x, t10 as y;
+create table t1000 like t10;
+insert into t1000(i)
+select x.i from t10 as x, t10 as y, t10 as z;
+delete from t10 where i > 2;
+update t100 set i = i/3;
+update t1000 set i = i/3;
+analyze table t10,t100,t1000;
+Table	Op	Msg_type	Msg_text
+test.t10	analyze	status	OK
+test.t100	analyze	status	OK
+test.t1000	analyze	status	OK
+explain format=tree
+select *
+from t10
+straight_join t1000 on t1000.i = t10.i
+straight_join t100 on t100.k = t1000.k;
+EXPLAIN
+-> Batched key access inner join
+    -> Batch input rows
+        -> Batched key access inner join
+            -> Batch input rows
+                -> Table scan on t10, with pushed condition: (t10.i is not null)
+            -> Multi-range index lookup on t1000 using i (i=t10.i)
+    -> Multi-range index lookup on t100 using PRIMARY (k=t1000.k)
+
+Warnings:
+Note	1003	Can't push table 't1000' as child, access type 'Multi-range' not implemented
+Note	1003	Can't push table 't100' as child, access type 'Multi-range' not implemented
+explain format=tree select *
+from t10
+straight_join t1000 on t1000.i = t10.i
+straight_join t100 on t100.k = t10.k;
+EXPLAIN
+-> Batched key access inner join
+    -> Batch input rows
+        -> Batched key access inner join
+            -> Batch input rows
+                -> Table scan on t10, with pushed condition: (t10.i is not null)
+            -> Multi-range index lookup on t1000 using i (i=t10.i)
+    -> Multi-range index lookup on t100 using PRIMARY (k=t10.k)
+
+Warnings:
+Note	1003	Can't push table 't1000' as child, access type 'Multi-range' not implemented
+Note	1003	Can't push table 't100' as child, access type 'Multi-range' not implemented
+drop table t10,t100,t1000;
 select new.variable_name, new.variable_value - old.variable_value
 from server_counts_at_startup as old,
 performance_schema.global_status as new

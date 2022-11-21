@@ -1098,6 +1098,17 @@ const Index_lookup *pushed_table::get_table_ref() const {
 }
 
 /**
+   Estimate number of rows returned from data nodes.
+   We assume that any filters are pushed down.
+*/
+double pushed_table::num_output_rows() const {
+  if (m_filter != nullptr)
+    return m_filter->num_output_rows();
+  else
+    return m_path->num_output_rows();
+}
+
+/**
    Check if the specified AccessPath operation require the result
    to be returned using the index order.
 */

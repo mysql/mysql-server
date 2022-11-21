@@ -618,10 +618,9 @@ int ndb_pushed_builder_ctx::make_pushed_join(
   DBUG_TRACE;
   pushed_join = nullptr;
 
-  if (is_pushable_with_root()) {
+  if (is_pushable_with_root() && accept_query_plan()) {
     int error;
-    error = optimize_query_plan();
-    if (unlikely(error)) return error;
+    optimize_query_plan();
 
     error = build_query();
     if (unlikely(error)) return error;
@@ -707,6 +706,79 @@ uint internal_operation_count(enum_access_type accessType) {
       assert(false);
       return 2;
   }
+}
+
+/**
+ * We have found a possible pushed query-plan, starting a this 'root'.
+ * We still have the option to not accept it for pushed execution e.g. if
+ * we believe it might be better options. Currently we only use simple
+ * heuristics to do a late reject of queries here by not accepting them.
+ * That does not exclude e.g. cost based analysis to be used in the future.
+ */
+bool ndb_pushed_builder_ctx::accept_query_plan() {
+  DBUG_TRACE;
+  const uint root_no = m_join_root->get_table_no();
+  ha_ndbcluster *handler =
+      down_cast<ha_ndbcluster *>(m_join_root->get_table()->file);
+  const NdbDictionary::Table *rootTable = handler->m_table;
+  const uint rootFragments = rootTable->getFragmentCount();
+  const uint small_table_limit = rootFragments * 3 / 4;
+
+  /**
+   * 1) Reject due to lack of parallelism:
+   *   If the root-table is expected to return few rows, some of the
+   *   SPJ-workers might not get any rows at all. Thus they may become idle.
+   *   If the next table is expected to return considerable more rows,
+   *   it might be better to start with that one.
+   *
+   *  a) This table has too few 'output_rows'.
+   *  b) Next table is part of this pushed query and is a scan as well.
+   *     (Which makes it likely that it could be made a 'root')
+   *  c) Next table has considderable more(4x) 'output_rows' than this table.
+   *  d) There are at least 2 more tables being pushed excluding 'this' root.
+   *  e) Except for the next table, all of the currently pushed tables
+   *     has ancestor candidates not requiring 'this' root.
+   *     ( -> The existing children are, or can be made, children under
+   *          next table as well)
+   */
+  if (m_scan_operations.contain(root_no) &&
+      m_join_root->num_output_rows() < small_table_limit) {  // 1a
+
+    if (m_join_scope.contain(root_no + 1) &&
+        m_scan_operations.contain(root_no + 1)) {  // 1b
+      pushed_table *const next_root = &m_tables[root_no + 1];
+
+      if (next_root->num_output_rows() >=
+          m_join_root->num_output_rows() * 4) {  // 1c
+        ndb_table_map reduced_scope(m_join_scope);
+        reduced_scope.clear_bit(root_no);
+
+        if (reduced_scope.bits_set() >= 2) {  // 1d
+          // 1e: Can all remaining children still be children under next_root?
+          for (uint tab_no = root_no + 2; tab_no < m_table_count; tab_no++) {
+            if (m_join_scope.contain(tab_no)) {
+              ndb_table_map possible_ancestors(
+                  get_all_key_parents(&m_tables[tab_no]));
+              if (!possible_ancestors.is_overlapping(reduced_scope)) {
+                return true;  // Failed '1e' -> keep original
+              }
+            }
+          }
+          /**
+           * Pushing a 'reduced_scope' query seems to be possible, and is
+           * believed to be more optimal. Thus we reject pushing with this
+           * 'root' (even if we could). Upper layers will retry 'next_root'.
+           */
+          EXPLAIN_NO_PUSH(
+              "Didn't push table '%s' as root, too few rows to enable "
+              "full parallelism",
+              m_join_root->get_table()->alias);
+          return false;
+        }
+      }
+    }
+  }
+  return true;
 }
 
 /**
@@ -2026,7 +2098,7 @@ bool ndb_pushed_builder_ctx::is_const_item_pushable(
  * which possible sequentialize the execution of these parallel branches.
  * (See WL#11164)
  */
-int ndb_pushed_builder_ctx::optimize_query_plan() {
+void ndb_pushed_builder_ctx::optimize_query_plan() {
   DBUG_TRACE;
   const uint root_no = m_join_root->get_table_no();
 
@@ -2165,7 +2237,6 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
       table.m_ancestors.add(parent_no);
     }
   }
-  return 0;
 }  // ndb_pushed_builder_ctx::optimize_query_plan
 
 void ndb_pushed_builder_ctx::collect_key_refs(const pushed_table *table,
