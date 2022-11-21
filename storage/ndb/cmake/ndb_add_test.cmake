@@ -45,8 +45,10 @@ FUNCTION(NDB_ADD_TEST EXEC_ARG)
   # - built in the default RUNTIME_OUTPUT_DIRECTORY
   # - adds test to be run by ctest
   # - skips install ot the unittest binary
-  MYSQL_ADD_EXECUTABLE(${EXEC} ${SRC} ADD_TEST ${EXEC})
-  SET_TARGET_PROPERTIES(${EXEC} PROPERTIES ENABLE_EXPORTS TRUE)
+  MYSQL_ADD_EXECUTABLE(${EXEC} ${SRC}
+    ADD_TEST ${EXEC}
+    ENABLE_EXPORTS
+    )
   SET_TESTS_PROPERTIES(${EXEC} PROPERTIES LABELS "NDB")
 
   # Add additional libraries

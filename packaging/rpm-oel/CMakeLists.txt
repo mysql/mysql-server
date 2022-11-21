@@ -20,17 +20,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-
-IF(UNIX)
-  SET(prefix ${CMAKE_INSTALL_PREFIX})
-
-  SET(SPECFILENAME "mysql.spec")
-
-  # Left in current directory, to be taken during build
-  CONFIGURE_FILE(mysql.spec.in ${CMAKE_CURRENT_BINARY_DIR}/${SPECFILENAME} @ONLY)
-
-  FOREACH(fedfile mysql.init)
-    CONFIGURE_FILE(${fedfile} ${CMAKE_CURRENT_BINARY_DIR}/${fedfile} COPYONLY)
-  ENDFOREACH()
+IF(NOT LINUX)
+  RETURN()
 ENDIF()
+
+SET(SPECFILENAME "mysql.spec")
+
+# Left in current directory, to be taken during build
+CONFIGURE_FILE(mysql.spec.in ${CMAKE_CURRENT_BINARY_DIR}/${SPECFILENAME} @ONLY)
+
+FOREACH(fedfile mysql.init)
+  CONFIGURE_FILE(${fedfile} ${CMAKE_CURRENT_BINARY_DIR}/${fedfile} COPYONLY)
+ENDFOREACH()
 

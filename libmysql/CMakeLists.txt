@@ -427,8 +427,12 @@ IF(HAS_WARN_FLAG)
 ENDIF()
 
 # Verify that libmysql_api_test runs OK
-MY_ADD_CUSTOM_TARGET(run_libmysql_api_test ALL
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/libmysql_api_test.out
   DEPENDS libmysql_api_test
   COMMAND libmysql_api_test
   > ${CMAKE_CURRENT_BINARY_DIR}/libmysql_api_test.out
+  )
+MY_ADD_CUSTOM_TARGET(run_libmysql_api_test ALL
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libmysql_api_test.out
   )

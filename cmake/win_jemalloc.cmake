@@ -35,10 +35,15 @@ MACRO (MYSQL_CHECK_WIN_JEMALLOC)
     )
 
     IF(HAVE_JEMALLOC_DLL)
-      MY_ADD_CUSTOM_TARGET(copy_jemalloc_dll ALL
+      SET(RUNTIME_DIR "${CMAKE_BINARY_DIR}/runtime_output_directory")
+      ADD_CUSTOM_COMMAND(
+        OUTPUT "${RUNTIME_DIR}/${CMAKE_CFG_INTDIR}/${JEMALLOC_DLL_NAME}"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${HAVE_JEMALLOC_DLL}"
-        "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${JEMALLOC_DLL_NAME}"
+        "${RUNTIME_DIR}/${CMAKE_CFG_INTDIR}/${JEMALLOC_DLL_NAME}"
+        )
+      MY_ADD_CUSTOM_TARGET(copy_jemalloc_dll ALL
+        DEPENDS "${RUNTIME_DIR}/${CMAKE_CFG_INTDIR}/${JEMALLOC_DLL_NAME}"
         )
       MESSAGE(STATUS "INSTALL ${HAVE_JEMALLOC_DLL} to ${INSTALL_BINDIR}")
       INSTALL(FILES
