@@ -1,4 +1,6 @@
 --source include/big_test.inc
+--source include/have_innodb_16k.inc
+
 --let $MYSQLD_DATADIR1= $MYSQL_TMP_DIR/data
 # This is a file created by mysql-8.0.28 on Windows using following steps:
 #   mysqld --initialize-insecure --lower-case-table-names=1 --innodb-log-file-size=4194304
