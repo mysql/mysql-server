@@ -1,0 +1,14 @@
+create table t (a int primary key,
+b varchar(8000) charset ascii,
+c varchar(8000) charset ascii)
+engine ndbcluster
+comment "NDB_TABLE=READ_BACKUP=0";
+select * from t where ( b between REPEAT('@',5458) and REPEAT('B',5458) or c between REPEAT('K',5458) and REPEAT('M',5458));
+a	b	c
+select * from t where ( b between REPEAT('@',7367) and REPEAT('B',7367) or c between REPEAT('K',7367) and REPEAT('M',7367));
+a	b	c
+select * from t where ( b between REPEAT('@',5459) and REPEAT('B',5459) or c between REPEAT('K',5459) and REPEAT('M',5459));
+a	b	c
+select * from t where ( b between REPEAT('@',7366) and REPEAT('B',7366) or c between REPEAT('K',7366) and REPEAT('M',7366));
+a	b	c
+drop tables t;

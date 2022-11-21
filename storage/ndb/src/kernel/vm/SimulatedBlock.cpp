@@ -3520,7 +3520,7 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
     totalSize += ptr[0].sz;
   }
 
-  if (totalSize + messageSize <= MAX_SIZE_SINGLE_SIGNAL)
+  if (totalSize + length <= MAX_SIZE_SINGLE_SIGNAL)
   {
     /**
      * Send signal directly
@@ -3533,7 +3533,8 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
     info.m_status = FragmentSendInfo::SendComplete;
     return true;
   }
-    
+  ndbrequire(blockToMain(rg.m_block) != V_QUERY);
+
   /**
    * Setup info object
    */
@@ -3881,7 +3882,7 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
     totalSize += ptr[0].sz;
   }
 
-  if (totalSize + messageSize <= MAX_SIZE_SINGLE_SIGNAL)
+  if (totalSize + length <= MAX_SIZE_SINGLE_SIGNAL)
   {
     /**
      * Send signal directly
@@ -3895,6 +3896,7 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
      */
     return true;
   }
+  ndbrequire(blockToMain(rg.m_block) != V_QUERY);
 
   /**
    * Setup info object

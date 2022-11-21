@@ -1,0 +1,40 @@
+source include/have_ndb.inc;
+
+# Test for Bug#34776970.
+# Need query threads.
+# When a scan request defined with ~20KB to ~30KB of data was sent to a query
+# thread on another node using V_QUERY block address it was likely to fail.
+
+# Turn off READ_BACKUP for table to force TC to send SCAN_FRAGREQ to another
+# node.
+create table t (a int primary key,
+                b varchar(8000) charset ascii,
+                c varchar(8000) charset ascii)
+                engine ndbcluster
+                comment "NDB_TABLE=READ_BACKUP=0";
+
+disable_query_log;
+let $i=1000;
+while ($i)
+{
+  eval insert into t values ($i,'o','k');
+  dec $i;
+}
+enable_query_log;
+
+# SCAN_FRAGREQ smaller than ~20KB are sent successfully as a whole potentially
+# using V_QUERY
+select * from t where ( b between REPEAT('@',5458) and REPEAT('B',5458) or c between REPEAT('K',5458) and REPEAT('M',5458));
+
+# SCAN_FRAGREQ bigger than ~30KB are sent successfully as a fragmented signal
+# to DBLQH blocks.
+select * from t where ( b between REPEAT('@',7367) and REPEAT('B',7367) or c between REPEAT('K',7367) and REPEAT('M',7367));
+
+# SCAN_FRAGREQ with size between ~20KB and ~30KB were wrongly sent as
+# fragmented signal potentially to query threads using V_QUERY which would
+# likely fail.  Now they will be sent successfully as a single signal
+# potentially using V_QUERY.
+select * from t where ( b between REPEAT('@',5459) and REPEAT('B',5459) or c between REPEAT('K',5459) and REPEAT('M',5459));
+select * from t where ( b between REPEAT('@',7366) and REPEAT('B',7366) or c between REPEAT('K',7366) and REPEAT('M',7366));
+
+drop tables t;
