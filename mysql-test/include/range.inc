@@ -3201,3 +3201,26 @@ SET @@GLOBAL.innodb_stats_transient_sample_pages= @innodb_stats_transient_sample
 SET @@GLOBAL.innodb_stats_persistent_sample_pages= @innodb_stats_persistent_sample_pages;
 -- enable_result_log
 -- enable_query_log
+
+--echo #
+--echo # Bug#34347116 - Range intersection is not available for a
+--echo #                compound index when joining a derived table
+--echo #
+
+CREATE TABLE t1 (a SERIAL, b INT);
+INSERT INTO t1(b) VALUES (1),(2),(3),(100);
+CREATE TABLE t2 (a SERIAL, b INT, c INT, INDEX(b,c));
+INSERT INTO t2(b,c) VALUES (10,10),(100,100),(200,200);
+
+EXPLAIN  SELECT t1.* FROM t1 LEFT JOIN (SELECT a,b,c FROM t2 WHERE b=100 AND c<=100 AND c>=100) t ON t1.a=t.b;
+EXPLAIN  SELECT b,c FROM t2 WHERE b=100 AND c<=100 AND c>=100;
+
+DROP TABLE t1, t2;
+
+CREATE TABLE t1 (c1 INT AUTO_INCREMENT, c2 INT, c3 VARCHAR(1) , PRIMARY KEY(c1));
+INSERT INTO t1 VALUES (1,1,'a'), (2,2,'b'), (3,4,'c'), (4,4,'z'),(5,5,'L');
+ANALYZE TABLE t1;
+
+SELECT at1.c3 FROM (t1 AS at1 LEFT JOIN (SELECT at2.* FROM (t1 AS at2 JOIN t1 AS at3 ON ((1,2) IN (SELECT c1,c1 FROM t1 as at4)))) AS at5 ON at5.c1 = at1.c1);
+
+DROP TABLE t1;
