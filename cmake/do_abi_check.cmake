@@ -121,5 +121,4 @@ FOREACH(file ${ABI_HEADERS})
     MESSAGE(FATAL_ERROR
       "ABI check found difference between ${file}.pp and ${abi_check_out}")
   ENDIF()
-  FILE(REMOVE ${abi_check_out})
 ENDFOREACH()

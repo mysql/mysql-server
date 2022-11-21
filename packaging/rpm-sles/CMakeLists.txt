@@ -20,9 +20,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF(UNIX)
-  SET(prefix ${CMAKE_INSTALL_PREFIX})
-  SET(spec "mysql.spec")
-  CONFIGURE_FILE(${spec}.in ${CMAKE_CURRENT_BINARY_DIR}/${spec} @ONLY)
+IF(NOT LINUX)
+  RETURN()
 ENDIF()
 
+SET(spec "mysql.spec")
+CONFIGURE_FILE(${spec}.in ${CMAKE_CURRENT_BINARY_DIR}/${spec} @ONLY)
