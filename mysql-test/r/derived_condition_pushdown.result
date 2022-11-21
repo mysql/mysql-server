@@ -794,9 +794,9 @@ END|
 EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
 WHERE p() = 1;
 EXPLAIN
--> Table scan on dt (rows=6)
-    -> Materialize (rows=6)
-        -> Filter: (p() = 1) (rows=6)
+-> Filter: (p() = 1) (rows=12)
+    -> Table scan on dt (rows=6)
+        -> Materialize (rows=6)
             -> Group aggregate: sum(t1.f2) (rows=6)
                 -> Index scan on t1 using f1_2 (rows=12)
 
@@ -2189,3 +2189,16 @@ WHERE dt.str LIKE _latin1'P%' ESCAPE _latin1'\\';
 str
 Patch
 DROP TABLE t1, t2;
+#
+# Bug#34781533: Result set is incorrect
+#
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+INSERT INTO t1 VALUES (NULL, NULL);
+SELECT 1
+FROM (SELECT 1
+FROM t1 LEFT JOIN (SELECT 1 AS f1 FROM t1) AS dt1
+ON dt1.f1 = t1.f2
+WHERE dt1.f1 IS NOT NULL) AS dt2,
+(SELECT 1 FROM t1 UNION ALL SELECT 2 FROM t1) AS dt3;
+1
+DROP TABLE t1;

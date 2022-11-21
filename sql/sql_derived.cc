@@ -1166,7 +1166,13 @@ Item *Condition_pushdown::extract_cond_for_table(Item *cond) {
   // Perform checks
   if (m_checking_purpose == CHECK_FOR_DERIVED) {
     Derived_table_info dti(m_derived_table, m_query_block);
-
+    // Check if the condition's used_tables() match that of the
+    // derived table's. A constant expression is an exception.
+    if ((cond->used_tables() & ~PSEUDO_TABLE_BITS) != m_derived_table->map() &&
+        !cond->const_for_execution())
+      return nullptr;
+    // Examine the condition closely to see if it could be
+    // pushed down to the derived table.
     if (cond->walk(&Item::is_valid_for_pushdown, enum_walk::POSTFIX,
                    pointer_cast<uchar *>(&dti)))
       return nullptr;

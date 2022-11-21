@@ -1378,3 +1378,19 @@ eval explain format=tree $query;
 eval $query;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#34781533: Result set is incorrect
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+INSERT INTO t1 VALUES (NULL, NULL);
+
+SELECT 1
+FROM (SELECT 1
+      FROM t1 LEFT JOIN (SELECT 1 AS f1 FROM t1) AS dt1
+      ON dt1.f1 = t1.f2
+      WHERE dt1.f1 IS NOT NULL) AS dt2,
+     (SELECT 1 FROM t1 UNION ALL SELECT 2 FROM t1) AS dt3;
+
+DROP TABLE t1;
