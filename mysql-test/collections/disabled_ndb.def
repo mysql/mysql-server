@@ -18,8 +18,6 @@ ndb_big.smoke : BUG#29110705 Not ready for automated testing yet.
 # ndb_rpl suite tests
 ndb_rpl.ndb_rpl_binlog_format_errors       : BUG#26078612 PB2 TEST FAILURE
 ndb_rpl.ndb_rpl_ctype_ucs2_def             : BUG#34661 rpl_ndb_ctype_ucs2_def fails in 6.2
-ndb_rpl.ndb_rpl_slave_lsu                  : BUG#29110717 SEAGULL ndb-force-binlog-format-statement
-ndb_rpl.ndb_rpl_slave_lsu_anyval           : BUG#29110717 SEAGULL ndb-force-binlog-format-statement
 
 # ndb suite tests
 ndb.ndb_insert            : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
