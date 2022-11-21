@@ -360,3 +360,39 @@ WHERE t4.f1 = t3.f1 OR t3.f2 >= t2.f2)
 GROUP BY f1;
 f1
 DROP TABLE t1;
+#
+# Bug#34717171: Hypergraph :Assertion `false' failed
+#               in join_optimizer.cc
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY AUTO_INCREMENT, x INT);
+CREATE TABLE t2 (x INT);
+INSERT INTO t1 VALUES (), (), (), (), (), (), (), (), (), ();
+INSERT INTO t2 VALUES (), (), (), (), (), (), (), (), (), ();
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree WITH subq AS (
+SELECT * FROM t2
+WHERE x IN (SELECT t1.pk FROM t1, t2 AS t3 WHERE t1.x = t3.x)
+)
+SELECT 1 FROM subq LEFT JOIN t2 AS t4 ON TRUE WHERE subq.x = t4.x;
+EXPLAIN
+-> Hash semijoin (t2.x = t1.pk)  (rows=10)
+    -> Inner hash join (t2.x = t4.x)  (rows=10)
+        -> Table scan on t2  (rows=10)
+        -> Hash
+            -> Table scan on t4  (rows=10)
+    -> Hash
+        -> Inner hash join (t1.x = t3.x)  (rows=10)
+            -> Index scan on t1 using PRIMARY  (rows=10)
+            -> Hash
+                -> Table scan on t3  (rows=10)
+
+WITH subq AS (
+SELECT * FROM t2
+WHERE x IN (SELECT t1.pk FROM t1, t2 AS t3 WHERE t1.x = t3.x)
+)
+SELECT 1 FROM subq LEFT JOIN t2 AS t4 ON TRUE WHERE subq.x = t4.x;
+1
+DROP TABLE t1,t2;

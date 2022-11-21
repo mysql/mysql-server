@@ -293,3 +293,29 @@ eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#34717171: Hypergraph :Assertion `false' failed
+--echo #               in join_optimizer.cc
+--echo #
+
+CREATE TABLE t1 (pk INT PRIMARY KEY AUTO_INCREMENT, x INT);
+CREATE TABLE t2 (x INT);
+
+INSERT INTO t1 VALUES (), (), (), (), (), (), (), (), (), ();
+INSERT INTO t2 VALUES (), (), (), (), (), (), (), (), (), ();
+
+ANALYZE TABLE t1,t2;
+
+let $query =
+WITH subq AS (
+  SELECT * FROM t2
+  WHERE x IN (SELECT t1.pk FROM t1, t2 AS t3 WHERE t1.x = t3.x)
+)
+SELECT 1 FROM subq LEFT JOIN t2 AS t4 ON TRUE WHERE subq.x = t4.x;
+
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1,t2;
