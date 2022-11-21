@@ -1142,13 +1142,13 @@ Item_func_eq *ConcretizeMultipleEquals(Item_equal *cond,
   // already a condition present, we prefer to pick one that refers to an
   // already-used table.
   for (Item_field &item_field : cond->get_fields()) {
-    if (Overlaps(item_field.used_tables(), expr.left->tables_in_subtree)) {
+    if (Overlaps(item_field.used_tables(), GetVisibleTables(expr.left))) {
       if (left == nullptr ||
           !Overlaps(left->used_tables(), already_used_tables)) {
         left = &item_field;
       }
     } else if (Overlaps(item_field.used_tables(),
-                        expr.right->tables_in_subtree)) {
+                        GetVisibleTables(expr.right))) {
       if (right == nullptr ||
           !Overlaps(right->used_tables(), already_used_tables)) {
         right = &item_field;
