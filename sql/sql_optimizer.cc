@@ -140,7 +140,8 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
 static bool pull_out_semijoin_tables(JOIN *join);
 static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
                                                     JOIN_TAB *join_tab);
-static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit);
+static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit,
+                                      Item *condition);
 static bool only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables,
                                table_map *cached_eq_ref_tables,
                                table_map *eq_ref_tables);
@@ -5891,30 +5892,56 @@ bool JOIN::estimate_rowcount() {
       Perform range analysis if there are keys it could use (1).
       Don't do range analysis if on the inner side of an outer join (2).
       Do range analysis if on the inner side of a semi-join (3).
+      Do range analysis if embedding a derived table (4).
     */
     Table_ref *const tl = tab->table_ref;
     if ((!tab->const_keys.is_clear_all() ||
-         !tab->skip_scan_keys.is_clear_all()) &&                 // (1)
-        (!tl->embedding ||                                       // (2)
-         (tl->embedding && tl->embedding->is_sj_or_aj_nest())))  // (3)
+         !tab->skip_scan_keys.is_clear_all()) &&  // (1)
+        (tl->embedding == nullptr ||              // (2)
+         tl->embedding->is_sj_or_aj_nest() ||     // (3)
+         tl->embedding->is_derived()))            // (4)
     {
+      Item *condition = nullptr;
+      bool embedding_derived_range = false;
+      /*
+        For an inner table of an outer join, the join condition is either
+        attached to the actual table, or to the embedding join nest.
+        For tables that are inner-joined or semi-joined, the join condition
+        is taken from the WHERE condition.
+      */
+      if (tl->is_inner_table_of_outer_join()) {
+        for (Table_ref *t = tl; t != nullptr; t = t->embedding) {
+          if (t->join_cond() != nullptr) {
+            condition = t->join_cond();
+            // true if the join condition is from a derived embedding table
+            embedding_derived_range = (t != tl && t->is_derived());
+            break;
+          }
+        }
+        assert(condition != nullptr);
+      } else {
+        condition = where_cond;
+      }
       /*
         This call fills tab->range_scan() with the best QUICK access method
         possible for this table, and only if it's better than table scan.
         It also fills tab->needed_reg.
       */
-      ha_rows records = get_quick_record_count(thd, tab, row_limit);
+      ha_rows records = get_quick_record_count(thd, tab, row_limit, condition);
 
       if (records == 0 && thd->is_error()) return true;
 
       /*
-        Check for "impossible range", but make sure that we do not attempt
-        to mark semi-joined tables as "const" (only semi-joined tables that
-        are functionally dependent can be marked "const", and subsequently
-        pulled out of their semi-join nests).
+        Check for "always false" and mark table as "const". Skip
+        "const" marking (i) of semi-joined tables (only semi-joined
+        tables that are functionally dependent can be marked "const",
+        and subsequently pulled out of their semi-join nests (ii) if
+        the condition used for the range check is of the embedding
+        derived table.
       */
       if (records == 0 && tab->table()->reginfo.impossible_range &&
-          (!(tl->embedding && tl->embedding->is_sj_or_aj_nest()))) {
+          (!(tl->embedding && tl->embedding->is_sj_or_aj_nest())) &&
+          !embedding_derived_range) {
         /*
           Impossible WHERE condition or join condition
           In case of join cond, mark that one empty NULL row is matched.
@@ -6111,9 +6138,10 @@ static bool check_skip_records_in_range_qualification(JOIN_TAB *tab, THD *thd) {
   is the QUICK_* object used at later (optimization and execution)
   phases.
 
-  @param thd    Session that runs the query.
-  @param tab    JOIN_TAB of source table.
-  @param limit  maximum number of rows to select.
+  @param thd       Session that runs the query.
+  @param tab       JOIN_TAB of source table.
+  @param limit     maximum number of rows to select.
+  @param condition the condition to be used for the range check,
 
   @note
     In case of valid range, a RowIterator object will be constructed and
@@ -6125,7 +6153,8 @@ static bool check_skip_records_in_range_qualification(JOIN_TAB *tab, THD *thd) {
   @retval 0            If impossible query (i.e. certainly no rows will be
                        selected.)
 */
-static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit) {
+static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit,
+                                      Item *condition) {
   DBUG_TRACE;
   uchar buff[STACK_BUFF_ALLOC];
   if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
@@ -6147,9 +6176,8 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit) {
         limit,
         false,  // don't force quick range
         ORDER_NOT_RELEVANT, tab->table(), tab->skip_records_in_range(),
-        tab->join_cond() ? tab->join_cond() : tab->join()->where_cond,
-        &tab->needed_reg, tab->table()->force_index, tab->join()->query_block,
-        &range_scan);
+        condition, &tab->needed_reg, tab->table()->force_index,
+        tab->join()->query_block, &range_scan);
     tab->set_range_scan(range_scan);
 
     if (error == 1) return range_scan->num_output_rows();
