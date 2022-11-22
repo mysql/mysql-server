@@ -809,7 +809,7 @@ void MySQLRouting::create_connection(
       auto *new_conn_ptr = new_connection.get();
 
       connection_container_.add_connection(std::move(new_connection));
-      new_conn_ptr->async_run();
+      net::defer(io_ctx, [new_conn_ptr]() { new_conn_ptr->async_run(); });
     } break;
   }
 }
