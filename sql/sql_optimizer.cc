@@ -8324,7 +8324,8 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
   if (!keyuse->empty()) {
     Key_use *save_pos, *use;
 
-    std::sort(keyuse->begin(), keyuse->begin() + keyuse->size(), sort_keyuse);
+    std::stable_sort(keyuse->begin(), keyuse->begin() + keyuse->size(),
+                     sort_keyuse);
 
     const Key_use key_end(nullptr, nullptr, 0, 0, 0, 0, 0, 0, false, nullptr,
                           0);
