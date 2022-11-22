@@ -2336,7 +2336,7 @@ IF(HAVE_BUILD_ID_SUPPORT AND NOT WITHOUT_SERVER)
   IF(SHOW_BUILD_ID)
     # Show build id in the build log, after everything else has bee built.
     ADD_CUSTOM_TARGET(show_build_id ALL
-      COMMAND $<TARGET_FILE:mysqld> --help | grep BuildID
+      COMMAND $<TARGET_FILE:mysqld> --no-defaults --help | grep BuildID
       COMMENT "Showing mysqld build id"
       VERBATIM
       )
