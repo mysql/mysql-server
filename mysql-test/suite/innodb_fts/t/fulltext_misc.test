@@ -277,3 +277,12 @@ INSERT INTO t VALUES (1, 'a'), (2, 'b');
 SELECT DISTINCT MATCH (b) AGAINST ('x'), a
 FROM t GROUP BY MATCH (b) AGAINST ('x'), a;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#34782389: Assertion `item->hidden == hidden' failed.
+--echo #
+
+CREATE TABLE t (a VARCHAR(10), FULLTEXT(a));
+INSERT INTO t VALUES ('abc'), ('xyz');
+SELECT 0 IN (SELECT MATCH (a) AGAINST ('abc') FROM t);
+DROP TABLE t;

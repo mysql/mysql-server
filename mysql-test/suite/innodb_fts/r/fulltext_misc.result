@@ -265,3 +265,12 @@ MATCH (b) AGAINST ('x')	a
 0	1
 0	2
 DROP TABLE t;
+#
+# Bug#34782389: Assertion `item->hidden == hidden' failed.
+#
+CREATE TABLE t (a VARCHAR(10), FULLTEXT(a));
+INSERT INTO t VALUES ('abc'), ('xyz');
+SELECT 0 IN (SELECT MATCH (a) AGAINST ('abc') FROM t);
+0 IN (SELECT MATCH (a) AGAINST ('abc') FROM t)
+1
+DROP TABLE t;
