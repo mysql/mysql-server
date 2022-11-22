@@ -786,7 +786,7 @@ void MySQLRouting::create_connection(
 
   switch (context_.get_protocol()) {
     case BaseProtocol::Type::kClassicProtocol: {
-      auto new_connection = std::make_unique<MysqlRoutingClassicConnection>(
+      auto new_connection = MysqlRoutingClassicConnection::create(
           context_, destinations(),
           std::make_unique<BasicConnection<ClientProtocol>>(
               std::move(client_socket), client_endpoint),
@@ -800,7 +800,7 @@ void MySQLRouting::create_connection(
       net::defer(io_ctx, [new_conn_ptr]() { new_conn_ptr->async_run(); });
     } break;
     case BaseProtocol::Type::kXProtocol: {
-      auto new_connection = std::make_unique<MysqlRoutingXConnection>(
+      auto new_connection = MysqlRoutingXConnection::create(
           context_, destinations(),
           std::make_unique<BasicConnection<ClientProtocol>>(
               std::move(client_socket), client_endpoint),

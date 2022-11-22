@@ -241,6 +241,23 @@ static void discard_current_msg(Channel *src_channel,
   src_protocol->current_msg_type().reset();
 }
 
+void MysqlRoutingXConnection::disconnect() {
+  disconnect_request([this](auto &req) {
+    auto &io_ctx = socket_splicer()->client_conn().connection()->io_ctx();
+
+    if (io_ctx.stopped()) abort();
+
+    req = true;
+
+    net::dispatch(io_ctx, [this, self = shared_from_this()]() {
+      (void)socket_splicer()->client_conn().cancel();
+      (void)socket_splicer()->server_conn().cancel();
+
+      connector().socket().cancel();
+    });
+  });
+}
+
 /**
  * encode a message into a xproto frame.
  *

@@ -165,7 +165,7 @@ class concurrent_map {
  */
 class ConnectionContainer {
   concurrent_map<MySQLRoutingConnectionBase *,
-                 std::unique_ptr<MySQLRoutingConnectionBase>>
+                 std::shared_ptr<MySQLRoutingConnectionBase>>
       connections_;
 
  public:
@@ -197,7 +197,7 @@ class ConnectionContainer {
    *
    * @param connection The connection to MySQL server
    */
-  void add_connection(std::unique_ptr<MySQLRoutingConnectionBase> connection);
+  void add_connection(std::shared_ptr<MySQLRoutingConnectionBase> connection);
 
   /**
    * @brief Disconnects all connections to servers that are not allowed any
