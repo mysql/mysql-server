@@ -60,13 +60,8 @@ unsigned ConnectionContainer::disconnect(const AllowedNodes &nodes) {
 }
 
 void ConnectionContainer::disconnect_all() {
-  auto mark_to_disconnect =
-      [](std::pair<MySQLRoutingConnectionBase *const,
-                   std::unique_ptr<MySQLRoutingConnectionBase>> &connection) {
-        connection.first->disconnect();
-      };
-
-  connections_.for_each(mark_to_disconnect);
+  connections_.for_each(
+      [](auto &connection) { connection.first->disconnect(); });
 }
 
 void ConnectionContainer::remove_connection(

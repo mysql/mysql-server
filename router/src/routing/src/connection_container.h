@@ -69,7 +69,7 @@ class concurrent_map {
   }
 
   template <typename Predicate>
-  void for_each(Predicate &p) {
+  void for_each(Predicate p) {
     for (auto &each_bucket : buckets_) {
       each_bucket.for_each(p);
     }
