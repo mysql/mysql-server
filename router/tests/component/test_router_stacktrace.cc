@@ -53,8 +53,7 @@ constexpr const int abrt_status{
 #endif
 };
 
-// only used for tests that we disable for ASAN and UBSAN
-#if !defined(HAVE_ASAN) && !defined(HAVE_UBSAN)
+#if !defined(HAVE_ASAN) && !defined(HAVE_UBSAN) && !defined(HAVE_TSAN)
 
 constexpr const int segv_status{
 #ifdef _WIN32
@@ -64,7 +63,7 @@ constexpr const int segv_status{
 #endif
 };
 
-#endif  // !defined(HAVE_ASAN) && !defined(HAVE_UBSAN)
+#endif
 
 }  // namespace
 
@@ -246,9 +245,9 @@ INSTANTIATE_TEST_SUITE_P(Spec, RouterStacktraceInvalidOptionTest,
                          ::testing::ValuesIn(invalid_options),
                          [](auto info) { return info.param.name; });
 
-// we skip those when ASAN and UBSAN is used as it marks them as failed seeing
-// ABORT signal
-#if !defined(HAVE_ASAN) && !defined(HAVE_UBSAN)
+// we skip those when ASAN, UBSAN and TSAN is used as it marks them as failed
+// seeing ABORT signal
+#if !defined(HAVE_ASAN) && !defined(HAVE_UBSAN) && !defined(HAVE_TSAN)
 
 // TS_3_1
 TEST_F(RouterStacktraceTest, crash_me_via_rest_signal_abort) {
@@ -378,9 +377,7 @@ TEST_F(RouterStacktraceTest, crash_me_via_event) {
           ));
 }
 
-// we skip those when ASAN or UBSAN is used as it marks them as failed seeing
-// ABORT signal
-#if !defined(HAVE_ASAN) && !defined(HAVE_UBSAN)
+#if !defined(HAVE_ASAN) && !defined(HAVE_UBSAN) && !defined(HAVE_TSAN)
 
 // TS_3_1
 TEST_F(RouterStacktraceTest, crash_me_core_file_1) {
