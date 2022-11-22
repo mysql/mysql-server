@@ -730,18 +730,17 @@ bool drop_all_histograms(THD *thd, Table_ref &table,
   @param thd Thread handler.
   @param table The table where we should look for the columns.
   @param columns Columns specified by the user.
-  @param needs_lock Whether we need to acquire metadata locks on
-                    the table and column statistics to be dropped.
   @param results A map where the result of each operation is stored.
 
-  @note In case when needs_lock parameter is false assumes that caller
-        owns exclusive metadata lock on the table, so there is no need
-        to lock individual statistics.
+  @note Assumes that the caller has the appropriate metadata locks on both the
+  table and column statistics. That can either be an exclusive metadata lock on
+  the table itself, or a shared metadata lock on the table combined with
+  exclusive locks on individual column statistics.
 
   @return false on success, true on error.
 */
 bool drop_histograms(THD *thd, Table_ref &table, const columns_set &columns,
-                     bool needs_lock, results_map &results);
+                     results_map &results);
 
 /**
   Rename histograms for all columns in a given table.

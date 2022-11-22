@@ -84,6 +84,7 @@
 #include "sql/field.h"
 #include "sql/filesort.h"  // filesort_free_buffers
 #include "sql/gis/srid.h"
+#include "sql/histograms/table_histograms.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"    // and_conds
 #include "sql/item_json_func.h"  // Item_func_array_cast
@@ -128,6 +129,7 @@
 #include "strxnmov.h"
 #include "template_utils.h"  // down_cast
 #include "thr_mutex.h"
+
 /* INFORMATION_SCHEMA name */
 LEX_CSTRING INFORMATION_SCHEMA_NAME = {STRING_WITH_LEN("information_schema")};
 
@@ -552,8 +554,16 @@ void TABLE_SHARE::destroy() {
   /* The mutex is initialized only for shares that are part of the TDC */
   if (tmp_table == NO_TMP_TABLE) mysql_mutex_destroy(&LOCK_ha_data);
 
-  delete m_histograms;
-  m_histograms = nullptr;
+  /*
+    The Table_histograms_collection pointed to by m_histograms is allocated on
+    the TABLE_SHARE MEM_ROOT but owns objects that manage their own MEM_ROOT.
+    When destroying the share we have to manually invoke the destructor of
+    Table_histograms_collection to ensure that these objects are freed.
+  */
+  if (m_histograms != nullptr) {
+    m_histograms->~Table_histograms_collection();
+    m_histograms = nullptr;
+  }
 
   plugin_unlock(nullptr, db_plugin);
   db_plugin = nullptr;
@@ -3160,6 +3170,18 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     }
   }
 
+  /*
+    Acquire histogram statistics for the TABLE from TABLE_SHARE. We must
+    remember to release the pointer back to the share in case we fail to open
+    the table. If the share represents a temporary table there are no histograms
+    to acquire and share->m_histograms is set to nullptr, so we skip this step.
+  */
+  if (share->m_histograms != nullptr) {
+    mysql_mutex_lock(&LOCK_open);
+    outparam->histograms = share->m_histograms->acquire();
+    mysql_mutex_unlock(&LOCK_open);
+  }
+
   /* The table struct is now initialized;  Open the table */
   error = 2;
   if (db_stat) {
@@ -3259,6 +3281,13 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   return 0;
 
 err:
+  // Release histograms if acquired while opening the table.
+  if (outparam->histograms) {
+    mysql_mutex_lock(&LOCK_open);
+    share->m_histograms->release(outparam->histograms);
+    mysql_mutex_unlock(&LOCK_open);
+    outparam->histograms = nullptr;
+  }
   if (!error_reported) open_table_error(thd, share, error, my_errno());
   destroy(outparam->file);
   if (outparam->part_info) free_items(outparam->part_info->item_list);
@@ -3933,16 +3962,6 @@ end:
   }
 
   return result;
-}
-
-const histograms::Histogram *TABLE_SHARE::find_histogram(
-    uint field_index) const {
-  if (m_histograms == nullptr) return nullptr;
-
-  const auto found = m_histograms->find(field_index);
-  if (found == m_histograms->end()) return nullptr;
-
-  return found->second;
 }
 
 /**
@@ -7744,6 +7763,11 @@ void TABLE::disable_logical_diffs_for_current_row(const Field *field) const {
                    field->field_index());
 }
 
+const histograms::Histogram *TABLE::find_histogram(uint field_index) const {
+  if (histograms == nullptr) return nullptr;
+  return histograms->find_histogram(field_index);
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 /*
@@ -7984,4 +8008,5 @@ bool assert_invalid_stats_is_locked(const TABLE *table) {
   return true;
 }
 #endif
+
 //////////////////////////////////////////////////////////////////////////

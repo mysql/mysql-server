@@ -28,6 +28,7 @@
 #include <sys/types.h>
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -63,6 +64,7 @@
 #include "sql/derror.h"                      // ER_THD
 #include "sql/handler.h"
 #include "sql/histograms/histogram.h"
+#include "sql/histograms/table_histograms.h"
 #include "sql/item.h"
 #include "sql/key.h"
 #include "sql/keycaches.h"  // get_key_cache
@@ -266,6 +268,12 @@ end:
   thd->locked_tables_list.unlink_all_closed_tables(thd, nullptr, 0);
   if (table == &tmp_table) {
     mysql_mutex_lock(&LOCK_open);
+    // If we acquired histograms when opening the table we have to release them
+    // back to the share before releasing the share itself. This is usually
+    // handled by intern_close_table().
+    if (table->histograms != nullptr) {
+      table->s->m_histograms->release(table->histograms);
+    }
     closefrm(table, true);  // Free allocated memory
     mysql_mutex_unlock(&LOCK_open);
   }
@@ -309,7 +317,7 @@ bool Sql_cmd_analyze_table::drop_histogram(THD *thd, Table_ref *table,
   for (const auto column : get_histogram_fields())
     fields.emplace(column->ptr(), column->length());
 
-  return histograms::drop_histograms(thd, *table, fields, true, results);
+  return histograms::drop_histograms(thd, *table, fields, results);
 }
 
 /**
@@ -350,8 +358,14 @@ static bool send_analyze_table_errors(THD *thd, const char *operator_name,
 
 bool Sql_cmd_analyze_table::send_histogram_results(
     THD *thd, const histograms::results_map &results, const Table_ref *table) {
+  thd->clear_error();
   Item *item;
   mem_root_deque<Item *> field_list(thd->mem_root);
+
+  auto guard = create_scope_guard([thd]() {
+    thd->get_stmt_da()->reset_condition_info(thd);
+    my_eof(thd);
+  });
 
   field_list.push_back(item =
                            new Item_empty_string("Table", NAME_CHAR_LEN * 2));
@@ -1624,95 +1638,278 @@ bool Sql_cmd_analyze_table::set_histogram_fields(List<String> *fields) {
   return false;
 }
 
-bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
-                                                     Table_ref *table) {
-  // This should not be empty here.
-  assert(!get_histogram_fields().empty());
+/**
+  Retrieve an updated snapshot of the histograms on a table directly from the
+  dictionary (in an inefficient manner, querying all columns) and inserts this
+  snapshot in the Table_histograms_collection on the TABLE_SHARE. If the table
+  has a secondary engine we also insert a new snapshot on the secondary share.
 
-  histograms::results_map results;
-  bool res = false;
-  if (table->next_local != nullptr) {
-    /*
-      Only one table can be specified for
-      ANALYZE TABLE ... UPDATE/DROP HISTOGRAM
-    */
-    results.emplace("", histograms::Message::MULTIPLE_TABLES_SPECIFIED);
-    res = true;
-  } else {
-    if (read_only || thd->tx_read_only) {
-      // Do not try to update histograms when in read_only mode.
-      results.emplace("", histograms::Message::SERVER_READ_ONLY);
-      res = false;
-    } else {
-      Disable_autocommit_guard autocommit_guard(thd);
+  @param thd The current thread.
+  @param table The table to retrieve updated histograms for.
 
-      /* Prevent intermediate commits to invoke commit order */
-      Implicit_substatement_state_guard substatement_guard(
-          thd, enum_implicit_substatement_guard_mode ::
-                   DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
+  @return False on success. Returns true if an error occurred in which case it
+  can have happened that none of the shares were updated, or that only one of
+  the shares (primary and secondary) were updated, even though we intended to
+  update both. I other words if this function returns true we do not know to
+  what extent the share(s) reflect the dictionary state.
+*/
+static bool update_share_histograms(THD *thd, Table_ref *table) {
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(
+      MDL_key::TABLE, table->db, table->table_name, MDL_SHARED_READ));
+  assert(table->table != nullptr);
 
-      /*
-        This statement will be written to the binary log even if it fails. But a
-        failing statement calls trans_rollback_stmt which calls
-        gtid_state->update_on_rollback, which releases GTID ownership. And GTID
-        ownership must be held when the statement is being written to the binary
-        log. Therefore, we set this flag before executing the statement. The
-        flag tells gtid_state->update_on_rollback to skip releasing ownership.
-      */
-      Variable_scope_guard<bool> skip_gtid_rollback_guard(
-          thd->skip_gtid_rollback);
-      if ((thd->variables.gtid_next.type == ASSIGNED_GTID ||
-           thd->variables.gtid_next.type == ANONYMOUS_GTID) &&
-          (!thd->skip_gtid_rollback))
-        thd->skip_gtid_rollback = true;
+  // If the table has a shadow copy in a secondary engine we must retrieve the
+  // TABLE_SHARE for the secondary engine as well.
+  TABLE_SHARE *share = table->table->s;
+  TABLE_SHARE *secondary_share = nullptr;
+  if (share->has_secondary_engine()) {
+    mysql_mutex_lock(&LOCK_open);
+    std::string secondary_key =
+        create_table_def_key_secondary(table->db, table->table_name);
+    secondary_share = get_table_share(
+        thd, table->db, table->table_name, secondary_key.c_str(),
+        secondary_key.length(), /*open_view=*/false, /*open_secondary=*/true);
+    mysql_mutex_unlock(&LOCK_open);
+  }
+  if (share->has_secondary_engine() && secondary_share == nullptr) return true;
 
-      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-      switch (get_histogram_command()) {
-        case Histogram_command::UPDATE_HISTOGRAM:
-          res = acquire_shared_backup_lock(thd,
-                                           thd->variables.lock_wait_timeout) ||
-                update_histogram(thd, table, results);
-          break;
-        case Histogram_command::DROP_HISTOGRAM:
-          res = acquire_shared_backup_lock(thd,
-                                           thd->variables.lock_wait_timeout) ||
-                drop_histogram(thd, table, results);
+  auto share_guard = create_scope_guard([secondary_share]() {
+    if (secondary_share != nullptr) {
+      mysql_mutex_lock(&LOCK_open);
+      release_table_share(secondary_share);
+      mysql_mutex_unlock(&LOCK_open);
+    }
+  });
 
-          if (res) {
-            /*
-              Do a rollback. We can end up here if query was interrupted
-              during drop_histogram.
-            */
-            trans_rollback_stmt(thd);
-            trans_rollback(thd);
-          } else {
-            res = trans_commit_stmt(thd) || trans_commit(thd);
-          }
-          break;
-        case Histogram_command::NONE:
-          assert(false); /* purecov: deadcode */
-          break;
+  // Create Table_histograms objects for the primary and secondary share (if it
+  // exists) together with scope guards to clean up in case of failure.
+  Table_histograms *table_histograms =
+      Table_histograms::create(key_memory_table_share);
+  if (table_histograms == nullptr) return true;
+  auto table_histograms_guard =
+      create_scope_guard([table_histograms]() { table_histograms->destroy(); });
+
+  Table_histograms *table_histograms_secondary = nullptr;
+  if (secondary_share != nullptr) {
+    table_histograms_secondary =
+        Table_histograms::create(key_memory_table_share);
+    if (table_histograms_secondary == nullptr) return true;
+  }
+
+  auto table_histograms_secondary_guard =
+      create_scope_guard([table_histograms_secondary]() {
+        if (table_histograms_secondary != nullptr) {
+          table_histograms_secondary->destroy();
+        }
+      });
+
+  // Retrieve histograms from the data dictionary and add them to the
+  // TABLE_SHARE.
+  for (size_t i = 0; i < share->fields; ++i) {
+    const Field *field = share->field[i];
+    if (field->is_hidden_by_system()) continue;
+
+    const histograms::Histogram *histogram = nullptr;
+    if (histograms::find_histogram(thd, table->db, table->table_name,
+                                   field->field_name, &histogram)) {
+      return true;
+    }
+
+    if (histogram != nullptr) {
+      if (table_histograms->insert_histogram(field->field_index(), histogram)) {
+        return true;
       }
-
-      if (!res) {
-        /*
-          If a histogram was added, updated or removed, we will request the old
-          TABLE_SHARE to go away from the table definition cache. This is
-          because histogram data is cached in the TABLE_SHARE, so we want new
-          transactions to fetch the updated data into the TABLE_SHARE before
-          using it again.
-        */
-        tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table->db,
-                         table->table_name, false);
+      if (table_histograms_secondary &&
+          table_histograms_secondary->insert_histogram(field->field_index(),
+                                                       histogram)) {
+        return true;
       }
     }
   }
 
-  thd->clear_error();
-  res = send_histogram_results(thd, results, table);
-  thd->get_stmt_da()->reset_condition_info(thd);
-  my_eof(thd);
-  return res;
+  // Disable the scope guard that would release the secondary share and attempt
+  // to insert the new histogram snapshots and release the secondary share if it
+  // was acquired. Since acquiring/releasing shares and modifying the collection
+  // of histograms on the share is protected by LOCK_open we attempt to reduce
+  // the number of lock/unlock pairs by grouping these operations together.
+  share_guard.commit();
+
+  bool error = false;
+  mysql_mutex_lock(&LOCK_open);
+  if (share->m_histograms->insert(table_histograms)) {
+    error = true;
+  } else {
+    // If the insertion succeeded ownership responsibility was passed on, so we
+    // can disable the scope guard that would free the Table_histograms object.
+    table_histograms_guard.commit();
+  }
+
+  if (secondary_share != nullptr) {
+    if (secondary_share->m_histograms->insert(table_histograms_secondary)) {
+      error = true;
+    } else {
+      table_histograms_secondary_guard.commit();
+    }
+    release_table_share(secondary_share);
+  }
+  mysql_mutex_unlock(&LOCK_open);
+  return error;
+}
+
+/**
+  Opens a table (acquiring an MDL_SHARED_READ metadata lock in the process) and
+  acquires exclusive metadata locks on column statistics for all columns.
+
+  @param thd Thread object for the statement.
+  @param[in,out] table Table to be opened.
+  @param[in,out] results Error and status messages for the user.
+
+  @returns True if error, false if success.
+*/
+static bool open_table_and_lock_histograms(THD *thd, Table_ref *table,
+                                           histograms::results_map &results) {
+  if (table->next_local != nullptr) {
+    // Only one table can be specified for ANALYZE TABLE ... UPDATE/DROP
+    // HISTOGRAM.
+    results.emplace("", histograms::Message::MULTIPLE_TABLES_SPECIFIED);
+    return true;
+  }
+
+  if (read_only || thd->tx_read_only) {
+    // Do not try to update histograms when in read_only mode.
+    results.emplace("", histograms::Message::SERVER_READ_ONLY);
+    return true;
+  }
+
+  if (table->table != nullptr && table->table->s->tmp_table != NO_TMP_TABLE) {
+    /*
+      Normally, the table we are going to read data from is not initialized at
+      this point. But if table->table is not a null-pointer, it has already been
+      initialized at an earlier stage. This will happen if the table is a
+      temporary table.
+    */
+    results.emplace("", histograms::Message::TEMPORARY_TABLE);
+    return true;
+  }
+
+  if (open_and_lock_tables(thd, table, 0)) {
+    return true;
+  }
+
+  DBUG_EXECUTE_IF("histogram_fail_after_open_table", { return true; });
+
+  if (table->is_view()) {
+    results.emplace("", histograms::Message::VIEW);
+    return true;
+  }
+
+  assert(table->table != nullptr);
+  TABLE *tbl = table->table;
+
+  if (tbl->s->encrypt_type.length > 0 &&
+      my_strcasecmp(system_charset_info, "n", tbl->s->encrypt_type.str) != 0) {
+    results.emplace("", histograms::Message::ENCRYPTED_TABLE);
+    return true;
+  }
+
+  MDL_request_list mdl_requests;
+  for (size_t i = 0; i < tbl->s->fields; ++i) {
+    const Field *field = tbl->s->field[i];
+    if (field->is_hidden_by_system()) continue;
+    MDL_key mdl_key;
+    dd::Column_statistics::create_mdl_key(
+        tbl->s->db.str, tbl->s->table_name.str, field->field_name, &mdl_key);
+    MDL_request *request = new (thd->mem_root) MDL_request;
+    MDL_REQUEST_INIT_BY_KEY(request, &mdl_key, MDL_EXCLUSIVE, MDL_STATEMENT);
+    mdl_requests.push_front(request);
+  }
+
+  DBUG_EXECUTE_IF("histogram_fail_during_lock_for_write", { return true; });
+  if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                     thd->variables.lock_wait_timeout)) {
+    return true;
+  }
+  return false;
+}
+
+bool Sql_cmd_analyze_table::handle_histogram_command_inner(
+    THD *thd, Table_ref *table, histograms::results_map &results) {
+  // Various scope guards in preparation for update/drop histogram.
+
+  Disable_autocommit_guard autocommit_guard(thd);
+
+  // Prevent intermediate commits to invoke commit order.
+  Implicit_substatement_state_guard substatement_guard(
+      thd, enum_implicit_substatement_guard_mode::
+               DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
+
+  // This statement will be written to the binary log even if it fails. But a
+  // failing statement calls trans_rollback_stmt which calls
+  // gtid_state->update_on_rollback, which releases GTID ownership. And GTID
+  // ownership must be held when the statement is being written to the binary
+  // log. Therefore, we set this flag before executing the statement. The flag
+  // tells gtid_state->update_on_rollback to skip releasing ownership.
+  Variable_scope_guard<bool> skip_gtid_rollback_guard(thd->skip_gtid_rollback);
+  if (thd->variables.gtid_next.type == ASSIGNED_GTID ||
+      thd->variables.gtid_next.type == ANONYMOUS_GTID) {
+    thd->skip_gtid_rollback = true;
+  }
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  auto rollback_guard = create_scope_guard([thd]() {
+    trans_rollback_stmt(thd);
+    trans_rollback(thd);
+    close_thread_tables(thd);
+  });
+
+  if (open_table_and_lock_histograms(thd, table, results)) return true;
+
+  // UPDATE/DROP histograms. Commit on success. Rollback on error.
+  switch (get_histogram_command()) {
+    case Histogram_command::UPDATE_HISTOGRAM:
+      if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout) ||
+          update_histogram(thd, table, results))
+        return true;
+      break;
+    case Histogram_command::DROP_HISTOGRAM:
+      if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout) ||
+          drop_histogram(thd, table, results))
+        return true;
+      break;
+    case Histogram_command::NONE:
+      assert(false);
+      return true;
+      break;
+  }
+
+  // Something went wrong when trying to update the table share with the new
+  // histograms or when committing the modifications to the histograms to the
+  // dictionary. We rollback any modifications to the histograms and request
+  // that the share is re-initialized to ensure that the histograms on the share
+  // accurately reflect the dictionary.
+  if (update_share_histograms(thd, table) || trans_commit_stmt(thd) ||
+      trans_commit(thd)) {
+    tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table->db, table->table_name,
+                     false);
+    return true;
+  }
+  rollback_guard.commit();
+
+  // Mark tables for re-opening to ensure that the tables that are currently
+  // open release their snapshot of the histograms and subsequent queries use an
+  // updated snapshot.
+  tdc_remove_table(thd, TDC_RT_MARK_FOR_REOPEN, table->db, table->table_name,
+                   false);
+  close_thread_tables(thd);
+  return false;
+}
+
+bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
+                                                     Table_ref *table) {
+  histograms::results_map results;
+  handle_histogram_command_inner(thd, table, results);
+  return send_histogram_results(thd, results, table);
 }
 
 bool Sql_cmd_analyze_table::execute(THD *thd) {

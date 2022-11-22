@@ -562,7 +562,7 @@ double EstimateAggregateNoRollupRows(const TermArray &terms, double child_rows,
         (*term)->type() == Item::FIELD_ITEM) {
       const Field *const field = down_cast<const Item_field *>(*term)->field;
       const histograms::Histogram *const histogram =
-          field->table->s->find_histogram(field->field_index());
+          field->table->find_histogram(field->field_index());
 
       double distinct_values;
       if (histogram == nullptr || empty(*histogram)) {

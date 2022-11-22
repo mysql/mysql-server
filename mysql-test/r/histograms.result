@@ -602,7 +602,7 @@ test.t1	histogram	Error	No histogram statistics found for column 'foobar'.
 #
 ANALYZE TABLE foo DROP HISTOGRAM ON foobar;
 Table	Op	Msg_type	Msg_text
-test.foo	histogram	Error	No histogram statistics found for column 'foobar'.
+test.foo	histogram	Error	Table 'test.foo' doesn't exist
 #
 # Temporary table
 #

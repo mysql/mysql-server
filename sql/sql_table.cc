@@ -10519,7 +10519,7 @@ static bool alter_table_drop_histograms(THD *thd, Table_ref *table,
       res = histograms::drop_all_histograms(thd, *table, *original_table_def,
                                             results);
     else
-      res = histograms::drop_histograms(thd, *table, columns, false, results);
+      res = histograms::drop_histograms(thd, *table, columns, results);
 
     DBUG_EXECUTE_IF("fail_after_drop_histograms", {
       my_error(ER_UNABLE_TO_DROP_COLUMN_STATISTICS, MYF(0), "dummy_column",

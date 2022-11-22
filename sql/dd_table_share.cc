@@ -72,6 +72,7 @@
 #include "sql/field.h"
 #include "sql/gis/srid.h"
 #include "sql/handler.h"
+#include "sql/histograms/table_histograms.h"
 #include "sql/key.h"
 #include "sql/log.h"
 #include "sql/partition_element.h"  // partition_element
@@ -91,10 +92,6 @@
 #include "sql/table.h"
 #include "sql/thd_raii.h"
 #include "typelib.h"
-
-namespace histograms {
-class Histogram;
-}  // namespace histograms
 
 enum_field_types dd_get_old_field_type(dd::enum_column_types type) {
   switch (type) {
@@ -271,11 +268,13 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
   bool use_extended_sk = ha_check_storage_engine_flag(
       share->db_type(), HTON_SUPPORTS_EXTENDED_KEYS);
 
-  share->m_histograms =
-      new malloc_unordered_map<uint, const histograms::Histogram *>(
-          PSI_INSTRUMENT_ME);
-
   // Setup other fields =====================================================
+
+  if (share->tmp_table == NO_TMP_TABLE) {
+    share->m_histograms = new (&share->mem_root) Table_histograms_collection();
+    if (share->m_histograms == nullptr) return true;  // OOM.
+  }
+
   /* Allocate handler */
   if (!(handler_file = get_new_handler(share, (share->m_part_info != nullptr),
                                        &share->mem_root, share->db_type()))) {

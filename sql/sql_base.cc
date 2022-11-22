@@ -75,6 +75,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "nulls.h"
+#include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_table_access
 #include "sql/auth/sql_security_ctx.h"
@@ -101,6 +102,7 @@
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/histograms/histogram.h"
+#include "sql/histograms/table_histograms.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"  // Item_func_eq
 #include "sql/item_func.h"
@@ -263,6 +265,10 @@ class Repair_mrg_table_error_handler : public Internal_error_handler {
      So if a table share is found through a reference its version won't
      change if any of those mutexes are held.
   9) share->m_flush_tickets
+  10) share->m_histograms
+     Inserting, acquiring, and releasing histograms from the collection
+     of histograms on the share is protected by LOCK_open.
+     See the comments in table_histograms.h for further details.
 */
 
 mysql_mutex_t LOCK_open;
@@ -405,8 +411,8 @@ static size_t create_table_def_key_tmp(const THD *thd, const char *db_name,
   @param table_name  the table name
   @return the key
 */
-static std::string create_table_def_key_secondary(const char *db_name,
-                                                  const char *table_name) {
+std::string create_table_def_key_secondary(const char *db_name,
+                                           const char *table_name) {
   char key[MAX_DBKEY_LENGTH];
   size_t key_length = create_table_def_key(db_name, table_name, key);
   // Add a single byte to distinguish the secondary table from the
@@ -572,8 +578,12 @@ static TABLE_SHARE *process_found_table_share(THD *thd [[maybe_unused]],
 }
 
 /**
-  Read any existing histogram statistics from the data dictionary and
-  store a copy of them in the TABLE_SHARE.
+  Read any existing histogram statistics from the data dictionary and store a
+  copy of them in the TABLE_SHARE.
+
+  This function is called while TABLE_SHARE is being set up and it should
+  therefore be safe to modify the collection of histograms on the share without
+  explicity locking LOCK_open.
 
   @param thd Thread handler
   @param share The table share where to store the histograms
@@ -586,6 +596,13 @@ static TABLE_SHARE *process_found_table_share(THD *thd [[maybe_unused]],
 static bool read_histograms(THD *thd, TABLE_SHARE *share,
                             const dd::Schema *schema,
                             const dd::Abstract_table *table_def) {
+  assert(share->m_histograms != nullptr);
+  Table_histograms *table_histograms =
+      Table_histograms::create(key_memory_table_share);
+  if (table_histograms == nullptr) return true;
+  auto table_histograms_guard =
+      create_scope_guard([table_histograms]() { table_histograms->destroy(); });
+
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   MDL_request_list mdl_requests;
   for (const auto column : table_def->columns()) {
@@ -616,18 +633,14 @@ static bool read_histograms(THD *thd, TABLE_SHARE *share,
     }
 
     if (histogram != nullptr) {
-      /*
-        Make a clone of the histogram so it survives together with the
-        TABLE_SHARE in case the original histogram is thrown out of the
-        dictionary cache.
-      */
-      const histograms::Histogram *histogram_copy =
-          histogram->clone(&share->mem_root);
-      share->m_histograms->emplace(column->ordinal_position() - 1,
-                                   histogram_copy);
+      unsigned int field_index = column->ordinal_position() - 1;
+      if (table_histograms->insert_histogram(field_index, histogram))
+        return true;
     }
   }
 
+  if (share->m_histograms->insert(table_histograms)) return true;
+  table_histograms_guard.commit();  // Ownership transferred.
   return false;
 }
 
@@ -824,14 +837,18 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
 
       /*
         Read any existing histogram statistics from the data dictionary and
-        store a copy of them in the TABLE_SHARE.
+        store a copy of them in the TABLE_SHARE. We only perform this step for
+        non-temporary tables, since temporary tables have share->m_histograms
+        set to nullptr.
 
         We need to do this outside the protection of LOCK_open, since the data
         dictionary might have to open tables in order to read histogram data
         (such recursion will not work).
       */
-      if (!open_table_err && read_histograms(thd, share, sch, abstract_table))
-        open_table_err = true; /* purecov: deadcode */
+      if (!open_table_err && share->m_histograms != nullptr &&
+          read_histograms(thd, share, sch, abstract_table)) {
+        open_table_err = true;
+      }
     }
   }
 
@@ -1121,7 +1138,11 @@ void intern_close_table(TABLE *table) {  // Free all structures
   DBUG_PRINT("tcache",
              ("table: '%s'.'%s' %p", table->s ? table->s->db.str : "?",
               table->s ? table->s->table_name.str : "?", table));
-
+  // Release the TABLE's histograms back to the share.
+  if (table->histograms != nullptr) {
+    table->s->m_histograms->release(table->histograms);
+    table->histograms = nullptr;
+  }
   free_io_cache(table);
   destroy(table->triggers);
   if (table->file)                // Not true if placeholder
@@ -3908,6 +3929,15 @@ static bool auto_repair_table(THD *thd, Table_ref *table_list) {
     thd->clear_error();  // Clear error message
     closefrm(entry, false);
     result = false;
+  }
+
+  // If we acquired histograms when opening the table we have to release them
+  // back to the share before releasing the share itself. This is usually
+  // handled by intern_close_table().
+  if (entry->histograms != nullptr) {
+    mysql_mutex_lock(&LOCK_open);
+    share->m_histograms->release(entry->histograms);
+    mysql_mutex_unlock(&LOCK_open);
   }
   my_free(entry);
 

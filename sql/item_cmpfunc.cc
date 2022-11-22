@@ -232,11 +232,10 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
 static bool get_histogram_selectivity(THD *thd, const Field *field, Item **args,
                                       size_t arg_count,
                                       histograms::enum_operator op,
-                                      Item_func *item_func,
-                                      const TABLE_SHARE *table_share,
+                                      Item_func *item_func, const TABLE *table,
                                       double *selectivity) {
   const histograms::Histogram *histogram =
-      table_share->find_histogram(field->field_index());
+      table->find_histogram(field->field_index());
   if (histogram != nullptr) {
     if (!histogram->get_selectivity(args, arg_count, op, selectivity)) {
       if (unlikely(thd->opt_trace.is_started()))
@@ -2456,7 +2455,7 @@ float Item_func_ne::get_filtering_effect(THD *thd, table_map filter_for_table,
   double selectivity;
   if (!get_histogram_selectivity(thd, fld->field, args, arg_count,
                                  histograms::enum_operator::NOT_EQUALS_TO, this,
-                                 fld->field->table->s, &selectivity))
+                                 fld->field->table, &selectivity))
     return static_cast<float>(selectivity);
 
   return 1.0f - fld->get_cond_filter_default_probability(rows_in_table,
@@ -2507,7 +2506,7 @@ float Item_func_ge::get_filtering_effect(THD *thd, table_map filter_for_table,
   if (!get_histogram_selectivity(
           thd, fld->field, args, arg_count,
           histograms::enum_operator::GREATER_THAN_OR_EQUAL, this,
-          fld->field->table->s, &selectivity))
+          fld->field->table, &selectivity))
     return static_cast<float>(selectivity);
 
   return fld->get_cond_filter_default_probability(rows_in_table,
@@ -2537,7 +2536,7 @@ float Item_func_lt::get_filtering_effect(THD *thd, table_map filter_for_table,
   double selectivity;
   if (!get_histogram_selectivity(thd, fld->field, args, arg_count,
                                  histograms::enum_operator::LESS_THAN, this,
-                                 fld->field->table->s, &selectivity))
+                                 fld->field->table, &selectivity))
     return static_cast<float>(selectivity);
 
   return fld->get_cond_filter_default_probability(rows_in_table,
@@ -2567,7 +2566,7 @@ float Item_func_le::get_filtering_effect(THD *thd, table_map filter_for_table,
   double selectivity;
   if (!get_histogram_selectivity(thd, fld->field, args, arg_count,
                                  histograms::enum_operator::LESS_THAN_OR_EQUAL,
-                                 this, fld->field->table->s, &selectivity))
+                                 this, fld->field->table, &selectivity))
     return static_cast<float>(selectivity);
 
   return fld->get_cond_filter_default_probability(rows_in_table,
@@ -2605,7 +2604,7 @@ float Item_func_gt::get_filtering_effect(THD *thd, table_map filter_for_table,
   double selectivity;
   if (!get_histogram_selectivity(thd, fld->field, args, arg_count,
                                  histograms::enum_operator::GREATER_THAN, this,
-                                 fld->field->table->s, &selectivity))
+                                 fld->field->table, &selectivity))
     return static_cast<float>(selectivity);
 
   return fld->get_cond_filter_default_probability(rows_in_table,
@@ -3055,7 +3054,7 @@ float Item_func_between::get_filtering_effect(THD *thd,
 
   double selectivity;
   if (!get_histogram_selectivity(thd, fld->field, args, arg_count, op, this,
-                                 fld->field->table->s, &selectivity))
+                                 fld->field->table, &selectivity))
     return static_cast<float>(selectivity);
 
   const float filter = fld->get_cond_filter_default_probability(
@@ -4895,7 +4894,7 @@ float Item_func_in::get_filtering_effect(THD *thd, table_map filter_for_table,
 
       double selectivity;
       if (!get_histogram_selectivity(thd, item_field->field, args, arg_count,
-                                     op, this, item_field->field->table->s,
+                                     op, this, item_field->field->table,
                                      &selectivity))
         return static_cast<float>(selectivity);
     }
@@ -6014,7 +6013,7 @@ float Item_func_isnull::get_filtering_effect(THD *thd,
   double selectivity;
   if (!get_histogram_selectivity(thd, fld->field, args, arg_count,
                                  histograms::enum_operator::IS_NULL, this,
-                                 fld->field->table->s, &selectivity))
+                                 fld->field->table, &selectivity))
     return static_cast<float>(selectivity);
 
   return fld->get_cond_filter_default_probability(rows_in_table,
@@ -6187,7 +6186,7 @@ float Item_func_isnotnull::get_filtering_effect(
   double selectivity;
   if (!get_histogram_selectivity(thd, fld->field, args, arg_count,
                                  histograms::enum_operator::IS_NOT_NULL, this,
-                                 fld->field->table->s, &selectivity))
+                                 fld->field->table, &selectivity))
     return static_cast<float>(selectivity);
 
   return 1.0f - fld->get_cond_filter_default_probability(rows_in_table,
@@ -6941,7 +6940,7 @@ float Item_equal::get_filtering_effect(THD *thd, table_map filter_for_table,
             available histogram statistics.
           */
           const histograms::Histogram *histogram =
-              cur_field->field->table->s->find_histogram(
+              cur_field->field->table->find_histogram(
                   cur_field->field->field_index());
           if (histogram != nullptr) {
             std::array<Item *, 2> items{{cur_field, m_const_arg}};
@@ -7352,7 +7351,7 @@ float Item_func_eq::get_filtering_effect(THD *thd, table_map filter_for_table,
   double selectivity;
   if (!get_histogram_selectivity(thd, fld->field, args, arg_count,
                                  histograms::enum_operator::EQUALS_TO, this,
-                                 fld->field->table->s, &selectivity))
+                                 fld->field->table, &selectivity))
     return static_cast<float>(selectivity);
 
   return fld->get_cond_filter_default_probability(rows_in_table,

@@ -1,0 +1,78 @@
+#
+# Bug#34288890 Histogram commands invalidate TABLE_SHARE
+#
+#
+# Verify that new queries do not wait for old queries to terminate.
+#
+CREATE TABLE t1 (c1 INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1), (2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Case 1/2: ANALYZE TABLE UPDATE HISTOGRAM
+connect  con1,localhost,root;
+SET DEBUG_SYNC="before_reset_query_plan SIGNAL first_select_ongoing WAIT_FOR second_select_finished";
+SELECT c1 FROM t1;
+connection default;
+SET DEBUG_SYNC="now WAIT_FOR first_select_ongoing";
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c1;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'c1'.
+SELECT c1 FROM t1;
+c1
+1
+2
+SET DEBUG_SYNC="now SIGNAL second_select_finished";
+connection con1;
+c1
+1
+2
+# Case 2/2: ANALYZE TABLE DROP HISTOGRAM
+connection con1;
+SET DEBUG_SYNC="before_reset_query_plan SIGNAL first_select_ongoing WAIT_FOR second_select_finished";
+SELECT c1 FROM t1;
+connection default;
+SET DEBUG_SYNC="now WAIT_FOR first_select_ongoing";
+ANALYZE TABLE t1 DROP HISTOGRAM ON c1;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics removed for column 'c1'.
+SELECT c1 FROM t1;
+c1
+1
+2
+SET DEBUG_SYNC="now SIGNAL second_select_finished";
+connection con1;
+c1
+1
+2
+#
+# Different TABLE objects can use different histograms.
+#
+connection con1;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c1;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'c1'.
+SET DEBUG_SYNC="after_table_open SIGNAL first_histogram_acquired WAIT_FOR second_histogram_acquired";
+EXPLAIN SELECT c1 FROM t1 WHERE c1 < 3;;
+connection default;
+SET DEBUG_SYNC="now WAIT_FOR first_histogram_acquired";
+UPDATE t1 SET c1 = 3 WHERE c1 = 2;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c1;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'c1'.
+# Selectivity estimate (filtered) should be 50.00
+SET DEBUG_SYNC="after_table_open SIGNAL second_histogram_acquired";
+EXPLAIN SELECT c1 FROM t1 WHERE c1 < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` < 3)
+connection con1;
+# Selectivity estimate (filtered) should be 100.00
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` < 3)
+disconnect con1;
+connection default;
+DROP TABLE t1;

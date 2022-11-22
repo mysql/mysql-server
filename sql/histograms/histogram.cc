@@ -1257,59 +1257,12 @@ static bool fill_value_maps(
 
 bool update_histogram(THD *thd, Table_ref *table, const columns_set &columns,
                       int num_buckets, LEX_STRING data, results_map &results) {
-  dd::cache::Dictionary_client::Auto_releaser auto_releaser(thd->dd_client());
-
-  // Read only should have been stopped at an earlier stage.
-  assert(!check_readonly(thd, false));
-  assert(!thd->tx_read_only);
-
-  assert(results.empty());
-  assert(!columns.empty());
-
-  // Only one table should be specified in ANALYZE TABLE .. UPDATE HISTOGRAM
-  assert(table->next_local == nullptr);
-
-  if (table->table != nullptr && table->table->s->tmp_table != NO_TMP_TABLE) {
-    /*
-      Normally, the table we are going to read data from is not initialized at
-      this point. But if table->table is not a null-pointer, it has already been
-      initialized at an earlier stage. This will happen if the table is a
-      temporary table.
-    */
-    results.emplace("", Message::TEMPORARY_TABLE);
-    return true;
-  }
-
-  /*
-    Create two scope guards; one for disabling autocommit and one that will do a
-    rollback and ensure that any open tables are closed before returning.
-  */
-  Disable_autocommit_guard autocommit_guard(thd);
-  auto tables_guard = create_scope_guard([thd]() {
-    if (trans_rollback_stmt(thd) || trans_rollback(thd))
-      assert(false); /* purecov: deadcode */
-    close_thread_tables(thd);
-  });
-
-  if (open_and_lock_tables(thd, table, 0)) {
-    return true;
-  }
-
-  DBUG_EXECUTE_IF("histogram_fail_after_open_table", { return true; });
-
-  if (table->is_view()) {
-    results.emplace("", Message::VIEW);
-    return true;
-  }
-
+  // At this point we should have metadata locks on the table and histograms,
+  // and the table should be opened.
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(
+      MDL_key::TABLE, table->db, table->table_name, MDL_SHARED_READ));
   assert(table->table != nullptr);
   TABLE *tbl = table->table;
-
-  if (tbl->s->encrypt_type.length > 0 &&
-      my_strcasecmp(system_charset_info, "n", tbl->s->encrypt_type.str) != 0) {
-    results.emplace("", Message::ENCRYPTED_TABLE);
-    return true;
-  }
 
   /*
     Check if the provided column names exist, and that they have a supported
@@ -1424,12 +1377,7 @@ bool update_histogram(THD *thd, Table_ref *table, const columns_set &columns,
     }
 
     results.emplace(col_name, Message::HISTOGRAM_CREATED);
-
-    bool ret = trans_commit_stmt(thd) || trans_commit(thd);
-    close_thread_tables(thd);
-    tables_guard.commit();
-
-    return ret;
+    return false;
   }
 
   /*
@@ -1497,11 +1445,7 @@ bool update_histogram(THD *thd, Table_ref *table, const columns_set &columns,
 
     results.emplace(col_name, Message::HISTOGRAM_CREATED);
   }
-
-  bool ret = trans_commit_stmt(thd) || trans_commit(thd);
-  close_thread_tables(thd);
-  tables_guard.commit();
-  return ret;
+  return false;
 }
 
 bool drop_all_histograms(THD *thd, Table_ref &table,
@@ -1511,63 +1455,15 @@ bool drop_all_histograms(THD *thd, Table_ref &table,
   for (const auto &col : table_definition.columns())
     columns.emplace(col->name().c_str());
 
-  return drop_histograms(thd, table, columns, false, results);
+  return drop_histograms(thd, table, columns, results);
 }
 
 bool drop_histograms(THD *thd, Table_ref &table, const columns_set &columns,
-                     bool needs_lock, results_map &results) {
+                     results_map &results) {
   dd::cache::Dictionary_client *client = thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser auto_releaser(client);
 
-  if (needs_lock) {
-    /*
-      At this point ANALYZE TABLE DROP HISTOGRAM is the only caller of this
-      function that requires it to acquire lock on table and individual
-      column statistics.
-
-      Error out on temporary table for consistency with update histograms case.
-    */
-    if (table.table != nullptr && table.table->s->tmp_table != NO_TMP_TABLE) {
-      results.emplace("", Message::TEMPORARY_TABLE);
-      return true;
-    }
-    /*
-      Acquire shared metadata lock on the table (or check that it is locked
-      under LOCK TABLES) so this table and all column statistics for it are
-      not dropped under our feet.
-    */
-    if (thd->locked_tables_mode) {
-      if (!find_locked_table(thd->open_tables, table.db, table.table_name)) {
-        my_error(ER_TABLE_NOT_LOCKED, MYF(0), table.table_name);
-        return true;
-      }
-    } else {
-      if (thd->mdl_context.acquire_lock(&table.mdl_request,
-                                        thd->variables.lock_wait_timeout))
-        return true;  // error is already reported.
-    }
-  } else {
-    /*
-      In this case we assume that caller has acquired exclusive metadata
-      lock on table so there is no need to lock individual column statistics.
-      It is also caller's responsibility to ensure that table is non-temporary.
-    */
-    assert(thd->mdl_context.owns_equal_or_stronger_lock(
-        MDL_key::TABLE, table.db, table.table_name, MDL_EXCLUSIVE));
-  }
-
   for (const std::string &column_name : columns) {
-    if (needs_lock) {
-      MDL_key mdl_key;
-      dd::Column_statistics::create_mdl_key(
-          {table.db, table.db_length},
-          {table.table_name, table.table_name_length}, column_name.c_str(),
-          &mdl_key);
-
-      if (lock_for_write(thd, mdl_key))
-        return true;  // error is already reported.
-    }
-
     dd::String_type dd_name = dd::Column_statistics::create_name(
         {table.db, table.db_length},
         {table.table_name, table.table_name_length}, column_name.c_str());
@@ -1600,16 +1496,6 @@ bool drop_histograms(THD *thd, Table_ref &table, const columns_set &columns,
 
 bool Histogram::store_histogram(THD *thd) const {
   dd::cache::Dictionary_client *client = thd->dd_client();
-
-  MDL_key mdl_key;
-  dd::Column_statistics::create_mdl_key(get_database_name().str,
-                                        get_table_name().str,
-                                        get_column_name().str, &mdl_key);
-
-  if (lock_for_write(thd, mdl_key)) {
-    // Error has already been reported
-    return true; /* purecov: deadcode */
-  }
 
   DEBUG_SYNC(thd, "store_histogram_after_write_lock");
 

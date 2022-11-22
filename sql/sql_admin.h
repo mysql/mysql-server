@@ -164,7 +164,22 @@ class Sql_cmd_analyze_table : public Sql_cmd_ddl_table {
   bool drop_histogram(THD *thd, Table_ref *table,
                       histograms::results_map &results);
 
+  /**
+    Dispatches the histogram command (DROP or UPDATE) and commits or rollbacks
+    the changes depending on success or failure. If histograms were modified we
+    update the current snapshot of the table's histograms on the TABLE_SHARE.
+
+    @param thd Thread handler.
+    @param table The table specified in ANALYZE TABLE
+
+    @return True if sending the results of the histogram operations fails. False
+    otherwise (even if the histogram operations themselves fail).
+  */
   bool handle_histogram_command(THD *thd, Table_ref *table);
+
+  // Carries out the main portion of the work of handle_histogram_command().
+  bool handle_histogram_command_inner(THD *thd, Table_ref *table,
+                                      histograms::results_map &results);
 };
 
 /**

@@ -294,6 +294,7 @@ SET(SERVER_TESTS
   subquery_syntax
   table_cache
   table_factor_syntax
+  table_histograms
   table_list
   tc_log_mmap
   temptable_allocator

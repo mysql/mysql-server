@@ -121,7 +121,7 @@ static double EstimateFieldSelectivity(Field *field, double *selectivity_cap,
   // Look for a histogram if there was no suitable index.
   if (selectivity == -1.0) {
     const histograms::Histogram *const histogram =
-        field->table->s->find_histogram(field->field_index());
+        field->table->find_histogram(field->field_index());
 
     if (histogram != nullptr && !empty(*histogram)) {
       /*

@@ -246,7 +246,7 @@ connection con1;
 # Reap ANALYZE TABLE ... DROP HISTOGRAM, which should not have
 # found any histograms since database has been dropped.
 Table	Op	Msg_type	Msg_text
-mysqltest.t1	histogram	Error	No histogram statistics found for column 'i'.
+mysqltest.t1	histogram	Error	Unknown database 'mysqltest'
 disconnect con1;
 connection default;
 # Reap DROP DATABASE

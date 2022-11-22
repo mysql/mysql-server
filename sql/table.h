@@ -68,7 +68,7 @@ class Field_longlong;
 
 namespace histograms {
 class Histogram;
-}
+}  // namespace histograms
 
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
@@ -95,6 +95,8 @@ class SortingIterator;
 class String;
 class THD;
 class Table_cache_element;
+class Table_histograms;
+class Table_histograms_collection;
 class Table_ref;
 class Table_trigger_dispatcher;
 class Temp_table_param;
@@ -699,21 +701,15 @@ struct TABLE_SHARE {
       : m_version(version), m_secondary_engine(secondary) {}
 
   /*
-    A map of [uint, Histogram] values, where the key is the field index. The
-    map is populated with any histogram statistics when it is loaded/created.
+    Managed collection of refererence-counted snapshots of histograms statistics
+    for the table. TABLE objects acquire/release pointers to histogram
+    statistics from this collection. A new statistics snapshot is inserted when
+    the share is initialized and when histograms are updated/dropped.
+
+    For temporary tables m_histograms should be nullptr since we do not support
+    histograms on temporary tables.
   */
-  malloc_unordered_map<uint, const histograms::Histogram *> *m_histograms{
-      nullptr};
-
-  /**
-    Find the histogram for the given field index.
-
-    @param field_index the index of the field we want to find a histogram for
-
-    @retval nullptr if no histogram is found
-    @retval a pointer to a histogram if one is found
-  */
-  const histograms::Histogram *find_histogram(uint field_index) const;
+  Table_histograms_collection *m_histograms{nullptr};
 
   /** Category of this table. */
   TABLE_CATEGORY table_category{TABLE_UNKNOWN_CATEGORY};
@@ -1417,6 +1413,10 @@ struct TABLE {
   friend class Table_cache_element;
 
  public:
+  // Pointer to the histograms available on the table.
+  // Protected in the same way as the pointer to the share.
+  const Table_histograms *histograms{nullptr};
+
   /**
     A bitmap marking the hidden generated columns that exists for functional
     indexes.
@@ -2385,6 +2385,16 @@ struct TABLE {
             set or not
   */
   bool should_binlog_drop_if_temp(void) const;
+
+  /**
+    Find the histogram for the given field index.
+
+    @param field_index The index of the field we want to find a histogram for.
+
+    @retval nullptr if no histogram is found.
+    @retval Pointer to a histogram if one is found.
+  */
+  const histograms::Histogram *find_histogram(uint field_index) const;
 };
 
 static inline void empty_record(TABLE *table) {

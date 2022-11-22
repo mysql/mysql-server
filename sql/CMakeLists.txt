@@ -386,6 +386,7 @@ SET(SQL_SHARED_SOURCES
   histograms/equi_height_bucket.cc
   histograms/histogram.cc
   histograms/singleton.cc
+  histograms/table_histograms.cc
   histograms/value_map.cc
   hostname_cache.cc
   init.cc
