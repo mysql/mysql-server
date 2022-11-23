@@ -112,9 +112,13 @@ MEMCOPY(Uint32 * to, const Uint32 * from){
   case 3:
     //ndbout_c("3");
     to[2] = t2;
+    [[fallthrough]];
+    
   case 2:
     //ndbout_c("2");
     to[1] = t1;
+    [[fallthrough]];
+    
   case 1:
     //ndbout_c("1");
     to[0] = t0;
@@ -155,9 +159,12 @@ MEMCOPY_NO_WORDS(Uint32 * to, const Uint32 * from, Uint32 len){
   case 3:
     //ndbout_c("3");
     to[2] = t2;
+    [[fallthrough]];
   case 2:
     //ndbout_c("2");
     to[1] = t1;
+    [[fallthrough]];
+    
   case 1:
     //ndbout_c("1");
     to[0] = t0;
@@ -318,13 +325,14 @@ void doCopyLap(Uint32 laps, const char * title){
 int
 main(int argc, const char ** argv){
   
+  ndb_init();
   if(argc > 1)
     g_count = atoi(argv[1]);
 
   if(argc > 2)
     g_time = atoi(argv[2]);
   
-  ndbout_c("Using %d entries => %d kB ", 
+  ndbout_c("Using %d entries => %zu kB ", 
 	   g_count,
 	   g_count * sizeof(TestSignal) / 1024);
   ndbout_c("Testing for %d ms", g_time);
@@ -348,5 +356,6 @@ main(int argc, const char ** argv){
   doCopyLap<copy7>(laps, "mem copy gcc ");
 
   delete[] g_jobBuffer;
+  ndb_end(0);
   return 0;
 }

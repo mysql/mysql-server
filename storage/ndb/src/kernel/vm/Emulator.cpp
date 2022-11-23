@@ -456,7 +456,7 @@ static const char* const jamFileNames[] =
    "arrayPoolTest.cpp",                  // 321 DELETED FILE
    "SimBlockList.hpp",                   // 322
    "mt-lock.hpp",                        // 323
-   "rr.cpp",                             // 324
+   "rr.cpp",                             // 324 DELETED FILE
    "testCopy.cpp",                       // 325
    "Ndbinfo.cpp",                        // 326
    "SectionReader.cpp",                  // 327
