@@ -1,5 +1,7 @@
 use ndbinfo;
-create table test.t1 (a int primary key, b int, c int, unique(b), key(c)) engine=ndb;
+create table test.t1 (a int primary key, b int, c int, unique(b), key(c))
+engine=ndb
+partition by key(a) partitions 64;
 create view frag_locks as 
 select fq_name = 'test/def/t1' as main_tab,
 type, 
