@@ -143,7 +143,7 @@ class ACL_HOST_AND_IP {
 
   bool has_wildcard() {
     return (strchr(get_host(), wild_many) || strchr(get_host(), wild_one) ||
-            ip_mask);
+            (ip_mask && (ip_mask != (long)UINT_MAX32)));
   }
 
   bool check_allow_all_hosts() {
