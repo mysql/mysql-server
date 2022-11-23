@@ -290,6 +290,8 @@ bool MetadataCacheAPI::fetch_whole_topology() const {
 }
 
 void MetadataCacheAPI::fetch_whole_topology(bool val) {
+  LOCK_METADATA_AND_CHECK_INITIALIZED();
+
   g_metadata_cache->fetch_whole_topology(val);
 }
 

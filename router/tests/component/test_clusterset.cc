@@ -2406,7 +2406,7 @@ TEST_F(ClusterSetTest, FetchWholeTopologyConnections) {
   // switch the mode to fetch_whole_topology
   set_fetch_whole_topology(true);
   EXPECT_TRUE(wait_for_transaction_count_increase(
-      clusterset_data_.clusters[0].nodes[0].http_port, 2));
+      clusterset_data_.clusters[0].nodes[0].http_port, 3));
 
   // since now the nodes pool is the superset of the previous pool the existing
   // RO connections should still be alive
@@ -2457,7 +2457,7 @@ TEST_F(ClusterSetTest, FetchWholeTopologyConnections) {
   // switch off the mode fetch_whole_topology
   set_fetch_whole_topology(false);
   EXPECT_TRUE(wait_for_transaction_count_increase(
-      clusterset_data_.clusters[0].nodes[0].http_port, 2));
+      clusterset_data_.clusters[0].nodes[0].http_port, 3));
 
   // we are back in the "use only the target cluster" mode
   // the RW connection should be shut down
