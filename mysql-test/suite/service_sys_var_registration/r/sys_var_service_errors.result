@@ -1,0 +1,21 @@
+call mtr.add_suppression("duplicate variable name");
+#
+# Bug #34813456: Server crash seen when installing a validate_password component
+#
+# Setup
+INSTALL COMPONENT "file://component_test_sys_var_service";
+SET PERSIST_ONLY test_component.bool_sys_var = 12;
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
+# Should pass and should produce warnings
+INSTALL COMPONENT "file://component_test_sys_var_service";
+Warnings:
+Warning	1231	Variable 'test_component.bool_sys_var' can't be set to the value of '12'
+Warning	4159	Failed to set persisted options.
+Warning	1231	Variable 'test_component.bool_sys_var' can't be set to the value of '12'
+Warning	4159	Failed to set persisted options.
+Warning	1231	Variable 'test_component.bool_sys_var' can't be set to the value of '12'
+Warning	4159	Failed to set persisted options.
+# cleanup
+RESET PERSIST test_component.bool_sys_var;
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
+# End of 8.0 tests

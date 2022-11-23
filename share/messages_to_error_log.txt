@@ -695,7 +695,7 @@ ER_READING_TABLE_FAILED
 ER_DES_FILE_WRONG_KEY
   eng "load_des_file:  Found wrong key_number: %c"
 
-ER_CANT_SET_PERSISTED
+OBSOLETE_ER_CANT_SET_PERSISTED
   eng "Failed to set persisted options."
 
 ER_JSON_PARSE_ERROR

@@ -9941,6 +9941,9 @@ ER_INNODB_INSTANT_ADD_DROP_NOT_SUPPORTED_MAX_SIZE
 ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_FIELDS
   eng "Column can't be added to '%s' with ALGORITHM=INSTANT anymore. Please try ALGORITHM=INPLACE/COPY."
 
+ER_CANT_SET_PERSISTED
+  eng "Failed to set persisted options."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
