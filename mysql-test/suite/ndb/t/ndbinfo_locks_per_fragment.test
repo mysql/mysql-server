@@ -6,8 +6,17 @@ use ndbinfo;
 # WL 7656 locks_per_fragment view
 #
 
-create table test.t1 (a int primary key, b int, c int, unique(b), key(c)) engine=ndb;
-
+# Note that we create the test table partitioned over lots of fragments.
+# That is a workaround for row partitioning being affected by platform
+# endianness.
+# By having many partitions, there will be max a single row stored in each
+# fragment. Thus avoiding platform dependencies on how many locks being
+# reported before intentionally being blocked on lock conflicts where we
+# test for such.
+#
+create table test.t1 (a int primary key, b int, c int, unique(b), key(c))
+engine=ndb
+partition by key(a) partitions 64;
 
 create view frag_locks as 
   select fq_name = 'test/def/t1' as main_tab,
