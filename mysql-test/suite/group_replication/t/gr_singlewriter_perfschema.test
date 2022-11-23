@@ -83,7 +83,39 @@ SET GLOBAL group_replication_paxos_single_leader = 0;
 --let $single_leader_capable = 1
 --source include/gr_assert_write_consensus_single_leader_capable.inc
 
-# 9. Change communication protocol to 8.0.21.
+# 9. Change communication protocol to 8.0.21. Must change
+# group_replication_paxos_single_leader to OFF
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
 SELECT group_replication_set_communication_protocol("8.0.21");
 
 # 10. Value of WRITE_CONSENSUS_SINGLE_LEADER_CAPABLE is 0 on all servers.
@@ -99,6 +131,36 @@ SELECT group_replication_switch_to_multi_primary_mode();
 
 # 13. Change communication protocol to 8.0.27.
 SELECT group_replication_set_communication_protocol("8.0.27");
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "ON"
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "ON"
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "ON"
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
 
 # 14. Value of WRITE_CONSENSUS_SINGLE_LEADER_CAPABLE is 1 on all servers.
 --let $single_leader_capable = 1

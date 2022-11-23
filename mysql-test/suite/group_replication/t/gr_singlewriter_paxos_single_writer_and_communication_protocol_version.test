@@ -1,0 +1,194 @@
+################################################################################
+#
+#
+# Test:
+# 0) The test requires three servers manually started.
+# 1) Start the first two servers with PAXOS Single Leader = 0
+# and change the protocol version to 8.0.26
+# 2) Join the third server with PAXOS Single Leader = 1 and it must fail
+# 3) Change PAXOS Single Leader to 0 and it must join the group
+# 4) Change the protocol version to 8.0.32. It must be successful
+# 5) Change PAXOS Single Leader to 1 on node 3. Stop and Start and it must fail.
+# 6) Change PAXOS Single Leader to 0 on node 3. Stop and Start and it must be
+#    successful.
+# 7) Stop the whole group, change PAXOS Single Leader to 1 and start the group
+# 8) Try to change the protocol version to 8.0.26. It must fail.
+# 9) Cleanup.
+#
+################################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+
+--echo
+--echo ####
+--echo # 0) The test requires three servers.
+--echo ####
+--echo
+--let $rpl_server_count = 3
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("This member is configured with a group_replication_paxos_single_leader option value of 1 and it is trying to join a group with Communication Protocol Version below 8.0.27.*");
+call mtr.add_suppression("This member is configured with a group_replication_paxos_single_leader option value of.*");
+SET SESSION sql_log_bin = 1;
+
+
+--echo ##
+--echo # 1) Start the first two servers with PAXOS Single Leader = 0
+--echo # and change the protocol version to 8.0.26
+--echo ##
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
+--source include/start_group_replication.inc
+
+--eval SELECT group_replication_set_communication_protocol("8.0.26")
+
+# Wait until the communication protocol change is effective on this member,
+# only one group action can run at a time.
+# When changing to 8.0.26, the protocol will change to 8.0.16.
+--let $wait_condition = SELECT COUNT(*)=1 FROM performance_schema.replication_group_communication_information WHERE PROTOCOL_VERSION = '8.0.16'
+--source include/wait_condition_or_abort.inc
+
+--echo ##
+--echo # 2) Join the third server with PAXOS Single Leader = 1 and it must fail
+--echo ##
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "ON"
+
+# Verify that START fails for group_replication
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+
+--echo ##
+--echo # 3) Change PAXOS Single Leader to 0 and it must join the group
+--echo ##
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+
+--echo ##
+--echo # 4) Change the protocol version to 8.0.32. It must be successful
+--echo ##
+
+--eval SELECT group_replication_set_communication_protocol("8.0.32")
+
+# Wait until the communication protocol change is effective on this member,
+# only one group action can run at a time.
+# When changing to 8.0.32, the protocol will change to 8.0.27.
+--let $wait_condition = SELECT COUNT(*)=1 FROM performance_schema.replication_group_communication_information WHERE PROTOCOL_VERSION = '8.0.27'
+--source include/wait_condition_or_abort.inc
+
+--echo ##
+--echo # 5) Change PAXOS Single Leader to 1 on node 3. Stop and Start and it
+--echo # must fail.
+--echo ##
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "ON"
+
+# Verify that START fails for group_replication
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--echo ##
+--echo # 6) Change PAXOS Single Leader to 0 on node 3. Stop and Start and it
+--echo # must be successful.
+--echo ##
+
+--eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
+
+--source include/start_group_replication.inc
+
+--echo ##
+--echo # 7) Stop the whole group, change PAXOS Single Leader to 1 and start
+--echo #    the group.
+--echo ##
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "ON"
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "ON"
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "ON"
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--echo ##
+--echo # 8) Try to change the protocol version to 8.0.26. It must fail.
+--echo ##
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--error ER_GRP_RPL_UDF_ERROR
+--eval SELECT group_replication_set_communication_protocol("8.0.26")
+
+--echo ##
+--echo # 10) Cleanup.
+--echo ##
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
+
+--source include/group_replication_end.inc

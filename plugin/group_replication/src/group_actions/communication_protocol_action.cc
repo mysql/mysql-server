@@ -70,7 +70,8 @@ int Communication_protocol_action::set_consensus_leaders() const {
   Member_version const communication_protocol =
       convert_to_mysql_version(m_gcs_protocol);
   consensus_leaders_handler->set_consensus_leaders(
-      communication_protocol, is_single_primary_mode, my_role, my_gcs_id);
+      communication_protocol, is_single_primary_mode, my_role, my_gcs_id,
+      []() { return local_member_info->get_allow_single_leader(); });
 
   return 0;
 }

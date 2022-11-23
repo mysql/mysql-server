@@ -128,7 +128,28 @@ SELECT group_replication_switch_to_multi_primary_mode();
 --echo ########################################################################
 --echo # 5) Switch to single-primary mode. Switch communication_protocol to
 --echo #    8.0.21. Confirm everyone is a preferred consensus leader even in
---echo #    single-primary
+--echo #    single-primary. Must stop and start the group with
+--echo #    group_replication_paxos_single_leader=OFF
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
@@ -170,8 +191,14 @@ SELECT group_replication_set_communication_protocol("8.0.21");
 
 --echo ########################################################################
 --echo # 6) Cleanup.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "ON"
+
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "ON"
 
 --let $rpl_group_replication_reset_persistent_vars= 1
 --source include/group_replication_end.inc

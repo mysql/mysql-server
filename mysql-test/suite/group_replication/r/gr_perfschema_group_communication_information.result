@@ -40,7 +40,17 @@ include/assert.inc [protocol_version (8.0.27) should be 8.0.27]
 ########################################################################
 # 5) Switch to single-primary mode. Switch communication_protocol to
 #    8.0.21. Confirm everyone is a preferred consensus leader even in
-#    single-primary
+#    single-primary. Must stop and start the group with
+#    group_replication_paxos_single_leader=OFF
+[connection server2]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = "OFF";
+[connection server1]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_paxos_single_leader = "OFF";
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
 [connection server1]
 SELECT group_replication_switch_to_single_primary_mode();
 group_replication_switch_to_single_primary_mode()
@@ -53,5 +63,8 @@ include/assert_grep.inc [There is no warning about a member joining the group wh
 include/assert_grep.inc [There is no warning about a member joining the group while a group configuration operation is occurring]
 ########################################################################
 # 6) Cleanup.
+[connection server2]
+SET GLOBAL group_replication_paxos_single_leader = "ON";
 [connection server1]
+SET GLOBAL group_replication_paxos_single_leader = "ON";
 include/group_replication_end.inc

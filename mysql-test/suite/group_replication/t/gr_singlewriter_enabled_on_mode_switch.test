@@ -213,9 +213,43 @@ SET SESSION sql_log_bin = 1;
 
 --echo
 --echo ####
---echo # 2) Change the communication protocol to 8.0.21.
+--echo # 2) Change the communication protocol to 8.0.21. Must restart the group.
 --echo ####
 --echo
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "OFF"
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
 --eval SELECT group_replication_set_communication_protocol("8.0.21")
 
 --echo
@@ -385,6 +419,19 @@ SET SESSION sql_log_bin = 1;
 --echo # 4) Cleanup.
 --echo ####
 --echo
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "ON"
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "ON"
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--eval SET GLOBAL group_replication_paxos_single_leader = "ON"
+
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --source include/stop_group_replication.inc

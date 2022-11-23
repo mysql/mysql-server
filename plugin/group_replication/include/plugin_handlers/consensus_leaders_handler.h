@@ -80,12 +80,40 @@ class Consensus_leaders_handler : public Group_event_observer {
    * @brief Set the appropriate "consensus leaders" in GCS.
    *
    * The "consensus leaders" are set according to the following rules:
+   * 0) If the the return result  of allow_single_leader_getter lambda is false
+   *    :do nothing
    * a) @c communication_protocol is < 8.0.27: do nothing
    * b) @c communication_protocol is >= 8.0.27:
    *    b1) @c primary_mode is SINGLE and @c my_role is PRIMARY: set myself,
    *        @c my_gcs_id, as the single preferred "consensus leader"
    *    b2) @c primary_mode is SINGLE and @c my_role is SECONDARY: do nothing
    *    b3) @c primary_mode is MULTI: set everyone as "consensus leader"
+   *
+   * @param communication_protocol
+   * @param is_single_primary_mode
+   * @param role
+   * @param my_gcs_id
+   * @param allow_single_leader_getter
+   */
+  void set_consensus_leaders(Member_version const &communication_protocol,
+                             bool is_single_primary_mode,
+                             Group_member_info::Group_member_role role,
+                             Gcs_member_identifier const &my_gcs_id,
+                             std::function<bool()> allow_single_leader_getter);
+
+  /**
+   * @brief Set the appropriate "consensus leaders" in GCS.
+   *
+   * The "consensus leaders" are set according to the following rules:
+   * a) @c communication_protocol is < 8.0.27: do nothing
+   * b) @c communication_protocol is >= 8.0.27:
+   *    b1) @c primary_mode is SINGLE and @c my_role is PRIMARY: set myself,
+   *        @c my_gcs_id, as the single preferred "consensus leader"
+   *    b2) @c primary_mode is SINGLE and @c my_role is SECONDARY: do nothing
+   *    b3) @c primary_mode is MULTI: set everyone as "consensus leader"
+   *
+   * It inserts a default implementation of allow_single_leader_getter that
+   * verifies the current value of group_replication_paxos_single_leader var
    *
    * @param communication_protocol
    * @param is_single_primary_mode
