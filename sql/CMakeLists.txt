@@ -26,6 +26,8 @@ MY_INCLUDE_SYSTEM_DIRECTORIES(ICU)
 
 ADD_WSHADOW_WARNING()
 
+MSVC_CPPCHECK()
+
 # Lots of warnings about -Walloc-size-larger-than= from my_malloc.cc
 # but it is basically impossible to trace the actual origin.
 IF(FPROFILE_GENERATE OR FPROFILE_USE)

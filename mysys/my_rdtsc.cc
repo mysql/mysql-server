@@ -305,7 +305,7 @@ ulonglong my_timer_ticks(void) {
     return (ulonglong)times(&times_buf);
   }
 #elif defined(_WIN32)
-  return (ulonglong)GetTickCount();
+  return GetTickCount64();
 #else
   return 0;
 #endif
