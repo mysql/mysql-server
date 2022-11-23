@@ -402,39 +402,20 @@ bool Item_in_subselect::finalize_exists_transform(THD *thd,
   return false;
 }
 
-Item *remove_in2exists_conds(THD *thd, Item *conds, bool copy) {
-  if (conds == nullptr || conds->created_by_in2exists()) {
-    return nullptr;
-  }
-  if (conds->type() != Item::COND_ITEM ||
-      down_cast<Item_cond *>(conds)->functype() != Item_func::COND_AND_FUNC) {
-    return conds;
-  }
-
-  Mem_root_array<Item *> parts(thd->mem_root);
-  ExtractConditions(conds, &parts);
-  auto new_end = std::remove_if(parts.begin(), parts.end(), [](Item *item) {
-    return item->created_by_in2exists();
-  });
-  if (new_end == parts.end()) {
-    return conds;  // No change.
-  }
-  parts.erase(new_end, parts.end());
-  if (parts.empty()) {
-    return nullptr;
-  }
-  if (parts.size() == 1) {
-    return parts[0];
-  }
-
+Item *remove_in2exists_conds(Item *conds) {
+  bool modified = false;
   List<Item> new_conds;
-  for (Item *item : parts) {
-    new_conds.push_back(item);
+  if (WalkConjunction(conds, [&modified, &new_conds](Item *cond) {
+        if (cond->created_by_in2exists()) {
+          modified = true;
+          return false;
+        } else {
+          return new_conds.push_back(cond);
+        }
+      })) {
+    return nullptr;
   }
-  Item_cond_and *item_and = new Item_cond_and(new_conds);
-  item_and->quick_fix_field();
-  item_and->update_used_tables();
-  return copy ? item_and->copy_andor_structure(thd) : item_and;
+  return modified ? CreateConjunction(&new_conds) : conds;
 }
 
 bool Item_in_subselect::finalize_materialization_transform(THD *thd,
@@ -458,11 +439,9 @@ bool Item_in_subselect::finalize_materialization_transform(THD *thd,
 
   // This part is not relevant for the hypergraph optimizer.
   if (join->where_cond)
-    join->where_cond =
-        remove_in2exists_conds(thd, join->where_cond, /*copy=*/false);
+    join->where_cond = remove_in2exists_conds(join->where_cond);
   if (join->having_cond)
-    join->having_cond =
-        remove_in2exists_conds(thd, join->having_cond, /*copy=*/false);
+    join->having_cond = remove_in2exists_conds(join->having_cond);
 
   // This part is only relevant for the hypergraph optimizer.
   unit->change_to_access_path_without_in2exists(thd);

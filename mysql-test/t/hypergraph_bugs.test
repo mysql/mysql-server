@@ -342,3 +342,17 @@ eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#34821222: Hypergraph: mysqld crash-signal 11 - IsAnd &
+--echo #               CommonSubexpressionElimination
+--echo #
+
+CREATE TABLE t1 (x INTEGER NOT NULL);
+CREATE TABLE t2 (y INTEGER, z INTEGER);
+
+SELECT 1 IN (
+  SELECT COUNT(*) FROM t1 WHERE x NOT IN (
+    SELECT 1 FROM t2 WHERE y <> y OR z <> z));
+
+DROP TABLE t1, t2;

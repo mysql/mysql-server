@@ -923,13 +923,10 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
   pointer. If it returns a new Item, the old Item is left alone, so it
   can be reused in other settings.
 
-  @param thd    Thread handle.
   @param conds  Condition; may be nullptr.
-  @param copy   true if a copy of the new condition needs to be returned
-                (used in case of hypergraph optimizer).
   @returns      new condition
  */
-Item *remove_in2exists_conds(THD *thd, Item *conds, bool copy);
+Item *remove_in2exists_conds(Item *conds);
 
 /// Returns whether the Item is an IN-subselect.
 bool IsItemInSubSelect(Item *item);

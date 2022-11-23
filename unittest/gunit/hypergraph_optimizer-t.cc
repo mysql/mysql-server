@@ -6478,6 +6478,14 @@ TEST_F(CSETest, ShortCircuitWithMultipleElements) {
             "((t1.x = 0) and (t1.y = 1))");
 }
 
+TEST_F(CSETest, EmptyOr) {
+  // remove_eq_conds() may leave degenerate OR conditions with no children if
+  // all elements of the OR expression are false. Verify that we don't balk at
+  // such items.
+  EXPECT_EQ("false", ItemToString(CommonSubexpressionElimination(
+                         new (m_thd->mem_root) Item_cond_or)));
+}
+
 namespace {
 // A fake handler implementation that can be used in microbenchmarks. The
 // Mock_HANDLER object in Fake_TABLE has a lot of instrumentation that disturbs
