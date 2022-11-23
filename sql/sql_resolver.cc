@@ -996,10 +996,10 @@ bool Item_in_subselect::subquery_allows_materialization(
   } else if (used_tables() & RAND_TABLE_BIT) {
     // Subquery with a random function cannot be materalized.
     cause = "non-deterministic";
-  } else if (query_block->is_part_of_set_operation()) {
-    // Subquery must be a single query specification clause (not a UNION,
-    // INTERSECT or EXCEPT).
-    cause = "in UNION, INTERSECT or EXCEPT";
+  } else if (!query_block->is_simple_query_block()) {
+    // Subquery must be a simple query specification clause (not a set operation
+    // or a parenthesized query expression).
+    cause = "in set operation or a parenthesized query expression";
   } else if (!query_block->master_query_expression()
                   ->first_query_block()
                   ->leaf_tables) {
@@ -1458,7 +1458,8 @@ bool Query_block::resolve_subquery(THD *thd) {
     semi-join (which is done in flatten_subqueries()). The requirements are:
       0. Semi-join is enabled (cf. hints)
       1. Subquery predicate is an IN/=ANY or EXISTS predicate
-      2. Subquery is a single query block (not a UNION, EXCEPT or INTERSECT)
+      2. Subquery is a simple query block (not a set operation or a
+         parenthesized query expression).
       3. Subquery is not grouped (explicitly or implicitly)
          3x: outer aggregated expression are not accepted
       4. Subquery does not use HAVING
@@ -1493,7 +1494,7 @@ bool Query_block::resolve_subquery(THD *thd) {
   }
   if (semijoin_enabled(thd) &&                                     // 0
       predicate != nullptr &&                                      // 1
-      !is_part_of_set_operation() &&                               // 2
+      is_simple_query_block() &&                                   // 2
       no_aggregates &&                                             // 3,3x,4,5
       (outer->resolve_place == Query_block::RESOLVE_CONDITION ||   // 6a
        (outer->resolve_place == Query_block::RESOLVE_JOIN_NEST &&  // 6a
@@ -1539,9 +1540,9 @@ bool Query_block::resolve_subquery(THD *thd) {
     Applicability constraints have numbers which are the same as in the list of
     the previous block. Reasons may be different though.
       1. Subquery predicate is an IN/=ANY or EXISTS predicate
-      2. Subquery is a single query block (not a UNION, INTERSECT or EXCEPT);
-         this is because a certain secondary engine has no support for setop
-         DISTINCT
+      2. Subquery is a simple query block (not a set operation or a
+         parenthesized query expression). This is because a certain secondary
+         engine has no support for setop DISTINCT.
       3. If this is [NOT] EXISTS, there is no aggregation; see
       transform_table_subquery_to_join_with_derived()
       6. Subquery predicate is
@@ -1565,7 +1566,7 @@ bool Query_block::resolve_subquery(THD *thd) {
   */
 
   if (!choice_made && try_convert_to_derived && predicate != nullptr &&  // 1
-      !is_part_of_set_operation() &&                                     // 2
+      is_simple_query_block() &&                                         // 2
       (in_predicate != nullptr || no_aggregates) &&                      // 3
       outer->resolve_place == Query_block::RESOLVE_CONDITION &&          // 6a
       outer->condition_context != enum_condition_context::NEITHER &&     // 6b

@@ -411,7 +411,8 @@ class subquery_ctx : virtual public context, public qep_row {
     TODO: After the conversion from multiple inheritace to templates
     convert "context" to "unit_ctx" (common base of uion_ctx & join_ctx).
   */
-  context *subquery;  ///< hosted subquery tree: CTX_JOIN or CTX_UNION
+  context *subquery;  ///< hosted subquery tree: CTX_JOIN, CTX_UNION,
+                      ///< CTX_INTERSECT, CTX_EXCEPT or CTX_UNARY
 
  public:
   subquery_ctx(enum_parsing_context type_arg, const char *name_arg,
