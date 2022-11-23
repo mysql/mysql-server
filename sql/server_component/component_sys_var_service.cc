@@ -371,7 +371,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
          public:
           bool handle_condition(THD *, uint, const char *,
                                 Sql_condition::enum_severity_level *level,
-                                const char *) {
+                                const char *) override {
             if (*level == Sql_condition::SL_ERROR)
               *level = Sql_condition::SL_WARNING;
             return false;
