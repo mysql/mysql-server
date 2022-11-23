@@ -159,3 +159,12 @@ DROP TABLE t1;
 DO AVG((SELECT POINT(@x, POINT(115, 219)) IS NULL));
 --error ER_WRONG_ARGUMENTS
 DO AVG((SELECT POINT(@x, POINT(115, 219)) IS NULL)) OVER ();
+
+--echo #
+--echo # Bug#34808199: Assertion `!OrderItemsReferenceUnavailableTables(path, tables)' failed.
+--echo #
+
+CREATE TABLE t(x INT NOT NULL);
+INSERT INTO t VALUES (0), (1);
+SELECT t1.x IS NULL = t2.x AS col FROM t AS t1, t AS t2 ORDER BY col;
+DROP TABLE t;

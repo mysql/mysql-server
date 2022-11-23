@@ -144,3 +144,15 @@ DO AVG((SELECT POINT(@x, POINT(115, 219)) IS NULL));
 ERROR HY000: Incorrect arguments to point
 DO AVG((SELECT POINT(@x, POINT(115, 219)) IS NULL)) OVER ();
 ERROR HY000: Incorrect arguments to point
+#
+# Bug#34808199: Assertion `!OrderItemsReferenceUnavailableTables(path, tables)' failed.
+#
+CREATE TABLE t(x INT NOT NULL);
+INSERT INTO t VALUES (0), (1);
+SELECT t1.x IS NULL = t2.x AS col FROM t AS t1, t AS t2 ORDER BY col;
+col
+0
+0
+1
+1
+DROP TABLE t;

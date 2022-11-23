@@ -43,6 +43,7 @@
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_class.h"
+#include "sql/sql_const.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_insert.h"
 #include "sql/sql_lex.h"
@@ -275,40 +276,15 @@ void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order,
 
 #ifndef NDEBUG
 namespace {
-/// Checks if an Item references columns in any tables outside of the provided
-/// set of available tables.
-class AvailableTablesChecker : private Item_tree_walker {
- public:
-  explicit AvailableTablesChecker(
-      const Mem_root_array<TABLE *> &available_tables)
-      : m_available_tables(&available_tables) {}
-
-  bool operator()(const Item *item) {
-    if (is_stopped(item)) {
-      return false;
-    }
-
-    if (item->used_tables() == OUTER_REF_TABLE_BIT) {
-      // Ignore outer references, and any items inside such references. The
-      // outer tables are always available down the tree, even if they are not
-      // in m_available_tables.
-      stop_at(item);
-      return false;
-    }
-
-    if (item->type() == Item::FIELD_ITEM) {
-      // Is the field from a table outside of the available tables?
-      return std::find(m_available_tables->begin(), m_available_tables->end(),
-                       down_cast<const Item_field *>(item)->field->table) ==
-             m_available_tables->end();
-    }
-
-    return false;
+/// @return The tables used by the order items.
+table_map GetUsedTableMap(const ORDER *order) {
+  table_map tables = 0;
+  while (order != nullptr) {
+    tables |= (*order->item)->used_tables();
+    order = order->next;
   }
-
- private:
-  const Mem_root_array<TABLE *> *m_available_tables;
-};
+  return tables;
+}
 
 /**
   Checks if the order items in a SORT access path reference any column that is
@@ -332,14 +308,36 @@ class AvailableTablesChecker : private Item_tree_walker {
   expressions in the ordering elements to point into the temporary table.
  */
 bool OrderItemsReferenceUnavailableTables(
-    const AccessPath *sort_path,
-    const Mem_root_array<TABLE *> &available_tables) {
-  // Check if any of the order items contains a reference to a column in a table
-  // outside of the available tables.
+    const AccessPath *sort_path, table_map used_tables_before_replacement) {
+  // Find which of the base tables referenced from the order items are
+  // materialized below the sort path.
+  const table_map materialized_base_tables =
+      used_tables_before_replacement &
+      ~GetUsedTableMap(sort_path, /*include_pruned_tables=*/true);
+
+  if (materialized_base_tables == 0) return false;
+
+  // Check if any of those base tables is still referenced directly, instead of
+  // via the temporary table. They should not be referenced directly. Ideally,
+  // we'd want to simply check (*order->item)->used_tables() for each order
+  // element, but temporary tables are indistinguishable from the base table
+  // with tableno() == 0 in the returned table_map (see
+  // Item_field::used_tables(), which returns 1 for temporary tables). So
+  // instead we walk the order items and check each contained Item_field
+  // individually.
   for (const ORDER *order = sort_path->sort().order; order != nullptr;
        order = order->next) {
-    if (WalkItem(*order->item, enum_walk::PREFIX | enum_walk::POSTFIX,
-                 AvailableTablesChecker(available_tables))) {
+    if (WalkItem(*order->item, enum_walk::PREFIX,
+                 [materialized_base_tables](Item *item) {
+                   if (item->type() == Item::FIELD_ITEM) {
+                     Item_field *item_field = down_cast<Item_field *>(item);
+                     return item_field->table_ref != nullptr &&
+                            !item_field->is_outer_reference() &&
+                            Overlaps(item_field->table_ref->map(),
+                                     materialized_base_tables);
+                   }
+                   return false;
+                 })) {
       return true;
     }
   }
@@ -430,16 +428,23 @@ static void UpdateReferencesToMaterializedItems(
     }
   } else if (path->type == AccessPath::SORT) {
     assert(path->sort().filesort == nullptr);
+
+#ifndef NDEBUG
+    const table_map used_tables_before_replacement =
+        GetUsedTableMap(path->sort().order) & ~PSEUDO_TABLE_BITS;
+#endif
+
     for (const Func_ptr_array *earlier_replacement : *applied_replacements) {
       ReplaceOrderItemsWithTempTableFields(thd, path->sort().order,
                                            *earlier_replacement);
     }
 
+    assert(!OrderItemsReferenceUnavailableTables(
+        path, used_tables_before_replacement));
+
     // Set up a Filesort object for this sort.
-    Mem_root_array<TABLE *> tables = CollectTables(thd, path);
-    assert(!OrderItemsReferenceUnavailableTables(path, tables));
     path->sort().filesort = new (thd->mem_root)
-        Filesort(thd, std::move(tables),
+        Filesort(thd, CollectTables(thd, path),
                  /*keep_buffers=*/false, path->sort().order, path->sort().limit,
                  path->sort().remove_duplicates, path->sort().force_sort_rowids,
                  path->sort().unwrap_rollup);
