@@ -390,7 +390,7 @@ class METADATA_CACHE_EXPORT MetadataCache
       std::chrono::steady_clock::now()};
 
   bool ready_announced_{false};
-  bool fetch_whole_topology_{false};
+  std::atomic<bool> fetch_whole_topology_{false};
 
   /**
    * Flag indicating if socket acceptors state should be updated on next
