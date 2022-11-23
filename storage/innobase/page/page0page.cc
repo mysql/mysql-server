@@ -2122,7 +2122,8 @@ bool page_is_spatial_non_leaf(const rec_t *rec, dict_index_t *index) {
   return (dict_index_is_spatial(index) && !page_is_leaf(page_align(rec)));
 }
 
-bool page_validate(const page_t *page, dict_index_t *index) {
+bool page_validate(const page_t *page, dict_index_t *index,
+                   bool check_min_rec) {
   const page_dir_slot_t *slot;
   mem_heap_t *heap;
   byte *buf;
@@ -2259,32 +2260,34 @@ bool page_validate(const page_t *page, dict_index_t *index) {
 
     /* REC_INFO_MIN_REC_FLAG must be set only for first record on first non-leaf
     page on a level. */
-    if (rec_is_min_rec_flag_set(rec, page_is_comp(page))) {
-      if (!page_rec_is_user_rec(rec) ||
-          !(is_first_non_leaf_page && page_rec_is_first(rec, page))) {
-        ib::error(ER_CHECK_TABLE_MIN_REC_FLAG_SET, (unsigned long int)page_no,
-                  (unsigned long int)btr_page_get_level(page), index->name(),
-                  index->table_name);
-        DBUG_EXECUTE_IF(
-            "check_table_set_wrong_min_bit", ut_ad(page_is_comp(page));
-            rec_set_info_bits_new(
-                const_cast<rec_t *>(rec),
-                rec_get_info_bits(rec, true) & ~REC_INFO_MIN_REC_FLAG););
-        goto func_exit;
-      }
-    } else {
-      if (is_first_non_leaf_page && page_rec_is_user_rec(rec) &&
-          page_rec_is_first(rec, page)) {
-        ib::error(ER_CHECK_TABLE_MIN_REC_FLAG_NOT_SET,
-                  (unsigned long int)page_no,
-                  (unsigned long int)btr_page_get_level(page), index->name(),
-                  index->table_name);
-        DBUG_EXECUTE_IF(
-            "check_table_reset_correct_min_bit", ut_ad(page_is_comp(page));
-            rec_set_info_bits_new(
-                const_cast<rec_t *>(rec),
-                rec_get_info_bits(rec, true) | REC_INFO_MIN_REC_FLAG););
-        goto func_exit;
+    if (check_min_rec) {
+      if (rec_is_min_rec_flag_set(rec, page_is_comp(page))) {
+        if (!page_rec_is_user_rec(rec) ||
+            !(is_first_non_leaf_page && page_rec_is_first(rec, page))) {
+          ib::error(ER_CHECK_TABLE_MIN_REC_FLAG_SET, (unsigned long int)page_no,
+                    (unsigned long int)btr_page_get_level(page), index->name(),
+                    index->table_name);
+          DBUG_EXECUTE_IF(
+              "check_table_set_wrong_min_bit", ut_ad(page_is_comp(page));
+              rec_set_info_bits_new(
+                  const_cast<rec_t *>(rec),
+                  rec_get_info_bits(rec, true) & ~REC_INFO_MIN_REC_FLAG););
+          goto func_exit;
+        }
+      } else {
+        if (is_first_non_leaf_page && page_rec_is_user_rec(rec) &&
+            page_rec_is_first(rec, page)) {
+          ib::error(ER_CHECK_TABLE_MIN_REC_FLAG_NOT_SET,
+                    (unsigned long int)page_no,
+                    (unsigned long int)btr_page_get_level(page), index->name(),
+                    index->table_name);
+          DBUG_EXECUTE_IF(
+              "check_table_reset_correct_min_bit", ut_ad(page_is_comp(page));
+              rec_set_info_bits_new(
+                  const_cast<rec_t *>(rec),
+                  rec_get_info_bits(rec, true) | REC_INFO_MIN_REC_FLAG););
+          goto func_exit;
+        }
       }
     }
 

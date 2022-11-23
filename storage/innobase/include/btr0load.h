@@ -920,7 +920,10 @@ class Btree_load::Merger {
   using Btree_loads = std::vector<Btree_load *, ut::allocator<Btree_load *>>;
 
   Merger(Btree_loads &loads, dict_index_t *index, trx_t *trx)
-      : m_btree_loads(loads), m_index(index), m_trx(trx) {}
+      : m_btree_loads(loads),
+        m_index(index),
+        m_trx(trx),
+        m_tuple_heap(2048, UT_LOCATION_HERE) {}
 
   dberr_t merge(bool sort);
 
@@ -958,13 +961,47 @@ class Btree_load::Merger {
   @return error code on failure. */
   dberr_t root_page_commit(Page_load *root_load);
 
-  /* If the compression of the root page failed, then it needs to be split into
-  multiple pages and compressed again.
+  /** If the compression of the root page failed, then it needs to be split
+  into multiple pages and compressed again.
   @param[in]  root_load   the page load object of the root page.
   @param[in]  n_pages  the number of pages the root page will be split into.
   @return DB_SUCCESS if root page committed successfully.
   @return error code on failure. */
   dberr_t root_split(Page_load *root_load, const size_t n_pages);
+
+  /** Insert the given list of node pointers into pages at the given level.
+  @param[in,out]  all_node_ptrs  list of node pointers
+  @param[in,out]  total_node_ptrs_size  total space in bytes needed to insert
+                                        all the node pointers.
+  @param[in]  level  the level at which the node pointers are inserted.
+  @return DB_SUCCESS if successful.
+  @return error code on failure. */
+  dberr_t insert_node_ptrs(std::vector<dtuple_t *> &all_node_ptrs,
+                           size_t &total_node_ptrs_size, size_t level);
+
+  /** Load the left page and update its FIL_PAGE_NEXT.
+  @param[in]  l_page_no  left page number
+  @param[in]  r_page_no  right page number. */
+  void link_right_sibling(const page_no_t l_page_no, const page_no_t r_page_no);
+
+  /** Compress the given page. The resulting compressed pages are available
+  in the page_loads output argument.  The result could be 1, 2 or more
+  compressed pages.
+  @param[in]  page_load  page to be compressed.
+  @param[out]  page_loads  compressed pages (1, 2 or more pages)
+  @return DB_SUCCESS if successful.
+  @return error code on failure. */
+  dberr_t compress_for_sure(Page_load *page_load,
+                            std::vector<Page_load *> &page_loads);
+
+  /** Distribute the records from given page into multiple pages.
+  @param[in]  page_load  records from this page will be distributed.
+  @param[in]  n_pages  number of destination pages.
+  @param[out]  page_loads  destination pages that are linked as siblings.
+  @return DB_SUCCESS if successful.
+  @return error code on failure. */
+  dberr_t n_page_split(Page_load *page_load, const size_t n_pages,
+                       std::vector<Page_load *> &page_loads);
 
  private:
   /** Refernce to the subtrees to be merged. */
@@ -975,6 +1012,9 @@ class Btree_load::Merger {
 
   /** Transaction making the changes. */
   trx_t *m_trx{};
+
+  /** Memory heap to store node pointers. */
+  Scoped_heap m_tuple_heap{};
 };
 
 inline bool Btree_load::is_extent_tracked(
@@ -1103,6 +1143,10 @@ class Page_load : private ut::Non_copyable {
   /** Re-initialize this page. */
   [[nodiscard]] dberr_t reinit() noexcept;
 
+  /** Reset this object so that Page_load::init() can be called again on this
+  object. */
+  void reset() noexcept;
+
   /** Initialize members and allocate page for blob. */
   dberr_t init_blob(const page_no_t new_page_no) noexcept;
 
@@ -1143,6 +1187,11 @@ class Page_load : private ut::Non_copyable {
   @return node pointer */
   [[nodiscard]] dtuple_t *get_node_ptr() noexcept;
 
+  /** Get node pointer
+  @param[in] heap allocate node pointer in the given heap.
+  @return node pointer */
+  [[nodiscard]] dtuple_t *get_node_ptr(mem_heap_t *heap) noexcept;
+
   /** Split the page records between this and given bulk.
   @param new_page_load  The new bulk to store split records. */
   void split(Page_load &new_page_load) noexcept;
@@ -1163,6 +1212,9 @@ class Page_load : private ut::Non_copyable {
   /** Set previous page
   @param[in]	prev_page_no	    Previous page no */
   void set_prev(page_no_t prev_page_no) noexcept;
+
+  /** Get previous page (FIL_PAGE_PREV). */
+  page_no_t get_prev() noexcept;
 
   /** Release block by committing mtr */
   inline void release() noexcept;
@@ -1265,6 +1317,7 @@ class Page_load : private ut::Non_copyable {
 
   /** Set the REC_INFO_MIN_REC_FLAG on the first user record in this page. */
   void set_min_rec_flag();
+  bool is_min_rec_flag() const;
 
   /** Set the level context object for this page load
   @param[in]  level_ctx  the level context object. */
@@ -1375,6 +1428,10 @@ class Page_load : private ut::Non_copyable {
 
   friend class Btree_load;
 };
+
+inline dtuple_t *Page_load::get_node_ptr() noexcept {
+  return get_node_ptr(m_heap);
+}
 
 inline space_id_t Page_load::space() const noexcept { return m_index->space; }
 

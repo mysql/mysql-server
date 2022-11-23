@@ -1110,6 +1110,40 @@ dberr_t Page_load::alloc() noexcept {
   return DB_SUCCESS;
 }
 
+void Page_load::reset() noexcept {
+  ut_a(m_mtr != nullptr);
+  ut_a(!m_mtr->is_active());
+  ut_a(m_page_no != FIL_NULL);
+
+  m_mtr->~mtr_t(); /* Call dtor before freeing heap. */
+  mem_heap_free(m_heap);
+  m_heap = nullptr;
+  /* m_index is not modified. */
+  /* m_trx_id is not modified. */
+  m_block = nullptr;
+  m_page = nullptr;
+  m_page_zip = nullptr;
+  m_cur_rec = nullptr;
+  m_page_no = FIL_NULL;
+  /* m_level is not changed. */
+  /* m_is_comp is not modified. */
+  m_heap_top = nullptr;
+  m_rec_no = 0;
+  m_free_space = 0;
+  m_reserved_space = 0;
+  m_padding_space = 0;
+  ut_d(m_total_data = 0);
+  /* m_modify_clock is not modified. */
+  /* m_flush_observer is not modified. */
+  m_last_slotted_rec = nullptr;
+  m_slotted_rec_no = 0;
+  m_modified = false;
+  /* m_btree_load is not modified. */
+  /* m_level_ctx is not modified. */
+  /* m_page_extent is not modified. */
+  /* m_is_cached is not modified. */
+}
+
 dberr_t Page_load::init() noexcept {
   page_t *new_page;
   page_no_t new_page_no;
@@ -1190,7 +1224,15 @@ dberr_t Page_load::init() noexcept {
 dberr_t Page_load::insert(const rec_t *rec, Rec_offsets offsets) noexcept {
   ut_ad(m_heap != nullptr);
 
-  auto rec_size = rec_offs_size(offsets);
+  const auto rec_size = rec_offs_size(offsets);
+  const auto slot_size = page_dir_calc_reserved_space(m_rec_no + 1) -
+                         page_dir_calc_reserved_space(m_rec_no);
+  const auto need_space = rec_size + slot_size;
+
+  if (m_free_space < need_space) {
+    /* Not enough space to insert this record. */
+    return DB_FAIL;
+  }
 
 #ifdef UNIV_DEBUG
   /* Check whether records are in order. */
@@ -1232,10 +1274,6 @@ dberr_t Page_load::insert(const rec_t *rec, Rec_offsets offsets) noexcept {
     rec_set_n_owned_old(insert_rec, 0);
     rec_set_heap_no_old(insert_rec, PAGE_HEAP_NO_USER_LOW + m_rec_no);
   }
-
-  /* 4. Set member variables. */
-  auto slot_size = page_dir_calc_reserved_space(m_rec_no + 1) -
-                   page_dir_calc_reserved_space(m_rec_no);
 
   ut_ad(m_free_space >= rec_size + slot_size);
   ut_ad(m_heap_top + rec_size < m_page + UNIV_PAGE_SIZE);
@@ -1339,7 +1377,8 @@ void Page_load::finish() noexcept {
   page_header_set_field(m_page, nullptr, PAGE_DIRECTION, PAGE_RIGHT);
   page_header_set_field(m_page, nullptr, PAGE_N_DIRECTION, 0);
   m_modified = false;
-  ut_ad(page_validate(m_page, m_index));
+  ut_d(const bool check_min_rec = false;);
+  ut_ad(page_validate(m_page, m_index, check_min_rec));
 }
 
 dberr_t Page_load::commit() noexcept {
@@ -1381,13 +1420,13 @@ bool Page_load::compress() noexcept {
                            nullptr);
 }
 
-dtuple_t *Page_load::get_node_ptr() noexcept {
+dtuple_t *Page_load::get_node_ptr(mem_heap_t *heap) noexcept {
   /* Create node pointer */
   auto first_rec = page_rec_get_next(page_get_infimum_rec(m_page));
   ut_a(page_rec_is_user_rec(first_rec));
 
   auto node_ptr =
-      dict_index_build_node_ptr(m_index, first_rec, m_page_no, m_heap, m_level);
+      dict_index_build_node_ptr(m_index, first_rec, m_page_no, heap, m_level);
 
   return node_ptr;
 }
@@ -1474,6 +1513,7 @@ size_t Page_load::copy_to(std::vector<Page_load *> &to_pages) {
   Rec_offsets offsets{};
   const rec_t *rec = first_rec;
 
+  /* Total number of records inserted so far. */
   size_t rec_count = 0;
   size_t i = 0;
   do {
@@ -1487,6 +1527,10 @@ size_t Page_load::copy_to(std::vector<Page_load *> &to_pages) {
     }
     ut_a(rec_count <= n_recs);
   } while (!page_rec_is_supremum(rec));
+
+  if (is_min_rec_flag()) {
+    to_pages[0]->set_min_rec_flag();
+  }
   return rec_count;
 }
 
@@ -1567,6 +1611,10 @@ void Page_load::set_next(page_no_t next_page_no) noexcept {
 void Page_load::set_prev(page_no_t prev_page_no) noexcept {
   page_zip_des_t *page_zip = get_page_zip();
   btr_page_set_prev(m_page, page_zip, prev_page_no, m_mtr);
+}
+
+page_no_t Page_load::get_prev() noexcept {
+  return btr_page_get_prev(m_page, m_mtr);
 }
 
 bool Page_load::is_space_available(size_t rec_size) const noexcept {
@@ -2212,8 +2260,19 @@ void Btree_load::print_tree_pages() const {
 
 void Page_load::set_min_rec_flag() { set_min_rec_flag(m_mtr); }
 
+bool Page_load::is_min_rec_flag() const {
+  rec_t *first_rec = page_rec_get_next(page_get_infimum_rec(m_page));
+  return rec_get_info_bits(first_rec, page_is_comp(m_page)) &
+         REC_INFO_MIN_REC_FLAG;
+}
+
 void Page_load::set_min_rec_flag(mtr_t *mtr) {
-  ut_a(m_level > 0);
+  if (m_level == 0) {
+    /* REC_INFO_MIN_REC_FLAG must be set only in non-leaf pages. */
+    return;
+  }
+  const page_no_t left_sibling = get_prev();
+  ut_a(left_sibling == FIL_NULL);
   rec_t *first_rec = page_rec_get_next(page_get_infimum_rec(m_page));
   btr_set_min_rec_mark(first_rec, mtr);
 }
@@ -2519,9 +2578,9 @@ bool Btree_load_compare::operator()(const Btree_load *l_btree,
   Scoped_heap local_heap(2048, UT_LOCATION_HERE);
   mtr_t local_mtr;
   local_mtr.start();
-  buf_block_t *l_block = buf_page_get(l_page_id, page_size, RW_S_LATCH,
+  buf_block_t *l_block = buf_page_get(l_page_id, page_size, RW_X_LATCH,
                                       UT_LOCATION_HERE, &local_mtr);
-  buf_block_t *r_block = buf_page_get(r_page_id, page_size, RW_S_LATCH,
+  buf_block_t *r_block = buf_page_get(r_page_id, page_size, RW_X_LATCH,
                                       UT_LOCATION_HERE, &local_mtr);
 
   byte *l_frame = buf_block_get_frame(l_block);
@@ -2922,13 +2981,16 @@ dberr_t Btree_load::Merger::subtree_link_levels(size_t &highest_level) {
 
 dberr_t Btree_load::Merger::add_root_for_subtrees(const size_t highest_level) {
   /* This function uses mtr with MTR_LOG_NO_REDO and a flush observer. */
+  dberr_t err{DB_SUCCESS};
+
   if (m_btree_loads.empty()) {
     return DB_SUCCESS;
   }
+
+  std::vector<dtuple_t *> all_node_ptrs;
+  size_t total_node_ptrs_size{0};
   ut_ad(std::is_sorted(m_btree_loads.begin(), m_btree_loads.end(),
                        Btree_load_compare(m_index)));
-  Scoped_heap tuple_heap(2048, UT_LOCATION_HERE);
-
   const page_no_t root_page_no = dict_index_get_page(m_index);
   auto observer = m_trx->flush_observer;
 
@@ -2950,7 +3012,7 @@ dberr_t Btree_load::Merger::add_root_for_subtrees(const size_t highest_level) {
   const size_t need_space = n_root_data + slot_size;
   const size_t max_free = get_max_free();
   const bool level_incr = (n_subtrees > 1) && (need_space >= max_free);
-  const size_t new_root_level = level_incr ? highest_level + 1 : highest_level;
+  size_t new_root_level = level_incr ? highest_level + 1 : highest_level;
 
   Page_load root_load(m_index, m_trx->id, root_page_no, new_root_level,
                       observer);
@@ -2960,10 +3022,12 @@ dberr_t Btree_load::Merger::add_root_for_subtrees(const size_t highest_level) {
   mtr.start();
   mtr.x_lock(dict_index_get_lock(m_index), UT_LOCATION_HERE);
 
-  auto err = root_load.init();
-  if (err != DB_SUCCESS) {
-    mtr.commit();
-    return err;
+  if (!level_incr) {
+    err = root_load.init();
+    if (err != DB_SUCCESS) {
+      mtr.commit();
+      return err;
+    }
   }
 
   bool min_rec = true;
@@ -2992,17 +3056,15 @@ dberr_t Btree_load::Merger::add_root_for_subtrees(const size_t highest_level) {
 
     if (level_incr) {
       auto node_ptr = dict_index_build_node_ptr(
-          m_index, first_rec, subtree_root, tuple_heap.get(), highest_level);
+          m_index, first_rec, subtree_root, m_tuple_heap.get(), highest_level);
       auto rec_size = rec_get_converted_size(m_index, node_ptr);
 
       if (min_rec) {
         node_ptr->set_min_rec_flag();
       }
 
-      err = root_load.insert(node_ptr, nullptr, rec_size);
-      if (err != DB_SUCCESS) {
-        return err;
-      }
+      all_node_ptrs.push_back(node_ptr);
+      total_node_ptrs_size += rec_size;
     } else {
       /* Copy the records from subtree root to actual root. */
       (void)root_load.copy_all(subtree_page);
@@ -3012,14 +3074,175 @@ dberr_t Btree_load::Merger::add_root_for_subtrees(const size_t highest_level) {
     }
     min_rec = false;
   }
+  if (level_incr) {
+    while (total_node_ptrs_size > max_free) {
+      err =
+          insert_node_ptrs(all_node_ptrs, total_node_ptrs_size, new_root_level);
+      if (err != DB_SUCCESS) {
+        return err;
+      }
+      new_root_level++;
+    }
+
+    root_load.set_level(new_root_level);
+    auto err = root_load.init();
+    ut_a(err == DB_SUCCESS);
+
+    for (auto node_ptr : all_node_ptrs) {
+      auto rec_size = rec_get_converted_size(m_index, node_ptr);
+      err = root_load.insert(node_ptr, nullptr, rec_size);
+      if (err != DB_SUCCESS) {
+        return err;
+      }
+    }
+  }
   root_load.set_next(FIL_NULL);
   root_load.set_prev(FIL_NULL);
+  root_load.set_min_rec_flag();
   root_load.finish();
   if (root_load.is_table_compressed()) {
     err = root_page_commit(&root_load);
   }
   mtr.commit();
   root_load.commit();
+  return err;
+}
+
+void Btree_load::Merger::link_right_sibling(const page_no_t l_page_no,
+                                            const page_no_t r_page_no) {
+  ut_ad(l_page_no != FIL_NULL);
+
+  const space_id_t space_id = dict_index_get_space(m_index);
+  const page_id_t l_page_id(space_id, l_page_no);
+  const page_size_t page_size(dict_table_page_size(m_index->table));
+  auto observer = m_trx->flush_observer;
+  mtr_t mtr;
+
+  mtr.start();
+  mtr.set_log_mode(MTR_LOG_NO_REDO);
+  mtr.set_flush_observer(observer);
+  buf_block_t *l_block =
+      buf_page_get(l_page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, &mtr);
+
+#ifdef UNIV_DEBUG
+  const page_type_t l_type = l_block->get_page_type();
+  ut_a(l_type == FIL_PAGE_INDEX);
+#endif /* UNIV_DEBUG */
+
+  byte *l_frame = buf_block_get_frame(l_block);
+  page_zip_des_t *l_zip = buf_block_get_page_zip(l_block);
+  btr_page_set_next(l_frame, l_zip, r_page_no, &mtr);
+  mtr_commit(&mtr);
+}
+
+dberr_t Btree_load::Merger::insert_node_ptrs(
+    std::vector<dtuple_t *> &all_node_ptrs, size_t &total_node_ptrs_size,
+    size_t level) {
+  dberr_t err{DB_SUCCESS};
+  std::vector<dtuple_t *> next_node_ptrs;
+  size_t next_size{};
+  auto observer = m_trx->flush_observer;
+  size_t need_space = total_node_ptrs_size;
+  const size_t max_free = get_max_free();
+  ut_a(need_space > max_free);
+
+  /* Track the number of records (node pointers) inserted. */
+  size_t n_recs{0};
+
+  /* Allocate one page here. */
+  auto page_load =
+      ut::new_withkey<Page_load>(UT_NEW_THIS_FILE_PSI_KEY, m_index, m_trx->id,
+                                 FIL_NULL, level, observer, nullptr);
+
+  auto guard = create_scope_guard([&page_load]() { ut::delete_(page_load); });
+
+  page_no_t prev_page_no{FIL_NULL};
+  page_load->alloc();
+  err = page_load->init();
+  ut_a(err == DB_SUCCESS);
+
+  page_load->set_prev(FIL_NULL);
+  page_load->set_next(FIL_NULL);
+
+  /* Lambda function to call once a page is loaded with rows. */
+  auto page_completed = [&]() -> void {
+    page_load->finish();
+
+    std::vector<Page_load *> page_loads;
+    if (page_load->is_table_compressed()) {
+      compress_for_sure(page_load, page_loads);
+    } else {
+      page_load->commit();
+      page_loads.push_back(page_load);
+    }
+
+    /* Save the node pointer of the current page. */
+    for (auto page_load_i : page_loads) {
+      dtuple_t *next_node_ptr = page_load_i->get_node_ptr(m_tuple_heap.get());
+      next_node_ptrs.push_back(next_node_ptr);
+      next_size += rec_get_converted_size(m_index, next_node_ptr);
+    }
+
+    /* Link the siblings by updating FIL_PAGE_NEXT of left sibling. */
+    if (prev_page_no != FIL_NULL) {
+      link_right_sibling(prev_page_no, page_loads.front()->get_page_no());
+    }
+    prev_page_no = page_loads.back()->get_page_no();
+
+    /* Free the pages allocated during page split if any. */
+    if (page_load->is_table_compressed()) {
+      if (page_loads.size() > 1) {
+        for (auto page_load_i : page_loads) {
+          ut::delete_(page_load_i);
+        }
+      }
+    }
+  };
+
+  all_node_ptrs[0]->set_min_rec_flag();
+
+  for (auto node_ptr : all_node_ptrs) {
+    /* Insert the node pointer into the current page.  Node pointers cannot
+    have external fields, so nullptr is passed. */
+    auto rec_size = rec_get_converted_size(m_index, node_ptr);
+    big_rec_t *big_rec{};
+    err = page_load->insert(node_ptr, big_rec, rec_size);
+    n_recs++;
+
+    if (n_recs == 1) {
+      page_load->set_min_rec_flag();
+    }
+
+    if (err == DB_FAIL) {
+      /* The current page has been populated with required number of records/
+      node pointers, so take necessary action to proceed with the next page. */
+      page_completed();
+
+      /* Allocate next page. */
+      page_load->reset();
+      page_load->alloc();
+
+      const dberr_t err2 = page_load->init();
+      ut_a(err2 == DB_SUCCESS);
+      page_load->set_prev(prev_page_no);
+      page_load->set_next(FIL_NULL);
+      err = page_load->insert(node_ptr, big_rec, rec_size);
+    }
+
+    if (err != DB_SUCCESS) {
+      break;
+    }
+  }
+
+  if (err != DB_SUCCESS) {
+    return err;
+  }
+
+  page_completed();
+
+  /* Update the function arguments with the new values. */
+  all_node_ptrs.swap(next_node_ptrs);
+  total_node_ptrs_size = next_size;
   return err;
 }
 
@@ -3079,6 +3302,85 @@ Page_load::~Page_load() noexcept {
   }
 }
 
+dberr_t Btree_load::Merger::n_page_split(Page_load *page_load,
+                                         const size_t n_pages,
+                                         std::vector<Page_load *> &page_loads) {
+  ut_a(page_load->is_table_compressed());
+  ut_a(n_pages > 1);
+  ut_a(page_loads.empty());
+  dberr_t err{DB_SUCCESS};
+
+  const size_t page_level = page_load->get_level();
+  Flush_observer *observer = m_trx->flush_observer;
+  const auto trx_id = m_trx->id;
+
+  auto guard = create_scope_guard([&err, &page_loads]() {
+    if (err != DB_SUCCESS) {
+      /* On error, free the allocated pages */
+      for (auto &page_load : page_loads) {
+        ut::delete_(page_load);
+      }
+      page_loads.clear();
+    }
+  });
+
+  for (size_t i = 0; i < n_pages; ++i) {
+    auto page_load =
+        ut::new_withkey<Page_load>(UT_NEW_THIS_FILE_PSI_KEY, m_index, trx_id,
+                                   FIL_NULL, page_level, observer, nullptr);
+    if (page_load == nullptr) {
+      err = DB_OUT_OF_MEMORY;
+      return err;
+    }
+    page_loads.push_back(page_load);
+    err = page_load->alloc();
+    if (err != DB_SUCCESS) {
+      return err;
+    }
+    err = page_load->init();
+    if (err != DB_SUCCESS) {
+      return err;
+    }
+  }
+
+  /* Set the FIL_PAGE_PREV and FIL_PAGE_NEXT for these new pages. */
+  for (size_t i = 0; i < n_pages; ++i) {
+    page_no_t p = FIL_NULL;
+    page_no_t n = FIL_NULL;
+    if (i == 0) {
+      n = page_loads[i + 1]->get_page_no();
+    } else if (i == (n_pages - 1)) {
+      p = page_loads[i - 1]->get_page_no();
+    } else {
+      p = page_loads[i - 1]->get_page_no();
+      n = page_loads[i + 1]->get_page_no();
+    }
+    page_loads[i]->set_prev(p);
+    page_loads[i]->set_next(n);
+  }
+
+  /* Transfer the FIL_PAGE_PREV to the first split page. */
+  page_loads[0]->set_prev(page_load->get_prev());
+
+  /* Copy records from given page to the new pages. */
+  page_load->copy_to(page_loads);
+
+  /* Compress each of these N pages. */
+  bool success{true};
+  for (size_t i = 0; i < n_pages; ++i) {
+    page_loads[i]->finish();
+    if (success) {
+      success = page_loads[i]->compress();
+    }
+    page_loads[i]->commit();
+  }
+  if (!success) {
+    err = DB_FAIL;
+  }
+
+  return err;
+}
+
 dberr_t Btree_load::Merger::root_split(Page_load *root_load,
                                        const size_t n_pages) {
   const size_t root_level = root_load->get_level();
@@ -3131,6 +3433,7 @@ dberr_t Btree_load::Merger::root_split(Page_load *root_load,
 
   /* Copy records from given root pages to the new pages. */
   root_load->copy_to(page_loads);
+  page_loads[0]->set_min_rec_flag();
 
   /* Compress each of these N pages. */
   bool success = true;
@@ -3167,8 +3470,34 @@ dberr_t Btree_load::Merger::root_split(Page_load *root_load,
   return root_load->compress() ? DB_SUCCESS : DB_FAIL;
 }
 
+dberr_t Btree_load::Merger::compress_for_sure(
+    Page_load *page_load, std::vector<Page_load *> &page_loads) {
+  dberr_t err{DB_SUCCESS};
+  ut_a(page_load->is_table_compressed());
+
+  if (page_load->compress()) {
+    /* Compress successful, no need to split. */
+    page_load->commit();
+    page_loads.push_back(page_load);
+  } else {
+    /* We split the page into 2 and compress, if that fails we split the
+    page into 3 and compress and so on upto a maximum of 6.  */
+    const size_t max_split = 6;
+    for (size_t i = 2; i < max_split; ++i) {
+      err = n_page_split(page_load, i, page_loads);
+      if (err == DB_SUCCESS) {
+        break;
+      }
+    }
+    page_load->commit();
+  }
+
+  return err;
+}
+
 dberr_t Btree_load::Merger::root_page_commit(Page_load *root_load) {
   ut_a(root_load);
+  ut_a(page_validate(root_load->get_page(), m_index));
   dberr_t err{DB_SUCCESS};
 
   if (root_load->is_table_compressed() && !root_load->compress()) {

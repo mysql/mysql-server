@@ -1,0 +1,51 @@
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 char(255), f3 char(255),
+f4 char(255), f5 char(255));
+SHOW VARIABLES LIKE 'innodb_ddl_threads';
+Variable_name	Value
+innodb_ddl_threads	4
+SHOW VARIABLES LIKE 'innodb_parallel_read_threads';
+Variable_name	Value
+innodb_parallel_read_threads	4
+SET innodb_ddl_threads = 64;
+SET innodb_parallel_read_threads = 75;
+SHOW VARIABLES LIKE 'innodb_ddl_threads';
+Variable_name	Value
+innodb_ddl_threads	64
+SHOW VARIABLES LIKE 'innodb_parallel_read_threads';
+Variable_name	Value
+innodb_parallel_read_threads	75
+begin;
+commit;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` char(255) DEFAULT NULL,
+  `f3` char(255) DEFAULT NULL,
+  `f4` char(255) DEFAULT NULL,
+  `f5` char(255) DEFAULT NULL,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10000
+ALTER TABLE t1 ADD INDEX k1 (f2(255), f3(255), f4(255));
+ALTER TABLE t1 DROP INDEX k1;
+ALTER TABLE t1 ROW_FORMAT = COMPRESSED;
+ALTER TABLE t1 ADD INDEX k1 (f2(255), f3(255), f4(255));
+ALTER TABLE t1 DROP INDEX k1;
+SET GLOBAL innodb_compression_level = 0;
+ALTER TABLE t1 ADD INDEX k1 (f2(255), f3(255), f4(255));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` char(255) DEFAULT NULL,
+  `f3` char(255) DEFAULT NULL,
+  `f4` char(255) DEFAULT NULL,
+  `f5` char(255) DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `k1` (`f2`,`f3`,`f4`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
+DROP TABLE t1;
+SET GLOBAL innodb_compression_level = default;

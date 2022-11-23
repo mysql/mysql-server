@@ -764,8 +764,11 @@ bool page_simple_validate_new(
 @param[in]  page   index page
 @param[in]  index  data dictionary index containing the page record type
 definition
+@param[in]  check_min_rec  check whether min rec flag (REC_INFO_MIN_REC_FLAG)
+is correctly set in the page. The default value is true.
 @return true if ok */
-bool page_validate(const page_t *page, dict_index_t *index);
+bool page_validate(const page_t *page, dict_index_t *index,
+                   bool check_min_rec = true);
 
 /** Looks in the page record list for a record with the given heap number.
  @return record, NULL if not found */
