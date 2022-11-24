@@ -28,7 +28,7 @@
 IMPORT_LOG_FUNCTIONS()
 
 void ConnectionContainer::add_connection(
-    std::unique_ptr<MySQLRoutingConnectionBase> connection) {
+    std::shared_ptr<MySQLRoutingConnectionBase> connection) {
   connections_.put(connection.get(), std::move(connection));
 }
 
@@ -36,9 +36,7 @@ unsigned ConnectionContainer::disconnect(const AllowedNodes &nodes) {
   unsigned number_of_disconnected_connections = 0;
 
   auto mark_to_diconnect_if_not_allowed =
-      [&nodes, &number_of_disconnected_connections](
-          std::pair<MySQLRoutingConnectionBase *const,
-                    std::unique_ptr<MySQLRoutingConnectionBase>> &connection) {
+      [&nodes, &number_of_disconnected_connections](auto &connection) {
         if (std::find_if(nodes.begin(), nodes.end(),
                          [&connection](const auto &node) {
                            return node.address.str() ==
@@ -60,13 +58,8 @@ unsigned ConnectionContainer::disconnect(const AllowedNodes &nodes) {
 }
 
 void ConnectionContainer::disconnect_all() {
-  auto mark_to_disconnect =
-      [](std::pair<MySQLRoutingConnectionBase *const,
-                   std::unique_ptr<MySQLRoutingConnectionBase>> &connection) {
-        connection.first->disconnect();
-      };
-
-  connections_.for_each(mark_to_disconnect);
+  connections_.for_each(
+      [](const auto &connection) { connection.first->disconnect(); });
 }
 
 void ConnectionContainer::remove_connection(

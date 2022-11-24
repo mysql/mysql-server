@@ -50,23 +50,20 @@ class Procs : public ProcessManager {
    * shutdown and stop monitoring of processes.
    */
   void clear() {
-    if (::testing::Test::HasFatalFailure() || dump_logs_) {
-      dump_all();
-    }
-
-    ProcessManager::clear();
-  }
-
-  void shutdown_all() { ProcessManager::shutdown_all(); }
-
-  ~Procs() override {
     shutdown_all();
     ensure_clean_exit();
 
     if (::testing::Test::HasFatalFailure() || dump_logs_) {
       dump_all();
     }
+
+    // it will call shutdown again ...
+    ProcessManager::clear();
   }
+
+  void shutdown_all() { ProcessManager::shutdown_all(); }
+
+  ~Procs() override { clear(); }
 
   void dump_logs() { dump_logs_ = true; }
 

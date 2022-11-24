@@ -171,8 +171,12 @@ void UnreachableDestinationsQuarantine::stop_quarantine() {
     std::for_each(std::begin(quarantined_destination_candidates_),
                   std::end(quarantined_destination_candidates_),
                   [](auto &dest) {
-                    dest->server_sock_.cancel();
-                    dest->timer_.cancel();
+                    auto &io_ctx = dest->server_sock_.get_executor().context();
+
+                    net::dispatch(io_ctx, [dest]() {
+                      dest->server_sock_.cancel();
+                      dest->timer_.cancel();
+                    });
                   });
     quarantined_destination_candidates_.clear();
   }

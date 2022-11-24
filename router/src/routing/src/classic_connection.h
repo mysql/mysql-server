@@ -33,6 +33,7 @@
 
 #include "channel.h"
 #include "connection.h"  // MySQLRoutingConnectionBase
+#include "mysql/harness/net_ts/executor.h"
 #include "mysql/harness/net_ts/timer.h"
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/classic_protocol_session_track.h"
@@ -178,8 +179,13 @@ class ClassicProtocolState : public ProtocolStateBase {
   std::string auth_method_data_;
 };
 
-class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
- public:
+class MysqlRoutingClassicConnection
+    : public MySQLRoutingConnectionBase,
+      public std::enable_shared_from_this<MysqlRoutingClassicConnection> {
+ private:
+  // constructor
+  //
+  // use ::create() instead.
   MysqlRoutingClassicConnection(
       MySQLRoutingContext &context, RouteDestination *route_destination,
       std::unique_ptr<ConnectionBase> client_connection,
@@ -199,6 +205,25 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
                                     std::make_unique<ClassicProtocolState>()})},
         read_timer_{socket_splicer()->client_conn().connection()->io_ctx()},
         connect_timer_{socket_splicer()->client_conn().connection()->io_ctx()} {
+  }
+
+ public:
+  // create a new shared_ptr<ThisClass>
+  //
+  template <typename... Args>
+  [[nodiscard]] static std::shared_ptr<MysqlRoutingClassicConnection> create(
+      // clang-format off
+      Args &&... args) {
+    // clang-format on
+
+    // can't use make_unique<> here as the constructor is private.
+    return std::shared_ptr<MysqlRoutingClassicConnection>(
+        new MysqlRoutingClassicConnection(std::forward<Args>(args)...));
+  }
+
+  // get a shared-ptr that refers the same 'this'
+  std::shared_ptr<MysqlRoutingClassicConnection> getptr() {
+    return shared_from_this();
   }
 
   static stdx::expected<size_t, std::error_code> encode_error_packet(
@@ -226,14 +251,7 @@ class MysqlRoutingClassicConnection : public MySQLRoutingConnectionBase {
     return socket_splicer()->server_conn().endpoint();
   }
 
-  void disconnect() override {
-    disconnect_request([this](auto &req) {
-      (void)socket_splicer()->client_conn().cancel();
-      (void)socket_splicer()->server_conn().cancel();
-
-      req = true;
-    });
-  }
+  void disconnect() override;
 
   void async_run();
 

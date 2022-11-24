@@ -367,6 +367,24 @@ void MysqlRoutingClassicConnection::async_wait_send_server(Function next) {
   });
 }
 
+void MysqlRoutingClassicConnection::disconnect() {
+  disconnect_request([this](auto &req) {
+    auto &io_ctx = socket_splicer()->client_conn().connection()->io_ctx();
+
+    if (io_ctx.stopped()) abort();
+
+    req = true;
+
+    // if disconnect is called from another thread,
+    //
+    // queue the cancel in the connections io-ctx to make it thread-safe.
+    net::dispatch(io_ctx, [this, self = shared_from_this()]() {
+      (void)socket_splicer()->client_conn().cancel();
+      (void)socket_splicer()->server_conn().cancel();
+    });
+  });
+}
+
 // the client didn't send a Greeting before closing the connection.
 //
 // Generate a Greeting to be sent to the server, to ensure the router's IP

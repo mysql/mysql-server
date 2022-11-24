@@ -201,8 +201,8 @@ void SignalHandler::register_fatal_signal_handler(bool dump_core) {
     }
   }
 
-  // enable a crash handler on POSIX systems if not built with ASAN
-#if !defined(HAVE_ASAN)
+  // enable a crash handler on POSIX systems if not built with ASAN|TSAN
+#if !defined(HAVE_ASAN) && !defined(HAVE_TSAN)
   struct sigaction sa;
   (void)sigemptyset(&sa.sa_mask);
   sa.sa_flags = SA_RESETHAND | SA_NODEFER;

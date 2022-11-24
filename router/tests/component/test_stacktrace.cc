@@ -82,9 +82,9 @@ TEST_F(StacktraceTest, spawn_signal_abrt) {
   EXPECT_NO_THROW(proc.native_wait_for_exit());  // timeout throws
 }
 
-// we skip that one when ASAN or UBSAN is used as it marks them as failed seeing
-// ABORT signal
-#if !defined(HAVE_ASAN) && !defined(HAVE_UBSAN)
+// we skip that one when ASAN, UBSAN or TSAN is used as it marks them as failed
+// seeing ABORT signal
+#if !defined(HAVE_ASAN) && !defined(HAVE_UBSAN) && !defined(HAVE_TSAN)
 
 TEST_F(StacktraceTest, spawn_signal_segv) {
   auto executable = g_origin_path.join("signal_me").str();
@@ -105,7 +105,7 @@ TEST_F(StacktraceTest, spawn_signal_segv) {
   EXPECT_NO_THROW(proc.native_wait_for_exit());  // timeout throws
 }
 
-#endif  // !defined(HAVE_ASAN) && !defined(HAVE_UBSAN)
+#endif
 
 int main(int argc, char *argv[]) {
   g_origin_path = mysql_harness::Path(argv[0]).dirname();

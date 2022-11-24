@@ -56,10 +56,13 @@ class XProtocolState : public ProtocolStateBase {
   std::unique_ptr<Mysqlx::Connection::Capabilities> caps_;
 };
 
-class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
- public:
-  using connector_type = Connector<std::unique_ptr<ConnectionBase>>;
-
+class MysqlRoutingXConnection
+    : public MySQLRoutingConnectionBase,
+      public std::enable_shared_from_this<MysqlRoutingXConnection> {
+ private:
+  // constructor
+  //
+  // use ::create() instead.
   MysqlRoutingXConnection(
       MySQLRoutingContext &context, RouteDestination *route_destination,
       std::unique_ptr<ConnectionBase> client_connection,
@@ -77,6 +80,26 @@ class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
                                     std::make_unique<XProtocolState>()},
             TlsSwitchableConnection{nullptr, nullptr, context.dest_ssl_mode(),
                                     std::make_unique<XProtocolState>()})} {}
+
+ public:
+  using connector_type = Connector<std::unique_ptr<ConnectionBase>>;
+
+  // create a shared_ptr<ThisClass>
+  template <typename... Args>
+  [[nodiscard]] static std::shared_ptr<MysqlRoutingXConnection> create(
+      // clang-format off
+      Args &&... args) {
+    // clang-format on
+
+    // can't use make_unique<> here as the constructor is private.
+    return std::shared_ptr<MysqlRoutingXConnection>(
+        new MysqlRoutingXConnection(std::forward<Args>(args)...));
+  }
+
+  // get a shared-ptr that refers the same 'this'
+  std::shared_ptr<MysqlRoutingXConnection> getptr() {
+    return shared_from_this();
+  }
 
   static stdx::expected<size_t, std::error_code> encode_error_packet(
       std::vector<uint8_t> &error_frame, uint16_t error_code,
@@ -99,16 +122,7 @@ class MysqlRoutingXConnection : public MySQLRoutingConnectionBase {
     return socket_splicer()->server_conn().endpoint();
   }
 
-  void disconnect() override {
-    disconnect_request([this](auto &req) {
-      (void)socket_splicer()->client_conn().cancel();
-      (void)socket_splicer()->server_conn().cancel();
-
-      connector().socket().cancel();
-
-      req = true;
-    });
-  }
+  void disconnect() override;
 
   enum class Function {
     kClientRecvCmd,
