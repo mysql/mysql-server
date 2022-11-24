@@ -27,6 +27,7 @@
 
 #include "mrs/interface/authorize_manager.h"
 #include "mrs/interface/object.h"
+#include "mrs/interface/query_factory.h"
 #include "mrs/rest/handler.h"
 
 namespace mrs {
@@ -35,9 +36,11 @@ namespace rest {
 class HandlerFile : public mrs::rest::Handler {
  public:
   using Route = mrs::interface::Object;
+  using QueryFactory = mrs::interface::QueryFactory;
 
  public:
-  HandlerFile(Route *route, mrs::interface::AuthorizeManager *auth_manager);
+  HandlerFile(Route *route, mrs::interface::AuthorizeManager *auth_manager,
+              std::shared_ptr<QueryFactory> factory = {});
 
   uint64_t get_service_id() const override;
   uint64_t get_db_object_id() const override;
@@ -57,6 +60,7 @@ class HandlerFile : public mrs::rest::Handler {
 
  private:
   Route *route_;
+  std::shared_ptr<QueryFactory> factory_;
 };
 
 }  // namespace rest

@@ -375,9 +375,18 @@ Result HandlerObject::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
   auto last_path =
       http::Url::extra_path_element(route_->get_rest_path_raw(), path);
 
-  if (last_path.empty())
-    throw http::Error(HttpStatusCode::BadRequest,
-                      "Key value is required inside the URL.");
+  if (last_path.empty()) {
+    auto &ownershipt = route_->get_user_row_ownership();
+
+    bool is_pk_enforced =
+        ownershipt.user_ownership_enforced
+            ? ownershipt.user_ownership_column == route_->get_cached_primary()
+            : false;
+
+    if (!is_pk_enforced)
+      throw http::Error(HttpStatusCode::BadRequest,
+                        "Key value is required inside the URL.");
+  }
 
   auto &input_buffer = ctxt->request->get_input_buffer();
   auto size = input_buffer.length();

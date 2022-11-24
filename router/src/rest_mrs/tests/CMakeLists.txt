@@ -27,6 +27,7 @@ add_test_file(test_rest_mrs_plugin.cc
   MODULE mrs
   EXTRA_SOURCES
     ./helper/set_http_component.cc
+    ./test_authorize_manager.cc
   	./test_helper_json.cc
   	./test_collector_mysql_cache_manager.cc
   	./test_database_rest_table.cc
@@ -40,6 +41,7 @@ add_test_file(test_rest_mrs_plugin.cc
     ./test_http_utilities.cc
     ./test_rest_handler_authorize.cc
     ./test_rest_handler_object.cc
+    ./test_rest_handler_file.cc
     ./test_rest_handler.cc
     ./test_rest_mrs_user_manager.cc
     ./test_rest_user_entry.cc

@@ -33,6 +33,7 @@
 #include "mysqlrouter/http_request.h"
 
 #include "mrs/database/query_entry_content_file.h"
+#include "mrs/database/query_factory.h"
 #include "mrs/rest/request_context.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -44,14 +45,16 @@ static CachedObject get_session(::mysqlrouter::MySQLSession *session,
                                 collector::MysqlCacheManager *cache_manager) {
   if (session) return CachedObject(nullptr, session);
 
-  return cache_manager->get_instance(collector::kMySQLConnectionUserdata);
+  return cache_manager->get_instance(collector::kMySQLConnectionMetadata);
 }
 
 static Type get_result_type_from_extension(const std::string &ext) {
   static std::map<std::string, Type> map{
-      {".jpg", Type::typeJpg}, {".png", Type::typePng},
-      {".js", Type::typeJs},   {".html", Type::typeHtml},
-      {".css", Type::typeCss}, {".map", Type::typePlain}};
+      {".gif", Type::typeGif},  {".jpg", Type::typeJpg},
+      {".png", Type::typePng},  {".js", Type::typeJs},
+      {".mjs", Type::typeJs},   {".html", Type::typeHtml},
+      {".htm", Type::typeHtml}, {".css", Type::typeCss},
+      {".map", Type::typePlain}};
 
   log_debug("ext:'%s'", ext.c_str());
   auto i = map.find(ext);
@@ -65,10 +68,16 @@ namespace mrs {
 namespace rest {
 
 HandlerFile::HandlerFile(Route *route,
-                         mrs::interface::AuthorizeManager *auth_manager)
+                         mrs::interface::AuthorizeManager *auth_manager,
+                         std::shared_ptr<QueryFactory> factory)
     : Handler(route->get_rest_url(), route->get_rest_path(),
               route->get_options(), auth_manager),
-      route_{route} {}
+      route_{route},
+      factory_{factory} {
+  if (!factory_) {
+    factory_ = std::make_shared<mrs::database::QueryFactory>();
+  }
+}
 
 uint64_t HandlerFile::get_service_id() const {
   return route_->get_service_id();
@@ -102,21 +111,25 @@ void HandlerFile::authorization(rest::RequestContext *ctxt) {
 }
 
 Handler::Result HandlerFile::handle_get(rest::RequestContext *ctxt) {
-  database::QueryEntryContentFile file;
+  auto file = factory_->create_query_content_file();
   mysql_harness::Path path{route_->get_object_path()};
   auto if_not_matched = ctxt->request->get_input_headers().get("If-None-Match");
-  auto session =
-      get_session(ctxt->sql_session_cache.get(), route_->get_cache());
-  auto result_type = get_result_type_from_extension(
-      mysql_harness::make_lower(path.extension()));
 
   if (if_not_matched && route_->get_version() == if_not_matched) {
     throw http::Error(HttpStatusCode::NotModified);
   }
 
-  file.query(session.get(), route_->get_id());
+  auto session =
+      get_session(ctxt->sql_session_cache.get(), route_->get_cache());
+  auto result_type = get_result_type_from_extension(
+      mysql_harness::make_lower(path.extension()));
 
-  return {std::move(file.result), result_type, route_->get_version()};
+  if (nullptr == session.get())
+    throw http::Error(HttpStatusCode::InternalError);
+
+  file->query(session.get(), route_->get_id());
+
+  return {std::move(file->result), result_type, route_->get_version()};
 }
 
 Handler::Result HandlerFile::handle_delete(rest::RequestContext *) {
