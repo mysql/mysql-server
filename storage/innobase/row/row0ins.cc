@@ -61,6 +61,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0undo.h"
 #include "usr0sess.h"
 
+#include <debug_sync.h>
 #include "my_dbug.h"
 
 /*************************************************************************
@@ -1773,8 +1774,7 @@ exit_func:
   if (trx->check_foreigns == false) {
     return (DB_SUCCESS);
   }
-  DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
-                      "foreign_constraint_check_for_ins");
+  DEBUG_SYNC(thr_get_trx(thr)->mysql_thd, "foreign_constraint_check_for_ins");
 
   for (dict_foreign_set::iterator it = table->foreign_set.begin();
        it != table->foreign_set.end(); ++it) {
@@ -2837,7 +2837,7 @@ dberr_t row_ins_sec_index_entry_low(uint32_t flags, ulint mode,
   });
 
   if (check) {
-    DEBUG_SYNC_C("row_ins_sec_index_enter");
+    DEBUG_SYNC(thr_get_trx(thr)->mysql_thd, "row_ins_sec_index_enter");
     if (mode == BTR_MODIFY_LEAF) {
       search_mode |= BTR_ALREADY_S_LATCHED;
       mtr_s_lock(dict_index_get_lock(index), &mtr, UT_LOCATION_HERE);
@@ -3112,8 +3112,8 @@ and return. don't execute actual insert. */
                                         entry, thr, dup_chk_only);
   }
 
-  DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
-                      "after_row_ins_clust_index_entry_leaf");
+  DEBUG_SYNC(thr_get_trx(thr)->mysql_thd,
+             "after_row_ins_clust_index_entry_leaf");
 
   if (err != DB_FAIL) {
     DEBUG_SYNC_C("row_ins_clust_index_entry_leaf_after");
@@ -3440,8 +3440,7 @@ dberr_t row_ins_index_entry_set_vals(const dict_index_t *index, dtuple_t *entry,
   err = row_ins_index_entry(node->index, node->entry, node->ins_multi_val_pos,
                             thr);
 
-  DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
-                      "after_row_ins_index_entry_step");
+  DEBUG_SYNC(thr_get_trx(thr)->mysql_thd, "after_row_ins_index_entry_step");
 
   return err;
 }

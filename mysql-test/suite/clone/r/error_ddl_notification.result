@@ -3,6 +3,7 @@
 # Create and start mysqld with keyring plugin.
 # restart: --datadir=ENCRYPT_DATADIR --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring
 INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SET GLOBAL innodb_ddl_threads = 1;
 CREATE TABLE t1(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
 CREATE TABLE t2(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
 ENCRYPTION = 'Y';
@@ -209,5 +210,6 @@ DROP TABLE t2;
 SET DEBUG_SYNC = 'RESET';
 # Uninstall clone
 UNINSTALL PLUGIN clone;
+SET GLOBAL innodb_ddl_threads = default;
 # Restart server and remove encrypted data directory
 # restart:

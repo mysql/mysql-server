@@ -10,6 +10,8 @@ if($in_place_ddl) {
   --let $algorithm = INPLACE
 }
 
+SET GLOBAL innodb_ddl_threads = 1;
+
 --source ../include/create_ddl_schema.inc
 
 ## Restart server without loading all tablespaces. This would force
@@ -45,6 +47,7 @@ if ($skip_space_validation) {
 --source ../include/ddl_common.inc
 
 --echo # 3. ADD INDEX while clone in progress
+SET GLOBAL innodb_ddl_threads = 1;
 --let $ddl_op1 = ALTER TABLE
 --let $ddl_stmt1 = ADD INDEX col2_idx(col2), ALGORITHM=$algorithm
 
@@ -80,5 +83,6 @@ if ($skip_space_validation) {
 --let $ddl_drop_tables = 1
 --source ../include/drop_ddl_schema.inc
 
+SET GLOBAL innodb_ddl_threads = default;
 --echo # Uninstall clone
 UNINSTALL PLUGIN clone;

@@ -370,8 +370,12 @@ dberr_t Merge_file_sort::Output_file::flush() noexcept {
   /* Start writing the next page from the start. */
   m_ptr = m_buffer.first;
 
-  IF_ENABLED("ddl_merge_sort_interrupt", ut_a(err == DB_SUCCESS);
-             m_interrupt_check = TRX_INTERRUPTED_CHECK;);
+#ifdef UNIV_DEBUG
+  if (Sync_point::enabled(m_ctx.thd(), "ddl_merge_sort_interrupt")) {
+    ut_a(err == DB_SUCCESS);
+    m_interrupt_check = TRX_INTERRUPTED_CHECK;
+  }
+#endif
 
   if (err == DB_SUCCESS && !(m_interrupt_check++ % TRX_INTERRUPTED_CHECK) &&
       m_ctx.is_interrupted()) {
