@@ -11630,3 +11630,30 @@ double EstimateRowAccesses(const AccessPath *path, double num_evaluations,
 
   return rows;
 }
+
+bool IsHashEquijoinCondition(const Item_eq_base *item, table_map left_side,
+                             table_map right_side) {
+  // We are not able to create hash join conditions from row values consisting
+  // of multiple columns, so let them be added as extra conditions instead.
+  if (item->get_comparator()->get_child_comparator_count() > 1) {
+    return false;
+  }
+
+  table_map left_arg_tables = item->get_arg(0)->used_tables();
+  table_map right_arg_tables = item->get_arg(1)->used_tables();
+
+  // The equality is commutative. If the left side of the equality doesn't
+  // reference any table on the left side of the join, swap left and right to
+  // see if it's satisfied the other way around.
+  if (!Overlaps(left_arg_tables, left_side)) {
+    std::swap(left_arg_tables, right_arg_tables);
+  }
+
+  // One side of the equality should reference tables on one side of the join,
+  // and the other side of the equality should reference the other side of the
+  // join.
+  return Overlaps(left_arg_tables, left_side) &&
+         !Overlaps(left_arg_tables, right_side) &&
+         Overlaps(right_arg_tables, right_side) &&
+         !Overlaps(right_arg_tables, left_side);
+}

@@ -1279,4 +1279,26 @@ bool IteratorsAreNeeded(const THD *thd, AccessPath *root_path);
 double EstimateRowAccesses(const AccessPath *path, double num_evaluations,
                            double limit);
 
+/**
+  Returns true if "item" can be used as a hash join condition between the tables
+  given by "left_side" and "right_side". This is used to determine whether an
+  equijoin condition needs to be attached as an "extra" condition.
+
+  It can be used as a hash join condition if the item on one side of the
+  equality references some table in left_side and none in right_side, and the
+  other side of the equality references some table in right_side and none in
+  left_side.
+
+  @param item An equality that is a candidate for joining the left side tables
+  with the right side tables.
+  @param left_side The tables on the left side of the join.
+  @param right_side The tables on the right side of the join.
+
+  @retval true If the equality can be used as a hash join condition.
+  @retval false If the equality must be added as an extra condition to be
+    evaluated after the join.
+*/
+bool IsHashEquijoinCondition(const Item_eq_base *item, table_map left_side,
+                             table_map right_side);
+
 #endif /* SQL_OPTIMIZER_INCLUDED */
