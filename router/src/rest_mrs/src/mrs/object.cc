@@ -220,6 +220,9 @@ bool Object::has_access(const Access access) const {
 }
 
 const std::string &Object::get_cached_primary() {
+  if (cached_columns_.empty()) {
+    cache_columns();
+  }
   return cached_primary_column_;
 }
 
