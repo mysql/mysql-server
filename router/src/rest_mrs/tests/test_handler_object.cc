@@ -79,14 +79,24 @@ class HandleObjectTests : public Test {
     }
 
     void expectSetup() {
+      static std::string k_empty_string;
+      EXPECT_CALL(parent_.mock_route, get_options())
+          .WillRepeatedly(ReturnRef(k_empty_string));
+
+      EXPECT_CALL(parent_.mock_input_headers, get("Cookie"))
+          .WillRepeatedly(Return(k_empty_string.c_str()));
+      EXPECT_CALL(parent_.mock_request_, get_input_headers())
+          .WillRepeatedly(ReturnRef(parent_.mock_input_headers));
+      EXPECT_CALL(parent_.mock_request_, get_input_headers())
+          .WillRepeatedly(ReturnRef(parent_.mock_input_headers));
       EXPECT_CALL(parent_.mock_route, get_rest_path())
           .WillRepeatedly(ReturnRef(rest_path_));
       EXPECT_CALL(parent_.mock_route, get_rest_url())
           .WillRepeatedly(ReturnRef(rest_url_));
       EXPECT_CALL(parent_.mock_route, get_rest_path_raw())
-          .WillOnce(ReturnRef(rest_path_));
+          .WillRepeatedly(ReturnRef(rest_path_));
       EXPECT_CALL(parent_.mock_route, get_cache())
-          .WillOnce(Return(&parent_.mysql_cache));
+          .WillRepeatedly(Return(&parent_.mysql_cache));
       EXPECT_CALL(parent_.mysql_cache,
                   get_instance(collector::kMySQLConnectionMetadata))
           .WillOnce(Return(ByMove(collector::MysqlCacheManager::CachedObject(
@@ -120,6 +130,7 @@ class HandleObjectTests : public Test {
   };
 
   HttpUri uri_{};
+  StrictMock<MockHttpHeaders> mock_input_headers;
   StrictMock<MockMysqlCacheManager> mysql_cache;
   StrictMock<MockHttpRequest> mock_request_;
   StrictMock<MockRoute> mock_route;
@@ -177,4 +188,30 @@ TEST_F(HandleObjectTests, fetch_object_single) {
                     _, _));
 
   object.handle_get(&ctxt);
+}
+
+TEST_F(HandleObjectTests, delete_single_object) {
+  const Object::RowUserOwnership k_user_row_ownership{false, ""};
+  const Object::VectorOfRowGroupOwnership k_group_row_ownership{};
+  const std::string k_cached_primary{"column1"};
+  GeneralExceptations expectations{*this,
+                                   k_user_row_ownership,
+                                   k_group_row_ownership,
+                                   k_cached_primary,
+                                   "schema",
+                                   "object",
+                                   "/schema/object/1",
+                                   "https://test.pl/schema/object",
+                                   {"column2", "column3"}};
+
+  RequestContext ctxt{&mock_request_};
+  HandlerObject object{&mock_route, &mock_auth_manager};
+
+  //  EXPECT_CALL(mock_session,
+  //              query(StartsWith("SELECT "
+  //                               "JSON_OBJECT('column1',`column1`,'column2',`"
+  //                               "column2`,'column3',`column3`, 'links'"),
+  //                    _, _));
+
+  object.handle_delete(&ctxt);
 }
