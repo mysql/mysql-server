@@ -20959,6 +20959,86 @@ static void test_bug31048553() {
   mysql_close(mysql_local);
 }
 
+static void test_34556764() {
+  MYSQL *mysql_local;
+  uint ssl_mode = SSL_MODE_DISABLED;
+  uint protocol = MYSQL_PROTOCOL_TCP;
+  bool use_server_public_key = true;
+  net_async_status status;
+  myheader("test_34556764");
+  if (mysql_query(
+          mysql,
+          "CREATE USER u34556764_1 IDENTIFIED WITH 'sha256_password' BY "
+          "'abcd'")) {
+    fprintf(stderr, "\n Create user failed with error %s ", mysql_error(mysql));
+    exit(1);
+  }
+
+  if (mysql_query(
+          mysql,
+          "CREATE USER u34556764_2 IDENTIFIED WITH 'caching_sha2_password' BY "
+          "'abcd'")) {
+    fprintf(stderr, "\n Create user failed with error %s ", mysql_error(mysql));
+    exit(1);
+  }
+
+  if (!(mysql_local = mysql_client_init(nullptr))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+
+  mysql_options(mysql_local, MYSQL_OPT_PROTOCOL, &protocol);
+  mysql_options(mysql_local, MYSQL_OPT_SSL_MODE, &ssl_mode);
+
+  do {
+    status = mysql_real_connect_nonblocking(
+        mysql_local, opt_host, "u34556764_1", "abcd", nullptr, opt_port,
+        nullptr, CLIENT_MULTI_STATEMENTS);
+  } while (status == NET_ASYNC_NOT_READY);
+  if (status == NET_ASYNC_ERROR) {
+    fprintf(stdout, "\n mysql_real_connect_nonblocking() failed. Error: [%s]",
+            mysql_error(mysql_local));
+    exit(1);
+  } else {
+    fprintf(stdout, "\n asynchronous connection estalished");
+  }
+  mysql_close(mysql_local);
+
+  if (!(mysql_local = mysql_client_init(nullptr))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+
+  mysql_options(mysql_local, MYSQL_OPT_PROTOCOL, &protocol);
+  mysql_options(mysql_local, MYSQL_OPT_SSL_MODE, &ssl_mode);
+  mysql_options(mysql_local, MYSQL_OPT_GET_SERVER_PUBLIC_KEY,
+                &use_server_public_key);
+
+  do {
+    status = mysql_real_connect_nonblocking(
+        mysql_local, opt_host, "u34556764_2", "abcd", nullptr, opt_port,
+        nullptr, CLIENT_MULTI_STATEMENTS);
+  } while (status == NET_ASYNC_NOT_READY);
+  if (status == NET_ASYNC_ERROR) {
+    fprintf(stdout, "\n mysql_real_connect_nonblocking() failed. Error: [%s]",
+            mysql_error(mysql_local));
+    exit(1);
+  } else {
+    fprintf(stdout, "\n asynchronous connection estalished");
+  }
+  mysql_close(mysql_local);
+
+  if (mysql_query(mysql, "DROP USER u34556764_1")) {
+    fprintf(stderr, "\n Drop user failed with error %s ", mysql_error(mysql));
+    exit(1);
+  }
+
+  if (mysql_query(mysql, "DROP USER u34556764_2")) {
+    fprintf(stderr, "\n Drop user failed with error %s ", mysql_error(mysql));
+    exit(1);
+  }
+}
+
 static void test_wl11381() {
   MYSQL *mysql_local;
   MYSQL_RES *result;
@@ -23698,6 +23778,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bug33535746", test_bug33535746},
     {"test_wl13128", test_wl13128},
     {"test_bug25584097", test_bug25584097},
+    {"test_34556764", test_34556764},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }
