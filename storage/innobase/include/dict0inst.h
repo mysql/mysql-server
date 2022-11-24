@@ -88,8 +88,10 @@ class Instant_ddl_impl {
   /** Destructor */
   ~Instant_ddl_impl() {}
 
-  /** Commit instant DDL */
-  void commit_instant_ddl();
+  /** Commit instant DDL
+  @retval true Failure
+  @retval false Success */
+  bool commit_instant_ddl();
 
   /** Check if INSTANT ADD/DROP can be done.
   @param[in]  ha_alter_info alter info
@@ -102,17 +104,25 @@ class Instant_ddl_impl {
       const TABLE *altered_table, const dict_table_t *dict_table);
 
  private:
-  /** Add column instantly */
-  void commit_instant_add_col_low();
+  /** Add column instantly
+  @retval true Failure
+  @retval false Success */
+  bool commit_instant_add_col_low();
 
-  /** Add column instantly */
-  void commit_instant_drop_col_low();
+  /** Add column instantly
+  @retval true Failure
+  @retval false Success */
+  bool commit_instant_drop_col_low();
 
-  /** Add columns instantly */
-  void commit_instant_add_col();
+  /** Add columns instantly
+  @retval true Failure
+  @retval false Success */
+  bool commit_instant_add_col();
 
-  /** Drop columns instantly */
-  void commit_instant_drop_col();
+  /** Drop columns instantly
+  @retval true Failure
+  @retval false Success */
+  bool commit_instant_drop_col();
 
   /** Fetch columns which are to be added or dropped instantly */
   void populate_to_be_instant_columns();

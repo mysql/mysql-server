@@ -64,7 +64,7 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 id	0	6	1283	0	0	0
 c1	1	13	16711934	0	0	0
 c3	2	13	16711934	1	1	0
-c2_dropped_v2	6	13	16711934	0	0	2
+!hidden!_dropped_v2_p4_c2	6	13	16711934	0	0	2
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -75,7 +75,7 @@ c1	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
 c3	3	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=5;table_id=TABLE_ID;version_added=1;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v2_p4_c2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
 INSERT INTO t1 VALUES (3, "r3c1", "r3c3");
 SELECT * FROM t1;
 id	c1	c3
@@ -104,7 +104,7 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 id	0	6	1283	0	0	0
 c1	1	13	16711934	0	0	0
 c3	2	13	16711934	1	1	0
-c2_dropped_v2	6	13	16711934	0	0	2
+!hidden!_dropped_v2_p4_c2	6	13	16711934	0	0	2
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -115,7 +115,7 @@ c1	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
 c3	3	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=5;table_id=TABLE_ID;version_added=1;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v2_p4_c2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
 SELECT * FROM t1;
 id	c1	c3
 1	r0c0	r1c3
@@ -191,7 +191,7 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 id	0	6	1283	0	0	0
 c1	1	13	16711934	0	0	0
 c3	2	13	16711934	1	1	0
-c2_dropped_v2	6	13	16711934	0	0	2
+!hidden!_dropped_v2_p4_c2	6	13	16711934	0	0	2
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -202,7 +202,7 @@ c1	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
 c3	3	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=5;table_id=TABLE_ID;version_added=1;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v2_p4_c2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
 INSERT INTO t1 VALUES (3, "r3c1", "r3c3");
 SELECT * FROM t1;
 id	c1	c3
@@ -231,7 +231,7 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 id	0	6	1283	0	0	0
 c1	1	13	16711934	0	0	0
 c3	2	13	16711934	1	1	0
-c2_dropped_v2	6	13	16711934	0	0	2
+!hidden!_dropped_v2_p4_c2	6	13	16711934	0	0	2
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -242,7 +242,7 @@ c1	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
 c3	3	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=5;table_id=TABLE_ID;version_added=1;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v2_p4_c2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
 SELECT * FROM t1;
 id	c1	c3
 1	r0c0	r1c3
@@ -318,7 +318,7 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 id	0	6	1283	0	0	0
 c1	1	13	16711934	0	0	0
 c3	2	13	16711934	1	1	0
-c2_dropped_v2	6	13	16711934	0	0	2
+!hidden!_dropped_v2_p4_c2	6	13	16711934	0	0	2
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -329,7 +329,7 @@ c1	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
 c3	3	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=5;table_id=TABLE_ID;version_added=1;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v2_p4_c2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
 INSERT INTO t1 VALUES (3, "r3c1", "r3c3");
 SELECT * FROM t1;
 id	c1	c3
@@ -358,7 +358,7 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 id	0	6	1283	0	0	0
 c1	1	13	16711934	0	0	0
 c3	2	13	16711934	1	1	0
-c2_dropped_v2	6	13	16711934	0	0	2
+!hidden!_dropped_v2_p4_c2	6	13	16711934	0	0	2
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -369,7 +369,7 @@ c1	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=3;table_id=TABLE_ID;
 c3	3	MYSQL_TYPE_STRING	0	Visible	default_null=1;physical_pos=5;table_id=TABLE_ID;version_added=1;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v2_p4_c2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
 SELECT * FROM t1;
 id	c1	c3
 1	r0c0	r1c3

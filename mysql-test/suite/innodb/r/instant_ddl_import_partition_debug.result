@@ -288,7 +288,7 @@ c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f646566202020202020202020202020202
 DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v3	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;version_dropped=3;
+!hidden!_dropped_v3_p4_c2	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;version_dropped=3;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 p0	128	discard=0;
@@ -305,7 +305,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p1	8	0	3	4	5	6
@@ -316,7 +316,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p2	8	0	3	4	5	6
@@ -327,7 +327,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p3	8	0	3	4	5	6
@@ -338,7 +338,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 SELECT * FROM t1 ORDER BY c1;
 c1	c6	c3	c4	c5
 1	NULL	3	abcdefg	c5_def
@@ -390,7 +390,7 @@ c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f646566202020202020202020202020202
 DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v3	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;table_id=TABLE_ID;version_dropped=3;
+!hidden!_dropped_v3_p4_c2	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;table_id=TABLE_ID;version_dropped=3;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 p0	128	discard=0;
@@ -407,7 +407,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p1	8	0	3	4	5	6
@@ -418,7 +418,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p2	8	0	3	4	5	6
@@ -429,7 +429,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p3	8	0	3	4	5	6
@@ -440,7 +440,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # ------------------------------------------------------------
 # Scenario 2.2 : New table created with like
 # ------------------------------------------------------------
@@ -493,7 +493,7 @@ c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f646566202020202020202020202020202
 DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v3	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;table_id=TABLE_ID;version_dropped=3;
+!hidden!_dropped_v3_p4_c2	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;table_id=TABLE_ID;version_dropped=3;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 p0	128	discard=0;
@@ -510,7 +510,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p1	8	0	3	4	5	6
@@ -521,7 +521,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p2	8	0	3	4	5	6
@@ -532,7 +532,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p3	8	0	3	4	5	6
@@ -543,7 +543,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 DROP TABLE t1;
 # ------------------------------------------------------------
 # A Partitioned table having multiple INSTANT ADD/DROP columns
@@ -615,17 +615,17 @@ dept	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
 sal	5	MYSQL_TYPE_LONG	0	Visible	default_null=1;physical_pos=17;table_id=TABLE_ID;version_added=21;
 DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-phoneno_dropped_v2	8	MYSQL_TYPE_LONG	0	SE	physical_pos=6;table_id=TABLE_ID;version_dropped=2;
-sal_dropped_v4	9	MYSQL_TYPE_LONG	0	SE	physical_pos=7;table_id=TABLE_ID;version_added=1;version_dropped=4;
-phoneno_dropped_v6	10	MYSQL_TYPE_LONG	0	SE	physical_pos=8;table_id=TABLE_ID;version_added=3;version_dropped=6;
-sal_dropped_v8	11	MYSQL_TYPE_LONG	0	SE	physical_pos=9;table_id=TABLE_ID;version_added=5;version_dropped=8;
-phoneno_dropped_v10	12	MYSQL_TYPE_LONG	0	SE	physical_pos=10;table_id=TABLE_ID;version_added=7;version_dropped=10;
-sal_dropped_v12	13	MYSQL_TYPE_LONG	0	SE	physical_pos=11;table_id=TABLE_ID;version_added=9;version_dropped=12;
-phoneno_dropped_v14	14	MYSQL_TYPE_LONG	0	SE	physical_pos=12;table_id=TABLE_ID;version_added=11;version_dropped=14;
-sal_dropped_v16	15	MYSQL_TYPE_LONG	0	SE	physical_pos=13;table_id=TABLE_ID;version_added=13;version_dropped=16;
-phoneno_dropped_v18	16	MYSQL_TYPE_LONG	0	SE	physical_pos=14;table_id=TABLE_ID;version_added=15;version_dropped=18;
-sal_dropped_v20	17	MYSQL_TYPE_LONG	0	SE	physical_pos=15;table_id=TABLE_ID;version_added=17;version_dropped=20;
-phoneno_dropped_v22	18	MYSQL_TYPE_LONG	0	SE	physical_pos=16;table_id=TABLE_ID;version_added=19;version_dropped=22;
+!hidden!_dropped_v2_p6_phoneno	8	MYSQL_TYPE_LONG	0	SE	physical_pos=6;table_id=TABLE_ID;version_dropped=2;
+!hidden!_dropped_v4_p7_sal	9	MYSQL_TYPE_LONG	0	SE	physical_pos=7;table_id=TABLE_ID;version_added=1;version_dropped=4;
+!hidden!_dropped_v6_p8_phoneno	10	MYSQL_TYPE_LONG	0	SE	physical_pos=8;table_id=TABLE_ID;version_added=3;version_dropped=6;
+!hidden!_dropped_v8_p9_sal	11	MYSQL_TYPE_LONG	0	SE	physical_pos=9;table_id=TABLE_ID;version_added=5;version_dropped=8;
+!hidden!_dropped_v10_p10_phoneno	12	MYSQL_TYPE_LONG	0	SE	physical_pos=10;table_id=TABLE_ID;version_added=7;version_dropped=10;
+!hidden!_dropped_v12_p11_sal	13	MYSQL_TYPE_LONG	0	SE	physical_pos=11;table_id=TABLE_ID;version_added=9;version_dropped=12;
+!hidden!_dropped_v14_p12_phoneno	14	MYSQL_TYPE_LONG	0	SE	physical_pos=12;table_id=TABLE_ID;version_added=11;version_dropped=14;
+!hidden!_dropped_v16_p13_sal	15	MYSQL_TYPE_LONG	0	SE	physical_pos=13;table_id=TABLE_ID;version_added=13;version_dropped=16;
+!hidden!_dropped_v18_p14_phoneno	16	MYSQL_TYPE_LONG	0	SE	physical_pos=14;table_id=TABLE_ID;version_added=15;version_dropped=18;
+!hidden!_dropped_v20_p15_sal	17	MYSQL_TYPE_LONG	0	SE	physical_pos=15;table_id=TABLE_ID;version_added=17;version_dropped=20;
+!hidden!_dropped_v22_p16_phoneno	18	MYSQL_TYPE_LONG	0	SE	physical_pos=16;table_id=TABLE_ID;version_added=19;version_dropped=22;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 P0	10	discard=0;
@@ -642,17 +642,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p1	8	0	22	5	5	16
@@ -663,17 +663,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p2	8	0	22	5	5	16
@@ -684,17 +684,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p3	8	0	22	5	5	16
@@ -705,17 +705,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # ------------------------------------------------------------
 # Scenario 3.2 : New table created with like
 # ------------------------------------------------------------
@@ -766,17 +766,17 @@ dept	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
 sal	5	MYSQL_TYPE_LONG	0	Visible	default_null=1;physical_pos=17;table_id=TABLE_ID;version_added=21;
 DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-phoneno_dropped_v2	8	MYSQL_TYPE_LONG	0	SE	physical_pos=6;table_id=TABLE_ID;version_dropped=2;
-sal_dropped_v4	9	MYSQL_TYPE_LONG	0	SE	physical_pos=7;table_id=TABLE_ID;version_added=1;version_dropped=4;
-phoneno_dropped_v6	10	MYSQL_TYPE_LONG	0	SE	physical_pos=8;table_id=TABLE_ID;version_added=3;version_dropped=6;
-sal_dropped_v8	11	MYSQL_TYPE_LONG	0	SE	physical_pos=9;table_id=TABLE_ID;version_added=5;version_dropped=8;
-phoneno_dropped_v10	12	MYSQL_TYPE_LONG	0	SE	physical_pos=10;table_id=TABLE_ID;version_added=7;version_dropped=10;
-sal_dropped_v12	13	MYSQL_TYPE_LONG	0	SE	physical_pos=11;table_id=TABLE_ID;version_added=9;version_dropped=12;
-phoneno_dropped_v14	14	MYSQL_TYPE_LONG	0	SE	physical_pos=12;table_id=TABLE_ID;version_added=11;version_dropped=14;
-sal_dropped_v16	15	MYSQL_TYPE_LONG	0	SE	physical_pos=13;table_id=TABLE_ID;version_added=13;version_dropped=16;
-phoneno_dropped_v18	16	MYSQL_TYPE_LONG	0	SE	physical_pos=14;table_id=TABLE_ID;version_added=15;version_dropped=18;
-sal_dropped_v20	17	MYSQL_TYPE_LONG	0	SE	physical_pos=15;table_id=TABLE_ID;version_added=17;version_dropped=20;
-phoneno_dropped_v22	18	MYSQL_TYPE_LONG	0	SE	physical_pos=16;table_id=TABLE_ID;version_added=19;version_dropped=22;
+!hidden!_dropped_v2_p6_phoneno	8	MYSQL_TYPE_LONG	0	SE	physical_pos=6;table_id=TABLE_ID;version_dropped=2;
+!hidden!_dropped_v4_p7_sal	9	MYSQL_TYPE_LONG	0	SE	physical_pos=7;table_id=TABLE_ID;version_added=1;version_dropped=4;
+!hidden!_dropped_v6_p8_phoneno	10	MYSQL_TYPE_LONG	0	SE	physical_pos=8;table_id=TABLE_ID;version_added=3;version_dropped=6;
+!hidden!_dropped_v8_p9_sal	11	MYSQL_TYPE_LONG	0	SE	physical_pos=9;table_id=TABLE_ID;version_added=5;version_dropped=8;
+!hidden!_dropped_v10_p10_phoneno	12	MYSQL_TYPE_LONG	0	SE	physical_pos=10;table_id=TABLE_ID;version_added=7;version_dropped=10;
+!hidden!_dropped_v12_p11_sal	13	MYSQL_TYPE_LONG	0	SE	physical_pos=11;table_id=TABLE_ID;version_added=9;version_dropped=12;
+!hidden!_dropped_v14_p12_phoneno	14	MYSQL_TYPE_LONG	0	SE	physical_pos=12;table_id=TABLE_ID;version_added=11;version_dropped=14;
+!hidden!_dropped_v16_p13_sal	15	MYSQL_TYPE_LONG	0	SE	physical_pos=13;table_id=TABLE_ID;version_added=13;version_dropped=16;
+!hidden!_dropped_v18_p14_phoneno	16	MYSQL_TYPE_LONG	0	SE	physical_pos=14;table_id=TABLE_ID;version_added=15;version_dropped=18;
+!hidden!_dropped_v20_p15_sal	17	MYSQL_TYPE_LONG	0	SE	physical_pos=15;table_id=TABLE_ID;version_added=17;version_dropped=20;
+!hidden!_dropped_v22_p16_phoneno	18	MYSQL_TYPE_LONG	0	SE	physical_pos=16;table_id=TABLE_ID;version_added=19;version_dropped=22;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 P0	10	discard=0;
@@ -793,17 +793,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p1	8	0	22	5	5	16
@@ -814,17 +814,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p2	8	0	22	5	5	16
@@ -835,17 +835,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p3	8	0	22	5	5	16
@@ -856,17 +856,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 DROP TABLE t1;
 ###########
 # CLEANUP #
@@ -1161,7 +1161,7 @@ c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f646566202020202020202020202020202
 DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v3	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;version_dropped=3;
+!hidden!_dropped_v3_p4_c2	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;version_dropped=3;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 p0	128	discard=0;
@@ -1178,7 +1178,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p1	8	0	3	4	5	6
@@ -1189,7 +1189,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p2	8	0	3	4	5	6
@@ -1200,7 +1200,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p3	8	0	3	4	5	6
@@ -1211,7 +1211,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 SELECT * FROM t1 ORDER BY c1;
 c1	c6	c3	c4	c5
 1	NULL	3	abcdefg	c5_def
@@ -1263,7 +1263,7 @@ c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f646566202020202020202020202020202
 DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v3	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;table_id=TABLE_ID;version_dropped=3;
+!hidden!_dropped_v3_p4_c2	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;table_id=TABLE_ID;version_dropped=3;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 p0	128	discard=0;
@@ -1280,7 +1280,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p1	8	0	3	4	5	6
@@ -1291,7 +1291,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p2	8	0	3	4	5	6
@@ -1302,7 +1302,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p3	8	0	3	4	5	6
@@ -1313,7 +1313,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # ------------------------------------------------------------
 # Scenario 2.2 : New table created with like
 # ------------------------------------------------------------
@@ -1366,7 +1366,7 @@ c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f646566202020202020202020202020202
 DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v3	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;table_id=TABLE_ID;version_dropped=3;
+!hidden!_dropped_v3_p4_c2	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;table_id=TABLE_ID;version_dropped=3;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 p0	128	discard=0;
@@ -1383,7 +1383,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p1	8	0	3	4	5	6
@@ -1394,7 +1394,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p2	8	0	3	4	5	6
@@ -1405,7 +1405,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p3	8	0	3	4	5	6
@@ -1416,7 +1416,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 DROP TABLE t1;
 # ------------------------------------------------------------
 # A Partitioned table having multiple INSTANT ADD/DROP columns
@@ -1488,17 +1488,17 @@ dept	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
 sal	5	MYSQL_TYPE_LONG	0	Visible	default_null=1;physical_pos=17;table_id=TABLE_ID;version_added=21;
 DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-phoneno_dropped_v2	8	MYSQL_TYPE_LONG	0	SE	physical_pos=6;table_id=TABLE_ID;version_dropped=2;
-sal_dropped_v4	9	MYSQL_TYPE_LONG	0	SE	physical_pos=7;table_id=TABLE_ID;version_added=1;version_dropped=4;
-phoneno_dropped_v6	10	MYSQL_TYPE_LONG	0	SE	physical_pos=8;table_id=TABLE_ID;version_added=3;version_dropped=6;
-sal_dropped_v8	11	MYSQL_TYPE_LONG	0	SE	physical_pos=9;table_id=TABLE_ID;version_added=5;version_dropped=8;
-phoneno_dropped_v10	12	MYSQL_TYPE_LONG	0	SE	physical_pos=10;table_id=TABLE_ID;version_added=7;version_dropped=10;
-sal_dropped_v12	13	MYSQL_TYPE_LONG	0	SE	physical_pos=11;table_id=TABLE_ID;version_added=9;version_dropped=12;
-phoneno_dropped_v14	14	MYSQL_TYPE_LONG	0	SE	physical_pos=12;table_id=TABLE_ID;version_added=11;version_dropped=14;
-sal_dropped_v16	15	MYSQL_TYPE_LONG	0	SE	physical_pos=13;table_id=TABLE_ID;version_added=13;version_dropped=16;
-phoneno_dropped_v18	16	MYSQL_TYPE_LONG	0	SE	physical_pos=14;table_id=TABLE_ID;version_added=15;version_dropped=18;
-sal_dropped_v20	17	MYSQL_TYPE_LONG	0	SE	physical_pos=15;table_id=TABLE_ID;version_added=17;version_dropped=20;
-phoneno_dropped_v22	18	MYSQL_TYPE_LONG	0	SE	physical_pos=16;table_id=TABLE_ID;version_added=19;version_dropped=22;
+!hidden!_dropped_v2_p6_phoneno	8	MYSQL_TYPE_LONG	0	SE	physical_pos=6;table_id=TABLE_ID;version_dropped=2;
+!hidden!_dropped_v4_p7_sal	9	MYSQL_TYPE_LONG	0	SE	physical_pos=7;table_id=TABLE_ID;version_added=1;version_dropped=4;
+!hidden!_dropped_v6_p8_phoneno	10	MYSQL_TYPE_LONG	0	SE	physical_pos=8;table_id=TABLE_ID;version_added=3;version_dropped=6;
+!hidden!_dropped_v8_p9_sal	11	MYSQL_TYPE_LONG	0	SE	physical_pos=9;table_id=TABLE_ID;version_added=5;version_dropped=8;
+!hidden!_dropped_v10_p10_phoneno	12	MYSQL_TYPE_LONG	0	SE	physical_pos=10;table_id=TABLE_ID;version_added=7;version_dropped=10;
+!hidden!_dropped_v12_p11_sal	13	MYSQL_TYPE_LONG	0	SE	physical_pos=11;table_id=TABLE_ID;version_added=9;version_dropped=12;
+!hidden!_dropped_v14_p12_phoneno	14	MYSQL_TYPE_LONG	0	SE	physical_pos=12;table_id=TABLE_ID;version_added=11;version_dropped=14;
+!hidden!_dropped_v16_p13_sal	15	MYSQL_TYPE_LONG	0	SE	physical_pos=13;table_id=TABLE_ID;version_added=13;version_dropped=16;
+!hidden!_dropped_v18_p14_phoneno	16	MYSQL_TYPE_LONG	0	SE	physical_pos=14;table_id=TABLE_ID;version_added=15;version_dropped=18;
+!hidden!_dropped_v20_p15_sal	17	MYSQL_TYPE_LONG	0	SE	physical_pos=15;table_id=TABLE_ID;version_added=17;version_dropped=20;
+!hidden!_dropped_v22_p16_phoneno	18	MYSQL_TYPE_LONG	0	SE	physical_pos=16;table_id=TABLE_ID;version_added=19;version_dropped=22;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 P0	10	discard=0;
@@ -1515,17 +1515,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p1	8	0	22	5	5	16
@@ -1536,17 +1536,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p2	8	0	22	5	5	16
@@ -1557,17 +1557,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p3	8	0	22	5	5	16
@@ -1578,17 +1578,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # ------------------------------------------------------------
 # Scenario 3.2 : New table created with like
 # ------------------------------------------------------------
@@ -1639,17 +1639,17 @@ dept	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
 sal	5	MYSQL_TYPE_LONG	0	Visible	default_null=1;physical_pos=17;table_id=TABLE_ID;version_added=21;
 DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-phoneno_dropped_v2	8	MYSQL_TYPE_LONG	0	SE	physical_pos=6;table_id=TABLE_ID;version_dropped=2;
-sal_dropped_v4	9	MYSQL_TYPE_LONG	0	SE	physical_pos=7;table_id=TABLE_ID;version_added=1;version_dropped=4;
-phoneno_dropped_v6	10	MYSQL_TYPE_LONG	0	SE	physical_pos=8;table_id=TABLE_ID;version_added=3;version_dropped=6;
-sal_dropped_v8	11	MYSQL_TYPE_LONG	0	SE	physical_pos=9;table_id=TABLE_ID;version_added=5;version_dropped=8;
-phoneno_dropped_v10	12	MYSQL_TYPE_LONG	0	SE	physical_pos=10;table_id=TABLE_ID;version_added=7;version_dropped=10;
-sal_dropped_v12	13	MYSQL_TYPE_LONG	0	SE	physical_pos=11;table_id=TABLE_ID;version_added=9;version_dropped=12;
-phoneno_dropped_v14	14	MYSQL_TYPE_LONG	0	SE	physical_pos=12;table_id=TABLE_ID;version_added=11;version_dropped=14;
-sal_dropped_v16	15	MYSQL_TYPE_LONG	0	SE	physical_pos=13;table_id=TABLE_ID;version_added=13;version_dropped=16;
-phoneno_dropped_v18	16	MYSQL_TYPE_LONG	0	SE	physical_pos=14;table_id=TABLE_ID;version_added=15;version_dropped=18;
-sal_dropped_v20	17	MYSQL_TYPE_LONG	0	SE	physical_pos=15;table_id=TABLE_ID;version_added=17;version_dropped=20;
-phoneno_dropped_v22	18	MYSQL_TYPE_LONG	0	SE	physical_pos=16;table_id=TABLE_ID;version_added=19;version_dropped=22;
+!hidden!_dropped_v2_p6_phoneno	8	MYSQL_TYPE_LONG	0	SE	physical_pos=6;table_id=TABLE_ID;version_dropped=2;
+!hidden!_dropped_v4_p7_sal	9	MYSQL_TYPE_LONG	0	SE	physical_pos=7;table_id=TABLE_ID;version_added=1;version_dropped=4;
+!hidden!_dropped_v6_p8_phoneno	10	MYSQL_TYPE_LONG	0	SE	physical_pos=8;table_id=TABLE_ID;version_added=3;version_dropped=6;
+!hidden!_dropped_v8_p9_sal	11	MYSQL_TYPE_LONG	0	SE	physical_pos=9;table_id=TABLE_ID;version_added=5;version_dropped=8;
+!hidden!_dropped_v10_p10_phoneno	12	MYSQL_TYPE_LONG	0	SE	physical_pos=10;table_id=TABLE_ID;version_added=7;version_dropped=10;
+!hidden!_dropped_v12_p11_sal	13	MYSQL_TYPE_LONG	0	SE	physical_pos=11;table_id=TABLE_ID;version_added=9;version_dropped=12;
+!hidden!_dropped_v14_p12_phoneno	14	MYSQL_TYPE_LONG	0	SE	physical_pos=12;table_id=TABLE_ID;version_added=11;version_dropped=14;
+!hidden!_dropped_v16_p13_sal	15	MYSQL_TYPE_LONG	0	SE	physical_pos=13;table_id=TABLE_ID;version_added=13;version_dropped=16;
+!hidden!_dropped_v18_p14_phoneno	16	MYSQL_TYPE_LONG	0	SE	physical_pos=14;table_id=TABLE_ID;version_added=15;version_dropped=18;
+!hidden!_dropped_v20_p15_sal	17	MYSQL_TYPE_LONG	0	SE	physical_pos=15;table_id=TABLE_ID;version_added=17;version_dropped=20;
+!hidden!_dropped_v22_p16_phoneno	18	MYSQL_TYPE_LONG	0	SE	physical_pos=16;table_id=TABLE_ID;version_added=19;version_dropped=22;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 P0	10	discard=0;
@@ -1666,17 +1666,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p1	8	0	22	5	5	16
@@ -1687,17 +1687,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p2	8	0	22	5	5	16
@@ -1708,17 +1708,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p3	8	0	22	5	5	16
@@ -1729,17 +1729,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 DROP TABLE t1;
 ###########
 # CLEANUP #
@@ -2037,7 +2037,7 @@ c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f646566202020202020202020202020202
 DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v3	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;version_dropped=3;
+!hidden!_dropped_v3_p4_c2	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;version_dropped=3;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 p0	128	discard=0;
@@ -2054,7 +2054,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p1	8	0	3	4	5	6
@@ -2065,7 +2065,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p2	8	0	3	4	5	6
@@ -2076,7 +2076,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p3	8	0	3	4	5	6
@@ -2087,7 +2087,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 SELECT * FROM t1 ORDER BY c1;
 c1	c6	c3	c4	c5
 1	NULL	3	abcdefg	c5_def
@@ -2139,7 +2139,7 @@ c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f646566202020202020202020202020202
 DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v3	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;table_id=TABLE_ID;version_dropped=3;
+!hidden!_dropped_v3_p4_c2	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;table_id=TABLE_ID;version_dropped=3;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 p0	128	discard=0;
@@ -2156,7 +2156,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p1	8	0	3	4	5	6
@@ -2167,7 +2167,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p2	8	0	3	4	5	6
@@ -2178,7 +2178,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p3	8	0	3	4	5	6
@@ -2189,7 +2189,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # ------------------------------------------------------------
 # Scenario 2.2 : New table created with like
 # ------------------------------------------------------------
@@ -2242,7 +2242,7 @@ c5	5	MYSQL_TYPE_STRING	0	Visible	default=63355f646566202020202020202020202020202
 DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v3	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;table_id=TABLE_ID;version_dropped=3;
+!hidden!_dropped_v3_p4_c2	9	MYSQL_TYPE_LONG	0	SE	physical_pos=4;table_id=TABLE_ID;version_dropped=3;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 p0	128	discard=0;
@@ -2259,7 +2259,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p1	8	0	3	4	5	6
@@ -2270,7 +2270,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p2	8	0	3	4	5	6
@@ -2281,7 +2281,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p3	8	0	3	4	5	6
@@ -2292,7 +2292,7 @@ c6	1	13	16711934	1	2	0
 c3	2	6	1027	0	0	0
 c4	3	5	16711932	0	0	0
 c5	4	13	16711934	1	1	0
-c2_dropped_v3	8	6	1027	0	0	3
+!hidden!_dropped_v3_p4_c2	8	6	1027	0	0	3
 DROP TABLE t1;
 # ------------------------------------------------------------
 # A Partitioned table having multiple INSTANT ADD/DROP columns
@@ -2364,17 +2364,17 @@ dept	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
 sal	5	MYSQL_TYPE_LONG	0	Visible	default_null=1;physical_pos=17;table_id=TABLE_ID;version_added=21;
 DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-phoneno_dropped_v2	8	MYSQL_TYPE_LONG	0	SE	physical_pos=6;table_id=TABLE_ID;version_dropped=2;
-sal_dropped_v4	9	MYSQL_TYPE_LONG	0	SE	physical_pos=7;table_id=TABLE_ID;version_added=1;version_dropped=4;
-phoneno_dropped_v6	10	MYSQL_TYPE_LONG	0	SE	physical_pos=8;table_id=TABLE_ID;version_added=3;version_dropped=6;
-sal_dropped_v8	11	MYSQL_TYPE_LONG	0	SE	physical_pos=9;table_id=TABLE_ID;version_added=5;version_dropped=8;
-phoneno_dropped_v10	12	MYSQL_TYPE_LONG	0	SE	physical_pos=10;table_id=TABLE_ID;version_added=7;version_dropped=10;
-sal_dropped_v12	13	MYSQL_TYPE_LONG	0	SE	physical_pos=11;table_id=TABLE_ID;version_added=9;version_dropped=12;
-phoneno_dropped_v14	14	MYSQL_TYPE_LONG	0	SE	physical_pos=12;table_id=TABLE_ID;version_added=11;version_dropped=14;
-sal_dropped_v16	15	MYSQL_TYPE_LONG	0	SE	physical_pos=13;table_id=TABLE_ID;version_added=13;version_dropped=16;
-phoneno_dropped_v18	16	MYSQL_TYPE_LONG	0	SE	physical_pos=14;table_id=TABLE_ID;version_added=15;version_dropped=18;
-sal_dropped_v20	17	MYSQL_TYPE_LONG	0	SE	physical_pos=15;table_id=TABLE_ID;version_added=17;version_dropped=20;
-phoneno_dropped_v22	18	MYSQL_TYPE_LONG	0	SE	physical_pos=16;table_id=TABLE_ID;version_added=19;version_dropped=22;
+!hidden!_dropped_v2_p6_phoneno	8	MYSQL_TYPE_LONG	0	SE	physical_pos=6;table_id=TABLE_ID;version_dropped=2;
+!hidden!_dropped_v4_p7_sal	9	MYSQL_TYPE_LONG	0	SE	physical_pos=7;table_id=TABLE_ID;version_added=1;version_dropped=4;
+!hidden!_dropped_v6_p8_phoneno	10	MYSQL_TYPE_LONG	0	SE	physical_pos=8;table_id=TABLE_ID;version_added=3;version_dropped=6;
+!hidden!_dropped_v8_p9_sal	11	MYSQL_TYPE_LONG	0	SE	physical_pos=9;table_id=TABLE_ID;version_added=5;version_dropped=8;
+!hidden!_dropped_v10_p10_phoneno	12	MYSQL_TYPE_LONG	0	SE	physical_pos=10;table_id=TABLE_ID;version_added=7;version_dropped=10;
+!hidden!_dropped_v12_p11_sal	13	MYSQL_TYPE_LONG	0	SE	physical_pos=11;table_id=TABLE_ID;version_added=9;version_dropped=12;
+!hidden!_dropped_v14_p12_phoneno	14	MYSQL_TYPE_LONG	0	SE	physical_pos=12;table_id=TABLE_ID;version_added=11;version_dropped=14;
+!hidden!_dropped_v16_p13_sal	15	MYSQL_TYPE_LONG	0	SE	physical_pos=13;table_id=TABLE_ID;version_added=13;version_dropped=16;
+!hidden!_dropped_v18_p14_phoneno	16	MYSQL_TYPE_LONG	0	SE	physical_pos=14;table_id=TABLE_ID;version_added=15;version_dropped=18;
+!hidden!_dropped_v20_p15_sal	17	MYSQL_TYPE_LONG	0	SE	physical_pos=15;table_id=TABLE_ID;version_added=17;version_dropped=20;
+!hidden!_dropped_v22_p16_phoneno	18	MYSQL_TYPE_LONG	0	SE	physical_pos=16;table_id=TABLE_ID;version_added=19;version_dropped=22;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 P0	10	discard=0;
@@ -2391,17 +2391,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p1	8	0	22	5	5	16
@@ -2412,17 +2412,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p2	8	0	22	5	5	16
@@ -2433,17 +2433,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p3	8	0	22	5	5	16
@@ -2454,17 +2454,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # ------------------------------------------------------------
 # Scenario 3.2 : New table created with like
 # ------------------------------------------------------------
@@ -2515,17 +2515,17 @@ dept	4	MYSQL_TYPE_LONG	0	Visible	physical_pos=5;table_id=TABLE_ID;
 sal	5	MYSQL_TYPE_LONG	0	Visible	default_null=1;physical_pos=17;table_id=TABLE_ID;version_added=21;
 DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-phoneno_dropped_v2	8	MYSQL_TYPE_LONG	0	SE	physical_pos=6;table_id=TABLE_ID;version_dropped=2;
-sal_dropped_v4	9	MYSQL_TYPE_LONG	0	SE	physical_pos=7;table_id=TABLE_ID;version_added=1;version_dropped=4;
-phoneno_dropped_v6	10	MYSQL_TYPE_LONG	0	SE	physical_pos=8;table_id=TABLE_ID;version_added=3;version_dropped=6;
-sal_dropped_v8	11	MYSQL_TYPE_LONG	0	SE	physical_pos=9;table_id=TABLE_ID;version_added=5;version_dropped=8;
-phoneno_dropped_v10	12	MYSQL_TYPE_LONG	0	SE	physical_pos=10;table_id=TABLE_ID;version_added=7;version_dropped=10;
-sal_dropped_v12	13	MYSQL_TYPE_LONG	0	SE	physical_pos=11;table_id=TABLE_ID;version_added=9;version_dropped=12;
-phoneno_dropped_v14	14	MYSQL_TYPE_LONG	0	SE	physical_pos=12;table_id=TABLE_ID;version_added=11;version_dropped=14;
-sal_dropped_v16	15	MYSQL_TYPE_LONG	0	SE	physical_pos=13;table_id=TABLE_ID;version_added=13;version_dropped=16;
-phoneno_dropped_v18	16	MYSQL_TYPE_LONG	0	SE	physical_pos=14;table_id=TABLE_ID;version_added=15;version_dropped=18;
-sal_dropped_v20	17	MYSQL_TYPE_LONG	0	SE	physical_pos=15;table_id=TABLE_ID;version_added=17;version_dropped=20;
-phoneno_dropped_v22	18	MYSQL_TYPE_LONG	0	SE	physical_pos=16;table_id=TABLE_ID;version_added=19;version_dropped=22;
+!hidden!_dropped_v2_p6_phoneno	8	MYSQL_TYPE_LONG	0	SE	physical_pos=6;table_id=TABLE_ID;version_dropped=2;
+!hidden!_dropped_v4_p7_sal	9	MYSQL_TYPE_LONG	0	SE	physical_pos=7;table_id=TABLE_ID;version_added=1;version_dropped=4;
+!hidden!_dropped_v6_p8_phoneno	10	MYSQL_TYPE_LONG	0	SE	physical_pos=8;table_id=TABLE_ID;version_added=3;version_dropped=6;
+!hidden!_dropped_v8_p9_sal	11	MYSQL_TYPE_LONG	0	SE	physical_pos=9;table_id=TABLE_ID;version_added=5;version_dropped=8;
+!hidden!_dropped_v10_p10_phoneno	12	MYSQL_TYPE_LONG	0	SE	physical_pos=10;table_id=TABLE_ID;version_added=7;version_dropped=10;
+!hidden!_dropped_v12_p11_sal	13	MYSQL_TYPE_LONG	0	SE	physical_pos=11;table_id=TABLE_ID;version_added=9;version_dropped=12;
+!hidden!_dropped_v14_p12_phoneno	14	MYSQL_TYPE_LONG	0	SE	physical_pos=12;table_id=TABLE_ID;version_added=11;version_dropped=14;
+!hidden!_dropped_v16_p13_sal	15	MYSQL_TYPE_LONG	0	SE	physical_pos=13;table_id=TABLE_ID;version_added=13;version_dropped=16;
+!hidden!_dropped_v18_p14_phoneno	16	MYSQL_TYPE_LONG	0	SE	physical_pos=14;table_id=TABLE_ID;version_added=15;version_dropped=18;
+!hidden!_dropped_v20_p15_sal	17	MYSQL_TYPE_LONG	0	SE	physical_pos=15;table_id=TABLE_ID;version_added=17;version_dropped=20;
+!hidden!_dropped_v22_p16_phoneno	18	MYSQL_TYPE_LONG	0	SE	physical_pos=16;table_id=TABLE_ID;version_added=19;version_dropped=22;
 # DD Metadata of partitions in table
 NAME	DESCRIPTION_UTF8	SE_PRIVATE_DATA
 P0	10	discard=0;
@@ -2542,17 +2542,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p1	8	0	22	5	5	16
@@ -2563,17 +2563,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p2	8	0	22	5	5	16
@@ -2584,17 +2584,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 # Metadata from INFORMATION_SCHEMA.TABLES
 NAME	N_COLS	INSTANT_COLS	TOTAL_ROW_VERSIONS	INITIAL_COLUMN_COUNTS	CURRENT_COLUMN_COUNTS	TOTAL_COLUMN_COUNTS
 test/t1#p#p3	8	0	22	5	5	16
@@ -2605,17 +2605,17 @@ name	1	12	16711695	0	0	0
 job	2	12	16711695	0	0	0
 dept	3	6	1027	0	0	0
 sal	4	6	1027	1	21	0
-phoneno_dropped_v2	8	6	1027	0	0	2
-sal_dropped_v4	9	6	1027	0	1	4
-phoneno_dropped_v6	10	6	1027	0	3	6
-sal_dropped_v8	11	6	1027	0	5	8
-phoneno_dropped_v10	12	6	1027	0	7	10
-sal_dropped_v12	13	6	1027	0	9	12
-phoneno_dropped_v14	14	6	1027	0	11	14
-sal_dropped_v16	15	6	1027	0	13	16
-phoneno_dropped_v18	16	6	1027	0	15	18
-sal_dropped_v20	17	6	1027	0	17	20
-phoneno_dropped_v22	18	6	1027	0	19	22
+!hidden!_dropped_v2_p6_phoneno	8	6	1027	0	0	2
+!hidden!_dropped_v4_p7_sal	9	6	1027	0	1	4
+!hidden!_dropped_v6_p8_phoneno	10	6	1027	0	3	6
+!hidden!_dropped_v8_p9_sal	11	6	1027	0	5	8
+!hidden!_dropped_v10_p10_phoneno	12	6	1027	0	7	10
+!hidden!_dropped_v12_p11_sal	13	6	1027	0	9	12
+!hidden!_dropped_v14_p12_phoneno	14	6	1027	0	11	14
+!hidden!_dropped_v16_p13_sal	15	6	1027	0	13	16
+!hidden!_dropped_v18_p14_phoneno	16	6	1027	0	15	18
+!hidden!_dropped_v20_p15_sal	17	6	1027	0	17	20
+!hidden!_dropped_v22_p16_phoneno	18	6	1027	0	19	22
 DROP TABLE t1;
 ###########
 # CLEANUP #

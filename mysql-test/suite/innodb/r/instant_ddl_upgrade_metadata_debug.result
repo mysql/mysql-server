@@ -60,7 +60,7 @@ test/t1	5	0	1	3	2	3
 NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16711934	0	0	0
 c3	1	13	16711934	0	0	0
-c2_dropped_v1	5	13	16711934	0	0	1
+!hidden!_dropped_v1_p4_c2	5	13	16711934	0	0	1
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -71,7 +71,7 @@ c3	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+!hidden!_dropped_v1_p4_c2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
 # ------------------------------------------------------------
 # Check metadat of upgraded table t2 [c1, c2, c3]
 # Expectation : New INSTANT METADATA is not present.
@@ -134,7 +134,7 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16711934	0	0	0
 c2	1	13	16711934	0	0	0
 c4	2	13	16711934	1	1	0
-c3_dropped_v2	6	13	16711934	0	0	2
+!hidden!_dropped_v2_p5_c3	6	13	16711934	0	0	2
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t2	NULL
@@ -146,7 +146,7 @@ c4	3	MYSQL_TYPE_STRING	0	Visible	default=63345f64656620202020;physical_pos=6;tab
 DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c3_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
+!hidden!_dropped_v2_p5_c3	7	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
 DROP TABLE t1;
 DROP TABLE t2;
 # ------------------------------------------------------------
@@ -192,7 +192,7 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16711934	0	0	0
 c3	1	13	16711934	1	0	0
 c4	2	13	16711934	1	0	0
-c2_dropped_v1	6	13	16711934	0	0	1
+!hidden!_dropped_v1_p4_c2	6	13	16711934	0	0	1
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t3	instant_col=2;
@@ -204,7 +204,7 @@ c4	3	MYSQL_TYPE_STRING	0	Visible	default=63345f64656620202020;physical_pos=6;tab
 DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+!hidden!_dropped_v1_p4_c2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
 # -----------------------------------------------------------------------
 # INSTANT DROP an INSTANT column and check metadata t3 [c1, ~c2, -c3, c4]
 # Expectation : Old INSTANT METADATA stays same.
@@ -218,8 +218,8 @@ test/t3	5	2	2	4	2	4
 NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16711934	0	0	0
 c4	1	13	16711934	1	0	0
-c2_dropped_v1	5	13	16711934	0	0	1
-c3_dropped_v2	6	13	16711934	0	0	2
+!hidden!_dropped_v1_p4_c2	5	13	16711934	0	0	1
+!hidden!_dropped_v2_p5_c3	6	13	16711934	0	0	2
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t3	instant_col=2;
@@ -230,8 +230,8 @@ c4	2	MYSQL_TYPE_STRING	0	Visible	default=63345f64656620202020;physical_pos=6;tab
 DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
-c3_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
+!hidden!_dropped_v1_p4_c2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+!hidden!_dropped_v2_p5_c3	7	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
 # -----------------------------------------------------------------------
 # INSTANT ADD a new column and check metadata t3 [c1, ~c2, ~c3, c4, +c5]
 # Expectation : Old INSTANT METADATA stays same.
@@ -246,8 +246,8 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16711934	0	0	0
 c4	1	13	16711934	1	0	0
 c5	2	13	16711934	1	3	0
-c2_dropped_v1	6	13	16711934	0	0	1
-c3_dropped_v2	7	13	16711934	0	0	2
+!hidden!_dropped_v1_p4_c2	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p5_c3	7	13	16711934	0	0	2
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t3	instant_col=2;
@@ -259,8 +259,8 @@ c5	3	MYSQL_TYPE_STRING	0	Visible	default=63355f64656620202020;physical_pos=7;tab
 DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
-c3_dropped_v2	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
+!hidden!_dropped_v1_p4_c2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+!hidden!_dropped_v2_p5_c3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
 # -----------------------------------------------------------------------------
 # INSTANT DROP newly added column and check metadata t3 [c1, ~c2, ~c3, c4, -c5]
 # Expectation : Old INSTANT METADATA stays same.
@@ -274,9 +274,9 @@ test/t3	5	2	4	4	2	5
 NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16711934	0	0	0
 c4	1	13	16711934	1	0	0
-c2_dropped_v1	5	13	16711934	0	0	1
-c3_dropped_v2	6	13	16711934	0	0	2
-c5_dropped_v4	7	13	16711934	0	3	4
+!hidden!_dropped_v1_p4_c2	5	13	16711934	0	0	1
+!hidden!_dropped_v2_p5_c3	6	13	16711934	0	0	2
+!hidden!_dropped_v4_p7_c5	7	13	16711934	0	3	4
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t3	instant_col=2;
@@ -287,9 +287,9 @@ c4	2	MYSQL_TYPE_STRING	0	Visible	default=63345f64656620202020;physical_pos=6;tab
 DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
-c3_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
-c5_dropped_v4	8	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_added=3;version_dropped=4;
+!hidden!_dropped_v1_p4_c2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+!hidden!_dropped_v2_p5_c3	7	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
+!hidden!_dropped_v4_p7_c5	8	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_added=3;version_dropped=4;
 DROP TABLE t3;
 # -------------------------------------------------
 # TEST 3 : New tables with INSTANT ADD/DROP Columns
@@ -332,7 +332,7 @@ test/t1	5	0	1	3	2	3
 NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16711934	0	0	0
 c3	1	13	16711934	0	0	0
-c2_dropped_v1	5	13	16711934	0	0	1
+!hidden!_dropped_v1_p4_c2	5	13	16711934	0	0	1
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -343,7 +343,7 @@ c3	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+!hidden!_dropped_v1_p4_c2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
 # -----------------------------------------------------------------------
 # INSTANT ADD a column and check metadata t1 [+c0, c1, ~c2, c3]
 # Expectation : Old INSTANT METADATA not present.
@@ -358,7 +358,7 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c0	0	13	16711934	1	2	0
 c1	1	13	16711934	0	0	0
 c3	2	13	16711934	0	0	0
-c2_dropped_v1	6	13	16711934	0	0	1
+!hidden!_dropped_v1_p4_c2	6	13	16711934	0	0	1
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -370,7 +370,7 @@ c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+!hidden!_dropped_v1_p4_c2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
 # ----------------------------------------------------------------------------
 # INSTANT DROP the INSTANT ADD column and check metadata t1 [-c0, c1, ~c2, c3]
 # Expectation : Old INSTANT METADATA is not present.
@@ -384,8 +384,8 @@ test/t1	5	0	3	3	2	4
 NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16711934	0	0	0
 c3	1	13	16711934	0	0	0
-c2_dropped_v1	5	13	16711934	0	0	1
-c0_dropped_v3	6	13	16711934	0	2	3
+!hidden!_dropped_v1_p4_c2	5	13	16711934	0	0	1
+!hidden!_dropped_v3_p6_c0	6	13	16711934	0	2	3
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -396,8 +396,8 @@ c3	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 DB_ROW_ID	3	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c2_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
-c0_dropped_v3	7	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_added=2;version_dropped=3;
+!hidden!_dropped_v1_p4_c2	6	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=1;
+!hidden!_dropped_v3_p6_c0	7	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_added=2;version_dropped=3;
 DROP TABLE t1;
 ###########
 # CLEANUP #

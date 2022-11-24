@@ -80,6 +80,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* Forward declaration. */
 struct ib_rbt_t;
 
+/** Format of INSTANTLY DROPPED column names. */
+constexpr char INSTANT_DROP_SUFFIX_8_0_29[] = "_dropped_v";
+constexpr char INSTANT_DROP_PREFIX_8_0_32[] = "!hidden!_dropped_";
+
 /** index/table name used while applying REDO logs during recovery */
 constexpr char RECOVERY_INDEX_TABLE_NAME[] = "LOG_DUMMY";
 
@@ -778,6 +782,16 @@ struct dict_col_t {
 #endif /* !UNIV_HOTBACKUP */
 
     return true;
+  }
+
+  /** Check if a column name resembles format for dropped column.
+  param[in] type                column name
+  @return true if column name resembles dropped column. */
+  static bool is_instant_dropped_name(const std::string col_name) {
+    if (col_name.find(INSTANT_DROP_SUFFIX_8_0_29) != std::string::npos ||
+        col_name.find(INSTANT_DROP_PREFIX_8_0_32) != std::string::npos)
+      return true;
+    return false;
   }
 #endif /* UNIV_DEBUG */
 };

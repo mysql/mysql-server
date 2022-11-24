@@ -779,8 +779,10 @@ using Columns = std::vector<Field *>;
 @param[in,out]  new_table       New InnoDB table objecta
 @param[in]      cols_to_drop    list of columns to be dropped
 @param[in]      cols_to_add     list of columns to be added
-@param[in]      ha_alter_info   alter info */
-void dd_drop_instant_columns(const dd::Table *old_dd_table,
+@param[in]      ha_alter_info   alter info
+@retval true Failure
+@retval false Success */
+bool dd_drop_instant_columns(const dd::Table *old_dd_table,
                              dd::Table *new_dd_table, dict_table_t *new_table,
                              const Columns &cols_to_drop
                                  IF_DEBUG(, const Columns &cols_to_add,
@@ -790,8 +792,10 @@ void dd_drop_instant_columns(const dd::Table *old_dd_table,
 @param[in]      old_dd_table    Old dd::Table
 @param[in,out]  new_dd_table    New dd::Table
 @param[in,out]  new_table       New InnoDB table object
-@param[in]      cols_to_add     columns to be added INSTANTly */
-void dd_add_instant_columns(const dd::Table *old_dd_table,
+@param[in]      cols_to_add     columns to be added INSTANTly
+@retval true Failure
+@retval false Success */
+bool dd_add_instant_columns(const dd::Table *old_dd_table,
                             dd::Table *new_dd_table, dict_table_t *new_table,
                             const Columns &cols_to_add);
 
@@ -1513,8 +1517,10 @@ void dd_release_mdl(MDL_ticket *mdl_ticket);
 /** Copy metadata of already dropped columns from old table def to new
 table def.
 param[in]     old_dd_table  old table definition
-param[in,out] new_dd_table  new table definition */
-void copy_dropped_columns(const dd::Table *old_dd_table,
+param[in,out] new_dd_table  new table definition
+@retval true Failure
+@retval false Success */
+bool copy_dropped_columns(const dd::Table *old_dd_table,
                           dd::Table *new_dd_table,
                           uint32_t current_row_version);
 
