@@ -97,6 +97,27 @@ Item_func_eq *MakeEqItem(Item *a, Item *b,
 }
 
 /**
+  Helper function for ReorderConditions(), which counts how many tables are
+  referenced by an equijoin condition. This enables ReorderConditions() to sort
+  the conditions on their complexity (referencing more tables == more complex).
+  Multiple equalities are considered simple, referencing two tables, regardless
+  of how many tables are actually referenced by them. This is because multiple
+  equalities will be split into one or more single equalities later, referencing
+  no more than two tables each.
+ */
+int CountTablesInEquiJoinCondition(Item *cond) {
+  assert(cond->type() == Item::FUNC_ITEM &&
+         down_cast<Item_func *>(cond)->contains_only_equi_join_condition());
+  if (IsMultipleEquals(cond)) {
+    // It's not a join condition if it has a constant argument.
+    assert(down_cast<Item_equal *>(cond)->const_arg() == nullptr);
+    return 2;
+  } else {
+    return PopulationCount(cond->used_tables());
+  }
+}
+
+/**
   Reorders the predicates in such a way that equalities are placed ahead
   of other types of predicates. These will be followed by predicates having
   subqueries and the expensive predicates at the end.
@@ -114,17 +135,26 @@ Item_func_eq *MakeEqItem(Item *a, Item *b,
    (t1.f1 != t2.f1) and
    (t1.f2 = t3.f2 OR t4.f1 = t5.f3) and
    (3 = select #2)
+
+   Simple equijoin conditions (like t1.x=t2.x) are placed ahead of more complex
+   ones (like t1.x=t2.x+t3.x), so that we prefer making simple edges and avoid
+   hyperedges when we can.
 */
 void ReorderConditions(Mem_root_array<Item *> *condition_parts) {
   // First equijoin conditions, followed by other conditions, then
   // subqueries (which can be expensive), then stored procedures
   // (which are unknown, so potentially _very_ expensive).
-  std::stable_partition(
+  const auto equi_cond_end = std::stable_partition(
       condition_parts->begin(), condition_parts->end(), [](Item *item) {
-        return (
-            item->type() == Item::FUNC_ITEM &&
-            down_cast<Item_func *>(item)->contains_only_equi_join_condition());
+        return item->type() == Item::FUNC_ITEM &&
+               down_cast<Item_func *>(item)
+                   ->contains_only_equi_join_condition();
       });
+  std::stable_sort(condition_parts->begin(), equi_cond_end,
+                   [](Item *a, Item *b) {
+                     return CountTablesInEquiJoinCondition(a) <
+                            CountTablesInEquiJoinCondition(b);
+                   });
   std::stable_partition(condition_parts->begin(), condition_parts->end(),
                         [](Item *item) { return !item->has_subquery(); });
   std::stable_partition(condition_parts->begin(), condition_parts->end(),
@@ -2177,23 +2207,13 @@ void MakeHashJoinConditions(THD *thd, RelationalExpression *expr) {
 
     for (Item *item : expr->join_conditions) {
       // See if this is a (non-degenerate) equijoin condition.
-      if ((item->used_tables() & expr->left->tables_in_subtree) &&
-          (item->used_tables() & expr->right->tables_in_subtree) &&
-          (item->type() == Item::FUNC_ITEM ||
-           item->type() == Item::COND_ITEM)) {
+      if (item->type() == Item::FUNC_ITEM) {
         Item_func *func_item = down_cast<Item_func *>(item);
         if (func_item->contains_only_equi_join_condition()) {
           Item_eq_base *join_condition = down_cast<Item_eq_base *>(func_item);
-          // Join conditions with items that returns row values (subqueries or
-          // row value expression) are set up with multiple child comparators,
-          // one for each column in the row. As long as the row contains only
-          // one column, use it as a join condition. If it has more than one
-          // column, attach it as an extra condition. Note that join
-          // conditions that does not return row values are not set up with
-          // any child comparators, meaning that get_child_comparator_count()
-          // will return 0.
-          if (join_condition->get_comparator()->get_child_comparator_count() <
-              2) {
+          if (IsHashEquijoinCondition(join_condition,
+                                      expr->left->tables_in_subtree,
+                                      expr->right->tables_in_subtree)) {
             expr->equijoin_conditions.push_back(join_condition);
             continue;
           }

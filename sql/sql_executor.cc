@@ -1935,21 +1935,6 @@ static bool ConditionIsAlwaysTrue(Item *item) {
   return item->const_item() && item->val_bool();
 }
 
-// Returns true if the item refers to only one side of the join. This is used to
-// determine whether an equi-join conditions need to be attached as an "extra"
-// condition (pure join conditions must refer to both sides of the join).
-static bool ItemRefersToOneSideOnly(Item *item, table_map left_side,
-                                    table_map right_side) {
-  item->update_used_tables();
-  const table_map item_used_tables = item->used_tables();
-
-  if ((left_side & item_used_tables) == 0 ||
-      (right_side & item_used_tables) == 0) {
-    return true;
-  }
-  return false;
-}
-
 // Create a hash join iterator with the given build and probe input. We will
 // move conditions from the argument "join_conditions" into two separate lists;
 // one list for equi-join conditions that will be used as normal join conditions
@@ -2006,20 +1991,10 @@ static AccessPath *CreateHashJoinAccessPath(
                   left_table_map, right_table_map, /*replace=*/true, &found);
         }
 
-        if (func_item->contains_only_equi_join_condition() &&
-            !ItemRefersToOneSideOnly(func_item, left_table_map,
-                                     right_table_map)) {
+        if (func_item->contains_only_equi_join_condition()) {
           Item_eq_base *join_condition = down_cast<Item_eq_base *>(func_item);
-          // Join conditions with items that returns row values (subqueries or
-          // row value expression) are set up with multiple child comparators,
-          // one for each column in the row. As long as the row contains only
-          // one column, use it as a join condition. If it has more than one
-          // column, attach it as an extra condition. Note that join conditions
-          // that does not return row values are not set up with any child
-          // comparators, meaning that get_child_comparator_count() will return
-          // 0.
-          if (join_condition->get_comparator()->get_child_comparator_count() <
-              2) {
+          if (IsHashEquijoinCondition(join_condition, left_table_map,
+                                      right_table_map)) {
             // Make a hash join condition for this equality comparison.
             // This may entail allocating type cast nodes; see the comments
             // on HashJoinCondition for more details.

@@ -1802,15 +1802,6 @@ bool CostingReceiver::ProposeRefAccess(
   KeypartForRef keyparts[MAX_REF_PARTS];
   table_map parameter_tables = 0;
 
-  if (PopulationCount(allowed_parameter_tables) >
-      static_cast<int>(usable_keyparts)) {
-    // It is inevitable that we fail the (parameter_tables ==
-    // allowed_parameter_tables) test below, so error out earlier.
-    // TODO(khatlen): This restriction must be lifted in order to allow
-    // multi-table join predicates to be sargable, such as t1.id = t2.x + t3.x.
-    return false;
-  }
-
   for (unsigned keypart_idx = 0;
        keypart_idx < usable_keyparts && keypart_idx < MAX_REF_PARTS;
        ++keypart_idx) {

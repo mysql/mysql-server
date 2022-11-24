@@ -7356,10 +7356,9 @@ bool Item_eq_base::contains_only_equi_join_condition() const {
     return false;
   }
 
-  // We may have conditions like (1 = (t1.c = t2.c)), so check that both sides
-  // refer to at most one table.
-  if (my_count_bits(left_arg_used_tables) > 1 ||
-      my_count_bits(right_arg_used_tables) > 1) {
+  // We may have conditions like (t1.x = t1.y + t2.x) which cannot be used as an
+  // equijoin condition because t1 is referenced on both sides of the equality.
+  if (Overlaps(left_arg_used_tables, right_arg_used_tables)) {
     return false;
   }
 
