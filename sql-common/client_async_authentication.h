@@ -19,10 +19,18 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+#ifndef SQL_COMMON_CLIENT_ASYNC_AUTHENTICATION_H
+#define SQL_COMMON_CLIENT_ASYNC_AUTHENTICATION_H
+
+#define MAX_CIPHER_LENGTH 1024
 
 #include <openssl/ossl_typ.h>
+#include <openssl/pem.h>
+#include <openssl/rsa.h>
+
 #include "mysql/plugin_auth_common.h"
 #include "mysql_async.h"
+#include "mysql_com.h"
 
 /* this is a "superset" of MYSQL_PLUGIN_VIO, in C++ I use inheritance */
 struct MCPVIO_EXT {
@@ -86,6 +94,17 @@ enum client_auth_caching_sha2_password_plugin_status {
 struct mysql_async_auth;
 typedef mysql_state_machine_status (*authsm_function)(mysql_async_auth *);
 
+struct sha2_async_auth {
+  unsigned char encrypted_password[MAX_CIPHER_LENGTH];
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  EVP_PKEY *public_key;
+#else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+  RSA *public_key;
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+  unsigned char scramble_pkt[SCRAMBLE_LENGTH];
+  int cipher_length;
+};
+
 struct mysql_async_auth {
   MYSQL *mysql;
   bool non_blocking;
@@ -109,6 +128,8 @@ struct mysql_async_auth {
   int client_auth_plugin_state;
   authsm_function state_function;
   uint current_factor_index;
+
+  sha2_async_auth sha2_auth;
 };
 
 /*
@@ -170,3 +191,5 @@ struct mysql_async_connect {
   /* state function that will be called next */
   csm_function state_function;
 };
+
+#endif /* SQL_COMMON_CLIENT_ASYNC_AUTHENTICATION_H */

@@ -5497,6 +5497,30 @@ static bool check_plugin_enabled(MYSQL *mysql, mysql_async_auth *ctx) {
   return false;
 }
 
+static void reset_async_auth_data(mysql_async_auth &ctx) {
+  ctx.mysql = nullptr;
+  ctx.non_blocking = false;
+  ctx.data = nullptr;
+  ctx.data_len = 0;
+  ctx.data_plugin = nullptr;
+  ctx.db = nullptr;
+  ctx.auth_plugin_name = nullptr;
+  ctx.auth_plugin = nullptr;
+  memset(&ctx.mpvio, 0, sizeof(MCPVIO_EXT));
+  ctx.pkt_length = 0;
+  ctx.res = 0;
+  ctx.change_user_buff = nullptr;
+  ctx.change_user_buff_len = 0;
+  ctx.client_auth_plugin_state = 0;
+  ctx.state_function = nullptr;
+  ctx.current_factor_index = 0;
+  memset(ctx.sha2_auth.encrypted_password, 0,
+         sizeof(ctx.sha2_auth.encrypted_password));
+  ctx.sha2_auth.public_key = nullptr;
+  memset(ctx.sha2_auth.scramble_pkt, 0, sizeof(ctx.sha2_auth.scramble_pkt));
+  ctx.sha2_auth.cipher_length = 0;
+}
+
 /**
   Client side of the plugin driver authentication.
 
@@ -5518,7 +5542,7 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
   DBUG_TRACE;
   mysql_state_machine_status status;
   mysql_async_auth ctx;
-  memset(&ctx, 0, sizeof(ctx));
+  reset_async_auth_data(ctx);
 
   ctx.mysql = mysql;
   ctx.data = data;
