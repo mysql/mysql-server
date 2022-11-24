@@ -200,7 +200,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         (!config.metadata_cache_dynamic_state ||
          config.metadata_cache_dynamic_state->get_metadata_servers().empty())) {
       throw std::runtime_error(
-          "list of metadata-servers is empty: 'bootstrap_server_addresses' is the configuration file is empty or not set and "s +
+          "list of metadata-servers is empty: 'bootstrap_server_addresses' in the configuration file is empty or not set and "s +
           (!config.metadata_cache_dynamic_state
                ? "no known 'dynamic_config'-file"
                : "list of 'cluster-metadata-servers' in 'dynamic_config'-file "
