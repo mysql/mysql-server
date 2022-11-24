@@ -196,7 +196,8 @@ bool Thd_ndb::will_do_applier_work() const {
   return false;
 }
 
-int Ndb_applier::atApplyStatusWrite(Uint32 row_server_id, Uint64 row_epoch) {
+int Ndb_applier::atApplyStatusWrite(Uint32 row_server_id, Uint64 row_epoch,
+                                    bool &skip_write) {
   DBUG_TRACE;
 
   // Save written server_id
@@ -218,6 +219,8 @@ int Ndb_applier::atApplyStatusWrite(Uint32 row_server_id, Uint64 row_epoch) {
     m_incoming_epoch.committed = false;
     m_incoming_epoch.is_epoch_transaction = true;
     assert(!is_serverid_local(row_server_id));
+
+    skip_write = true;  // Deferred until commit
 
     // Save global max_rep_epoch, this will be used in some conflict algorithms
     m_start_max_rep_epoch = m_channel->get_max_rep_epoch();
@@ -421,16 +424,18 @@ Ndb_applier::Positions Ndb_applier::get_log_positions() const {
 
 bool Ndb_applier::define_apply_status_operations() {
   const auto positions = get_log_positions();
+  // Extract raw server_id of applied event
+  const Uint32 anyvalue = thd_unmasked_server_id(m_thd_ndb->get_thd());
 
   if (m_incoming_epoch.is_epoch_transaction) {
-    // Applying an incoming NDB epoch transaction which has already
-    // done WRITE ndb_apply_status(server_id=X, epoch=<source_epoch>) earlier in
-    // this transaction, just augment it with an UPDATE ndb_apply_status
-    // (server_id=X, log_name, start_pos, end_pos)
+    // Applying an incoming NDB epoch transaction. The incoming
+    // "WRITE ndb_apply_status(server_id=X, epoch=<source_epoch>)" has been
+    // deferred, now define the complete "WRITE ndb_apply_status (server_id=X,
+    // epoch=<source_epoch>, log_name, start_pos, end_pos)"
     assert(is_serverid_written_by_trans(m_source_server_id));
-    const NdbError *ndb_err = m_apply_status->define_update_row(
-        m_thd_ndb->trans, m_source_server_id, positions.log_name,
-        positions.start_pos, positions.end_pos);
+    const NdbError *ndb_err = m_apply_status->define_write_row(
+        m_thd_ndb->trans, m_source_server_id, m_incoming_epoch.epoch,
+        positions.log_name, positions.start_pos, positions.end_pos, anyvalue);
     if (ndb_err) {
       m_thd_ndb->push_ndb_error_warning(*ndb_err);
       m_thd_ndb->push_warning(
@@ -449,7 +454,7 @@ bool Ndb_applier::define_apply_status_operations() {
     // UPDATE ndb_apply_status (server_id=X, log_name, start_pos, end_pos)
     const NdbError *ndb_err = m_apply_status->define_update_row(
         m_thd_ndb->trans, m_source_server_id, positions.log_name,
-        positions.start_pos, positions.end_pos);
+        positions.start_pos, positions.end_pos, anyvalue);
     if (ndb_err) {
       m_thd_ndb->push_ndb_error_warning(*ndb_err);
       m_thd_ndb->push_warning("Failed to define 'ndb_apply_status' update");
@@ -461,7 +466,7 @@ bool Ndb_applier::define_apply_status_operations() {
     constexpr Uint64 zero_epoch = 0;
     const NdbError *ndb_err = m_apply_status->define_write_row(
         m_thd_ndb->trans, m_source_server_id, zero_epoch, positions.log_name,
-        positions.start_pos, positions.end_pos);
+        positions.start_pos, positions.end_pos, anyvalue);
     if (ndb_err) {
       m_thd_ndb->push_ndb_error_warning(*ndb_err);
       m_thd_ndb->push_warning("Failed to define 'ndb_apply_status' write");

@@ -255,11 +255,13 @@ class Ndb_applier {
 
      @param row_server_id   The server_id in the written row
      @param row_epoch       The epoch in the written row
-
+     @param skip_write[out] Flag telling the caller that write of this row
+                            should be skipped.
      @return 0 for sucess
      @return > 0 for error
    */
-  int atApplyStatusWrite(Uint32 row_server_id, Uint64 row_epoch);
+  int atApplyStatusWrite(Uint32 row_server_id, Uint64 row_epoch,
+                         bool &skip_write);
 
   /**
      @brief Transaction has been committed sucessfully

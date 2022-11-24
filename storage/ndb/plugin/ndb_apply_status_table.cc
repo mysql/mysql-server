@@ -321,7 +321,7 @@ bool Ndb_apply_status_table::load_state(
 
 const NdbError *Ndb_apply_status_table::define_update_row(
     NdbTransaction *trans, Uint32 server_id, std::string_view log_name,
-    Uint64 start_pos, Uint64 end_pos) {
+    Uint64 start_pos, Uint64 end_pos, Uint32 any_value) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("server_id: %u", server_id));
   DBUG_PRINT("enter", ("log_name: '%s', start_pos: %llu, end_pos: %llu",
@@ -340,7 +340,8 @@ const NdbError *Ndb_apply_status_table::define_update_row(
       op->equal(COLNUM_SERVER_ID, server_id) != 0 ||  // PK
       op->setValue(COLNUM_LOG_NAME, log_name_buf) != 0 ||
       op->setValue(COLNUM_START_POS, start_pos) != 0 ||
-      op->setValue(COLNUM_END_POS, end_pos) != 0) {
+      op->setValue(COLNUM_END_POS, end_pos) != 0 ||
+      op->setAnyValue(any_value) != 0) {
     return &op->getNdbError();
   }
 
@@ -349,7 +350,8 @@ const NdbError *Ndb_apply_status_table::define_update_row(
 
 const NdbError *Ndb_apply_status_table::define_write_row(
     NdbTransaction *trans, Uint32 server_id, Uint64 epoch,
-    std::string_view log_name, Uint64 start_pos, Uint64 end_pos) {
+    std::string_view log_name, Uint64 start_pos, Uint64 end_pos,
+    Uint32 any_value) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("server_id: %u", server_id));
   DBUG_PRINT("enter", ("log_name: '%s', start_pos: %llu, end_pos: %llu",
@@ -369,7 +371,8 @@ const NdbError *Ndb_apply_status_table::define_write_row(
       op->setValue(COLNUM_EPOCH, epoch) != 0 ||
       op->setValue(COLNUM_LOG_NAME, log_name_buf) != 0 ||
       op->setValue(COLNUM_START_POS, start_pos) != 0 ||
-      op->setValue(COLNUM_END_POS, end_pos) != 0) {
+      op->setValue(COLNUM_END_POS, end_pos) != 0 ||
+      op->setAnyValue(any_value) != 0) {
     return &op->getNdbError();
   }
 

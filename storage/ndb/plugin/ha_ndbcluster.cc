@@ -4734,10 +4734,17 @@ int ha_ndbcluster::write_row(uchar *record) {
     const Uint32 row_server_id = table->field[0]->val_int();
     const Uint64 row_epoch = table->field[1]->val_int();
 
-    const int result = applier->atApplyStatusWrite(row_server_id, row_epoch);
+    bool skip_write = false;
+    const int result =
+        applier->atApplyStatusWrite(row_server_id, row_epoch, skip_write);
     if (result != 0) {
       // Stop applier
       return result;
+    }
+
+    if (skip_write) {
+      // The applier has handled this write by deferring it until commit time
+      return 0;
     }
   }
 

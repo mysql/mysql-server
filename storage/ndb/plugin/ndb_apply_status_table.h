@@ -106,12 +106,13 @@ class Ndb_apply_status_table : public Ndb_util_table {
      @param log_name          The value to set for "log_name" column
      @param start_pos         The value to set for "start_pos" column
      @param end_pos           The value to set for "end_pos" column
+     @param any_value         The value to use as "any value" for the operation
 
      @return nullptr for success and pointer to NdbError otherwise
    */
   const NdbError *define_update_row(NdbTransaction *trans, Uint32 server_id,
                                     std::string_view log_name, Uint64 start_pos,
-                                    Uint64 end_pos);
+                                    Uint64 end_pos, Uint32 any_value);
 
   /**
      @brief Append a write to ndb_apply_status to given transaction.
@@ -125,12 +126,14 @@ class Ndb_apply_status_table : public Ndb_util_table {
      @param log_name          The value to set for "log_name" column
      @param start_pos         The value to set for "start_pos" column
      @param end_pos           The value to set for "end_pos" column
+     @param any_value         The value to use as "any value" for the operation
 
      @return nullptr for success and pointer to NdbError otherwise
    */
   const NdbError *define_write_row(NdbTransaction *trans, Uint32 server_id,
                                    Uint64 epoch, std::string_view log_name,
-                                   Uint64 start_pos, Uint64 end_pos);
+                                   Uint64 start_pos, Uint64 end_pos,
+                                   Uint32 any_value);
 };
 
 #endif
