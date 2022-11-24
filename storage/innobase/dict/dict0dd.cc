@@ -1876,7 +1876,7 @@ static void instant_update_table_cols_count(dict_table_t *dict_table,
   ut_ad(dict_table->total_col_count >= dict_table->current_col_count);
 }
 
-void copy_dropped_columns(const dd::Table *old_dd_table,
+bool copy_dropped_columns(const dd::Table *old_dd_table,
                           dd::Table *new_dd_table,
                           uint32_t current_row_version) {
   ut_d(bool is_instant_v1 = false);
@@ -1914,7 +1914,16 @@ void copy_dropped_columns(const dd::Table *old_dd_table,
     /* In V1, we can't have INSTANT DROP columns */
     ut_ad(!is_instant_v1);
 
-    if (dd_find_column(new_dd_table, col_name) != nullptr) {
+    const dd::Column *searchedColumn = dd_find_column(new_dd_table, col_name);
+    if (searchedColumn != nullptr) {
+      if (!dd_column_is_dropped(searchedColumn)) {
+        /* User is trying to add column with name same as existing hidden
+         * dropped column name. */
+        ib::info(ER_IB_HIDDEN_NAME_CONFLICT, searchedColumn->name().c_str(),
+                 col_name);
+        my_error(ER_WRONG_COLUMN_NAME, MYF(0), searchedColumn->name().c_str());
+        return true;
+      }
       /* Column is already present in new table. It is either already dropped
       column in previous statements or is being dropped in same statement. In
       both the cases, continue. */
@@ -1953,22 +1962,28 @@ void copy_dropped_columns(const dd::Table *old_dd_table,
 
     ut_ad(dd_find_column(new_dd_table, col_name) != nullptr);
   }
+  return false;
 }
 
-static void set_dropped_column_name(std::string &name, uint32_t version) {
-  name += "_dropped_v";
-  name += std::to_string(version);
+static void set_dropped_column_name(std::string &name, uint32_t version,
+                                    uint32_t phy_pos) {
+  std::ostringstream new_name;
+  new_name << INSTANT_DROP_PREFIX_8_0_32 << "v" << version << "_p" << phy_pos
+           << "_" << name;
+  name = new_name.str();
+  name.resize(std::min<size_t>(name.size(), NAME_CHAR_LEN));
 }
 
-void dd_drop_instant_columns(
+bool dd_drop_instant_columns(
     const dd::Table *old_dd_table, dd::Table *new_dd_table,
     dict_table_t *new_dict_table,
     const Columns &cols_to_drop IF_DEBUG(, const Columns &cols_to_add,
                                          Alter_inplace_info *ha_alter_info)) {
   if (dd_table_has_instant_drop_cols(*old_dd_table)) {
     /* Copy metadata of already dropped columns */
-    copy_dropped_columns(old_dd_table, new_dd_table,
-                         new_dict_table->current_row_version);
+    if (copy_dropped_columns(old_dd_table, new_dd_table,
+                             new_dict_table->current_row_version))
+      return true;
   }
 
 #ifdef UNIV_DEBUG
@@ -2034,13 +2049,20 @@ void dd_drop_instant_columns(
 
     std::string dropped_col_name(col_to_drop->name().c_str());
     set_dropped_column_name(dropped_col_name,
-                            new_dict_table->current_row_version + 1);
+                            new_dict_table->current_row_version + 1, phy_pos);
 
     /* Add this column as an SE_HIDDEN column in new table def. NOTE: This call
     will update the DD_INSTANT_VERSION_DROPPED for the column as well. */
     dd::Column *dropped_col =
         dd_add_hidden_column(new_dd_table, dropped_col_name.c_str(),
                              col_to_drop->char_length(), col_to_drop->type());
+    if (dropped_col == nullptr) {
+      /* Table already has column with name same as dropped_col_name */
+      ib::info(ER_IB_HIDDEN_NAME_CONFLICT, dropped_col_name.c_str(),
+               dropped_col_name.c_str())
+          << "If you have any conflicting user column please rename it.";
+      return true;
+    }
     ut_ad(dropped_col != nullptr);
 
     {
@@ -2076,17 +2098,18 @@ void dd_drop_instant_columns(
 
   instant_update_table_cols_count(new_dict_table, 0, cols_to_drop.size());
 
-  return;
+  return false;
 }
 
-void dd_add_instant_columns(const dd::Table *old_dd_table,
+bool dd_add_instant_columns(const dd::Table *old_dd_table,
                             dd::Table *new_dd_table,
                             dict_table_t *new_dict_table,
                             const Columns &cols_to_add) {
   if (dd_table_has_instant_drop_cols(*old_dd_table)) {
     /* Copy metadata of already dropped columns */
-    copy_dropped_columns(old_dd_table, new_dd_table,
-                         new_dict_table->current_row_version);
+    if (copy_dropped_columns(old_dd_table, new_dd_table,
+                             new_dict_table->current_row_version))
+      return true;
   }
 
   auto set_col_default = [&](Field *field, dd::Properties &se_private) {
@@ -2214,6 +2237,7 @@ void dd_add_instant_columns(const dd::Table *old_dd_table,
   instant_update_table_cols_count(new_dict_table, cols_to_add.size(), 0);
 
   ut_ad(cols_added > 0);
+  return false;
 }
 
 /** Compare the default values between imported column and column defined

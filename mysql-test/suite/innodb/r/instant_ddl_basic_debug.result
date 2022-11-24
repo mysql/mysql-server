@@ -182,7 +182,7 @@ c1	1	13	16711934	0	0	0
 c5	2	13	16711934	0	0	0
 c2	3	13	16711934	0	0	0
 c3	4	13	16711934	0	0	0
-c4_dropped_v1	8	13	16711934	0	0	1
+!hidden!_dropped_v1_p8_c4	8	13	16711934	0	0	1
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -196,7 +196,7 @@ c3	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
 DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	9	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
+!hidden!_dropped_v1_p8_c4	9	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c5	c2	c3
 NULL	r1c1	NULL	r1c2	r1c3
@@ -224,8 +224,8 @@ c6	0	13	16711934	0	0	0
 c1	1	13	16711934	0	0	0
 c2	2	13	16711934	0	0	0
 c3	3	13	16711934	0	0	0
-c4_dropped_v1	7	13	16711934	0	0	1
-c5_dropped_v2	8	13	16711934	0	0	2
+!hidden!_dropped_v1_p8_c4	7	13	16711934	0	0	1
+!hidden!_dropped_v2_p5_c5	8	13	16711934	0	0	2
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -238,8 +238,8 @@ c3	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
 DB_ROW_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	8	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
-c5_dropped_v2	9	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
+!hidden!_dropped_v1_p8_c4	8	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
+!hidden!_dropped_v2_p5_c5	9	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c2	c3
 NULL	r1c1	r1c2	r1c3
@@ -268,9 +268,9 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16711934	0	0	0
 c2	1	13	16711934	0	0	0
 c3	2	13	16711934	0	0	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
+!hidden!_dropped_v1_p8_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p5_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -282,9 +282,9 @@ c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
 DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
-c5_dropped_v2	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
-c6_dropped_v3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v1_p8_c4	7	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
+!hidden!_dropped_v2_p5_c5	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	9	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c3
 r1c1	r1c2	r1c3
@@ -315,10 +315,10 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16711934	0	0	0
 c2	1	13	16711934	0	0	0
 c7	2	13	16711934	1	4	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
-c3_dropped_v4	9	13	16711934	0	0	4
+!hidden!_dropped_v1_p8_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p5_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
+!hidden!_dropped_v4_p7_c3	9	13	16711934	0	0	4
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -330,10 +330,10 @@ c7	3	MYSQL_TYPE_STRING	0	Visible	default=63375f646566202020202020202020202020202
 DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
-c5_dropped_v2	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
-c6_dropped_v3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
-c3_dropped_v4	10	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=4;
+!hidden!_dropped_v1_p8_c4	7	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
+!hidden!_dropped_v2_p5_c5	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	9	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v4_p7_c3	10	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=4;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def
@@ -366,11 +366,11 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16711934	0	0	0
 c2	1	13	16711934	0	0	0
 c7	2	13	16711934	1	5	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
-c3_dropped_v4	9	13	16711934	0	0	4
-c7_dropped_v5	10	13	16711934	0	4	5
+!hidden!_dropped_v1_p8_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p5_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
+!hidden!_dropped_v4_p7_c3	9	13	16711934	0	0	4
+!hidden!_dropped_v5_p9_c7	10	13	16711934	0	4	5
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -382,11 +382,11 @@ c7	3	MYSQL_TYPE_STRING	0	Visible	default=63375f646566322020202020202020202020202
 DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
-c5_dropped_v2	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
-c6_dropped_v3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
-c3_dropped_v4	10	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=4;
-c7_dropped_v5	11	MYSQL_TYPE_STRING	0	SE	physical_pos=9;version_added=4;version_dropped=5;
+!hidden!_dropped_v1_p8_c4	7	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
+!hidden!_dropped_v2_p5_c5	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	9	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v4_p7_c3	10	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=4;
+!hidden!_dropped_v5_p9_c7	11	MYSQL_TYPE_STRING	0	SE	physical_pos=9;version_added=4;version_dropped=5;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def2
@@ -732,7 +732,7 @@ c1	1	13	16712190	0	0	0
 c5	2	13	16711934	0	0	0
 c2	3	13	16711934	0	0	0
 c3	4	13	16711934	0	0	0
-c4_dropped_v1	8	13	16711934	0	0	1
+!hidden!_dropped_v1_p7_c4	8	13	16711934	0	0	1
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -745,7 +745,7 @@ c2	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c3	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
 DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	8	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v1_p7_c4	8	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c5	c2	c3
 NULL	r1c1	NULL	r1c2	r1c3
@@ -773,8 +773,8 @@ c6	0	13	16711934	0	0	0
 c1	1	13	16712190	0	0	0
 c2	2	13	16711934	0	0	0
 c3	3	13	16711934	0	0	0
-c4_dropped_v1	7	13	16711934	0	0	1
-c5_dropped_v2	8	13	16711934	0	0	2
+!hidden!_dropped_v1_p7_c4	7	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	8	13	16711934	0	0	2
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -786,8 +786,8 @@ c2	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c3	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	8	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v1_p7_c4	7	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	8	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c2	c3
 NULL	r1c1	r1c2	r1c3
@@ -816,9 +816,9 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16712190	0	0	0
 c2	1	13	16711934	0	0	0
 c3	2	13	16711934	0	0	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
+!hidden!_dropped_v1_p7_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -829,9 +829,9 @@ c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
-c6_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v1_p7_c4	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c3
 r1c1	r1c2	r1c3
@@ -862,10 +862,10 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16712190	0	0	0
 c2	1	13	16711934	0	0	0
 c7	2	13	16711934	1	4	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
-c3_dropped_v4	9	13	16711934	0	0	4
+!hidden!_dropped_v1_p7_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
+!hidden!_dropped_v4_p6_c3	9	13	16711934	0	0	4
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -876,10 +876,10 @@ c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c7	3	MYSQL_TYPE_STRING	0	Visible	default=63375f64656620202020202020202020202020202020202020202020202020202020202020202020;physical_pos=8;table_id=TABLE_ID;version_added=4;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
-c6_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
-c3_dropped_v4	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
+!hidden!_dropped_v1_p7_c4	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v4_p6_c3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def
@@ -912,11 +912,11 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16712190	0	0	0
 c2	1	13	16711934	0	0	0
 c7	2	13	16711934	1	5	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
-c3_dropped_v4	9	13	16711934	0	0	4
-c7_dropped_v5	10	13	16711934	0	4	5
+!hidden!_dropped_v1_p7_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
+!hidden!_dropped_v4_p6_c3	9	13	16711934	0	0	4
+!hidden!_dropped_v5_p8_c7	10	13	16711934	0	4	5
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -927,11 +927,11 @@ c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c7	3	MYSQL_TYPE_STRING	0	Visible	default=63375f64656632202020202020202020202020202020202020202020202020202020202020202020;physical_pos=9;table_id=TABLE_ID;version_added=5;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
-c6_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
-c3_dropped_v4	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
-c7_dropped_v5	10	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_added=4;version_dropped=5;
+!hidden!_dropped_v1_p7_c4	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v4_p6_c3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
+!hidden!_dropped_v5_p8_c7	10	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_added=4;version_dropped=5;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def2
@@ -1276,7 +1276,7 @@ c1	1	13	16712190	0	0	0
 c5	2	13	16711934	0	0	0
 c2	3	13	16711934	0	0	0
 c3	4	13	16711934	0	0	0
-c4_dropped_v1	8	13	16711934	0	0	1
+!hidden!_dropped_v1_p7_c4	8	13	16711934	0	0	1
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -1289,7 +1289,7 @@ c2	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c3	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
 DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	8	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v1_p7_c4	8	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c5	c2	c3
 NULL	r1c1	NULL	r1c2	r1c3
@@ -1317,8 +1317,8 @@ c6	0	13	16711934	0	0	0
 c1	1	13	16712190	0	0	0
 c2	2	13	16711934	0	0	0
 c3	3	13	16711934	0	0	0
-c4_dropped_v1	7	13	16711934	0	0	1
-c5_dropped_v2	8	13	16711934	0	0	2
+!hidden!_dropped_v1_p7_c4	7	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	8	13	16711934	0	0	2
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -1330,8 +1330,8 @@ c2	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c3	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	8	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v1_p7_c4	7	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	8	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c2	c3
 NULL	r1c1	r1c2	r1c3
@@ -1360,9 +1360,9 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16712190	0	0	0
 c2	1	13	16711934	0	0	0
 c3	2	13	16711934	0	0	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
+!hidden!_dropped_v1_p7_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -1373,9 +1373,9 @@ c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
-c6_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v1_p7_c4	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c3
 r1c1	r1c2	r1c3
@@ -1406,10 +1406,10 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16712190	0	0	0
 c2	1	13	16711934	0	0	0
 c7	2	13	16711934	1	4	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
-c3_dropped_v4	9	13	16711934	0	0	4
+!hidden!_dropped_v1_p7_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
+!hidden!_dropped_v4_p6_c3	9	13	16711934	0	0	4
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -1420,10 +1420,10 @@ c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c7	3	MYSQL_TYPE_STRING	0	Visible	default=63375f64656620202020202020202020202020202020202020202020202020202020202020202020;physical_pos=8;table_id=TABLE_ID;version_added=4;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
-c6_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
-c3_dropped_v4	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
+!hidden!_dropped_v1_p7_c4	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v4_p6_c3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def
@@ -1456,11 +1456,11 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16712190	0	0	0
 c2	1	13	16711934	0	0	0
 c7	2	13	16711934	1	5	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
-c3_dropped_v4	9	13	16711934	0	0	4
-c7_dropped_v5	10	13	16711934	0	4	5
+!hidden!_dropped_v1_p7_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
+!hidden!_dropped_v4_p6_c3	9	13	16711934	0	0	4
+!hidden!_dropped_v5_p8_c7	10	13	16711934	0	4	5
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -1471,11 +1471,11 @@ c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c7	3	MYSQL_TYPE_STRING	0	Visible	default=63375f64656632202020202020202020202020202020202020202020202020202020202020202020;physical_pos=9;table_id=TABLE_ID;version_added=5;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
-c6_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
-c3_dropped_v4	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
-c7_dropped_v5	10	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_added=4;version_dropped=5;
+!hidden!_dropped_v1_p7_c4	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v4_p6_c3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
+!hidden!_dropped_v5_p8_c7	10	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_added=4;version_dropped=5;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def2
@@ -1828,7 +1828,7 @@ c1	1	13	16711934	0	0	0
 c5	2	13	16711934	0	0	0
 c2	3	13	16711934	0	0	0
 c3	4	13	16711934	0	0	0
-c4_dropped_v1	8	13	16711934	0	0	1
+!hidden!_dropped_v1_p8_c4	8	13	16711934	0	0	1
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -1842,7 +1842,7 @@ c3	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
 DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	9	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
+!hidden!_dropped_v1_p8_c4	9	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c5	c2	c3
 NULL	r1c1	NULL	r1c2	r1c3
@@ -1870,8 +1870,8 @@ c6	0	13	16711934	0	0	0
 c1	1	13	16711934	0	0	0
 c2	2	13	16711934	0	0	0
 c3	3	13	16711934	0	0	0
-c4_dropped_v1	7	13	16711934	0	0	1
-c5_dropped_v2	8	13	16711934	0	0	2
+!hidden!_dropped_v1_p8_c4	7	13	16711934	0	0	1
+!hidden!_dropped_v2_p5_c5	8	13	16711934	0	0	2
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -1884,8 +1884,8 @@ c3	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
 DB_ROW_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	8	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
-c5_dropped_v2	9	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
+!hidden!_dropped_v1_p8_c4	8	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
+!hidden!_dropped_v2_p5_c5	9	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c2	c3
 NULL	r1c1	r1c2	r1c3
@@ -1914,9 +1914,9 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16711934	0	0	0
 c2	1	13	16711934	0	0	0
 c3	2	13	16711934	0	0	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
+!hidden!_dropped_v1_p8_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p5_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -1928,9 +1928,9 @@ c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
 DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
-c5_dropped_v2	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
-c6_dropped_v3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v1_p8_c4	7	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
+!hidden!_dropped_v2_p5_c5	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	9	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c3
 r1c1	r1c2	r1c3
@@ -1961,10 +1961,10 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16711934	0	0	0
 c2	1	13	16711934	0	0	0
 c7	2	13	16711934	1	4	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
-c3_dropped_v4	9	13	16711934	0	0	4
+!hidden!_dropped_v1_p8_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p5_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
+!hidden!_dropped_v4_p7_c3	9	13	16711934	0	0	4
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -1976,10 +1976,10 @@ c7	3	MYSQL_TYPE_STRING	0	Visible	default=63375f64656620202020;physical_pos=9;tab
 DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
-c5_dropped_v2	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
-c6_dropped_v3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
-c3_dropped_v4	10	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=4;
+!hidden!_dropped_v1_p8_c4	7	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
+!hidden!_dropped_v2_p5_c5	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	9	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v4_p7_c3	10	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=4;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def
@@ -2012,11 +2012,11 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16711934	0	0	0
 c2	1	13	16711934	0	0	0
 c7	2	13	16711934	1	5	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
-c3_dropped_v4	9	13	16711934	0	0	4
-c7_dropped_v5	10	13	16711934	0	4	5
+!hidden!_dropped_v1_p8_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p5_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
+!hidden!_dropped_v4_p7_c3	9	13	16711934	0	0	4
+!hidden!_dropped_v5_p9_c7	10	13	16711934	0	4	5
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -2028,11 +2028,11 @@ c7	3	MYSQL_TYPE_STRING	0	Visible	default=63375f64656632202020;physical_pos=10;ta
 DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
-c5_dropped_v2	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
-c6_dropped_v3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
-c3_dropped_v4	10	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=4;
-c7_dropped_v5	11	MYSQL_TYPE_STRING	0	SE	physical_pos=9;version_added=4;version_dropped=5;
+!hidden!_dropped_v1_p8_c4	7	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
+!hidden!_dropped_v2_p5_c5	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	9	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v4_p7_c3	10	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=4;
+!hidden!_dropped_v5_p9_c7	11	MYSQL_TYPE_STRING	0	SE	physical_pos=9;version_added=4;version_dropped=5;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def2
@@ -2378,7 +2378,7 @@ c1	1	13	16712190	0	0	0
 c5	2	13	16711934	0	0	0
 c2	3	13	16711934	0	0	0
 c3	4	13	16711934	0	0	0
-c4_dropped_v1	8	13	16711934	0	0	1
+!hidden!_dropped_v1_p7_c4	8	13	16711934	0	0	1
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -2391,7 +2391,7 @@ c2	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c3	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
 DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	8	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v1_p7_c4	8	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c5	c2	c3
 NULL	r1c1	NULL	r1c2	r1c3
@@ -2419,8 +2419,8 @@ c6	0	13	16711934	0	0	0
 c1	1	13	16712190	0	0	0
 c2	2	13	16711934	0	0	0
 c3	3	13	16711934	0	0	0
-c4_dropped_v1	7	13	16711934	0	0	1
-c5_dropped_v2	8	13	16711934	0	0	2
+!hidden!_dropped_v1_p7_c4	7	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	8	13	16711934	0	0	2
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -2432,8 +2432,8 @@ c2	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c3	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	8	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v1_p7_c4	7	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	8	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c2	c3
 NULL	r1c1	r1c2	r1c3
@@ -2462,9 +2462,9 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16712190	0	0	0
 c2	1	13	16711934	0	0	0
 c3	2	13	16711934	0	0	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
+!hidden!_dropped_v1_p7_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -2475,9 +2475,9 @@ c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
-c6_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v1_p7_c4	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c3
 r1c1	r1c2	r1c3
@@ -2508,10 +2508,10 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16712190	0	0	0
 c2	1	13	16711934	0	0	0
 c7	2	13	16711934	1	4	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
-c3_dropped_v4	9	13	16711934	0	0	4
+!hidden!_dropped_v1_p7_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
+!hidden!_dropped_v4_p6_c3	9	13	16711934	0	0	4
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -2522,10 +2522,10 @@ c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c7	3	MYSQL_TYPE_STRING	0	Visible	default=63375f64656620202020;physical_pos=8;table_id=TABLE_ID;version_added=4;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
-c6_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
-c3_dropped_v4	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
+!hidden!_dropped_v1_p7_c4	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v4_p6_c3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def
@@ -2558,11 +2558,11 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16712190	0	0	0
 c2	1	13	16711934	0	0	0
 c7	2	13	16711934	1	5	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
-c3_dropped_v4	9	13	16711934	0	0	4
-c7_dropped_v5	10	13	16711934	0	4	5
+!hidden!_dropped_v1_p7_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
+!hidden!_dropped_v4_p6_c3	9	13	16711934	0	0	4
+!hidden!_dropped_v5_p8_c7	10	13	16711934	0	4	5
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -2573,11 +2573,11 @@ c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c7	3	MYSQL_TYPE_STRING	0	Visible	default=63375f64656632202020;physical_pos=9;table_id=TABLE_ID;version_added=5;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
-c6_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
-c3_dropped_v4	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
-c7_dropped_v5	10	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_added=4;version_dropped=5;
+!hidden!_dropped_v1_p7_c4	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v4_p6_c3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
+!hidden!_dropped_v5_p8_c7	10	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_added=4;version_dropped=5;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def2
@@ -2922,7 +2922,7 @@ c1	1	13	16712190	0	0	0
 c5	2	13	16711934	0	0	0
 c2	3	13	16711934	0	0	0
 c3	4	13	16711934	0	0	0
-c4_dropped_v1	8	13	16711934	0	0	1
+!hidden!_dropped_v1_p7_c4	8	13	16711934	0	0	1
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -2935,7 +2935,7 @@ c2	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c3	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
 DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	8	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v1_p7_c4	8	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c5	c2	c3
 NULL	r1c1	NULL	r1c2	r1c3
@@ -2963,8 +2963,8 @@ c6	0	13	16711934	0	0	0
 c1	1	13	16712190	0	0	0
 c2	2	13	16711934	0	0	0
 c3	3	13	16711934	0	0	0
-c4_dropped_v1	7	13	16711934	0	0	1
-c5_dropped_v2	8	13	16711934	0	0	2
+!hidden!_dropped_v1_p7_c4	7	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	8	13	16711934	0	0	2
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -2976,8 +2976,8 @@ c2	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c3	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	8	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v1_p7_c4	7	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	8	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c2	c3
 NULL	r1c1	r1c2	r1c3
@@ -3006,9 +3006,9 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16712190	0	0	0
 c2	1	13	16711934	0	0	0
 c3	2	13	16711934	0	0	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
+!hidden!_dropped_v1_p7_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -3019,9 +3019,9 @@ c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
-c6_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v1_p7_c4	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c3
 r1c1	r1c2	r1c3
@@ -3052,10 +3052,10 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16712190	0	0	0
 c2	1	13	16711934	0	0	0
 c7	2	13	16711934	1	4	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
-c3_dropped_v4	9	13	16711934	0	0	4
+!hidden!_dropped_v1_p7_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
+!hidden!_dropped_v4_p6_c3	9	13	16711934	0	0	4
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -3066,10 +3066,10 @@ c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c7	3	MYSQL_TYPE_STRING	0	Visible	default=63375f64656620202020;physical_pos=8;table_id=TABLE_ID;version_added=4;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
-c6_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
-c3_dropped_v4	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
+!hidden!_dropped_v1_p7_c4	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v4_p6_c3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def
@@ -3102,11 +3102,11 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16712190	0	0	0
 c2	1	13	16711934	0	0	0
 c7	2	13	16711934	1	5	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
-c3_dropped_v4	9	13	16711934	0	0	4
-c7_dropped_v5	10	13	16711934	0	4	5
+!hidden!_dropped_v1_p7_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
+!hidden!_dropped_v4_p6_c3	9	13	16711934	0	0	4
+!hidden!_dropped_v5_p8_c7	10	13	16711934	0	4	5
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -3117,11 +3117,11 @@ c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c7	3	MYSQL_TYPE_STRING	0	Visible	default=63375f64656632202020;physical_pos=9;table_id=TABLE_ID;version_added=5;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
-c6_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
-c3_dropped_v4	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
-c7_dropped_v5	10	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_added=4;version_dropped=5;
+!hidden!_dropped_v1_p7_c4	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v4_p6_c3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
+!hidden!_dropped_v5_p8_c7	10	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_added=4;version_dropped=5;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def2
@@ -3474,7 +3474,7 @@ c1	1	13	16711934	0	0	0
 c5	2	13	16711934	0	0	0
 c2	3	13	16711934	0	0	0
 c3	4	13	16711934	0	0	0
-c4_dropped_v1	8	13	16711934	0	0	1
+!hidden!_dropped_v1_p8_c4	8	13	16711934	0	0	1
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -3488,7 +3488,7 @@ c3	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
 DB_ROW_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	7	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	9	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
+!hidden!_dropped_v1_p8_c4	9	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c5	c2	c3
 NULL	r1c1	NULL	r1c2	r1c3
@@ -3516,8 +3516,8 @@ c6	0	13	16711934	0	0	0
 c1	1	13	16711934	0	0	0
 c2	2	13	16711934	0	0	0
 c3	3	13	16711934	0	0	0
-c4_dropped_v1	7	13	16711934	0	0	1
-c5_dropped_v2	8	13	16711934	0	0	2
+!hidden!_dropped_v1_p8_c4	7	13	16711934	0	0	1
+!hidden!_dropped_v2_p5_c5	8	13	16711934	0	0	2
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -3530,8 +3530,8 @@ c3	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
 DB_ROW_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	8	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
-c5_dropped_v2	9	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
+!hidden!_dropped_v1_p8_c4	8	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
+!hidden!_dropped_v2_p5_c5	9	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c2	c3
 NULL	r1c1	r1c2	r1c3
@@ -3560,9 +3560,9 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16711934	0	0	0
 c2	1	13	16711934	0	0	0
 c3	2	13	16711934	0	0	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
+!hidden!_dropped_v1_p8_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p5_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -3574,9 +3574,9 @@ c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=7;table_id=TABLE_ID;
 DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
-c5_dropped_v2	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
-c6_dropped_v3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v1_p8_c4	7	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
+!hidden!_dropped_v2_p5_c5	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	9	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c3
 r1c1	r1c2	r1c3
@@ -3607,10 +3607,10 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16711934	0	0	0
 c2	1	13	16711934	0	0	0
 c7	2	13	16711934	1	4	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
-c3_dropped_v4	9	13	16711934	0	0	4
+!hidden!_dropped_v1_p8_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p5_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
+!hidden!_dropped_v4_p7_c3	9	13	16711934	0	0	4
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -3622,10 +3622,10 @@ c7	3	MYSQL_TYPE_STRING	0	Visible	default=63375f64656620202020;physical_pos=9;tab
 DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
-c5_dropped_v2	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
-c6_dropped_v3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
-c3_dropped_v4	10	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=4;
+!hidden!_dropped_v1_p8_c4	7	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
+!hidden!_dropped_v2_p5_c5	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	9	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v4_p7_c3	10	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=4;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def
@@ -3658,11 +3658,11 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16711934	0	0	0
 c2	1	13	16711934	0	0	0
 c7	2	13	16711934	1	5	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
-c3_dropped_v4	9	13	16711934	0	0	4
-c7_dropped_v5	10	13	16711934	0	4	5
+!hidden!_dropped_v1_p8_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p5_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
+!hidden!_dropped_v4_p7_c3	9	13	16711934	0	0	4
+!hidden!_dropped_v5_p9_c7	10	13	16711934	0	4	5
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -3674,11 +3674,11 @@ c7	3	MYSQL_TYPE_STRING	0	Visible	default=63375f64656632202020;physical_pos=10;ta
 DB_ROW_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=0;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
-c5_dropped_v2	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
-c6_dropped_v3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
-c3_dropped_v4	10	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=4;
-c7_dropped_v5	11	MYSQL_TYPE_STRING	0	SE	physical_pos=9;version_added=4;version_dropped=5;
+!hidden!_dropped_v1_p8_c4	7	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_dropped=1;
+!hidden!_dropped_v2_p5_c5	8	MYSQL_TYPE_STRING	0	SE	physical_pos=5;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	9	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v4_p7_c3	10	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=4;
+!hidden!_dropped_v5_p9_c7	11	MYSQL_TYPE_STRING	0	SE	physical_pos=9;version_added=4;version_dropped=5;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def2
@@ -4024,7 +4024,7 @@ c1	1	13	16712190	0	0	0
 c5	2	13	16711934	0	0	0
 c2	3	13	16711934	0	0	0
 c3	4	13	16711934	0	0	0
-c4_dropped_v1	8	13	16711934	0	0	1
+!hidden!_dropped_v1_p7_c4	8	13	16711934	0	0	1
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -4037,7 +4037,7 @@ c2	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c3	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
 DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	8	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v1_p7_c4	8	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c5	c2	c3
 NULL	r1c1	NULL	r1c2	r1c3
@@ -4065,8 +4065,8 @@ c6	0	13	16711934	0	0	0
 c1	1	13	16712190	0	0	0
 c2	2	13	16711934	0	0	0
 c3	3	13	16711934	0	0	0
-c4_dropped_v1	7	13	16711934	0	0	1
-c5_dropped_v2	8	13	16711934	0	0	2
+!hidden!_dropped_v1_p7_c4	7	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	8	13	16711934	0	0	2
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -4078,8 +4078,8 @@ c2	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c3	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	8	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v1_p7_c4	7	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	8	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c2	c3
 NULL	r1c1	r1c2	r1c3
@@ -4108,9 +4108,9 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16712190	0	0	0
 c2	1	13	16711934	0	0	0
 c3	2	13	16711934	0	0	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
+!hidden!_dropped_v1_p7_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -4121,9 +4121,9 @@ c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
-c6_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v1_p7_c4	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c3
 r1c1	r1c2	r1c3
@@ -4154,10 +4154,10 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16712190	0	0	0
 c2	1	13	16711934	0	0	0
 c7	2	13	16711934	1	4	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
-c3_dropped_v4	9	13	16711934	0	0	4
+!hidden!_dropped_v1_p7_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
+!hidden!_dropped_v4_p6_c3	9	13	16711934	0	0	4
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -4168,10 +4168,10 @@ c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c7	3	MYSQL_TYPE_STRING	0	Visible	default=63375f64656620202020;physical_pos=8;table_id=TABLE_ID;version_added=4;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
-c6_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
-c3_dropped_v4	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
+!hidden!_dropped_v1_p7_c4	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v4_p6_c3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def
@@ -4204,11 +4204,11 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16712190	0	0	0
 c2	1	13	16711934	0	0	0
 c7	2	13	16711934	1	5	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
-c3_dropped_v4	9	13	16711934	0	0	4
-c7_dropped_v5	10	13	16711934	0	4	5
+!hidden!_dropped_v1_p7_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
+!hidden!_dropped_v4_p6_c3	9	13	16711934	0	0	4
+!hidden!_dropped_v5_p8_c7	10	13	16711934	0	4	5
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -4219,11 +4219,11 @@ c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c7	3	MYSQL_TYPE_STRING	0	Visible	default=63375f64656632202020;physical_pos=9;table_id=TABLE_ID;version_added=5;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
-c6_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
-c3_dropped_v4	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
-c7_dropped_v5	10	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_added=4;version_dropped=5;
+!hidden!_dropped_v1_p7_c4	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v4_p6_c3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
+!hidden!_dropped_v5_p8_c7	10	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_added=4;version_dropped=5;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def2
@@ -4568,7 +4568,7 @@ c1	1	13	16712190	0	0	0
 c5	2	13	16711934	0	0	0
 c2	3	13	16711934	0	0	0
 c3	4	13	16711934	0	0	0
-c4_dropped_v1	8	13	16711934	0	0	1
+!hidden!_dropped_v1_p7_c4	8	13	16711934	0	0	1
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -4581,7 +4581,7 @@ c2	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c3	5	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
 DB_TRX_ID	6	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	8	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v1_p7_c4	8	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c5	c2	c3
 NULL	r1c1	NULL	r1c2	r1c3
@@ -4609,8 +4609,8 @@ c6	0	13	16711934	0	0	0
 c1	1	13	16712190	0	0	0
 c2	2	13	16711934	0	0	0
 c3	3	13	16711934	0	0	0
-c4_dropped_v1	7	13	16711934	0	0	1
-c5_dropped_v2	8	13	16711934	0	0	2
+!hidden!_dropped_v1_p7_c4	7	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	8	13	16711934	0	0	2
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -4622,8 +4622,8 @@ c2	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c3	4	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
 DB_TRX_ID	5	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	7	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	8	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v1_p7_c4	7	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	8	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
 SELECT * FROM t1 ORDER BY c1;
 c6	c1	c2	c3
 NULL	r1c1	r1c2	r1c3
@@ -4652,9 +4652,9 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16712190	0	0	0
 c2	1	13	16711934	0	0	0
 c3	2	13	16711934	0	0	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
+!hidden!_dropped_v1_p7_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -4665,9 +4665,9 @@ c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c3	3	MYSQL_TYPE_STRING	0	Visible	physical_pos=6;table_id=TABLE_ID;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
-c6_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v1_p7_c4	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c3
 r1c1	r1c2	r1c3
@@ -4698,10 +4698,10 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16712190	0	0	0
 c2	1	13	16711934	0	0	0
 c7	2	13	16711934	1	4	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
-c3_dropped_v4	9	13	16711934	0	0	4
+!hidden!_dropped_v1_p7_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
+!hidden!_dropped_v4_p6_c3	9	13	16711934	0	0	4
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -4712,10 +4712,10 @@ c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c7	3	MYSQL_TYPE_STRING	0	Visible	default=63375f64656620202020;physical_pos=8;table_id=TABLE_ID;version_added=4;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
-c6_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
-c3_dropped_v4	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
+!hidden!_dropped_v1_p7_c4	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v4_p6_c3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def
@@ -4748,11 +4748,11 @@ NAME	POS	MTYPE	PRTYPE	HAS_DEFAULT	VERSION_ADDED	VERSION_DROPPED
 c1	0	13	16712190	0	0	0
 c2	1	13	16711934	0	0	0
 c7	2	13	16711934	1	5	0
-c4_dropped_v1	6	13	16711934	0	0	1
-c5_dropped_v2	7	13	16711934	0	0	2
-c6_dropped_v3	8	13	16711934	0	0	3
-c3_dropped_v4	9	13	16711934	0	0	4
-c7_dropped_v5	10	13	16711934	0	4	5
+!hidden!_dropped_v1_p7_c4	6	13	16711934	0	0	1
+!hidden!_dropped_v2_p4_c5	7	13	16711934	0	0	2
+!hidden!_dropped_v3_p3_c6	8	13	16711934	0	0	3
+!hidden!_dropped_v4_p6_c3	9	13	16711934	0	0	4
+!hidden!_dropped_v5_p8_c7	10	13	16711934	0	4	5
 # DD Metadata of table
 NAME	SE_PRIVATE_DATA
 t1	NULL
@@ -4763,11 +4763,11 @@ c2	2	MYSQL_TYPE_STRING	0	Visible	physical_pos=5;table_id=TABLE_ID;
 c7	3	MYSQL_TYPE_STRING	0	Visible	default=63375f64656632202020;physical_pos=9;table_id=TABLE_ID;version_added=5;
 DB_TRX_ID	4	MYSQL_TYPE_INT24	0	SE	physical_pos=1;table_id=TABLE_ID;
 DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	SE	physical_pos=2;table_id=TABLE_ID;
-c4_dropped_v1	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
-c5_dropped_v2	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
-c6_dropped_v3	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
-c3_dropped_v4	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
-c7_dropped_v5	10	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_added=4;version_dropped=5;
+!hidden!_dropped_v1_p7_c4	6	MYSQL_TYPE_STRING	0	SE	physical_pos=7;version_dropped=1;
+!hidden!_dropped_v2_p4_c5	7	MYSQL_TYPE_STRING	0	SE	physical_pos=4;version_dropped=2;
+!hidden!_dropped_v3_p3_c6	8	MYSQL_TYPE_STRING	0	SE	physical_pos=3;version_dropped=3;
+!hidden!_dropped_v4_p6_c3	9	MYSQL_TYPE_STRING	0	SE	physical_pos=6;version_dropped=4;
+!hidden!_dropped_v5_p8_c7	10	MYSQL_TYPE_STRING	0	SE	physical_pos=8;version_added=4;version_dropped=5;
 SELECT * FROM t1 ORDER BY c1;
 c1	c2	c7
 r1c1	r1c2	c7_def2

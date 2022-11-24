@@ -1620,7 +1620,7 @@ bool ha_innobase::commit_inplace_alter_table(TABLE *altered_table,
             : nullptr);
 
     /* Execute Instant DDL */
-    executor.commit_instant_ddl();
+    if (executor.commit_instant_ddl()) return true;
   } else if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ||
              ctx == nullptr) {
     ut_ad(!res);
@@ -10564,7 +10564,7 @@ end:
                 : nullptr);
 
         /* Execute Instant DDL */
-        executor.commit_instant_ddl();
+        if (executor.commit_instant_ddl()) return true;
       } else if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ||
                  ctx == nullptr) {
         dd_commit_inplace_no_change(ha_alter_info, old_part, new_part, true);

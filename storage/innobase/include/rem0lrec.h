@@ -220,8 +220,6 @@ static inline ulint rec_get_nth_field_offs_old_low(const rec_t *rec, ulint n,
 @param[in]  n        index of the field
 @return nonzero if externally stored */
 static inline ulint rec_offs_nth_extern_low(const ulint *offsets, ulint n) {
-  ut_ad(rec_offs_validate(nullptr, nullptr, offsets));
-  ut_ad(n < rec_offs_n_fields(offsets));
   return (rec_offs_base(offsets)[1 + n] & REC_OFFS_EXTERNAL);
 }
 
@@ -234,8 +232,6 @@ static inline void rec_offs_make_nth_extern_low(ulint *offsets, const ulint n) {
 }
 
 static inline ulint rec_offs_nth_sql_null_low(const ulint *offsets, ulint n) {
-  ut_ad(rec_offs_validate(nullptr, nullptr, offsets));
-  ut_ad(n < rec_offs_n_fields(offsets));
   return (rec_offs_base(offsets)[1 + n] & REC_OFFS_SQL_NULL);
 }
 
@@ -244,8 +240,6 @@ static inline ulint rec_offs_nth_sql_null_low(const ulint *offsets, ulint n) {
 @param[in]  n        index of the field
 @return nonzero if default bit is set */
 static inline ulint rec_offs_nth_default_low(const ulint *offsets, ulint n) {
-  ut_ad(rec_offs_validate(nullptr, nullptr, offsets));
-  ut_ad(n < rec_offs_n_fields(offsets));
   return (rec_offs_base(offsets)[1 + n] & REC_OFFS_DEFAULT);
 }
 
@@ -254,8 +248,6 @@ static inline ulint rec_offs_nth_default_low(const ulint *offsets, ulint n) {
 @param[in]  n       index of the field
 @return length of field */
 static inline ulint rec_offs_nth_size_low(const ulint *offsets, ulint n) {
-  ut_ad(rec_offs_validate(nullptr, nullptr, offsets));
-  ut_ad(n < rec_offs_n_fields(offsets));
   if (!n) {
     return (rec_offs_base(offsets)[1 + n] & REC_OFFS_MASK);
   }

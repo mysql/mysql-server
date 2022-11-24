@@ -208,7 +208,7 @@
                 "is_explicit_collation": false
             },
             {
-                "name": "d_dropped_v1",
+                "name": "!hidden!_dropped_v1_p5_d",
                 "type": 9,
                 "is_nullable": true,
                 "is_zerofill": false,

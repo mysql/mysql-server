@@ -32,6 +32,51 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "rem0wrec.h"
 #include "rem0lrec.h"
 
+#ifndef UNIV_NO_ERR_MSGS
+/** Dumps metadata of table.
+@param[in]      table   InnoDB table object*/
+static void dump_metadata_dict_table(const dict_table_t *table) {
+  ib::info(ER_IB_DICT_LOG_TABLE_INFO) << "Table Id : " << table->id;
+  ib::info(ER_IB_DICT_LOG_TABLE_INFO) << "Table Name : " << table->name.m_name;
+  ib::info(ER_IB_DICT_LOG_TABLE_INFO)
+      << "Has instant cols : " << table->has_instant_cols();
+  ib::info(ER_IB_DICT_LOG_TABLE_INFO)
+      << "Has instant row versions : " << table->has_row_versions();
+  ib::info(ER_IB_DICT_LOG_TABLE_INFO)
+      << "Current row version : " << table->current_row_version;
+  ib::info(ER_IB_DICT_LOG_TABLE_INFO)
+      << "Table initial column count : " << table->initial_col_count;
+  ib::info(ER_IB_DICT_LOG_TABLE_INFO)
+      << "Table current column count : " << table->current_col_count;
+  ib::info(ER_IB_DICT_LOG_TABLE_INFO)
+      << "Table total column count : " << table->total_col_count;
+  ib::info(ER_IB_DICT_LOG_TABLE_INFO) << "Number of columns added instantly : "
+                                      << table->get_n_instant_add_cols();
+  ib::info(ER_IB_DICT_LOG_TABLE_INFO)
+      << "Number of columns dropped instantly : "
+      << table->get_n_instant_drop_cols();
+  ib::info(ER_IB_DICT_LOG_TABLE_INFO)
+      << "Table uses COMPACT page format : " << dict_table_is_comp(table);
+}
+#endif /* !UNIV_NO_ERR_MSGS */
+
+/** Validates offset and field number.
+@param[in]      index   record descriptor
+@param[in]      offsets array returned by rec_get_offsets()
+@param[in]      n       nth field
+@param[in]      L       Line number of calling satement*/
+static void validate_rec_offset(const dict_index_t *index, const ulint *offsets,
+                                ulint n, ut::Location L) {
+  ut_ad(rec_offs_validate(nullptr, nullptr, offsets));
+  if (n >= rec_offs_n_fields(offsets)) {
+#ifndef UNIV_NO_ERR_MSGS
+    dump_metadata_dict_table(index->table);
+    auto num_fields = static_cast<size_t>(rec_offs_n_fields(offsets));
+    ib::fatal(L, ER_IB_DICT_INVALID_COLUMN_POSITION, ulonglong{n}, num_fields);
+#endif /* !UNIV_NO_ERR_MSGS */
+  }
+}
+
 byte *rec_get_nth_field(const dict_index_t *index, const rec_t *rec,
                         const ulint *offsets, ulint n, ulint *len) {
   byte *field =
@@ -94,6 +139,7 @@ ulint rec_offs_nth_extern(const dict_index_t *index, const ulint *offsets,
     n = index->get_field_off_pos(n);
   }
 
+  validate_rec_offset(index, offsets, n, UT_LOCATION_HERE);
   return (rec_offs_nth_extern_low(offsets, n));
 }
 
@@ -111,6 +157,7 @@ ulint rec_offs_nth_sql_null(const dict_index_t *index, const ulint *offsets,
     n = index->get_field_off_pos(n);
   }
 
+  validate_rec_offset(index, offsets, n, UT_LOCATION_HERE);
   return (rec_offs_nth_sql_null_low(offsets, n));
 }
 
@@ -120,6 +167,7 @@ ulint rec_offs_nth_default(const dict_index_t *index, const ulint *offsets,
     n = index->get_field_off_pos(n);
   }
 
+  validate_rec_offset(index, offsets, n, UT_LOCATION_HERE);
   return (rec_offs_nth_default_low(offsets, n));
 }
 
@@ -129,6 +177,7 @@ ulint rec_offs_nth_size(const dict_index_t *index, const ulint *offsets,
     n = index->get_field_off_pos(n);
   }
 
+  validate_rec_offset(index, offsets, n, UT_LOCATION_HERE);
   return (rec_offs_nth_size_low(offsets, n));
 }
 
