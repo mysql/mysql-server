@@ -504,8 +504,6 @@ class SharedServer {
   void spawn_server_with_datadir(
       const std::string &datadir,
       const std::vector<std::string> &extra_args = {}) {
-    SCOPED_TRACE("// start server");
-
     // parent is either:
     //
     // - runtime_output_directory/ or
@@ -570,6 +568,9 @@ class SharedServer {
     // remember the extra args for "restart_server()"
     started_args_ = extra_args;
 
+    SCOPED_TRACE("// starting mysqld from " + bindir.str() + " with datadir " +
+                 datadir);
+
     auto &proc =
         process_manager()
             .spawner(bindir.join("mysqld").str())
@@ -579,12 +580,16 @@ class SharedServer {
 #endif
             .spawn(args);
     proc.set_logging_path(datadir, log_file_name);
-    if (!proc.wait_for_sync_point_result()) mysqld_failed_to_start_ = true;
+    if (!proc.wait_for_sync_point_result()) {
+      process_manager().dump_logs();
+      mysqld_failed_to_start_ = true;
+    }
 
 #ifdef _WIN32
     // on windows, wait until port is ready as there is no notify-socket.
     if (!(wait_for_port_ready(server_port_, 10s) &&
           wait_for_port_ready(server_mysqlx_port_, 10s))) {
+      process_manager().dump_logs();
       mysqld_failed_to_start_ = true;
     }
 #endif
@@ -2187,14 +2192,17 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
     GTEST_SKIP() << "skipped as RUN_SLOW_TESTS environment-variable is not set";
   }
 
-  SCOPED_TRACE("// connecting to server");
+  SCOPED_TRACE("// starting to replica server");
+  SharedServer replica_server(test_env->port_pool());
 
-  SharedServer replica_server(port_pool_);
-
+  SCOPED_TRACE("// .. preparing datadir");
   replica_server.prepare_datadir();
+  SCOPED_TRACE("// .. spawning replica");
   replica_server.spawn_server(
       {"--report-host=some_funky_host", "--server-id=2"});
+  ASSERT_FALSE(replica_server.mysqld_failed_to_start());
 
+  SCOPED_TRACE("// connecting to server");
   auto replica_res = replica_server.admin_cli();
   ASSERT_NO_ERROR(replica_res);
 
@@ -2224,7 +2232,7 @@ PASSWORD = ""
   using clock_type = std::chrono::steady_clock;
   for (auto cur = clock_type::now(), end = cur + 10s;;
        cur = clock_type::now()) {
-    ASSERT_LT(cur, end);
+    ASSERT_LT(cur, end) << "waited 10sec for replica to register.";
 
     auto cmd_res = query_one_result(replica, R"(SELECT
   r.service_state,
@@ -2294,12 +2302,12 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, classic_protocol_clone) {
     GTEST_SKIP() << "skipped as RUN_SLOW_TESTS environment-variable is not set";
   }
 
-  SCOPED_TRACE("// connecting to server");
-
-  SharedServer recipient_server(port_pool_);
+  SCOPED_TRACE("// starting clone recipient");
+  SharedServer recipient_server(test_env->port_pool());
 
   recipient_server.prepare_datadir();
   recipient_server.spawn_server();
+  ASSERT_FALSE(recipient_server.mysqld_failed_to_start());
 
   SCOPED_TRACE("// connection to the recipient server directly");
   auto recipient_res = recipient_server.admin_cli();

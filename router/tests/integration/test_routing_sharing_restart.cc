@@ -1225,10 +1225,16 @@ class ShareConnectionTestWithRestartedServer
   void TearDown() override {
     for (auto &inter : intermediate_routers_) {
       if (!inter->is_running()) {
+        if (::testing::Test::HasFatalFailure()) {
+          inter->process_manager().dump_logs();
+        }
         inter->process_manager().clear();
       }
     }
 
+    if (::testing::Test::HasFatalFailure()) {
+      shared_router_->process_manager().dump_logs();
+    }
     shared_router_->process_manager().clear();
   }
 
@@ -1303,7 +1309,15 @@ class ShareConnectionTestTemp
         test_env->port_pool(), shared_servers(), kMaxPoolSize, split_routes);
   }
 
-  static void TearDownTestSuite() { TestWithSharedRouter::TearDownTestSuite(); }
+  static void TearDownTestSuite() {
+    TestWithSharedRouter::TearDownTestSuite();
+
+    if (::testing::Test::HasFatalFailure()) {
+      for (const auto &s : shared_servers()) {
+        s->process_manager().dump_logs();
+      }
+    }
+  }
 
   static std::array<SharedServer *, kNumServers> shared_servers() {
     std::array<SharedServer *, kNumServers> o;
@@ -1445,7 +1459,8 @@ TEST_P(ShareConnectionTestWithRestartedServer,
       if (!recv_res) {
         // on windows the connection may be closed before the error-msg is sent.
         ASSERT_THAT(recv_res.error(),
-                    AnyOf(make_error_condition(std::errc::connection_aborted)));
+                    AnyOf(make_error_condition(std::errc::connection_aborted),
+                          make_error_condition(std::errc::connection_reset)));
       } else {
         buf.resize(*recv_res);
 
