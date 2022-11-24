@@ -377,7 +377,12 @@ Result HandlerObject::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
 
   if (last_path.empty()) {
     auto &ownershipt = route_->get_user_row_ownership();
-
+    log_debug("ownershipt.user_ownership_enforced '%s'",
+              (ownershipt.user_ownership_enforced ? "true" : "false"));
+    log_debug("ownershipt.user_ownership_column '%s'",
+              ownershipt.user_ownership_column.c_str());
+    log_debug("route_->get_cached_primary() '%s'",
+              route_->get_cached_primary().c_str());
     bool is_pk_enforced =
         ownershipt.user_ownership_enforced
             ? ownershipt.user_ownership_column == route_->get_cached_primary()
