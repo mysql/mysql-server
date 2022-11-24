@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -715,9 +715,6 @@ catchsigs(bool foreground){
 #ifdef SIGBUS
     SIGBUS,
 #endif
-#ifdef SIGCHLD
-    SIGCHLD,
-#endif
     SIGFPE,
     SIGILL,
 #ifdef SIGIO
@@ -730,6 +727,13 @@ catchsigs(bool foreground){
   };
 
   static const int signals_ignore[] = {
+#ifdef SIGCHLD
+    /**
+     * Ignore SIGCHLD  - we have no children,
+     * but may inherit others' children
+     */
+    SIGCHLD,
+#endif
 #ifdef _WIN32
     SIGINT
 #else
