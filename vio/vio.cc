@@ -358,6 +358,12 @@ bool vio_reset(Vio *vio, enum enum_vio_type type, my_socket sd,
 
   if (vio_init(&new_vio, type, sd, flags)) return true;
 
+#ifdef USE_PPOLL_IN_VIO
+  /* Preserve thread_id & signal_mask for this connection */
+  new_vio.thread_id = vio->thread_id;
+  new_vio.signal_mask = vio->signal_mask;
+#endif /* USE_PPOLL_IN_VIO */
+
   /* Preserve perfschema info for this connection */
   new_vio.mysql_socket.m_psi = vio->mysql_socket.m_psi;
 

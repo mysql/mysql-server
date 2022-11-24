@@ -3408,6 +3408,12 @@ bool Protocol_text::store_null() {
 }
 
 int Protocol_classic::shutdown(bool) {
+#ifdef USE_PPOLL_IN_VIO
+  // Test code calls this directly, so we need to set it here as well
+  if (m_thd->net.vio && !m_thd->net.vio->thread_id.has_value()) {
+    m_thd->net.vio->thread_id = m_thd->real_id;
+  }
+#endif /* USE_PPOLL_IN_VIO */
   return m_thd->net.vio ? vio_shutdown(m_thd->net.vio) : 0;
 }
 
