@@ -96,9 +96,6 @@ public:
   void remove(const char * name);
   void clear();
   
-  Uint32 getPackedSize(Uint32 pLen) const;
-  bool unpack(const Uint32 * buf, Uint32 &bufLen, Properties * top, int items);
-  
   Uint32 getTotalItems() const;
 
   void setErrno(Uint32 pErr, Uint32 osErr = 0){
@@ -523,66 +520,6 @@ IteratorImpl::next()
   }
 }
 
-
-Uint32
-Properties::getPackedSize() const {
-  Uint32 sz = 0;
-  
-  sz += sizeof(version); // Version id of properties object
-  sz += 4;               // No Of Items
-  sz += 4;               // Checksum
-
-  return sz + impl->getPackedSize(0);
-}
-
-static
-Uint32
-computeChecksum(const Uint32 * buf, Uint32 words){
-  Uint32 sum = 0;
-  for(unsigned int i = 0; i<words; i++)
-    sum ^= htonl(buf[i]);
-  
-  return sum;
-}
-
-bool
-Properties::unpack(const Uint32 * buf, Uint32 bufLen){
-  const Uint32 * bufStart = buf;
-  Uint32 bufLenOrg = bufLen;
-  
-  if(bufLen < sizeof(version)){
-    setErrno(E_PROPERTIES_INVALID_BUFFER_TO_SHORT);
-    return false;
-  }
-  
-  if(memcmp(buf, version, sizeof(version)) != 0){
-    setErrno(E_PROPERTIES_INVALID_VERSION_WHILE_UNPACKING);
-    return false;
-  }
-  bufLen -= sizeof(version);
-  
-  // Note that version must be a multiple of 4
-  buf += (sizeof(version) / 4); 
-  
-  if(bufLen < 4){
-    setErrno(E_PROPERTIES_INVALID_BUFFER_TO_SHORT);
-    return false;
-  }
-
-  Uint32 totalItems = ntohl(* buf);
-  buf++; bufLen -= 4;
-  bool res = impl->unpack(buf, bufLen, this, totalItems);
-  if(!res)
-    return res;
-
-  Uint32 sum = computeChecksum(bufStart, (bufLenOrg-bufLen)/4);
-  if(sum != ntohl(bufStart[(bufLenOrg-bufLen)/4])){
-    setErrno(E_PROPERTIES_INVALID_CHECKSUM);
-    return false;
-  }
-  return true;
-}
-
 /**
  * Methods for PropertiesImpl
  */
@@ -779,47 +716,6 @@ PropertiesImpl::getPropsPut(const char * name,
   }
 }
 
-int
-mod4(unsigned int i){
-  int res = i + (4 - (i % 4));
-  return res;
-}
-
-Uint32
-PropertiesImpl::getPackedSize(Uint32 pLen) const {
-  Uint32 sz = 0;
-  for (auto& x: content)
-  {
-    if(x.second.valueType == PropertiesType_Properties)
-    {
-      Properties * p = (Properties*)x.second.value;
-      sz += p->impl->getPackedSize(pLen+(Uint32)(x.first.length())+1);
-    }
-    else
-    {
-      sz += 4; // Type
-      sz += 4; // Name Len
-      sz += 4; // Value Len
-      sz += mod4(pLen + (unsigned)(x.first.length())); // Name
-      switch(x.second.valueType){
-      case PropertiesType_char:
-        sz += mod4((unsigned)strlen((char *)x.second.value));
-        break;
-      case PropertiesType_Uint32:
-        sz += mod4(4);
-        break;
-      case PropertiesType_Uint64:
-        sz += mod4(8);
-        break;
-      case PropertiesType_Properties:
-      default:
-        assert(0);
-      }
-    }
-  }
-  return sz;
-}
-
 struct CharBuf {
   char * buffer;
   Uint32 bufLen;
@@ -867,76 +763,6 @@ struct CharBuf {
   }
 };
 
-bool
-PropertiesImpl::unpack(const Uint32 * buf, Uint32 &bufLen, Properties * top,
-		       int _items){
-  CharBuf charBuf;
-  while(_items > 0){
-    Uint32 tmp[3]; 
-    
-    if(bufLen <= 12){
-      top->setErrno(E_PROPERTIES_BUFFER_TO_SMALL_WHILE_UNPACKING);
-      return false;
-    }
-
-    tmp[0] = ntohl(buf[0]);
-    tmp[1] = ntohl(buf[1]);
-    tmp[2] = ntohl(buf[2]);
-    buf    += 3;
-    bufLen -= 12;
-
-    PropertiesType pt   = (PropertiesType)tmp[0];
-    Uint32 nameLen      = tmp[1];
-    Uint32 valueLen     = tmp[2];
-    Uint32 nameLenRead  = mod4(nameLen);
-    Uint32 valueLenRead = mod4(valueLen);
-
-    Uint32 sz = nameLenRead + valueLenRead;
-    if(bufLen < sz){
-      top->setErrno(E_PROPERTIES_BUFFER_TO_SMALL_WHILE_UNPACKING);
-      return false;
-    }
-
-    if(!charBuf.expand(sz)){
-      top->setErrno(E_PROPERTIES_ERROR_MALLOC_WHILE_UNPACKING, errno);
-      return false;
-    }
-
-    memcpy(charBuf.buffer, buf, sz);
-    buf    += (sz / 4);
-    bufLen -= sz ;
-
-    char * valBuf  = charBuf.buffer;
-    char * nameBuf = charBuf.buffer + valueLenRead;
-    
-    nameBuf[nameLen] = 0;
-    valBuf[valueLen] = 0;
-    
-    bool res3 = false;
-    switch(pt){
-    case PropertiesType_Uint32:
-      res3 = top->put(nameBuf, ntohl(* (Uint32 *)valBuf), true);
-      break;
-    case PropertiesType_Uint64:{
-      Uint64 hi = ntohl(* (Uint32 *)valBuf);
-      Uint64 lo = ntohl(* (Uint32 *)(valBuf + 4));
-      res3 = top->put64(nameBuf, (hi << 32) + lo, true);
-    }
-      break;
-    case PropertiesType_char:
-      res3 = top->put(nameBuf, valBuf, true);
-      break;
-    case PropertiesType_Properties:
-    case PropertiesType_Undefined:
-      assert(0);
-    }
-    if(!res3){
-      return false;
-    }
-    _items--;
-  }
-  return true;
-}
 
 PropertyImpl::~PropertyImpl(){
   free(const_cast<char *>(name));
@@ -1124,13 +950,7 @@ const Uint32 E_PROPERTIES_INVALID_NAME                            = 1;
 const Uint32 E_PROPERTIES_NO_SUCH_ELEMENT                         = 2;
 const Uint32 E_PROPERTIES_INVALID_TYPE                            = 3;
 const Uint32 E_PROPERTIES_ELEMENT_ALREADY_EXISTS                  = 4;
-
-const Uint32 E_PROPERTIES_ERROR_MALLOC_WHILE_PACKING              = 5;
-const Uint32 E_PROPERTIES_INVALID_VERSION_WHILE_UNPACKING         = 6;
-const Uint32 E_PROPERTIES_INVALID_BUFFER_TO_SHORT                 = 7;
-const Uint32 E_PROPERTIES_ERROR_MALLOC_WHILE_UNPACKING            = 8;
-const Uint32 E_PROPERTIES_INVALID_CHECKSUM                        = 9;
-const Uint32 E_PROPERTIES_BUFFER_TO_SMALL_WHILE_UNPACKING         = 10;
+const Uint32 E_PROPERTIES_ERROR_MALLOC_WHILE_UNPACKING            = 5;
 
 /**
  * These are methods that used to be inline

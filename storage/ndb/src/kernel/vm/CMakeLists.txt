@@ -113,10 +113,14 @@ FOREACH(testprog
     SegmentList
     TransientPagePool
     TransientSlotPool
+    testDataBuffer
+    testSimplePropertiesSection
     )
   NDB_ADD_TEST("${testprog}-t" "${testprog}.cpp"
     LIBS ${ALL_UNIT_TEST_LIBS} ${ALL_UNIT_TEST_LIBS})
 ENDFOREACH(testprog)
+
+NDB_ADD_EXECUTABLE(testCopy testCopy.cpp NDBCLIENT SKIP_INSTALL)
 
 NDB_ADD_TEST(ndbd_malloc-t ndbd_malloc_impl.cpp LIBS ${ALL_UNIT_TEST_LIBS} ${ALL_UNIT_TEST_LIBS})
 

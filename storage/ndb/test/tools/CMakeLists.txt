@@ -46,8 +46,9 @@ NDB_ADD_EXECUTABLE(drop_fk drop_fk.cpp NDBTEST NDBCLIENT)
 NDB_ADD_EXECUTABLE(ndb_cpcc cpcc.cpp)
 NDB_ADD_EXECUTABLE(statUtils statUtils.cpp NDBTEST NDBCLIENT)
 
-
 TARGET_LINK_LIBRARIES(ndb_cpcc ndbNDBT ndbclient_static)
+
+NDB_ADD_EXECUTABLE(test_cpcd test_cpcd.cpp NDBTEST NDBCLIENT SKIP_INSTALL)
 
 IF(NOT WIN32)
   NDB_ADD_EXECUTABLE(spj_performance_test spj_performance_test.cpp

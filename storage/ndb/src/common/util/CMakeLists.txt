@@ -72,7 +72,6 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   require.cpp
   ssl_socket_table.cpp
   socket_io.cpp
-  uucode.cpp
   version.cpp
 )
 SET(NDBGENERAL_LIBS ndbtrace ndbportlib ${ZLIB_LIBRARY} mysys)
@@ -97,6 +96,7 @@ FOREACH(tests
     testSimpleProperties
     testProp
     testSecureSocket
+    testConfigValues
     )
   NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbmgmapi ndbgeneral ndbportlib)
 ENDFOREACH(tests)

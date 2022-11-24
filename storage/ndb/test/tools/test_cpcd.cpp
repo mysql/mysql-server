@@ -23,13 +23,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include <ndb_global.h>
-#include "../CpcClient.hpp"
+#include <CpcClient.hpp>
+#include <NdbOut.hpp>
 #include <Vector.hpp>
+#include "NDBT_Find.hpp"
 
 SimpleCpcClient g_client("localhost", 1234);
 Vector<SimpleCpcClient::Process> g_procs;
+static BaseString g_exe;
 
 void define();
 void start(SimpleCpcClient::Process & p);
@@ -43,10 +45,13 @@ SimpleCpcClient::Process* find(int id);
 int name = 0;
 
 int
-main(void){
+main(){
 
+  ndb_init();
   g_client.connect();
 
+  NDBT_find_binary(g_exe, "test.sh", ".", nullptr);
+  
   srand(time(0));
   for(int i = 0; i<1000; i++){
     int sz = g_procs.size();
@@ -84,6 +89,7 @@ main(void){
     }
     ndbout_c("Unknown: %s", p.m_status.c_str());
   }
+  ndb_end(0);
 }
 
 void define(){
@@ -91,12 +97,7 @@ void define(){
   m_proc.m_id = -1;
   m_proc.m_type = "temporary";
   m_proc.m_owner = "atrt";  
-  m_proc.m_group = "group";    
-  //m_proc.m_cwd
-  //m_proc.m_env
-  //proc.m_proc.m_stdout = "log.out";
-  //proc.m_proc.m_stderr = "2>&1";
-  //proc.m_proc.m_runas = proc.m_host->m_user;
+  m_proc.m_group = "group";
   m_proc.m_ulimit = "c:unlimited";
   if((rand() & 15) >= 0){
     m_proc.m_name.assfmt("%d-%d-%s", getpid(), name++, "sleep");
@@ -104,7 +105,7 @@ void define(){
     m_proc.m_args = "600";
   } else {
     m_proc.m_name.assfmt("%d-%d-%s", getpid(), name++, "test.sh");
-    m_proc.m_path.assign("/home/jonas/run/cpcd/test.sh");
+    m_proc.m_path.assign(g_exe);
     m_proc.m_args = "600";
   }
   g_procs.push_back(m_proc);
@@ -138,7 +139,6 @@ void undefine(SimpleCpcClient::Process & p){
   Properties reply;
   if(g_client.undefine_process(p.m_id, reply) != 0){
     reply.print();
-    ABORT();  
   }
 }
 

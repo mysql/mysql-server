@@ -571,7 +571,7 @@ ConfigSection::get_v1_length() const
    * the section when sent in v1 format.
    * 
    * We do this by scanning them (they are both stored in key order when
-   * in not updateable format. If we find a key that exists in this
+   * in not updatable format. If we find a key that exists in this
    * section we will use that and otherwise we will use the default
    * key. If it exists in both the section and in the default section
    * we will use the value from the section. We will move to the next

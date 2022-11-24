@@ -27,7 +27,8 @@
 #include <NdbTick.h>
 #include <TransporterDefinitions.hpp>
 #include <SimpleProperties.hpp>
-#include <LongSignal.hpp>
+#include  <LongSignal.hpp>
+#include "SimulatedBlock.hpp"
 
 #define JAM_FILE_ID 225
 
@@ -43,12 +44,16 @@ struct Buffer {
   Uint32 * buffer;
 };
 
-inline
-void 
-require(bool b){
-  if(!b)
-    abort();
-}
+struct DummyBlock : public SimulatedBlock
+{
+  DummyBlock(int no, Block_context& ctx) : SimulatedBlock(no, ctx) {}
+  //~DummyBlock() { }
+};
+
+static Ndbd_mem_manager mm;
+static Configuration cfg;
+static Block_context ctx(cfg, mm);
+static DummyBlock block(DBTC, ctx);
 
 /* Calculate number of segments to release based on section size
  * Always release one segment, even if size is zero
@@ -102,85 +107,81 @@ compare(SimplePropertiesSectionReader & db, Buffer & buf){
   }
 }
 
-
 void
-test(Uint32 sz, Uint32 loops, Uint32 iter){
+test(SectionSegmentPool &thePool, Uint32 sz, Uint32 loops, Uint32 iter){
 
-  ndbout_c("SimplePropertiesSection sz=%d loops=%d iter=%d", sz, loops, iter);
-  
+  ndbout_c("SimplePropertiesSection sz=%d loops=%d iter=%d", 
+           sz, loops, iter);
+
   while(loops-- > 0){
     Uint32 size = sz*((10 + (rand() % (10 * sz)) + sz - 1)/sz);
-    
     Buffer buf(size);
-    SectionSegmentPool thePool; thePool.setSize(size);
 
     for(Uint32 i = 0; i<iter; i++){
       Uint32 c = 0 + (rand() % (2));
-      
+
       const Uint32 alloc = 1 + (rand() % (size - 1));
       SegmentedSectionPtr dst;
 
       if(0)
-	ndbout_c("size: %d loops: %d iter: %d c=%d alloc=%d", 
-		 size, loops, i, c, alloc);
-      
-      switch(c){ 
-      case 0:{
-	for(Uint32 i = 0; i<alloc; i++)
-	  buf.buffer[i] = i; //rand();
-	buf.m_len = alloc;
-	
-	SimplePropertiesSectionWriter w(thePool);
-	for(Uint32 i = 0; i<alloc; i++){
-	  w.putWord(buf.buffer[i]);
-	}
-	w.getPtr(dst);
-	break;
-      }
-      case 1:{
-	for(Uint32 i = 0; i<alloc; i++)
-	  buf.buffer[i] = i; //rand();
-	buf.m_len = alloc;
-	
-	SimplePropertiesSectionWriter w(thePool);
-	Uint32 i = 0;
-	while(i < alloc){
-	  Uint32 sz = rand() % (alloc - i + 1);
-	  w.putWords(&buf.buffer[i], sz);
-	  i += sz;
-	}
-	w.getPtr(dst);
-	break;
-      }
-      case 2:{
-	break;
-      }
+        ndbout_c("size: %d loops: %d iter: %d c=%d alloc=%d",
+                 size, loops, i, c, alloc);
+
+      switch(c){
+        case 0:{
+          for(Uint32 i = 0; i<alloc; i++)
+            buf.buffer[i] = i; //rand();
+          buf.m_len = alloc;
+          
+          SimplePropertiesSectionWriter w(block);
+          for(Uint32 i = 0; i<alloc; i++){
+            w.putWord(buf.buffer[i]);
+          }
+          w.getPtr(dst);
+          break;
+        }
+        case 1:{
+          for(Uint32 i = 0; i<alloc; i++)
+            buf.buffer[i] = i; //rand();
+          buf.m_len = alloc;
+
+          SimplePropertiesSectionWriter w(block);
+          Uint32 i = 0;
+          while(i < alloc){
+            Uint32 sz = rand() % (alloc - i + 1);
+            w.putWords(&buf.buffer[i], sz);
+            i += sz;
+          }
+          w.getPtr(dst);
+          break;
+        }
+        case 2:{
+          break;
+        }
       }
       SimplePropertiesSectionReader r(dst, thePool);
       compare(r, buf);
       release(thePool, dst);
-      require(thePool.getSize() == thePool.getNoOfFree());
+      require(
+      thePool.getSize() == thePool.getNoOfFree()
+      );
     }
   }
 }
 
 int
 main(void){
-  
+  ndb_init();
   srand(NdbTick_CurrentMillisecond());
 
-  //test( 1, 1000, 1000);
-  test(54, 1000, 1000);
-  test(59, 1000, 1000);
-  test(60, 1000, 1000);
-  test(61, 1000, 1000);
+  SectionSegmentPool &thePool = g_sectionSegmentPool;
+  thePool.setSize(512);
+
+  test(thePool, 54, 1000, 1000);
+  test(thePool, 59, 1000, 1000);
+  test(thePool, 60, 1000, 1000);
+  test(thePool, 61, 1000, 1000);
+  ndb_end(0);
   return 0;
 }
 
-void
-ErrorReporter::handleAssert(const char * msg, const char * file, int line)
-{
-  ndbout << "ErrorReporter::handleAssert activated - " 
-	 << " line= " << line << endl;
-  abort();
-}
