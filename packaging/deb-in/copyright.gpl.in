@@ -3,7 +3,7 @@ Upstream-Name: @DEB_COPYRIGHT_UPSTREAMNAME@
 Upstream-Contact: MySQL Release Engineering <mysql-build@oss.oracle.com>
 Source: http://dev.mysql.com/
 
-Copyright: 2000, 2022, Oracle and/or its affiliates.
+Copyright: 2000, 2023, Oracle and/or its affiliates.
 License:
  This is a release of MySQL, an SQL database server.
  .
