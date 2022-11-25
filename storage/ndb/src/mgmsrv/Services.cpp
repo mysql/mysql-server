@@ -24,7 +24,6 @@
 
 #include <ndb_global.h>
 
-#include <uucode.h>
 #include <socket_io.h>
 #include <util/version.h>
 #include <mgmapi.h>
