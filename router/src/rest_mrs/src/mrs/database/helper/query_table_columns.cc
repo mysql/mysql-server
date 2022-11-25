@@ -24,6 +24,8 @@
 
 #include "mrs/database/helper/query_table_columns.h"
 
+#include "mysqld_error.h"
+
 namespace mrs {
 namespace database {
 
@@ -35,7 +37,12 @@ void QueryTableColumns::query_entries(MySQLSession *session,
   query_ = "show columns from !.!;";
   query_ << schema << object;
 
-  query(session, "SET @@show_gipk_in_create_table_and_information_schema=OFF ");
+  try {
+    query(session,
+          "SET @@show_gipk_in_create_table_and_information_schema=OFF ");
+  } catch (const MySQLSession::Error &e) {
+    if (ER_UNKNOWN_SYSTEM_VARIABLE != e.code()) throw;
+  }
   query(session);
 }
 
