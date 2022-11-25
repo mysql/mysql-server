@@ -86,7 +86,43 @@ SELECT f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION ALL SELECT f1 FROM t1;
 --echo # select the last of those lines,select only the number from that line,
 --echo # and write that to the file.
 --echo #
---exec $MYSQL_BINLOG --force-if-open $binlog_fullpath | grep '^# at' | tail -n 1 | sed 's/[^0-9]//g' > $output_file
+
+# The following perl script extracts "N" from the last line on the form
+# "# at N", where N is a number, and stores it in the output file.
+# It is equivalent to the following pipe, but more portable since "tail"
+# doesn't exist on all our platforms:
+#   $MYSQLBINLOG_PIPE
+#     | grep '^# at'
+#     | tail -n 1
+#     | sed 's/[^0-9]//g'
+#     > $output_file
+--let MYSQLBINLOG_PIPE = $MYSQL_BINLOG --force-if-open $binlog_fullpath |
+--let OUTPUT_FILE_ENV = $output_file
+perl END_OF_PERL;
+  my $output_file = $ENV{'OUTPUT_FILE_ENV'};
+  my $mysqlbinlog_pipe = $ENV{'MYSQLBINLOG_PIPE'};
+  open(MYSQLBINLOG_OUTPUT, $mysqlbinlog_pipe)
+    or die "Error $? opening '$mysqlbinlog_pipe': $!";
+  my $last_match = '';
+  for my $line (<MYSQLBINLOG_OUTPUT>) {
+    if ($line =~ /^# at (\d+)/) {
+      $last_match = $1;
+    }
+  }
+  close(MYSQLBINLOG_OUTPUT)
+    or die "Error $? closing '$mysqlbinlog_pipe': $!";
+  if ($last_match) {
+    open(RESULT, "> $output_file")
+      or die "Error $? opening '$output_file': $!";
+    print RESULT ($last_match)
+      or die "Error $? printing to '$output_file': $!";
+    close(RESULT)
+      or die "Error $? closing '$output_file': $!";
+  } else {
+    die("Not found");
+  }
+END_OF_PERL
+
 # Read the file into the variable $result.
 --let $read_from_file = $output_file
 --source include/read_file_to_var.inc
