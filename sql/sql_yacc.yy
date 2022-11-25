@@ -139,7 +139,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/sql_class.h"      /* Key_part_spec, enum_filetype */
 #include "sql/sql_cmd_srs.h"
 #include "sql/sql_connect.h"
-#include "sql/sql_component.h"
+#include "sql/sql_component.h"                     // Sql_cmd_uninstall_component
 #include "sql/sql_error.h"
 #include "sql/sql_exchange.h"
 #include "sql/sql_get_diagnostics.h"               // Sql_cmd_get_diagnostics
@@ -1569,6 +1569,7 @@ void warn_about_deprecated_binary(THD *thd)
         param_or_var
         in_expression_user_variable_assignment
         rvalue_system_or_user_variable
+        install_set_rvalue
 
 %type <item_string> window_name opt_existing_window_name
 
@@ -1591,7 +1592,8 @@ void warn_about_deprecated_binary(THD *thd)
         row_value_explicit
 
 %type <var_type>
-        option_type opt_var_type opt_rvalue_system_variable_type opt_set_var_ident_type
+        option_type opt_var_type opt_rvalue_system_variable_type
+        opt_set_var_ident_type install_option_type
 
 %type <key_type>
         opt_unique constraint_key_type
@@ -1938,6 +1940,7 @@ void warn_about_deprecated_binary(THD *thd)
         simple_statement
         truncate_stmt
         update_stmt
+        install_stmt
 
 %type <table_ident> table_ident_opt_wild
 
@@ -2171,6 +2174,9 @@ void warn_about_deprecated_binary(THD *thd)
 
 %type <load_set_list> load_data_set_list opt_load_data_set_spec
 
+%type <install_component_set_list> install_set_value_list opt_install_set_value_list
+%type <install_component_set_element>  install_set_value
+
 %type <num> opt_array_cast
 %type <sql_cmd_srs_attributes> srs_attributes
 
@@ -2363,7 +2369,7 @@ simple_statement:
         | help                          { $$= nullptr; }
         | import_stmt                   { $$= nullptr; }
         | insert_stmt
-        | install                       { $$= nullptr; }
+        | install_stmt
         | kill                          { $$= nullptr; }
         | load_stmt
         | lock                          { $$= nullptr; }
@@ -18013,18 +18019,63 @@ opt_suspend:
           { $$= XA_FOR_MIGRATE; }
         ;
 
-install:
+install_option_type:
+        /* empty */ { $$=OPT_GLOBAL; }
+        | GLOBAL_SYM  { $$=OPT_GLOBAL; }
+        | PERSIST_SYM { $$=OPT_PERSIST; }
+        ;
+
+install_set_rvalue:
+          expr
+        | ON_SYM
+          {
+            $$= NEW_PTN Item_string(@$, "ON", 2, system_charset_info);
+          }
+        ;
+
+install_set_value:
+        install_option_type lvalue_variable equal install_set_rvalue
+        {
+          $$ = NEW_PTN PT_install_component_set_element {$1, $2, $4};
+        }
+        ;
+
+install_set_value_list:
+        install_set_value
+          {
+            $$ = NEW_PTN List<PT_install_component_set_element>;
+            if (!$$)
+              MYSQL_YYABORT; // OOM
+            if ($$->push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        | install_set_value_list ',' install_set_value
+          {
+            $$ = $1;
+            if ($$->push_back($3))
+              MYSQL_YYABORT; // OOM
+          }
+        ;
+
+opt_install_set_value_list:
+        /* empty */
+          {
+            $$ = NEW_PTN List<PT_install_component_set_element>;
+          }
+        | SET_SYM install_set_value_list { $$ = $2; }
+        ;
+
+install_stmt:
           INSTALL_SYM PLUGIN_SYM ident SONAME_SYM TEXT_STRING_sys
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_INSTALL_PLUGIN;
             lex->m_sql_cmd= new (YYMEM_ROOT) Sql_cmd_install_plugin(to_lex_cstring($3), $5);
+            $$ = nullptr;
           }
-        | INSTALL_SYM COMPONENT_SYM TEXT_STRING_sys_list
+        | INSTALL_SYM COMPONENT_SYM TEXT_STRING_sys_list opt_install_set_value_list
           {
-            LEX *lex= Lex;
-            lex->sql_command= SQLCOM_INSTALL_COMPONENT;
-            lex->m_sql_cmd= new (YYMEM_ROOT) Sql_cmd_install_component($3);
+            $$ = NEW_PTN PT_install_component(YYTHD, $3, $4);
           }
         ;
 

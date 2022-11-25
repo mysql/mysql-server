@@ -59,7 +59,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/persisted_variable.h"  // Persisted_variables_cache
 #include "sql/set_var.h"
 #include "sql/sql_class.h"  // THD
-#include "sql/sql_lex.h"    // LEX
+#include "sql/sql_component.h"
+#include "sql/sql_lex.h"  // LEX
 #include "sql/sql_plugin_var.h"
 #include "sql/sql_show.h"
 #include "sql/sys_vars_shared.h"
@@ -135,6 +136,8 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     char **to_free = nullptr;
     void *mem;
     get_opt_arg_source *opts_arg_source;
+    THD *thd = current_thd;
+    bool option_value_found_in_install = false;
 
     com_sys_var_len = strlen(component_name) + strlen(var_name) + 2;
     com_sys_var_name =
@@ -301,6 +304,34 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     opts->value = opts->u_max_value = *(uchar ***)(opt + 1);
 
     /*
+      If this is executed by a SQL executing thread that is executing
+      INSTALL COMPONENT
+    */
+    if (thd && thd->lex && thd->lex->m_sql_cmd &&
+        thd->lex->m_sql_cmd->sql_command_code() == SQLCOM_INSTALL_COMPONENT) {
+      Sql_cmd_install_component *c =
+          down_cast<Sql_cmd_install_component *>(thd->lex->m_sql_cmd);
+      /* and has a SET list */
+      if (c->m_arg_list && c->m_arg_list_size > 1) {
+        int saved_opt_count = c->m_arg_list_size;
+        argv = &c->m_arg_list;
+        argc = &c->m_arg_list_size;
+        opt_error =
+            my_handle_options2(argc, argv, opts, nullptr, nullptr, false, true);
+        /* Add back the program name handle_options removes */
+        (*argc)++;
+        (*argv)--;
+        if (opt_error) {
+          LogErr(ERROR_LEVEL,
+                 ER_SYS_VAR_COMPONENT_FAILED_TO_PARSE_VARIABLE_OPTIONS,
+                 var_name);
+          if (opts) my_cleanup_options(opts);
+          goto end;
+        }
+        option_value_found_in_install = (saved_opt_count > *argc);
+      }
+    }
+    /*
       This does what plugins do:
       before the server is officially "started" the options are read
       (and consumed) from the remaining_argv/argc.
@@ -314,28 +345,30 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
       This is approximately what mysql_install_plugin() does.
       TODO: clean up the options processing code so all this is not needed.
     */
-    if (mysqld_server_started) {
-      argc_copy = orig_argc;
-      to_free = argv_copy = (char **)my_malloc(
-          key_memory_comp_sys_var, (argc_copy + 1) * sizeof(char *), MYF(0));
-      memcpy(argv_copy, orig_argv, argc_copy * sizeof(char *));
-      argv_copy[argc_copy] = nullptr;
-      argc = &argc_copy;
-      argv = &argv_copy;
-    } else {
-      argc = get_remaining_argc();
-      argv = get_remaining_argv();
-    }
-    opt_error = handle_options(argc, argv, opts, nullptr);
-    /* Add back the program name handle_options removes */
-    (*argc)++;
-    (*argv)--;
+    if (!option_value_found_in_install) {
+      if (mysqld_server_started) {
+        argc_copy = orig_argc;
+        to_free = argv_copy = (char **)my_malloc(
+            key_memory_comp_sys_var, (argc_copy + 1) * sizeof(char *), MYF(0));
+        memcpy(argv_copy, orig_argv, argc_copy * sizeof(char *));
+        argv_copy[argc_copy] = nullptr;
+        argc = &argc_copy;
+        argv = &argv_copy;
+      } else {
+        argc = get_remaining_argc();
+        argv = get_remaining_argv();
+      }
+      opt_error = handle_options(argc, argv, opts, nullptr);
+      /* Add back the program name handle_options removes */
+      (*argc)++;
+      (*argv)--;
 
-    if (opt_error) {
-      LogErr(ERROR_LEVEL, ER_SYS_VAR_COMPONENT_FAILED_TO_PARSE_VARIABLE_OPTIONS,
-             var_name);
-      if (opts) my_cleanup_options(opts);
-      goto end;
+      if (opt_error) {
+        LogErr(ERROR_LEVEL,
+               ER_SYS_VAR_COMPONENT_FAILED_TO_PARSE_VARIABLE_OPTIONS, var_name);
+        if (opts) my_cleanup_options(opts);
+        goto end;
+      }
     }
 
     sysvar = reinterpret_cast<sys_var *>(
@@ -356,12 +389,12 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
 
     /*
       Once server is started and if there are few persisted plugin variables
-      which needs to be handled, we do it here.
+      which needs to be handled, we do it here. But only if it wasn't set by
+      INSTALL COMPONENT
     */
-    if (mysqld_server_started) {
+    if (mysqld_server_started && !option_value_found_in_install) {
       Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
       if (pv != nullptr) {
-        THD *thd = current_thd;
         assert(thd != nullptr);
 
         mysql_rwlock_wrlock(&LOCK_system_variables_hash);
@@ -378,7 +411,8 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
           }
         } err_to_warning;
         thd->push_internal_handler(&err_to_warning);
-        bool error = pv->set_persisted_options(true);
+        bool error =
+            pv->set_persisted_options(true, com_sys_var_name, com_sys_var_len);
         thd->pop_internal_handler();
         mysql_mutex_unlock(&LOCK_plugin);
         mysql_rwlock_unlock(&LOCK_system_variables_hash);

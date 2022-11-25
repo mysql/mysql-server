@@ -68,6 +68,7 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   mysql_command_backend.cc
   mysql_status_variable_reader_imp.cc
   storing_auto_thd.cc
+  set_variables_helper.cc
   )
 
 # This static library is used to build mysqld binary and in some unit test cases

@@ -146,10 +146,9 @@ class Persisted_variables_cache final {
     Search for persisted config file and if found read persistent options
   */
   bool load_persist_file();
-  /**
-    Set persisted options
-  */
-  bool set_persisted_options(bool plugin_options);
+  bool set_persisted_options(bool plugin_options,
+                             const char *target_var_name = nullptr,
+                             int target_var_name_length = 0);
   /**
     Reset persisted options
   */

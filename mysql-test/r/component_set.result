@@ -1,0 +1,221 @@
+#
+# WL#10916: Allow setting component option values at INSTALL COMPONENT
+#
+call mtr.add_suppression("Effective value of validate_password_length is changed. New value is");
+call mtr.add_suppression("option '[^']*': signed value [^ ]* adjusted");
+call mtr.add_suppression("Unknown suffix '[^']' used for variable '[^']*'");
+call mtr.add_suppression("Parsing options for variable '[^;]*' failed");
+call mtr.add_suppression("Error while setting value '[^']*' to '[^']*'");
+call mtr.add_suppression("variable registration failed");
+call mtr.add_suppression("boolean value '[^']*' was not recognized. Set to OFF");
+# FR1: check the syntax
+INSTALL COMPONENT "file://component_validate_password" SET;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+INSTALL COMPONENT "file://component_validate_password" SET SESSION foo = 16;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SESSION foo = 16' at line 1
+INSTALL COMPONENT "file://component_validate_password" SET PERSIST_ONLY bar = 16;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PERSIST_ONLY bar = 16' at line 1
+INSTALL COMPONENT "file://component_validate_password" SET @@bar = 16;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@@bar = 16' at line 1
+INSTALL COMPONENT "file://component_validate_password" SET @@bar = DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@@bar = DEFAULT' at line 1
+INSTALL COMPONENT "file://component_validate_password" SET @@bar = xxx;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@@bar = xxx' at line 1
+INSTALL COMPONENT "file://component_validate_password" SET length = NULL;
+ERROR HY000: The value supplied for validate_password.length in the SET list cannot be null
+INSTALL COMPONENT "file://component_validate_password" SET length = 8 + 8;
+# Should be 16
+SELECT @@global.validate_password.length;
+@@global.validate_password.length
+16
+UNINSTALL COMPONENT "file://component_validate_password";
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1),(2);
+INSTALL COMPONENT "file://component_validate_password" SET length = (SELECT a FROM t1);
+ERROR HY000: You may only use constant expressions with SET
+DROP TABLE t1;
+SET @gizmo = 32;
+INSTALL COMPONENT "file://component_validate_password" SET length = @gizmo;
+# Should be 32
+SELECT @@global.validate_password.length;
+@@global.validate_password.length
+32
+UNINSTALL COMPONENT "file://component_validate_password";
+INSTALL COMPONENT "file://component_validate_password" SET length = @@global.max_connections;
+# Should be 1
+SELECT @@global.validate_password.length = @@global.max_connections;
+@@global.validate_password.length = @@global.max_connections
+1
+UNINSTALL COMPONENT "file://component_validate_password";
+INSTALL COMPONENT "file://component_validate_password" SET length = DAYOFMONTH('1972-07-29');
+# Should be 29
+SELECT @@global.validate_password.length;
+@@global.validate_password.length
+29
+UNINSTALL COMPONENT "file://component_validate_password";
+# Should pass
+INSTALL COMPONENT "file://component_validate_password" SET length = CAST(RAND() * 10 AS SIGNED);
+UNINSTALL COMPONENT "file://component_validate_password";
+# Should fail
+INSTALL COMPONENT "file://component_validate_password" SET length = SUM(100);
+ERROR HY000: You may only use constant expressions with SET
+# Should pass
+INSTALL COMPONENT "file://component_validate_password" SET length = 1024 * 1024 * 1024 * 1024;
+SELECT @@global.validate_password.length;
+@@global.validate_password.length
+2147483647
+UNINSTALL COMPONENT "file://component_validate_password";
+# Should fail
+INSTALL COMPONENT "file://component_validate_password" SET length = 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024;
+ERROR 22003: BIGINT value is out of range in '((((((1024 * 1024) * 1024) * 1024) * 1024) * 1024) * 1024)'
+# Should return 4: adjusted
+INSTALL COMPONENT "file://component_validate_password" SET length = -100;
+SELECT @@global.validate_password.length;
+@@global.validate_password.length
+4
+UNINSTALL COMPONENT "file://component_validate_password";
+INSTALL COMPONENT "file://component_validate_password" SET length = 3.14159;
+ERROR HY000: Initialization method provided by component 'mysql:validate_password' failed.
+INSTALL COMPONENT "file://component_validate_password" SET length = 3.000000000000;
+ERROR HY000: Initialization method provided by component 'mysql:validate_password' failed.
+INSTALL COMPONENT "file://component_validate_password" SET length = 1e2;
+ERROR 42000: Incorrect argument type to variable 'validate_password.length'
+INSTALL COMPONENT "file://component_validate_password" SET length = 1e308 * 100;
+ERROR 22003: DOUBLE value is out of range in '(1e308 * 100)'
+INSTALL COMPONENT "file://component_validate_password" SET length = '100';
+ERROR 42000: Incorrect argument type to variable 'validate_password.length'
+CREATE FUNCTION test_func () RETURNS INT DETERMINISTIC
+RETURN 12 + 3;
+INSTALL COMPONENT "file://component_validate_password" SET length = testfunc();
+ERROR HY000: You may only use constant expressions with SET
+DROP FUNCTION test_func;
+# FR1.1: setting a non-related value. should fail
+INSTALL COMPONENT "file://component_validate_password" SET init_connect = "SELECT 1";
+ERROR HY000: The assignment of validate-password.init-connect in SET doesn't match any of the variables registered by the component(s)
+# A boolean variable set to ON. Should pass
+INSTALL COMPONENT "file://component_validate_password" SET check_user_name = ON;
+SELECT @@global.validate_password.check_user_name;
+@@global.validate_password.check_user_name
+1
+UNINSTALL COMPONENT "file://component_validate_password";
+# A boolean variable set to "ON". Should pass
+INSTALL COMPONENT "file://component_validate_password" SET check_user_name = "ON";
+SELECT @@global.validate_password.check_user_name;
+@@global.validate_password.check_user_name
+1
+UNINSTALL COMPONENT "file://component_validate_password";
+# A boolean variable set to OFF. Should pass
+INSTALL COMPONENT "file://component_validate_password" SET check_user_name = OFF;
+SELECT @@global.validate_password.check_user_name;
+@@global.validate_password.check_user_name
+0
+UNINSTALL COMPONENT "file://component_validate_password";
+# A boolean variable set to "OFF". Should pass
+INSTALL COMPONENT "file://component_validate_password" SET check_user_name = "OFF";
+SELECT @@global.validate_password.check_user_name;
+@@global.validate_password.check_user_name
+0
+UNINSTALL COMPONENT "file://component_validate_password";
+# A boolean variable set to gizmo. Should pass and return 0
+INSTALL COMPONENT "file://component_validate_password" SET check_user_name = gizmo;
+SELECT @@global.validate_password.check_user_name;
+@@global.validate_password.check_user_name
+0
+UNINSTALL COMPONENT "file://component_validate_password";
+# A boolean variable set to gizmo.off. Should fail
+INSTALL COMPONENT "file://component_validate_password" SET check_user_name = gizmo.off;
+ERROR 42000: Incorrect argument type to variable 'check_user_name'
+# A boolean variable set to 1. Should pass
+INSTALL COMPONENT "file://component_validate_password" SET check_user_name = 1;
+SELECT @@global.validate_password.check_user_name;
+@@global.validate_password.check_user_name
+1
+UNINSTALL COMPONENT "file://component_validate_password";
+# A boolean variable set to 11. Should pass and return 1
+INSTALL COMPONENT "file://component_validate_password" SET check_user_name = 11;
+SELECT @@global.validate_password.check_user_name;
+@@global.validate_password.check_user_name
+1
+UNINSTALL COMPONENT "file://component_validate_password";
+# FR1.4.1: test failed sysvar cleanup: should load
+INSTALL COMPONENT "file://component_validate_password";
+UNINSTALL COMPONENT "file://component_validate_password";
+INSTALL COMPONENT "file://component_validate_password"
+  SET GLOBAL validate_password.length = 16;
+# FR6: precedence over command line: Should be 16 and not 100
+SELECT @@global.validate_password.length;
+@@global.validate_password.length
+16
+SELECT VARIABLE_VALUE FROM performance_schema.persisted_variables
+WHERE VARIABLE_NAME='validate_password.length';
+VARIABLE_VALUE
+UNINSTALL COMPONENT "file://component_validate_password";
+# FR1.2: no class means GLOBAL
+INSTALL COMPONENT "file://component_validate_password"
+  SET validate_password.length = 16, PERSIST validate_password.number_count = 13;
+SELECT VARIABLE_VALUE FROM performance_schema.persisted_variables
+WHERE VARIABLE_NAME LIKE 'validate_password.%' ORDER BY 1;
+VARIABLE_VALUE
+13
+UNINSTALL COMPONENT "file://component_validate_password";
+# FR5: UNINSTALL doesn't unpersist
+SELECT VARIABLE_VALUE FROM performance_schema.persisted_variables
+WHERE VARIABLE_NAME LIKE 'validate_password.%' ORDER BY 1;
+VARIABLE_VALUE
+13
+# FR6: INSTALL still picks up persisted variable values: should be 13
+INSTALL COMPONENT "file://component_validate_password"
+  SET validate_password.length = 16;
+SELECT @@global.validate_password.number_count;
+@@global.validate_password.number_count
+13
+UNINSTALL COMPONENT "file://component_validate_password";
+INSTALL COMPONENT "file://component_validate_password"
+  SET GLOBAL validate_password.length = 60, validate_password.number_count = 50;
+# FR6: precedence over persist: should be 50
+SELECT @@global.validate_password.number_count;
+@@global.validate_password.number_count
+50
+UNINSTALL COMPONENT "file://component_validate_password";
+RESET PERSIST;
+FR4: No extra privs required for INSTALL SET
+CREATE USER wl10916@localhost;
+GRANT INSERT,DELETE,UPDATE ON mysql.component TO wl10916@localhost;
+INSTALL COMPONENT "file://component_validate_password"
+  SET GLOBAL validate_password.length = 16;
+UNINSTALL COMPONENT "file://component_validate_password";
+DROP USER wl10916@localhost;
+INSTALL COMPONENT "file://component_validate_password" SET GLOBAL validate_password.length = 'gizmo';
+ERROR 42000: Incorrect argument type to variable 'validate_password.length'
+INSTALL COMPONENT "file://component_validate_password" SET PERSIST validate_password.length = 'gizmo';
+ERROR 42000: Incorrect argument type to variable 'validate_password.length'
+#FR7: check if non-prefixed variable names can be used
+INSTALL COMPONENT "file://component_validate_password" SET length = 12;
+SELECT @@global.validate_password.length;
+@@global.validate_password.length
+12
+UNINSTALL COMPONENT "file://component_validate_password";
+INSTALL COMPONENT "file://component_validate_password", "file://component_example_component1" SET length = 12;
+ERROR HY000: The assignment of length in SET doesn't match any of the variables registered by the component(s)
+INSTALL COMPONENT "file://component_validate_password" SET foo = 1;
+ERROR HY000: The assignment of validate-password.foo in SET doesn't match any of the variables registered by the component(s)
+INSTALL COMPONENT "file://component_validate_password" SET foo = 1, bar = 2;
+ERROR HY000: The assignment of validate-password.foo and validate-password.bar in SET doesn't match any of the variables registered by the component(s)
+INSTALL COMPONENT "file://component_validate_password" SET foo = 1, bar = 2, baz = 3;
+ERROR HY000: The assignment of validate-password.foo, validate-password.bar and validate-password.baz in SET doesn't match any of the variables registered by the component(s)
+# test if all components are unloaded on error
+INSTALL COMPONENT "file://component_validate_password", "file://component_example_component1"
+  SET PERSIST validate_password.number_count = 13, GLOBAL validate_password.length = 'gizmo';
+ERROR 42000: Incorrect argument type to variable 'validate_password.length'
+# should be empty
+SELECT VARIABLE_VALUE FROM performance_schema.persisted_variables
+WHERE VARIABLE_NAME LIKE 'validate_password.%' ORDER BY 1;
+VARIABLE_VALUE
+# the 4 below should pass
+INSTALL COMPONENT "file://component_example_component1";
+INSTALL COMPONENT "file://component_validate_password";
+UNINSTALL COMPONENT "file://component_example_component1";
+UNINSTALL COMPONENT "file://component_validate_password";
+# Cleanup
+RESET PERSIST;
+# End of 8.0 tests

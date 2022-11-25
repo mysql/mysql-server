@@ -5205,6 +5205,17 @@ class PT_restart_server final : public Parse_tree_root {
   Sql_cmd_restart_server sql_cmd;
 };
 
+class PT_install_component final : public Parse_tree_root {
+ private:
+  Mem_root_array_YY<LEX_STRING> m_urns;
+  List<PT_install_component_set_element> *m_set_elements;
+
+ public:
+  PT_install_component(THD *thd, const Mem_root_array_YY<LEX_STRING> urns,
+                       List<PT_install_component_set_element> *set_elements);
+  Sql_cmd *make_cmd(THD *thd) override;
+};
+
 PT_alter_tablespace_option_base *make_tablespace_engine_attribute(MEM_ROOT *,
                                                                   LEX_CSTRING);
 

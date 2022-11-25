@@ -75,6 +75,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
 #include "sql/sql_cmd_ddl_table.h"
+#include "sql/sql_component.h"  // Sql_cmd_component
 #include "sql/sql_const.h"
 #include "sql/sql_data_change.h"
 #include "sql/sql_delete.h"  // Sql_cmd_delete...
@@ -476,7 +477,7 @@ static bool add_system_variable_assignment(THD *thd, LEX_CSTRING prefix,
   if (val && val->type() == Item::FIELD_ITEM) {
     Item_field *item_field = down_cast<Item_field *>(val);
     if (item_field->table_name != nullptr) {
-      // Reject a dot-separated identified at the RHS of:
+      // Reject a dot-separated identifier as the RHS of:
       //    SET <variable_name> = <table_name>.<field_name>
       my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), var_tracker.get_var_name());
       return true;
@@ -4772,4 +4773,61 @@ PT_base_index_option *make_index_secondary_engine_attribute(MEM_ROOT *mem_root,
         pc->key_create_info->m_secondary_engine_attribute = a;
         return false;
       });
+}
+
+PT_install_component::PT_install_component(
+    THD *thd, const Mem_root_array_YY<LEX_STRING> urns,
+    List<PT_install_component_set_element> *set_elements)
+    : m_urns(urns), m_set_elements(set_elements) {
+  const char *prefix = "file://component_";
+  const auto prefix_len = sizeof("file://component_") - 1;
+
+  if (m_urns.size() == 1 &&
+      !thd->charset()->coll->strnncoll(
+          thd->charset(), pointer_cast<const uchar *>(m_urns[0].str),
+          m_urns[0].length, pointer_cast<const uchar *>(prefix), prefix_len,
+          true)) {
+    for (auto &elt : *m_set_elements) {
+      if (elt.name.prefix.length == 0) {
+        elt.name.prefix.str = m_urns[0].str + prefix_len;
+        elt.name.prefix.length = m_urns[0].length - prefix_len;
+      }
+    }
+  }
+}
+
+Sql_cmd *PT_install_component::make_cmd(THD *thd) {
+  thd->lex->sql_command = SQLCOM_INSTALL_COMPONENT;
+
+  if (!m_set_elements->is_empty()) {
+    Parse_context pc(thd, thd->lex->current_query_block());
+    for (auto &elt : *m_set_elements) {
+      if (elt.expr->itemize(&pc, &elt.expr)) return nullptr;
+      /*
+        If the SET value is a field, change it to a string to allow things
+        SET variable = OFF
+      */
+      if (elt.expr->type() == Item::FIELD_ITEM) {
+        Item_field *item_field = down_cast<Item_field *>(elt.expr);
+        if (item_field->table_name != nullptr) {
+          // Reject a dot-separated identified at the RHS of:
+          //    SET <variable_name> = <table_name>.<field_name>
+          my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), elt.name.name.str);
+          return nullptr;
+        }
+        assert(item_field->field_name != nullptr);
+        elt.expr = new (thd->mem_root)
+            Item_string(item_field->field_name, strlen(item_field->field_name),
+                        system_charset_info);     // names are utf8
+        if (elt.expr == nullptr) return nullptr;  // OOM
+      }
+      if (elt.expr->has_subquery() || elt.expr->has_stored_program() ||
+          elt.expr->has_aggregation()) {
+        my_error(ER_SET_CONSTANTS_ONLY, MYF(0));
+        return nullptr;
+      }
+    }
+  }
+
+  return new (thd->mem_root) Sql_cmd_install_component(m_urns, m_set_elements);
 }

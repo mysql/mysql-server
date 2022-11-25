@@ -9944,6 +9944,12 @@ ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_FIELDS
 ER_CANT_SET_PERSISTED
   eng "Failed to set persisted options."
 
+ER_INSTALL_COMPONENT_SET_NULL_VALUE
+  eng "The value supplied for %s in the SET list cannot be null"
+
+ER_INSTALL_COMPONENT_SET_UNUSED_VALUE
+  eng "The assignment of %s in SET doesn't match any of the variables registered by the component(s)"
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

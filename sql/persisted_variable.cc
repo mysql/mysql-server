@@ -924,11 +924,16 @@ void Persisted_variables_cache::set_parse_early_sources() {
                                    system variables are set
                                    else plugin- and component-registered
                                    variables are set.
+   @param [in] target_var_name     If not-null the name of variable to try and
+                                   set from the persisted cache values
+   @param [in] target_var_name_length length of target_var_name
   @return Error state
     @retval true An error occurred
     @retval false Success
 */
-bool Persisted_variables_cache::set_persisted_options(bool plugin_options) {
+bool Persisted_variables_cache::set_persisted_options(
+    bool plugin_options, const char *target_var_name,
+    int target_var_name_length) {
   THD *thd;
   bool result = false, new_thd = false;
   const std::vector<std::string> priv_list = {
@@ -1004,9 +1009,33 @@ bool Persisted_variables_cache::set_persisted_options(bool plugin_options) {
 
   /* create a sorted set of values sorted by timestamp */
   std::multiset<st_persist_var, sort_tv_by_timestamp> sorted_vars;
-  sorted_vars.insert(persist_variables.begin(), persist_variables.end());
-  sorted_vars.insert(persist_sensitive_variables.begin(),
-                     persist_sensitive_variables.end());
+
+  /*
+    if a target variable is specified try to find and set only the variable
+    and not every value in the persist file
+  */
+  if (target_var_name != nullptr && target_var_name_length > 0 &&
+      *target_var_name != 0) {
+    auto it = std::find_if(
+        persist_variables.begin(), persist_variables.end(),
+        [target_var_name, target_var_name_length](st_persist_var const &s) {
+          return !strncmp(s.key.c_str(), target_var_name,
+                          target_var_name_length);
+        });
+    if (it != persist_variables.end()) sorted_vars.insert(*it);
+    auto sensitive_it = std::find_if(
+        persist_sensitive_variables.begin(), persist_sensitive_variables.end(),
+        [target_var_name, target_var_name_length](st_persist_var const &s) {
+          return !strncmp(s.key.c_str(), target_var_name,
+                          target_var_name_length);
+        });
+    if (sensitive_it != persist_sensitive_variables.end())
+      sorted_vars.insert(*sensitive_it);
+  } else {
+    sorted_vars.insert(persist_variables.begin(), persist_variables.end());
+    sorted_vars.insert(persist_sensitive_variables.begin(),
+                       persist_sensitive_variables.end());
+  }
 
   for (const st_persist_var &iter : sorted_vars) {
     const std::string &var_name = iter.key;
