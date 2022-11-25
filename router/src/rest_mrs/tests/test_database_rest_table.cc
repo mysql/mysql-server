@@ -94,8 +94,7 @@ TEST_F(QueryRestTableTests, basic_empty_request_throws) {
 }
 
 TEST_F(QueryRestTableTests, basic_two_request_without_result) {
-  std::vector<Column> columns{{"c1", MYSQL_TYPE_STRING},
-                              {"c2", MYSQL_TYPE_INT24, true}};
+  std::vector<Column> columns{{"c1", "text"}, {"c2", "mediumint", true}};
   EXPECT_CALL(mock_session_, query(StrEq("SELECT JSON_OBJECT("
                                          "'c1',`c1`,"
                                          "'c2',`c2`, "
@@ -110,8 +109,7 @@ TEST_F(QueryRestTableTests, basic_two_request_without_result) {
 }
 
 TEST_F(QueryRestTableTests, basic_two_request_without_result_and_no_links) {
-  std::vector<Column> columns{{"c1", MYSQL_TYPE_STRING},
-                              {"c2", MYSQL_TYPE_INT24, true}};
+  std::vector<Column> columns{{"c1", "text"}, {"c2", "mediumint", true}};
   EXPECT_CALL(mock_session_, query(StrEq("SELECT JSON_OBJECT("
                                          "'c1',`c1`,"
                                          "'c2',`c2`, "

@@ -24,6 +24,10 @@
 
 #include "helper/mysql_column_types.h"
 
+#include <cstring>
+#include <map>
+#include <string_view>
+
 namespace helper {
 
 ColumnJsonTypes from_mysql_column_type(enum_field_types type) {
@@ -76,6 +80,61 @@ ColumnJsonTypes from_mysql_column_type(enum_field_types type) {
     case MYSQL_TYPE_BLOB:
       return helper::ColumnJsonTypes::kString;
   }
+
+  return helper::ColumnJsonTypes::kNull;
+}
+
+void remove_suffix_after(std::string_view &v, char c) {
+  auto position = v.find(c);
+  if (position != v.npos) v.remove_suffix(position);
+}
+
+ColumnJsonTypes from_mysql_column_string_type(const char *t) {
+  const static std::map<std::string, ColumnJsonTypes> map{
+      {"boolean", helper::ColumnJsonTypes::kBool},
+      {"bit", helper::ColumnJsonTypes::kBool},
+
+      {"json", helper::ColumnJsonTypes::kJson},
+
+      {"tinyint", helper::ColumnJsonTypes::kNumeric},
+      {"smallint", helper::ColumnJsonTypes::kNumeric},
+      {"int", helper::ColumnJsonTypes::kNumeric},
+      {"float", helper::ColumnJsonTypes::kNumeric},
+      {"double", helper::ColumnJsonTypes::kNumeric},
+      {"bigint", helper::ColumnJsonTypes::kNumeric},
+      {"mediumint", helper::ColumnJsonTypes::kNumeric},
+      {"decimal", helper::ColumnJsonTypes::kNumeric},
+
+      {"null", helper::ColumnJsonTypes::kNull},
+
+      {"char", helper::ColumnJsonTypes::kString},
+      {"set", helper::ColumnJsonTypes::kString},
+      {"enum", helper::ColumnJsonTypes::kString},
+      {"text", helper::ColumnJsonTypes::kString},
+      {"longtext", helper::ColumnJsonTypes::kString},
+      {"mediumtext", helper::ColumnJsonTypes::kString},
+      {"tinytext", helper::ColumnJsonTypes::kString},
+      {"varchar", helper::ColumnJsonTypes::kString},
+
+      {"geometry", helper::ColumnJsonTypes::kString},
+
+      {"timestamp", helper::ColumnJsonTypes::kString},
+      {"date", helper::ColumnJsonTypes::kString},
+      {"time", helper::ColumnJsonTypes::kString},
+      {"datetime", helper::ColumnJsonTypes::kString},
+      {"year", helper::ColumnJsonTypes::kString},
+
+      {"tinyblob", helper::ColumnJsonTypes::kString},
+      {"mediumblob", helper::ColumnJsonTypes::kString},
+      {"longblob", helper::ColumnJsonTypes::kString},
+      {"blob", helper::ColumnJsonTypes::kString},
+  };
+  std::string_view type{t, strlen(t)};
+  remove_suffix_after(type, ' ');
+  remove_suffix_after(type, '(');
+
+  auto it = map.find(std::string{type.begin(), type.end()});
+  if (it != map.end()) return it->second;
 
   return helper::ColumnJsonTypes::kNull;
 }

@@ -46,7 +46,7 @@ class QueryTableColumns : private Query {
   VectorOfColumns columns;
 
  private:
-  void on_metadata(unsigned number, MYSQL_FIELD *fields) override;
+  void on_row(const Row &r) override;
 };
 
 }  // namespace database

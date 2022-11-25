@@ -34,23 +34,19 @@
 namespace helper {
 
 struct Column {
-  Column() : type_json{ColumnJsonTypes::kNull}, type_mysql{MYSQL_TYPE_NULL} {}
-  Column(const std::string &column_name, enum_field_types type,
-         bool primary = false)
+  Column() : type_json{ColumnJsonTypes::kNull} {}
+  Column(const std::string &column_name, const char *type, bool primary = false)
       : name{column_name},
-        type_json{from_mysql_column_type(type)},
-        type_mysql{type},
+        type_json{from_mysql_column_string_type(type)},
         is_primary{primary} {}
   Column(const MYSQL_FIELD *field)
       : name{field->name, field->name_length},
         type_json{from_mysql_column_type(field->type)},
-        type_mysql{field->type},
         is_primary{IS_PRI_KEY(field->flags) > 0} {}
 
  public:
   std::string name;
   ColumnJsonTypes type_json;
-  enum_field_types type_mysql;
   bool is_primary{false};
 };
 
