@@ -53,9 +53,7 @@ class Procs : public ProcessManager {
     shutdown_all();
     ensure_clean_exit();
 
-    if (::testing::Test::HasFatalFailure() || dump_logs_) {
-      dump_all();
-    }
+    if (dump_logs_) dump_all();
 
     // it will call shutdown again ...
     ProcessManager::clear();
