@@ -305,8 +305,9 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
   range_par->table = table;
   range_par->query_block = query_block;
   /* range_par->cond doesn't need initialization */
-  const table_map prev_tables = INNER_TABLE_BIT;
-  const table_map read_tables = INNER_TABLE_BIT;
+  const bool const_only = !thd->lex->is_query_tables_locked();
+  const table_map prev_tables = const_only ? 0 : INNER_TABLE_BIT;
+  const table_map read_tables = const_only ? 0 : INNER_TABLE_BIT;
   const table_map current_table = table->pos_in_table_list->map();
 
   range_par->keys = 1;  // one index

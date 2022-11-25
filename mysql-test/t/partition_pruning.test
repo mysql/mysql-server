@@ -2499,3 +2499,14 @@ EOF
 
 --remove_file $SELECT_WITH_JOIN
 DROP TABLE t1, t2, t3, t4, t5;
+
+--echo #
+--echo # Bug #34801284 partitions: MySQL is trying to perform a consistent read but the read view is not assigned
+--echo #
+CREATE TABLE t1 (c0 int);
+CREATE TABLE t2 (c1 int, c2 int) PARTITION BY KEY (c1) PARTITIONS 4;
+
+SELECT * from t2 WHERE c2 IN ((SELECT c0 FROM t1 LIMIT 1),null);
+SELECT * from t2 WHERE c2 NOT IN ((SELECT c0 FROM t1 LIMIT 1),null);
+
+DROP TABLE t1, t2;
