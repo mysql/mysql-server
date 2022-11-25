@@ -179,6 +179,7 @@ void Object::cache_columns() {
   }
 
   container::remove_if(cached_columns_, [&internal_columns](const Column &c) {
+    if (c.is_primary) return false;
     return container::any_of(internal_columns, c.name);
   });
 
