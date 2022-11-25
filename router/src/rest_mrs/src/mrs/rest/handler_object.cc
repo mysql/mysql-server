@@ -269,7 +269,7 @@ Result HandlerObject::handle_post_and_post(
       uint64_t pk_value_numeric = std::stoull(pk_value);
       (*it).value.SetUint64(pk_value_numeric);
     }
-  } else if (upsert) {
+  } else if (upsert && !pk_value.empty()) {
     uint64_t pk_value_numeric = std::stoull(pk_value);
     rapidjson::Value v{pk_value_numeric};
     json_doc.AddMember(
@@ -368,6 +368,7 @@ Result HandlerObject::handle_delete(rest::RequestContext *ctxt) {
   return {stt.get_result(), helper::MediaType::typeJson};
 }
 
+// Update, with insert possibility
 Result HandlerObject::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
   auto &requests_uri = ctxt->request->get_uri();
   auto path = requests_uri.get_path();
