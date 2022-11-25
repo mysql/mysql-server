@@ -24,7 +24,11 @@
 
 #include "mrs/database/helper/query_table_columns.h"
 
+#include "mysql/harness/logging/logging.h"
+
 #include "mysqld_error.h"
+
+IMPORT_LOG_FUNCTIONS()
 
 namespace mrs {
 namespace database {
@@ -48,6 +52,8 @@ void QueryTableColumns::query_entries(MySQLSession *session,
 
 void QueryTableColumns::on_row(const Row &r) {
   using namespace std::string_literals;
+  log_debug("Column %s %s %s (is_primary %s)", r[0], r[1], r[3],
+            ("PRI"s == r[3] ? "yes" : "no"));
   columns.emplace_back(r[0], r[1], "PRI"s == r[3]);
 }
 
