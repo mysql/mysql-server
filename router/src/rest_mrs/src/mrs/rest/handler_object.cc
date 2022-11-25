@@ -315,9 +315,9 @@ Result HandlerObject::handle_post_and_post(
     insert.execute(session.get(), route_->get_schema_name(),
                    route_->get_object_name(), keys_iterators, values_iterators);
   } else {
-    insert.execute_with_upsert(session.get(), route_->get_schema_name(),
-                               route_->get_object_name(), keys_iterators,
-                               values_iterators);
+    insert.execute_with_upsert(
+        session.get(), route_->get_cached_primary(), route_->get_schema_name(),
+        route_->get_object_name(), keys_iterators, values_iterators);
   }
 
   if (!route_->get_cached_primary().empty()) {
