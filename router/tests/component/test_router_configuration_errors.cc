@@ -234,7 +234,7 @@ static const BrokenConfigParams broken_config_params[]{
                                                          {"user", "foobar"},
                                                      }),
      },
-     "list of metadata-servers is empty: 'bootstrap_server_addresses' is the "
+     "list of metadata-servers is empty: 'bootstrap_server_addresses' in the "
      "configuration file is empty or not set and no known "
      "'dynamic_config'-file",
      ""},
@@ -247,7 +247,7 @@ static const BrokenConfigParams broken_config_params[]{
                  {"bootstrap_server_addresses", ""},
              }),
      },
-     "list of metadata-servers is empty: 'bootstrap_server_addresses' is the "
+     "list of metadata-servers is empty: 'bootstrap_server_addresses' in the "
      "configuration file is empty or not set and no known "
      "'dynamic_config'-file",
      ""},

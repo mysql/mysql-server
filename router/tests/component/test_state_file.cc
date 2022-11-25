@@ -700,7 +700,7 @@ TEST_F(StateFileDynamicChangesTest, EmptyMetadataServersList) {
   // proper error should get logged
   EXPECT_TRUE(wait_log_file_contains(
       router,
-      "'bootstrap_server_addresses' is the configuration file is empty "
+      "'bootstrap_server_addresses' in the configuration file is empty "
       "or not set and list of 'cluster-metadata-servers' in "
       "'dynamic_config'-file is empty, too.",
       3 * kTTL));
