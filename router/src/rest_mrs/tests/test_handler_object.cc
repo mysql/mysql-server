@@ -70,9 +70,9 @@ class HandleObjectTests : public Test {
           object_{object},
           rest_path_{rest_path},
           rest_url_{rest_url} {
-      cached_columns_.emplace_back(cached_primary, MYSQL_TYPE_STRING);
+      cached_columns_.emplace_back(cached_primary, "text");
       for (auto &a : cached_columns) {
-        cached_columns_.emplace_back(a, MYSQL_TYPE_STRING);
+        cached_columns_.emplace_back(a, "text");
       }
 
       expectSetup();

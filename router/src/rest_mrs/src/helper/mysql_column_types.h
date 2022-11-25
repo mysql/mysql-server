@@ -33,6 +33,7 @@ namespace helper {
 
 enum ColumnJsonTypes { kNull, kBool, kString, kNumeric, kJson };
 
+ColumnJsonTypes from_mysql_column_string_type(const char *type);
 ColumnJsonTypes from_mysql_column_type(enum_field_types type);
 std::string to_string(ColumnJsonTypes type);
 

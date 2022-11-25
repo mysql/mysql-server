@@ -32,18 +32,16 @@ void QueryTableColumns::query_entries(MySQLSession *session,
                                       const std::string &object) {
   columns.clear();
 
-  query_ = "SELECT * FROM !.! LIMIT 0";
+  query_ = "show columns from !.!;";
   query_ << schema << object;
 
+  query(session, "SET @@show_gipk_in_create_table_and_information_schema=OFF ");
   query(session);
 }
 
-void QueryTableColumns::on_metadata(unsigned number_of_fields,
-                                    MYSQL_FIELD *field) {
-  for (unsigned i = 0; i < number_of_fields; ++i) {
-    columns.emplace_back(field);
-    ++field;
-  }
+void QueryTableColumns::on_row(const Row &r) {
+  using namespace std::string_literals;
+  columns.emplace_back(r[0], r[1], "PRI"s == r[3]);
 }
 
 }  // namespace database

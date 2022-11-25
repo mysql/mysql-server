@@ -361,8 +361,8 @@ TEST_F(RouteObjectTests, get_cached_columns) {
 
   EXPECT_CALL(mock_query_table_columns, query_entries(&mock_session, "b", "c"))
       .WillOnce(InvokeWithoutArgs([&mock_query_table_columns]() {
-        mock_query_table_columns.columns.push_back({"c1", MYSQL_TYPE_LONGLONG});
-        mock_query_table_columns.columns.push_back({"c2", MYSQL_TYPE_STRING});
+        mock_query_table_columns.columns.push_back({"c1", "bigint"});
+        mock_query_table_columns.columns.push_back({"c2", "text"});
       }));
 
   auto c1 = sut_->get_cached_columnes();
@@ -372,8 +372,8 @@ TEST_F(RouteObjectTests, get_cached_columns) {
   ASSERT_EQ(expect[0].name, c1[0].name);
   ASSERT_EQ(expect[1].name, c1[1].name);
 
-  ASSERT_EQ(expect[0].type_mysql, c1[0].type_mysql);
-  ASSERT_EQ(expect[1].type_mysql, c1[1].type_mysql);
+  ASSERT_EQ(expect[0].type_json, c1[0].type_json);
+  ASSERT_EQ(expect[1].type_json, c1[1].type_json);
   verifyAndClearMocks({mock_query_factory_.get(), &mock_mysqlcache_,
                        &mock_query_table_columns});
 
@@ -384,8 +384,8 @@ TEST_F(RouteObjectTests, get_cached_columns) {
   ASSERT_EQ(expect[0].name, c2[0].name);
   ASSERT_EQ(expect[1].name, c2[1].name);
 
-  ASSERT_EQ(expect[0].type_mysql, c2[0].type_mysql);
-  ASSERT_EQ(expect[1].type_mysql, c2[1].type_mysql);
+  ASSERT_EQ(expect[0].type_json, c2[0].type_json);
+  ASSERT_EQ(expect[1].type_json, c2[1].type_json);
 
   delete_sut();
 }
