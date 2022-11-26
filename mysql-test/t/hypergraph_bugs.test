@@ -319,3 +319,26 @@ eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#34828364: Assertion `!eq_items.is_empty()' failed
+--echo #               in make_join_hypergraph.cc
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+
+ANALYZE TABLE t1;
+
+let $query =
+SELECT 1
+FROM (SELECT * FROM t1
+      WHERE f1 IN (SELECT t1.f1 FROM (t1 AS t2 JOIN t1 AS t3 ON t3.f1 = t2.f2)
+                   LEFT JOIN t1 AS t4 ON TRUE
+                   WHERE (t3.f2 <> t3.f2 OR t4.f2 = t2.f2))) AS t5 JOIN t1 AS t6
+ON TRUE;
+
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1;
