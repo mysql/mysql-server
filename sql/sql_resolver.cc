@@ -5085,19 +5085,21 @@ bool Query_block::resolve_rollup_wfs(THD *thd) {
     if (new_item == nullptr) return true;
     *it = new_item;
 
-    // With rollup, pretty much any window function can become NULL.
-    // This might be slightly excessive, but false positives are fine.
+    // Any expression having a window function which involves rollup
+    // expressions should be set nullable.
     if (!new_item->is_nullable()) {
-      bool any_wf = false;
-      WalkItem(new_item, enum_walk::POSTFIX, [&any_wf](Item *inner_item) {
-        if (inner_item->real_item()->type() == Item::SUM_FUNC_ITEM &&
-            inner_item->real_item()->m_is_window_function) {
-          inner_item->set_nullable(true);
-          any_wf = true;
-        }
-        return false;
-      });
-      if (any_wf) new_item->set_nullable(true);
+      bool any_nullable_wf = false;
+      WalkItem(new_item, enum_walk::POSTFIX,
+               [&any_nullable_wf](Item *inner_item) {
+                 if (inner_item->real_item()->type() == Item::SUM_FUNC_ITEM &&
+                     inner_item->real_item()->m_is_window_function &&
+                     inner_item->has_rollup_expr()) {
+                   inner_item->set_nullable(true);
+                   any_nullable_wf = true;
+                 }
+                 return false;
+               });
+      if (any_nullable_wf) new_item->set_nullable(true);
     }
   }
   /*
