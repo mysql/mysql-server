@@ -11,10 +11,6 @@ INSTALL COMPONENT "file://component_test_sys_var_service";
 Warnings:
 Warning	1231	Variable 'test_component.bool_sys_var' can't be set to the value of '12'
 Warning	4159	Failed to set persisted options.
-Warning	1231	Variable 'test_component.bool_sys_var' can't be set to the value of '12'
-Warning	4159	Failed to set persisted options.
-Warning	1231	Variable 'test_component.bool_sys_var' can't be set to the value of '12'
-Warning	4159	Failed to set persisted options.
 # cleanup
 RESET PERSIST test_component.bool_sys_var;
 UNINSTALL COMPONENT "file://component_test_sys_var_service";
