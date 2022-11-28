@@ -2,12 +2,12 @@
 .\"     Title: ndb_restore
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/29/2022
+.\"      Date: 11/26/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_RESTORE" "1" "08/29/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_RESTORE" "1" "11/26/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -226,7 +226,7 @@ T}:T{
 Directory containing character sets
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+REMOVED: 8.0.31
 T}
 T{
 .PP
@@ -596,7 +596,7 @@ Enable optimizations for selection of nodes for transactions. Enabled by
               disable
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+REMOVED: 8.0.31
 T}
 T{
 .PP
@@ -1189,9 +1189,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 8\&.0\&.30 to a cluster running NDB Cluster 7\&.6\&.26, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 8\&.0\&.32 to a cluster running NDB Cluster 7\&.6\&.25, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.6\&.26 distribution\&.
+that comes with the NDB Cluster 7\&.6\&.25 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -1360,11 +1360,17 @@ In NDB 8\&.0, this option is required\&.
 \fB\-\-character\-sets\-dir\fR
 .TS
 allbox tab(:);
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --character-sets-dir=path
+T}
+T{
+Removed
+T}:T{
+8.0.31
 T}
 .TE
 .sp 1
@@ -2408,7 +2414,7 @@ T}
 In NDB 8\&.0,
 \fBndb_restore\fR
 does not by default restore shared users and grants (see
-Section\ \&23.6.12, \(lqPrivilege Synchronization and NDB_STORED_USER\(rq) to the
+Section\ \&23.6.13, \(lqPrivilege Synchronization and NDB_STORED_USER\(rq) to the
 ndb_sql_metadata
 table\&. Specifying this option causes it to do so\&.
 .RE
@@ -2728,7 +2734,7 @@ T}
 This option stops
 \fBndb_restore\fR
 from restoring any NDB Cluster Disk Data objects, such as tablespaces and log file groups; see
-Section\ \&23.6.10, \(lqNDB Cluster Disk Data Tables\(rq, for more information about these\&.
+Section\ \&23.6.11, \(lqNDB Cluster Disk Data Tables\(rq, for more information about these\&.
 .RE
 .sp
 .RS 4
@@ -2899,11 +2905,17 @@ Set node ID for this node, overriding any ID set by
 \fB\-\-ndb\-optimized\-node\-selection\fR
 .TS
 allbox tab(:);
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --ndb-optimized-node-selection
+T}
+T{
+Removed
+T}:T{
+8.0.31
 T}
 .TE
 .sp 1

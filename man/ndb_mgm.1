@@ -2,12 +2,12 @@
 .\"     Title: ndb_mgm
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/29/2022
+.\"      Date: 11/26/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_MGM" "1" "08/29/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_MGM" "1" "11/26/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -126,7 +126,7 @@ T}:T{
 Directory containing character sets
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+REMOVED: 8.0.31
 T}
 T{
 .PP
@@ -165,7 +165,7 @@ T}:T{
 Write core file on error; used in debugging
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+REMOVED: 8.0.31
 T}
 T{
 .PP
@@ -277,7 +277,7 @@ Enable optimizations for selection of nodes for transactions. Enabled by
               disable
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+REMOVED: 8.0.31
 T}
 T{
 .PP
@@ -377,11 +377,17 @@ as well\&.
 \fB\-\-character\-sets\-dir\fR
 .TS
 allbox tab(:);
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --character-sets-dir=path
+T}
+T{
+Removed
+T}:T{
+8.0.31
 T}
 .TE
 .sp 1
@@ -531,11 +537,17 @@ Same as
 \fB\-\-core\-file\fR
 .TS
 allbox tab(:);
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --core-file
+T}
+T{
+Removed
+T}:T{
+8.0.31
 T}
 .TE
 .sp 1
@@ -915,11 +927,17 @@ Same as
 \fB\-\-ndb\-optimized\-node\-selection\fR
 .TS
 allbox tab(:);
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --ndb-optimized-node-selection
+T}
+T{
+Removed
+T}:T{
+8.0.31
 T}
 .TE
 .sp 1

@@ -2,12 +2,12 @@
 .\"     Title: ndbinfo_select_all
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/29/2022
+.\"      Date: 11/26/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDBINFO_SELECT_ALL" "1" "08/29/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDBINFO_SELECT_ALL" "1" "11/26/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -43,7 +43,7 @@ Not all
 ndbinfo
 tables available in the
 \fBmysql\fR
-client can be read by this program\&. In addition,
+client can be read by this program (see later in this section)\&. In addition,
 \fBndbinfo_select_all\fR
 can show information about some tables internal to
 ndbinfo
@@ -154,7 +154,7 @@ T}:T{
 Directory containing character sets
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+REMOVED: 8.0.31
 T}
 T{
 .PP
@@ -192,7 +192,7 @@ T}:T{
 Write core file on error; used in debugging
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+REMOVED: 8.0.31
 T}
 T{
 .PP
@@ -323,7 +323,7 @@ Enable optimizations for selection of nodes for transactions. Enabled by
               disable
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+REMOVED: 8.0.31
 T}
 T{
 .PP
@@ -381,11 +381,17 @@ T}
 \fB\-\-character\-sets\-dir\fR
 .TS
 allbox tab(:);
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --character-sets-dir=path
+T}
+T{
+Removed
+T}:T{
+8.0.31
 T}
 .TE
 .sp 1
@@ -403,11 +409,17 @@ Directory containing character sets\&.
 \fB\-\-core\-file\fR
 .TS
 allbox tab(:);
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --core-file
+T}
+T{
+Removed
+T}:T{
+8.0.31
 T}
 .TE
 .sp 1
@@ -910,11 +922,17 @@ Set node ID for this node, overriding any ID set by \-\-ndb\-connectstring\&.
 \fB\-\-ndb\-optimized\-node\-selection\fR
 .TS
 allbox tab(:);
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --ndb-optimized-node-selection
+T}
+T{
+Removed
+T}:T{
+8.0.31
 T}
 .TE
 .sp 1
@@ -1009,6 +1027,163 @@ T}
 .TE
 .sp 1
 Display version information and exit\&.
+.RE
+.PP
+\fBndbinfo_select_all\fR
+is unable to read the following tables:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+arbitrator_validity_detail
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+arbitrator_validity_summary
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+cluster_locks
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+cluster_operations
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+cluster_transactions
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+disk_write_speed_aggregate_node
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+locks_per_fragment
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+memory_per_fragment
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+memoryusage
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+operations_per_fragment
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+server_locks
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+server_operations
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+server_transactions
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+table_info
 .RE
 .SH "COPYRIGHT"
 .br

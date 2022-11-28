@@ -2,12 +2,12 @@
 .\"     Title: mysqlbinlog
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/29/2022
+.\"      Date: 11/26/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLBINLOG" "1" "08/29/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQLBINLOG" "1" "11/26/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1712,6 +1712,12 @@ Start decoding the binary log at the log position
 \fIN\fR, including in the output any events that begin at position
 \fIN\fR
 or after\&. The position is a byte point in the log file, not an event counter; it needs to point to the starting position of an event to generate useful output\&. This option applies to the first log file named on the command line\&.
+.sp
+Prior to MySQL 8\&.0\&.33, the maximum value supported for this option was 4294967295 (232\-1)\&. In MySQL 8\&.0\&.33 and later, it is 18446744073709551616 (264\-1), unless
+\fB\-\-read\-from\-remote\-server\fR
+or
+\fB\-\-read\-from\-remote\-source\fR
+is also used, in which case the maximum is 4294967295\&.
 .sp
 This option is useful for point\-in\-time recovery\&. See
 Section\ \&7.5, \(lqPoint-in-Time (Incremental) Recovery\(rq\&.

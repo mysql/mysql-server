@@ -2,12 +2,12 @@
 .\"     Title: ndbxfrm
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/29/2022
+.\"      Date: 11/26/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDBXFRM" "1" "08/29/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDBXFRM" "1" "11/26/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -54,6 +54,7 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
+lB l l
 lB l l
 lB l l
 lB l l
@@ -149,6 +150,15 @@ Read default options from given file only
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--encrypt-block-size=#\fR\fB \fR
+T}:T{
+Print info about file including file header and trailer
+T}:T{
+.PP
+ADDED: NDB 8.0.31
 T}
 T{
 .PP
@@ -611,7 +621,125 @@ T}:T{
 T}
 .TE
 .sp 1
-Also read groups with concat(group, suffix)\&.
+Also read groups with
+CONCAT(\fIgroup\fR, \fIsuffix\fR)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-detailed\-info\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--encrypt-block-size=#
+T}
+T{
+Introduced
+T}:T{
+8.0.31-ndb-8.0.31
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
+Print out file information like
+\fB\-\-info\fR, but include the file\*(Aqs header and trailer\&.
+.sp
+Example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+$> \fBndbxfrm \-\-detailed\-info S0\&.sysfile\fR
+File=/var/lib/cluster\-data/ndb_7_fs/D1/NDBCNTR/S0\&.sysfile, compression=no, encryption=yes
+header: {
+  fixed_header: {
+    magic: {
+      magic: { 78, 68, 66, 88, 70, 82, 77, 49 },
+      endian: 18364758544493064720,
+      header_size: 32768,
+      fixed_header_size: 160,
+      zeros: { 0, 0 }
+    },
+    flags: 73728,
+    flag_extended: 0,
+    flag_zeros: 0,
+    flag_file_checksum: 0,
+    flag_data_checksum: 0,
+    flag_compress: 0,
+    flag_compress_method: 0,
+    flag_compress_padding: 0,
+    flag_encrypt: 18,
+    flag_encrypt_cipher: 2,
+    flag_encrypt_krm: 1,
+    flag_encrypt_padding: 0,
+    flag_encrypt_key_selection_mode: 0,
+    dbg_writer_ndb_version: 524320,
+    octets_size: 32,
+    file_block_size: 32768,
+    trailer_max_size: 80,
+    file_checksum: { 0, 0, 0, 0 },
+    data_checksum: { 0, 0, 0, 0 },
+    zeros01: { 0 },
+    compress_dbg_writer_header_version: { \&.\&.\&. },
+    compress_dbg_writer_library_version: { \&.\&.\&. },
+    encrypt_dbg_writer_header_version: { \&.\&.\&. },
+    encrypt_dbg_writer_library_version: { \&.\&.\&. },
+    encrypt_key_definition_iterator_count: 100000,
+    encrypt_krm_keying_material_size: 32,
+    encrypt_krm_keying_material_count: 1,
+    encrypt_key_data_unit_size: 32768,
+    encrypt_krm_keying_material_position_in_octets: 0,
+  },
+  octets: {
+     102, 68, 56, 125, 78, 217, 110, 94, 145, 121, 203, 234, 26, 164, 137, 180,
+     100, 224, 7, 88, 173, 123, 209, 110, 185, 227, 85, 174, 109, 123, 96, 156,
+  }
+}
+trailer: {
+  fixed_trailer: {
+    flags: 48,
+    flag_extended: 0,
+    flag_zeros: 0,
+    flag_file_checksum: 0,
+    flag_data_checksum: 3,
+    data_size: 512,
+    file_checksum: { 0, 0, 0, 0 },
+    data_checksum: { 226, 223, 102, 207 },
+    magic: {
+      zeros: { 0, 0 }
+      fixed_trailer_size: 56,
+      trailer_size: 32256,
+      endian: 18364758544493064720,
+      magic: { 78, 68, 66, 88, 70, 82, 77, 49 },
+    },
+  }
+}
+.fi
+.if n \{\
+.RE
+.\}
 .RE
 .sp
 .RS 4
@@ -1089,6 +1217,10 @@ File=BACKUP\-10\&.5\&.log, compression=no, encryption=yes
 .if n \{\
 .RE
 .\}
+.sp
+Beginning with NDB 8\&.0\&.31, you can also see the file\*(Aqs header and trailer using the
+\fB\-\-detailed\-info\fR
+option\&.
 .RE
 .sp
 .RS 4

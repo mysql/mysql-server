@@ -2,12 +2,12 @@
 .\"     Title: mysqldump
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/29/2022
+.\"      Date: 11/26/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLDUMP" "1" "08/29/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQLDUMP" "1" "11/26/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -2710,6 +2710,28 @@ statements\&.
 .\}
 \fB\-\-max\-allowed\-packet=\fR\fB\fIvalue\fR\fR
 The maximum size of the buffer for client/server communication\&. The default is 24MB, the maximum is 1GB\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+The value of this option is specific to
+\fBmysqldump\fR
+and should not be confused with the MySQL server\*(Aqs
+max_allowed_packet
+system variable; the server value cannot be exceeded by a single packet from
+\fBmysqldump\fR, regardless of any setting for the
+\fBmysqldump\fR
+option, even if the latter is larger\&.
+.sp .5v
+.RE
 .RE
 .sp
 .RS 4
@@ -3105,7 +3127,7 @@ option turns on several settings that work together to perform a fast dump opera
 \fB\-\-opt\fR
 is on by default\&. Thus you rarely if ever specify
 \-\-opt\&. Instead, you can turn these settings off as a group by specifying
-\-\-skip\-opt, the optionally re\-enable certain settings by specifying the associated options later on the command line\&.
+\-\-skip\-opt, then optionally re\-enable certain settings by specifying the associated options later on the command line\&.
 .RE
 .sp
 .RS 4
