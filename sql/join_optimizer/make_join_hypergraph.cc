@@ -1141,6 +1141,9 @@ Item_func_eq *ConcretizeMultipleEquals(Item_equal *cond,
   // This is fairly arbitrary (we will add cycles later), but if there is
   // already a condition present, we prefer to pick one that refers to an
   // already-used table.
+  // Try to find a candidate from visible tables for this join.
+  // It is correct indeed and also that HeatWave does not support
+  // seeing inner tables of a semijoin from outside the semijoin.
   for (Item_field &item_field : cond->get_fields()) {
     if (Overlaps(item_field.used_tables(), GetVisibleTables(expr.left))) {
       if (left == nullptr ||
@@ -1152,6 +1155,27 @@ Item_func_eq *ConcretizeMultipleEquals(Item_equal *cond,
       if (right == nullptr ||
           !Overlaps(right->used_tables(), already_used_tables)) {
         right = &item_field;
+      }
+    }
+  }
+  // If a candidate was not found from the visible tables, try with
+  // all tables in the join. For certain cases, query transformations
+  // could have placed a semijoin condition outside of the semijoin
+  // or even as part of a WHERE condition. It might succeed here for
+  // such conditions. Such queries are not offloaded to HeatWave.
+  if (left == nullptr || right == nullptr) {
+    for (Item_field &item_field : cond->get_fields()) {
+      if (Overlaps(item_field.used_tables(), expr.left->tables_in_subtree)) {
+        if (left == nullptr ||
+            !Overlaps(left->used_tables(), already_used_tables)) {
+          left = &item_field;
+        }
+      } else if (Overlaps(item_field.used_tables(),
+                          expr.right->tables_in_subtree)) {
+        if (right == nullptr ||
+            !Overlaps(right->used_tables(), already_used_tables)) {
+          right = &item_field;
+        }
       }
     }
   }
@@ -1200,7 +1224,8 @@ static void FullyConcretizeMultipleEquals(Item_equal *cond,
   since we might plan two times, and the caches from the first time may confuse
   remove_eq_cond() in the second.
  */
-Item *CanonicalizeCondition(Item *condition, table_map allowed_tables) {
+Item *CanonicalizeCondition(Item *condition, table_map visible_tables,
+                            table_map all_tables) {
   // Convert any remaining (unpushed) multiple equals to a series of equijoins.
   // Note this is a last-ditch resort, and should almost never happen;
   // thus, it's fine just to fully expand the multi-equality, even though it
@@ -1209,14 +1234,20 @@ Item *CanonicalizeCondition(Item *condition, table_map allowed_tables) {
   // within OR conjunctions or the likes.
   condition = CompileItem(
       condition, [](Item *) { return true; },
-      [allowed_tables](Item *item) -> Item * {
+      [visible_tables, all_tables](Item *item) -> Item * {
         if (!IsMultipleEquals(item)) {
           return item;
         }
         Item_equal *equal = down_cast<Item_equal *>(item);
         assert(equal->const_arg() == nullptr);
         List<Item> eq_items;
-        FullyConcretizeMultipleEquals(equal, allowed_tables, &eq_items);
+        FullyConcretizeMultipleEquals(equal, visible_tables, &eq_items);
+        if (eq_items.is_empty()) {
+          // It is possible that for some semijoin conditions, we might
+          // not find replacements in only visible tables. So we try again
+          // with all tables which includes the non-visible tables as well.
+          FullyConcretizeMultipleEquals(equal, all_tables, &eq_items);
+        }
         assert(!eq_items.is_empty());
         return CreateConjunction(&eq_items);
       });
@@ -1238,11 +1269,12 @@ Mem_root_array<Item *> ResplitConditions(
 }
 
 // Calls CanonicalizeCondition() for each condition in the given array.
-bool CanonicalizeConditions(THD *thd, table_map tables_in_subtree,
+bool CanonicalizeConditions(THD *thd, table_map visible_tables,
+                            table_map all_tables,
                             Mem_root_array<Item *> *conditions) {
   bool need_resplit = false;
   for (Item *&condition : *conditions) {
-    condition = CanonicalizeCondition(condition, tables_in_subtree);
+    condition = CanonicalizeCondition(condition, visible_tables, all_tables);
     if (condition == nullptr) {
       return true;
     }
@@ -1712,8 +1744,8 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
           *trace += StringPrintf("- condition %s induces a hypergraph cycle\n",
                                  ItemToString(cond).c_str());
         }
-        cycle_inducing_edges->push_back(
-            CanonicalizeCondition(cond, expr->tables_in_subtree));
+        cycle_inducing_edges->push_back(CanonicalizeCondition(
+            cond, expr->tables_in_subtree, expr->tables_in_subtree));
       }
       if (need_flatten) {
         FlattenInnerJoins(expr);
@@ -2094,7 +2126,7 @@ bool CanonicalizeJoinConditions(THD *thd, RelationalExpression *expr) {
              .empty());  // MakeHashJoinConditions() has not run yet.
   if (CanonicalizeConditions(
           thd, GetVisibleTables(expr->left) | GetVisibleTables(expr->right),
-          &expr->join_conditions)) {
+          expr->tables_in_subtree, &expr->join_conditions)) {
     return true;
   }
 
@@ -3495,9 +3527,9 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
     // don't need to worry about it.
     UnflattenInnerJoins(root);
 
-    if (CanonicalizeConditions(
-            thd, GetVisibleTables(root->left) | GetVisibleTables(root->right),
-            &where_conditions)) {
+    if (CanonicalizeConditions(thd, GetVisibleTables(root),
+                               TablesBetween(0, MAX_TABLES),
+                               &where_conditions)) {
       return true;
     }
 
