@@ -2,12 +2,12 @@
 .\"     Title: ndbd
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/29/2022
+.\"      Date: 11/26/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDBD" "8" "08/29/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDBD" "8" "11/26/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -213,9 +213,9 @@ ADDED: 8.0.31
 T}
 T{
 .PP
-\fB \fR\fB--filesystem-password-from-stdin=password\fR\fB \fR
+\fB \fR\fB--filesystem-password-from-stdin={TRUE|FALSE}\fR\fB \fR
 T}:T{
-Password for node file system encryption, passed from stdin
+Get password for node file system encryption, passed from stdin
 T}:T{
 .PP
 ADDED: 8.0.31
@@ -372,7 +372,7 @@ Enable optimizations for selection of nodes for transactions. Enabled by
               disable
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+REMOVED: 8.0.31
 T}
 T{
 .PP
@@ -912,6 +912,12 @@ stdin,
 tty, or the
 my\&.cnf
 file\&.
+.sp
+Requires
+EncryptedFileSystem = 1\&.
+.sp
+For more information, see
+Section\ \&23.6.14, \(lqFile System Encryption for NDB Cluster\(rq\&.
 .RE
 .sp
 .RS 4
@@ -930,7 +936,7 @@ lB l.
 T{
 Command-Line Format
 T}:T{
---filesystem-password-from-stdin=password
+--filesystem-password-from-stdin={TRUE|FALSE}
 T}
 T{
 Introduced
@@ -942,6 +948,12 @@ T}
 Pass the filesystem encryption and decryption password to the data node process from
 stdin
 (only)\&.
+.sp
+Requires
+EncryptedFileSystem = 1\&.
+.sp
+For more information, see
+Section\ \&23.6.14, \(lqFile System Encryption for NDB Cluster\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1118,7 +1130,7 @@ affect backup files that have already been created by the affected node\&.
 Prior to NDB 8\&.0\&.21, the
 \fB\-\-initial\fR
 option also did not affect any Disk Data files\&. In NDB 8\&.0\&.21 and later, when used to perform an initial restart of the cluster, the option causes the removal of all data files associated with Disk Data tablespaces and undo log files associated with log file groups that existed previously on this data node (see
-Section\ \&23.6.10, \(lqNDB Cluster Disk Data Tables\(rq)\&.
+Section\ \&23.6.11, \(lqNDB Cluster Disk Data Tables\(rq)\&.
 .sp
 This option also has no effect on recovery of data by a data node that is just starting (or restarting) from data nodes that are already running (unless they also were started with
 \fB\-\-initial\fR, as part of an initial restart)\&. This recovery of data occurs automatically, and requires no user intervention in an NDB Cluster that is running normally\&.
@@ -1448,11 +1460,17 @@ Set node ID for this node, overriding any ID set by \-\-ndb\-connectstring\&.
 \fB\-\-ndb\-optimized\-node\-selection\fR
 .TS
 allbox tab(:);
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --ndb-optimized-node-selection
+T}
+T{
+Removed
+T}:T{
+8.0.31
 T}
 .TE
 .sp 1

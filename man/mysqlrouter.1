@@ -2,12 +2,12 @@
 .\"     Title: mysqlrouter
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/29/2022
+.\"      Date: 11/22/2022
 .\"    Manual: MySQL Router
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLROUTER" "1" "08/29/2022" "MySQL 8\&.0" "MySQL Router"
+.TH "MYSQLROUTER" "1" "11/22/2022" "MySQL 8\&.0" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -96,7 +96,7 @@ Displays the version number and related information of the application, and exit
 .\}
 .nf
 $> \fBmysqlrouter \-\-version\fR
-MySQL Router v8\&.0\&.30 on Linux (64\-bit) (GPL community edition)
+MySQL Router v8\&.0\&.31 on Linux (64\-bit) (GPL community edition)
 .fi
 .if n \{\
 .RE
@@ -724,7 +724,7 @@ Setting this option triggers a password prompt for this account regardless of wh
 .sp
 Bootstrapping without passing in
 \fB\-\-account\fR
-does not recreate an existing MySQL server account\&. Prior to MySQL Router 8\&.0\&.18, bootstrapping would DROP the existing user and reCREATE it\&.
+does not recreate an existing MySQL server account\&. Prior to MySQL Router 8\&.0\&.18, bootstrapping would DROP the existing user and recreate it\&.
 .sp
 Using this option assumes the user has sufficient access rights for Router because the bootstrap process does not attempt to add missing grants to existing accounts\&. The bootstrap process does verify the permissions and outputs information to the console of the failed check\&. The bootstrap process continues despite these failed checks unless the optional
 \fB\-\-strict\fR
@@ -2158,7 +2158,7 @@ metadata MySQL Router option\&. Accepts one of the following strings:
 .\}
 current: sets
 \fBtarget_cluster\fR
-to the cluster containing the node being boostrapped against\&. It defines it as the cluster\*(Aqs UUID value\&.
+to the cluster containing the node being bootstrapped against\&. It defines it as the cluster\*(Aqs UUID value\&.
 .sp
 If this is also the Primary, it does not dynamically follow role changes like the
 \fBprimary\fR

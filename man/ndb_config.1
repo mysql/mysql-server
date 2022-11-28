@@ -2,12 +2,12 @@
 .\"     Title: ndb_config
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/29/2022
+.\"      Date: 11/26/2022
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_CONFIG" "1" "08/29/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_CONFIG" "1" "11/26/2022" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -113,6 +113,7 @@ lB l l
 lB l l
 lB l l
 lB l l
+lB l l
 lB l l.
 T{
 .PP
@@ -121,7 +122,7 @@ T}:T{
 Directory containing character sets
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+REMOVED: 8.0.31
 T}
 T{
 .PP
@@ -132,6 +133,15 @@ Override defaults group suffix when reading cluster_config sections in
 T}:T{
 .PP
 ADDED: NDB 8.0.24
+T}
+T{
+.PP
+\fB \fR\fB--config-binary-file=path/to/file\fR\fB \fR
+T}:T{
+Read this binary configuration file
+T}:T{
+.PP
+ADDED: NDB 8.0.32
 T}
 T{
 .PP
@@ -211,7 +221,7 @@ T}:T{
 Write core file on error; used in debugging
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+REMOVED: 8.0.31
 T}
 T{
 .PP
@@ -329,7 +339,7 @@ T}:T{
 Set node ID for this node, overriding any ID set by --ndb-connectstring
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+REMOVED: 8.0.31
 T}
 T{
 .PP
@@ -340,7 +350,7 @@ Enable optimizations for selection of nodes for transactions. Enabled by
               disable
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+REMOVED: 8.0.31
 T}
 T{
 .PP
@@ -626,6 +636,118 @@ option to obtain output in XML format\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-config\-binary\-file=\fR\fB\fIpath\-to\-file\fR\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--config-binary-file=path/to/file
+T}
+T{
+Introduced
+T}:T{
+8.0.32-ndb-8.0.32
+T}
+T{
+Type
+T}:T{
+File name
+T}
+T{
+Default Value
+T}:T{
+T}
+.TE
+.sp 1
+Gives the path to the management server\*(Aqs cached binary configuration file (ndb_\fInodeID\fR_config\&.bin\&.\fIseqno\fR)\&. This may be a relative or absolute path\&. If the management server and the
+\fBndb_config\fR
+binary used reside on different hosts, you must use an absolute path\&.
+.sp
+This example demonstrates combining
+\fB\-\-config\-binary\-file\fR
+with other
+\fBndb_config\fR
+options to obtain useful output:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+> \fBndb_config \-\-config\-binary\-file=ndb_50_config\&.bin\&.1 \-\-diff\-default \-\-type=ndbd\fR
+config of [DB] node id 5 that is different from default 
+CONFIG_PARAMETER,ACTUAL_VALUE,DEFAULT_VALUE 
+NodeId,5,(mandatory) 
+BackupDataDir,/home/jon/data/8\&.0,(null) 
+DataDir,/home/jon/data/8\&.0,\&. 
+DataMemory,2G,98M 
+FileSystemPath,/home/jon/data/8\&.0,(null) 
+HostName,127\&.0\&.0\&.1,localhost 
+Nodegroup,0,(null) 
+ThreadConfig,,(null) 
+config of [DB] node id 6 that is different from default 
+CONFIG_PARAMETER,ACTUAL_VALUE,DEFAULT_VALUE 
+NodeId,6,(mandatory) 
+BackupDataDir,/home/jon/data/8\&.0,(null) 
+DataDir,/home/jon/data/8\&.0,\&. 
+DataMemory,2G,98M 
+FileSystemPath,/home/jon/data/8\&.0,(null) 
+HostName,127\&.0\&.0\&.1,localhost 
+Nodegroup,0,(null) 
+ThreadConfig,,(null)
+> \fBndb_config \-\-config\-binary\-file=ndb_50_config\&.bin\&.1 \-\-diff\-default \-\-system\fR
+config of [SYSTEM] system 
+CONFIG_PARAMETER,ACTUAL_VALUE,DEFAULT_VALUE 
+Name,MC_20220216092809,(mandatory) 
+ConfigGenerationNumber,1,0 
+PrimaryMGMNode,50,0
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+The relevant portions of the
+config\&.ini
+file are shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[ndbd default]
+DataMemory= 2G
+NoOfReplicas= 2
+[ndb_mgmd]
+NodeId= 50
+HostName= 127\&.0\&.0\&.1
+[ndbd]
+NodeId= 5
+HostName= 127\&.0\&.0\&.1
+DataDir= /home/jon/data/8\&.0
+[ndbd]
+NodeId= 6
+HostName= 127\&.0\&.0\&.1
+DataDir= /home/jon/data/8\&.0
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+By comparing the output with the configuration file, you can see that all of the settings in the file have been written by the management server to the binary cache, and thus, applied to the cluster\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-config\-file=\fR\fB\fIpath\-to\-file\fR\fR
 .TS
 allbox tab(:);
@@ -648,9 +770,9 @@ T}:T{
 T}
 .TE
 .sp 1
-Gives the path to the management server\*(Aqs configuration file (config\&.ini)\&. This may be a relative or absolute path\&. If the management node resides on a different host from the one on which
+Gives the path to the cluster configuration file (config\&.ini)\&. This may be a relative or absolute path\&. If the management server and the
 \fBndb_config\fR
-is invoked, then an absolute path must be used\&.
+binary used reside on different hosts, you must use an absolute path\&.
 .RE
 .sp
 .RS 4
@@ -980,11 +1102,17 @@ Do not read default options from any option file other than login file\&.
 allbox tab(:);
 lB l
 lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --ndb-nodeid=#
+T}
+T{
+Removed
+T}:T{
+8.0.31
 T}
 T{
 Type
@@ -1352,7 +1480,7 @@ to provide output as XML by adding this option\&. A portion of such output is sh
 .\}
 .nf
 $> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.7\&.38\-ndb\-7\&.5\&.27"
+<configvariables protocolversion="1" ndbversionstring="5\&.7\&.40\-ndb\-7\&.5\&.29"
                     ndbversion="460032" ndbversionmajor="7" ndbversionminor="5"
                     ndbversionbuild="0">
   <section name="SYSTEM">
@@ -1795,11 +1923,17 @@ Same as
 allbox tab(:);
 lB l
 lB l
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --ndb-nodeid=#
+T}
+T{
+Removed
+T}:T{
+8.0.31
 T}
 T{
 Type
@@ -1828,11 +1962,17 @@ Set node ID for this node, overriding any ID set by
 \fB\-\-core\-file\fR
 .TS
 allbox tab(:);
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --core-file
+T}
+T{
+Removed
+T}:T{
+8.0.31
 T}
 .TE
 .sp 1
@@ -1850,11 +1990,17 @@ Write core file on error; used in debugging\&.
 \fB\-\-character\-sets\-dir\fR
 .TS
 allbox tab(:);
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --character-sets-dir=path
+T}
+T{
+Removed
+T}:T{
+8.0.31
 T}
 .TE
 .sp 1
@@ -1964,11 +2110,17 @@ Number of seconds to wait between attempts to contact management server\&.
 \fB\-\-ndb\-optimized\-node\-selection\fR
 .TS
 allbox tab(:);
+lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --ndb-optimized-node-selection
+T}
+T{
+Removed
+T}:T{
+8.0.31
 T}
 .TE
 .sp 1
