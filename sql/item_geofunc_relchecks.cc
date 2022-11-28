@@ -69,12 +69,16 @@ longlong Item_func_spatial_relation::val_int() {
   assert(fixed);
 
   String tmp_value1;
-  String tmp_value2;
   String *res1 = args[0]->val_str(&tmp_value1);
+  if (current_thd->is_error()) return error_int();
+  if ((null_value = (res1 == nullptr || args[0]->null_value))) {
+    assert(is_nullable());
+    return 0;
+  }
+  String tmp_value2;
   String *res2 = args[1]->val_str(&tmp_value2);
-
-  if ((null_value =
-           (!res1 || args[0]->null_value || !res2 || args[1]->null_value))) {
+  if (current_thd->is_error()) return error_int();
+  if ((null_value = (res2 == nullptr || args[1]->null_value))) {
     assert(is_nullable());
     return 0;
   }
