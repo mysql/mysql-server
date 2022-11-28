@@ -1,0 +1,28 @@
+#
+# Bug #34819343 Assertion failure: btr0btr.cc:731:ib::fatal triggered
+# thread 140005531973376
+#
+CREATE TABLE t1
+(f1 int primary key,
+f2 char(255),
+f3 char(255),
+f4 char(255));
+begin;
+commit;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` char(255) DEFAULT NULL,
+  `f3` char(255) DEFAULT NULL,
+  `f4` char(255) DEFAULT NULL,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET GLOBAL innodb_checkpoint_disabled = 1;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+ALTER TABLE t1 ADD INDEX k1(f2);
+# Kill and restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
