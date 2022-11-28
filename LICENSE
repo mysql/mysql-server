@@ -10,7 +10,7 @@ Introduction
    third-party software which may be included in this distribution of
    MySQL 5.7.28 (and later).
 
-   Last updated: August 2022
+   Last updated: November 2022
 
 Licensing Information
 
@@ -482,8 +482,6 @@ Licenses for Third-Party Components
 
 argparse
 
-   argparse
-
 argparse is (c) 2006-2009 Steven J. Bethard <steven.bethard@gmail.com>.
 
 The argparse module was contributed to Python as of Python 2.7 and thus was
@@ -552,16 +550,13 @@ PSF LICENSE AGREEMENT FOR PYTHON 2.7.11
 8. By copying, installing or otherwise using Python 2.7.11, Licensee agrees
    to be bound by the terms and conditions of this License Agreement.
 
-
    ======================================================================
    ======================================================================
 
-Boost Library
+Boost C++ Libraries
 
-   Boost C++ Libraries
-
-   Use of any of this software is governed by the terms of the license
-   below:
+Use of any of this software is governed by the terms of the license
+below:
 
 Boost Software License - Version 1.0 - August 17th, 2003
 
@@ -594,8 +589,6 @@ IN THE SOFTWARE.
    ======================================================================
 
 Corosync
-
-   Corosync
 
 Copyright (c) 2002-2004 MontaVista Software, Inc.
 Copyright (c) 2005-2010 RedHat, Inc.
@@ -632,52 +625,92 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Cyrus SASL
 
-   Cyrus SASL
-
-* Copyright (c) 1994-2012 Carnegie Mellon University.  All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted provided that the following conditions
-* are met:
-*
-* 1. Redistributions of source code must retain the above copyright
-*    notice, this list of conditions and the following disclaimer.
-*
-* 2. Redistributions in binary form must reproduce the above copyright
-*    notice, this list of conditions and the following disclaimer in
-*    the documentation and/or other materials provided with the
-*    distribution.
-*
-* 3. The name "Carnegie Mellon University" must not be used to
-*    endorse or promote products derived from this software without
-*    prior written permission. For permission or any legal
-*    details, please contact
-*      Office of Technology Transfer
-*      Carnegie Mellon University
-*      5000 Forbes Avenue
-*      Pittsburgh, PA  15213-3890
-*      (412) 268-4387, fax: (412) 268-7395
+ * Copyright (c) 1998-2003 Carnegie Mellon University.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. The name "Carnegie Mellon University" must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission. For permission or any other legal
+ *    details, please contact
+ *      Office of Technology Transfer
+ *      Carnegie Mellon University
+ *      5000 Forbes Avenue
+ *      Pittsburgh, PA  15213-3890
+ *      (412) 268-4387, fax: (412) 268-7395
 *      tech-transfer@andrew.cmu.edu
-*
-* 4. Redistributions of any form whatsoever must retain the following
-*    acknowledgment:
-*    "This product includes software developed by Computing Services
-*     at Carnegie Mellon University (http://www.cmu.edu/computing/)."
-*
-* CARNEGIE MELLON UNIVERSITY DISCLAIMS ALL WARRANTIES WITH REGARD TO
-* THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-* AND FITNESS, IN NO EVENT SHALL CARNEGIE MELLON UNIVERSITY BE LIABLE
-* FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-* WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN
-* AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING
-* OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ * 4. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by Computing Services
+ *     at Carnegie Mellon University (http://www.cmu.edu/computing/)."
+ *
+ * CARNEGIE MELLON UNIVERSITY DISCLAIMS ALL WARRANTIES WITH REGARD TO
+ * THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS, IN NO EVENT SHALL CARNEGIE MELLON UNIVERSITY BE LIABLE
+ * FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN
+ * AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING
+ * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+The following files
+
+./lib
+     saslint.h auxprop.c canonusr.c checkpw.c client.c common.c config.c
+     external.c saslutil.c server.c seterror.c dlopen.c
+./plugins
+    scram.c gssapi.c
+./common
+   plugin_common.c
+
+have a license header similar to the above with the following copyright:
+/*
+ * Copyright (c) 1998-2016 Carnegie Mellon University.  All rights reserved.
+ *
+
+./lib/md5.c includes the following license header:
+/* MD5C.C - RSA Data Security, Inc., MD5 message-digest algorithm
+*/
+
+/* Function names changed to avoid namespace collisions: Rob Siemborski */
+
+/* Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
+rights reserved.
+
+License to copy and use this software is granted provided that it
+is identified as the "RSA Data Security, Inc. MD5 Message-Digest
+Algorithm" in all material mentioning or referencing this software
+or this function.
+
+License is also granted to make and use derivative works provided
+that such works are identified as "derived from the RSA Data
+Security, Inc. MD5 Message-Digest Algorithm" in all material
+mentioning or referencing the derived work.
+
+RSA Data Security, Inc. makes no representations concerning either
+the merchantability of this software or the suitability of this
+software for any particular purpose. It is provided "as is"
+without express or implied warranty of any kind.
+
+These notices must be retained in any copies of any part of this
+documentation and/or software.
+*/
 
    ======================================================================
    ======================================================================
 
 dtoa.c
-
-   dtoa.c
 
 The author of this software is David M. Gay.
 
@@ -700,9 +733,8 @@ PURPOSE.
 
 Editline Library (libedit)
 
-   Editline Library (libedit)
-
-   Some files are:
+Some files are:
+----------------------------------------------------------------
 
 Copyright (c) 1992, 1993
 The Regents of the University of California. All rights reserved.
@@ -740,8 +772,8 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
 IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 OF THE POSSIBILITY OF SUCH DAMAGE.
 
-   Some files are:
-
+Some files are:
+----------------------------------------------------------------
 Copyright (c) 2001 The NetBSD Foundation, Inc.
 All rights reserved.
 
@@ -777,8 +809,8 @@ OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.
 
-   Some files are:
-
+Some files are:
+----------------------------------------------------------------
 Copyright (c) 1997 The NetBSD Foundation, Inc.
 All rights reserved.
 
@@ -814,8 +846,8 @@ OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.
 
-   Some files are:
-
+Some files are:
+----------------------------------------------------------------
 Copyright (c) 1998 Todd C. Miller <Todd.Miller@courtesan.com>
 
 Permission to use, copy, modify, and distribute this
@@ -975,8 +1007,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Fred Fish's Dbug Library
 
-   Fred Fish's Dbug Library
-
                                 N O T I C E
 
                    Copyright Abandoned, 1987, Fred Fish
@@ -1013,7 +1043,7 @@ The dbug_analyze.c file is subject to the following notice:
 
 getarg
 
-   getarg Function (getarg.h, getarg.c files)
+getarg Function (getarg.h), getarg.c files)
 
 Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
 (Royal Institute of Technology, Stockholm, Sweden).
@@ -1052,44 +1082,7 @@ DAMAGE.
    ======================================================================
    ======================================================================
 
-Google C++ Mocking Framework (Google Mock)
-
-   This Oracle Product includes or references Gmock (including gtest),
-   which is licensed to Oracle under the following terms:
-
-Copyright 2008, Google Inc.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-list of conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice,
-this list of conditions and the following disclaimer in the documentation
-and/or other materials provided with the distribution.
-* Neither the name of Google Inc. nor the names of its contributors may be
-used to endorse or promote products derived from this software without
-specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-   ======================================================================
-   ======================================================================
-
 Google Controlling Master Thread I/O Rate Patch
-
-   Google Controlling master thread I/O rate patch
 
 Copyright (c) 2009, Google Inc.
 All rights reserved.
@@ -1243,10 +1236,46 @@ POSSIBILITY OF SUCH DAMAGE.
    ======================================================================
    ======================================================================
 
+Google Test (including GMock)
+
+Google Mock (GMock) is an extension to Google Test for writing and
+using C++ mock classes. Google Test (including the Google Mock
+extension) is licensed under the following terms:
+
+Copyright 2008, Google Inc.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+* Neither the name of Google Inc. nor the names of its contributors may be
+used to endorse or promote products derived from this software without
+specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+   ======================================================================
+   ======================================================================
+
 ICU4C Unicode Libraries
 
-   This Oracle Product includes or references ICU4C, which is licensed to
-   Oracle under the following terms:
+This Oracle Product includes or references ICU4C, which is licensed
+to Oracle under the following terms:
 
 Copyright (c) 1995-2013 International Business Machines Corporation and
 others
@@ -1621,8 +1650,6 @@ its time zone support. The ownership of the TZ database is explained in BCP
 
 Janson
 
-   Janson 2.6
-
 Include the following verbatim in the documentation:
 
 Licence Text:
@@ -1651,8 +1678,6 @@ THE SOFTWARE.
    ======================================================================
 
 jemalloc
-
-   jemalloc
 
 Copyright (C) 2002-present Jason Evans <jasone@canonware.com>.
 All rights reserved.
@@ -1685,8 +1710,6 @@ SUCH DAMAGE.
 
 lib_sql.cc
 
-   lib_sql.cc
-
 Copyright (c) 2000
 SWsoft company
 
@@ -1707,24 +1730,20 @@ This code was modified by the MySQL team.
 
 Libaio
 
-libaio
+You may be receiving a copy of the Libaio library with this MySQL
+product. The terms of the Oracle license do NOT apply to the Libaio
+library; it is licensed under the following license, separately from
+the Oracle programs you receive. If you do not wish to install this
+program, you may delete its files.
 
-   You may be receiving a copy of the Libaio library with this MySQL
-   product. The terms of the Oracle license do NOT apply to the Libaio
-   library; it is licensed under the following license, separately from
-   the Oracle programs you receive. If you do not wish to install this
-   program, you may delete its files.
-
-   This component is licensed under GNU Lesser General Public License
-   Version 2.1, February 1999. See the 'Standard Licenses' section for
-   license text.
+This component is licensed under
+GNU Lesser General Public License v2.1, February 1999.
+See the 'Standard Licenses' section for license text.
 
    ======================================================================
    ======================================================================
 
 libeditline-color
-
-   libeditline-color
 
 Copyright (c) 1992, 1993
  The Regents of the University of California.  All rights reserved.
@@ -1856,13 +1875,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
-
    ======================================================================
    ======================================================================
 
 libgcc & libstdc++ Libraries
-
-   libgcc & libstdc++ libraries
 
                     GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
@@ -2726,9 +2742,7 @@ purpose. It is provided "as is" without express or implied warranty.
    ======================================================================
    ======================================================================
 
-libssh v0.7.3
-
-   libssh v0.7.3
+libssh
 
 You are receiving a copy of libssh as part of MySQL Shell (a component of the
 MySQL server) in object code form. The terms of the Oracle license do NOT apply
@@ -2754,13 +2768,12 @@ of this license document, but changing it is not allowed.
  as the successor of the GNU Library Public License, version 2, hence
  the version number 2.1.]
 
-   This component is licensed under GNU Lesser General Public License
-   Version 2.1, February 1999. See the 'Standard Licenses' section for
-   license text.
+This component is licensed under
+GNU Lesser General Public License v2.1, February 1999.
+See the 'Standard Licenses' section for license text.
 
 Additional Libraries Used by libssh
-
-   libssh has dependencies on the following libraries:
+libssh has dependencies on the following libraries:
 
 libgcrypt v1.7.3
 ----------------
@@ -3822,8 +3835,6 @@ is concerned.
 
 memcached
 
-   memcached
-
 Copyright (c) 2003, Danga Interactive, Inc.
 All rights reserved.
 
@@ -3860,8 +3871,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 nt_servc (Windows NT Service class library)
 
-   nt_servc (Windows NT Service class library)
-
 Windows NT Service class library
 Copyright Abandoned 1998 Irena Pancirov - Irnet Snc
 This file is public domain and comes with NO WARRANTY of any kind
@@ -3869,27 +3878,17 @@ This file is public domain and comes with NO WARRANTY of any kind
    ======================================================================
    ======================================================================
 
-NUMA
-
-You are receiving a copy of libnuma as part of MySQL in object code form.
-The terms of the Oracle license do NOT apply to libnuma; the libnuma source
-code is licensed under the LGPLv2.1 license.
-
-   This component is licensed under GNU Lesser General Public License
-   Version 2.1, February 1999. See the 'Standard Licenses' section for
-   license text.
-
-   ======================================================================
-   ======================================================================
-
 OpenSSL 1.x
 
-   You are receiving a copy of OpenSSL as part of this product in object
-   code form. The terms of the Oracle license do NOT apply to OpenSSL.
-   OpenSSL is licensed under a double license, of the OpenSSL License and
-   the original SSLeay license, separate from the Oracle product. If you
-   do not wish to install this library, you may remove it, but the Oracle
-   program might not operate properly or at all without it.
+You are receiving a copy of OpenSSL as part of this product in
+object code form. The terms of the Oracle license do NOT apply to
+OpenSSL. OpenSSL is licensed under a double license, of the OpenSSL
+License and the original SSLeay license, separate from the Oracle
+product. If you do not wish to install this library, you may remove
+it, but the Oracle program might not operate properly or at all
+without it.
+
+---------------------------------------------------------------------
 
   LICENSE ISSUES
   ==============
@@ -4020,8 +4019,6 @@ OpenSSL 1.x
 
 Percona Multiple I/O Threads Patch
 
-   Percona Multiple I/O threads patch
-
 Copyright (c) 2008, 2009 Percona Inc
 All rights reserved.
 
@@ -4056,8 +4053,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 Pion
 
-   This Oracle Product includes or references Pion which is licensed to
-   Oracle under the following terms:
+This Oracle Product includes or references Pion which is licensed to
+Oracle under the following terms:
 
 Boost Software License - Version 1.0 - August 17th, 2003
 
@@ -4198,8 +4195,8 @@ SOFTWARE.
 
 RegEX-Spencer Library
 
-   The following software may be included in this product: Henry Spencer's
-   Regular-Expression Library (RegEX-Spencer)
+The following software may be included in this product: Henry
+Spencer's Regular-Expression Library (RegEX-Spencer)
 
 Copyright 1992, 1993, 1994 Henry Spencer.  All rights reserved.
 This software is not subject to any license of the American Telephone
@@ -4226,8 +4223,6 @@ to the following restrictions:
    ======================================================================
 
 Richard A. O'Keefe String Library
-
-   Richard A. O'Keefe String Library
 
 The Richard O'Keefe String Library is subject to the following notice:
 
@@ -4257,8 +4252,6 @@ the suitability of this software for any purpose. It is provided
 
 sajson
 
-   sajson
-
 Copyright (c) 2012 Chad Austin
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -4284,8 +4277,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
    ======================================================================
 
 SHA-1 in C
-
-   SHA-1 in C
 
 SHA-1 in C
 By Steve Reid <steve@edmweb.com>
@@ -4330,9 +4321,7 @@ from BSD and use the BSD 3-clause license. tzdata:
    ======================================================================
    ======================================================================
 
-Unicode Data Files, V5.2.0
-
-   Unicode Data Files, V5.2.0
+Unicode Data Files
 
 # unidata-5.2.0.txt
 # Date: 2009-09-22, 16:23:42 PDT [KW]
@@ -4483,9 +4472,7 @@ parties.
    ======================================================================
    ======================================================================
 
-Unicode Data Files, V9.0
-
-   Unicode Data Files, V9.0
+Unicode Data Files
 
 UNICODE, INC. LICENSE AGREEMENT - DATA FILES AND SOFTWARE
 
@@ -4586,8 +4573,6 @@ their respective owners.
 
 xxHash
 
-   xxHash
-
 Copyright (c) 2012-2014, Yann Collet
 All rights reserved.
 
@@ -4618,11 +4603,9 @@ POSSIBILITY OF SUCH DAMAGE.
 
 zlib
 
-   zlib
-
-   Oracle gratefully acknowledges the contributions of Jean-loup Gailly
-   and Mark Adler in creating the zlib general purpose compression library
-   which is used in this product.
+Oracle gratefully acknowledges the contributions of Jean-loup Gailly
+and Mark Adler in creating the zlib general purpose compression
+library which is used in this product.
 
 Copyright (C) 1995-2022 Jean-loup Gailly and Mark Adler
 
@@ -4659,7 +4642,7 @@ the FAQ for more information on the distribution of modified source versions.
 
 Standard Licenses
 
-GNU Lesser General Public License Version 2.1, February 1999
+GNU Lesser General Public License v2.1, February 1999
 
 The following applies to all products licensed under the
 GNU Lesser General Public License, Version 2.1: You may
