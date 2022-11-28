@@ -249,7 +249,7 @@ mark_as_advanced(HTTP_ONLY)
 
 if(HTTP_ONLY)
   set(CURL_DISABLE_DICT ON)
-  set(CURL_DISABLE_FILE ON)
+# set(CURL_DISABLE_FILE ON)   Keep the FILE protocol
   set(CURL_DISABLE_FTP ON)
   set(CURL_DISABLE_GOPHER ON)
   set(CURL_DISABLE_IMAP ON)
