@@ -1474,18 +1474,17 @@ size_t Page_load::copy_to(std::vector<Page_load *> &to_pages) {
   Rec_offsets offsets{};
   const rec_t *rec = first_rec;
 
-  size_t rec_count = 1;
+  size_t rec_count = 0;
   size_t i = 0;
   do {
     offsets = rec_get_offsets(rec, m_index, offsets, ULINT_UNDEFINED,
                               UT_LOCATION_HERE, &m_heap);
+    ut_a(i < to_pages.size());
     to_pages[i]->insert(rec, offsets);
     rec = page_rec_get_next_const(rec);
-    if (rec_count % rec_per_page == 0) {
+    if (++rec_count % rec_per_page == 0) {
       ++i;
-      ut_a(i < to_pages.size());
     }
-    rec_count++;
     ut_a(rec_count <= n_recs);
   } while (!page_rec_is_supremum(rec));
   return rec_count;
@@ -2211,7 +2210,10 @@ void Btree_load::print_tree_pages() const {
 }
 #endif /* UNIV_DEBUG */
 
+void Page_load::set_min_rec_flag() { set_min_rec_flag(m_mtr); }
+
 void Page_load::set_min_rec_flag(mtr_t *mtr) {
+  ut_a(m_level > 0);
   rec_t *first_rec = page_rec_get_next(page_get_infimum_rec(m_page));
   btr_set_min_rec_mark(first_rec, mtr);
 }
@@ -3157,6 +3159,8 @@ dberr_t Btree_load::Merger::root_split(Page_load *root_load,
     err = root_load->insert(node_ptr, big_rec, rec_size);
     ut_a(err == DB_SUCCESS);
   }
+
+  root_load->set_min_rec_flag();
 
   guard.commit();
   root_load->finish();

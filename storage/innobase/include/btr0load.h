@@ -1259,7 +1259,12 @@ class Page_load : private ut::Non_copyable {
   [[nodiscard]] dberr_t store_ext(const big_rec_t *big_rec,
                                   Rec_offsets offsets) noexcept;
 
+  /** Set the REC_INFO_MIN_REC_FLAG on the first user record in this page.
+  @param[in]  mtr  mini transaction context. */
   void set_min_rec_flag(mtr_t *mtr);
+
+  /** Set the REC_INFO_MIN_REC_FLAG on the first user record in this page. */
+  void set_min_rec_flag();
 
   /** Set the level context object for this page load
   @param[in]  level_ctx  the level context object. */
