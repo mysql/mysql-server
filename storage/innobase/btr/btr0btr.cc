@@ -2804,21 +2804,11 @@ void btr_set_min_rec_mark(rec_t *rec, mtr_t *mtr) {
 }
 
 void btr_unset_min_rec_mark(rec_t *rec, mtr_t *mtr) {
-  ulint info_bits;
-
-  if (page_rec_is_comp(rec)) {
-    info_bits = rec_get_info_bits(rec, true);
-
-    rec_set_info_bits_new(rec, info_bits & ~REC_INFO_MIN_REC_FLAG);
-
-    btr_set_min_rec_mark_log(rec, MLOG_COMP_REC_MIN_MARK, mtr);
-  } else {
-    info_bits = rec_get_info_bits(rec, false);
-
-    rec_set_info_bits_old(rec, info_bits & ~REC_INFO_MIN_REC_FLAG);
-
-    btr_set_min_rec_mark_log(rec, MLOG_REC_MIN_MARK, mtr);
-  }
+  const bool is_comp = page_rec_is_comp(rec);
+  const ulint info_bits =
+      rec_get_info_bits(rec, is_comp) & ~REC_INFO_MIN_REC_FLAG;
+  byte *ptr = rec - (is_comp ? REC_NEW_INFO_BITS : REC_OLD_INFO_BITS);
+  mlog_write_ulint(ptr, info_bits, MLOG_1BYTE, mtr);
 }
 
 #ifndef UNIV_HOTBACKUP
