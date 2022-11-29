@@ -44,7 +44,8 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"  // Item_result
+#include "mysql_com.h"          // Item_result
+#include "sql/binlog_reader.h"  // Binlog_file_reader
 #include "sql/rpl_commit_stage_manager.h"
 #include "sql/rpl_trx_tracking.h"
 #include "sql/tc_log.h"            // TC_LOG
@@ -103,6 +104,7 @@ struct Binlog_user_var_event {
 #define LOG_INFO_IN_USE -8
 #define LOG_INFO_EMFILE -9
 #define LOG_INFO_BACKUP_LOCK -10
+#define LOG_INFO_NOT_IN_USE -11
 
 /* bitmap to MYSQL_BIN_LOG::close() */
 #define LOG_CLOSE_INDEX 1
@@ -291,6 +293,15 @@ class MYSQL_BIN_LOG : public TC_LOG {
                                   uint32 new_index_number);
   int generate_new_name(char *new_name, const char *log_name,
                         uint32 new_index_number = 0);
+  /**
+   * Read binary log stream header and Format_desc event from
+   * binlog_file_reader. Check for LOG_EVENT_BINLOG_IN_USE_F flag.
+   * @param[in] binlog_file_reader
+   * @return true - LOG_EVENT_BINLOG_IN_USE_F is set
+   *         false - LOG_EVENT_BINLOG_IN_USE_F is not set or an error occurred
+   *                 while reading log events
+   */
+  bool read_binlog_in_use_flag(Binlog_file_reader &binlog_file_reader);
 
  protected:
   /**
@@ -820,6 +831,18 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
  private:
   bool after_write_to_relay_log(Master_info *mi);
+  /**
+   * Truncte log file and clear LOG_EVENT_BINLOG_IN_USE_F when update is set.
+   * @param[in] log_name name of the log file to be trunacted
+   * @param[in] valid_pos position at which to truncate the log file
+   * @param[in] binlog_size length of the log file before truncated
+   * @param[in] update should the LOG_EVENT_BINLOG_IN_USE_F flag be cleared
+   *                   true - set LOG_EVENT_BINLOG_IN_USE_F to 0
+   *                   false - do not modify LOG_EVENT_BINLOG_IN_USE_F flag
+   * @return true - sucess, false - failed
+   */
+  bool truncate_update_log_file(const char *log_name, my_off_t valid_pos,
+                                my_off_t binlog_size, bool update);
 
  public:
   void make_log_name(char *buf, const char *log_ident);

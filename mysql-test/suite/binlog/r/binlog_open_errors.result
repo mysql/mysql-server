@@ -1,0 +1,36 @@
+RESET MASTER;
+include/save_error_log_position.inc
+Prepare binary log with header only
+Prepare binary log without Format_desc event
+Prepare binary log without Format_desc event
+Backup binlog file
+
+# 1. Test Error in Log_event::read_log_event() #
+################################################
+# restart
+RESET MASTER;
+include/assert_error_log.inc [server: 1, pattern: Error in Log_event::read_log_event().*]
+
+# 2. Truncated binary log
+##############################################################################
+# restart
+RESET MASTER;
+include/assert_error_log.inc [server: 1, pattern: Error in Log_event::read_log_event().*
+Error reading GTIDs from binary log.*
+]
+
+# 3. Test Found invalid event sequence while recovering from binary log file #
+##############################################################################
+# restart
+RESET MASTER;
+include/assert_error_log.inc [server: 1, pattern: Found invalid event sequence while recovering from binary log file.*]
+# restart
+
+# 4. Test check !(ev->common_header->flags & LOG_EVENT_BINLOG_IN_USE_F) #
+#########################################################################
+# Adding debug point 'binlog_crash_between_close_and_open' to @@GLOBAL.debug
+FLUSH BINARY LOGS;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+# Check for the "Failed to open the crashed binlog file when source server is recovering it\."
+Pattern "\[Note\] \[[^]]*\] \[[^]]*\] Failed to open the crashed binlog file when source server is recovering it\." found

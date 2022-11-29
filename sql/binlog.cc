@@ -48,6 +48,7 @@
 #include <algorithm>
 #include <list>
 #include <map>
+#include <memory>
 #include <new>
 #include <queue>
 #include <sstream>
@@ -6645,7 +6646,7 @@ int MYSQL_BIN_LOG::new_file_impl(
     Note that at this point, atomic_log_state != LOG_CLOSED
     (important for is_open()).
   */
-
+  DBUG_EXECUTE_IF("binlog_crash_between_close_and_open", { DBUG_SUICIDE(); });
   DEBUG_SYNC(current_thd, "binlog_rotate_between_close_and_open");
   /*
     new_file() is only used for rotation (in FLUSH LOGS or because size >
@@ -6827,6 +6828,40 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi) {
   unlock_binlog_end_pos();
 
   return error;
+}
+
+bool MYSQL_BIN_LOG::truncate_update_log_file(const char *log_name,
+                                             my_off_t valid_pos,
+                                             my_off_t binlog_size,
+                                             bool update) {
+  std::unique_ptr<Binlog_ofile> ofile(
+      Binlog_ofile::open_existing(key_file_binlog, log_name, MYF(MY_WME)));
+
+  if (!ofile) {
+    LogErr(ERROR_LEVEL, ER_BINLOG_CANT_OPEN_CRASHED_BINLOG);
+    return false;
+  }
+
+  /* Change binlog file size to valid_pos */
+  if (valid_pos < binlog_size) {
+    if (ofile->truncate(valid_pos)) {
+      LogErr(ERROR_LEVEL, ER_BINLOG_CANT_TRIM_CRASHED_BINLOG);
+      return false;
+    }
+    LogErr(INFORMATION_LEVEL, ER_BINLOG_CRASHED_BINLOG_TRIMMED, log_name,
+           binlog_size, valid_pos, valid_pos);
+  }
+
+  if (update) {
+    /* Clear LOG_EVENT_BINLOG_IN_USE_F */
+    uchar flags = 0;
+    if (ofile->update(&flags, 1, BIN_LOG_HEADER_SIZE + FLAGS_OFFSET)) {
+      LogErr(ERROR_LEVEL, ER_BINLOG_CANT_CLEAR_IN_USE_FLAG_FOR_CRASHED_BINLOG);
+      return false;
+    }
+  }
+
+  return true;
 }
 
 bool MYSQL_BIN_LOG::write_event(Log_event *ev, Master_info *mi) {
@@ -7779,18 +7814,39 @@ void MYSQL_BIN_LOG::set_max_size(ulong max_size_arg) {
 
 /****** transaction coordinator log for 2pc - binlog() based solution ******/
 
-/**
-  @todo
-  keep in-memory list of prepared transactions
-  (add to list in log(), remove on unlog())
-  and copy it to the new binlog if rotated
-  but let's check the behaviour of tc_log_page_waits first!
-*/
+bool MYSQL_BIN_LOG::read_binlog_in_use_flag(
+    Binlog_file_reader &binlog_file_reader) {
+  std::unique_ptr<Log_event> ev(binlog_file_reader.read_event_object());
+  if (!ev) {
+    my_off_t binlog_size = binlog_file_reader.ifile()->length();
+    LogErr(ERROR_LEVEL, ER_READ_LOG_EVENT_FAILED,
+           binlog_file_reader.get_error_str(), binlog_size,
+           binary_log::UNKNOWN_EVENT);
+    return false;
+  }
+
+  if (ev->get_type_code() != binary_log::FORMAT_DESCRIPTION_EVENT) {
+    my_off_t valid_pos = 0;
+    const char *binlog_file_name =
+        binlog_file_reader.ifile()->file_name().c_str();
+    LogErr(ERROR_LEVEL, ER_BINLOG_CRASH_RECOVERY_MALFORMED_LOG,
+           binlog_file_name, valid_pos, binlog_file_reader.position(),
+           Log_event::get_type_str(ev->get_type_code()));
+    return false;
+  }
+
+  if (!(ev->common_header->flags & LOG_EVENT_BINLOG_IN_USE_F ||
+        DBUG_EVALUATE_IF("eval_force_bin_log_recovery", true, false))) {
+    LogErr(INFORMATION_LEVEL, ER_BINLOG_CANT_OPEN_CRASHED_BINLOG);
+    return false;
+  }
+
+  return true;
+}
 
 int MYSQL_BIN_LOG::open_binlog(const char *opt_name) {
   LOG_INFO log_info;
   int error = 1;
-  bool should_execute_ha_recover{false};
 
   /*
     This function is used for 2pc transaction coordination.  Hence, it
@@ -7821,113 +7877,86 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name) {
     if (error != LOG_INFO_EOF)
       LogErr(ERROR_LEVEL, ER_BINLOG_CANT_FIND_LOG_IN_INDEX, error);
     else {
-      error = 0;
-      should_execute_ha_recover = true;
+      /* should execute ha_recover */
+      error = ha_recover();
+      if (error)
+        LogErr(ERROR_LEVEL, ER_BINLOG_CRASH_RECOVERY_ERROR_RETURNED_SE);
     }
-    goto err;
+    return error;
   }
 
-  {
-    Log_event *ev = nullptr;
-    char log_name[FN_REFLEN];
-    my_off_t valid_pos = 0;
-    my_off_t binlog_size = 0;
+  char log_name[FN_REFLEN];
 
-    do {
-      strmake(log_name, log_info.log_file_name, sizeof(log_name) - 1);
-    } while (
-        !(error = find_next_log(&log_info, true /*need_lock_index=true*/)));
+  do {
+    strmake(log_name, log_info.log_file_name, sizeof(log_name) - 1);
+  } while (!(error = find_next_log(&log_info, true /*need_lock_index=true*/)));
 
-    if (error != LOG_INFO_EOF) {
-      LogErr(ERROR_LEVEL, ER_BINLOG_CANT_FIND_LOG_IN_INDEX, error);
-      goto err;
-    }
-
-    Binlog_file_reader binlog_file_reader(opt_source_verify_checksum);
-    if (binlog_file_reader.open(log_name)) {
-      LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED,
-             binlog_file_reader.get_error_str());
-      goto err;
-    }
-
-    /*
-      If the binary log was not properly closed it means that the server
-      may have crashed. In that case, we need to call
-      binlog::Binlog_recovery::recover()
-      to:
-
-        a) collect logged XIDs;
-        b) complete the 2PC of the pending XIDs;
-        c) collect the last valid position.
-
-      Therefore, we do need to iterate over the binary log, even if
-      total_ha_2pc == 1, to find the last valid group of events written.
-      Later we will take this value and truncate the log if need be.
-    */
-    if ((ev = binlog_file_reader.read_event_object()) &&
-        ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT &&
-        (ev->common_header->flags & LOG_EVENT_BINLOG_IN_USE_F ||
-         DBUG_EVALUATE_IF("eval_force_bin_log_recovery", true, false))) {
-      LogErr(INFORMATION_LEVEL, ER_BINLOG_RECOVERING_AFTER_CRASH_USING,
-             opt_name);
-      binlog::Binlog_recovery bl_recovery{binlog_file_reader};
-      error = bl_recovery     //
-                  .recover()  //
-                  .has_failures();
-      valid_pos = bl_recovery.get_valid_pos();
-      binlog_size = binlog_file_reader.ifile()->length();
-      if (error) {
-        if (bl_recovery.is_binlog_malformed())
-          LogErr(ERROR_LEVEL, ER_BINLOG_CRASH_RECOVERY_MALFORMED_LOG, log_name,
-                 valid_pos, binlog_file_reader.position(),
-                 bl_recovery.get_failure_message().data());
-        if (bl_recovery.has_engine_recovery_failed())
-          LogErr(ERROR_LEVEL, ER_BINLOG_CRASH_RECOVERY_ERROR_RETURNED_SE);
-      }
-    } else
-      should_execute_ha_recover = true;
-
-    delete ev;
-
-    if (error) goto err;
-
-    /* Trim the crashed binlog file to last valid transaction
-      or event (non-transaction) base on valid_pos. */
-    if (valid_pos > 0) {
-      std::unique_ptr<Binlog_ofile> ofile(
-          Binlog_ofile::open_existing(key_file_binlog, log_name, MYF(MY_WME)));
-
-      if (!ofile) {
-        LogErr(ERROR_LEVEL, ER_BINLOG_CANT_OPEN_CRASHED_BINLOG);
-        return -1;
-      }
-
-      /* Change binlog file size to valid_pos */
-      if (valid_pos < binlog_size) {
-        if (ofile->truncate(valid_pos)) {
-          LogErr(ERROR_LEVEL, ER_BINLOG_CANT_TRIM_CRASHED_BINLOG);
-          return -1;
-        }
-        LogErr(INFORMATION_LEVEL, ER_BINLOG_CRASHED_BINLOG_TRIMMED, log_name,
-               binlog_size, valid_pos, valid_pos);
-      }
-
-      /* Clear LOG_EVENT_BINLOG_IN_USE_F */
-      uchar flags = 0;
-      if (ofile->update(&flags, 1, BIN_LOG_HEADER_SIZE + FLAGS_OFFSET)) {
-        LogErr(ERROR_LEVEL,
-               ER_BINLOG_CANT_CLEAR_IN_USE_FLAG_FOR_CRASHED_BINLOG);
-        return -1;
-      }
-    }  // end if (valid_pos > 0)
+  if (error != LOG_INFO_EOF) {
+    LogErr(ERROR_LEVEL, ER_BINLOG_CANT_FIND_LOG_IN_INDEX, error);
+    return error;
   }
 
-err:
-  if (should_execute_ha_recover) {
+  Binlog_file_reader binlog_file_reader(opt_source_verify_checksum);
+  if (binlog_file_reader.open(log_name)) {
+    LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED,
+           binlog_file_reader.get_error_str());
+    return 1;
+  }
+
+  /*
+    If the binary log was not properly closed it means that the server
+    may have crashed. In that case, we need to call
+    binlog::Binlog_recovery::recover()
+    to:
+      a) collect logged XIDs;
+      b) complete the 2PC of the pending XIDs;
+      c) collect the last valid position.
+
+    Therefore, we do need to iterate over the binary log, even if
+    total_ha_2pc == 1, to find the last valid group of events written.
+    Later we will take this value and truncate the log if need be.
+  */
+  if (!read_binlog_in_use_flag(binlog_file_reader)) {
+    /* should execute ha_recover */
     error = ha_recover();
     if (error) LogErr(ERROR_LEVEL, ER_BINLOG_CRASH_RECOVERY_ERROR_RETURNED_SE);
+    return error;
   }
-  return error;
+
+  LogErr(INFORMATION_LEVEL, ER_BINLOG_RECOVERING_AFTER_CRASH_USING, opt_name);
+
+  binlog::Binlog_recovery bl_recovery{binlog_file_reader};
+  bl_recovery.recover();
+
+  my_off_t valid_pos = bl_recovery.get_valid_pos();
+  my_off_t binlog_size = binlog_file_reader.ifile()->length();
+
+  if (bl_recovery.is_binlog_malformed()) {
+    LogErr(ERROR_LEVEL, ER_BINLOG_CRASH_RECOVERY_MALFORMED_LOG, log_name,
+           valid_pos, binlog_file_reader.position(),
+           bl_recovery.get_failure_message().data());
+    return 1;
+  }
+  if (bl_recovery.has_engine_recovery_failed()) {
+    /* truncate log file but do not clear LOG_EVENT_IN_USE_F flag */
+    LogErr(ERROR_LEVEL, ER_BINLOG_CRASH_RECOVERY_ERROR_RETURNED_SE);
+    if (!truncate_update_log_file(log_name, valid_pos, binlog_size, false)) {
+      /* log error has been written */
+    }
+    return 1;
+  }
+
+  /* Trim the crashed binlog file to last valid transaction
+     or event (non-transaction) base on valid_pos. */
+  if (valid_pos > 0) {
+    /* truncate log file and clear LOG_EVENT_IN_USE_F flag */
+    if (!truncate_update_log_file(log_name, valid_pos, binlog_size, true)) {
+      /* log error has been written */
+      return 1;
+    }
+  }  // end if (valid_pos > 0)
+
+  return 0;
 }
 
 /**
