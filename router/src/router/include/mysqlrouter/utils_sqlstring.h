@@ -31,6 +31,7 @@
 #define __STDC_FORMAT_MACROS 1
 #endif
 #include <inttypes.h>
+#include <cstddef>
 #include <set>
 #include <string>
 #include <vector>
@@ -163,6 +164,8 @@ class ROUTER_LIB_EXPORT sqlstring {
   sqlstring &operator<<(const float val) { return operator<<((double)val); }
   //! replaces a ? in the format string with a double numeric value
   sqlstring &operator<<(const double);
+  //! replaces a ? in the format string with a NULL value.
+  sqlstring &operator<<(const std::nullptr_t);
   //! replaces a ? in the format string with a quoted string value or ! with a
   //! back-quoted identifier value
   sqlstring &operator<<(const std::string &);
