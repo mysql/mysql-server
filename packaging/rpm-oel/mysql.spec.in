@@ -167,12 +167,16 @@ BuildRequires:  cmake3 >= 3.6.1
 %{?el7:BuildRequires:  devtoolset-11-gcc-c++}
 %{?el7:BuildRequires:  devtoolset-11-binutils}
 %endif
-%{?el8:BuildRequires:  gcc-toolset-11-gcc}
-%{?el8:BuildRequires:  gcc-toolset-11-gcc-c++}
-%{?el8:BuildRequires:  gcc-toolset-11-binutils}
-%{?el9:BuildRequires:  gcc}
-%{?el9:BuildRequires:  gcc-c++}
-%{?el9:BuildRequires:  binutils}
+%{?el8:BuildRequires:  gcc-toolset-12-annobin-annocheck}
+%{?el8:BuildRequires:  gcc-toolset-12-annobin-plugin-gcc}
+%{?el8:BuildRequires:  gcc-toolset-12-binutils}
+%{?el8:BuildRequires:  gcc-toolset-12-gcc-c++}
+%{?el8:BuildRequires:  gcc-toolset-12-gcc}
+%{?el9:BuildRequires:  gcc-toolset-12-annobin-annocheck}
+%{?el9:BuildRequires:  gcc-toolset-12-annobin-plugin-gcc}
+%{?el9:BuildRequires:  gcc-toolset-12-binutils}
+%{?el9:BuildRequires:  gcc-toolset-12-gcc-c++}
+%{?el9:BuildRequires:  gcc-toolset-12-gcc}
 BuildRequires:  bison >= 2.1
 BuildRequires:  elfutils
 BuildRequires:  perl

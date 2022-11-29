@@ -82,10 +82,18 @@ BuildRequires:  cmake3 >= 3.6.1
 %endif
 %{?el6:BuildRequires:  devtoolset-8-gcc}
 %{?el6:BuildRequires:  devtoolset-8-gcc-c++}
-%{?el7:BuildRequires:  devtoolset-10-gcc}
-%{?el7:BuildRequires:  devtoolset-10-gcc-c++}
-%{?el8:BuildRequires:  gcc-toolset-10-gcc}
-%{?el8:BuildRequires:  gcc-toolset-10-gcc-c++}
+%{?el7:BuildRequires:  devtoolset-11-gcc}
+%{?el7:BuildRequires:  devtoolset-11-gcc-c++}
+%{?el8:BuildRequires:  gcc-toolset-12-annobin-annocheck}
+%{?el8:BuildRequires:  gcc-toolset-12-annobin-plugin-gcc}
+%{?el8:BuildRequires:  gcc-toolset-12-binutils}
+%{?el8:BuildRequires:  gcc-toolset-12-gcc-c++}
+%{?el8:BuildRequires:  gcc-toolset-12-gcc}
+%{?el9:BuildRequires:  gcc-toolset-12-annobin-annocheck}
+%{?el9:BuildRequires:  gcc-toolset-12-annobin-plugin-gcc}
+%{?el9:BuildRequires:  gcc-toolset-12-binutils}
+%{?el9:BuildRequires:  gcc-toolset-12-gcc-c++}
+%{?el9:BuildRequires:  gcc-toolset-12-gcc}
 BuildRequires:  bison >= 2.1
 BuildRequires:  elfutils
 BuildRequires:  time
