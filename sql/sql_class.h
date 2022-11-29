@@ -4474,8 +4474,10 @@ public:
     Reset thd->rewritten_query. Protected with the LOCK_thd_query mutex.
   */
   void reset_rewritten_query() {
-    String empty;
-    swap_rewritten_query(empty);
+    if (rewritten_query().length()) {
+      String empty;
+      swap_rewritten_query(empty);
+    }
   }
 
   /**

@@ -1714,6 +1714,9 @@ int terminate_slave_threads(Master_info* mi, int thread_mask,
   {
     DBUG_PRINT("info",("Terminating SQL thread"));
     mi->rli->abort_slave= 1;
+
+    DEBUG_SYNC(current_thd, "terminate_slave_threads_after_set_abort_slave");
+
     if ((error=terminate_slave_thread(mi->rli->info_thd, sql_lock,
                                       &mi->rli->stop_cond,
                                       &mi->rli->slave_running,
@@ -7313,6 +7316,7 @@ extern "C" void *handle_slave_sql(void *arg)
   rli->slave_running = 1;
   rli->reported_unsafe_warning= false;
   rli->sql_thread_kill_accepted= false;
+  rli->last_event_start_time = 0;
 
   if (init_slave_thread(thd, SLAVE_THD_SQL))
   {
