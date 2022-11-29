@@ -73,8 +73,12 @@ void getNameFromEnvironment()
 {
   HANDLE handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
                               false, singletonInfo.getPid());
+  if (!handle)
+    return;
+
   GetModuleFileNameEx(handle, 0, singletonInfo.process_name,
                       singletonInfo.ProcessNameLength);
+  CloseHandle(handle);
 }
 #else
 void getNameFromEnvironment()
