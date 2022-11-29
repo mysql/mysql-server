@@ -316,7 +316,7 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
     IF(LINUX_RHEL)
       MESSAGE(STATUS "This is ${MATCH_FSYS} as found from 'rpm -qf /'")
     ENDIF()
-    IF(LINUX_RHEL AND NOT LINUX_RHEL9)
+    IF(LINUX_RHEL)
       MESSAGE(STATUS "Looking for a devtoolset compiler")
       IF(LINUX_RHEL6)
         SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-8")
@@ -327,8 +327,8 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
         ELSE()
           SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-11")
         ENDIF()
-      ELSEIF(LINUX_RHEL8)
-        SET(ALTERNATIVE_PATHS "/opt/rh/gcc-toolset-11")
+      ELSEIF(LINUX_RHEL8 OR LINUX_RHEL9)
+        SET(ALTERNATIVE_PATHS "/opt/rh/gcc-toolset-12")
       ENDIF()
 
       FOREACH(OPT_PATH ${ALTERNATIVE_PATHS})
@@ -385,9 +385,11 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
             SET(DEV_PACKAGES
               "devtoolset-11-gcc devtoolset-11-gcc-c++ devtoolset-11-binutils")
           ENDIF()
-        ELSEIF(LINUX_RHEL8)
+        ELSEIF(LINUX_RHEL8 OR LINUX_RHEL9)
           SET(DEV_PACKAGES
-            "gcc-toolset-11-gcc gcc-toolset-11-gcc-c++ gcc-toolset-11-binutils")
+            "gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils")
+          STRING_APPEND(DEV_PACKAGES " gcc-toolset-12-annobin-annocheck")
+          STRING_APPEND(DEV_PACKAGES " gcc-toolset-12-annobin-plugin-gcc")
         ENDIF()
         MESSAGE(WARNING
           "Could not find devtoolset compiler/linker in ${ALTERNATIVE_PATHS}")
