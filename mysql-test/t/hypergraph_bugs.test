@@ -190,22 +190,24 @@ EXPLAIN FORMAT=tree
 DROP TABLE t1;
 
 --echo #
---echo # Bug#34534373: Row estimates for joins ignores histograms.
+--echo # Bug#34699398: Row estimates for joins ignores histograms.
 --echo #
 
 CREATE TABLE num (n INT);
 INSERT INTO num VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
-CREATE TABLE t1 (a INT);
+CREATE TABLE t1 (a INT, ah INT, ai INT, KEY ix1(ai));
 
-INSERT INTO t1 SELECT k%25 FROM
+INSERT INTO t1 SELECT k%25, k%25, K%25 FROM
   (SELECT num1.n+num2.n*10 k FROM num num1, num num2) d1;
 
-CREATE TABLE t2 (b INT);
+CREATE TABLE t2 (b INT, bh INT, bi INT, KEY ix2(bi));
 
-INSERT INTO t2 SELECT k%25 FROM
+INSERT INTO t2 SELECT k%25, k%25, k%25 FROM
   (SELECT num1.n+num2.n*10 k FROM num num1, num num2, num num3) d1;
 
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON ah;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON bh;
 ANALYZE TABLE t1,t2;
 
 # Neither index nor histogram, so use 10% selectivity estimate.
@@ -219,57 +221,46 @@ EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2 WHERE x1.a=x2.a;
 EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.b=x2.b;
 
 # Estimate selectivity from ix1.
-CREATE INDEX ix1 ON t1(a);
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE ai=b;
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2 WHERE x1.a=x2.a;
+EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2 WHERE x1.ai=x2.ai;
 
 # Estimate selectivity from ix1 or ix2.
-CREATE INDEX ix2 ON t2(b);
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE ai=bi;
 
 # Estimate selectivity from ix2.
-DROP INDEX ix1 ON t1;
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=bi;
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.b=x2.b;
-
-DROP INDEX ix2 ON t2;
+EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.bi=x2.bi;
 
 # Estimate selectivity from histogram on 'a'.
-ANALYZE TABLE t1 UPDATE HISTOGRAM ON a;
-ANALYZE TABLE t1;
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE ah=b;
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2 WHERE x1.a=x2.a;
+EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2 WHERE x1.ah=x2.ah;
 
 # Estimate selectivity from histogram on 'a' or 'b'.
-ANALYZE TABLE t2 UPDATE HISTOGRAM ON b;
-ANALYZE TABLE t2;
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE ah=bh;
 
 # Estimate selectivity from histogram on 'b'.
-ANALYZE TABLE t1 DROP HISTOGRAM ON a;
-ANALYZE TABLE t1;
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=bh;
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.b=x2.b;
+EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.bh=x2.bh;
 
 DROP TABLE num, t1, t2;
 
