@@ -76,7 +76,7 @@ TEST_F(DatabaseQueryInsertTest, upinsert_single_column) {
             _, _));
   std::vector<std::string> columns{"column1"};
   std::vector<std::string> values{"value1"};
-  sut_.execute_with_upsert(&mock_session_, "schema1", "table1",
+  sut_.execute_with_upsert(&mock_session_, "", "schema1", "table1",
                            from_container(columns), from_container(values));
 }
 
@@ -89,6 +89,6 @@ TEST_F(DatabaseQueryInsertTest, upinsert_multiple_columns) {
             _, _));
   std::vector<std::string> columns{"column1", "column2"};
   std::vector<std::string> values{"value1", "value2"};
-  sut_.execute_with_upsert(&mock_session_, "schema1", "table1",
+  sut_.execute_with_upsert(&mock_session_, "", "schema1", "table1",
                            from_container(columns), from_container(values));
 }

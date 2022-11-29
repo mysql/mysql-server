@@ -506,18 +506,6 @@ sqlstring &sqlstring::operator<<(const double v) {
   return *this;
 }
 
-sqlstring &sqlstring::operator<<(const std::nullptr_t) {
-  int esc = next_escape();
-  if (esc != '?')
-    throw std::invalid_argument(
-        "Error formatting SQL query: invalid escape for numeric argument");
-
-  append("NULL");
-  append(consume_until_next_escape());
-
-  return *this;
-}
-
 sqlstring &sqlstring::operator<<(const sqlstringformat format) {
   _format = format;
   return *this;
