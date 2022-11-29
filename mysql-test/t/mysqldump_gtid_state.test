@@ -59,12 +59,16 @@ SELECT * FROM mysql.gtid_executed;
 --echo # DUMP RESTORE WITH THE DUMP FILE HAVING DROP DATABASE ON MYSQL SCHEMA.
 --exec $MYSQL -h localhost -P $MASTER_MYPORT < $dump_file_with_mysql
 
+--echo # mysqldump will execute FTWRL when used with --single-transaction,
+--echo # every usage of FTWRL will cause FLUSH TABLES, which causes an
+--echo # extra GTID.
+
 --echo # AFTER RESTORE
---let $assert_text= Committed gtids after restore :- MASTER_UUID:1-7
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-7"
+--let $assert_text= Committed gtids after restore :- MASTER_UUID:1-9
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-9"
 --source include/assert.inc
---let $assert_text= Purged gtids after restore :- MASTER_UUID:1-7
---let $assert_cond= "[SELECT @@GLOBAL.GTID_PURGED]" = "$master_uuid:1-7"
+--let $assert_text= Purged gtids after restore :- MASTER_UUID:1-9
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_PURGED]" = "$master_uuid:1-9"
 --source include/assert.inc
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
@@ -75,11 +79,11 @@ INSERT INTO t VALUES (8, 1);
 INSERT INTO t VALUES (9, 1);
 
 --echo # AFTER INSERTING
---let $assert_text= Committed gtids after inserting :- MASTER_UUID:1-10
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-10"
+--let $assert_text= Committed gtids after inserting :- MASTER_UUID:1-12
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-12"
 --source include/assert.inc
---let $assert_text= Purged gtids after inserting :- MASTER_UUID:1-7
---let $assert_cond= "[SELECT @@GLOBAL.GTID_PURGED]" = "$master_uuid:1-7"
+--let $assert_text= Purged gtids after inserting :- MASTER_UUID:1-9
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_PURGED]" = "$master_uuid:1-9"
 --source include/assert.inc
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
@@ -90,11 +94,11 @@ SELECT * FROM mysql.gtid_executed;
 --source include/restart_mysqld.inc
 
 --echo # AFTER RESTART
---let $assert_text= Committed gtids after restart :- MASTER_UUID:1-10
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-10"
+--let $assert_text= Committed gtids after restart :- MASTER_UUID:1-12
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-12"
 --source include/assert.inc
---let $assert_text= Purged gtids after restart :- MASTER_UUID:1-7
---let $assert_cond= "[SELECT @@GLOBAL.GTID_PURGED]" = "$master_uuid:1-7"
+--let $assert_text= Purged gtids after restart :- MASTER_UUID:1-9
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_PURGED]" = "$master_uuid:1-9"
 --source include/assert.inc
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;

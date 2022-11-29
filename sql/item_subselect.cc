@@ -2822,6 +2822,12 @@ bool Item_subselect::subq_opt_away_processor(uchar *arg)
 bool Item_subselect::clean_up_after_removal(uchar *arg)
 {
   /*
+    Do not remove if this is being referenced. There is possibility
+    that this subquery is in a order by clause and also used in an
+    outer query block.
+  */
+  if (is_derived_used()) return false;
+  /*
     Some commands still execute subqueries during resolving.
     Make sure they are cleaned up properly.
     @todo: Remove this code when SET is also refactored.
@@ -2863,8 +2869,6 @@ bool Item_subselect::clean_up_after_removal(uchar *arg)
     unit->exclude_tree();
   return false;
 }
-
-
 
 Item_subselect::trans_res
 Item_allany_subselect::select_transformer(SELECT_LEX *select)
