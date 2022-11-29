@@ -38,7 +38,8 @@ class QueryRestObjectInsert : private Query {
   template <typename K, typename V>
   class It {
    public:
-    It(K k, V v) : k_{k}, v_{v} {}
+    It(K k, V v, const std::string &primary = {})
+        : k_{k}, v_{v}, primary_{primary} {}
 
     It &operator++() {
       ++k_;
@@ -47,7 +48,12 @@ class QueryRestObjectInsert : private Query {
     }
 
     auto operator*() {
-      mysqlrouter::sqlstring r{" !=?"};
+      if (*k_ != primary_) {
+        mysqlrouter::sqlstring r{" !=?"};
+        r << *k_ << *v_;
+        return r;
+      }
+      mysqlrouter::sqlstring r{" != LAST_INSERT_ID(?)"};
       r << *k_ << *v_;
       return r;
     }
@@ -57,6 +63,7 @@ class QueryRestObjectInsert : private Query {
    private:
     K k_;
     V v_;
+    std::string primary_;
   };
 
  public:
@@ -70,15 +77,16 @@ class QueryRestObjectInsert : private Query {
   }
 
   template <typename KeysIt, typename ValuesIt>
-  void execute_with_upsert(MySQLSession *session, const std::string &schema,
-                           const std::string &object, const KeysIt &kit,
-                           const ValuesIt &vit) {
+  void execute_with_upsert(MySQLSession *session, const std::string &primary,
+                           const std::string &schema, const std::string &object,
+                           const KeysIt &kit, const ValuesIt &vit) {
     query_ = {"INSERT INTO !.!(!) VALUES(?) ON DUPLICATE KEY UPDATE !"};
     using ItTypes =
         It<typename KeysIt::first_type, typename ValuesIt::first_type>;
     query_ << schema << object << kit << vit
-           << std::make_pair<ItTypes, ItTypes>(ItTypes(kit.first, vit.first),
-                                               ItTypes(kit.second, vit.second));
+           << std::make_pair<ItTypes, ItTypes>(
+                  ItTypes(kit.first, vit.first, primary),
+                  ItTypes(kit.second, vit.second));
     query(session);
   }
 };
