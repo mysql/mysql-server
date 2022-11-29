@@ -23,10 +23,11 @@
 
 #include <algorithm>
 
-#include "sql/derror.h"     // ER_THD
-#include "sql/rpl_mi.h"     // Master_info
-#include "sql/rpl_msr.h"    // channel_map
-#include "sql/sql_class.h"  // THD
+#include "include/scope_guard.h"  //Scope_guard
+#include "sql/derror.h"           // ER_THD
+#include "sql/rpl_mi.h"           // Master_info
+#include "sql/rpl_msr.h"          // channel_map
+#include "sql/sql_class.h"        // THD
 #include "sql/sql_lex.h"
 
 using std::max;
@@ -92,7 +93,8 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
     my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
     return error_int();
   }
-
+  gtid_state->begin_gtid_wait();
+  Scope_guard x([&] { gtid_state->end_gtid_wait(); });
   if (wait_for_gtid_set.add_gtid_text(gtid_text->c_ptr_safe()) !=
       RETURN_STATUS_OK) {
     // Error has already been generated.
@@ -110,9 +112,7 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
     return error_int();
   }
 
-  gtid_state->begin_gtid_wait();
   bool result = gtid_state->wait_for_gtid_set(thd, &wait_for_gtid_set, timeout);
-  gtid_state->end_gtid_wait();
 
   null_value = false;
   return result;
