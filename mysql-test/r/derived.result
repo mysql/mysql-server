@@ -4675,3 +4675,10 @@ a	b
 888	888
 999	999
 DROP TABLE t1;
+#
+# Bug#33725542: A bug in sql_derived.cc cause mysql-server crash when
+#               input some sql statement..
+WITH x(y) AS (SELECT 1 UNION SELECT 1)
+SELECT (SELECT y FROM x WHERE y = 1) FROM x;
+(SELECT y FROM x WHERE y = 1)
+1

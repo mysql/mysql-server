@@ -1628,15 +1628,14 @@ bool Table_ref::create_materialized_table(THD *thd) {
        (query_block->join->const_table_map & map())))  // 2
   {
     /*
-      At this point, JT_CONST derived tables should be null rows. Otherwise
-      they would have been materialized already.
+      At this point, a const table should have null rows.
+      Exception being a shared CTE.
     */
 #ifndef NDEBUG
-    if (table != nullptr) {
-      QEP_TAB *tab = table->reginfo.qep_tab;
-      assert(tab == nullptr || tab->type() != JT_CONST ||
-             table->has_null_row());
-    }
+    QEP_TAB *tab = table->reginfo.qep_tab;
+    assert((common_table_expr() != nullptr &&
+            common_table_expr()->references.size() > 1) ||
+           tab == nullptr || tab->type() != JT_CONST || table->has_null_row());
 #endif
     return false;
   }
