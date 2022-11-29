@@ -26,6 +26,8 @@ SET(MY_TIME_SOURCES my_time.cc my_systime.cc)
 
 ADD_CONVENIENCE_LIBRARY(mytime ${MY_TIME_SOURCES})
 
+MSVC_CPPCHECK()
+
 SET(MYSYS_SOURCES
   array.cc
   charset.cc
