@@ -404,7 +404,13 @@ void btr_insert_on_non_leaf_level(uint32_t flags, dict_index_t *index,
 @param[in] mtr Mini-transaction
 */
 void btr_set_min_rec_mark(rec_t *rec, mtr_t *mtr);
-void btr_unset_min_rec_mark(rec_t *rec, mtr_t *mtr);
+
+/** Removes a record as the predefined minimum record.
+@param[in]  block  buffer block containing the record.
+@param[in]  rec    the record who info bits will be modified by clearing
+                   the REC_INFO_MIN_REC_FLAG bit.
+@param[in]  mtr    mini transaction context. */
+void btr_unset_min_rec_mark(buf_block_t *block, rec_t *rec, mtr_t *mtr);
 
 /** Deletes on the upper level the node pointer to a page.
 @param[in] index Index tree
