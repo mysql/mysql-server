@@ -32,6 +32,7 @@
 
 #include "helper/container/generic.h"
 #include "helper/json/rapid_json_to_text.h"
+#include "helper/json/to_sqlstring.h"
 #include "helper/json/to_string.h"
 #include "helper/media_detector.h"
 #include "mrs/database/query_rest_sp_media.h"
@@ -65,13 +66,14 @@ class JsonKeyIterator
   }
 };
 
-static std::string to_string(rapidjson::Value *v) {
-  if (v->IsString()) {
-    return std::string{v->GetString(), v->GetStringLength()};
-  }
-
-  return helper::json::to_string(v);
-}
+// TODO(lkotula): Remove below (Shouldn't be in review)
+// static std::string to_string(rapidjson::Value *v) {
+//  if (v->IsString()) {
+//    return std::string{v->GetString(), v->GetStringLength()};
+//  }
+//
+//  return helper::json::to_string(v);
+//}
 
 }  // namespace
 
@@ -122,17 +124,16 @@ static void fix_and_filter(std::vector<std::string> &filter) {
 Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
   auto &requests_uri = ctxt->request->get_uri();
   auto path = requests_uri.get_path();
-  log_debug("Object::handle_get '%s'", path.c_str());
   auto last_path =
       http::Url::extra_path_element(route_->get_rest_path_raw(), path);
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
   auto columns = route_->get_cached_columnes();
-
   http::Url uri_param(requests_uri);
-
   auto it_f = uri_param.is_query_parameter("f");
   auto it_raw = uri_param.is_query_parameter("raw");
+
+  log_debug("Object::handle_get '%s'", path.c_str());
 
   if (it_f) {
     auto filter_columns = mysql_harness::split_string(
@@ -203,11 +204,14 @@ Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
   }
 
   if (!route_->get_cached_primary().empty()) {
+    mysqlrouter::sqlstring pk_value{"?"};
+    pk_value << last_path;
+
     if (raw_value.empty()) {
       database::QueryRestTableSingleRow rest;
       rest.query_entries(session.get(), columns, route_->get_schema_name(),
                          route_->get_object_name(),
-                         route_->get_cached_primary(), last_path,
+                         route_->get_cached_primary(), pk_value,
                          route_->get_rest_url());
 
       if (rest.response.empty()) throw http::Error(HttpStatusCode::NotFound);
@@ -219,7 +223,7 @@ Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
 
     rest.query_entries(session.get(), columns[0].name,
                        route_->get_schema_name(), route_->get_object_name(),
-                       route_->get_cached_primary(), last_path);
+                       route_->get_cached_primary(), pk_value);
 
     helper::MediaDetector md;
     auto detected_type = md.detect(rest.response);
@@ -239,8 +243,11 @@ Result HandlerObject::handle_post(rest::RequestContext *ctxt,
 Result HandlerObject::handle_post_and_post(
     [[maybe_unused]] rest::RequestContext *ctxt,
     const std::vector<uint8_t> &document, const bool upsert,
-    std::string pk_value) {
-  assert((upsert && !pk_value.empty()) || !upsert);
+    std::string pk_value_str) {
+  using namespace helper::json::sql;
+
+  assert((upsert && !pk_value_str.empty()) || !upsert);
+  mysqlrouter::sqlstring pk_value{"?"};
   auto &requests_uri = ctxt->request->get_uri();
   log_debug("Object::handle_post '%s'", requests_uri.get_path().c_str());
 
@@ -263,28 +270,26 @@ Result HandlerObject::handle_post_and_post(
 
   auto it = json_doc.FindMember(route_->get_cached_primary().c_str());
   if (it != json_doc.MemberEnd()) {
-    if (!upsert) {
-      pk_value = to_string(&(*it).value);
-    } else {
-      uint64_t pk_value_numeric = std::stoull(pk_value);
-      (*it).value.SetUint64(pk_value_numeric);
-    }
-  } else if (upsert && !pk_value.empty()) {
-    uint64_t pk_value_numeric = std::stoull(pk_value);
+    pk_value = mysqlrouter::sqlstring{"?"};
+    pk_value << (*it).value;
+  } else if (upsert && !pk_value_str.empty()) {
+    uint64_t pk_value_numeric = std::stoull(pk_value_str);
     rapidjson::Value v{pk_value_numeric};
     json_doc.AddMember(
         rapidjson::StringRef(route_->get_cached_primary().c_str()), v,
         json_doc.GetAllocator());
+    pk_value << v;
   }
 
-  log_debug("level1 %s", (ctxt->user.has_user_id ? "yes" : "no"));
+  // If we enforce user, then create just a placeholder, which is going to
+  // be override later on.
   if (route_->get_user_row_ownership().user_ownership_enforced) {
     if (!ctxt->user.has_user_id)
       throw http::Error(HttpStatusCode::Unauthorized);
     auto &key = route_->get_user_row_ownership().user_ownership_column;
-    json_doc.RemoveMember(key.c_str());
-    json_doc.AddMember(StringRef(key.c_str(), key.length()), rapidjson::Value(),
-                       json_doc.GetAllocator());
+    if (!json_doc.HasMember(key.c_str()))
+      json_doc.AddMember(StringRef(key.c_str(), key.length()),
+                         rapidjson::Value(), json_doc.GetAllocator());
   }
 
   auto json_obj = json_doc.GetObject();
@@ -296,10 +301,9 @@ Result HandlerObject::handle_post_and_post(
       route_->get_user_row_ownership().user_ownership_column;
   for (auto &member : json_obj) {
     if (ownership_enforce && ownership_column == member.name.GetString()) {
-      log_debug("pushing user_ud as sqlstirng");
-      values.push_back(sqlstring("?") << to_sqlstring(ctxt->user.user_id));
+      values.push_back(to_sqlstring(ctxt->user.user_id));
     } else {
-      values.push_back(sqlstring("?") << to_string(&member.value));
+      values.emplace_back("?") << member.value;
     }
   }
   // TODO(lkotula): Step1. Remember column types and look at json-type.
@@ -315,25 +319,28 @@ Result HandlerObject::handle_post_and_post(
     insert.execute(session.get(), route_->get_schema_name(),
                    route_->get_object_name(), keys_iterators, values_iterators);
   } else {
-    insert.execute_with_upsert(
-        session.get(), route_->get_cached_primary(), route_->get_schema_name(),
-        route_->get_object_name(), keys_iterators, values_iterators);
+    insert.execute_with_upsert(session.get(), route_->get_schema_name(),
+                               route_->get_object_name(), keys_iterators,
+                               values_iterators);
   }
 
   if (!route_->get_cached_primary().empty()) {
     database::QueryRestTableSingleRow fetch_one;
 
-    if (pk_value.empty()) {
-      fetch_one.query_last_inserted(
-          session.get(), columns, route_->get_schema_name(),
-          route_->get_object_name(), route_->get_cached_primary(),
-          route_->get_rest_url());
-    } else {
+    if (pk_value.done()) {
+      // We have a PK value, thus query by it.
       fetch_one.query_entries(session.get(), columns, route_->get_schema_name(),
                               route_->get_object_name(),
                               route_->get_cached_primary(), pk_value,
                               route_->get_rest_url());
+    } else {
+      //
+      fetch_one.query_last_inserted(
+          session.get(), columns, route_->get_schema_name(),
+          route_->get_object_name(), route_->get_cached_primary(),
+          route_->get_rest_url());
     }
+
     return std::move(fetch_one.response);
   }
 

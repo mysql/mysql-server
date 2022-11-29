@@ -27,6 +27,7 @@ ADD_HARNESS_PLUGIN(rest_mrs
   collector/mysql_cache_manager.cc
   helper/media_detector.cc
   helper/json/to_string.cc
+  helper/json/to_sqlstring.cc
   helper/token/jwt.cc
   helper/mysql_column_types.cc
   mrs/authentication/authorize_manager.cc
