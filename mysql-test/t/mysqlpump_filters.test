@@ -46,6 +46,18 @@ DROP DATABASE db1_1gb;
 --exec $MYSQL_PUMP --parallel-schemas=2:db1 --exclude-databases=mtr,mysql,sys,test --include-databases=db3,db1 --skip-dump-rows --include-triggers=trig2 > $MYSQLTEST_VARDIR/tmp/include_triggers_1.sql
 --exec $MYSQL_PUMP --parallel-schemas=2:db3 --exclude-databases=mtr,mysql,sys,test --include-databases=db3,db1 --skip-dump-rows --exclude-triggers=trig3 > $MYSQLTEST_VARDIR/tmp/exclude_triggers_2.sql
 
+# exclude view
+--exec $MYSQL_PUMP -u root --exclude-tables='v1' --result-file=$MYSQLTEST_VARDIR/tmp/exclude_view.sql
+--let SEARCH_FILE = $MYSQLTEST_VARDIR/tmp/exclude_view.sql
+--let SEARCH_PATTERN = VIEW `db1`.`v1`
+--source include/search_pattern.inc
+
+# include view
+--exec $MYSQL_PUMP -u root --include-tables='v1' --result-file=$MYSQLTEST_VARDIR/tmp/include_view.sql
+--let SEARCH_FILE = $MYSQLTEST_VARDIR/tmp/include_view.sql
+--let SEARCH_PATTERN = VIEW `db1`.`v1`
+--source include/search_pattern.inc
+
 # include/exclude-routines
 --exec $MYSQL_PUMP --parallel-schemas=1:db1 --exclude-databases=mtr,mysql,sys,test --include-databases=db3,db1 --skip-dump-rows --include-routines=db1t_cache,db1_f1 > $MYSQLTEST_VARDIR/tmp/include_routines_1.sql
 --exec $MYSQL_PUMP --parallel-schemas=1:db3 --exclude-databases=mtr,mysql,sys,test --include-databases=db3,db1 --skip-dump-rows --exclude-routines=d3t_cache > $MYSQLTEST_VARDIR/tmp/exclude_routines_2.sql
