@@ -165,6 +165,9 @@ class GRMetadataBackendV2 : public GRMetadataBackend {
       const std::string & /*clusterset_id*/ = "");
 };
 
+namespace {
+class RouterClusterSetOptions;
+}
 /* Connection to the GR metadata clusterset */
 class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
  public:
@@ -292,6 +295,21 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
   update_clusterset_topology_from_metadata_server(
       mysqlrouter::MySQLSession &session, const std::string &clusterset_id,
       uint64_t view_id);
+
+  /** @brief Given the topology read from metadata updates the topology with the
+   * current status from GR tables.
+   *
+   * @param cs_topology ClusterSet topology as read from the metadata server
+   * @param needs_writable_node flag indicating if the caller needs us to query
+   * for writable node
+   * @param whole_topology return all usable nodes, ignore potential metadata
+   * filters or policies (like target_cluster etc.)
+   * @param router_cs_options ClusterSet related options configured for this
+   * Router in the metadata
+   */
+  void update_clusterset_status_from_gr(
+      metadata_cache::ClusterTopology &cs_topology, bool needs_writable_node,
+      bool whole_topology, const RouterClusterSetOptions &router_cs_options);
 
   /** @brief Finds the writable node within the currently known ClusterSet
    * topology.
@@ -1642,26 +1660,38 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
 
   result.target_cluster_pos = target_cluster_pos(result, target_cluster_id);
 
-  // if we are supposed to only work with single target_cluster clean
-  // all other clusters from the result
   if (!whole_topology) {
-    if (result.target_cluster_pos)
-      result.clusters_data = {result.clusters_data[*result.target_cluster_pos]};
-    else
-      result.clusters_data.clear();
-  }
+    if (result.target_cluster_pos) {
+      // if we are supposed to only work with a single target_cluster clean
+      // all other clusters from the result
+      auto &cluster = result.clusters_data[*result.target_cluster_pos];
 
-  for (auto &cluster : result.clusters_data) {
-    if (!whole_topology) {
       log_target_cluster_warnings(
           cluster, target_cluster.invalidated_cluster_routing_policy());
       if (!is_cluster_usable(
               cluster, target_cluster.invalidated_cluster_routing_policy())) {
         cluster.members.clear();
-        continue;
       }
-    }
+      result.clusters_data = {cluster};
+    } else
+      result.clusters_data.clear();
+  }
 
+  // we got topology from the configured metadata, now let's update it with the
+  // current state from the GR
+  update_clusterset_status_from_gr(result, needs_writable_node, whole_topology,
+                                   router_clusterset_options);
+
+  this->view_id_ = view_id;
+  this->metadata_read_ = true;
+  return result;
+}
+
+void GRClusterSetMetadataBackend::update_clusterset_status_from_gr(
+    metadata_cache::ClusterTopology &cs_topology, bool needs_writable_node,
+    bool whole_topology, const RouterClusterSetOptions &router_cs_options) {
+  for (auto &cluster : cs_topology.clusters_data) {
+    if (cluster.members.empty()) continue;
     // connect to the cluster and query for the list and status of its
     // members. (more precisely: search and connect to a
     // member which is part of quorum to retrieve this data)
@@ -1673,7 +1703,7 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
     // or if our target cluster is invalidated
     if (!whole_topology) {
       if ((!cluster.is_primary &&
-           !router_clusterset_options.get_use_replica_primary_as_rw()) ||
+           !router_cs_options.get_use_replica_primary_as_rw()) ||
           cluster.is_invalidated) {
         for (auto &member : cluster.members) {
           if (member.mode == metadata_cache::ServerMode::ReadWrite) {
@@ -1685,21 +1715,17 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
   }
 
   if (needs_writable_node) {
-    result.writable_server =
+    cs_topology.writable_server =
         metadata_->find_rw_server((*this->cluster_topology_).clusters_data);
-    if (!result.writable_server) {
-      result.writable_server = find_rw_server();
+    if (!cs_topology.writable_server) {
+      cs_topology.writable_server = find_rw_server();
     }
 
     log_debug("Writable server is: %s",
-              result.writable_server
-                  ? result.writable_server.value().str().c_str()
+              cs_topology.writable_server
+                  ? cs_topology.writable_server.value().str().c_str()
                   : "(not found)");
   } else {
-    result.writable_server = std::nullopt;
+    cs_topology.writable_server = std::nullopt;
   }
-
-  this->view_id_ = view_id;
-  this->metadata_read_ = true;
-  return result;
 }
