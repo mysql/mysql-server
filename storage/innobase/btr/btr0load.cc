@@ -2763,7 +2763,7 @@ dberr_t Btree_load::Merger::subtree_link_levels(size_t &highest_level) {
 
         rec_t *first_rec = page_rec_get_next(page_get_infimum_rec(r_frame));
 
-        btr_unset_min_rec_mark(first_rec, mtr);
+        btr_unset_min_rec_mark(r_block, first_rec, mtr);
 
 #ifdef UNIV_DEBUG
         {
@@ -2811,7 +2811,7 @@ dberr_t Btree_load::Merger::subtree_link_levels(size_t &highest_level) {
         byte *r_frame = buf_block_get_frame(r_block);
 
         auto r_first_rec = page_rec_get_next(page_get_infimum_rec(r_frame));
-        btr_unset_min_rec_mark(r_first_rec, mtr);
+        btr_unset_min_rec_mark(r_block, r_first_rec, mtr);
 
         /* Obtain node ptr of left page. */
         auto l_first_rec = page_rec_get_next(page_get_infimum_rec(l_frame));
@@ -2869,7 +2869,7 @@ dberr_t Btree_load::Merger::subtree_link_levels(size_t &highest_level) {
         /* Obtain node ptr of right page. */
         auto r_first_rec = page_rec_get_next(page_get_infimum_rec(r_frame));
         ut_a(page_rec_is_user_rec(r_first_rec));
-        btr_unset_min_rec_mark(r_first_rec, mtr);
+        btr_unset_min_rec_mark(r_block, r_first_rec, mtr);
 
         auto node_ptr = dict_index_build_node_ptr(
             m_index, r_first_rec, r_page_no, local_heap.get(), level_2);
@@ -2983,7 +2983,7 @@ dberr_t Btree_load::Merger::add_root_for_subtrees(const size_t highest_level) {
 
     if (highest_level > 0) {
       min_rec ? btr_set_min_rec_mark(first_rec, &mtr)
-              : btr_unset_min_rec_mark(first_rec, &mtr);
+              : btr_unset_min_rec_mark(subtree_block, first_rec, &mtr);
     }
 
     if (level_incr) {
