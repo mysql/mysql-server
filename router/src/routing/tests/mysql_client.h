@@ -22,6 +22,9 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#ifndef ROUTER_HELPER_MYSQL_CLIENT_H
+#define ROUTER_HELPER_MYSQL_CLIENT_H
+
 #include <iterator>
 #include <string>
 #include <string_view>
@@ -1235,3 +1238,5 @@ class MysqlClient {
 
   unsigned long flags_{};
 };
+
+#endif
