@@ -1431,6 +1431,14 @@ class Ndb_schema_dist_data {
     }
   }
 
+  void report_unsubscribe_all() {
+    ndb_log_verbose(1, "Unsubscribe all subscribers");
+    for (const auto &it : m_subscriber_bitmaps) {
+      Node_subscribers *subscribers = it.second;
+      subscribers->clear_all();
+    }
+  }
+
   /**
      @brief Get list of current subscribers
      @note A node counts as subscribed as soon as any data node report it as
@@ -4130,6 +4138,7 @@ class Ndb_schema_event_handler {
 
       case NDBEVENT::TE_DROP:
         ndb_log_info("The 'mysql.ndb_schema' table has been dropped");
+        m_schema_dist_data.report_unsubscribe_all();
         handle_schema_table_drop(s_ndb, pOp);
         break;
 
