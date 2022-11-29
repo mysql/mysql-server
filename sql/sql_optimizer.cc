@@ -3195,14 +3195,17 @@ bool JOIN::get_best_combination() {
         ::destroy(tab->range_scan());
         tab->set_range_scan(nullptr);
       }
-      if (!pos->key) {
+      if (table->is_intersect() || table->is_except()) {
+        tab->set_type(JT_ALL);  // INTERSECT, EXCEPT can't use ref access yet
+      } else if (!pos->key) {
         if (tab->range_scan())
           tab->set_type(calc_join_type(tab->range_scan()));
         else
           tab->set_type(JT_ALL);
-      } else
+      } else {
         // REF or RANGE, clarify later when prefix tables are set for JOIN_TABs
         tab->set_type(JT_REF);
+      }
     }
     assert(tab->type() != JT_UNKNOWN);
 

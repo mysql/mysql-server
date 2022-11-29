@@ -2264,3 +2264,137 @@ EXPLAIN
                 -> Table scan on t1  (cost=0.95 rows=7)
 
 DROP TABLE t1;
+#
+# Bug#34843764 Wrong Results when INTERSECT/EXCEPT combine with JOIN
+#
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5), (6, 5);
+INSERT INTO t1 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5), (6, 5);
+INSERT INTO t1 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5), (6, 5);
+CREATE TABLE t2 (a INT, b INT);
+INSERT INTO t2 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5), (6, 5), (7, 5), (8, 9);
+INSERT INTO t2 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5), (6, 5), (7, 5), (8, 9);
+CREATE TABLE t3 (a INT, b INT);
+INSERT INTO t3 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5);
+INSERT INTO t3 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5);
+SELECT *
+FROM (SELECT a, b FROM t1 INTERSECT SELECT a, b FROM t3) AS x
+JOIN
+t2
+ON x.a = t2.a AND x.b = t2.b
+ORDER BY 1, 2;
+a	b	a	b
+2	3	2	3
+2	3	2	3
+4	5	4	5
+4	5	4	5
+EXPLAIN FORMAT=tree SELECT *
+FROM (SELECT a, b FROM t1 INTERSECT SELECT a, b FROM t3) AS x
+JOIN
+t2
+ON x.a = t2.a AND x.b = t2.b
+ORDER BY 1, 2;
+EXPLAIN
+-> Sort: x.a, x.b
+    -> Stream results  (rows=15)
+        -> Inner hash join (x.b = t2.b), (x.a = t2.a)  (rows=15)
+            -> Table scan on x  (rows=8)
+                -> Intersect materialize with deduplication  (rows=8)
+                    -> Table scan on t1  (rows=15)
+                    -> Table scan on t3  (rows=8)
+            -> Hash
+                -> Table scan on t2  (rows=14)
+
+SELECT *
+FROM (SELECT a, b FROM t1 INTERSECT ALL SELECT a, b FROM t3) AS x
+JOIN
+t2
+ON x.a = t2.a AND x.b = t2.b
+ORDER BY 1, 2;
+a	b	a	b
+2	3	2	3
+2	3	2	3
+2	3	2	3
+2	3	2	3
+4	5	4	5
+4	5	4	5
+4	5	4	5
+4	5	4	5
+EXPLAIN FORMAT=tree SELECT *
+FROM (SELECT a, b FROM t1 INTERSECT ALL SELECT a, b FROM t3) AS x
+JOIN
+t2
+ON x.a = t2.a AND x.b = t2.b
+ORDER BY 1, 2;
+EXPLAIN
+-> Sort: x.a, x.b
+    -> Stream results  (rows=15)
+        -> Inner hash join (x.b = t2.b), (x.a = t2.a)  (rows=15)
+            -> Table scan on x  (rows=8)
+                -> Intersect all materialize  (rows=8)
+                    -> Table scan on t1  (rows=15)
+                    -> Table scan on t3  (rows=8)
+            -> Hash
+                -> Table scan on t2  (rows=14)
+
+SELECT *
+FROM (SELECT a, b FROM t1 EXCEPT SELECT a, b FROM t3) AS x
+JOIN
+t2
+ON x.a = t2.a AND x.b = t2.b
+ORDER BY 1, 2;
+a	b	a	b
+6	5	6	5
+6	5	6	5
+EXPLAIN FORMAT=tree SELECT *
+FROM (SELECT a, b FROM t1 EXCEPT SELECT a, b FROM t3) AS x
+JOIN
+t2
+ON x.a = t2.a AND x.b = t2.b
+ORDER BY 1, 2;
+EXPLAIN
+-> Sort: x.a, x.b
+    -> Stream results  (rows=28)
+        -> Inner hash join (x.b = t2.b), (x.a = t2.a)  (rows=28)
+            -> Table scan on x  (rows=15)
+                -> Except materialize with deduplication  (rows=15)
+                    -> Table scan on t1  (rows=15)
+                    -> Table scan on t3  (rows=8)
+            -> Hash
+                -> Table scan on t2  (rows=14)
+
+SELECT *
+FROM (SELECT a, b FROM t1 EXCEPT ALL SELECT a, b FROM t3) AS x
+JOIN
+t2
+ON x.a = t2.a AND x.b = t2.b
+ORDER BY 1, 2;
+a	b	a	b
+2	3	2	3
+2	3	2	3
+4	5	4	5
+4	5	4	5
+6	5	6	5
+6	5	6	5
+6	5	6	5
+6	5	6	5
+6	5	6	5
+6	5	6	5
+EXPLAIN FORMAT=tree SELECT *
+FROM (SELECT a, b FROM t1 EXCEPT ALL SELECT a, b FROM t3) AS x
+JOIN
+t2
+ON x.a = t2.a AND x.b = t2.b
+ORDER BY 1, 2;
+EXPLAIN
+-> Sort: x.a, x.b
+    -> Stream results  (rows=28)
+        -> Inner hash join (x.b = t2.b), (x.a = t2.a)  (rows=28)
+            -> Table scan on x  (rows=15)
+                -> Except all materialize  (rows=15)
+                    -> Table scan on t1  (rows=15)
+                    -> Table scan on t3  (rows=8)
+            -> Hash
+                -> Table scan on t2  (rows=14)
+
+DROP TABLE t1, t2, t3;
