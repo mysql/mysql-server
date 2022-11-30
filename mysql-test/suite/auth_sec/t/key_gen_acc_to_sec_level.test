@@ -1,0 +1,120 @@
+#
+# BUG 33316709 - Connection fail with FUTURE crypto policy
+#
+
+--source include/have_debug.inc
+--source include/no_valgrind_without_big.inc
+--source include/allowed_ciphers.inc
+
+#----------------------------------------------------------------------------
+
+--echo # Setup
+
+call mtr.add_suppression("Failed to setup SSL");
+call mtr.add_suppression("SSL error: SSL_CTX_set_default_verify_paths failed");
+
+# Stop the server and cleanup all .pem files.
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-cert.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-key.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-cert.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-key.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/private_key.pem
+--error 0, 1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
+
+--exec echo "restart:--log-error=$server_log --auto_generate_certs=0 --sha256_password_auto_generate_rsa_keys=0 --caching-sha2-password-auto-generate-rsa-keys=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+--echo # Restart completed.
+
+
+#----------------------------------------------------------------------------
+
+
+--echo # Restarting mysqld with : --debug="+d,crypto_policy_3"
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+let debug_pattern= "+d,crypto_policy_3";
+--exec echo "restart:--log-error=$server_log --auto_generate_certs=ON --sha256_password_auto_generate_rsa_keys=ON --sha256_password_private_key_path=private_key.pem --sha256_password_public_key_path=public_key.pem --debug=$debug_pattern --log-error-verbosity=3 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+--echo # Restart completed.
+
+
+#----------------------------------------------------------------------------
+
+
+--echo # Make sure that size of the keys generated is 3072 bits
+
+# Log file for grep
+let $KEY_SIZE_LOG = $MYSQLTEST_VARDIR/tmp/key_size_log_file;
+
+# For ca-key
+--exec $OPENSSL_EXECUTABLE rsa -in $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem -text -noout > $KEY_SIZE_LOG
+--let $grep_file= $KEY_SIZE_LOG
+--let $grep_pattern= 3072
+--let $grep_output= boolean
+--source include/grep_pattern.inc
+
+# For client-key
+--exec $OPENSSL_EXECUTABLE rsa -in $MYSQLTEST_VARDIR/mysqld.1/data/client-key.pem -text -noout > $KEY_SIZE_LOG
+--let $grep_file= $KEY_SIZE_LOG
+--let $grep_pattern= 3072
+--let $grep_output= boolean
+--source include/grep_pattern.inc
+
+# For server-key
+--exec $OPENSSL_EXECUTABLE rsa -in $MYSQLTEST_VARDIR/mysqld.1/data/server-key.pem -text -noout > $KEY_SIZE_LOG
+--let $grep_file= $KEY_SIZE_LOG
+--let $grep_pattern= 3072
+--let $grep_output= boolean
+--source include/grep_pattern.inc
+
+# For private_key
+--exec $OPENSSL_EXECUTABLE rsa -in $MYSQLTEST_VARDIR/mysqld.1/data/private_key.pem -text -noout > $KEY_SIZE_LOG
+--let $grep_file= $KEY_SIZE_LOG
+--let $grep_pattern= 3072
+--let $grep_output= boolean
+--source include/grep_pattern.inc
+
+--remove_file $KEY_SIZE_LOG
+
+
+#----------------------------------------------------------------------------
+
+
+--echo # Clean-up
+
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-cert.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-key.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-cert.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-key.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/private_key.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
+
+#----------------------------------------------------------------------------
+
+# Restore default settings in opt file and clean up
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

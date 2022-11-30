@@ -100,6 +100,23 @@ class HARNESS_TLS_EXPORT TlsServerContext : public TlsContext {
                                                std::bitset<2> tls_opts = 0);
 
   /**
+   * get the security level.
+   *
+   * | sec-level | RSA-min-key-size |
+   * +-----------+------------------+
+   * |         1 |             1024 |
+   * |         2 |             2048 |
+   * |         3 |             3072 |
+   * |         4 |             7680 |
+   * |         5 |            15360 |
+   *
+   * @see SSL_CTX_get_security_level()
+   *
+   * @returns the security level of the ssl-ctx.
+   */
+  int security_level() const;
+
+  /**
    * default ciphers.
    */
   static std::vector<std::string> default_ciphers();
