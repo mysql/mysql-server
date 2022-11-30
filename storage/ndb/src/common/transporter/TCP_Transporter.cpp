@@ -96,6 +96,11 @@ Uint32 overload_limit(const TransporterConfiguration* conf)
           conf->tcp.sendBufferSize*4/5);
 }
 
+/* Request a TLS key rotation after this number of bytes are sent
+   by a transporter, as described in WL#15130 and in RFC 8446 sec. 5.5.
+   The number here should have just one bit set.
+*/
+static constexpr Uint64 keyRotateBit = 0x0000000100000000;
 
 TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 				 const TransporterConfiguration* conf)
@@ -525,7 +530,15 @@ TCP_Transporter::doSend(bool need_wakeup)
   }
   sendCount += send_cnt;
   sendSize  += sum_sent;
+  bool rotateBitPre = ((m_bytes_sent & keyRotateBit) == keyRotateBit);
   m_bytes_sent += sum_sent;
+  bool rotateBitPost = ((m_bytes_sent & keyRotateBit) == keyRotateBit);
+
+  if(rotateBitPost != rotateBitPre)
+  {
+    theSocket.update_keys();
+  }
+
   if(sendCount >= reportFreq)
   {
     get_callback_obj()->reportSendLen(remoteNodeId, sendCount, sendSize);
