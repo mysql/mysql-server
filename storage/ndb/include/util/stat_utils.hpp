@@ -115,7 +115,7 @@ public:
             : 0;
   }
 
-private:
+protected:
   // Size of 'window' we calculate over
   const Uint32 m_maxSamples;
 

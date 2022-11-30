@@ -62,7 +62,8 @@ extern Uint32 ErrorMaxSegmentsToSeize;
 
 /**
  * 12 bits are used to represent the 'parent-row-correlation-id'.
- * Effectively limiting max rows in a batch.
+ * Effectively limiting max rows in a batch. Also used to limit
+ * the 'capacity' of the 'mapped' RowCollection
  */
 static constexpr Uint32 MaxCorrelationId = (1 << 12);
 
@@ -1403,7 +1404,6 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
       ctx.m_resultRef = req->resultRef;
       ctx.m_scanPrio = ScanFragReq::getScanPrio(req->requestInfo);
       ctx.m_savepointId = req->savePointId;
-      ctx.m_batch_size_rows = req->batch_size_rows;
       ctx.m_start_signal = signal;
       ctx.m_senderRef = signal->getSendersBlockRef();
 
@@ -6135,7 +6135,6 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
    * SPJ only does committed-read (for now)
    *   so it's always ok to READ_BACKUP
    *   if applicable
-   *
    */
   if (nodeId != getOwnNodeId() &&
       tablePtr.p->m_flags & TableRecord::TR_READ_BACKUP)
@@ -6538,14 +6537,8 @@ Dbspj::parseScanFrag(Build_context& ctx,
   {
     jam();
 
+    new (&treeNodePtr.p->m_scanFrag_data) ScanFragData;
     ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
-    data.m_fragments.init();
-    data.m_fragCount = 0;
-    data.m_frags_outstanding = 0;
-    data.m_frags_complete = 0;
-    data.m_frags_not_started = 0;
-    data.m_parallelismStat.init();
-    data.m_batch_chunks = 0;
 
     /**
      * We will need to look at the parameters again if the scan is pruned and the prune
@@ -7247,6 +7240,7 @@ Dbspj::scanFrag_parent_row(Signal* signal,
 
       SectionReader key(keyPtrI, getSectionSegmentPool());
       err = appendReaderToSection(fragPtr.p->m_rangePtrI, key, key.getSize());
+      fragPtr.p->m_rangeCnt++;
       releaseSection(keyPtrI);
       if (unlikely(err != 0))
       {
@@ -7439,6 +7433,152 @@ Dbspj::scanFrag_parent_batch_complete(Signal* signal,
   scanFrag_send(signal, requestPtr, treeNodePtr);
 }
 
+/**
+ * scanFrag_getBatchSize()
+ *
+ * Estimate how many more rows we may fetch into the available client batch
+ * buffers, given the configured 'bytes' and 'rows' available. We are also
+ * limited by the 12-bit correlation id range. Note that some 'bytes', 'rows'
+ * and 'correlationIds' may already have been used up as reflected in 'data'.
+ *
+ * The collected 'record size'-statistic is used to estimate how many 'rows'
+ * we may fit in the available batch bytes. The most restrictive limitation
+ * of 'bytes', 'rows' and 'correlationId' is used to calculate the 'BatchSize'
+ * we may use
+ *
+ * Sets the remaining 'available' bytes/rows upon return.
+ */
+Uint32
+Dbspj::scanFrag_getBatchSize(Ptr<TreeNode> treeNodePtr,
+                             Uint32 &availableBatchBytes,
+                             Uint32 &availableBatchRows)
+{
+  jam();
+  const ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
+  const ScanFragReq *org = reinterpret_cast<const ScanFragReq*>(data.m_scanFragReq);
+
+  const Uint32 availableCorrIds = MaxCorrelationId - data.m_corrIdStart;
+  /**
+   * Available 'Batch Rows' is limited both by the max specified
+   * batch size, and for any node being a parent node, also the
+   * max number of 12-bit parent correlation ids
+   */
+  availableBatchRows =
+     (treeNodePtr.p->isLeaf())
+     ? (org->batch_size_rows - data.m_totalRows)
+     : MIN((org->batch_size_rows - data.m_totalRows), availableCorrIds);
+  availableBatchBytes = org->batch_size_bytes - data.m_totalBytes;
+
+  /**
+   * Number of rows in batch could effectively be limited by
+   * the 'bytes' limit being exhausted first.
+   */
+  Uint32 batchSizeRows = availableBatchRows;
+  if (data.m_recSizeStat.isValid())
+  {
+    const double estmRecSize = data.m_recSizeStat.getUpperEstimate();
+    const Uint32 batchLimitedByBytes = availableBatchBytes / estmRecSize;
+    if (batchSizeRows > batchLimitedByBytes)
+      batchSizeRows = batchLimitedByBytes;
+  }
+  return batchSizeRows;
+}
+
+/**
+ * scanFrag_parallelism()
+ *
+ * Calculate the fragment parallelism to be used in the next scan
+ * when the estimated number of 'batchSizeRows' can be returned to the
+ * client side.
+ * Use scanFrag_getBatchSize() to calculate 'batchSizeRows'.
+ *
+ * Return parallelism = 0 if parallelism could not be estimated.
+ */
+Uint32
+Dbspj::scanFrag_parallelism(Ptr<Request> requestPtr,
+                            Ptr<TreeNode> treeNodePtr,
+                            Uint32 batchSizeRows)
+{
+  jam();
+  ndbassert(batchSizeRows > 0);
+  if (unlikely(batchSizeRows == 0))
+    return 0;  // Should not happen
+
+  const ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
+
+  const Uint32 frags_not_complete = data.m_fragCount - data.m_frags_complete;
+  const Uint32 maxParallelism = MIN(batchSizeRows, frags_not_complete);
+  const Uint32 minParallelism = MIN(requestPtr.p->m_rootFragCnt, maxParallelism);
+
+  if (treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL)
+  {
+    jam();
+    return maxParallelism;
+  }
+  if (!data.m_recsPrKeyStat.isValid())
+  {
+    jam();
+    return minParallelism;
+  }
+
+  /**
+   * We usually use 'Record Pr Key' fanout statistics from previous runs
+   * of this operation to estimate a parallelism for the fragment scans.
+   *
+   * Upper 95% percentile of estimated rows to be returned is calculated
+   * and transformed into 'parallelism', given the available batch size.
+   * Note that we prefer erring with a too low parallelism, as we else
+   * would have to send more NEXTREQs to the fragment which didn't
+   * complete in this round. (Which would have been more costly)
+   */
+  const double estmRecsPrKey = data.m_recsPrKeyStat.getUpperEstimate();
+  const Uint32 estmRowsSelected =
+      MAX(static_cast<Uint32>(data.m_keysToSend * estmRecsPrKey),1);
+  Uint32 parallelism = (batchSizeRows * data.m_frags_not_started)
+                       / estmRowsSelected;
+
+  if (parallelism < minParallelism)
+  {
+    parallelism = minParallelism;
+  }
+  else if (parallelism >= maxParallelism)
+  {
+    parallelism = maxParallelism;
+  }
+  else if (maxParallelism % parallelism != 0)
+  {
+    /**
+     * Set parallelism such that we can expect to have similar
+     * parallelism in each batch. For example if there are 8 remaining
+     * fragments, then we should fetch 2 times 4 fragments rather than
+     * 7+1.
+     * Note this this might result in 'parallelism < minParallelism'.
+     * minParallelism is not a hard limit though, so it is OK
+     */
+    const Uint32 roundTrips = 1 + (maxParallelism / parallelism);
+    parallelism = (maxParallelism + roundTrips-1) / roundTrips;
+  }
+
+  /**
+   * Parallelism must be increased if we otherwise would be limited
+   * by the MAX_PARALLEL_OP_PER_SCAN limitation in the SCAN_FRAGREQs
+   */
+  const ScanFragReq *req =
+      reinterpret_cast<const ScanFragReq*>(data.m_scanFragReq);
+  const Uint32 availableBatchRows = req->batch_size_rows - data.m_totalRows;
+
+  ndbrequire(availableBatchRows >= batchSizeRows);
+  if ((availableBatchRows / parallelism) > MAX_PARALLEL_OP_PER_SCAN)
+  {
+    jam();
+    parallelism = MIN((availableBatchRows + MAX_PARALLEL_OP_PER_SCAN-1) /
+                       MAX_PARALLEL_OP_PER_SCAN,
+                       data.m_frags_not_started);
+  }
+
+  return parallelism;
+}  // scanFrag_parallelism
+
 
 void
 Dbspj::scanFrag_send(Signal* signal,
@@ -7451,105 +7591,71 @@ Dbspj::scanFrag_send(Signal* signal,
   ndbassert(data.m_frags_outstanding == 0);
   ndbassert(data.m_frags_not_started == (data.m_fragCount - data.m_frags_complete));
 
-  const ScanFragReq * org = (const ScanFragReq*)data.m_scanFragReq;
-  ndbrequire(org->batch_size_rows > 0);
+  /**
+   * Sum up the total number of key ranges to request rows from when
+   * scanning all the fragments we are going to retrieve rows from.
+   * Later used together with the 'RecsPrKey' statistis to estimate number
+   * of rows to be returned.
+   */
+  {
+    const bool pruned = treeNodePtr.p->m_bits &
+      (TreeNode::T_PRUNE_PATTERN | TreeNode::T_CONST_PRUNE);
 
-  data.m_firstBatch = true;
-  if (treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL)
-  {
-    jam();
-    data.m_parallelism = MIN(data.m_frags_not_started, org->batch_size_rows);
-  }
-  else if (!data.m_parallelismStat.isValid())
-  {
-    /**
-     * No valid statistics yet to estimate 'parallism' from. We start
-     * by reading a few fragments, but suffient many to take full advantage
-     * of scan parallelism. Batch completion will provide a parallelism sample,
-     * such that we can do a better parallelism guess next time.
-     * Note that SCAN_FRAGCONF may start more scans when this scan completes,
-     * if there are a sufficient amount of unused batch size left.
-     */
-    jam();
-    data.m_parallelism = MIN(requestPtr.p->m_rootFragCnt,
-                             data.m_frags_not_started);
-  }
-  else
-  {
-    jam();
-    /**
-     * Use statistics from earlier runs of this operation to estimate the
-     * initial parallelism. We use the mean minus two times the standard
-     * deviation to have a low risk of setting parallelism to high (as erring
-     * in the other direction is more costly).
-     */
-    Int32 parallelism = 
-      static_cast<Int32>(MIN(data.m_parallelismStat.getMean() +
-                             // Add 0.5 to get proper rounding.
-                             - 2 * data.m_parallelismStat.getStdDev() + 0.5,
-                             org->batch_size_rows));
+    Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
+    Ptr<ScanFragHandle> fragPtr;
+    list.first(fragPtr);
 
-    if (parallelism < static_cast<Int32>(requestPtr.p->m_rootFragCnt))
+    Uint32 keysToSend = 0;
+    if (!pruned)
     {
-      jam();
-      parallelism = MIN(requestPtr.p->m_rootFragCnt, data.m_frags_not_started);
-    }
-    else if (data.m_frags_not_started % parallelism != 0)
-    {
-      jam();
       /**
-       * Set parallelism such that we can expect to have similar
-       * parallelism in each batch. For example if there are 8 remaining
-       * fragments, then we should fetch 2 times 4 fragments rather than
-       * 7+1.
+       * if not 'pruned', keyInfo is only set in first fragPtr,
+       *   even if it is valid for all of them. (save some mem.)
        */
-      const Int32 roundTrips = 1 + data.m_frags_not_started / parallelism;
-      parallelism = data.m_frags_not_started / roundTrips;
+      keysToSend = fragPtr.p->m_rangeCnt * data.m_frags_not_started;
     }
-
-    // Allow higher parallelism to avoid 'rows' capped by MAX_PARALLEL_OP_PER_SCAN
-    if ((org->batch_size_rows / parallelism) > MAX_PARALLEL_OP_PER_SCAN)
+    else  // Sum the total pruned scan keys to be sent
     {
-      jam();
-      parallelism = MIN((org->batch_size_rows + MAX_PARALLEL_OP_PER_SCAN-1)
-                        / MAX_PARALLEL_OP_PER_SCAN,
-                        data.m_frags_not_started);
+      while (!fragPtr.isNull())
+      {
+        keysToSend += fragPtr.p->m_rangeCnt;
+        list.next(fragPtr);
+      }
     }
-
-    ndbassert(parallelism >= 1);
-    ndbassert((Uint32)parallelism + data.m_frags_complete <= data.m_fragCount);
-    data.m_parallelism = static_cast<Uint32>(parallelism);
-
-#ifdef DEBUG_SCAN_FRAGREQ
-    DEBUG("::scanFrag_send(), starting fragment scan with parallelism="
-          << data.m_parallelism);
-#endif
+    data.m_keysToSend = keysToSend;
   }
-  ndbrequire(data.m_parallelism > 0);
+
+  data.m_corrIdStart = 0;
+  data.m_totalRows = 0;
+  data.m_totalBytes = 0;
+  data.m_rows_received = 0;
+  data.m_rows_expecting = 0;
+
+  Uint32 availableBatchRows, availableBatchBytes;
+  const Uint32 batchRows = scanFrag_getBatchSize(treeNodePtr,
+                                                 availableBatchBytes,
+                                                 availableBatchRows);
+  data.m_parallelism = scanFrag_parallelism(requestPtr, treeNodePtr, batchRows);
 
   // Cap batchSize-rows to avoid exceeding MAX_PARALLEL_OP_PER_SCAN
-  const Uint32 bs_rows = MIN(org->batch_size_rows / data.m_parallelism,
+  const Uint32 bs_rows = MIN(availableBatchRows / data.m_parallelism,
                              MAX_PARALLEL_OP_PER_SCAN);
-  const Uint32 bs_bytes = org->batch_size_bytes / data.m_parallelism;
+  const Uint32 bs_bytes = availableBatchBytes / data.m_parallelism;
   ndbassert(bs_rows > 0);
   ndbassert(bs_bytes > 0);
 
-  data.m_rows_received = 0;
-  data.m_rows_expecting = 0;
-  data.m_largestBatchRows = 0;
-  data.m_largestBatchBytes = 0;
-  data.m_totalRows = 0;
-  data.m_totalBytes = 0;
+#ifdef DEBUG_SCAN_FRAGREQ
+  DEBUG("::scanFrag_send(), starting fragment scan with parallelism="
+        << data.m_parallelism);
+#endif
 
-  Uint32 batchRange = 0;
   Uint32 frags_started = 
     scanFrag_send(signal,
                    requestPtr,
                    treeNodePtr,
                    data.m_parallelism,
                    bs_bytes,
-                   bs_rows,
-                   batchRange);
+                   bs_rows);
 
   /**
    * scanFrag_send might fail to send (errors?):
@@ -7583,8 +7689,7 @@ Dbspj::scanFrag_send(Signal* signal,
                      Ptr<TreeNode> treeNodePtr,
                      Uint32 noOfFrags,
                      Uint32 bs_bytes,
-                     Uint32 bs_rows,
-                     Uint32& batchRange)
+                     Uint32 bs_rows)
 {
   jam();
   ndbassert(bs_bytes > 0);
@@ -7662,31 +7767,11 @@ Dbspj::scanFrag_send(Signal* signal,
        * See also Dbspj::scanFrag_fixupBound()
        */
       ndbassert(treeNodePtr.p->isLeaf() ||
-                batchRange+bs_rows <= MaxCorrelationId);
+                data.m_corrIdStart+bs_rows <= MaxCorrelationId);
 
       if (fragPtr.p->m_state != ScanFragHandle::SFH_NOT_STARTED)
       {
         // Skip forward to the frags that we should send.
-        jam();
-        list.next(fragPtr);
-        continue;
-      }
-
-      Uint32 ref = fragPtr.p->m_ref;
-
-      if (noOfFrags==1 && !prune &&
-          data.m_frags_not_started == data.m_fragCount &&
-          refToNode(ref) != getOwnNodeId() &&
-          list.hasNext(fragPtr))
-      {
-        /**
-         * If we are doing a scan with adaptive parallelism and start with
-         * parallelism=1 then it makes sense to fetch a batch from a fragment on
-         * the local data node. The reason for this is that if that fragment
-         * contains few rows, we may be able to read from several fragments in
-         * parallel. Then we minimize the total number of round trips (to remote
-         * data nodes) if we fetch the first fragment batch locally.
-         */
         jam();
         list.next(fragPtr);
         continue;
@@ -7697,7 +7782,7 @@ Dbspj::scanFrag_send(Signal* signal,
        */
       req->senderData = fragPtr.i;
       req->fragmentNoKeyLen = fragPtr.p->m_fragId;
-      req->variableData[0] = batchRange;
+      req->variableData[0] = data.m_corrIdStart;
 
       /**
        * Set up the key-/attrInfo to be sent with the SCAN_FRAGREQ.
@@ -7772,6 +7857,8 @@ Dbspj::scanFrag_send(Signal* signal,
         {
           ndbassert(keyInfoPtrI == RNIL);  //Not both keyInfo and 'range'
           keyInfoPtrI = fragWithRangePtr.p->m_rangePtrI;
+          fragPtr.p->m_keysSent = fragWithRangePtr.p->m_rangeCnt;
+          data.m_keysToSend -= fragPtr.p->m_keysSent;
         }
         /**
          * 'releaseAtSend' is set above based on the keyInfo lifetime.
@@ -7842,6 +7929,7 @@ Dbspj::scanFrag_send(Signal* signal,
           jam();
           /** Reflect the release of the keyInfo 'range' set above */
           fragWithRangePtr.p->m_rangePtrI = RNIL;
+          fragWithRangePtr.p->m_rangeCnt = 0;
 
           if (fragWithRangePtr.p->m_paramPtrI != RNIL)
           {
@@ -7875,6 +7963,7 @@ Dbspj::scanFrag_send(Signal* signal,
       }
 #endif
 
+      Uint32 ref = fragPtr.p->m_ref;
       Uint32 nodeId = refToNode(ref);
       if (!ScanFragReq::getRangeScanFlag(req->requestInfo))
       {
@@ -8092,7 +8181,7 @@ Dbspj::scanFrag_send(Signal* signal,
       fragPtr.p->m_state = ScanFragHandle::SFH_SCANNING; // running
       data.m_frags_outstanding++;
       data.m_frags_not_started--;
-      batchRange += bs_rows;
+      data.m_corrIdStart += bs_rows;
       requestsSent++;
       list.next(fragPtr);
     } // while (requestsSent < noOfFrags)
@@ -8224,10 +8313,9 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
   }
 
   requestPtr.p->m_rows += rows;
+  fragPtr.p->m_totalRows += rows;
   data.m_totalRows += rows;
   data.m_totalBytes += bytes;
-  data.m_largestBatchRows = MAX(data.m_largestBatchRows, rows);
-  data.m_largestBatchBytes = MAX(data.m_largestBatchBytes, bytes);
 
   if (treeNodePtr.p->m_bits & TreeNode::T_EXPECT_TRANSID_AI)
   {
@@ -8249,6 +8337,13 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
     ndbrequire(data.m_frags_complete < data.m_fragCount);
     data.m_frags_complete++;
 
+    // Statistics pr fragments added to total 'data' when fragment completes
+    ndbassert(treeNodePtr.p->m_node_no == 0 || fragPtr.p->m_keysSent > 0);
+    data.m_completedKeys += fragPtr.p->m_keysSent;
+    data.m_completedRows += fragPtr.p->m_totalRows;
+    fragPtr.p->m_keysSent = 0;
+    fragPtr.p->m_totalRows = 0;
+
     if (data.m_frags_complete == data.m_fragCount ||
         ((requestPtr.p->m_state & Request::RS_ABORTING) != 0 &&
          data.m_fragCount == (data.m_frags_complete + data.m_frags_not_started)))
@@ -8262,35 +8357,9 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
 
   if (data.m_frags_outstanding == 0)
   {
-    const bool isFirstBatch = data.m_firstBatch;
-    data.m_firstBatch = false;
-
-    const ScanFragReq * const org
-      = reinterpret_cast<const ScanFragReq*>(data.m_scanFragReq);
-
-    if (data.m_frags_complete == data.m_fragCount)
+    if (data.m_totalRows == 0)  // Nothing returned, corrId can start from beginning
     {
-      jam();
-      /**
-       * Calculate what would have been the optimal parallelism for the
-       * scan instance that we have just completed, and update
-       * 'parallelismStat' with this value. We then use this statistics to set
-       * the initial parallelism for the next instance of this operation.
-       */
-      double parallelism = data.m_fragCount;
-      if (data.m_totalRows > 0)
-      {
-        parallelism = MIN(parallelism,
-                          double(org->batch_size_rows) * data.m_fragCount
-                          / data.m_totalRows);
-      }
-      if (data.m_totalBytes > 0)
-      {
-        parallelism = MIN(parallelism,
-                          double(org->batch_size_bytes) * data.m_fragCount
-                          / data.m_totalBytes);
-      }
-      data.m_parallelismStat.sample(parallelism);
+      data.m_corrIdStart = 0;
     }
 
     /**
@@ -8299,72 +8368,79 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
     ndbassert(state != ScanFragHandle::SFH_WAIT_CLOSE ||
               (requestPtr.p->m_state & Request::RS_ABORTING));
 
-    if (state == ScanFragHandle::SFH_SCANNING &&
-        isFirstBatch && data.m_frags_not_started > 0)
+    // Collect statistics:
+    if (data.m_completedKeys > 0)
     {
       jam();
       /**
-       * Check if we can expect to be able to fetch the entire result set by
-       * asking for more fragments within the same batch. This may improve 
-       * performance for bushy scans, as subsequent bushy branches must be
-       * re-executed for each batch of this scan.
+       * Calculate the 'record pr key' fanout for the scan instance
+       * that we have just completed, and update 'recsPrKeyStat' with
+       * this value. We then use this statistics to calculate
+       * the initial parallelism for the next instance of this operation.
        */
-      
-      /**
-       * Find the maximal correlation value that we may have seen so far.
-       * Correlation value must be unique within batch and smaller than 
-       * org->batch_size_rows.
-       */
-      const Uint32 maxCorrVal = (data.m_totalRows == 0) ? 0 :
-        ((org->batch_size_rows / data.m_parallelism) * (data.m_parallelism - 1))
-        + data.m_totalRows;
-      
-      // Number of rows & bytes that we can still fetch in this batch.
-      const Int32 remainingRows 
-        = static_cast<Int32>(org->batch_size_rows - maxCorrVal);
-      const Int32 remainingBytes 
-        = static_cast<Int32>(org->batch_size_bytes - data.m_totalBytes);
+      const double recsPrKey  = double(data.m_completedRows) / data.m_completedKeys;
+      data.m_recsPrKeyStat.sample(recsPrKey);
+      data.m_completedKeys = 0;
+      data.m_completedRows = 0;
+    }
+    if (data.m_totalRows > 0)
+    {
+      const double recSize = double(data.m_totalBytes) / data.m_totalRows;
+      data.m_recSizeStat.sample(recSize);
+    }
 
-      if (remainingRows >= data.m_frags_not_started &&
-          remainingBytes >= data.m_frags_not_started &&
-          /**
-           * Check that (remaining row capacity)/(remaining fragments) is 
-           * greater or equal to (rows read so far)/(finished fragments).
-           */
-          remainingRows * static_cast<Int32>(data.m_parallelism) >=
-            static_cast<Int32>(data.m_totalRows * data.m_frags_not_started) &&
-          remainingBytes * static_cast<Int32>(data.m_parallelism) >=
-            static_cast<Int32>(data.m_totalBytes * data.m_frags_not_started))
+    const bool all_started_completed =
+      (data.m_frags_not_started == (data.m_fragCount - data.m_frags_complete));
+
+    if (state != ScanFragHandle::SFH_WAIT_CLOSE &&   // Not closing the scan
+        all_started_completed &&                     // All fragments 'done'
+        data.m_frags_not_started > 0)                // Pending scanFrag_send()
+    {
+      jam();
+      Uint32 availableBatchRows, availableBatchBytes;
+      const Uint32 batchRows = scanFrag_getBatchSize(treeNodePtr,
+                                                     availableBatchBytes,
+                                                     availableBatchRows);
+      if (batchRows > 0)  // Batch buffer left
       {
-        jam();
-        Uint32 batchRange = maxCorrVal;
-        Uint32 bs_rows  = remainingRows / data.m_frags_not_started;
-        Uint32 bs_bytes = remainingBytes / data.m_frags_not_started;
+        const Uint32 parallelism =
+            scanFrag_parallelism(requestPtr, treeNodePtr, batchRows);
+        /**
+         * Check if it is worthwhile to scan more fragments given the
+         * remaining available batch size. We should be able to complete
+         * the remaining fragments.
+         */
+        if (parallelism >= data.m_frags_not_started)
+        {
+          jam();
+          Uint32 bs_rows  = availableBatchRows / parallelism;
+          Uint32 bs_bytes = availableBatchBytes / parallelism;
+          data.m_parallelism = parallelism;
 
-        DEBUG("::scanFrag_execSCAN_FRAGCONF() first batch was not full."
-              " Asking for new batches from " << data.m_frags_not_started <<
-              " fragments with " << 
-              bs_rows  <<" rows and " << 
-              bs_bytes << " bytes.");
+          DEBUG("::scanFrag_execSCAN_FRAGCONF() batch was not full."
+                " Asking for new batches from " << parallelism <<
+                " fragments with " <<
+                bs_rows  <<" rows and " <<
+                bs_bytes << " bytes.");
 
-        if (unlikely(bs_rows > bs_bytes))
-          bs_rows = bs_bytes;
+          if (unlikely(bs_rows > bs_bytes))
+            bs_rows = bs_bytes;
 
-        Uint32 frags_started = 
-          scanFrag_send(signal,
-                         requestPtr,
-                         treeNodePtr,
-                         data.m_frags_not_started,
-                         bs_bytes,
-                         bs_rows,
-                         batchRange);
+          const Uint32 frags_started =
+            scanFrag_send(signal,
+                           requestPtr,
+                           treeNodePtr,
+                           parallelism,
+                           bs_bytes,
+                           bs_rows);
 
-        if (likely(frags_started > 0))
-          return;
+          if (likely(frags_started > 0))
+            return;
 
-        // Else: scanFrag_send() didn't send anything for some reason.
-        // Need to continue into 'completion detection' below.
-        jam();
+          // Else: scanFrag_send() didn't send anything for some reason.
+          // Need to continue into 'completion detection' below.
+          jam();
+	}
       }
     } // if (isFirstBatch ...)
 
@@ -8438,86 +8514,42 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
 
   ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
   const ScanFragReq * org = (const ScanFragReq*)data.m_scanFragReq;
-
-  data.m_rows_received = 0;
-  data.m_rows_expecting = 0;
   ndbassert(data.m_frags_outstanding == 0);
 
-  ndbrequire(data.m_frags_complete < data.m_fragCount);
-  if ((treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL) == 0)
+  data.m_corrIdStart = 0;
+  data.m_totalRows = 0;
+  data.m_totalBytes = 0;
+  data.m_rows_received = 0;
+  data.m_rows_expecting = 0;
+
+  if (data.m_frags_not_started == 0)
+  {
+    // Just complete those already ongoing
+    jam();
+    data.m_parallelism = data.m_fragCount - data.m_frags_complete;
+  }
+  else
   {
     jam();
-    /**
-     * Since fetching few but large batches is more efficient, we
-     * set parallelism to the lowest value where we can still expect each
-     * batch to be full.
-     */
-    if (data.m_largestBatchRows < org->batch_size_rows/data.m_parallelism &&
-        data.m_largestBatchBytes < org->batch_size_bytes/data.m_parallelism)
-    {
-      jam();
-      data.m_parallelism = MIN(data.m_fragCount - data.m_frags_complete,
-                               org->batch_size_rows);
-      if (data.m_largestBatchRows > 0)
-      {
-        jam();
-        data.m_parallelism =
-          MIN(org->batch_size_rows / data.m_largestBatchRows,
-              data.m_parallelism);
-      }
-      if (data.m_largestBatchBytes > 0)
-      {
-        jam();
-        data.m_parallelism =
-          MIN(data.m_parallelism,
-              org->batch_size_bytes/data.m_largestBatchBytes);
-      }
-      if (data.m_frags_complete == 0 &&
-          data.m_frags_not_started % data.m_parallelism != 0)
-      {
-        jam();
-        /**
-         * Set parallelism such that we can expect to have similar
-         * parallelism in each batch. For example if there are 8 remaining
-         * fragments, then we should fetch 2 times 4 fragments rather than
-         * 7+1.
-         */
-        const Uint32 roundTrips =
-          1 + data.m_frags_not_started / data.m_parallelism;
-        data.m_parallelism = data.m_frags_not_started / roundTrips;
-      }
-    }
-    else
-    {
-      jam();
-      // We get full batches, so we should lower parallelism.
-      data.m_parallelism = MIN(data.m_fragCount - data.m_frags_complete,
-                               MAX(1, data.m_parallelism/2));
-    }
-    if (data.m_parallelism < requestPtr.p->m_rootFragCnt)
-    {
-      // Avoid starting so few scans that some LDM-threads are sitting idle
-      data.m_parallelism = MIN(data.m_fragCount - data.m_frags_complete,
-      requestPtr.p->m_rootFragCnt);
-    }
-    ndbassert(data.m_parallelism > 0);
+    Uint32 availableBatchRows, availableBatchBytes;
+    const Uint32 batchRows = scanFrag_getBatchSize(treeNodePtr,
+                                                   availableBatchBytes,
+                                                   availableBatchRows);
+
+    data.m_parallelism = scanFrag_parallelism(requestPtr, treeNodePtr, batchRows);
+
 #ifdef DEBUG_SCAN_FRAGREQ
     DEBUG("::scanFrag_execSCAN_NEXTREQ() Asking for new batches from " <<
           data.m_parallelism <<
-          " fragments with " << org->batch_size_rows/data.m_parallelism <<
-          " rows and " << org->batch_size_bytes/data.m_parallelism <<
+          " fragments with " << availableBatchRows / data.m_parallelism <<
+          " rows and " << availableBatchBytes / data.m_parallelism <<
           " bytes.");
 #endif
-  }
-  else // Max parallelism
-  {
-    jam();
-    data.m_parallelism = MIN(data.m_fragCount - data.m_frags_complete,
-                             org->batch_size_rows);
   }
 
   const Uint32 bs_rows = MIN(org->batch_size_rows/data.m_parallelism,
                              MAX_PARALLEL_OP_PER_SCAN);
+  const Uint32 bs_bytes = org->batch_size_bytes/data.m_parallelism;
   ndbassert(bs_rows > 0);
   ScanFragNextReq* req =
     reinterpret_cast<ScanFragNextReq*>(signal->getDataPtrSend());
@@ -8526,9 +8558,8 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
   req->transId1 = requestPtr.p->m_transId[0];
   req->transId2 = requestPtr.p->m_transId[1];
   req->batch_size_rows = bs_rows;
-  req->batch_size_bytes = org->batch_size_bytes/data.m_parallelism;
+  req->batch_size_bytes = bs_bytes;
 
-  Uint32 batchRange = 0;
   Ptr<ScanFragHandle> fragPtr;
   Uint32 sentFragCount = 0;
   {
@@ -8547,10 +8578,10 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
       {
         jam();
 
-        data.m_frags_outstanding++;
-        req->variableData[0] = batchRange;
+        req->variableData[0] = data.m_corrIdStart;
         fragPtr.p->m_state = ScanFragHandle::SFH_SCANNING;
-        batchRange += bs_rows;
+        data.m_corrIdStart += bs_rows;
+        data.m_frags_outstanding++;
 
         DEBUG("scanFrag_execSCAN_NEXTREQ to: " << hex
               << fragPtr.p->m_ref
@@ -8580,15 +8611,14 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
      * Then start new fragments until we reach data.m_parallelism.
      */
     jam();
-    ndbassert(data.m_frags_not_started != 0);
+    ndbassert(data.m_frags_not_started > 0);
     frags_started =
       scanFrag_send(signal,
                      requestPtr,
                      treeNodePtr,
                      data.m_parallelism - sentFragCount,
-                     org->batch_size_bytes/data.m_parallelism,
-                     bs_rows,
-                     batchRange);
+                     bs_bytes,
+                     bs_rows);
   }
   /**
    * sendSignal() or scanFrag_send() might have failed to send:
@@ -8856,6 +8886,7 @@ Dbspj::scanFrag_release_rangekeys(Ptr<Request> requestPtr,
       {
         releaseSection(fragPtr.p->m_rangePtrI);
         fragPtr.p->m_rangePtrI = RNIL;
+        fragPtr.p->m_rangeCnt = 0;
       }
       if (fragPtr.p->m_paramPtrI != RNIL)
       {
@@ -8873,6 +8904,7 @@ Dbspj::scanFrag_release_rangekeys(Ptr<Request> requestPtr,
     {
       releaseSection(fragPtr.p->m_rangePtrI);
       fragPtr.p->m_rangePtrI = RNIL;
+      fragPtr.p->m_rangeCnt = 0;
     }
     if (fragPtr.p->m_paramPtrI != RNIL)
     {
@@ -9036,12 +9068,11 @@ Dbspj::scanFrag_dumpNode(const Ptr<Request> requestPtr,
                       data.m_frags_outstanding,
                       data.m_frags_not_started);
   g_eventLogger->info("DBSPJ %u :       parallelism %u rows_expecting %u "
-                      "rows_received %u firstBatch %u",
+                      "rows_received %u",
                       instance(),
                       data.m_parallelism,
                       data.m_rows_expecting,
-                      data.m_rows_received,
-                      data.m_firstBatch);
+                      data.m_rows_received);
   g_eventLogger->info("DBSPJ %u :       totalRows %u totalBytes %u "
                       "constPrunePtrI %u",
                       instance(),
@@ -10429,27 +10460,3 @@ void Dbspj::execDBINFO_SCANREQ(Signal *signal)
 
   ndbinfo_send_scan_conf(signal, req, rl);
 } // Dbspj::execDBINFO_SCANREQ(Signal *signal)
-
-
-/**
- * Incremental calculation of standard deviation:
- *
- * Suppose that the data set is x1, x2,..., xn then for each xn
- * we can find an updated mean (M) and square of sums (S) as:
- *
- * M(1) = x(1), M(k) = M(k-1) + (x(k) - M(k-1)) / k
- * S(1) = 0, S(k) = S(k-1) + (x(k) - M(k-1)) * (x(k) - M(k))
- *
- * Source: http://mathcentral.uregina.ca/QQ/database/QQ.09.02/carlos1.html
- */
-void Dbspj::IncrementalStatistics::sample(double observation)
-{
-  // Prevent wrap-around
-  if(m_noOfSamples < 0xffffffff)
-  {
-    m_noOfSamples++;
-    const double delta = observation - m_mean;
-    m_mean += delta/m_noOfSamples;
-    m_sumSquare +=  delta * (observation - m_mean);
-  }
-}
