@@ -24,7 +24,6 @@
 
 #include "mysql/harness/tls_server_context.h"
 
-#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -51,11 +50,16 @@
 #include <openssl/decoder.h>     // OSSL_DECODER...
 #endif
 
+#if OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(3, 0, 0)
+#include <dh_keys.h>
+#endif
+
 // type == decltype(BN_num_bits())
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
 constexpr int kMinRsaKeySize{2048};
 #endif
 constexpr int kMinDhKeySize{1024};
+constexpr int kMaxSecurityLevel{5};
 
 namespace {
 const SSL_METHOD *server_method =
@@ -270,24 +274,32 @@ stdx::expected<void, std::error_code> set_auto_dh_params(SSL_CTX *ssl_ctx) {
   SSL_CTX_set_dh_auto(ssl_ctx, 1);
 #else
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
-  OsslUniquePtr<DH> dh_storage(DH_get_2048_256());
-#else
-  /*
-     Diffie-Hellman key.
-     Generated using: >openssl dhparam -5 -C 2048
-  */
-  std::string_view dh_2048{
-      "-----BEGIN DH PARAMETERS-----\n"
-      "MIIBCAKCAQEAil36wGZ2TmH6ysA3V1xtP4MKofXx5n88xq/aiybmGnReZMviCPEJ\n"
-      "46+7VCktl/RZ5iaDH1XNG1dVQmznt9pu2G3usU+k1/VB4bQL4ZgW4u0Wzxh9PyXD\n"
-      "glm99I9Xyj4Z5PVE4MyAsxCRGA1kWQpD9/zKAegUBPLNqSo886Uqg9hmn8ksyU9E\n"
-      "BV5eAEciCuawh6V0O+Sj/C3cSfLhgA0GcXp3OqlmcDu6jS5gWjn3LdP1U0duVxMB\n"
-      "h/neTSCSvtce4CAMYMjKNVh9P1nu+2d9ZH2Od2xhRIqMTfAS1KTqF3VmSWzPFCjG\n"
-      "mjxx/bg6bOOjpgZapvB6ABWlWmRmAAWFtwIBBQ==\n"
-      "-----END DH PARAMETERS-----"};
+  int sec_level = SSL_CTX_get_security_level(ssl_ctx);
+
+  assert(sec_level <= kMaxSecurityLevel);
+
+  /* current range for security level is [1,5] */
+  if (sec_level > kMaxSecurityLevel)
+    sec_level = kMaxSecurityLevel;
+  else if (sec_level <= 1)
+    sec_level = 2;
+
+  static_assert(dh_keys.size() >= 5);
 
   OsslUniquePtr<BIO> bio_storage{
-      BIO_new_mem_buf(const_cast<char *>(dh_2048.data()), dh_2048.size())};
+      BIO_new_mem_buf(const_cast<char *>(dh_keys[sec_level].data()),
+                      dh_keys[sec_level].size())};
+  auto *bio = bio_storage.get();
+
+  OsslUniquePtr<DH> dh_storage(PEM_read_bio_DHparams(bio, NULL, NULL, NULL));
+#else
+  const int default_sec_level = 2;
+
+  static_assert(dh_keys.size() >= 5);
+
+  OsslUniquePtr<BIO> bio_storage{
+      BIO_new_mem_buf(const_cast<char *>(dh_keys[default_sec_level].data()),
+                      dh_keys[default_sec_level].size())};
   auto *bio = bio_storage.get();
 
   OsslUniquePtr<DH> dh_storage(PEM_read_bio_DHparams(bio, NULL, NULL, NULL));
@@ -496,4 +508,22 @@ std::vector<std::string> TlsServerContext::default_ciphers() {
   }
 
   return out;
+}
+
+int TlsServerContext::security_level() const {
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
+  int sec_level = SSL_CTX_get_security_level(ssl_ctx_.get());
+
+  assert(sec_level <= kMaxSecurityLevel);
+
+  /* current range for security level is [1,5] */
+  if (sec_level > kMaxSecurityLevel)
+    sec_level = kMaxSecurityLevel;
+  else if (sec_level <= 1)
+    sec_level = 2;
+
+  return sec_level;
+#else
+  return 2;
+#endif
 }

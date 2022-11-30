@@ -60,6 +60,7 @@ TARGET_LINK_LIBRARIES(router_lib
   ${CMAKE_DL_LIBS}
   harness-library
   harness_stdx
+  harness_tls
   mysqlclient
   ${SSL_LIBRARIES}
   io_component
