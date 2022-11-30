@@ -71,7 +71,7 @@ class Object : public std::enable_shared_from_this<Object>,
   const std::string &get_object_name() override;
   const std::string &get_schema_name() override;
   const std::vector<Column> &get_cached_columnes() override;
-  const std::string &get_cached_primary() override;
+  const Column &get_cached_primary() override;
   const std::string &get_options() override;
   const Parameters &get_parameters() override;
   uint32_t get_on_page() override;
@@ -107,7 +107,7 @@ class Object : public std::enable_shared_from_this<Object>,
   std::string json_description_;
   collector::MysqlCacheManager *cache_;
   std::vector<Column> cached_columns_;
-  std::string cached_primary_column_;
+  Column cached_primary_column_;
   // TODO(lkotula): We should cache the primary-key type and use it later on
   // (Shouldn't be in review)
   bool is_ssl_;

@@ -31,7 +31,7 @@ namespace database {
 
 void QueryState::query_state(MySQLSession *session) {
   query_ = "SELECT service_enabled FROM mysql_rest_service_metadata.config;";
-  query(session);
+  execute(session);
 }
 
 void QueryState::on_row(const Row &r) {

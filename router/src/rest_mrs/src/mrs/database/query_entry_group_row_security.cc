@@ -36,7 +36,7 @@ bool QueryEntryGroupRowSecurity::query_group_row_security(
       "mysql_rest_service_metadata.db_object_row_group_security WHERE "
       "db_object_id=?"};
   query_ << db_object_id;
-  query(session);
+  execute(session);
 
   return true;
 }

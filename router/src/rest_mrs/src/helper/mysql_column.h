@@ -35,19 +35,23 @@ namespace helper {
 
 struct Column {
   Column() : type_json{ColumnJsonTypes::kNull} {}
-  Column(const std::string &column_name, const char *type, bool primary = false)
+  Column(const std::string &column_name, const char *type, bool primary = false,
+         bool auto_increment = false)
       : name{column_name},
         type_json{from_mysql_column_string_type(type)},
-        is_primary{primary} {}
+        is_primary{primary},
+        is_auto_increment{auto_increment} {}
   Column(const MYSQL_FIELD *field)
       : name{field->name, field->name_length},
         type_json{from_mysql_column_type(field->type)},
-        is_primary{IS_PRI_KEY(field->flags) > 0} {}
+        is_primary{IS_PRI_KEY(field->flags) > 0},
+        is_auto_increment{(field->flags & AUTO_INCREMENT_FLAG) > 0} {}
 
  public:
   std::string name;
   ColumnJsonTypes type_json;
   bool is_primary{false};
+  bool is_auto_increment{false};
 };
 
 }  // namespace helper

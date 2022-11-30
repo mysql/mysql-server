@@ -31,8 +31,8 @@ QueryAuditLogMaxId::QueryAuditLogMaxId() {
   query_ = "SELECT max(id) FROM mysql_rest_service_metadata.audit_log";
 }
 
-uint64_t QueryAuditLogMaxId::query(MySQLSession *session) {
-  Query::query(session);
+uint64_t QueryAuditLogMaxId::query_max_id(MySQLSession *session) {
+  Query::execute(session);
 
   return max_;
 }

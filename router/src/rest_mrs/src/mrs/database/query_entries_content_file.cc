@@ -60,8 +60,8 @@ void QueryEntriesContentFile::query_entries(MySQLSession *session) {
   entries.clear();
 
   query(session, "START TRANSACTION");
-  auto audit_log_id = query_audit_id.query(session);
-  query(session);
+  auto audit_log_id = query_audit_id.query_max_id(session);
+  execute(session);
   query(session, "COMMIT");
 
   audit_log_id_ = audit_log_id;

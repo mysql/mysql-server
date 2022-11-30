@@ -184,7 +184,7 @@ TEST_P(RestHandlerDifferentFilesTests, fetch_file) {
           collector::MysqlCacheManager::CachedObject(nullptr, &mock_session))));
   EXPECT_CALL(mock_input_headers, get(StrEq("If-None-Match")))
       .WillOnce(Return(param.tag));
-  EXPECT_CALL(*mock_query_file_, query(&mock_session, param.file_id));
+  EXPECT_CALL(*mock_query_file_, query_file(&mock_session, param.file_id));
 
   mock_query_file_->result = "some content";
   auto result = sut_->handle_get(&request_context_);

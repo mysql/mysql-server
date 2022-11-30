@@ -36,10 +36,10 @@
 namespace mrs {
 namespace database {
 
-class QueryRestObjectDelete : private Query {
+class QueryRestObjectDelete : private QueryLog {
  public:
-  bool execute(MySQLSession *session, const std::string &schema,
-               const std::string &object, const std::string &filter) {
+  bool execute_delete(MySQLSession *session, const std::string &schema,
+                      const std::string &object, const std::string &filter) {
     FilterObjectGenerator fog;
     fog.parse(helper::json::text_to_document(filter));
     auto result = fog.get_result();
@@ -50,7 +50,7 @@ class QueryRestObjectDelete : private Query {
           "Filter must not contain ordering informations.");
     query_ = {"DELETE FROM !.! WHERE ?"};
     query_ << schema << object << mysqlrouter::sqlstring(result.c_str());
-    query(session);
+    execute(session);
     return true;
   }
 };

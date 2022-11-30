@@ -82,7 +82,7 @@ class Object {
   }
   virtual const Parameters &get_parameters() = 0;
   virtual const std::vector<Column> &get_cached_columnes() = 0;
-  virtual const std::string &get_cached_primary() = 0;
+  virtual const Column &get_cached_primary() = 0;
   virtual uint32_t get_on_page() = 0;
 
   virtual bool requires_authentication() const = 0;

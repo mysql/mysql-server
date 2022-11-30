@@ -33,7 +33,7 @@ namespace database {
 class QueryAuditLogMaxId : private Query {
  public:
   QueryAuditLogMaxId();
-  uint64_t query(MySQLSession *session);
+  uint64_t query_max_id(MySQLSession *session);
 
  private:
   void on_row(const Row &r) override;

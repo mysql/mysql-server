@@ -162,6 +162,7 @@ void Object::update_variables() {
 }
 
 void Object::cache_columns() {
+  cached_primary_column_ = {};
   auto table_columns = query_factory_->create_query_table_columns();
   auto session = cache_->get_instance(collector::kMySQLConnectionUserdata);
   table_columns->query_entries(session.get(), schema_name_, object_name_);
@@ -185,7 +186,7 @@ void Object::cache_columns() {
 
   for (auto &column : cached_columns_) {
     if (column.is_primary) {
-      cached_primary_column_ = column.name;
+      cached_primary_column_ = column;
       break;
     }
   }
@@ -220,10 +221,11 @@ bool Object::has_access(const Access access) const {
   return access & pe_.operation;
 }
 
-const std::string &Object::get_cached_primary() {
+const Object::Column &Object::get_cached_primary() {
   if (cached_columns_.empty()) {
     cache_columns();
   }
+
   return cached_primary_column_;
 }
 

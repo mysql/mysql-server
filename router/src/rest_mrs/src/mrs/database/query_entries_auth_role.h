@@ -34,8 +34,8 @@ namespace database {
 
 class QueryEntriesAuthRole : public Query {
  public:
-  virtual void query(MySQLSession *session,
-                     const entry::AuthUser::UserId user_id);
+  virtual void query_role(MySQLSession *session,
+                          const entry::AuthUser::UserId user_id);
 
   std::vector<entry::AuthRole> result;
 

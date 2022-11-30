@@ -39,7 +39,7 @@ void QueryRestSP::query_entries(
   if (!pt.empty())
     prepare_and_execute(session, query_, pt);
   else
-    query(session);
+    execute(session);
   response_template.end();
 
   response = response_template.get_result();

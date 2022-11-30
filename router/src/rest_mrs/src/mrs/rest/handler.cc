@@ -303,8 +303,11 @@ class RestRequestHandler : public BaseRequestHandler {
         }
       }
 
-      log_debug("RestRequestHandler(service_id:%i): dispatch",
-                static_cast<int>(service_id));
+      log_debug(
+          "RestRequestHandler(service_id:%i): dispatch(method:%s, path:%s)",
+          static_cast<int>(service_id),
+          request_ctxt.request->get_uri().get_path().c_str(),
+          get_http_method_name(request_ctxt.request->get_method()).c_str());
       switch (method) {
         case HttpMethod::Get:
           result = rest_handler_->handle_get(&request_ctxt);

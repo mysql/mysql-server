@@ -35,7 +35,7 @@ uint64_t QueryAuditLogEntries::query_entries(
     const uint64_t audit_log_id) {
   max_id_ = audit_log_id;
   build_query(allowed_tables, audit_log_id);
-  query(session);
+  execute(session);
 
   return max_id_;
 }

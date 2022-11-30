@@ -48,7 +48,7 @@ class QueryUserGroups : private Query {
         "SELECT user_group_id FROM mysql_rest_service_metadata.user_has_group "
         "WHERE auth_user_id=?;");
     query_ << to_sqlstring(user_id);
-    query(session);
+    execute(session);
   }
 
  private:

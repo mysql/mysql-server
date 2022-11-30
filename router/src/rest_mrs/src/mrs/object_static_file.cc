@@ -130,8 +130,8 @@ const mrs::interface::Object::Parameters &ObjectStaticFile::get_parameters() {
   return empty;
 }
 
-const std::string &ObjectStaticFile::get_cached_primary() {
-  static std::string empty;
+const Column &ObjectStaticFile::get_cached_primary() {
+  static Column empty;
   return empty;
 }
 
