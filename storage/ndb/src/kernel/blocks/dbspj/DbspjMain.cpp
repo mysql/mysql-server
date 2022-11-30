@@ -2007,7 +2007,7 @@ Dbspj::planParallelExec(Ptr<Request>  requestPtr,
  *  such that a lookup-TreeNode may effectively be executed prior to a
  *  scan-TreeNode, even if the scan is located before the lookup in the
  *  'm_nodes' list produced by the SPJ-API. This is intentional as a
- *  potential non-INNER-joined lookup row would eliminate the need for
+ *  potential non-matching lookup row would eliminate the need for
  *  executing the much more expensive (index-)scan operation.
  *
  * 2)
@@ -2038,13 +2038,14 @@ Dbspj::planParallelExec(Ptr<Request>  requestPtr,
  *  it used to be prior to introducing these INNER-join optimizations.
  *
  * 3)
- *  Recursively append all non-INNER-joined branches to be executed
- *  in *parallel* after the sequence of INNER-joined-lookups (from 1).
+ *  Recursively append all non-INNER-joined branches to be executed in
+ *  *parallel* with each other - after the sequence of INNER-joins. (from 1+2)
  */
 Uint32
 Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
                           const Ptr<TreeNode> branchPtr,
-                          Ptr<TreeNode> prevExecPtr)
+                          Ptr<TreeNode> prevExecPtr,
+                          TreeNodeBitMask outerJoins)
 {
   DEBUG("planSequentialExec, start branch at treeNode no: " << branchPtr.p->m_node_no);
 
@@ -2056,6 +2057,10 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
   Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
   TreeNodeBitMask predecessors(branchPtr.p->m_predecessors);
   predecessors.set(branchPtr.p->m_node_no);
+
+  // In case we enter a new outer-joined-nest, add it to our recursed context
+  if ((branchPtr.p->m_bits & TreeNode::T_INNER_JOIN) == 0)
+    outerJoins.set(branchPtr.p->m_node_no);
 
   /**
    * 1) Append all INNER-joined lookups to the 'plan' to be executed in sequence.
@@ -2109,7 +2114,8 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
         << treeNodePtr.p->m_node_no);
       
       ndbassert(treeNodePtr.p->isScan());
-      const Uint32 err = planSequentialExec(requestPtr, treeNodePtr, prevExecPtr);
+      const Uint32 err = planSequentialExec(requestPtr, treeNodePtr,
+                                            prevExecPtr, outerJoins);
       if (unlikely(err))
         return err;
       break;
@@ -2120,16 +2126,21 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
    * Note: All INNER-Joins within current 'branch' will now have been handled,
    * either directly within this method at 1), or by recursively calling it in 2).
    *
-   * 3) Append the non-INNER-joined branches to the end of the INNER-joined
-   * lookup sequence, (at 'prevExecPtr'), will be executed in parallel
-   * with the scan branch from 2).
+   * 3) Append the OUTER-joined branches to be executed after any INNER-joined
+   * tables, taking advantage of that any non-matches in the INNER-joins may
+   * eliminate the need for executing the entire OUTER-branch as well.
+   *
+   * Note: '->m_ancestors.contains(outerJoins)'
+   * We need to take care to *not* add nodes which are not inside the
+   * outer joined nests we have recursed into. We need to pop back to the
+   * correct join-nest context before these can be added.
    */
   treeNodePtr = branchPtr;    //Start over
   while (list.next(treeNodePtr))
   {
     if (treeNodePtr.p->m_predecessors.isclear() &&
         predecessors.contains(treeNodePtr.p->m_ancestors) &&
-        !branchPtr.p->m_predecessors.contains(treeNodePtr.p->m_ancestors))
+        treeNodePtr.p->m_ancestors.contains(outerJoins))
     {
       DEBUG("planSequentialExec, append non-INNER-joined branch at: "
         << treeNodePtr.p->m_node_no
@@ -2138,7 +2149,8 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
 
       // A non-INNER joined TreeNode
       ndbassert((treeNodePtr.p->m_bits & TreeNode::T_INNER_JOIN) == 0);
-      const Uint32 err = planSequentialExec(requestPtr, treeNodePtr, prevExecPtr);
+      const Uint32 err = planSequentialExec(requestPtr, treeNodePtr,
+                                            prevExecPtr, outerJoins);
       if (unlikely(err))
         return err;
     }
@@ -2226,24 +2238,24 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
   /**    Example:
    *
    *       scan1
-   *       /   \      ====INNER-join executed as===>  scan1 -> scan2 -> scan3
-   *    scan2  scan3
+   *       /   \      ====INNER-join executed as===>  scan1 -> scan2 -> op3
+   *    scan2  op3(scan or lookup)
    *
-   * Considering case above, both scan2 and scan3 has scan1 as its scanAncestor.
+   * Considering case above, both scan2 and op3 has scan1 as its scanAncestor.
    * In an INNER-joined execution plan, we will take advantage of that
-   * a match between scan1 join scan2 rows are required, else 'join scan3' could
-   * be skipped. Thus, even if scan1 is the scan-ancestor of scan3, we will
+   * a match between scan1 join scan2 rows are required, else 'join op3' could
+   * be skipped. Thus, even if scan1 is the scan-ancestor of op3, we will
    * execute scan2 in between these.
    *
    * Note that the result from scan2 may have multiple TRANSID_AI results returned
    * for each row from scan1. Thus we can't directly use the returned scan2 rows
-   * to trigger production of the scan3 request. (Due to cardinality mismatch).
-   * The scan3 request has to be produced based on scan1 results!
+   * to trigger production of the op3 requests. (Due to cardinality mismatch).
+   * The op3 requests has to be produced based on scan1 results!
    *
    * We set up the scheduling policy below to solve this:
-   * - TN_EXEC_WAIT is set on 'scan3', which will prevent TRANSID_AI
-   *     results from scan2 from submiting operations to scan3.
-   * - TN_RESUME_NODE is set on 'scan3' which will result in 
+   * - TN_EXEC_WAIT is set on 'op3', which will prevent TRANSID_AI
+   *     results from scan2 from submiting operations to op3.
+   * - TN_RESUME_NODE is set on 'op3' which will result in
    *     ::resumeBufferedNode() being called when all TreeNodes
    *     which we depends in has completed their batches.
    *     (Also implies that the parent of any to-be-resumed-nodes
@@ -2259,8 +2271,7 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
    * the T_BUFFER_MATCH on the scanAncestor, and all scans in between
    * in order to having the match-bitmap being set up.
    */
-  if (treeNodePtr.p->isScan() &&
-      treeNodePtr.p->m_scanAncestorPtrI != RNIL)
+  if (treeNodePtr.p->m_scanAncestorPtrI != RNIL)
   {
     Ptr<TreeNode> scanAncestorPtr;
     ndbrequire(m_treenode_pool.getPtr(scanAncestorPtr,
@@ -2711,17 +2722,29 @@ Dbspj::prepareNextBatch(Signal* signal, Ptr<Request> requestPtr)
         }
         /**
          * Adapt to SPJ-API protocol legacy:
+         * 1)
          *   API always assumed that any node having an 'active' node as 
          *   ancestor gets a new batch of result rows. So we didn't explicitly 
          *   set the 'active' bit for these siblings, as it was implicit.
          *   In addition, we might now have (INNER-join) dependencies outside
-         *   of the set of ancestor nodes. If such a dependent node, not being one
-         *   of our ancestor,  is 'active' it will also re-activate this TreeNode.
-         *   Has to inform the API about that.
+         *   of the set of ancestor nodes. If such a dependent node, not being
+         *   one of our ancestor, is 'active' it will also re-activate this
+         *   TreeNode -> Has to inform the API about that.
+         * 2)
+         *   API expect that it is the 'internalOpNo' of the **table** which
+         *   is used to address the 'active' nodes. In case of UNIQUE_INDEXs
+         *   two TreeNodes are generated:
+         *    - First a TreeNode::T_UNIQUE_INDEX_LOOKUP acessing the index.
+         *    - Then another TreeNode accessing the table.
+         *   Thus, if this node is an UNIQUE_INDEX, the node_no of the related
+         *   *table* to be set as 'active' is node_no+1 !!
          */
         else if (!nodePtr.p->m_ancestors.overlaps (requestPtr.p->m_active_tree_nodes))
         {
-          requestPtr.p->m_active_tree_nodes.set(nodePtr.p->m_node_no);
+          if (nodePtr.p->m_bits & TreeNode::T_UNIQUE_INDEX_LOOKUP)
+            requestPtr.p->m_active_tree_nodes.set(nodePtr.p->m_node_no+1);
+          else
+            requestPtr.p->m_active_tree_nodes.set(nodePtr.p->m_node_no);
         }
       }
     } // if (!nodePtr.isNull()

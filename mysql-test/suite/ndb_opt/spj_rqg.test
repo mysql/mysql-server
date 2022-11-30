@@ -3508,6 +3508,35 @@ eval explain format=tree $query;
 eval $query;
 
 
+--echo ##################
+--echo #
+--echo # Bug#34782276:
+--echo #   Improve SPJ-internal execution plan, evaluate inner-joins first
+--echo #
+--echo ##################
+#
+# Note that it is test case for this bug# in join_pushdown* as well.
+# This test case is for second part of that bug, where we didn't correctly
+# set the 'active nodes' sent to the SPJ API. (Which needed a more complicated
+# test case, found with RQG testing.)
+#
+let $query=
+SELECT
+  table1.pk, table2.pk, table3.pk, table4.pk
+FROM x AS table1
+  JOIN q AS table2
+    RIGHT OUTER JOIN q AS table3
+      LEFT OUTER JOIN x AS table4 ON table3.pk = table4.col_int_key
+    ON table2.col_int = table3.col_int AND
+       table2.col_int_unique = table3.col_int_unique
+  ON table1.col_int =  table4.col_int_unique;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
 ######################################################
 DROP TABLE a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
 

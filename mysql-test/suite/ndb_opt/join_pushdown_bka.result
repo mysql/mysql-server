@@ -8243,6 +8243,108 @@ Warnings:
 Note	1003	Can't push table 't1000' as child, access type 'Multi-range' not implemented
 Note	1003	Can't push table 't100' as child, access type 'Multi-range' not implemented
 drop table t10,t100,t1000;
+##################
+#
+# Bug#34782276:
+#   Improve SPJ-internal execution plan, evaluate inner-joins first
+#
+##################
+create table t (
+k int,
+a int,
+key ix1(k),
+key ix2(a)
+) engine = ndb;
+insert into t values
+(0,0), (1,1), (2,2),
+(3,0), (4,1), (5,2),
+(6,0), (7,1), (8,2);
+explain format=tree select straight_join *
+from t as t1
+inner join t as t2 on t2.a = t1.k
+inner join t as t3 on t3.k = t1.k;
+EXPLAIN
+-> Batched key access inner join
+    -> Batch input rows
+        -> Batched key access inner join
+            -> Batch input rows
+                -> Table scan on t1, with pushed condition: (t1.k is not null)
+            -> Multi-range index lookup on t2 using ix2 (a=t1.k)
+    -> Multi-range index lookup on t3 using ix1 (k=t1.k)
+
+Warnings:
+Note	1003	Can't push table 't2' as child, access type 'Multi-range' not implemented
+Note	1003	Can't push table 't3' as child, access type 'Multi-range' not implemented
+select straight_join *
+from t as t1
+inner join t as t2 on t2.a = t1.k
+inner join t as t3 on t3.k = t1.k;
+############
+# Verify the expect 21 rows were returned from SPJ:
+# - 2 x 9 rows from t1 inner join t2
+# - 3 rows from t1 join t3
+# -> 21 rows (0 *SPJ* rows when not join-pushed (BKA))
+#
+SPJ_rows_returned
+0
+explain format=tree select straight_join *
+from t as t1
+inner join t as t2 on t2.a = t1.k
+left join t as t3 on t3.k = t1.k;
+EXPLAIN
+-> Batched key access left join
+    -> Batch input rows
+        -> Batched key access inner join
+            -> Batch input rows
+                -> Table scan on t1, with pushed condition: (t1.k is not null)
+            -> Multi-range index lookup on t2 using ix2 (a=t1.k)
+    -> Multi-range index lookup on t3 using ix1 (k=t1.k)
+
+Warnings:
+Note	1003	Can't push table 't2' as child, access type 'Multi-range' not implemented
+Note	1003	Can't push table 't3' as child, access type 'Multi-range' not implemented
+select straight_join *
+from t as t1
+inner join t as t2 on t2.a = t1.k
+left join t as t3 on t3.k = t1.k;
+############
+# As above, t1 inner join t2 is evaluated first
+# - 2 x 9 rows from join(t1,t2)
+# - Only the 3 matching t1 rows are requested from t3!
+# -> still 21 rows (and still 0 *SPJ* rows when not join-pushed (BKA))
+#
+SPJ_rows_returned
+0
+explain format=tree select straight_join *
+from t as t1
+left join t as t2 on t2.a = t1.k
+inner join t as t3 on t3.k = t1.k;
+EXPLAIN
+-> Batched key access inner join
+    -> Batch input rows
+        -> Batched key access left join
+            -> Batch input rows
+                -> Table scan on t1, with pushed condition: (t1.k is not null)
+            -> Multi-range index lookup on t2 using ix2 (a=t1.k)
+    -> Multi-range index lookup on t3 using ix1 (k=t1.k)
+
+Warnings:
+Note	1003	Can't push table 't2' as child, access type 'Multi-range' not implemented
+Note	1003	Can't push table 't3' as child, access type 'Multi-range' not implemented
+select straight_join *
+from t as t1
+left join t as t2 on t2.a = t1.k
+inner join t as t3 on t3.k = t1.k;
+############
+# Verify that all 3 x 9 rows were returned from SPJ:
+# - 2 x 9 rows from t1 outer join t2
+#   (No t1-match elimination in an outer-join)
+# - 9 rows from t1 inner join t3
+# -> 27 rows
+#
+SPJ_rows_returned
+0
+drop table t;
 select new.variable_name, new.variable_value - old.variable_value
 from server_counts_at_startup as old,
 performance_schema.global_status as new
