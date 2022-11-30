@@ -34,7 +34,7 @@
 namespace mrs {
 namespace database {
 
-class QueryRestTableSingleRow : private Query {
+class QueryRestTableSingleRow : private QueryLog {
  public:
   using Column = helper::Column;
 

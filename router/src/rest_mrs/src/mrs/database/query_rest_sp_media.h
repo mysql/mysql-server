@@ -32,7 +32,7 @@
 namespace mrs {
 namespace database {
 
-class QueryRestSPMedia : private Query {
+class QueryRestSPMedia : private QueryLog {
  public:
   virtual void query_entries(MySQLSession *session, const std::string &schema,
                              const std::string &object,

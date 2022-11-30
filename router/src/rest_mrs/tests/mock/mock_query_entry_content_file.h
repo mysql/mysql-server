@@ -30,8 +30,8 @@
 
 class MockQueryEntryContentFile : public mrs::database::QueryEntryContentFile {
  public:
-  MOCK_METHOD(void, query, (MySQLSession * session, const uint64_t file_id),
-              (override));
+  MOCK_METHOD(void, query_file,
+              (MySQLSession * session, const uint64_t file_id), (override));
 };
 
 #endif  // ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_QUERY_ENTRY_CONTENT_FILE_H_

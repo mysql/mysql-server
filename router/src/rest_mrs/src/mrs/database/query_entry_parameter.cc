@@ -40,7 +40,7 @@ bool QueryEntryParameter::query_parameters(MySQLSession *session,
       "mysql_rest_service_metadata.parameter WHERE "
       "db_object_id=? ORDER BY position"};
   query_ << db_object_id;
-  query(session);
+  execute(session);
 
   return true;
 }

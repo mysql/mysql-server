@@ -65,7 +65,7 @@ class HandleObjectTests : public Test {
         : parent_{parent},
           user_row_ownership_{user_row_ownership},
           group_row_ownership_{group_row_ownership},
-          cached_primary_{cached_primary},
+          cached_primary_{cached_primary, "INT"},
           schema_{schema},
           object_{object},
           rest_path_{rest_path},
@@ -121,7 +121,7 @@ class HandleObjectTests : public Test {
     HandleObjectTests &parent_;
     Object::RowUserOwnership user_row_ownership_;
     Object::VectorOfRowGroupOwnership group_row_ownership_;
-    std::string cached_primary_;
+    helper::Column cached_primary_;
     std::string schema_;
     std::string object_;
     std::string rest_path_;

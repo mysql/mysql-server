@@ -121,10 +121,7 @@ static void fix_and_filter(std::vector<std::string> &filter) {
 
 Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
   auto &requests_uri = ctxt->request->get_uri();
-  auto path = requests_uri.get_path();
-  log_debug("Object::handle_get '%s'", path.c_str());
-  auto last_path =
-      http::Url::extra_path_element(route_->get_rest_path_raw(), path);
+  auto last_path = get_path_after_object_name(requests_uri);
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
   auto columns = route_->get_cached_columnes();
@@ -180,7 +177,7 @@ Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
       rest.query_entries(
           session.get(), columns, route_->get_schema_name(),
           route_->get_object_name(), offset, limit, route_->get_rest_url(),
-          route_->get_cached_primary(), route_->get_on_page() == limit,
+          route_->get_cached_primary().name, route_->get_on_page() == limit,
           route_->get_user_row_ownership(), row_ownershop_user_id,
           route_->get_group_row_ownership(), ctxt->user.groups,
           uri_param.get_query_parameter("q"));
@@ -202,12 +199,12 @@ Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
     return {std::move(rest.response), detected_type};
   }
 
-  if (!route_->get_cached_primary().empty()) {
+  if (!route_->get_cached_primary().name.empty()) {
     if (raw_value.empty()) {
       database::QueryRestTableSingleRow rest;
       rest.query_entries(session.get(), columns, route_->get_schema_name(),
                          route_->get_object_name(),
-                         route_->get_cached_primary(), last_path,
+                         route_->get_cached_primary().name, last_path,
                          route_->get_rest_url());
 
       if (rest.response.empty()) throw http::Error(HttpStatusCode::NotFound);
@@ -219,7 +216,7 @@ Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
 
     rest.query_entries(session.get(), columns[0].name,
                        route_->get_schema_name(), route_->get_object_name(),
-                       route_->get_cached_primary(), last_path);
+                       route_->get_cached_primary().name, last_path);
 
     helper::MediaDetector md;
     auto detected_type = md.detect(rest.response);
@@ -231,20 +228,21 @@ Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
   throw http::Error(HttpStatusCode::InternalError);
 }  // namespace rest
 
-Result HandlerObject::handle_post(rest::RequestContext *ctxt,
+/// Post is insert
+Result HandlerObject::handle_post([[maybe_unused]] rest::RequestContext *ctxt,
                                   const std::vector<uint8_t> &document) {
-  return handle_post_and_post(ctxt, document, false, {});
-}
-
-Result HandlerObject::handle_post_and_post(
-    [[maybe_unused]] rest::RequestContext *ctxt,
-    const std::vector<uint8_t> &document, const bool upsert,
-    std::string pk_value) {
-  assert((upsert && !pk_value.empty()) || !upsert);
-  auto &requests_uri = ctxt->request->get_uri();
-  log_debug("Object::handle_post '%s'", requests_uri.get_path().c_str());
-
   rapidjson::Document json_doc;
+  database::QueryRestObjectInsert insert;
+  const auto &columns = route_->get_cached_columnes();
+  // std::optional<mysqlrouter::sqlstring> expected_pk_value;
+  std::string pk_value;
+  auto last_path = get_path_after_object_name(ctxt->request->get_uri());
+
+  if (!last_path.empty())
+    throw http::Error(HttpStatusCode::BadRequest,
+                      "Full object must be specified in the request body. "
+                      "Setting ID, from the URL is not supported.");
+
   json_doc.Parse((const char *)document.data(), document.size());
 
   // TODO(lkotula): return error msg ? (Shouldn't be in review)
@@ -258,23 +256,11 @@ Result HandlerObject::handle_post_and_post(
                       "Invalid JSON document inside the HTTP request, must be "
                       "an JSON object.");
 
-  database::QueryRestObjectInsert insert;
-  const auto &columns = route_->get_cached_columnes();
-
-  auto it = json_doc.FindMember(route_->get_cached_primary().c_str());
+  auto it = json_doc.FindMember(route_->get_cached_primary().name.c_str());
   if (it != json_doc.MemberEnd()) {
-    if (!upsert) {
-      pk_value = to_string(&(*it).value);
-    } else {
-      uint64_t pk_value_numeric = std::stoull(pk_value);
-      (*it).value.SetUint64(pk_value_numeric);
-    }
-  } else if (upsert && !pk_value.empty()) {
-    uint64_t pk_value_numeric = std::stoull(pk_value);
-    rapidjson::Value v{pk_value_numeric};
-    json_doc.AddMember(
-        rapidjson::StringRef(route_->get_cached_primary().c_str()), v,
-        json_doc.GetAllocator());
+    // expected_pk_value = to_string(&(*it).value);
+    pk_value = to_string(&(*it).value);
+  } else {
   }
 
   log_debug("level1 %s", (ctxt->user.has_user_id ? "yes" : "no"));
@@ -285,6 +271,13 @@ Result HandlerObject::handle_post_and_post(
     json_doc.RemoveMember(key.c_str());
     json_doc.AddMember(StringRef(key.c_str(), key.length()), rapidjson::Value(),
                        json_doc.GetAllocator());
+  }
+
+  if (!json_doc.HasMember(route_->get_cached_primary().name.c_str())) {
+    throw http::Error(
+        HttpStatusCode::BadRequest,
+        "Insert operation, requires that primary-key value is set either by "
+        "document or user ownership configuration.");
   }
 
   auto json_obj = json_doc.GetObject();
@@ -311,27 +304,23 @@ Result HandlerObject::handle_post_and_post(
 
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
-  if (!upsert) {
-    insert.execute(session.get(), route_->get_schema_name(),
-                   route_->get_object_name(), keys_iterators, values_iterators);
-  } else {
-    insert.execute_with_upsert(
-        session.get(), route_->get_cached_primary(), route_->get_schema_name(),
-        route_->get_object_name(), keys_iterators, values_iterators);
-  }
 
-  if (!route_->get_cached_primary().empty()) {
+  insert.execute_insert(session.get(), route_->get_schema_name(),
+                        route_->get_object_name(), keys_iterators,
+                        values_iterators);
+
+  if (!route_->get_cached_primary().name.empty()) {
     database::QueryRestTableSingleRow fetch_one;
 
     if (pk_value.empty()) {
       fetch_one.query_last_inserted(
           session.get(), columns, route_->get_schema_name(),
-          route_->get_object_name(), route_->get_cached_primary(),
+          route_->get_object_name(), route_->get_cached_primary().name,
           route_->get_rest_url());
     } else {
       fetch_one.query_entries(session.get(), columns, route_->get_schema_name(),
                               route_->get_object_name(),
-                              route_->get_cached_primary(), pk_value,
+                              route_->get_cached_primary().name, pk_value,
                               route_->get_rest_url());
     }
     return std::move(fetch_one.response);
@@ -341,13 +330,23 @@ Result HandlerObject::handle_post_and_post(
   return {};
 }
 
-Result HandlerObject::handle_delete(rest::RequestContext *ctxt) {
-  auto &requests_uri = ctxt->request->get_uri();
-  http::Url uri_param(requests_uri);
-  auto query = uri_param.get_query_parameter("q");
+std::string HandlerObject::get_path_after_object_name(HttpUri &requests_uri) {
   auto path = requests_uri.get_path();
   auto last_path =
       http::Url::extra_path_element(route_->get_rest_path_raw(), path);
+  return last_path;
+}
+
+std::string HandlerObject::get_rest_query_parameter(HttpUri &requests_uri) {
+  http::Url uri_param(requests_uri);
+  auto query = uri_param.get_query_parameter("q");
+  return query;
+}
+
+Result HandlerObject::handle_delete(rest::RequestContext *ctxt) {
+  auto &requests_uri = ctxt->request->get_uri();
+  auto query = get_rest_query_parameter(requests_uri);
+  auto last_path = get_path_after_object_name(requests_uri);
   if (!last_path.empty())
     throw http::Error(
         HttpStatusCode::BadRequest,
@@ -356,8 +355,8 @@ Result HandlerObject::handle_delete(rest::RequestContext *ctxt) {
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
   mrs::database::QueryRestObjectDelete d;
-  d.execute(session.get(), route_->get_schema_name(), route_->get_object_name(),
-            query);
+  d.execute_delete(session.get(), route_->get_schema_name(),
+                   route_->get_object_name(), query);
 
   helper::json::SerializerToText stt;
   {
@@ -370,24 +369,14 @@ Result HandlerObject::handle_delete(rest::RequestContext *ctxt) {
 
 // Update, with insert possibility
 Result HandlerObject::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
-  auto &requests_uri = ctxt->request->get_uri();
-  auto path = requests_uri.get_path();
-  log_debug("Object::handle_put '%s'", path.c_str());
-  auto last_path =
-      http::Url::extra_path_element(route_->get_rest_path_raw(), path);
+  auto pk_value = get_path_after_object_name(ctxt->request->get_uri());
 
-  if (last_path.empty()) {
+  if (pk_value.empty()) {
     auto &ownershipt = route_->get_user_row_ownership();
-    log_debug("ownershipt.user_ownership_enforced '%s'",
-              (ownershipt.user_ownership_enforced ? "true" : "false"));
-    log_debug("ownershipt.user_ownership_column '%s'",
-              ownershipt.user_ownership_column.c_str());
-    log_debug("route_->get_cached_primary() '%s'",
-              route_->get_cached_primary().c_str());
-    bool is_pk_enforced =
-        ownershipt.user_ownership_enforced
-            ? ownershipt.user_ownership_column == route_->get_cached_primary()
-            : false;
+    bool is_pk_enforced = ownershipt.user_ownership_enforced
+                              ? ownershipt.user_ownership_column ==
+                                    route_->get_cached_primary().name
+                              : false;
 
     if (!is_pk_enforced)
       throw http::Error(HttpStatusCode::BadRequest,
@@ -396,8 +385,95 @@ Result HandlerObject::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
 
   auto &input_buffer = ctxt->request->get_input_buffer();
   auto size = input_buffer.length();
-  return handle_post_and_post(ctxt, input_buffer.pop_front(size), true,
-                              last_path);
+  auto document = input_buffer.pop_front(size);
+
+  rapidjson::Document json_doc;
+  database::QueryRestObjectInsert insert;
+  const auto &columns = route_->get_cached_columnes();
+
+  json_doc.Parse((const char *)document.data(), document.size());
+
+  // TODO(lkotula): return error msg ? (Shouldn't be in review)
+  if (json_doc.HasParseError()) {
+    throw http::Error(HttpStatusCode::BadRequest,
+                      "Invalid JSON document inside the HTTP request.");
+  }
+
+  if (json_doc.GetType() != rapidjson::kObjectType)
+    throw http::Error(HttpStatusCode::BadRequest,
+                      "Invalid JSON document inside the HTTP request, must be "
+                      "an JSON object.");
+
+  auto it = json_doc.FindMember(route_->get_cached_primary().name.c_str());
+  if (it != json_doc.MemberEnd()) {
+    uint64_t pk_value_numeric = std::stoull(pk_value);
+    (*it).value.SetUint64(pk_value_numeric);
+  } else if (!pk_value.empty()) {
+    uint64_t pk_value_numeric = std::stoull(pk_value);
+    rapidjson::Value v{pk_value_numeric};
+    json_doc.AddMember(
+        rapidjson::StringRef(route_->get_cached_primary().name.c_str()), v,
+        json_doc.GetAllocator());
+  }
+
+  if (route_->get_user_row_ownership().user_ownership_enforced) {
+    if (!ctxt->user.has_user_id)
+      throw http::Error(HttpStatusCode::Unauthorized);
+    auto &key = route_->get_user_row_ownership().user_ownership_column;
+    json_doc.RemoveMember(key.c_str());
+    json_doc.AddMember(StringRef(key.c_str(), key.length()), rapidjson::Value(),
+                       json_doc.GetAllocator());
+  }
+
+  auto json_obj = json_doc.GetObject();
+  std::vector<sqlstring> values;
+  values.reserve(json_obj.MemberCount());
+  auto ownership_enforce =
+      route_->get_user_row_ownership().user_ownership_enforced;
+  auto &ownership_column =
+      route_->get_user_row_ownership().user_ownership_column;
+  for (auto &member : json_obj) {
+    if (ownership_enforce && ownership_column == member.name.GetString()) {
+      values.push_back(sqlstring("?") << to_sqlstring(ctxt->user.user_id));
+    } else {
+      values.push_back(sqlstring("?") << to_string(&member.value));
+    }
+  }
+  // TODO(lkotula): Step1. Remember column types and look at json-type.
+  // Step2. Choose best conversions for both types or return an error.(Shouldn't
+  // be in review)
+  auto keys_iterators = JsonKeyIterator::from_iterators(json_doc.MemberBegin(),
+                                                        json_doc.MemberEnd());
+  auto values_iterators = SqlValueIterator::from_container(values);
+
+  auto session =
+      get_session(ctxt->sql_session_cache.get(), route_->get_cache());
+
+  insert.execute_with_upsert(session.get(), route_->get_cached_primary().name,
+                             route_->get_schema_name(),
+                             route_->get_object_name(), keys_iterators,
+                             values_iterators);
+
+  if (!route_->get_cached_primary().name.empty()) {
+    database::QueryRestTableSingleRow fetch_one;
+
+    if (pk_value.empty()) {
+      fetch_one.query_last_inserted(
+          session.get(), columns, route_->get_schema_name(),
+          route_->get_object_name(), route_->get_cached_primary().name,
+          route_->get_rest_url());
+    } else {
+      fetch_one.query_entries(session.get(), columns, route_->get_schema_name(),
+                              route_->get_object_name(),
+                              route_->get_cached_primary().name, pk_value,
+                              route_->get_rest_url());
+    }
+
+    return std::move(fetch_one.response);
+  }
+
+  // TODO(lkotula): return proper error ! (Shouldn't be in review)
+  return {};
 }
 
 Handler::Authorization HandlerObject::requires_authentication() const {

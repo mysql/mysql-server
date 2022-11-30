@@ -127,7 +127,7 @@ Handler::Result HandlerFile::handle_get(rest::RequestContext *ctxt) {
   if (nullptr == session.get())
     throw http::Error(HttpStatusCode::InternalError);
 
-  file->query(session.get(), route_->get_id());
+  file->query_file(session.get(), route_->get_id());
 
   return {std::move(file->result), result_type, route_->get_version()};
 }

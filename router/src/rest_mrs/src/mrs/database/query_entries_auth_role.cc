@@ -30,8 +30,8 @@
 namespace mrs {
 namespace database {
 
-void QueryEntriesAuthRole::query(MySQLSession *session,
-                                 const entry::AuthUser::UserId user_id) {
+void QueryEntriesAuthRole::query_role(MySQLSession *session,
+                                      const entry::AuthUser::UserId user_id) {
   query_ = {
       "SELECT id, caption, derived_from_role_id, specific_to_service_id "
       " FROM mysql_rest_service_metadata.user_has_role as h "
@@ -39,7 +39,7 @@ void QueryEntriesAuthRole::query(MySQLSession *session,
       " WHERE h.auth_user_id = ?"};
 
   query_ << to_sqlstring(user_id);
-  Query::query(session);
+  Query::execute(session);
 }
 
 void QueryEntriesAuthRole::on_row(const mrs::database::Query::Row &r) {

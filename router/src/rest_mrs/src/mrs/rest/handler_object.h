@@ -58,9 +58,8 @@ class HandlerObject : public Handler {
   Route *route_;
 
  private:
-  Result handle_post_and_post(rest::RequestContext *ctxt,
-                              const std::vector<uint8_t> &document,
-                              const bool upsert, std::string pk_value);
+  std::string get_path_after_object_name(HttpUri &requests_uri);
+  std::string get_rest_query_parameter(HttpUri &requests_uri);
 };
 
 }  // namespace rest

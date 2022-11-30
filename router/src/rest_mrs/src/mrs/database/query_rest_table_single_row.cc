@@ -24,6 +24,8 @@
 
 #include "mrs/database/query_rest_table_single_row.h"
 
+#include <stdexcept>
+
 namespace helper {
 
 /**
@@ -57,7 +59,7 @@ void QueryRestTableSingleRow::query_entries(MySQLSession *session,
   response = "";
   build_query(columns, schema, object, primary_key, pri_value, url_route);
 
-  query(session);
+  execute(session);
 }
 
 void QueryRestTableSingleRow::query_last_inserted(
@@ -67,10 +69,15 @@ void QueryRestTableSingleRow::query_last_inserted(
   response = "";
   build_query_last_inserted(columns, schema, object, primary_key, url_route);
 
-  query(session);
+  execute(session);
 }
 
-void QueryRestTableSingleRow::on_row(const Row &r) { response.append(r[0]); }
+void QueryRestTableSingleRow::on_row(const Row &r) {
+  if (!response.empty())
+    throw std::runtime_error(
+        "Querying single row, from a table. Received multiple.");
+  response.append(r[0]);
+}
 
 void QueryRestTableSingleRow::build_query(const std::vector<Column> &columns,
                                           const std::string &schema,

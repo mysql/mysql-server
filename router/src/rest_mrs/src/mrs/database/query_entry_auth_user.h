@@ -31,7 +31,7 @@
 namespace mrs {
 namespace database {
 
-class QueryEntryAuthUser : private Query {
+class QueryEntryAuthUser : private QueryLog {
  public:
   using AuthUser = entry::AuthUser;
   using UserId = AuthUser::UserId;

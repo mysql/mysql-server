@@ -33,7 +33,7 @@
 namespace mrs {
 namespace database {
 
-class QueryRestObjectInsert : private Query {
+class QueryRestObjectInsert : private QueryLog {
  private:
   template <typename K, typename V>
   class It {
@@ -68,12 +68,12 @@ class QueryRestObjectInsert : private Query {
 
  public:
   template <typename KeysIt, typename ValuesIt>
-  void execute(MySQLSession *session, const std::string &schema,
-               const std::string &object, const KeysIt &kit,
-               const ValuesIt &vit) {
+  void execute_insert(MySQLSession *session, const std::string &schema,
+                      const std::string &object, const KeysIt &kit,
+                      const ValuesIt &vit) {
     query_ = {"INSERT INTO !.!(!) VALUES(?)"};
     query_ << schema << object << kit << vit;
-    query(session);
+    execute(session);
   }
 
   template <typename KeysIt, typename ValuesIt>
@@ -87,7 +87,7 @@ class QueryRestObjectInsert : private Query {
            << std::make_pair<ItTypes, ItTypes>(
                   ItTypes(kit.first, vit.first, primary),
                   ItTypes(kit.second, vit.second));
-    query(session);
+    execute(session);
   }
 };
 

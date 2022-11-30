@@ -71,7 +71,7 @@ void QueryRestTable::query_entries(
               row_user, user_id, row_groups, user_groups, q);
 
   serializer_.begin(offset, limit, is_default_limit, url_route);
-  query(session);
+  execute(session);
   serializer_.end();
 
   response = serializer_.get_result();

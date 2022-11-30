@@ -39,10 +39,10 @@ class Query {
  public:
   virtual ~Query() = default;
 
-  void query(MySQLSession *session);
-  void query(MySQLSession *session, const std::string &q);
-  void prepare_and_execute(MySQLSession *session, const std::string &q,
-                           std::vector<enum_field_types> pt);
+  void execute(MySQLSession *session);
+  virtual void query(MySQLSession *session, const std::string &q);
+  virtual void prepare_and_execute(MySQLSession *session, const std::string &q,
+                                   std::vector<enum_field_types> pt);
 
   std::unique_ptr<MySQLSession::ResultRow> query_one(MySQLSession *session);
   std::unique_ptr<MySQLSession::ResultRow> query_one(MySQLSession *session,
@@ -52,6 +52,13 @@ class Query {
   virtual void on_metadata(unsigned number, MYSQL_FIELD *fields);
 
   mysqlrouter::sqlstring query_;
+};
+
+class QueryLog : public Query {
+ public:
+  void query(MySQLSession *session, const std::string &q) override;
+  void prepare_and_execute(MySQLSession *session, const std::string &q,
+                           std::vector<enum_field_types> pt) override;
 };
 
 }  // namespace database

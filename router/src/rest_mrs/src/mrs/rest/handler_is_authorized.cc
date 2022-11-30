@@ -100,7 +100,7 @@ Result HandlerIsAuthorized::handle_get(RequestContext *ctxt) {
     if (ctxt->user.has_user_id) {
       auto session = authorization_manager_->get_cache()->get_instance(
           collector::kMySQLConnectionMetadata);
-      roles.query(session.get(), ctxt->user.user_id);
+      roles.query_role(session.get(), ctxt->user.user_id);
     }
     auto obj = serializer.add_object();
     fill_authorization(obj, ctxt->user, roles.result);

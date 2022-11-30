@@ -33,9 +33,19 @@ namespace database {
 
 using MySQLSession = Query::MySQLSession;
 
+void QueryLog::query(MySQLSession *session, const std::string &q) {
+  log_debug("query: %s", q.c_str());
+  Query::query(session, q);
+}
+
+void QueryLog::prepare_and_execute(MySQLSession *session, const std::string &q,
+                                   std::vector<enum_field_types> pt) {
+  log_debug("Prepare: %s", q.c_str());
+  Query::prepare_and_execute(session, q, pt);
+}
+
 void Query::query(MySQLSession *session, const std::string &q) {
   try {
-    log_debug("query: %s", q.c_str());
     session->query(
         q,
         [this](const auto &r) {
@@ -75,14 +85,12 @@ std::unique_ptr<MySQLSession::ResultRow> Query::query_one(
   return {};
 }
 
-void Query::query(MySQLSession *session) { query(session, query_); }
+void Query::execute(MySQLSession *session) { query(session, query_); }
 void Query::prepare_and_execute(MySQLSession *session, const std::string &q,
                                 std::vector<enum_field_types> pt) {
-  log_debug("Prepare: %s", q.c_str());
   auto id = session->prepare(q);
 
   try {
-    log_debug("Execute");
     session->prepare_execute(
         id, pt,
         [this](const auto &r) {

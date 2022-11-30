@@ -76,7 +76,7 @@ bool QueryEntryAuthUser::query_user(MySQLSession *session,
     query_ << mysqlrouter::sqlstring{""};
   } while (false);
 
-  query(session);
+  execute(session);
 
   /* What do do when loaded_ is greater than 1 ?*/
   if (loaded_ == 0) return false;
@@ -106,14 +106,14 @@ AuthUser::UserId QueryEntryAuthUser::insert_user(
   query_ << to_sqlstring(uuid) << user->app_id << user->name << user->email
          << user->vendor_user_id << user->login_permitted;
 
-  query(session);
+  execute(session);
 
   if (default_role_id) {
     query_ = {
         "INSERT INTO mysql_rest_service_metadata.user_has_role(auth_user_id, "
         "auth_role_id, comments) VALUES(?, ?, \"Default role.\")"};
     query_ << to_sqlstring(uuid) << default_role_id.value();
-    query(session);
+    execute(session);
   }
 
   return uuid;
@@ -130,7 +130,7 @@ bool QueryEntryAuthUser::update_user(MySQLSession *session,
   query_ << user->app_id << user->name << user->email << user->vendor_user_id
          << user->login_permitted << to_sqlstring(user->user_id);
 
-  query(session);
+  execute(session);
   return true;
 }
 

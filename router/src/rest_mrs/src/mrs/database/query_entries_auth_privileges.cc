@@ -69,7 +69,7 @@ void QueryEntriesAuthPrivileges::query_user(
 
   query_ << to_sqlstring(user_id) << to_sqlstring(user_id);
 
-  query(session);
+  execute(session);
 }
 
 void QueryEntriesAuthPrivileges::on_row(const Row &r) {

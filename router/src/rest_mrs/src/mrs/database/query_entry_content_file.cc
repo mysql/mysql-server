@@ -30,15 +30,15 @@
 namespace mrs {
 namespace database {
 
-void QueryEntryContentFile::query(MySQLSession *session,
-                                  const uint64_t file_id) {
+void QueryEntryContentFile::query_file(MySQLSession *session,
+                                       const uint64_t file_id) {
   query_ = {
       "SELECT size,content FROM mysql_rest_service_metadata.content_file WHERE "
       "id=?"};
 
   query_ << file_id;
   received_ = false;
-  Query::query(session);
+  Query::execute(session);
 
   if (!received_)
     throw std::runtime_error(

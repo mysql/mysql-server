@@ -79,9 +79,9 @@ void QueryEntryDbObject::query_entries(MySQLSession *session) {
 
   QueryAuditLogMaxId query_audit_id;
   query(session, "START TRANSACTION");
-  auto audit_log_id = query_audit_id.query(session);
+  auto audit_log_id = query_audit_id.query_max_id(session);
   if (!query_.done()) query_ << mysqlrouter::sqlstring{""};
-  query(session);
+  execute(session);
 
   QueryEntryGroupRowSecurity qg;
   QueryEntryParameter qp;

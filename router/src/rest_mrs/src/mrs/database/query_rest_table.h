@@ -41,7 +41,7 @@
 namespace mrs {
 namespace database {
 
-class QueryRestTable : private Query {
+class QueryRestTable : private QueryLog {
  public:
   using Column = helper::Column;
   using UserId = entry::AuthUser::UserId;

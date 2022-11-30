@@ -32,7 +32,7 @@ namespace database {
 
 class QueryEntryContentFile : public Query {
  public:
-  virtual void query(MySQLSession *session, const uint64_t file_id);
+  virtual void query_file(MySQLSession *session, const uint64_t file_id);
 
   std::string result;
 
