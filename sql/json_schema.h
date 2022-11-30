@@ -163,6 +163,8 @@ class Json_schema_validator {
   class My_remote_schema_document_provider
       : public rapidjson::IRemoteSchemaDocumentProvider {
    public:
+    using rapidjson::IRemoteSchemaDocumentProvider::GetRemoteDocument;
+
     const rapidjson::SchemaDocument *GetRemoteDocument(
         const char *, rapidjson::SizeType) override {
       m_used = true;
