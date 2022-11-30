@@ -175,6 +175,11 @@ public class ClusterConnectionImpl
         return result;
     }
 
+    public void configureTls(String tlsSearchPath, int tlsRequirement) {
+        if(tlsSearchPath == null) tlsSearchPath = "";
+        clusterConnection.configure_tls(tlsSearchPath, tlsRequirement);
+    }
+
     public void waitUntilReady(int connectTimeoutBefore, int connectTimeoutAfter) {
         checkConnection();
         int returnCode = clusterConnection.wait_until_ready(connectTimeoutBefore, connectTimeoutAfter);

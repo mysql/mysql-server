@@ -75,6 +75,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     /** NdbCluster connect properties */
     String CLUSTER_CONNECTION_SERVICE;
     String CLUSTER_CONNECT_STRING;
+    String CLUSTER_TLS_SEARCH_PATH;
     int CLUSTER_CONNECT_TIMEOUT_MGM;
     int CLUSTER_CONNECT_RETRIES;
     int CLUSTER_CONNECT_DELAY;
@@ -189,6 +190,8 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
         CLUSTER_RECONNECT_TIMEOUT = getIntProperty(props,
                 PROPERTY_CONNECTION_RECONNECT_TIMEOUT, DEFAULT_PROPERTY_CONNECTION_RECONNECT_TIMEOUT);
         CLUSTER_CONNECT_STRING = getRequiredStringProperty(props, PROPERTY_CLUSTER_CONNECTSTRING);
+        CLUSTER_TLS_SEARCH_PATH = getStringProperty(props, PROPERTY_TLS_SEARCH_PATH,
+                Constants.DEFAULT_PROPERTY_TLS_SEARCH_PATH);
         CLUSTER_CONNECT_RETRIES = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_RETRIES,
                 Constants.DEFAULT_PROPERTY_CLUSTER_CONNECT_RETRIES);
         CLUSTER_CONNECT_TIMEOUT_MGM = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_TIMEOUT_MGM,
@@ -361,6 +364,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
         try {
             result = service.create(CLUSTER_CONNECT_STRING, nodeId, CLUSTER_CONNECT_TIMEOUT_MGM);
             result.setByteBufferPoolSizes(CLUSTER_BYTE_BUFFER_POOL_SIZES);
+            result.configureTls(CLUSTER_TLS_SEARCH_PATH, 0);
             result.connect(CLUSTER_CONNECT_RETRIES, CLUSTER_CONNECT_DELAY,true);
             result.waitUntilReady(CLUSTER_CONNECT_TIMEOUT_BEFORE,CLUSTER_CONNECT_TIMEOUT_AFTER);
             // Cluster connection successful.

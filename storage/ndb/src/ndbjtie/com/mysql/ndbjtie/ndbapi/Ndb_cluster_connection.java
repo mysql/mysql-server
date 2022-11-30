@@ -40,6 +40,7 @@ public class Ndb_cluster_connection extends Wrapper implements Ndb_cluster_conne
     static public final native void delete(Ndb_cluster_connection p0);
     public final native void set_name(String/*_const char *_*/ name);
     public final native void set_application_port(int port);
+    public final native void configure_tls(String searchPath, int requirement);
     public final native int set_timeout(int timeout_ms);
     public final native int connect(int no_retries /*_= 0_*/, int retry_delay_in_seconds /*_= 1_*/, int verbose /*_= 0_*/);
     public final native int wait_until_ready(int timeout_for_first_alive, int timeout_after_first_alive);

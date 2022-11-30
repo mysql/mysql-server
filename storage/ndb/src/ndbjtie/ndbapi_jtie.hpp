@@ -10243,6 +10243,21 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1timeout(JNIEnv * env
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
+ * Method:    configure_tls
+ */
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_configure_1tls(JNIEnv * env, jobject obj, jstring p0, jint p1)
+{
+    TRACE("void Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_configure_tls(JNIEnv * env, jobject obj, jstring p0, jint p1)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfv< ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_char_cp_jutf8null, ttrait_int, &Ndb_cluster_connection::configure_tls>(env, obj, p0, p1);
+#else
+    return gcall_fv< ttrait_c_m_n_n_Ndb_cluster_connection_r, ttrait_char_cp_jutf8null, ttrait_int, &NdbApiWrapper::Ndb_cluster_connection__configure_tls>(env, NULL, obj, p0, p1);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
  * Method:    connect
  * Signature: (III)I
  */

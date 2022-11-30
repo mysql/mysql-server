@@ -3541,6 +3541,13 @@ struct NdbApiWrapper {
         return obj.set_timeout(p0);
     }
 
+    static void
+    Ndb_cluster_connection__configure_tls
+    ( Ndb_cluster_connection & obj, const char * p1, int p2)
+    {
+      return obj.configure_tls(p1, p2);
+    }
+
     static int
     Ndb_cluster_connection__connect
     ( Ndb_cluster_connection & obj, int p0, int p1, int p2 )
