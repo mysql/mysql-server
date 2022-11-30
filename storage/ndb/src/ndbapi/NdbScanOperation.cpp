@@ -2364,24 +2364,11 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   Uint32 key_size= keyInfo ? m_attribute_record->m_keyLenInWords : 0;
 
   /**
-   * The number of records sent by each LQH is calculated and the kernel
-   * is informed of this number by updating the SCAN_TABREQ signal
-   */
-  ScanTabReq * req = CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
-  Uint32 batch_size = req->first_batch_size; // User specified
-  Uint32 batch_byte_size;
-  theReceiver.calculate_batch_size(theParallelism,
-                                   batch_size,
-                                   batch_byte_size);
-  ScanTabReq::setScanBatch(req->requestInfo, batch_size);
-  req->batch_byte_size= batch_byte_size;
-  req->first_batch_size= batch_size;
-
-  /**
    * Set keyinfo, nodisk and distribution key flags in 
    * ScanTabReq
    *  (Always request keyinfo when using blobs)
    */
+  ScanTabReq * req = CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
   Uint32 reqInfo = req->requestInfo;
   ScanTabReq::setKeyinfoFlag(reqInfo, keyInfo);
   ScanTabReq::setNoDiskFlag(reqInfo, (m_flags & OF_NO_DISK) != 0);
@@ -2396,6 +2383,15 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   /* All scans use NdbRecord internally */
   assert(theStatus == UseNdbRecord);
   
+  /**
+   * The number of records sent by each LQH is calculated and the kernel
+   * is informed of this number by updating the SCAN_TABREQ signal
+   */
+  Uint32 batch_size = req->first_batch_size; // Possibly user specified
+  Uint32 batch_byte_size = 0;
+  theReceiver.calculate_batch_size(theParallelism,
+                                   batch_size,
+                                   batch_byte_size);
 
   /**
    * Calculate memory req. for the NdbReceiverBuffer and its row buffer:
@@ -2405,14 +2401,18 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
    * NdbReceiver unpack it into a row buffer as specified by the
    * NdbRecord argument (and RecAttrs are put into their destination)
    */
-  Uint32 bufsize= NdbReceiver::result_bufsize(batch_size,
-                                              batch_byte_size,
-                                              1,
-                                              m_attribute_record,
-                                              readMask,
-                                              theReceiver.m_firstRecAttr,
-                                              key_size,
-                                              m_read_range_no);
+  Uint32 bufsize= 0;
+  NdbReceiver::result_bufsize(m_attribute_record,
+                              readMask,
+                              theReceiver.m_firstRecAttr,
+                              key_size,
+                              m_read_range_no,
+                              false,   // No correlation
+                              1,
+                              batch_size,
+                              batch_byte_size,
+                              bufsize);
+
   assert((bufsize % sizeof(Uint32)) == 0); //Size returned as Uint32 aligned
 
   /* Calculate row buffer size, align it for (hopefully) improved memory access.  */
@@ -2429,7 +2429,7 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   DBUG_EXECUTE_IF("ndb_scanbuff_oom",
                   {
                     ndbout_c("DBUG_EXECUTE_IF(ndb_scanbuff_oom...");
-                    delete buf;
+                    delete[] buf;
                     buf = NULL;
                   }
   );
@@ -2438,8 +2438,12 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
     setErrorCodeAbort(4000); // "Memory allocation error"
     return -1;
   }
-  assert(!m_scan_buffer);
+  assert(m_scan_buffer == NULL);
   m_scan_buffer= buf;
+
+  req->batch_byte_size= batch_byte_size;
+  req->first_batch_size= batch_size;
+  ScanTabReq::setScanBatch(req->requestInfo, batch_size);
   
   for (Uint32 i = 0; i<theParallelism; i++)
   {

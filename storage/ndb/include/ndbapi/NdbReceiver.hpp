@@ -143,16 +143,24 @@ private:
    * Calculate size of result buffer which has to be 
    * allocated for a buffered result set, and later given to 
    * initReceiveBuffer() as 'buffer' argument.
+   *
+   * The 'batch_rows' and 'batch_bytes' argument may have been
+   * set by 'calculate_batch_size'. On return from this method
+   * the 'batch_bytes' size may be capped to the max possible
+   * batch size if 'batch_rows' are returned.
    */
   static
-  Uint32 result_bufsize(Uint32 batch_rows,
-                        Uint32 batch_bytes,
-                        Uint32 fragments,
-                        const NdbRecord *result_record,
-                        const Uint32* read_mask,
-                        const NdbRecAttr *first_rec_attr,
-                        Uint32 key_size,
-                        bool read_range_no);
+  void result_bufsize(const NdbRecord *result_record,
+                      const Uint32* read_mask,
+                      const NdbRecAttr *first_rec_attr,
+                      Uint32 key_size,
+                      bool   read_range_no,
+                      bool   read_correlation,
+                      Uint32 parallelism,
+                      Uint32  batch_rows,    //In:     'REQ' argument to TC
+                      Uint32& batch_bytes,   //In/Out: 'REQ' Argument to TC
+                      Uint32& buffer_bytes); //Out:     ReceiveBuffer size
+
   /*
     Set up buffers for receiving TRANSID_AI and KEYINFO20 signals
     during a scan using NdbRecord.

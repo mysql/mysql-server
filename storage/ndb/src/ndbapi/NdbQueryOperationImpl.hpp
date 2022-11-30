@@ -746,14 +746,19 @@ public:
   bool checkMagicNumber() const
   { return m_magic == MAGIC; }
 
-  /** Get the maximal number of rows that may be returned in a single 
+  /** Get the maximal number of rows that may be returned in a single
    *  SCANREQ to the SPJ block.
    */
   Uint32 getMaxBatchRows() const
   { return m_maxBatchRows; }
 
+  /** Get the maximal number of bytes that may be returned in a single
+   *  SCANREQ to the SPJ block.
+   */
+  Uint32 getMaxBatchBytes() const;
+
   /** Get size of buffer required to hold a full batch of 'packed' rows */
-  Uint32 getBatchBufferSize() const;
+  Uint32 getResultBufferSize() const;
 
   /** Get size of a full row. */  
   Uint32 getRowSize() const;
@@ -789,9 +794,6 @@ private:
   /** Children of this operation.*/
   Vector<NdbQueryOperationImpl*> m_children;
 
-  /** Max rows (per resultStream) in a scan batch.*/
-  Uint32 m_maxBatchRows;
-
   /** Buffer for parameters in serialized format */
   Uint32Buffer m_params;
 
@@ -823,15 +825,28 @@ private:
   /** True if this operation reads from any disk column. */
   bool m_diskInUserProjection;
 
-  /** Number of scan fragments to read in parallel.
-   */
+  /** Number of scan fragments to read in parallel. */
   Uint32 m_parallelism;
   
   /** Size of each unpacked result row (in bytes).*/
   mutable Uint32 m_rowSize;
 
+  /** Max rows (per resultStream) in a fragment scan batch.
+   *   >0: User specified prefered value,
+   *  ==0: Use default CFG values
+   *
+   *  Used as 'batch_rows' argument in 'SCANREQ'
+   */
+  Uint32 m_maxBatchRows;
+
+  /** 'batch_byte_size' argument to be used in 'SCANREQ'
+   *  Calculated as the min value required to fetch all m_maxBatchRows,
+   *  and max size set in CFG.
+   */
+  mutable Uint32 m_maxBatchBytes;
+
   /** Size of the buffer required to hold a batch of result rows */
-  mutable Uint32 m_batchBufferSize;
+  mutable Uint32 m_resultBufferSize;
 
   explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
                                  const NdbQueryOperationDefImpl& def);
