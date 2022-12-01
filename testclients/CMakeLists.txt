@@ -21,6 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 ADD_WSHADOW_WARNING()
+MSVC_CPPCHECK()
 
 MYSQL_ADD_EXECUTABLE(mysql_client_test mysql_client_test.cc COMPONENT Test)
 TARGET_LINK_LIBRARIES(mysql_client_test mysqlclient)

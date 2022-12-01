@@ -147,8 +147,6 @@ ENDMACRO()
 
 MACRO(MSVC_CPPCHECK_ADD_ANALYZE)
   IF (MSVC AND MSVC_CPPCHECK)
-    MESSAGE(STATUS "MSVC Code analysis (MSVC_CPPCHECK) turned ON")
-
     STRING_APPEND(CMAKE_C_FLAGS " /analyze /analyze:external- /analyze:pluginEspXEngine.dll")
     STRING_APPEND(CMAKE_CXX_FLAGS " /analyze /analyze:external- /analyze:pluginEspXEngine.dll")
   ENDIF()

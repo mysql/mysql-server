@@ -22,6 +22,8 @@
 
 ADD_WSHADOW_WARNING()
 
+MSVC_CPPCHECK()
+
 SET(VIO_SOURCES
   vio.cc
   viosocket.cc

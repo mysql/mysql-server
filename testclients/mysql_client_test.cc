@@ -20518,7 +20518,7 @@ static void test_skip_metadata() {
   }
 
   /* Check CLIENT_OPTIONAL_RESULTSET_METADATA flag. */
-  DIE_UNLESS(mysql->client_flag | CLIENT_OPTIONAL_RESULTSET_METADATA);
+  DIE_UNLESS(mysql1->client_flag & CLIENT_OPTIONAL_RESULTSET_METADATA);
 
   /* Check MYSQL_OPT_OPTIONAL_RESULTSET_METADATA option. */
   mysql_get_option(mysql1, MYSQL_OPT_OPTIONAL_RESULTSET_METADATA,

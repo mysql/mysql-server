@@ -23,6 +23,8 @@
 
 ADD_WSHADOW_WARNING()
 
+MSVC_CPPCHECK()
+
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libbinlogevents/include)
 
 CONFIGURE_FILE(binlog_config.h.cmake

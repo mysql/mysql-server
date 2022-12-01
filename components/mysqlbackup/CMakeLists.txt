@@ -22,6 +22,7 @@
 
 DISABLE_MISSING_PROFILE_WARNING()
 
+MSVC_CPPCHECK()
 MYSQL_ADD_COMPONENT(mysqlbackup
   mysqlbackup.cc
   backup_page_tracker.cc

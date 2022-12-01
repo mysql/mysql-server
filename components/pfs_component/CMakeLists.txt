@@ -21,6 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 DISABLE_MISSING_PROFILE_WARNING()
+MSVC_CPPCHECK()
 
 MYSQL_ADD_COMPONENT(pfs_example_component_population
   pfs_example_component_population.cc

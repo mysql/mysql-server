@@ -311,8 +311,8 @@ static long int timedif(struct timeval a, struct timeval b) {
 
 #ifdef _WIN32
 static int gettimeofday(struct timeval *tp, void *) {
-  unsigned int ticks;
-  ticks = GetTickCount();
+  ULONGLONG ticks;
+  ticks = GetTickCount64();
   tp->tv_usec = ticks * 1000;
   tp->tv_sec = ticks / 1000;
 

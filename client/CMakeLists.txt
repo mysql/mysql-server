@@ -21,6 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 ADD_WSHADOW_WARNING()
+MSVC_CPPCHECK()
 
 # We are not interesting in profiling clients.
 DISABLE_MISSING_PROFILE_WARNING()

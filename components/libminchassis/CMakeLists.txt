@@ -20,6 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+MSVC_CPPCHECK()
 SET(LIBMINCHASSIS_SOURCES
   component_common.cc
   dynamic_loader.cc

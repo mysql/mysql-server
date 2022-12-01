@@ -24,6 +24,7 @@ OPTION(WITH_CS_PROTOBUF
   "Compile change streams library with protobuf based functionality" OFF)
 
 ADD_WSHADOW_WARNING()
+MSVC_CPPCHECK()
 DISABLE_MISSING_PROFILE_WARNING()
 
 SET(CS_BASE_SRC_DIR ${CMAKE_SOURCE_DIR}/libchangestreams/src)
