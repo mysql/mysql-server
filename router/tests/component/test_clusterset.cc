@@ -1537,6 +1537,7 @@ TEST_F(ClusterSetTest, TwoPrimaryClustersLowerViewId) {
 
   SCOPED_TRACE("// Check that the state file did not change");
 
+  change_clusterset_primary(clusterset_data_, kPrimaryClusterId);
   check_state_file(router_state_file, mysqlrouter::ClusterType::GR_CS,
                    clusterset_data_.uuid,
                    clusterset_data_.get_all_nodes_classic_ports(), view_id);
@@ -1553,7 +1554,7 @@ TEST_F(ClusterSetTest, TwoPrimaryClustersLowerViewId) {
                           .nodes[kRWNodeId]
                           .classic_port);
 
-  // +1 as we round-dobin and this is already a second connection
+  // +1 as we round-robin and this is already a second connection
   auto ro_con2 = make_new_connection_ok(
       router_port_ro, clusterset_data_.clusters[kPrimaryClusterId]
                           .nodes[kRONodeId + 1]

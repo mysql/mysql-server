@@ -31,6 +31,7 @@
 #include "group_replication_metadata.h"
 #include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/stdx/ranges.h"  // enumerate
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"  // strtoui_checked
@@ -183,6 +184,9 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
    * operation refers to
    * @param router_id id of the router in the cluster metadata
    * @param metadata_server info about the metadata server we are querying
+   * @param metadata_servers set of all the metadata servers read during
+   * the bootstrap or the last metadata refresh, sorted by the staus of the
+   * cluster and status of the node in the cluster (Primary first)
    * @param needs_writable_node flag indicating if the caller needs us to query
    * for writable node
    * @param group_name Cluster Replication Group name (if bootstrapped as a
@@ -301,10 +305,23 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
    * filters or policies (like target_cluster etc.)
    * @param router_cs_options ClusterSet related options configured for this
    * Router in the metadata
+   * @param metadata_servers
    */
   void update_clusterset_status_from_gr(
       metadata_cache::ClusterTopology &cs_topology, bool needs_writable_node,
-      bool whole_topology, const RouterClusterSetOptions &router_cs_options);
+      bool whole_topology, const RouterClusterSetOptions &router_cs_options,
+      const metadata_cache::metadata_servers_list_t &metadata_servers);
+
+  /** @brief Given the topology read from the metadata and updated with the
+   * current staus from the GR tables updates the metadata_servers list putting
+   * them in the following order: 1) Primary Node of Primary Cluster 2)
+   * Secondary Nodes of Primary Cluster 3) Nodes of Secondary Clusters starting
+   * with Primary Node for each
+   *
+   * @param cs_topology ClusterSet topology
+   */
+  static void update_metadata_servers_list(
+      metadata_cache::ClusterTopology &cs_topology);
 
   /** @brief Finds the writable node within the currently known ClusterSet
    * topology.
@@ -864,7 +881,7 @@ GRClusterMetadata::fetch_cluster_topology(
 
         result_tmp = metadata_backend_->fetch_cluster_topology(
             transaction, version, target_cluster, router_id, metadata_server,
-            cluster_servers, needs_writable_node, group_name, clusterset_id,
+            metadata_servers, needs_writable_node, group_name, clusterset_id,
             whole_topology);
 
         last_fetch_cluster_id = i;
@@ -1280,8 +1297,6 @@ GRClusterSetMetadataBackend::update_clusterset_topology_from_metadata_server(
           set_instance_attributes(result.clusters_data.back().members.back(),
                                   node_attributes);
 
-          result.metadata_servers.emplace_back(uri_classic.host,
-                                               uri_classic.port);
           if (result.name.empty()) {
             result.name = get_string(row[8]);
           }
@@ -1372,7 +1387,7 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
     const mysqlrouter::MetadataSchemaVersion & /*schema_version*/,
     mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
     const metadata_cache::metadata_server_t &metadata_server,
-    const metadata_cache::metadata_servers_list_t & /*metadata_servers*/,
+    const metadata_cache::metadata_servers_list_t &metadata_servers,
     bool needs_writable_node, const std::string &group_name,
     const std::string &clusterset_id, bool whole_topology) {
   metadata_cache::ClusterTopology result;
@@ -1478,9 +1493,18 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
   // we are done with querying metadata
   transaction.commit();
 
-  this->cluster_topology_ = result;
-
   result.target_cluster_pos = target_cluster_pos(result, target_cluster_id);
+
+  // we got topology from the configured metadata, now let's update it with the
+  // current state from the GR
+  update_clusterset_status_from_gr(result, needs_writable_node, whole_topology,
+                                   router_clusterset_options, metadata_servers);
+
+  // knowing the Clusters current status we can update metadata servers list
+  // with a correct order
+  update_metadata_servers_list(result);
+
+  this->cluster_topology_ = result;
 
   if (!whole_topology) {
     if (result.target_cluster_pos) {
@@ -1499,11 +1523,6 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
       result.clusters_data.clear();
   }
 
-  // we got topology from the configured metadata, now let's update it with the
-  // current state from the GR
-  update_clusterset_status_from_gr(result, needs_writable_node, whole_topology,
-                                   router_clusterset_options);
-
   this->view_id_ = view_id;
   this->metadata_read_ = true;
   return result;
@@ -1511,9 +1530,30 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
 
 void GRClusterSetMetadataBackend::update_clusterset_status_from_gr(
     metadata_cache::ClusterTopology &cs_topology, bool needs_writable_node,
-    bool whole_topology, const RouterClusterSetOptions &router_cs_options) {
-  for (auto &cluster : cs_topology.clusters_data) {
+    bool whole_topology, const RouterClusterSetOptions &router_cs_options,
+    const metadata_cache::metadata_servers_list_t &metadata_servers) {
+  for (auto [pos, cluster] :
+       stdx::views::enumerate(cs_topology.clusters_data)) {
     if (cluster.members.empty()) continue;
+
+    if (!whole_topology) {
+      // if this is neither primary cluster nor our target cluster we don't need
+      // to update its state
+      if (!cluster.is_primary && cs_topology.target_cluster_pos &&
+          pos != *cs_topology.target_cluster_pos)
+        continue;
+    }
+
+    // We got the configured set of the cluster nodes from the static metadata.
+    // Before we go check the status in the GR tables we sort them, putting the
+    // last known PRIMARY node at the front. This way we have the best chance to
+    // find and query the actual PRIMARY node first, when looking for a quorum.
+    // Orherwise when the node (old primary) is OFFLINE and still exists in the
+    // static metadata, we are going to query for it's dynamic state each time
+    // and give all sorts of warnings, despite the fact that we already know it
+    // is not a PRIMARY anymore (from the previos refresh rounds).
+    sort_cluster_nodes(cluster, metadata_servers);
+
     // connect to the cluster and query for the list and status of its
     // members. (more precisely: search and connect to a
     // member which is part of quorum to retrieve this data)
@@ -1538,7 +1578,7 @@ void GRClusterSetMetadataBackend::update_clusterset_status_from_gr(
 
   if (needs_writable_node) {
     cs_topology.writable_server =
-        metadata_->find_rw_server((*this->cluster_topology_).clusters_data);
+        metadata_->find_rw_server(cs_topology.clusters_data);
     if (!cs_topology.writable_server) {
       cs_topology.writable_server = find_rw_server();
     }
@@ -1550,4 +1590,31 @@ void GRClusterSetMetadataBackend::update_clusterset_status_from_gr(
   } else {
     cs_topology.writable_server = std::nullopt;
   }
+}
+
+void GRClusterSetMetadataBackend::update_metadata_servers_list(
+    metadata_cache::ClusterTopology &cs_topology) {
+  auto &md_servers = cs_topology.metadata_servers;
+  metadata_cache::metadata_servers_list_t secondary_clusters_servers;
+
+  for (const auto &cluster : cs_topology.clusters_data) {
+    metadata_cache::metadata_servers_list_t cluster_nodes_by_role;
+    for (const auto &node : cluster.members) {
+      if (node.role == metadata_cache::ServerRole::Primary) {
+        cluster_nodes_by_role.insert(cluster_nodes_by_role.begin(), node);
+      } else {
+        cluster_nodes_by_role.push_back(node);
+      }
+    }
+    // we have nodes of the current cluster with PRIMARY node first, it this is
+    // the PRIMARY cluster within the ClusterSet, we want it at the beginning,
+    // so we add it directly to the result, otherwise we buffer it to add later
+    auto &servers =
+        cluster.is_primary ? md_servers : secondary_clusters_servers;
+    servers.insert(servers.end(), cluster_nodes_by_role.begin(),
+                   cluster_nodes_by_role.end());
+  }
+
+  md_servers.insert(md_servers.end(), secondary_clusters_servers.begin(),
+                    secondary_clusters_servers.end());
 }
