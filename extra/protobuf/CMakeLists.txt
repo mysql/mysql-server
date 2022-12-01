@@ -29,6 +29,11 @@ IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
     "-ftls-model=initial-exec" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 ENDIF()
 
+# Xcode >= 14 makes noise about sprintf, so silence:
+IF(APPLE)
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated-declarations")
+ENDIF()
+
 # Inhibit warning messages
 IF(MSVC AND NOT WIN32_CLANG)
   # no suitable definition provided for explicit template instantiation

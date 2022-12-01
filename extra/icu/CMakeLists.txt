@@ -57,6 +57,11 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
   )
 ENDIF()
 
+# Xcode >= 14 makes noise about sprintf, so silence:
+IF(APPLE)
+  LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "-Wno-deprecated-declarations")
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_WARNING("-Wreturn-local-addr" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "${HAS_WARN_FLAG}")
