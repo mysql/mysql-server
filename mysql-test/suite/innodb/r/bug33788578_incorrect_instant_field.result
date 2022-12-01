@@ -72,3 +72,8 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
+# Now we parse the server ERROR log and print the expected error message
+Occurrences of 'Unexpected INSTANTLY Added / Dropped' in the input file: 1
+# Error message:
+[ERROR] [MY-013992] [InnoDB] Unexpected INSTANTLY Added / Dropped column: 'b' at position 4 for Table 'test/t1', Index 'GEN_CLUST_INDEX' while getting Primary Key for row logging
+# End
