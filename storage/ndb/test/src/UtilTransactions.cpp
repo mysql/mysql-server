@@ -284,17 +284,18 @@ UtilTransactions::copyTableData(Ndb* pNdb,
 	  return NDBT_FAILED;
 	}
       } while((eof = pOp->nextResult(false)) == 0);
+
+      if (eof == -1) break;
       
       check = pTrans->execute(Commit, AbortOnError);   
-      if (check != -1)
-        pTrans->getGCI(&m_util_latest_gci);
-      pTrans->restart();
       if( check == -1 ) {
-	const NdbError err = pTrans->getNdbError();    
-	NDB_ERR(err);
-	closeTransaction(pNdb);
-	return NDBT_FAILED;
+        const NdbError err = pTrans->getNdbError();
+        NDB_ERR(err);
+        closeTransaction(pNdb);
+        return NDBT_FAILED;
       }
+      pTrans->getGCI(&m_util_latest_gci);
+      pTrans->restart();
     }  
     if (eof == -1) {
       const NdbError err = pTrans->getNdbError();
@@ -1114,7 +1115,6 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
   NDBT_ResultRow       pkRow(tab);
   NDBT_ResultRow       indexRow(tab);
 
-  int res;
   parallelism = 1;
   
   while (true){
@@ -1266,7 +1266,7 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
         const BaseString scanRowString = scanRow.c_str();
         while (true)
         {
-          if ((res= iop->nextResult()) != 0){
+          if (iop->nextResult() != 0){
             g_err << "Failed to find row using index: "
                   << destIndex->getName() << endl;
             g_err << " source index : " << (sourceIndex?sourceIndex->getName():"Table") << endl;
@@ -2178,6 +2178,8 @@ loop:
 	  retryAttempt= 0;
 	  cmp.closeTransaction(pNdb);
 	} while((eof = pOp->nextResult(false)) == 0);
+
+        if (eof == -1) break;
       }
       if (eof == -1) 
       {
