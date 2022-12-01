@@ -1156,7 +1156,7 @@ ANALYZE TABLE t1;
 -- enable_query_log
 
 # should be range access
-EXPLAIN SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
+EXPLAIN SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY b DESC, a DESC LIMIT 5;
 
 # should produce '16 15 14 13 12' for a
 SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
