@@ -27,12 +27,14 @@
 #include <chrono>
 #include <memory>
 
+#include "basic_protocol_splicer.h"
 #include "classic_connection_base.h"
 #include "classic_frame.h"
 #include "hexify.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/impl/poll.h"
 #include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/utility/string.h"  // join
 #include "mysqlrouter/connection_pool_component.h"
 #include "mysqlrouter/routing_component.h"
@@ -100,6 +102,32 @@ static TlsSwitchableConnection make_connection_from_pooled(
               other.server_capabilities(), other.client_capabilities(),
               other.server_greeting(), other.username(), other.schema(),
               other.attributes())};
+}
+
+// get the socket-error from a connection.
+//
+// error   if getting socket error failed.
+// success if error could be fetched
+static stdx::expected<std::error_code, std::error_code> sock_error_code(
+    TlsSwitchableConnection &conn) {
+  auto tcp_conn = dynamic_cast<TcpConnection *>(conn.connection().get());
+
+  net::socket_base::error sock_err;
+  const auto getopt_res = tcp_conn->get_option(sock_err);
+  if (!getopt_res) return stdx::make_unexpected(getopt_res.error());
+
+  if (sock_err.value() != 0) {
+    return std::error_code {
+      sock_err.value(),
+#if defined(_WIN32)
+          std::system_category()
+#else
+          std::generic_category()
+#endif
+    };
+  }
+
+  return {};
 }
 
 stdx::expected<Processor::Result, std::error_code>
@@ -392,9 +420,8 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::connect() {
 
       trace(Tracer::Event().stage("connect::wait"));
       t.async_wait([this](std::error_code ec) {
-        if (ec) {
-          return;
-        }
+        if (ec) return;
+
         trace(Tracer::Event().stage("connect::timed_out"));
 
         auto *socket_splicer = connection()->socket_splicer();
@@ -404,6 +431,24 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::connect() {
 
         (void)server_conn.cancel();
       });
+
+      connection()->socket_splicer()->server_conn().async_wait_error(
+          [conn = connection()](std::error_code ec) {
+            if (ec) return;
+
+            auto *socket_splicer = conn->socket_splicer();
+            auto &server_conn = socket_splicer->server_conn();
+
+            auto sock_ec_res = sock_error_code(server_conn);
+            if (!sock_ec_res) {
+              conn->connect_error_code(sock_ec_res.error());
+            } else {
+              conn->connect_error_code(sock_ec_res.value());
+            }
+
+            // cancel all the other waiters
+            (void)server_conn.cancel();
+          });
 
       return Result::SendableToServer;
     } else {
@@ -422,23 +467,15 @@ stdx::expected<Processor::Result, std::error_code>
 ConnectProcessor::connect_finish() {
   connection()->connect_timer().cancel();
 
+  auto &server_conn = connection()->socket_splicer()->server_conn();
+
+  // cancel all handlers.
+  (void)server_conn.cancel();
+
   if (connection()->connect_error_code() != std::error_code{}) {
     last_ec_ = connection()->connect_error_code();
 
-    trace(Tracer::Event().stage("connect::connect_finish: " +
-                                last_ec_.message()));
-
-    stage(Stage::NextEndpoint);
-    return Result::Again;
-  }
-
-  auto tcp_conn = dynamic_cast<TcpConnection *>(
-      connection()->socket_splicer()->server_conn().connection().get());
-
-  net::socket_base::error sock_err;
-  const auto getopt_res = tcp_conn->get_option(sock_err);
-  if (!getopt_res) {
-    last_ec_ = getopt_res.error();
+    (void)server_conn.close();
 
     trace(Tracer::Event().stage("connect::connect_finish: " +
                                 last_ec_.message()));
@@ -447,17 +484,21 @@ ConnectProcessor::connect_finish() {
     return Result::Again;
   }
 
-  if (sock_err.value() != 0) {
-    std::error_code ec {
-      sock_err.value(),
-#if defined(_WIN32)
-          std::system_category()
-#else
-          std::generic_category()
-#endif
-    };
+  auto sock_ec_res = sock_error_code(server_conn);
+  if (!sock_ec_res) {
+    last_ec_ = sock_ec_res.error();
 
-    last_ec_ = ec;
+    trace(Tracer::Event().stage("connect::connect_finish: " +
+                                last_ec_.message()));
+
+    stage(Stage::NextEndpoint);
+    return Result::Again;
+  }
+
+  auto sock_ec = *sock_ec_res;
+
+  if (sock_ec != std::error_code{}) {
+    last_ec_ = sock_ec;
 
     trace(Tracer::Event().stage("connect::connect_finish: " +
                                 last_ec_.message()));

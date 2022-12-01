@@ -178,6 +178,11 @@ class BasicConnection : public ConnectionBase {
     sock_.async_wait(net::socket_base::wait_read, std::move(completion));
   }
 
+  void async_wait_error(
+      std::function<void(std::error_code ec)> completion) override {
+    sock_.async_wait(net::socket_base::wait_error, std::move(completion));
+  }
+
   [[nodiscard]] bool is_open() const override { return sock_.is_open(); }
 
   [[nodiscard]] net::impl::socket::native_handle_type native_handle()
@@ -338,6 +343,11 @@ class TlsSwitchableConnection {
     conn_->async_wait_send(std::forward<Func>(func));
   }
 
+  template <class Func>
+  void async_wait_error(Func &&func) {
+    conn_->async_wait_error(std::forward<Func>(func));
+  }
+
   [[nodiscard]] Channel *channel() { return channel_.get(); }
 
   [[nodiscard]] const Channel *channel() const { return channel_.get(); }
@@ -452,6 +462,11 @@ class ProtocolSplicerBase {
   template <class Func>
   void async_send_client(Func &&func) {
     client_conn_.async_send(std::forward<Func>(func));
+  }
+
+  template <class Func>
+  void async_client_wait_error(Func &&func) {
+    client_conn_.async_wait_error(std::forward<Func>(func));
   }
 
   [[nodiscard]] TlsSwitchableConnection &client_conn() { return client_conn_; }

@@ -346,7 +346,7 @@ void MysqlRoutingClassicConnectionBase::async_wait_send_server(Function next) {
     --active_work_;
 
     if (ec == std::errc::operation_canceled &&
-        connect_error_code() == std::errc::timed_out) {
+        connect_error_code() != std::error_code{}) {
       ec = {};
     }
 

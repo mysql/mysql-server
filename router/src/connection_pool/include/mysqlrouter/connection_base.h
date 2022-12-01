@@ -57,6 +57,7 @@ class ConnectionBase {
 
   virtual void async_wait_send(std::function<void(std::error_code ec)>) = 0;
   virtual void async_wait_recv(std::function<void(std::error_code ec)>) = 0;
+  virtual void async_wait_error(std::function<void(std::error_code ec)>) = 0;
 
   [[nodiscard]] virtual bool is_open() const = 0;
 
