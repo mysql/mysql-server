@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making RapidJSON available.
 // 
-// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
+// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip.
 //
 // Licensed under the MIT License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -283,6 +283,8 @@ public:
         os_->Flush();
     }
 
+    static const size_t kDefaultLevelDepth = 32;
+
 protected:
     //! Information for each nested level
     struct Level {
@@ -290,8 +292,6 @@ protected:
         size_t valueCount;  //!< number of values in this level
         bool inArray;       //!< true if in array, otherwise in object
     };
-
-    static const size_t kDefaultLevelDepth = 32;
 
     bool WriteNull()  {
         PutReserve(*os_, 4);
@@ -676,12 +676,12 @@ inline bool Writer<StringBuffer>::ScanWriteUnescapedString(StringStream& is, siz
         bool escaped = false;
         if (low == 0) {
             if (high != 0) {
-                uint32_t lz = RAPIDJSON_CLZLL(high);
+                uint32_t lz = internal::clzll(high);
                 len = 8 + (lz >> 3);
                 escaped = true;
             }
         } else {
-            uint32_t lz = RAPIDJSON_CLZLL(low);
+            uint32_t lz = internal::clzll(low);
             len = lz >> 3;
             escaped = true;
         }

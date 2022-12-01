@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making RapidJSON available.
 //
-// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
+// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip.
 //
 // Licensed under the MIT License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -25,7 +25,11 @@
 
 #if defined(_MSC_VER) && defined(_M_AMD64) && !defined(__INTEL_COMPILER)
 #include <intrin.h>
+#if !defined(_ARM64EC_)
 #pragma intrinsic(_umul128)
+#else
+#pragma comment(lib,"softintrin")
+#endif
 #endif
 
 RAPIDJSON_NAMESPACE_BEGIN
@@ -100,7 +104,7 @@ struct DiyFp {
     }
 
     DiyFp Normalize() const {
-        int s = static_cast<int>(RAPIDJSON_CLZLL(f));
+        int s = static_cast<int>(clzll(f));
         return DiyFp(f << s, e - s);
     }
 
