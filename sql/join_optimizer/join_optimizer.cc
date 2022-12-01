@@ -1325,23 +1325,27 @@ bool CostingReceiver::FindIndexRangeScans(
       // we'll be applying it as a normal one later.
       continue;
     }
-    tree_applied_predicates.SetBit(i);
-    if (new_tree->inexact) {
+
+    if (new_tree->keys_map.is_clear_all()) {
+      // The predicate was not converted into a range scan, so it won't be
+      // applied or subsumed by any index range scan.
+    } else if (new_tree->inexact) {
       // The predicate was converted into a range scan, but there was some part
       // of it that couldn't be completely represented. We need to note that
-      // it was converted (which we did by setting its bit in
-      // applied_range_predicates), so that we don't double-count its
+      // it was converted, so that we don't double-count its
       // selectivity, but we also need to re-apply it as a filter afterwards,
       // so we cannot set it in subsumed_range_predicates.
       // Of course, we don't know the selectivity of the non-applied parts
       // of the predicate, but it's OK to overcount rows (much better than to
       // undercount them).
+      tree_applied_predicates.SetBit(i);
     } else {
       // The predicate was completely represented as a range scan for at least
       // one index. This means we can mark it as subsumed for now, but note that
       // if we end up choosing some index that doesn't include the field as a
       // keypart, or one where (some of) its ranges have to be skipped, we could
       // revert this decision. See SEL_TREE::inexact and get_ranges_from_tree().
+      tree_applied_predicates.SetBit(i);
       tree_subsumed_predicates.SetBit(i);
     }
 

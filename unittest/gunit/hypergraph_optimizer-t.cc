@@ -4963,6 +4963,57 @@ TEST_F(HypergraphOptimizerTest, IndexMergeSubsumesOnlyOnePredicate) {
   query_block->cleanup(/*full=*/true);
 }
 
+// Tests a case where we have the choice between an index range scan on a set of
+// predicates and an index merge scan on another set of predicates. When the
+// index range scan is chosen, the index merge predicates must be in a filter on
+// top of the range scan. Before bug#34173949, the filter was missing.
+TEST_F(HypergraphOptimizerTest, DontSubsumeIndexMergePredicateInRangeScan) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.x, t1.y FROM t1 WHERE t1.x IN (71, 255) AND t1.y <> 115 AND "
+      "(t1.y = 6 OR t1.x = 29)",
+      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  t1->file->stats.data_file_length = 1e6;
+
+  // Create indexes on (x, y) and on (y).
+  EXPECT_EQ(0, t1->create_index(t1->field[0], t1->field[1], /*unique=*/false));
+  EXPECT_EQ(1, t1->create_index(t1->field[1], nullptr, /*unique=*/false));
+
+  // Mark the indexes as supporting range scans.
+  Mock_HANDLER *handler = down_cast<Mock_HANDLER *>(t1->file);
+  EXPECT_CALL(*handler, index_flags)
+      .WillRepeatedly(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+
+  // Report smaller ranges in the (x, y) index than in the (y) index, so that a
+  // range scan on (x, y) is preferred to a range scan on (y). And also
+  // preferred to an index merge or a table scan.
+  EXPECT_CALL(*handler, records_in_range(0, _, _)).WillRepeatedly(Return(1));
+  EXPECT_CALL(*handler, records_in_range(1, _, _)).WillRepeatedly(Return(10));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The predicate that could have been used for an index merge should be in a
+  // filter on top.
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ("((t1.y = 6) or (t1.x = 29))",
+            ItemToString(root->filter().condition));
+
+  // An index range scan has subsumed the rest of the predicates as:
+  // (x = 71 AND y < 115) OR (x = 71 AND 115 < y) OR
+  // (x = 255 AND y < 115) OR (x = 255 AND 115 < y)
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, root->filter().child->type);
+  const auto range_scan = root->filter().child->index_range_scan();
+  EXPECT_EQ(0, range_scan.index);
+  EXPECT_EQ(4, range_scan.num_ranges);
+}
+
 TEST_F(HypergraphOptimizerTest, IndexMergePrefersNonCPKToOrderByPrimaryKey) {
   for (bool order_by : {false, true}) {
     SCOPED_TRACE(order_by ? "With ORDER BY" : "Without ORDER BY");
@@ -6324,7 +6375,7 @@ std::pair<size_t, size_t> CountTreesAndPlans(
 
     // Clean up allocated memory.
     for (TABLE *table : tables) {
-      destroy(table);
+      destroy(pointer_cast<Fake_TABLE *>(table));
     }
   }
 
