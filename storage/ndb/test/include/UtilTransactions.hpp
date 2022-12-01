@@ -295,6 +295,11 @@ private:
 			 bool transactional = false,
                          bool findNulls = false);
 
+  int verifyTableReplicasPkCompareRow(Ndb* pNdb, Uint32 nodeId,
+                                      const NDBT_ResultRow& scanRow);
+  int verifyTableReplicasScanAndCompareNodes(Ndb* pNdb, Uint32 sourceNodeId,
+                                             Uint32 numDataNodes,
+                                             Uint32 dataNodes[256]);
   int verifyTableReplicasWithSource(Ndb*, Uint32 sourceNodeId=0);
 
   int verifyOrderedIndexViews(Ndb* pNdb,
