@@ -6317,3 +6317,13 @@ Note	1003	/* select#1 */ select `test`.`t4`.`pk` AS `pk`,`test`.`t4`.`c` AS `c`,
 SELECT * FROM (t4 LEFT JOIN (t5 LEFT JOIN (SELECT * FROM t1 as tx WHERE tx.pk IN (SELECT c FROM t3 WHERE pk > 2)) t13 on t5.pk = t13.pk) on t5.c = t4.c + 20) JOIN (t1 LEFT JOIN t2 on t1.pk = t2.pk and t1.pk > 3) on t1.pk = t13.pk AND t1.pk > 3;
 pk	c	pk	c	pk	c	pk	c	pk	c
 DROP TABLE t1, t2, t3, t4, t5;
+#
+# Bug #34801284 partitions: MySQL is trying to perform a consistent read but the read view is not assigned
+#
+CREATE TABLE t1 (c0 int);
+CREATE TABLE t2 (c1 int, c2 int) PARTITION BY KEY (c1) PARTITIONS 4;
+SELECT * from t2 WHERE c2 IN ((SELECT c0 FROM t1 LIMIT 1),null);
+c1	c2
+SELECT * from t2 WHERE c2 NOT IN ((SELECT c0 FROM t1 LIMIT 1),null);
+c1	c2
+DROP TABLE t1, t2;
