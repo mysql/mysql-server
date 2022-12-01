@@ -31,13 +31,15 @@ typedef int (ReadCallBackFn)(NDBT_ResultRow*);
 
 class UtilTransactions {
 public:
-  Uint64 m_util_latest_gci;
+  Uint64 m_util_latest_gci{0};
   Uint32 get_high_latest_gci()
   {
+    assert(m_util_latest_gci != 0);
     return Uint32(Uint64(m_util_latest_gci >> 32));
   }
   Uint32 get_low_latest_gci()
   {
+    assert(m_util_latest_gci != 0);
     return Uint32(Uint64(m_util_latest_gci & 0xFFFFFFFF));
   }
   UtilTransactions(const NdbDictionary::Table&,
@@ -323,11 +325,10 @@ private:
             bool skipNull=false);
 
 protected:
-  int m_defaultClearMethod;
   const NdbDictionary::Table& tab;
   const NdbDictionary::Index* idx;
-  NdbConnection* pTrans;
-  Uint32 m_verbosity;
+  NdbConnection* pTrans{nullptr};
+  Uint32 m_verbosity{0};
   
   NdbOperation* getOperation(NdbConnection*, 
 			     NdbOperation::OperationType);

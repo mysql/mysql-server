@@ -30,19 +30,16 @@
 
 UtilTransactions::UtilTransactions(const NdbDictionary::Table& _tab,
 				   const NdbDictionary::Index* _idx):
-  tab(_tab), idx(_idx), pTrans(0)
+  tab(_tab), idx(_idx)
 {
-  m_defaultClearMethod = 3;
 }
 
 UtilTransactions::UtilTransactions(Ndb* ndb, 
 				   const char * name,
 				   const char * index) :
   tab(* ndb->getDictionary()->getTable(name)),
-  idx(index ? ndb->getDictionary()->getIndex(index, name) : 0),
-  pTrans(0)
+  idx(index ? ndb->getDictionary()->getIndex(index, name) : 0)
 {
-  m_defaultClearMethod = 3;
 }
 
 #define RESTART_SCAN 99
