@@ -1,17 +1,15 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
 show variables like 'collation_server';
 Variable_name	Value
 collation_server	ucs2_unicode_ci
 show variables like "%character_set_ser%";
 Variable_name	Value
 character_set_server	ucs2
-DROP TABLE IF EXISTS t1;
-CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
+CREATE TABLE `t1` ( `nid` int NOT NULL default '0',
 `nom` char(4) default NULL,
 `prenom` char(4) default NULL,
 PRIMARY KEY  (`nid`))
@@ -25,3 +23,4 @@ nid	nom	prenom
 1	XYZ1	ABC1
 ==== clean up ====
 DROP TABLE t1;
+include/rpl_end.inc

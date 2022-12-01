@@ -18,11 +18,8 @@ show variables like 'collation_server';
 #
 #
 show variables like "%character_set_ser%";
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 
-CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
+CREATE TABLE `t1` ( `nid` int NOT NULL default '0',
                     `nom` char(4) default NULL,
                     `prenom` char(4) default NULL,
                     PRIMARY KEY  (`nid`))
