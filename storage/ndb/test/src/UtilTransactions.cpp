@@ -1718,6 +1718,12 @@ UtilTransactions::verifyOrderedIndexViews(Ndb* pNdb,
     //ndbout_c("Found %u data nodes", numDataNodes);
   }
 
+  if (numDataNodes == 0)
+  {
+    /* No alive nodes */
+    return NDBT_FAILED;
+  }
+
   if (numDataNodes == 1)
   {
     /* No replicas */
