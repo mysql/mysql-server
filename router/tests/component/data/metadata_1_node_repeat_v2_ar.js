@@ -19,7 +19,7 @@ var group_replication_membership_online = gr_memberships.single_host(
 var options = {
   group_replication_membership: group_replication_membership_online,
   cluster_type: "ar",
-  cluster_id: "",
+  cluster_id: "uuid",
 };
 
 // first node is PRIMARY

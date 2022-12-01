@@ -40,6 +40,7 @@ var metadata_version =
     (mysqld.global.new_metadata === 1) ? [2, 0, 0] : [1, 0, 2];
 var options = {
   metadata_schema_version: metadata_version,
+  gr_id: "uuid",
   group_replication_membership: group_replication_membership_online,
 };
 

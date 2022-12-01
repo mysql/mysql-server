@@ -16,7 +16,7 @@ if (mysqld.global.gr_node_host === undefined) {
 }
 
 if (mysqld.global.gr_id === undefined) {
-  mysqld.global.gr_id = "00-000";
+  mysqld.global.gr_id = "uuid";
 }
 
 if (mysqld.global.gr_nodes === undefined) {
@@ -68,7 +68,6 @@ var options = {
 var router_start_transaction =
     common_stmts.get("router_start_transaction", options);
 
-// first node is PRIMARY
 options.group_replication_primary_member =
     options.group_replication_membership.length === 0 ?
     "" :

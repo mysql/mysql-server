@@ -117,9 +117,18 @@ ARClusterMetadata::fetch_cluster_topology(
   }
 
   // for ReplicaSet Cluster we assume metadata servers are just Cluster nodes
+  // we want PRIMARY(s) at the beginning of the vector
+  metadata_cache::metadata_servers_list_t non_primary_mds;
   for (const auto &cluster_node : cluster_members) {
-    result.metadata_servers.emplace_back(cluster_node.host, cluster_node.port);
+    if (cluster_node.role == metadata_cache::ServerRole::Primary)
+      result.metadata_servers.emplace_back(cluster_node.host,
+                                           cluster_node.port);
+    else
+      non_primary_mds.emplace_back(cluster_node.host, cluster_node.port);
   }
+  result.metadata_servers.insert(result.metadata_servers.end(),
+                                 non_primary_mds.begin(),
+                                 non_primary_mds.end());
   result.writable_server = find_rw_server(cluster_members);
 
   return result;

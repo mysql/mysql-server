@@ -850,8 +850,12 @@ TEST_F(AsyncReplicasetTest, MultipleChangesInTheCluster) {
   ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[2], 2));
 
   SCOPED_TRACE("// Check that the state file caught up with all those changes");
+  // since the node 2 became a new PRIMARY it should be first metadata server on
+  // the list now
+  std::vector<uint16_t> md_servers_expected{
+      cluster_nodes_ports[2], cluster_nodes_ports[0], cluster_nodes_ports[3]};
   check_state_file(state_file, ClusterType::RS_V2, cluster_id,
-                   new_cluster_members, view_id + 1);
+                   md_servers_expected, view_id + 1);
 }
 
 /**
@@ -1005,12 +1009,14 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldGone) {
   auto client_ro =
       make_new_connection_ok(router_port_ro, cluster_nodes_ports[1]);
 
-  SCOPED_TRACE("// Now let's remove old primary and add a new one");
+  SCOPED_TRACE(
+      "// Now let's remove old primary and promote a first secondary to become "
+      "one");
   std::vector<uint16_t> new_cluster_members{cluster_nodes_ports[1],
                                             cluster_nodes_ports[2]};
   for (size_t i = 1; i <= 2; i++) {
     set_mock_metadata(cluster_http_ports[i], cluster_id, new_cluster_members,
-                      /*primary_id=*/1, view_id + 1);
+                      /*primary_id=*/0, view_id + 1);
   }
 
   SCOPED_TRACE("// Wait untill the router sees this change");
@@ -1027,7 +1033,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldGone) {
 
   SCOPED_TRACE("// Check that new RW connections is made to the new PRIMARY");
   /*auto client_rw2 =*/make_new_connection_ok(router_port_rw,
-                                              cluster_nodes_ports[2]);
+                                              cluster_nodes_ports[1]);
 }
 
 /**
@@ -1178,8 +1184,12 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondaryDisconnectOnPromoted) {
   ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1], 2));
 
   SCOPED_TRACE("// Check that the state file is as expected");
-  check_state_file(state_file, ClusterType::RS_V2, cluster_id,
-                   cluster_nodes_ports, view_id + 1);
+  // since the primary has changed we expect that change reflected in the
+  // metadata-servers order too
+  check_state_file(
+      state_file, ClusterType::RS_V2, cluster_id,
+      {cluster_nodes_ports[1], cluster_nodes_ports[0], cluster_nodes_ports[2]},
+      view_id + 1);
 
   SCOPED_TRACE("// Check that both RW and RO connections are down");
   EXPECT_TRUE(wait_connection_dropped(*client_rw.get()));

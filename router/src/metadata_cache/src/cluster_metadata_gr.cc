@@ -83,6 +83,7 @@ class GRMetadataBackend {
       const mysqlrouter::MetadataSchemaVersion &schema_version,
       mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
       const metadata_cache::metadata_server_t &metadata_server,
+      const metadata_cache::metadata_servers_list_t &metadata_servers,
       bool needs_writable_node, const std::string &group_name,
       const std::string &clusterset_id, bool whole_topology);
 
@@ -200,6 +201,7 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
       const mysqlrouter::MetadataSchemaVersion &schema_version,
       mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
       const metadata_cache::metadata_server_t &metadata_server,
+      const metadata_cache::metadata_servers_list_t &metadata_servers,
       bool needs_writable_node, const std::string &group_name,
       const std::string &clusterset_id = "",
       bool whole_topology = false) override;
@@ -704,12 +706,41 @@ GRClusterMetadata::get_periodic_stats_update_frequency() noexcept {
   return metadata_backend_->get_periodic_stats_update_frequency();
 }
 
+// sort the cluster nodes based on already sorted metadata servers list in the
+// following order:
+// 1. PRIMARY instance(s)
+// 2. SECONDARY instance(s)
+static void sort_cluster_nodes(
+    metadata_cache::ManagedCluster &cluster,
+    const metadata_cache::metadata_servers_list_t &sorted_metadata_servers) {
+  metadata_cache::cluster_nodes_list_t sorted;
+
+  for (const auto &server : sorted_metadata_servers) {
+    auto it = std::find(cluster.members.begin(), cluster.members.end(), server);
+    if (it != cluster.members.end()) {
+      sorted.push_back(*it);
+    }
+  }
+
+  // add those new, potentially missing in the last known order set, at the end
+  for (const auto &member : cluster.members) {
+    auto it = std::find(sorted_metadata_servers.begin(),
+                        sorted_metadata_servers.end(), member);
+    if (it == sorted_metadata_servers.end()) {
+      sorted.push_back(member);
+    }
+  }
+
+  cluster.members = std::move(sorted);
+}
+
 stdx::expected<metadata_cache::ClusterTopology, std::error_code>
 GRMetadataBackend::fetch_cluster_topology(
     MySQLSession::Transaction &transaction,
     const mysqlrouter::MetadataSchemaVersion &schema_version,
     mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
     const metadata_cache::metadata_server_t & /*metadata_server*/,
+    const metadata_cache::metadata_servers_list_t &metadata_servers,
     bool needs_writable_node, const std::string &group_name,
     const std::string &clusterset_id = "", bool /*whole_topology*/ = false) {
   metadata_cache::ClusterTopology result;
@@ -728,11 +759,36 @@ GRMetadataBackend::fetch_cluster_topology(
 
   auto &cluster = result.clusters_data[0];
 
+  // We got the configured set of the cluster nodes from the static metadata.
+  // Before we go check the status in the GR tables we sort them, putting the
+  // last known PRIMARY node at the front. This way we have the best chance to
+  // find and query the actual PRIMARY node first, when looking for a quorum.
+  // Otherwise when the node (old primary) is OFFLINE and still exists in the
+  // static metadata, we are going to query for it's dynamic state each time and
+  // give all sorts of warnings, despite the fact that we already know it is not
+  // a PRIMARY anymore (from the previous refresh rounds).
+  sort_cluster_nodes(cluster, metadata_servers);
+
   // now connect to the cluster and query it for the list and status of its
   // members. (more precisely: search and connect to a
   // member which is part of quorum to retrieve this data)
   metadata_->update_cluster_status(
       cluster);  // throws metadata_cache::metadata_error
+
+  // once we know the current status (PRIMARY, SECONDARY) of the nodes, we can
+  // make a list of metadata-servers with desired order (PRIMARY(s) first)
+  metadata_cache::metadata_servers_list_t non_primary_mds;
+  for (const auto &cluster_node : cluster.members) {
+    if (cluster_node.role == metadata_cache::ServerRole::Primary) {
+      result.metadata_servers.emplace_back(cluster_node.host,
+                                           cluster_node.port);
+    } else {
+      non_primary_mds.emplace_back(cluster_node.host, cluster_node.port);
+    }
+  }
+  result.metadata_servers.insert(result.metadata_servers.end(),
+                                 non_primary_mds.begin(),
+                                 non_primary_mds.end());
 
   if (needs_writable_node) {
     result.writable_server = metadata_->find_rw_server(cluster.members);
@@ -808,7 +864,8 @@ GRClusterMetadata::fetch_cluster_topology(
 
         result_tmp = metadata_backend_->fetch_cluster_topology(
             transaction, version, target_cluster, router_id, metadata_server,
-            needs_writable_node, group_name, clusterset_id, whole_topology);
+            cluster_servers, needs_writable_node, group_name, clusterset_id,
+            whole_topology);
 
         last_fetch_cluster_id = i;
       } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
@@ -932,12 +989,6 @@ GRMetadataBackendV1::fetch_instances_from_metadata_server(
   result.clusters_data.push_back(cluster);
   result.target_cluster_pos = 0;
 
-  // for Cluster that is not part of the ClusterSet we assume metadata
-  // servers are just Cluster nodes
-  for (const auto &cluster_node : cluster.members) {
-    result.metadata_servers.emplace_back(cluster_node.host, cluster_node.port);
-  }
-
   return result;
 }
 
@@ -1022,12 +1073,6 @@ GRMetadataBackendV2::fetch_instances_from_metadata_server(
   metadata_cache::ClusterTopology result;
   result.clusters_data.push_back(cluster);
   result.target_cluster_pos = 0;
-
-  // for Cluster that is not part of the ClusterSet we assume metadata
-  // servers are just Cluster nodes
-  for (const auto &cluster_node : cluster.members) {
-    result.metadata_servers.emplace_back(cluster_node.host, cluster_node.port);
-  }
 
   return result;
 }
@@ -1327,6 +1372,7 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
     const mysqlrouter::MetadataSchemaVersion & /*schema_version*/,
     mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
     const metadata_cache::metadata_server_t &metadata_server,
+    const metadata_cache::metadata_servers_list_t & /*metadata_servers*/,
     bool needs_writable_node, const std::string &group_name,
     const std::string &clusterset_id, bool whole_topology) {
   metadata_cache::ClusterTopology result;

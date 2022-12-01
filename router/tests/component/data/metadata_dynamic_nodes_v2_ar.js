@@ -16,7 +16,7 @@ if (mysqld.global.gr_node_host === undefined) {
 }
 
 if (mysqld.global.gr_id === undefined) {
-  mysqld.global.gr_id = "00-000";
+  mysqld.global.gr_id = "uuid";
 }
 
 if (mysqld.global.gr_nodes === undefined) {
@@ -71,7 +71,6 @@ var options = {
   innodb_cluster_name: "test",
 };
 
-// first node is PRIMARY
 if (mysqld.global.primary_id >= 0) {
   options.group_replication_primary_member =
       options.group_replication_membership[mysqld.global.primary_id][0];

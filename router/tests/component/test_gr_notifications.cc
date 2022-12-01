@@ -1015,7 +1015,7 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
         trace_file, nodes_ports[i], EXIT_SUCCESS, false, http_ports[i],
         nodes_xports[i]));
 
-    set_mock_metadata(http_ports[i], "00-000", nodes_ports, nodes_xports,
+    set_mock_metadata(http_ports[i], "uuid", nodes_ports, nodes_xports,
                       /*sent=*/false, nodes_ports);
 
     SCOPED_TRACE(
@@ -1039,7 +1039,7 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
 
   SCOPED_TRACE("// Create a router state file");
   const std::string state_file = GrNotificationsTest::create_state_file(
-      temp_test_dir.name(), "00-000", nodes_ports);
+      temp_test_dir.name(), "uuid", nodes_ports);
 
   SCOPED_TRACE(
       "// Create a configuration file sections with high ttl so that "
@@ -1075,7 +1075,7 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
   // cluster metadata should be missing a newly added node, GR metaadata should
   // already have it
   for (size_t i = 0; i <= 2; i++) {
-    set_mock_metadata(http_ports[i], "00-000", nodes_ports, nodes_xports,
+    set_mock_metadata(http_ports[i], "uuid", nodes_ports, nodes_xports,
                       /*send=*/true, cluster_nodes_ports);
   }
 
@@ -1094,7 +1094,7 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
   SCOPED_TRACE("// Now let the metadata be consistent again");
   // GR tables and cluster metadata should both contain the newly added node
   for (size_t i = 0; i <= 2; i++) {
-    set_mock_metadata(http_ports[i], "00-000", nodes_ports, nodes_xports,
+    set_mock_metadata(http_ports[i], "uuid", nodes_ports, nodes_xports,
                       /*send=*/true, nodes_ports);
   }
 

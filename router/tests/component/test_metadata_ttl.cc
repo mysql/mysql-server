@@ -54,26 +54,14 @@ using namespace std::string_literals;
 class MetadataChacheTTLTest : public RouterComponentTest {
  protected:
   std::string get_metadata_cache_section(
-      std::vector<uint16_t> metadata_server_ports,
       ClusterType cluster_type = ClusterType::GR_V2,
       const std::string &ttl = "0.5") {
-    std::string bootstrap_server_addresses;
-    bool use_comma = false;
-    for (const auto &port : metadata_server_ports) {
-      if (use_comma) {
-        bootstrap_server_addresses += ",";
-      } else {
-        use_comma = true;
-      }
-      bootstrap_server_addresses += "mysql://localhost:" + std::to_string(port);
-    }
     const std::string cluster_type_str =
         (cluster_type == ClusterType::RS_V2) ? "rs" : "gr";
 
     std::map<std::string, std::string> options{
         {"cluster_type", cluster_type_str},
         {"router_id", "1"},
-        {"bootstrap_server_addresses", bootstrap_server_addresses},
         {"user", router_metadata_username},
         {"connect_timeout", "1"},
         {"metadata_cluster", "test"}};
@@ -147,10 +135,15 @@ class MetadataChacheTTLTest : public RouterComponentTest {
 
   auto &launch_router(const std::string &metadata_cache_section,
                       const std::string &routing_section,
+                      std::vector<uint16_t> metadata_server_ports,
                       const int expected_exitcode,
                       std::chrono::milliseconds wait_for_notify_ready = 30s) {
     auto default_section = get_DEFAULT_defaults();
+    state_file_ = create_state_file(
+        get_test_temp_dir_name(),
+        create_state_file_content("uuid", "", metadata_server_ports, 0));
     init_keyring(default_section, get_test_temp_dir_name());
+    default_section["dynamic_state"] = state_file_;
 
     // launch the router
     const std::string conf_file = create_config_file(
@@ -163,6 +156,7 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     return router;
   }
 
+  std::string state_file_;
   const std::string router_metadata_username{"mysql_router1_user"};
 };
 
@@ -182,7 +176,7 @@ struct MetadataTTLTestParams {
   std::chrono::milliseconds ttl_expected_max;
 
   MetadataTTLTestParams(std::string tracefile_, std::string description_,
-                        ClusterType cluster_type_, std::string ttl_,
+                        ClusterType cluster_type_, std::string ttl_ = "0.5",
                         std::chrono::milliseconds ttl_expected_min_ = 0ms,
                         std::chrono::milliseconds ttl_expected_max_ = 0ms)
       : tracefile(std::move(tracefile_)),
@@ -242,13 +236,13 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   const auto router_port = port_pool_.get_next_available();
-  const std::string metadata_cache_section = get_metadata_cache_section(
-      {md_server_port}, test_params.cluster_type, test_params.ttl);
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(test_params.cluster_type, test_params.ttl);
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
-  auto &router =
-      launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                    /*wait_for_notify_ready=*/30s);
+  auto &router = launch_router(metadata_cache_section, routing_section,
+                               {md_server_port}, EXIT_SUCCESS,
+                               /*wait_for_notify_ready=*/30s);
 
   // the remaining is too time-dependent to hope it will pass with VALGRIND
   if (getenv("WITH_VALGRIND")) {
@@ -334,13 +328,13 @@ TEST_P(MetadataChacheTTLTestParamInvalid, CheckTTLInvalid) {
 
   // launch the router with metadata-cache configuration
   const auto router_port = port_pool_.get_next_available();
-  const std::string metadata_cache_section = get_metadata_cache_section(
-      {md_server_port}, test_params.cluster_type, test_params.ttl);
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(test_params.cluster_type, test_params.ttl);
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
-  auto &router =
-      launch_router(metadata_cache_section, routing_section, EXIT_FAILURE,
-                    /*wait_for_notify_ready=*/-1s);
+  auto &router = launch_router(metadata_cache_section, routing_section,
+                               {md_server_port}, EXIT_FAILURE,
+                               /*wait_for_notify_ready=*/-1s);
 
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_THAT(router.exit_code(), testing::Ne(0));
@@ -374,7 +368,7 @@ class MetadataChacheTTLTestInstanceListUnordered
  *       will not treat this as a change (Bug#29264764).
  */
 TEST_P(MetadataChacheTTLTestInstanceListUnordered, InstancesListUnordered) {
-  const std::string kGroupID = "";
+  const std::string kGroupID = "uuid";
 
   SCOPED_TRACE("// launch 2 server mocks");
   std::vector<ProcessWrapper *> nodes;
@@ -397,12 +391,12 @@ TEST_P(MetadataChacheTTLTestInstanceListUnordered, InstancesListUnordered) {
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   const auto router_port = port_pool_.get_next_available();
-  const std::string metadata_cache_section = get_metadata_cache_section(
-      node_classic_ports, GetParam().cluster_type, GetParam().ttl);
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(GetParam().cluster_type, GetParam().ttl);
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
-  auto &router =
-      launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS, 5s);
+  auto &router = launch_router(metadata_cache_section, routing_section,
+                               {node_classic_ports}, EXIT_SUCCESS, 5s);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0]));
 
@@ -428,9 +422,9 @@ INSTANTIATE_TEST_SUITE_P(
     InstancesListUnordered, MetadataChacheTTLTestInstanceListUnordered,
     ::testing::Values(
         MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
-                              "unordered_gr_v2", ClusterType::GR_V1, "0.1"),
+                              "unordered_gr_v2", ClusterType::GR_V2, "0.1"),
         MetadataTTLTestParams("metadata_dynamic_nodes.js", "unordered_gr",
-                              ClusterType::GR_V2, "0.1"),
+                              ClusterType::GR_V1, "0.1"),
         MetadataTTLTestParams("metadata_dynamic_nodes_v2_ar.js",
                               "unordered_ar_v2", ClusterType::RS_V2, "0.1")),
     get_test_description);
@@ -457,17 +451,17 @@ TEST_P(MetadataChacheTTLTestInvalidMysqlXPort, InvalidMysqlXPort) {
 
   SCOPED_TRACE(
       "// let the metadata for our single node report invalid mysqlx port");
-  set_mock_metadata(node_http_port, "", {node_classic_port}, 0, 0, false,
+  set_mock_metadata(node_http_port, "uuid", {node_classic_port}, 0, 0, false,
                     "127.0.0.1", {kInvalidPort});
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   const auto router_port = port_pool_.get_next_available();
-  const std::string metadata_cache_section = get_metadata_cache_section(
-      {node_classic_port}, GetParam().cluster_type, GetParam().ttl);
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(GetParam().cluster_type, GetParam().ttl);
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
-  auto &router =
-      launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS, 5s);
+  auto &router = launch_router(metadata_cache_section, routing_section,
+                               {node_classic_port}, EXIT_SUCCESS, 5s);
 
   // TODO: still needed?
   ASSERT_TRUE(wait_metadata_read(router, 5s)) << router.get_full_output();
@@ -511,12 +505,12 @@ TEST_F(MetadataChacheTTLTest, CheckMetadataUpgradeBetweenTTLs) {
   const auto router_port = port_pool_.get_next_available();
 
   const std::string metadata_cache_section =
-      get_metadata_cache_section({md_server_port}, ClusterType::GR_V1, "0.5");
+      get_metadata_cache_section(ClusterType::GR_V1, "0.5");
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
-  auto &router =
-      launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                    /*wait_for_notify_ready=*/30s);
+  auto &router = launch_router(metadata_cache_section, routing_section,
+                               {md_server_port}, EXIT_SUCCESS,
+                               /*wait_for_notify_ready=*/30s);
 
   // keep the router running for a while and change the metadata version
   EXPECT_TRUE(wait_for_transaction_count_increase(md_server_http_port, 2));
@@ -572,7 +566,7 @@ TEST_P(CheckRouterInfoUpdatesTest, CheckRouterInfoUpdates) {
   SCOPED_TRACE(
       "// let's tell the mock which attributes it should expect so that it "
       "does the strict sql matching for us");
-  auto globals = mock_GR_metadata_as_json("", {md_server_port});
+  auto globals = mock_GR_metadata_as_json("uuid", {md_server_port});
   JsonAllocator allocator;
   globals.AddMember("router_version", MYSQL_ROUTER_VERSION, allocator);
   globals.AddMember("router_rw_classic_port", router_port, allocator);
@@ -585,11 +579,12 @@ TEST_P(CheckRouterInfoUpdatesTest, CheckRouterInfoUpdates) {
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
 
-  const std::string metadata_cache_section = get_metadata_cache_section(
-      {md_server_port}, GetParam().cluster_type, GetParam().ttl);
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(GetParam().cluster_type, GetParam().ttl);
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
-  launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
+  launch_router(metadata_cache_section, routing_section, {md_server_port},
+                EXIT_SUCCESS,
                 /*wait_for_notify_ready=*/30s);
 
   SCOPED_TRACE("// let the router run for at least 10 metadata refresh cycles");
@@ -671,7 +666,7 @@ TEST_F(MetadataChacheTTLTest, CheckRouterInfoUpdatesClusterPartOfCS) {
   SCOPED_TRACE(
       "// let's tell the mock which attributes it should expect so that it "
       "does the strict sql matching for us");
-  auto globals = mock_GR_metadata_as_json("", {md_server_port});
+  auto globals = mock_GR_metadata_as_json("uuid", {md_server_port});
   JsonAllocator allocator;
   globals.AddMember("router_version", MYSQL_ROUTER_VERSION, allocator);
   globals.AddMember("router_rw_classic_port", router_port, allocator);
@@ -690,10 +685,11 @@ TEST_F(MetadataChacheTTLTest, CheckRouterInfoUpdatesClusterPartOfCS) {
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
 
   const std::string metadata_cache_section =
-      get_metadata_cache_section({md_server_port}, ClusterType::GR_V2, "0.1");
+      get_metadata_cache_section(ClusterType::GR_V2, "0.1");
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
-  launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
+  launch_router(metadata_cache_section, routing_section, {md_server_port},
+                EXIT_SUCCESS,
                 /*wait_for_notify_ready=*/30s);
 
   SCOPED_TRACE("// let the router run for at least 10 metadata refresh cycles");
@@ -739,7 +735,7 @@ TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnAttributesUpdate) {
       "// let's tell the mock which attributes it should expect so that it "
       "does the strict sql matching for us, also tell it to issue the "
       "permission error on the update attempt");
-  auto globals = mock_GR_metadata_as_json("", {md_server_port});
+  auto globals = mock_GR_metadata_as_json("uuid", {md_server_port});
   JsonAllocator allocator;
   globals.AddMember("router_version", MYSQL_ROUTER_VERSION, allocator);
   globals.AddMember("router_rw_classic_port", router_port, allocator);
@@ -754,13 +750,13 @@ TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnAttributesUpdate) {
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
 
-  const std::string metadata_cache_section = get_metadata_cache_section(
-      {md_server_port}, GetParam().cluster_type, GetParam().ttl);
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(GetParam().cluster_type, GetParam().ttl);
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
-  auto &router =
-      launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                    /*wait_for_notify_ready=*/30s);
+  auto &router = launch_router(metadata_cache_section, routing_section,
+                               {md_server_port}, EXIT_SUCCESS,
+                               /*wait_for_notify_ready=*/30s);
 
   SCOPED_TRACE(
       "// wait for several Router transactions on the metadata server");
@@ -821,25 +817,25 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
 
   /*auto &metadata_server = */ launch_mysql_server_mock(
       json_metadata, md_server_port, EXIT_SUCCESS, false, md_server_http_port);
-  set_mock_metadata(md_server_http_port, "", {md_server_port});
+  set_mock_metadata(md_server_http_port, "uuid", {md_server_port});
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   const auto router_port = port_pool_.get_next_available();
 
-  const std::string metadata_cache_section = get_metadata_cache_section(
-      {md_server_port}, GetParam().cluster_type, GetParam().ttl);
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(GetParam().cluster_type, GetParam().ttl);
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
-  auto &router =
-      launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
-                    /*wait_for_notify_ready=*/30s);
+  auto &router = launch_router(metadata_cache_section, routing_section,
+                               {md_server_port}, EXIT_SUCCESS,
+                               /*wait_for_notify_ready=*/30s);
   EXPECT_TRUE(wait_for_port_used(router_port));
 
   SCOPED_TRACE("// let us make some user connection via the router port");
   auto client = make_new_connection_ok(router_port, md_server_port);
 
   SCOPED_TRACE("// let's mimmic start of the metadata update now");
-  auto globals = mock_GR_metadata_as_json("", {md_server_port});
+  auto globals = mock_GR_metadata_as_json("uuid", {md_server_port});
   JsonAllocator allocator;
   globals.AddMember("upgrade_in_progress", 1, allocator);
   globals.AddMember("md_query_count", 0, allocator);
@@ -922,18 +918,19 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
   for (size_t i = 0; i < NUM_NODES; ++i) {
     cluster_nodes.push_back(&launch_mysql_server_mock(
         json_metadata, node_ports[i], EXIT_SUCCESS, false, node_http_ports[i]));
-    set_mock_metadata(node_http_ports[i], "", node_ports);
+    set_mock_metadata(node_http_ports[i], "uuid", node_ports);
   }
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   const auto router_port = port_pool_.get_next_available();
 
-  const std::string metadata_cache_section = get_metadata_cache_section(
-      node_ports, GetParam().cluster_type, GetParam().ttl);
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(GetParam().cluster_type, GetParam().ttl);
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
 
-  launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
+  launch_router(metadata_cache_section, routing_section, node_ports,
+                EXIT_SUCCESS,
                 /*wait_for_notify_ready=*/30s);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
@@ -946,7 +943,7 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
   SCOPED_TRACE(
       "// Mimic the removal of the first node, this_instance view on this node "
       "should return empty dataset");
-  auto globals = mock_GR_metadata_as_json("", node_ports);
+  auto globals = mock_GR_metadata_as_json("uuid", node_ports);
   JsonAllocator allocator;
   globals.AddMember("cluster_type", "", allocator);
   const auto globals_str = json_to_string(globals);
@@ -955,7 +952,7 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
   SCOPED_TRACE(
       "// Tell the second node that it is a new Primary and the only member of "
       "the cluster");
-  set_mock_metadata(node_http_ports[1], "", {node_ports[1]});
+  set_mock_metadata(node_http_ports[1], "uuid", {node_ports[1]});
 
   SCOPED_TRACE(
       "// Connect to the router primary port, the connection should be ok and "
@@ -1010,7 +1007,7 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
                       .wait_for_rest_endpoint_ready());
 
       const auto primary_id = no_primary ? -1 : 0;
-      set_mock_metadata(node_http_ports[i], "", node_ports, primary_id, 0,
+      set_mock_metadata(node_http_ports[i], "uuid", node_ports, primary_id, 0,
                         false, node_hostname, {}, nodes_attributes);
     }
   }
@@ -1018,7 +1015,7 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
   void setup_router(ClusterType cluster_type, const std::string &ttl,
                     const bool read_only = false) {
     const std::string metadata_cache_section =
-        get_metadata_cache_section(node_ports, cluster_type, ttl);
+        get_metadata_cache_section(cluster_type, ttl);
     std::string routing_rw_section{""};
     if (!read_only) {
       routing_rw_section = get_metadata_cache_routing_section(
@@ -1031,10 +1028,10 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
     routing_ro_section += get_metadata_cache_routing_section(
         router_ro_x_port, "SECONDARY", "round-robin", "", "x_ro", "x");
 
-    router =
-        &launch_router(metadata_cache_section,
-                       routing_rw_section + routing_ro_section, EXIT_SUCCESS,
-                       /*wait_for_notify_ready=*/30s);
+    router = &launch_router(metadata_cache_section,
+                            routing_rw_section + routing_ro_section, node_ports,
+                            EXIT_SUCCESS,
+                            /*wait_for_notify_ready=*/30s);
 
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*router, read_only ? router_ro_port : router_rw_port));
@@ -1047,7 +1044,7 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
     const auto primary_id = no_primary ? -1 : 0;
 
     ASSERT_NO_THROW({
-      set_mock_metadata(node_http_ports[0], "", node_ports, primary_id, 0,
+      set_mock_metadata(node_http_ports[0], "uuid", node_ports, primary_id, 0,
                         false, node_hostname, {}, nodes_attributes);
     });
 
@@ -1585,13 +1582,14 @@ TEST_P(NodesHiddenWithFallbackTest, PrimaryHidden) {
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   const std::string metadata_cache_section =
-      get_metadata_cache_section(node_ports, GetParam().cluster_type);
+      get_metadata_cache_section(GetParam().cluster_type);
   std::string routing_section = get_metadata_cache_routing_section(
       router_rw_port, "PRIMARY", "round-robin", "", "rw");
   routing_section += get_metadata_cache_routing_section(
       router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
 
-  launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
+  launch_router(metadata_cache_section, routing_section, node_ports,
+                EXIT_SUCCESS,
                 /*wait_for_notify_ready=*/30s);
 
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
@@ -1603,23 +1601,23 @@ TEST_P(NodesHiddenWithFallbackTest, PrimaryHidden) {
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Bring down secondary nodes, primary is hidden");
-  set_mock_metadata(node_http_ports[0], "", {node_ports[0]}, 0, 0, false,
+  set_mock_metadata(node_http_ports[0], "uuid", {node_ports[0]}, 0, 0, false,
                     node_hostname, {}, {R"({"tags" : {"_hidden": true} })"});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_unused(router_rw_port));
   EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   SCOPED_TRACE("// Bring up second secondary node, primary is hidden");
-  set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[2]}, 0,
-                    0, false, node_hostname, {},
+  set_mock_metadata(node_http_ports[0], "uuid", {node_ports[0], node_ports[2]},
+                    0, 0, false, node_hostname, {},
                     {R"({"tags" : {"_hidden": true} })", ""});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_unused(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Unhide primary node");
-  set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[2]}, 0,
-                    0, false, node_hostname, {}, {"", ""});
+  set_mock_metadata(node_http_ports[0], "uuid", {node_ports[0], node_ports[2]},
+                    0, 0, false, node_hostname, {}, {"", ""});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
@@ -1631,13 +1629,14 @@ TEST_P(NodesHiddenWithFallbackTest, SecondaryHidden) {
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   const std::string metadata_cache_section =
-      get_metadata_cache_section(node_ports, GetParam().cluster_type);
+      get_metadata_cache_section(GetParam().cluster_type);
   std::string routing_section = get_metadata_cache_routing_section(
       router_rw_port, "PRIMARY", "round-robin", "", "rw");
   routing_section += get_metadata_cache_routing_section(
       router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
 
-  launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
+  launch_router(metadata_cache_section, routing_section, node_ports,
+                EXIT_SUCCESS,
                 /*wait_for_notify_ready=*/30s);
 
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
@@ -1650,16 +1649,16 @@ TEST_P(NodesHiddenWithFallbackTest, SecondaryHidden) {
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Bring down first primary node");
-  set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[2]}, 0,
-                    0, false, node_hostname, {},
+  set_mock_metadata(node_http_ports[0], "uuid", {node_ports[0], node_ports[2]},
+                    0, 0, false, node_hostname, {},
                     {"", R"({"tags" : {"_hidden": true} })"});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Unhide second secondary node");
-  set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[2]}, 0,
-                    0, false, node_hostname, {}, {"", ""});
+  set_mock_metadata(node_http_ports[0], "uuid", {node_ports[0], node_ports[2]},
+                    0, 0, false, node_hostname, {}, {"", ""});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
@@ -1978,6 +1977,100 @@ INSTANTIATE_TEST_SUITE_P(
                       MetadataTTLTestParams("metadata_dynamic_nodes_v2_ar.js",
                                             "invalid_attributes_tags_ar_v2",
                                             ClusterType::RS_V2, "0.1")),
+    get_test_description);
+
+class MetadataCacheMetadataServersOrder
+    : public MetadataChacheTTLTest,
+      public ::testing::WithParamInterface<MetadataTTLTestParams> {};
+
+TEST_P(MetadataCacheMetadataServersOrder, MetadataServersOrder) {
+  const size_t kClusterNodes{3};
+  std::vector<ProcessWrapper *> cluster_nodes;
+  std::vector<uint16_t> md_servers_classic_ports, md_servers_http_ports;
+
+  // launch the mock servers
+  for (size_t i = 0; i < kClusterNodes; ++i) {
+    const auto classic_port = port_pool_.get_next_available();
+    const auto http_port = port_pool_.get_next_available();
+    const std::string tracefile =
+        get_data_dir().join(GetParam().tracefile).str();
+    cluster_nodes.push_back(&launch_mysql_server_mock(
+        tracefile, classic_port, EXIT_SUCCESS, false, http_port));
+
+    md_servers_classic_ports.push_back(classic_port);
+    md_servers_http_ports.push_back(http_port);
+  }
+
+  for (const auto &http_port : md_servers_http_ports) {
+    set_mock_metadata(http_port, "uuid", md_servers_classic_ports,
+                      /*primary_id=*/0);
+  }
+
+  // launch the router with metadata-cache configuration
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(GetParam().cluster_type, "0.1");
+  const auto router_rw_port = port_pool_.get_next_available();
+  const std::string routing_rw_section = get_metadata_cache_routing_section(
+      router_rw_port, "PRIMARY", "first-available", "", "rw");
+  const auto router_ro_port = port_pool_.get_next_available();
+  const std::string routing_ro_section = get_metadata_cache_routing_section(
+      router_ro_port, "PRIMARY", "round-robin", "", "ro");
+  /*auto &router =*/
+  launch_router(metadata_cache_section, routing_rw_section + routing_ro_section,
+                md_servers_classic_ports, EXIT_SUCCESS,
+                /*wait_for_notify_ready=*/30s);
+
+  // check first metadata server (PRIMARY) is queried for metadata
+  EXPECT_TRUE(wait_for_transaction_count_increase(md_servers_http_ports[0], 2));
+
+  // check that 2nd and 3rd servers (SECONDARIES) are NOT queried for metadata
+  // in case of ReplicaSet Cluster every node gets queried for view_id so this
+  // check would fail
+  if (GetParam().cluster_type != mysqlrouter::ClusterType::RS_V2) {
+    for (const auto i : {1, 2}) {
+      EXPECT_FALSE(wait_for_transaction_count_increase(md_servers_http_ports[i],
+                                                       1, 200ms));
+    }
+  }
+
+  // check that the PRIMARY is first in the state file
+  check_state_file(state_file_, GetParam().cluster_type, "uuid",
+                   {md_servers_classic_ports[0], md_servers_classic_ports[1],
+                    md_servers_classic_ports[2]});
+
+  // now promote first SECONDARY to become new PRIMARY
+  for (const auto &http_port : md_servers_http_ports) {
+    set_mock_metadata(http_port, "uuid", md_servers_classic_ports,
+                      /*primary_id=*/1);
+  }
+
+  // check that the second metadata server (new PRIMARY) is queried for metadata
+  EXPECT_TRUE(wait_for_transaction_count_increase(md_servers_http_ports[1], 2));
+
+  // check that 1st and 3rd servers (new SECONDARIES) are NOT queried for
+  // metadata in case of ReplicaSet Cluster every node gets queried for view_id
+  // so this check would fail
+  if (GetParam().cluster_type != mysqlrouter::ClusterType::RS_V2) {
+    for (const auto i : {0, 2}) {
+      EXPECT_FALSE(wait_for_transaction_count_increase(
+          md_servers_http_ports[i], 1, std::chrono::milliseconds(500)));
+    }
+  }
+
+  // check that the new PRIMARY is first in the state file
+  check_state_file(state_file_, GetParam().cluster_type, "uuid",
+                   {md_servers_classic_ports[1], md_servers_classic_ports[0],
+                    md_servers_classic_ports[2]});
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    MetadataServersOrder, MetadataCacheMetadataServersOrder,
+    ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
+                                            "GR_V2", ClusterType::GR_V2),
+                      MetadataTTLTestParams("metadata_dynamic_nodes_v2_ar.js",
+                                            "AR", ClusterType::RS_V2),
+                      MetadataTTLTestParams("metadata_dynamic_nodes.js",
+                                            "GR_V1", ClusterType::GR_V1)),
     get_test_description);
 
 int main(int argc, char *argv[]) {

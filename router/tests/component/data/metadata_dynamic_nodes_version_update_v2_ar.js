@@ -14,7 +14,7 @@ var gr_memberships = require("gr_memberships");
 var gr_node_host = "127.0.0.1";
 
 if (mysqld.global.gr_id === undefined) {
-  mysqld.global.gr_id = "00-000";
+  mysqld.global.gr_id = "uuid";
 }
 
 if (mysqld.global.gr_nodes === undefined) {
@@ -116,7 +116,6 @@ var options = {
   router_metadata_user: mysqld.global.router_metadata_user,
 };
 
-// first node is PRIMARY
 options.group_replication_primary_member =
     options.group_replication_membership[mysqld.global.primary_id][0];
 

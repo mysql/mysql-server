@@ -3,7 +3,7 @@ var common_stmts = require("common_statements");
 var gr_node_host = "127.0.0.1";
 
 if (mysqld.global.gr_id === undefined) {
-  mysqld.global.gr_id = "00-000";
+  mysqld.global.gr_id = "uuid";
 }
 
 if (mysqld.global.gr_nodes === undefined) {
@@ -55,7 +55,6 @@ var options = {
   rest_user_credentials: mysqld.global.rest_user_credentials
 };
 
-// first node is PRIMARY
 options.group_replication_primary_member =
     options.group_replication_membership[mysqld.global.primary_id][0];
 

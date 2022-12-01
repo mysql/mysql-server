@@ -13,6 +13,10 @@ var gr_memberships = require("gr_memberships");
 
 var gr_node_host = "127.0.0.1";
 
+if (mysqld.global.gr_id === undefined) {
+  mysqld.global.gr_id = "uuid";
+}
+
 var group_replication_membership_online =
     gr_memberships.single_host(gr_node_host, [
       [mysqld.session.port, "ONLINE"],
@@ -20,6 +24,7 @@ var group_replication_membership_online =
 
 var options = {
   metadata_schema_version: [1, 0, 2],
+  gr_id: mysqld.global.gr_id,
   group_replication_membership: group_replication_membership_online,
 };
 
