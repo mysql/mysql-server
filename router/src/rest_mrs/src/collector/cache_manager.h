@@ -103,7 +103,7 @@ class CacheManager {
     virtual ~Callbacks() = default;
 
     virtual bool object_before_cache(Object) = 0;
-    virtual void object_retrived_from_cache(Object) = 0;
+    virtual bool object_retrived_from_cache(Object) = 0;
     virtual void object_remove(Object) = 0;
     virtual Object object_allocate() = 0;
   };
@@ -120,8 +120,6 @@ class CacheManager {
 
   CachedObject get_instance() {
     auto result = pop();
-
-    callbacks_->object_retrived_from_cache(result);
 
     return CachedObject{this, result};
   }
@@ -153,11 +151,14 @@ class CacheManager {
   Object pop() {
     {
       std::unique_lock<std::mutex> lock(object_container_mutex_);
-      if (objects_.size()) {
+      while (objects_.size()) {
         auto result = std::move(objects_.front());
         objects_.pop_front();
 
-        return result;
+        if (callbacks_->object_retrived_from_cache(result)) {
+          return result;
+        }
+        callbacks_->object_remove(result);
       }
     }
     return callbacks_->object_allocate();
