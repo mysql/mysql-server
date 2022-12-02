@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,8 @@
 extern FilteredNdbOut err;
 extern FilteredNdbOut info;
 extern FilteredNdbOut debug;
+
+extern RestoreLogger restoreLogger;
 
 static Uint32 g_tableCompabilityMask = 0;
 static int ga_nodeId = 0;
@@ -651,7 +653,7 @@ static bool parse_remap_column(const char* argument)
                           args,
                           error_msg))
   {
-    info << error_msg << endl;
+    restoreLogger.log_info("%s", error_msg.c_str());
     return false;
   }
 
@@ -1489,8 +1491,10 @@ find_table_spec(RestoreMetaData& metaData,
       if (externalName.split(components,
                              BaseString(".")) != 2)
       {
-        info << "Error processing table name from backup " << externalName
-             << " from " << tableSpec->getTableName() << endl;
+        restoreLogger.log_info("Error processing table name from "
+                               "backup %s from %s",
+                               externalName.c_str(),
+                               tableSpec->getTableName());
         return NULL;
       }
       dbName = components[0];
@@ -1830,13 +1834,12 @@ setup_one_remapping(TableS* tableSpec,
     return false;
   }
 
-  debug << "Initialising remap function \""
-        << func_name.c_str() << ":" << func_args.c_str()
-        << "\" on column "
-        << tableSpec->m_dictTable->getName()
-        << "."
-        << col_name.c_str()
-        << endl;
+  restoreLogger.log_debug("Initialising remap function "
+                          "\"%s:%s\" on column %s.%s",
+                          func_name.c_str(),
+                          func_args.c_str(),
+                          tableSpec->m_dictTable->getName(),
+                          col_name.c_str());
 
   ColumnTransform* ct = create_column_transform(col,
                                                 func_name,
@@ -1881,9 +1884,8 @@ setup_column_remappings(RestoreMetaData& metaData)
                                 error_msg))
         {
           /* Should never happen as arg parsed on initial read */
-          info << "Unexpected - parse failed : \""
-               << eti->m_remapColumnArgs[a].c_str()
-               << "\"" << endl;
+          restoreLogger.log_info("Unexpected - parse failed : \"%s\"",
+                                 eti->m_remapColumnArgs[a].c_str());
           return false;
         }
 
@@ -1893,11 +1895,10 @@ setup_column_remappings(RestoreMetaData& metaData)
                                  func_args,
                                  error_msg))
         {
-          info << "remap_column : Failed with \""
-               << error_msg.c_str()
-               << "\" while processing option : \""
-               << eti->m_remapColumnArgs[a].c_str()
-               << "\"" << endl;
+          restoreLogger.log_info("remap_column : Failed with \"%s\" "
+                                 "while processing option \"%s\"",
+                                 error_msg.c_str(),
+                                 eti->m_remapColumnArgs[a].c_str());
           return false;
         }
 
@@ -1916,11 +1917,11 @@ setup_column_remappings(RestoreMetaData& metaData)
 
             if (unlikely(mainTabBlobCol->getBlobVersion() == NDB_BLOB_V1))
             {
-              info << "remap_column : Failed as table has v1 Blob column "
-                   << mainTabBlobCol->getName()
-                   << " when processing option "
-                   << eti->m_remapColumnArgs[a].c_str()
-                   << endl;
+              restoreLogger.log_info("remap_column : Failed as table has "
+                                     "v1 Blob column %s when processing "
+                                     "option %s",
+                                     mainTabBlobCol->getName(),
+                                     eti->m_remapColumnArgs[a].c_str());
               return false;
             }
 
@@ -1930,14 +1931,12 @@ setup_column_remappings(RestoreMetaData& metaData)
                                      func_args,
                                      error_msg))
             {
-              info << "remap_column : Failed with error "
-                   << error_msg
-                   << " while applying remapping to blob "
-                   << "parts table "
-                   << blobPartTableSpec->m_dictTable->getName()
-                   << " from option : "
-                   <<  eti->m_remapColumnArgs[a].c_str()
-                   << endl;
+              restoreLogger.log_info("remap_column : Failed with error %s "
+                                     "while applying remapping to blob "
+                                     "parts table %s from option : %s",
+                                     error_msg.c_str(),
+                                     blobPartTableSpec->m_dictTable->getName(),
+                                     eti->m_remapColumnArgs[a].c_str());
               return false;
             }
           }
@@ -1946,10 +1945,9 @@ setup_column_remappings(RestoreMetaData& metaData)
     }
     else
     {
-      info << "remap_column : Failed to find table in Backup "
-           << "matching option : \""
-           << eti->m_remapColumnArgs[0].c_str()
-           << "\"" << endl;
+      restoreLogger.log_info("remap_column : Failed to find table in Backup "
+                             "matching option : \"%s\"",
+                             eti->m_remapColumnArgs[0].c_str());
       return false;
     }
   }
@@ -1996,10 +1994,9 @@ static void report_progress(const char *prefix, const BackupFile &f)
 {
   info.setLevel(255);
   if (f.get_file_size())
-    info << prefix << (f.get_file_pos() * 100 + f.get_file_size()-1) / f.get_file_size() 
-         << "%(" << f.get_file_pos() << " bytes)\n";
+    restoreLogger.log_info("%s %llupercent(%llu bytes)\n", prefix, (f.get_file_pos() * 100 + f.get_file_size()-1) / f.get_file_size(), f.get_file_pos());
   else
-    info << prefix << f.get_file_pos() << " bytes\n";
+    restoreLogger.log_info("%s %llu bytes\n", prefix, f.get_file_pos());
 }
 
 /**
@@ -2016,8 +2013,8 @@ check_data_truncations(const TableS * table)
     if (desc->truncation_detected) {
       const char * cname = desc->m_column->getName();
       info.setLevel(254);
-      info << "Data truncation(s) detected for attribute: "
-           << tname << "." << cname << endl;
+      restoreLogger.log_info("Data truncation(s) detected for attribute: %s.%s",
+           tname, cname);
       desc->truncation_detected = false;
     }
   }
@@ -2066,13 +2063,15 @@ determine_slice_skip_fragment(TableS * table, Uint32 fragmentId, Uint32& fragmen
     fragmentRestoreSlice = fragmentCount ++ % ga_num_slices;
   }
 
-  debug << "Table : " << table->m_dictTable->getName()
-        << " blobRelated : " << table->isBlobRelated()
-        << " frag id : " << fragmentId
-        << " slice id : " << ga_slice_id
-        << " fragmentRestoreSlice : " << fragmentRestoreSlice
-        << " apply : " << (fragmentRestoreSlice == ga_slice_id)
-        << endl;
+  restoreLogger.log_debug("Table : %s blobRelated : %u frag id : %u "
+                          "slice id : %u fragmentRestoreSlice : %u "
+                          "apply : %u",
+                          table->m_dictTable->getName(),
+                          table->isBlobRelated(),
+                          fragmentId,
+                          ga_slice_id,
+                          fragmentRestoreSlice,
+                          (fragmentRestoreSlice == ga_slice_id));
 
   /* If it's not for this slice, skip it */
   const bool skip_fragment = (fragmentRestoreSlice != ga_slice_id);
@@ -2159,7 +2158,7 @@ main(int argc, char** argv)
    * we must always load meta data, even if we will only print it to stdout
    */
 
-  debug << "Start restoring meta data" << endl;
+  restoreLogger.log_debug("Start restoring meta data");
 
   RestoreMetaData metaData(ga_backupPath, ga_nodeId, ga_backupId);
 #ifdef ERROR_INSERT
@@ -2170,11 +2169,11 @@ main(int argc, char** argv)
 #endif 
 
   Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  info << timestamp << " [restore_metadata]" << " Read meta data file header" << endl;
+  restoreLogger.log_info("%s [restore_metadata] Read meta data file header", timestamp);
 
   if (!metaData.readHeader())
   {
-    err << "Failed to read " << metaData.getFilename() << endl << endl;
+    restoreLogger.log_error("Failed to read %s", metaData.getFilename());
     exitHandler(NdbRestoreStatus::Failed);
   }
 
@@ -2182,19 +2181,25 @@ main(int argc, char** argv)
   const Uint32 version = tmp.BackupVersion;
   
   char buf[NDB_VERSION_STRING_BUF_SZ];
+  char new_buf[NDB_VERSION_STRING_BUF_SZ];
   info.setLevel(254);
-  info << "Backup version in files: " 
-       <<  ndbGetVersionString(version, 0, 
-                               isDrop6(version) ? "-drop6" : 0, 
-                               buf, sizeof(buf));
+
   if (version >= NDBD_RAW_LCP)
   {
-    info << " ndb version: "
-         << ndbGetVersionString(tmp.NdbVersion, tmp.MySQLVersion, 0, 
-                                buf, sizeof(buf));
+    restoreLogger.log_info("Backup version in files: %s ndb version: %s",
+           ndbGetVersionString(version, 0,
+                               isDrop6(version) ? "-drop6" : 0,
+                               buf, sizeof(buf)),
+           ndbGetVersionString(tmp.NdbVersion, tmp.MySQLVersion, 0,
+                                buf, sizeof(buf)));
   }
-
-  info << endl;
+  else
+  {
+    restoreLogger.log_info("Backup version in files: %s",
+           ndbGetVersionString(version, 0,
+                               isDrop6(version) ? "-drop6" : 0,
+                               buf, sizeof(buf)));
+  }
 
   /**
    * check wheater we can restore the backup (right version).
@@ -2203,57 +2208,52 @@ main(int argc, char** argv)
   // stored on disk
   if (version >= MAKE_VERSION(5,1,3) && version <= MAKE_VERSION(5,1,9))
   {
-    err << "Restore program incompatible with backup versions between "
-        << ndbGetVersionString(MAKE_VERSION(5,1,3), 0, 0, buf, sizeof(buf))
-        << " and "
-        << ndbGetVersionString(MAKE_VERSION(5,1,9), 0, 0, buf, sizeof(buf))
-        << endl;
+    restoreLogger.log_error("Restore program incompatible with backup versions between %s and %s"
+        ,ndbGetVersionString(MAKE_VERSION(5,1,3), 0, 0, buf, sizeof(buf))
+        ,ndbGetVersionString(MAKE_VERSION(5,1,9), 0, 0, new_buf, sizeof(new_buf))
+       );
     exitHandler(NdbRestoreStatus::Failed);
   }
 
   if (version > NDB_VERSION)
   {
-    err << "Restore program older than backup version. Not supported. "
-        << "Use new restore program" << endl;
+    restoreLogger.log_error("Restore program older than backup version. Not supported. Use new restore program");
     exitHandler(NdbRestoreStatus::Failed);
   }
 
-  debug << "Load content" << endl;
+  restoreLogger.log_debug("Load content");
   Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  info << timestamp << " [restore_metadata]" << " Load content" << endl;
+  restoreLogger.log_info("%s [restore_metadata] Load content", timestamp);
 
   int res  = metaData.loadContent();
 
-  info << "Start GCP of Backup: " << metaData.getStartGCP() << endl;
-  info << "Stop GCP of Backup: " << metaData.getStopGCP() << endl;
+  restoreLogger.log_info("Stop GCP of Backup: %u", metaData.getStopGCP());
+  restoreLogger.log_info("Start GCP of Backup: %u", metaData.getStartGCP());
   
   if (res == 0)
   {
-    err << "Restore: Failed to load content" << endl;
+    restoreLogger.log_error("Restore: Failed to load content");
     exitHandler(NdbRestoreStatus::Failed);
   }
-  debug << "Get number of Tables" << endl;
+  restoreLogger.log_debug("Get number of Tables");
   Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  info << timestamp << " [restore_metadata]" << " Get number of Tables" << endl;
+  restoreLogger.log_info("%s [restore_metadata] Get number of Tables", timestamp);
   if (metaData.getNoOfTables() == 0) 
   {
-    err << "The backup contains no tables" << endl;
+    restoreLogger.log_error("The backup contains no tables");
     exitHandler(NdbRestoreStatus::Failed);
   }
 
   if(_print_sql_log && _print_log)
   {
-    debug << "Check to ensure that both print-sql-log and print-log "
-          << "options are not passed" << endl;
-    err << "Both print-sql-log and print-log options passed. Exiting..."
-        << endl;
+    restoreLogger.log_debug("Check to ensure that both print-sql-log and print-log options are not passed");
+    restoreLogger.log_error("Both print-sql-log and print-log options passed. Exiting...");
     exitHandler(NdbRestoreStatus::Failed);
   }
 
   if (_print_sql_log)
   {
-    debug << "Check for tables with hidden PKs or column of type blob "
-          << "when print-sql-log option is passed" << endl;
+    restoreLogger.log_debug("Check for tables with hidden PKs or column of type blob when print-sql-log option is passed");
     for(Uint32 i = 0; i < metaData.getNoOfTables(); i++)
     {
       const TableS *table = metaData[i];
@@ -2267,8 +2267,7 @@ main(int argc, char** argv)
       tableName.split(tableNameParts, "/");
       if (tableNameParts[2].substr(0,8) == "NDB$BLOB")
       {
-        err << "Found column of type blob with print-sql-log option set. "
-            << "Exiting..." << endl;
+        restoreLogger.log_error("Found column of type blob with print-sql-log option set. Exiting..." );
         exitHandler(NdbRestoreStatus::Failed);
       }
       /* Hidden PKs are stored with the name $PK */
@@ -2278,34 +2277,32 @@ main(int argc, char** argv)
         const char* pkName = table->m_dictTable->getPrimaryKey(j);
         if(strcmp(pkName,"$PK") == 0)
         {
-          err << "Found hidden primary key with print-sql-log option set. "
-              << "Exiting..." << endl;
+          restoreLogger.log_error("Found hidden primary key with print-sql-log option set. Exiting...");
           exitHandler(NdbRestoreStatus::Failed);
         }
       }
     }
   }
 
-  debug << "Validate Footer" << endl;
+  restoreLogger.log_debug("Validate Footer");
   Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  info << timestamp << " [restore_metadata]" << " Validate Footer" << endl;
+  restoreLogger.log_info("%s [restore_metadata] Validate Footer", timestamp);
 
   if (!metaData.validateFooter()) 
   {
-    err << "Restore: Failed to validate footer." << endl;
+    restoreLogger.log_error("Restore: Failed to validate footer.");
     exitHandler(NdbRestoreStatus::Failed);
   }
-  debug << "Init Backup objects" << endl;
+  restoreLogger.log_debug("Init Backup objects");
   Uint32 i;
   for(i= 0; i < g_consumers.size(); i++)
   {
     if (!g_consumers[i]->init(g_tableCompabilityMask))
     {
       clearConsumers();
-      err << "Failed to initialize consumers" << endl;
+      restoreLogger.log_error("Failed to initialize consumers");
       exitHandler(NdbRestoreStatus::Failed);
     }
-
   }
 
   if(ga_exclude_missing_tables)
@@ -2320,32 +2317,32 @@ main(int argc, char** argv)
   for (i = 0; i < g_consumers.size(); i++)
     g_consumers[i]->report_started(ga_backupId, ga_nodeId);
 
-  debug << "Restore objects (tablespaces, ..)" << endl;
+  restoreLogger.log_debug("Restore objects (tablespaces, ..)");
   Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  info << timestamp << " [restore_metadata]" << " Restore objects (tablespaces, ..)" << endl;
+  restoreLogger.log_info("%s [restore_metadata] Restore objects (tablespaces, ..)", timestamp);
   for(i = 0; i<metaData.getNoOfObjects(); i++)
   {
     for(Uint32 j= 0; j < g_consumers.size(); j++)
       if (!g_consumers[j]->object(metaData.getObjType(i),
 				  metaData.getObjPtr(i)))
       {
-	err << "Restore: Failed to restore table: ";
-        err << metaData[i]->getTableName() << " ... Exiting " << endl;
+	restoreLogger.log_error(
+          "Restore: Failed to restore table: %s ... Exiting ",
+          metaData[i]->getTableName());
 	exitHandler(NdbRestoreStatus::Failed);
       } 
     if (check_progress())
     {
       info.setLevel(255);
-      info << "Object create progress: "
-           << i+1 << " objects out of "
-           << metaData.getNoOfObjects() << endl;
+      restoreLogger.log_info(" Object create progress: %u objects out of %u",
+                             i+1, metaData.getNoOfObjects());
     }
   }
 
   Vector<OutputStream *> table_output(metaData.getNoOfTables());
-  debug << "Restoring tables" << endl;
+  restoreLogger.log_debug("Restoring tables");
   Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  info << timestamp << " [restore_metadata]" << " Restoring tables" << endl;
+  restoreLogger.log_info("%s [restore_metadata] Restoring tables", timestamp);
 
   for(i = 0; i<metaData.getNoOfTables(); i++)
   {
@@ -2389,31 +2386,32 @@ main(int argc, char** argv)
       for(Uint32 j= 0; j < g_consumers.size(); j++)
 	if (!g_consumers[j]->table(* table))
 	{
-	  err << "Restore: Failed to restore table: `";
-          err << table->getTableName() << "` ... Exiting " << endl;
+	  restoreLogger.log_error(
+            "Restore: Failed to restore table: `%s` ... Exiting ",
+            table->getTableName());
 	  exitHandler(NdbRestoreStatus::Failed);
 	} 
     } else {
       for(Uint32 j= 0; j < g_consumers.size(); j++)
         if (!g_consumers[j]->createSystable(* table))
         {
-          err << "Restore: Failed to restore system table: ";
-          err << table->getTableName() << " ... Exiting " << endl;
+          restoreLogger.log_error(
+            "Restore: Failed to restore system table: `%s` ... Exiting ",
+            table->getTableName());
           exitHandler(NdbRestoreStatus::Failed);
         }
     }
     if (check_progress())
     {
       info.setLevel(255);
-      info << "Table create progress: "
-           << i+1 << " tables out of "
-           << metaData.getNoOfTables() << endl;
+      restoreLogger.log_info("Table create progress: %u tables out of %u",
+           i+1, metaData.getNoOfTables());
     }
   }
 
-  debug << "Save foreign key info" << endl;
+  restoreLogger.log_debug("Save foreign key info");
   Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  info << timestamp << " [restore_metadata]" << " Save foreign key info" << endl;
+  restoreLogger.log_info("%s [restore_metadata] Save foreign key info", timestamp);
   for(i = 0; i<metaData.getNoOfObjects(); i++)
   {
     for(Uint32 j= 0; j < g_consumers.size(); j++)
@@ -2424,19 +2422,19 @@ main(int argc, char** argv)
       } 
   }
 
-  debug << "Close tables" << endl; 
+  restoreLogger.log_debug("Close tables" );
   for(i= 0; i < g_consumers.size(); i++)
   {
     if (!g_consumers[i]->endOfTables())
     {
-      err << "Restore: Failed while closing tables" << endl;
+      restoreLogger.log_error("Restore: Failed while closing tables");
       exitHandler(NdbRestoreStatus::Failed);
     } 
     if (!ga_disable_indexes && !ga_rebuild_indexes)
     {
       if (!g_consumers[i]->endOfTablesFK())
       {
-        err << "Restore: Failed while closing tables FKs" << endl;
+        restoreLogger.log_error("Restore: Failed while closing tables FKs");
         exitHandler(NdbRestoreStatus::Failed);
       } 
     }
@@ -2448,9 +2446,9 @@ main(int argc, char** argv)
   {
     g_consumers[i]->report_meta_data(ga_backupId, ga_nodeId);
   }
-  debug << "Iterate over data" << endl;
+  restoreLogger.log_debug("Iterate over data");
   Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  info << timestamp << " [restore_data]" << " Start restoring table data" << endl;
+  restoreLogger.log_info("%s [restore_data] Start restoring table data", timestamp);
   if (ga_restore || ga_print) 
   {
     if(_restore_data || _print_data)
@@ -2465,15 +2463,13 @@ main(int argc, char** argv)
           {
             if (!g_consumers[j]->table_compatible_check(tableS))
             {
-              err << "Restore: Failed to restore data, ";
-              err << tableS.getTableName() << " table structure incompatible with backup's ... Exiting " << endl;
+              restoreLogger.log_error("Restore: Failed to restore data, %s table structure incompatible with backup's ... Exiting ", tableS.getTableName());
               exitHandler(NdbRestoreStatus::Failed);
             } 
             if (tableS.m_staging &&
                 !g_consumers[j]->prepare_staging(tableS))
             {
-              err << "Restore: Failed to restore data, ";
-              err << tableS.getTableName() << " failed to prepare staging table for data conversion ... Exiting " << endl;
+              restoreLogger.log_error("Restore: Failed to restore data, %s failed to prepare staging table for data conversion ... Exiting ", tableS.getTableName());
               exitHandler(NdbRestoreStatus::Failed);
             }
           } 
@@ -2492,8 +2488,10 @@ main(int argc, char** argv)
             {
               if (!g_consumers[j]->check_blobs(tableS))
               {
-                  err << "Restore: Failed to restore data, ";
-                  err << tableS.getTableName() << " table's blobs incompatible with backup's ... Exiting " << endl;
+                restoreLogger.log_error(
+                  "Restore: Failed to restore data, "
+                  "%s table's blobs incompatible with backup's ... Exiting ",
+                  tableS.getTableName());
                   exitHandler(NdbRestoreStatus::Failed);
               }
             }
@@ -2505,29 +2503,31 @@ main(int argc, char** argv)
 
       if (!dataIter.validateBackupFile())
       {
-          err << "Unable to allocate memory for BackupFile constructor" << endl;
+        restoreLogger.log_error(
+          "Unable to allocate memory for BackupFile constructor");
           exitHandler(NdbRestoreStatus::Failed);
       }
 
 
       if (!dataIter.validateRestoreDataIterator())
       {
-          err << "Unable to allocate memory for RestoreDataIterator constructor" << endl;
+          restoreLogger.log_error("Unable to allocate memory for RestoreDataIterator constructor");
           exitHandler(NdbRestoreStatus::Failed);
       }
       
       Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-      info << timestamp << " [restore_data]" << " Read data file header" << endl;
+      restoreLogger.log_info("%s [restore_data] Read data file header", timestamp);
 
       // Read data file header
       if (!dataIter.readHeader())
       {
-	err << "Failed to read header of data file. Exiting..." << endl;
+        restoreLogger.log_error(
+          "Failed to read header of data file. Exiting...");
 	exitHandler(NdbRestoreStatus::Failed);
       }
       
       Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-      info << timestamp << " [restore_data]" << " Restore fragments" << endl;
+      restoreLogger.log_info("%s [restore_data] Restore fragments", timestamp);
 
       Uint32 fragmentCount = 0;
       Uint32 fragmentId;
@@ -2542,7 +2542,7 @@ main(int argc, char** argv)
         bool skipFragment = true;
         if (output == NULL)
         {
-          info << "  Skipping fragment" << endl;
+          restoreLogger.log_info("  Skipping fragment");
         }
         else
         {
@@ -2552,7 +2552,7 @@ main(int argc, char** argv)
                                                        fragmentCount);
           if (skipFragment)
           {
-            info << " Skipping fragment on this slice" << endl;
+            restoreLogger.log_info("  Skipping fragment on this slice");
           }
           else
           {
@@ -2575,7 +2575,7 @@ main(int argc, char** argv)
           if ((_error_insert == NDB_RESTORE_ERROR_INSERT_SKIP_ROWS) &&
               ((++rowCount % 3) == 0))
           {
-            info << "Skipping row on error insertion" << endl;
+            restoreLogger.log_info("Skipping row on error insertion");
             continue;
           }
 #endif
@@ -2590,21 +2590,23 @@ main(int argc, char** argv)
 	
 	if (res < 0)
 	{
-	  err <<" Restore: An error occured while restoring data. Exiting...";
-          err << endl;
+          restoreLogger.log_error(
+            "Restore: An error occurred while reading data. Exiting...");
 	  exitHandler(NdbRestoreStatus::Failed);
 	}
 	if (!dataIter.validateFragmentFooter()) {
-	  err << "Restore: Error validating fragment footer. ";
-          err << "Exiting..." << endl;
+          restoreLogger.log_error(
+            "Restore: Error validating fragment footer. Exiting...");
 	  exitHandler(NdbRestoreStatus::Failed);
 	}
       } // while (dataIter.readFragmentHeader(res))
       
       if (res < 0)
       {
-	err << "Restore: An error occured while restoring data. Exiting... "
-	    << "res= " << res << endl;
+        restoreLogger.log_error(
+          "Restore: An error occurred while restoring data."
+          "Exiting... res = %u",
+          res);
 	exitHandler(NdbRestoreStatus::Failed);
       }
       
@@ -2626,18 +2628,19 @@ main(int argc, char** argv)
       RestoreLogIterator logIter(metaData);
 
       Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-      info << timestamp << " [restore_log]" << " Read log file header" << endl;
+      restoreLogger.log_info("%s [restore_log] Read log file header", timestamp);
 
       if (!logIter.readHeader())
       {
-	err << "Failed to read header of data file. Exiting..." << endl;
+        restoreLogger.log_error(
+          "Failed to read header of data file. Exiting...");
 	exitHandler(NdbRestoreStatus::Failed);
       }
       
       const LogEntry * logEntry = 0;
 
       Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-      info << timestamp << " [restore_log]" << " Restore log entries" << endl;
+      restoreLogger.log_info("%s [restore_log] Restore log entries", timestamp);
 
       while ((logEntry = logIter.getNextLogEntry(res= 0)) != 0)
       {
@@ -2655,8 +2658,9 @@ main(int argc, char** argv)
       }
       if (res < 0)
       {
-	err << "Restore: An restoring the data log. Exiting... res=" 
-	    << res << endl;
+        restoreLogger.log_error(
+          "Restore: Error reading the data log. Exiting... res = %d",
+          res);
 	exitHandler(NdbRestoreStatus::Failed);
       }
       logIter.validateFooter(); //not implemented
@@ -2682,9 +2686,9 @@ main(int argc, char** argv)
           {
             if (!g_consumers[j]->finalize_staging(*table))
             {
-              err << "Restore: Failed staging data to table: ";
-              err << table->getTableName() << ". ";
-              err << "Exiting... " << endl;
+              restoreLogger.log_error(
+                "Restore: Failed staging data to table: %s. Exiting... ",
+                table->getTableName());
               exitHandler(NdbRestoreStatus::Failed);
             }
           }
@@ -2704,30 +2708,27 @@ main(int argc, char** argv)
         for(Uint32 j= 0; j < g_consumers.size(); j++)
           if (!g_consumers[j]->finalize_table(*table))
           {
-            err << "Restore: Failed to finalize restore table: %s. ";
-            err << "Exiting... " << metaData[i]->getTableName() << endl;
+            restoreLogger.log_error(
+              "Restore: Failed to finalize restore table: %s. Exiting... ",
+              metaData[i]->getTableName());
             exitHandler(NdbRestoreStatus::Failed);
           }
       }
 
       if (ga_num_slices != 1)
       {
-        info << "Restore: Slice id "
-             << ga_slice_id << "/"
-             << ga_num_slices
-             << " restored "
-             << fragmentsRestored
-             << "/"
-             << fragmentsTotal
-             << " fragments."
-             << endl;
+        restoreLogger.log_info("Restore: Slice id %u/%u restored %u/%u fragments.",
+                               ga_slice_id,
+                               ga_num_slices,
+                               fragmentsRestored,
+                               fragmentsTotal);
       };
     }
   }
   if (ga_restore_epoch)
   {
     Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-    info << timestamp << " [restore_epoch]" << " Restoring epoch" << endl;
+    restoreLogger.log_info("%s [restore_epoch] Restoring epoch", timestamp);
     RestoreLogIterator logIter(metaData);
 
     if (!logIter.readHeader())
@@ -2740,7 +2741,7 @@ main(int argc, char** argv)
     for (i= 0; i < g_consumers.size(); i++)
       if (!g_consumers[i]->update_apply_status(metaData, snapshotstart))
       {
-        err << "Restore: Failed to restore epoch" << endl;
+        restoreLogger.log_error("Restore: Failed to restore epoch");
         ndb_free_defaults(argv);
         return -1;
       }
@@ -2759,9 +2760,9 @@ main(int argc, char** argv)
 
   if (ga_rebuild_indexes)
   {
-    debug << "Rebuilding indexes" << endl;
+    restoreLogger.log_debug("Rebuilding indexes");
     Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-    info << timestamp << " [rebuild_indexes]" << " Rebuilding indexes" << endl;
+    restoreLogger.log_info("%s [rebuild_indexes] Rebuilding indexes", timestamp);
 
     for(i = 0; i<metaData.getNoOfTables(); i++)
     {
