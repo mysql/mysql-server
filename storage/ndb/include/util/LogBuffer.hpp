@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -160,7 +160,7 @@ public:
    * It also makes future calls to get() non-blocking.
    */
   void stop();
-
+  bool is_stopped() const;
 private:
   char* m_log_buf; // pointer to the start of log buffer memory
   size_t m_max_size; // max. number of bytes that can fit
