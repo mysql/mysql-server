@@ -64,6 +64,7 @@ static TYPE_LIB password_policy_typelib_t = {array_elements(policy_names) - 1,
                                              policy_names, nullptr};
 static ulong enum_variable_value;
 static char *str_variable_value;
+static char *str_default_variable_value;
 static int int_variable_value;
 static int uint_variable_value;
 static long long_variable_value;
@@ -207,6 +208,17 @@ static mysql_service_status_t test_component_sys_var_service_init() {
     WRITE_LOG("%s\n", "register_variable failed.");
   }
 
+  // string variable with default value
+  STR_CHECK_ARG(str1) str_arg1;
+  str_arg1.def_val = const_cast<char *>("default");
+  if (mysql_service_component_sys_variable_register->register_variable(
+          "test_component", "str_sys_var_default",
+          PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC,
+          "Registering string sys_variable #2", nullptr, nullptr,
+          (void *)&str_arg1, (void *)&str_default_variable_value)) {
+    WRITE_LOG("%s\n", "register_variable failed.");
+  }
+
   len = VARIABLE_BUFFER_SIZE;
   if (mysql_service_component_sys_variable_register->get_variable(
           "test_component", "int_sys_var", (void **)&var_value, &len)) {
@@ -336,6 +348,11 @@ static mysql_service_status_t test_component_sys_var_service_deinit() {
 
   if (mysql_service_component_sys_variable_unregister->unregister_variable(
           "test_component", "str_sys_var")) {
+    WRITE_LOG("%s\n", "unregister_variable failed.");
+  }
+
+  if (mysql_service_component_sys_variable_unregister->unregister_variable(
+          "test_component", "str_sys_var_default")) {
     WRITE_LOG("%s\n", "unregister_variable failed.");
   }
 
