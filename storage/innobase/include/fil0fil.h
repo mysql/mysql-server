@@ -555,16 +555,6 @@ struct fil_space_t {
     return m_encryption_metadata.m_type != Encryption::Type::NONE;
   }
 
-  /** Copy the encryption info from this object to the provided
-  Encryption object.
-  @param[in]    en   Encryption object to which info is copied. */
-  void get_encryption_info(Encryption &en) noexcept {
-    en.set_type(m_encryption_metadata.m_type);
-    en.set_key(m_encryption_metadata.m_key);
-    en.set_key_length(m_encryption_metadata.m_key_len);
-    en.set_initial_vector(m_encryption_metadata.m_iv);
-  }
-
  public:
   /** Get the file node corresponding to the given page number of the
   tablespace.

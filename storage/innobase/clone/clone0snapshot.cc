@@ -839,12 +839,7 @@ static void set_page_encryption(IORequest &request, const page_id_t &page_id,
     request.clear_encrypted();
     return;
   }
-
-  request.encryption_key(file_meta->m_encryption_metadata.m_key,
-                         file_meta->m_encryption_metadata.m_key_len,
-                         file_meta->m_encryption_metadata.m_iv);
-
-  request.encryption_algorithm(file_meta->m_encryption_metadata.m_type);
+  request.get_encryption_info().set(file_meta->m_encryption_metadata);
 }
 
 int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,

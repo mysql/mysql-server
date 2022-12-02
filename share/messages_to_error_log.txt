@@ -8060,8 +8060,8 @@ ER_IB_MSG_841
 ER_IB_MSG_842
   eng "%s"
 
-ER_IB_MSG_843
-  eng "%s"
+ER_IB_MSG_CANT_ENCRYPT_REDO_LOG_DATA
+  eng "Can't encrypt data of redo log"
 
 ER_IB_MSG_844
   eng "%s"

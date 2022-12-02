@@ -325,7 +325,7 @@ dberr_t Page_extent::flush_one_by_one() {
         page_size = buflen;
       }
       if (space->is_encrypted()) {
-        space->get_encryption_info(request.get_encryption_info());
+        request.get_encryption_info().set(space->m_encryption_metadata);
         e_block = os_file_encrypt_page(request, buf, buflen);
       }
     }

@@ -271,8 +271,6 @@ static const ulint OS_FILE_ERROR_MAX = 100;
 /** No transformations during read/write, write as is. */
 #define IORequestRead IORequest(IORequest::READ)
 #define IORequestWrite IORequest(IORequest::WRITE)
-#define IORequestLogRead IORequest(IORequest::LOG | IORequest::READ)
-#define IORequestLogWrite IORequest(IORequest::LOG | IORequest::WRITE)
 
 /**
 The IO Context that is passed down to the low level IO code */

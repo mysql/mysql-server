@@ -368,9 +368,6 @@ struct Slot {
   /** true, if we shouldn't punch a hole after writing the page */
   bool skip_punch_hole{false};
 
-  /** Buffer for encrypt log */
-  void *encrypt_log_buf{nullptr};
-
   Slot() {
 #if defined(LINUX_NATIVE_AIO)
     memset(&control, 0, sizeof(control));
@@ -838,15 +835,14 @@ static bool os_file_handle_error_no_exit(const char *name,
 @param[in]      type            IO context
 @param[in]      fh              Open file handle
 @param[in,out]  buf             Buffer to transform
-@param[in,out]  scratch         Scratch area for read decompression
 @param[in]      src_len         Length of the buffer before compression
 @param[in]      offset          file offset from the start where to read
 @param[in]      len             Compressed buffer length for write and size
                                 of buf len for read
 @return DB_SUCCESS or error code */
 static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
-                                   byte *buf, byte *scratch, ulint src_len,
-                                   os_offset_t offset, ulint len);
+                                   byte *buf, ulint src_len, os_offset_t offset,
+                                   ulint len);
 
 /** Does simulated AIO. This function should be called by an i/o-handler
 thread.
@@ -1015,8 +1011,8 @@ class AIOHandler {
     ut_a(slot->offset > 0);
     ut_a(slot->type.is_read() || !slot->skip_punch_hole);
     return (os_file_io_complete(slot->type, slot->file.m_file, slot->buf,
-                                nullptr, slot->type.get_original_size(),
-                                slot->offset, slot->len));
+                                slot->type.get_original_size(), slot->offset,
+                                slot->len));
   }
 
  private:
@@ -1118,7 +1114,7 @@ ulint os_file_original_page_size(const byte *buf) {
 @return DB_SUCCESS or error code */
 dberr_t AIOHandler::check_read(Slot *slot, ulint n_bytes) {
   dberr_t err;
-
+  ut_a(!slot->type.is_log());
   ut_ad(slot->type.is_read());
   ut_ad(slot->type.get_original_size() > slot->len);
 
@@ -1141,8 +1137,7 @@ dberr_t AIOHandler::check_read(Slot *slot, ulint n_bytes) {
 
       err = DB_FAIL;
     }
-  } else if (is_encrypted_page(slot) ||
-             (slot->type.is_log() && slot->offset >= LOG_FILE_HDR_SIZE)) {
+  } else if (is_encrypted_page(slot)) {
     ut_a(slot->offset > 0);
 
     slot->len = slot->type.get_original_size();
@@ -1164,11 +1159,6 @@ dberr_t AIOHandler::check_read(Slot *slot, ulint n_bytes) {
     slot->buf_block = nullptr;
   }
 
-  if (slot->encrypt_log_buf != nullptr) {
-    ut::free(slot->encrypt_log_buf);
-    slot->encrypt_log_buf = nullptr;
-  }
-
   return (err);
 }
 
@@ -1176,7 +1166,7 @@ dberr_t AIOHandler::check_read(Slot *slot, ulint n_bytes) {
 @return DB_SUCCESS or error code. */
 dberr_t AIOHandler::post_io_processing(Slot *slot) {
   dberr_t err;
-
+  ut_a(!slot->type.is_log());
   ut_ad(slot->is_reserved);
 
   /* Total bytes read so far */
@@ -1187,8 +1177,7 @@ dberr_t AIOHandler::post_io_processing(Slot *slot) {
   if (n_bytes == slot->type.get_original_size() ||
       (slot->type.is_write() && slot->type.is_compressed() &&
        slot->len == static_cast<ulint>(slot->n_bytes))) {
-    if ((slot->type.is_log() && slot->offset >= LOG_FILE_HDR_SIZE) ||
-        is_compressed_page(slot) || is_encrypted_page(slot)) {
+    if (is_compressed_page(slot) || is_encrypted_page(slot)) {
       ut_a(slot->offset > 0);
 
       if (slot->type.is_read()) {
@@ -1215,10 +1204,6 @@ dberr_t AIOHandler::post_io_processing(Slot *slot) {
       slot->buf_block = nullptr;
     }
 
-    if (slot->encrypt_log_buf != nullptr) {
-      ut::free(slot->encrypt_log_buf);
-      slot->encrypt_log_buf = nullptr;
-    }
   } else if ((ulint)slot->n_bytes == (ulint)slot->len) {
     /* It *must* be a partial read. */
     ut_ad(slot->len < slot->type.get_original_size());
@@ -1588,19 +1573,9 @@ void os_file_read_string(FILE *file, char *str, ulint size) {
   }
 }
 
-/** Decompress after a read and punch a hole in the file if it was a write
-@param[in]      type            IO context
-@param[in]      fh              Open file handle
-@param[in,out]  buf             Buffer to transform
-@param[in,out]  scratch         Scratch area for read decompression
-@param[in]      src_len         Length of the buffer before compression
-@param[in]      offset          file offset from the start where to read
-@param[in]      len             Compressed buffer length for write and size
-                                of buf len for read
-@return DB_SUCCESS or error code */
 static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
-                                   byte *buf, byte *scratch, ulint src_len,
-                                   os_offset_t offset, ulint len) {
+                                   byte *buf, ulint src_len, os_offset_t offset,
+                                   ulint len) {
   dberr_t ret = DB_SUCCESS;
 
   /* We never compress/decompress the first page */
@@ -1609,9 +1584,7 @@ static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
 
   if (!type.is_compression_enabled()) {
     if (type.is_log() && offset >= LOG_FILE_HDR_SIZE) {
-      Encryption encryption(type.encryption_algorithm());
-
-      ret = encryption.decrypt_log(type, buf, src_len, scratch);
+      ret = type.encryption_algorithm().decrypt_log(buf, src_len);
     }
 
     return (ret);
@@ -1619,10 +1592,10 @@ static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
     ut_ad(!type.is_row_log());
     Encryption encryption(type.encryption_algorithm());
 
-    ret = encryption.decrypt(type, buf, src_len, scratch, len);
+    ret = encryption.decrypt(type, buf, src_len, nullptr, 0);
 
     if (ret == DB_SUCCESS) {
-      return (os_file_decompress_page(type.is_dblwr(), buf, scratch, len));
+      return (os_file_decompress_page(type.is_dblwr(), buf, nullptr, 0));
     } else {
       return (ret);
     }
@@ -1940,17 +1913,27 @@ file::Block *os_file_encrypt_page(const IORequest &type, void *&buf, ulint n) {
   return (block);
 }
 
-/** Encrypt log blocks content when write it to disk.
+/** Encrypt log blocks provided in first n bytes of buf.
+If encryption is successful then buf will be repointed to the encrypted redo log
+of length n.
+If encryption fails then buf is not modified.
+The encrypted redo log will be stored in a newly allocated block returned from
+the function or in a newly allocated memory pointed by scratch.
+The caller takes ownership of the returned block and memory pointed by scratch,
+and when the buf is no longer needed, it should free the block using
+os_free_block(block) and scratch memory by using ut::aligned_free(scratch).
 @param[in]      type            IO flags
-@param[in,out]  buf             buffer to read or write
-@param[in,out]  scratch         buffer for encrypting log
-@param[in,out]  n               number of bytes to read/write, starting from
-                                offset
-@return pointer to the encrypted log blocks */
+@param[in,out]  buf             before the call should contain unencrypted data,
+                                after the call will point to encrypted data, or
+                                to the original unencrypted data on failure
+@param[in,out]  scratch         if not null contains the buf, and should be
+                                freed using ut::aligned_free
+@param[in]      n               number of bytes in buf (encryption does not
+                                change the length)
+@return if not null, then it's the block which contain the buf, and should be
+freed using os_free_block(block). */
 static file::Block *os_file_encrypt_log(const IORequest &type, void *&buf,
                                         byte *&scratch, ulint n) {
-  byte *encrypted_log;
-  ulint encrypted_len = n;
   byte *buf_ptr;
   Encryption encryption(type.encryption_algorithm());
   file::Block *block{};
@@ -1962,24 +1945,23 @@ static file::Block *os_file_encrypt_log(const IORequest &type, void *&buf,
     block = os_alloc_block();
     buf_ptr = static_cast<byte *>(ut_align(block->m_ptr, os_io_ptr_align));
     scratch = nullptr;
+    block->m_size = n;
   } else {
     buf_ptr = static_cast<byte *>(ut::aligned_alloc(n, os_io_ptr_align));
     scratch = buf_ptr;
   }
 
-  encrypted_log = buf_ptr;
-
-  encrypted_log = encryption.encrypt_log(type, reinterpret_cast<byte *>(buf), n,
-                                         encrypted_log, &encrypted_len);
-  block->m_size = encrypted_len;
-
-  bool encrypted = encrypted_log != buf;
-
-  if (encrypted) {
-    buf = encrypted_log;
+  if (!encryption.encrypt_log(reinterpret_cast<byte *>(buf), n, buf_ptr)) {
+    if (block) {
+      os_free_block(block);
+    } else {
+      ut::aligned_free(scratch);
+      scratch = nullptr;
+    }
+    return nullptr;
   }
-
-  return (block);
+  buf = buf_ptr;
+  return block;
 }
 
 dberr_t SyncFileIO::execute_with_retry(const IORequest &request,
@@ -4987,8 +4969,6 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
       encryption involved. */
       ut_ad(!type.is_encrypted());
     }
-  } else {
-    block = nullptr;
   }
 
   /* We do encryption after compression, since if we do encryption
@@ -5014,6 +4994,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
         os_free_block(compressed_block);
       }
     } else {
+      ut_a(block == nullptr);
       /* Skip encrypt log file header */
       if (offset >= LOG_FILE_HDR_SIZE) {
         block = os_file_encrypt_log(type, buf, encrypt_log_buf, n);
@@ -5035,7 +5016,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 
       if (offset > 0 && (type.is_compressed() || type.is_read())) {
         *err = os_file_io_complete(type, file, reinterpret_cast<byte *>(buf),
-                                   nullptr, original_n, offset, n);
+                                   original_n, offset, n);
       } else {
         *err = DB_SUCCESS;
       }
@@ -5045,7 +5026,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
       }
 
       if (encrypt_log_buf != nullptr) {
-        ut::free(encrypt_log_buf);
+        ut::aligned_free(encrypt_log_buf);
       }
 
       return (original_n);
@@ -5075,7 +5056,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
   }
 
   if (encrypt_log_buf != nullptr) {
-    ut::free(encrypt_log_buf);
+    ut::aligned_free(encrypt_log_buf);
   }
 
   if (*err != DB_IO_DECRYPT_FAIL) {
@@ -6604,6 +6585,7 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
                         pfs_os_file_t file, const char *name, void *buf,
                         os_offset_t offset, ulint len,
                         const file::Block *e_block) {
+  ut_a(!type.is_log());
 #ifdef WIN_ASYNC_IO
   ut_a((len & 0xFFFFFFFFUL) == len);
 #endif /* WIN_ASYNC_IO */
@@ -6723,7 +6705,6 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   }
   slot->io_already_done = false;
   slot->buf_block = nullptr;
-  slot->encrypt_log_buf = nullptr;
 
   if (!srv_use_native_aio) {
     slot->buf_block = const_cast<file::Block *>(e_block);
@@ -6761,43 +6742,22 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   if (srv_use_native_aio && offset > 0 && type.is_write() &&
       (type.is_encrypted() || e_block != nullptr)) {
     file::Block *encrypted_block = nullptr;
-    byte *encrypt_log_buf;
 
     release();
 
     void *src_buf = slot->buf;
-    if (!type.is_log()) {
-      if (e_block == nullptr) {
-        encrypted_block = os_file_encrypt_page(type, src_buf, slot->len);
-      } else {
-        encrypted_block = const_cast<file::Block *>(e_block);
-      }
-
-      if (slot->buf_block != nullptr) {
-        os_free_block(slot->buf_block);
-      }
-
-      slot->buf_block = encrypted_block;
+    ut_a(!type.is_log());
+    if (e_block == nullptr) {
+      encrypted_block = os_file_encrypt_page(type, src_buf, slot->len);
     } else {
-      /* Skip encrypt log file header */
-      if (offset >= LOG_FILE_HDR_SIZE) {
-        ut_ad(e_block == nullptr);
-        encrypted_block =
-            os_file_encrypt_log(type, src_buf, encrypt_log_buf, slot->len);
-
-        if (slot->buf_block != nullptr) {
-          os_free_block(slot->buf_block);
-        }
-
-        slot->buf_block = encrypted_block;
-
-        if (slot->encrypt_log_buf != nullptr) {
-          ut::free(slot->encrypt_log_buf);
-        }
-
-        slot->encrypt_log_buf = encrypt_log_buf;
-      }
+      encrypted_block = const_cast<file::Block *>(e_block);
     }
+
+    if (slot->buf_block != nullptr) {
+      os_free_block(slot->buf_block);
+    }
+
+    slot->buf_block = encrypted_block;
 
     slot->buf = static_cast<byte *>(src_buf);
 
@@ -7062,6 +7022,7 @@ static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
   }
 
   if (err == DB_SUCCESS) {
+    ut_ad(!slot->type.is_log());
     /** If write of the page is compressed (compression is enabled, it is not
     the first page, it is not a redolog, not a doublewrite buffer) and punch
     holes are enabled, call AIOHandler::io_complete to check if hole punching is
@@ -7087,6 +7048,7 @@ static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
 dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
                     pfs_os_file_t file, void *buf, os_offset_t offset, ulint n,
                     bool read_only, fil_node_t *m1, void *m2) {
+  ut_a(!type.is_log());
 #ifdef WIN_ASYNC_IO
   BOOL ret = TRUE;
 #endif /* WIN_ASYNC_IO */

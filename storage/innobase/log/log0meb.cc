@@ -1953,10 +1953,7 @@ static void redo_log_archive_consumer() {
       IB_mutex_guard files_latch{&(log_sys->m_files_mutex), UT_LOCATION_HERE};
 
       if (log_can_encrypt(*log_sys)) {
-        request.encryption_key(log_sys->m_encryption_metadata.m_key,
-                               log_sys->m_encryption_metadata.m_key_len,
-                               log_sys->m_encryption_metadata.m_iv);
-        request.encryption_algorithm(log_sys->m_encryption_metadata.m_type);
+        request.get_encryption_info().set(log_sys->m_encryption_metadata);
       }
 
       // Ensure, that the block written has a minimum size.

@@ -2653,26 +2653,12 @@ bool Encryption::is_none(const char *algorithm) noexcept {
   return (false);
 }
 
-dberr_t Encryption::set_algorithm(const char *option,
-                                  Encryption *encryption) noexcept {
-  if (is_none(option)) {
-    encryption->m_type = NONE;
-
-  } else if (innobase_strcasecmp(option, "y") == 0) {
-    encryption->m_type = AES;
-
-  } else {
-    return (DB_UNSUPPORTED);
-  }
-
-  return (DB_SUCCESS);
-}
-
 dberr_t Encryption::validate(const char *option) noexcept {
-  Encryption encryption;
-
-  return (encryption.set_algorithm(option, &encryption));
+  return (is_none(option) || (innobase_strcasecmp(option, "y") == 0))
+             ? DB_SUCCESS
+             : DB_UNSUPPORTED;
 }
+
 /** Compute the next autoinc value.
 
  For MySQL replication the autoincrement values can be partitioned among

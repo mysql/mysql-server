@@ -7548,12 +7548,8 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
     req_type.clear_encrypted();
     return;
   }
-
-  req_type.encryption_key(space->m_encryption_metadata.m_key,
-                          space->m_encryption_metadata.m_key_len,
-                          space->m_encryption_metadata.m_iv);
-
-  req_type.encryption_algorithm(Encryption::AES);
+  req_type.get_encryption_info().set(space->m_encryption_metadata);
+  ut_ad(space->m_encryption_metadata.m_type == Encryption::AES);
 }
 
 AIO_mode Fil_shard::get_AIO_mode(const IORequest &, bool sync) {
@@ -7583,7 +7579,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   IORequest req_type(type);
 
   ut_ad(req_type.validate());
-  ut_ad(!req_type.is_log());
+  ut_a(!req_type.is_log());
 
   ut_ad(len > 0);
   ut_ad(byte_offset < UNIV_PAGE_SIZE);
