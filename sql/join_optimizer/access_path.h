@@ -164,6 +164,9 @@ struct AppendPathParameters {
   JOIN *join;
 };
 
+/// To indicate that a row estimate is not yet made.
+constexpr double kUnknownRowCount = -1.0;
+
 /**
   Access paths are a query planning structure that correspond 1:1 to iterators,
   in that an access path contains pretty much exactly the information
@@ -388,7 +391,8 @@ struct AccessPath {
 
   /// If no filter, identical to num_output_rows, cost, respectively.
   /// init_cost is always the same (filters have zero initialization cost).
-  double num_output_rows_before_filter{-1.0}, cost_before_filter{-1.0};
+  double num_output_rows_before_filter{kUnknownRowCount},
+      cost_before_filter{-1.0};
 
   /// Bitmap of WHERE predicates that we are including on this access path,
   /// referring to the “predicates” array internal to the join optimizer.
@@ -845,7 +849,7 @@ struct AccessPath {
 
  private:
   /// Expected number of output rows, -1.0 for unknown.
-  double m_num_output_rows{-1.0};
+  double m_num_output_rows{kUnknownRowCount};
 
   // We'd prefer if this could be an std::variant, but we don't have C++17 yet.
   // It is private to force all access to be through the type-checking

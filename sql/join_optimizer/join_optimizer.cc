@@ -5341,10 +5341,18 @@ AccessPath *CreateZeroRowsForEmptyJoin(JOIN *join, const char *cause) {
   Creates an AGGREGATE AccessPath, possibly with an intermediary STREAM node if
   one is needed. The creation of the temporary table does not happen here, but
   is left for FinalizePlanForQueryBlock().
+
+  @param thd The current thread.
+  @param join The join to which 'path' belongs.
+  @param rollup True for "GROUP BY ... WITH ROLLUP".
+  @param row_estimate estimated number of output rows, so that we do not
+         need to recalculate it, or kUnknownRowCount if unknown.
+  @param trace Optimizer trace.
+  @returns The AGGREGATE AccessPath.
  */
 AccessPath CreateStreamingAggregationPath(THD *thd, AccessPath *path,
                                           JOIN *join, bool rollup,
-                                          string *trace) {
+                                          double row_estimate, string *trace) {
   AccessPath *child_path = path;
   const Query_block *query_block = join->query_block;
 
@@ -5367,6 +5375,7 @@ AccessPath CreateStreamingAggregationPath(THD *thd, AccessPath *path,
   aggregate_path.type = AccessPath::AGGREGATE;
   aggregate_path.aggregate().child = child_path;
   aggregate_path.aggregate().rollup = rollup;
+  aggregate_path.set_num_output_rows(row_estimate);
   EstimateAggregateCost(&aggregate_path, query_block, trace);
   return aggregate_path;
 }
@@ -6718,6 +6727,9 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       *trace += "Applying aggregation for GROUP BY\n";
     }
 
+    // Reuse this, so that we do not have to recalculate it for each
+    // alternative aggregate path.
+    double aggregate_rows = kUnknownRowCount;
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
       const bool rollup = (join->rollup_state != JOIN::RollupState::NONE);
@@ -6727,8 +6739,9 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                                      group_by_ordering_idx);
 
       if (!group_needs_sort) {
-        AccessPath aggregate_path =
-            CreateStreamingAggregationPath(thd, root_path, join, rollup, trace);
+        AccessPath aggregate_path = CreateStreamingAggregationPath(
+            thd, root_path, join, rollup, aggregate_rows, trace);
+        aggregate_rows = aggregate_path.num_output_rows();
         receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "sort elided");
         continue;
@@ -6772,8 +6785,9 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                    sort_ahead_ordering.ordering_idx);
         }
 
-        AccessPath aggregate_path =
-            CreateStreamingAggregationPath(thd, sort_path, join, rollup, trace);
+        AccessPath aggregate_path = CreateStreamingAggregationPath(
+            thd, sort_path, join, rollup, aggregate_rows, trace);
+        aggregate_rows = aggregate_path.num_output_rows();
         receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, description);
       }

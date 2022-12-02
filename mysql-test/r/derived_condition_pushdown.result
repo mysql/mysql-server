@@ -732,10 +732,10 @@ EXPLAIN
 EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
 WHERE f1 > 3*RAND() AND f1 < 10;
 EXPLAIN
--> Table scan on dt (rows=6)
-    -> Materialize (rows=6)
-        -> Filter: (t1.f1 > (3 * rand())) (rows=6)
-            -> Group aggregate: sum(t1.f2) (rows=6)
+-> Table scan on dt (rows=3)
+    -> Materialize (rows=3)
+        -> Filter: (t1.f1 > (3 * rand())) (rows=3)
+            -> Group aggregate: sum(t1.f2) (rows=3)
                 -> Filter: (t1.f1 < 10) (rows=10)
                     -> Covering index range scan on t1 using f1_2 over (NULL < f1 < 10) (rows=10)
 
@@ -1679,9 +1679,9 @@ SELECT f1, f2 FROM t1) as dt
 WHERE f1 > 3*RAND() AND f1 < 10;
 EXPLAIN
 -> Filter: (dt.f1 > (3 * rand())) (rows=7)
-    -> Table scan on dt (rows=16)
-        -> Union all materialize (rows=16)
-            -> Group aggregate: sum(t1.f2) (rows=6)
+    -> Table scan on dt (rows=13)
+        -> Union all materialize (rows=13)
+            -> Group aggregate: sum(t1.f2) (rows=3)
                 -> Filter: (t1.f1 < 10) (rows=10)
                     -> Covering index range scan on t1 using f1_2 over (NULL < f1 < 10) (rows=10)
             -> Filter: (t1.f1 < 10) (rows=10)
@@ -1694,9 +1694,9 @@ SELECT f1, f2 FROM t1) as dt
 WHERE f1 > 3*RAND() AND f1 < 10;
 EXPLAIN
 -> Filter: (dt.f1 > (3 * rand())) (rows=3)
-    -> Table scan on dt (rows=6)
-        -> Intersect all materialize (rows=6)
-            -> Group aggregate: sum(t1.f2) (rows=6)
+    -> Table scan on dt (rows=3)
+        -> Intersect all materialize (rows=3)
+            -> Group aggregate: sum(t1.f2) (rows=3)
                 -> Filter: (t1.f1 < 10) (rows=10)
                     -> Covering index range scan on t1 using f1_2 over (NULL < f1 < 10) (rows=10)
             -> Filter: (t1.f1 < 10) (rows=10)
