@@ -26,7 +26,7 @@
 
 #include "classic_change_user.h"
 #include "classic_connect.h"
-#include "classic_connection.h"
+#include "classic_connection_base.h"
 #include "classic_greeting.h"
 #include "classic_init_schema.h"
 #include "classic_query.h"

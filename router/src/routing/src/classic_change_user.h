@@ -67,7 +67,7 @@ class ChangeUserSender : public Processor {
  public:
   using Processor::Processor;
 
-  ChangeUserSender(MysqlRoutingClassicConnection *conn, bool in_handshake)
+  ChangeUserSender(MysqlRoutingClassicConnectionBase *conn, bool in_handshake)
       : Processor(conn), in_handshake_{in_handshake} {}
 
   enum class Stage {

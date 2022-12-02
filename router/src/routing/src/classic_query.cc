@@ -30,7 +30,7 @@
 #include <system_error>
 #include <variant>
 
-#include "classic_connection.h"
+#include "classic_connection_base.h"
 #include "classic_forwarder.h"
 #include "classic_frame.h"
 #include "classic_lazy_connect.h"
@@ -341,7 +341,7 @@ static stdx::flags<StmtClassifier> classify(const std::string &stmt,
   return StmtClassifier::StateChangeOnTracker;
 }
 
-static uint64_t get_error_count(MysqlRoutingClassicConnection *connection) {
+static uint64_t get_error_count(MysqlRoutingClassicConnectionBase *connection) {
   uint64_t count{};
   for (auto const &w :
        connection->execution_context().diagnostics_area().warnings()) {
@@ -351,7 +351,8 @@ static uint64_t get_error_count(MysqlRoutingClassicConnection *connection) {
   return count;
 }
 
-static uint64_t get_warning_count(MysqlRoutingClassicConnection *connection) {
+static uint64_t get_warning_count(
+    MysqlRoutingClassicConnectionBase *connection) {
   return connection->execution_context().diagnostics_area().warnings().size();
 }
 
@@ -391,7 +392,7 @@ static stdx::expected<void, std::error_code> send_resultset(
 }
 
 std::vector<classic_protocol::message::server::Row> rows_from_warnings(
-    MysqlRoutingClassicConnection *connection, bool only_errors,
+    MysqlRoutingClassicConnectionBase *connection, bool only_errors,
     uint64_t row_count, uint64_t offset) {
   std::vector<classic_protocol::message::server::Row> rows;
 
@@ -446,7 +447,7 @@ class ShowWarningCount {
 };
 
 static stdx::expected<void, std::error_code> show_count(
-    MysqlRoutingClassicConnection *connection, const char *name,
+    MysqlRoutingClassicConnectionBase *connection, const char *name,
     uint64_t count) {
   auto *socket_splicer = connection->socket_splicer();
   auto src_channel = socket_splicer->client_channel();
@@ -502,7 +503,7 @@ static const char *show_warning_count_name(bool only_errors,
 }
 
 static stdx::expected<void, std::error_code> show_warning_count(
-    MysqlRoutingClassicConnection *connection, bool only_errors,
+    MysqlRoutingClassicConnectionBase *connection, bool only_errors,
     ShowWarningCount::Scope scope) {
   if (only_errors) {
     return show_count(connection, show_warning_count_name(only_errors, scope),
@@ -514,7 +515,7 @@ static stdx::expected<void, std::error_code> show_warning_count(
 }
 
 static stdx::expected<void, std::error_code> show_warnings(
-    MysqlRoutingClassicConnection *connection, bool only_errors,
+    MysqlRoutingClassicConnectionBase *connection, bool only_errors,
     uint64_t row_count, uint64_t offset) {
   auto *socket_splicer = connection->socket_splicer();
   auto src_channel = socket_splicer->client_channel();

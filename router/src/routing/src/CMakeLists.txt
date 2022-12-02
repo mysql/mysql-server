@@ -49,6 +49,7 @@ ADD_LIBRARY(routing SHARED
   routing_component.cc
   channel.cc
   destination_ssl_context.cc
+  classic_connection_base.cc
   classic_connection.cc
   x_connection.cc
   connection.cc

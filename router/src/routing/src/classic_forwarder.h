@@ -77,7 +77,7 @@ class ServerToClientForwarder : public Forwarder {
     Done,
   };
 
-  ServerToClientForwarder(MysqlRoutingClassicConnection *conn,
+  ServerToClientForwarder(MysqlRoutingClassicConnectionBase *conn,
                           bool flush_before_next_func_optional = true)
       : Forwarder(conn),
         flush_before_next_func_optional_(flush_before_next_func_optional) {}

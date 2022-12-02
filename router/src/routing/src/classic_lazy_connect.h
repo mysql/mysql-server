@@ -55,7 +55,7 @@ class LazyConnector : public Processor {
    * If "in_handshake" the LazyConnector may ask the client for a
    * "auth-method-switch" or a "plaintext-password".
    */
-  LazyConnector(MysqlRoutingClassicConnection *conn, bool in_handshake)
+  LazyConnector(MysqlRoutingClassicConnectionBase *conn, bool in_handshake)
       : Processor(conn), in_handshake_{in_handshake} {}
 
   enum class Stage {

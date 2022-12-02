@@ -33,7 +33,7 @@
 #include "classic_auth_native.h"
 #include "classic_auth_sha256_password.h"
 #include "classic_connect.h"
-#include "classic_connection.h"
+#include "classic_connection_base.h"
 #include "classic_forwarder.h"
 #include "classic_frame.h"
 #include "classic_greeting.h"

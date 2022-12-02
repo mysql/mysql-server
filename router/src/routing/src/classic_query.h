@@ -133,10 +133,10 @@ class QuerySender : public Processor {
     }
   };
 
-  QuerySender(MysqlRoutingClassicConnection *conn, std::string stmt)
+  QuerySender(MysqlRoutingClassicConnectionBase *conn, std::string stmt)
       : Processor(conn), stmt_{std::move(stmt)} {}
 
-  QuerySender(MysqlRoutingClassicConnection *conn, std::string stmt,
+  QuerySender(MysqlRoutingClassicConnectionBase *conn, std::string stmt,
               std::unique_ptr<Handler> handler)
       : Processor(conn), stmt_{std::move(stmt)}, handler_(std::move(handler)) {}
 

@@ -59,7 +59,7 @@ class InitSchemaForwarder : public Processor {
 
 class InitSchemaSender : public Processor {
  public:
-  InitSchemaSender(MysqlRoutingClassicConnection *conn, std::string schema)
+  InitSchemaSender(MysqlRoutingClassicConnectionBase *conn, std::string schema)
       : Processor(conn), schema_{std::move(schema)} {}
 
   enum class Stage {

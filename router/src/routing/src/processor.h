@@ -28,7 +28,7 @@
 #include "basic_protocol_splicer.h"
 #include "tracer.h"
 
-class MysqlRoutingClassicConnection;
+class MysqlRoutingClassicConnectionBase;
 class ClassicProtocolState;
 
 /**
@@ -68,18 +68,18 @@ class BasicProcessor {
     Void,
   };
 
-  BasicProcessor(MysqlRoutingClassicConnection *conn) : conn_(conn) {}
+  BasicProcessor(MysqlRoutingClassicConnectionBase *conn) : conn_(conn) {}
 
   virtual ~BasicProcessor() = default;
 
-  const MysqlRoutingClassicConnection *connection() const { return conn_; }
+  const MysqlRoutingClassicConnectionBase *connection() const { return conn_; }
 
-  MysqlRoutingClassicConnection *connection() { return conn_; }
+  MysqlRoutingClassicConnectionBase *connection() { return conn_; }
 
   virtual stdx::expected<Result, std::error_code> process() = 0;
 
  private:
-  MysqlRoutingClassicConnection *conn_;
+  MysqlRoutingClassicConnectionBase *conn_;
 };
 
 /**
