@@ -44,7 +44,7 @@ class QueryRestTableSingleRow : private QueryLog {
                              const std::string &schema,
                              const std::string &object,
                              const std::string &primary_key,
-                             const std::string &pri_value,
+                             const mysqlrouter::sqlstring &pri_value,
                              const std::string &url_route);
 
   virtual void query_last_inserted(MySQLSession *session,
@@ -60,7 +60,8 @@ class QueryRestTableSingleRow : private QueryLog {
   void on_row(const Row &r) override;
   void build_query(const std::vector<Column> &columns,
                    const std::string &schema, const std::string &object,
-                   const std::string &primary_key, const std::string &pri_value,
+                   const std::string &primary_key,
+                   const mysqlrouter::sqlstring &pri_value,
                    const std::string &url_route);
   void build_query_last_inserted(const std::vector<Column> &columns,
                                  const std::string &schema,
