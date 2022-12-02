@@ -181,6 +181,13 @@ inline mysqlrouter::sqlstring to_sqlstring(const AuthUser::UserId &ud) {
   return result;
 }
 
+inline mysqlrouter::sqlstring &operator<<(mysqlrouter::sqlstring &sql,
+                                          const AuthUser::UserId &ud) {
+  sql << to_sqlstring(ud);
+
+  return sql;
+}
+
 inline std::string to_string(const AuthUser &ud) {
   using std::to_string;
   std::string result{"{"};

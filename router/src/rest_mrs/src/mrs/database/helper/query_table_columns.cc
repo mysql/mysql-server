@@ -57,7 +57,7 @@ void QueryTableColumns::on_row(const Row &r) {
   log_debug("Column %s %s %s (is_primary %s)", r[0], r[1], r[3],
             ("PRI"s == r[3] ? "yes" : "no"));
   columns.emplace_back(r[0], r[1], "PRI"s == r[3],
-                       helper::contains(r[4] ? r[4] : "", "auto_increment"));
+                       helper::contains(r[5] ? r[5] : "", "auto_increment"));
 }
 
 }  // namespace database

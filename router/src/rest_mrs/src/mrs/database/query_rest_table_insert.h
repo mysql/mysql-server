@@ -38,8 +38,7 @@ class QueryRestObjectInsert : private QueryLog {
   template <typename K, typename V>
   class It {
    public:
-    It(K k, V v, const std::string &primary = {})
-        : k_{k}, v_{v}, primary_{primary} {}
+    It(K k, V v) : k_{k}, v_{v} {}
 
     It &operator++() {
       ++k_;
@@ -48,12 +47,7 @@ class QueryRestObjectInsert : private QueryLog {
     }
 
     auto operator*() {
-      if (*k_ != primary_) {
-        mysqlrouter::sqlstring r{" !=?"};
-        r << *k_ << *v_;
-        return r;
-      }
-      mysqlrouter::sqlstring r{" != LAST_INSERT_ID(?)"};
+      mysqlrouter::sqlstring r{" !=?"};
       r << *k_ << *v_;
       return r;
     }
@@ -63,8 +57,16 @@ class QueryRestObjectInsert : private QueryLog {
    private:
     K k_;
     V v_;
-    std::string primary_;
   };
+
+  mysqlrouter::sqlstring additional_where(
+      const std::string &user_key, const mysqlrouter::sqlstring &user_value) {
+    if (user_key.empty()) return {};
+
+    mysqlrouter::sqlstring where{"AND !=?"};
+    where << user_key << user_value;
+    return where;
+  }
 
  public:
   template <typename KeysIt, typename ValuesIt>
@@ -77,17 +79,23 @@ class QueryRestObjectInsert : private QueryLog {
   }
 
   template <typename KeysIt, typename ValuesIt>
-  void execute_with_upsert(MySQLSession *session, const std::string &primary,
-                           const std::string &schema, const std::string &object,
-                           const KeysIt &kit, const ValuesIt &vit) {
-    query_ = {"INSERT INTO !.!(!) VALUES(?) ON DUPLICATE KEY UPDATE !"};
+  bool update(MySQLSession *session, const std::string &schema,
+              const std::string &object, const KeysIt &kit, const ValuesIt &vit,
+              const std::string &pk, const mysqlrouter::sqlstring &pk_value,
+              const std::string &user_key,
+              const mysqlrouter::sqlstring &user_value) {
     using ItTypes =
         It<typename KeysIt::first_type, typename ValuesIt::first_type>;
-    query_ << schema << object << kit << vit
-           << std::make_pair<ItTypes, ItTypes>(
-                  ItTypes(kit.first, vit.first, primary),
-                  ItTypes(kit.second, vit.second));
+
+    query_ = {"UPDATE !.! SET ? WHERE !=? ?"};
+    using ItTypes =
+        It<typename KeysIt::first_type, typename ValuesIt::first_type>;
+    query_ << schema << object
+           << std::make_pair<ItTypes, ItTypes>(ItTypes(kit.first, vit.first),
+                                               ItTypes(kit.second, vit.second))
+           << pk << pk_value << additional_where(user_key, user_value);
     execute(session);
+    return 0 != session->affected_rows();
   }
 };
 

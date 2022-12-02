@@ -32,6 +32,7 @@
 using namespace mrs::database;
 
 using testing::_;
+using testing::Return;
 using testing::StrictMock;
 using testing::Test;
 
@@ -69,26 +70,28 @@ TEST_F(DatabaseQueryInsertTest, insert_multiple_columns) {
 }
 
 TEST_F(DatabaseQueryInsertTest, upinsert_single_column) {
-  EXPECT_CALL(
-      mock_session_,
-      query("INSERT INTO `schema1`.`table1`(`column1`) VALUES('value1') ON "
-            "DUPLICATE KEY UPDATE  `column1`='value1'",
-            _, _));
+  EXPECT_CALL(mock_session_,
+              query("UPDATE `schema1`.`table1` SET  `column1`='value1'"
+                    " WHERE `pk`='pk_value' ",
+                    _, _));
+  EXPECT_CALL(mock_session_, affected_rows()).WillOnce(Return(1));
   std::vector<std::string> columns{"column1"};
   std::vector<std::string> values{"value1"};
-  sut_.execute_with_upsert(&mock_session_, "", "schema1", "table1",
-                           from_container(columns), from_container(values));
+  sut_.update(&mock_session_, "schema1", "table1", from_container(columns),
+              from_container(values), "pk",
+              (mysqlrouter::sqlstring{"?"} << "pk_value"), {}, {});
 }
 
 TEST_F(DatabaseQueryInsertTest, upinsert_multiple_columns) {
-  EXPECT_CALL(
-      mock_session_,
-      query("INSERT INTO `schema1`.`table1`(`column1`,"
-            "`column2`) VALUES('value1','value2') ON "
-            "DUPLICATE KEY UPDATE  `column1`='value1', `column2`='value2'",
-            _, _));
+  EXPECT_CALL(mock_session_,
+              query("UPDATE `schema1`.`table1` SET  `column1`='value1',"
+                    " `column2`='value2' WHERE "
+                    "`pk`='pk_value' ",
+                    _, _));
+  EXPECT_CALL(mock_session_, affected_rows()).WillOnce(Return(1));
   std::vector<std::string> columns{"column1", "column2"};
   std::vector<std::string> values{"value1", "value2"};
-  sut_.execute_with_upsert(&mock_session_, "", "schema1", "table1",
-                           from_container(columns), from_container(values));
+  sut_.update(&mock_session_, "schema1", "table1", from_container(columns),
+              from_container(values), "pk",
+              (mysqlrouter::sqlstring{"?"} << "pk_value"), {}, {});
 }
