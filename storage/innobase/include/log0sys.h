@@ -87,10 +87,6 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   /** Event used for locking sn */
   os_event_t sn_lock_event;
 
-#ifdef UNIV_PFS_RWLOCK
-  /** The instrumentation hook */
-  struct PSI_rwlock *pfs_psi;
-#endif /* UNIV_PFS_RWLOCK */
 #ifdef UNIV_DEBUG
   /** The rw_lock instance only for the debug info list */
   /* NOTE: Just "rw_lock_t sn_lock_inst;" and direct minimum initialization
@@ -125,6 +121,21 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   /** Size of the log buffer expressed in number of total bytes,
   that is including bytes for headers and footers of log blocks. */
   size_t buf_size;
+
+#ifdef UNIV_PFS_RWLOCK
+  /** The instrumentation hook.
+  @remarks This field is rarely modified, so can not be the cause of
+  frequent cache line invalidations. However, user threads read it only during
+  mtr.commit(), which in some scenarios happens rarely enough, that the cache
+  line containing pfs_psi is evicted between mtr.commit()s causing a cache miss,
+  a stall and in consequence MACHINE_CLEARS during mtr.commit(). As this miss
+  seems inevitable, we at least want to make it really worth it. So, we put the
+  pfs_psi in the same cache line which contains buf, buf_size_sn and buf_size,
+  which are also needed during mtr.commit(). This way instead of two separate
+  cache misses, we have just one.
+  TBD: We could additionally use `lfence` to limit MACHINE_CLEARS.*/
+  struct PSI_rwlock *pfs_psi;
+#endif /* UNIV_PFS_RWLOCK */
 
   /** The recent written buffer.
   Protected by: locking sn not to add. */
