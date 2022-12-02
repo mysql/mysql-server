@@ -78,7 +78,7 @@ class MysqlCacheManager {
         : configuration_{configuration}, role_{role} {}
 
     bool object_before_cache(Object) override;
-    void object_retrived_from_cache(Object) override;
+    bool object_retrived_from_cache(Object) override;
     void object_remove(Object) override;
     Object object_allocate() override;
     bool is_default_user(Object &) const;

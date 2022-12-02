@@ -458,6 +458,7 @@ class ROUTER_LIB_EXPORT MySQLSession {
   virtual unsigned int last_errno();
 
   virtual const char *ssl_cipher();
+  virtual bool ping();
 
   virtual bool is_ssl_session_reused();
 

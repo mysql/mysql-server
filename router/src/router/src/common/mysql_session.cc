@@ -788,6 +788,8 @@ uint64_t MySQLSession::affected_rows() noexcept {
   return mysql_affected_rows(connection_);
 }
 
+bool MySQLSession::ping() { return 0 == mysql_ping(connection_); }
+
 unsigned MySQLSession::warning_count() noexcept {
   return mysql_warning_count(connection_);
 }

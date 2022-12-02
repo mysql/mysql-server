@@ -61,8 +61,10 @@ bool MysqlCacheManager::MysqlCacheCallbacks::object_before_cache(Object obj) {
   return true;
 }
 
-void MysqlCacheManager::MysqlCacheCallbacks::object_retrived_from_cache(
-    Object) {}
+bool MysqlCacheManager::MysqlCacheCallbacks::object_retrived_from_cache(
+    Object connection) {
+  return connection->ping();
+}
 
 void MysqlCacheManager::MysqlCacheCallbacks::object_restore_defaults(
     Object &obj) {
