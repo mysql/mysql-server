@@ -388,8 +388,8 @@ EXPLAIN FORMAT = tree (SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY a LIMI
 UNION ALL
 (SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY a LIMIT 5) LIMIT 7;
 EXPLAIN
--> Limit: 7 row(s)
-    -> Append
+-> Limit: 7 row(s)  (rows=7)
+    -> Append  (rows=14)
         -> Stream results  (rows=9)
             -> Limit: 10 row(s)  (rows=9)
                 -> Sort: a, limit input to 10 row(s) per chunk  (rows=9)
@@ -424,8 +424,8 @@ EXPLAIN FORMAT = tree (SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY a LIMI
 UNION ALL
 (SELECT * FROM r UNION DISTINCT SELECT * FROM s) LIMIT 7;
 EXPLAIN
--> Limit: 7 row(s)
-    -> Append
+-> Limit: 7 row(s)  (rows=7)
+    -> Append  (rows=18)
         -> Stream results  (rows=9)
             -> Limit: 10 row(s)  (rows=9)
                 -> Sort: a, limit input to 10 row(s) per chunk  (rows=9)
@@ -449,8 +449,8 @@ a
 -1
 EXPLAIN FORMAT = tree (((SELECT * from r UNION SELECT * FROM s UNION ALL SELECT * from t) LIMIT 3) LIMIT 5);
 EXPLAIN
--> Limit: 3 row(s)
-    -> Append
+-> Limit: 3 row(s)  (rows=3)
+    -> Append  (rows=14)
         -> Stream results  (rows=9)
             -> Table scan on <union temporary>  (rows=9)
                 -> Union materialize with deduplication  (rows=9)

@@ -1611,11 +1611,14 @@ inline AccessPath *NewAppendAccessPath(
   path->cost = 0.0;
   path->init_cost = 0.0;
   path->init_once_cost = 0.0;
+  double num_output_rows = 0.0;
   for (const AppendPathParameters &child : *children) {
     path->cost += child.path->cost;
     path->init_cost += child.path->init_cost;
     path->init_once_cost += child.path->init_once_cost;
+    num_output_rows += child.path->num_output_rows();
   }
+  path->set_num_output_rows(num_output_rows);
   return path;
 }
 
