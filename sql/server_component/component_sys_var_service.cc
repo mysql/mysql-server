@@ -575,7 +575,11 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
       char *var_value = **(
           char ***)(reinterpret_cast<sys_var_pluginvar *>(sysvar)->plugin_var +
                     1);
-      if (var_value) my_free(var_value);
+      if (var_value) {
+        my_free(var_value);
+        **(char ***)(reinterpret_cast<sys_var_pluginvar *>(sysvar)->plugin_var +
+                     1) = nullptr;
+      }
     }
 
     FREE_RECORD(sysvar)

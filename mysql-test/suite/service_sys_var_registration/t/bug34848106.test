@@ -1,0 +1,4 @@
+INSTALL COMPONENT 'file://component_health_monitor';
+UNINSTALL COMPONENT 'file://component_health_monitor';
+INSTALL COMPONENT 'file://component_health_monitor';
+UNINSTALL COMPONENT 'file://component_health_monitor';
