@@ -32,5 +32,5 @@ include/assert_error_log.inc [server: 1, pattern: Found invalid event sequence w
 FLUSH BINARY LOGS;
 ERROR HY000: Lost connection to MySQL server during query
 # restart
-# Check for the "Failed to open the crashed binlog file when source server is recovering it\."
-Pattern "\[Note\] \[[^]]*\] \[[^]]*\] Failed to open the crashed binlog file when source server is recovering it\." found
+# Check for the "Failed to open the crashed binlog file when master server is recovering it\."
+Pattern "\[Note\] \[[^]]*\] \[[^]]*\] Failed to open the crashed binlog file when master server is recovering it\." found
