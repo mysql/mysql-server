@@ -1942,10 +1942,7 @@ bool check_single_table_access(THD *thd, ulong privilege, Table_ref *all_tables,
     goto deny;
 
   /* Show only 1 table for check_grant */
-  if (!(all_tables->belong_to_view &&
-        (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)) &&
-      check_grant(thd, privilege, all_tables, false, 1, no_errors))
-    goto deny;
+  if (check_grant(thd, privilege, all_tables, false, 1, no_errors)) goto deny;
 
   thd->set_security_context(backup_ctx);
   return false;

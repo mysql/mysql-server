@@ -174,3 +174,60 @@ DROP TABLE t1, t2;
 DROP USER user_without_role@localhost;
 DROP USER user_with_role@localhost;
 DROP ROLE test_role;
+
+
+--echo #
+--echo # BUG#34467659: "SHOW FIELDS FROM" fails against a view when a view
+--echo #               accessing from a view is recreated
+--echo #
+--echo Note, that the difference between test for bug#34341533 and bug#34467659
+--echo is that in granting on *.* vs granting on specific resources.
+
+CREATE USER user_with_role@localhost;
+CREATE ROLE test_role;
+GRANT ALL on test.t1 TO test_role;
+GRANT ALL on test.v1 TO test_role;
+GRANT ALL on test.v2 TO test_role;
+GRANT test_role TO user_with_role@localhost;
+SET DEFAULT ROLE test_role TO user_with_role@localhost;
+
+CREATE USER user_without_role@localhost;
+GRANT ALL on test.t2 TO user_without_role@localhost;
+GRANT ALL on test.v3 TO user_without_role@localhost;
+GRANT ALL on test.v4 TO user_without_role@localhost;
+
+--enable_connect_log
+--connect(user_with_role, localhost, user_with_role,,)
+USE test;
+CREATE TABLE t1 (c1 INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE VIEW v2 AS SELECT * FROM v1;
+DROP VIEW v1;
+CREATE VIEW v1 AS SELECT * FROM t1;
+--echo # Without the patch, the following queries reported ER_VIEW_INVALID error
+SHOW FIELDS FROM v2;
+DESCRIBE v2;
+
+--connect(user_without_role, localhost, user_without_role,,)
+USE test;
+CREATE TABLE t2 (c1 INT);
+CREATE VIEW v3 AS SELECT * FROM t2;
+CREATE VIEW v4 AS SELECT * FROM v3;
+DROP VIEW v3;
+CREATE VIEW v3 AS SELECT * FROM t2;
+--echo # Without the patch, the following queries also reported ER_VIEW_INVALID error
+SHOW FIELDS FROM v4;
+DESCRIBE v4;
+
+# Cleanup
+--disconnect user_without_role
+--disconnect user_with_role
+--connection default
+--disable_connect_log
+
+DROP VIEW v1, v2, v3, v4;
+DROP TABLE t1, t2;
+
+DROP USER user_without_role@localhost;
+DROP USER user_with_role@localhost;
+DROP ROLE test_role;
