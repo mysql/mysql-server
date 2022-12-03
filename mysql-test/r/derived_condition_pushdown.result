@@ -1899,15 +1899,16 @@ FROM t1 JOIN (SELECT f1, f2 FROM t1
 EXCEPT SELECT f1, f2 FROM t1) as dt USING (f2)
 WHERE dt.f1 > 31 and t1.f2  > 40;
 EXPLAIN
--> Nested loop inner join (rows=4)
-    -> Filter: ((t1.f2 > 40) and (t1.f2 is not null)) (rows=4)
-        -> Table scan on t1 (rows=12)
-    -> Index lookup on dt using <auto_key1> (f2=t1.f2) (rows=2)
+-> Inner hash join (dt.f2 = t1.f2) (rows=4)
+    -> Table scan on dt (rows=1)
         -> Except materialize with deduplication (rows=1)
             -> Filter: (t1.f1 > 31) (rows=1)
                 -> Covering index range scan on t1 using f1_2 over (31 < f1) (rows=1)
             -> Filter: (t1.f1 > 31) (rows=1)
                 -> Covering index range scan on t1 using f1_2 over (31 < f1) (rows=1)
+    -> Hash
+        -> Filter: (t1.f2 > 40) (rows=4)
+            -> Table scan on t1 (rows=12)
 
 SELECT *
 FROM t1 JOIN (SELECT f1, f2 FROM t1
