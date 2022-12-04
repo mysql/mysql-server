@@ -803,13 +803,13 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos) {
 #ifndef NDEBUG
   ulong hb_info_counter = 0;
 #endif
-  int ret = 0;
 
   while (!stop_waiting_for_update(log_pos)) {
-    ret = mysql_bin_log.wait_for_update(m_heartbeat_period) > 0 ? 1 : 0;
+    // ignoring timeout on conditional variable
+    mysql_bin_log.wait_for_update(m_heartbeat_period);
 
     if (stop_waiting_for_update(log_pos)) {
-      return ret;
+      return 0;
     }
     mysql_bin_log.unlock_binlog_end_pos();
     Scope_guard lock([]() { mysql_bin_log.lock_binlog_end_pos(); });
@@ -825,7 +825,7 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos) {
     if (send_heartbeat_event(log_pos)) return 1;
   }
 
-  return ret;
+  return 0;
 }
 
 inline int Binlog_sender::wait_without_heartbeat(my_off_t log_pos) {
