@@ -1,0 +1,43 @@
+
+1. Setup a simple replication topology : source -> replica
+
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+2. Setup heartbeat period to 1 ms
+
+[connection slave]
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=0.001;
+include/start_slave.inc
+[connection master]
+CREATE TABLE test.t(a INT);
+
+3. Execute `mysqlslap` in a loop.
+Let the source send heartbeat messages between iterations.
+
+[connection server_1]
+
+4. Sync the replica
+
+[connection master]
+include/sync_slave_sql_with_master.inc
+
+5. Verify that Dump thread was not restarted between
+mysqlslap iterations. Dump thread should exit only
+if network is unstable, e.g. there was an error on 'send' or 'flush'
+
+include/assert_grep.inc [Binary dump log thread should be started twice]
+
+6. Cleanup
+
+[connection slave]
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=SAVED_HEARTBEAT_PERIOD;
+include/start_slave.inc
+[connection master]
+DROP TABLE test.t;
+include/rpl_end.inc
