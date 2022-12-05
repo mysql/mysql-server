@@ -28,10 +28,9 @@
 #include <array>
 #include <list>
 #include <mutex>
+#include <optional>
 #include <system_error>
 #include <vector>
-
-#include <iostream>
 
 #include "mysql/harness/net_ts/impl/io_service_base.h"
 #include "mysql/harness/net_ts/impl/poll.h"
@@ -51,12 +50,12 @@ namespace net {
 // http://www.greenend.org.uk/rjk/tech/poll.html
 class poll_io_service : public IoServiceBase {
  public:
-  ~poll_io_service() override {
-    if (wakeup_fds_.first != impl::socket::kInvalidSocket)
-      impl::socket::close(wakeup_fds_.first);
-    if (wakeup_fds_.second != impl::socket::kInvalidSocket)
-      impl::socket::close(wakeup_fds_.second);
-  }
+  ~poll_io_service() override { close(); }
+
+  static constexpr const short kSettableEvents = POLLIN | POLLOUT;
+  static constexpr const short kAlwaysEnabledEvents = POLLHUP | POLLERR;
+  static constexpr const short kAllEvents =
+      kSettableEvents | kAlwaysEnabledEvents;
 
   bool is_open() const noexcept {
     return wakeup_fds_.first != impl::socket::kInvalidSocket &&
@@ -96,7 +95,21 @@ class poll_io_service : public IoServiceBase {
     return {};
   }
 
-  stdx::expected<short, std::error_code> poll_event_from_wait_type(
+  stdx::expected<void, std::error_code> close() {
+    if (wakeup_fds_.first != impl::socket::kInvalidSocket) {
+      impl::socket::close(wakeup_fds_.first);
+      wakeup_fds_.first = impl::socket::kInvalidSocket;
+    }
+    if (wakeup_fds_.second != impl::socket::kInvalidSocket) {
+      impl::socket::close(wakeup_fds_.second);
+
+      wakeup_fds_.second = impl::socket::kInvalidSocket;
+    }
+
+    return {};
+  }
+
+  static stdx::expected<short, std::error_code> poll_event_from_wait_type(
       impl::socket::wait_type event) {
     switch (event) {
       case impl::socket::wait_type::wait_read:
@@ -104,7 +117,7 @@ class poll_io_service : public IoServiceBase {
       case impl::socket::wait_type::wait_write:
         return POLLOUT;
       case impl::socket::wait_type::wait_error:
-        return POLLERR;
+        return POLLERR | POLLHUP;
       default:
         return stdx::make_unexpected(
             make_error_code(std::errc::invalid_argument));
@@ -131,10 +144,18 @@ class poll_io_service : public IoServiceBase {
       auto &b = bucket(t.fd);
 
       std::lock_guard<std::mutex> lk(mtx_);
-      b.push_back(std::move(t));
+
+      auto it = std::find_if(b.begin(), b.end(), [fd = t.fd](auto fd_ev) {
+        return fd_ev.fd == fd;
+      });
+      if (it == b.end()) {
+        b.push_back(std::move(t));
+      } else {
+        it->event |= t.event;
+      }
     }
 
-    element_type erase_all(native_handle_type fd) {
+    stdx::expected<void, std::error_code> erase_all(native_handle_type fd) {
       auto &b = bucket(fd);
 
       std::lock_guard<std::mutex> lk(mtx_);
@@ -142,17 +163,17 @@ class poll_io_service : public IoServiceBase {
 
       for (auto cur = b.begin(); cur != end;) {
         if (cur->fd == fd) {
-          auto op = std::move(*cur);
           cur = b.erase(cur);
 
-          return op;
+          return {};
         } else {
           ++cur;
         }
       }
 
       // not found
-      return {};
+      return stdx::make_unexpected(
+          make_error_code(std::errc::no_such_file_or_directory));
     }
 
     std::vector<pollfd> poll_fds() const {
@@ -165,11 +186,17 @@ class poll_io_service : public IoServiceBase {
           count += b.size();
         }
 
+        // reserve a few more than needed.
         fds.reserve(count);
 
         for (const auto &b : buckets_) {
           for (auto const &fd_int : b) {
-            fds.push_back({fd_int.fd, fd_int.event, 0});
+            if (fd_int.event != 0) {
+              fds.push_back(
+                  {fd_int.fd,
+                   static_cast<short>(fd_int.event & ~kAlwaysEnabledEvents),
+                   0});
+            }
           }
         }
       }
@@ -177,18 +204,43 @@ class poll_io_service : public IoServiceBase {
       return fds;
     }
 
-    void erase_fd_event(native_handle_type fd, short event) {
+    stdx::expected<void, std::error_code> erase_fd_event(native_handle_type fd,
+                                                         short event) {
       auto &b = bucket(fd);
 
       std::lock_guard<std::mutex> lk(mtx_);
-      b.erase(std::remove_if(
-                  b.begin(), b.end(),
-                  [=](fd_event v) { return v.fd == fd && (v.event & event); }),
-              b.end());
+      auto it = std::find_if(b.begin(), b.end(),
+                             [fd](auto fd_ev) { return fd_ev.fd == fd; });
+      if (it == b.end()) {
+        return stdx::make_unexpected(
+            make_error_code(std::errc::no_such_file_or_directory));
+      }
+
+      it->event &= ~event;
+
+      return {};
+    }
+
+    std::optional<int32_t> interest(native_handle_type fd) const {
+      auto &b = bucket(fd);
+
+      std::lock_guard<std::mutex> lk(mtx_);
+
+      for (auto const &fd_ev : b) {
+        if (fd_ev.fd == fd) return fd_ev.event;
+      }
+
+      return std::nullopt;
     }
 
    private:
     container_type &bucket(native_handle_type fd) {
+      size_t ndx = fd % buckets_.size();
+
+      return buckets_[ndx];
+    }
+
+    const container_type &bucket(native_handle_type fd) const {
       size_t ndx = fd % buckets_.size();
 
       return buckets_[ndx];
@@ -237,9 +289,118 @@ class poll_io_service : public IoServiceBase {
           make_error_code(std::errc::invalid_argument));
     }
 
-    fd_interests_.erase_all(fd);
+    std::lock_guard<std::mutex> lk(mtx_);
 
-    return {};
+    auto res = fd_interests_.erase_all(fd);
+    if (res) {
+      // remove all events which are already fetched by poll_one()
+
+      auto end = triggered_events_.end();
+      for (auto cur = triggered_events_.begin(); cur != end;) {
+        if (cur->fd == fd) {
+          cur = triggered_events_.erase(cur);
+        } else {
+          ++cur;
+        }
+      }
+    }
+
+    return res;
+  }
+
+  /**
+   * get current fd-interest.
+   *
+   * @returns fd-interest as bitmask of raw POLL* flags
+   */
+  std::optional<int32_t> interest(native_handle_type fd) const {
+    return fd_interests_.interest(fd);
+  }
+
+  stdx::expected<fd_event, std::error_code> pop_event() {
+    fd_event ev;
+
+    auto &head = triggered_events_.front();
+
+    ev.fd = head.fd;
+
+    // if there are multiple events: get OUT before IN.
+    if (head.event & POLLOUT) {
+      head.event &= ~POLLOUT;
+      ev.event = POLLOUT;
+    } else if (head.event & POLLIN) {
+      // disable HUP if it is sent together with IN
+      if (head.event & POLLHUP) head.event &= ~POLLHUP;
+
+      head.event &= ~POLLIN;
+      ev.event = POLLIN;
+    } else if (head.event & POLLERR) {
+      head.event &= ~POLLERR;
+      ev.event = POLLERR;
+    } else if (head.event & POLLHUP) {
+      head.event &= ~POLLHUP;
+      ev.event = POLLHUP;
+    }
+
+    if ((head.event & (POLLIN | POLLOUT | POLLERR | POLLHUP)) == 0) {
+      triggered_events_.pop_front();
+    }
+
+    return ev;
+  }
+
+  stdx::expected<fd_event, std::error_code> update_fd_events(
+      std::chrono::milliseconds timeout) {
+    // build fds for poll() from fd-interest
+
+    auto poll_fds = fd_interests_.poll_fds();
+    auto res = impl::poll::poll(poll_fds.data(), poll_fds.size(), timeout);
+    if (!res) return stdx::make_unexpected(res.error());
+
+    size_t num_revents = res.value();  // number of pollfds with revents
+
+    // translate poll()'s revents into triggered events.
+    std::lock_guard lk(mtx_);
+
+    for (auto ev : poll_fds) {
+      if (ev.revents != 0) {
+        --num_revents;
+
+        // If the caller wants (ev.events) only:
+        //
+        // - POLLIN
+        //
+        // but poll() returns:
+        //
+        // - POLLHUP
+        //
+        // then return POLLIN.
+        //
+        // This handles the connection close cases which is signaled as:
+        //
+        // - POLLIN|POLLHUP on the Unixes
+        // - POLLHUP on Windows.
+        //
+        // As the caller is only interested in POLLIN, the POLLHUP would be
+        // unhandled and be reported on the next call of poll() again.
+        const auto revents = ((ev.events & POLLIN) &&  //
+                              (ev.revents & POLLHUP) && !(ev.revents & POLLIN))
+                                 ? ev.events
+                                 : ev.revents;
+
+        triggered_events_.emplace_back(ev.fd, revents);
+        if (ev.fd != wakeup_fds_.first) {
+          // mimik one-shot events.
+          //
+          // but don't remove interest in the wakeup file-descriptors
+          remove_fd_interest(ev.fd, revents);
+        }
+      }
+
+      if (0 == num_revents) break;
+    }
+
+    return pop_event();
   }
 
   stdx::expected<fd_event, std::error_code> poll_one(
@@ -249,56 +410,27 @@ class poll_io_service : public IoServiceBase {
           make_error_code(std::errc::invalid_argument));
     }
 
-    fd_event ev;
-    {
+    auto ev_res = [this]() -> stdx::expected<fd_event, std::error_code> {
       std::lock_guard<std::mutex> lk(mtx_);
 
       if (triggered_events_.empty()) {
-        // build fds for poll() from fd-interest
-
-        auto poll_fds = fd_interests_.poll_fds();
-        auto res = impl::poll::poll(poll_fds.data(), poll_fds.size(), timeout);
-        if (!res) return stdx::make_unexpected(res.error());
-
-        size_t num_revents = res.value();
-
-        // translate poll()'s revents into triggered events.
-        for (auto ev : poll_fds) {
-          if (ev.revents != 0) {
-            --num_revents;
-            // in case of connection close at "wait_read" without any data
-            //
-            // windows: POLLERR|POLLHUP
-            // linux:   POLLIN|POLLHUP
-            //
-            // as the uppoer layers expect that the waited-for event appears
-            // in the output, we have to merge it in.
-            if (ev.events & POLLIN) {
-              ev.revents |= POLLIN;
-            }
-            if (ev.events & POLLOUT) {
-              ev.revents |= POLLOUT;
-            }
-            triggered_events_.push_back({ev.fd, ev.revents});
-            if (ev.fd != wakeup_fds_.first) {
-              // don't remove interest in the wakeup file-descriptors
-              remove_fd_interest(ev.fd, ev.revents);
-            }
-          }
-
-          if (0 == num_revents) break;
-        }
+        // no event.
+        return stdx::make_unexpected(
+            make_error_code(std::errc::no_such_file_or_directory));
       }
 
-      if (triggered_events_.empty()) {
-        return stdx::make_unexpected(std::error_code{});
+      return pop_event();
+    }();
+
+    if (!ev_res) {
+      if (ev_res.error() == std::errc::no_such_file_or_directory) {
+        ev_res = update_fd_events(timeout);
       }
 
-      ev = triggered_events_.front();
-      triggered_events_.pop_front();
+      if (!ev_res) return stdx::make_unexpected(ev_res.error());
     }
 
-    // we could drop mutex here, right?
+    auto ev = *ev_res;
 
     if (ev.fd == wakeup_fds_.first) {
       on_notify();
@@ -332,7 +464,6 @@ class poll_io_service : public IoServiceBase {
              stdx::make_unexpected(make_error_code(std::errc::interrupted)));
   }
 
- private:
   /**
    * remove interest of event from fd.
    *
@@ -345,11 +476,10 @@ class poll_io_service : public IoServiceBase {
           make_error_code(std::errc::invalid_argument));
     }
 
-    fd_interests_.erase_fd_event(fd, event);
-
-    return {};
+    return fd_interests_.erase_fd_event(fd, event);
   }
 
+ private:
   std::pair<impl::socket::native_handle_type, impl::socket::native_handle_type>
       wakeup_fds_{impl::socket::kInvalidSocket, impl::socket::kInvalidSocket};
 

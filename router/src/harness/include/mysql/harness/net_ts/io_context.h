@@ -487,7 +487,7 @@ class io_context : public execution_context {
     {
       auto res = io_service_->add_fd_interest(fd, wt);
       if (!res) {
-#if !defined(NDEBUG)
+#if 0
         // fd may be -1 or so
         std::cerr << "!! add_fd_interest(" << fd << ", ..."
                   << ") " << res.error() << " " << res.error().message()

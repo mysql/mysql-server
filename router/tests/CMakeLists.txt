@@ -37,6 +37,7 @@ SET(helper_sources
   helpers/router_component_system_layout.cc
   helpers/router_test_helpers.cc
   helpers/script_generator.cc
+  helpers/shared_server.cc
   helpers/tcp_port_pool.cc
   helpers/rest_api_testutils.cc
   helpers/rest_metadata_client.cc

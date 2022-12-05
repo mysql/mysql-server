@@ -36,6 +36,7 @@
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
 #include "mysqlrouter/mysql_session.h"
@@ -43,6 +44,7 @@
 #include "router_component_test.h"
 #include "router_component_testutils.h"
 #include "router_test_helpers.h"
+#include "stdx_expected_no_error.h"
 #include "tcp_port_pool.h"
 
 using namespace std::chrono_literals;
@@ -455,21 +457,20 @@ TEST_F(RouterRoutingTest, XProtoHandshakeEmpty) {
   net::ip::tcp::endpoint router_ep{net::ip::address_v4::loopback(),
                                    router_port};
 
-  const auto connect_res = router_sock.connect(router_ep);
-  EXPECT_THAT(connect_res,
-              ::testing::Truly([](auto res) { return bool(res); }));
-  const auto write_res =
-      router_sock.write_some(net::buffer("\x00\x00\x00\x00"));
-  EXPECT_THAT(write_res, ::testing::Truly([](auto res) { return bool(res); }));
+  EXPECT_NO_ERROR(router_sock.connect(router_ep));
+  EXPECT_NO_ERROR(router_sock.write_some(net::buffer("\x00\x00\x00\x00")));
 
-  if (false) {
+  // shutdown the send side to signal a TCP-FIN.
+  EXPECT_NO_ERROR(router_sock.shutdown(net::socket_base::shutdown_send));
+
+  // wait for the server side close to ensure the it received the empty packet.
+  {
     // a notify.
     std::vector<uint8_t> recv_buf;
     auto read_res = net::read(router_sock, net::dynamic_buffer(recv_buf));
     if (read_res) {
       // may return a Notice
-      ASSERT_THAT(read_res,
-                  ::testing::Truly([](auto res) { return bool(res); }));
+      ASSERT_NO_ERROR(read_res);
       EXPECT_THAT(recv_buf, ::testing::SizeIs(
                                 ::testing::Ge(4 + 7)));  // notify (+ error-msg)
 

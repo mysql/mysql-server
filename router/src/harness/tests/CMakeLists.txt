@@ -109,6 +109,7 @@ SET(TESTS
   test_net_ts_impl_kqueue_io_service.cc
   test_net_ts_impl_linux_epoll_io_service.cc
   test_net_ts_impl_netif.cc
+  test_net_ts_impl_poll_io_service.cc
   test_net_ts_impl_resolver.cc
   test_net_ts_impl_socket.cc
   test_net_ts_internet.cc
@@ -179,3 +180,7 @@ ADD_DEPENDENCIES(mysqlrouter_all net_ts_forward)
 MYSQL_ADD_EXECUTABLE(acl_cli acl_cli.cc SKIP_INSTALL)
 TARGET_LINK_LIBRARIES(acl_cli harness-library)
 ADD_DEPENDENCIES(mysqlrouter_all acl_cli)
+
+MYSQL_ADD_EXECUTABLE(linux_timestamping linux_timestamping.cc SKIP_INSTALL)
+TARGET_LINK_LIBRARIES(linux_timestamping harness_net_ts harness_stdx)
+ADD_DEPENDENCIES(mysqlrouter_all linux_timestamping)

@@ -30,6 +30,7 @@
 #define USE_EVENTFD
 
 #ifdef HAVE_EPOLL
+#include <chrono>
 #include <mutex>
 #include <optional>
 #include <system_error>
@@ -40,6 +41,7 @@
 #endif
 
 #include <iostream>
+#include <sstream>
 
 #include "mysql/harness/net_ts/impl/io_service_base.h"
 #include "mysql/harness/net_ts/impl/linux_epoll.h"
@@ -54,6 +56,11 @@ namespace net {
 class linux_epoll_io_service : public IoServiceBase {
  public:
   using native_handle_type = impl::socket::native_handle_type;
+
+  static constexpr const int kSettableEvents = EPOLLIN | EPOLLOUT;
+  static constexpr const int kAlwaysEnabledEvents = EPOLLHUP | EPOLLERR;
+  static constexpr const int kAllEvents =
+      kSettableEvents | kAlwaysEnabledEvents;
 
   ~linux_epoll_io_service() override { close(); }
 
@@ -162,9 +169,9 @@ class linux_epoll_io_service : public IoServiceBase {
   }
 
   stdx::expected<void, std::error_code> close() {
-    remove_fd(wakeup_fds_.first);
-
     if (wakeup_fds_.first != impl::file::kInvalidHandle) {
+      remove_fd(wakeup_fds_.first);
+
       impl::file::close(wakeup_fds_.first);
       wakeup_fds_.first = impl::file::kInvalidHandle;
     }
@@ -192,54 +199,55 @@ class linux_epoll_io_service : public IoServiceBase {
     stdx::expected<void, std::error_code> merge(int epfd, native_handle_type fd,
                                                 impl::socket::wait_type wt,
                                                 bool oneshot) {
-      epoll_event ev{};
+      uint32_t new_events{};
       switch (wt) {
         case impl::socket::wait_type::wait_read:
-          ev.events = EPOLLIN;
+          new_events = EPOLLIN;
           break;
         case impl::socket::wait_type::wait_write:
-          ev.events = EPOLLOUT;
+          new_events = EPOLLOUT;
           break;
         case impl::socket::wait_type::wait_error:
-          ev.events = EPOLLERR;
+          new_events = EPOLLERR | EPOLLHUP;
           break;
       }
 
+      epoll_event ev{};
       ev.data.fd = fd;
-      ev.events |= EPOLLET;
+      new_events |= EPOLLET;
 
       if (oneshot) {
-        ev.events |= EPOLLONESHOT;
+        new_events |= EPOLLONESHOT;
       }
 
       auto &b = bucket(fd);
 
       std::lock_guard<std::mutex> lk(b.mtx_);
       const auto it = b.interest_.find(fd);
-      if (it != b.interest_.end()) {
-        // found, let's modify to handle the old and the new interest
 
-        // std::cerr << __LINE__ << ": merge: " << fd << std::endl;
+      auto old_events = (it == b.interest_.end()) ? 0 : it->second;
+      auto merged_events = new_events | old_events;
 
-        ev.events |= it->second;
+      // the events passed to epoll should only contain IN|OUT
+      ev.events = merged_events & ~kAlwaysEnabledEvents;
+
+      if ((old_events & kAllEvents) == 0) {
+        // no events where registered before, add.
+        const auto ctl_res =
+            impl::epoll::ctl(epfd, impl::epoll::Cmd::add, fd, &ev);
+        if (!ctl_res) return ctl_res;
+      } else {
         const auto ctl_res =
             impl::epoll::ctl(epfd, impl::epoll::Cmd::mod, fd, &ev);
         if (!ctl_res) return ctl_res;
-
-        it->second = ev.events;
-        return {};
       }
-      // std::cerr << __LINE__ << ": add: " << fd << " "
-      //           << std::bitset<32>(ev.events) << std::endl;
 
-      // not found, let's add it.
-
-      const auto ctl_res =
-          impl::epoll::ctl(epfd, impl::epoll::Cmd::add, fd, &ev);
-      if (!ctl_res) return ctl_res;
-
-      const uint32_t ev_events = ev.events;
-      b.interest_.emplace(fd, ev_events);
+      // the tracked events should contain IN|OUT|ERR|HUP
+      if (it != b.interest_.end()) {
+        it->second = merged_events;
+      } else {
+        b.interest_.emplace(fd, merged_events);
+      }
 
       return {};
     }
@@ -254,9 +262,11 @@ class linux_epoll_io_service : public IoServiceBase {
       // may be called from another thread through ->cancel()
       const auto it = b.interest_.find(fd);
       if (it != b.interest_.end()) {
-        auto epoll_ctl_res =
-            impl::epoll::ctl(epfd, impl::epoll::Cmd::del, fd, nullptr);
-        if (!epoll_ctl_res) return epoll_ctl_res;
+        if ((it->second & kAllEvents) != 0) {
+          auto epoll_ctl_res =
+              impl::epoll::ctl(epfd, impl::epoll::Cmd::del, fd, nullptr);
+          if (!epoll_ctl_res) return epoll_ctl_res;
+        }
 
         b.interest_.erase(it);
       } else {
@@ -276,31 +286,34 @@ class linux_epoll_io_service : public IoServiceBase {
       std::lock_guard<std::mutex> lk(b.mtx_);
 
       const auto it = b.interest_.find(fd);
-      if (it != b.interest_.end()) {
-        // fd is found
-
-        // check if the register interest is aware of the interest we want to
-        // remove
-        auto const ev_mask = EPOLLIN | EPOLLOUT | EPOLLERR;
-        if (0 == ((it->second & ev_mask) & (revent & ev_mask))) {
-          return stdx::make_unexpected(
-              make_error_code(std::errc::argument_out_of_domain));
-        }
-
-        it->second &= ~revent;
-
-        epoll_event ev{};
-        ev.data.fd = fd;
-        ev.events = it->second;
-
-        const auto ctl_res =
-            impl::epoll::ctl(epfd, impl::epoll::Cmd::mod, fd, &ev);
-        if (!ctl_res) return ctl_res;
-      } else {
+      if (it == b.interest_.end()) {
         // return ENOENT as epoll_ctl() would do
         return stdx::make_unexpected(
             make_error_code(std::errc::no_such_file_or_directory));
       }
+
+      // fd is found
+      auto &interest = *it;
+
+      // one-shot-events which fired
+      const auto fd_events = revent & kAllEvents;
+      const auto updated_fd_events = interest.second & ~fd_events;
+
+      if ((updated_fd_events & kSettableEvents) != 0) {
+        epoll_event ev{};
+        ev.data.fd = fd;
+        ev.events = updated_fd_events & ~kAlwaysEnabledEvents;
+
+        const auto ctl_res =
+            impl::epoll::ctl(epfd, impl::epoll::Cmd::mod, fd, &ev);
+        if (!ctl_res) return stdx::make_unexpected(ctl_res.error());
+      } else if ((updated_fd_events & kAllEvents) == 0) {
+        const auto ctl_res =
+            impl::epoll::ctl(epfd, impl::epoll::Cmd::del, fd, nullptr);
+        if (!ctl_res) return stdx::make_unexpected(ctl_res.error());
+      }
+
+      interest.second = updated_fd_events;
 
       return {};
     }
@@ -321,25 +334,52 @@ class linux_epoll_io_service : public IoServiceBase {
             make_error_code(std::errc::no_such_file_or_directory));
       }
 
-      if (!(it->second & EPOLLONESHOT)) {
+      auto &interest = *it;
+
+      if (!(interest.second & EPOLLONESHOT)) {
         // not a oneshot event. The interest hasn't changed.
         return {};
       }
 
-      // check the interest we remove is actually part of the requested set
-      auto const ev_mask = EPOLLIN | EPOLLOUT | EPOLLERR;
-      if (((it->second & ev_mask) & (revent & ev_mask)) == 0) {
+      // check that the one-shot-events IN and OUT are expected and tracked.
+      //
+      // interest   | revent   | result
+      // -----------+----------+-------
+      // {}         | {IN}     | Fail
+      // {}         | {OUT}    | Fail
+      // {}         | {IN,OUT} | Fail
+      // {}         | {ERR}    | Ok({})
+      // {}         | {IN,ERR} | Fail
+      // {IN}       | {IN}     | Ok({})
+      // {IN}       | {OUT}    | Fail
+      // {IN}       | {IN,OUT} | Fail
+      // {IN}       | {ERR}    | Ok({IN})
+      // {IN}       | {IN,ERR} | Ok({})
+      // {IN,OUT}   | {IN}     | Ok({OUT})
+      // {IN,OUT}   | {OUT}    | Ok({IN})
+      // {IN,OUT}   | {IN,OUT} | Ok({})
+      // {IN,OUT}   | {ERR}    | Ok({IN,OUT})
+      // {IN,OUT}   | {IN,ERR} | Ok({OUT})
+
+      // events which fired
+      const auto fd_events = revent & kAllEvents;
+
+      // events that we are interested in.
+      const auto fd_interest = interest.second & kAllEvents;
+
+      if (fd_events != 0 &&  //
+          (fd_events & fd_interest) == 0) {
         std::cerr << "after_event_fired(" << fd << ", "
-                  << std::bitset<32>(revent) << ") not in "
-                  << std::bitset<32>(it->second) << std::endl;
+                  << std::bitset<32>(fd_events) << ") not in "
+                  << std::bitset<32>(fd_interest) << std::endl;
         return stdx::make_unexpected(
             make_error_code(std::errc::argument_out_of_domain));
       }
 
       // update the fd-interest
-      it->second &= ~revent;
+      const auto updated_fd_events = interest.second & ~fd_events;
 
-      if ((it->second & ev_mask) != 0) {
+      if ((updated_fd_events & kSettableEvents) != 0) {
         // if a one shot event with multiple waiting events fired for one of the
         // events, it removes all interests for the fd.
         //
@@ -348,17 +388,22 @@ class linux_epoll_io_service : public IoServiceBase {
         // epoll.interesting:0
         // not fired:        OUT
         //
-        // add back the events that haven't fired yet.
+        // add back the events that have not fired yet.
         epoll_event ev{};
         ev.data.fd = fd;
-        ev.events = it->second;
+        ev.events = updated_fd_events & ~kAlwaysEnabledEvents;
 
         const auto ctl_res =
             impl::epoll::ctl(epfd, impl::epoll::Cmd::mod, fd, &ev);
-        if (!ctl_res) {
-          return ctl_res.get_unexpected();
-        }
+        if (!ctl_res) return stdx::make_unexpected(ctl_res.error());
+      } else if ((updated_fd_events & kAllEvents) == 0) {
+        // no interest anymore.
+        const auto ctl_res =
+            impl::epoll::ctl(epfd, impl::epoll::Cmd::del, fd, nullptr);
+        if (!ctl_res) return stdx::make_unexpected(ctl_res.error());
       }
+
+      interest.second = updated_fd_events;
 
       return {};
     }
@@ -414,7 +459,27 @@ class linux_epoll_io_service : public IoServiceBase {
 
   stdx::expected<void, std::error_code> remove_fd(
       native_handle_type fd) override {
-    return registered_events_.erase(epfd_, fd);
+    std::lock_guard lk(fd_events_mtx_);
+    auto res = registered_events_.erase(epfd_, fd);
+    if (res) {
+      // remove all events which are already fetched by poll_one()
+      for (size_t ndx = fd_events_processed_; ndx < fd_events_size_;) {
+        auto ev = fd_events_[ndx];
+
+        if (ev.data.fd == fd) {
+          // found one, move it to the end and throw away this one.
+          if (ndx != fd_events_size_ - 1) {
+            std::swap(fd_events_[ndx], fd_events_[fd_events_size_ - 1]);
+          }
+
+          --fd_events_size_;
+        } else {
+          ++ndx;
+        }
+      }
+    }
+
+    return res;
   }
 
   stdx::expected<void, std::error_code> remove_fd_interest(
@@ -429,6 +494,73 @@ class linux_epoll_io_service : public IoServiceBase {
    */
   std::optional<int32_t> interest(native_handle_type fd) const {
     return registered_events_.interest(fd);
+  }
+
+  stdx::expected<fd_event, std::error_code> pop_event() {
+    size_t ndx = fd_events_processed_;
+
+    auto ev = fd_events_[ndx];
+
+    // if there are multiple events:
+    // - OUT before IN.
+    // - IN before ERR|HUP.
+    // - ERR before HUP.
+    short revent{};
+    if (ev.events & EPOLLOUT) {
+      fd_events_[ndx].events &= ~EPOLLOUT;
+      revent = EPOLLOUT;
+    } else if (ev.events & EPOLLIN) {
+      fd_events_[ndx].events &= ~EPOLLIN;
+      revent = EPOLLIN;
+    } else if (ev.events & EPOLLERR) {
+      fd_events_[ndx].events &= ~EPOLLERR;
+      revent = EPOLLERR;
+    } else if (ev.events & EPOLLHUP) {
+      fd_events_[ndx].events &= ~EPOLLHUP;
+      revent = EPOLLHUP;
+    }
+
+    // all interesting events processed, go the next one.
+    if ((fd_events_[ndx].events & (EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLHUP)) ==
+        0) {
+      fd_events_processed_++;
+    }
+
+    return fd_event{ev.data.fd, revent};
+  }
+
+  stdx::expected<fd_event, std::error_code> update_fd_events(
+      std::chrono::milliseconds timeout) {
+    decltype(fd_events_) evs{};
+
+    auto res = impl::epoll::wait(epfd_, evs.data(), evs.size(), timeout);
+
+    if (!res) return stdx::make_unexpected(res.error());
+
+    std::lock_guard lk(fd_events_mtx_);
+    fd_events_ = evs;
+
+    fd_events_processed_ = 0;
+    fd_events_size_ = *res;
+
+    if (fd_events_size_ == 0) {
+      return stdx::make_unexpected(make_error_code(std::errc::timed_out));
+    }
+
+    for (size_t ndx{}; ndx < fd_events_size_; ++ndx) {
+      const ::epoll_event ev = fd_events_[ndx];
+
+      auto after_res = after_event_fired(epfd_, ev.data.fd, ev.events);
+      if (!after_res) {
+        std::ostringstream oss;
+        oss << "after_event_fired(" << ev.data.fd << ", "
+            << std::bitset<32>(ev.events) << ") " << after_res.error() << " "
+            << after_res.error().message() << std::endl;
+        std::cerr << oss.str();
+      }
+    }
+
+    return pop_event();
   }
 
   /**
@@ -448,63 +580,31 @@ class linux_epoll_io_service : public IoServiceBase {
           make_error_code(std::errc::invalid_argument));
     }
 
-    if (fd_events_processed_ == fd_events_size_) {
-      auto res = impl::epoll::wait(epfd_, fd_events_.data(), fd_events_.size(),
-                                   timeout);
+    auto ev_res = [this]() -> stdx::expected<fd_event, std::error_code> {
+      std::lock_guard lk(fd_events_mtx_);
 
-      if (!res) return stdx::make_unexpected(res.error());
-
-      fd_events_processed_ = 0;
-      fd_events_size_ = *res;
-
-      if (fd_events_size_ == 0) {
-        return stdx::make_unexpected(make_error_code(std::errc::timed_out));
+      if (fd_events_processed_ == fd_events_size_) {
+        // no event.
+        return stdx::make_unexpected(
+            make_error_code(std::errc::no_such_file_or_directory));
       }
 
-      for (size_t ndx{}; ndx < fd_events_size_; ++ndx) {
-        const ::epoll_event ev = fd_events_[ndx];
+      return pop_event();
+    }();
 
-        auto after_res = after_event_fired(epfd_, ev.data.fd, ev.events);
-        if (!after_res) {
-          std::cerr << "after_event_fired(" << ev.data.fd << ", "
-                    << std::bitset<32>(ev.events) << ") " << after_res.error()
-                    << " " << after_res.error().message() << std::endl;
-        }
+    if (!ev_res) {
+      if (ev_res.error() == std::errc::no_such_file_or_directory) {
+        ev_res = update_fd_events(timeout);
       }
+
+      if (!ev_res) return stdx::make_unexpected(ev_res.error());
     }
 
-    // traverse the events in reverse order as the epoll::wait() returns the
-    // events in LIFO order which may result in higher average latency.
-
-    size_t ndx = fd_events_size_ - fd_events_processed_ - 1;
-
-    ::epoll_event ev = fd_events_[ndx];
-
-    // if there are multiple events: get OUT before IN.
-    short revent{};
-    if (ev.events & EPOLLOUT) {
-      fd_events_[ndx].events &= ~EPOLLOUT;
-      revent = EPOLLOUT;
-    } else if (ev.events & EPOLLIN) {
-      fd_events_[ndx].events &= ~EPOLLIN;
-      revent = EPOLLIN;
-    }
-
-    // all interesting events processed, go the next one.
-    //
-    // there may be other events set like:
-    //
-    // EPOLLHUP
-    // EPOLLERR
-    //
-    // ... ignore them.
-    if ((fd_events_[ndx].events & (EPOLLIN | EPOLLOUT)) == 0) {
-      fd_events_processed_++;
-    }
+    auto ev = *ev_res;
 
     if ((notify_fd_ != impl::file::kInvalidHandle)
-            ? (ev.data.fd == notify_fd_)
-            : (ev.data.fd == wakeup_fds_.first)) {
+            ? (ev.fd == notify_fd_)
+            : (ev.fd == wakeup_fds_.first)) {
       // wakeup fd fired
       //
       // - don't remove the interest for it
@@ -515,7 +615,7 @@ class linux_epoll_io_service : public IoServiceBase {
       return stdx::make_unexpected(make_error_code(std::errc::interrupted));
     }
 
-    return fd_event{ev.data.fd, revent};
+    return ev;
   }
 
  private:
@@ -538,6 +638,7 @@ class linux_epoll_io_service : public IoServiceBase {
   // epoll_wait(.., 4, ...) = [ 1 2 3 4 ]
   //
   // ... and 5, 6 never get processed.
+  std::mutex fd_events_mtx_;
   std::array<epoll_event, 8192> fd_events_{};
   size_t fd_events_processed_{0};
   size_t fd_events_size_{0};

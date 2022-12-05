@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mysql/harness/net_ts/impl/linux_epoll_io_service.h"
+#include "mysql/harness/net_ts/impl/poll_io_service.h"
 
 #include <chrono>
 #include <system_error>
@@ -30,15 +30,18 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#ifdef HAVE_EPOLL
-#include <sys/socket.h>
-
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/net_ts/impl/socket_error.h"
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
 #include "scope_guard.h"
+
+#if defined(_WIN32)
+#define AF_SOCKETPAIR AF_INET
+#else
+#define AF_SOCKETPAIR AF_UNIX
+#endif
 
 namespace net {
 std::ostream &operator<<(std::ostream &os, net::fd_event e) {
@@ -51,29 +54,32 @@ std::ostream &operator<<(std::ostream &os, net::fd_event e) {
 // check state after constructor.
 //
 // construct doesn't call open()
-TEST(LinuxEpollIoService, init) {
-  net::linux_epoll_io_service io_svc;
+TEST(PollIoService, init) {
+  net::poll_io_service io_svc;
 
   EXPECT_FALSE(io_svc.is_open());
 }
 
 // calling open again should fail.
-TEST(LinuxEpollIoService, open_already_open) {
-  net::linux_epoll_io_service io_svc;
+TEST(PollIoService, open_already_open) {
+  net::poll_io_service io_svc;
 
+  // after .open() succeeds, .is_open() must return true.
+  //
+  // pre-condition: construct calls open()
   ASSERT_TRUE(io_svc.open());
 
-  // pre-condition: construct calls open()
   ASSERT_TRUE(io_svc.is_open());
 
+  // calling open again, should fail.
   EXPECT_EQ(
       io_svc.open(),
       stdx::make_unexpected(make_error_code(net::socket_errc::already_open)));
 }
 
 // calling open again should fail.
-TEST(LinuxEpollIoService, close) {
-  net::linux_epoll_io_service io_svc;
+TEST(PollIoService, close) {
+  net::poll_io_service io_svc;
 
   ASSERT_TRUE(io_svc.open());
   ASSERT_TRUE(io_svc.is_open());
@@ -84,9 +90,9 @@ TEST(LinuxEpollIoService, close) {
 }
 
 // check add and remove
-TEST(LinuxEpollIoService, add_interest) {
-  auto res = net::impl::socket::socketpair(AF_UNIX, SOCK_STREAM, 0);
-  ASSERT_TRUE(res);
+TEST(PollIoService, add_interest) {
+  auto res = net::impl::socket::socketpair(AF_SOCKETPAIR, SOCK_STREAM, 0);
+  ASSERT_TRUE(res) << res.error();
   auto fds = *res;
 
   Scope_guard guard([&]() {
@@ -94,7 +100,7 @@ TEST(LinuxEpollIoService, add_interest) {
     net::impl::socket::close(fds.second);
   });
 
-  net::linux_epoll_io_service io_svc;
+  net::poll_io_service io_svc;
 
   ASSERT_TRUE(io_svc.open());
 
@@ -108,15 +114,15 @@ TEST(LinuxEpollIoService, add_interest) {
   SCOPED_TRACE("// check fd-interest after add");
   interest_res = io_svc.interest(fds.first);
   ASSERT_TRUE(interest_res);
-  EXPECT_EQ(interest_res.value(), EPOLLIN | EPOLLET | EPOLLONESHOT);
+  EXPECT_EQ(interest_res.value(), POLLIN);
 
   SCOPED_TRACE("// remove interest again");
-  EXPECT_TRUE(io_svc.remove_fd_interest(fds.first, EPOLLIN));
+  EXPECT_TRUE(io_svc.remove_fd_interest(fds.first, POLLIN));
 
   SCOPED_TRACE("// check fd-interest after remove");
   interest_res = io_svc.interest(fds.first);
   ASSERT_TRUE(interest_res);
-  EXPECT_EQ(interest_res.value(), EPOLLET | EPOLLONESHOT);
+  EXPECT_EQ(interest_res.value(), 0);
 
   SCOPED_TRACE("// remove fd completely");
   EXPECT_TRUE(io_svc.remove_fd(fds.first));
@@ -127,9 +133,9 @@ TEST(LinuxEpollIoService, add_interest) {
 }
 
 // check add twice
-TEST(LinuxEpollIoService, add_interest_read_and_write) {
-  auto res = net::impl::socket::socketpair(AF_UNIX, SOCK_STREAM, 0);
-  ASSERT_TRUE(res);
+TEST(PollIoService, add_interest_read_and_write) {
+  auto res = net::impl::socket::socketpair(AF_SOCKETPAIR, SOCK_STREAM, 0);
+  ASSERT_TRUE(res) << res.error();
   auto fds = *res;
 
   Scope_guard guard([&]() {
@@ -137,7 +143,7 @@ TEST(LinuxEpollIoService, add_interest_read_and_write) {
     net::impl::socket::close(fds.second);
   });
 
-  net::linux_epoll_io_service io_svc;
+  net::poll_io_service io_svc;
 
   ASSERT_TRUE(io_svc.open());
 
@@ -151,7 +157,7 @@ TEST(LinuxEpollIoService, add_interest_read_and_write) {
   SCOPED_TRACE("// check fd-interest after add-read");
   interest_res = io_svc.interest(fds.first);
   ASSERT_TRUE(interest_res);
-  EXPECT_EQ(interest_res.value(), EPOLLIN | EPOLLET | EPOLLONESHOT);
+  EXPECT_EQ(interest_res.value(), POLLIN);
 
   SCOPED_TRACE("// adding interest again");
   EXPECT_TRUE(io_svc.add_fd_interest(fds.first, net::socket_base::wait_write));
@@ -159,23 +165,23 @@ TEST(LinuxEpollIoService, add_interest_read_and_write) {
   SCOPED_TRACE("// check fd-interest after add-write");
   interest_res = io_svc.interest(fds.first);
   ASSERT_TRUE(interest_res);
-  EXPECT_EQ(interest_res.value(), EPOLLIN | EPOLLOUT | EPOLLET | EPOLLONESHOT);
+  EXPECT_EQ(interest_res.value(), POLLIN | POLLOUT);
 
   SCOPED_TRACE("// remove read-interest again");
-  EXPECT_TRUE(io_svc.remove_fd_interest(fds.first, EPOLLIN));
+  EXPECT_TRUE(io_svc.remove_fd_interest(fds.first, POLLIN));
 
   SCOPED_TRACE("// check fd-interest after remove");
   interest_res = io_svc.interest(fds.first);
   ASSERT_TRUE(interest_res);
-  EXPECT_EQ(interest_res.value(), EPOLLOUT | EPOLLET | EPOLLONESHOT);
+  EXPECT_EQ(interest_res.value(), POLLOUT);
 
   SCOPED_TRACE("// remove write-interest again");
-  EXPECT_TRUE(io_svc.remove_fd_interest(fds.first, EPOLLOUT));
+  EXPECT_TRUE(io_svc.remove_fd_interest(fds.first, POLLOUT));
 
   SCOPED_TRACE("// check fd-interest after remove");
   interest_res = io_svc.interest(fds.first);
   ASSERT_TRUE(interest_res);
-  EXPECT_EQ(interest_res.value(), EPOLLET | EPOLLONESHOT);
+  EXPECT_EQ(interest_res.value(), 0);
 
   SCOPED_TRACE("// remove fd completely");
   EXPECT_TRUE(io_svc.remove_fd(fds.first));
@@ -185,9 +191,9 @@ TEST(LinuxEpollIoService, add_interest_read_and_write) {
   ASSERT_FALSE(interest_res);
 }
 
-TEST(LinuxEpollIoService, add_interest_read_and_read) {
-  auto res = net::impl::socket::socketpair(AF_UNIX, SOCK_STREAM, 0);
-  ASSERT_TRUE(res);
+TEST(PollIoService, add_interest_read_and_read) {
+  auto res = net::impl::socket::socketpair(AF_SOCKETPAIR, SOCK_STREAM, 0);
+  ASSERT_TRUE(res) << res.error();
   auto fds = *res;
 
   Scope_guard guard([&]() {
@@ -195,7 +201,7 @@ TEST(LinuxEpollIoService, add_interest_read_and_read) {
     net::impl::socket::close(fds.second);
   });
 
-  net::linux_epoll_io_service io_svc;
+  net::poll_io_service io_svc;
 
   ASSERT_TRUE(io_svc.open());
 
@@ -209,7 +215,7 @@ TEST(LinuxEpollIoService, add_interest_read_and_read) {
   SCOPED_TRACE("// check fd-interest after add-read");
   interest_res = io_svc.interest(fds.first);
   ASSERT_TRUE(interest_res);
-  EXPECT_EQ(interest_res.value(), EPOLLIN | EPOLLET | EPOLLONESHOT);
+  EXPECT_EQ(interest_res.value(), POLLIN);
 
   SCOPED_TRACE("// adding interest again");
   EXPECT_TRUE(io_svc.add_fd_interest(fds.first, net::socket_base::wait_write));
@@ -218,29 +224,26 @@ TEST(LinuxEpollIoService, add_interest_read_and_read) {
   interest_res = io_svc.interest(fds.first);
   ASSERT_TRUE(interest_res);
   EXPECT_EQ(std::bitset<32>(interest_res.value()),
-            std::bitset<32>(EPOLLIN | EPOLLOUT | EPOLLET | EPOLLONESHOT));
+            std::bitset<32>(POLLIN | POLLOUT));
 
   SCOPED_TRACE("// remove read-interest again");
-  EXPECT_TRUE(io_svc.remove_fd_interest(fds.first, EPOLLIN));
+  EXPECT_TRUE(io_svc.remove_fd_interest(fds.first, POLLIN));
 
   SCOPED_TRACE("// check fd-interest after remove");
   interest_res = io_svc.interest(fds.first);
   ASSERT_TRUE(interest_res);
-  EXPECT_EQ(std::bitset<32>(interest_res.value()),
-            std::bitset<32>(EPOLLOUT | EPOLLET | EPOLLONESHOT));
+  EXPECT_EQ(std::bitset<32>(interest_res.value()), std::bitset<32>(POLLOUT));
 
   SCOPED_TRACE("// remove write-interest again");
-  EXPECT_TRUE(io_svc.remove_fd_interest(fds.first, EPOLLOUT));
+  EXPECT_TRUE(io_svc.remove_fd_interest(fds.first, POLLOUT));
 
   SCOPED_TRACE("// check fd-interest after remove");
   interest_res = io_svc.interest(fds.first);
   ASSERT_TRUE(interest_res);
-  EXPECT_EQ(std::bitset<32>(interest_res.value()),
-            std::bitset<32>(EPOLLET | EPOLLONESHOT));
+  EXPECT_EQ(std::bitset<32>(interest_res.value()), std::bitset<32>());
 
   SCOPED_TRACE("// remove fd completely");
-  auto remove_res = io_svc.remove_fd(fds.first);
-  EXPECT_TRUE(remove_res) << remove_res.error();
+  EXPECT_TRUE(io_svc.remove_fd(fds.first));
 
   SCOPED_TRACE("// check fd-interest after remove");
   interest_res = io_svc.interest(fds.first);
@@ -248,9 +251,9 @@ TEST(LinuxEpollIoService, add_interest_read_and_read) {
 }
 
 // check remove_fd_interest fails if fd isn't registered yet.
-TEST(LinuxEpollIoService, remove_fd_interest_from_empty) {
-  auto res = net::impl::socket::socketpair(AF_UNIX, SOCK_STREAM, 0);
-  ASSERT_TRUE(res);
+TEST(PollIoService, remove_fd_interest_from_empty) {
+  auto res = net::impl::socket::socketpair(AF_SOCKETPAIR, SOCK_STREAM, 0);
+  ASSERT_TRUE(res) << res.error();
   auto fds = *res;
 
   Scope_guard guard([&]() {
@@ -258,18 +261,18 @@ TEST(LinuxEpollIoService, remove_fd_interest_from_empty) {
     net::impl::socket::close(fds.second);
   });
 
-  net::linux_epoll_io_service io_svc;
+  net::poll_io_service io_svc;
 
   ASSERT_TRUE(io_svc.open());
-  EXPECT_EQ(io_svc.remove_fd_interest(fds.first, EPOLLIN),
+  EXPECT_EQ(io_svc.remove_fd_interest(fds.first, POLLIN),
             stdx::make_unexpected(
                 make_error_code(std::errc::no_such_file_or_directory)));
 }
 
 // check poll_one properly tracks the oneshot events.
-TEST(LinuxEpollIoService, poll_one) {
-  auto res = net::impl::socket::socketpair(AF_UNIX, SOCK_STREAM, 0);
-  ASSERT_TRUE(res);
+TEST(PollIoService, poll_one) {
+  auto res = net::impl::socket::socketpair(AF_SOCKETPAIR, SOCK_STREAM, 0);
+  ASSERT_TRUE(res) << res.error();
   auto fds = *res;
 
   Scope_guard guard([&]() {
@@ -277,7 +280,7 @@ TEST(LinuxEpollIoService, poll_one) {
     net::impl::socket::close(fds.second);
   });
 
-  net::linux_epoll_io_service io_svc;
+  net::poll_io_service io_svc;
 
   ASSERT_TRUE(io_svc.open());
 
@@ -289,7 +292,7 @@ TEST(LinuxEpollIoService, poll_one) {
   SCOPED_TRACE(
       "// poll once which should fire, and remove the oneshot interest");
   auto poll_res = io_svc.poll_one(100ms);
-  ASSERT_TRUE(poll_res);
+  ASSERT_TRUE(poll_res) << poll_res.error();
 
   SCOPED_TRACE("// poll again which should block");
   poll_res = io_svc.poll_one(100ms);
@@ -305,9 +308,9 @@ TEST(LinuxEpollIoService, poll_one) {
 }
 
 // check remove_fd fails if it isn't registered yet.
-TEST(LinuxEpollIoService, remove_fd_from_empty) {
-  auto res = net::impl::socket::socketpair(AF_UNIX, SOCK_STREAM, 0);
-  ASSERT_TRUE(res);
+TEST(PollIoService, remove_fd_from_empty) {
+  auto res = net::impl::socket::socketpair(AF_SOCKETPAIR, SOCK_STREAM, 0);
+  ASSERT_TRUE(res) << res.error();
   auto fds = *res;
 
   Scope_guard guard([&]() {
@@ -315,7 +318,7 @@ TEST(LinuxEpollIoService, remove_fd_from_empty) {
     net::impl::socket::close(fds.second);
   });
 
-  net::linux_epoll_io_service io_svc;
+  net::poll_io_service io_svc;
 
   ASSERT_TRUE(io_svc.open());
   EXPECT_EQ(io_svc.remove_fd(fds.first),
@@ -329,9 +332,9 @@ TEST(LinuxEpollIoService, remove_fd_from_empty) {
 /**
  * one FD with multiple events ready at the same time.
  */
-TEST(LinuxEpollIoService, one_fd_many_events) {
-  auto res = net::impl::socket::socketpair(AF_UNIX, SOCK_STREAM, 0);
-  ASSERT_TRUE(res);
+TEST(PollIoService, one_fd_many_events) {
+  auto res = net::impl::socket::socketpair(AF_SOCKETPAIR, SOCK_STREAM, 0);
+  ASSERT_TRUE(res) << res.error();
   auto fds = *res;
 
   Scope_guard guard([&]() {
@@ -339,7 +342,7 @@ TEST(LinuxEpollIoService, one_fd_many_events) {
     net::impl::socket::close(fds.second);
   });
 
-  net::linux_epoll_io_service io_svc;
+  net::poll_io_service io_svc;
 
   ASSERT_TRUE(io_svc.open());
 
@@ -351,10 +354,64 @@ TEST(LinuxEpollIoService, one_fd_many_events) {
   SCOPED_TRACE("// check fd-interest after add-write");
   auto interest_res = io_svc.interest(fds.first);
   ASSERT_TRUE(interest_res);
-  EXPECT_EQ(interest_res.value(), EPOLLIN | EPOLLOUT | EPOLLET | EPOLLONESHOT);
+  EXPECT_EQ(interest_res.value(), POLLIN | POLLOUT);
 
   // make sure the 'wait_read' fires too.
-  EXPECT_EQ(::write(fds.second, ".", 1), 1);
+  auto write_res = net::impl::socket::write(fds.second, ".", 1);
+  ASSERT_TRUE(write_res) << write_res.error();
+  EXPECT_EQ(*write_res, 1);
+
+  using namespace std::chrono_literals;
+
+  SCOPED_TRACE("// poll_one() should fire for the 1st event.");
+  auto poll_res = io_svc.poll_one(100ms);
+  ASSERT_TRUE(poll_res) << poll_res.error();
+  EXPECT_EQ(poll_res->fd, fds.first);
+
+  SCOPED_TRACE("// remove interest on fd.");
+  auto remove_res = io_svc.remove_fd(fds.first);
+  ASSERT_TRUE(remove_res) << remove_res.error();
+
+  SCOPED_TRACE(
+      "// poll_one() should not fire the 2nd time as the fd is removed.");
+  poll_res = io_svc.poll_one(100ms);
+  ASSERT_EQ(poll_res,
+            stdx::make_unexpected(make_error_code(std::errc::timed_out)));
+}
+
+/**
+ * one FD with multiple events ready at the same time.
+ *
+ * but remove interest along the way.
+ */
+TEST(PollIoService, one_fd_many_events_removed) {
+  auto res = net::impl::socket::socketpair(AF_SOCKETPAIR, SOCK_STREAM, 0);
+  ASSERT_TRUE(res) << res.error();
+  auto fds = *res;
+
+  Scope_guard guard([&]() {
+    net::impl::socket::close(fds.first);
+    net::impl::socket::close(fds.second);
+  });
+
+  net::poll_io_service io_svc;
+
+  ASSERT_TRUE(io_svc.open());
+
+  SCOPED_TRACE("// add write interest");
+  EXPECT_TRUE(io_svc.add_fd_interest(fds.first, net::socket_base::wait_write));
+  SCOPED_TRACE("// add read interest");
+  EXPECT_TRUE(io_svc.add_fd_interest(fds.first, net::socket_base::wait_read));
+
+  SCOPED_TRACE("// check fd-interest after add-write");
+  auto interest_res = io_svc.interest(fds.first);
+  ASSERT_TRUE(interest_res);
+  EXPECT_EQ(interest_res.value(), POLLIN | POLLOUT);
+
+  // make sure the 'wait_read' fires too.
+  auto write_res = net::impl::socket::write(fds.second, ".", 1);
+  ASSERT_TRUE(write_res) << write_res.error();
+  EXPECT_EQ(*write_res, 1);
 
   using namespace std::chrono_literals;
 
@@ -375,13 +432,15 @@ TEST(LinuxEpollIoService, one_fd_many_events) {
 }
 
 /**
- * one FD with multiple events ready at the same time.
- *
- * but remove interest along the way.
+ * POLLHUP is sent on 'socket-close' even if no event is waited for.
  */
-TEST(LinuxEpollIoService, one_fd_many_events_removed) {
-  auto res = net::impl::socket::socketpair(AF_UNIX, SOCK_STREAM, 0);
-  ASSERT_TRUE(res);
+TEST(PollIoService, hup_without_event_wanted) {
+#if defined(__APPLE__) || defined(__sun)
+  GTEST_SKIP() << "This platorm does not generate POLLHUP on closed sockets";
+#endif
+
+  auto res = net::impl::socket::socketpair(AF_SOCKETPAIR, SOCK_STREAM, 0);
+  ASSERT_TRUE(res) << res.error();
   auto fds = *res;
 
   Scope_guard guard([&]() {
@@ -389,70 +448,22 @@ TEST(LinuxEpollIoService, one_fd_many_events_removed) {
     net::impl::socket::close(fds.second);
   });
 
-  net::linux_epoll_io_service io_svc;
+  net::poll_io_service io_svc;
 
   ASSERT_TRUE(io_svc.open());
 
   SCOPED_TRACE("// add write interest");
-  EXPECT_TRUE(io_svc.add_fd_interest(fds.first, net::socket_base::wait_write));
-  SCOPED_TRACE("// add read interest");
-  EXPECT_TRUE(io_svc.add_fd_interest(fds.first, net::socket_base::wait_read));
-
-  SCOPED_TRACE("// check fd-interest after add-write");
-  auto interest_res = io_svc.interest(fds.first);
-  ASSERT_TRUE(interest_res);
-  EXPECT_EQ(interest_res.value(), EPOLLIN | EPOLLOUT | EPOLLET | EPOLLONESHOT);
-
-  // make sure the 'wait_read' fires too.
-  EXPECT_EQ(::write(fds.second, ".", 1), 1);
-
-  using namespace std::chrono_literals;
-
-  SCOPED_TRACE("// poll_one() should fire for the 1st event.");
-  auto poll_res = io_svc.poll_one(100ms);
-  ASSERT_TRUE(poll_res) << poll_res.error();
-  EXPECT_EQ(poll_res->fd, fds.first);
-
-  SCOPED_TRACE("// poll_one() should fire a 2nd time for the other event.");
-  poll_res = io_svc.poll_one(100ms);
-  ASSERT_TRUE(poll_res) << poll_res.error();
-  EXPECT_EQ(poll_res->fd, fds.first);
-
-  auto remove_res = io_svc.remove_fd(fds.first);
-  ASSERT_TRUE(remove_res) << remove_res.error();
-
-  SCOPED_TRACE(
-      "// poll_one() should not fire the 2nd time as the fd is removed.");
-  poll_res = io_svc.poll_one(100ms);
-  ASSERT_EQ(poll_res,
-            stdx::make_unexpected(make_error_code(std::errc::timed_out)));
-}
-
-/**
- * EPOLLHUP is sent on socket-close even if no event is waited for.
- */
-TEST(LinuxEpollIoService, hup_without_event_wanted) {
-  auto res = net::impl::socket::socketpair(AF_UNIX, SOCK_STREAM, 0);
-  ASSERT_TRUE(res);
-  auto fds = *res;
-
-  Scope_guard guard([&]() {
-    net::impl::socket::close(fds.first);
-    net::impl::socket::close(fds.second);
-  });
-
-  net::linux_epoll_io_service io_svc;
-
-  ASSERT_TRUE(io_svc.open());
-
-  SCOPED_TRACE("// add write interest");
-  EXPECT_TRUE(io_svc.add_fd_interest(fds.first, net::socket_base::wait_write));
+  {
+    auto add_res =
+        io_svc.add_fd_interest(fds.first, net::socket_base::wait_write);
+    EXPECT_TRUE(add_res) << add_res.error();
+  }
 
   SCOPED_TRACE("// check fd-interest after add-write");
   {
     auto interest_res = io_svc.interest(fds.first);
     ASSERT_TRUE(interest_res);
-    EXPECT_EQ(interest_res.value(), EPOLLOUT | EPOLLET | EPOLLONESHOT);
+    EXPECT_EQ(std::bitset<32>(*interest_res), std::bitset<32>(POLLOUT));
   }
 
   using namespace std::chrono_literals;
@@ -461,34 +472,52 @@ TEST(LinuxEpollIoService, hup_without_event_wanted) {
   auto poll_res = io_svc.poll_one(100ms);
   ASSERT_TRUE(poll_res) << poll_res.error();
 
-  SCOPED_TRACE("// fd is not watched");
+  SCOPED_TRACE("// fd is still watched, but has no handler");
   {
-    // known, but no interest.
     auto interest_res = io_svc.interest(fds.first);
     ASSERT_TRUE(interest_res);
-
-    EXPECT_EQ(std::bitset<32>(interest_res.value()),
-              std::bitset<32>(EPOLLET | EPOLLONESHOT));
+    EXPECT_EQ(std::bitset<32>(*interest_res), std::bitset<32>(0));
   }
 
-  SCOPED_TRACE("// shutdown the socket, but keep it open.");
-  net::impl::socket::shutdown(fds.first, SHUT_RDWR);
+  SCOPED_TRACE("// shutdown both sides of the socket, but keep it open.");
+  {
+    auto shutdown_res = net::impl::socket::shutdown(
+        fds.first, static_cast<int>(net::socket_base::shutdown_send));
+    ASSERT_TRUE(shutdown_res) << shutdown_res.error();
+  }
 
-  SCOPED_TRACE("// poll_one() should not fire with a HUP event (yet).");
+  {
+    auto shutdown_res = net::impl::socket::shutdown(
+        fds.second, static_cast<int>(net::socket_base::shutdown_send));
+    ASSERT_TRUE(shutdown_res) << shutdown_res.error();
+  }
+
+  SCOPED_TRACE("// poll_one() should NOT fire with a HUP event (yet).");
   poll_res = io_svc.poll_one(100ms);
   ASSERT_FALSE(poll_res) << poll_res.value();
 
-  auto add_res =
-      io_svc.add_fd_interest(fds.first, net::socket_base::wait_error);
-  EXPECT_TRUE(add_res) << add_res.error();
+  {
+    auto add_res =
+        io_svc.add_fd_interest(fds.first, net::socket_base::wait_error);
+    EXPECT_TRUE(add_res) << add_res.error();
+  }
+
+  SCOPED_TRACE("// check fd-interest after add-write");
+  {
+    auto interest_res = io_svc.interest(fds.first);
+    ASSERT_TRUE(interest_res);
+    EXPECT_EQ(std::bitset<32>(*interest_res),
+              std::bitset<32>(POLLHUP | POLLERR));
+  }
 
   SCOPED_TRACE("// poll_one() should fire with a HUP event.");
   poll_res = io_svc.poll_one(100ms);
   ASSERT_TRUE(poll_res) << poll_res.error();
-  net::fd_event expected_event{fds.first, EPOLLHUP};
+
+  net::fd_event expected_event{fds.first, POLLHUP};
   ASSERT_EQ(*poll_res, expected_event);
 
-  // close the socket as it would trigger a EPOLLHUP on the next poll_one.
+  // close the socket as it would trigger a POLLHUP on the next poll_one.
   EXPECT_TRUE(io_svc.remove_fd(fds.first));
   EXPECT_TRUE(net::impl::socket::close(fds.first));
 
@@ -501,9 +530,9 @@ TEST(LinuxEpollIoService, hup_without_event_wanted) {
 /**
  * HUP, add/remove
  */
-TEST(LinuxEpollIoService, hup_add_remove) {
-  auto res = net::impl::socket::socketpair(AF_UNIX, SOCK_STREAM, 0);
-  ASSERT_TRUE(res);
+TEST(PollIoService, hup_add_remove) {
+  auto res = net::impl::socket::socketpair(AF_SOCKETPAIR, SOCK_STREAM, 0);
+  ASSERT_TRUE(res) << res.error();
   auto fds = *res;
 
   Scope_guard guard([&]() {
@@ -511,7 +540,7 @@ TEST(LinuxEpollIoService, hup_add_remove) {
     net::impl::socket::close(fds.second);
   });
 
-  net::linux_epoll_io_service io_svc;
+  net::poll_io_service io_svc;
 
   ASSERT_TRUE(io_svc.open());
 
@@ -520,30 +549,27 @@ TEST(LinuxEpollIoService, hup_add_remove) {
 
   SCOPED_TRACE("// check fd-interest after add interest");
   {
-    // EPOLLHUP and EPOLLERR are always active and not added to the interest.
     auto interest_res = io_svc.interest(fds.first);
     ASSERT_TRUE(interest_res);
     EXPECT_EQ(std::bitset<32>(*interest_res),
-              std::bitset<32>(EPOLLET | EPOLLONESHOT | EPOLLHUP | EPOLLERR));
+              std::bitset<32>(POLLHUP | POLLERR));
   }
 
-  {
-    auto del_res = io_svc.remove_fd_interest(fds.first, EPOLLHUP | EPOLLERR);
-    ASSERT_TRUE(del_res) << del_res.error();
-  }
+  // ok, and noop
+  EXPECT_TRUE(io_svc.remove_fd_interest(fds.first, POLLHUP | POLLERR));
 
-  SCOPED_TRACE("// check fd-interest after remove interest");
+  SCOPED_TRACE("// check fd-interest after add interest");
   {
-    // known, but no interest.
+    // POLLHUP and POLLERR are always active and not added to the interest.
     auto interest_res = io_svc.interest(fds.first);
     ASSERT_TRUE(interest_res);
-    EXPECT_EQ(std::bitset<32>(interest_res.value()),
-              std::bitset<32>(EPOLLET | EPOLLONESHOT));
+    EXPECT_EQ(std::bitset<32>(*interest_res), std::bitset<32>(0));
   }
 }
-#endif
 
 int main(int argc, char *argv[]) {
+  net::impl::socket::init();
+
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
