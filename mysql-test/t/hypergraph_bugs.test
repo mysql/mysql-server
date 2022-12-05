@@ -347,3 +347,21 @@ SELECT 1 IN (
     SELECT 1 FROM t2 WHERE y <> y OR z <> z));
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#34854369: Customer query hits assert(m_pq.is_valid()) failure
+--echo #
+
+# Graph simplification used to hit an assertion as a result of
+# division by zero caused by information schema tables with zero row
+# estimates.
+CREATE TABLE t (table_id BIGINT UNSIGNED);
+SELECT /*+ SET_VAR(optimizer_max_subgraph_pairs = 1) */ 1
+FROM t AS t1 JOIN t AS t2 USING (table_id)
+     JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t3 USING (table_id)
+     JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t4 USING (table_id)
+     JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t5 USING (table_id)
+     JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t6 USING (table_id)
+     JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t7 USING (table_id)
+     JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t8 USING (table_id);
+DROP TABLE t;

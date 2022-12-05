@@ -3317,7 +3317,8 @@ class Table_ref {
      respectively.
    */
   const char *get_table_name() const { return table_name; }
-  int fetch_number_of_rows();
+  int fetch_number_of_rows(
+      ha_rows fallback_estimate = PLACEHOLDER_TABLE_ROW_ESTIMATE);
   bool update_derived_keys(THD *, Field *, Item **, uint, bool *);
   bool generate_keys();
 

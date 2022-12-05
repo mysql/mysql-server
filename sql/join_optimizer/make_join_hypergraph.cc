@@ -3412,7 +3412,7 @@ bool MakeSingleTableHypergraph(THD *thd, const Query_block *query_block,
                                string *trace, JoinHypergraph *graph,
                                bool *where_is_always_false) {
   Table_ref *const table_ref = query_block->leaf_tables;
-  table_ref->fetch_number_of_rows();
+  table_ref->fetch_number_of_rows(kRowEstimateFallback);
 
   RelationalExpression *root = MakeRelationalExpression(thd, table_ref);
   MakeJoinGraphFromRelationalExpression(thd, root, trace, graph);
@@ -3575,7 +3575,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   // ha_archive, though.)
   for (Table_ref *tl = graph->query_block()->leaf_tables; tl != nullptr;
        tl = tl->next_leaf) {
-    tl->fetch_number_of_rows();
+    tl->fetch_number_of_rows(kRowEstimateFallback);
   }
 
   // Construct the hypergraph from the relational expression.

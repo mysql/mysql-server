@@ -736,7 +736,7 @@ EXPLAIN
 
 EXPLAIN FORMAT=tree SELECT * FROM INFORMATION_SCHEMA.ENGINES;
 EXPLAIN
--> Table scan on ENGINES  (cost=0.00 rows=0)
+-> Table scan on ENGINES  (cost=2.73 rows=2)
     -> Fill information schema table ENGINES
 
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );

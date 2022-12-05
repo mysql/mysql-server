@@ -55,6 +55,11 @@ constexpr double kHashReturnOneRowCost = 0.07;
 constexpr double kMaterializeOneRowCost = 0.1;
 constexpr double kWindowOneRowCost = 0.1;
 
+/// A fallback cardinality estimate that is used in case the storage engine
+/// cannot provide one (like for table functions). It's a fairly arbitrary
+/// non-zero value.
+constexpr ha_rows kRowEstimateFallback = 1000;
+
 /// See EstimateFilterCost.
 struct FilterCost {
   /// Cost of evaluating the filter for all rows if subqueries are not

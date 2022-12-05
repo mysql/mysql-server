@@ -397,9 +397,9 @@ drop table t1;
 # Information Schema
 explain format=TREE select * from information_schema.engines e WHERE e.ENGINE="MyISAM";
 EXPLAIN
--> Filter: (e.`ENGINE` = 'MyISAM')  (cost=3.50..102.50 rows=100)
-    -> Table scan on e  (cost=0.00..2.50 rows=1000)
-        -> Fill information schema table e  (cost=0.00..2.50 rows=1000)
+-> Filter: (e.`ENGINE` = 'MyISAM')  (cost=16.00..115.00 rows=100)
+    -> Table scan on e  (cost=0.01..15.00 rows=1000)
+        -> Fill information schema table e  (cost=0.01..15.00 rows=1000)
 
 explain format=JSON select * from information_schema.engines e WHERE e.ENGINE="MyISAM";
 EXPLAIN
@@ -413,24 +413,24 @@ EXPLAIN
           "table_name": "e",
           "access_type": "materialize_information_schema",
           "estimated_rows": 1000.0,
-          "estimated_total_cost": 2.5,
-          "estimated_first_row_cost": 0.0025
+          "estimated_total_cost": 15.0,
+          "estimated_first_row_cost": 0.015
         }
       ],
       "operation": "Table scan on e",
       "table_name": "e",
       "access_type": "table",
       "estimated_rows": 1000.0,
-      "estimated_total_cost": 2.5,
-      "estimated_first_row_cost": 0.0025
+      "estimated_total_cost": 15.0,
+      "estimated_first_row_cost": 0.015
     }
   ],
   "condition": "(e.`ENGINE` = 'MyISAM')",
   "operation": "Filter: (e.`ENGINE` = 'MyISAM')",
   "access_type": "filter",
   "estimated_rows": 100.00000149011612,
-  "estimated_total_cost": 102.5,
-  "estimated_first_row_cost": 3.499999985098839
+  "estimated_total_cost": 115.0,
+  "estimated_first_row_cost": 15.999999985098839
 }
 # Materialize, window aggregates, Stream
 CREATE TABLE t0 (i0 INTEGER);

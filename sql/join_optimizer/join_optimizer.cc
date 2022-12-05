@@ -500,8 +500,7 @@ class CostingReceiver {
                                       AccessPath *path,
                                       const char *description_for_trace);
   bool ProposeTableScan(TABLE *table, int node_idx,
-                        double force_num_output_rows_after_filter,
-                        bool is_recursive_reference);
+                        double force_num_output_rows_after_filter);
   bool ProposeIndexScan(TABLE *table, int node_idx,
                         double force_num_output_rows_after_filter,
                         unsigned key_idx, bool reverse, int ordering_idx);
@@ -762,8 +761,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
     }
   }
 
-  if (ProposeTableScan(table, node_idx, range_optimizer_row_estimate,
-                       tl->is_recursive_reference())) {
+  if (ProposeTableScan(table, node_idx, range_optimizer_row_estimate)) {
     return true;
   }
 
@@ -2194,21 +2192,14 @@ void CostingReceiver::ProposeAccessPathForIndex(
 }
 
 bool CostingReceiver::ProposeTableScan(
-    TABLE *table, int node_idx, double force_num_output_rows_after_filter,
-    bool is_recursive_reference) {
+    TABLE *table, int node_idx, double force_num_output_rows_after_filter) {
+  Table_ref *tl = table->pos_in_table_list;
   AccessPath path;
-  if (is_recursive_reference) {
+  if (tl->is_recursive_reference()) {
     path.type = AccessPath::FOLLOW_TAIL;
     path.follow_tail().table = table;
     assert(forced_leftmost_table == 0);  // There can only be one, naturally.
     forced_leftmost_table = NodeMap{1} << node_idx;
-
-    // This will obviously grow, and it is zero now, so force a fairly arbitrary
-    // minimum.
-    // TODO(sgunders): We should probably go into the CTE and look at its number
-    // of expected output rows, which is another minimum.
-    table->file->stats.records =
-        std::max<ha_rows>(table->file->stats.records, 1000);
   } else {
     path.type = AccessPath::TABLE_SCAN;
     path.table_scan().table = table;
@@ -2221,8 +2212,8 @@ bool CostingReceiver::ProposeTableScan(
   // be replaced by something else.
   m_thd->set_status_no_index_used();
 
-  double num_output_rows = table->file->stats.records;
-  double cost = table->file->table_scan_cost().total_cost();
+  const double num_output_rows = table->file->stats.records;
+  const double cost = table->file->table_scan_cost().total_cost();
 
   path.num_output_rows_before_filter = num_output_rows;
   path.init_cost = path.init_once_cost = 0.0;
@@ -2242,7 +2233,6 @@ bool CostingReceiver::ProposeTableScan(
 
   // See if this is an information schema table that must be filled in before
   // we scan.
-  Table_ref *tl = table->pos_in_table_list;
   if (tl->schema_table != nullptr && tl->schema_table->fill_table) {
     // TODO(sgunders): We don't need to allocate materialize_path on the
     // MEM_ROOT.
@@ -2250,10 +2240,7 @@ bool CostingReceiver::ProposeTableScan(
     AccessPath *materialize_path =
         NewMaterializeInformationSchemaTableAccessPath(m_thd, new_path, tl,
                                                        /*condition=*/nullptr);
-
-    materialize_path->set_num_output_rows(path.num_output_rows());
-    materialize_path->num_output_rows_before_filter =
-        path.num_output_rows_before_filter;
+    materialize_path->num_output_rows_before_filter = num_output_rows;
     materialize_path->init_cost = path.cost;       // Rudimentary.
     materialize_path->init_once_cost = path.cost;  // Rudimentary.
     materialize_path->cost_before_filter = path.cost;
@@ -2262,16 +2249,7 @@ bool CostingReceiver::ProposeTableScan(
     materialize_path->delayed_predicates = path.delayed_predicates;
     new_path->filter_predicates.Clear();
     new_path->delayed_predicates.Clear();
-
-    // Some information schema tables have zero as estimate, which can lead
-    // to completely wild plans. Add a placeholder to make sure we have
-    // _something_ to work with.
-    if (materialize_path->num_output_rows_before_filter == 0) {
-      new_path->set_num_output_rows(1000);
-      new_path->num_output_rows_before_filter = 1000;
-      materialize_path->set_num_output_rows(1000);
-      materialize_path->num_output_rows_before_filter = 1000;
-    }
+    new_path->set_num_output_rows(num_output_rows);
 
     assert(!tl->uses_materialization());
     path = *materialize_path;
@@ -2290,13 +2268,7 @@ bool CostingReceiver::ProposeTableScan(
       CopyBasicProperties(*stable_path, materialize_path);
       materialize_path->cost_before_filter = materialize_path->init_cost =
           materialize_path->init_once_cost = materialize_path->cost;
-      materialize_path->num_output_rows_before_filter =
-          materialize_path->num_output_rows();
-
-      if (materialize_path->num_output_rows_before_filter <= 0.0) {
-        materialize_path->set_num_output_rows(1000.0);
-        materialize_path->num_output_rows_before_filter = 1000.0;
-      }
+      materialize_path->num_output_rows_before_filter = num_output_rows;
 
       materialize_path->parameter_tables = GetNodeMapFromTableMap(
           tl->table_function->used_tables() & ~PSEUDO_TABLE_BITS,
