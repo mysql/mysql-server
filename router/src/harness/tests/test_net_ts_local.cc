@@ -311,7 +311,7 @@ TEST(NetTS_local, stream_socket_bind_accept_connect_abstract) {
   const auto local_endp_res = acceptor.local_endpoint();
   ASSERT_NO_ERROR(local_endp_res);
 
-  const auto local_endp = std::move(*local_endp_res);
+  const auto local_endp = *local_endp_res;
 
   local::stream_protocol::socket client_sock(io_ctx);
   EXPECT_NO_ERROR(client_sock.open(local_endp.protocol()));
