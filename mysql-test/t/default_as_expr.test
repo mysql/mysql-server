@@ -1174,3 +1174,65 @@ DROP TABLE t1;
 CREATE TABLE t1 (created DATETIME NOT NULL DEFAULT (UTC_TIME()));
 ALTER TABLE t1 ADD COLUMN c1 VARCHAR(45) NULL;
 DROP TABLE t1;
+
+--echo
+--echo # Bug#34463652: DEFAULT() should reject GENERATED columns
+--echo
+
+--echo # Show that we throw an error for the invalid self-reference.
+--echo # We can't get DEFAULT() from a GENERATED column that has no DEFAULT.
+--error ER_NO_DEFAULT_FOR_FIELD
+CREATE TABLE t (a INT,
+                b INT GENERATED ALWAYS AS (DEFAULT(b)));
+--echo # CREATE should have failed, so consequently, so should the DROP.
+DROP TABLE IF EXISTS t;
+--echo
+
+--echo # Show that we throw an error for the invalid reference.
+--echo # We can't get DEFAULT() from a GENERATED column that has no DEFAULT.
+--error ER_NO_DEFAULT_FOR_FIELD
+CREATE TABLE t (a INT,
+                b INT GENERATED ALWAYS AS (5*8),
+                c INT GENERATED ALWAYS AS (DEFAULT(b)));
+--echo # CREATE should have failed, so consequently, so should the DROP.
+DROP TABLE IF EXISTS t;
+--echo
+
+--echo # Show that we throw an error for the self-reference.
+CREATE TABLE t (a INT);
+--error ER_NO_DEFAULT_FOR_FIELD
+ALTER TABLE t ADD COLUMN b INT
+  GENERATED ALWAYS AS (DEFAULT(b)), ALGORITHM=INPLACE;
+--echo # ALTER should have failed, but there's still a table to DROP.
+DROP TABLE IF EXISTS t;
+--echo
+
+--echo # Show that DEFAULT(column) with a column that uses a
+--echo # DEFAULT(expression) rather than a DEFAULT literal still fails.
+CREATE TABLE t (a INT,
+                b INT,
+                c INT DEFAULT (a*77));
+DROP TABLE t;
+--error ER_DEFAULT_AS_VAL_GENERATED
+CREATE TABLE t (a INT,
+                b INT,
+                c INT DEFAULT (a*77),
+                d INT GENERATED ALWAYS AS (DEFAULT(c)));
+--echo
+
+--echo # Show that correct references to DEFAULT still work.
+CREATE TABLE t (a INT,
+                b INT,
+                c INT DEFAULT 77,
+                d INT GENERATED ALWAYS AS (DEFAULT(c)));
+INSERT INTO t VALUES(1,2,3,DEFAULT);
+SELECT * FROM t;
+DROP TABLE IF EXISTS t;
+--echo
+
+--echo # Show that correct references to columns still work.
+CREATE TABLE t (a INT,
+                b INT GENERATED ALWAYS AS (a*5));
+INSERT INTO t VALUES(7,DEFAULT);
+SELECT * FROM t;
+DROP TABLE IF EXISTS t;
