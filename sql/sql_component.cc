@@ -107,7 +107,7 @@ bool Sql_cmd_install_component::execute(THD *thd) {
     convert_underscore_to_dash(arg_name, argument.length());
 
     *arg++ = arg_name;
-    *arg++ = thd->strmake(val->c_ptr(), val->length());
+    *arg++ = thd->strmake(val->c_ptr_safe(), val->length());
   }
 
   std::vector<const char *> urns(m_urns.size());
