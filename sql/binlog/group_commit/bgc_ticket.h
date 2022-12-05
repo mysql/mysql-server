@@ -23,6 +23,7 @@
 #ifndef BINLOG_BCG_TICKET_H
 #define BINLOG_BCG_TICKET_H
 
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <memory>
