@@ -27,6 +27,7 @@
 #include "classic_connection_base.h"
 #include "classic_forwarder.h"
 #include "classic_frame.h"
+#include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqlrouter/connection_pool.h"
@@ -101,6 +102,24 @@ stdx::expected<Processor::Result, std::error_code> QuitProcessor::command() {
 
   trace(Tracer::Event().stage("quit::command"));
 
+  {
+    // if the client already shutdown the socket, close our side of it too.
+    //
+    // releasing it early releases the socket faster then waiting for the
+    // RecvClient later in ::client_shutdown()
+    std::array<uint8_t, 1> buf{};
+    auto recv_res = net::impl::socket::recv(
+        socket_splicer->client_conn().native_handle(), buf.data(), buf.size(),
+        net::socket_base::message_peek);
+    if (recv_res && recv_res.value() == 0) {
+      // client already closed the socket.
+      trace(Tracer::Event()
+                .stage("close::client")
+                .direction(Tracer::Event::Direction::kClientClose));
+      (void)socket_splicer->client_conn().close();
+    }
+  }
+
   if (!socket_splicer->server_conn().is_open()) {
     discard_current_msg(src_channel, src_protocol);
 
@@ -143,12 +162,14 @@ stdx::expected<Processor::Result, std::error_code>
 QuitProcessor::client_shutdown() {
   auto socket_splicer = connection()->socket_splicer();
 
+  stage(Stage::Done);
+
+  if (!socket_splicer->client_conn().is_open()) return Result::Again;
+
   // client's expect the server to close first.
   //
   // close the sending side and wait until the client closed its side too.
   (void)socket_splicer->client_conn().shutdown(net::socket_base::shutdown_send);
-
-  stage(Stage::Done);
 
   // wait for the client to send data ... which should be a connection close.
   return Result::RecvFromClient;

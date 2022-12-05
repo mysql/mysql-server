@@ -914,6 +914,9 @@ ServerGreetor::server_greeting_error() {
       "%u, '%s'",
       msg.error_code(), msg.message().c_str());
 
+  // close the server-socket as no futher communication is expected.
+  (void)socket_splicer->server_conn().close();
+
   stage(Stage::Error);  // forward the packet and close the connection.
 
   return forward_server_to_client();
@@ -1394,6 +1397,9 @@ ServerGreetor::tls_connect() {
         }
 
         trace(Tracer::Event().stage("server::greeting::error"));
+
+        // close the server-socket as no futher communication is expected.
+        (void)socket_splicer->server_conn().close();
 
         stage(Stage::Error);
         return Result::SendToClient;
@@ -2177,6 +2183,9 @@ ServerFirstAuthenticator::tls_connect() {
         }
 
         trace(Tracer::Event().stage("server::greeting::error"));
+
+        // close the server-socket as no futher communication is expected.
+        (void)socket_splicer->server_conn().close();
 
         stage(Stage::Error);
         return Result::SendToClient;
