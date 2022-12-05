@@ -127,8 +127,6 @@ constexpr size_t BTR_MODIFY_EXTERNAL = 262144;
 record is in spatial index */
 constexpr size_t BTR_RTREE_DELETE_MARK = 524288;
 
-using Page_range_t = std::pair<page_no_t, page_no_t>;
-
 constexpr ulint BTR_LATCH_MODE_WITHOUT_FLAGS(ulint latch_mode) {
   return latch_mode &
          ~(BTR_INSERT | BTR_DELETE_MARK | BTR_RTREE_UNDO_INS |
@@ -404,7 +402,6 @@ void btr_insert_on_non_leaf_level(uint32_t flags, dict_index_t *index,
 @param[in] mtr Mini-transaction
 */
 void btr_set_min_rec_mark(rec_t *rec, mtr_t *mtr);
-void btr_unset_min_rec_mark(rec_t *rec, mtr_t *mtr);
 
 /** Deletes on the upper level the node pointer to a page.
 @param[in] index Index tree
@@ -499,48 +496,6 @@ returned block is not allocated nor initialized otherwise */
 
 );
 
-/** Allocates all pages of one extent to be used in an index tree.
-@param[in]  index  the index for which pages are allocated.
-@param[in]  seg_header  the header of the file segment in which the pages are
-allocated. Refer to FSEG_HEADER_SIZE.
-@param[out]  page_range  All pages within this pair of page numbers are
-allocated for this B-tree. The page_range.first is part of the range, while the
-page_range.second is not part of the range.
-@param[in]  mtr  mini transaction context for this operation.
-@return DB_SUCCESS on success, error code on failure. */
-[[nodiscard]] dberr_t btr_extent_alloc(const dict_index_t *const index,
-                                       fseg_header_t *seg_header,
-                                       Page_range_t &page_range, mtr_t *mtr);
-
-/** Allocates all pages of one extent to be used in the leaf level of index
-tree.
-@param[in]  index  the index for which pages are allocated.
-@param[out]  page_range  All pages within this pair of page numbers are
-allocated for this B-tree. The page_range.first is part of the range, while
-the page_range.second is not part of the range.
-@param[in]  mtr  mini transaction context for this operation.
-@param[in]  fseg_hdr_leaf  the header of the file segment (leaf segment) in
-which the pages are allocated. Refer to FSEG_HEADER_SIZE.
-@return DB_SUCCESS on success, error code on failure. */
-[[nodiscard]] dberr_t btr_extent_alloc_leaf(const dict_index_t *const index,
-                                            Page_range_t &page_range,
-                                            mtr_t *mtr,
-                                            fseg_header_t *fseg_hdr_leaf);
-
-/** Allocates all pages of one extent to be used in the non-leaf level of index
-tree.
-@param[in]  index  the index for which pages are allocated.
-@param[out]  page_range  All pages within this pair of page numbers are
-allocated for this B-tree. The page_range.first is part of the range, while
-the page_range.second is not part of the range.
-@param[in]  mtr  mini transaction context for this operation.
-@param[in]  fseg_hdr_top  the header of the file segment (non-leaf segment) in
-which the pages are allocated. Refer to FSEG_HEADER_SIZE.
-@return DB_SUCCESS on success, error code on failure. */
-[[nodiscard]] dberr_t btr_extent_alloc_top(const dict_index_t *const index,
-                                           Page_range_t &page_range, mtr_t *mtr,
-                                           fseg_header_t *fseg_hdr_top);
-
 /** Frees a file page used in an index tree. NOTE: cannot free field external
  storage pages because the page must contain info on its level. */
 void btr_page_free(dict_index_t *index, /*!< in: index tree */
@@ -572,14 +527,14 @@ buf_block_t *btr_root_block_get(
                                or RW_X_LATCH */
     mtr_t *mtr);               /*!< in: mtr */
 
+#ifdef UNIV_BTR_PRINT
 /** Prints size info of a B-tree. */
 void btr_print_size(dict_index_t *index); /*!< in: index tree */
-
-/** Prints directories and other info of all nodes in the index.
-@param[in] index  the index to be printed.
-@param[in] width  number of entries to print from start and end. */
-void btr_print_index(dict_index_t *index, ulint width);
-
+/** Prints directories and other info of all nodes in the index. */
+void btr_print_index(dict_index_t *index, /*!< in: index */
+                     ulint width); /*!< in: print this many entries from start
+                                   and end */
+#endif                             /* UNIV_BTR_PRINT */
 /** Checks the size and number of fields in a record based on the definition of
 the index.
  @return true if ok */
@@ -605,20 +560,6 @@ dberr_t btr_sdi_create_index(space_id_t space_id, bool dict_locked);
 constexpr uint32_t BTR_N_LEAF_PAGES = 1;
 constexpr uint32_t BTR_TOTAL_SIZE = 2;
 
-/** Check if the given index is empty.  An index is considered empty if it
-has only the root page with no user records, including del-marked records.
-@param[in]   index   index
-@return true if index is empty, false otherwise. */
-bool btr_is_index_empty(const dict_index_t *index);
-
-/** NOTE - Changing this from the original number of 50 to 45 as
-insert_debug.test was failing in ASAN build because of a stack overflow issue.
-It was found that rtr_info_t was taking up a lot of stack space in the function
-btr_insert_on_non_leaf_level_func which is part of the recursive stack
-trace. */
-/** Maximum B-tree page level (not really a hard limit). Used in debug
- assertions in btr_page_set_level and btr_page_get_level */
-constexpr uint32_t BTR_MAX_NODE_LEVEL = 45;
 #include "btr0btr.ic"
 
 #endif

@@ -67,7 +67,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_audit_print_service_double_data_source_imp.h"
 #include "mysql_audit_print_service_longlong_data_source_imp.h"
 #include "mysql_backup_lock_imp.h"
-#include "mysql_bulk_data.h"
 #include "mysql_clone_protocol_imp.h"
 #include "mysql_command_consumer_imp.h"
 #include "mysql_command_services_imp.h"
@@ -306,14 +305,6 @@ mysql_clone_start_statement, mysql_clone_finish_statement,
     mysql_clone_disconnect, mysql_clone_get_error, mysql_clone_get_command,
     mysql_clone_send_response,
     mysql_clone_send_error END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(mysql_server, bulk_data_convert)
-Bulk_data_convert::mysql_format,
-    Bulk_data_convert::is_killed END_SERVICE_IMPLEMENTATION();
-
-BEGIN_SERVICE_IMPLEMENTATION(mysql_server, bulk_data_load)
-Bulk_data_load::begin, Bulk_data_load::load, Bulk_data_load::end,
-    Bulk_data_load::is_table_supported END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_security_context)
 mysql_security_context_imp::get,
@@ -585,8 +576,6 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, system_variable_source),
     PROVIDES_SERVICE(mysql_server, mysql_backup_lock),
     PROVIDES_SERVICE(mysql_server, clone_protocol),
-    PROVIDES_SERVICE(mysql_server, bulk_data_convert),
-    PROVIDES_SERVICE(mysql_server, bulk_data_load),
     PROVIDES_SERVICE(mysql_server, mysql_thd_security_context),
     PROVIDES_SERVICE(mysql_server, mysql_security_context_factory),
     PROVIDES_SERVICE(mysql_server,

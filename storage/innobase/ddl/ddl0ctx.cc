@@ -132,7 +132,7 @@ Context::~Context() noexcept {
 
 Context::FTS::Sequence::~Sequence() noexcept {}
 
-Flush_observer *Context::flush_observer() const noexcept {
+Flush_observer *Context::flush_observer() noexcept {
   return m_trx->flush_observer;
 }
 
@@ -568,15 +568,4 @@ ulonglong Sequence::operator++(int) noexcept {
 
   return current;
 }
-
-trx_id_t Context::get_trx_id() const noexcept { return m_trx->id; }
-
-#ifdef UNIV_DEBUG
-void Context::print_indexes() const {
-  for (auto &idx : m_indexes) {
-    (void)idx; /* Just to silence compiler warning. */
-  }
-}
-#endif /* UNIV_DEBUG */
-
 }  // namespace ddl

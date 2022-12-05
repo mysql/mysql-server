@@ -1478,7 +1478,6 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
 subsystem = 'ddl' and count_reset > 0 AND count_reset > 16;
 name	count_reset
-ddl_sort_file_alter_table	24
 SET GLOBAL innodb_monitor_reset = module_ddl;
 # Skip sort for PK.
 # Change PK(f4,f1) to (added_columns,f4,f1)

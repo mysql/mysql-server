@@ -1597,7 +1597,7 @@ struct dict_index_t {
 
   /** Check if the underlying table is compressed.
   @return true if compressed, false otherwise. */
-  inline bool is_compressed() const;
+  bool is_compressed() const;
 
   /** Check if a multi-value index is built on specified multi-value
   virtual column. Please note that there could be only one multi-value
@@ -1910,12 +1910,6 @@ struct dict_table_t {
   @return true if compressed, false otherwise. */
   bool is_compressed() const { return (DICT_TF_GET_ZIP_SSIZE(flags) != 0); }
 
-  /** Check if the table is encrypted.  Only for file per table tablespace.
-  @return true if encrypted, false otherwise. */
-  bool is_encrypted() const {
-    return (flags2 & DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
-  }
-
   /** Get reference count.
   @return current value of n_ref_count */
   inline uint64_t get_ref_count() const;
@@ -2118,8 +2112,6 @@ struct dict_table_t {
 
   /** List of indexes of the table. */
   UT_LIST_BASE_NODE_T(dict_index_t, indexes) indexes;
-
-  size_t get_index_count() const { return UT_LIST_GET_LEN(indexes); }
 
   /** Node of the LRU list of tables. */
   UT_LIST_NODE_T(dict_table_t) table_LRU;
@@ -2464,10 +2456,6 @@ detect this and will eventually quit sooner. */
   during table creation */
   bool explicitly_non_lru;
 
-  /** Check if the table has user defined primary key (PK).
-  @return true if table has user defined PK, false otherwise. */
-  bool has_pk() const;
-
   /** @return the clustered index */
   const dict_index_t *first_index() const {
     ut_ad(magic_n == DICT_TABLE_MAGIC_N);
@@ -2730,7 +2718,9 @@ static inline void DICT_TF2_FLAG_UNSET(dict_table_t *table, uint32_t flag) {
   table->flags2 &= ~flag;
 }
 
-bool dict_index_t::is_compressed() const { return (table->is_compressed()); }
+inline bool dict_index_t::is_compressed() const {
+  return (table->is_compressed());
+}
 
 /** Persistent dynamic metadata type, there should be 1 to 1
 relationship between the metadata and the type. Please keep them in order

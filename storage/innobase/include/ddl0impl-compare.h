@@ -46,8 +46,7 @@ struct Compare_key {
       : m_dups(dups),
         m_n_unique(dict_index_get_n_unique(index)),
         m_n_fields(compare_all ? dict_index_get_n_fields(index) : m_n_unique),
-        m_fields(index->fields),
-        m_index(index) {
+        m_fields(index->fields) {
     ut_a(m_n_unique <= m_n_fields);
     ut_a(m_dups == nullptr || index == m_dups->m_index);
   }
@@ -77,8 +76,6 @@ struct Compare_key {
     int cmp;
 
     do {
-      ut_a(lhs_f->type.is_mtype_valid());
-      ut_a(rhs_f->type.is_mtype_valid());
       cmp = cmp_dfield_dfield(lhs_f++, rhs_f++, (f++)->is_ascending);
     } while (cmp == 0 && --n);
 
@@ -101,13 +98,6 @@ struct Compare_key {
       }
 
       if (report) {
-        std::ostringstream sout_lhs;
-        std::ostringstream sout_rhs;
-        dfield_print(sout_lhs, lhs, m_n_unique);
-        dfield_print(sout_rhs, rhs, m_n_unique);
-        LogErr(INFORMATION_LEVEL, ER_IB_DUPLICATE_KEY, "Compare_key",
-               m_index->table_name, m_index->name(), m_n_unique, m_n_fields,
-               sout_lhs.str().c_str(), sout_rhs.str().c_str());
         m_dups->report(lhs);
       }
     }
@@ -138,8 +128,6 @@ struct Compare_key {
 
   /** Index key fields. */
   const dict_field_t *m_fields{};
-
-  const dict_index_t *m_index{};
 };
 
 }  // namespace ddl

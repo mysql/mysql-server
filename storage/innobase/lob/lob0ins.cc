@@ -25,7 +25,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 #include "lob0ins.h"
-#include "btr0load.h"
 #include "buf0buf.h"
 
 namespace lob {
@@ -33,25 +32,40 @@ namespace lob {
 /** Allocate one BLOB page.
 @return the allocated block of the BLOB page. */
 buf_block_t *BaseInserter::alloc_blob_page() {
-  if (m_ctx->is_bulk()) {
-    m_cur_blob_block = m_btree_load->blob()->alloc_index_page();
-    m_cur_blob_page_no = m_cur_blob_block->get_page_no();
-    return m_cur_blob_block;
-  }
-  ut_ad(fsp_check_tablespace_size(m_ctx->space()));
-  page_no_t hint_page_no = m_prev_page_no + 1;
   ulint r_extents;
+  mtr_t mtr_bulk;
+  mtr_t *alloc_mtr;
+
+  ut_ad(fsp_check_tablespace_size(m_ctx->space()));
+
+  if (m_ctx->is_bulk()) {
+    mtr_start(&mtr_bulk);
+    alloc_mtr = &mtr_bulk;
+  } else {
+    alloc_mtr = &m_blob_mtr;
+  }
+
+  page_no_t hint_page_no = m_prev_page_no + 1;
+
   if (!fsp_reserve_free_extents(&r_extents, m_ctx->space(), 1, FSP_BLOB,
-                                &m_blob_mtr, 1)) {
-    m_blob_mtr.commit();
+                                alloc_mtr, 1)) {
+    alloc_mtr->commit();
     m_err = DB_OUT_OF_FILE_SPACE;
     return (nullptr);
   }
+
   m_cur_blob_block = btr_page_alloc(m_ctx->index(), hint_page_no, FSP_NO_DIR, 0,
-                                    &m_blob_mtr, &m_blob_mtr);
+                                    alloc_mtr, &m_blob_mtr);
+
   fil_space_release_free_extents(m_ctx->space(), r_extents);
-  m_cur_blob_page_no = m_cur_blob_block->get_page_no();
-  return m_cur_blob_block;
+
+  if (m_ctx->is_bulk()) {
+    alloc_mtr->commit();
+  }
+
+  m_cur_blob_page_no = page_get_page_no(buf_block_get_frame(m_cur_blob_block));
+
+  return (m_cur_blob_block);
 }
 
 /** Get the previous BLOB page block.  This will return a BLOB block.
@@ -59,16 +73,20 @@ It should not be called for the first BLOB page, because it will not
 have a previous BLOB page.
 @return the previous BLOB block. */
 buf_block_t *BaseInserter::get_previous_blob_block() {
+  DBUG_TRACE;
+
+  DBUG_LOG("lob", "m_prev_page_no=" << m_prev_page_no);
   ut_ad(m_prev_page_no != m_ctx->get_page_no());
-  const bool is_bulk = m_ctx->is_bulk();
-  const space_id_t space_id = m_ctx->space();
-  const page_id_t page_id(space_id, m_prev_page_no);
+
+  space_id_t space_id = m_ctx->space();
   buf_block_t *rec_block = m_ctx->block();
+
   buf_block_t *prev_block =
-      is_bulk ? m_btree_load->block_get(m_prev_page_no)
-              : buf_page_get(page_id, rec_block->page.size, RW_X_LATCH,
-                             UT_LOCATION_HERE, &m_blob_mtr);
+      buf_page_get(page_id_t(space_id, m_prev_page_no), rec_block->page.size,
+                   RW_X_LATCH, UT_LOCATION_HERE, &m_blob_mtr);
+
   buf_block_dbg_add_level(prev_block, SYNC_EXTERN_STORAGE);
+
   return prev_block;
 }
 
@@ -124,17 +142,25 @@ dberr_t Inserter::write_one_small_blob(size_t blob_j) {
 dberr_t Inserter::write_one_blob(size_t blob_j) {
   const big_rec_t *vec = m_ctx->get_big_rec_vec();
   big_rec_field_t &field = vec->fields[blob_j];
+
   m_ctx->check_redolog();
+
   m_err = write_first_page(field);
+
   for (ulint nth_blob_page = 1; is_ok() && m_remaining > 0; ++nth_blob_page) {
     const ulint commit_freq = 4;
+
     if (nth_blob_page % commit_freq == 0) {
       m_ctx->check_redolog();
     }
+
     m_err = write_single_blob_page(field, nth_blob_page);
   }
+
   m_ctx->make_nth_extern(field.field_no);
+
   ut_ad(m_remaining == 0);
+
   return (m_err);
 }
 

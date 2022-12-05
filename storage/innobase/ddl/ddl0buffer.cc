@@ -88,7 +88,6 @@ void Key_sort_buffer::deep_copy(size_t n_fields, size_t data_size) noexcept {
   auto field = m_dtuples[m_n_tuples++];
 
   do {
-    ut_a(field->type.is_mtype_valid());
     dfield_dup(field++, m_heap);
   } while (--n_fields > 0);
 

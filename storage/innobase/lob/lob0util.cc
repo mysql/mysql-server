@@ -36,18 +36,53 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace lob {
 
-buf_block_t *alloc_lob_page(dict_index_t *index, mtr_t *mtr, page_no_t hint) {
+/** Allocate one LOB page.
+@param[in]  index   Index in which LOB exists.
+@param[in]  lob_mtr Mini-transaction context.
+@param[in]  hint    Hint page number for allocation.
+@param[in]  bulk    true if operation is OPCODE_INSERT_BULK,
+                    false otherwise.
+@return the allocated block of the BLOB page or nullptr. */
+buf_block_t *alloc_lob_page(dict_index_t *index, mtr_t *lob_mtr, page_no_t hint,
+                            bool bulk) {
   ulint r_extents;
+  mtr_t mtr_bulk;
+  mtr_t *alloc_mtr;
+  buf_block_t *block = nullptr;
+
   space_id_t space_id = dict_index_get_space(index);
+
   ut_ad(fsp_check_tablespace_size(space_id));
+
+  if (bulk) {
+    mtr_start(&mtr_bulk);
+    alloc_mtr = &mtr_bulk;
+  } else {
+    alloc_mtr = lob_mtr;
+  }
+
   bool success =
-      fsp_reserve_free_extents(&r_extents, space_id, 1, FSP_BLOB, mtr, 1);
+      fsp_reserve_free_extents(&r_extents, space_id, 1, FSP_BLOB, alloc_mtr, 1);
+
   DBUG_EXECUTE_IF("innodb_alloc_lob_page_failed", success = false;);
+
   if (!success) {
+    if (bulk) {
+      ut_ad(alloc_mtr == &mtr_bulk);
+      alloc_mtr->commit();
+    }
     return (nullptr);
   }
-  buf_block_t *block = btr_page_alloc(index, hint, FSP_NO_DIR, 0, mtr, mtr);
+
+  block = btr_page_alloc(index, hint, FSP_NO_DIR, 0, alloc_mtr, lob_mtr);
+
   fil_space_release_free_extents(space_id, r_extents);
+
+  if (bulk) {
+    ut_ad(alloc_mtr == &mtr_bulk);
+    alloc_mtr->commit();
+  }
+
   return (block);
 }
 

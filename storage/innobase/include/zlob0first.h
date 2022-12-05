@@ -31,8 +31,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0impl.h"
 #include "univ.i"
 
-class Btree_load;
-
 namespace lob {
 
 /** The first page of an zlob. */
@@ -117,8 +115,9 @@ struct z_first_page_t {
     return (flst_get_len(flst));
   }
 
-  /** Set the version number to zero. */
-  inline void set_version_0();
+  void set_version_0() {
+    mlog_write_ulint(frame() + OFFSET_VERSION, 0, MLOG_1BYTE, m_mtr);
+  }
 
   byte *begin_data_ptr() const { return (frame() + begin_data()); }
 
@@ -134,22 +133,10 @@ struct z_first_page_t {
   z_first_page_t(mtr_t *mtr, dict_index_t *index)
       : m_block(nullptr), m_mtr(mtr), m_index(index) {}
 
-  z_first_page_t(mtr_t *mtr, dict_index_t *index, Btree_load *btree_load)
-      : z_first_page_t(nullptr, mtr, index, btree_load) {}
-
   z_first_page_t(buf_block_t *block) : m_block(block) {}
 
   z_first_page_t(buf_block_t *block, mtr_t *mtr, dict_index_t *index)
-      : z_first_page_t(block, mtr, index, nullptr) {}
-
-  /** Constructor.
-  @param[in]  block  the underlying buffer block for this first LOB page.
-  @param[in]  mtr    mini transaction context
-  @param[in]  index  clustered index to which LOB belongs.
-  @param[in]  btree_load  bulk load context object. */
-  z_first_page_t(buf_block_t *block, mtr_t *mtr, dict_index_t *index,
-                 Btree_load *btree_load)
-      : m_block(block), m_mtr(mtr), m_index(index), m_btree_load(btree_load) {}
+      : m_block(block), m_mtr(mtr), m_index(index) {}
 
   buf_block_t *alloc(bool bulk);
 
@@ -213,12 +200,18 @@ struct z_first_page_t {
   /** Set the FIL_PAGE_NEXT to the given value.
   @param[in]    page_no   the page number to set in FIL_PAGE_NEXT.
   @param[in]    mtr       mini trx to be used for this modification. */
-  inline void set_next_page_no(page_no_t page_no, mtr_t *mtr);
+  void set_next_page_no(page_no_t page_no, mtr_t *mtr) {
+    ut_ad(mtr != nullptr);
+    mlog_write_ulint(frame() + FIL_PAGE_NEXT, page_no, MLOG_4BYTES, mtr);
+  }
 
   /** Set the FIL_PAGE_PREV to the given value.
   @param[in]    page_no   the page number to set in FIL_PAGE_PREV.
   @param[in]    mtr       mini trx to be used for this modification. */
-  inline void set_prev_page_no(page_no_t page_no, mtr_t *mtr);
+  void set_prev_page_no(page_no_t page_no, mtr_t *mtr) {
+    ut_ad(mtr != nullptr);
+    mlog_write_ulint(frame() + FIL_PAGE_PREV, page_no, MLOG_4BYTES, mtr);
+  }
 
   /** Write the space identifier to the page header, without generating
   redo log records.
@@ -228,8 +221,28 @@ struct z_first_page_t {
                      nullptr);
   }
 
-  /** Initialize the first page. */
-  inline void init();
+  void init() {
+    ut_ad(m_mtr != nullptr);
+
+    set_page_type();
+    set_version_0();
+    set_data_len(0);
+    set_next_page_null();
+    set_prev_page_null();
+    set_trx_id(0);
+    flst_base_node_t *flst = free_list();
+    flst_init(flst, m_mtr);
+    flst_base_node_t *ilst = index_list();
+    flst_init(ilst, m_mtr);
+    flst_base_node_t *free_frag_lst = free_frag_list();
+    flst_init(free_frag_lst, m_mtr);
+    flst_base_node_t *frag_lst = frag_list();
+    flst_init(frag_lst, m_mtr);
+    init_index_entries();
+    init_frag_entries();
+    set_frag_node_page_no(FIL_NULL);
+    set_index_page_no(FIL_NULL);
+  }
 
   /** Get the amount of zlob data stored in this page. */
   ulint get_data_len() const {
@@ -256,13 +269,18 @@ struct z_first_page_t {
   /** All the index pages are singly linked with each other, and
   the first page contains the link to one index page.
   @param[in]  page_no  the page number of an index page. */
-  inline void set_index_page_no(page_no_t page_no);
+  void set_index_page_no(page_no_t page_no) {
+    set_index_page_no(page_no, m_mtr);
+  }
 
   /** All the index pages are singly linked with each other, and
   the first page contains the link to one index page.
   @param[in]  page_no  the page number of an index page.
   @param[in]  mtr      use this mini transaction context for redo logs. */
-  inline void set_index_page_no(page_no_t page_no, mtr_t *mtr);
+  void set_index_page_no(page_no_t page_no, mtr_t *mtr) {
+    ut_ad(m_mtr != nullptr);
+    mlog_write_ulint(frame() + OFFSET_INDEX_PAGE_NO, page_no, MLOG_4BYTES, mtr);
+  }
 
   /** All the index pages are singly linked with each other, and
   the first page contains the link to one index page. Get that index
@@ -318,7 +336,9 @@ struct z_first_page_t {
   node page. The last allocated FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY  page will be the
   first in this list. This list is used to free these pages.
   @param[in]  page_no  the page number of an frag node page. */
-  inline void set_frag_node_page_no(page_no_t page_no);
+  void set_frag_node_page_no(page_no_t page_no) {
+    set_frag_node_page_no(page_no, m_mtr);
+  }
 
   /** All the frag node pages (@see z_frag_node_page_t) are singly linked with
   each other, and the first page contains the link to the last allocated frag
@@ -326,7 +346,11 @@ struct z_first_page_t {
   first in this list. This list is used to free these pages.
   @param[in]  page_no  the page number of an frag node page.
   @param[in]  mtr      mini trx context to generate redo logs. */
-  inline void set_frag_node_page_no(page_no_t page_no, mtr_t *mtr);
+  void set_frag_node_page_no(page_no_t page_no, mtr_t *mtr) {
+    ut_ad(mtr != nullptr);
+    mlog_write_ulint(frame() + OFFSET_FRAG_NODES_PAGE_NO, page_no, MLOG_4BYTES,
+                     mtr);
+  }
 
   /** Free all the z_frag_page_t pages. All the z_frag_page_t pages are
   singly linked to each other.  The head of the list is maintained in the
@@ -374,16 +398,24 @@ struct z_first_page_t {
                      MLOG_2BYTES, m_mtr);
   }
 
-  /** Set the page type to FIL_PAGE_TYPE_ZLOB_FIRST. */
-  inline void set_page_type();
+  void set_page_type() {
+    ut_ad(m_mtr != nullptr);
+    mlog_write_ulint(frame() + FIL_PAGE_TYPE, FIL_PAGE_TYPE_ZLOB_FIRST,
+                     MLOG_2BYTES, m_mtr);
+  }
 
-  /** Set the length of data stored in this page.
-  @param[in]  len  length of data stored in this page. */
-  inline void set_data_len(ulint len);
+  void set_data_len(ulint len) {
+    ut_ad(m_mtr != nullptr);
+    mlog_write_ulint(frame() + OFFSET_DATA_LEN, len, MLOG_4BYTES, m_mtr);
+  }
 
   /** Update the trx id in the header.
   @param[in]    tid     the given transaction identifier. */
-  inline void set_trx_id(trx_id_t tid);
+  void set_trx_id(trx_id_t tid) {
+    byte *ptr = frame() + OFFSET_TRX_ID;
+    mach_write_to_6(ptr, tid);
+    mlog_log_string(ptr, 6, m_mtr);
+  }
 
   /** Update the trx id in the header, without generating redo
   log records.
@@ -394,7 +426,11 @@ struct z_first_page_t {
   }
 
   /** Initialize the LOB version to 1. */
-  inline void init_lob_version();
+  void init_lob_version() {
+    ut_ad(m_mtr != nullptr);
+
+    mlog_write_ulint(frame() + OFFSET_LOB_VERSION, 1, MLOG_4BYTES, m_mtr);
+  }
 
   /** Get the LOB version
   @return the LOB version. */
@@ -422,9 +458,11 @@ struct z_first_page_t {
   @param[in]    trx     the current transaction.*/
   void mark_cannot_be_partially_updated(trx_t *trx);
 
-  /** Set the last transaction that modified this blob.
-  @param[in]  tid  Id of the trx that last modified this blob. */
-  inline void set_last_trx_id(trx_id_t tid);
+  void set_last_trx_id(trx_id_t tid) {
+    byte *ptr = frame() + OFFSET_LAST_TRX_ID;
+    mach_write_to_6(ptr, tid);
+    mlog_log_string(ptr, 6, m_mtr);
+  }
 
   /** Update the last transaction identifier in the header, without
   generating redo logs.
@@ -461,7 +499,17 @@ struct z_first_page_t {
 
   flst_base_node_t *frag_list() const { return (frame() + OFFSET_FRAG_LIST); }
 
-  inline void init_frag_entries();
+  void init_frag_entries() {
+    flst_base_node_t *free_frag_lst = free_frag_list();
+    ulint n = get_n_frag_entries();
+    for (ulint i = 0; i < n; ++i) {
+      flst_node_t *ptr = frame() + begin_frag_entries();
+      ptr += (i * z_frag_entry_t::SIZE);
+      z_frag_entry_t frag_entry(ptr, m_mtr);
+      frag_entry.init();
+      frag_entry.push_back(free_frag_lst);
+    }
+  }
 
   void init_index_entries();
 
@@ -514,7 +562,11 @@ struct z_first_page_t {
   @param[in]    addr    given file address
   @param[in]    mtr     the mini-transaction context to be used.
   @return       the file list node pointer. */
-  inline flst_node_t *addr2ptr_x(fil_addr_t &addr, mtr_t *mtr) const;
+  flst_node_t *addr2ptr_x(fil_addr_t &addr, mtr_t *mtr) const {
+    space_id_t space = dict_index_get_space(m_index);
+    const page_size_t page_size = dict_table_page_size(m_index->table);
+    return (fut_get_ptr(space, page_size, addr, RW_X_LATCH, mtr));
+  }
 
   /** Load the page, in s-latch mode, containing the given file address.
   @param[in]    addr    given file address
@@ -584,148 +636,17 @@ struct z_first_page_t {
     load_x(mtr);
   }
 
-  /** Get the underlying bulk load context object.
-  @return bulk load context object. */
-  inline Btree_load *get_btree_load() { return m_btree_load; }
-
-  /** Flush the data extents (only applicable for bulk load).
-  @return DB_SUCCESS on success, error on failure. */
-  dberr_t flush_data_extents();
-
  private:
   /** The buffer block of the first page. */
-  buf_block_t *m_block{};
+  buf_block_t *m_block;
 
   /** The mini-transaction context. */
-  mtr_t *m_mtr{};
+  mtr_t *m_mtr;
 
   /** The index dictionary object. */
-  dict_index_t *m_index{};
+  dict_index_t *m_index;
 
-  /** Bulk load context object. */
-  Btree_load *m_btree_load{};
 };  // struct z_first_page_t
-
-flst_node_t *z_first_page_t::addr2ptr_x(fil_addr_t &addr, mtr_t *mtr) const {
-  ut_ad(mtr != nullptr || m_block->is_memory());
-  ut_ad(mtr == nullptr || m_btree_load == nullptr);
-  const space_id_t space = dict_index_get_space(m_index);
-  const page_size_t page_size = dict_table_page_size(m_index->table);
-  return fut_get_ptr(space, page_size, addr, RW_X_LATCH, mtr, nullptr,
-                     m_btree_load);
-}
-
-void z_first_page_t::set_last_trx_id(trx_id_t tid) {
-  ut_ad(m_mtr != nullptr || m_block->is_memory());
-  byte *ptr = frame() + OFFSET_LAST_TRX_ID;
-  mach_write_to_6(ptr, tid);
-  if (m_mtr != nullptr) {
-    mlog_log_string(ptr, 6, m_mtr);
-  }
-}
-
-void z_first_page_t::init_lob_version() {
-  ut_ad(m_mtr != nullptr || m_block->is_memory());
-  mlog_write_ulint(frame() + OFFSET_LOB_VERSION, 1, MLOG_4BYTES, m_mtr);
-}
-
-void z_first_page_t::set_index_page_no(page_no_t page_no) {
-  ut_ad(m_mtr != nullptr || m_block->is_memory());
-  set_index_page_no(page_no, m_mtr);
-}
-
-void z_first_page_t::set_index_page_no(page_no_t page_no, mtr_t *mtr) {
-  ut_ad(mtr != nullptr || m_block->is_memory());
-  mlog_write_ulint(frame() + OFFSET_INDEX_PAGE_NO, page_no, MLOG_4BYTES, mtr);
-}
-
-void z_first_page_t::set_frag_node_page_no(page_no_t page_no) {
-  ut_ad(m_mtr != nullptr || m_block->is_memory());
-  set_frag_node_page_no(page_no, m_mtr);
-}
-
-void z_first_page_t::set_frag_node_page_no(page_no_t page_no, mtr_t *mtr) {
-  ut_ad(mtr != nullptr || m_block->is_memory());
-  mlog_write_ulint(frame() + OFFSET_FRAG_NODES_PAGE_NO, page_no, MLOG_4BYTES,
-                   mtr);
-}
-
-void z_first_page_t::init_frag_entries() {
-  ut_ad(m_mtr != nullptr || m_block->is_memory());
-  ut_ad(m_mtr == nullptr || m_btree_load == nullptr);
-  flst_base_node_t *free_frag_lst = free_frag_list();
-  ulint n = get_n_frag_entries();
-  for (ulint i = 0; i < n; ++i) {
-    flst_node_t *ptr = frame() + begin_frag_entries();
-    ptr += (i * z_frag_entry_t::SIZE);
-    z_frag_entry_t frag_entry(ptr, m_mtr, m_btree_load);
-    frag_entry.init();
-    frag_entry.push_back(free_frag_lst);
-  }
-}
-
-void z_first_page_t::set_trx_id(trx_id_t tid) {
-  ut_ad(m_mtr != nullptr || m_block->is_memory());
-  byte *ptr = frame() + OFFSET_TRX_ID;
-  mach_write_to_6(ptr, tid);
-  if (m_mtr != nullptr) {
-    mlog_log_string(ptr, 6, m_mtr);
-  }
-}
-
-void z_first_page_t::set_prev_page_no(page_no_t page_no, mtr_t *mtr) {
-  ut_ad(m_mtr != nullptr || m_block->is_memory());
-
-  mlog_write_ulint(frame() + FIL_PAGE_PREV, page_no, MLOG_4BYTES, mtr);
-}
-
-void z_first_page_t::set_next_page_no(page_no_t page_no, mtr_t *mtr) {
-  ut_ad(m_mtr != nullptr || m_block->is_memory());
-
-  mlog_write_ulint(frame() + FIL_PAGE_NEXT, page_no, MLOG_4BYTES, mtr);
-}
-
-void z_first_page_t::set_data_len(ulint len) {
-  ut_ad(m_mtr != nullptr || m_block->is_memory());
-
-  mlog_write_ulint(frame() + OFFSET_DATA_LEN, len, MLOG_4BYTES, m_mtr);
-}
-
-void z_first_page_t::set_version_0() {
-  ut_ad(m_mtr != nullptr || m_block->is_memory());
-
-  mlog_write_ulint(frame() + OFFSET_VERSION, 0, MLOG_1BYTE, m_mtr);
-}
-
-void z_first_page_t::set_page_type() {
-  ut_ad(m_mtr != nullptr || m_block->is_memory());
-
-  mlog_write_ulint(frame() + FIL_PAGE_TYPE, FIL_PAGE_TYPE_ZLOB_FIRST,
-                   MLOG_2BYTES, m_mtr);
-}
-
-void z_first_page_t::init() {
-  ut_ad(m_mtr != nullptr || m_block->is_memory());
-
-  set_page_type();
-  set_version_0();
-  set_data_len(0);
-  set_next_page_null();
-  set_prev_page_null();
-  set_trx_id(0);
-  flst_base_node_t *flst = free_list();
-  flst_init(flst, m_mtr);
-  flst_base_node_t *ilst = index_list();
-  flst_init(ilst, m_mtr);
-  flst_base_node_t *free_frag_lst = free_frag_list();
-  flst_init(free_frag_lst, m_mtr);
-  flst_base_node_t *frag_lst = frag_list();
-  flst_init(frag_lst, m_mtr);
-  init_index_entries();
-  init_frag_entries();
-  set_frag_node_page_no(FIL_NULL);
-  set_index_page_no(FIL_NULL);
-}
 
 /** Overloading the global output parameter to print object of type
 z_first_page_t into the given output stream.
