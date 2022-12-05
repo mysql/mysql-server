@@ -328,15 +328,12 @@ void mlog_write_string(byte *ptr,       /*!< in: pointer where to write */
                        ulint len,       /*!< in: string length */
                        mtr_t *mtr)      /*!< in: mini-transaction handle */
 {
-  ut_ad(ptr);
-  ut_ad(mtr != nullptr || buf_page_t::is_memory(ptr));
+  ut_ad(ptr && mtr);
   ut_a(len < UNIV_PAGE_SIZE);
 
   memcpy(ptr, str, len);
 
-  if (mtr != nullptr) {
-    mlog_log_string(ptr, len, mtr);
-  }
+  mlog_log_string(ptr, len, mtr);
 }
 
 /** Logs a write of a string to a file page buffered in the buffer pool.

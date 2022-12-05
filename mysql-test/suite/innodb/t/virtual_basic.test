@@ -5,7 +5,6 @@
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Compute virtual");
-call mtr.add_suppression(".InnoDB. Compare_key: table=.*, index=.*");
 --enable_query_log
 
 CREATE TABLE t (a INT, b INT GENERATED ALWAYS AS (a), c CHAR(10), d CHAR(20), e CHAR(10) GENERATED ALWAYS AS (c), g INT);

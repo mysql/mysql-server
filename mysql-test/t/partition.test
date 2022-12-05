@@ -8,10 +8,6 @@
 #                      new tests. Reason: All these might be not available.
 #                    - Minor cleanup
 #
---disable_query_log
-call mtr.add_suppression(".InnoDB. Compare_key: table=.*, index=.*");
---enable_query_log
-
 --source include/no_valgrind_without_big.inc
 
 --disable_warnings

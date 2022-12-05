@@ -29,3 +29,37 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
  Created 12/13/1995 Heikki Tuuri
  ***********************************************************************/
+
+#include "buf0buf.h"
+#include "sync0rw.h"
+
+/** Gets a pointer to a file address and latches the page.
+@param[in]      space           Space id
+@param[in]      page_size       Page size
+@param[in]      addr            File address
+@param[in]      rw_latch        RW_S_LATCH, RW_X_LATCH, RW_SX_LATCH
+@param[in,out]  mtr             Mini-transaction
+@param[out]     ptr_block       File page
+@return pointer to a byte in (*ptr_block)->frame; the *ptr_block is
+bufferfixed and latched */
+static inline byte *fut_get_ptr(space_id_t space, const page_size_t &page_size,
+                                fil_addr_t addr, rw_lock_type_t rw_latch,
+                                mtr_t *mtr, buf_block_t **ptr_block) {
+  buf_block_t *block;
+  byte *ptr;
+
+  ut_ad(addr.boffset < UNIV_PAGE_SIZE);
+  ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH) ||
+        (rw_latch == RW_SX_LATCH));
+
+  block = buf_page_get(page_id_t(space, addr.page), page_size, rw_latch,
+                       UT_LOCATION_HERE, mtr);
+  ptr = buf_block_get_frame(block) + addr.boffset;
+
+  buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
+  if (ptr_block != nullptr) {
+    *ptr_block = block;
+  }
+
+  return (ptr);
+}

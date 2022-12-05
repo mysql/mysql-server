@@ -80,10 +80,7 @@ enum class Page_fetch {
 
   /** Like Page_fetch::NORMAL, but do not mind if the file page has been
   freed. */
-  POSSIBLY_FREED,
-
-  /** Get if in pool, but do not mind if the file page has been freed. */
-  IF_IN_POOL_POSSIBLY_FREED
+  POSSIBLY_FREED
 };
 /** @} */
 
@@ -905,12 +902,6 @@ free the LRU mutex will be released.
 @return true if page was freed. */
 bool buf_page_free_stale(buf_pool_t *buf_pool, buf_page_t *bpage) noexcept;
 
-/** Evict a page from the buffer pool.
-@param[in]  page_id    page to be evicted.
-@param[in]  page_size  page size of the tablespace. */
-void buf_page_force_evict(const page_id_t &page_id,
-                          const page_size_t &page_size) noexcept;
-
 /** Free a stale page. Caller must be holding the hash_lock in S mode if
 hash_lock parameter is not nullptr. The hash lock will be released upon return
 always. Caller must hold the LRU mutex if and only if the hash_lock parameter
@@ -1177,23 +1168,6 @@ class buf_page_t {
 #endif /* !UNIV_HOTBACKUP */
   }
 
- public:
-  /** Check if the given ptr lies in a memory block of type BUF_BLOCK_MEMORY.
-  This is checked by looking at the FIL_PAGE_LSN.  If the FIL_PAGE_LSN is zero,
-  then the block state is assumed to be BUF_BLOCK_MEMORY.
-  @return true if the FIL_PAGE_LSN is zero, false otherwise. */
-  [[nodiscard]] static bool is_memory(const page_t *const ptr) noexcept;
-
-  /** Check if the given buffer is full of zeroes. */
-  [[nodiscard]] static bool is_zeroes(const page_t *const ptr,
-                                      const size_t len) noexcept;
-
-  /** Check if the state of this page is BUF_BLOCK_MEMORY.
-  @return true if the state is BUF_BLOCK_MEMORY, or false. */
-  [[nodiscard]] bool is_memory() const noexcept {
-    return state == BUF_BLOCK_MEMORY;
-  }
-
 #ifndef UNIV_HOTBACKUP
   /** Set the doublewrite buffer ID.
   @param[in]  batch_id  Double write batch ID that flushed the page. */
@@ -1255,22 +1229,6 @@ class buf_page_t {
   space object may be freed.
   @return tablespace object */
   inline fil_space_t *get_space() const { return m_space; }
-
-  /** Set the stored page id to a new value. This is used only on a buffer
-  block with BUF_BLOCK_MEMORY state.
-  @param[in]  page_id  the new value of the page id. */
-  void set_page_id(const page_id_t page_id) {
-    ut_ad(state == BUF_BLOCK_MEMORY);
-    id = page_id;
-  }
-
-  /** Set the page size to a new value. This can be used during initialization
-  of a newly allocated buffer page.
-  @param[in]  page_size  the new value of the page size. */
-  void set_page_size(const page_size_t &page_size) {
-    ut_ad(state == BUF_BLOCK_MEMORY);
-    size = page_size;
-  }
 
   /** Sets stored page ID to the new value. Handles space object reference
   count.
@@ -1741,28 +1699,18 @@ struct buf_block_t {
   /** read-write lock of the buffer frame */
   BPageLock lock;
 
-#ifdef UNIV_DEBUG
-  /** Check if the buffer block was freed.
-  @return true if the block was freed, false otherwise. */
-  bool was_freed() const { return page.file_page_was_freed; }
-#endif /* UNIV_DEBUG */
-
 #endif /* UNIV_HOTBACKUP */
 
   /** pointer to buffer frame which is of size UNIV_PAGE_SIZE, and aligned
   to an address divisible by UNIV_PAGE_SIZE */
   byte *frame;
 
-  /** Determine whether the page is in new-style compact format.
-  @return true  if the page is in compact format
-  @return false if it is in old-style format */
-  bool is_compact() const;
-
   /** node of the decompressed LRU list; a block is in the unzip_LRU list if
   page.state == BUF_BLOCK_FILE_PAGE and page.zip.data != NULL. Protected by
   both LRU_list_mutex and the block mutex. */
   UT_LIST_NODE_T(buf_block_t) unzip_LRU;
 #ifdef UNIV_DEBUG
+
   /** true if the page is in the decompressed LRU list; used in debugging */
   bool in_unzip_LRU_list;
 
@@ -1937,17 +1885,6 @@ struct buf_block_t {
     return (mach_read_from_2(frame + FIL_PAGE_TYPE));
   }
 
-  uint16_t get_page_level() const;
-  bool is_leaf() const;
-  bool is_root() const;
-  bool is_index_page() const;
-
-  /** Check if this index page is empty.  An index page is considered empty
-  if the next record of an infimum record is supremum record.  Presence of
-  del-marked records will make the page non-empty.
-  @return true if this index page is empty. */
-  bool is_empty() const;
-
   /** Get the page type of the current buffer block as string.
   @return page type of the current buffer block as string. */
   [[nodiscard]] const char *get_page_type_str() const noexcept;
@@ -1964,19 +1901,7 @@ struct buf_block_t {
   page_zip_des_t const *get_page_zip() const noexcept {
     return page.zip.data != nullptr ? &page.zip : nullptr;
   }
-
-  [[nodiscard]] bool is_memory() const noexcept { return page.is_memory(); }
 };
-
-inline bool buf_block_t::is_root() const {
-  return ((get_next_page_no() == FIL_NULL) && (get_prev_page_no() == FIL_NULL));
-}
-
-inline bool buf_block_t::is_leaf() const { return get_page_level() == 0; }
-
-inline bool buf_block_t::is_index_page() const {
-  return get_page_type() == FIL_PAGE_INDEX;
-}
 
 /** Check if a buf_block_t object is in a valid state
 @param block buffer block
@@ -2398,10 +2323,6 @@ struct buf_pool_t {
   /** Page Tracking start LSN. */
   lsn_t track_page_lsn;
 
-  /** Check if the page modifications are tracked.
-  @return true if page modifications are tracked, false otherwise. */
-  bool is_tracking() { return track_page_lsn != LSN_MAX; }
-
   /** Maximum LSN for which write io has already started. */
   lsn_t max_lsn_io;
 
@@ -2710,16 +2631,6 @@ page if applicable. Const version.
 inline const page_zip_des_t *buf_block_get_page_zip(
     const buf_block_t *block) noexcept {
   return block->get_page_zip();
-}
-
-inline bool buf_page_in_memory(const buf_page_t *bpage) {
-  switch (buf_page_get_state(bpage)) {
-    case BUF_BLOCK_MEMORY:
-      return true;
-    default:
-      break;
-  }
-  return false;
 }
 
 /** Verify the page contained by the block. If there is page type

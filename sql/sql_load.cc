@@ -59,7 +59,6 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
 #include "sql/binlog.h"
-#include "sql/dd/types/abstract_table.h"
 #include "sql/derror.h"
 #include "sql/error_handler.h"  // Ignore_error_handler
 #include "sql/field.h"
@@ -78,7 +77,6 @@
 #include "sql/rpl_rli.h"   // Relay_log_info
 #include "sql/sql_base.h"  // fill_record_n_invoke_before_triggers
 #include "sql/sql_class.h"
-#include "sql/sql_data_change.h"
 #include "sql/sql_error.h"
 #include "sql/sql_insert.h"  // check_that_all_fields_are_given_values,
 #include "sql/sql_lex.h"
@@ -89,13 +87,10 @@
 #include "sql/table.h"
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql/thr_malloc.h"
-#include "sql/transaction.h"
 #include "sql/transaction_info.h"
 #include "sql/trigger_def.h"
 #include "sql_string.h"
 #include "thr_lock.h"
-
-#include <mysql/components/services/bulk_load_service.h>
 
 class READ_INFO;
 
@@ -193,189 +188,6 @@ class READ_INFO {
       ;
   }
 };
-
-/**
-  Execute BULK LOAD DATA
-  @param thd                 Current thread.
-  @returns true if error
-*/
-bool Sql_cmd_load_table::execute_bulk(THD *thd) {
-  DBUG_TRACE;
-
-  const String *escaped = m_exchange.field.escaped;
-  const String *enclosed = m_exchange.field.enclosed;
-
-  if (!m_ordered_data) {
-    my_error(ER_FEATURE_UNSUPPORTED, MYF(0),
-             "Unsorted data (i.e. missing IN PRIMARY KEY ORDER clause)",
-             "by LOAD BULK DATA");
-    return true;
-  }
-
-  /* Check for single byte separator. */
-  if (escaped->length() > 1 || enclosed->length() > 1) {
-    my_error(ER_WRONG_FIELD_TERMINATORS, MYF(0));
-    return true;
-  }
-
-  /* Report problems with non-ascii separators */
-  const String *field_term = m_exchange.field.field_term;
-  const String *line_term = m_exchange.line.line_term;
-
-  if (!escaped->is_ascii() || !enclosed->is_ascii() ||
-      !field_term->is_ascii() || !line_term->is_ascii()) {
-    push_warning(thd, Sql_condition::SL_WARNING,
-                 WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
-                 ER_THD(thd, WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
-  }
-
-  Table_ref *const table_list = thd->lex->query_tables;
-
-  /* We follow mysql_discard_or_import_tablespace flow for locking. */
-  table_list->mdl_request.set_type(MDL_EXCLUSIVE);
-  table_list->set_lock({TL_WRITE, THR_DEFAULT});
-  table_list->required_type = dd::enum_table_type::BASE_TABLE;
-
-  Alter_table_prelocking_strategy alter_prelocking_strategy;
-
-  if (open_and_lock_tables(thd, table_list, 0, &alter_prelocking_strategy)) {
-    return true;
-  }
-
-  if (table_list->is_view() || !table_list->is_insertable() ||
-      !table_list->is_updatable() || table_list->is_multiple_tables() ||
-      table_list->is_derived()) {
-    my_error(ER_NON_INSERTABLE_TABLE, MYF(0), table_list->alias, "BULK LOAD");
-    return true;
-  }
-
-  const TABLE *table = table_list->table;
-
-  if (table->part_info != nullptr) {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Partitioned Table");
-    return true;
-  }
-
-  THD_STAGE_INFO(thd, stage_executing);
-
-  long long affected_rows = 0;
-  bool success = bulk_driver_service(thd, table, affected_rows);
-
-  THD_STAGE_INFO(thd, stage_end);
-
-  if (success) {
-    success = !(trans_commit_stmt(thd) || trans_commit_implicit(thd));
-  }
-
-  if (!success) {
-    trans_rollback_stmt(thd);
-    trans_rollback_implicit(thd);
-  }
-
-  bool is_persistent_table = (table->s->tmp_table == NO_TMP_TABLE);
-  handlerton *hton = table->s->db_type();
-
-  if (is_persistent_table && (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
-      hton->post_ddl) {
-    hton->post_ddl(thd);
-  }
-
-  if (!success) {
-    return true;
-  }
-
-  char ok_message[512];
-  snprintf(ok_message, sizeof(ok_message), ER_THD(thd, ER_LOAD_INFO),
-           (long long)affected_rows, 0LL, 0LL,
-           (long)thd->get_stmt_da()->current_statement_cond_count());
-
-  my_ok(thd, affected_rows, 0LL, ok_message);
-  return false;
-}
-
-bool Sql_cmd_load_table::bulk_driver_service(THD *thd, const TABLE *table,
-                                             long long &affected_rows) {
-  my_h_service svc = nullptr;
-
-  if (srv_registry->acquire("bulk_load_driver", &svc)) {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Bulk Load");
-    return false;
-  }
-
-  auto load_driver = reinterpret_cast<SERVICE_TYPE(bulk_load_driver) *>(svc);
-
-  Bulk_source src = Bulk_source::LOCAL;
-
-  switch (m_bulk_source) {
-    case LOAD_SOURCE_URL:
-      src = Bulk_source::OCI;
-      break;
-
-    case LOAD_SOURCE_S3:
-      src = Bulk_source::S3;
-      break;
-
-    case LOAD_SOURCE_FILE:
-      src = Bulk_source::LOCAL;
-      break;
-  }
-
-  auto load_handle = load_driver->create_bulk_loader(
-      thd, table, src,
-      m_exchange.cs ? m_exchange.cs : thd->variables.collation_database);
-
-  /* Set schema, table, file name string options. */
-  std::string schema_name(table->s->db.str, table->s->db.length);
-  load_driver->set_string(load_handle, Bulk_string::SCHEMA_NAME, schema_name);
-
-  std::string table_name(table->s->table_name.str, table->s->table_name.length);
-  load_driver->set_string(load_handle, Bulk_string::TABLE_NAME, table_name);
-
-  std::string file_prefix(m_exchange.file_name);
-  load_driver->set_string(load_handle, Bulk_string::FILE_PREFIX, file_prefix);
-
-  /* If not set by user, default is assigned from default_field_term. */
-  const String *field_term = m_exchange.field.field_term;
-  std::string col_term(field_term->ptr(), field_term->length());
-
-  load_driver->set_string(load_handle, Bulk_string::COLUMN_TERM, col_term);
-
-  /* If not set by user, default is assigned from default_line_term. */
-  const String *line_term = m_exchange.line.line_term;
-  std::string row_term(line_term->ptr(), line_term->length());
-  load_driver->set_string(load_handle, Bulk_string::ROW_TERM, row_term);
-
-  /* Set boolean options. */
-  load_driver->set_condition(load_handle, Bulk_condition::ORDERED_DATA,
-                             m_ordered_data);
-  load_driver->set_condition(load_handle, Bulk_condition::OPTIONAL_ENCLOSE,
-                             m_exchange.field.opt_enclosed);
-
-  /* Set size options. */
-  load_driver->set_size(load_handle, Bulk_size::COUNT_FILES, m_file_count);
-  load_driver->set_size(load_handle, Bulk_size::COUNT_ROW_SKIP,
-                        m_exchange.skip_lines);
-  load_driver->set_size(load_handle, Bulk_size::COUNT_COLUMNS,
-                        table->s->fields);
-
-  /* Set escape and enclosing character options */
-  const String *escaped = m_exchange.field.escaped;
-  const String *enclosed = m_exchange.field.enclosed;
-  if (m_exchange.escaped_given() && !escaped->is_empty()) {
-    load_driver->set_char(load_handle, Bulk_char::ESCAPE_CHAR, (*escaped)[0]);
-  }
-  if (!enclosed->is_empty()) {
-    load_driver->set_char(load_handle, Bulk_char::ENCLOSE_CHAR, (*enclosed)[0]);
-  }
-
-  bool success = load_driver->load(load_handle, affected_rows);
-
-  load_driver->drop_bulk_loader(thd, load_handle);
-
-  srv_registry->release(svc);
-
-  return success;
-}
 
 /**
   Execute LOAD DATA query
@@ -2307,42 +2119,6 @@ found_eof:
 bool Sql_cmd_load_table::execute(THD *thd) {
   LEX *const lex = thd->lex;
 
-  if (m_is_bulk_operation) {
-    if (m_exchange.filetype == FILETYPE_XML) {
-      my_error(ER_WRONG_USAGE, MYF(0), "LOAD XML", "BULK operation");
-      return true;
-    }
-    if (!m_opt_set_fields.empty()) {
-      my_error(ER_WRONG_USAGE, MYF(0), "LOAD DATA with BULK",
-               "assignment to columns or variables");
-      return true;
-    }
-    if (m_is_local_file) {
-      my_error(ER_WRONG_USAGE, MYF(0), "LOAD DATA with BULK",
-               "LOCAL client file");
-      return true;
-    }
-    if (!m_exchange.line.line_start->is_empty()) {
-      my_error(ER_WRONG_USAGE, MYF(0), "LOAD DATA with BULK",
-               "LINES STARTING BY");
-      return true;
-    }
-    if (m_exchange.field.field_term->length() > 1) {
-      my_error(ER_WRONG_USAGE, MYF(0), "LOAD DATA with BULK",
-               "multi-byte column separator");
-      return false;
-    }
-  } else {
-    if (m_file_count > 0) {
-      my_error(ER_WRONG_USAGE, MYF(0), "LOAD DATA without BULK",
-               "multiple files");
-      return true;
-    }
-    if (m_bulk_source == LOAD_SOURCE_URL) {
-      my_error(ER_WRONG_USAGE, MYF(0), "LOAD DATA without BULK", "URL source");
-      return true;
-    }
-  }
   uint privilege =
       (lex->duplicates == DUP_REPLACE ? INSERT_ACL | DELETE_ACL : INSERT_ACL) |
       (m_is_local_file ? 0 : FILE_ACL);
@@ -2368,13 +2144,7 @@ bool Sql_cmd_load_table::execute(THD *thd) {
   lex->using_hypergraph_optimizer =
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
 
-  bool res = true;
-
-  if (m_is_bulk_operation) {
-    res = execute_bulk(thd);
-  } else {
-    res = execute_inner(thd, lex->duplicates);
-  }
+  bool res = execute_inner(thd, lex->duplicates);
 
   /* Pop ignore / strict error handler */
   if (thd->lex->is_ignore() || thd->is_strict_mode())

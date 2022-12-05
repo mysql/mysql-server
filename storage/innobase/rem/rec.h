@@ -34,32 +34,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 other files in library. The code in this file is used to make a library for
 external tools. */
 
-/**
-Extra Bytes in Redudant Row Format
-
-The extra bytes of the redundant row format (old row format) is explained here.
-It contains a total of 6 bytes that occurs before the record origin.  These
-bits and bytes are accessed with reference to the record origin.  So when we
-say 3rd byte, it means that it is 3rd byte from the record origin.
-
-  byte 6    byte 5    byte 4    byte 3    byte 2    byte 1
-[iiiioooo][hhhhhhhh][hhhhhfff][fffffffs][pppppppp][pppppppp]+
-
-1. The + is the record origin.
-2. The next record pointer is given by the bits marked as 'p'.  This takes
-   2 bytes - 1st and 2nd byte.
-3. One bit is used to indicate whether the field offsets array uses 1 byte or
-   2 bytes each.  This is given by the bit 's' in 3rd byte.
-4. The total number of fields is given by the bits marked as 'f'.  It spans
-   the 4th and 3rd bytes.  It uses a total of 10 bits.
-5. The heap number of the record is given by the bits marked as 'h'.  It spans
-   the 5th and 4th bytes.  It uses a total of 13 bits.
-6. The record owned (by dir slot) information is given by bits marked as 'o'.
-   It uses a total of 4 bits. It is available in the 6th byte.
-7. The info bits are given by the bits marked as 'i'.  It uses a total of 4
-   bits. It is available in the 6th byte.
-*/
-
 #ifndef rem_rec_h
 #define rem_rec_h
 
@@ -548,14 +522,13 @@ void rec_init_offsets(const rec_t *rec, const dict_index_t *index,
 
 #ifdef UNIV_DEBUG
 /** Validates offsets returned by rec_get_offsets().
-@param[in]  rec       record whose offsets are being validated or nullptr.
-@param[in]  index     index to which record belongs or nullptr.
-@param[in]  offsets   the record offsets array returned by rec_get_offsets()
-@param[in]  check_status  if true, check status bits of the record.
-@return true if valid */
+ @return true if valid */
 [[nodiscard]] static inline bool rec_offs_validate(
-    const rec_t *rec, const dict_index_t *index, const ulint *offsets,
-    const bool check_status = true) {
+    const rec_t *rec,          /*!< in: record or NULL */
+    const dict_index_t *index, /*!< in: record descriptor or NULL */
+    const ulint *offsets)      /*!< in: array returned by
+                               rec_get_offsets() */
+{
   ulint i = rec_offs_n_fields(offsets);
   ulint last = ULINT_MAX;
   ulint comp = *rec_offs_base(offsets) & REC_OFFS_COMPACT;
@@ -583,25 +556,21 @@ void rec_init_offsets(const rec_t *rec, const dict_index_t *index,
       ut_a(index->has_instant_cols_or_row_versions());
     }
 
-    /* In the case of mrec_t the status will not be there.  */
-    if (check_status) {
-      if (comp && rec) {
-        switch (rec_get_status(rec)) {
-          case REC_STATUS_ORDINARY:
-            break;
-          case REC_STATUS_NODE_PTR:
-            max_n_fields = dict_index_get_n_unique_in_tree(index) + 1;
-            break;
-          case REC_STATUS_INFIMUM:
-          case REC_STATUS_SUPREMUM:
-            max_n_fields = 1;
-            break;
-          default:
-            ut_error;
-        }
+    if (comp && rec) {
+      switch (rec_get_status(rec)) {
+        case REC_STATUS_ORDINARY:
+          break;
+        case REC_STATUS_NODE_PTR:
+          max_n_fields = dict_index_get_n_unique_in_tree(index) + 1;
+          break;
+        case REC_STATUS_INFIMUM:
+        case REC_STATUS_SUPREMUM:
+          max_n_fields = 1;
+          break;
+        default:
+          ut_error;
       }
     }
-
     /* index->n_def == 0 for dummy indexes if !comp */
     ut_a(!comp || index->n_def);
     ut_a(!index->n_def || i <= max_n_fields);

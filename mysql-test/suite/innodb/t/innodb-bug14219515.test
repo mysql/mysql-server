@@ -6,9 +6,6 @@
 #
 # Bug #14219515    DUPLICATE VALUE NOT REPORTED FOR ADD PRIMARY KEY
 #
---disable_query_log
-call mtr.add_suppression(".InnoDB. Compare_key: table=.*, index=.*");
---enable_query_log
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;

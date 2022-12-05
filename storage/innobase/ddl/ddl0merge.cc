@@ -65,7 +65,7 @@ struct Merge_file_sort::Cursor : private ut::Non_copyable {
     affects the entire file. Each block will be read exactly once. */
     {
       const auto flags = POSIX_FADV_SEQUENTIAL | POSIX_FADV_NOREUSE;
-      posix_fadvise(m_file->fd(), 0, 0, flags);
+      posix_fadvise(m_file->m_file.get(), 0, 0, flags);
     }
 #endif /* POSIX_FADV_SEQUENTIAL */
   }
@@ -110,11 +110,12 @@ struct Merge_file_sort::Output_file : private ut::Non_copyable {
   static constexpr uint64_t TRX_INTERRUPTED_CHECK = 64;
 
   /** Constructor.
-  @param[in,out] ctx    DDL context.
-  @param[in] fd         File to write to.
-  @param[in] io_buffer  Buffer to store records and write to file. */
-  Output_file(ddl::Context &ctx, os_fd_t fd, IO_buffer io_buffer) noexcept
-      : m_ctx(ctx), m_fd(fd), m_buffer(io_buffer), m_ptr(m_buffer.first) {}
+  @param[in,out] ctx            DDL context.
+  @param[in] file               File to write to.
+  @param[in] io_buffer          Buffer to store records and write to file. */
+  Output_file(ddl::Context &ctx, const Unique_os_file_descriptor &file,
+              IO_buffer io_buffer) noexcept
+      : m_ctx(ctx), m_file(file), m_buffer(io_buffer), m_ptr(m_buffer.first) {}
 
   /** Destructor. */
   ~Output_file() = default;
@@ -173,7 +174,7 @@ struct Merge_file_sort::Output_file : private ut::Non_copyable {
   ddl::Context &m_ctx;
 
   /** File to write to. */
-  os_fd_t m_fd{OS_FD_CLOSED};
+  const Unique_os_file_descriptor &m_file;
 
   /** Buffer to write to (output buffer). */
   IO_buffer m_buffer;
@@ -319,7 +320,7 @@ dberr_t Merge_file_sort::Output_file::write(const mrec_t *mrec,
   if (unlikely(m_ptr + rec_size + need >= m_buffer.first + m_buffer.second)) {
     const size_t n_write = m_ptr - m_buffer.first;
     const auto len = ut_uint64_align_down(n_write, IO_BLOCK_SIZE);
-    auto err = ddl::pwrite(m_fd, m_buffer.first, len, m_offset);
+    auto err = ddl::pwrite(m_file.get(), m_buffer.first, len, m_offset);
 
     if (err != DB_SUCCESS) {
       return err;
@@ -363,7 +364,7 @@ dberr_t Merge_file_sort::Output_file::flush() noexcept {
   }
 
   const auto len = ut_uint64_align_up(m_ptr - m_buffer.first, IO_BLOCK_SIZE);
-  const auto err = ddl::pwrite(m_fd, m_buffer.first, len, m_offset);
+  const auto err = ddl::pwrite(m_file.get(), m_buffer.first, len, m_offset);
 
   m_offset += len;
 
@@ -488,9 +489,9 @@ dberr_t Merge_file_sort::sort(Builder *builder,
   auto io_buffer = aligned_buffer.io_buffer();
 
   /* This is the output file for the first pass. */
-  auto tmpfd = ddl::file_create_low_simple(builder->tmpdir());
+  auto tmpfd = ddl::file_create_low(builder->tmpdir());
 
-  if (tmpfd != OS_FD_CLOSED) {
+  if (tmpfd.is_open()) {
     MONITOR_ATOMIC_INC(MONITOR_ALTER_TABLE_SORT_FILES);
   } else {
     return DB_OUT_OF_RESOURCES;
@@ -512,7 +513,7 @@ dberr_t Merge_file_sort::sort(Builder *builder,
     }
 
     /* Swap the input file with the output file and repeat. */
-    file->swap(tmpfd);
+    tmpfd.swap(file->m_file);
     std::swap(offsets, m_next_offsets);
 
     ut_a(m_next_offsets.empty());
@@ -522,7 +523,6 @@ dberr_t Merge_file_sort::sort(Builder *builder,
     }
   }
 
-  file_destroy_low(tmpfd);
   ut_a(err != DB_SUCCESS || file->m_n_recs == m_n_rows);
 
   return err;

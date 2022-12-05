@@ -40,13 +40,16 @@ struct BaseInserter {
         m_err(DB_SUCCESS),
         m_prev_page_no(ctx->get_page_no()),
         m_cur_blob_block(nullptr),
-        m_cur_blob_page_no(FIL_NULL),
-        m_btree_load(ctx->get_btree_load()) {}
+        m_cur_blob_page_no(FIL_NULL) {}
 
-  /** Start the blob mtr.
-  @return nullptr when there is no associated mtr.
+  /** Start the BLOB mtr.
   @return pointer to the BLOB mtr. */
-  mtr_t *start_blob_mtr();
+  mtr_t *start_blob_mtr() {
+    mtr_start(&m_blob_mtr);
+    m_blob_mtr.set_log_mode(m_ctx->get_log_mode());
+    m_blob_mtr.set_flush_observer(m_ctx->get_flush_observer());
+    return (&m_blob_mtr);
+  }
 
   /** Allocate one BLOB page.
   @return the allocated block of the BLOB page. */
@@ -72,8 +75,6 @@ struct BaseInserter {
   @return the current BLOB page frame. */
   page_t *cur_page() const { return (buf_block_get_frame(m_cur_blob_block)); }
 
-  const page_size_t page_size() const { return m_ctx->page_size(); }
-
  protected:
   /** The BLOB operation context */
   InsertContext *m_ctx;
@@ -93,20 +94,7 @@ struct BaseInserter {
 
   /** The current BLOB page number. */
   page_no_t m_cur_blob_page_no;
-
-  Btree_load *m_btree_load{};
 };
-
-inline mtr_t *BaseInserter::start_blob_mtr() {
-  mtr_t *mtr = m_ctx->get_mtr();
-  if (mtr == nullptr) {
-    return nullptr;
-  }
-  mtr_start(&m_blob_mtr);
-  m_blob_mtr.set_log_mode(m_ctx->get_log_mode());
-  m_blob_mtr.set_flush_observer(m_ctx->get_flush_observer());
-  return (&m_blob_mtr);
-}
 
 /** Insert or write an uncompressed BLOB */
 class Inserter : private BaseInserter {

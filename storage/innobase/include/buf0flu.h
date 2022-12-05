@@ -278,20 +278,14 @@ class Flush_observer {
   /** Destructor */
   ~Flush_observer() noexcept;
 
-  /** Print information about the current object.
-  @param[in,out]  out  output stream to be used.
-  @return the output stream. */
-  std::ostream &print(std::ostream &out) const;
-
   /** Check pages have been flushed and removed from the flush list
   in a buffer pool instance.
   @param[in]    instance_no     buffer pool instance no
   @return true if the pages were removed from the flush list */
   bool is_complete(size_t instance_no) {
-    ut_ad(m_flushed[instance_no].load() >= 0);
-    ut_ad(m_removed[instance_no].load() >= 0);
-    return m_interrupted ||
-           (m_flushed[instance_no].load() == m_removed[instance_no].load());
+    return m_flushed[instance_no].fetch_add(0, std::memory_order_relaxed) ==
+               m_removed[instance_no].fetch_add(0, std::memory_order_relaxed) ||
+           m_interrupted;
   }
 
   /** Interrupt observer not to wait. */
@@ -317,10 +311,6 @@ class Flush_observer {
  private:
   using Counter = std::atomic_int;
   using Counters = std::vector<Counter, ut::allocator<Counter>>;
-
-#ifdef UNIV_DEBUG
-  [[nodiscard]] bool validate() const noexcept;
-#endif /* UNIV_DEBUG */
 
   /** Tablespace ID. */
   space_id_t m_space_id{};

@@ -69,11 +69,8 @@ enum class Log_Type : uint32_t {
   /** Alter Unencrypt a tablespace */
   ALTER_UNENCRYPT_TABLESPACE_LOG,
 
-  /** LOAD BULK DATA  */
-  LOAD_BULK_LOG,
-
   /** Biggest log type */
-  BIGGEST_LOG = LOAD_BULK_LOG
+  BIGGEST_LOG = ALTER_UNENCRYPT_TABLESPACE_LOG
 };
 
 /** DDL log record */
@@ -187,8 +184,6 @@ class DDL_Record {
   @param[in]    len     length of the data. */
   void set_new_file_path(const byte *data, ulint len);
 
-  bool validate() const;
-
   /** Print the DDL record to specified output stream
   @param[in,out]        out     output stream
   @return output stream */
@@ -229,12 +224,6 @@ class DDL_Record {
   /** If this record can be deleted */
   bool m_deletable;
 };
-
-inline bool DDL_Record::validate() const {
-  ut_a(m_type >= Log_Type::SMALLEST_LOG);
-  ut_a(m_type <= Log_Type::BIGGEST_LOG);
-  return true;
-}
 
 /** Forward declaration */
 class THD;
@@ -431,12 +420,6 @@ class Log_DDL {
   dberr_t write_free_tree_log(trx_t *trx, const dict_index_t *index,
                               bool is_drop_table);
 
-  /** Write DDL log for LOAD BULK DATA.
-  @param[in,out]  trx  transaction
-  @param[in]  table  table to be bulk loaded with data.
-  @return  DB_SUCCESS or error */
-  dberr_t write_load_bulk_log(trx_t *trx, const dict_table_t *table);
-
   /** Write DDL log for deleting tablespace file
   @param[in,out]        trx             transaction
   @param[in]    table           dict table
@@ -530,25 +513,6 @@ class Log_DDL {
   @param[in]    index_id        index id */
   void replay_free_tree_log(space_id_t space_id, page_no_t page_no,
                             ulint index_id);
-
-  /** Insert a load bulk log record
-  @param[in,out]  trx             transaction
-  @param[in]    id              log id
-  @param[in]    thread_id       thread id
-  @param[in]    space_id        tablespace id
-  @param[in]    index_id        index id
-  @param[in]    root  root page of clustered index.
-  @return DB_SUCCESS or error */
-  dberr_t insert_load_bulk_log(trx_t *trx, uint64_t id, ulint thread_id,
-                               space_id_t space_id, space_index_t index_id,
-                               page_no_t root);
-
-  /** Replay load bulk log record.
-  @param[in]    space_id        tablespace id
-  @param[in]    index_id        index id
-  @param[in] root   root page of the clustered index. */
-  void replay_load_bulk_log(space_id_t space_id, space_index_t index_id,
-                            page_no_t root);
 
   /** Insert a DELETE log record
   @param[in,out]        trx             transaction

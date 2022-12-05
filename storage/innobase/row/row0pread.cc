@@ -804,13 +804,6 @@ std::shared_ptr<Parallel_reader::Ctx> Parallel_reader::dequeue() {
   return (ctx);
 }
 
-size_t Parallel_reader::get_scan_ctx_count() const {
-  mutex_enter(&m_mutex);
-  size_t n = m_ctxs.size();
-  mutex_exit(&m_mutex);
-  return n;
-}
-
 bool Parallel_reader::is_queue_empty() const {
   mutex_enter(&m_mutex);
   auto empty = m_ctxs.empty();
@@ -847,24 +840,18 @@ void Parallel_reader::worker(Parallel_reader::Thread_ctx *thread_ctx) {
 
     while (err == DB_SUCCESS && cb_err == DB_SUCCESS && !is_error_set()) {
       auto ctx = dequeue();
+
       if (ctx == nullptr) {
         break;
       }
+
       auto scan_ctx = ctx->m_scan_ctx;
+
       if (scan_ctx->is_error_set()) {
         break;
       }
+
       ctx->m_thread_ctx = thread_ctx;
-      const space_id_t space_id = ctx->index()->space;
-
-      ib::info(ER_IB_PARALLEL_READER_WORKER_INFO, (size_t)space_id,
-               ctx->get_table_name(), ctx->get_index_name(), scan_ctx->id(),
-               ctx->id(), ctx->thread_id(), m_n_threads);
-
-      /* If one range per thread is enabled, then no splitting is allowed. */
-      if (m_one_range_per_thread) {
-        ctx->m_split = false;
-      }
 
       if (ctx->m_split) {
         err = ctx->split();
@@ -898,10 +885,6 @@ void Parallel_reader::worker(Parallel_reader::Thread_ctx *thread_ctx) {
       ut_ad(err == DB_SUCCESS || scan_ctx->is_error_set());
 
       ++n_completed;
-
-      if (m_one_range_per_thread) {
-        break;
-      }
     }
 
     if (cb_err != DB_SUCCESS || err != DB_SUCCESS || is_error_set()) {
@@ -919,9 +902,6 @@ void Parallel_reader::worker(Parallel_reader::Thread_ctx *thread_ctx) {
     if (!m_sync) {
       os_event_wait_time_low(m_event, std::chrono::microseconds::max(),
                              sig_count);
-    }
-    if (m_one_range_per_thread) {
-      break;
     }
   }
 
@@ -947,8 +927,7 @@ void Parallel_reader::worker(Parallel_reader::Thread_ctx *thread_ctx) {
     }
   }
 
-  ut_a(is_error_set() || (m_n_completed == m_ctx_id && is_queue_empty()) ||
-       m_one_range_per_thread);
+  ut_a(is_error_set() || (m_n_completed == m_ctx_id && is_queue_empty()));
 }
 
 page_no_t Parallel_reader::Scan_ctx::search(const buf_block_t *block,
@@ -1232,6 +1211,7 @@ dberr_t Parallel_reader::Scan_ctx::partition(
   }
 
   mtr.commit();
+
   return (err);
 }
 
@@ -1260,8 +1240,7 @@ dberr_t Parallel_reader::Scan_ctx::create_context(const Range &range,
   return (err);
 }
 
-dberr_t Parallel_reader::Scan_ctx::create_contexts(
-    const Ranges &ranges, const bool one_range_per_thread) {
+dberr_t Parallel_reader::Scan_ctx::create_contexts(const Ranges &ranges) {
   size_t split_point{};
 
   {
@@ -1281,7 +1260,6 @@ dberr_t Parallel_reader::Scan_ctx::create_contexts(
   size_t i{};
 
   for (auto range : ranges) {
-    ut_ad(!one_range_per_thread || i < split_point);
     auto err = create_context(range, i >= split_point);
 
     if (err != DB_SUCCESS) {
@@ -1374,6 +1352,7 @@ dberr_t Parallel_reader::spawn(size_t n_threads) noexcept {
 dberr_t Parallel_reader::run(size_t n_threads) {
   /* In case this is a retry after a DB_OUT_OF_RESOURCES error. */
   m_err = DB_SUCCESS;
+
   ut_a(max_threads() >= n_threads);
 
   if (n_threads == 0) {
@@ -1410,28 +1389,9 @@ dberr_t Parallel_reader::run(size_t n_threads) {
   return DB_SUCCESS;
 }
 
-void Parallel_reader::Scan_ctx::limit_ranges(Ranges &range, int target) {
-  size_t ranges_to_merge = (range.size() + target - 1) / target;
-
-  if (ranges_to_merge < 2) {
-    return;
-  }
-
-  for (auto iter = range.begin(); iter != range.end(); ++iter) {
-    auto next_iter = iter;
-    ++next_iter;
-    for (size_t i = 1; i < ranges_to_merge && next_iter != range.end(); ++i) {
-      (*iter).second = (*next_iter).second;
-      range.erase(next_iter);
-      next_iter = iter;
-      ++next_iter;
-    }
-  }
-}
-
 dberr_t Parallel_reader::add_scan(trx_t *trx,
                                   const Parallel_reader::Config &config,
-                                  Parallel_reader::F &&f, size_t max_ctxs) {
+                                  Parallel_reader::F &&f) {
   // clang-format off
 
   auto scan_ctx = std::shared_ptr<Scan_ctx>(
@@ -1462,8 +1422,10 @@ dberr_t Parallel_reader::add_scan(trx_t *trx,
     scan_ctx->index_s_unlock();
     return (err);
   }
-  scan_ctx->limit_ranges(ranges, (max_ctxs == 0) ? 1 : max_ctxs);
-  err = scan_ctx->create_contexts(ranges, m_one_range_per_thread);
+
+  err = scan_ctx->create_contexts(ranges);
+
   scan_ctx->index_s_unlock();
+
   return (err);
 }

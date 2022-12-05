@@ -304,12 +304,9 @@ class Parallel_reader {
   @param[in,out]  trx         Covering transaction.
   @param[in]      config      Scan condfiguration.
   @param[in]      f           Callback function.
-  @param[in]  max_n_ctx  maximum number of exec contexts. If 0 is passed, it
-   is considered as 1. By default it has some high value to indicate +infinity.
-  @return DB_SUCCESS on success, an error code on failure. */
-  [[nodiscard]] dberr_t add_scan(
-      trx_t *trx, const Config &config, F &&f,
-      size_t max_n_ctx = std::numeric_limits<size_t>::max());
+  (default is 0 which is leaf level)
+  @return error. */
+  [[nodiscard]] dberr_t add_scan(trx_t *trx, const Config &config, F &&f);
 
   /** Wait for the join of threads spawned by the parallel reader. */
   void join() {
@@ -367,18 +364,6 @@ class Parallel_reader {
     m_n_threads = n_threads;
   }
 
-  [[nodiscard]] size_t get_n_threads() const noexcept { return m_n_threads; }
-
-  /** Enable the mode where one thread should process only one range. */
-  void enable_one_range_per_thread() { m_one_range_per_thread = true; }
-
-  /** Get the scan context queue size
-  @return the scan context queue size. */
-  [[nodiscard]] size_t get_scan_ctx_count() const;
-
-  /** @return true if job queue is empty. */
-  [[nodiscard]] bool is_queue_empty() const;
-
   // Disable copying.
   Parallel_reader(const Parallel_reader &) = delete;
   Parallel_reader(const Parallel_reader &&) = delete;
@@ -400,6 +385,9 @@ class Parallel_reader {
   /** Fetch the next job execute.
   @return job to execute or nullptr. */
   [[nodiscard]] std::shared_ptr<Ctx> dequeue();
+
+  /** @return true if job queue is empty. */
+  [[nodiscard]] bool is_queue_empty() const;
 
   /** Poll for requests and execute.
   @param[in]  thread_ctx  thread related context information */
@@ -476,8 +464,6 @@ class Parallel_reader {
 
   /** Context information related to each parallel reader thread. */
   std::vector<Thread_ctx *, ut::allocator<Thread_ctx *>> m_thread_ctxs;
-
-  bool m_one_range_per_thread{false};
 };
 
 /** Parallel reader context. */
@@ -516,17 +502,8 @@ class Parallel_reader::Scan_ctx {
 
     /** Persistent cursor.*/
     btr_pcur_t *m_pcur{};
-
-    std::ostream &print(std::ostream &out) const {
-      out << "[Iter: m_heap=" << (void *)m_heap
-          << ", m_offsets=" << (void *)m_offsets << ", m_rec=" << (void *)m_rec
-          << ", m_tuple=" << (void *)m_tuple << ", m_pur=" << (void *)m_pcur
-          << "]";
-      return out;
-    }
   };
 
- private:
   /** mtr_t savepoint. */
   using Savepoint = std::pair<ulint, buf_block_t *>;
 
@@ -536,8 +513,7 @@ class Parallel_reader::Scan_ctx {
   /** The first cursor should read up to the second cursor [f, s). */
   using Range = std::pair<std::shared_ptr<Iter>, std::shared_ptr<Iter>>;
 
-  /** A type to represent a collection of Range objects */
-  using Ranges = std::list<Range, ut::allocator<Range>>;
+  using Ranges = std::vector<Range, ut::allocator<Range>>;
 
   /** @return the scan context ID. */
   [[nodiscard]] size_t id() const { return m_id; }
@@ -596,11 +572,6 @@ class Parallel_reader::Scan_ctx {
   void create_range(Ranges &ranges, page_cur_t &leaf_page_cursor,
                     mtr_t *mtr) const;
 
-  /** Limit the number of ranges to given target.
-  @param[in,out]  range  the range collection whose size is limited.
-  @param[in]  target the maximum number of ranges allowed. */
-  void limit_ranges(Ranges &range, int target);
-
   /** Find the subtrees to scan in a block.
   @param[in]      scan_range    Partition based on this scan range.
   @param[in]      page_no       Page to partition at if at required level.
@@ -646,11 +617,8 @@ class Parallel_reader::Scan_ctx {
 
   /** Create the execution contexts based on the ranges.
   @param[in]  ranges            Ranges for which to create the contexts.
-  @param[in]  one_range_per_thread  true if there is a constraint that one
-              thread should handle only one range.
   @return DB_SUCCESS or error code. */
-  [[nodiscard]] dberr_t create_contexts(const Ranges &ranges,
-                                        const bool one_range_per_thread);
+  [[nodiscard]] dberr_t create_contexts(const Ranges &ranges);
 
   /** @return the maximum number of threads configured. */
   [[nodiscard]] size_t max_threads() const { return m_reader->max_threads(); }
@@ -671,10 +639,6 @@ class Parallel_reader::Scan_ctx {
   bool index_s_own() const {
     return m_s_locks.load(std::memory_order_acquire) > 0;
   }
-
-  /** Get the depth of the tree.
-  @return the depth of the tree. */
-  size_t depth() const { return m_depth; }
 
  private:
   using Config = Parallel_reader::Config;
@@ -737,12 +701,6 @@ class Parallel_reader::Ctx {
   /** @return the index being scanned. */
   [[nodiscard]] const dict_index_t *index() const {
     return m_scan_ctx->m_config.m_index;
-  }
-
-  [[nodiscard]] const char *get_index_name() const { return index()->name(); }
-
-  [[nodiscard]] const char *get_table_name() const {
-    return index()->table_name;
   }
 
   /** @return ID of the thread processing this context */
