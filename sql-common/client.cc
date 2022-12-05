@@ -7461,10 +7461,15 @@ void mysql_close_free(MYSQL *mysql) {
 
   /* Clear pointers for better safety */
   mysql->host_info = nullptr;
+  mysql->host = nullptr;
+  mysql->unix_socket = nullptr;
+  mysql->server_version = nullptr;
   mysql->user = nullptr;
   mysql->passwd = nullptr;
   mysql->db = nullptr;
   mysql->extension = nullptr;
+  mysql->thd = nullptr;
+  mysql->charset = nullptr;
 }
 
 /**
