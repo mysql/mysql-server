@@ -79,7 +79,7 @@ struct process_waiter {
   ~process_waiter() { assert(!valid()); close_handle(); }
   process_waiter& operator=(const process_waiter&) = delete;
   process_waiter& operator=(process_waiter&& oth) {
-    using swap = std::swap;
+    using std::swap;
     swap(h,oth.h);
     return *this;
   }
