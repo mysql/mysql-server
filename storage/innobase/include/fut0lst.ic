@@ -56,9 +56,11 @@ static inline void flst_write_addr(
     fil_addr_t addr,    /*!< in: file address */
     mtr_t *mtr)         /*!< in: mini-transaction handle */
 {
-  ut_ad(faddr && mtr);
-  ut_ad(mtr_memo_contains_page_flagged(
-      mtr, faddr, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+  ut_ad(faddr != nullptr);
+  ut_ad(mtr != nullptr || buf_page_t::is_memory(faddr));
+  ut_ad(mtr == nullptr ||
+        mtr_memo_contains_page_flagged(
+            mtr, faddr, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
   ut_a(addr.page == FIL_NULL || addr.boffset >= FIL_PAGE_DATA);
   ut_a(ut_align_offset(faddr, UNIV_PAGE_SIZE) >= FIL_PAGE_DATA);
 
@@ -74,10 +76,15 @@ static inline fil_addr_t flst_read_addr(
 {
   fil_addr_t addr;
 
-  ut_ad(faddr && mtr);
+  ut_ad(faddr != nullptr);
 
-  addr.page = mtr_read_ulint(faddr + FIL_ADDR_PAGE, MLOG_4BYTES, mtr);
-  addr.boffset = mtr_read_ulint(faddr + FIL_ADDR_BYTE, MLOG_2BYTES, mtr);
+  if (mtr == nullptr) {
+    addr.page = mach_read_ulint(faddr + FIL_ADDR_PAGE, MLOG_4BYTES);
+    addr.boffset = mach_read_ulint(faddr + FIL_ADDR_BYTE, MLOG_2BYTES);
+  } else {
+    addr.page = mtr_read_ulint(faddr + FIL_ADDR_PAGE, MLOG_4BYTES, mtr);
+    addr.boffset = mtr_read_ulint(faddr + FIL_ADDR_BYTE, MLOG_2BYTES, mtr);
+  }
   ut_a(addr.page == FIL_NULL || addr.boffset >= FIL_PAGE_DATA);
   ut_a(ut_align_offset(faddr, UNIV_PAGE_SIZE) >= FIL_PAGE_DATA);
   return (addr);
@@ -88,8 +95,10 @@ static inline void flst_init(
     flst_base_node_t *base, /*!< in: pointer to base node */
     mtr_t *mtr)             /*!< in: mini-transaction handle */
 {
-  ut_ad(mtr_memo_contains_page_flagged(
-      mtr, base, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
+  ut_ad(mtr != nullptr || buf_page_t::is_memory(base));
+  ut_ad(mtr == nullptr ||
+        mtr_memo_contains_page_flagged(
+            mtr, base, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
 
   mlog_write_ulint(base + FLST_LEN, 0, MLOG_4BYTES, mtr);
   flst_write_addr(base + FLST_FIRST, fil_addr_null, mtr);

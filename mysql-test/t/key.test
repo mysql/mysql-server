@@ -1,6 +1,10 @@
 # one subtest needs page size > 8k
 SET SQL_WARNINGS=1;
 
+--disable_query_log
+call mtr.add_suppression(".InnoDB. Compare_key: table=.*, index=.*");
+--enable_query_log
+
 #
 # This failed for Elizabeth Mattijsen
 #

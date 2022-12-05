@@ -25,4 +25,49 @@ ALTER TABLE t1 ADD INDEX k1(f2);
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` char(255) DEFAULT NULL,
+  `f3` char(255) DEFAULT NULL,
+  `f4` char(255) DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `k1` (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET GLOBAL innodb_checkpoint_disabled = 1;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+ALTER TABLE t1 ROW_FORMAT = COMPRESSED;
+# Kill and restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` char(255) DEFAULT NULL,
+  `f3` char(255) DEFAULT NULL,
+  `f4` char(255) DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `k1` (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
+SET GLOBAL innodb_checkpoint_disabled = 1;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+ALTER TABLE t1 ADD INDEX k2(f3);
+# Kill and restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` char(255) DEFAULT NULL,
+  `f3` char(255) DEFAULT NULL,
+  `f4` char(255) DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `k1` (`f2`),
+  KEY `k2` (`f3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 DROP TABLE t1;

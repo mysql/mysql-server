@@ -33,7 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace lob {
 
-typedef std::map<page_no_t, buf_block_t *> BlockCache;
+using Block_cache = std::map<page_no_t, buf_block_t *>;
 struct first_page_t;
 
 /** An in-memory copy of an index_entry_t data */
@@ -107,16 +107,39 @@ struct index_entry_t {
   /** Constructor.
   @param[in]    node    the pointer where index entry is located. */
   index_entry_t(flst_node_t *node)
-      : m_node(node), m_mtr(nullptr), m_index(nullptr), m_block(nullptr) {}
+      : index_entry_t(node, nullptr, nullptr, nullptr, nullptr) {}
 
   index_entry_t(flst_node_t *node, mtr_t *mtr)
-      : m_node(node), m_mtr(mtr), m_index(nullptr), m_block(nullptr) {}
+      : index_entry_t(node, mtr, nullptr, nullptr, nullptr) {}
 
   index_entry_t(flst_node_t *node, mtr_t *mtr, dict_index_t *index)
-      : m_node(node), m_mtr(mtr), m_index(index), m_block(nullptr) {}
+      : index_entry_t(node, mtr, index, nullptr, nullptr) {}
+
+  index_entry_t(flst_node_t *node, mtr_t *mtr, dict_index_t *index,
+                Btree_load *btree_load)
+      : index_entry_t(node, mtr, index, nullptr, btree_load) {}
 
   index_entry_t(mtr_t *mtr, const dict_index_t *index)
-      : m_node(nullptr), m_mtr(mtr), m_index(index), m_block(nullptr) {}
+      : index_entry_t(nullptr, mtr, index, nullptr, nullptr) {}
+
+  index_entry_t(flst_node_t *node, mtr_t *mtr, const dict_index_t *index,
+                buf_block_t *block)
+      : index_entry_t(node, mtr, index, block, nullptr) {}
+
+  /** Constructor.
+  @param[in]  node  the pointer where index entry is located.
+  @param[in]  mtr  mini transaction context. Could be nullptr during bulk
+                   operation and the buffer block is of state BUF_BLOCK_MEMORY.
+  @param[in]  index   the index to which LOB belongs.
+  @param[in]  block   the buffer block containing the index entry.
+  @param[in]  btree_load  bulk load context. */
+  index_entry_t(flst_node_t *node, mtr_t *mtr, const dict_index_t *index,
+                buf_block_t *block, Btree_load *btree_load)
+      : m_node(node),
+        m_mtr(mtr),
+        m_index(index),
+        m_block(block),
+        m_btree_load(btree_load) {}
 
   /* Move the node pointer to a different place within the same page.
   @param[in]    addr    new location of node pointer. */
@@ -140,26 +163,13 @@ struct index_entry_t {
   }
 
   /** Initialize the object fully. */
-  void init() {
-    set_prev_null();
-    set_next_null();
-    set_versions_null();
-    set_trx_id(0);
-    set_trx_undo_no(0);
-    set_page_no(FIL_NULL);
-    set_data_len(0);
-  }
+  inline void init();
 
   /** Get the location of the current index entry. */
   fil_addr_t get_self() const;
 
   /** The versions base node is set to NULL. */
-  void set_versions_null() {
-    ut_ad(m_mtr != nullptr);
-
-    byte *base_node = get_versions_ptr();
-    flst_init(base_node, m_mtr);
-  }
+  inline void set_versions_null();
 
   /** Determine if the current index entry be rolled back.
   @param[in]    trxid           the transaction that is being purged.
@@ -221,9 +231,7 @@ struct index_entry_t {
 
   /** Add this node as the last node in the given list.
   @param[in]  bnode  the base node of the file list. */
-  void push_back(flst_base_node_t *bnode) {
-    flst_add_last(bnode, m_node, m_mtr);
-  }
+  inline void push_back(flst_base_node_t *bnode);
 
   /** Get the base node of the list of versions. */
   flst_bnode_t get_versions_mem() const {
@@ -308,44 +316,26 @@ struct index_entry_t {
     mach_write_to_6(ptr, id);
   }
 
-  void set_trx_id(trx_id_t id) {
-    byte *ptr = get_trxid_ptr();
-    mach_write_to_6(ptr, id);
-    mlog_log_string(ptr, 6, m_mtr);
-  }
+  /** Write the trx identifier to the index entry.
+  @param[in]	id	the trx identifier.*/
+  inline void set_trx_id(trx_id_t id);
 
-  void set_trx_id_modifier(trx_id_t id) {
-    ut_ad(m_mtr != nullptr);
+  inline void set_trx_id_modifier(trx_id_t id);
 
-    byte *ptr = get_trxid_modifier_ptr();
-    mach_write_to_6(ptr, id);
-    mlog_log_string(ptr, 6, m_mtr);
-  }
-
-  void set_trx_undo_no(undo_no_t undo_no) {
-    byte *ptr = get_trx_undo_no_ptr();
-    mlog_write_ulint(ptr, undo_no, MLOG_4BYTES, m_mtr);
-  }
+  /** Write the undo number to the index entry.
+  @param[in]  undo_no  the undo number within a trx. */
+  inline void set_trx_undo_no(undo_no_t undo_no);
 
   /** Set the LOB version of this entry.
   @param[in]    version         the LOB version number. */
-  void set_lob_version(uint32_t version) {
-    byte *ptr = get_lob_version_ptr();
-    mlog_write_ulint(ptr, version, MLOG_4BYTES, m_mtr);
-  }
+  inline void set_lob_version(uint32_t version);
 
-  void set_trx_undo_no_modifier(undo_no_t undo_no) {
-    ut_ad(m_mtr != nullptr);
+  /** Set the undo number of the modifying transaction. */
+  inline void set_trx_undo_no_modifier(undo_no_t undo_no);
 
-    byte *ptr = get_trx_undo_no_modifier_ptr();
-    mlog_write_ulint(ptr, undo_no, MLOG_4BYTES, m_mtr);
-  }
-
-  void set_page_no(page_no_t num) {
-    ut_ad(num > 0);
-    byte *ptr = get_pageno_ptr();
-    return (mlog_write_ulint(ptr, num, MLOG_4BYTES, m_mtr));
-  }
+  /** Set the page number to which the index entry points to.
+  @param[in]  num   the page number of the LOB page. */
+  inline void set_page_no(page_no_t num);
 
   void set_prev_null() {
     flst_write_addr(m_node + OFFSET_PREV, fil_addr_null, m_mtr);
@@ -360,10 +350,9 @@ struct index_entry_t {
     return (mach_read_from_4(ptr));
   }
 
-  void set_data_len(ulint len) {
-    byte *ptr = get_datalen_ptr();
-    return (mlog_write_ulint(ptr, len, MLOG_2BYTES, m_mtr));
-  }
+  /** Set the amount of data pointed to by this index entry.
+  @param[in]  len   amount of data (in bytes) pointed to by this index entry.*/
+  inline void set_data_len(ulint len);
 
   ulint get_data_len() const {
     byte *ptr = get_datalen_ptr();
@@ -442,11 +431,102 @@ struct index_entry_t {
   byte *get_node() const { return (m_node); }
 
  private:
-  byte *m_node;
-  mtr_t *m_mtr;
-  const dict_index_t *m_index;
-  buf_block_t *m_block;
+  byte *m_node{};
+  mtr_t *m_mtr{};
+  const dict_index_t *m_index{};
+  buf_block_t *m_block{};
+
+  /** Bulk load context object. */
+  Btree_load *m_btree_load{};
 };
+
+void index_entry_t::push_back(flst_base_node_t *bnode) {
+  ut_ad(m_mtr == nullptr || m_btree_load == nullptr);
+  ut_ad(m_mtr != nullptr || buf_page_t::is_memory(m_node));
+  ut_ad(m_mtr != nullptr || buf_page_t::is_memory(bnode));
+  flst_add_last(bnode, m_node, m_mtr, m_btree_load);
+}
+
+void index_entry_t::set_lob_version(uint32_t version) {
+  ut_ad(m_mtr != nullptr || m_block == nullptr || m_block->is_memory());
+  ut_ad(m_mtr != nullptr || buf_page_t::is_memory(m_node));
+  byte *ptr = get_lob_version_ptr();
+  mlog_write_ulint(ptr, version, MLOG_4BYTES, m_mtr);
+}
+
+void index_entry_t::set_trx_undo_no_modifier(undo_no_t undo_no) {
+  ut_ad(m_mtr != nullptr || m_block == nullptr || m_block->is_memory());
+  ut_ad(m_mtr != nullptr || buf_page_t::is_memory(m_node));
+
+  byte *ptr = get_trx_undo_no_modifier_ptr();
+  mlog_write_ulint(ptr, undo_no, MLOG_4BYTES, m_mtr);
+}
+
+void index_entry_t::set_trx_id_modifier(trx_id_t id) {
+  ut_ad(m_mtr != nullptr || m_block == nullptr || m_block->is_memory());
+  ut_ad(m_mtr != nullptr || buf_page_t::is_memory(m_node));
+
+  byte *ptr = get_trxid_modifier_ptr();
+  mach_write_to_6(ptr, id);
+  if (m_mtr != nullptr) {
+    mlog_log_string(ptr, 6, m_mtr);
+  }
+}
+
+void index_entry_t::set_data_len(ulint len) {
+  ut_ad(m_mtr != nullptr || m_block == nullptr || m_block->is_memory());
+  ut_ad(m_mtr != nullptr || buf_page_t::is_memory(m_node));
+
+  byte *ptr = get_datalen_ptr();
+  return (mlog_write_ulint(ptr, len, MLOG_2BYTES, m_mtr));
+}
+
+void index_entry_t::set_page_no(page_no_t num) {
+  ut_ad(m_mtr != nullptr || m_block == nullptr || m_block->is_memory());
+  ut_ad(m_mtr != nullptr || buf_page_t::is_memory(m_node));
+  ut_ad(num > 0);
+
+  byte *ptr = get_pageno_ptr();
+  return (mlog_write_ulint(ptr, num, MLOG_4BYTES, m_mtr));
+}
+
+void index_entry_t::set_trx_undo_no(undo_no_t undo_no) {
+  ut_ad(m_mtr != nullptr || m_block == nullptr || m_block->is_memory());
+  ut_ad(m_mtr != nullptr || buf_page_t::is_memory(m_node));
+
+  byte *ptr = get_trx_undo_no_ptr();
+  mlog_write_ulint(ptr, undo_no, MLOG_4BYTES, m_mtr);
+}
+
+void index_entry_t::set_versions_null() {
+  ut_ad(m_mtr != nullptr || m_block == nullptr || m_block->is_memory());
+  ut_ad(m_mtr != nullptr || buf_page_t::is_memory(m_node));
+
+  byte *base_node = get_versions_ptr();
+  flst_init(base_node, m_mtr);
+}
+
+void index_entry_t::init() {
+  set_prev_null();
+  set_next_null();
+  set_versions_null();
+  set_trx_id(0);
+  set_trx_undo_no(0);
+  set_page_no(FIL_NULL);
+  set_data_len(0);
+}
+
+void index_entry_t::set_trx_id(trx_id_t id) {
+  ut_ad(m_mtr != nullptr || m_block == nullptr || m_block->is_memory());
+  ut_ad(m_mtr != nullptr || buf_page_t::is_memory(m_node));
+
+  byte *ptr = get_trxid_ptr();
+  mach_write_to_6(ptr, id);
+
+  if (m_mtr != nullptr) {
+    mlog_log_string(ptr, 6, m_mtr);
+  }
+}
 
 /** Overloading the global output operator to easily print an index entry.
 @param[in]      out     the output stream.

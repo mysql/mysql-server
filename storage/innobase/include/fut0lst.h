@@ -45,6 +45,8 @@ applied to these types! */
 typedef byte flst_base_node_t;
 typedef byte flst_node_t;
 
+class Btree_load;
+
 /* The physical size of a list base node in bytes */
 constexpr ulint FLST_BASE_NODE_SIZE = 4 + 2 * FIL_ADDR_SIZE;
 
@@ -57,22 +59,31 @@ constexpr ulint FLST_NODE_SIZE = 2 * FIL_ADDR_SIZE;
 static inline void flst_init(flst_base_node_t *base, mtr_t *mtr);
 
 /** Adds a node as the last node in a list.
-@param[in] base Pointer to base node of list
-@param[in] node Node to add
-@param[in] mtr Mini-transaction handle */
-void flst_add_last(flst_base_node_t *base, flst_node_t *node, mtr_t *mtr);
+@param[in] base        Pointer to base node of list.
+@param[in] node        Node to add.
+@param[in] mtr         Mini-transaction handle.
+@param[in] btree_load  bulk load context. It will contain all pages containing
+                       the list.  Default is nullptr. */
+void flst_add_last(flst_base_node_t *base, flst_node_t *node, mtr_t *mtr,
+                   const Btree_load *btree_load = nullptr);
 
 /** Adds a node as the first node in a list.
-@param[in] base Pointer to base node of list
-@param[in] node Node to add
-@param[in] mtr Mini-transaction handle */
-void flst_add_first(flst_base_node_t *base, flst_node_t *node, mtr_t *mtr);
+@param[in] base        Pointer to base node of list
+@param[in] node        Node to add
+@param[in] mtr         Mini-transaction handle
+@param[in] btree_load  bulk load context. It will contain all pages containing
+                       the list.  Default is nullptr. */
+void flst_add_first(flst_base_node_t *base, flst_node_t *node, mtr_t *mtr,
+                    Btree_load *btree_load = nullptr);
 
 /** Removes a node.
-@param[in] base Pointer to base node of list
-@param[in] node2 Node to remove
-@param[in] mtr Mini-transaction handle */
-void flst_remove(flst_base_node_t *base, flst_node_t *node2, mtr_t *mtr);
+@param[in] base        Pointer to base node of list
+@param[in] node2       Node to remove
+@param[in] mtr         Mini-transaction handle
+@param[in] btree_load  bulk load context. It will contain all pages containing
+                       the list.  Default is nullptr. */
+void flst_remove(flst_base_node_t *base, flst_node_t *node2, mtr_t *mtr,
+                 const Btree_load *btree_load = nullptr);
 
 /** Get the length of a list.
 @param[in]      base    base node
@@ -121,9 +132,12 @@ static inline void flst_write_addr(fil_faddr_t *faddr, fil_addr_t addr,
 static inline fil_addr_t flst_read_addr(const fil_faddr_t *faddr, mtr_t *mtr);
 
 /** Validates a file-based list.
- @param[in] base pointer to base node of list
- @param[in] mtr1 mtr */
-void flst_validate(const flst_base_node_t *base, mtr_t *mtr1);
+@param[in]   base  pointer to base node of list.
+@param[in]   mtr1  mini transaction context.
+@param[in]   btree_load  During bulk load, mtr1 could be nullptr.  Use this
+                         object to access the pages containing flst nodes.*/
+void flst_validate(const flst_base_node_t *base, mtr_t *mtr1,
+                   const Btree_load *btree_load = nullptr);
 
 /** Inserts a node after another in a list.
 @param[in]      base    Pointer to base node of list

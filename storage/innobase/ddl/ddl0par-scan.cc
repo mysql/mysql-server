@@ -75,6 +75,11 @@ struct Parallel_cursor : public Cursor {
   /** @return true if EOF reached. */
   [[nodiscard]] virtual bool eof() const noexcept override { return m_eof; }
 
+  [[nodiscard]] virtual mem_heap_t *get_tuple_heap(
+      size_t thread_id) noexcept override {
+    return m_heaps[thread_id];
+  }
+
  private:
   using Heaps = std::vector<mem_heap_t *, ut::allocator<mem_heap_t *>>;
 
@@ -93,10 +98,8 @@ struct Parallel_cursor : public Cursor {
 
 dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
   ut_a(!builders.empty());
-
   ut_a(!m_ctx.m_online || m_ctx.m_trx->isolation_level ==
                               trx_t::isolation_level_t::REPEATABLE_READ);
-
   size_t n_threads{};
 
   if (!m_single_threaded_mode) {
@@ -104,11 +107,7 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
 
     if (use_n_threads > 1) {
       for (auto &builder : builders) {
-        if (builder->is_skip_file_sort() || builder->is_spatial_index()) {
-          /* Note: Parallel scan will break the order. If in the future we
-          decide to force a parallel scan then we will need to force a file
-          sort later. Or, figure out how to "stitch" the lists together after
-          the dumping the rows from the scan. */
+        if (builder->is_spatial_index()) {
           m_single_threaded_mode = true;
           break;
         }
@@ -281,7 +280,8 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
           err = batch_inserter(thread_ctx);
         }
 
-        /* Reset the heap. Note: row.m_offsets and row.m_ptr are invalid now. */
+        /* Reset the heap. Note: row.m_offsets and row.m_ptr are invalid now.
+         */
         mem_heap_empty(m_heaps[thread_id]);
 
         nr += n_rows[thread_id];
@@ -366,9 +366,13 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
         ++n_rows[thread_id];
 
         return err;
-      });
+      },
+      n_threads);
 
   if (err == DB_SUCCESS) {
+    if (!m_single_threaded_mode) {
+      reader.enable_one_range_per_thread();
+    }
     err = reader.run(n_threads);
 
     if (err == DB_OUT_OF_RESOURCES) {
@@ -384,11 +388,15 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
       for (auto builder : builders) {
         builder->fallback_to_single_thread();
       }
-
       err = reader.run(0);
     }
   }
-
+  ut_ad(reader.is_queue_empty() || err != DB_SUCCESS);
+  if (err == DB_SUCCESS && !reader.is_queue_empty()) {
+    /* If queue is not empty, it indicates that the work distribution between
+    the threads failed.  To avoid data loss, report error. */
+    err = DB_FAIL;
+  }
   return cleanup(m_heaps, err);
 }
 

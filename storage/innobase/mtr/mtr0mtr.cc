@@ -330,10 +330,7 @@ struct Add_dirty_blocks_to_flush_list {
     ut_ad(m_end_lsn > m_start_lsn || (m_end_lsn == 0 && m_start_lsn == 0));
 
 #ifndef UNIV_HOTBACKUP
-    buf_block_t *block;
-
-    block = reinterpret_cast<buf_block_t *>(slot->object);
-
+    buf_block_t *block = reinterpret_cast<buf_block_t *>(slot->object);
     buf_flush_note_modification(block, m_start_lsn, m_end_lsn,
                                 m_flush_observer);
 #endif /* !UNIV_HOTBACKUP */

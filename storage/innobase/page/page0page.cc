@@ -305,8 +305,7 @@ static const byte infimum_supremum_compact[] = {
 @param[in]      comp            nonzero=compact page format
 @param[in]      page_type       page type
 @return pointer to the page */
-static page_t *page_create_low(buf_block_t *block, ulint comp,
-                               page_type_t page_type) {
+page_t *page_create_low(buf_block_t *block, ulint comp, page_type_t page_type) {
   page_t *page;
 
   static_assert(PAGE_BTR_IBUF_FREE_LIST + FLST_BASE_NODE_SIZE <= PAGE_DATA,
@@ -1584,18 +1583,19 @@ void page_print_list(
 
   ut_a(page_is_comp(page) == dict_table_is_comp(index->table));
 
-  fprint(stderr,
-         "--------------------------------\n"
-         "PAGE RECORD LIST\n"
-         "Page address %p\n",
-         page);
+  fprintf(stderr,
+          "--------------------------------\n"
+          "PAGE RECORD LIST\n"
+          "Page address %p\n",
+          page);
 
   n_recs = page_get_n_recs(page);
 
   page_cur_set_before_first(block, &cur);
   count = 0;
   for (;;) {
-    offsets = rec_get_offsets(cur.rec, index, offsets, ULINT_UNDEFINED, &heap);
+    offsets = rec_get_offsets(cur.rec, index, offsets, ULINT_UNDEFINED,
+                              UT_LOCATION_HERE, &heap);
     page_rec_print(cur.rec, offsets);
 
     if (count == pr_n) {
@@ -1616,8 +1616,8 @@ void page_print_list(
     page_cur_move_to_next(&cur);
 
     if (count + pr_n >= n_recs) {
-      offsets =
-          rec_get_offsets(cur.rec, index, offsets, ULINT_UNDEFINED, &heap);
+      offsets = rec_get_offsets(cur.rec, index, offsets, ULINT_UNDEFINED,
+                                UT_LOCATION_HERE, &heap);
       page_rec_print(cur.rec, offsets);
     }
     count++;

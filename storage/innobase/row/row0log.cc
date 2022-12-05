@@ -182,7 +182,7 @@ directly. When also head.bytes == tail.bytes, both counts will be
 reset to 0 and the file will be truncated. */
 struct row_log_t {
   /** File descriptor */
-  ddl::Unique_os_file_descriptor file;
+  os_fd_t fd;
 
   /** Mutex protecting error, max_trx and tail */
   ib_mutex_t mutex;
@@ -233,17 +233,19 @@ struct row_log_t {
 /** Create the file or online log if it does not exist.
 @param[in,out] log     online rebuild log
 @return true if success, false if not */
-[[nodiscard]] static bool row_log_tmpfile(row_log_t *log) {
+[[nodiscard]] static int row_log_tmpfile(row_log_t *log) {
   DBUG_TRACE;
-  if (!log->file.is_open()) {
-    log->file = ddl::file_create_low(log->path);
-    DBUG_EXECUTE_IF("row_log_tmpfile_fail", log->file.close(););
-    if (log->file.is_open()) {
+  if (log->fd < 0) {
+    log->fd = ddl::file_create_low_simple(log->path);
+    DBUG_EXECUTE_IF("row_log_tmpfile_fail",
+                    if (log->fd > 0) ddl::file_destroy_low(log->fd);
+                    log->fd = OS_FD_CLOSED;);
+    if (log->fd >= 0) {
       MONITOR_ATOMIC_INC(MONITOR_ALTER_TABLE_LOG_FILES);
     }
   }
 
-  return log->file.is_open();
+  return log->fd;
 }
 
 /** Allocate the memory for the log buffer.
@@ -374,12 +376,12 @@ void row_log_online_op(
 
     UNIV_MEM_ASSERT_RW(log->tail.block, srv_sort_buf_size);
 
-    if (!row_log_tmpfile(log)) {
+    if (row_log_tmpfile(log) < 0) {
       log->error = DB_OUT_OF_MEMORY;
       goto err_exit;
     }
 
-    err = os_file_write_int_fd(request, "(modification log)", log->file.get(),
+    err = os_file_write_int_fd(request, "(modification log)", log->fd,
                                log->tail.block, byte_offset, srv_sort_buf_size);
 
     log->tail.blocks++;
@@ -477,12 +479,12 @@ static void row_log_table_close_func(row_log_t *log,
 
     UNIV_MEM_ASSERT_RW(log->tail.block, srv_sort_buf_size);
 
-    if (!row_log_tmpfile(log)) {
+    if (row_log_tmpfile(log) < 0) {
       log->error = DB_OUT_OF_MEMORY;
       goto err_exit;
     }
 
-    err = os_file_write_int_fd(request, "(modification log)", log->file.get(),
+    err = os_file_write_int_fd(request, "(modification log)", log->fd,
                                log->tail.block, byte_offset, srv_sort_buf_size);
 
     log->tail.blocks++;
@@ -2283,8 +2285,11 @@ flag_ok:
 
   if (big_rec) {
     if (error == DB_SUCCESS) {
-      error = lob::btr_store_big_rec_extern_fields(
-          trx, &pcur, update, cur_offsets, big_rec, &mtr, lob::OPCODE_UPDATE);
+      lob::Lob_ctx lob_ctx;
+      lob_ctx.m_trx = trx;
+      error = lob::btr_store_big_rec_extern_fields(lob_ctx, &pcur, update,
+                                                   cur_offsets, big_rec, &mtr,
+                                                   lob::OPCODE_UPDATE);
     }
 
     dtuple_big_rec_free(big_rec);
@@ -2798,8 +2803,8 @@ next_block:
     if (index->online_log->head.blocks) {
 #ifdef HAVE_FTRUNCATE
       /* Truncate the file in order to save space. */
-      if (index->online_log->file.is_open() &&
-          ftruncate(index->online_log->file.get(), 0) == -1) {
+      if (index->online_log->fd > 0 &&
+          ftruncate(index->online_log->fd, 0) == -1) {
         perror("ftruncate");
       }
 #endif /* HAVE_FTRUNCATE */
@@ -2842,7 +2847,7 @@ next_block:
     ;
 
     err = os_file_read_no_error_handling_int_fd(
-        request, index->online_log->path, index->online_log->file.get(),
+        request, index->online_log->path, index->online_log->fd,
         index->online_log->head.block, ofs, srv_sort_buf_size, nullptr);
 
     if (err != DB_SUCCESS) {
@@ -2854,7 +2859,7 @@ next_block:
 
 #ifdef POSIX_FADV_DONTNEED
     /* Each block is read exactly once.  Free up the file cache. */
-    posix_fadvise(index->online_log->file.get(), ofs, srv_sort_buf_size,
+    posix_fadvise(index->online_log->fd, ofs, srv_sort_buf_size,
                   POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
 
@@ -3104,6 +3109,7 @@ bool row_log_allocate(dict_index_t *index, dict_table_t *table, bool same_pk,
     return false;
   }
 
+  log->fd = OS_FD_CLOSED;
   mutex_create(LATCH_ID_INDEX_ONLINE_LOG, &log->mutex);
 
   log->blobs = nullptr;
@@ -3141,6 +3147,7 @@ void row_log_free(row_log_t *&log) /*!< in,own: row log */
   ut::delete_(log->blobs);
   row_log_block_free(log->tail);
   row_log_block_free(log->head);
+  ddl::file_destroy_low(log->fd);
   mutex_free(&log->mutex);
   ut::free(log);
   log = nullptr;
@@ -3552,8 +3559,8 @@ next_block:
     if (index->online_log->head.blocks) {
 #ifdef HAVE_FTRUNCATE
       /* Truncate the file in order to save space. */
-      if (index->online_log->file.is_open() &&
-          ftruncate(index->online_log->file.get(), 0) == -1) {
+      if (index->online_log->fd > 0 &&
+          ftruncate(index->online_log->fd, 0) == -1) {
         perror("ftruncate");
       }
 #endif /* HAVE_FTRUNCATE */
@@ -3590,7 +3597,7 @@ next_block:
 
     IORequest request(IORequest::READ | IORequest::ROW_LOG);
     dberr_t err = os_file_read_no_error_handling_int_fd(
-        request, index->online_log->path, index->online_log->file.get(),
+        request, index->online_log->path, index->online_log->fd,
         index->online_log->head.block, ofs, srv_sort_buf_size, nullptr);
 
     if (err != DB_SUCCESS) {
@@ -3602,7 +3609,7 @@ next_block:
 
 #ifdef POSIX_FADV_DONTNEED
     /* Each block is read exactly once.  Free up the file cache. */
-    posix_fadvise(index->online_log->file.get(), ofs, srv_sort_buf_size,
+    posix_fadvise(index->online_log->fd, ofs, srv_sort_buf_size,
                   POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
 

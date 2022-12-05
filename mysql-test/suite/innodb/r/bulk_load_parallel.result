@@ -1,0 +1,18 @@
+SHOW VARIABLES LIKE '%fill_factor%';
+Variable_name	Value
+innodb_fill_factor	100
+SET GLOBAL innodb_fill_factor = 10;
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB);
+SET innodb_interpreter = 'bulk_load_split_mode_1';
+SHOW VARIABLES LIKE '%fill_factor%';
+Variable_name	Value
+innodb_fill_factor	10
+ALTER TABLE t1 ADD INDEX k1(f2(111));
+ALTER TABLE t1 DROP INDEX k1;
+SET innodb_interpreter = 'bulk_load_split_mode_2';
+SHOW VARIABLES LIKE '%fill_factor%';
+Variable_name	Value
+innodb_fill_factor	10
+ALTER TABLE t1 ADD INDEX k2(f2(150));
+DROP TABLE t1;
+SET GLOBAL innodb_fill_factor = DEFAULT;

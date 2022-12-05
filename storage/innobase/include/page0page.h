@@ -799,6 +799,8 @@ param[in]       index   index
 @return true if ok */
 bool page_is_spatial_non_leaf(const rec_t *rec, dict_index_t *index);
 
+page_t *page_create_low(buf_block_t *block, ulint comp, page_type_t page_type);
+
 #include "page0page.ic"
 
 #endif

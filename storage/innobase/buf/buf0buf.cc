@@ -56,6 +56,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lock0lock.h"
 #include "log0buf.h"
 #include "log0chkp.h"
+#include "page0page.h"
 #include "sync0rw.h"
 #include "trx0purge.h"
 #include "trx0undo.h"
@@ -3565,6 +3566,10 @@ struct Buf_fetch {
   @return true if it's an optimistic fetch. */
   bool is_optimistic() const;
 
+  /** Check if the fetch mode is OK with freed pages.
+  @return true if freed pages are OK. */
+  [[nodiscard]] bool is_possibly_freed() const noexcept;
+
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
   dberr_t debug_check(buf_block_t *fix_block);
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
@@ -4107,7 +4112,14 @@ void Buf_fetch<T>::mtr_add_page(buf_block_t *block) {
 template <typename T>
 bool Buf_fetch<T>::is_optimistic() const {
   return (m_mode == Page_fetch::IF_IN_POOL ||
+          m_mode == Page_fetch::IF_IN_POOL_POSSIBLY_FREED ||
           m_mode == Page_fetch::PEEK_IF_IN_POOL);
+}
+
+template <typename T>
+[[nodiscard]] bool Buf_fetch<T>::is_possibly_freed() const noexcept {
+  return (m_mode == Page_fetch::IF_IN_POOL_POSSIBLY_FREED ||
+          m_mode == Page_fetch::POSSIBLY_FREED);
 }
 
 template <typename T>
@@ -4298,8 +4310,7 @@ buf_block_t *Buf_fetch<T>::single_page() {
   }
 #endif /* UNIV_DEBUG */
 
-  ut_ad(m_mode == Page_fetch::POSSIBLY_FREED ||
-        !block->page.file_page_was_freed);
+  ut_ad(is_possibly_freed() || !block->page.file_page_was_freed);
 
   /* Check if this is the first access to the page */
   const auto access_time = buf_page_is_accessed(&block->page);
@@ -4384,6 +4395,7 @@ buf_block_t *buf_page_get_gen(const page_id_t &page_id,
     case Page_fetch::NORMAL:
     case Page_fetch::SCAN:
     case Page_fetch::IF_IN_POOL:
+    case Page_fetch::IF_IN_POOL_POSSIBLY_FREED:
     case Page_fetch::PEEK_IF_IN_POOL:
     case Page_fetch::IF_IN_POOL_OR_WATCH:
     case Page_fetch::POSSIBLY_FREED:
@@ -5363,6 +5375,63 @@ bool buf_page_free_stale(buf_pool_t *buf_pool, buf_page_t *bpage) noexcept {
   return success;
 }
 
+void buf_page_force_evict(const page_id_t &page_id,
+                          const page_size_t &page_size) noexcept {
+  auto buf_pool = buf_pool_get(page_id);
+  while (true) {
+    if (!buf_page_peek(page_id)) {
+      break;
+    }
+    mtr_t mtr;
+    mtr.start();
+    buf_block_t *block = buf_page_get_gen(
+        page_id, page_size, RW_X_LATCH, nullptr,
+        Page_fetch::IF_IN_POOL_POSSIBLY_FREED, UT_LOCATION_HERE, &mtr, false);
+    if (block == nullptr) {
+      break;
+    }
+    buf_page_t *bpage = reinterpret_cast<buf_page_t *>(block);
+    if (bpage->was_stale()) {
+      mutex_enter(&buf_pool->LRU_list_mutex);
+      mtr.commit();
+      ut_ad(buf_page_peek(page_id));
+      bool success = buf_page_free_stale(buf_pool, bpage);
+      if (success) {
+        break;
+      }
+      mutex_exit(&buf_pool->LRU_list_mutex);
+    } else if (!bpage->is_dirty()) {
+      /* A clean page. */
+      mutex_enter(&buf_pool->LRU_list_mutex);
+      mtr.commit();
+      ut_ad(buf_page_peek(page_id));
+      mutex_enter(&block->mutex);
+      bool success = buf_LRU_free_page(bpage, true);
+      if (success) {
+        break;
+      }
+      mutex_exit(&buf_pool->LRU_list_mutex);
+      mutex_exit(&block->mutex);
+    } else {
+      /* The buffer page is not stale and it is dirty. */
+      mutex_enter(&buf_pool->LRU_list_mutex);
+      mtr.commit();
+      ut_ad(buf_page_peek(page_id));
+      mutex_enter(&block->mutex);
+      bool success = false;
+      if (buf_flush_ready_for_flush(bpage, BUF_FLUSH_SINGLE_PAGE)) {
+        const bool sync = true;
+        success = buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, sync);
+      }
+      if (!success) {
+        mutex_exit(&buf_pool->LRU_list_mutex);
+        mutex_exit(&block->mutex);
+      }
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+}
+
 bool buf_page_free_stale(buf_pool_t *buf_pool, buf_page_t *bpage,
                          rw_lock_t *hash_lock) noexcept {
   /* This method's task is to acquire the LRU mutex so that the LRU version of
@@ -5601,14 +5670,15 @@ bool buf_page_t::is_io_fix_read_as_opposed_to_write() const {
 void buf_page_t::set_io_fix(buf_io_fix io_fix) {
   ut_ad(is_correct_io_fix_value(io_fix));
   ut_ad(mutex_own(buf_page_get_mutex(this)));
+  ut_ad(!is_memory());
 #ifdef UNIV_DEBUG
   const auto old_io_fix = this->io_fix.load();
   if (old_io_fix == BUF_IO_NONE &&
       (io_fix == BUF_IO_READ || io_fix == BUF_IO_WRITE)) {
     take_io_responsibility();
   }
+  Latching_rules_helpers::on_transition_to(*this, io_fix);
 #endif
-  ut_d(Latching_rules_helpers::on_transition_to(*this, io_fix));
   this->io_fix.store(io_fix, std::memory_order_relaxed);
 #ifdef UNIV_DEBUG
   if ((old_io_fix == BUF_IO_READ || old_io_fix == BUF_IO_WRITE) &&
@@ -5621,7 +5691,6 @@ void buf_page_t::set_io_fix(buf_io_fix io_fix) {
 bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
   auto buf_pool = buf_pool_from_bpage(bpage);
   const bool uncompressed = (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
-
   ut_a(buf_page_in_file(bpage));
 
   /* We do not need protect io_fix here by mutex to read it because this is the
@@ -6881,3 +6950,34 @@ void buf_pool_free_all() {
   buf_pool_free();
 }
 #endif /* !UNIV_HOTBACKUP */
+
+[[nodiscard]] bool buf_page_t::is_zeroes(const page_t *const ptr,
+                                         const size_t len) noexcept {
+  bool is_zero = true;
+  for (size_t i = 0; i < len; i++) {
+    if (*(ptr + i) != 0) {
+      is_zero = false;
+      break;
+    }
+  }
+  return is_zero;
+}
+
+[[nodiscard]] bool buf_page_t::is_memory(const page_t *const ptr) noexcept {
+  const page_t *const frame = page_align(ptr);
+  return mach_read_from_8(frame + FIL_PAGE_LSN) == 0;
+}
+
+uint16_t buf_block_t::get_page_level() const {
+  ut_ad(frame != nullptr);
+  ut_ad(get_page_type() == FIL_PAGE_INDEX);
+  uint16_t level = mach_read_from_2(frame + PAGE_HEADER + PAGE_LEVEL);
+  ut_ad(level <= BTR_MAX_NODE_LEVEL);
+  return level;
+}
+
+bool buf_block_t::is_empty() const {
+  return page_rec_is_supremum(page_rec_get_next(page_get_infimum_rec(frame)));
+}
+
+bool buf_block_t::is_compact() const { return page_is_comp(frame); }

@@ -250,6 +250,10 @@ class BlockReporter {
   const page_size_t &m_page_size;
   /** Skip checksum verification but compare only data. */
   bool m_skip_checksum;
+
+#ifdef UNIV_DEBUG
+  mutable std::string m_log;
+#endif /* UNIV_DEBUG */
 };
 
 #endif /* buf0checksum_h */

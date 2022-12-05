@@ -1,0 +1,40 @@
+# InnoDB does not support compressed tables for page sizes=32k,64k
+--source include/have_innodb_max_16k.inc
+
+SET GLOBAL innodb_compression_level = 0;
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 LONGTEXT) ROW_FORMAT=COMPRESSED;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (1, repeat('a',2*1024*1024));
+INSERT INTO t1 VALUES (2, repeat('b',3*1024*1024-1));
+INSERT INTO t1 VALUES (3, repeat('c',4*1024*1024-11));
+INSERT INTO t1 VALUES (4, repeat('d',4*1024*1024-111));
+INSERT INTO t1 VALUES (5, repeat('e',4*1024*1024-1111));
+SELECT f1, length(f2), left(f2, 40) FROM t1 ORDER BY f1;
+SELECT f1, length(f2), right(f2, 40) FROM t1 ORDER BY f1;
+CHECK TABLE t1;
+CHECKSUM TABLE t1;
+OPTIMIZE TABLE t1;
+CHECK TABLE t1;
+CHECKSUM TABLE t1;
+SELECT f1, length(f2), left(f2, 40) FROM t1 ORDER BY f1;
+SELECT f1, length(f2), right(f2, 40) FROM t1 ORDER BY f1;
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
+SHOW CREATE TABLE t1;
+CHECK TABLE t1;
+CHECKSUM TABLE t1;
+SELECT f1, length(f2), left(f2, 40) FROM t1 ORDER BY f1;
+SELECT f1, length(f2), right(f2, 40) FROM t1 ORDER BY f1;
+ALTER TABLE t1 ROW_FORMAT=compact;
+SHOW CREATE TABLE t1;
+CHECK TABLE t1;
+CHECKSUM TABLE t1;
+SELECT f1, length(f2), left(f2, 40) FROM t1 ORDER BY f1;
+SELECT f1, length(f2), right(f2, 40) FROM t1 ORDER BY f1;
+ALTER TABLE t1 ROW_FORMAT=dynamic;
+SHOW CREATE TABLE t1;
+CHECK TABLE t1;
+CHECKSUM TABLE t1;
+SELECT f1, length(f2), left(f2, 40) FROM t1 ORDER BY f1;
+SELECT f1, length(f2), right(f2, 40) FROM t1 ORDER BY f1;
+DROP TABLE t1;
+SET GLOBAL innodb_compression_level = default;

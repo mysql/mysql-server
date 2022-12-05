@@ -859,6 +859,8 @@ bool multi_value_data::has(ulint mtype, ulint prtype, const byte *data,
   return (false);
 }
 
+void dtuple_t::set_min_rec_flag() { info_bits |= REC_INFO_MIN_REC_FLAG; }
+
 #endif /* !UNIV_HOTBACKUP */
 
 void multi_value_data::alloc(uint32_t num, bool alc_bitset, mem_heap_t *heap) {
@@ -1049,4 +1051,12 @@ uint32_t Multi_value_logger::get_keys_capacity(uint32_t log_size,
       *num_keys * Multi_value_logger::s_max_compressed_mv_key_length_size;
 
   return (keys_length);
+}
+
+dtuple_t *dtuple_t::deep_copy(mem_heap_t *heap) const {
+  dtuple_t *copy = dtuple_copy(this, heap);
+  for (uint32_t i = 0; i < n_fields; ++i) {
+    dfield_dup(&copy->fields[i], heap);
+  }
+  return copy;
 }

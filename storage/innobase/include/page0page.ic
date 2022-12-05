@@ -73,7 +73,7 @@ static inline void page_update_max_trx_id(
 {
   ut_ad(block);
 #ifndef UNIV_HOTBACKUP
-  ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+  ut_ad(mtr == nullptr || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 #endif /* !UNIV_HOTBACKUP */
   /* During crash recovery, this function may be called on
   something else than a leaf page of a secondary index or the

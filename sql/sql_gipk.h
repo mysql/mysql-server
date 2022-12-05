@@ -178,5 +178,5 @@ bool table_def_has_generated_invisible_primary_key(
   @retval   true     If table has a generated invisible primary key.
   @retval   false    Otherwise.
 */
-bool table_has_generated_invisible_primary_key(TABLE *table);
+bool table_has_generated_invisible_primary_key(const TABLE *table);
 #endif  // SQL_GIPK_INCLUDED

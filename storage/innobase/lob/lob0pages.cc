@@ -25,6 +25,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 #include "lob0pages.h"
+#include "btr0load.h"
 #include "lob0impl.h"
 #include "my_dbug.h"
 #include "trx0trx.h"
@@ -142,15 +143,19 @@ ulint data_page_t::space_left() const { return (payload() - get_data_len()); }
 buf_block_t *data_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
   ut_ad(m_block == nullptr);
   ut_ad(m_index != nullptr);
-  ut_ad(m_mtr != nullptr);
-  ut_ad(alloc_mtr != nullptr);
+  ut_ad(is_bulk || m_mtr != nullptr);
+  ut_ad(is_bulk || alloc_mtr != nullptr);
 
   page_no_t hint = FIL_NULL;
 
   /* For testing purposes, pretend that the LOB page allocation failed.*/
   DBUG_EXECUTE_IF("innodb_lob_data_page_alloc_failed", return (nullptr););
 
-  m_block = alloc_lob_page(m_index, alloc_mtr, hint, is_bulk);
+  if (is_bulk) {
+    m_block = m_btree_load->blob()->alloc_data_page();
+  } else {
+    m_block = alloc_lob_page(m_index, alloc_mtr, hint);
+  }
 
   if (m_block == nullptr) {
     return (m_block);

@@ -53,6 +53,7 @@ struct Merge_file_sort;
 struct Load_cursor;
 struct Btree_cursor;
 struct Parallel_cursor;
+struct file_t;
 
 /** Innodb B-tree index fill factor for bulk load. */
 extern long fill_factor;
@@ -155,6 +156,11 @@ struct Dup {
   size_t m_n_dup{};
 };
 
+/** Destroy a merge file. And de-register the file from Performance Schema
+if UNIV_PFS_IO is defined.
+@param[in] fd                   Merge file descriptor. */
+void file_destroy_low(os_fd_t fd) noexcept;
+
 /** Captures ownership and manages lifetime of an already opened OS file
 descriptor. Closes the file on object destruction. */
 class Unique_os_file_descriptor : private ut::Non_copyable {
@@ -189,27 +195,7 @@ class Unique_os_file_descriptor : private ut::Non_copyable {
 
   /** Closes the managed file. Leaves the instance in the same state as default
   constructed instance. */
-  void close() {
-#ifdef UNIV_PFS_IO
-    struct PSI_file_locker *locker = nullptr;
-    PSI_file_locker_state state;
-    locker = PSI_FILE_CALL(get_thread_file_descriptor_locker)(&state, m_fd,
-                                                              PSI_FILE_CLOSE);
-    if (locker != nullptr) {
-      PSI_FILE_CALL(start_file_wait)
-      (locker, 0, __FILE__, __LINE__);
-    }
-#endif /* UNIV_PFS_IO */
-    if (m_fd != OS_FD_CLOSED) {
-      ::close(m_fd);
-      m_fd = OS_FD_CLOSED;
-    }
-#ifdef UNIV_PFS_IO
-    if (locker != nullptr) {
-      PSI_FILE_CALL(end_file_wait)(locker, 0);
-    }
-#endif /* UNIV_PFS_IO */
-  }
+  void close() { file_destroy_low(m_fd); }
 
  private:
   os_fd_t m_fd{OS_FD_CLOSED};
@@ -236,8 +222,16 @@ void drop_indexes(trx_t *trx, dict_table_t *table, bool locked) noexcept;
 UNIV_PFS_IO defined, register the file descriptor with Performance Schema.
 @param[in] path                 Location for creating temporary merge files.
 @return File descriptor */
-[[nodiscard]] Unique_os_file_descriptor file_create_low(
-    const char *path) noexcept;
+os_fd_t file_create_low_simple(const char *path) noexcept;
+bool file_create(file_t *file, const char *path) noexcept;
+
+/**Create temporary merge files in the given parameter path, and if
+UNIV_PFS_IO defined, register the file descriptor with Performance Schema.
+@param[in] path                 Location for creating temporary merge files.
+@return File descriptor */
+inline Unique_os_file_descriptor file_create_low(const char *path) noexcept {
+  return Unique_os_file_descriptor(file_create_low_simple(path));
+}
 
 /** Create the index and load in to the dictionary.
 @param[in,out] trx              Trx (sets error_state)
@@ -455,7 +449,7 @@ struct Context {
   [[nodiscard]] dberr_t build() noexcept;
 
   /** @return the flush observer to use for flushing. */
-  [[nodiscard]] Flush_observer *flush_observer() noexcept;
+  [[nodiscard]] Flush_observer *flush_observer() const noexcept;
 
   /** @return the old table. */
   [[nodiscard]] dict_table_t *old_table() noexcept { return m_old_table; }
@@ -560,6 +554,14 @@ struct Context {
 
   /** @return true if the DDL was interrupted. */
   [[nodiscard]] bool is_interrupted() noexcept;
+
+  [[nodiscard]] trx_id_t get_trx_id() const noexcept;
+  [[nodiscard]] trx_t *trx() const noexcept { return m_trx; }
+
+#ifdef UNIV_DEBUG
+ public:
+  void print_indexes() const;
+#endif /* UNIV_DEBUG */
 
  private:
   using Key_numbers = std::vector<size_t, ut::allocator<size_t>>;

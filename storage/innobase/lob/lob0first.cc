@@ -25,6 +25,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 #include "lob0first.h"
+#include "btr0load.h"
 #include "lob0impl.h"
 #include "lob0index.h"
 #include "lob0pages.h"
@@ -121,7 +122,7 @@ buf_block_t *first_page_t::replace(trx_t *trx, ulint offset, const byte *&ptr,
 }
 
 std::ostream &first_page_t::print_index_entries_cache_s(
-    std::ostream &out, BlockCache &cache) const {
+    std::ostream &out, Block_cache &cache) const {
   if (m_block == nullptr) {
     return (out);
   }
@@ -220,18 +221,24 @@ buf_block_t *first_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
   ut_ad(m_index != nullptr);
   ut_ad(m_block == nullptr);
 
-  page_no_t hint = FIL_NULL;
-  m_block = alloc_lob_page(m_index, alloc_mtr, hint, is_bulk);
+  if (alloc_mtr == nullptr) {
+    ut_ad(m_btree_load != nullptr);
+    ut_ad(is_bulk);
+    m_block = m_btree_load->blob()->alloc_first_page();
+  } else {
+    ut_ad(!is_bulk);
+    page_no_t hint = FIL_NULL;
+    m_block = alloc_lob_page(m_index, alloc_mtr, hint);
+  }
 
   if (m_block == nullptr) {
     return (nullptr);
   }
 
-  ut_ad(rw_lock_get_x_lock_count(&m_block->lock) == 1);
+  ut_ad(alloc_mtr == nullptr || rw_lock_get_x_lock_count(&m_block->lock) == 1);
 
   /* After allocation, first set the page type. */
   set_page_type();
-
   set_version_0();
   set_data_len(0);
   set_trx_id(0);
@@ -244,12 +251,12 @@ buf_block_t *first_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
 
   byte *cur = nodes_begin();
   for (ulint i = 0; i < nc; ++i) {
-    index_entry_t entry(cur, m_mtr, m_index);
+    index_entry_t entry(cur, m_mtr, m_index, m_block);
     entry.init();
-    flst_add_last(free_lst, cur, m_mtr);
+    flst_add_last(free_lst, cur, m_mtr, m_btree_load);
     cur += index_entry_t::SIZE;
   }
-  ut_d(flst_validate(free_lst, m_mtr));
+  ut_d(flst_validate(free_lst, m_mtr, m_btree_load));
   set_next_page_null();
   ut_ad(get_page_type() == FIL_PAGE_TYPE_LOB_FIRST);
   return (m_block);
@@ -264,7 +271,7 @@ flst_node_t *first_page_t::alloc_index_entry(bool bulk) {
   flst_base_node_t *f_list = free_list();
   fil_addr_t node_addr = flst_get_first(f_list, m_mtr);
   if (fil_addr_is_null(node_addr)) {
-    node_page_t node_page(m_mtr, m_index);
+    node_page_t node_page(m_mtr, m_index, m_btree_load);
     buf_block_t *block = node_page.alloc(*this, bulk);
 
     if (block == nullptr) {
@@ -274,7 +281,7 @@ flst_node_t *first_page_t::alloc_index_entry(bool bulk) {
     node_addr = flst_get_first(f_list, m_mtr);
   }
   flst_node_t *node = addr2ptr_x(node_addr);
-  flst_remove(f_list, node, m_mtr);
+  flst_remove(f_list, node, m_mtr, m_btree_load);
   return (node);
 }
 
@@ -359,13 +366,20 @@ void first_page_t::free_all_index_pages() {
 @return the buffer block of the first page. */
 buf_block_t *first_page_t::load_x(const page_id_t &page_id,
                                   const page_size_t &page_size, mtr_t *mtr) {
-  m_block = buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, mtr);
+  ut_ad(mtr == nullptr || m_btree_load == nullptr);
+
+  if (mtr != nullptr) {
+    m_block =
+        buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, mtr);
+  } else {
+    m_block = m_btree_load->block_get(page_id.page_no());
+  }
 
   ut_ad(m_block != nullptr);
 #ifdef UNIV_DEBUG
   /* Dump the page into the log file, if the page type is not
   matching one of the first page types. */
-  page_type_t page_type = get_page_type();
+  const page_type_t page_type = get_page_type();
   switch (page_type) {
     case FIL_PAGE_TYPE_BLOB:
     case FIL_PAGE_TYPE_ZBLOB:
@@ -481,16 +495,14 @@ void first_page_t::make_empty() {
   free_all_index_pages();
 }
 
-flst_node_t *first_page_t::addr2ptr_x(const fil_addr_t &addr,
-                                      mtr_t *mtr) const {
-  const space_id_t space = dict_index_get_space(m_index);
-  const page_size_t page_size = dict_table_page_size(m_index->table);
-  buf_block_t *block = nullptr;
-  flst_node_t *result =
-      fut_get_ptr(space, page_size, addr, RW_X_LATCH, mtr, &block);
-  const page_type_t type = block->get_page_type();
-  ut_a(type == FIL_PAGE_TYPE_LOB_FIRST || type == FIL_PAGE_TYPE_LOB_INDEX);
-  return result;
+void first_page_t::set_trx_id(trx_id_t id) {
+  ut_ad(m_mtr != nullptr || m_block->is_memory());
+
+  byte *ptr = frame() + OFFSET_TRX_ID;
+  mach_write_to_6(ptr, id);
+  if (m_mtr != nullptr) {
+    mlog_log_string(ptr, 6, m_mtr);
+  }
 }
 
 }  // namespace lob

@@ -912,6 +912,7 @@ static inline bool rec_convert_dtuple_to_rec_comp(
         ut_ad(!dfield_is_ext(field));
 #endif /* UNIV_DEBUG */
       } else if (dfield_is_ext(field)) {
+        ut_ad(index->is_clustered());
         ut_ad(DATA_BIG_COL(col));
         ut_ad(len <=
               REC_ANTELOPE_MAX_INDEX_COL_LEN + BTR_EXTERN_FIELD_REF_SIZE);

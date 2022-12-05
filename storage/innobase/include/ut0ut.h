@@ -52,7 +52,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <iterator>
 #include <ostream>
 #include <sstream>
+#include <thread>
 #include <type_traits>
+
+#ifdef UNIV_DEBUG
+#include <limits>
+#include <random>
+#endif /* UNIV_DEBUG */
 
 #include "db0err.h"
 
@@ -393,6 +399,7 @@ class Throttler {
   one. */
   static constexpr uint64_t THROTTLE_DELAY_SEC = 10;
 };
+
 }  // namespace ib
 
 #include "ut0ut.ic"

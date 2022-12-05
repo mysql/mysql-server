@@ -1254,41 +1254,26 @@ buf_block_t *buf_LRU_get_free_only(buf_pool_t *buf_pool) {
 static void buf_LRU_check_size_of_non_data_objects(
     const buf_pool_t *buf_pool) /*!< in: buffer pool instance */
 {
+  const size_t mb = (buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE));
+
   if (!recv_recovery_is_on() && buf_pool->curr_size == buf_pool->old_size &&
       UT_LIST_GET_LEN(buf_pool->free) + UT_LIST_GET_LEN(buf_pool->LRU) <
           buf_pool->curr_size / 20) {
-    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_132)
-        << "Over 95 percent of the buffer pool is"
-           " occupied by lock heaps or the adaptive hash index!"
-           " Check that your transactions do not set too many"
-           " row locks. Your buffer pool size is "
-        << (buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE))
-        << " MB."
-           " Maybe you should make the buffer pool bigger?"
-           " We intentionally generate a seg fault to print"
-           " a stack trace on Linux!";
+    const bool buf_pool_full = true;
+    LogErr(ERROR_LEVEL, ER_IB_BUFFER_POOL_FULL,
+           "buf_LRU_check_size_of_non_data_objects()", mb);
+    ut_a(!buf_pool_full);
 
   } else if (!recv_recovery_is_on() &&
              buf_pool->curr_size == buf_pool->old_size &&
              (UT_LIST_GET_LEN(buf_pool->free) +
               UT_LIST_GET_LEN(buf_pool->LRU)) < buf_pool->curr_size / 3) {
     if (!buf_lru_switched_on_innodb_mon.exchange(true)) {
-      /* Over 67 % of the buffer pool is occupied by lock
-      heaps or the adaptive hash index. This may be a memory
-      leak! */
+      /* Over 67 % of the buffer pool is occupied by lock heaps or the adaptive
+      hash index or BUF_BLOCK_MEMORY pages. This may be a memory leak! */
 
-      ib::warn(ER_IB_MSG_133)
-          << "Over 67 percent of the buffer pool is"
-             " occupied by lock heaps or the adaptive hash"
-             " index! Check that your transactions do not"
-             " set too many row locks. Your buffer pool"
-             " size is "
-          << (buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE))
-          << " MB. Maybe you should make the buffer pool"
-             " bigger?. Starting the InnoDB Monitor to print"
-             " diagnostics, including lock heap and hash"
-             " index sizes.";
-
+      LogErr(WARNING_LEVEL, ER_IB_BUFFER_POOL_OVERUSE,
+             "buf_LRU_check_size_of_non_data_objects()", mb);
       srv_innodb_needs_monitoring++;
     }
 

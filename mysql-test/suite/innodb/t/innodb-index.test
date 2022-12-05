@@ -1,4 +1,7 @@
 -- source include/no_valgrind_without_big.inc
+--disable_query_log
+call mtr.add_suppression(".InnoDB. Compare_key: table=.*, index=.*");
+--enable_query_log
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 

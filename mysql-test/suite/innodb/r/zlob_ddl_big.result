@@ -1,0 +1,75 @@
+SET GLOBAL innodb_compression_level = 0;
+CREATE TABLE t1
+(f1 BIGINT AUTO_INCREMENT PRIMARY KEY,
+f2 CHAR(100),
+f3 LONGTEXT);
+start transaction;
+# INSERT INTO t1(f2, f3) ...
+commit work;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` bigint NOT NULL AUTO_INCREMENT,
+  `f2` char(100) DEFAULT NULL,
+  `f3` longtext,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB AUTO_INCREMENT=2048 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Number of tuples in table t1.
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2047
+# The size of largest BLOB in table t1.
+SELECT MAX(LENGTH(F3)) FROM t1;
+MAX(LENGTH(F3))
+1048064
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	800698529
+# Loop: 1
+ALTER TABLE t1 ROW_FORMAT=compact;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` bigint NOT NULL AUTO_INCREMENT,
+  `f2` char(100) DEFAULT NULL,
+  `f3` longtext,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB AUTO_INCREMENT=2048 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+ALTER TABLE t1 ROW_FORMAT=compressed;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` bigint NOT NULL AUTO_INCREMENT,
+  `f2` char(100) DEFAULT NULL,
+  `f3` longtext,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB AUTO_INCREMENT=2048 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
+ALTER TABLE t1 ROW_FORMAT=dynamic;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` bigint NOT NULL AUTO_INCREMENT,
+  `f2` char(100) DEFAULT NULL,
+  `f3` longtext,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB AUTO_INCREMENT=2048 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+ALTER TABLE t1 ROW_FORMAT=redundant;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` bigint NOT NULL AUTO_INCREMENT,
+  `f2` char(100) DEFAULT NULL,
+  `f3` longtext,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB AUTO_INCREMENT=2048 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	800698529
+DROP TABLE t1;
+SET GLOBAL innodb_compression_level = default;

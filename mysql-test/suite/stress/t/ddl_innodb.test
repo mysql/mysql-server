@@ -9,6 +9,9 @@
 # Creation of this test:
 # 2007-07-04 mleich
 #
+--disable_query_log
+call mtr.add_suppression(".InnoDB. Compare_key: table=.*, index=.*");
+--enable_query_log
 
 # Storage engine to be used in CREATE TABLE
 let $engine_type= InnoDB;

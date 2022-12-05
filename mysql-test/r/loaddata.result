@@ -1,4 +1,3 @@
-drop table if exists t1, t2;
 create table t1 (a date, b date, c date not null, d date);
 load data infile '../../std_data/loaddata1.dat' ignore into table t1 fields terminated by ',';
 Warnings:
@@ -20,6 +19,28 @@ a	b	c	d
 2003-03-03	2003-03-03	2003-03-03	NULL
 2003-03-03	2003-03-03	2003-03-03	NULL
 truncate table t1;
+load data from infile '../../std_data/loaddata1.dat'
+into table t1 fields terminated by ',' ignore 2 lines;
+Warnings:
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' 20030303' at row 1 is superfluous and is deprecated. Please remove.
+SELECT * from t1;
+a	b	c	d
+2003-03-03	2003-03-03	2003-03-03	NULL
+truncate table t1;
+load data infile '../../std_data/loaddata1.dat' in primary key order
+into table t1 fields terminated by ',' ignore 2 lines;
+Warnings:
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' 20030303' at row 1 is superfluous and is deprecated. Please remove.
+SELECT * from t1;
+a	b	c	d
+2003-03-03	2003-03-03	2003-03-03	NULL
+truncate table t1;
+load data infile '../../std_data/loaddata1.dat' count 1 into table t1;
+ERROR HY000: Incorrect usage of LOAD DATA without BULK and multiple files
+load data infile '../../std_data/loaddata1.dat' count 10 into table t1;
+ERROR HY000: Incorrect usage of LOAD DATA without BULK and multiple files
+load data url '../../std_data/loaddata1.dat' into table t1;
+ERROR HY000: Incorrect usage of LOAD DATA without BULK and URL source
 load data infile '../../std_data/loaddata1.dat' ignore into table t1 fields terminated by ',' LINES STARTING BY ',' (b,c,d);
 Warnings:
 Warning	1265	Data truncated for column 'c' at row 1
