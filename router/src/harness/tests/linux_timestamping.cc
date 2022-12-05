@@ -732,11 +732,11 @@ class Stats : public ControlMsgBase<SOL_SOCKET, SCM_TIMESTAMPING_OPT_STATS> {
 
     reference_type operator*() {
       const auto attr = reinterpret_cast<const nlattr *>(cur_);
-      size_t attr_len = attr->nla_len;
-      size_t attr_type = attr->nla_type;
+      const auto attr_len = attr->nla_len;
+      const auto attr_type = attr->nla_type;
 
-      auto payload_len = attr_len - NLA_HDRLEN;
-      auto payload = cur_ + NLA_HDRLEN;
+      const auto payload_len = attr_len - NLA_HDRLEN;
+      const auto payload = cur_ + NLA_HDRLEN;
 
       return {attr_type, {payload, payload_len}};
     }
