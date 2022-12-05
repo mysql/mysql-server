@@ -88,11 +88,6 @@ struct Cursor {
     return m_tuple_heap.get() == nullptr ? DB_OUT_OF_MEMORY : DB_SUCCESS;
   }
 
-  [[nodiscard]] virtual mem_heap_t *get_tuple_heap([
-      [maybe_unused]] size_t thread_id) {
-    return m_tuple_heap.get();
-  }
-
   /** Reads clustered index of the table and create temporary file(s)
   containing the index entries for the indexes to be built.
   @param[in,out] builders Merge buffers to use for reading.

@@ -2047,7 +2047,6 @@ class Field_real : public Field_num {
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) const final;
   bool get_time(MYSQL_TIME *ltime) const final;
   Truncate_result truncate(double *nr, double max_length);
-  Truncate_result truncate(double *nr, double max_length) const;
   uint32 max_display_length() const final { return field_length; }
   const uchar *unpack(uchar *to, const uchar *from, uint param_data) override;
   uchar *pack(uchar *to, const uchar *from, size_t max_length) const override;
@@ -2746,12 +2745,6 @@ class Field_temporal : public Field {
   }
   my_decimal *val_decimal(
       my_decimal *decimal_value) const override;  // FSP types redefine it
-
-  my_time_flags_t get_date_flags(const THD *thd) const {
-    return date_flags(thd);
-  }
-
-  uint8 get_fractional_digits() const { return dec; }
 };
 
 /**

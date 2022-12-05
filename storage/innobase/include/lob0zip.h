@@ -75,7 +75,20 @@ class zInserter : private BaseInserter {
   @param[in]    blob_page       the BLOB page
   @param[in]    nth_blob_page   the count of BLOB page from
                                   the beginning of the BLOB. */
-  inline void log_page_type(page_t *blob_page, ulint nth_blob_page);
+  void log_page_type(page_t *blob_page, ulint nth_blob_page) {
+    page_type_t page_type;
+
+    if (is_index_sdi()) {
+      page_type = FIL_PAGE_SDI_ZBLOB;
+    } else if (nth_blob_page == 0) {
+      page_type = FIL_PAGE_TYPE_ZBLOB;
+    } else {
+      page_type = FIL_PAGE_TYPE_ZBLOB2;
+    }
+
+    mlog_write_ulint(blob_page + FIL_PAGE_TYPE, page_type, MLOG_2BYTES,
+                     &m_blob_mtr);
+  }
 
   /** Calculate the total number of pages needed to store
   the given blobs */
@@ -174,25 +187,6 @@ class zInserter : private BaseInserter {
   /** The BLOB directory information. */
   blob_dir_t m_dir;
 };
-
-void zInserter::log_page_type(page_t *blob_page, ulint nth_blob_page) {
-  page_type_t page_type;
-
-  if (is_index_sdi()) {
-    page_type = FIL_PAGE_SDI_ZBLOB;
-  } else if (nth_blob_page == 0) {
-    page_type = FIL_PAGE_TYPE_ZBLOB;
-  } else {
-    page_type = FIL_PAGE_TYPE_ZBLOB2;
-  }
-
-  mtr_t *mtr = nullptr;
-  if (!m_ctx->is_bulk()) {
-    mtr = &m_blob_mtr;
-  }
-
-  mlog_write_ulint(blob_page + FIL_PAGE_TYPE, page_type, MLOG_2BYTES, mtr);
-}
 
 inline zInserter::~zInserter() {
   if (m_heap != nullptr) {

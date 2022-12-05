@@ -179,8 +179,6 @@ struct fil_node_t {
   /** whether the file actually is a raw device or disk partition */
   bool is_raw_disk;
 
-  bool is_offset_valid(os_offset_t byte_offset) const;
-
   /** size of the file in database pages (0 if not known yet);
   the possible last incomplete megabyte may be ignored
   if space->id == 0 */
@@ -414,33 +412,7 @@ struct fil_space_t {
   /** true if the tablespace is marked for deletion. */
   std::atomic_bool m_deleted{};
 
-  /** true if bulk operation is in progress. */
-  std::atomic_bool m_is_bulk = ATOMIC_VAR_INIT(false);
-
-  /** true if bulk operation is in progress. */
-  std::atomic<uint64_t> m_bulk_extend_size;
-
  public:
-  /** Begin bulk operation on the space.
-  @param[in] extend_size space extension size for bulk operation */
-  void begin_bulk_operation(uint64_t extend_size) {
-    m_is_bulk.store(true);
-    m_bulk_extend_size.store(extend_size);
-  }
-
-  /** End bulk operation on the space. */
-  void end_bulk_operation() { m_is_bulk.store(false); }
-
-  /** @return true, if bulk operation in progress. */
-  bool is_bulk_operation_in_progress() const { return m_is_bulk.load(); }
-
-  /** @return automatic extension size for space. */
-  uint64_t get_auto_extend_size();
-
-  /** @return true if added space should be initialized while extending space.
-   */
-  bool initialize_while_extending();
-
   /** true if we want to rename the .ibd file of tablespace and
   want to temporarily prevent other threads from opening the file that is being
   renamed.  */
@@ -1313,20 +1285,12 @@ inline bool fil_page_type_is_index(page_type_t page_type) {
          page_type == FIL_PAGE_RTREE;
 }
 
-/** Get the file page type.
-@param[in]    page    File page
-@return page type */
-inline page_type_t fil_page_get_type(const byte *page) {
-  return (static_cast<page_type_t>(mach_read_from_2(page + FIL_PAGE_TYPE)));
-}
+page_type_t fil_page_get_type(const byte *page);
 
 /** Check whether the page is index page (either regular Btree index or Rtree
-index.
-@param[in]  page  page frame whose page type is to be checked. */
+index */
 inline bool fil_page_index_page_check(const byte *page) {
-  const page_type_t type = fil_page_get_type(page);
-  const bool is_idx = fil_page_type_is_index(type);
-  return is_idx;
+  return fil_page_type_is_index(fil_page_get_type(page));
 }
 
 /** @} */
@@ -1818,34 +1782,12 @@ Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
 void fil_page_reset_type(const page_id_t &page_id, byte *page, ulint type,
                          mtr_t *mtr);
 
-/** Check (and if needed, reset) the page type.
-Data files created before MySQL 5.1 may contain
-garbage in the FIL_PAGE_TYPE field.
-In MySQL 3.23.53, only undo log pages and index pages were tagged.
-Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
-@param[in]      page_id         Page number
-@param[in,out]  page            Page with possibly invalid FIL_PAGE_TYPE
-@param[in]      type            Expected page type
-@param[in,out]  mtr             Mini-transaction */
-inline void fil_page_check_type(const page_id_t &page_id, byte *page,
-                                ulint type, mtr_t *mtr) {
-  ulint page_type = fil_page_get_type(page);
-
-  if (page_type != type) {
-    fil_page_reset_type(page_id, page, type, mtr);
-  }
+/** Get the file page type.
+@param[in]      page            File page
+@return page type */
+inline page_type_t fil_page_get_type(const byte *page) {
+  return (static_cast<page_type_t>(mach_read_from_2(page + FIL_PAGE_TYPE)));
 }
-
-/** Check (and if needed, reset) the page type.
-Data files created before MySQL 5.1 may contain
-garbage in the FIL_PAGE_TYPE field.
-In MySQL 3.23.53, only undo log pages and index pages were tagged.
-Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
-@param[in,out]  block           Block with possibly invalid FIL_PAGE_TYPE
-@param[in]      type            Expected page type
-@param[in,out]  mtr             Mini-transaction */
-#define fil_block_check_type(block, type, mtr) \
-  fil_page_check_type(block->page.id, block->frame, type, mtr)
 
 #ifdef UNIV_DEBUG
 /** Increase redo skipped count for a tablespace.
@@ -2288,16 +2230,4 @@ size_t fil_count_undo_deleted(space_id_t undo_num);
 @param[in]  type  the page type to be checked for validity.
 @return true if it is valid page type, false otherwise. */
 [[nodiscard]] bool fil_is_page_type_valid(page_type_t type) noexcept;
-
-dberr_t fil_prepare_file_for_io(space_id_t space_id, page_no_t &page_no,
-                                fil_node_t **node_out);
-void fil_complete_write(space_id_t space_id, fil_node_t *node);
-
-inline bool fil_node_t::is_offset_valid(os_offset_t byte_offset) const {
-  const page_size_t page_size(space->flags);
-  const os_offset_t max_offset = size * page_size.physical();
-  ut_ad(byte_offset < max_offset);
-  return byte_offset < max_offset;
-}
-
 #endif /* fil0fil_h */

@@ -5153,6 +5153,7 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
 
     } else if (count > 25000) {
       mutex_release();
+
       return DB_ERROR;
 
     } else if (space != get_space_by_name(space->name)) {
@@ -5235,7 +5236,9 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
       /* There are pending I/O's or flushes or the
       file is currently being extended, sleep for
       a while and retry */
+
       retry = true;
+
       space->prevent_file_open = false;
 
     } else if (!file->is_flushed()) {
@@ -6528,7 +6531,7 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
 
     mutex_release();
 
-    if (!space->initialize_while_extending()) {
+    if (!tbsp_extend_and_initialize) {
       std::this_thread::sleep_for(std::chrono::microseconds(20));
     } else {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -6692,7 +6695,7 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
     }
 #endif /* NO_FALLOCATE || !UNIV_LINUX */
 
-    if ((space->initialize_while_extending() && !file->atomic_write) ||
+    if ((tbsp_extend_and_initialize && !file->atomic_write) ||
         err == DB_IO_ERROR) {
       err = fil_write_zeros(file, phy_page_size, node_start, len);
 
@@ -11669,8 +11672,6 @@ std::ostream &Fil_page_header::print(std::ostream &out) const noexcept {
   /* Print the header information in the order it is stored. */
   out << "[Fil_page_header: FIL_PAGE_OFFSET=" << get_page_no()
       << ", FIL_PAGE_TYPE=" << get_page_type()
-      << ", FIL_PAGE_PREV=" << get_page_prev()
-      << ", FIL_PAGE_NEXT=" << get_page_next()
       << ", FIL_PAGE_SPACE_ID=" << get_space_id() << "]";
   return out;
 }
@@ -11685,14 +11686,6 @@ page_no_t Fil_page_header::get_page_no() const noexcept {
 
 uint16_t Fil_page_header::get_page_type() const noexcept {
   return mach_read_from_2(m_frame + FIL_PAGE_TYPE);
-}
-
-page_no_t Fil_page_header::get_page_prev() const noexcept {
-  return mach_read_from_4(m_frame + FIL_PAGE_PREV);
-}
-
-page_no_t Fil_page_header::get_page_next() const noexcept {
-  return mach_read_from_4(m_frame + FIL_PAGE_NEXT);
 }
 
 fil_node_t *fil_space_t::get_file_node(page_no_t *page_no) noexcept {
@@ -11792,46 +11785,3 @@ void fil_space_t::bump_version() {
   ++m_version;
 }
 #endif /* !UNIV_HOTBACKUP */
-
-dberr_t fil_prepare_file_for_io(space_id_t space_id, page_no_t &page_no,
-                                fil_node_t **node_out) {
-  auto shard = fil_system->shard_by_id(space_id);
-  shard->mutex_acquire();
-  fil_space_t *space = shard->get_space_by_id(space_id);
-  fil_node_t *node = space->get_file_node(&page_no);
-  ut_ad(node != nullptr);
-  dberr_t err{DB_SUCCESS};
-  bool file_ready = shard->prepare_file_for_io(node);
-  if (file_ready) {
-    *node_out = node;
-  } else {
-    *node_out = nullptr;
-    ut_ad(file_ready);
-    err = DB_IO_ERROR;
-  }
-  shard->mutex_release();
-  return err;
-}
-
-void fil_complete_write(space_id_t space_id, fil_node_t *node) {
-  auto shard = fil_system->shard_by_id(space_id);
-  shard->mutex_acquire();
-  shard->complete_io(node, IORequestWrite);
-  shard->mutex_release();
-}
-
-uint64_t fil_space_t::get_auto_extend_size() {
-  if (autoextend_size_in_bytes != 0) {
-    return autoextend_size_in_bytes;
-  }
-  if (is_bulk_operation_in_progress()) {
-    return m_bulk_extend_size.load();
-  }
-  return 0;
-}
-
-bool fil_space_t::initialize_while_extending() {
-  /* Don't initialize added space during bulk operation. The extended area
-  would be explicitly flushed with data or zero filled pages. */
-  return (tbsp_extend_and_initialize && !is_bulk_operation_in_progress());
-}

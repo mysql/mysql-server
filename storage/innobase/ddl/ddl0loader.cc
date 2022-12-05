@@ -297,10 +297,6 @@ dberr_t Loader::load() noexcept {
     return DB_OUT_OF_MEMORY;
   }
 
-#ifdef UNIV_DEBUG
-  m_ctx.print_indexes();
-#endif /* UNIV_DEBUG */
-
   for (auto builder : m_builders) {
     ut_a(builder->get_state() == Builder::State::ADD);
     /* RTrees are built during the scan phase, using row by row insert. */
@@ -505,9 +501,6 @@ dberr_t Loader::build_all() noexcept {
     m_ctx.set_error(err);
   }
 
-  LogErr(INFORMATION_LEVEL, ER_IB_INDEX_LOADER_DONE, m_ctx.m_indexes.size(),
-         m_ctx.m_old_table->name.m_name, m_ctx.m_new_table->name.m_name,
-         (size_t)err);
   return err;
 }
 

@@ -2,10 +2,6 @@
 # testing of the BIT column type
 #
 
---disable_query_log
-call mtr.add_suppression(".InnoDB. Compare_key: table=.*, index=.*");
---enable_query_log
-
 select 0 + b'1';
 select 0 + b'0';
 select 0 + b'000001';

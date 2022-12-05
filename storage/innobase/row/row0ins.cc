@@ -383,11 +383,8 @@ void ins_node_set_new_row(
       ut_a(err == DB_SUCCESS);
 
       DEBUG_SYNC_C("before_row_ins_upd_extern");
-      lob::Lob_ctx lob_ctx;
-      lob_ctx.m_trx = trx;
-      err = lob::btr_store_big_rec_extern_fields(lob_ctx, pcur, update,
-                                                 *offsets, big_rec, mtr,
-                                                 lob::OPCODE_INSERT_UPDATE);
+      err = lob::btr_store_big_rec_extern_fields(
+          trx, pcur, update, *offsets, big_rec, mtr, lob::OPCODE_INSERT_UPDATE);
       DEBUG_SYNC_C("after_row_ins_upd_extern");
       dtuple_big_rec_free(big_rec);
     }
@@ -2308,10 +2305,8 @@ static dberr_t row_ins_index_entry_big_rec_func(
                             UT_LOCATION_HERE, heap);
 
   DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern");
-  lob::Lob_ctx lob_ctx;
-  lob_ctx.m_trx = trx;
   error = lob::btr_store_big_rec_extern_fields(
-      lob_ctx, &pcur, nullptr, offsets, big_rec, &mtr, lob::OPCODE_INSERT);
+      trx, &pcur, nullptr, offsets, big_rec, &mtr, lob::OPCODE_INSERT);
   DEBUG_SYNC_C_IF_THD(thd, "after_row_ins_extern");
 
   if (error == DB_SUCCESS && dict_index_is_online_ddl(index)) {

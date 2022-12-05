@@ -71,9 +71,6 @@ struct fil_node_t;
 
 extern bool os_has_said_disk_full;
 
-/** Number of retries for partial I/O's */
-constexpr size_t NUM_RETRIES_ON_PARTIAL_IO = 10;
-
 /** Number of pending read operations */
 extern std::atomic<ulint> os_n_pending_reads;
 /** Number of pending write operations */
@@ -550,15 +547,50 @@ class IORequest {
 #endif /* HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE || _WIN32 */
   }
 
-  static std::string type_str(const ulint type);
-
   /** @return string representation. */
   std::string to_string() const {
     std::ostringstream os;
+
     os << "bs: " << m_block_size << " flags:";
-    os << type_str(m_type);
+
+    if (m_type & READ) {
+      os << " READ";
+    } else if (m_type & WRITE) {
+      os << " WRITE";
+    } else if (m_type & DBLWR) {
+      os << " DBLWR";
+    }
+
+    /** Enumerations below can be ORed to READ/WRITE above*/
+
+    /** Data file */
+    if (m_type & DATA_FILE) {
+      os << " | DATA_FILE";
+    }
+
+    if (m_type & LOG) {
+      os << " | LOG";
+    }
+
+    if (m_type & DISABLE_PARTIAL_IO_WARNINGS) {
+      os << " | DISABLE_PARTIAL_IO_WARNINGS";
+    }
+
+    if (m_type & DO_NOT_WAKE) {
+      os << " | IGNORE_MISSING";
+    }
+
+    if (m_type & PUNCH_HOLE) {
+      os << " | PUNCH_HOLE";
+    }
+
+    if (m_type & NO_COMPRESSION) {
+      os << " | NO_COMPRESSION";
+    }
+
     os << ", comp: " << m_compression.to_string();
     os << ", enc: " << m_encryption.to_string(m_encryption.get_type());
+
     return (os.str());
   }
 
@@ -1899,70 +1931,6 @@ till it succeeds.
 dberr_t os_file_write_retry(IORequest &type, const char *name,
                             pfs_os_file_t file, const void *buf,
                             os_offset_t offset, ulint n);
-
-/** Helper class for doing synchronous file IO. Currently, the objective
-is to hide the OS specific code, so that the higher level functions aren't
-peppered with "#ifdef". Makes the code flow difficult to follow.  */
-class SyncFileIO {
- public:
-  /** Constructor
-  @param[in]    fh      File handle
-  @param[in,out]        buf     Buffer to read/write
-  @param[in]    n       Number of bytes to read/write
-  @param[in]    offset  Offset where to read or write */
-  SyncFileIO(os_file_t fh, void *buf, ulint n, os_offset_t offset)
-      : m_fh(fh),
-        m_buf(buf),
-        m_n(static_cast<ssize_t>(n)),
-        m_offset(offset),
-        m_orig_bytes(n) {
-    ut_ad(m_n > 0);
-  }
-
-  /** Destructor */
-  ~SyncFileIO() = default;
-
-  /** Do the read/write
-  @param[in]    request The IO context and type
-  @return the number of bytes read/written or negative value on error */
-  ssize_t execute(const IORequest &request);
-
-  /** Do the read/write with retry.
-  @param[in] request The IO context and type
-  @param[in] max_retries  the maximum number of retries on partial i/o.
-  @return DB_SUCCESS on success, an error code on failure. */
-  dberr_t execute_with_retry(
-      const IORequest &request,
-      const size_t max_retries = NUM_RETRIES_ON_PARTIAL_IO);
-
-  /** Move the read/write offset up to where the partial IO succeeded.
-  @param[in]    n_bytes The number of bytes to advance */
-  void advance(ssize_t n_bytes) {
-    m_offset += n_bytes;
-
-    ut_ad(m_n >= n_bytes);
-
-    m_n -= n_bytes;
-
-    m_buf = reinterpret_cast<uchar *>(m_buf) + n_bytes;
-  }
-
- private:
-  /** Open file handle */
-  os_file_t m_fh;
-
-  /** Buffer to read/write */
-  void *m_buf;
-
-  /** Number of bytes to read/write */
-  ssize_t m_n;
-
-  /** Offset from where to read/write */
-  os_offset_t m_offset;
-
-  /** The total number of bytes to be read/written. */
-  const size_t m_orig_bytes;
-};
 
 #include "os0file.ic"
 #endif /* UNIV_NONINL */

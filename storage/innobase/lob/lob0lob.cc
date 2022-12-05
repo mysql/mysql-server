@@ -26,7 +26,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <sys/types.h>
 
-#include "btr0load.h"
 #include "btr0pcur.h"
 #include "fil0fil.h"
 #include "lob0first.h"
@@ -34,9 +33,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0lob.h"
 #include "lob0zip.h"
 #include "log0chkp.h"
-#include "my_dbug.h"
 #include "row0upd.h"
 #include "zlob0first.h"
+
+#include "my_dbug.h"
 
 namespace lob {
 
@@ -172,9 +172,13 @@ int zReader::setup_zstream() {
   return (err);
 }
 
+/** Fetch the BLOB.
+@return DB_SUCCESS on success, DB_FAIL on error. */
 dberr_t zReader::fetch() {
+  DBUG_TRACE;
+
   dberr_t err = DB_SUCCESS;
-  int zlib_err = Z_OK;
+
   ut_ad(m_rctx.is_valid_blob());
   ut_ad(assert_empty_local_prefix());
 
@@ -182,20 +186,22 @@ dberr_t zReader::fetch() {
            m_rctx.is_sdi() ? FIL_PAGE_SDI_ZBLOB : FIL_PAGE_TYPE_ZBLOB);
 
   setup_zstream();
+
   m_remaining = m_rctx.m_blobref.length();
 
   while (m_rctx.m_page_no != FIL_NULL) {
     page_no_t curr_page_no = m_rctx.m_page_no;
+
     err = fetch_page();
     if (err != DB_SUCCESS) {
       break;
     }
-    ut_a(m_bpage->buf_fix_count > 0);
+
     m_stream.next_in = m_bpage->zip.data + m_rctx.m_offset;
     m_stream.avail_in =
         static_cast<uInt>(m_rctx.m_page_size.physical() - m_rctx.m_offset);
 
-    zlib_err = inflate(&m_stream, Z_NO_FLUSH);
+    int zlib_err = inflate(&m_stream, Z_NO_FLUSH);
     switch (zlib_err) {
       case Z_OK:
         if (m_stream.avail_out == 0) {
@@ -220,15 +226,14 @@ dberr_t zReader::fetch() {
     }
 
     buf_page_release_zip(m_bpage);
-    m_bpage = nullptr;
+
     m_rctx.m_offset = FIL_PAGE_NEXT;
+
     ut_d(if (!m_rctx.m_is_sdi) m_page_type_ex = FIL_PAGE_TYPE_ZBLOB2);
   }
 
 end_of_blob:
-  if (m_bpage != nullptr) {
-    buf_page_release_zip(m_bpage);
-  }
+  buf_page_release_zip(m_bpage);
   inflateEnd(&m_stream);
   mem_heap_free(m_heap);
   UNIV_MEM_ASSERT_RW(m_rctx.m_buf, m_stream.total_out);
@@ -377,32 +382,50 @@ struct Being_modified {
   mtr_t *m_mtr;
 };
 
-dberr_t btr_store_big_rec_extern_fields(Lob_ctx &lob_ctx, btr_pcur_t *pcur,
+/** Stores the fields in big_rec_vec to the tablespace and puts pointers to
+them in rec.  The extern flags in rec will have to be set beforehand. The
+fields are stored on pages allocated from leaf node file segment of the index
+tree.
+
+TODO: If the allocation extends the tablespace, it will not be redo logged, in
+any mini-transaction.  Tablespace extension should be redo-logged, so that
+recovery will not fail when the big_rec was written to the extended portion of
+the file, in case the file was somehow truncated in the crash.
+@param[in]      trx             the trx doing LOB store. If unavailable it
+                                could be nullptr.
+@param[in,out]  pcur            a persistent cursor. if btr_mtr is restarted,
+                                then this can be repositioned.
+@param[in]      upd             update vector
+@param[in,out]  offsets         rec_get_offsets() on pcur. the "external in
+                                offsets will correctly correspond storage"
+                                flagsin offsets will correctly correspond to
+                                rec when this function returns
+@param[in]      big_rec_vec     vector containing fields to be stored
+                                externally
+@param[in,out]  btr_mtr         mtr containing the latches to the clustered
+                                index. can be committed and restarted.
+@param[in]      op              operation code
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
                                         const upd_t *upd, ulint *offsets,
                                         const big_rec_t *big_rec_vec,
                                         mtr_t *btr_mtr, opcode op) {
   mtr_t mtr;
   mtr_t mtr_bulk;
+  page_zip_des_t *page_zip;
   dberr_t error = DB_SUCCESS;
-  trx_t *trx = lob_ctx.m_trx;
   dict_index_t *index = pcur->index();
   dict_table_t *table = index->table;
   buf_block_t *rec_block = pcur->get_block();
   rec_t *rec = pcur->get_rec();
-  ut_d(Flush_observer *flush_observer = rec_block->page.get_flush_observer(););
 
   ut_ad(rec_offs_validate(rec, index, offsets));
   ut_ad(rec_offs_any_extern(offsets));
-  ut_ad(btr_mtr != nullptr || rec_block->is_memory());
-  ut_ad(btr_mtr != nullptr || op == OPCODE_INSERT_BULK);
-  ut_ad(btr_mtr != nullptr || flush_observer != nullptr ||
-        lob_ctx.m_btree_load != nullptr);
-  ut_ad(btr_mtr == nullptr ||
-        mtr_memo_contains_flagged(btr_mtr, dict_index_get_lock(index),
+  ut_ad(btr_mtr);
+  ut_ad(mtr_memo_contains_flagged(btr_mtr, dict_index_get_lock(index),
                                   MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK) ||
         index->table->is_intrinsic() || !index->is_committed());
   ut_ad(
-      btr_mtr == nullptr ||
       mtr_is_block_fix(btr_mtr, rec_block, MTR_MEMO_PAGE_X_FIX, index->table));
   ut_ad(buf_block_get_frame(rec_block) == page_align(rec));
   ut_a(index->is_clustered());
@@ -411,20 +434,16 @@ dberr_t btr_store_big_rec_extern_fields(Lob_ctx &lob_ctx, btr_pcur_t *pcur,
 
   /* Create a blob operation context. */
   BtrContext btr_ctx(btr_mtr, pcur, index, rec, offsets, rec_block, op);
-  btr_ctx.m_btree_load = lob_ctx.m_btree_load;
   InsertContext ctx(btr_ctx, big_rec_vec);
 
   Being_modified bm(btr_ctx, big_rec_vec, pcur, offsets, op, btr_mtr);
 
   /* The pcur could be re-positioned.  Commit and restart btr_mtr. */
-  if (btr_mtr != nullptr) {
-    /* If no redo log is generated, no need to check space in redo log file.*/
-    ctx.check_redolog();
-    rec_block = pcur->get_block();
-    rec = pcur->get_rec();
-  }
+  ctx.check_redolog();
+  rec_block = pcur->get_block();
+  rec = pcur->get_rec();
 
-  page_zip_des_t *page_zip = buf_block_get_page_zip(rec_block);
+  page_zip = buf_block_get_page_zip(rec_block);
   ut_a(fil_page_index_page_check(page_align(rec)) || op == OPCODE_INSERT_BULK);
 
   if (page_zip != nullptr) {
@@ -994,16 +1013,16 @@ void BtrContext::free_updated_extern_fields(trx_id_t trx_id, undo_no_t undo_no,
   }
 }
 
+/** Deallocate a buffer block that was reserved for a BLOB part.
+@param[in]      index   Index
+@param[in]      block   Buffer block
+@param[in]      all     true=remove also the compressed page
+                        if there is one
+@param[in]      mtr     Mini-transaction to commit */
 void blob_free(dict_index_t *index, buf_block_t *block, bool all, mtr_t *mtr) {
   buf_pool_t *buf_pool = buf_pool_from_block(block);
   page_id_t page_id(block->page.id.space(), block->page.id.page_no());
   bool freed = false;
-
-  if (mtr == nullptr) {
-    /* For bulk load, all memory blocks are freed within Btree_load module. */
-    ut_ad(block->is_memory());
-    return;
-  }
 
   ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 
@@ -1286,25 +1305,6 @@ bool rec_check_lobref_space_id(dict_index_t *index, const rec_t *rec,
     }
   }
   return (true);
-}
-
-[[nodiscard]] bool ref_t::validate(mtr_t *mtr) const noexcept {
-  ut_ad(m_ref != nullptr);
-
-  /* If the LOB is inserted using BUF_BLOCK_MEMORY buffers, then the mtr
-  can be nullptr. */
-  if (mtr == nullptr) {
-    return true;
-  }
-
-  if (mtr->get_log_mode() == MTR_LOG_NO_REDO) {
-    return true;
-  }
-
-  buf_block_t *block = mtr->memo_contains_page_flagged(
-      m_ref, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX);
-  ut_ad(block != nullptr);
-  return true;
 }
 #endif /* UNIV_DEBUG */
 

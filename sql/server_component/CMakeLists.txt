@@ -23,7 +23,6 @@
 SET(MYSQL_SERVER_COMPONENT_SOURCES
   audit_api_message_service_imp.cc
   backup_lock_service.cc
-  bulk_data_service.cc
   clone_protocol_service.cc
   component_status_var_service.cc
   component_sys_var_service.cc
