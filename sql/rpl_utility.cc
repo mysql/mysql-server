@@ -806,7 +806,8 @@ bool table_def::compute_source_table_gipk_info(THD &thd, TABLE *table) {
   }
 
   // column difference = number of columns in source - replica
-  longlong column_difference = size() - table->s->fields;
+  longlong column_difference =
+      static_cast<longlong>(size()) - static_cast<longlong>(table->s->fields);
 
   // if there is no difference assume the source has a GIPK
   if (0 == column_difference) {
