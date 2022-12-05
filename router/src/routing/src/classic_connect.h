@@ -25,7 +25,7 @@
 #ifndef ROUTING_CLASSIC_CONNECT_INCLUDED
 #define ROUTING_CLASSIC_CONNECT_INCLUDED
 
-#include "classic_connection.h"
+#include "classic_connection_base.h"
 #include "destination.h"  // RouteDestination
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/timer.h"
@@ -34,7 +34,7 @@
 
 class ConnectProcessor : public Processor {
  public:
-  ConnectProcessor(MysqlRoutingClassicConnection *conn)
+  ConnectProcessor(MysqlRoutingClassicConnectionBase *conn)
       : Processor(conn),
         io_ctx_{conn->socket_splicer()->client_conn().connection()->io_ctx()},
         destinations_{conn->current_destinations()},

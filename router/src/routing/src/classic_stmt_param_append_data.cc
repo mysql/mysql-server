@@ -24,7 +24,7 @@
 
 #include "classic_stmt_param_append_data.h"
 
-#include "classic_connection.h"
+#include "classic_connection_base.h"
 #include "classic_forwarder.h"
 #include "classic_frame.h"
 #include "mysql/harness/stdx/expected.h"

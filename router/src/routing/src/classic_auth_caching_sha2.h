@@ -32,7 +32,7 @@
 #include <openssl/ssl.h>
 
 #include "classic_auth.h"
-#include "classic_connection.h"
+#include "classic_connection_base.h"
 #include "mysql/harness/stdx/expected.h"
 
 // low-level routings for caching_sha2_password
@@ -72,7 +72,7 @@ class AuthCachingSha2Password : public AuthBase {
 
 class AuthCachingSha2Sender : public Processor {
  public:
-  AuthCachingSha2Sender(MysqlRoutingClassicConnection *conn,
+  AuthCachingSha2Sender(MysqlRoutingClassicConnectionBase *conn,
                         std::string initial_server_auth_data,
                         std::string password)
       : Processor(conn),
@@ -118,7 +118,7 @@ class AuthCachingSha2Sender : public Processor {
 
 class AuthCachingSha2Forwarder : public Processor {
  public:
-  AuthCachingSha2Forwarder(MysqlRoutingClassicConnection *conn,
+  AuthCachingSha2Forwarder(MysqlRoutingClassicConnectionBase *conn,
                            std::string initial_server_auth_data,
                            bool in_handshake = false)
       : Processor(conn),

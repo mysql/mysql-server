@@ -33,7 +33,7 @@
 #include <openssl/ssl.h>
 
 #include "classic_auth.h"
-#include "classic_connection.h"
+#include "classic_connection_base.h"
 #include "mysql/harness/stdx/expected.h"
 
 class AuthCleartextPassword {
@@ -46,7 +46,7 @@ class AuthCleartextPassword {
 
 class AuthCleartextSender : public Processor {
  public:
-  AuthCleartextSender(MysqlRoutingClassicConnection *conn,
+  AuthCleartextSender(MysqlRoutingClassicConnectionBase *conn,
                       std::string initial_server_auth_data,
                       std::string password)
       : Processor(conn),
@@ -83,7 +83,7 @@ class AuthCleartextSender : public Processor {
 
 class AuthCleartextForwarder : public Processor {
  public:
-  AuthCleartextForwarder(MysqlRoutingClassicConnection *conn,
+  AuthCleartextForwarder(MysqlRoutingClassicConnectionBase *conn,
                          std::string initial_server_auth_data,
                          bool in_handshake = false)
       : Processor(conn),

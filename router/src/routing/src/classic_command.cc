@@ -31,7 +31,7 @@
 #include "classic_binlog_dump.h"
 #include "classic_change_user.h"
 #include "classic_clone.h"
-#include "classic_connection.h"
+#include "classic_connection_base.h"
 #include "classic_frame.h"
 #include "classic_init_schema.h"
 #include "classic_kill.h"
@@ -92,7 +92,7 @@ CommandProcessor::is_authed() {
 
 template <class P>
 stdx::expected<Processor::Result, std::error_code> push_processor(
-    MysqlRoutingClassicConnection *conn) {
+    MysqlRoutingClassicConnectionBase *conn) {
   conn->push_processor(std::make_unique<P>(conn));
 
   return Processor::Result::Again;
@@ -162,7 +162,7 @@ void CommandProcessor::client_idle_timeout() {
 
 class ShowWarningsHandler : public QuerySender::Handler {
  public:
-  ShowWarningsHandler(MysqlRoutingClassicConnection *connection)
+  ShowWarningsHandler(MysqlRoutingClassicConnectionBase *connection)
       : connection_(connection) {}
 
   void on_column_count(uint64_t count) override {
@@ -270,7 +270,7 @@ class ShowWarningsHandler : public QuerySender::Handler {
  private:
   uint64_t col_count_{};
   uint64_t col_cur_{};
-  MysqlRoutingClassicConnection *connection_;
+  MysqlRoutingClassicConnectionBase *connection_;
 
   bool something_failed_{false};
 };
@@ -292,7 +292,7 @@ CommandProcessor::wait_both() {
   auto *socket_splicer = connection()->socket_splicer();
 
   if (connection()->recv_from_either() ==
-      MysqlRoutingClassicConnection::FromEither::RecvedFromServer) {
+      MysqlRoutingClassicConnectionBase::FromEither::RecvedFromServer) {
     // server side sent something.
     //
     // - cancel the client side
@@ -305,7 +305,7 @@ CommandProcessor::wait_both() {
     // end this execution branch.
     return Result::Void;
   } else if (connection()->recv_from_either() ==
-             MysqlRoutingClassicConnection::FromEither::RecvedFromClient) {
+             MysqlRoutingClassicConnectionBase::FromEither::RecvedFromClient) {
     // client side sent something
     //
     // - cancel the server side
@@ -425,7 +425,7 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
         stage(Stage::WaitBoth);
 
         connection()->recv_from_either(
-            MysqlRoutingClassicConnection::FromEither::Started);
+            MysqlRoutingClassicConnectionBase::FromEither::Started);
 
         return Result::RecvFromBoth;
       }

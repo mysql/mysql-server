@@ -51,7 +51,7 @@ using mysql_harness::hexify;
 
 class AuthGenericForwarder : public Processor {
  public:
-  AuthGenericForwarder(MysqlRoutingClassicConnection *conn,
+  AuthGenericForwarder(MysqlRoutingClassicConnectionBase *conn,
                        std::string auth_method_name,
                        std::string initial_server_auth_data,
                        bool in_handshake = false)

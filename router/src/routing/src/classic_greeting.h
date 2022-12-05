@@ -108,7 +108,7 @@ class ServerGreetor : public Processor {
    * @param in_handshake true if the greeting is part of the initial
    * handshake.
    */
-  ServerGreetor(MysqlRoutingClassicConnection *conn, bool in_handshake)
+  ServerGreetor(MysqlRoutingClassicConnectionBase *conn, bool in_handshake)
       : Processor(conn), in_handshake_{in_handshake} {}
 
   /**
@@ -182,7 +182,8 @@ class ServerFirstConnector : public Processor {
    *
    * @param conn the connection the greeting will be transferred on.
    */
-  ServerFirstConnector(MysqlRoutingClassicConnection *conn) : Processor(conn) {}
+  ServerFirstConnector(MysqlRoutingClassicConnectionBase *conn)
+      : Processor(conn) {}
 
   /**
    * stages of the handshake flow.
@@ -219,7 +220,7 @@ class ServerFirstConnector : public Processor {
  */
 class ServerFirstAuthenticator : public Processor {
  public:
-  ServerFirstAuthenticator(MysqlRoutingClassicConnection *conn)
+  ServerFirstAuthenticator(MysqlRoutingClassicConnectionBase *conn)
       : Processor(conn) {}
 
   /**

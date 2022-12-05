@@ -31,7 +31,7 @@
 
 #include <openssl/ssl.h>
 
-#include "classic_connection.h"
+#include "classic_connection_base.h"
 #include "mysql/harness/stdx/expected.h"
 
 /**

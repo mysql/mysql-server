@@ -24,7 +24,7 @@
 
 #include "classic_frame.h"
 
-#include "classic_connection.h"
+#include "classic_connection_base.h"
 #include "mysql/harness/tls_error.h"
 
 static bool has_frame_header(ClassicProtocolState *src_protocol) {

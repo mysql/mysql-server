@@ -27,7 +27,7 @@
 #include <chrono>
 #include <memory>
 
-#include "classic_connection.h"
+#include "classic_connection_base.h"
 #include "classic_frame.h"
 #include "hexify.h"
 #include "mysql/harness/logging/logging.h"

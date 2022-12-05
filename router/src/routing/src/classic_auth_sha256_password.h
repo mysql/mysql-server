@@ -32,7 +32,7 @@
 #include <openssl/ssl.h>
 
 #include "classic_auth.h"
-#include "classic_connection.h"
+#include "classic_connection_base.h"
 #include "mysql/harness/stdx/expected.h"
 
 // low-level routings for sha256_password
@@ -67,7 +67,7 @@ class AuthSha256Password : public AuthBase {
 
 class AuthSha256Sender : public Processor {
  public:
-  AuthSha256Sender(MysqlRoutingClassicConnection *conn,
+  AuthSha256Sender(MysqlRoutingClassicConnectionBase *conn,
                    std::string initial_server_auth_data, std::string password)
       : Processor(conn),
         initial_server_auth_data_{std::move(initial_server_auth_data)},
@@ -110,7 +110,7 @@ class AuthSha256Sender : public Processor {
 
 class AuthSha256Forwarder : public Processor {
  public:
-  AuthSha256Forwarder(MysqlRoutingClassicConnection *conn,
+  AuthSha256Forwarder(MysqlRoutingClassicConnectionBase *conn,
                       std::string initial_server_auth_data,
                       bool in_handshake = false)
       : Processor(conn),

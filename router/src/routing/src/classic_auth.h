@@ -31,7 +31,7 @@
 
 #include <openssl/ssl.h>
 
-#include "classic_connection.h"
+#include "classic_connection_base.h"
 #include "mysql/harness/stdx/expected.h"
 
 template <class T>
@@ -67,7 +67,7 @@ class AuthBase {
   static std::string_view strip_trailing_null(std::string_view s);
 
   static bool connection_has_public_key(
-      MysqlRoutingClassicConnection *connection);
+      MysqlRoutingClassicConnectionBase *connection);
 };
 
 #endif

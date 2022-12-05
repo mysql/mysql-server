@@ -290,7 +290,7 @@ stdx::expected<std::string, std::error_code> AuthBase::rsa_encrypt_password(
 }
 
 bool AuthBase::connection_has_public_key(
-    MysqlRoutingClassicConnection *connection) {
+    MysqlRoutingClassicConnectionBase *connection) {
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
   if (!connection->context().source_ssl_ctx()) return false;
 

@@ -32,7 +32,7 @@
 
 #include <openssl/ssl.h>
 
-#include "classic_connection.h"
+#include "classic_connection_base.h"
 #include "mysql/harness/stdx/expected.h"
 #include "processor.h"
 
@@ -46,7 +46,7 @@ class AuthNativePassword {
 
 class AuthNativeSender : public Processor {
  public:
-  AuthNativeSender(MysqlRoutingClassicConnection *conn,
+  AuthNativeSender(MysqlRoutingClassicConnectionBase *conn,
                    std::string initial_server_auth_data, std::string password)
       : Processor(conn),
         initial_server_auth_data_{std::move(initial_server_auth_data)},
@@ -84,7 +84,7 @@ class AuthNativeSender : public Processor {
 
 class AuthNativeForwarder : public Processor {
  public:
-  AuthNativeForwarder(MysqlRoutingClassicConnection *conn,
+  AuthNativeForwarder(MysqlRoutingClassicConnectionBase *conn,
                       std::string initial_server_auth_data,
                       bool in_handshake = false)
       : Processor(conn),
