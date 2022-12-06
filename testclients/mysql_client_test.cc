@@ -23463,6 +23463,29 @@ static void test_bug25584097() {
   thd.join();
 }
 
+static void test_bug34869076() {
+  myheader("test_bug34869076");
+
+  MYSQL *lmysql = mysql_client_init(nullptr);
+  DIE_UNLESS(lmysql);
+
+  printf("expected bind_param() to fail, as GEOMETRY isn't supported.\n");
+  MYSQL_BIND params[2]{
+      {
+          .buffer_type = MYSQL_TYPE_NULL,
+      },
+      {
+          .buffer_type = MYSQL_TYPE_GEOMETRY,
+      },
+  };
+
+  const char *names[2] = {"foo", "bar"};
+  bool err = mysql_bind_param(lmysql, 2, params, names);  // expected to fail
+  DIE_UNLESS(err == true);
+
+  mysql_close(lmysql);
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -23779,6 +23802,7 @@ static struct my_tests_st my_tests[] = {
     {"test_wl13128", test_wl13128},
     {"test_bug25584097", test_bug25584097},
     {"test_34556764", test_34556764},
+    {"test_bug34869076", test_bug34869076},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }
