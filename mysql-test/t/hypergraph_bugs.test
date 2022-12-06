@@ -365,3 +365,20 @@ FROM t AS t1 JOIN t AS t2 USING (table_id)
      JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t7 USING (table_id)
      JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t8 USING (table_id);
 DROP TABLE t;
+
+# Graph simplification used to hit an assertion as a result of
+# division by zero caused by zero row estimates from MyISAM. (InnoDB
+# never gives zero row estimates, not even for empty tables, whereas
+# MyISAM does.)
+CREATE TABLE t0 (x INT) ENGINE = MyISAM;
+CREATE TABLE t1 (x INT) ENGINE = InnoDB;
+SELECT /*+ SET_VAR(optimizer_max_subgraph_pairs = 1) */ 1
+FROM t0 AS a NATURAL JOIN
+     t0 AS b NATURAL JOIN
+     t0 AS c NATURAL JOIN
+     t0 AS d NATURAL JOIN
+     t0 AS e NATURAL JOIN
+     t0 AS f NATURAL JOIN
+     t1 AS g NATURAL JOIN
+     t1 AS h;
+DROP TABLE t0, t1;
