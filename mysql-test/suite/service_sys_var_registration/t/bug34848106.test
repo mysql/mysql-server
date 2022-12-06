@@ -1,4 +1,7 @@
-INSTALL COMPONENT 'file://component_health_monitor';
-UNINSTALL COMPONENT 'file://component_health_monitor';
-INSTALL COMPONENT 'file://component_health_monitor';
-UNINSTALL COMPONENT 'file://component_health_monitor';
+--source ../include/have_component_test_sys_var_service.inc
+call mtr.add_suppression("duplicate variable name");
+
+INSTALL COMPONENT 'file://component_test_sys_var_service';
+UNINSTALL COMPONENT 'file://component_test_sys_var_service';
+INSTALL COMPONENT 'file://component_test_sys_var_service';
+UNINSTALL COMPONENT 'file://component_test_sys_var_service';
