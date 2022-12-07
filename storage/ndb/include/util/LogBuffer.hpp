@@ -169,7 +169,7 @@ public:
    * It also makes future calls to get() non-blocking.
    */
   void stop();
-
+  bool is_stopped() const;
 private:
   char* m_log_buf; // pointer to the start of log buffer memory
   size_t m_max_size; // max. number of bytes that can fit

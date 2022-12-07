@@ -437,6 +437,12 @@ LogBuffer::getLostCount() const
   return m_lost_bytes;
 }
 
+bool
+LogBuffer::is_stopped() const
+{
+  return m_stop;
+}
+
 void
 LogBuffer::stop()
 {
