@@ -955,7 +955,7 @@ static Wait_stats log_self_write_up_to(log_t &log, lsn_t end_lsn,
   /* must wait for (ready_lsn >= end_lsn) at first */
   while (i < srv_n_spin_wait_rounds && ready_lsn < end_lsn) {
     if (srv_spin_wait_delay) {
-      ut_delay(ut::random_from_interval(0, srv_spin_wait_delay));
+      ut_delay(ut::random_from_interval_fast(0, srv_spin_wait_delay));
     }
     i++;
     ready_lsn = log_buffer_ready_for_write_lsn(log);

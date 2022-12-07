@@ -505,7 +505,7 @@ static inline void log_buffer_s_lock_wait(log_t &log, const sn_t start_sn) {
   if (log.sn_locked.load(std::memory_order_acquire) <= start_sn) {
     do {
       if (srv_spin_wait_delay) {
-        ut_delay(ut::random_from_interval(0, srv_spin_wait_delay));
+        ut_delay(ut::random_from_interval_fast(0, srv_spin_wait_delay));
       }
       if (i < srv_n_spin_wait_rounds) {
         i++;
@@ -625,7 +625,7 @@ void log_buffer_x_lock_enter(log_t &log) {
     /* must wait for closed_lsn == current_lsn */
     while (i < srv_n_spin_wait_rounds && closed_lsn < current_lsn) {
       if (srv_spin_wait_delay) {
-        ut_delay(ut::random_from_interval(0, srv_spin_wait_delay));
+        ut_delay(ut::random_from_interval_fast(0, srv_spin_wait_delay));
       }
       i++;
       closed_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);

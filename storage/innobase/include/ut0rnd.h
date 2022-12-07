@@ -65,6 +65,13 @@ using std::mersenne_twister_engine<>.
 @return a pseudo-random number */
 [[nodiscard]] static inline uint64_t random_64();
 
+/** The following function returns fine clock count as random value.
+This is used for cases which need performance more than the true randomness.
+It is not causing any loads or stores, so it is very CPU-cache-friendly.
+Even for very frequent use, it doesn't cause any CPU cache pollution.
+@return a pseudo-random number */
+[[nodiscard]] static inline uint64_t random_64_fast();
+
 /** Generates a pseudo-random integer from a given interval.
 @param[in]      low     low limit; can generate also this value
 @param[in]      high    high limit; can generate also this value
@@ -72,6 +79,15 @@ using std::mersenne_twister_engine<>.
 */
 [[nodiscard]] static inline uint64_t random_from_interval(uint64_t low,
                                                           uint64_t high);
+
+/** Generates a light-weight pseudo-random integer from a given interval.
+This is used for the cases which need performance more than the true randomness.
+@param[in]      low     low limit; can generate also this value
+@param[in]      high    high limit; can generate also this value
+@return the pseudo-random number within the [low, high] two-side inclusive range
+*/
+[[nodiscard]] static inline uint64_t random_from_interval_fast(uint64_t low,
+                                                               uint64_t high);
 
 /** Hashes a 64-bit integer.
 @param[in]	value	64-bit integer
@@ -173,16 +189,38 @@ extern std::array<std::array<uint64_t, 8>, 256> tab_hash_lookup_table;
 }  // namespace detail
 
 static inline uint64_t random_64() {
-  return hash_uint64(detail::random_seed++);
+  detail::random_seed = hash_uint64(detail::random_seed);
+  return detail::random_seed;
+}
+
+static inline uint64_t random_64_fast() {
+  /* Granularity of my_timer_cycles() might be over 1, to keep constant rate for
+  frequency changes of CPU core clocks. Drops lower 5 bits. */
+  const uint64_t res = my_timer_cycles();
+  return res != 0 ? res >> 5 : random_64();
+}
+
+template <uint64_t random_64_func()>
+static inline uint64_t random_from_interval_gen(uint64_t low, uint64_t high) {
+  ut_ad(high >= low);
+  return low + (random_64_func() % (high - low + 1));
 }
 
 static inline uint64_t random_from_interval(uint64_t low, uint64_t high) {
-  ut_ad(high >= low);
+  return random_from_interval_gen<random_64>(low, high);
+}
 
-  return low + (random_64() % (high - low + 1));
+static inline uint64_t random_from_interval_fast(uint64_t low, uint64_t high) {
+  return random_from_interval_gen<random_64_fast>(low, high);
 }
 
 static inline uint64_t hash_uint64(uint64_t value) {
+#ifndef CRC32_DEFAULT
+  if (ut_crc32_cpu_enabled) {
+    return crc32_hash_uint64(value);
+  }
+#endif /* !CRC32_DEFAULT */
+
   /* This implements Tabulation Hashing. It is a simple yet effective algorithm
   that easily passes the unit tests that check distributions of hash values
   modulo different numbers. Other techniques like one from hash_uint64_pair_fast

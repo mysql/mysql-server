@@ -248,6 +248,7 @@ void test_distribution(bool assert_distribution, const std::string &test_name,
 
 TEST(ut0rnd, hash_uint64_distribution) {
   init();
+  ut_crc32_init();
   test_distribution(true, "ut::hash_uint64(i)",
                     [](size_t i, const ut::fast_modulo_t &n) {
                       return ut::hash_uint64(i) % n;
@@ -270,6 +271,7 @@ TEST(ut0rnd, hash_uint32_old_distribution) {
 }
 
 TEST(ut0rnd, hash_uint64_pair_sysbench_ahi_distribution) {
+  ut_crc32_init();
   std::array<size_t, 8> buckets{};
   for (int i = 0; i < 8; i++) {
     uint32_t hash = ut::hash_uint64_pair(149 + 2 * i, i) % 8;
@@ -284,6 +286,13 @@ TEST(ut0rnd, hash_uint64_pair_sysbench_ahi_distribution) {
   }
 
   EXPECT_GE(res, 6);
+
+  if (res < 6) {
+    for (auto a : buckets) {
+      std::cout << a << " ";
+    }
+    std::cout << std::endl;
+  }
 }
 
 /* Test distributions for algorithms that hash pair of uint32_t that are:
@@ -294,6 +303,7 @@ static void hash_pair_distribution_test(bool assert_distribution,
                                         const std::string &test_name,
                                         THash hasher) {
   init();
+  ut_crc32_init();
   test_distribution(assert_distribution, test_name + "(i, i)",
                     [&hasher](size_t i, const ut::fast_modulo_t &n) {
                       return hasher(i, i) % n;
@@ -324,13 +334,52 @@ TEST(ut0rnd, hash_uint32_pair_old_distribution) {
                               ut::detail::hash_uint32_pair_ib);
 }
 
+static void test_interval_fast_distribution(uint64_t n) {
+  const uint64_t max_count = n * 10000;
+  // min, mid, max are usecases
+  uint64_t target_score[][2] = {{0, 0}, {n / 2, 0}, {n - 1, 0}};
+
+  // variation is needed. not needed to be so accurate always.
+  const uint64_t min_score = 5000;
+  const uint64_t max_score = 17000;
+
+  for (uint64_t i = 0; i < max_count; i++) {
+    const auto value = ut::random_from_interval_fast(0, n - 1);
+    for (auto target : target_score) {
+      if (value == target[0]) {
+        target[1]++;
+      }
+    }
+    ut_delay(ut::random_from_interval_fast(0, 6));
+  }
+
+  for (auto target : target_score) {
+    EXPECT_GE(target[1], min_score);
+    EXPECT_LE(target[1], max_score);
+
+    if (target[1] < min_score || target[1] > max_score) {
+      std::cout << "test_interval_fast_distribution " << target[0] << " for 0-"
+                << n - 1 << " : " << target[1] << " / " << max_count
+                << std::endl;
+    }
+  }
+}
+
+TEST(ut0rnd, random_from_interval_fast) {
+  init();
+  test_interval_fast_distribution(2);    // 1/2
+  test_interval_fast_distribution(10);   // 1/10
+  test_interval_fast_distribution(100);  // 1/100
+}
+
 /* Micro-benchmark raw random generator performance. */
 
 template <typename THash>
 static void benchmark_hasher(const size_t num_iterations, THash hasher) {
   init();
+  ut_crc32_init();
 
-  uint32_t fold = 0;
+  uint32_t fold = 1;  // Non-zero value. Some hasher might return 0 for fold==0.
   for (size_t n = 0; n < num_iterations * 1000; n++) {
     fold += hasher(fold, n);
   }
@@ -369,6 +418,12 @@ static void BM_RND_GEN(const size_t num_iterations) {
                    [](uint64_t, uint64_t n) { return ut::random_64(); });
 }
 BENCHMARK(BM_RND_GEN)
+
+static void BM_RND_GEN_FAST(const size_t num_iterations) {
+  benchmark_hasher(num_iterations,
+                   [](uint64_t, uint64_t) { return ut::random_64_fast(); });
+}
+BENCHMARK(BM_RND_GEN_FAST)
 
 /* Micro-benchmark raw uint64_t hash performance. */
 
