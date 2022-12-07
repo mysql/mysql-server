@@ -2474,7 +2474,7 @@ bool STDCALL mysql_bind_param(MYSQL *mysql, unsigned n_params,
               ER_CLIENT(mysql->net.last_errno = CR_UNSUPPORTED_PARAM_TYPE),
               param->buffer_type, idx);
       for (uint idx2 = 0; idx2 <= idx; idx2++)
-        my_free(ext->bind_info.names[idx]);
+        my_free(ext->bind_info.names[idx2]);
       my_free(ext->bind_info.names);
       my_free(ext->bind_info.bind);
       memset(&ext->bind_info, 0, sizeof(ext->bind_info));
