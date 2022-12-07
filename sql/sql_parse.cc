@@ -1936,7 +1936,6 @@ done:
   thd->proc_info= 0;
   thd->lex->sql_command= SQLCOM_END;
 
-  DEBUG_SYNC(thd, "processlist_wait");
   /* Performance Schema Interface instrumentation, end */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi= NULL;
@@ -6449,6 +6448,7 @@ static uint kill_one_thread(THD *thd, my_thread_id id, bool only_kill_query)
 
   DBUG_ENTER("kill_one_thread");
   DBUG_PRINT("enter", ("id=%u only_kill=%d", id, only_kill_query));
+  DEBUG_SYNC(thd, "kill_thd_begin");
   tmp= Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
   if (tmp)
   {
