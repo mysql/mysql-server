@@ -1,0 +1,97 @@
+# ==== Purpose ====
+#
+# The purpose of this script is to test that the binary log thread
+# does not exit in case events are written after some "idle" time,
+# after which the source sends heartbeat messages to the replica
+#
+# ==== Requirements ====
+#
+# R1. Dump thread with heartbeat option enabled should disconnect
+#     only if an error occurs (send/flush).
+#
+# ==== Implementation ====
+#
+# 1. Setup a simple replication topology : source -> replica
+# 2. Setup heartbeat period to 1 ms
+# 3. Execute `mysqlslap` in a loop.
+#    Let the source send heartbeat messages between iterations.
+# 4. Sync the replica.
+# 5. Verify that dump thread was not restarted between mysqlslap
+#    iterations. Dump thread should exit only if a network is
+#    unstable, e.g. there was an error on "send" or "flush".
+# 6. Cleanup
+#
+# ==== References ====
+#
+# BUG#34860923 Timeout on cv in waiting with heartbeat cause dump thread to stop
+#
+
+--echo
+--echo 1. Setup a simple replication topology : source -> replica
+--echo
+--source include/master-slave.inc
+--source include/have_binlog_format_row.inc
+
+--echo
+--echo 2. Setup heartbeat period to 1 ms
+--echo
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+--let $saved_heartbeat_period = `SELECT Heartbeat FROM mysql.slave_master_info`
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=0.001;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE test.t(a INT);
+
+--echo
+--echo 3. Execute `mysqlslap` in a loop.
+--echo Let the source send heartbeat messages between iterations.
+--echo
+
+--let $mysqlslap_total_iters = 50
+--let $i = 0
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+while ($i < $mysqlslap_total_iters)
+{
+  --exec $MYSQL_SLAP --create-schema=test --delimiter=";" --iterations=5 --query="INSERT INTO test.t VALUES (1)" --concurrency=1 --silent 2>&1
+  --inc $i
+  --sleep 0.1
+}
+
+--echo
+--echo 4. Sync the replica
+--echo
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo 5. Verify that Dump thread was not restarted between
+--echo mysqlslap iterations. Dump thread should exit only
+--echo if network is unstable, e.g. there was an error on 'send' or 'flush'
+--echo
+
+--let $assert_text = Binary dump log thread should be started twice
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Start binlog_dump to
+--let $assert_count = 2
+--source include/assert_grep.inc
+
+--echo
+--echo 6. Cleanup
+--echo
+
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+--replace_result $saved_heartbeat_period SAVED_HEARTBEAT_PERIOD
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=$saved_heartbeat_period
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE test.t;
+
+--source include/rpl_end.inc
