@@ -121,6 +121,10 @@ while ($mysql_errno)
 --echo
 --echo "Restore with --print-sql-log option"
 --let ndb_restore_opts= --print-sql-log --verbose=0
+
+# Masking timestamp from the restore output with 'X' to avoid tests
+# running on different dates give 'Result content mismatch'.
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/XXXX-XX-XX XX:XX:XX/
 --error 1
 --exec $NDB_RESTORE $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id 2>&1
 
@@ -176,6 +180,10 @@ while ($mysql_errno)
 --echo
 --echo "Restore with --print-sql-log and --print-log options"
 --let ndb_restore_opts= --print-sql-log --print-log --verbose=0
+
+# Masking timestamp from the restore output with 'X' to avoid tests
+# running on different dates give 'Result content mismatch'.
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/XXXX-XX-XX XX:XX:XX/
 --error 1
 --exec $NDB_RESTORE $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id 2>&1
 
@@ -231,6 +239,10 @@ while ($mysql_errno)
 --echo
 --echo "Restore with --print-sql-log option"
 --let ndb_restore_opts= --print-sql-log --verbose=0
+
+# Masking timestamp from the restore output with 'X' to avoid tests
+# running on different dates give 'Result content mismatch'.
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/XXXX-XX-XX XX:XX:XX/
 --error 1
 --exec $NDB_RESTORE $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id 2>&1
 

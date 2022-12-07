@@ -675,8 +675,12 @@ public:
          ATTRIBUTE_FORMAT(printf, 2, 3);
   void setThreadPrefix(const char* prefix);
   const char* getThreadPrefix() const;
+  void set_print_timestamp(bool print_TS);
+  bool get_print_timestamp();
 private:
   NdbMutex *m_mutex;
+  char timestamp[64];
+  bool print_timestamp;
 };
 
 NdbOut& operator<<(NdbOut& ndbout, const TableS&);
