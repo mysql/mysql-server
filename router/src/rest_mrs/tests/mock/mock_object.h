@@ -45,11 +45,11 @@ class MockRoute : public mrs::interface::Object {
   MOCK_METHOD(const std::string &, get_options, (), (override));
   MOCK_METHOD(const std::vector<Column> &, get_cached_columnes, (), (override));
   MOCK_METHOD(const Column &, get_cached_primary, (), (override));
-  MOCK_METHOD(const Parameters &, get_parameters, (), (override));
+  MOCK_METHOD(const Fields &, get_parameters, (), (override));
   MOCK_METHOD(uint32_t, get_on_page, (), (override));
   MOCK_METHOD(bool, requires_authentication, (), (override, const));
-  MOCK_METHOD(uint64_t, get_service_id, (), (override, const));
-  MOCK_METHOD(uint64_t, get_id, (), (override, const));
+  MOCK_METHOD(mrs::UniversalId, get_service_id, (), (override, const));
+  MOCK_METHOD(mrs::UniversalId, get_id, (), (override, const));
   MOCK_METHOD(bool, has_access, (const Access access), (override, const));
   MOCK_METHOD(Format, get_format, (), (override, const));
   MOCK_METHOD(Media, get_media_type, (), (override, const));

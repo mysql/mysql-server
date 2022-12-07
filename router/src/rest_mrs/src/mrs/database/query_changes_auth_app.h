@@ -27,6 +27,7 @@
 
 #include <set>
 
+#include "mrs/database/entry/universal_id.h"
 #include "mrs/database/query_entries_auth_app.h"
 
 namespace mrs {
@@ -39,10 +40,12 @@ class QueryChangesAuthApp : public QueryEntriesAuthApp {
 
  private:
   void query_auth_entries(MySQLSession *session, Entries *out,
-                          const std::string &table_name, const uint64_t id);
-  std::string build_query(const std::string &table_name, const uint64_t id);
+                          const std::string &table_name,
+                          const entry::UniversalId &id);
+  std::string build_query(const std::string &table_name,
+                          const entry::UniversalId &id);
 
-  std::set<uint64_t> entries_fetched;
+  std::set<entry::UniversalId> entries_fetched;
 };
 
 }  // namespace database

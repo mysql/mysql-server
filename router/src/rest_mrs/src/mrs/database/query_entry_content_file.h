@@ -25,6 +25,7 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_CONTENT_FILE_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_CONTENT_FILE_H_
 
+#include "mrs/database/entry/universal_id.h"
 #include "mrs/database/helper/query.h"
 
 namespace mrs {
@@ -32,7 +33,8 @@ namespace database {
 
 class QueryEntryContentFile : public Query {
  public:
-  virtual void query_file(MySQLSession *session, const uint64_t file_id);
+  virtual void query_file(MySQLSession *session,
+                          const entry::UniversalId &file_id);
 
   std::string result;
 

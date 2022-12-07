@@ -46,6 +46,7 @@ void QueryLog::prepare_and_execute(MySQLSession *session, const std::string &q,
 
 void Query::query(MySQLSession *session, const std::string &q) {
   try {
+    log_debug("query: %s", q.c_str());
     session->query(
         q,
         [this](const auto &r) {

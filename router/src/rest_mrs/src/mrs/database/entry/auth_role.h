@@ -25,6 +25,8 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_ENTRY_AUTH_ROLE_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_ENTRY_AUTH_ROLE_H_
 
+#include "mrs/database/entry/universal_id.h"
+
 #include "helper/json/serializer_to_text.h"
 #include "helper/optional.h"
 
@@ -34,17 +36,18 @@ namespace entry {
 
 class AuthRole {
  public:
-  uint64_t id;
+  UniversalId id;
   std::string caption;
-  helper::Optional<uint64_t> derived_from_role_id;
-  helper::Optional<uint64_t> specific_to_service_id;
+  helper::Optional<UniversalId> derived_from_role_id;
+  helper::Optional<UniversalId> specific_to_service_id;
 };
 
 inline std::string to_string(const AuthRole &entry) {
   helper::json::SerializerToText stt;
   {
     auto obj = stt.add_object();
-    stt.member_add_value("id", entry.id);
+    stt.member_add_value("id", reinterpret_cast<const char *>(entry.id.raw),
+                         entry.id.k_size);
     stt.member_add_value("caption", entry.caption);
   }
 

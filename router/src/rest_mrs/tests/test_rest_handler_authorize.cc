@@ -50,7 +50,7 @@ using testing::StrEq;
 using testing::StrictMock;
 using testing::Test;
 
-const uint64_t k_service_id{101};
+const mrs::UniversalId k_service_id{101};
 const std::string k_url{"some_url"};
 const std::string k_rest_path{"some_rest_path"};
 
@@ -62,7 +62,7 @@ class HandlerAuthorizeTests : public Test {
     EXPECT_CALL(mock_http_component_, remove_route(request_handler_.get()));
   }
 
-  void make_sut(const uint64_t service_id, const std::string &rest_url,
+  void make_sut(const mrs::UniversalId service_id, const std::string &rest_url,
                 const std::string &rest_path) {
     EXPECT_CALL(mock_http_component_, add_route(rest_path, _))
         .WillOnce(Invoke(

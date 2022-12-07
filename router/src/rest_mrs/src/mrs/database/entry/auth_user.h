@@ -32,67 +32,15 @@
 #include <string>
 #include <vector>
 
-#include "helper/string/hex.h"
 #include "mrs/database/entry/auth_privilege.h"
-#include "mysqlrouter/utils_sqlstring.h"
+#include "mrs/database/entry/universal_id.h"
 
 namespace mrs {
 namespace database {
 namespace entry {
 
 struct AuthUser {
-  struct UserId {
-    constexpr static uint64_t k_size = 16;
-
-    UserId() {
-      memset(raw, 0, k_size);
-      //      num.higher_id = 0;
-      //      num.lower_id = 0;
-    }
-
-    UserId(std::initializer_list<uint8_t> v) {
-      memset(raw, 0, sizeof(raw));
-      std::copy(v.begin(), v.end(), std::begin(raw));
-    }
-
-    UserId(const UserId &id) { *this = id; }
-
-#pragma pack(push, 1)
-    //    union {
-    //      struct {
-    //        uint64_t lower_id;
-    //        uint64_t higher_id;
-    //      } num;
-    //      uint8_t raw[k_size];
-    //    };
-    uint8_t raw[k_size];
-#pragma pack(pop)
-
-    void operator=(const UserId &other) {
-      memcpy(raw, other.raw, k_size);
-      //      num.lower_id = other.num.lower_id;
-      //      num.higher_id = other.num.higher_id;
-    }
-
-    bool operator==(const UserId &other) const {
-      return 0 == memcmp(raw, other.raw, k_size);
-      //      if (num.lower_id != other.num.lower_id) return false;
-
-      //      return num.higher_id == other.num.higher_id;
-    }
-
-    bool operator!=(const UserId &other) const { return !(*this == other); }
-
-    bool operator<(const UserId &other) const {
-      for (int i = k_size - 1; i >= 0; --i) {
-        if (raw[i] < other.raw[i]) return true;
-      }
-
-      return false;
-    }
-
-    std::string to_string() const { return helper::string::hex(raw); }
-  };
+  using UserId = UniversalId;
 
   class UserIndex {
    public:
@@ -136,13 +84,13 @@ struct AuthUser {
 
   bool has_user_id{false};
   UserId user_id;
-  uint64_t app_id;
+  UniversalId app_id;
   std::string name;
   std::string email;
   std::string vendor_user_id;
   bool login_permitted{true};
   std::vector<AuthPrivilege> privileges;
-  std::set<uint64_t> groups;
+  std::set<UniversalId> groups;
 
   bool operator==(const AuthUser &other) const {
     if (has_user_id && other.has_user_id) {
@@ -174,19 +122,6 @@ struct AuthUser {
     return false;
   }
 };
-
-inline mysqlrouter::sqlstring to_sqlstring(const AuthUser::UserId &ud) {
-  mysqlrouter::sqlstring result{"X?"};
-  result << ud.to_string();
-  return result;
-}
-
-inline mysqlrouter::sqlstring &operator<<(mysqlrouter::sqlstring &sql,
-                                          const AuthUser::UserId &ud) {
-  sql << to_sqlstring(ud);
-
-  return sql;
-}
 
 inline std::string to_string(const AuthUser &ud) {
   using std::to_string;

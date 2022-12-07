@@ -135,7 +135,7 @@ const std::string k_page_content_default = R"HEREDOC(
 // clang-format on
 
 HandlerAuthorizeOk::HandlerAuthorizeOk(
-    const uint64_t service_id, const std::string &url,
+    const UniversalId service_id, const std::string &url,
     const std::string &rest_path_matcher, const std::string &options,
     const std::string &page_content_custom,
     interface::AuthorizeManager *auth_manager)
@@ -147,16 +147,16 @@ Handler::Authorization HandlerAuthorizeOk::requires_authentication() const {
   return Authorization::kCheck;
 }
 
-uint64_t HandlerAuthorizeOk::get_service_id() const { return service_id_; }
+UniversalId HandlerAuthorizeOk::get_service_id() const { return service_id_; }
 
-uint64_t HandlerAuthorizeOk::get_db_object_id() const {
+UniversalId HandlerAuthorizeOk::get_db_object_id() const {
   assert(0 && "is_object returns false, it is not allowed to call this method");
-  return 0;
+  return {};
 }
 
-uint64_t HandlerAuthorizeOk::get_schema_id() const {
+UniversalId HandlerAuthorizeOk::get_schema_id() const {
   assert(0 && "is_object returns false, it is not allowed to call this method");
-  return 0;
+  return {};
 }
 
 uint32_t HandlerAuthorizeOk::get_access_rights() const { return Route::kRead; }

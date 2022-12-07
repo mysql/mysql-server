@@ -31,7 +31,7 @@ namespace mrs {
 namespace database {
 
 void QueryEntryContentFile::query_file(MySQLSession *session,
-                                       const uint64_t file_id) {
+                                       const entry::UniversalId &file_id) {
   query_ = {
       "SELECT size,content FROM mysql_rest_service_metadata.content_file WHERE "
       "id=?"};

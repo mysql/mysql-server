@@ -43,11 +43,11 @@ class TrackAuthorizeHandler : public interface::AuthorizeHandler {
 
   ~TrackAuthorizeHandler() override { cb_->destroy(this); }
 
-  uint64_t get_service_id() const override {
+  UniversalId get_service_id() const override {
     return handler_->get_service_id();
   }
 
-  uint64_t get_id() const override { return handler_->get_id(); }
+  UniversalId get_id() const override { return handler_->get_id(); }
 
   const AuthApp &get_entry() const override { return handler_->get_entry(); }
 

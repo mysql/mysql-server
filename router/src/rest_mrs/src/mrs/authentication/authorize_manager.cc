@@ -96,7 +96,7 @@ static Jwt get_bearer_token_jwt(const HttpHeaders &headers) {
 static std::string get_session_cookie_key_name(
     const AuthorizeManager::ServiceId id) {
   using namespace std::literals::string_literals;
-  return "session_"s + std::to_string(id);
+  return "session_"s + id.to_string();
 }
 
 AuthorizeManager::AuthorizeManager(collector::MysqlCacheManager *cache_manager,
@@ -122,7 +122,7 @@ void AuthorizeManager::update(const Entries &entries) {
   }
 
   for (const auto &e : entries) {
-    log_debug("auth_app: Processing update of id=%i", (int)e.id);
+    log_debug("auth_app: Processing update of id=%s", e.id.to_string().c_str());
     auto auth = make_auth(e);
 
     if (get_handler_by_id(e.id, &it)) {
@@ -136,7 +136,7 @@ void AuthorizeManager::update(const Entries &entries) {
 }
 
 AuthorizeManager::Container AuthorizeManager::get_handlers_by_service_id(
-    const uint64_t service_id) {
+    const UniversalId service_id) {
   Container out_result;
 
   helper::container::copy_if(
@@ -149,7 +149,7 @@ AuthorizeManager::Container AuthorizeManager::get_handlers_by_service_id(
   return out_result;
 }
 
-bool AuthorizeManager::get_handler_by_id(const uint64_t auth_id,
+bool AuthorizeManager::get_handler_by_id(const UniversalId auth_id,
                                          Container::iterator *out_it) {
   auto it = std::find_if(container_.begin(), container_.end(),
                          [auth_id](auto &i) { return i->get_id() == auth_id; });
@@ -162,7 +162,7 @@ bool AuthorizeManager::get_handler_by_id(const uint64_t auth_id,
   return false;
 }
 
-bool AuthorizeManager::get_handler_by_id(const uint64_t auth_id,
+bool AuthorizeManager::get_handler_by_id(const UniversalId auth_id,
                                          AuthorizeHandlerPtr &out_it) {
   Container::iterator it;
   if (get_handler_by_id(auth_id, &it)) {
@@ -298,7 +298,8 @@ static bool is_timestamp_in_past(const std::string ts) {
   return true;
 }
 
-std::string AuthorizeManager::get_jwt_token(uint64_t service_id, Session *s) {
+std::string AuthorizeManager::get_jwt_token(UniversalId service_id,
+                                            Session *s) {
   using namespace rapidjson;
   Document payload;
   auto exp = current_timestamp(session_manager_.get_timeout());
@@ -314,15 +315,16 @@ std::string AuthorizeManager::get_jwt_token(uint64_t service_id, Session *s) {
 
   payload.AddMember(StringRef("exp"), StringRef(exp.c_str()),
                     payload.GetAllocator());
-  payload.AddMember(StringRef("service_id"), service_id,
+  payload.AddMember(StringRef("service_id"),
+                    StringRef((const char *)service_id.raw, service_id.k_size),
                     payload.GetAllocator());
 
   auto jwt = helper::Jwt::create("HS256", payload);
 
   auto token = jwt.sign(jwt_secret_);
 
-  std::string session_id = std::to_string(service_id) + "." +
-                           s->user.user_id.to_string() + "." + exp;
+  std::string session_id =
+      service_id.to_string() + "." + s->user.user_id.to_string() + "." + exp;
   if (session_manager_.get_session(session_id)) return session_id;
 
   auto session = session_manager_.new_session(session_id);
@@ -351,7 +353,7 @@ AuthorizeManager::Session *AuthorizeManager::get_current_session(
   return session;
 }
 
-std::string AuthorizeManager::authorize(const uint64_t service_id,
+std::string AuthorizeManager::authorize(const UniversalId service_id,
                                         const helper::Jwt &jwt) {
   log_debug("Validating JWT token: %s", jwt.get_token().c_str());
   if (!jwt.is_valid()) {
@@ -381,12 +383,14 @@ std::string AuthorizeManager::authorize(const uint64_t service_id,
   if (!json_uid->IsString()) return {};
   log_debug("JWT token  supported algorithm");
   if (!json_exp->IsString()) return {};
-  if (!json_sid->IsUint64()) return {};
+  if (!json_sid->IsString()) return {};
 
+  // TODO(lkotula): Change from_raw ? (Shouldn't be in review)
   auto user_id = helper::string::unhex<UserIdContainer>(json_uid->GetString())
                      .get_user_id();
   auto exp = json_exp->GetString();
-  auto sid = json_sid->GetUint64();
+  auto sid = UniversalId::from_cstr(json_sid->GetString(),
+                                    json_sid->GetStringLength());
 
   if (sid != service_id) {
     log_debug("Wrong service id.");
@@ -424,9 +428,9 @@ bool AuthorizeManager::authorize(ServiceId service_id, http::Cookie *cookies,
   auto session_cookie_key = get_session_cookie_key_name(service_id);
   auto session_identifier = cookies->get(session_cookie_key);
   log_debug(
-      "AuthorizeManager::authorize(service_id:%i, session_id:%s, "
+      "AuthorizeManager::authorize(service_id:%s, session_id:%s, "
       "can_use_jwt:%s)",
-      static_cast<int>(service_id), session_identifier.c_str(),
+      service_id.to_string().c_str(), session_identifier.c_str(),
       (jwt_secret_.empty() ? "no" : "yes"));
 
   AuthorizeHandlerPtr selected_handler;
@@ -518,9 +522,9 @@ bool AuthorizeManager::is_authorized(ServiceId service_id,
   auto session_identifier = cookies->get(session_cookie_key);
 
   log_debug(
-      "AuthorizeManager::is_authorized(service_id:%i, session_id:%s, "
+      "AuthorizeManager::is_authorized(service_id:%s, session_id:%s, "
       "can_use_jwt:%s)",
-      static_cast<int>(service_id), session_identifier.c_str(),
+      service_id.to_string().c_str(), session_identifier.c_str(),
       (jwt_secret_.empty() ? "no" : "yes"));
 
   if (session_identifier.empty()) {

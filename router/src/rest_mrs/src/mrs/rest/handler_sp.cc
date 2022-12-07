@@ -86,21 +86,20 @@ Result HandlerSP::handle_delete([[maybe_unused]] rest::RequestContext *ctxt) {
   throw http::Error(HttpStatusCode::NotImplemented);
 }
 
-enum_field_types to_mysql_type(
-    mrs::database::entry::Parameter::ParameterDataType pdt) {
-  using Pdt = mrs::database::entry::Parameter::ParameterDataType;
+enum_field_types to_mysql_type(mrs::database::entry::Field::DataType pdt) {
+  using Pdt = mrs::database::entry::Field::DataType;
   switch (pdt) {
-    case Pdt::parameterString:
+    case Pdt::typeString:
       return MYSQL_TYPE_STRING;
-    case Pdt::parameterInt:
+    case Pdt::typeInt:
       return MYSQL_TYPE_LONG;
-    case Pdt::parameterDouble:
+    case Pdt::typeDouble:
       return MYSQL_TYPE_DOUBLE;
-    case Pdt::parameterBoolean:
+    case Pdt::typeBoolean:
       return MYSQL_TYPE_BOOL;
-    case Pdt::parameterLong:
+    case Pdt::typeLong:
       return MYSQL_TYPE_LONGLONG;
-    case Pdt::parameterTimestamp:
+    case Pdt::typeTimestamp:
       return MYSQL_TYPE_TIMESTAMP;
 
     default:
@@ -131,7 +130,7 @@ Result HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
   auto &p = route_->get_parameters();
   for (auto el : helper::json::member_iterator(doc)) {
     auto key = el.first;
-    const database::entry::Parameter *param;
+    const database::entry::Field *param;
     if (!helper::container::get_ptr_if(
             p, [key](auto &v) { return v.name == key; }, &param)) {
       throw http::Error(HttpStatusCode::BadRequest,
@@ -146,10 +145,9 @@ Result HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
     if (!result.empty()) result += ",";
 
     if (ownership.user_ownership_enforced &&
-        (ownership.user_ownership_column == el.bind_column_name)) {
+        (ownership.user_ownership_column == el.bind_name)) {
       result += to_sqlstring(ctxt->user.user_id).str();
-    } else if (el.mode ==
-               mrs::database::entry::Parameter::ParameterMode::parameterIn) {
+    } else if (el.mode == mrs::database::entry::Field::Mode::modeIn) {
       auto it = doc.FindMember(el.name.c_str());
       if (it == doc.MemberEnd())
         throw http::Error(HttpStatusCode::BadRequest,
@@ -157,7 +155,7 @@ Result HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
       result += (mysqlrouter::sqlstring("?") << to_string(&it->value)).str();
     } else {
       result += "?";
-      variables.push_back(to_mysql_type(el.parameter_data_type));
+      variables.push_back(to_mysql_type(el.data_type));
     }
   }
 
@@ -192,7 +190,7 @@ Result HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
 
   auto &p = route_->get_parameters();
   for (auto key : keys) {
-    const database::entry::Parameter *param;
+    const database::entry::Field *param;
     if (!helper::container::get_ptr_if(
             p, [key](auto &v) { return v.name == key; }, &param)) {
       throw http::Error(HttpStatusCode::BadRequest,
@@ -201,7 +199,7 @@ Result HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
   }
 
   for (auto &el : p) {
-    if (el.mode != mrs::database::entry::Parameter::parameterIn)
+    if (el.mode != mrs::database::entry::Field::modeIn)
       throw http::Error(
           HttpStatusCode::BadRequest,
           "Only 'in' parameters allowed, '"s + el.name + "' is output.");
@@ -214,10 +212,9 @@ Result HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
     if (!result.empty()) result += ",";
 
     if (ownership.user_ownership_enforced &&
-        (ownership.user_ownership_column == el.bind_column_name)) {
+        (ownership.user_ownership_column == el.bind_name)) {
       result += to_sqlstring(ctxt->user.user_id).str();
-    } else if (el.mode ==
-               mrs::database::entry::Parameter::ParameterMode::parameterIn) {
+    } else if (el.mode == mrs::database::entry::Field::Mode::modeIn) {
       auto idx = helper::container::index_of(keys, el.name);
       if (idx == -1)
         throw http::Error(HttpStatusCode::BadRequest,
@@ -225,7 +222,7 @@ Result HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
       result += (mysqlrouter::sqlstring("?") << values[idx]).str();
     } else {
       result += "?";
-      variables.push_back(to_mysql_type(el.parameter_data_type));
+      variables.push_back(to_mysql_type(el.data_type));
     }
   }
 
@@ -274,11 +271,13 @@ Handler::Authorization HandlerSP::requires_authentication() const {
                                            : Authorization::kNotNeeded;
 }
 
-uint64_t HandlerSP::get_service_id() const { return route_->get_service_id(); }
+UniversalId HandlerSP::get_service_id() const {
+  return route_->get_service_id();
+}
 
-uint64_t HandlerSP::get_db_object_id() const { return route_->get_id(); }
+UniversalId HandlerSP::get_db_object_id() const { return route_->get_id(); }
 
-uint64_t HandlerSP::get_schema_id() const {
+UniversalId HandlerSP::get_schema_id() const {
   return route_->get_schema()->get_id();
 }
 

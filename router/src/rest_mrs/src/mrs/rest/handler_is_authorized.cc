@@ -43,7 +43,7 @@ using Result = HandlerIsAuthorized::Result;
 using Route = mrs::interface::Object;
 
 HandlerIsAuthorized::HandlerIsAuthorized(
-    const uint64_t service_id, const std::string &url,
+    const UniversalId service_id, const std::string &url,
     const std::string &rest_path_matcher, const std::string &options,
     interface::AuthorizeManager *auth_manager)
     : Handler(url, rest_path_matcher, options, auth_manager),
@@ -53,16 +53,16 @@ Handler::Authorization HandlerIsAuthorized::requires_authentication() const {
   return Authorization::kCheck;
 }
 
-uint64_t HandlerIsAuthorized::get_service_id() const { return service_id_; }
+UniversalId HandlerIsAuthorized::get_service_id() const { return service_id_; }
 
-uint64_t HandlerIsAuthorized::get_db_object_id() const {
+UniversalId HandlerIsAuthorized::get_db_object_id() const {
   assert(0 && "is_object returns false, it is not allowed to call this method");
-  return 0;
+  return {};
 }
 
-uint64_t HandlerIsAuthorized::get_schema_id() const {
+UniversalId HandlerIsAuthorized::get_schema_id() const {
   assert(0 && "is_object returns false, it is not allowed to call this method");
-  return 0;
+  return {};
 }
 
 uint32_t HandlerIsAuthorized::get_access_rights() const { return Route::kRead; }

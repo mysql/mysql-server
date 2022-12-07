@@ -22,36 +22,45 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_BASIC_HANDLER_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_BASIC_HANDLER_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_ENTRY_FIELD_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_ENTRY_FIELD_H_
 
-#include "collector/mysql_cache_manager.h"
-#include "mrs/authentication/www_authentication_handler.h"
-#include "mrs/database/entry/auth_app.h"
-#include "mrs/users/user_manager.h"
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "mrs/database/entry/entry.h"
+#include "mrs/database/entry/set_operation.h"
+#include "mrs/database/entry/universal_id.h"
 
 namespace mrs {
-namespace authentication {
+namespace database {
+namespace entry {
 
-class BasicHandler : public WwwAuthenticationHandler {
- public:
-  using AuthApp = database::entry::AuthApp;
+struct Field {
+  enum DataType {
+    typeString,
+    typeInt,
+    typeDouble,
+    typeBoolean,
+    typeLong,
+    typeTimestamp
+  };
+  enum Mode {
+    modeIn,
+    modeOut,
+    modeInOut,
+  };
 
- public:
-  BasicHandler(const AuthApp &entry,
-               collector::MysqlCacheManager *cache_manager);
-
-  UniversalId get_service_id() const override;
-  UniversalId get_id() const override;
-
-  bool www_authorize(const std::string &token, SqlSessionCached *out_cache,
-                     AuthUser *out_user) override;
-
- private:
-  collector::MysqlCacheManager *cache_manager_;
+  UniversalId id;
+  std::string name;
+  Mode mode;
+  std::string bind_name;
+  DataType data_type;
 };
 
-}  // namespace authentication
+}  // namespace entry
+}  // namespace database
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_BASIC_HANDLER_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_ENTRY_FIELD_H_

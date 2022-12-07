@@ -31,7 +31,8 @@
 class MockQueryUserGroups : public mrs::database::QueryUserGroups {
  public:
   MOCK_METHOD(void, query_groups,
-              (MySQLSession * session, uint64_t user_id, Set *out_group_ids),
+              (MySQLSession * session, mrs::UniversalId user_id,
+               Set *out_group_ids),
               (override));
 };
 

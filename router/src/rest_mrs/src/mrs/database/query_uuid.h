@@ -28,7 +28,6 @@
 #include <array>
 
 #include "mrs/database/entry/auth_user.h"
-#include "mrs/database/entry/parameter.h"
 #include "mrs/database/helper/query.h"
 
 namespace mrs {

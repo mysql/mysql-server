@@ -22,32 +22,33 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_PARAMETER_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_PARAMETER_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_FIELDS_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_FIELDS_H_
 
 #include <vector>
 
-#include "mrs/database/entry/parameter.h"
+#include "mrs/database/entry/field.h"
 #include "mrs/database/helper/query.h"
 
 namespace mrs {
 namespace database {
 
-class QueryEntryParameter : private Query {
+class QueryEntryFields : private Query {
  public:
-  using Parameters = std::vector<entry::Parameter>;
+  using Fields = std::vector<entry::Field>;
 
-  virtual bool query_parameters(MySQLSession *session, uint64_t db_object_id);
+  virtual bool query_parameters(MySQLSession *session,
+                                entry::UniversalId db_object_id);
 
-  virtual Parameters &get_result();
+  virtual Fields &get_result();
 
  private:
   void on_row(const Row &r) override;
 
-  Parameters parameters_;
+  Fields parameters_;
 };
 
 }  // namespace database
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_PARAMETER_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_ENTRY_FIELDS_H_

@@ -125,8 +125,8 @@ const std::vector<Column> &ObjectStaticFile::get_cached_columnes() {
   return empty;
 }
 
-const mrs::interface::Object::Parameters &ObjectStaticFile::get_parameters() {
-  static mrs::interface::Object::Parameters empty;
+const mrs::interface::Object::Fields &ObjectStaticFile::get_parameters() {
+  static mrs::interface::Object::Fields empty;
   return empty;
 }
 
@@ -141,9 +141,9 @@ bool ObjectStaticFile::requires_authentication() const {
   return cse_.requires_authentication || cse_.set_requires_authentication;
 }
 
-uint64_t ObjectStaticFile::get_id() const { return cse_.id; }
+UniversalId ObjectStaticFile::get_id() const { return cse_.id; }
 
-uint64_t ObjectStaticFile::get_service_id() const { return cse_.service_id; }
+UniversalId ObjectStaticFile::get_service_id() const { return cse_.service_id; }
 
 bool ObjectStaticFile::has_access(const Access access) const {
   if (access == kRead) return true;

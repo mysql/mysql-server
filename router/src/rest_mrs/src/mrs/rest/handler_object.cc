@@ -598,13 +598,13 @@ Handler::Authorization HandlerObject::requires_authentication() const {
                                            : Authorization::kNotNeeded;
 }
 
-uint64_t HandlerObject::get_service_id() const {
+UniversalId HandlerObject::get_service_id() const {
   return route_->get_service_id();
 }
 
-uint64_t HandlerObject::get_db_object_id() const { return route_->get_id(); }
+UniversalId HandlerObject::get_db_object_id() const { return route_->get_id(); }
 
-uint64_t HandlerObject::get_schema_id() const {
+UniversalId HandlerObject::get_schema_id() const {
   return route_->get_schema()->get_id();
 }
 

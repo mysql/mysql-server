@@ -213,9 +213,9 @@ bool Object::requires_authentication() const {
   return pe_.requires_authentication || pe_.schema_requires_authentication;
 }
 
-uint64_t Object::get_id() const { return pe_.id; }
+UniversalId Object::get_id() const { return pe_.id; }
 
-uint64_t Object::get_service_id() const { return pe_.service_id; }
+UniversalId Object::get_service_id() const { return pe_.service_id; }
 
 bool Object::has_access(const Access access) const {
   return access & pe_.operation;
@@ -267,8 +267,8 @@ const Object::VectorOfRowGroupOwnership &Object::get_group_row_ownership()
   return pe_.row_group_security;
 }
 
-const mrs::interface::Object::Parameters &Object::get_parameters() {
-  return pe_.parameters;
+const mrs::interface::Object::Fields &Object::get_parameters() {
+  return pe_.fields;
 }
 
 }  // namespace mrs

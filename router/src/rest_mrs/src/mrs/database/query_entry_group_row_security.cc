@@ -28,12 +28,12 @@ namespace mrs {
 namespace database {
 
 bool QueryEntryGroupRowSecurity::query_group_row_security(
-    MySQLSession *session, uint64_t db_object_id) {
+    MySQLSession *session, entry::UniversalId db_object_id) {
   row_group_security_.clear();
   query_ = {
       "SELECT group_hierarchy_type_id, row_group_ownership_column, level, "
       "match_level + 0 FROM "
-      "mysql_rest_service_metadata.db_object_row_group_security WHERE "
+      "mysql_rest_service_metadata.mrs_db_object_row_group_security WHERE "
       "db_object_id=?"};
   query_ << db_object_id;
   execute(session);
@@ -56,7 +56,8 @@ void QueryEntryGroupRowSecurity::on_row(const Row &row) {
 
   auto &entry = row_group_security_.emplace_back();
 
-  mysql_row.unserialize(&entry.hierarhy_id);
+  mysql_row.unserialize_with_converter(&entry.hierarhy_id,
+                                       entry::UniversalId::from_raw);
   mysql_row.unserialize(&entry.row_group_ownership_column);
   mysql_row.unserialize(&entry.level);
   mysql_row.unserialize_with_converter(&entry.match, converter);

@@ -27,8 +27,10 @@
 
 #include <cstdint>
 
-#include "helper/optional.h"
 #include "mrs/database/entry/set_operation.h"
+#include "mrs/database/entry/universal_id.h"
+
+#include "helper/optional.h"
 
 namespace mrs {
 namespace database {
@@ -42,9 +44,9 @@ namespace entry {
  */
 class AuthPrivilege {
  public:
-  helper::Optional<uint64_t> service_id;
-  helper::Optional<uint64_t> schema_id;
-  helper::Optional<uint64_t> object_id;
+  helper::Optional<UniversalId> service_id;
+  helper::Optional<UniversalId> schema_id;
+  helper::Optional<UniversalId> object_id;
 
   Operation::ValueType crud;
 };

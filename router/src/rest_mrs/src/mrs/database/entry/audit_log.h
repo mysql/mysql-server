@@ -25,6 +25,10 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_ENTRY_AUDIT_LOG_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_ENTRY_AUDIT_LOG_H_
 
+#include "helper/optional.h"
+#include "mrs/database/entry/audit_log.h"
+#include "mrs/database/entry/universal_id.h"
+
 namespace mrs {
 namespace database {
 namespace entry {
@@ -34,10 +38,8 @@ struct AuditLog {
   std::string op;
   std::string table;
 
-  bool has_old_table_id;
-  uint64_t old_table_id;
-  bool has_new_table_id;
-  uint64_t new_table_id;
+  helper::Optional<UniversalId> old_table_id;
+  helper::Optional<UniversalId> new_table_id;
 };
 
 }  // namespace entry

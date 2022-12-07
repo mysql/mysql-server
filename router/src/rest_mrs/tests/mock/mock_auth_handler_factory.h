@@ -29,11 +29,15 @@
 
 class MockAuthHandlerFactory : public mrs::interface::AuthHandlerFactory {
  public:
-  MOCK_METHOD(AuthHandlerPtr, create_basic_auth_handler, (const AuthApp &entry, MysqlCacheManager *cache_manager), (const, override));
-  MOCK_METHOD(AuthHandlerPtr, create_facebook_auth_handler, (const AuthApp &entry), (const, override));
-  MOCK_METHOD(AuthHandlerPtr, create_twitter_auth_handler, (const AuthApp &entry), (const, override));
-  MOCK_METHOD(AuthHandlerPtr, create_google_auth_handler, (const AuthApp &entry), (const, override));
+  MOCK_METHOD(AuthHandlerPtr, create_basic_auth_handler,
+              (const AuthApp &entry, MysqlCacheManager *cache_manager),
+              (const, override));
+  MOCK_METHOD(AuthHandlerPtr, create_facebook_auth_handler,
+              (const AuthApp &entry), (const, override));
+  MOCK_METHOD(AuthHandlerPtr, create_twitter_auth_handler,
+              (const AuthApp &entry), (const, override));
+  MOCK_METHOD(AuthHandlerPtr, create_google_auth_handler,
+              (const AuthApp &entry), (const, override));
 };
 
 #endif  // ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_AUTH_HANDLER_FACTORY_H_
-

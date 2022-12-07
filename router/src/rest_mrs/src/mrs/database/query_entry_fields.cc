@@ -22,7 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mrs/database/query_entry_parameter.h"
+#include "mrs/database/query_entry_fields.h"
 
 #include <map>
 
@@ -31,13 +31,13 @@
 namespace mrs {
 namespace database {
 
-bool QueryEntryParameter::query_parameters(MySQLSession *session,
-                                           uint64_t db_object_id) {
+bool QueryEntryFields::query_parameters(MySQLSession *session,
+                                        entry::UniversalId db_object_id) {
   parameters_.clear();
   query_ = {
       "SELECT id, name, mode, "
-      "bind_column_name, param_datatype, position FROM "
-      "mysql_rest_service_metadata.parameter WHERE "
+      "bind_field_name, datatype, position FROM "
+      "mysql_rest_service_metadata.field WHERE "
       "db_object_id=? ORDER BY position"};
   query_ << db_object_id;
   execute(session);
@@ -45,40 +45,38 @@ bool QueryEntryParameter::query_parameters(MySQLSession *session,
   return true;
 }
 
-QueryEntryParameter::Parameters &QueryEntryParameter::get_result() {
-  return parameters_;
-}
+QueryEntryFields::Fields &QueryEntryFields::get_result() { return parameters_; }
 
-void QueryEntryParameter::on_row(const Row &row) {
-  using Parameter = mrs::database::entry::Parameter;
-  using ParameterDataType = Parameter::ParameterDataType;
-  using ParameterMode = Parameter::ParameterMode;
+void QueryEntryFields::on_row(const Row &row) {
+  using Field = mrs::database::entry::Field;
+  using DataType = Field::DataType;
+  using Mode = Field::Mode;
 
   if (row.size() < 1) return;
 
   class ParamTypeConverter {
    public:
-    void operator()(ParameterDataType *out, const char *value) const {
-      const static std::map<std::string, ParameterDataType> converter{
-          {"STRING", ParameterDataType::parameterString},
-          {"INT", ParameterDataType::parameterInt},
-          {"DOUBLE", ParameterDataType::parameterDouble},
-          {"BOOLEAN", ParameterDataType::parameterBoolean},
-          {"LONG", ParameterDataType::parameterLong},
-          {"TIMESTAMP", ParameterDataType::parameterTimestamp},
-          {"JSON", ParameterDataType::parameterString}};
+    void operator()(DataType *out, const char *value) const {
+      const static std::map<std::string, DataType> converter{
+          {"STRING", DataType::typeString},
+          {"INT", DataType::typeInt},
+          {"DOUBLE", DataType::typeDouble},
+          {"BOOLEAN", DataType::typeBoolean},
+          {"LONG", DataType::typeLong},
+          {"TIMESTAMP", DataType::typeTimestamp},
+          {"JSON", DataType::typeString}};
       *out = converter.at(value);
     }
   };
   class ParamModeConverter {
    public:
-    void operator()(ParameterMode *out, const char *value) const {
-      const static std::map<std::string, ParameterMode> converter{
-          {"IN", Parameter::parameterIn},
-          {"OUT", Parameter::parameterOut},
-          {"INOUT", Parameter::parameterInOut}};
+    void operator()(Mode *out, const char *value) const {
+      const static std::map<std::string, Mode> converter{
+          {"IN", Mode::modeIn},
+          {"OUT", Mode::modeOut},
+          {"INOUT", Mode::modeInOut}};
       if (nullptr == value) {
-        *out = Parameter::parameterIn;
+        *out = Mode::modeIn;
         return;
       }
       *out = converter.at(value);
@@ -89,12 +87,11 @@ void QueryEntryParameter::on_row(const Row &row) {
 
   auto &entry = parameters_.emplace_back();
 
-  mysql_row.unserialize(&entry.id);
+  mysql_row.unserialize_with_converter(&entry.id, entry::UniversalId::from_raw);
   mysql_row.unserialize(&entry.name);
   mysql_row.unserialize_with_converter(&entry.mode, ParamModeConverter{});
-  mysql_row.unserialize(&entry.bind_column_name);
-  mysql_row.unserialize_with_converter(&entry.parameter_data_type,
-                                       ParamTypeConverter{});
+  mysql_row.unserialize(&entry.bind_name);
+  mysql_row.unserialize_with_converter(&entry.data_type, ParamTypeConverter{});
 }
 
 }  // namespace database

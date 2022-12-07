@@ -42,9 +42,9 @@ class HandlerFile : public mrs::rest::Handler {
   HandlerFile(Route *route, mrs::interface::AuthorizeManager *auth_manager,
               std::shared_ptr<QueryFactory> factory = {});
 
-  uint64_t get_service_id() const override;
-  uint64_t get_db_object_id() const override;
-  uint64_t get_schema_id() const override;
+  UniversalId get_service_id() const override;
+  UniversalId get_db_object_id() const override;
+  UniversalId get_schema_id() const override;
 
   uint32_t get_access_rights() const override;
   Authorization requires_authentication() const override;

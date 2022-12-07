@@ -38,7 +38,7 @@ namespace rest {
 
 class HandlerAuthorizeCommon : public Handler {
  public:
-  HandlerAuthorizeCommon(const uint64_t service_id, const std::string &url,
+  HandlerAuthorizeCommon(const UniversalId service_id, const std::string &url,
                          const std::string &rest_path_matcher,
                          const std::string &options,
                          const std::string &redirection,
@@ -47,9 +47,9 @@ class HandlerAuthorizeCommon : public Handler {
   void authorization(RequestContext *ctxt) override;
   bool may_check_access() const override;
   Authorization requires_authentication() const override;
-  uint64_t get_service_id() const override;
-  uint64_t get_db_object_id() const override;
-  uint64_t get_schema_id() const override;
+  UniversalId get_service_id() const override;
+  UniversalId get_db_object_id() const override;
+  UniversalId get_schema_id() const override;
   uint32_t get_access_rights() const override;
 
   bool request_error(RequestContext *ctxt, const http::Error &e) override;
@@ -63,7 +63,7 @@ class HandlerAuthorizeCommon : public Handler {
  private:
   std::string append_status_parameters(RequestContext *ctxt,
                                        const http::Error &error);
-  uint64_t service_id_;
+  UniversalId service_id_;
   const std::string redirection_;
   std::string copy_url_;
   std::string copy_path_;

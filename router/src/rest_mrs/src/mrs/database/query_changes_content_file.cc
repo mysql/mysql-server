@@ -47,13 +47,13 @@ void QueryChangesContentFile::query_entries(MySQLSession *session) {
       audit_log_id_);
 
   for (const auto &audit_entry : audit_entries.entries) {
-    if (audit_entry.has_old_table_id)
+    if (audit_entry.old_table_id.has_value())
       query_auth_entries(session, &local_entries, audit_entry.table,
-                         audit_entry.old_table_id);
+                         audit_entry.old_table_id.value());
 
-    if (audit_entry.has_new_table_id)
+    if (audit_entry.new_table_id.has_value())
       query_auth_entries(session, &local_entries, audit_entry.table,
-                         audit_entry.new_table_id);
+                         audit_entry.new_table_id.value());
 
     if (max_audit_log_id < audit_entry.id) max_audit_log_id = audit_entry.id;
   }
@@ -68,7 +68,7 @@ void QueryChangesContentFile::query_entries(MySQLSession *session) {
 void QueryChangesContentFile::query_auth_entries(MySQLSession *session,
                                                  VectorOfPaths *out,
                                                  const std::string &table_name,
-                                                 const uint64_t id) {
+                                                 const entry::UniversalId id) {
   entries.clear();
 
   query(session, build_query(table_name, id));
@@ -90,7 +90,7 @@ void QueryChangesContentFile::query_auth_entries(MySQLSession *session,
 }
 
 std::string QueryChangesContentFile::build_query(const std::string &table_name,
-                                                 const uint64_t id) {
+                                                 const entry::UniversalId id) {
   mysqlrouter::sqlstring where{" WHERE !=?"};
   where << (table_name + "_id") << id;
   return query_.str() + where.str();

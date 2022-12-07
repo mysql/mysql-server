@@ -32,11 +32,12 @@
 
 #include "collector/mysql_cache_manager.h"
 #include "helper/mysql_column.h"
-#include "mrs/database/entry/parameter.h"
+#include "mrs/database/entry/field.h"
 #include "mrs/database/entry/row_group_ownership.h"
 #include "mrs/database/entry/row_user_ownership.h"
 #include "mrs/interface/object_schema.h"
 #include "mrs/interface/rest_handler.h"
+#include "mrs/interface/universal_id.h"
 
 namespace mrs {
 namespace interface {
@@ -50,7 +51,7 @@ class Object {
   using RowUserOwnership = database::entry::RowUserOwnership;
   using VectorOfRowGroupOwnership =
       std::vector<database::entry::RowGroupOwnership>;
-  using Parameters = std::vector<database::entry::Parameter>;
+  using Fields = std::vector<database::entry::Field>;
 
   enum Access { kCreate = 1, kRead = 2, kUpdate = 4, kDelete = 8 };
   enum Format { kFeed = 1, kItem = 2, kMedia = 3 };
@@ -80,14 +81,14 @@ class Object {
     static std::string empty;
     return empty;
   }
-  virtual const Parameters &get_parameters() = 0;
+  virtual const Fields &get_parameters() = 0;
   virtual const std::vector<Column> &get_cached_columnes() = 0;
   virtual const Column &get_cached_primary() = 0;
   virtual uint32_t get_on_page() = 0;
 
   virtual bool requires_authentication() const = 0;
-  virtual uint64_t get_service_id() const = 0;
-  virtual uint64_t get_id() const = 0;
+  virtual UniversalId get_service_id() const = 0;
+  virtual UniversalId get_id() const = 0;
   virtual bool has_access(const Access access) const = 0;
   virtual Format get_format() const = 0;
   virtual Media get_media_type() const = 0;

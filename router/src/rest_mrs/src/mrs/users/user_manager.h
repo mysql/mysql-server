@@ -48,7 +48,7 @@ class UserManager {
 
  public:
   UserManager(const bool limit_to_existing_users,
-              const helper::Optional<uint64_t> &default_role_id)
+              const helper::Optional<UniversalId> &default_role_id)
       : limit_to_existing_users_{limit_to_existing_users},
         default_role_id_{default_role_id} {}
 
@@ -69,7 +69,7 @@ class UserManager {
   std::shared_mutex mutex_user_cache_;
   Cache user_cache_;
   bool limit_to_existing_users_;
-  const helper::Optional<uint64_t> default_role_id_;
+  const helper::Optional<UniversalId> default_role_id_;
 };
 
 }  // namespace users

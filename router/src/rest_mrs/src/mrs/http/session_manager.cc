@@ -46,7 +46,7 @@ using Session = SessionManager::Session;
 using SessionIdType = SessionManager::SessionId;
 
 SessionManager::Session::Session(const SessionId id,
-                                 const AuthorizationHandlerId authorization_id)
+                                 const AuthorizationHandlerId &authorization_id)
     : id_{id},
       access_time_{system_clock::now()},
       authorization_handler_id_{authorization_id} {}
@@ -61,7 +61,8 @@ Session *SessionManager::new_session(
 
 Session *SessionManager::new_session(const SessionId &session_id) {
   std::lock_guard<std::mutex> lck{mutex_};
-  sessions_.push_back(std::make_unique<Session>(session_id, 0));
+  sessions_.push_back(
+      std::make_unique<Session>(session_id, AuthorizationHandlerId{}));
   return sessions_.back().get();
 }
 

@@ -30,6 +30,7 @@
 #include <vector>
 
 #include "mrs/interface/rest_handler.h"
+#include "mrs/interface/universal_id.h"
 #include "mrs/state.h"
 
 namespace mrs {
@@ -56,8 +57,8 @@ class ObjectSchema {
   virtual const std::string get_full_path() const = 0;
   virtual const VectorOfRoutes &get_routes() const = 0;
   virtual bool requires_authentication() const = 0;
-  virtual uint64_t get_service_id() const = 0;
-  virtual uint64_t get_id() const = 0;
+  virtual UniversalId get_service_id() const = 0;
+  virtual UniversalId get_id() const = 0;
 };
 
 }  // namespace interface

@@ -48,13 +48,13 @@ TEST(Json, to_string_two_items) {
 
 TEST(Json, SerializerToText_simple_values) {
   ASSERT_EQ("\"\"", SerializerToText().add_value("").get_result());
-  ASSERT_EQ("100", SerializerToText().add_value(100).get_result());
+  ASSERT_EQ("100", (SerializerToText() << 100).get_result());
   ASSERT_EQ("\"100\"", SerializerToText().add_value("100").get_result());
   ASSERT_EQ(
       "100",
       SerializerToText().add_value("100", ColumnJsonTypes::kJson).get_result());
-  ASSERT_EQ("false", SerializerToText().add_value(false).get_result());
-  ASSERT_EQ("true", SerializerToText().add_value(true).get_result());
+  ASSERT_EQ("false", (SerializerToText() << false).get_result());
+  ASSERT_EQ("true", (SerializerToText() << true).get_result());
   ASSERT_EQ("null", SerializerToText()
                         .add_value(nullptr, ColumnJsonTypes::kNull)
                         .get_result());
@@ -103,7 +103,7 @@ TEST(Json, SerializerToText_object_with_array) {
   {
     auto obj1 = sut.add_object();
     auto arr1 = obj1->member_add_array("key1");
-    arr1->add_value(10).add_value(true).add_value(false).add_value("txt");
+    *arr1 << 10 << true << false << "txt";
   }
   ASSERT_EQ("{\"key1\":[10,true,false,\"txt\"]}", sut.get_result());
 }

@@ -29,6 +29,7 @@
 #include <string>
 
 #include "mrs/database/entry/entry.h"
+#include "mrs/database/entry/universal_id.h"
 
 namespace mrs {
 namespace database {
@@ -37,9 +38,9 @@ namespace entry {
 struct ContentFile {
   EntryKey get_key() const { return {key_static, id}; }
 
-  uint64_t id;
-  uint64_t content_set_id;
-  uint64_t service_id;
+  UniversalId id;
+  UniversalId content_set_id;
+  UniversalId service_id;
   uint64_t size;
   std::string host;
   std::string service_path;

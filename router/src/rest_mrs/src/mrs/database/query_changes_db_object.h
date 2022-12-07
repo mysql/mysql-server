@@ -47,12 +47,14 @@ class QueryChangesDbObject : public QueryEntryDbObject {
   void query_entries(MySQLSession *session) override;
 
  private:
-  std::set<uint64_t> path_entries_fetched;
+  std::set<entry::UniversalId> path_entries_fetched;
   uint64_t query_length_;
 
   void query_path_entries(MySQLSession *session, VectorOfPathEntries *out,
-                          const std::string &table_name, const uint64_t id);
-  std::string build_query(const std::string &table_name, const uint64_t id);
+                          const std::string &table_name,
+                          const entry::UniversalId &id);
+  std::string build_query(const std::string &table_name,
+                          const entry::UniversalId &id);
 };
 
 }  // namespace database

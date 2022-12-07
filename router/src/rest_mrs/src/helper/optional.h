@@ -41,6 +41,11 @@ class Optional {
   Optional(const ValueType value) : is_set_{true}, v_{value} {}
   Optional(const Optional &other) { *this = other; }
 
+  ValueType &operator*() {
+    assert(is_set_);
+    return v_;
+  }
+
   ValueType operator*() const {
     assert(is_set_);
     return v_;

@@ -27,6 +27,8 @@
 
 #include <vector>
 
+#include "mrs/database/entry/universal_id.h"
+
 #include "helper/json/serializer_to_text.h"
 #include "helper/optional.h"
 
@@ -36,8 +38,8 @@ namespace entry {
 
 class AuthApp {
  public:
-  uint64_t id;
-  uint64_t service_id;
+  UniversalId id;
+  UniversalId service_id;
   std::string service_name;
   std::string name;
   std::string app_name;
@@ -52,12 +54,19 @@ class AuthApp {
   std::string host_alias;
   std::string url_access_token;
   bool limit_to_registered_users;
-  helper::Optional<uint64_t> default_role_id;
+  helper::Optional<UniversalId> default_role_id;
   std::string auth_path;
   std::string options;
   std::string redirect;
   std::string redirection_default_page;
 };
+
+inline helper::json::SerializerToText &operator<<(
+    helper::json::SerializerToText &stt, const UniversalId &id) {
+  stt.add_value(reinterpret_cast<const char *>(&id.raw[0]), id.k_size,
+                helper::ColumnJsonTypes::kString);
+  return stt;
+}
 
 inline std::string to_string(const AuthApp &entry) {
   helper::json::SerializerToText stt;

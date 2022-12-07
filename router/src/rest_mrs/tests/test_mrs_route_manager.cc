@@ -47,11 +47,10 @@ using testing::StrictMock;
 using testing::Test;
 
 MATCHER_P(EqSmartPtr, raw_ptr, "") { return raw_ptr == arg.get(); }
-MATCHER_P(ById, id, "") { return static_cast<uint64_t>(id) == arg.id; }
+MATCHER_P(ById, id, "") { return id == arg.id; }
 
 MATCHER_P(DbObjectById, id, "") {
-  return static_cast<uint64_t>(id) ==
-         reinterpret_cast<const DbObject *>(arg)->id;
+  return mrs::UniversalId({id}) == reinterpret_cast<const DbObject *>(arg)->id;
 }
 
 template <typename T>
@@ -65,8 +64,8 @@ class RouteManagerTests : public Test {
   }
 
   struct EntryId {
-    uint64_t schema_id_;
-    uint64_t obj_id_;
+    mrs::UniversalId schema_id_;
+    mrs::UniversalId obj_id_;
   };
 
   void verifyAndClearMocks(const std::vector<void *> &mocks) {
@@ -77,11 +76,13 @@ class RouteManagerTests : public Test {
     for (auto p : mocks) Mock::VerifyAndClearExpectations(p);
   }
 
-  static uint64_t get_schema_id(const ContentFile &cfile) {
+  static mrs::UniversalId get_schema_id(const ContentFile &cfile) {
     return cfile.content_set_id;
   }
 
-  static uint64_t get_schema_id(const DbObject &obj) { return obj.schema_id; }
+  static mrs::UniversalId get_schema_id(const DbObject &obj) {
+    return obj.schema_id;
+  }
 
   template <typename Obj>
   void expect_create_schema(MockRouteSchema &return_mock, const Obj &obj,
@@ -119,7 +120,7 @@ class RouteManagerTests : public Test {
   }
 
   static void create_testing_objects(std::vector<DbObject> &result,
-                                     uint64_t service_id,
+                                     mrs::UniversalId service_id,
                                      const std::vector<EntryId> &ids) {
     using namespace std::string_literals;
     for (auto &entry : ids) {
@@ -128,11 +129,11 @@ class RouteManagerTests : public Test {
       item.deleted = false;
       item.autodetect_media_type = false;
       item.service_id = service_id;
-      item.db_schema = "obj"s + std::to_string(service_id) + "schema"s +
-                       std::to_string(entry.schema_id_);
+      item.db_schema = "obj"s + service_id.to_string() + "schema"s +
+                       entry.schema_id_.to_string();
       item.schema_path = item.db_schema;
       item.schema_id = entry.schema_id_;
-      item.db_table = "object"s + std::to_string(entry.obj_id_);
+      item.db_table = "object"s + entry.obj_id_.to_string();
       item.object_path = item.db_table;
       item.id = entry.obj_id_;
       result.push_back(item);
@@ -140,7 +141,7 @@ class RouteManagerTests : public Test {
   }
 
   static void create_testing_objects(std::vector<ContentFile> &result,
-                                     uint64_t service_id,
+                                     mrs::UniversalId service_id,
                                      const std::vector<EntryId> &ids) {
     using namespace std::string_literals;
     for (auto &entry : ids) {
@@ -149,16 +150,16 @@ class RouteManagerTests : public Test {
       item.deleted = false;
       item.service_id = service_id;
 
-      item.schema_path = "file"s + std::to_string(service_id) + "schema"s +
-                         std::to_string(entry.schema_id_);
+      item.schema_path = "file"s + service_id.to_string() + "schema"s +
+                         entry.schema_id_.to_string();
       item.content_set_id = entry.schema_id_;
-      item.file_path = "object"s + std::to_string(entry.obj_id_);
+      item.file_path = "object"s + entry.obj_id_.to_string();
       item.id = entry.obj_id_;
       result.push_back(item);
     }
   }
 
-  static auto create_testing_data(uint64_t service_id,
+  static auto create_testing_data(mrs::UniversalId service_id,
                                   const std::vector<EntryId> &ids) {
     std::vector<T> result;
 
@@ -186,10 +187,10 @@ TYPED_TEST(RouteManagerTests, notexisting_schema_does_noting) {
 }
 
 TYPED_TEST(RouteManagerTests, db_object_two_routes_with_the_same_schema) {
-  const int k_service_id = 1;
-  const int k_schema_id = 1;
-  auto objs = this->create_testing_data(k_service_id,
-                                        {{k_schema_id, 1}, {k_schema_id, 2}});
+  const mrs::UniversalId k_service_id{{1}};
+  const mrs::UniversalId k_schema_id{{2}};
+  auto objs = this->create_testing_data(
+      k_service_id, {{k_schema_id, {1}}, {k_schema_id, {2}}});
   StrictMock<MockRouteSchema> schema;
   EXPECT_CALL(schema, get_name())
       .WillRepeatedly(ReturnRef(objs[0].schema_path));
@@ -208,11 +209,14 @@ TYPED_TEST(RouteManagerTests, db_object_two_routes_with_the_same_schema) {
 }
 
 TYPED_TEST(RouteManagerTests, db_object_two_routes_with_different_schemas) {
-  const int k_service_id = 1;
-  const int k_schema1_id = 1;
-  const int k_schema2_id = 2;
-  auto objs = this->create_testing_data(k_service_id,
-                                        {{k_schema1_id, 1}, {k_schema2_id, 2}});
+  const mrs::UniversalId k_service_id{1};
+  const mrs::UniversalId k_schema1_id{2};
+  const mrs::UniversalId k_schema2_id{3};
+  const mrs::UniversalId k_object1_id{1};
+  const mrs::UniversalId k_object2_id{2};
+  auto objs = this->create_testing_data(
+      k_service_id,
+      {{k_schema1_id, k_object1_id}, {k_schema2_id, k_object2_id}});
   StrictMock<MockRouteSchema> schema1;
   StrictMock<MockRouteSchema> schema2;
   EXPECT_CALL(schema1, get_name())
@@ -236,9 +240,11 @@ TYPED_TEST(RouteManagerTests, db_object_two_routes_with_different_schemas) {
 }
 
 TYPED_TEST(RouteManagerTests, db_object_verify_destruction) {
-  const int k_service_id = 1;
-  const int k_schema_id = 1;
-  auto objs = this->create_testing_data(k_service_id, {{k_schema_id, 1}});
+  const mrs::UniversalId k_service_id{1};
+  const mrs::UniversalId k_schema_id{2};
+  const mrs::UniversalId k_object_id{1};
+  auto objs =
+      this->create_testing_data(k_service_id, {{k_schema_id, k_object_id}});
   StrictMock<MockRouteSchema> schema;
   EXPECT_CALL(schema, get_name())
       .WillRepeatedly(ReturnRef(objs[0].schema_path));
@@ -259,9 +265,11 @@ TYPED_TEST(RouteManagerTests, db_object_verify_destruction) {
 }
 
 TYPED_TEST(RouteManagerTests, db_object_by_default_disabled) {
-  const int k_service_id = 1;
-  const int k_schema_id = 1;
-  auto objs = this->create_testing_data(k_service_id, {{k_schema_id, 1}});
+  const mrs::UniversalId k_service_id{1};
+  const mrs::UniversalId k_schema_id{2};
+  const mrs::UniversalId k_object_id{1};
+  auto objs =
+      this->create_testing_data(k_service_id, {{k_schema_id, k_object_id}});
   StrictMock<MockRouteSchema> schema;
   EXPECT_CALL(schema, get_name())
       .WillRepeatedly(ReturnRef(objs[0].schema_path));
@@ -280,9 +288,11 @@ TYPED_TEST(RouteManagerTests, db_object_by_default_disabled) {
 TYPED_TEST(RouteManagerTests, db_object_enabled_before_start) {
   this->sut_->turn(mrs::stateOn);
 
-  const int k_service_id = 1;
-  const int k_schema_id = 1;
-  auto objs = this->create_testing_data(k_service_id, {{k_schema_id, 1}});
+  const mrs::UniversalId k_service_id{1};
+  const mrs::UniversalId k_schema_id{2};
+  const mrs::UniversalId k_object_id{1};
+  auto objs =
+      this->create_testing_data(k_service_id, {{k_schema_id, k_object_id}});
   StrictMock<MockRouteSchema> schema;
   EXPECT_CALL(schema, get_name())
       .WillRepeatedly(ReturnRef(objs[0].schema_path));
@@ -300,9 +310,11 @@ TYPED_TEST(RouteManagerTests, db_object_enabled_before_start) {
 TYPED_TEST(RouteManagerTests, db_object_update_two_times_same_object) {
   this->sut_->turn(mrs::stateOn);
 
-  const int k_service_id = 1;
-  const int k_schema_id = 1;
-  auto objs = this->create_testing_data(k_service_id, {{k_schema_id, 1}});
+  const mrs::UniversalId k_service_id{1};
+  const mrs::UniversalId k_schema_id{2};
+  const mrs::UniversalId k_object_id{1};
+  auto objs =
+      this->create_testing_data(k_service_id, {{k_schema_id, k_object_id}});
   StrictMock<MockRouteSchema> schema;
   EXPECT_CALL(schema, get_name())
       .WillRepeatedly(ReturnRef(objs[0].schema_path));
@@ -319,7 +331,8 @@ TYPED_TEST(RouteManagerTests, db_object_update_two_times_same_object) {
   this->verifyAndClearMocks({&route1, &schema});
   objs[0].requires_authentication = !objs[0].requires_authentication;
 
-  EXPECT_CALL(route1, update(DbObjectById(1), EqSmartPtr(&schema)));
+  EXPECT_CALL(route1,
+              update(DbObjectById(mrs::UniversalId{{1}}), EqSmartPtr(&schema)));
   EXPECT_CALL(route1, turn(mrs::stateOn));
   this->sut_->update(objs);
 }
@@ -327,9 +340,11 @@ TYPED_TEST(RouteManagerTests, db_object_update_two_times_same_object) {
 TYPED_TEST(RouteManagerTests, db_object_update_two_times_schema_changes_name) {
   this->sut_->turn(mrs::stateOn);
 
-  const int k_service_id = 1;
-  const int k_schema_id = 1;
-  auto objs = this->create_testing_data(k_service_id, {{k_schema_id, 1}});
+  const mrs::UniversalId k_service_id{1};
+  const mrs::UniversalId k_schema_id{2};
+  const mrs::UniversalId k_object_id{1};
+  auto objs =
+      this->create_testing_data(k_service_id, {{k_schema_id, k_object_id}});
   const auto k_old_schema_name = objs[0].schema_path;
   StrictMock<MockRouteSchema> schema_old;
   StrictMock<MockRouteSchema> schema_new;
@@ -354,7 +369,8 @@ TYPED_TEST(RouteManagerTests, db_object_update_two_times_schema_changes_name) {
       .WillRepeatedly(ReturnRef(k_old_schema_name));
   // In case when "update" method receives new schema, it must remove inform
   // manager that it removed old schema
-  EXPECT_CALL(route1, update(DbObjectById(1), EqSmartPtr(&schema_new)))
+  EXPECT_CALL(route1, update(DbObjectById(mrs::UniversalId{{1}}),
+                             EqSmartPtr(&schema_new)))
       .WillOnce(InvokeWithoutArgs([this, &schema_old]() {
         this->sut_->schema_not_used(&schema_old);
         return true;

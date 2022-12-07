@@ -73,14 +73,14 @@ class Object : public std::enable_shared_from_this<Object>,
   const std::vector<Column> &get_cached_columnes() override;
   const Column &get_cached_primary() override;
   const std::string &get_options() override;
-  const Parameters &get_parameters() override;
+  const Fields &get_parameters() override;
   uint32_t get_on_page() override;
   Format get_format() const override;
   Media get_media_type() const override;
 
   bool requires_authentication() const override;
-  uint64_t get_id() const override;
-  uint64_t get_service_id() const override;
+  UniversalId get_id() const override;
+  UniversalId get_service_id() const override;
   bool has_access(const Access access) const override;
   uint32_t get_access() const override;
 

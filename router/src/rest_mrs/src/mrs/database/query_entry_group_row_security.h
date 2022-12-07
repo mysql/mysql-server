@@ -40,7 +40,7 @@ class QueryEntryGroupRowSecurity : private Query {
   using MatchLevel = entry::RowGroupOwnership::MatchLevel;
 
   virtual bool query_group_row_security(MySQLSession *session,
-                                        uint64_t db_object_id);
+                                        entry::UniversalId db_object_id);
 
   virtual RowGroupsSecurity &get_result();
 

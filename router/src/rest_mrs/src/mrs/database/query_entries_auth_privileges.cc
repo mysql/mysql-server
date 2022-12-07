@@ -76,9 +76,12 @@ void QueryEntriesAuthPrivileges::on_row(const Row &r) {
   helper::MySQLRow row{r};
   entry::AuthPrivilege entry;
 
-  row.unserialize(&entry.service_id);
-  row.unserialize(&entry.schema_id);
-  row.unserialize(&entry.object_id);
+  row.unserialize_with_converter(&entry.service_id,
+                                 entry::UniversalId::from_raw);
+  row.unserialize_with_converter(&entry.schema_id,
+                                 entry::UniversalId::from_raw);
+  row.unserialize_with_converter(&entry.object_id,
+                                 entry::UniversalId::from_raw);
   row.unserialize(&entry.crud);
 
   privileges_->push_back(entry);

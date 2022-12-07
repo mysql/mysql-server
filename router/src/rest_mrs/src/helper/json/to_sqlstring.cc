@@ -38,17 +38,17 @@ mysqlrouter::sqlstring &operator<<(mysqlrouter::sqlstring &sql,
     sql << (v.GetBool() ? k_true : k_false);
   } else if (v.IsString()) {
     sql << v.GetString();
-  } else if (v.GetUint()) {
+  } else if (v.IsUint()) {
     sql << v.GetUint();
-  } else if (v.GetInt()) {
+  } else if (v.IsInt()) {
     sql << v.GetInt();
-  } else if (v.GetUint64()) {
+  } else if (v.IsUint64()) {
     sql << v.GetUint64();
-  } else if (v.GetInt64()) {
+  } else if (v.IsInt64()) {
     sql << v.GetInt64();
-  } else if (v.GetFloat()) {
+  } else if (v.IsFloat()) {
     sql << v.GetFloat();
-  } else if (v.GetDouble()) {
+  } else if (v.IsDouble()) {
     sql << v.GetDouble();
   } else {
     throw std::runtime_error(

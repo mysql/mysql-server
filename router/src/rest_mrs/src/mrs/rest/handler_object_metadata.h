@@ -41,9 +41,9 @@ class HandlerMetadata : public Handler {
   HandlerMetadata(Route *route, mrs::interface::AuthorizeManager *auth_manager);
 
   Authorization requires_authentication() const override;
-  uint64_t get_service_id() const override;
-  uint64_t get_db_object_id() const override;
-  uint64_t get_schema_id() const override;
+  UniversalId get_service_id() const override;
+  UniversalId get_db_object_id() const override;
+  UniversalId get_schema_id() const override;
 
   uint32_t get_access_rights() const override;
 

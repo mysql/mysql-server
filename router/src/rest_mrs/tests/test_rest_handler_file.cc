@@ -63,7 +63,7 @@ class RestHandlerFileTests : public Test {
  public:
   void SetUp() override { request_context_.request = &mock_request_; }
 
-  void make_sut(const uint64_t id, const std::string &path,
+  void make_sut(const mrs::UniversalId id, const std::string &path,
                 const std::string &version) {
     std::string options;
     EXPECT_CALL(mock_route_, get_cache())
@@ -112,7 +112,7 @@ class RestHandlerFileTests : public Test {
 TEST_F(RestHandlerFileTests, etag_matches_do_not_send_the_file) {
   const std::string k_path = "/schema/file1";
   const std::string k_tag = "tag1";
-  const uint64_t k_file_id = 1010;
+  const mrs::UniversalId k_file_id{{110}};
 
   make_sut(k_file_id, k_path, k_tag);
   EXPECT_CALL(mock_input_headers, get(StrEq("If-None-Match")))
@@ -133,7 +133,7 @@ TEST_F(RestHandlerFileTests, etag_matches_do_not_send_the_file) {
 TEST_F(RestHandlerFileTests, handle_delete_not_supported) {
   const std::string k_path = "/schema/file1";
   const std::string k_tag = "tag1";
-  const uint64_t k_file_id = 1010;
+  const mrs::UniversalId k_file_id{{110}};
 
   make_sut(k_file_id, k_path, k_tag);
   ASSERT_THROW(sut_->handle_delete(&request_context_), mrs::http::Error);
@@ -143,7 +143,7 @@ TEST_F(RestHandlerFileTests, handle_delete_not_supported) {
 TEST_F(RestHandlerFileTests, handle_put_not_supported) {
   const std::string k_path = "/schema/file1";
   const std::string k_tag = "tag1";
-  const uint64_t k_file_id = 1010;
+  const mrs::UniversalId k_file_id{{110}};
 
   make_sut(k_file_id, k_path, k_tag);
   ASSERT_THROW(sut_->handle_put(&request_context_), mrs::http::Error);
@@ -153,7 +153,7 @@ TEST_F(RestHandlerFileTests, handle_put_not_supported) {
 TEST_F(RestHandlerFileTests, handle_post_not_supported) {
   const std::string k_path = "/schema/file1";
   const std::string k_tag = "tag1";
-  const uint64_t k_file_id = 1010;
+  const mrs::UniversalId k_file_id{{110}};
 
   make_sut(k_file_id, k_path, k_tag);
   ASSERT_THROW(sut_->handle_post(&request_context_, {}), mrs::http::Error);
@@ -161,7 +161,7 @@ TEST_F(RestHandlerFileTests, handle_post_not_supported) {
 }
 
 struct Request {
-  uint64_t file_id;
+  mrs::UniversalId file_id;
   std::string path;
   const char *tag;
   helper::MediaType expected_media_type;
@@ -197,14 +197,14 @@ TEST_P(RestHandlerDifferentFilesTests, fetch_file) {
 }
 
 const Request k_file_to_fetch_param[] = {
-    {1, "/schema/file.jpg", nullptr, MediaType::typeJpg},
-    {1, "/schema/file.js", nullptr, MediaType::typeJs},
-    {2, "/schema/file.mjs", nullptr, MediaType::typeJs},
-    {2, "/schema/file.html", nullptr, MediaType::typeHtml},
-    {2, "/schema/file.htm", nullptr, MediaType::typeHtml},
-    {2, "/schema/file.css", nullptr, MediaType::typeCss},
-    {2, "/schema/file.map", nullptr, MediaType::typePlain},
-    {3, "/schema/file.gif", nullptr, MediaType::typeGif}};
+    {mrs::UniversalId{{1}}, "/schema/file.jpg", nullptr, MediaType::typeJpg},
+    {mrs::UniversalId{{1}}, "/schema/file.js", nullptr, MediaType::typeJs},
+    {mrs::UniversalId{{2}}, "/schema/file.mjs", nullptr, MediaType::typeJs},
+    {mrs::UniversalId{{2}}, "/schema/file.html", nullptr, MediaType::typeHtml},
+    {mrs::UniversalId{{2}}, "/schema/file.htm", nullptr, MediaType::typeHtml},
+    {mrs::UniversalId{{2}}, "/schema/file.css", nullptr, MediaType::typeCss},
+    {mrs::UniversalId{{2}}, "/schema/file.map", nullptr, MediaType::typePlain},
+    {mrs::UniversalId{{3}}, "/schema/file.gif", nullptr, MediaType::typeGif}};
 
 INSTANTIATE_TEST_SUITE_P(files_to_fetch, RestHandlerDifferentFilesTests,
                          ::testing::ValuesIn(k_file_to_fetch_param));

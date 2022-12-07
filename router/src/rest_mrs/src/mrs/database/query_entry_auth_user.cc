@@ -93,7 +93,7 @@ bool QueryEntryAuthUser::query_user(MySQLSession *session,
 
 AuthUser::UserId QueryEntryAuthUser::insert_user(
     MySQLSession *session, const AuthUser *user,
-    const helper::Optional<uint64_t> &default_role_id) {
+    const helper::Optional<UniversalId> &default_role_id) {
   assert(!user->has_user_id);
   QueryUuid query_uuid;
   query_uuid.generate_uuid(session);
@@ -137,14 +137,13 @@ bool QueryEntryAuthUser::update_user(MySQLSession *session,
 void QueryEntryAuthUser::on_row(const Row &row) {
   if (row.size() < 1) return;
 
-  auto user_id_converter = [](UserId *id, const char *db_value) {
-    memcpy(id->raw, db_value, 16);
-  };
   helper::MySQLRow mysql_row(row);
 
   user_data_.has_user_id = true;
-  mysql_row.unserialize_with_converter(&user_data_.user_id, user_id_converter);
-  mysql_row.unserialize(&user_data_.app_id);
+  mysql_row.unserialize_with_converter(&user_data_.user_id,
+                                       entry::UniversalId::from_raw);
+  mysql_row.unserialize_with_converter(&user_data_.app_id,
+                                       entry::UniversalId::from_raw);
   mysql_row.unserialize(&user_data_.name);
   mysql_row.unserialize(&user_data_.email);
   mysql_row.unserialize(&user_data_.vendor_user_id);

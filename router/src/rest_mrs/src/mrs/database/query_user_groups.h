@@ -36,7 +36,7 @@ namespace database {
 
 class QueryUserGroups : private Query {
  public:
-  using Set = std::set<uint64_t>;
+  using Set = std::set<entry::UniversalId>;
 
  public:
   virtual void query_groups(MySQLSession *session,
@@ -52,7 +52,9 @@ class QueryUserGroups : private Query {
   }
 
  private:
-  void on_row(const Row &r) override { set_->insert(atoll(r[0])); }
+  void on_row(const Row &r) override {
+    if (r[0]) set_->insert(entry::UniversalId::from_cstr(r[0], 16));
+  }
   Set *set_;
 };
 
