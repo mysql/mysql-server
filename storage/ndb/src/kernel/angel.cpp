@@ -72,7 +72,6 @@ struct process_waiter {
 #endif
   process_waiter(): h(invalid) {}
   process_waiter(native_handle h): h(h) {}
-  ~process_waiter() { assert(!valid()); }
 
   bool valid() const { return h != invalid; }
   /*
