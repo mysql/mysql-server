@@ -2316,6 +2316,8 @@ LogEntry::printSqlLog() const {
   ndbout << ";";
 }
 
+RestoreLogger::RestoreLogger():print_timestamp(false) {}
+
 void RestoreLogger::log_error(const char* fmt, ...)
 {
   va_list ap;
@@ -2324,6 +2326,10 @@ void RestoreLogger::log_error(const char* fmt, ...)
   vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
 
+  if (print_timestamp) {
+    Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+    err << timestamp << " ";
+  }
   err << buf << endl;
 }
 
@@ -2335,6 +2341,10 @@ void RestoreLogger::log_info(const char* fmt, ...)
   vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
 
+  if (print_timestamp) {
+    Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+    info << timestamp << " ";
+  }
   info << buf << endl;
 }
 
@@ -2346,7 +2356,21 @@ void RestoreLogger::log_debug(const char* fmt, ...)
   vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
 
+  if (print_timestamp) {
+    Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+    debug << timestamp << " ";
+  }
   debug << buf << endl;
+}
+
+void
+RestoreLogger::set_print_timestamp(bool print_TS) {
+  print_timestamp = print_TS;
+}
+
+bool
+RestoreLogger::get_print_timestamp() {
+  return print_timestamp;
 }
 
 NdbOut &

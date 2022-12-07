@@ -526,12 +526,18 @@ public:
 
 class RestoreLogger {
 public:
+  RestoreLogger();
   void log_info(const char* fmt, ...)
          ATTRIBUTE_FORMAT(printf, 2, 3);
   void log_debug(const char* fmt, ...)
          ATTRIBUTE_FORMAT(printf, 2, 3);
   void log_error(const char* fmt, ...)
          ATTRIBUTE_FORMAT(printf, 2, 3);
+  void set_print_timestamp(bool print_TS);
+  bool get_print_timestamp();
+private:
+  char timestamp[64];
+  bool print_timestamp;
 };
 
 NdbOut& operator<<(NdbOut& ndbout, const TableS&);
