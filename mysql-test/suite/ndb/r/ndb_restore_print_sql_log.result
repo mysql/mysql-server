@@ -46,7 +46,7 @@ delete from t3;
 drop table t4;
 
 "Restore with --print-sql-log option"
-Found hidden primary key with print-sql-log option set. Exiting...
+XXXX-XX-XX XX:XX:XX Found hidden primary key with print-sql-log option set. Exiting...
 drop table t3;
 drop table if exists t4;
 
@@ -64,7 +64,7 @@ delete from t5;
 drop table t6;
 
 "Restore with --print-sql-log and --print-log options"
-Both print-sql-log and print-log options passed. Exiting...
+XXXX-XX-XX XX:XX:XX Both print-sql-log and print-log options passed. Exiting...
 drop table t5;
 drop table if exists t6;
 
@@ -81,6 +81,6 @@ insert into t7 values(1,'a');
 drop table t8;
 
 "Restore with --print-sql-log option"
-Found column of type blob with print-sql-log option set. Exiting...
+XXXX-XX-XX XX:XX:XX Found column of type blob with print-sql-log option set. Exiting...
 drop table t7;
 drop table if exists t8;
