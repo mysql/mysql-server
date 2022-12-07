@@ -936,11 +936,6 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   RSA *public_key = nullptr;
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
-  DBUG_EXECUTE_IF("in_caching_sha2_password_authenticate", {
-    DBUG_SET("+d,wait_until_thread_kill");
-    const char act[] = "now SIGNAL acl_auth_reached";
-    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-  });
   generate_user_salt(scramble, SCRAMBLE_LENGTH + 1);
 
   /*
