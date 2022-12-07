@@ -22,7 +22,7 @@
 
 #include "sql/json_schema.h"
 
-#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
+#include <my_rapidjson_size_t.h>  // IWYU pragma: keep
 
 #include <assert.h>
 #include <rapidjson/document.h>

@@ -47,7 +47,7 @@ namespace util {
   This class filters the first column on iteration.
  */
 class ColumnFilterInboundGipk : public ColumnFilter {
-  virtual bool filter_column(TABLE const *, size_t column_index) override;
+  bool filter_column(TABLE const *, size_t column_index) override;
 
   /**
     @brief Is this filter needed given context passed in the parameters

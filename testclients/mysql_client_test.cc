@@ -17608,7 +17608,8 @@ static void test_bug43560() {
   check_execute(stmt, rc);
 
   /* First execute; should succeed. */
-  strncpy(buffer, values[0], BUFSIZE);
+  strncpy(buffer, values[0], BUFSIZE - 1);
+  buffer[BUFSIZE - 1] = 0;
   length = (ulong)strlen(buffer);
   rc = mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -17622,7 +17623,8 @@ static void test_bug43560() {
   myquery(rc);
 
   /* Second execute; should fail due to socket closed during execution. */
-  strncpy(buffer, values[1], BUFSIZE);
+  strncpy(buffer, values[1], BUFSIZE - 1);
+  buffer[BUFSIZE - 1] = 0;
   length = (ulong)strlen(buffer);
   rc = mysql_stmt_execute(stmt);
   DIE_UNLESS(rc && mysql_stmt_errno(stmt) == CR_SERVER_LOST);
@@ -17631,7 +17633,8 @@ static void test_bug43560() {
     Third execute; should fail (connection already closed), or SIGSEGV in
     case of a Bug#43560 type regression in which case the whole test fails.
   */
-  strncpy(buffer, values[2], BUFSIZE);
+  strncpy(buffer, values[2], BUFSIZE - 1);
+  buffer[BUFSIZE - 1] = 0;
   length = (ulong)strlen(buffer);
   rc = mysql_stmt_execute(stmt);
   DIE_UNLESS(rc && mysql_stmt_errno(stmt) == CR_SERVER_LOST);

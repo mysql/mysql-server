@@ -57,7 +57,7 @@ namespace util {
    that data.
  */
 class ColumnFilterInboundFunctionalIndexes : public ColumnFilter {
-  virtual bool filter_column(TABLE const *table, size_t column_index) override;
+  bool filter_column(TABLE const *table, size_t column_index) override;
   /**
     @brief Is this filter needed given context passed in the parameters
 

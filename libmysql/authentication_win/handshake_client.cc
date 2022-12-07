@@ -43,13 +43,13 @@ class Handshake_client : public Handshake {
 
  public:
   Handshake_client(Connection &con, const char *target, size_t len);
-  ~Handshake_client();
+  ~Handshake_client() override;
 
   Blob first_packet();
-  Blob process_data(const Blob &);
+  Blob process_data(const Blob &) override;
 
-  Blob read_packet();
-  int write_packet(Blob &data);
+  Blob read_packet() override;
+  int write_packet(Blob &data) override;
 };
 
 /**

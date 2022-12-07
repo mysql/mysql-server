@@ -4258,7 +4258,7 @@ class Field_typed_array final : public Field_json {
   }
   void sql_type(String &str) const final;
   void make_send_field(Send_field *field) const final;
-  void set_field_index(uint16 f_index) final override;
+  void set_field_index(uint16 f_index) final;
   Field *get_conv_field();
 };
 

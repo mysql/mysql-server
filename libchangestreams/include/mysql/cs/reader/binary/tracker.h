@@ -70,8 +70,8 @@ class Tracker : public cs::reader::Base_tracker {
    * @return true if there was an error.
    * @return false if there was no error.
    */
-  virtual bool track_and_update(std::shared_ptr<State> state,
-                                const std::vector<uint8_t> &buffer) override;
+  bool track_and_update(std::shared_ptr<State> state,
+                        const std::vector<uint8_t> &buffer) override;
 };
 
 }  // namespace cs::reader::binary

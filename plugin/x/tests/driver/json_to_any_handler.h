@@ -28,7 +28,7 @@
 #include <cstdint>
 #include <stack>
 
-#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
+#include <my_rapidjson_size_t.h>  // IWYU pragma: keep
 
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>

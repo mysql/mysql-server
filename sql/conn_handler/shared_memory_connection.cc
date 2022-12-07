@@ -56,7 +56,7 @@ class Channel_info_shared_mem : public Channel_info {
   HANDLE m_event_conn_closed;
 
  protected:
-  virtual Vio *create_and_init_vio() const {
+  Vio *create_and_init_vio() const override {
     return vio_new_win32shared_memory(m_handle_client_file_map,
                                       m_handle_client_map, m_event_client_wrote,
                                       m_event_client_read, m_event_server_wrote,
@@ -87,7 +87,7 @@ class Channel_info_shared_mem : public Channel_info {
         m_event_client_read(event_client_read),
         m_event_conn_closed(event_conn_closed) {}
 
-  virtual THD *create_thd() {
+  THD *create_thd() override {
     THD *thd = Channel_info::create_thd();
 
     if (thd != NULL) {
@@ -97,8 +97,8 @@ class Channel_info_shared_mem : public Channel_info {
     return thd;
   }
 
-  virtual void send_error_and_close_channel(uint errorcode, int error,
-                                            bool senderror) {
+  void send_error_and_close_channel(uint errorcode, int error,
+                                    bool senderror) override {
     Channel_info::send_error_and_close_channel(errorcode, error, senderror);
 
     // Channel_info::send_error_and_close_channel will have closed

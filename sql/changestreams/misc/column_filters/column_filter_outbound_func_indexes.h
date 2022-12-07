@@ -56,7 +56,7 @@ namespace util {
    Outbound states we are encoding something to be transmitted.
  */
 class ColumnFilterOutboundFunctionalIndexes : public ColumnFilter {
-  virtual bool filter_column(TABLE const *table, size_t column_index) override;
+  bool filter_column(TABLE const *table, size_t column_index) override;
   /**
     @brief Is this filter needed given context passed in the parameters
 

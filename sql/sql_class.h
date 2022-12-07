@@ -936,25 +936,10 @@ class THD : public MDL_context_owner,
   Thd_mem_cnt m_mem_cnt;
 
  private:
-  inline bool is_stmt_prepare() const {
-    assert(0);
-    return Query_arena::is_stmt_prepare();
-  }
-
-  inline bool is_stmt_prepare_or_first_sp_execute() const {
-    assert(0);
-    return Query_arena::is_stmt_prepare_or_first_sp_execute();
-  }
-
-  inline bool is_stmt_prepare_or_first_stmt_execute() const {
-    assert(0);
-    return Query_arena::is_stmt_prepare_or_first_stmt_execute();
-  }
-
-  inline bool is_regular() const {
-    assert(0);
-    return Query_arena::is_regular();
-  }
+  bool is_stmt_prepare() const = delete;
+  bool is_stmt_prepare_or_first_sp_execute() const = delete;
+  bool is_stmt_prepare_or_first_stmt_execute() const = delete;
+  inline bool is_regular() const = delete;
 
  public:
   MDL_context mdl_context;

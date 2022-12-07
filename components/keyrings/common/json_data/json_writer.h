@@ -28,9 +28,10 @@
 #define RAPIDJSON_HAS_STDSTRING 1
 
 #include "my_rapidjson_size_t.h"
-#include "rapidjson/document.h"
-#include "rapidjson/stringbuffer.h"
-#include "rapidjson/writer.h"
+
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 
 #include "components/keyrings/common/data/data.h"
 #include "components/keyrings/common/data/meta.h"

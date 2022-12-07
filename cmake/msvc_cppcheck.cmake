@@ -22,6 +22,8 @@
 
 OPTION(MSVC_CPPCHECK "Enable the extra MSVC CppCheck checks" OFF)
 
+# check https://learn.microsoft.com/en-us/cpp/build/reference/analyze-code-analysis
+
 MACRO(MSVC_CPPCHECK_ADD_SUPPRESSIONS)
   IF (MSVC AND MSVC_CPPCHECK)
     IF((NOT FORCE_UNSUPPORTED_COMPILER) AND MSVC_VERSION LESS 1929)
@@ -56,9 +58,7 @@ MACRO(MSVC_CPPCHECK_ADD_SUPPRESSIONS)
     STRING_APPEND(suppress_warnings " /wd26429") # Symbol '...' is never tested for nullness, it can be marked as not_null (f.23).
     STRING_APPEND(suppress_warnings " /wd26430") # Symbol '...' is not tested for nullness on all paths (f.23).
     STRING_APPEND(suppress_warnings " /wd26432") # If you define or delete any default operation in the type '...', define or delete them all (c.21).
-    STRING_APPEND(suppress_warnings " /wd26433") # Function '...' should be marked with 'override' (c.128)
     STRING_APPEND(suppress_warnings " /wd26434") # Function '..' hides a non-virtual function '..'.
-    STRING_APPEND(suppress_warnings " /wd26435") # Function '..' should specify exactly one of virtual, override or final (c.128)
     STRING_APPEND(suppress_warnings " /wd26436") # The type '...' with a virtual function needs either public virtual or protected non-virtual destructor (c.35).
     STRING_APPEND(suppress_warnings " /wd26438") # Avoid 'goto' (es.76)
     STRING_APPEND(suppress_warnings " /wd26439") # This kind of function should not throw. Declare it 'noexcept' (f.6).
@@ -119,6 +119,7 @@ MACRO(MSVC_CPPCHECK_ADD_SUPPRESSIONS)
     STRING_APPEND(suppress_warnings " /wd6200") # Index '..' is out of valid index range '..' to '..' for non-stack buffer '...'.
     STRING_APPEND(suppress_warnings " /wd6237") # (zero && expression) is always zero. expression is never evaluated and might have side effects
     STRING_APPEND(suppress_warnings " /wd6239") # (non-zero constant && expression) always evaluates to the result of expression.
+    STRING_APPEND(suppress_warnings " /wd6240") # (<expression> && <non-zero constant>) always evaluates to the result of <expression>
     STRING_APPEND(suppress_warnings " /wd6244") # Local declaration of '...' hides previous declaration at line '...' of '...'
     STRING_APPEND(suppress_warnings " /wd6255") # _alloca indicates failure by raising a stack overflow exception. Consider using _malloca instead
     STRING_APPEND(suppress_warnings " /wd6258") # Using TerminateThread does not allow proper thread clean up.
@@ -149,6 +150,13 @@ MACRO(MSVC_CPPCHECK_ADD_ANALYZE)
   IF (MSVC AND MSVC_CPPCHECK)
     STRING_APPEND(CMAKE_C_FLAGS " /analyze /analyze:external- /analyze:pluginEspXEngine.dll")
     STRING_APPEND(CMAKE_CXX_FLAGS " /analyze /analyze:external- /analyze:pluginEspXEngine.dll")
+    # cmake pre 3.24 doesn't support /external:I for older compilers,
+    # so use angle brackets as a substitute.
+    IF((CMAKE_VERSION VERSION_LESS 3.24) OR
+      (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.29.30036.3))
+      STRING_APPEND(CMAKE_C_FLAGS " /external:anglebrackets")
+      STRING_APPEND(CMAKE_CXX_FLAGS " /external:anglebrackets")
+    ENDIF()
   ENDIF()
 ENDMACRO()
 

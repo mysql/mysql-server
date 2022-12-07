@@ -30,8 +30,9 @@
 #include "scope_guard.h"
 
 #include "my_rapidjson_size_t.h"
-#include "rapidjson/document.h"
-#include "rapidjson/schema.h"
+
+#include <rapidjson/document.h>
+#include <rapidjson/schema.h>
 
 namespace manifest {
 
