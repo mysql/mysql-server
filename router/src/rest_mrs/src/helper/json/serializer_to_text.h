@@ -32,6 +32,8 @@
 #include <rapidjson/ostreamwrapper.h>
 #include <rapidjson/writer.h>
 
+#include "mrs/database/entry/universal_id.h"
+
 #include "helper/mysql_column_types.h"
 #include "helper/optional.h"
 
@@ -86,6 +88,7 @@ class SerializerToText {
     ~Array() { finalize(); }
 
     SerializerToText *operator->() { return serializer_; }
+    SerializerToText &operator*() { return *serializer_; }
 
     Array &operator=(Array &&other) {
       finalize();
@@ -117,42 +120,48 @@ class SerializerToText {
 
   Object add_object() { return Object(this); }
 
-  SerializerToText &add_value(const char *value) {
+  SerializerToText &operator<<(const char *value) {
     add_value(value, ColumnJsonTypes::kString);
     return *this;
   }
 
-  SerializerToText &add_value(const std::string &value) {
-    add_value(value.c_str(), ColumnJsonTypes::kString);
+  SerializerToText &operator<<(const std::string &value) {
+    add_value(value.c_str(), value.length(), ColumnJsonTypes::kString);
     return *this;
   }
 
-  SerializerToText &add_value(const int value) {
+  SerializerToText &operator<<(const int value) {
     writer_.Int(value);
     return *this;
   }
 
-  SerializerToText &add_value(const unsigned int value) {
+  SerializerToText &operator<<(const unsigned int value) {
     writer_.Uint(value);
     return *this;
   }
 
-  SerializerToText &add_value(const uint64_t value) {
+  SerializerToText &operator<<(const uint64_t value) {
     writer_.Uint64(value);
     return *this;
   }
 
-  SerializerToText &add_value(const int64_t value) {
+  SerializerToText &operator<<(const int64_t value) {
     writer_.Int64(value);
     return *this;
   }
 
-  SerializerToText &add_value(const bool value) {
+  SerializerToText &operator<<(const bool value) {
     writer_.Bool(value);
     return *this;
   }
 
-  SerializerToText &add_value(const char *value, ColumnJsonTypes ct) {
+  SerializerToText &add_value(const char *value,
+                              ColumnJsonTypes ct = ColumnJsonTypes::kString) {
+    return add_value(value, value ? strlen(value) : 0, ct);
+  }
+
+  SerializerToText &add_value(const char *value, uint32_t length,
+                              ColumnJsonTypes ct) {
     if (!value) {
       writer_.Null();
       return *this;
@@ -165,7 +174,7 @@ class SerializerToText {
       } break;
 
       case ColumnJsonTypes::kJson:
-        writer_.RawValue(value, strlen(value), rapidjson::kObjectType);
+        writer_.RawValue(value, length, rapidjson::kObjectType);
         break;
 
       case ColumnJsonTypes::kNull:
@@ -173,11 +182,11 @@ class SerializerToText {
         break;
 
       case ColumnJsonTypes::kNumeric:
-        writer_.RawValue(value, strlen(value), rapidjson::kNumberType);
+        writer_.RawValue(value, length, rapidjson::kNumberType);
         break;
 
       case ColumnJsonTypes::kString:
-        writer_.String(value, strlen(value));
+        writer_.String(value, length);
         break;
     }
 
@@ -207,6 +216,14 @@ class SerializerToText {
     return *this;
   }
 
+  template <typename Str1>
+  SerializerToText &member_add_value(const Str1 &key, const char *str,
+                                     uint32_t len) {
+    writer_.Key(key);
+    add_value(str, len, helper::ColumnJsonTypes::kString);
+    return *this;
+  }
+
  private:
   const char *get_raw(const char *value) { return value; }
   const char *get_raw(const std::string &value) { return value.c_str(); }
@@ -215,14 +232,14 @@ class SerializerToText {
   template <typename Value>
   void add_member_impl(const char *key, Value &&value) {
     writer_.Key(key);
-    add_value(std::forward<Value>(value));
+    *this << (std::forward<Value>(value));
   }
 
   template <typename Value>
   void add_member_impl(const char *key, helper::Optional<Value> &value) {
     if (value) {
       writer_.Key(key);
-      add_value(value.value());
+      *this << (value.value());
     }
   }
 
@@ -230,7 +247,7 @@ class SerializerToText {
   void add_member_impl(const char *key, const helper::Optional<Value> &value) {
     if (value) {
       writer_.Key(key);
-      add_value(value.value());
+      *this << (value.value());
     }
   }
 

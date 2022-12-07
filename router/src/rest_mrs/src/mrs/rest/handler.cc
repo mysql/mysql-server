@@ -61,35 +61,36 @@ std::string to_string(const helper::Optional<T> &v) {
 
 uint32_t check_privileges(
     const std::vector<database::entry::AuthPrivilege> &privileges,
-    uint64_t service_id, uint64_t schema_id, uint64_t db_object_id) {
+    UniversalId service_id, UniversalId schema_id, UniversalId db_object_id) {
   uint32_t aggregated_privileges = 0;
-  log_debug("RestRequestHandler: look for service:%i, schema:%i, obj:%i",
-            (int)service_id, (int)schema_id, (int)db_object_id);
+  log_debug("RestRequestHandler: look for service:%s, schema:%s, obj:%s",
+            service_id.to_string().c_str(), schema_id.to_string().c_str(),
+            db_object_id.to_string().c_str());
 
   for (const auto &p : privileges) {
     log_debug("RestRequestHandler: next iteration");
     log_debug("RestRequestHandler: permissions:%i", p.crud);
     log_debug("RestRequestHandler: object_id:%s",
-              to_string(p.object_id).c_str());
+              p.object_id->to_string().c_str());
     log_debug("RestRequestHandler: schema_id:%s",
-              to_string(p.schema_id).c_str());
+              p.schema_id->to_string().c_str());
     log_debug("RestRequestHandler: service_id:%s",
-              to_string(p.service_id).c_str());
+              p.service_id->to_string().c_str());
 
     if (!p.object_id && !p.schema_id && !p.service_id) {
       aggregated_privileges |= p.crud;
       continue;
     }
 
-    if (p.object_id && db_object_id == *p.object_id) {
+    if (p.object_id.has_value() && db_object_id == *p.object_id) {
       aggregated_privileges |= p.crud;
     }
 
-    if (p.schema_id && schema_id == *p.schema_id) {
+    if (p.schema_id.has_value() && schema_id == *p.schema_id) {
       aggregated_privileges |= p.crud;
     }
 
-    if (p.service_id && service_id == *p.service_id) {
+    if (p.service_id.has_value() && service_id == *p.service_id) {
       aggregated_privileges |= p.crud;
     }
   }
@@ -233,8 +234,8 @@ class RestRequestHandler : public BaseRequestHandler {
       const auto service_id = rest_handler_->get_service_id();
       const auto method = req.get_method();
 
-      log_debug("handle_request(service_id:%i): start(url='%s')",
-                static_cast<int>(service_id),
+      log_debug("handle_request(service_id:%s): start(url='%s')",
+                service_id.to_string().c_str(),
                 request_ctxt.request->get_uri().join().c_str());
 
       auto options = rest_handler_->get_options();
@@ -269,8 +270,8 @@ class RestRequestHandler : public BaseRequestHandler {
 
       auto required_auth = rest_handler_->requires_authentication();
       if (Handler::Authorization::kNotNeeded != required_auth) {
-        log_debug("RestRequestHandler(service_id:%i): authenticate",
-                  static_cast<int>(service_id));
+        log_debug("RestRequestHandler(service_id:%s): authenticate",
+                  service_id.to_string().c_str());
 
         // request_ctxt.user is valid after success of this call
         if (Handler::Authorization::kRequires == required_auth) {
@@ -292,8 +293,8 @@ class RestRequestHandler : public BaseRequestHandler {
         rest_handler_->authorization(&request_ctxt);
 
         if (rest_handler_->may_check_access()) {
-          log_debug("RestRequestHandler(service_id:%i): required_access:%i",
-                    static_cast<int>(service_id), required_access);
+          log_debug("RestRequestHandler(service_id:%s): required_access:%i",
+                    service_id.to_string().c_str(), required_access);
           if (!(required_access &
                 check_privileges(request_ctxt.user.privileges, service_id,
                                  rest_handler_->get_schema_id(),
@@ -304,8 +305,8 @@ class RestRequestHandler : public BaseRequestHandler {
       }
 
       log_debug(
-          "RestRequestHandler(service_id:%i): dispatch(method:%s, path:%s)",
-          static_cast<int>(service_id),
+          "RestRequestHandler(service_id:%s): dispatch(method:%s, path:%s)",
+          service_id.to_string().c_str(),
           request_ctxt.request->get_uri().get_path().c_str(),
           get_http_method_name(request_ctxt.request->get_method()).c_str());
       switch (method) {

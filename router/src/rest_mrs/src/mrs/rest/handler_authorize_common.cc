@@ -39,7 +39,7 @@ using Result = HandlerAuthorizeCommon::Result;
 using Route = mrs::interface::Object;
 
 HandlerAuthorizeCommon::HandlerAuthorizeCommon(
-    const uint64_t service_id, const std::string &url,
+    const UniversalId service_id, const std::string &url,
     const std::string &rest_path_matcher, const std::string &options,
     const std::string &redirection, interface::AuthorizeManager *auth_manager)
     : Handler(url, rest_path_matcher, options, auth_manager),
@@ -50,16 +50,18 @@ Handler::Authorization HandlerAuthorizeCommon::requires_authentication() const {
   return Authorization::kCheck;
 }
 
-uint64_t HandlerAuthorizeCommon::get_service_id() const { return service_id_; }
-
-uint64_t HandlerAuthorizeCommon::get_db_object_id() const {
-  assert(0 && "is_object returns false, it is not allowed to call this method");
-  return 0;
+UniversalId HandlerAuthorizeCommon::get_service_id() const {
+  return service_id_;
 }
 
-uint64_t HandlerAuthorizeCommon::get_schema_id() const {
+UniversalId HandlerAuthorizeCommon::get_db_object_id() const {
   assert(0 && "is_object returns false, it is not allowed to call this method");
-  return 0;
+  return {};
+}
+
+UniversalId HandlerAuthorizeCommon::get_schema_id() const {
+  assert(0 && "is_object returns false, it is not allowed to call this method");
+  return {};
 }
 
 uint32_t HandlerAuthorizeCommon::get_access_rights() const {

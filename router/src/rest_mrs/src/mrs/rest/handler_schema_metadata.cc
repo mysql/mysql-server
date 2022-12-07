@@ -95,18 +95,18 @@ Handler::Authorization HandlerSchemaMetadata::requires_authentication() const {
                                             : Authorization::kNotNeeded;
 }
 
-uint64_t HandlerSchemaMetadata::get_service_id() const {
+UniversalId HandlerSchemaMetadata::get_service_id() const {
   return schema_->get_service_id();
 }
 
-uint64_t HandlerSchemaMetadata::get_db_object_id() const {
+UniversalId HandlerSchemaMetadata::get_db_object_id() const {
   // TODO(lkotula): id of file is not the same as db_object.
   // It should be considered to return (Shouldn't be in
   // review)
-  return 0;
+  return {};
 }
 
-uint64_t HandlerSchemaMetadata::get_schema_id() const {
+UniversalId HandlerSchemaMetadata::get_schema_id() const {
   return schema_->get_id();
 }
 

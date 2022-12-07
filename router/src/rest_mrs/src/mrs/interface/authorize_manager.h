@@ -55,7 +55,7 @@ class AuthorizeManager {
   using AuthApp = database::entry::AuthApp;
   using AuthUser = database::entry::AuthUser;
   using Entries = std::vector<AuthApp>;
-  using ServiceId = uint64_t;
+  using ServiceId = UniversalId;
 
   virtual ~AuthorizeManager() = default;
 
@@ -67,7 +67,7 @@ class AuthorizeManager {
   virtual bool is_authorized(ServiceId id, http::Cookie *cookies,
                              HttpHeaders &input_headers, AuthUser *user) = 0;
   virtual bool unauthorize(ServiceId id, http::Cookie *cookies) = 0;
-  virtual std::string get_jwt_token(uint64_t service_id, Session *s) = 0;
+  virtual std::string get_jwt_token(ServiceId service_id, Session *s) = 0;
   virtual Session *get_current_session(ServiceId id, HttpHeaders &input_headers,
                                        http::Cookie *cookies) = 0;
   virtual users::UserManager *get_user_manager() = 0;

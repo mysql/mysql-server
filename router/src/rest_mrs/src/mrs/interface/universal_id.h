@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,44 +22,15 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_ENTRY_PARAMETER_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_ENTRY_PARAMETER_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_UNIVERSAL_ID_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_UNIVERSAL_ID_H_
 
-#include <optional>
-#include <string>
-#include <vector>
-
-#include "mrs/database/entry/entry.h"
-#include "mrs/database/entry/set_operation.h"
+#include "mrs/database/entry/universal_id.h"
 
 namespace mrs {
-namespace database {
-namespace entry {
 
-struct Parameter {
-  enum ParameterDataType {
-    parameterString,
-    parameterInt,
-    parameterDouble,
-    parameterBoolean,
-    parameterLong,
-    parameterTimestamp
-  };
-  enum ParameterMode {
-    parameterIn,
-    parameterOut,
-    parameterInOut,
-  };
+using UniversalId = mrs::database::entry::UniversalId;
 
-  uint64_t id;
-  std::string name;
-  ParameterMode mode;
-  std::string bind_column_name;
-  ParameterDataType parameter_data_type;
-};
-
-}  // namespace entry
-}  // namespace database
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_ENTRY_PARAMETER_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_UNIVERSAL_ID_H_

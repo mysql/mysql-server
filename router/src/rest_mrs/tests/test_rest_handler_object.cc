@@ -82,7 +82,7 @@ class RestHandlerObjectTests : public Test {
 };
 
 TEST_F(RestHandlerObjectTests, forwards_get_service_id) {
-  const uint64_t k_service_id{10101};
+  const mrs::UniversalId k_service_id{{10, 101}};
 
   make_sut(k_url, k_path);
   EXPECT_CALL(mock_route_, get_service_id()).WillOnce(Return(k_service_id));
@@ -91,7 +91,7 @@ TEST_F(RestHandlerObjectTests, forwards_get_service_id) {
 }
 
 TEST_F(RestHandlerObjectTests, forwards_get_schema_id) {
-  const auto k_schema_id = 20101;
+  const auto k_schema_id = mrs::UniversalId{{10, 101}};
 
   make_sut(k_url, k_path);
   EXPECT_CALL(mock_route_schema_, get_id()).WillOnce(Return(k_schema_id));
@@ -100,7 +100,7 @@ TEST_F(RestHandlerObjectTests, forwards_get_schema_id) {
 }
 
 TEST_F(RestHandlerObjectTests, forwards_get_object_id) {
-  const auto k_object_id = 20101;
+  const auto k_object_id = mrs::UniversalId{{10, 101}};
 
   make_sut(k_url, k_path);
   EXPECT_CALL(mock_route_, get_id()).WillOnce(Return(k_object_id));

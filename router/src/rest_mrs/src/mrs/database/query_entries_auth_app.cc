@@ -44,7 +44,7 @@ QueryEntriesAuthApp::QueryEntriesAuthApp() {
       "  a.alias from mysql_rest_service_metadata.`url_host_alias` as a where "
       "    h.id=a.url_host_id limit 1)) as host_alias,"
       "  a.url_direct_auth,"
-      "  a.limit_to_registered_users, a.default_auth_role_id,"
+      "  a.limit_to_registered_users, a.default_role_id,"
       "  s.auth_path, s.options, s.auth_completed_url, "
       "s.auth_completed_page_content, "
       "  a.id as auth_app_id, auth_vendor_id, h.id as url_host_id"
@@ -72,8 +72,9 @@ void QueryEntriesAuthApp::on_row(const Row &row) {
   helper::MySQLRow mysql_row(row);
   AuthApp &entry = entries.back();
 
-  mysql_row.unserialize(&entry.id);
-  mysql_row.unserialize(&entry.service_id);
+  mysql_row.unserialize_with_converter(&entry.id, entry::UniversalId::from_raw);
+  mysql_row.unserialize_with_converter(&entry.service_id,
+                                       entry::UniversalId::from_raw);
   mysql_row.unserialize(&entry.service_name);
   mysql_row.unserialize(&entry.name);
   mysql_row.unserialize(&entry.app_name);
@@ -88,7 +89,8 @@ void QueryEntriesAuthApp::on_row(const Row &row) {
   mysql_row.unserialize(&entry.host_alias);
   mysql_row.unserialize(&entry.url_access_token);
   mysql_row.unserialize(&entry.limit_to_registered_users);
-  mysql_row.unserialize(&entry.default_role_id);
+  mysql_row.unserialize_with_converter(&entry.default_role_id,
+                                       entry::UniversalId::from_raw);
   mysql_row.unserialize(&entry.auth_path);
   mysql_row.unserialize(&entry.options);
   mysql_row.unserialize(&entry.redirect);

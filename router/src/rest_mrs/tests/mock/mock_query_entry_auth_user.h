@@ -34,7 +34,7 @@ class MockQueryEntryAuthUser : public mrs::database::QueryEntryAuthUser {
               (override));
   MOCK_METHOD(uint64_t, insert_user,
               (MySQLSession * session, const AuthUser *user,
-               const helper::Optional<uint64_t> &default_role_id),
+               const helper::Optional<mrs::UniversalId> &default_role_id),
               (override));
   MOCK_METHOD(bool, update_user, (MySQLSession * session, const AuthUser *user),
               (override));

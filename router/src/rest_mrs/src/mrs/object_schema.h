@@ -53,8 +53,9 @@ class ObjectSchema : public std::enable_shared_from_this<ObjectSchema>,
   ObjectSchema(DbObjectManager *manager, collector::MysqlCacheManager *cache,
                const std::string &service, const std::string &name,
                const bool is_ssl, const std::string &host,
-               const bool requires_authentication, const uint64_t service_id,
-               const uint64_t schema_id, const std::string &options,
+               const bool requires_authentication,
+               const UniversalId &service_id, const UniversalId &schema_id,
+               const std::string &options,
                mrs::interface::AuthorizeManager *auth_manager,
                std::shared_ptr<HandlerFactory> handler_factory);
 
@@ -69,8 +70,8 @@ class ObjectSchema : public std::enable_shared_from_this<ObjectSchema>,
   const std::string &get_options() const override;
   const VectorOfRoutes &get_routes() const override;
   bool requires_authentication() const override;
-  uint64_t get_service_id() const override;
-  uint64_t get_id() const override;
+  UniversalId get_service_id() const override;
+  UniversalId get_id() const override;
 
  private:
   State state_{stateOff};
@@ -84,8 +85,8 @@ class ObjectSchema : public std::enable_shared_from_this<ObjectSchema>,
   VectorOfRoutes routes_;
   std::unique_ptr<Handler> rest_handler_schema_;
   bool requires_authentication_;
-  uint64_t service_id_;
-  uint64_t schema_id_;
+  UniversalId service_id_;
+  UniversalId schema_id_;
   mrs::interface::AuthorizeManager *auth_manager_;
   std::shared_ptr<HandlerFactory> handler_factory_;
 };

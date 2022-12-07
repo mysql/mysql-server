@@ -65,7 +65,7 @@ void QueryRestTable::query_entries(
     const std::string &primary, const bool is_default_limit,
     const RowUserOwnership &row_user, UserId *user_id,
     const std::vector<RowGroupOwnership> &row_groups,
-    const std::set<uint64_t> &user_groups, const std::string &q) {
+    const std::set<UniversalId> &user_groups, const std::string &q) {
   if (columns.empty()) throw std::invalid_argument("Empty column list.");
   build_query(columns, schema, object, offset, limit + 1, url_route, primary,
               row_user, user_id, row_groups, user_groups, q);
@@ -88,7 +88,7 @@ void QueryRestTable::on_row(const Row &r) {
 const mysqlrouter::sqlstring &QueryRestTable::build_where(
     const RowUserOwnership &row_user, UserId *user_id,
     const std::vector<RowGroupOwnership> &row_groups,
-    const std::set<uint64_t> &user_groups) {
+    const std::set<UniversalId> &user_groups) {
   using MatchLevel = entry::RowGroupOwnership::MatchLevel;
   static std::map<MatchLevel, mysqlrouter::sqlstring> operations{
       {MatchLevel::kHigher, ">"},
@@ -234,7 +234,7 @@ void QueryRestTable::build_query(
     const std::string &url, const std::string &primary,
     const RowUserOwnership &row_user, UserId *user_id,
     const std::vector<RowGroupOwnership> &row_groups,
-    const std::set<uint64_t> &user_groups, const std::string &query) {
+    const std::set<UniversalId> &user_groups, const std::string &query) {
   auto where = build_where(row_user, user_id, row_groups, user_groups);
   extend_where(where, query);
   query_ = {"SELECT JSON_OBJECT(?, ?) FROM !.! ? LIMIT ?,?"};

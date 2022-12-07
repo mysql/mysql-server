@@ -36,15 +36,13 @@ namespace mrs {
 
 using VectorOfRoutes = ObjectSchema::VectorOfRoutes;
 
-ObjectSchema::ObjectSchema(DbObjectManager *manager,
-                           collector::MysqlCacheManager *cache,
-                           const std::string &service, const std::string &name,
-                           const bool is_ssl, const std::string &host,
-                           const bool requires_authentication,
-                           const uint64_t service_id, const uint64_t schema_id,
-                           const std::string &options,
-                           mrs::interface::AuthorizeManager *auth_manager,
-                           std::shared_ptr<HandlerFactory> handler_factory)
+ObjectSchema::ObjectSchema(
+    DbObjectManager *manager, collector::MysqlCacheManager *cache,
+    const std::string &service, const std::string &name, const bool is_ssl,
+    const std::string &host, const bool requires_authentication,
+    const UniversalId &service_id, const UniversalId &schema_id,
+    const std::string &options, mrs::interface::AuthorizeManager *auth_manager,
+    std::shared_ptr<HandlerFactory> handler_factory)
     : manager_{manager},
       service_{service},
       name_{name},
@@ -110,8 +108,8 @@ bool ObjectSchema::requires_authentication() const {
   return requires_authentication_;
 }
 
-uint64_t ObjectSchema::get_service_id() const { return service_id_; }
+UniversalId ObjectSchema::get_service_id() const { return service_id_; }
 
-uint64_t ObjectSchema::get_id() const { return schema_id_; }
+UniversalId ObjectSchema::get_id() const { return schema_id_; }
 
 }  // namespace mrs

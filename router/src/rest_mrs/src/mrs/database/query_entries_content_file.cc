@@ -73,8 +73,9 @@ void QueryEntriesContentFile::on_row(const Row &row) {
   helper::MySQLRow mysql_row(row);
   auto &entry = entries.back();
 
-  mysql_row.unserialize(&entry.id);
-  mysql_row.unserialize(&entry.content_set_id);
+  mysql_row.unserialize_with_converter(&entry.id, entry::UniversalId::from_raw);
+  mysql_row.unserialize_with_converter(&entry.content_set_id,
+                                       entry::UniversalId::from_raw);
   mysql_row.unserialize(&entry.size);
   mysql_row.unserialize(&entry.host);
   mysql_row.unserialize(&entry.service_path);
@@ -83,7 +84,8 @@ void QueryEntriesContentFile::on_row(const Row &row) {
   mysql_row.unserialize(&entry.active);
   mysql_row.unserialize(&entry.set_requires_authentication);
   mysql_row.unserialize(&entry.requires_authentication);
-  mysql_row.unserialize(&entry.service_id);
+  mysql_row.unserialize_with_converter(&entry.service_id,
+                                       entry::UniversalId::from_raw);
   mysql_row.unserialize(&entry.options_json);
   mysql_row.unserialize(&entry.options_json_schema);
 

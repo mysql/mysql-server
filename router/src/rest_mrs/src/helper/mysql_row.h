@@ -61,17 +61,28 @@ class MySQLRow {
     converter(out_field, in_value);
   }
 
-  template <typename FieldType>
-  void unserialize(bool *has_field, FieldType *out_field) {
+  template <typename FieldType, typename Converter>
+  void unserialize_with_converter(std::optional<FieldType> *out_field,
+                                  const Converter &converter) {
     auto in_value = row_[field_index_++];
 
-    *has_field = in_value != nullptr;
+    out_field->reset();
 
-    if (!in_value) {
-      return;
+    if (in_value) converter(out_field, in_value);
+  }
+
+  template <typename FieldType, typename Converter>
+  void unserialize_with_converter(helper::Optional<FieldType> *out_field,
+                                  const Converter &converter) {
+    auto in_value = row_[field_index_++];
+
+    out_field->reset();
+
+    if (in_value) {
+      FieldType r;
+      converter(&r, in_value);
+      *out_field = std::move(r);
     }
-
-    convert(out_field, in_value);
   }
 
   template <typename FieldType>

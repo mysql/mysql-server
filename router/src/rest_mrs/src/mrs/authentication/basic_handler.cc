@@ -52,13 +52,13 @@ static bool extract_user_credentials_from_token(
 BasicHandler::BasicHandler(const AuthApp &entry,
                            collector::MysqlCacheManager *cache_manager)
     : WwwAuthenticationHandler(entry), cache_manager_{cache_manager} {
-  log_debug("BasicHandler for service %i, %s", (int)entry.service_id,
-            to_string(entry).c_str());
+  log_debug("BasicHandler for service %s, %s",
+            entry.service_id.to_string().c_str(), to_string(entry).c_str());
 }
 
-uint64_t BasicHandler::get_service_id() const { return entry_.service_id; }
+UniversalId BasicHandler::get_service_id() const { return entry_.service_id; }
 
-uint64_t BasicHandler::get_id() const { return entry_.id; }
+UniversalId BasicHandler::get_id() const { return entry_.id; }
 
 bool BasicHandler::www_authorize(const std::string &token,
                                  SqlSessionCached *out_cache,

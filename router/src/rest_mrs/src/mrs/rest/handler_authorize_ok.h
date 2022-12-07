@@ -38,7 +38,7 @@ namespace rest {
 
 class HandlerAuthorizeOk : public Handler {
  public:
-  HandlerAuthorizeOk(const uint64_t service_id, const std::string &url,
+  HandlerAuthorizeOk(const UniversalId service_id, const std::string &url,
                      const std::string &rest_path_matcher,
                      const std::string &options,
                      const std::string &page_content_custom,
@@ -46,9 +46,9 @@ class HandlerAuthorizeOk : public Handler {
 
   Authorization requires_authentication() const override;
   bool may_check_access() const override;
-  uint64_t get_service_id() const override;
-  uint64_t get_db_object_id() const override;
-  uint64_t get_schema_id() const override;
+  UniversalId get_service_id() const override;
+  UniversalId get_db_object_id() const override;
+  UniversalId get_schema_id() const override;
   uint32_t get_access_rights() const override;
 
   Result handle_get(RequestContext *ctxt) override;
@@ -58,7 +58,7 @@ class HandlerAuthorizeOk : public Handler {
   Result handle_put(RequestContext *ctxt) override;
 
  private:
-  uint64_t service_id_;
+  UniversalId service_id_;
   const std::string page_content_custom_;
   std::string copy_url_;
   std::string copy_path_;

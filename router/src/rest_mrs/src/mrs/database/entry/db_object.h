@@ -30,10 +30,11 @@
 #include <vector>
 
 #include "mrs/database/entry/entry.h"
-#include "mrs/database/entry/parameter.h"
+#include "mrs/database/entry/field.h"
 #include "mrs/database/entry/row_group_ownership.h"
 #include "mrs/database/entry/row_user_ownership.h"
 #include "mrs/database/entry/set_operation.h"
+#include "mrs/database/entry/universal_id.h"
 
 namespace mrs {
 namespace database {
@@ -45,9 +46,9 @@ class DbObject {
   enum PathType { typeTable, typeProcedure };
   EntryKey get_key() const { return {key_rest, id}; }
 
-  uint64_t id;
-  uint64_t service_id;
-  uint64_t schema_id;
+  UniversalId id;
+  UniversalId service_id;
+  UniversalId schema_id;
   std::string host;
   std::string host_alias;
   bool active;
@@ -69,7 +70,7 @@ class DbObject {
   std::vector<RowGroupOwnership> row_group_security;
   std::string options_json;
   std::string options_json_schema;
-  std::vector<entry::Parameter> parameters;
+  std::vector<entry::Field> fields;
 };
 
 }  // namespace entry

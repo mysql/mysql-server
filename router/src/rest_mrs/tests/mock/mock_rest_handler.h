@@ -34,9 +34,9 @@ class MockRestHandler : public mrs::interface::RestHandler {
 
   MOCK_METHOD(bool, may_check_access, (), (const, override));
   MOCK_METHOD(Authorization, requires_authentication, (), (const, override));
-  MOCK_METHOD(uint64_t, get_service_id, (), (const, override));
-  MOCK_METHOD(uint64_t, get_db_object_id, (), (const, override));
-  MOCK_METHOD(uint64_t, get_schema_id, (), (const, override));
+  MOCK_METHOD(mrs::UniversalId, get_service_id, (), (const, override));
+  MOCK_METHOD(mrs::UniversalId, get_db_object_id, (), (const, override));
+  MOCK_METHOD(mrs::UniversalId, get_schema_id, (), (const, override));
   MOCK_METHOD(uint32_t, get_access_rights, (), (const, override));
   MOCK_METHOD(bool, is_json_response, (), (const, override));
   MOCK_METHOD(Result, handle_get, (RequestContext * ctxt), (override));

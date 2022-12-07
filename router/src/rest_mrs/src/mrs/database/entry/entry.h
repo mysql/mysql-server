@@ -26,6 +26,7 @@
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATA_ENTRY_H_
 
 #include <cstdint>
+#include "mrs/database/entry/universal_id.h"
 
 namespace mrs {
 namespace database {
@@ -35,7 +36,7 @@ enum EntryType { key_static, key_rest };
 
 struct EntryKey {
   EntryType type;
-  uint64_t id;
+  UniversalId id;
 
   bool operator<(const EntryKey &other) const {
     if (type < other.type) return true;

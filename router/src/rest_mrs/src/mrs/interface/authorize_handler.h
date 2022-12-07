@@ -30,6 +30,7 @@
 #include "mrs/database/entry/auth_user.h"
 #include "mrs/http/session_manager.h"
 #include "mrs/http/url.h"
+#include "mrs/interface/universal_id.h"
 
 #include "mysqlrouter/http_request.h"
 
@@ -51,8 +52,8 @@ class AuthorizeHandler {
  public:
   virtual ~AuthorizeHandler() = default;
 
-  virtual uint64_t get_service_id() const = 0;
-  virtual uint64_t get_id() const = 0;
+  virtual UniversalId get_service_id() const = 0;
+  virtual UniversalId get_id() const = 0;
   virtual const AuthApp &get_entry() const = 0;
 
   virtual bool is_authorized(Session *session, AuthUser *user) = 0;

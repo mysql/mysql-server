@@ -64,7 +64,7 @@ class UserManagerFixture : public Test {
       memcpy(result.user_id.raw, u[0], 16);
     }
 
-    result.app_id = atol(u[1]);
+    result.app_id = mrs::UniversalId::from_cstr(u[1], 16);
     result.name = u[2];
     result.email = u[3];
     result.vendor_user_id = u[4];
@@ -126,9 +126,9 @@ class UserManagerFixture : public Test {
 };
 
 TEST_F(UserManagerFixture, fetch_user_from_database) {
-  const int k_app_id = 2;
+  const mrs::UniversalId k_app_id{{2}};
   SqlSessionCache cache{nullptr, &session_};
-  UserManager um{false, 3};
+  UserManager um{false, mrs::UniversalId{3}};
 
   AuthUser user;
   user.app_id = k_app_id;
@@ -153,9 +153,9 @@ TEST_F(UserManagerFixture, fetch_user_from_database) {
 }
 
 TEST_F(UserManagerFixture, fetch_user_from_database_once) {
-  const int k_app_id = 2;
+  const mrs::UniversalId k_app_id{{2}};
   SqlSessionCache cache{nullptr, &session_};
-  UserManager um{false, 3};
+  UserManager um{false, mrs::UniversalId{3}};
 
   AuthUser user1;
   user1.app_id = k_app_id;
@@ -206,9 +206,9 @@ TEST_F(UserManagerFixture, fetch_user_from_database_once) {
  */
 TEST_F(UserManagerFixture, fetch_user_from_db_and_update) {
   using namespace std::string_literals;
-  const int k_app_id = 2;
+  const mrs::UniversalId k_app_id{{2}};
   SqlSessionCache cache{nullptr, &session_};
-  UserManager um{false, 3};
+  UserManager um{false, mrs::UniversalId{3}};
 
   // The user has different mail, than in representation in DB.
   AuthUser user;
@@ -237,6 +237,6 @@ TEST_F(UserManagerFixture, fetch_user_from_db_and_update) {
   ASSERT_TRUE(user.has_user_id);
   ASSERT_EQ(k_user_4000040400004_id, user.user_id);
   ASSERT_EQ(1, user.privileges.size());
-  ASSERT_EQ(1, user.privileges[0].service_id);
+  ASSERT_EQ(mrs::UniversalId{{1}}, user.privileges[0].service_id);
   ASSERT_EQ(2, user.privileges[0].crud);
 }

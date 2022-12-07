@@ -32,7 +32,7 @@ class MockQueryEntriesAuthPrivileges
     : public mrs::database::QueryEntriesAuthPrivileges {
  public:
   MOCK_METHOD(void, query_user,
-              (MySQLSession * session, uint64_t user_id,
+              (MySQLSession * session, mrs::UniversalId user_id,
                Privileges *out_privileges),
               (override));
 };

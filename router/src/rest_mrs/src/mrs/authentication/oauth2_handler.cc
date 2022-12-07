@@ -77,11 +77,11 @@ bool Oauth2Handler::RequestHandlerJsonSimpleObject::response(
   return true;
 }
 
-uint64_t Oauth2Handler::get_service_id() const { return entry_.service_id; }
+UniversalId Oauth2Handler::get_service_id() const { return entry_.service_id; }
 
 const AuthApp &Oauth2Handler::get_entry() const { return entry_; }
 
-uint64_t Oauth2Handler::get_id() const { return entry_.id; }
+UniversalId Oauth2Handler::get_id() const { return entry_.id; }
 
 bool Oauth2Handler::send_http_request(HttpMethodType method,
                                       const std::string &url,
@@ -228,10 +228,10 @@ bool Oauth2Handler::authorize(Session *session, http::Url *url,
   const bool code_in_parameters = 0 != query_parameters.count(kCode);
 
   log_debug(
-      "Oauth2FacebookHandler::authorize(id=%i, service_id=%i, session_id=%s) "
+      "Oauth2FacebookHandler::authorize(id=%s, service_id=%s, session_id=%s) "
       "=> "
       "%s",
-      static_cast<int>(entry_.id), static_cast<int>(entry_.service_id),
+      entry_.id.to_string().c_str(), entry_.service_id.to_string().c_str(),
       session_data ? session_data->internal_session->get_session_id().c_str()
                    : "null",
       helper::json::to_string(query_parameters).c_str());

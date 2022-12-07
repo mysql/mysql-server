@@ -60,7 +60,8 @@ class RouteSchemaRestTests : public Test {
     for (auto p : mocks) Mock::VerifyAndClearExpectations(p);
   }
 
-  void make_sut(const uint64_t service_id, const uint64_t schema_id,
+  void make_sut(const mrs::UniversalId service_id,
+                const mrs::UniversalId schema_id,
                 const std::string &service_name, const std::string &schema_name,
                 const bool is_ssl = false, const bool require_auth = false,
                 const std::string &host = "127.0.0.1") {
@@ -82,8 +83,8 @@ class RouteSchemaRestTests : public Test {
 };
 
 TEST_F(RouteSchemaRestTests, expect_generic_data1) {
-  const auto k_service_id = 1;
-  const auto k_schema_id = 2;
+  const mrs::UniversalId k_service_id{{1}};
+  const mrs::UniversalId k_schema_id{{2}};
   const auto k_service_name = "/ser";
   const auto k_schema_name = "/sch";
 
@@ -99,8 +100,8 @@ TEST_F(RouteSchemaRestTests, expect_generic_data1) {
 }
 
 TEST_F(RouteSchemaRestTests, expect_generic_data2) {
-  const auto k_service_id = 101;
-  const auto k_schema_id = 202;
+  const mrs::UniversalId k_service_id{{101}};
+  const mrs::UniversalId k_schema_id{{202}};
   const auto k_service_name = "/service";
   const auto k_schema_name = "/schema";
 
@@ -119,7 +120,9 @@ TEST_F(RouteSchemaRestTests, expect_generic_data2) {
 
 TEST_F(RouteSchemaRestTests, register_unregister_route) {
   StrictMock<MockRoute> route;
-  make_sut(1, 2, "/ser", "/sch");
+  const mrs::UniversalId k_service_id{{1}};
+  const mrs::UniversalId k_schema_id{{2}};
+  make_sut(k_service_id, k_schema_id, "/ser", "/sch");
 
   sut_->route_register(&route);
   auto routes = sut_->get_routes();
@@ -137,7 +140,9 @@ TEST_F(RouteSchemaRestTests, register_unregister_route) {
 
 TEST_F(RouteSchemaRestTests, register_unregister_routes) {
   StrictMock<MockRoute> routes[4];
-  make_sut(1, 2, "/ser", "/sch");
+  const mrs::UniversalId k_service_id{{1}};
+  const mrs::UniversalId k_schema_id{{2}};
+  make_sut(k_service_id, k_schema_id, "/ser", "/sch");
 
   sut_->route_register(&routes[0]);
 
@@ -166,13 +171,17 @@ TEST_F(RouteSchemaRestTests, register_unregister_routes) {
 }
 
 TEST_F(RouteSchemaRestTests, turn_off_does_nothing_when_already_off) {
-  make_sut(1, 2, "/ser", "/sch");
+  const mrs::UniversalId k_service_id{{1}};
+  const mrs::UniversalId k_schema_id{{2}};
+  make_sut(k_service_id, k_schema_id, "/ser", "/sch");
 
   sut_->turn(mrs::stateOff);
 }
 
 TEST_F(RouteSchemaRestTests, turn_on) {
-  make_sut(1, 2, "/ser", "/sch");
+  const mrs::UniversalId k_service_id{{1}};
+  const mrs::UniversalId k_schema_id{{2}};
+  make_sut(k_service_id, k_schema_id, "/ser", "/sch");
 
   EXPECT_CALL(*mock_handler_factory_,
               create_schema_metadata_handler(sut_.get(), &mock_auth_manager_));
@@ -183,7 +192,9 @@ TEST_F(RouteSchemaRestTests, turn_on) {
 }
 
 TEST_F(RouteSchemaRestTests, turn_off_releases_the_object) {
-  make_sut(1, 2, "/ser", "/sch");
+  const mrs::UniversalId k_service_id{{1}};
+  const mrs::UniversalId k_schema_id{{2}};
+  make_sut(k_service_id, k_schema_id, "/ser", "/sch");
 
   class TrackDestructionRestHandler : public MockRestHandler {
    public:

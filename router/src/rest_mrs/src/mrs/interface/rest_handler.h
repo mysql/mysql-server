@@ -33,6 +33,7 @@
 
 #include "helper/media_type.h"
 #include "mrs/http/error.h"
+#include "mrs/interface/universal_id.h"
 
 class HttpRequest;
 
@@ -121,9 +122,9 @@ class RestHandler {
   virtual bool may_check_access() const = 0;
   virtual Authorization requires_authentication() const = 0;
 
-  virtual uint64_t get_service_id() const = 0;
-  virtual uint64_t get_db_object_id() const = 0;
-  virtual uint64_t get_schema_id() const = 0;
+  virtual UniversalId get_service_id() const = 0;
+  virtual UniversalId get_db_object_id() const = 0;
+  virtual UniversalId get_schema_id() const = 0;
   virtual uint32_t get_access_rights() const = 0;
   virtual bool is_json_response() const { return true; }
   virtual const Options &get_options() const = 0;

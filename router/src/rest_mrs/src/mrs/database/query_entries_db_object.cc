@@ -28,8 +28,8 @@
 
 #include "helper/mysql_row.h"
 #include "mrs/database/helper/query_audit_log_maxid.h"
+#include "mrs/database/query_entry_fields.h"
 #include "mrs/database/query_entry_group_row_security.h"
-#include "mrs/database/query_entry_parameter.h"
 
 #include "mysql/harness/logging/logging.h"
 
@@ -84,12 +84,12 @@ void QueryEntryDbObject::query_entries(MySQLSession *session) {
   execute(session);
 
   QueryEntryGroupRowSecurity qg;
-  QueryEntryParameter qp;
+  QueryEntryFields qp;
   for (auto &e : entries) {
     qg.query_group_row_security(session, e.id);
     e.row_group_security = std::move(qg.get_result());
     qp.query_parameters(session, e.id);
-    e.parameters = std::move(qp.get_result());
+    e.fields = std::move(qp.get_result());
   }
 
   query(session, "COMMIT");
@@ -131,9 +131,11 @@ void QueryEntryDbObject::on_row(const Row &row) {
 
   auto format_type_converter =
       get_map_converter(&format_types, DbObject::formatFeed);
-  mysql_row.unserialize(&entry.id);
-  mysql_row.unserialize(&entry.service_id);
-  mysql_row.unserialize(&entry.schema_id);
+  mysql_row.unserialize_with_converter(&entry.id, entry::UniversalId::from_raw);
+  mysql_row.unserialize_with_converter(&entry.service_id,
+                                       entry::UniversalId::from_raw);
+  mysql_row.unserialize_with_converter(&entry.schema_id,
+                                       entry::UniversalId::from_raw);
   mysql_row.unserialize(&entry.host);
   mysql_row.unserialize(&entry.host_alias);
   mysql_row.unserialize(&entry.requires_authentication);

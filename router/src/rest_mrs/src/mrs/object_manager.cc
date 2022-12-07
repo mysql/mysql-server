@@ -55,7 +55,7 @@ ObjectManager::~ObjectManager() {
     route_ids.emplace_back(r.first);
   }
 
-  for (const auto id : route_ids) {
+  for (const auto &id : route_ids) {
     handle_delete_route(id);
   }
 }
@@ -79,7 +79,7 @@ void ObjectManager::update(const std::vector<DbObject> &paths) {
   }
 
   for (const auto &p : paths) {
-    log_debug("route-rest: Processing update id=%i", (int)p.id);
+    log_debug("route-rest: Processing update id=%s", p.id.to_string().c_str());
     if (routes_.count({EntryType::key_rest, p.id})) {
       handle_existing_route(p);
     } else {
@@ -95,7 +95,8 @@ void ObjectManager::update(const std::vector<ContentFile> &contents) {
   }
 
   for (const auto &p : contents) {
-    log_debug("route-rest-static: Processing update id=%i", (int)p.id);
+    log_debug("route-rest-static: Processing update id=%s",
+              p.id.to_string().c_str());
     if (routes_.count(p.get_key())) {
       handle_existing_route(p);
     } else {
@@ -121,7 +122,7 @@ void ObjectManager::handle_existing_route(const ContentFile &pe) {
     return;
   }
 
-  log_debug("Updating static-file:%i", (int)pe.id);
+  log_debug("Updating static-file:%s", pe.id.to_string().c_str());
 
   auto schema = handle_schema(pe);
   auto &route = routes_[{EntryType::key_static, pe.id}];
@@ -155,7 +156,7 @@ void ObjectManager::handle_existing_route(const DbObject &pe) {
     return;
   }
 
-  log_debug("Updating rest-route:%i", (int)pe.id);
+  log_debug("Updating rest-route:%s", pe.id.to_string().c_str());
 
   auto schema = handle_schema(pe);
   auto &route = routes_[{EntryType::key_rest, pe.id}];

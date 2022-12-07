@@ -35,12 +35,13 @@ class QueryEntryAuthUser : private QueryLog {
  public:
   using AuthUser = entry::AuthUser;
   using UserId = AuthUser::UserId;
+  using UniversalId = entry::UniversalId;
 
  public:
   virtual bool query_user(MySQLSession *session, const AuthUser *user);
   virtual AuthUser::UserId insert_user(
       MySQLSession *session, const AuthUser *user,
-      const helper::Optional<uint64_t> &default_role_id);
+      const helper::Optional<UniversalId> &default_role_id);
   virtual bool update_user(MySQLSession *session, const AuthUser *user);
 
   virtual const AuthUser &get_user();

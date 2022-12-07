@@ -27,8 +27,8 @@
 #include "helper/mysql_row.h"
 
 #include "mrs/database/query_entries_audit_log.h"
+#include "mrs/database/query_entry_fields.h"
 #include "mrs/database/query_entry_group_row_security.h"
-#include "mrs/database/query_entry_parameter.h"
 
 namespace mrs {
 namespace database {
@@ -57,24 +57,24 @@ void QueryChangesDbObject::query_entries(MySQLSession *session) {
       audit_log_id_);
 
   for (const auto &audit_entry : audit_entries.entries) {
-    if (audit_entry.has_old_table_id)
+    if (audit_entry.old_table_id.has_value())
       query_path_entries(session, &local_path_entries, audit_entry.table,
-                         audit_entry.old_table_id);
+                         audit_entry.old_table_id.value());
 
-    if (audit_entry.has_new_table_id)
+    if (audit_entry.new_table_id.has_value())
       query_path_entries(session, &local_path_entries, audit_entry.table,
-                         audit_entry.new_table_id);
+                         audit_entry.new_table_id.value());
 
     if (max_audit_log_id < audit_entry.id) max_audit_log_id = audit_entry.id;
   }
 
   QueryEntryGroupRowSecurity qg;
-  QueryEntryParameter qp;
+  QueryEntryFields qp;
   for (auto &e : local_path_entries) {
     qg.query_group_row_security(session, e.id);
     e.row_group_security = std::move(qg.get_result());
     qp.query_parameters(session, e.id);
-    e.parameters = std::move(qp.get_result());
+    e.fields = std::move(qp.get_result());
   }
 
   entries.swap(local_path_entries);
@@ -87,7 +87,7 @@ void QueryChangesDbObject::query_entries(MySQLSession *session) {
 void QueryChangesDbObject::query_path_entries(MySQLSession *session,
                                               VectorOfPathEntries *out,
                                               const std::string &table_name,
-                                              const uint64_t id) {
+                                              const entry::UniversalId &id) {
   entries.clear();
 
   query(session, build_query(table_name, id));
@@ -109,7 +109,7 @@ void QueryChangesDbObject::query_path_entries(MySQLSession *session,
 }
 
 std::string QueryChangesDbObject::build_query(const std::string &table_name,
-                                              const uint64_t id) {
+                                              const entry::UniversalId &id) {
   auto is_set = is_table_id_is_in_set(table_name);
   mysqlrouter::sqlstring query = query_;
 

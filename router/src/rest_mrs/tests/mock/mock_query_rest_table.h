@@ -36,9 +36,10 @@ class MockQueryRestTable : public mrs::database::QueryRestTable {
                const uint32_t offset, const uint32_t limit,
                const std::string &url, const std::string &primary,
                const bool is_default_limit,
-               const RowUserOwnership &user_ownership, uint64_t *user_id,
+               const RowUserOwnership &user_ownership,
+               mrs::UniversalId *user_id,
                const VectorOfRowGroupOwnershp &row_groups,
-               const std::set<uint64_t> &user_groups),
+               const std::set<mrs::UniversalId> &user_groups),
               (override));
 };
 

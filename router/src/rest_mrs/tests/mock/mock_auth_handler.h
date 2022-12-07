@@ -29,9 +29,9 @@
 
 class MockAuthHandler : public mrs::interface::AuthorizeHandler {
  public:
-  MOCK_METHOD(uint64_t, get_service_id, (), (const, override));
+  MOCK_METHOD(mrs::UniversalId, get_service_id, (), (const, override));
   MOCK_METHOD(const AuthApp &, get_entry, (), (const, override));
-  MOCK_METHOD(uint64_t, get_id, (), (const, override));
+  MOCK_METHOD(mrs::UniversalId, get_id, (), (const, override));
   MOCK_METHOD(bool, authorize,
               (Session * session, mrs::http::Url *url,
                SqlSessionCached *sql_session, HttpHeaders &input_headers,

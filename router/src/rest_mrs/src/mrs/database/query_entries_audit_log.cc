@@ -61,8 +61,10 @@ void QueryAuditLogEntries::on_row(const Row &row) {
   mysql_row.unserialize(&entry.id);
   mysql_row.unserialize(&entry.op);
   mysql_row.unserialize(&entry.table);
-  mysql_row.unserialize(&entry.has_old_table_id, &entry.old_table_id);
-  mysql_row.unserialize(&entry.has_new_table_id, &entry.new_table_id);
+  mysql_row.unserialize_with_converter(&entry.old_table_id,
+                                       entry::UniversalId::from_raw);
+  mysql_row.unserialize_with_converter(&entry.new_table_id,
+                                       entry::UniversalId::from_raw);
 
   if (max_id_ < entry.id) {
     max_id_ = entry.id;

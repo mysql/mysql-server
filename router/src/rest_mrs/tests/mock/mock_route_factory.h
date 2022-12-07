@@ -49,8 +49,8 @@ class MockRouteFactory : public mrs::interface::ObjectFactory {
               (DbObjectManager * manager, MysqlCacheManager *cache,
                const std::string &service, const std::string &name,
                const bool is_ssl, const std::string &host,
-               const bool requires_authentication, const uint64_t service_id,
-               const uint64_t schema_id, const std::string &options,
+               const bool requires_authentication, mrs::UniversalId service_id,
+               const mrs::UniversalId schema_id, const std::string &options,
                AuthManager *auth_manager),
               (override));
 };

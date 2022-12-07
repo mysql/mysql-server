@@ -28,6 +28,8 @@
 #include <cstdint>
 #include <string>
 
+#include "mrs/database/entry/universal_id.h"
+
 namespace mrs {
 namespace database {
 namespace entry {
@@ -41,7 +43,7 @@ struct RowGroupOwnership {
     kLower
   };
 
-  uint64_t hierarhy_id;
+  UniversalId hierarhy_id;
   std::string row_group_ownership_column;
   uint64_t level;
   MatchLevel match;

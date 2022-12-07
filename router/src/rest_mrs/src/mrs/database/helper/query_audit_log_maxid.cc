@@ -41,7 +41,8 @@ void QueryAuditLogMaxId::on_row(const Row &r) {
   if (r.size() < 1) return;
 
   char *end;
-  max_ = static_cast<uint64_t>(strtoull(r[0], &end, 10));
+
+  max_ = r[0] ? static_cast<uint64_t>(strtoull(r[0], &end, 10)) : 0;
 }
 
 }  // namespace database

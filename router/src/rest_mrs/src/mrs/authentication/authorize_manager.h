@@ -80,7 +80,7 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
   bool is_authorized(ServiceId id, http::Cookie *cookies,
                      HttpHeaders &input_headers, AuthUser *user) override;
 
-  std::string get_jwt_token(uint64_t service_id, Session *s) override;
+  std::string get_jwt_token(UniversalId service_id, Session *s) override;
   Session *get_current_session(ServiceId id, HttpHeaders &input_headers,
                                http::Cookie *cookies) override;
   void discard_current_session(ServiceId id, http::Cookie *cookies) override;
@@ -89,9 +89,10 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
 
  private:
   AuthorizeHandlerPtr make_auth(const AuthApp &entry);
-  Container get_handlers_by_service_id(const uint64_t service_id);
-  bool get_handler_by_id(const uint64_t auth_id, Container::iterator *it);
-  bool get_handler_by_id(const uint64_t auth_id, AuthorizeHandlerPtr &out_it);
+  Container get_handlers_by_service_id(const UniversalId service_id);
+  bool get_handler_by_id(const UniversalId auth_id, Container::iterator *it);
+  bool get_handler_by_id(const UniversalId auth_id,
+                         AuthorizeHandlerPtr &out_it);
   void remove_unreferenced_service_authorizators();
   void fill_service(const AuthApp &e, ServiceAuthorize &sa);
 
@@ -100,7 +101,7 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
    *
    * @returns session id, for found or just created session.
    */
-  std::string authorize(const uint64_t service_id, const helper::Jwt &jwt);
+  std::string authorize(const UniversalId service_id, const helper::Jwt &jwt);
 
  private:  // AuthorizeHandlerCallbacks
   void acquire(interface::AuthorizeHandler *) override;

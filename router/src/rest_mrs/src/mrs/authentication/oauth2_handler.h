@@ -79,8 +79,8 @@ class Oauth2Handler : public interface::AuthorizeHandler {
   Oauth2Handler(const AuthApp &entry) : entry_{entry} {}
 
   const AuthApp &get_entry() const override;
-  uint64_t get_service_id() const override;
-  uint64_t get_id() const override;
+  UniversalId get_service_id() const override;
+  UniversalId get_id() const override;
   bool is_authorized(Session *session, AuthUser *user) override;
   bool authorize(Session *session, http::Url *url,
                  SqlSessionCached *sql_session, HttpHeaders &input_headers,

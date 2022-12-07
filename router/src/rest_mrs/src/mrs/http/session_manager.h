@@ -32,6 +32,7 @@
 #include <vector>
 
 #include "mrs/database/entry/auth_user.h"
+#include "mrs/database/entry/universal_id.h"
 
 namespace mrs {
 namespace http {
@@ -41,7 +42,7 @@ class SessionManager {
   using AuthUser = mrs::database::entry::AuthUser;
   using SessionId = std::string;
   using system_clock = std::chrono::system_clock;
-  using AuthorizationHandlerId = uint64_t;
+  using AuthorizationHandlerId = mrs::database::entry::UniversalId;
 
   enum Allocation { OnlyExisting = 0, CreateWhenNotExisting = 1 };
 
@@ -62,7 +63,7 @@ class SessionManager {
     };
 
    public:
-    Session(const SessionId id, const AuthorizationHandlerId authorization);
+    Session(const SessionId id, const AuthorizationHandlerId &authorization);
 
     template <typename Derived>
     Derived *get_data() {

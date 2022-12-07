@@ -42,7 +42,7 @@ namespace rest {
 using Result = HandlerAuthorize::Result;
 using Route = mrs::interface::Object;
 
-HandlerAuthorize::HandlerAuthorize(const uint64_t service_id,
+HandlerAuthorize::HandlerAuthorize(const UniversalId service_id,
                                    const std::string &url,
                                    const std::string &rest_path_matcher,
                                    const std::string &options,
@@ -56,16 +56,16 @@ Handler::Authorization HandlerAuthorize::requires_authentication() const {
   return Authorization::kRequires;
 }
 
-uint64_t HandlerAuthorize::get_service_id() const { return service_id_; }
+UniversalId HandlerAuthorize::get_service_id() const { return service_id_; }
 
-uint64_t HandlerAuthorize::get_db_object_id() const {
+UniversalId HandlerAuthorize::get_db_object_id() const {
   assert(0 && "is_object returns false, it is not allowed to call this method");
-  return 0;
+  return {};
 }
 
-uint64_t HandlerAuthorize::get_schema_id() const {
+UniversalId HandlerAuthorize::get_schema_id() const {
   assert(0 && "is_object returns false, it is not allowed to call this method");
-  return 0;
+  return {};
 }
 
 uint32_t HandlerAuthorize::get_access_rights() const { return Route::kRead; }
@@ -117,7 +117,7 @@ std::string HandlerAuthorize::append_status_parameters(
         authorization_manager_->get_jwt_token(get_service_id(), session);
     session->generate_token = false;
   }
-  http::SessionManager::Session dummy{"", 0};
+  http::SessionManager::Session dummy{"", UniversalId{}};
   session = session ? session : &dummy;
 
   auto uri = HttpUri::parse(session->users_on_complete_url_redirection.empty()

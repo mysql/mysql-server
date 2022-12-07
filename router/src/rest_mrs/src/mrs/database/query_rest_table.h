@@ -45,6 +45,7 @@ class QueryRestTable : private QueryLog {
  public:
   using Column = helper::Column;
   using UserId = entry::AuthUser::UserId;
+  using UniversalId = entry::UniversalId;
   using RowGroupOwnership = entry::RowGroupOwnership;
   using RowUserOwnership = entry::RowUserOwnership;
 
@@ -58,7 +59,7 @@ class QueryRestTable : private QueryLog {
       const std::string &primary, const bool is_default_limit,
       const RowUserOwnership &user_ownership = {}, UserId *user_id = nullptr,
       const VectorOfRowGroupOwnershp &row_groups = {},
-      const std::set<uint64_t> &user_groups = {},
+      const std::set<UniversalId> &user_groups = {},
       const std::string &query = {});
 
   std::string response;
@@ -74,14 +75,14 @@ class QueryRestTable : private QueryLog {
   const mysqlrouter::sqlstring &build_where(
       const RowUserOwnership &row_user, UserId *user_id,
       const std::vector<RowGroupOwnership> &row_groups,
-      const std::set<uint64_t> &user_groups);
+      const std::set<UniversalId> &user_groups);
   void build_query(const std::vector<Column> &columns,
                    const std::string &schema, const std::string &object,
                    const uint32_t offset, const uint32_t limit,
                    const std::string &url, const std::string &primary,
                    const RowUserOwnership &user_row, UserId *user_id,
                    const std::vector<RowGroupOwnership> &row_groups,
-                   const std::set<uint64_t> &user_groups,
+                   const std::set<UniversalId> &user_groups,
                    const std::string &query);
 };
 

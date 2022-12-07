@@ -156,13 +156,15 @@ Handler::Authorization HandlerMetadata::requires_authentication() const {
              : Authorization::kNotNeeded;
 }
 
-uint64_t HandlerMetadata::get_service_id() const {
+UniversalId HandlerMetadata::get_service_id() const {
   return route_->get_service_id();
 }
 
-uint64_t HandlerMetadata::get_db_object_id() const { return route_->get_id(); }
+UniversalId HandlerMetadata::get_db_object_id() const {
+  return route_->get_id();
+}
 
-uint64_t HandlerMetadata::get_schema_id() const {
+UniversalId HandlerMetadata::get_schema_id() const {
   return route_->get_schema()->get_id();
 }
 
