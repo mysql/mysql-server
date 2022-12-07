@@ -74,12 +74,15 @@ SectionReader::reset(){
 }
 
 bool
-SectionReader::step(Uint32 len){
-  if(m_pos + len >= m_len) {
-    m_pos++;
+SectionReader::step(Uint32 len)
+{
+  if(m_pos + len >= m_len)
+  {
+    m_pos = m_len;
     return false;
   }
-  while(len > SectionSegment::DataLength){
+  while(len > SectionSegment::DataLength)
+  {
     m_currI= m_currentSegment->m_nextSegment;
     m_currentSegment = m_pool.getPtr(m_currI);
 
@@ -88,7 +91,8 @@ SectionReader::step(Uint32 len){
   }
 
   Uint32 ind = m_pos % SectionSegment::DataLength;
-  while(len > 0){
+  while(len > 0)
+  {
     len--;
     m_pos++;
 

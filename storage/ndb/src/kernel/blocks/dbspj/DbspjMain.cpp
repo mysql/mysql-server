@@ -2310,6 +2310,26 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
         }
       }
     }
+
+    const bool pruned = treeNodePtr.p->m_bits &
+        (TreeNode::T_PRUNE_PATTERN | TreeNode::T_CONST_PRUNE);
+    const bool leafAndFirstMatch = treeNodePtr.p->isLeaf() &&
+        (treeNodePtr.p->m_bits & TreeNode::T_FIRST_MATCH);
+    if (leafAndFirstMatch && !pruned)
+    {
+      /**
+       * firstMatch execution 'REDUCE_KEYS' to remove already found matches.
+       * Only relevant if not 'pruned', else there are different keys sent
+       * to each node.
+       *
+       * Ancestor of the firstMatched scan-node need to keep track of which
+       * range-keys it found matches for, and how that row MAP'ed to its
+       * ancestors.
+       */
+      treeNodePtr.p->m_bits |= TreeNode::T_REDUCE_KEYS;
+      scanAncestorPtr.p->m_bits |= TreeNode::T_BUFFER_MAP |
+                                   TreeNode::T_BUFFER_MATCH;
+    }
   }
 
   /**
@@ -2365,6 +2385,22 @@ Dbspj::dumpExecPlan(Ptr<Request>  requestPtr,
   else if (treeNodePtr.p->isScan())
   {
     DEBUG("  '(Index-)Scan'-node");
+  }
+
+  if (treeNodePtr.p->m_parentPtrI != RNIL)
+  {
+    if (treeNodePtr.p->m_bits & TreeNode::T_INNER_JOIN)
+    {
+      DEBUG("  INNER_JOIN");
+    }
+    else if (treeNodePtr.p->m_parentPtrI != RNIL)
+    {
+      DEBUG("  OUTER_JOIN");
+    }
+    if (treeNodePtr.p->m_bits & TreeNode::T_FIRST_MATCH)
+    {
+      DEBUG("  FIRST_MATCH");
+    }
   }
 
   if (treeNodePtr.p->m_resumeEvents & TreeNode::TN_EXEC_WAIT)
@@ -4947,6 +4983,8 @@ Dbspj::lookup_build(Build_context& ctx,
 
       // FirstMatch in a lookup request can just be ignored
       //if (treeBits & DABits::NI_FIRST_MATCH)
+      //{}
+      //if (treeBits & DABits::NI_ANTI_JOIN)
       //{}
 
       dst->requestInfo = requestInfo;
@@ -8244,8 +8282,190 @@ Dbspj::scanFrag_parent_batch_repeat(Signal* signal,
     ndbrequire(treeNodePtr.p->m_state != TreeNode::TN_ACTIVE);
     registerActiveCursor(requestPtr, treeNodePtr);
     data.m_batch_chunks = 0;
+
+    if (treeNodePtr.p->m_bits & TreeNode::T_REDUCE_KEYS &&
+        data.m_rangePtrISave != RNIL)
+    {
+      /**
+       * We saved the full set of range-keys we had before removeMatchedKeys().
+       * Now restore it in preparation for a 'repeat' of the same range scans.
+       * Note that only non-pruned scans will removeMatchedKeys().
+       */
+      jam();
+
+      // The first fragment hold the keys to be requested from all fragments
+      Local_ScanFragHandle_list list(m_scanfraghandle_pool,
+                                     data.m_fragments);
+      Ptr<ScanFragHandle> firstFragPtr;
+      list.first(firstFragPtr);
+
+      if (firstFragPtr.p->m_rangePtrI != RNIL)
+      {
+        releaseSection(firstFragPtr.p->m_rangePtrI);
+      }
+      if (firstFragPtr.p->m_paramPtrI != RNIL)
+      {
+        releaseSection(firstFragPtr.p->m_paramPtrI);
+      }
+      firstFragPtr.p->m_rangePtrI = data.m_rangePtrISave;
+      firstFragPtr.p->m_paramPtrI = data.m_paramPtrISave;
+      firstFragPtr.p->m_rangeCnt = data.m_rangeCntSave;
+      data.m_rangePtrISave = RNIL;
+      data.m_paramPtrISave = RNIL;
+      data.m_rangeCntSave = 0;
+    }
   }
 }
+
+/**
+ * Remove keys from a prepared SCAN_FRAGREQ where a match was already found in
+ * some previous fragment scan(s). Relates to semi-join-firstMatch evaluation
+ * of queries, where the matched row value will not be a part of the query
+ * result itself, and the query can be concluded when a single match has
+ * been found.
+ * Relevant queries taking advantage of this are the TPC-H queries Q4, Q21, Q22
+ */
+void
+Dbspj::removeMatchedKeys(Ptr<Request> requestPtr,
+                         Ptr<TreeNode> treeNodePtr,
+                         Ptr<ScanFragHandle> fragPtr)
+{
+  jam();
+  ndbassert(treeNodePtr.p->m_scanAncestorPtrI != RNIL);
+  Ptr<TreeNode> scanAncestorPtr;
+  ndbrequire(m_treenode_pool.getPtr(scanAncestorPtr,
+                                    treeNodePtr.p->m_scanAncestorPtrI));
+  ndbassert(scanAncestorPtr.p->m_rows.m_type == RowCollection::COLLECTION_MAP);
+
+  RowRef ref;
+  scanAncestorPtr.p->m_rows.m_map.copyto(ref);
+  const Uint32* const mapptr = get_row_ptr(ref);
+
+  /**
+   * Note that only non-pruned scans will removeMatchedKeys().
+   *  -> The first fragment contains all keys to be sent in all REQ's.
+   */
+  SectionReader rangeInfo(fragPtr.p->m_rangePtrI, getSectionSegmentPool());
+  Uint32 newRangePtrI = RNIL;
+  Uint32 newRangeCnt = 0;
+  Uint32 rangeHead;
+
+  /**
+   * There might be a pr-range pushed-condition-parameter as well.
+   * There is one such parameter pr range-key.
+   */
+  SegmentedSectionPtr paramPtr;
+  paramPtr.setNull();
+  if (fragPtr.p->m_paramPtrI != RNIL)
+  {
+    getSection(paramPtr, fragPtr.p->m_paramPtrI);
+  }
+  SectionReader paramInfo(paramPtr, getSectionSegmentPool());
+  Uint32 newParamPtrI = RNIL;
+
+  /* Iterate all key's, skip those having a match in the 'scanAncestor' */
+  while (rangeInfo.peekWord(&rangeHead))
+  {
+    const Uint32 length = rangeHead >> 16;
+    const Uint32 rowId = (rangeHead & 0xFFF0) >> 4;
+
+    /**
+     * We have the rowId of the row this key was constructed from.
+     * Relocate the row to check if matches were found for it
+     */
+    scanAncestorPtr.p->m_rows.m_map.load(mapptr, rowId, ref);
+    const Uint32* const rowptr = get_row_ptr(ref);
+
+    RowPtr row;
+    setupRowPtr(scanAncestorPtr, row, rowptr);
+
+    const bool foundMatches = row.m_matched->get(treeNodePtr.p->m_node_no);
+    DEBUG("removeMatchedKeys?"
+	  << ", ancestor:" << scanAncestorPtr.p->m_node_no
+	  << ", rowId:" << rowId
+	  << ", 'matched':" << row.m_matched->rep.data[0]
+	  << ", foundMatches:" << foundMatches);
+
+    if (foundMatches)  // skip this key range
+    {
+      jamDebug();
+      if (!rangeInfo.step(length))
+        break;
+    }
+    else
+    {
+      const Uint32 err = appendReaderToSection(newRangePtrI, rangeInfo, length);
+      if (unlikely(err != 0))
+      {
+        /* In case of out of section memory, just keep the existing keys */
+        jam();
+        releaseSection(newRangePtrI);
+        releaseSection(newParamPtrI);
+        return;
+      }
+      newRangeCnt++;
+    }
+
+    if (fragPtr.p->m_paramPtrI != RNIL)  // There is a parameter
+    {
+      Uint32 paramLen;
+      paramInfo.peekWord(&paramLen);
+
+      if (foundMatches)  // skip this parameter
+      {
+        jamDebug();
+        if (!paramInfo.step(paramLen))
+          break;
+      }
+      else
+      {
+        const Uint32 err = appendReaderToSection(newParamPtrI, paramInfo, paramLen);
+        if (unlikely(err != 0))
+        {
+          /* In case of out of section memory, just keep the existing parameters */
+          jam();
+          releaseSection(newRangePtrI);
+          releaseSection(newParamPtrI);
+          return;
+	}
+      }
+    }
+  }  // while
+
+  DEBUG("removedMatchedKeys"
+	<< ", treeNode:" << treeNodePtr.p->m_node_no
+	<< ", " << fragPtr.p->m_rangeCnt
+	<< " -> " << newRangeCnt);
+
+  // As the scan might be 'repeated' we need to save the full key range.
+  ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
+  if (data.m_rangePtrISave == RNIL)
+  {
+    data.m_rangePtrISave = fragPtr.p->m_rangePtrI;
+    data.m_rangeCntSave = fragPtr.p->m_rangeCnt;
+  }
+  else
+  {
+    releaseSection(fragPtr.p->m_rangePtrI);
+  }
+
+  // Replace rangeKeys, and parameters if specified.
+  fragPtr.p->m_rangePtrI = newRangePtrI;
+  fragPtr.p->m_rangeCnt = newRangeCnt;
+
+  if (fragPtr.p->m_paramPtrI != RNIL)
+  {
+    if (data.m_paramPtrISave == RNIL)
+    {
+      data.m_paramPtrISave = fragPtr.p->m_paramPtrI;
+    }
+    else
+    {
+      releaseSection(fragPtr.p->m_paramPtrI);
+    }
+    fragPtr.p->m_paramPtrI = newParamPtrI;
+  }
+} // removeMatchedKeys
 
 void
 Dbspj::scanFrag_countSignal(Signal* signal,
@@ -8412,6 +8632,54 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
       data.m_recSizeStat.sample(recSize);
     }
 
+    if (treeNodePtr.p->m_bits & TreeNode::T_REDUCE_KEYS &&
+        data.m_frags_not_started > 0)
+    {
+      jam();
+      /**
+       * Reduce ranges needed in later scanFrag_send().
+       * Can possibly end entire scan early.
+       */
+      Local_ScanFragHandle_list list(m_scanfraghandle_pool,
+                                     data.m_fragments);
+      Ptr<ScanFragHandle> firstFragPtr;
+      list.first(firstFragPtr);
+      removeMatchedKeys(requestPtr, treeNodePtr, firstFragPtr);
+      data.m_keysToSend =
+          firstFragPtr.p->m_rangeCnt * data.m_frags_not_started;
+
+      if (firstFragPtr.p->m_rangePtrI == RNIL)  // No more range keys -> done
+      {
+        /**
+         * No remaining keys needed to be matched, no need to send
+         * the 'm_frags_not_started'. Set these directly to completed.
+         */
+        jam();
+        ndbassert(firstFragPtr.p->m_rangeCnt == 0);
+        ndbassert(firstFragPtr.p->m_paramPtrI == RNIL);
+        Ptr<ScanFragHandle> nonStartedFragPtr(firstFragPtr);
+        while (!nonStartedFragPtr.isNull())
+        {
+          if (nonStartedFragPtr.p->m_state == ScanFragHandle::SFH_NOT_STARTED)
+          {
+            jamDebug();
+            nonStartedFragPtr.p->m_state = ScanFragHandle::SFH_COMPLETE;
+          }
+          list.next(nonStartedFragPtr);
+        }
+        data.m_frags_complete += data.m_frags_not_started;
+        data.m_frags_not_started = 0;
+        if (data.m_frags_complete == data.m_fragCount)
+        {
+          /* All fragments completed -> Done with this treeNode */
+          jamDebug();
+          ndbassert(requestPtr.p->m_cnt_active > 0);
+          requestPtr.p->m_cnt_active--;
+          treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
+        }
+      }
+    }  // T_REDUCE_KEYS
+
     const bool all_started_completed =
       (data.m_frags_not_started == (data.m_fragCount - data.m_frags_complete));
 
@@ -8465,7 +8733,7 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
           jam();
 	}
       }
-    } // if (isFirstBatch ...)
+    }
 
     if (data.m_rows_received == data.m_rows_expecting ||
         state == ScanFragHandle::SFH_WAIT_CLOSE)
@@ -8920,6 +9188,10 @@ Dbspj::scanFrag_release_rangekeys(Ptr<Request> requestPtr,
   }
   else
   {
+    /**
+     * Range scan is not 'pruned' -> the first fragment(only) hold
+     * the keys to be used for all fragments.
+     */
     jam();
     if (!list.first(fragPtr))
       return;
@@ -8935,6 +9207,18 @@ Dbspj::scanFrag_release_rangekeys(Ptr<Request> requestPtr,
       fragPtr.p->m_paramPtrI = RNIL;
     }
   }
+
+  if (data.m_rangePtrISave != RNIL)
+  {
+    releaseSection(data.m_rangePtrISave);
+  }
+  if (data.m_paramPtrISave != RNIL)
+  {
+    releaseSection(data.m_paramPtrISave);
+  }
+  data.m_rangePtrISave = RNIL;
+  data.m_paramPtrISave = RNIL;
+  data.m_rangeCntSave = 0;
 }
 
 /**
@@ -9844,15 +10128,19 @@ Dbspj::parseDA(Build_context& ctx,
       treeNodePtr.p->m_bits |= TreeNode::T_INNER_JOIN;
     } // DABits::NI_INNER_JOIN
 
-    // TODO: FirstMatch not implemented in SPJ block yet.
-    // Later implementation will build on the BUFFER_ROW / _MATCH mechanisms
-    // to eliminate already found matches from SCAN_NEXTREQ
     if (treeBits & DABits::NI_FIRST_MATCH)
     {
       jam();
       DEBUG("FIRST_MATCH optimization used");
       treeNodePtr.p->m_bits |= TreeNode::T_FIRST_MATCH;
     } // DABits::NI_FIRST_MATCH
+
+    if (treeBits & DABits::NI_ANTI_JOIN)
+    {
+      jam();
+      DEBUG("FIRST_MATCH optimization used for ANTI_JOIN");
+      treeNodePtr.p->m_bits |= TreeNode::T_FIRST_MATCH;
+    } // DABits::NI_ANTI_JOIN
 
     if (treeBits & DABits::NI_HAS_PARENT)
     {
@@ -10314,7 +10602,8 @@ Dbspj::parseDA(Build_context& ctx,
        * for the requested parent row.
        */
       else if (requestPtr.p->isScan() &&
-	       (treeNodePtr.p->m_bits & TreeNode::T_INNER_JOIN))
+               (treeNodePtr.p->m_bits & (TreeNode::T_INNER_JOIN |
+                                         TreeNode::T_FIRST_MATCH)))
       {
         jam();
         Uint32 cnt = 0;
