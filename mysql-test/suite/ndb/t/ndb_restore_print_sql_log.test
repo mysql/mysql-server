@@ -238,8 +238,15 @@ while ($mysql_errno)
 --echo
 --echo "Restore with --print-sql-log option"
 --let ndb_restore_opts= --print-sql-log --verbose=0 --core-file=0
+
+# ndb_restore should now fail with
+#   "Found column of type blob with print-sql-log option set. Exiting..."
+# By using option '-t', the error msg will be prefixed with the timestamp.
+# Mask the digits of the timestamp with 'X's to avoid mtr test failing with
+#   'Result content mismatch'.
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/XXXX-XX-XX XX:XX:XX/
 --error 1
---exec $NDB_RESTORE --no-defaults $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id 2>&1
+--exec $NDB_RESTORE --no-defaults $ndb_restore_opts -b $the_backup_id  --timestamp_printouts=true -n 1 $NDB_BACKUPS-$the_backup_id 2>&1
 
 drop table t7;
 --disable_warnings

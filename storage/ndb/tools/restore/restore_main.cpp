@@ -77,6 +77,7 @@ Vector<BaseString> g_include_databases, g_exclude_databases;
 Properties g_rewrite_databases;
 NdbRecordPrintFormat g_ndbrecord_print_format;
 unsigned int opt_no_binlog;
+static bool opt_timestamp_printouts;
 
 class RestoreOption
 {
@@ -244,6 +245,10 @@ static ExtraRestoreInfo g_extra_restore_info;
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_restore"),
+  { "timestamp_printouts", NDB_OPT_NOSHORT,
+    "Add a timestamp to the logger messages info, error and debug",
+    (uchar**) &opt_timestamp_printouts, (uchar**) &opt_timestamp_printouts, 0,
+    GET_BOOL, NO_ARG, false, 0, 0, 0, 0, 0 },
   { "connect", 'c', "same as --connect-string",
     (uchar**) &opt_ndb_connectstring, (uchar**) &opt_ndb_connectstring, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -830,6 +835,9 @@ readArguments(int *pargc, char*** pargv)
   if (handle_options(pargc, pargv, my_long_options, get_one_option))
   {
     exit(NdbRestoreStatus::WrongArgs);
+  }
+  if (opt_timestamp_printouts) {
+    restoreLogger.set_print_timestamp(true);
   }
   if (ga_nodeId == 0)
   {
@@ -2152,8 +2160,6 @@ main(int argc, char** argv)
 
   init_progress();
 
-  char timestamp[64];
-
   /**
    * we must always load meta data, even if we will only print it to stdout
    */
@@ -2168,8 +2174,7 @@ main(int argc, char** argv)
   }
 #endif 
 
-  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  restoreLogger.log_info("%s [restore_metadata] Read meta data file header", timestamp);
+  restoreLogger.log_info("[restore_metadata] Read meta data file header");
 
   if (!metaData.readHeader())
   {
@@ -2222,8 +2227,7 @@ main(int argc, char** argv)
   }
 
   restoreLogger.log_debug("Load content");
-  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  restoreLogger.log_info("%s [restore_metadata] Load content", timestamp);
+  restoreLogger.log_info("[restore_metadata] Load content");
 
   int res  = metaData.loadContent();
 
@@ -2236,8 +2240,7 @@ main(int argc, char** argv)
     exitHandler(NdbRestoreStatus::Failed);
   }
   restoreLogger.log_debug("Get number of Tables");
-  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  restoreLogger.log_info("%s [restore_metadata] Get number of Tables", timestamp);
+  restoreLogger.log_info("[restore_metadata] Get number of Tables");
   if (metaData.getNoOfTables() == 0) 
   {
     restoreLogger.log_error("The backup contains no tables");
@@ -2285,8 +2288,7 @@ main(int argc, char** argv)
   }
 
   restoreLogger.log_debug("Validate Footer");
-  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  restoreLogger.log_info("%s [restore_metadata] Validate Footer", timestamp);
+  restoreLogger.log_info("[restore_metadata] Validate Footer");
 
   if (!metaData.validateFooter()) 
   {
@@ -2318,8 +2320,7 @@ main(int argc, char** argv)
     g_consumers[i]->report_started(ga_backupId, ga_nodeId);
 
   restoreLogger.log_debug("Restore objects (tablespaces, ..)");
-  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  restoreLogger.log_info("%s [restore_metadata] Restore objects (tablespaces, ..)", timestamp);
+  restoreLogger.log_info("[restore_metadata] Restore objects (tablespaces, ..)");
   for(i = 0; i<metaData.getNoOfObjects(); i++)
   {
     for(Uint32 j= 0; j < g_consumers.size(); j++)
@@ -2341,8 +2342,7 @@ main(int argc, char** argv)
 
   Vector<OutputStream *> table_output(metaData.getNoOfTables());
   restoreLogger.log_debug("Restoring tables");
-  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  restoreLogger.log_info("%s [restore_metadata] Restoring tables", timestamp);
+  restoreLogger.log_info("[restore_metadata] Restoring tables");
 
   for(i = 0; i<metaData.getNoOfTables(); i++)
   {
@@ -2410,8 +2410,7 @@ main(int argc, char** argv)
   }
 
   restoreLogger.log_debug("Save foreign key info");
-  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  restoreLogger.log_info("%s [restore_metadata] Save foreign key info", timestamp);
+  restoreLogger.log_info("[restore_metadata] Save foreign key info");
   for(i = 0; i<metaData.getNoOfObjects(); i++)
   {
     for(Uint32 j= 0; j < g_consumers.size(); j++)
@@ -2447,8 +2446,7 @@ main(int argc, char** argv)
     g_consumers[i]->report_meta_data(ga_backupId, ga_nodeId);
   }
   restoreLogger.log_debug("Iterate over data");
-  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  restoreLogger.log_info("%s [restore_data] Start restoring table data", timestamp);
+  restoreLogger.log_info("[restore_data] Start restoring table data");
   if (ga_restore || ga_print) 
   {
     if(_restore_data || _print_data)
@@ -2514,9 +2512,8 @@ main(int argc, char** argv)
           restoreLogger.log_error("Unable to allocate memory for RestoreDataIterator constructor");
           exitHandler(NdbRestoreStatus::Failed);
       }
-      
-      Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-      restoreLogger.log_info("%s [restore_data] Read data file header", timestamp);
+
+      restoreLogger.log_info("[restore_data] Read data file header");
 
       // Read data file header
       if (!dataIter.readHeader())
@@ -2525,9 +2522,8 @@ main(int argc, char** argv)
           "Failed to read header of data file. Exiting...");
 	exitHandler(NdbRestoreStatus::Failed);
       }
-      
-      Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-      restoreLogger.log_info("%s [restore_data] Restore fragments", timestamp);
+
+      restoreLogger.log_info("[restore_data] Restore fragments");
 
       Uint32 fragmentCount = 0;
       Uint32 fragmentId;
@@ -2627,8 +2623,7 @@ main(int argc, char** argv)
     {
       RestoreLogIterator logIter(metaData);
 
-      Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-      restoreLogger.log_info("%s [restore_log] Read log file header", timestamp);
+      restoreLogger.log_info("[restore_log] Read log file header");
 
       if (!logIter.readHeader())
       {
@@ -2639,8 +2634,7 @@ main(int argc, char** argv)
       
       const LogEntry * logEntry = 0;
 
-      Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-      restoreLogger.log_info("%s [restore_log] Restore log entries", timestamp);
+      restoreLogger.log_info("[restore_log] Restore log entries");
 
       while ((logEntry = logIter.getNextLogEntry(res= 0)) != 0)
       {
@@ -2727,8 +2721,7 @@ main(int argc, char** argv)
   }
   if (ga_restore_epoch)
   {
-    Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-    restoreLogger.log_info("%s [restore_epoch] Restoring epoch", timestamp);
+    restoreLogger.log_info("[restore_epoch] Restoring epoch");
     RestoreLogIterator logIter(metaData);
 
     if (!logIter.readHeader())
@@ -2761,8 +2754,7 @@ main(int argc, char** argv)
   if (ga_rebuild_indexes)
   {
     restoreLogger.log_debug("Rebuilding indexes");
-    Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-    restoreLogger.log_info("%s [rebuild_indexes] Rebuilding indexes", timestamp);
+    restoreLogger.log_info("[rebuild_indexes] Rebuilding indexes");
 
     for(i = 0; i<metaData.getNoOfTables(); i++)
     {
