@@ -2398,3 +2398,30 @@ EXPLAIN
                 -> Table scan on t2  (rows=14)
 
 DROP TABLE t1, t2, t3;
+#
+# Bug#34704011 When using a single select in parenthesis, a
+#              global order by cannot be used
+#
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, d DATE);
+CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT, d DATE);
+INSERT INTO t1 (d) VALUES ('2020-01-01'), ('2021-04-21'), ('2022-03-02');
+INSERT INTO t2 (d) VALUES ('2020-05-01'), ('2021-05-21'), ('2022-05-02');
+( SELECT t1.d, t2.d
+FROM t1 INNER JOIN t2 USING (id) )
+ORDER BY t1.d;
+d	d
+2020-01-01	2020-05-01
+2021-04-21	2021-05-21
+2022-03-02	2022-05-02
+(( SELECT t1.d, t2.d
+FROM t1 INNER JOIN t2 USING (id) ))
+ORDER BY t1.d;
+d	d
+2020-01-01	2020-05-01
+2021-04-21	2021-05-21
+2022-03-02	2022-05-02
+(( SELECT t1.d, t2.d
+FROM t1 INNER JOIN t2 USING (id) ) LIMIT 1)
+ORDER BY t1.d;
+ERROR 42S22: Unknown column 't1.d' in 'order clause'
+DROP TABLE t1, t2;

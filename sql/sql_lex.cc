@@ -738,7 +738,8 @@ Query_block *LEX::new_set_operation_query(Query_block *curr_query_block) {
   return select;
 }
 
-Query_block *Query_expression::create_post_processing_block() {
+Query_block *Query_expression::create_post_processing_block(
+    Query_term_set_op *term) {
   Query_block *first_qb = first_query_block();
   DBUG_TRACE;
 
@@ -753,7 +754,8 @@ Query_block *Query_expression::create_post_processing_block() {
 
   /* allow item list resolving in fake select for ORDER BY */
   qb->context.resolve_in_select_list = true;
-  qb->no_table_names_allowed = true;
+  qb->no_table_names_allowed =
+      !term->is_unary() || first_qb->is_ordered() || first_qb->has_limit();
   first_qb->parent_lex->pop_context();
   return qb;
 }

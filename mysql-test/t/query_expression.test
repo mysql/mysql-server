@@ -744,3 +744,31 @@ eval $query;
 eval EXPLAIN FORMAT=tree $query;
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#34704011 When using a single select in parenthesis, a
+--echo #              global order by cannot be used
+--echo #
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, d DATE);
+CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT, d DATE);
+
+INSERT INTO t1 (d) VALUES ('2020-01-01'), ('2021-04-21'), ('2022-03-02');
+INSERT INTO t2 (d) VALUES ('2020-05-01'), ('2021-05-21'), ('2022-05-02');
+
+# The reference to t1 in the ORDER BY was flagged as an error
+# which is strictly is according the SQL standard, but MySQL used to
+# allow this before WL#11350, so make it work again.
+( SELECT t1.d, t2.d
+  FROM t1 INNER JOIN t2 USING (id) )
+ORDER BY t1.d;
+
+(( SELECT t1.d, t2.d
+  FROM t1 INNER JOIN t2 USING (id) ))
+ORDER BY t1.d;
+
+--error ER_BAD_FIELD_ERROR
+(( SELECT t1.d, t2.d
+  FROM t1 INNER JOIN t2 USING (id) ) LIMIT 1)
+ORDER BY t1.d;
+
+DROP TABLE t1, t2;
