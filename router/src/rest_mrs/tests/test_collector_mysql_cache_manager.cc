@@ -49,12 +49,20 @@ class MysqlCacheManagerTest : public Test {
 TEST_F(MysqlCacheManagerTest, sut_constructor_does_nothing) {}
 
 TEST_F(MysqlCacheManagerTest, empty_objects_doesnt_deallocate_themself) {
-  EXPECT_CALL(mock_callbacks_, object_allocate()).Times(4);
+  MockMySQLSession session;
+  EXPECT_CALL(mock_callbacks_, object_allocate())
+      .Times(4)
+      .WillOnce(Return(&session))
+      .WillOnce(Return(&session))
+      .WillOnce(Return(&session))
+      .WillOnce(Return(&session));
   EXPECT_CALL(mock_callbacks_, object_retrived_from_cache(_)).Times(4);
-  auto obj1 = sut_.get_instance(collector::kMySQLConnectionMetadata);
-  auto obj2 = sut_.get_instance(collector::kMySQLConnectionMetadata);
-  auto obj3 = sut_.get_instance(collector::kMySQLConnectionMetadata);
-  auto obj4 = sut_.get_instance(collector::kMySQLConnectionMetadata);
+  {
+    auto obj1 = sut_.get_instance(collector::kMySQLConnectionMetadata);
+    auto obj2 = sut_.get_instance(collector::kMySQLConnectionMetadata);
+    auto obj3 = sut_.get_instance(collector::kMySQLConnectionMetadata);
+    auto obj4 = sut_.get_instance(collector::kMySQLConnectionMetadata);
+  }
 }
 
 TEST_F(MysqlCacheManagerTest, not_empty_object_deallocates_itself) {

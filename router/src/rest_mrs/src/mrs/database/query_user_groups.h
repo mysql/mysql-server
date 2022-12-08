@@ -45,8 +45,9 @@ class QueryUserGroups : private Query {
     out_group_ids->clear();
     set_ = out_group_ids;
     query_.reset(
-        "SELECT user_group_id FROM mysql_rest_service_metadata.user_has_group "
-        "WHERE auth_user_id=?;");
+        "SELECT user_group_id FROM "
+        "mysql_rest_service_metadata.mrs_user_has_group "
+        "WHERE user_id=?;");
     query_ << to_sqlstring(user_id);
     execute(session);
   }

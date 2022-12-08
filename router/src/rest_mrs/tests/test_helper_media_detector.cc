@@ -89,6 +89,10 @@ struct PayloadAndExpectedResult {
   std::string payload;
 };
 
+void PrintTo(const PayloadAndExpectedResult &v, ::std::ostream *os) {
+  (*os) << (int)v.expected_result << ",size:" << v.payload.size();
+}
+
 class ParametricStartSeqMediaDetectorTests
     : public MediaDetectorTests,
       public WithParamInterface<PayloadAndExpectedResult> {
@@ -128,6 +132,11 @@ TEST_P(ParametricStartSeqMediaDetectorTests, detect_file) {
 struct TwoPayloadsAndExpectedResult : public PayloadAndExpectedResult {
   std::string payload_second;
 };
+
+void PrintTo(const TwoPayloadsAndExpectedResult &v, ::std::ostream *os) {
+  (*os) << (int)v.expected_result << ",size1:" << v.payload.size()
+        << ",size2:" << v.payload_second.size();
+}
 
 class ParametricTwoSequencesMediaDetectorTests
     : public MediaDetectorTests,

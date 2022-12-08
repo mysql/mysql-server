@@ -32,7 +32,7 @@ namespace database {
 namespace entry {
 
 struct RowUserOwnership {
-  bool user_ownership_enforced;
+  bool user_ownership_enforced{false};
   std::string user_ownership_column;
 };
 

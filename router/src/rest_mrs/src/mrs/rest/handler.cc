@@ -52,11 +52,14 @@ using AuthHandlers = mrs::interface::AuthorizeManager::AuthHandlers;
 using WwwAuthenticationHandler = mrs::authentication::WwwAuthenticationHandler;
 using Parameters = mrs::interface::RestHandler::Parameters;
 
+std::string to_string(const UniversalId &id) { return id.to_string(); }
+
 template <typename T>
 std::string to_string(const helper::Optional<T> &v) {
+  using std::to_string;
   if (!v) return "null";
 
-  return std::to_string(v.value());
+  return to_string(v.value());
 }
 
 uint32_t check_privileges(
@@ -71,11 +74,11 @@ uint32_t check_privileges(
     log_debug("RestRequestHandler: next iteration");
     log_debug("RestRequestHandler: permissions:%i", p.crud);
     log_debug("RestRequestHandler: object_id:%s",
-              p.object_id->to_string().c_str());
+              to_string(p.object_id).c_str());
     log_debug("RestRequestHandler: schema_id:%s",
-              p.schema_id->to_string().c_str());
+              to_string(p.schema_id).c_str());
     log_debug("RestRequestHandler: service_id:%s",
-              p.service_id->to_string().c_str());
+              to_string(p.service_id).c_str());
 
     if (!p.object_id && !p.schema_id && !p.service_id) {
       aggregated_privileges |= p.crud;

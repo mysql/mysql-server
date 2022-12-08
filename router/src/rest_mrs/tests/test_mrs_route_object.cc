@@ -356,7 +356,7 @@ TEST_F(RouteObjectTests, get_cached_columns) {
   verifyAndClearMocks({mock_handler_factory_.get()});
 
   EXPECT_CALL(mock_mysqlcache_,
-              get_instance(collector::kMySQLConnectionMetadata))
+              get_instance(collector::kMySQLConnectionUserdata))
       .WillOnce(Return(ByMove(CachedObject{nullptr, &mock_session})));
   StrictMock<MockQueryTableColumns> mock_query_table_columns;
   EXPECT_CALL(*mock_query_factory_, create_query_table_columns())

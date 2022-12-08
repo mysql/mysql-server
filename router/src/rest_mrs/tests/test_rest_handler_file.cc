@@ -167,6 +167,10 @@ struct Request {
   helper::MediaType expected_media_type;
 };
 
+void PrintTo(const Request &v, ::std::ostream *os) {
+  (*os) << v.file_id.to_string() << ",path:" << v.path;
+}
+
 class RestHandlerDifferentFilesTests
     : public RestHandlerFileTests,
       public testing::WithParamInterface<Request> {

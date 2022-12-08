@@ -33,7 +33,7 @@
 
 #include "mysql/harness/logging/logging.h"
 
-IMPORT_LOG_FUNCTIONS();
+IMPORT_LOG_FUNCTIONS()
 
 namespace mrs {
 namespace database {

@@ -26,6 +26,8 @@
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_ENTRY_UNIVERSAL_ID_H_
 
 #include <string.h>
+#include <algorithm>
+#include <cassert>
 
 #include "helper/string/hex.h"
 #include "mysqlrouter/utils_sqlstring.h"
@@ -44,8 +46,9 @@ struct UniversalId {
   }
 
   UniversalId(std::initializer_list<uint8_t> v) {
+    assert(v.size() <= sizeof(raw));
     memset(raw, 0, sizeof(raw));
-    std::copy(v.begin(), v.end(), std::begin(raw));
+    std::copy_n(v.begin(), std::min(v.size(), sizeof(raw)), std::begin(raw));
   }
 
   UniversalId(const UniversalId &id) { *this = id; }
@@ -62,7 +65,7 @@ struct UniversalId {
 
   bool operator<(const UniversalId &other) const {
     for (int i = k_size - 1; i >= 0; --i) {
-      if (raw[i] < other.raw[i]) return true;
+      if (raw[i] != other.raw[i]) return raw[i] < other.raw[i];
     }
 
     return false;
@@ -74,6 +77,8 @@ struct UniversalId {
     from_raw(&result, p);
     return result;
   }
+
+  const char *to_raw() const { return reinterpret_cast<const char *>(raw); }
 
   static void from_raw(UniversalId *uid, const char *binray) {
     memcpy(uid->raw, binray, k_size);
@@ -87,6 +92,8 @@ inline mysqlrouter::sqlstring to_sqlstring(const UniversalId &ud) {
   result << ud.to_string();
   return result;
 }
+
+inline std::string to_string(const UniversalId &ud) { return ud.to_string(); }
 
 inline mysqlrouter::sqlstring &operator<<(mysqlrouter::sqlstring &sql,
                                           const UniversalId &ud) {

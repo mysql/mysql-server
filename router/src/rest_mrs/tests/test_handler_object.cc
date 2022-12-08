@@ -41,6 +41,7 @@ using testing::Invoke;
 using testing::Return;
 using testing::ReturnRef;
 using testing::StartsWith;
+using testing::StrEq;
 using testing::StrictMock;
 using testing::Test;
 
@@ -83,7 +84,7 @@ class HandleObjectTests : public Test {
       EXPECT_CALL(parent_.mock_route, get_options())
           .WillRepeatedly(ReturnRef(k_empty_string));
 
-      EXPECT_CALL(parent_.mock_input_headers, get("Cookie"))
+      EXPECT_CALL(parent_.mock_input_headers, get(StrEq("Cookie")))
           .WillRepeatedly(Return(k_empty_string.c_str()));
       EXPECT_CALL(parent_.mock_request_, get_input_headers())
           .WillRepeatedly(ReturnRef(parent_.mock_input_headers));
@@ -98,7 +99,7 @@ class HandleObjectTests : public Test {
       EXPECT_CALL(parent_.mock_route, get_cache())
           .WillRepeatedly(Return(&parent_.mysql_cache));
       EXPECT_CALL(parent_.mysql_cache,
-                  get_instance(collector::kMySQLConnectionMetadata))
+                  get_instance(collector::kMySQLConnectionUserdata))
           .WillOnce(Return(ByMove(collector::MysqlCacheManager::CachedObject(
               nullptr, &parent_.mock_session))));
 
@@ -190,7 +191,7 @@ TEST_F(HandleObjectTests, fetch_object_single) {
   object.handle_get(&ctxt);
 }
 
-TEST_F(HandleObjectTests, delete_single_object) {
+TEST_F(HandleObjectTests, delete_single_object_throws_without_filter) {
   const Object::RowUserOwnership k_user_row_ownership{false, ""};
   const Object::VectorOfRowGroupOwnership k_group_row_ownership{};
   const std::string k_cached_primary{"column1"};
@@ -213,5 +214,31 @@ TEST_F(HandleObjectTests, delete_single_object) {
   //                               "column2`,'column3',`column3`, 'links'"),
   //                    _, _));
 
-  object.handle_delete(&ctxt);
+  ASSERT_THROW(object.handle_delete(&ctxt), std::exception);
+}
+
+TEST_F(HandleObjectTests, delete_single_object) {
+  const Object::RowUserOwnership k_user_row_ownership{false, ""};
+  const Object::VectorOfRowGroupOwnership k_group_row_ownership{};
+  const std::string k_cached_primary{"column1"};
+  GeneralExceptations expectations{*this,
+                                   k_user_row_ownership,
+                                   k_group_row_ownership,
+                                   k_cached_primary,
+                                   "schema",
+                                   "object",
+                                   "/schema/object/1",
+                                   "https://test.pl/schema/object?q={}",
+                                   {"column2", "column3"}};
+
+  RequestContext ctxt{&mock_request_};
+  HandlerObject object{&mock_route, &mock_auth_manager};
+
+  //  EXPECT_CALL(mock_session,
+  //              query(StartsWith("SELECT "
+  //                               "JSON_OBJECT('column1',`column1`,'column2',`"
+  //                               "column2`,'column3',`column3`, 'links'"),
+  //                    _, _));
+
+  ASSERT_THROW(object.handle_delete(&ctxt), std::exception);
 }

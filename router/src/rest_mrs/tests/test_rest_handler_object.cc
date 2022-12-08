@@ -48,12 +48,14 @@ using testing::Test;
 
 const std::string k_url{"https://mysql.com/mrs/schema/table"};
 const std::string k_path{"^/mrs/schema/table/?"};
+const std::string k_empty;
 
 class RestHandlerObjectTests : public Test {
  public:
   void make_sut(const std::string &rest_url, const std::string &rest_path) {
     EXPECT_CALL(mock_route_, get_schema())
         .WillRepeatedly(Return(&mock_route_schema_));
+    EXPECT_CALL(mock_route_, get_options()).WillOnce(ReturnRef(k_empty));
     EXPECT_CALL(mock_route_, get_rest_url()).WillOnce(ReturnRef(rest_url));
     EXPECT_CALL(mock_route_, get_rest_path()).WillOnce(ReturnRef(rest_path));
     EXPECT_CALL(mock_http_component_, add_route(rest_path, _))
@@ -108,8 +110,8 @@ TEST_F(RestHandlerObjectTests, forwards_get_object_id) {
   delete_sut();
 }
 
-TEST_F(RestHandlerObjectTests, forwards_requires_authentication) {
-  const auto k_req_auth = mrs::interface::RestHandler::Authorization::kRequires;
+TEST_F(RestHandlerObjectTests, forwards_requires_authentication_must_be_check) {
+  const auto k_req_auth = mrs::interface::RestHandler::Authorization::kCheck;
   make_sut(k_url, k_path);
   EXPECT_CALL(mock_route_, requires_authentication()).WillOnce(Return(true));
   ASSERT_EQ(k_req_auth, sut_->requires_authentication());
