@@ -1,17 +1,19 @@
 --source include/have_ndb.inc
---source include/not_windows.inc
 
 ##################################################################
 ##
 ## Test case for bug#32339789
 ##  MESSAGE IS NOT PRINTED WHEN ONE MGMD IS WAITING FOR ANOTHER MGMD TO START
 ##
-## This test case starts one mgmd node for a 2 mgmd cluster configuration to
-## check if proper message is displayed that all mgmd nodes should be started.
-## The started mgmd node is shutdown using mgm client.
-##
 
---echo Bug32339789
---replace_regex /MySQL Cluster Management Server.*/MySQL Cluster Management Server/ /.*\[MgmtSrvr\]//
---exec $NDB_MGMD_EXE --defaults-group-suffix=.bug32339789 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --configdir=$MYSQLTEST_VARDIR --ndb-nodeid=1 --mycnf 2>&1
---exec $NDB_MGM -c localhost:6000 -e "shutdown" >/dev/null
+--let $assert_text=Verified that "Cluster configuration has multiple Management nodes. Please start the other mgmd nodes if not started yet." is emitted when two mgmd configured.
+--let $assert_select=Cluster configuration has multiple Management nodes. Please start the other mgmd nodes if not started yet.
+--let $assert_file=$MYSQLTEST_VARDIR/mysql_cluster.1/ndb_mgmd.1/ndb_mgmd.log
+--let $assert_count=1
+--source include/assert_grep.inc
+
+--let $assert_text=Verified that "Cluster configuration has multiple Management nodes. Please start the other mgmd nodes if not started yet." is emitted when two mgmd configured.
+--let $assert_select=Cluster configuration has multiple Management nodes. Please start the other mgmd nodes if not started yet.
+--let $assert_file=$MYSQLTEST_VARDIR/mysql_cluster.1/ndb_mgmd.2/ndb_mgmd.log
+--let $assert_count=1
+--source include/assert_grep.inc
