@@ -115,11 +115,11 @@ const mysqlrouter::sqlstring &QueryRestTable::build_where(
 
     where_.reset(
         "WHERE (! IN (WITH RECURSIVE cte As ("
-        "SELECT a.id as id FROM mysql_rest_service_metadata.auth_user a WHERE "
+        "SELECT a.id as id FROM mysql_rest_service_metadata.mrs_user a WHERE "
         "a.id = ? "
         "UNION ALL "
-        "SELECT h.auth_user_id as id FROM "
-        "mysql_rest_service_metadata.user_hierarchy as h "
+        "SELECT h.user_id as id FROM "
+        "mysql_rest_service_metadata.mrs_user_hierarchy as h "
         "JOIN cte c ON c.id=h.reporting_to_user_id"
         ") SELECT * FROM cte) OR ! is NULL)");
 
@@ -135,11 +135,11 @@ const mysqlrouter::sqlstring &QueryRestTable::build_where(
       query +=
           " ! in (WITH RECURSIVE cte AS("
           "SELECT user_group_id, parent_group_id, level FROM "
-          "mysql_rest_service_metadata.user_group_hierarchy WHERE "
+          "mysql_rest_service_metadata.mrs_user_group_hierarchy WHERE "
           "user_group_id in (?) AND group_hierarchy_type_id=? "
           "UNION ALL "
           "SELECT p.user_group_id, p.parent_group_id, p.level "
-          "FROM mysql_rest_service_metadata.user_group_hierarchy as p JOIN "
+          "FROM mysql_rest_service_metadata.mrs_user_group_hierarchy as p JOIN "
           "cte on p.user_group_id = cte.parent_group_id AND "
           "group_hierarchy_type_id=? ) "
           "SELECT parent_group_id FROM cte  WHERE level ! ? ) OR ";
@@ -168,11 +168,11 @@ const mysqlrouter::sqlstring &QueryRestTable::build_where(
 
   std::string query{
       "WHERE (! IN (WITH RECURSIVE cte As ("
-      "SELECT a.id as id FROM mysql_rest_service_metadata.auth_user a WHERE"
+      "SELECT a.id as id FROM mysql_rest_service_metadata.mrs_user a WHERE"
       "a.id = ? "
       "UNION ALL "
-      "SELECT h.auth_user_id as id FROM "
-      "mysql_rest_service_metadata.user_hierarchy as h "
+      "SELECT h.user_id as id FROM "
+      "mysql_rest_service_metadata.mrs_user_hierarchy as h "
       "JOIN cte c ON c.id=h.reporting_to_user_id"
       ") SELECT * FROM cte) OR "};
 
@@ -180,11 +180,11 @@ const mysqlrouter::sqlstring &QueryRestTable::build_where(
     query +=
         " ! in (WITH RECURSIVE cte AS("
         "SELECT user_group_id, parent_group_id, level FROM "
-        "mysql_rest_service_metadata.user_group_hierarchy WHERE "
+        "mysql_rest_service_metadata.mrs_user_group_hierarchy WHERE "
         "user_group_id in (?) AND group_hierarchy_type_id=? "
         "UNION ALL "
         "SELECT p.user_group_id, p.parent_group_id, p.level "
-        "FROM mysql_rest_service_metadata.user_group_hierarchy as p JOIN "
+        "FROM mysql_rest_service_metadata.mrs_user_group_hierarchy as p JOIN "
         "cte on p.user_group_id = cte.parent_group_id AND "
         "group_hierarchy_type_id=? ) "
         "SELECT parent_group_id FROM cte  WHERE level ! ? ) OR ";

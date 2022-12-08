@@ -26,6 +26,7 @@
 #include <map>
 
 #include "helper/json/serializer_to_text.h"
+#include "helper/json/text_to.h"
 #include "helper/json/to_string.h"
 #include "helper/optional.h"
 
@@ -106,4 +107,13 @@ TEST(Json, SerializerToText_object_with_array) {
     *arr1 << 10 << true << false << "txt";
   }
   ASSERT_EQ("{\"key1\":[10,true,false,\"txt\"]}", sut.get_result());
+}
+
+TEST(Json, binarystring_text_to_document) {
+  rapidjson::Document doc;
+  const std::string k_input = "\"base64:type254:NgAAAAAAAAAAAAAAAAAAAA==\"";
+  const std::string k_inner = k_input.substr(1, k_input.length() - 2);
+  ASSERT_TRUE(helper::json::text_to(&doc, k_input));
+  ASSERT_TRUE(doc.IsString());
+  ASSERT_NE(k_inner, doc.GetString());
 }
