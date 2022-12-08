@@ -33,7 +33,7 @@
 namespace mrs {
 namespace database {
 
-const std::string kParameterTableName = "parameter";
+const std::string kParameterTableName = "field";
 
 QueryChangesDbObject::QueryChangesDbObject(const uint64_t last_audit_id) {
   audit_log_id_ = last_audit_id;
@@ -117,8 +117,8 @@ std::string QueryChangesDbObject::build_query(const std::string &table_name,
     mysqlrouter::sqlstring where = "WHERE FIND_IN_SET(?, !)";
     mysqlrouter::sqlstring additonal_fields =
         ",(SELECT GROUP_CONCAT(p.id) FROM "
-        "mysql_rest_service_metadata.parameter as p WHERE "
-        "p.db_object_id=o.id GROUP BY p.db_object_id) as parameter_id";
+        "mysql_rest_service_metadata.field as p WHERE "
+        "p.db_object_id=o.id GROUP BY p.db_object_id) as field_id";
     where << id << (table_name + "_id");
     query << additonal_fields;
     return query.str() + where.str();
