@@ -182,7 +182,7 @@ TYPED_TEST(RouteManagerTests, turnon_on_empty_does_nothing) {
 
 TYPED_TEST(RouteManagerTests, notexisting_schema_does_noting) {
   StrictMock<MockRouteSchema> schema;
-  EXPECT_CALL(schema, get_name()).WillOnce(ReturnRef("Schema1"));
+  EXPECT_CALL(schema, get_full_path()).WillOnce(Return("Schema1"));
   this->sut_->schema_not_used(&schema);
 }
 
@@ -350,6 +350,8 @@ TYPED_TEST(RouteManagerTests, db_object_update_two_times_schema_changes_name) {
   StrictMock<MockRouteSchema> schema_new;
   EXPECT_CALL(schema_old, get_name())
       .WillRepeatedly(ReturnRef(k_old_schema_name));
+  EXPECT_CALL(schema_old, get_full_path())
+      .WillRepeatedly(Return(k_old_schema_name));
   StrictMock<MockRoute> route1;
 
   this->expect_create_schema(schema_old, objs[0], true);
@@ -367,6 +369,8 @@ TYPED_TEST(RouteManagerTests, db_object_update_two_times_schema_changes_name) {
   this->expect_create_schema(schema_new, objs[0]);
   EXPECT_CALL(schema_old, get_name())
       .WillRepeatedly(ReturnRef(k_old_schema_name));
+  EXPECT_CALL(schema_old, get_full_path())
+      .WillRepeatedly(Return(k_old_schema_name));
   // In case when "update" method receives new schema, it must remove inform
   // manager that it removed old schema
   EXPECT_CALL(route1, update(DbObjectById(mrs::UniversalId{{1}}),

@@ -50,16 +50,16 @@ class QueryEntriesDbObjectTests : public Test {
   void expectFetch(const char *audit_id_numeric) {
     InSequence seq;
     EXPECT_CALL(mock_session, query(StrEq("START TRANSACTION"), _, _))
-        .WillOnce(Invoke([audit_id_numeric](auto, auto &row, auto &) {
-          mysqlrouter::MySQLSession::Row fields{audit_id_numeric};
-          row(fields);
-        }))
         .RetiresOnSaturation();
     EXPECT_CALL(
         mock_session,
         query(
             StrEq("SELECT max(id) FROM mysql_rest_service_metadata.audit_log"),
             _, _))
+        .WillOnce(Invoke([audit_id_numeric](auto, auto &row, auto &) {
+          mysqlrouter::MySQLSession::Row fields{audit_id_numeric};
+          row(fields);
+        }))
         .RetiresOnSaturation();
     EXPECT_CALL(mock_session, query(StartsWith("SELECT * FROM (SELECT "
                                                "  o.id as id, s.id"),

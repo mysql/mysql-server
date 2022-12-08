@@ -77,8 +77,9 @@ class UserManagerFixture : public Test {
     InSequence sequence;
     std::string query_user{
         "SELECT id, auth_app_id, name, email, vendor_user_id, "
-        "login_permitted FROM mysql_rest_service_metadata.auth_user "
-        "WHERE `auth_app_id`=2 and vendor_user_id='"};
+        "login_permitted FROM mysql_rest_service_metadata.mrs_user "
+        "WHERE `auth_app_id`=X'02000000000000000000000000000000' and "
+        "vendor_user_id='"};
     query_user.append(u.user[4]).append("' ");
     EXPECT_CALL(session_, query(StrEq(query_user), _, _))
         .WillOnce(
@@ -87,7 +88,7 @@ class UserManagerFixture : public Test {
 
     std::string query_user_privileges{
         "SELECT p.service_id, p.db_schema_id, p.db_object_id, "
-        "BIT_OR\\(p.crud_operations\\) as crud FROM.* auth_user_id="};
+        "BIT_OR\\(p.crud_operations\\) as crud FROM.* user_id="};
     query_user_privileges.append(u.sql_id).append("\\)");
 
     EXPECT_CALL(session_, query(ContainsRegex(query_user_privileges), _, _))
@@ -97,8 +98,9 @@ class UserManagerFixture : public Test {
         .RetiresOnSaturation();
 
     std::string query_user_groups{
-        "SELECT user_group_id FROM mysql_rest_service_metadata.user_has_group "
-        "WHERE auth_user_id="};
+        "SELECT user_group_id FROM "
+        "mysql_rest_service_metadata.mrs_user_has_group "
+        "WHERE user_id="};
     query_user_groups.append(u.sql_id);
 
     EXPECT_CALL(session_, query(ContainsRegex(query_user_groups), _, _))
@@ -116,11 +118,14 @@ class UserManagerFixture : public Test {
   const char k_id_4000040400004[16]{0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
                                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                     0x00, 0x00, 0x00, 0x00};
-  const Row k_row_for_user_4000040400004{k_id_4000040400004, "2",
-                                         "John Doe",         "john_doe@doe.com",
-                                         "4000040400004",    "1"};
-  const std::vector<Row> k_row_for_user_4000040400004_privs{
-      Row{"1", nullptr, nullptr, "2"}};
+  const mrs::UniversalId k_user_4000040400004_app_id{2};
+  const Row k_row_for_user_4000040400004{
+      k_id_4000040400004, k_user_4000040400004_app_id.to_raw(),
+      "John Doe",         "john_doe@doe.com",
+      "4000040400004",    "1"};
+  const mrs::UniversalId k_user_4000040400004_priv_service_id{1};
+  const std::vector<Row> k_row_for_user_4000040400004_privs{Row{
+      k_user_4000040400004_priv_service_id.to_raw(), nullptr, nullptr, "2"}};
   const AuthUser k_user_4000040400004{
       get_user_from_row(k_row_for_user_4000040400004, false)};
 };
@@ -224,8 +229,9 @@ TEST_F(UserManagerFixture, fetch_user_from_db_and_update) {
                      k_user_4000040400004_id_sql_str});
 
   EXPECT_CALL(session_,
-              query(StrEq("UPDATE mysql_rest_service_metadata.auth_user SET "
-                          "auth_app_id=2,name='John Doe', "
+              query(StrEq("UPDATE mysql_rest_service_metadata.mrs_user SET "
+                          "auth_app_id=X'02000000000000000000000000000000',"
+                          "name='John Doe', "
                           "email='new_john_doe@doe.com', "
                           "vendor_user_id='4000040400004', "
                           "login_permitted=1 WHERE id="s +

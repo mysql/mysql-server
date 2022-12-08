@@ -43,7 +43,7 @@ bool QueryEntryAuthUser::query_user(MySQLSession *session,
   // (Shouldn't be in review)
   query_ = {
       "SELECT id, auth_app_id, name, email, vendor_user_id, login_permitted "
-      "FROM mysql_rest_service_metadata.auth_user WHERE !=? ?"};
+      "FROM mysql_rest_service_metadata.mrs_user WHERE !=? ?"};
 
   query_ << (user_data->has_user_id ? "id" : "auth_app_id");
   if (user_data->has_user_id)
@@ -99,7 +99,7 @@ AuthUser::UserId QueryEntryAuthUser::insert_user(
   query_uuid.generate_uuid(session);
   auto uuid = query_uuid.get_result();
   query_ = {
-      "INSERT INTO mysql_rest_service_metadata.auth_user(id, auth_app_id, "
+      "INSERT INTO mysql_rest_service_metadata.mrs_user(id, auth_app_id, "
       "name, "
       "email, vendor_user_id, login_permitted) VALUES(?, ?, ?, ?, ?, ?)"};
 
@@ -110,8 +110,8 @@ AuthUser::UserId QueryEntryAuthUser::insert_user(
 
   if (default_role_id) {
     query_ = {
-        "INSERT INTO mysql_rest_service_metadata.user_has_role(auth_user_id, "
-        "auth_role_id, comments) VALUES(?, ?, \"Default role.\")"};
+        "INSERT INTO mysql_rest_service_metadata.mrs_user_has_role(user_id, "
+        "role_id, comments) VALUES(?, ?, \"Default role.\")"};
     query_ << to_sqlstring(uuid) << default_role_id.value();
     execute(session);
   }
@@ -124,7 +124,7 @@ bool QueryEntryAuthUser::update_user(MySQLSession *session,
   assert(user->has_user_id);
 
   query_ = {
-      "UPDATE mysql_rest_service_metadata.auth_user SET auth_app_id=?,name=?, "
+      "UPDATE mysql_rest_service_metadata.mrs_user SET auth_app_id=?,name=?, "
       "email=?, vendor_user_id=?, login_permitted=? WHERE id=?"};
 
   query_ << user->app_id << user->name << user->email << user->vendor_user_id
