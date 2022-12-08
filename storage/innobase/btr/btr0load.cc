@@ -3090,10 +3090,12 @@ dberr_t Btree_load::Merger::root_split(Page_load *root_load,
   /* Allocate requested number of pages in the given level. */
   std::vector<Page_load *> page_loads;
 
-  auto guard = create_scope_guard([root_load, &page_loads]() {
+  auto guard = create_scope_guard([root_load]() {
     root_load->finish();
     root_load->commit();
+  });
 
+  auto guard2 = create_scope_guard([&page_loads]() {
     for (auto &page_load : page_loads) {
       ut::delete_(page_load);
     }
@@ -3136,14 +3138,19 @@ dberr_t Btree_load::Merger::root_split(Page_load *root_load,
   /* Copy records from given root pages to the new pages. */
   root_load->copy_to(page_loads);
 
-  // Compress each of these N pages.
+  /* Compress each of these N pages. */
+  bool success = true;
   for (size_t i = 0; i < n_pages; ++i) {
     page_loads[i]->finish();
     page_loads[i]->commit();
-    bool success = page_loads[i]->compress();
-    if (!success) {
-      return DB_FAIL;
+    if (success) {
+      /* If any of the compression fails, don't compress any more pages. */
+      success = page_loads[i]->compress();
     }
+  }
+
+  if (!success) {
+    return DB_FAIL;
   }
 
   /* Empty the root page. */
@@ -3167,7 +3174,7 @@ dberr_t Btree_load::Merger::root_split(Page_load *root_load,
   root_load->commit();
 
   /* Compress the root page. */
-  bool success = root_load->compress();
+  success = root_load->compress();
   if (!success) {
     return DB_FAIL;
   }
