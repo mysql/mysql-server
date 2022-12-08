@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2022 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,8 +73,12 @@ void getNameFromEnvironment()
 {
   HANDLE handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
                               FALSE, singletonInfo.getPid());
+  if (!handle)
+    return;
+
   GetModuleFileNameEx(handle, 0, singletonInfo.process_name,
                       singletonInfo.ProcessNameLength);
+  CloseHandle(handle);
 }
 #else
 void getNameFromEnvironment()
