@@ -679,6 +679,13 @@ INSERT INTO global_grants SELECT user, host, 'AUDIT_ADMIN', IF(grant_priv = 'Y',
 FROM mysql.user WHERE super_priv = 'Y' AND @hadAuditAdminPriv = 0;
 COMMIT;
 
+-- Add the privilege TELEMETRY_LOG_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige TELEMETRY_LOG_ADMIN.
+SET @hadAuditAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'TELEMETRY_LOG_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'TELEMETRY_LOG_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadAuditAdminPriv = 0;
+COMMIT;
+
 -- Add the privilege BINLOG_ADMIN for every user who has the privilege SUPER
 -- provided that there isn't a user who already has the privilige BINLOG_ADMIN.
 SET @hadBinLogAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'BINLOG_ADMIN');
