@@ -233,6 +233,10 @@ class Parallel_reader {
       m_callback_ctx = ctx;
     }
 
+    /** Get the thread id of this context object.
+    @return the thread id of this context object. */
+    size_t id() const { return m_thread_id; }
+
     /** Get the thread related callback information/
     @return return context. */
     template <typename T>

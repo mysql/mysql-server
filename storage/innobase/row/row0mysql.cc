@@ -4348,6 +4348,9 @@ dberr_t row_mysql_parallel_select_count_star(
   ut_a(!indexes.empty());
   using Shards = Counter::Shards<Parallel_reader::MAX_THREADS>;
 
+  LogErr(INFORMATION_LEVEL, ER_IB_SELECT_COUNT_STAR, indexes[0]->table_name,
+         n_threads, indexes.size());
+
   Shards n_recs;
   Counter::clear(n_recs);
 

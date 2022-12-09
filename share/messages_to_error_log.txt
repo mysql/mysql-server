@@ -11950,7 +11950,7 @@ ER_IB_MSG_INVALID_PAGE_TYPE
   eng "Found page type mismatch. Expected %u, found %u, in page: space_id=%lu page_no= %lu"
 
 ER_IB_PARALLEL_READER_WORKER_INFO
-  eng "preader: space_id=%zu, table=%s, index=%s, scan_ctx=%zu, ctx=%zu, thread_id=%zu, n_threads=%zu"
+  eng "preader: thread_id=%zu, n_threads=%zu, n_ctx=%zu, one_range_per_thread=%s, n_index=%zu, index_list=%s, err=%zu"
 
 ER_IB_BULK_LOAD_SUBTREE_INFO
   eng "bulkload: space_id=%zu, table=%s, index=%s, height=%zu, n_extents=%zu, n_pages=%zu"
@@ -12092,6 +12092,12 @@ ER_IB_INDEX_BUILDER_DONE
 
 ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS_OPTION
    eng "%s: '%s' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead."
+
+ER_IB_INDEX_BUILDER_INIT
+   eng "Builder::init(): Initialize for building index=%s of table=%s, n_threads=%zu, sort buffer size=%zu bytes, i/o buffer size=%zu bytes."
+
+ER_IB_SELECT_COUNT_STAR
+   eng "SELECT COUNT(*) FROM table=%s, n_threads=%zu, n_partitions=%zu."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

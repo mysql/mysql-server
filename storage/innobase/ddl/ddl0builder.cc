@@ -1299,6 +1299,9 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
     }
   }
 
+  LogErr(INFORMATION_LEVEL, ER_IB_INDEX_BUILDER_INIT, m_index->name(),
+         m_index->table_name, n_threads, buffer_size.first, buffer_size.second);
+
   set_next_state();
   ut_a(get_state() != State::INIT);
 

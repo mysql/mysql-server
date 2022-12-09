@@ -818,6 +818,44 @@ bool Parallel_reader::is_queue_empty() const {
   return (empty);
 }
 
+struct Index_cmp {
+  bool operator()(const dict_index_t *lhs, const dict_index_t *rhs) const {
+    if (lhs == rhs) {
+      return false;
+    }
+
+    const int tbl =
+        strncmp(lhs->table_name, rhs->table_name, MAX_TABLE_NAME_LEN);
+
+    if (tbl < 0) {
+      return true;
+    } else if (tbl == 0) {
+      const int idx = strncmp(lhs->name(), rhs->name(), MAX_TABLE_NAME_LEN);
+      if (idx < 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+};
+
+using Index_set = std::set<const dict_index_t *, Index_cmp,
+                           ut::allocator<const dict_index_t *>>;
+
+inline std::string get_index_names(const Index_set &index_set) {
+  std::ostringstream sout;
+  bool first = true;
+  for (auto index : index_set) {
+    if (first) {
+      first = false;
+    } else {
+      sout << ", ";
+    }
+    sout << "[" << index->table_name << ", " << index->name() << "]";
+  }
+  return sout.str();
+}
+
 void Parallel_reader::worker(Parallel_reader::Thread_ctx *thread_ctx) {
   dberr_t err{DB_SUCCESS};
   dberr_t cb_err{DB_SUCCESS};
@@ -841,6 +879,11 @@ void Parallel_reader::worker(Parallel_reader::Thread_ctx *thread_ctx) {
                            m_sig_count);
   }
 
+  Index_set indexes;
+
+  /* Count of execution contexts processed by this thread. */
+  size_t n_ctx{0};
+
   for (;;) {
     size_t n_completed{};
     int64_t sig_count = os_event_reset(m_event);
@@ -855,11 +898,7 @@ void Parallel_reader::worker(Parallel_reader::Thread_ctx *thread_ctx) {
         break;
       }
       ctx->m_thread_ctx = thread_ctx;
-      const space_id_t space_id = ctx->index()->space;
-
-      ib::info(ER_IB_PARALLEL_READER_WORKER_INFO, (size_t)space_id,
-               ctx->get_table_name(), ctx->get_index_name(), scan_ctx->id(),
-               ctx->id(), ctx->thread_id(), m_n_threads);
+      indexes.insert(ctx->index());
 
       /* If one range per thread is enabled, then no splitting is allowed. */
       if (m_one_range_per_thread) {
@@ -909,6 +948,7 @@ void Parallel_reader::worker(Parallel_reader::Thread_ctx *thread_ctx) {
     }
 
     m_n_completed.fetch_add(n_completed, std::memory_order_relaxed);
+    n_ctx += n_completed;
 
     if (m_n_completed == m_ctx_id) {
       /* Wakeup other worker threads before exiting */
@@ -946,6 +986,10 @@ void Parallel_reader::worker(Parallel_reader::Thread_ctx *thread_ctx) {
       set_error_state(cb_err);
     }
   }
+
+  ib::info(ER_IB_PARALLEL_READER_WORKER_INFO, thread_ctx->id(), m_n_threads,
+           n_ctx, (m_one_range_per_thread ? "true" : "false"), indexes.size(),
+           get_index_names(indexes).c_str(), (size_t)err);
 
   ut_a(is_error_set() || (m_n_completed == m_ctx_id && is_queue_empty()) ||
        m_one_range_per_thread);
