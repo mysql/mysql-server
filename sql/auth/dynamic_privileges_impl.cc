@@ -229,6 +229,8 @@ bool dynamic_privilege_init(void) {
           STRING_WITH_LEN("TABLE_ENCRYPTION_ADMIN"));
       ret += service->register_privilege(STRING_WITH_LEN("AUDIT_ADMIN"));
       ret +=
+          service->register_privilege(STRING_WITH_LEN("TELEMETRY_LOG_ADMIN"));
+      ret +=
           service->register_privilege(STRING_WITH_LEN("REPLICATION_APPLIER"));
       ret += service->register_privilege(STRING_WITH_LEN("SHOW_ROUTINE"));
       ret += service->register_privilege(
