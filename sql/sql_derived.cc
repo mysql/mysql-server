@@ -213,6 +213,13 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, Table_ref *tl) {
   tl->table = t;
   t->pos_in_table_list = tl;
 
+  // If initial CTE table has a hash key, set up a hash key for
+  // all clones too.
+  if (first->hash_field) {
+    t->hash_field = t->field[0];
+  }
+  t->hidden_field_count = first->hidden_field_count;
+
   t->set_not_started();
 
   if (tmp_tables.push_back(tl)) return nullptr; /* purecov: inspected */
