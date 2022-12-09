@@ -1,0 +1,113 @@
+# === Purpose ===
+#
+# This test checks that server doesn't crash when we have a
+# corrupted Update rows log event.
+#
+# ==== Requirements ====
+#
+# R1. If a corrupted Update log event is applied on a server
+#     it should throw error and not crash.
+#
+# === Implementation ====
+#
+# 1. Create a database
+# 2. Create a table on the server
+# 3. Apply an Insert log event
+# 4. Apply a corrupted Update log event and expect an error.
+# 5. Cleanup
+#
+# === References ===
+#
+# Bug#108546 Corrupted replication event may lead mysql coredump
+
+call mtr.add_suppression(".*error 1610.*");
+
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+--echo # 1. Create a database
+
+CREATE DATABASE ulms;
+
+USE ulms;
+
+--echo # 2. Create a table on the server
+
+CREATE TABLE `t5k_trade_is_fields_rslt` (
+  `CA` varchar(64) NOT NULL ,
+  `SEQ` int(8) NOT NULL ,
+  `MSEQ` int(8) NOT NULL ,
+  `MT` char(1) DEFAULT NULL ,
+  `M_CONTENT` varchar(2000) DEFAULT NULL ,
+  `M_ORIGINAL_CONTENT` varchar(2000) DEFAULT NULL ,
+  `SC` double(16,2) DEFAULT NULL ,
+  `CUST_ID` varchar(64) DEFAULT NULL ,
+  `LIST_CODE` varchar(240) DEFAULT NULL ,
+  `IS_REAL_HIT` char(1) DEFAULT NULL ,
+  `IS_PASS` char(1) DEFAULT NULL ,
+  `CHECK_TYPE` varchar(64) DEFAULT NULL ,
+  `SCREEN_STATUS` char(1) DEFAULT NULL ,
+  `HANLDER` varchar(64) DEFAULT NULL ,
+  `PTIME` char(19) DEFAULT NULL ,
+  `RECOGNIZE_STATUS` char(1) DEFAULT '0' ,
+  `RECOGNIZE_OPTION` varchar(2048) DEFAULT NULL ,
+  `AUDIT_STATUS` char(1) DEFAULT NULL ,
+  `AUDIT_OPTION` varchar(2048) DEFAULT NULL ,
+  `AUDIT_OPTION_STATUS` char(10) DEFAULT NULL ,
+  `CHECK_STATUS` char(1) DEFAULT NULL ,
+  `CHECK_OPTION` varchar(2048) DEFAULT NULL ,
+  `CHECK_OPTION_STATUS` varchar(10) DEFAULT NULL ,
+  `APPROVE_STATUS` char(1) DEFAULT NULL ,
+  PRIMARY KEY (`CA`,`SEQ`,`MSEQ`),
+  KEY `T5K_TRADE_IS_FIELDS_RSLT_CUST_ID_IDX` (`CUST_ID`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
+
+--echo # 3. Apply an Insert log event
+
+INSERT INTO `ulms`.`t5k_trade_is_fields_rslt` values(
+   '039c6a32-dc1b-4978-bf6c-df6ea0cd80d4-1662617934' /* VARSTRING(256) meta=256 nullable=0 is_null=0 */		,
+   1 /* INT meta=0 nullable=0 is_null=0 */									,
+   0 /* INT meta=0 nullable=0 is_null=0 */									,
+   '1' /* STRING(4) meta=65028 nullable=1 is_null=0 */								,
+   'K.A.S. ' /* VARSTRING(8000) meta=8000 nullable=1 is_null=0 */						,
+   'K.S.A.' /* VARSTRING(8000) meta=8000 nullable=1 is_null=0 */						,
+   1 /* DOUBLE meta=8 nullable=1 is_null=0 */									,
+   '625224' /* VARSTRING(256) meta=256 nullable=1 is_null=0 */							,
+   'T03,T04' /* VARSTRING(960) meta=960 nullable=1 is_null=0 */							,
+   '2' /* STRING(4) meta=65028 nullable=1 is_null=0 */								,
+   '1' /* STRING(4) meta=65028 nullable=1 is_null=0 */								,
+   '3:报文' /* VARSTRING(256) meta=256 nullable=1 is_null=0 */							,
+   NULL /* STRING(4) meta=65028 nullable=1 is_null=1 */								,
+   NULL /* VARSTRING(256) meta=256 nullable=1 is_null=1 */							,
+   NULL /* STRING(76) meta=65100 nullable=1 is_null=1 */							,
+   '2' /* STRING(4) meta=65028 nullable=1 is_null=0 */								,
+   'K.S.A. 表示沙特阿拉伯的国家缩写，不涉及相关名单' /* VARSTRING(8192) meta=8192 nullable=1 is_null=0 */	,
+   '4' /* STRING(4) meta=65028 nullable=1 is_null=0 */								,
+   '不涉及相关名单' /* VARSTRING(8192) meta=8192 nullable=1 is_null=0 */					,
+   '4' /* STRING(40) meta=65064 nullable=1 is_null=0 */								,
+   '6' /* STRING(4) meta=65028 nullable=1 is_null=0 */								,
+   NULL /* VARSTRING(8192) meta=8192 nullable=1 is_null=1 */							,
+   NULL /* VARSTRING(40) meta=40 nullable=1 is_null=1 */							,
+   '' /* STRING(4) meta=65028 nullable=1 is_null=0 */
+);
+
+
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC'/*!*/;
+BINLOG 'U2EZYw8CAAAAdwAAAHsAAAAAAAQANS43LjM2LWxvZwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEzgNAAgAEgAEBAQEEgAAXwAEGggAAAAICAgCAAAACgoKKioAEjQAAYA9mSk='/*!*/;
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
+
+
+BEGIN;
+--echo # 4. Apply a corrupted Update log event and expect an error.
+
+--error ER_SLAVE_CORRUPT_EVENT
+BINLOG '
+y6oZYxMCAAAAhwAAAKCwrTIAAH8gAAAAAAEABHVsbXMAGHQ1a190cmFkZV9pc19maWVsZHNfcnNsdAAYDwMD/g8PBQ8P/v4P/g/+/g/+D/7+Dw/+KwAB/gRAH0AfCAABwAP+BP4EAAH+BAAB/kz+BAAg/gQAIP4o/gQAICgA/gT4///M3BmQ
+06oZYx8CAAAA3AEAANwBAAAAAH8gAAAAAAMAAgAY////////NgBgLwAwMzljNmEzMi1kYzFiLTQ5NzgtYmY2Yy1kZjZlYTBjZDgwZDQtMTY2MjYxNzkzNAEAAAAAAAAAATEHAEsuQS5TLiAGAEsuUy5BLgAAAAAAAPA/BgA2MjUyMjQHAFQwMyxUMDQBMgExCAAzOuaKpeaWhwEyQwBLLlMuQS4g6KGo56S65rKZ54m56Zi/5ouJ5Lyv55qE5Zu95a6257yp5YaZ77yM5LiN5raJ5Y+K55u45YWz5ZCN5Y2VATQVAOS4jea2ieWPiuebuOWFs+WQjeWNlQE0ATYAAHBwLwAwMzljNmEzMi1kYzFiLTQ5NzgtYmY2Yy1kZjZlYTBjZDgwZDQtMTY2MjYxNzkzNAEAAAAAAAAAATEHAEsuQS5TLiAGAEsuUy5BLgAAAAAAAPA/BgA2MjUyMjQHAFQwMyxUMDQBMgExCAAzOuaKpeaWhwEyQwBLLlMuQS4g6KGo56S65rKZ54m56Zi/5ouJ5Lyv55qE5Zu95a6257yp5YaZ77yM5LiN5raJ5Y+K55u45YWz5ZCN5Y2VATQVAOS4jea2ieWPiuebuOWFs+WQjeWNlQE0APt/AAA=
+'/*!*/;
+
+COMMIT;
+
+--echo # 5. Cleanup
+
+DROP DATABASE ulms;
