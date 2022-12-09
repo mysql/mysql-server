@@ -281,6 +281,7 @@ SET(SQL_SOURCE
   conn_handler/connection_handler_per_thread.cc
   conn_handler/connection_handler_one_thread.cc
   conn_handler/socket_connection.cc
+  conn_handler/init_net_server_extension.cc
   des_key_file.cc
   event_data_objects.cc
   event_db_repository.cc 

@@ -206,7 +206,8 @@ public:
   /* Return raw packet buffer */
   uchar *get_raw_packet() { return raw_packet; }
   /* Set read timeout */
-  virtual void set_read_timeout(ulong read_timeout);
+  virtual void set_read_timeout(ulong read_timeout,
+                                my_bool on_full_packet = FALSE);
   /* Set write timeout */
   virtual void set_write_timeout(ulong write_timeout);
 };

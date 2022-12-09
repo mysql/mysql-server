@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "init_net_server_extension.h"
 #include "shared_memory_connection.h"
 
 #include "violite.h"                    // Vio
@@ -93,8 +94,10 @@ public:
   {
     THD* thd= Channel_info::create_thd();
 
-    if (thd != NULL)
-      thd->security_context()->set_host_ptr(my_localhost, strlen(my_localhost));
+    if (thd != NULL) {
+        init_net_server_extension(thd);
+        thd->security_context()->set_host_ptr(my_localhost, strlen(my_localhost));
+    }
     return thd;
   }
 
