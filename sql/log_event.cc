@@ -7975,12 +7975,12 @@ int Rows_log_event::unpack_current_row(const Relay_log_info *const rli,
               updatable_columns_view.get_included_fields_bitmap())) {
         return thd->get_stmt_da()->mysql_errno(); /* purecov: deadcode */
       }
-    }
-    if (is_after_image &&
-        !bitmap_is_clear_all(&this->m_table->fields_for_functional_indexes)) {
-      if (this->update_generated_columns(
-              this->m_table->fields_for_functional_indexes))
-        return thd->get_stmt_da()->mysql_errno(); /* purecov: deadcode */
+      if (is_after_image &&
+          !bitmap_is_clear_all(&this->m_table->fields_for_functional_indexes)) {
+        if (this->update_generated_columns(
+                this->m_table->fields_for_functional_indexes))
+          return thd->get_stmt_da()->mysql_errno(); /* purecov: deadcode */
+      }
     }
   }
 
