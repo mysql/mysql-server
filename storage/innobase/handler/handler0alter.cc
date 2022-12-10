@@ -1451,8 +1451,8 @@ int ha_innobase::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
   Parallel_reader::Config config(full_scan, m_prebuilt->table->first_index());
 
   dberr_t err =
-      adapter->add_scan(trx, config, [=](const Parallel_reader::Ctx *ctx) {
-        return (adapter->process_rows(ctx));
+      adapter->add_scan(trx, config, [adapter](const Parallel_reader::Ctx *ctx) {
+        return adapter->process_rows(ctx);
       });
 
   if (err != DB_SUCCESS) {
@@ -6054,7 +6054,7 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
 
   DEBUG_SYNC(m_user_thd, "innodb_inplace_alter_table_enter");
 
-  auto all_ok = [=]() -> bool {
+  auto all_ok = [this]() -> bool {
     DEBUG_SYNC(m_user_thd, "innodb_after_inplace_alter_table");
     return false;
   };
@@ -9971,8 +9971,8 @@ int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
                                    0, i);
 
     dberr_t err =
-        adapter->add_scan(trx, config, [=](const Parallel_reader::Ctx *ctx) {
-          return (adapter->process_rows(ctx));
+        adapter->add_scan(trx, config, [adapter](const Parallel_reader::Ctx *ctx) {
+          return adapter->process_rows(ctx);
         });
 
     if (err != DB_SUCCESS) {

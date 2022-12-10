@@ -62,7 +62,7 @@ SET(MUTEXTYPE "event" CACHE STRING "Mutex type: event, sys or futex")
 
 IF(MY_COMPILER_IS_GNU_OR_CLANG)
   # Turn off unused parameter warnings.
-  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-unused-parameter")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-unused-parameter -std=c++20")
   # Turn off warnings about implicit casting away const.
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-cast-qual")
 ENDIF()

@@ -309,7 +309,7 @@ dberr_t Loader::load() noexcept {
   std::vector<std::thread> threads{};
 
   if (!sync) {
-    auto fn = [=](PSI_thread_seqnum seqnum) -> dberr_t {
+    auto fn = [this](PSI_thread_seqnum seqnum) -> dberr_t {
       Runnable runnable{ddl_thread_key, seqnum};
 
       auto old_thd = current_thd;

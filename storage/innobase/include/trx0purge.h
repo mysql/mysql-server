@@ -1005,11 +1005,11 @@ struct trx_purge_t {
   ulint n_stop;
 
   /** true, if purge is active, we check this without the latch too */
-  volatile bool running;
+  bool running;
 
   /** Purge coordinator thread states, we check this in several places without
   holding the latch. */
-  volatile purge_state_t state;
+  purge_state_t state;
 
   /** The query graph which will do the parallelized purge operation */
   que_t *query;
@@ -1021,7 +1021,7 @@ struct trx_purge_t {
   bool view_active;
 
   /** Count of total tasks submitted to the task queue */
-  volatile ulint n_submitted;
+  ulint n_submitted;
 
   /** Count of total tasks completed */
   std::atomic<ulint> n_completed;

@@ -386,7 +386,7 @@ struct rw_lock_t
   std::atomic<bool> recursive;
 
   /** number of granted SX locks. */
-  volatile ulint sx_recursive;
+  ulint sx_recursive;
 
   /** Thread id of writer thread. Is only guaranteed to have non-stale value if
   recursive flag is set, otherwise it may contain native thread ID of a
