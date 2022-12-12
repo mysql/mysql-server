@@ -1713,7 +1713,6 @@ dberr_t Builder::btree_build() noexcept {
   Merge_cursor cursor(this, &dup, m_local_stage);
   const auto io_buffer_size = m_ctx.load_io_buffer_size(m_thread_ctxs.size());
 
-  size_t total_files{};
   uint64_t total_rows{};
   dberr_t err{DB_SUCCESS};
 
@@ -1731,7 +1730,6 @@ dberr_t Builder::btree_build() noexcept {
 
     ut_a(thread_ctx->m_n_recs == thread_ctx->m_file.m_n_recs);
 
-    ++total_files;
     total_rows += thread_ctx->m_n_recs;
   }
 
