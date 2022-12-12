@@ -30,8 +30,10 @@ SET(REPLICATION_SOURCES
   compression/base.cpp
   compression/factory.cpp
   compression/iterator.cpp
-  compression/none.cpp
-  compression/zstd.cpp
+  compression/none_comp.cpp
+  compression/none_dec.cpp
+  compression/zstd_comp.cpp
+  compression/zstd_dec.cpp
 
   control_events.cpp
   event_reader.cpp

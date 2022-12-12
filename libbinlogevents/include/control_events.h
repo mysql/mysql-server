@@ -46,7 +46,7 @@
 #include "template_utils.h"
 #include "uuid.h"
 
-#include "compression/base.h"
+#include "compression/base.h"  // binary_log::transaction::compression::type
 
 namespace binary_log {
 /**

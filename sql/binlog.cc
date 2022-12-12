@@ -55,7 +55,7 @@
 #include <string>
 
 #include "dur_prop.h"
-#include "libbinlogevents/include/compression/base.h"
+#include "libbinlogevents/include/compression/compressor.h"
 #include "libbinlogevents/include/compression/iterator.h"
 #include "libbinlogevents/include/control_events.h"
 #include "libbinlogevents/include/debug_vars.h"

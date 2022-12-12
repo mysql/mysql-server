@@ -71,6 +71,7 @@
 
 #include "ft_global.h"
 #include "libbinlogevents/include/binlog_event.h"
+#include "libbinlogevents/include/compression/zstd_comp.h"  // DEFAULT_COMPRESSION_LEVEL
 #include "m_string.h"
 #include "my_aes.h"  // my_aes_opmode_names
 #include "my_command.h"
@@ -1496,7 +1497,6 @@ static Sys_var_bool Sys_binlog_trx_compression(
     SESSION_VAR(binlog_trx_compression), CMD_LINE(OPT_ARG), DEFAULT(false),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_binlog_trx_compression));
 
-#include "libbinlogevents/include/compression/zstd.h"
 static Sys_var_uint Sys_binlog_transaction_compression_level_zstd(
     "binlog_transaction_compression_level_zstd",
     "Specifies the transaction compression level for ZSTD "

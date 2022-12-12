@@ -24,6 +24,7 @@
 #define COMPRESSION_ITERATOR_INCLUDED
 
 #include <memory>
+#include "libbinlogevents/include/compression/decompressor.h"
 #include "libbinlogevents/include/control_events.h"
 #include "libbinlogevents/include/event_reader.h"
 

@@ -20,46 +20,30 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <compression/factory.h>
-#include <compression/none_comp.h>
 #include <compression/none_dec.h>
-#include <compression/zstd_comp.h>
-#include <compression/zstd_dec.h>
-#include <my_byteorder.h>
-#include <algorithm>
+#include <string.h>
 
 namespace binary_log {
 namespace transaction {
 namespace compression {
 
-std::unique_ptr<Compressor> Factory::build_compressor(type t) {
-  std::unique_ptr<Compressor> res{nullptr};
-  switch (t) {
-    case ZSTD:
-      res = std::make_unique<Zstd_comp>();
-      break;
-    case NONE:
-      res = std::make_unique<None_comp>();
-      break;
-    default:
-      break;
-  }
-  return res;
-}
+type None_dec::compression_type_code() { return NONE; } /* purecov: inspected */
 
-std::unique_ptr<Decompressor> Factory::build_decompressor(type t) {
-  std::unique_ptr<Decompressor> res{nullptr};
-  switch (t) {
-    case ZSTD:
-      res = std::make_unique<Zstd_dec>();
-      break;
-    case NONE:
-      res = std::make_unique<None_dec>();
-      break;
-    default:
-      break;
-  }
-  return res;
+bool None_dec::open() { return false; } /* purecov: inspected */
+
+bool None_dec::close() { return false; } /* purecov: inspected */
+
+std::tuple<std::size_t, bool> None_dec::decompress(const unsigned char *buffer,
+                                                   std::size_t length) {
+  /* purecov: begin inspected */
+  auto min_capacity = length + (m_buffer_cursor - m_buffer);
+  if (min_capacity > m_buffer_capacity)
+    if (reserve(min_capacity)) return std::make_tuple(length, true);
+
+  memcpy(m_buffer_cursor, buffer, length);
+  m_buffer_cursor += length;
+  return std::make_tuple(0, false);
+  /* purecov: end */
 }
 
 }  // namespace compression
