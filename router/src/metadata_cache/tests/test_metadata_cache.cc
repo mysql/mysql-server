@@ -127,6 +127,18 @@ class MetadataCacheTest2 : public ::testing::Test {
                           m.string_or_null("1")},
                      });
 
+    m.expect_query_one(
+        "SELECT member_state FROM performance_schema.replication_group_members "
+        "WHERE CAST(member_id AS char ascii) = CAST(@@server_uuid AS char "
+        "ascii)");
+    m.then_return(1, {{m.string_or_null("ONLINE")}});
+
+    m.expect_query_one(
+        "SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, "
+        "COUNT(*) as num_total FROM "
+        "performance_schema.replication_group_members");
+    m.then_return(2, {{m.string_or_null("3"), m.string_or_null("3")}});
+
     m.expect_query(
         "SELECT F.cluster_id, F.cluster_name, R.replicaset_name, "
         "I.mysql_server_uuid, "

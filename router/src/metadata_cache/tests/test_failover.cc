@@ -117,6 +117,9 @@ class FailoverTest : public ::testing::Test {
                          {m.string_or_null("1"), m.string_or_null("0"),
                           m.string_or_null("1")},
                      });
+
+    expect_metadata_server_gr_state_checks();
+
     m.expect_query(
         "SELECT F.cluster_id, F.cluster_name, R.replicaset_name, "
         "I.mysql_server_uuid, "
@@ -147,6 +150,22 @@ class FailoverTest : public ::testing::Test {
 
     m.expect_execute("COMMIT");
     m.then_ok();
+  }
+
+  void expect_metadata_server_gr_state_checks() {
+    MySQLSessionReplayer &m = *session;
+
+    m.expect_query_one(
+        "SELECT member_state FROM performance_schema.replication_group_members "
+        "WHERE CAST(member_id AS char ascii) = CAST(@@server_uuid AS char "
+        "ascii)");
+    m.then_return(1, {{m.string_or_null("ONLINE")}});
+
+    m.expect_query_one(
+        "SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, "
+        "COUNT(*) as num_total FROM "
+        "performance_schema.replication_group_members");
+    m.then_return(2, {{m.string_or_null("3"), m.string_or_null("3")}});
   }
 
   // make queries on PFS.replication_group_members return all members ONLINE

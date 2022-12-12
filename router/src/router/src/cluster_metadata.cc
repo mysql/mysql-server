@@ -499,9 +499,7 @@ MetadataSchemaVersion get_metadata_schema_version(MySQLSession *mysql) {
   return {major, minor, patch};
 }
 
-// TODO std::logic_error probably should be replaced by std::runtime_error
-// throws std::logic_error, MySQLSession::Error
-static bool check_group_replication_online(MySQLSession *mysql) {
+bool check_group_replication_online(MySQLSession *mysql) {
   std::string q =
       "SELECT member_state"
       " FROM performance_schema.replication_group_members"
@@ -517,8 +515,7 @@ static bool check_group_replication_online(MySQLSession *mysql) {
   throw std::logic_error("No result returned for metadata query");
 }
 
-// throws MySQLSession::Error, std::logic_error, std::out_of_range
-static bool check_group_has_quorum(MySQLSession *mysql) {
+bool check_group_has_quorum(MySQLSession *mysql) {
   std::string q =
       "SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, COUNT(*) "
       "as num_total"

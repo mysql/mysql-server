@@ -32,6 +32,7 @@
 #include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/ranges.h"  // enumerate
+#include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"  // strtoui_checked
@@ -877,6 +878,22 @@ GRClusterMetadata::fetch_cluster_topology(
         if (!backend_reset) {
           metadata_backend_->reset();
           backend_reset = true;
+        }
+
+        if (!mysqlrouter::check_group_replication_online(
+                metadata_connection_.get())) {
+          log_warning(
+              "Metadata server %s:%d is not an online GR member - skipping.",
+              metadata_server.address().c_str(), metadata_server.port());
+          continue;
+        }
+
+        if (!mysqlrouter::check_group_has_quorum(metadata_connection_.get())) {
+          log_warning(
+              "Metadata server %s:%d is not a member of quorum group - "
+              "skipping.",
+              metadata_server.address().c_str(), metadata_server.port());
+          continue;
         }
 
         result_tmp = metadata_backend_->fetch_cluster_topology(

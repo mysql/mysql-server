@@ -100,6 +100,12 @@ bool ROUTER_LIB_EXPORT metadata_schema_version_is_compatible(
     const mysqlrouter::MetadataSchemaVersion &required,
     const mysqlrouter::MetadataSchemaVersion &available);
 
+// throws std::logic_error, MySQLSession::Error
+bool ROUTER_LIB_EXPORT check_group_replication_online(MySQLSession *mysql);
+
+// throws MySQLSession::Error, std::logic_error, std::out_of_range
+bool ROUTER_LIB_EXPORT check_group_has_quorum(MySQLSession *mysql);
+
 template <size_t N>
 bool metadata_schema_version_is_compatible(
     const mysqlrouter::MetadataSchemaVersion (&required)[N],

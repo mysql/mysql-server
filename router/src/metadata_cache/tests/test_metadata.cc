@@ -92,6 +92,16 @@ const std::string execute_start_trasaction = "START TRANSACTION";
 const std::string query_schema_version =
     "SELECT * FROM mysql_innodb_cluster_metadata.schema_version";
 
+const std::string query_member_state =
+    "SELECT member_state FROM performance_schema.replication_group_members "
+    "WHERE CAST(member_id AS char ascii) = CAST(@@server_uuid AS char "
+    "ascii)";
+
+const std::string query_members_count =
+    "SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, "
+    "COUNT(*) as num_total FROM "
+    "performance_schema.replication_group_members";
+
 // query #1 (occurs first) - fetches expected (configured) topology from
 // metadata server
 std::string query_metadata =
@@ -2075,6 +2085,16 @@ TEST_F(MetadataTest, FetchInstances_ok) {
       .Times(1)
       .WillOnce(Return(ByMove(std::make_unique<MySQLSession::ResultRow>(
           MySQLSession::Row{"1", "0", "1"}))));
+  EXPECT_CALL(session_factory.get(session),
+              query_one(StartsWith(query_member_state), _))
+      .Times(1)
+      .WillOnce(Return(ByMove(std::make_unique<MySQLSession::ResultRow>(
+          MySQLSession::Row{"ONLINE"}))));
+  EXPECT_CALL(session_factory.get(session),
+              query_one(StartsWith(query_members_count), _))
+      .Times(1)
+      .WillOnce(Return(ByMove(std::make_unique<MySQLSession::ResultRow>(
+          MySQLSession::Row{"3", "3"}))));
 
   auto resultset_metadata = [this](const std::string &,
                                    const MySQLSession::RowProcessor &processor,
@@ -2158,6 +2178,16 @@ TEST_F(MetadataTest, FetchInstances_fail) {
       .Times(1)
       .WillOnce(Return(ByMove(std::make_unique<MySQLSession::ResultRow>(
           MySQLSession::Row{"1", "0", "1"}))));
+  EXPECT_CALL(session_factory.get(session),
+              query_one(StartsWith(query_member_state), _))
+      .Times(1)
+      .WillOnce(Return(ByMove(std::make_unique<MySQLSession::ResultRow>(
+          MySQLSession::Row{"ONLINE"}))));
+  EXPECT_CALL(session_factory.get(session),
+              query_one(StartsWith(query_members_count), _))
+      .Times(1)
+      .WillOnce(Return(ByMove(std::make_unique<MySQLSession::ResultRow>(
+          MySQLSession::Row{"3", "3"}))));
 
   auto resultset_metadata = [this](const std::string &,
                                    const MySQLSession::RowProcessor &processor,

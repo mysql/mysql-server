@@ -157,6 +157,15 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     return router;
   }
 
+  void check_log_contains(ProcessWrapper &router,
+                          const std::string &expected_string,
+                          size_t expected_occurences) {
+    const std::string log_content = router.get_logfile_content();
+    EXPECT_EQ(expected_occurences,
+              count_str_occurences(log_content, expected_string))
+        << log_content;
+  }
+
   std::string state_file_;
   const std::string router_metadata_username{"mysql_router1_user"};
 };
@@ -1907,16 +1916,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 class InvalidAttributesTagsTest
     : public NodeHiddenTest,
-      public ::testing::WithParamInterface<MetadataTTLTestParams> {
- protected:
-  void check_log_contains(const std::string &expected_string,
-                          size_t expected_occurences) {
-    const std::string log_content = router->get_logfile_content();
-    EXPECT_EQ(expected_occurences,
-              count_str_occurences(log_content, expected_string))
-        << log_content;
-  }
-};
+      public ::testing::WithParamInterface<MetadataTTLTestParams> {};
 
 /**
  * @test Checks that the router logs a proper warning once when the attributes
@@ -1938,10 +1938,12 @@ TEST_P(InvalidAttributesTagsTest, InvalidAttributesTags) {
 
   SCOPED_TRACE("// Check the expected warnings were logged once");
   check_log_contains(
+      *router,
       "Error parsing _hidden from attributes JSON string: not a valid JSON "
       "object",
       1);
   check_log_contains(
+      *router,
       "Error parsing _disconnect_existing_sessions_when_hidden from attributes "
       "JSON string: not a valid JSON object",
       1);
@@ -1951,10 +1953,12 @@ TEST_P(InvalidAttributesTagsTest, InvalidAttributesTags) {
 
   SCOPED_TRACE("// Check the expected warnings were logged once");
   check_log_contains(
+      *router,
       "Error parsing _hidden from attributes JSON string: tags - not a valid "
       "JSON object",
       1);
   check_log_contains(
+      *router,
       "Error parsing _disconnect_existing_sessions_when_hidden from attributes "
       "JSON string: tags - not a valid JSON object",
       1);
@@ -1965,10 +1969,12 @@ TEST_P(InvalidAttributesTagsTest, InvalidAttributesTags) {
 
   SCOPED_TRACE("// Check the expected warnings were logged once");
   check_log_contains(
+      *router,
       "Error parsing _hidden from attributes JSON string: tags._hidden not a "
       "boolean",
       1);
   check_log_contains(
+      *router,
       "Error parsing _disconnect_existing_sessions_when_hidden from attributes "
       "JSON string: tags._disconnect_existing_sessions_when_hidden not a "
       "boolean",
@@ -1983,9 +1989,10 @@ TEST_P(InvalidAttributesTagsTest, InvalidAttributesTags) {
   SCOPED_TRACE(
       "// Check the expected warnings about the attributes been valid were "
       "logged once");
-  check_log_contains("Successfully parsed _hidden from attributes JSON string",
-                     1);
   check_log_contains(
+      *router, "Successfully parsed _hidden from attributes JSON string", 1);
+  check_log_contains(
+      *router,
       "Successfully parsed _disconnect_existing_sessions_when_hidden from "
       "attributes JSON string",
       1);
@@ -1996,10 +2003,12 @@ TEST_P(InvalidAttributesTagsTest, InvalidAttributesTags) {
 
   SCOPED_TRACE("// Check the expected warnings were logged twice");
   check_log_contains(
+      *router,
       "Error parsing _hidden from attributes JSON string: tags._hidden not a "
       "boolean",
       2);
   check_log_contains(
+      *router,
       "Error parsing _disconnect_existing_sessions_when_hidden from attributes "
       "JSON string: tags._disconnect_existing_sessions_when_hidden not a "
       "boolean",
@@ -2112,6 +2121,218 @@ INSTANTIATE_TEST_SUITE_P(
                                             "GR_V2", ClusterType::GR_V2),
                       MetadataTTLTestParams("metadata_dynamic_nodes_v2_ar.js",
                                             "AR", ClusterType::RS_V2),
+                      MetadataTTLTestParams("metadata_dynamic_nodes.js",
+                                            "GR_V1", ClusterType::GR_V1)),
+    get_test_description);
+
+class MetadataServerInvalidGRState
+    : public MetadataChacheTTLTest,
+      public ::testing::WithParamInterface<MetadataTTLTestParams> {};
+
+TEST_P(MetadataServerInvalidGRState, InvalidGRState) {
+  const size_t kClusterNodes{3};
+  std::vector<ProcessWrapper *> cluster_nodes;
+  std::vector<uint16_t> md_servers_classic_ports, md_servers_http_ports;
+
+  // launch the server mocks
+  for (size_t i = 0; i < kClusterNodes; ++i) {
+    const auto classic_port = port_pool_.get_next_available();
+    const auto http_port = port_pool_.get_next_available();
+    const std::string tracefile =
+        get_data_dir().join(GetParam().tracefile).str();
+    cluster_nodes.push_back(&launch_mysql_server_mock(
+        tracefile, classic_port, EXIT_SUCCESS, false, http_port));
+
+    md_servers_classic_ports.push_back(classic_port);
+    md_servers_http_ports.push_back(http_port);
+  }
+
+  for (const auto [i, http_port] :
+       stdx::views::enumerate(md_servers_http_ports)) {
+    set_mock_metadata(http_port, "uuid",
+                      classic_ports_to_gr_nodes(md_servers_classic_ports), i,
+                      classic_ports_to_cluster_nodes(md_servers_classic_ports),
+                      /*primary_id=*/0);
+  }
+
+  // launch the router with metadata-cache configuration
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(GetParam().cluster_type, "0.1");
+  const auto router_rw_port = port_pool_.get_next_available();
+  const std::string routing_rw_section = get_metadata_cache_routing_section(
+      router_rw_port, "PRIMARY", "first-available", "", "rw");
+  const auto router_ro_port = port_pool_.get_next_available();
+  const std::string routing_ro_section = get_metadata_cache_routing_section(
+      router_ro_port, "SECONDARY", "round-robin", "", "ro");
+  auto &router = launch_router(metadata_cache_section,
+                               routing_rw_section + routing_ro_section,
+                               md_servers_classic_ports, EXIT_SUCCESS,
+                               /*wait_for_notify_ready=*/30s);
+
+  // check first metadata server (PRIMARY) is queried for metadata
+  EXPECT_TRUE(
+      wait_for_transaction_count_increase(md_servers_http_ports[0], 2, 5s));
+
+  // check that 2nd and 3rd servers (SECONDARIES) are NOT queried for metadata
+  for (const auto i : {1, 2}) {
+    EXPECT_FALSE(wait_for_transaction_count_increase(md_servers_http_ports[i],
+                                                     1, 200ms));
+  }
+
+  // now promote first SECONDARY to become new PRIMARY
+  // make the old PRIMARY offline (static metadata does not change)
+  for (const auto [i, http_port] :
+       stdx::views::enumerate(md_servers_http_ports)) {
+    if (i == 0) {
+      // old PRIMARY sees itself as OFFLINE, does not see other nodes
+      const auto gr_nodes =
+          std::vector<GRNode>{{md_servers_classic_ports[0], "OFFLINE"}};
+      set_mock_metadata(
+          http_port, "uuid", gr_nodes, 0,
+          classic_ports_to_cluster_nodes(md_servers_classic_ports),
+          /*primary_id=*/0);
+    } else {
+      // remaining nodes see the previous SECONDARY-1 as new primary
+      // they do not see old PRIMARY (it was expelled from the group)
+      const auto gr_nodes =
+          std::vector<GRNode>{{{md_servers_classic_ports[1], "ONLINE"},
+                               {md_servers_classic_ports[2], "ONLINE"}}};
+      set_mock_metadata(
+          http_port, "uuid", gr_nodes, i - 1,
+          classic_ports_to_cluster_nodes(md_servers_classic_ports),
+          /*primary_id=*/0);
+    }
+  }
+
+  // check that the second metadata server (new PRIMARY) is queried for metadata
+  EXPECT_TRUE(
+      wait_for_transaction_count_increase(md_servers_http_ports[1], 2, 5s));
+
+  // check that Router refused to use metadata from former PRIMARY (only once,
+  // then should stop using it)
+  check_log_contains(router,
+                     "Metadata server 127.0.0.1:" +
+                         std::to_string(md_servers_classic_ports[0]) +
+                         " is not an online GR member - skipping.",
+                     1);
+
+  // new connections are now handled by new primary and the secon secondary
+  make_new_connection_ok(router_rw_port, md_servers_classic_ports[1]);
+  make_new_connection_ok(router_ro_port, md_servers_classic_ports[2]);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    InvalidGRState, MetadataServerInvalidGRState,
+    ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
+                                            "GR_V2", ClusterType::GR_V2),
+                      MetadataTTLTestParams("metadata_dynamic_nodes.js",
+                                            "GR_V1", ClusterType::GR_V1)),
+    get_test_description);
+
+class MetadataServerNoQuorum
+    : public MetadataChacheTTLTest,
+      public ::testing::WithParamInterface<MetadataTTLTestParams> {};
+
+TEST_P(MetadataServerNoQuorum, NoQuorum) {
+  const size_t kClusterNodes{3};
+  std::vector<ProcessWrapper *> cluster_nodes;
+  std::vector<uint16_t> md_servers_classic_ports, md_servers_http_ports;
+
+  // launch the server mocks
+  for (size_t i = 0; i < kClusterNodes; ++i) {
+    const auto classic_port = port_pool_.get_next_available();
+    const auto http_port = port_pool_.get_next_available();
+    const std::string tracefile =
+        get_data_dir().join(GetParam().tracefile).str();
+    cluster_nodes.push_back(&launch_mysql_server_mock(
+        tracefile, classic_port, EXIT_SUCCESS, false, http_port));
+
+    md_servers_classic_ports.push_back(classic_port);
+    md_servers_http_ports.push_back(http_port);
+  }
+
+  for (const auto [i, http_port] :
+       stdx::views::enumerate(md_servers_http_ports)) {
+    set_mock_metadata(http_port, "uuid",
+                      classic_ports_to_gr_nodes(md_servers_classic_ports), i,
+                      classic_ports_to_cluster_nodes(md_servers_classic_ports),
+                      /*primary_id=*/0);
+  }
+
+  // launch the router with metadata-cache configuration
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(GetParam().cluster_type, "0.1");
+  const auto router_rw_port = port_pool_.get_next_available();
+  const std::string routing_rw_section = get_metadata_cache_routing_section(
+      router_rw_port, "PRIMARY", "first-available", "", "rw");
+  const auto router_ro_port = port_pool_.get_next_available();
+  const std::string routing_ro_section = get_metadata_cache_routing_section(
+      router_ro_port, "SECONDARY", "round-robin", "", "ro");
+  auto &router = launch_router(metadata_cache_section,
+                               routing_rw_section + routing_ro_section,
+                               md_servers_classic_ports, EXIT_SUCCESS,
+                               /*wait_for_notify_ready=*/30s);
+
+  // check first metadata server (PRIMARY) is queried for metadata
+  EXPECT_TRUE(
+      wait_for_transaction_count_increase(md_servers_http_ports[0], 2, 5s));
+
+  // check that 2nd and 3rd servers (SECONDARIES) are NOT queried for metadata
+  for (const auto i : {1, 2}) {
+    EXPECT_FALSE(wait_for_transaction_count_increase(md_servers_http_ports[i],
+                                                     1, 200ms));
+  }
+
+  // now promote first SECONDARY to become new PRIMARY
+  // make the old PRIMARY see other as OFFLINE and claim it is ONLINE (static
+  // metadata does not change)
+  for (const auto [i, http_port] :
+       stdx::views::enumerate(md_servers_http_ports)) {
+    if (i == 0) {
+      // old PRIMARY still sees itself as ONLINE, but it lost quorum, do not see
+      // other GR members
+      const auto gr_nodes =
+          std::vector<GRNode>{{md_servers_classic_ports[0], "ONLINE"},
+                              {md_servers_classic_ports[1], "OFFLINE"},
+                              {md_servers_classic_ports[2], "OFFLINE"}};
+      set_mock_metadata(
+          http_port, "uuid", gr_nodes, 0,
+          classic_ports_to_cluster_nodes(md_servers_classic_ports),
+          /*primary_id=*/0);
+    } else {
+      // remaining nodes see the previous SECONDARY-1 as new primary
+      // they do not see old PRIMARY (it was expelled from the group)
+      const auto gr_nodes =
+          std::vector<GRNode>{{{md_servers_classic_ports[1], "ONLINE"},
+                               {md_servers_classic_ports[2], "ONLINE"}}};
+      set_mock_metadata(
+          http_port, "uuid", gr_nodes, i - 1,
+          classic_ports_to_cluster_nodes(md_servers_classic_ports),
+          /*primary_id=*/0);
+    }
+  }
+
+  // check that the second metadata server (new PRIMARY) is queried for metadata
+  EXPECT_TRUE(
+      wait_for_transaction_count_increase(md_servers_http_ports[1], 2, 5s));
+
+  // check that Router refused to use metadata from former PRIMARY (only once,
+  // then should stop using it)
+  check_log_contains(router,
+                     "Metadata server 127.0.0.1:" +
+                         std::to_string(md_servers_classic_ports[0]) +
+                         " is not a member of quorum group - skipping.",
+                     1);
+
+  // new connections are now handled by new primary and the secon secondary
+  make_new_connection_ok(router_rw_port, md_servers_classic_ports[1]);
+  make_new_connection_ok(router_ro_port, md_servers_classic_ports[2]);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    NoQuorum, MetadataServerNoQuorum,
+    ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
+                                            "GR_V2", ClusterType::GR_V2),
                       MetadataTTLTestParams("metadata_dynamic_nodes.js",
                                             "GR_V1", ClusterType::GR_V1)),
     get_test_description);

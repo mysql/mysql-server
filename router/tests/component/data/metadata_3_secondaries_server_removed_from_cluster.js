@@ -106,6 +106,8 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_commit",
       "router_select_schema_version",
       "select_port",
+      "router_check_member_state",
+      "router_select_members_count",
     ],
     options);
 
