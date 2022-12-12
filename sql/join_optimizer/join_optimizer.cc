@@ -1364,6 +1364,12 @@ bool CostingReceiver::FindIndexRangeScans(
       // by filter. So we need to note here that this has happened.
       merge.inexact = (new_tree->merges.size() > 1);
 
+      // Similarly, if there is also range scan arising from this predicate
+      // (again because of an AND inside an OR), we need to handle the index
+      // merge nonexactly, as the index merge will need to have the range
+      // predicate in a filter on top of it.
+      merge.inexact |= !new_tree->keys_map.is_clear_all();
+
       index_merges.push_back(merge);
     }
 

@@ -5014,6 +5014,59 @@ TEST_F(HypergraphOptimizerTest, DontSubsumeIndexMergePredicateInRangeScan) {
   EXPECT_EQ(4, range_scan.num_ranges);
 }
 
+// Test that an index merge doesn't subsume a range predicate that it is AND-ed
+// with. This could happen if the AND was contained in an OR, and the OR
+// contained an always false condition that allowed the range optimizer to
+// eliminate the subjunction.
+TEST_F(HypergraphOptimizerTest, DontSubsumeRangePredicateInIndexMerge) {
+  // Always false condition: t1.x BETWEEN 5 AND 0
+  // Possible range scan: t1.x IS NULL
+  // Possible index merge: t1.y = 2 OR t1.z = 3
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE t1.x BETWEEN 5 AND 0 "
+      "OR (t1.x IS NULL AND (t1.y = 2 OR t1.z = 3))",
+      /*nullable=*/true);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  t1->file->stats.data_file_length = 1e6;
+
+  // Create indexes on x, y and z.
+  for (int i = 0; i < 3; ++i) {
+    EXPECT_EQ(i, t1->create_index(t1->field[i], nullptr));
+  }
+
+  // Mark the indexes as supporting range scans.
+  Mock_HANDLER *handler = down_cast<Mock_HANDLER *>(t1->file);
+  EXPECT_CALL(*handler, index_flags)
+      .WillRepeatedly(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+
+  // Make the index on x less selective than the other indexes, so that an index
+  // merge on y and z is preferred to an index range scan on x.
+  EXPECT_CALL(*handler, records_in_range(0, _, _)).WillRepeatedly(Return(100));
+  EXPECT_CALL(*handler, records_in_range(1, _, _)).WillRepeatedly(Return(10));
+  EXPECT_CALL(*handler, records_in_range(2, _, _)).WillRepeatedly(Return(10));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ(AccessPath::INDEX_MERGE, root->filter().child->type);
+
+  // There needs to be a filter because the index merge doesn't represent the
+  // full WHERE clause. It is sufficient with a filter on (t1.x IS NULL), but
+  // the hypergraph optimizer cannot currently operate on that granularity, so
+  // we get the entire WHERE condition for now.
+  EXPECT_EQ(
+      "((t1.x between 5 and 0) or "
+      "((t1.x is null) and ((t1.y = 2) or (t1.z = 3))))",
+      ItemToString(root->filter().condition));
+}
+
 TEST_F(HypergraphOptimizerTest, IndexMergePrefersNonCPKToOrderByPrimaryKey) {
   for (bool order_by : {false, true}) {
     SCOPED_TRACE(order_by ? "With ORDER BY" : "Without ORDER BY");
