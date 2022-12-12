@@ -704,6 +704,7 @@ FROM (SELECT a, b FROM t1 INTERSECT SELECT a, b FROM t3) AS x
 ORDER BY 1, 2;
 
 eval $query;
+--skip_if_hypergraph  # Different plans.
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 
@@ -716,6 +717,7 @@ FROM (SELECT a, b FROM t1 INTERSECT ALL SELECT a, b FROM t3) AS x
 ORDER BY 1, 2;
 
 eval $query;
+--skip_if_hypergraph  # Different plans.
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 
@@ -728,6 +730,7 @@ FROM (SELECT a, b FROM t1 EXCEPT SELECT a, b FROM t3) AS x
 ORDER BY 1, 2;
 
 eval $query;
+--skip_if_hypergraph  # Different plans.
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 
@@ -740,6 +743,7 @@ FROM (SELECT a, b FROM t1 EXCEPT ALL SELECT a, b FROM t3) AS x
 ORDER BY 1, 2;
 
 eval $query;
+--skip_if_hypergraph  # Different plans.
 --replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 
