@@ -666,7 +666,7 @@ int Mts_submode_logical_clock::schedule_next_event(Relay_log_info *rli,
     }
     if (unlikely(clock_leq(sequence_number, last_sequence_number) &&
                  sequence_number != SEQ_UNINIT)) {
-      /* inconsistent (buggy) timestamps */
+      /* inconsistent (buggy) sequence numbers */
       LogErr(ERROR_LEVEL, ER_RPL_INCONSISTENT_SEQUENCE_NO_IN_TRX,
              sequence_number, last_sequence_number);
       return ER_MTS_CANT_PARALLEL;
