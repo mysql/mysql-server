@@ -216,8 +216,8 @@ FLUSH BINARY LOGS;
 # Search for note message
 #
 --let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err
---let SEARCH_PATTERN = \[Note\] \[[^]]*\] \[[^]]*\] Failed to open the crashed binlog file when master server is recovering it\.
---echo # Check for the "Failed to open the crashed binlog file when master server is recovering it\."
+--let SEARCH_PATTERN = \[Note\] \[[^]]*\] \[[^]]*\] Failed to open the crashed binlog file when source server is recovering it\.
+--echo # Check for the "Failed to open the crashed binlog file when source server is recovering it\."
 --source include/search_pattern.inc
 
 #
