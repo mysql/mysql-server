@@ -86,8 +86,11 @@ ENDIF()
 FIND_PACKAGE(BISON)
 
 IF(NOT BISON_FOUND)
-  MESSAGE(WARNING "No bison found!!")
-  RETURN()
+  IF(EXISTS sql/sql_yacc.h)
+    MESSAGE(WARNING "No bison found!!")
+  ELSE()
+    MESSAGE(FATAL_ERROR "No bison found!!")
+  ENDIF()
 ENDIF()
 
 IF(BISON_VERSION VERSION_LESS "2.1")
