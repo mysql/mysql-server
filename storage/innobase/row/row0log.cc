@@ -2686,17 +2686,22 @@ row_log_table_apply_op(
 
 			/* if there is more than 2 bytes length info */
 			if (n_v_size > 2) {
+				if (next_mrec + 2 > mrec_end) {
+					return(NULL);
+				}
+				o_v_size = mach_read_from_2(next_mrec);
+				if (next_mrec + o_v_size > mrec_end) {
+					return(NULL);
+				}
+
 				trx_undo_read_v_cols(
 					log->table, const_cast<byte*>(
 					next_mrec), old_pk, false,
 					&(log->col_map[log->n_old_col]));
-				o_v_size = mach_read_from_2(next_mrec);
 			}
 
 			next_mrec += o_v_size;
-			if (next_mrec > mrec_end) {
-				return(NULL);
-			}
+			ut_ad(next_mrec <= mrec_end);
 		}
 
 		ut_ad(next_mrec <= mrec_end);
