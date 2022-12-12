@@ -55,6 +55,7 @@ SET(MYSYS_SOURCES
   mf_wcomp.cc
   mulalloc.cc
   my_access.cc
+  my_aligned_malloc.cc
   my_alloc.cc
   my_bit.cc
   my_bitmap.cc
