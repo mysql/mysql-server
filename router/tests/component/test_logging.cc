@@ -2097,7 +2097,9 @@ TEST_F(MetadataCacheLoggingTest,
       cluster_nodes_ports[0], EXIT_SUCCESS, false, http_port);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-  set_mock_metadata(http_port, "", cluster_nodes_ports);
+  set_mock_metadata(http_port, "",
+                    classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
+                    classic_ports_to_cluster_nodes(cluster_nodes_ports));
   wait_for_transaction_count_increase(http_port);
 
   // We report to log info that we have connected only if there was an error,
@@ -2137,7 +2139,9 @@ TEST_F(MetadataCacheLoggingTest,
       cluster_nodes_ports[1], EXIT_SUCCESS, false, http_port);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server, cluster_nodes_ports[1]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-  set_mock_metadata(http_port, "", cluster_nodes_ports);
+  set_mock_metadata(http_port, "",
+                    classic_ports_to_gr_nodes(cluster_nodes_ports), 1,
+                    classic_ports_to_cluster_nodes(cluster_nodes_ports));
 
   // launch the router with metadata-cache configuration
   auto &router = ProcessManager::launch_router(
@@ -2183,7 +2187,9 @@ TEST_F(MetadataCacheLoggingTest,
   ASSERT_NO_FATAL_FAILURE(check_port_ready(new_server, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(cluster_nodes_http_ports[0])
                   .wait_for_rest_endpoint_ready());
-  set_mock_metadata(cluster_nodes_http_ports[0], "", cluster_nodes_ports);
+  set_mock_metadata(cluster_nodes_http_ports[0], "",
+                    classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
+                    classic_ports_to_cluster_nodes(cluster_nodes_ports));
   wait_for_transaction_count_increase(cluster_nodes_http_ports[0]);
 
   const auto connect_msg = "Connected with metadata server running on .*" +

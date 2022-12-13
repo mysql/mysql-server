@@ -24,21 +24,23 @@ var nodes = function(host, port_and_state) {
 };
 
 // all nodes are online
-var group_replication_membership_online =
+var group_replication_members_online =
     nodes(gr_node_host, mysqld.global.gr_nodes);
 
 var options = {
-  group_replication_membership: group_replication_membership_online,
+  group_replication_members: group_replication_members_online,
+  innodb_cluster_instances: gr_memberships.cluster_nodes(
+      mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   cluster_type: "gr",
 };
 
 // in the startup case, first node is PRIMARY
 options.group_replication_primary_member =
-    options.group_replication_membership[0][0];
+    options.group_replication_members[0][0];
 
 // in case of failover, announce the 2nd node as PRIMARY
 var options_failover = Object.assign({}, options, {
-  group_replication_primary_member: options.group_replication_membership[1][0]
+  group_replication_primary_member: options.group_replication_members[1][0]
 });
 
 // prepare the responses for common statements

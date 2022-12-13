@@ -98,14 +98,16 @@ var nodes = function(host, port_and_state) {
   });
 };
 
-var group_replication_membership_online =
+var group_replication_members_online =
     nodes(gr_node_host, mysqld.global.gr_nodes);
 
 var metadata_version =
     (mysqld.global.upgrade_in_progress === 1) ? [0, 0, 0] : [2, 1, 0];
 var options = {
   metadata_schema_version: metadata_version,
-  group_replication_membership: group_replication_membership_online,
+  group_replication_members: group_replication_members_online,
+  innodb_cluster_instances: gr_memberships.cluster_nodes(
+      mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   gr_id: mysqld.global.gr_id,
   cluster_type: "gr",
   router_version: mysqld.global.router_version,
@@ -120,7 +122,7 @@ var options = {
 
 // first node is PRIMARY
 options.group_replication_primary_member =
-    options.group_replication_membership[mysqld.global.primary_id][0];
+    options.group_replication_members[mysqld.global.primary_id][0];
 
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses(

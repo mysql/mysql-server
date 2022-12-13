@@ -34,6 +34,7 @@
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
+#include "mysql/harness/stdx/ranges.h"  // enumerate
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/rest_client.h"
@@ -385,8 +386,10 @@ TEST_P(MetadataChacheTTLTestInstanceListUnordered, InstancesListUnordered) {
                                   EXIT_SUCCESS, false, node_http_ports[i]));
   }
 
-  for (size_t i = 0; i < 2; ++i) {
-    set_mock_metadata(node_http_ports[i], kGroupID, node_classic_ports);
+  for (auto [i, http_port] : stdx::views::enumerate(node_http_ports)) {
+    set_mock_metadata(http_port, kGroupID,
+                      classic_ports_to_gr_nodes(node_classic_ports), i,
+                      classic_ports_to_cluster_nodes(node_classic_ports));
   }
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
@@ -403,9 +406,11 @@ TEST_P(MetadataChacheTTLTestInstanceListUnordered, InstancesListUnordered) {
   SCOPED_TRACE("// instruct the mocks to return nodes in reverse order");
   std::vector<uint16_t> node_classic_ports_reverse(node_classic_ports.rbegin(),
                                                    node_classic_ports.rend());
-  for (size_t i = 0; i < 2; ++i) {
-    set_mock_metadata(node_http_ports[i], kGroupID, node_classic_ports_reverse,
-                      1);
+  for (auto [i, http_port] : stdx::views::enumerate(node_http_ports)) {
+    set_mock_metadata(
+        http_port, kGroupID,
+        classic_ports_to_gr_nodes(node_classic_ports_reverse), i,
+        classic_ports_to_cluster_nodes(node_classic_ports_reverse), 1);
   }
 
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0]));
@@ -451,8 +456,9 @@ TEST_P(MetadataChacheTTLTestInvalidMysqlXPort, InvalidMysqlXPort) {
 
   SCOPED_TRACE(
       "// let the metadata for our single node report invalid mysqlx port");
-  set_mock_metadata(node_http_port, "uuid", {node_classic_port}, 0, 0, false,
-                    "127.0.0.1", {kInvalidPort});
+  set_mock_metadata(node_http_port, "uuid", {{node_classic_port}}, 0,
+                    {{node_classic_port, kInvalidPort}}, 0, 0, false,
+                    "127.0.0.1");
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   const auto router_port = port_pool_.get_next_available();
@@ -566,7 +572,8 @@ TEST_P(CheckRouterInfoUpdatesTest, CheckRouterInfoUpdates) {
   SCOPED_TRACE(
       "// let's tell the mock which attributes it should expect so that it "
       "does the strict sql matching for us");
-  auto globals = mock_GR_metadata_as_json("uuid", {md_server_port});
+  auto globals =
+      mock_GR_metadata_as_json("uuid", {md_server_port}, 0, {md_server_port});
   JsonAllocator allocator;
   globals.AddMember("router_version", MYSQL_ROUTER_VERSION, allocator);
   globals.AddMember("router_rw_classic_port", router_port, allocator);
@@ -666,7 +673,8 @@ TEST_F(MetadataChacheTTLTest, CheckRouterInfoUpdatesClusterPartOfCS) {
   SCOPED_TRACE(
       "// let's tell the mock which attributes it should expect so that it "
       "does the strict sql matching for us");
-  auto globals = mock_GR_metadata_as_json("uuid", {md_server_port});
+  auto globals =
+      mock_GR_metadata_as_json("uuid", {md_server_port}, 0, {md_server_port});
   JsonAllocator allocator;
   globals.AddMember("router_version", MYSQL_ROUTER_VERSION, allocator);
   globals.AddMember("router_rw_classic_port", router_port, allocator);
@@ -735,7 +743,8 @@ TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnAttributesUpdate) {
       "// let's tell the mock which attributes it should expect so that it "
       "does the strict sql matching for us, also tell it to issue the "
       "permission error on the update attempt");
-  auto globals = mock_GR_metadata_as_json("uuid", {md_server_port});
+  auto globals =
+      mock_GR_metadata_as_json("uuid", {md_server_port}, 0, {md_server_port});
   JsonAllocator allocator;
   globals.AddMember("router_version", MYSQL_ROUTER_VERSION, allocator);
   globals.AddMember("router_rw_classic_port", router_port, allocator);
@@ -817,7 +826,8 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
 
   /*auto &metadata_server = */ launch_mysql_server_mock(
       json_metadata, md_server_port, EXIT_SUCCESS, false, md_server_http_port);
-  set_mock_metadata(md_server_http_port, "uuid", {md_server_port});
+  set_mock_metadata(md_server_http_port, "uuid", {md_server_port}, 0,
+                    {md_server_port});
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   const auto router_port = port_pool_.get_next_available();
@@ -835,7 +845,8 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
   auto client = make_new_connection_ok(router_port, md_server_port);
 
   SCOPED_TRACE("// let's mimmic start of the metadata update now");
-  auto globals = mock_GR_metadata_as_json("uuid", {md_server_port});
+  auto globals =
+      mock_GR_metadata_as_json("uuid", {md_server_port}, 0, {md_server_port});
   JsonAllocator allocator;
   globals.AddMember("upgrade_in_progress", 1, allocator);
   globals.AddMember("md_query_count", 0, allocator);
@@ -918,7 +929,9 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
   for (size_t i = 0; i < NUM_NODES; ++i) {
     cluster_nodes.push_back(&launch_mysql_server_mock(
         json_metadata, node_ports[i], EXIT_SUCCESS, false, node_http_ports[i]));
-    set_mock_metadata(node_http_ports[i], "uuid", node_ports);
+    set_mock_metadata(node_http_ports[i], "uuid",
+                      classic_ports_to_gr_nodes(node_ports), i,
+                      classic_ports_to_cluster_nodes(node_ports));
   }
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
@@ -943,7 +956,9 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
   SCOPED_TRACE(
       "// Mimic the removal of the first node, this_instance view on this node "
       "should return empty dataset");
-  auto globals = mock_GR_metadata_as_json("uuid", node_ports);
+  auto globals =
+      mock_GR_metadata_as_json("uuid", classic_ports_to_gr_nodes(node_ports), 0,
+                               classic_ports_to_cluster_nodes(node_ports));
   JsonAllocator allocator;
   globals.AddMember("cluster_type", "", allocator);
   const auto globals_str = json_to_string(globals);
@@ -952,7 +967,8 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
   SCOPED_TRACE(
       "// Tell the second node that it is a new Primary and the only member of "
       "the cluster");
-  set_mock_metadata(node_http_ports[1], "uuid", {node_ports[1]});
+  set_mock_metadata(node_http_ports[1], "uuid", {node_ports[1]}, 0,
+                    {node_ports[1]});
 
   SCOPED_TRACE(
       "// Connect to the router primary port, the connection should be ok and "
@@ -1007,8 +1023,15 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
                       .wait_for_rest_endpoint_ready());
 
       const auto primary_id = no_primary ? -1 : 0;
-      set_mock_metadata(node_http_ports[i], "uuid", node_ports, primary_id, 0,
-                        false, node_hostname, {}, nodes_attributes);
+      auto cluster_nodes = classic_ports_to_cluster_nodes(node_ports);
+      for (auto [i, attr] : stdx::views::enumerate(nodes_attributes)) {
+        if (i < cluster_nodes.size()) {
+          cluster_nodes[i].attributes = attr;
+        }
+      }
+      set_mock_metadata(node_http_ports[i], "uuid",
+                        classic_ports_to_gr_nodes(node_ports), i, cluster_nodes,
+                        primary_id, 0, false, node_hostname);
     }
   }
 
@@ -1043,9 +1066,17 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
                             const bool no_primary = false) {
     const auto primary_id = no_primary ? -1 : 0;
 
+    auto cluster_nodes = classic_ports_to_cluster_nodes(node_ports);
+    for (auto [i, attr] : stdx::views::enumerate(nodes_attributes)) {
+      if (i < cluster_nodes.size()) {
+        cluster_nodes[i].attributes = attr;
+      }
+    }
+
     ASSERT_NO_THROW({
-      set_mock_metadata(node_http_ports[0], "uuid", node_ports, primary_id, 0,
-                        false, node_hostname, {}, nodes_attributes);
+      set_mock_metadata(node_http_ports[0], "uuid",
+                        classic_ports_to_gr_nodes(node_ports), 0, cluster_nodes,
+                        primary_id, 0, false, node_hostname);
     });
 
     try {
@@ -1601,23 +1632,27 @@ TEST_P(NodesHiddenWithFallbackTest, PrimaryHidden) {
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Bring down secondary nodes, primary is hidden");
-  set_mock_metadata(node_http_ports[0], "uuid", {node_ports[0]}, 0, 0, false,
-                    node_hostname, {}, {R"({"tags" : {"_hidden": true} })"});
+  set_mock_metadata(node_http_ports[0], "uuid", {node_ports[0]}, 0,
+                    {{node_ports[0], 0, R"({"tags" : {"_hidden": true} })"}}, 0,
+                    0, false, node_hostname);
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_unused(router_rw_port));
   EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   SCOPED_TRACE("// Bring up second secondary node, primary is hidden");
   set_mock_metadata(node_http_ports[0], "uuid", {node_ports[0], node_ports[2]},
-                    0, 0, false, node_hostname, {},
-                    {R"({"tags" : {"_hidden": true} })", ""});
+                    0,
+                    {{node_ports[0], 0, R"({"tags" : {"_hidden": true} })"},
+                     {node_ports[2], 0, ""}},
+                    0, 0, false, node_hostname);
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_unused(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Unhide primary node");
   set_mock_metadata(node_http_ports[0], "uuid", {node_ports[0], node_ports[2]},
-                    0, 0, false, node_hostname, {}, {"", ""});
+                    0, {{node_ports[0], 0, ""}, {node_ports[2], 0, ""}}, 0, 0,
+                    false, node_hostname);
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
@@ -1649,16 +1684,18 @@ TEST_P(NodesHiddenWithFallbackTest, SecondaryHidden) {
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Bring down first primary node");
-  set_mock_metadata(node_http_ports[0], "uuid", {node_ports[0], node_ports[2]},
-                    0, 0, false, node_hostname, {},
-                    {"", R"({"tags" : {"_hidden": true} })"});
+  set_mock_metadata(
+      node_http_ports[0], "uuid", {node_ports[0], node_ports[2]}, 0,
+      {{node_ports[0]}, {node_ports[2], 0, R"({"tags" : {"_hidden": true} })"}},
+      0, 0, false, node_hostname);
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Unhide second secondary node");
   set_mock_metadata(node_http_ports[0], "uuid", {node_ports[0], node_ports[2]},
-                    0, 0, false, node_hostname, {}, {"", ""});
+                    0, {{node_ports[0]}, {node_ports[2]}}, 0, 0, false,
+                    node_hostname);
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
@@ -2001,8 +2038,11 @@ TEST_P(MetadataCacheMetadataServersOrder, MetadataServersOrder) {
     md_servers_http_ports.push_back(http_port);
   }
 
-  for (const auto &http_port : md_servers_http_ports) {
-    set_mock_metadata(http_port, "uuid", md_servers_classic_ports,
+  for (const auto [i, http_port] :
+       stdx::views::enumerate(md_servers_http_ports)) {
+    set_mock_metadata(http_port, "uuid",
+                      classic_ports_to_gr_nodes(md_servers_classic_ports), i,
+                      classic_ports_to_cluster_nodes(md_servers_classic_ports),
                       /*primary_id=*/0);
   }
 
@@ -2039,8 +2079,11 @@ TEST_P(MetadataCacheMetadataServersOrder, MetadataServersOrder) {
                     md_servers_classic_ports[2]});
 
   // now promote first SECONDARY to become new PRIMARY
-  for (const auto &http_port : md_servers_http_ports) {
-    set_mock_metadata(http_port, "uuid", md_servers_classic_ports,
+  for (const auto [i, http_port] :
+       stdx::views::enumerate(md_servers_http_ports)) {
+    set_mock_metadata(http_port, "uuid",
+                      classic_ports_to_gr_nodes(md_servers_classic_ports), i,
+                      classic_ports_to_cluster_nodes(md_servers_classic_ports),
                       /*primary_id=*/1);
   }
 

@@ -1,4 +1,5 @@
 var common_stmts = require("common_statements");
+var gr_memberships = require("gr_memberships");
 
 var gr_node_host = "127.0.0.1";
 
@@ -40,23 +41,24 @@ var nodes = function(host, port_and_state) {
 };
 
 
-var group_replication_membership_online =
+var group_replication_members_online =
     nodes(gr_node_host, mysqld.global.gr_nodes, mysqld.global.gr_id);
 
 var options = {
   metadata_schema_version: mysqld.global.metadata_version,
-  group_replication_membership: group_replication_membership_online,
+  group_replication_members: group_replication_members_online,
+  innodb_cluster_instances: gr_memberships.cluster_nodes(
+      mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   gr_id: mysqld.global.gr_id,
   view_id: mysqld.global.view_id,
-  primary_port:
-      group_replication_membership_online[mysqld.global.primary_id][2],
+  primary_port: group_replication_members_online[mysqld.global.primary_id][2],
   cluster_type: "gr",
   innodb_cluster_name: "test",
   rest_user_credentials: mysqld.global.rest_user_credentials
 };
 
 options.group_replication_primary_member =
-    options.group_replication_membership[mysqld.global.primary_id][0];
+    options.group_replication_members[mysqld.global.primary_id][0];
 
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses(

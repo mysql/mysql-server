@@ -42,6 +42,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
+#include "mysql/harness/stdx/ranges.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/rest_client.h"
@@ -151,13 +152,19 @@ class AsyncReplicasetTest : public RouterComponentTest {
     return router;
   }
 
-  void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
-                         const std::vector<uint16_t> &gr_node_ports,
+  void set_mock_metadata(uint16_t http_port, const std::string &cluster_id,
+                         const std::vector<uint16_t> &cluster_node_ports,
                          unsigned primary_id = 0, uint64_t view_id = 0,
                          bool error_on_md_query = false,
-                         bool empty_result_from_cluster_type_query = false) {
-    auto json_doc = mock_GR_metadata_as_json(gr_id, gr_node_ports, primary_id,
-                                             view_id, error_on_md_query);
+                         bool empty_result_from_cluster_type_query = false,
+                         bool is_gr_cluster = false, unsigned gr_pos = 0) {
+    const auto gr_nodes = is_gr_cluster
+                              ? classic_ports_to_gr_nodes(cluster_nodes_ports)
+                              : std::vector<GRNode>{};
+    auto json_doc = mock_GR_metadata_as_json(
+        cluster_id, gr_nodes, gr_pos,
+        classic_ports_to_cluster_nodes(cluster_node_ports), primary_id, view_id,
+        error_on_md_query);
 
     // we can't allow this counter become undefined as that breaks the
     // wait_for_transaction_count_increase logic
@@ -1536,6 +1543,8 @@ class ClusterTypeMismatchTest
  */
 TEST_P(ClusterTypeMismatchTest, ClusterTypeMismatch) {
   const unsigned CLUSTER_NODES = 2;
+  const bool is_gr_cluster =
+      GetParam().tracefile == "metadata_dynamic_nodes_v2_gr.js";
   for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
     cluster_nodes_ports.push_back(port_pool_.get_next_available());
     cluster_http_ports.push_back(port_pool_.get_next_available());
@@ -1551,7 +1560,7 @@ TEST_P(ClusterTypeMismatchTest, ClusterTypeMismatch) {
 
     SCOPED_TRACE("// Let us start with 2 members (PRIMARY and SECONDARY)");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
-                      /*primary_id=*/0, view_id);
+                      /*primary_id=*/0, view_id, false, false, is_gr_cluster);
   }
 
   const std::string state_file = create_state_file(
@@ -1609,6 +1618,7 @@ class UnexpectedResultFromMDRefreshTest
  */
 TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
   const unsigned CLUSTER_NODES = 2;
+  const bool is_gr_cluster = GetParam().cluster_type_str == "gr";
   for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
     cluster_nodes_ports.push_back(port_pool_.get_next_available());
     cluster_http_ports.push_back(port_pool_.get_next_available());
@@ -1625,7 +1635,7 @@ TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
         "// Make our metadata server to return both nodes as a cluster "
         "members");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports, 0,
-                      view_id);
+                      view_id, false, false, is_gr_cluster, i);
   }
 
   SCOPED_TRACE("// Create a router state file containing both members");
@@ -1665,10 +1675,11 @@ TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
       "// Make all members to start returning invalid data when queried for "
       "cluster type (empty resultset)");
 
-  for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
-    set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports, 0,
-                      view_id, /*error_on_md_query=*/false,
-                      /*empty_result_from_cluster_type_query=*/true);
+  for (auto [i, http_port] : stdx::views::enumerate(cluster_http_ports)) {
+    set_mock_metadata(http_port, cluster_id, cluster_nodes_ports, 0, view_id,
+                      /*error_on_md_query=*/false,
+                      /*empty_result_from_cluster_type_query=*/true,
+                      is_gr_cluster, i);
   }
 
   SCOPED_TRACE("// Both connections should get dropped");

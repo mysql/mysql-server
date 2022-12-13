@@ -4,25 +4,24 @@ var gr_memberships = require("gr_memberships");
 var gr_node_host = "127.0.0.1";
 
 
-// all nodes are online
-var group_replication_membership_online =
-    gr_memberships.nodes(gr_node_host, mysqld.global.gr_nodes);
-
 var options = {
   metadata_schema_version: [1, 0, 2],
-  group_replication_membership: group_replication_membership_online,
+  group_replication_members:
+      gr_memberships.gr_members(gr_node_host, mysqld.global.gr_nodes),
+  innodb_cluster_instances:
+      gr_memberships.cluster_nodes(gr_node_host, mysqld.global.cluster_nodes),
 };
 
 var options_primary_unavailable = {
-  group_replication_membership:
-      group_replication_membership_online.filter(function(el, ndx) {
+  group_replication_members:
+      options.group_replication_members.filter(function(el, ndx) {
         return ndx != 0
       })
 };
 
 // first node is PRIMARY
 options.group_replication_primary_member =
-    options.group_replication_membership[0][0];
+    options.group_replication_members[0][0];
 
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses(

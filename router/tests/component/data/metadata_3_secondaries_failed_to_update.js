@@ -4,17 +4,17 @@ var gr_memberships = require("gr_memberships");
 
 var gr_node_host = "127.0.0.1";
 
-var group_replication_membership_online =
-    gr_memberships.nodes(gr_node_host, mysqld.global.gr_nodes);
+var group_replication_members_online =
+    gr_memberships.gr_members(gr_node_host, mysqld.global.gr_nodes);
 
 var options = {
-  group_replication_membership: group_replication_membership_online,
+  group_replication_members: group_replication_members_online,
   cluster_type: "gr",
 };
 
 // first node is PRIMARY
 options.group_replication_primary_member =
-    options.group_replication_membership[0][0];
+    options.group_replication_members[0][0];
 
 var router_select_metadata =
     common_stmts.get("router_select_metadata_v2_gr", options);
