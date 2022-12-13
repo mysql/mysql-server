@@ -2954,6 +2954,8 @@ dberr_t Btree_load::Merger::add_root_for_subtrees(const size_t highest_level) {
 
   Page_load root_load(m_index, m_trx->id, root_page_no, new_root_level,
                       observer);
+
+  /* Do not disable redo log for this mtr; it is used to free a page below.*/
   mtr_t mtr;
   mtr.start();
   mtr.x_lock(dict_index_get_lock(m_index), UT_LOCATION_HERE);
@@ -3013,11 +3015,11 @@ dberr_t Btree_load::Merger::add_root_for_subtrees(const size_t highest_level) {
   root_load.set_next(FIL_NULL);
   root_load.set_prev(FIL_NULL);
   root_load.finish();
-  mtr.commit();
-  root_load.commit();
   if (root_load.is_table_compressed()) {
     err = root_page_commit(&root_load);
   }
+  mtr.commit();
+  root_load.commit();
   return err;
 }
 
@@ -3084,18 +3086,10 @@ dberr_t Btree_load::Merger::root_split(Page_load *root_load,
   const auto trx_id = m_trx->id;
   dberr_t err{DB_SUCCESS};
 
-  /* Load the given root page. */
-  root_load->latch();
-
   /* Allocate requested number of pages in the given level. */
   std::vector<Page_load *> page_loads;
 
-  auto guard = create_scope_guard([root_load]() {
-    root_load->finish();
-    root_load->commit();
-  });
-
-  auto guard2 = create_scope_guard([&page_loads]() {
+  auto guard = create_scope_guard([&page_loads]() {
     for (auto &page_load : page_loads) {
       ut::delete_(page_load);
     }
@@ -3142,11 +3136,11 @@ dberr_t Btree_load::Merger::root_split(Page_load *root_load,
   bool success = true;
   for (size_t i = 0; i < n_pages; ++i) {
     page_loads[i]->finish();
-    page_loads[i]->commit();
     if (success) {
       /* If any of the compression fails, don't compress any more pages. */
       success = page_loads[i]->compress();
     }
+    page_loads[i]->commit();
   }
 
   if (!success) {
@@ -3168,24 +3162,13 @@ dberr_t Btree_load::Merger::root_split(Page_load *root_load,
   }
 
   root_load->set_min_rec_flag();
-
-  guard.commit();
   root_load->finish();
-  root_load->commit();
-
   /* Compress the root page. */
-  success = root_load->compress();
-  if (!success) {
-    return DB_FAIL;
-  }
-
-  return DB_SUCCESS;
+  return root_load->compress() ? DB_SUCCESS : DB_FAIL;
 }
 
 dberr_t Btree_load::Merger::root_page_commit(Page_load *root_load) {
   ut_a(root_load);
-  root_load->set_next(FIL_NULL);
-  root_load->set_prev(FIL_NULL);
   dberr_t err{DB_SUCCESS};
 
   if (root_load->is_table_compressed() && !root_load->compress()) {
