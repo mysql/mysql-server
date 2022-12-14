@@ -123,7 +123,7 @@ inline std::intmax_t process_waiter::get_pid_as_intmax() const
   if (!valid()) return -1;
   return {GetProcessId(h)};
 #else
-  return {h};
+  return h;
 #endif
 }
 
