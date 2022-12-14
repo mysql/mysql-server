@@ -5750,6 +5750,11 @@ static Sys_var_session_special Sys_error_count(
 static ulonglong read_warning_count(THD *thd) {
   return thd->get_stmt_da()->warn_count(thd);
 }
+
+static ulonglong read_statement_id(THD *thd) {
+  return (ulonglong)thd->query_id;
+}
+
 // this really belongs to the SHOW STATUS
 static Sys_var_session_special Sys_warning_count(
     "warning_count",
@@ -7214,6 +7219,17 @@ static Sys_var_enum Sys_use_secondary_engine(
     HINT_UPDATEABLE SESSION_ONLY(use_secondary_engine), NO_CMD_LINE,
     use_secondary_engine_values, DEFAULT(SECONDARY_ENGINE_ON), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_session_special Sys_statement_id(
+    "statement_id",
+    "statement_id: represents the id of the query "
+    "When this option is enabled it returns the statement id to the client, "
+    "the client can find more data about this query from the performance schema"
+    "(such as: events_statements_history table, rpd_query_stats table etc)  by "
+    "searching for a specific statement_id value.",
+    READ_ONLY sys_var::ONLY_SESSION, NO_CMD_LINE, VALID_RANGE(0, INT_MAX64),
+    BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(nullptr), ON_READ(read_statement_id));
 
 /**
   Cost threshold for executing queries in a secondary storage engine. Only

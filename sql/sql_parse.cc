@@ -5180,6 +5180,17 @@ void THD::reset_for_next_command() {
 }
 
 /*
+  Helper function to send the statement_id to the session var
+*/
+void statement_id_to_session(THD *thd) {
+  auto sysvar_tracker =
+      thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER);
+  if (sysvar_tracker->is_enabled()) {
+    LEX_CSTRING cs_statement = {STRING_WITH_LEN("statement_id")};
+    sysvar_tracker->mark_as_changed(thd, cs_statement);
+  }
+}
+/*
   When you modify dispatch_sql_command(), you may need to modify
   mysql_test_parse_for_slave() in this same file.
 */
@@ -5195,7 +5206,7 @@ void THD::reset_for_next_command() {
 void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
   DBUG_TRACE;
   DBUG_PRINT("dispatch_sql_command", ("query: '%s'", thd->query().str));
-
+  statement_id_to_session(thd);
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
 
   mysql_reset_thd_for_next_command(thd);
@@ -5340,8 +5351,8 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
       The tradeoff is:
         a) If we do log the query, a user typing by accident a broken query
            containing a password will have the password exposed. This is very
-           unlikely, and this behavior can be documented. Remediation is to use
-           a new password when retyping the corrected query.
+           unlikely, and this behavior can be documented. Remediation is to
+           use a new password when retyping the corrected query.
 
         b) If we do not log the query, finding broken queries in the client
            application will be much more difficult. This is much more likely.
@@ -6770,7 +6781,8 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user) {
         Inherit parser semantics from the statement in which the user parameter
         was used.
         This is needed because a LEX_USER is both used as a component in an
-        AST and as a specifier for a particular user in the ACL subsystem.
+        AST and as a specifier for a particular user in the
+        ACL subsystem.
       */
       default_definer->first_factor_auth_info
           .uses_authentication_string_clause =

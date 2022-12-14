@@ -2,6 +2,9 @@
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 -- source include/no_protocol.inc
 
+--echo # Restart the mysqld server with default options so, statement_id will work. 
+--source include/restart_mysqld.inc
+
 --echo #
 --echo # WL#4797  Extending protocol's OK packet
 --echo #
