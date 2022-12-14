@@ -93,12 +93,16 @@ class RequestHandlerJsonSubSimpleObject
 
     HandlerMapOfSimpleValues handler_map;
     HandlerSubObject handler("data", handler_map);
-    auto result = helper::json::text_to(&handler, value);
+    if (!helper::json::text_to(&handler, value)) {
+      log_debug("Parsing JSON response failed.");
+      return false;
+    }
 
     for (auto &e : output_) {
       auto &key = e.first;
       auto out_value = e.second;
-      if (!helper::container::get_value_other(result, key, out_value)) {
+      if (!helper::container::get_value_other(handler_map.get_result(), key,
+                                              out_value)) {
         log_debug("Getting key:'%s' from container failed.", key);
         return false;
       }

@@ -37,6 +37,7 @@
 #include "mrs/authentication/track_authorize_handler.h"
 #include "mrs/authentication/www_authentication_handler.h"
 #include "mrs/rest/handler_authorize.h"
+#include "mrs/rest/handler_authorize_apps.h"
 #include "mrs/rest/handler_authorize_ok.h"
 #include "mrs/rest/handler_is_authorized.h"
 #include "mrs/rest/handler_unauthorize.h"
@@ -207,6 +208,7 @@ void AuthorizeManager::fill_service(const AuthApp &e, ServiceAuthorize &sa) {
   std::string path3 = "^" + e.service_name + auth_path + "/logout$";
   std::string path4 = "^" + e.service_name + auth_path + "/completed";
   std::string path5 = "^" + e.service_name + auth_path + "/user";
+  std::string path6 = "^" + e.service_name + auth_path + "/authApps$";
   std::string redirect = e.redirect;
 
   if (redirect.empty()) {
@@ -224,12 +226,15 @@ void AuthorizeManager::fill_service(const AuthApp &e, ServiceAuthorize &sa) {
       e.redirection_default_page, this);
   auto user_handler = std::make_shared<mrs::rest::HandlerUser>(
       e.service_id, e.service_name, path5, e.options, this);
+  auto list_handler = std::make_shared<mrs::rest::HandlerAuthorizeApps>(
+      e.service_id, e.service_name, path6, e.options, redirect, this);
 
   sa.authorize_handler_ = login_handler;
   sa.status_handler_ = status_handler;
   sa.unauthorize_handler_ = unauth_handler;
   sa.authorization_result_handler_ = auth_ok_handler;
   sa.user_handler_ = user_handler;
+  sa.list_handler_ = list_handler;
 }
 
 void AuthorizeManager::acquire(interface::AuthorizeHandler *handler) {
@@ -351,6 +356,19 @@ AuthorizeManager::Session *AuthorizeManager::get_current_session(
   auto session = session_manager_.get_session(session_identifier);
   log_debug("Current session state:%i", session ? session->state : -1);
   return session;
+}
+std::vector<std::string>
+AuthorizeManager::get_supported_authentication_applications(ServiceId id) {
+  std::vector<std::string> result;
+  auto handlers = get_handlers_by_service_id(id);
+
+  result.reserve(handlers.size());
+
+  for (const auto &h : handlers) {
+    result.push_back(h->get_entry().app_name);
+  }
+
+  return result;
 }
 
 std::string AuthorizeManager::authorize(const UniversalId service_id,

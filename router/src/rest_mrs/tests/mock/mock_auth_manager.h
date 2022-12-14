@@ -51,6 +51,9 @@ class MockAuthManager : public mrs::interface::AuthorizeManager {
               (override));
   MOCK_METHOD(collector::MysqlCacheManager *, get_cache, (), (override));
   MOCK_METHOD(mrs::users::UserManager *, get_user_manager, (), (override));
+  MOCK_METHOD(std::vector<std::string>,
+              get_supported_authentication_applications, (ServiceId),
+              (override));
 };
 
 #endif  // ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_AUTH_MANAGER_H_

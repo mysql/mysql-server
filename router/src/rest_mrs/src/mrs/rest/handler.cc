@@ -524,7 +524,7 @@ static Parameters get_json_obj(const std::string &txt,
 
 static bool get_json_bool(const std::string &txt, const std::string key_name) {
   using namespace helper::json;
-  RapidReaderHandlerToMapOfSimpleValues extractor;
+  RapidReaderHandlerToMapOfSimpleValues extractor{4};
   text_to(&extractor, txt);
   if (extractor.get_result().count(key_name)) {
     auto value = extractor.get_result().at(key_name);
@@ -542,13 +542,13 @@ static bool get_json_bool(const std::string &txt, const std::string key_name) {
 Handler::Handler(const std::string &url, const std::string &rest_path_matcher,
                  const std::string &options,
                  mrs::interface::AuthorizeManager *auth_manager)
-    : options_{get_json_obj(options, "header"),
-               {{{get_json_bool(options, "header_requests"),
-                  get_json_bool(options, "body_requests")},
-                 {get_json_bool(options, "header_responses"),
-                  get_json_bool(options, "body_responses"),
-                  get_json_bool(options, "internal_errors")}},
-                get_json_bool(options, "trace_exceptions")}},
+    : options_{get_json_obj(options, "headers"),
+               {{{get_json_bool(options, "logging.request.headers"),
+                  get_json_bool(options, "logging.request.body")},
+                 {get_json_bool(options, "logging.response.headers"),
+                  get_json_bool(options, "logging.response.body"),
+                  get_json_bool(options, "returnInternalErrorDetails")}},
+                get_json_bool(options, "logging.exceptions")}},
       url_{url},
       rest_path_matcher_{rest_path_matcher},
       authorization_manager_{auth_manager} {
@@ -557,6 +557,10 @@ Handler::Handler(const std::string &url, const std::string &rest_path_matcher,
   log_debug("Handling new URL: '%s'", url_.c_str());
   handler_id_ = HttpServerComponent::get_instance().add_route(
       rest_path_matcher_, std::move(handler));
+
+  for (const auto &kv : options_.parameters_) {
+    log_debug("parameters %s=%s", kv.first.c_str(), kv.second.c_str());
+  }
 }
 
 Handler::~Handler() {

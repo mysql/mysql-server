@@ -25,6 +25,7 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_HELPER_JSON_RAPID_JSON_TO_MAP_H_
 #define ROUTER_SRC_REST_MRS_SRC_HELPER_JSON_RAPID_JSON_TO_MAP_H_
 
+#include <list>
 #include <string>
 
 #include <my_rapidjson_size_t.h>
@@ -49,6 +50,9 @@ class RapidReaderHandlerToMapOfSimpleValues
   using Map = std::map<std::string, std::string>;
   using Result = Map;
 
+  RapidReaderHandlerToMapOfSimpleValues(int allowed_levels = 1)
+      : allowed_levels_{allowed_levels} {}
+
   const Map &get_result() const { return result_; }
 
  public:  // template overwrites methods from `rapidjson::BaseReaderHandler`
@@ -61,20 +65,39 @@ class RapidReaderHandlerToMapOfSimpleValues
   }
 
   bool String(const Ch *ch, rapidjson::SizeType size, bool) {
-    if (level_ != 1) return true;
+    if (level_ < 1 || level_ > allowed_levels_ || arrays_ > 0) return true;
 
-    result_[key_] = std::string(ch, size);
+    result_[get_current_key()] = std::string(ch, size);
 
     return static_cast<Override &>(*this).Default();
   }
 
   // Ignoring following methods because, parser should be configured to call
   // "RawNumber" method.
-  bool Int(int) { return true; }
-  bool Uint(unsigned) { return true; }
-  bool Int64(int64_t) { return true; }
-  bool Uint64(uint64_t) { return true; }
-  bool Double(double) { return true; }
+  bool Int(int v) {
+    auto r = std::to_string(v);
+    return String(r.c_str(), r.length(), false);
+  }
+
+  bool Uint(unsigned v) {
+    auto r = std::to_string(v);
+    return String(r.c_str(), r.length(), false);
+  }
+
+  bool Int64(int64_t v) {
+    auto r = std::to_string(v);
+    return String(r.c_str(), r.length(), false);
+  }
+
+  bool Uint64(uint64_t v) {
+    auto r = std::to_string(v);
+    return String(r.c_str(), r.length(), false);
+  }
+
+  bool Double(double v) {
+    auto r = std::to_string(v);
+    return String(r.c_str(), r.length(), false);
+  }
 
   /// enabled via kParseNumbersAsStringsFlag, string is not null-terminated (use
   /// length)
@@ -83,36 +106,64 @@ class RapidReaderHandlerToMapOfSimpleValues
   }
 
   bool StartObject() {
+    if (!key_.name.empty()) {
+      keys_.push_back(key_);
+    }
     ++level_;
     return true;
   }
 
   bool EndObject(rapidjson::SizeType) {
     --level_;
+    if (!keys_.empty()) {
+      auto &b = keys_.back();
+      if (level_ == b.level) keys_.pop_back();
+    }
+
     return true;
   }
 
   bool Key(const Ch *str, rapidjson::SizeType len, bool) {
-    if (level_ != 1) return true;
-    key_.assign(str, len);
+    key_.name.assign(str, len);
+    key_.level = level_;
     return true;
   }
 
   // Ignore arrays
   bool StartArray() {
     ++level_;
+    ++arrays_;
     return true;
   }
 
   bool EndArray(rapidjson::SizeType) {
     --level_;
+    --arrays_;
+    if (!keys_.empty()) {
+      auto &b = keys_.back();
+      if (level_ == b.level) keys_.pop_back();
+    }
     return true;
   }
 
  private:
-  std::string key_;
+  std::string get_current_key() const {
+    std::string result;
+    for (const auto &key : keys_) {
+      result += key.name + ".";
+    }
+    return result + key_.name;
+  }
+  int allowed_levels_;
+  struct KeyValue {
+    std::string name;
+    int level;
+  };
+  std::list<KeyValue> keys_;
+  KeyValue key_;
   Map result_;
   int level_{0};
+  int arrays_{0};
 };
 
 template <typename SubHandler>

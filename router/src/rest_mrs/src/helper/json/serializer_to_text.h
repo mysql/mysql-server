@@ -98,6 +98,17 @@ class SerializerToText {
       return *this;
     }
 
+    template <typename Arr>
+    Array &add(const Arr &arr) {
+      auto it = std::begin(arr);
+      while (it != std::end(arr)) {
+        *serializer_ << *it;
+        ++it;
+      }
+
+      return *this;
+    }
+
    private:
     void initialize() {
       if (!serializer_) return;
@@ -119,6 +130,7 @@ class SerializerToText {
   std::string get_result() { return value_.str(); }
 
   Object add_object() { return Object(this); }
+  Array add_array() { return Array(this); }
 
   SerializerToText &operator<<(const char *value) {
     add_value(value, ColumnJsonTypes::kString);

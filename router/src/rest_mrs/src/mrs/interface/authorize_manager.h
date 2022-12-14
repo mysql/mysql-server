@@ -71,6 +71,8 @@ class AuthorizeManager {
   virtual Session *get_current_session(ServiceId id, HttpHeaders &input_headers,
                                        http::Cookie *cookies) = 0;
   virtual users::UserManager *get_user_manager() = 0;
+  virtual std::vector<std::string> get_supported_authentication_applications(
+      ServiceId id) = 0;
 
   // TODO(lkotula): = 0 (Shouldn't be in review)
   virtual void discard_current_session(ServiceId, http::Cookie *) {}
