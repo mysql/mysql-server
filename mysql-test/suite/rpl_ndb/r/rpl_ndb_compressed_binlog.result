@@ -15,5 +15,4 @@ include/diff_tables.inc [master:t1,slave:t1]
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 [connection master]
-SET GLOBAL ndb_log_transaction_compression=0;
 include/rpl_end.inc
