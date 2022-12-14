@@ -38,7 +38,7 @@ import testsuite.clusterj.model.ConversationSummary;
 
 public class Bug17200163Test extends AbstractClusterJModelTest {
 
-    protected int NUMBER_TO_INSERT = 10;
+    protected int NUMBER_TO_INSERT = 40;
     
     /** The instances for testing. */
     protected List<ConversationSummary> instances = new ArrayList<ConversationSummary>();
@@ -70,7 +70,7 @@ public class Bug17200163Test extends AbstractClusterJModelTest {
 
         for (int i = 0; i < NUMBER_TO_INSERT; ++i) {
             // must be done with an active transaction
-            session.makePersistent(instances.get(i));
+            session.savePersistent(instances.get(i));
             ++count;
         }
         tx.commit();
@@ -122,6 +122,11 @@ public class Bug17200163Test extends AbstractClusterJModelTest {
             instance.setDestUserId(i);
             instance.setLastMessageById(i);
             instance.setQueryHistoryId(i);
+            instance.setKey5(i);
+            instance.setKey6("Text " + i);
+            instance.setKey7("Text " + i);
+            instance.setKey8("Text " + i);
+            instance.setKey9("Text " + i);
             instance.setText("Text " + i);
             instance.setUpdatedAt(i);
             instance.setViewed(0 == (i%2)?true:false);

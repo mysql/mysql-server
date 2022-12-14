@@ -490,18 +490,19 @@ Ndb::computeHash(Uint32 *retval,
     sumlen += len;
   }
 
-  if (!buf)
+  while (true)
   {
-    bufLen = sumlen;
-    bufLen += sizeof(Uint64); /* add space for potential alignment */
-    buf = malloc(bufLen);
-    if (unlikely(buf == 0))
-      return 4000;
-    malloced_buf = buf; /* Remember to free */
-    assert(bufLen > sumlen);
-  }
+    if (buf == nullptr)
+    {
+      bufLen = sumlen;
+      bufLen += sizeof(Uint64); /* add space for potential alignment */
+      buf = malloc(bufLen);
+      if (unlikely(buf == 0))
+        return 4000;
+      malloced_buf = buf; /* Remember to free */
+      assert(bufLen > sumlen);
+    }
 
-  {
     /* Get 64-bit aligned ptr required for hashing */
     assert(bufLen != 0);
     UintPtr org = UintPtr(buf);
@@ -510,8 +511,10 @@ Ndb::computeHash(Uint32 *retval,
     buf = (void*)use;
     bufLen -= Uint32(use - org);
 
-    if (unlikely(sumlen > bufLen))
-      goto ebuftosmall;
+    if (likely(sumlen <= bufLen))
+      break;
+    require(malloced_buf == nullptr);
+    buf = nullptr;
   }
 
   pos= (unsigned char*) buf;
@@ -582,8 +585,11 @@ emissingnullptr:
 elentosmall:
   return 4277;
 
+/**
+ * No longer used
 ebuftosmall:
   return 4278;
+ */
 
 emalformedstring:
   if (malloced_buf)

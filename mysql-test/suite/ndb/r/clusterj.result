@@ -63,5 +63,6 @@ DROP TABLE subscriber;
 DROP TABLE hashonlylongintstringpk;
 DROP TABLE varbinarypk;
 DROP TABLE varbinarytypes;
+DROP TABLE dynamicstringpks;
 DROP TABLE IF EXISTS test2.t_basic2;
 DROP DATABASE IF EXISTS test2;

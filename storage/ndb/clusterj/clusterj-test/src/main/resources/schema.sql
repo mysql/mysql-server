@@ -33,10 +33,15 @@ CREATE TABLE conversation_summary (
   last_message_user_id bigint(11) NOT NULL,
   text_summary varchar(255) NOT NULL DEFAULT '',
   query_history_id bigint(20) NOT NULL DEFAULT '0',
+  key5 bigint(20) NOT NULL DEFAULT '0',
+  key6 varchar(100) NOT NULL DEFAULT '0',
+  key7 varchar(100) NOT NULL DEFAULT '0',
+  key8 varchar(100) NOT NULL DEFAULT '0',
+  key9 varchar(100) NOT NULL DEFAULT '0',
   answerer_id bigint(11) NOT NULL,
   viewed bit(1) NOT NULL,
   updated_at bigint(20) NOT NULL,
-  PRIMARY KEY (source_user_id,destination_user_id,query_history_id),
+  PRIMARY KEY (source_user_id,destination_user_id,query_history_id,key5,key6,key7,key8,key9),
   KEY IX_updated_at (updated_at)
 ) ENGINE=ndbcluster;
 
@@ -136,6 +141,20 @@ create table varbinarytypes (
  binary2048 varbinary(2048)
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+drop table if exists dynamicstringpks;
+create table dynamicstringpks (
+  key1 VARCHAR(100) collate utf8_unicode_ci NOT NULL,
+  key2 VARCHAR(100) collate utf8_unicode_ci NOT NULL,
+  key3 VARCHAR(100) collate utf8_unicode_ci NOT NULL,
+  key4 INT NOT NULL,
+  key5 VARCHAR(100) collate utf8_unicode_ci NOT NULL,
+  key6 INT NOT NULL,
+  key7 VARCHAR(100) collate utf8_unicode_ci NOT NULL,
+  number INT NOT NULL,
+  name VARCHAR(10) NOT NULL,
+  PRIMARY KEY (key1, key2, key3, key4, key5, key6, key7)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 drop table if exists binarypk;
 create table binarypk (
