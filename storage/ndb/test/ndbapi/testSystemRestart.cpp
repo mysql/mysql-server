@@ -33,7 +33,7 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbBackup.hpp>
 #include <Bitmask.hpp>
-#include <DbUtil.hpp>
+#include "SqlClient.hpp"
 #include <NdbMgmd.hpp>
 #include <NdbSleep.h>
 
@@ -3704,7 +3704,7 @@ int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
   bool nodesKilledDuringStep= ctx->getProperty("NodesKilledDuringStep");
 
   /* Redistribute existing cluster data */
-  DbUtil sql("TEST_DB");
+  SqlClient sql("TEST_DB");
   {
     BaseString query;
     SqlResultSet resultSet;
@@ -3758,7 +3758,7 @@ int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
     }
   }
 
-  DbUtil::thread_end();
+  SqlClient::thread_end();
 
   return NDBT_OK;
 }

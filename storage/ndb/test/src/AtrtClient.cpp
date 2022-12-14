@@ -29,13 +29,13 @@
 #include <NdbEnv.h>
 
 AtrtClient::AtrtClient(const char* _group_suffix)
-  : DbUtil("atrt", _group_suffix)
+  : SqlClient("atrt", _group_suffix)
 {
 }
 
 
 AtrtClient::AtrtClient(MYSQL* mysql)
-  : DbUtil(mysql)
+  : SqlClient(mysql)
 {
 }
 

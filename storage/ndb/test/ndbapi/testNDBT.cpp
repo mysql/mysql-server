@@ -25,7 +25,7 @@
 
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
-#include <DbUtil.hpp>
+#include "SqlClient.hpp"
 #include <AtrtClient.hpp>
 
 
@@ -56,8 +56,8 @@ int runTestAtrtClient(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 
-int runTestDbUtil(NDBT_Context* ctx, NDBT_Step* step){
-  DbUtil sql("test");
+int runTestSqlClient(NDBT_Context* ctx, NDBT_Step* step){
+  SqlClient sql("test");
 
   {
     // Select all rows from mysql.user
@@ -182,9 +182,9 @@ TESTCASE("AtrtClient",
 	 "Test AtrtClient class"){
   INITIALIZER(runTestAtrtClient);
 }
-TESTCASE("DbUtil",
-	 "Test DbUtil class"){
-  INITIALIZER(runTestDbUtil);
+TESTCASE("SqlClient",
+         "Test SqlClient class"){
+  INITIALIZER(runTestSqlClient);
 }
 NDBT_TESTSUITE_END(testNDBT);
 

@@ -24,14 +24,14 @@
 
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
-#include <DbUtil.hpp>
+#include "SqlClient.hpp"
 #include <AtrtClient.hpp>
 
 #include <NdbRestarts.hpp>
 
 
 int runCreateTable(NDBT_Context* ctx, NDBT_Step* step){
-  DbUtil sql("test");
+  SqlClient sql("test");
 
   if (!sql.doQuery("CREATE TABLE reconnect ("
                    "pk bigint, "
@@ -44,7 +44,7 @@ int runCreateTable(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runDropTable(NDBT_Context* ctx, NDBT_Step* step){
-  DbUtil sql("test");
+  SqlClient sql("test");
 
   if (!sql.doQuery("DROP TABLE IF EXISTS reconnect"))
     return NDBT_FAILED;
@@ -56,7 +56,7 @@ int runSQLQueries(NDBT_Context* ctx, NDBT_Step* step,
                   const char* query)
 {
   int result = -1;
-  DbUtil sql("test");
+  SqlClient sql("test");
 
   unsigned failed = 0;
   unsigned i = 0;

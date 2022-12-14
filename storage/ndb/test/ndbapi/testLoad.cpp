@@ -40,7 +40,6 @@
 #include <NdbHost.h>
 #include <BlockNumbers.h>
 #include <NdbConfig.hpp>
-#include <DbUtil.hpp>
 
 #define PK_READ_LOCK 0
 #define PK_INSERT 1
