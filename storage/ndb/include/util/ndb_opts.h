@@ -436,6 +436,10 @@ public:
   static void registerUsage(Ndb_opts *);
   static void release();
 
+  const char* get_defaults_extra_file() const;
+  const char* get_defaults_file() const;
+  const char* get_defaults_group_suffix() const;
+
 private:
   struct MEM_ROOT opts_mem_root;
   int * main_argc_ptr;

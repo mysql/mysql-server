@@ -28,6 +28,40 @@
 #include "SqlClient.hpp"
 #include <AtrtClient.hpp>
 
+// Create the minimal schema required for testing AtrtClient
+int runCreateAtrtSchema(NDBT_Context *ctx, NDBT_Step *step) {
+  SqlClient sql("");
+
+  if (!sql.doQuery("DROP DATABASE IF EXISTS atrt")) {
+    return NDBT_FAILED;
+  }
+
+  if (!sql.doQuery("CREATE DATABASE atrt")) {
+    return NDBT_FAILED;
+  }
+
+  if (!sql.doQuery("CREATE TABLE atrt.cluster ("
+    "   id int primary key,"
+    "   name varchar(255),"
+    "   unique(name)"
+    "   ) engine = innodb")) {
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+
+// Drop the minimal atrt schema
+int runDropAtrtSchema(NDBT_Context *ctx, NDBT_Step *step) {
+  SqlClient sql("");
+
+  if (!sql.doQuery("DROP DATABASE IF EXISTS atrt")) {
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
 
 int runTestAtrtClient(NDBT_Context* ctx, NDBT_Step* step){
   AtrtClient atrt;
@@ -178,19 +212,30 @@ int runTestSqlClient(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 NDBT_TESTSUITE(testNDBT);
+
+/*
+  $> testNDBT -n AtrtClient
+*/
 TESTCASE("AtrtClient",
 	 "Test AtrtClient class"){
+  INITIALIZER(runCreateAtrtSchema);
   INITIALIZER(runTestAtrtClient);
+  FINALIZER(runDropAtrtSchema);
 }
+/*
+  $> testNDBT -n SqlClient
+*/
 TESTCASE("SqlClient",
          "Test SqlClient class"){
   INITIALIZER(runTestSqlClient);
 }
-NDBT_TESTSUITE_END(testNDBT);
+NDBT_TESTSUITE_END(testNDBT)
 
 int main(int argc, const char** argv){
   ndb_init();
   NDBT_TESTSUITE_INSTANCE(testNDBT);
+  testNDBT.setCreateTable(false);
+  testNDBT.setRunAllTables(true);
   return testNDBT.execute(argc, argv);
 }
 

@@ -29,6 +29,8 @@
 #ifndef NDB_SQL_CLIENT_HPP
 #define NDB_SQL_CLIENT_HPP
 
+#include <string_view>
+
 #include <BaseString.hpp>
 #include <Properties.hpp>
 
@@ -52,6 +54,7 @@ public:
   ~SqlResultSet();
 
   const char* column(const char* col_name);
+  std::string_view columnAsString(const char* col_name);
   uint columnAsInt(const char* col_name);
   unsigned long long columnAsLong(const char* col_name);
 
@@ -110,6 +113,12 @@ public:
      */
   static void thread_end();
 
+  // Helper which run thread_end() when going out of scope, should be used
+  // when using SqlClient in more than on thread.
+  struct ThreadScopeGuard {
+    ~ThreadScopeGuard() { thread_end(); }
+  };
+
 protected:
 
   bool runQuery(const char* query,
@@ -119,8 +128,8 @@ protected:
   bool isConnected();
 
 private:
-  MYSQL * m_mysql;
-  const bool m_owns_mysql; // The MYSQL object is owned by this class
+  MYSQL * m_mysql{nullptr};
+  const bool m_owns_mysql{true}; // The MYSQL object is owned by this class
 
   const BaseString m_user;    // MySQL User
   const BaseString m_pass;    // MySQL User Password

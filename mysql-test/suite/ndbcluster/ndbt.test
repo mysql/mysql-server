@@ -1,0 +1,6 @@
+--source include/have_ndb.inc
+
+# Run all tests in testNDBT
+let NDBAPITEST_NAME=testNDBT;
+let NDBAPITEST_ARGS=-v;
+--source suite/ndb/include/run_ndbapitest.inc

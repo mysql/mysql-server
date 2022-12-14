@@ -26,11 +26,12 @@
 
 #include "SqlClient.hpp"
 
+#include <memory>
+
 #include "util/require.h"
 
 #include <mysql.h>
 
-#include <NdbAutoPtr.hpp>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include "NDBT_Output.hpp"
@@ -41,37 +42,52 @@ static void sqlclient_atexit() {
   mysql_library_end();
 }
 
-SqlClient::SqlClient(const char* _dbname,
-               const char* _suffix):
-  m_mysql(NULL),
-  m_owns_mysql(true),
-  m_user("root"),
-  m_pass(""),
-  m_dbname(_dbname)
-{
-
+SqlClient::SqlClient(const char *dbname, const char *suffix)
+    : m_user("root"), m_pass(""), m_dbname(dbname) {
   // Initialize MySQL library and setup to release it when program exits
   mysql_library_init(0, nullptr, nullptr);
   std::atexit(sqlclient_atexit);
 
-  const char* env= getenv("MYSQL_HOME");
-  if (env && strlen(env))
-  {
-    m_default_file.assfmt("%s/my.cnf", env);
+  /**
+   The settings for how SqlClient connects to a MySQL Server is configured by
+   reading from a given section of my.cnf (aka. --defaults-file). This makes it
+   possible for different SqlClient instances in same test program to connect to
+   different MySQL Servers. The location of my.cnf is normally provided with
+   --defaults-file= argument when starting the test binary, if not the MySQL
+   Client library will "search" for a my.cnf according to it's rules.
+
+   For example:
+
+     $> testNDBT --defaults-file=/home/user/trunk/mysql-test/var/my.cnf
+     # NDBT_DEFAULTS_FILE=/home/user/trunk/mysql-test/var/my.cnf
+
+     // Connect using default section, i.e [client]
+     SqlClient sql("test");
+     // Connect using section ending in .1.1, i.e [client.1.1]
+     SqlClient sql("test", ".1.1");
+  */
+
+  // When parsing arguments NDBT will setup location of --defaults-file in
+  // environment variable
+  const char *env = getenv("NDBT_DEFAULTS_FILE");
+  if (env != nullptr && strlen(env) > 0) {
+    m_default_file.assign(env);
+  } else {
+    // Legacy read from my.cnf in MYSQL_HOME
+    env = getenv("MYSQL_HOME");
+    if (env != nullptr && strlen(env) > 0) {
+      m_default_file.assfmt("%s/my.cnf", env);
+    }
   }
 
-  if (_suffix != NULL){
-    m_default_group.assfmt("client%s", _suffix);
+  // By default the MySQL Client library reads from the [client] section
+  m_default_group.assign("client");
+  // Using a suffix makes it read from a [client$suffix] section, if no such
+  // section is found it will still read from [client]
+  if (suffix != nullptr) {
+    m_default_group.append(suffix);
   }
-  else {
-    m_default_group.assign("client.1.master");
-  }
-
-  ndbout << "default_file: " << m_default_file.c_str() << endl;
-  ndbout << "default_group: " << m_default_group.c_str() << endl;
 }
-
-
 
 SqlClient::SqlClient(MYSQL* mysql):
   m_mysql(mysql),
@@ -143,10 +159,16 @@ SqlClient::connect()
     return false;
   }
 
-  /* Load connection parameters file and group */
+  g_info << "Connect to MySQL using "
+         << (m_default_file.c_str() != nullptr ? m_default_file.c_str()
+                                               : " default my.cnf ")
+         << " [" << m_default_group.c_str() << "]" << endl;
+
+  // Tell MySQL client library ro read connection parameters from specific file
+  // and group
   if (mysql_options(m_mysql, MYSQL_READ_DEFAULT_FILE, m_default_file.c_str()) ||
-      mysql_options(m_mysql, MYSQL_READ_DEFAULT_GROUP, m_default_group.c_str()))
-  {
+      mysql_options(m_mysql, MYSQL_READ_DEFAULT_GROUP,
+                    m_default_group.c_str())) {
     printError("DB Connect -> mysql_options failed");
     disconnect();
     return false;
@@ -221,21 +243,21 @@ SqlClient::runQuery(const char* sql,
   g_debug << "runQuery: " << endl
           << " sql: '" << sql << "'" << endl;
 
-
   MYSQL_STMT *stmt= mysql_stmt_init(m_mysql);
   if (mysql_stmt_prepare(stmt, sql, (unsigned long)strlen(sql)))
   {
+    mysql_stmt_close(stmt);
     report_error("Failed to prepare");
     return false;
   }
 
-  uint params= mysql_stmt_param_count(stmt);
-  MYSQL_BIND *bind_param = new MYSQL_BIND[params];
-  NdbAutoObjArrayPtr<MYSQL_BIND> _guard(bind_param);
+  const uint params = mysql_stmt_param_count(stmt);
+  std::unique_ptr<MYSQL_BIND[]> bind_param =
+      std::make_unique<MYSQL_BIND[]>(params);
+  memset(bind_param.get(), 0, params * sizeof(MYSQL_BIND));
+  std::unique_ptr<Uint32[]> val_i = std::make_unique<Uint32[]>(params);
 
-  memset(bind_param, 0, params * sizeof(MYSQL_BIND));
-
-  for(uint i= 0; i < mysql_stmt_param_count(stmt); i++)
+  for(uint i= 0; i < params; i++)
   {
     BaseString name;
     name.assfmt("%d", i);
@@ -246,15 +268,14 @@ SqlClient::runQuery(const char* sql,
       require(false);
     }
     PropertiesType t;
-    Uint32 val_i;
     const char* val_s;
     args.getTypeOf(name.c_str(), &t);
     switch(t) {
     case PropertiesType_Uint32:
-      args.get(name.c_str(), &val_i);
+      args.get(name.c_str(), &val_i[i]);
       bind_param[i].buffer_type= MYSQL_TYPE_LONG;
-      bind_param[i].buffer= (char*)&val_i;
-      g_debug << " param" << name.c_str() << ": " << val_i << endl;
+      bind_param[i].buffer= (char*)&val_i[i];
+      g_debug << " param" << name.c_str() << ": " << val_i[i] << endl;
       break;
     case PropertiesType_char:
       args.get(name.c_str(), &val_s);
@@ -268,7 +289,7 @@ SqlClient::runQuery(const char* sql,
       break;
     }
   }
-  if (mysql_stmt_bind_param(stmt, bind_param))
+  if (mysql_stmt_bind_param(stmt, bind_param.get()))
   {
     report_error("Failed to bind param");
     mysql_stmt_close(stmt);
@@ -301,10 +322,10 @@ SqlClient::runQuery(const char* sql,
   if (res != NULL)
   {
     MYSQL_FIELD *fields= mysql_fetch_fields(res);
-    uint num_fields= mysql_num_fields(res);
-    MYSQL_BIND *bind_result = new MYSQL_BIND[num_fields];
-    NdbAutoObjArrayPtr<MYSQL_BIND> _guard1(bind_result);
-    memset(bind_result, 0, num_fields * sizeof(MYSQL_BIND));
+    const uint num_fields= mysql_num_fields(res);
+    std::unique_ptr<MYSQL_BIND[]> bind_result =
+        std::make_unique<MYSQL_BIND[]>(num_fields);
+    memset(bind_result.get(), 0, num_fields * sizeof(MYSQL_BIND));
 
     for (uint i= 0; i < num_fields; i++)
     {
@@ -324,10 +345,16 @@ SqlClient::runQuery(const char* sql,
       case MYSQL_TYPE_LONG:
         buf_len = sizeof(long);
         break;
+      case MYSQL_TYPE_TIMESTAMP:
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_TIME:
+      case MYSQL_TYPE_DATETIME:
+        buf_len = sizeof(MYSQL_TIME);
+        break;
       default:
         break;
       }
-      
+
       bind_result[i].buffer_type= fields[i].type;
       bind_result[i].buffer= malloc(buf_len);
       if (bind_result[i].buffer == NULL)
@@ -350,7 +377,7 @@ SqlClient::runQuery(const char* sql,
       * bind_result[i].is_null = 0;
     }
 
-    if (mysql_stmt_bind_result(stmt, bind_result)){
+    if (mysql_stmt_bind_result(stmt, bind_result.get())){
       report_error("Failed to bind result");
       mysql_stmt_close(stmt);
       return false;
@@ -375,6 +402,22 @@ SqlClient::runQuery(const char* sql,
           curr.put64(fields[i].name,
                      *(unsigned long long*)bind_result[i].buffer);
           break;
+
+          case MYSQL_TYPE_TIMESTAMP:
+          case MYSQL_TYPE_DATE:
+          case MYSQL_TYPE_TIME:
+          case MYSQL_TYPE_DATETIME:
+          {
+            MYSQL_TIME* ts = (MYSQL_TIME*)bind_result[i].buffer;
+            std::string str(
+                std::to_string(ts->year) + "-" + std::to_string(ts->month) +
+                "-" + std::to_string(ts->day) + " " + std::to_string(ts->hour) +
+                ":" + std::to_string(ts->minute) + ":" +
+                std::to_string(ts->second));
+            curr.put(str.c_str(), str.length());
+            break;
+          }
+
 
         default:
           curr.put(fields[i].name, *(int*)bind_result[i].buffer);
@@ -528,6 +571,9 @@ const char* SqlResultSet::column(const char* col_name){
   return value;
 }
 
+std::string_view SqlResultSet::columnAsString(const char *col_name) {
+  return {column(col_name)};
+}
 
 uint SqlResultSet::columnAsInt(const char* col_name){
   uint value;

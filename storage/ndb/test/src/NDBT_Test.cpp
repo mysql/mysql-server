@@ -32,27 +32,26 @@
 #include <NdbIndexStat.hpp>
 #include "NDBT.hpp"
 #include "NDBT_Test.hpp"
-#include "my_thread_local.h"
 #include <portlib/NdbEnv.h>
 #include <logger/Logger.hpp>
 
-#include "my_alloc.h"
+#ifdef _WIN32
+#define setenv(a, b, c) _putenv_s(a, b)
+#endif
 
 static bool opt_stop_on_error = false;
 
 NDBT_Context::NDBT_Context(Ndb_cluster_connection& con)
-  : m_cluster_connection(con)
+    : m_cluster_connection(con), m_test_start_time(NdbTick_CurrentMillisecond())
 {
   suite = NULL;
   testcase = NULL;
-  ndb = NULL;
   records = 1;
   loops = 1;
   stopped = false;
   propertyMutexPtr = NdbMutex_Create();
   propertyCondPtr = NdbCondition_Create();
   m_env_timeout = 0;
-  m_test_start_time = NdbTick_CurrentMillisecond();
 }
 
 NDBT_Context::~NDBT_Context(){
@@ -1054,6 +1053,7 @@ NDBT_TestSuite::execute(Ndb_cluster_connection& con,
   {
     ctx->setTab(pTab);
   }
+
   int result = pTest->execute(ctx);
   pTest->saveTestResult("", result);
   if (result != NDBT_OK)
@@ -1672,6 +1672,13 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     setOutputLevel(2); // Show g_info
   else 
     setOutputLevel(0); // Show only g_err ?
+
+  // Set the value of --defaults-file= as environment variable
+  constexpr int OVERWRITE = 1;
+  if (opts.get_defaults_file() != nullptr) {
+    setenv("NDBT_DEFAULTS_FILE", opts.get_defaults_file(), OVERWRITE);
+    g_info << "NDBT_DEFAULTS_FILE: " << getenv("NDBT_DEFAULTS_FILE") << endl;
+  }
 
   records = opt_records;
   loops = opt_loops;

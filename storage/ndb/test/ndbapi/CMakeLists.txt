@@ -109,6 +109,8 @@ NDB_ADD_EXECUTABLE(testAsynchMultiwait testAsynchMultiwait.cpp
 NDB_ADD_EXECUTABLE(testDebugger testDebugger.cpp NDBTEST NDBCLIENT)
 NDB_ADD_EXECUTABLE(testFK testFK.cpp NDBTEST NDBCLIENT)
 NDB_ADD_EXECUTABLE(testLoad testLoad.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testReconnect testReconnect.cpp NDBTEST NDBCLIENT MYSQLCLIENT)
+NDB_ADD_EXECUTABLE(testNDBT testNDBT.cpp NDBTEST NDBCLIENT MYSQLCLIENT)
 
 TARGET_LINK_LIBRARIES(testBackup ndbbank ndbNDBT ndbclient_so)
 TARGET_LINK_LIBRARIES(testSRBank ndbbank ndbNDBT ndbclient_so)
