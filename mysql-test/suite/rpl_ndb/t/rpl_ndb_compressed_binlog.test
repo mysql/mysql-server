@@ -51,6 +51,7 @@ DROP TABLE t1;
 
 # Cleanup
 --source include/rpl_connection_master.inc
+--disable_query_log ONCE
 eval SET GLOBAL ndb_log_transaction_compression=$save_binlog_compression;
 
 --source include/rpl_end.inc
