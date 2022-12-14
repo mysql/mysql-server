@@ -20,6 +20,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+MSVC_CPPCHECK_DISABLE()
+
 MYSQL_ADD_PLUGIN(archive azio.cc ha_archive.cc
   DEFAULT_LEGACY_ENGINE
   STORAGE_ENGINE

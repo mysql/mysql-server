@@ -171,7 +171,6 @@ search:
   entry = reinterpret_cast<PFS_host **>(
       lf_hash_search(&host_hash, pins, &key, sizeof(key)));
   if (entry && (entry != MY_LF_ERRPTR)) {
-    PFS_host *pfs;
     pfs = *entry;
     pfs->inc_refcount();
     lf_hash_search_unpin(pins);

@@ -830,6 +830,8 @@ INCLUDE(fido2)
 INCLUDE(win_jemalloc)
 INCLUDE(msvc_cppcheck)
 
+MSVC_CPPCHECK()
+
 IF(UNIX)
   OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
 ENDIF()

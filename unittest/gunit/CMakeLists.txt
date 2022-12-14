@@ -24,6 +24,8 @@ IF(NOT WITH_UNIT_TESTS)
   RETURN()
 ENDIF()
 
+MSVC_CPPCHECK_DISABLE()
+
 IF(WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO)
   # We get ODR violations because of multiple bison parsers.
   MY_CHECK_CXX_COMPILER_WARNING("error=odr" HAS_WARN_FLAG)

@@ -28,6 +28,7 @@ INCLUDE(ndb_add_target_property)
 INCLUDE(ndb_add_test)
 INCLUDE(ndb_add_executable)
 
+MSVC_CPPCHECK_DISABLE()
 DISABLE_MISSING_PROFILE_WARNING()
 
 IF(NOT WITHOUT_SERVER)

@@ -36,6 +36,7 @@ CMAKE_POLICY(SET CMP0048 NEW)
 # only interpret if() arguments as variables or keywords when unquoted
 CMAKE_POLICY(SET CMP0054 NEW)
 PROJECT("MySQLRouter" VERSION ${PROJECT_VERSION_TEXT} LANGUAGES C CXX)
+MSVC_CPPCHECK_DISABLE()
 
 # In CMake 3.12 and above, the
 #

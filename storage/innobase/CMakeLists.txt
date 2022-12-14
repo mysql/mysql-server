@@ -24,6 +24,8 @@
 
 INCLUDE(innodb.cmake)
 
+MSVC_CPPCHECK_DISABLE()
+
 ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="InnoDB")
 
 # Expand PSI_XXX_CALL into direct calls to the performance_schema.

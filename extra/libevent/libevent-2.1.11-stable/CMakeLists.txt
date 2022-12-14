@@ -69,6 +69,8 @@ IF(WIN32_CLANG)
   STRING_APPEND(CMAKE_C_FLAGS " -Wno-unused-macros")
 ENDIF()
 
+MSVC_CPPCHECK_DISABLE()
+
 # Don't do this here, it will load policies for an older version of cmake.
 # cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
 

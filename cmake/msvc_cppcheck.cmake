@@ -35,6 +35,8 @@ MACRO(MSVC_CPPCHECK_ADD_SUPPRESSIONS)
       STRING_APPEND(suppress_warnings " /wd26812") # The enum type 'xxxx' is unscoped. Prefer 'enum class' over 'enum' (Enum.3).
       STRING_APPEND(suppress_warnings " /wd28020") # The expression '...' is not true at this call.
       STRING_APPEND(suppress_warnings " /wd6246") # Local declaration of '...' hides declaration of the same name in outer scope.
+      STRING_APPEND(suppress_warnings " /wd4251") # '...': class '...' needs to have dll-interface to be used by clients of class '...'
+
     ENDIF()
 
     STRING_APPEND(suppress_warnings " /wd26110") # Caller failing to hold lock '...' before calling function 'ReleaseSRWLockExclusive'.
@@ -50,6 +52,7 @@ MACRO(MSVC_CPPCHECK_ADD_SUPPRESSIONS)
     STRING_APPEND(suppress_warnings " /wd26408") # Avoid malloc() and free(), prefer the nothrow version of new with delete (r.10).
     STRING_APPEND(suppress_warnings " /wd26409") # Avoid calling new and delete explicitly, use std::make_unique<T> instead (r.11).
     STRING_APPEND(suppress_warnings " /wd26410") # The parameter '...' is a reference to const unique pointer, use const T* or const T& instead(r.32)
+    STRING_APPEND(suppress_warnings " /wd26411") # The parameter '...' is a reference to unique pointer and it is never reassigned or reset, use T* or T& instead (r.33).
     STRING_APPEND(suppress_warnings " /wd26414") # Move, copy, reassign or reset a local smart pointer '...' (r.5).
     STRING_APPEND(suppress_warnings " /wd26415") # Smart pointer parameter '...' is used only to access contained pointer. Use T* or T& instead (r.30)
     STRING_APPEND(suppress_warnings " /wd26418") # Shared pointer parameter '...' is not copied or moved. Use T* or T& instead (r.36)
@@ -111,6 +114,7 @@ MACRO(MSVC_CPPCHECK_ADD_SUPPRESSIONS)
     STRING_APPEND(suppress_warnings " /wd28193") # '...' holds a value that must be examined.
     STRING_APPEND(suppress_warnings " /wd28199") # Using possiby uninitialized memory '...'
     STRING_APPEND(suppress_warnings " /wd33010") # Unchecked lower bound for enum ... used as index.
+    STRING_APPEND(suppress_warnings " /wd33011") # Unchecked upper bound for enum ... used as index..
 
     STRING_APPEND(suppress_warnings " /wd6001") # Using unitialized memory '...'
     STRING_APPEND(suppress_warnings " /wd6011") # Dereferencing NULL pointer '...'.
@@ -148,8 +152,10 @@ ENDMACRO()
 
 MACRO(MSVC_CPPCHECK_ADD_ANALYZE)
   IF (MSVC AND MSVC_CPPCHECK)
-    STRING_APPEND(CMAKE_C_FLAGS " /analyze /analyze:external- /analyze:pluginEspXEngine.dll")
-    STRING_APPEND(CMAKE_CXX_FLAGS " /analyze /analyze:external- /analyze:pluginEspXEngine.dll")
+    STRING_APPEND(CMAKE_C_FLAGS
+      " /analyze /analyze:external- /analyze:pluginEspXEngine.dll")
+    STRING_APPEND(CMAKE_CXX_FLAGS
+      " /analyze /analyze:external- /analyze:pluginEspXEngine.dll")
     # cmake pre 3.24 doesn't support /external:I for older compilers,
     # so use angle brackets as a substitute.
     IF((CMAKE_VERSION VERSION_LESS 3.24) OR
@@ -163,4 +169,18 @@ ENDMACRO()
 MACRO(MSVC_CPPCHECK)
   MSVC_CPPCHECK_ADD_ANALYZE()
   MSVC_CPPCHECK_ADD_SUPPRESSIONS()
+ENDMACRO()
+
+#TODO Remove all calls to this macro in all non-3d party bundled code
+MACRO(MSVC_CPPCHECK_DISABLE)
+  IF (MSVC AND MSVC_CPPCHECK)
+    STRING(REPLACE "/analyze:pluginEspXEngine.dll" ""
+      CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    STRING(REPLACE "/analyze:pluginEspXEngine.dll" ""
+      CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    STRING(REPLACE "/analyze:external-" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    STRING(REPLACE "/analyze:external-" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    STRING(REPLACE "/analyze" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    STRING(REPLACE "/analyze" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+  ENDIF()
 ENDMACRO()

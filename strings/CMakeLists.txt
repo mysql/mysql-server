@@ -22,8 +22,6 @@
 
 ADD_WSHADOW_WARNING()
 
-MSVC_CPPCHECK()
-
 SET(STRINGS_SOURCES
   ctype-big5.cc
   ctype-bin.cc

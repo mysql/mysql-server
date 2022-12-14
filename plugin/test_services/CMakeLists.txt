@@ -22,6 +22,7 @@
 
 # We are not interesting in profiling tests.
 DISABLE_MISSING_PROFILE_WARNING()
+MSVC_CPPCHECK_DISABLE()
 
 MYSQL_ADD_PLUGIN(test_framework
   test_framework.cc

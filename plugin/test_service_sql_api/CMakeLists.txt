@@ -23,6 +23,7 @@
 # Test session API
 
 DISABLE_MISSING_PROFILE_WARNING()
+MSVC_CPPCHECK_DISABLE()
 
 MYSQL_ADD_PLUGIN(test_session_in_thd
   test_session_in_thd.cc
