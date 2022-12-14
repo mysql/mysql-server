@@ -51,7 +51,7 @@ namespace json {
  *      };
  */
 template <typename Handler, typename Container>
-auto text_to(Handler *handler, const Container &c) {
+bool text_to(Handler *handler, const Container &c) {
   static_assert(
       std::is_same<typename Container::value_type, char>::value ||
       std::is_same<typename Container::value_type, unsigned char>::value);
@@ -59,8 +59,9 @@ auto text_to(Handler *handler, const Container &c) {
       reinterpret_cast<const char *>(&*c.begin()), c.size()};
   rapidjson::Reader read;
 
-  read.Parse<rapidjson::kParseNumbersAsStringsFlag>(memory_stream, *handler);
-  return handler->get_result();
+  return !read.Parse<rapidjson::kParseNumbersAsStringsFlag>(memory_stream,
+                                                            *handler)
+              .IsError();
 }
 
 inline bool text_to(rapidjson::Document *doc, const std::string &str) {
@@ -73,7 +74,6 @@ inline bool text_to(rapidjson::Document::Object *obj, const std::string &str) {
 
   if (!text_to(&doc, str)) return false;
   if (!doc.IsObject()) return false;
-  if (doc.HasParseError()) return false;
 
   *obj = doc.GetObject();
 
@@ -85,7 +85,6 @@ inline bool text_to(rapidjson::Value *val, const std::string &str) {
 
   if (!text_to(&doc, str)) return false;
   if (!doc.IsObject()) return false;
-  if (doc.HasParseError()) return false;
 
   *val = doc.GetObject();
 
@@ -111,7 +110,9 @@ template <typename Handler, typename Container>
 typename Handler::Result text_to_handler(const Container &c) {
   Handler handler;
 
-  return text_to<Handler, Container>(&handler, c);
+  text_to<Handler, Container>(&handler, c);
+
+  return handler.get_result();
 }
 
 inline rapidjson::Document text_to_document(const std::string &str) {

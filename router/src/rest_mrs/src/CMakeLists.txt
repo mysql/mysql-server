@@ -75,6 +75,7 @@ ADD_HARNESS_PLUGIN(rest_mrs
   mrs/object_static_file.cc
   mrs/rest/handler.cc
   mrs/rest/handler_authorize.cc
+  mrs/rest/handler_authorize_apps.cc
   mrs/rest/handler_authorize_common.cc
   mrs/rest/handler_authorize_ok.cc
   mrs/rest/handler_factory.cc
