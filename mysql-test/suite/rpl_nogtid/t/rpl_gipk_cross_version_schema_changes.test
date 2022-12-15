@@ -158,13 +158,13 @@ STOP SLAVE SQL_THREAD;
 --source include/start_slave.inc
 
 let $messages =
-Slave SQL for channel .*: Worker .* failed executing transaction .* at .* end_log_pos .* Failed to apply row event with 1 columns,
-Slave SQL for channel .*: Worker .* failed executing transaction .* at .* end_log_pos .* Failed to apply row event with 4 columns
-Slave SQL for channel .*: Worker .* failed executing transaction .* at .* end_log_pos .* Column 2 of table 'test.t1' cannot be converted from type
-Slave SQL for channel .*: ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.
-Slave SQL for channel .*: Failed to apply row event with 1 columns, originating from a server of version 8.0.28
-Slave SQL for channel .*: Failed to apply row event with 4 columns, originating from a server of version unknown
-Slave SQL for channel .*: Column 2 of table 'test.t1' cannot be converted from type
+Replica SQL for channel .*: Worker .* failed executing transaction .* at .* end_log_pos .* Failed to apply row event with 1 columns,
+Replica SQL for channel .*: Worker .* failed executing transaction .* at .* end_log_pos .* Failed to apply row event with 4 columns
+Replica SQL for channel .*: Worker .* failed executing transaction .* at .* end_log_pos .* Column 2 of table 'test.t1' cannot be converted from type
+The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state
+Replica SQL for channel .*: Failed to apply row event with 1 columns, originating from a server of version 8.0.28
+Replica SQL for channel .*: Failed to apply row event with 4 columns, originating from a server of version unknown
+Replica SQL for channel .*: Column 2 of table 'test.t1' cannot be converted from type
 ;
 --let $suppress_on_current_connection = 1
 --source include/suppress_messages.inc

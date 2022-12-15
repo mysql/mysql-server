@@ -239,9 +239,12 @@ Log_event *Rpl_applier_reader::read_next_event() {
     if (!move_to_next_log()) return read_next_event();
   }
 
-  LogErr(ERROR_LEVEL, ER_RPL_REPLICA_ERROR_READING_RELAY_LOG_EVENTS,
-         m_rli->get_for_channel_str(),
-         m_errmsg ? m_errmsg : m_relaylog_file_reader.get_error_str());
+  // if we fail to move to a new log when the thread is killed, ignore it
+  if (!current_thd || !current_thd->is_killed())
+    LogErr(ERROR_LEVEL, ER_RPL_REPLICA_ERROR_READING_RELAY_LOG_EVENTS,
+           m_rli->get_for_channel_str(),
+           m_errmsg ? m_errmsg : m_relaylog_file_reader.get_error_str());
+
   return nullptr;
 }
 
@@ -379,6 +382,14 @@ bool Rpl_applier_reader::move_to_next_log() {
       m_rli->set_group_relay_log_pos(BIN_LOG_HEADER_SIZE);
       m_rli->set_group_relay_log_name(m_linfo.log_file_name);
     }
+
+    DBUG_EXECUTE_IF("wait_before_purge_applied_logs", {
+      const char dbug_wait[] =
+          "now SIGNAL signal.rpl_before_applier_purge_logs WAIT_FOR "
+          "signal.rpl_unblock_purge";
+      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(dbug_wait)));
+    });
+
     if (purge_applied_logs()) return true;
   } else {
     m_rli->force_flush_postponed_due_to_split_trans = true;

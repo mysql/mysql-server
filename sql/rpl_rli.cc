@@ -1951,7 +1951,9 @@ int Relay_log_info::flush_info(const int flush_flags) {
   return 0;
 
 err:
-  LogErr(ERROR_LEVEL, ER_RPL_ERROR_WRITING_RELAY_LOG_CONFIGURATION);
+  // Don't throw errors when the calling thread is being killed
+  if (!current_thd || !current_thd->is_killed())
+    LogErr(ERROR_LEVEL, ER_RPL_ERROR_WRITING_RELAY_LOG_CONFIGURATION);
   mysql_mutex_unlock(&mts_temp_table_LOCK);
   return 1;
 }
