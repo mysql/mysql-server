@@ -4765,7 +4765,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
     // check if the bootstrapping was successful
     EXPECT_THAT(router.get_full_output(),
                 ::testing::HasSubstr("MySQL Router configured for the "
-                                     "InnoDB Cluster 'mycluster'"));
+                                     "InnoDB Cluster 'test'"));
     check_exit_code(router, EXIT_SUCCESS);
 
     server_mock.kill();

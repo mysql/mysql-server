@@ -9,22 +9,15 @@
  */
 
 var common_stmts = require("common_statements");
-var gr_memberships = require("gr_memberships");
 
-var gr_node_host = "127.0.0.1";
-
-var group_replication_membership_online = gr_memberships.single_host(
-    gr_node_host, [[mysqld.session.port, "ONLINE"]], "uuid");
+var node_host = "127.0.0.1";
+var cluster_members_online = ["uuid", node_host, mysqld.session.port];
 
 var options = {
-  group_replication_membership: group_replication_membership_online,
+  innodb_cluster_instances: cluster_members_online,
   cluster_type: "ar",
-  cluster_id: "",
+  cluster_id: "uuid",
 };
-
-// first node is PRIMARY
-options.group_replication_primary_member =
-    options.group_replication_membership[0][0];
 
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses(

@@ -388,12 +388,14 @@ class TestRestApiEnable : public RouterComponentTest {
 
  protected:
   void set_globals(std::string cluster_id = "") {
-    auto json_doc = mock_GR_metadata_as_json(cluster_id, {cluster_node_port},
-                                             0 /*primary_id*/, 0 /*view_id*/,
-                                             false /*error_on_md_query*/);
+    auto json_doc = mock_GR_metadata_as_json(
+        cluster_id, {cluster_node_port}, 0, {cluster_node_port},
+        0 /*primary_id*/, 0 /*view_id*/, false /*error_on_md_query*/);
     JsonAllocator allocator;
     JsonValue gr_members_json(rapidjson::kArrayType);
     JsonValue member(rapidjson::kArrayType);
+    member.PushBack(JsonValue("uuid-1", strlen("uuid-1"), allocator),
+                    allocator);
     member.PushBack(
         JsonValue(gr_member_ip.c_str(), gr_member_ip.length(), allocator),
         allocator);

@@ -14,15 +14,17 @@ var gr_memberships = require("gr_memberships");
 var gr_node_host = "127.0.0.1";
 
 // all nodes are online
-var group_replication_membership_online =
-    gr_memberships.nodes(gr_node_host, mysqld.global.gr_nodes);
+var group_replication_members_online =
+    gr_memberships.gr_members(gr_node_host, mysqld.global.gr_nodes);
 
 var options = {
-  group_replication_membership: group_replication_membership_online,
+  group_replication_members: group_replication_members_online,
+  innodb_cluster_instances: gr_memberships.cluster_nodes(
+      mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   cluster_type: "gr",
 };
 options.group_replication_primary_member =
-    options.group_replication_membership[0][0];
+    options.group_replication_members[0][0];
 
 var router_select_metadata =
     common_stmts.get("router_select_metadata_v2_gr", options);
@@ -33,15 +35,19 @@ var router_select_group_membership_with_primary_mode = common_stmts.get(
 
 
 // primary is removed, first secondary is the new PRIMARY
+var gr_members_removed_primary =
+    group_replication_members_online.filter(function(el, ndx) {
+      return ndx != 0
+    });
+
 var options_removed_primary = {
-  group_replication_membership:
-      group_replication_membership_online.filter(function(el, ndx) {
-        return ndx != 0
-      }),
+  group_replication_members: gr_members_removed_primary,
+  innodb_cluster_instances: gr_memberships.cluster_nodes(
+      mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   cluster_type: "gr",
 };
 options_removed_primary.group_replication_primary_member =
-    options_removed_primary.group_replication_membership[0][0];
+    options_removed_primary.group_replication_members[0][0];
 
 var router_select_metadata_removed_primary =
     common_stmts.get("router_select_metadata_v2_gr", options_removed_primary);
@@ -56,15 +62,18 @@ var router_select_group_membership_with_primary_mode_removed_primary =
 
 
 // first secondary is removed, PRIMARY stays PRIMARY
+var gr_members_removed_secondary =
+    group_replication_members_online.filter(function(el, ndx) {
+      return ndx != 1
+    });
 var options_removed_secondary = {
-  group_replication_membership:
-      group_replication_membership_online.filter(function(el, ndx) {
-        return ndx != 1
-      }),
+  group_replication_members: gr_members_removed_secondary,
+  innodb_cluster_instances: gr_memberships.cluster_nodes(
+      mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   cluster_type: "gr",
 };
 options_removed_secondary.group_replication_primary_member =
-    options_removed_secondary.group_replication_membership[0][0];
+    options_removed_secondary.group_replication_members[0][0];
 
 var router_select_metadata_removed_secondary =
     common_stmts.get("router_select_metadata_v2_gr", options_removed_secondary);
@@ -90,6 +99,8 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_schema_version",
       "router_select_cluster_type_v2",
       "router_clusterset_present",
+      "router_check_member_state",
+      "router_select_members_count",
     ],
     options);
 

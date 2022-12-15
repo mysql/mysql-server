@@ -4,17 +4,19 @@ var gr_memberships = require("gr_memberships");
 
 var gr_node_host = "127.0.0.1";
 
-var group_replication_membership_online =
-    gr_memberships.nodes(gr_node_host, mysqld.global.gr_nodes);
+var group_replication_members_online =
+    gr_memberships.gr_members(gr_node_host, mysqld.global.gr_nodes);
 
 var options = {
-  group_replication_membership: group_replication_membership_online,
+  group_replication_members: group_replication_members_online,
+  innodb_cluster_instances: gr_memberships.cluster_nodes(
+      mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   metadata_schema_version: [1, 0, 2],
 };
 
 // first node is PRIMARY
 options.group_replication_primary_member =
-    options.group_replication_membership[0][0];
+    options.group_replication_members[0][0];
 
 var router_select_metadata =
     common_stmts.get("router_select_metadata", options);
@@ -33,6 +35,8 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_commit",
       "router_select_schema_version",
       "router_clusterset_present",
+      "router_check_member_state",
+      "router_select_members_count",
     ],
     options);
 

@@ -10,7 +10,7 @@ var defaults = {
   // - port
   // - state
   // - xport (if available and needed)
-  group_replication_membership: [],
+  group_replication_members: [],
   group_replication_name: "cluster-specific-id",
   port: mysqld.session.port,
   cluster_id: "cluster-specific-id",
@@ -19,9 +19,9 @@ var defaults = {
   use_bootstrap_big_data: false,
   replication_group_members: [],
   innodb_cluster_instances: [
-    ["localhost", "5500"],
-    ["localhost", "5510"],
-    ["localhost", "5520"],
+    ["uuid-1", "localhost", "5500"],
+    ["uuid-2", "localhost", "5510"],
+    ["uuid-3", "localhost", "5520"],
   ],
   innodb_cluster_hosts: [],
   innodb_cluster_user_hosts: [],
@@ -91,6 +91,10 @@ var defaults = {
   version: "8.0.24",  // SELECT @@version;
   router_expected_target_cluster: ".*",
   router_options: "",
+
+  gr_member_state: "ONLINE",
+  gr_members_all: 3,
+  gr_members_online: 3,
 };
 
 function ensure_type(options, field, expected_type) {
@@ -216,13 +220,14 @@ function get_response(stmt_key, options) {
               "type": "LONGLONG"
             }
           ],
-          rows: options["group_replication_membership"].map(function(
-              currentValue) {
-            return [
-              currentValue[0], currentValue[1], currentValue[2],
-              currentValue[3], options["group_replication_single_primary_mode"]
-            ];
-          }),
+          rows:
+              options["group_replication_members"].map(function(currentValue) {
+                return [
+                  currentValue[0], currentValue[1], currentValue[2],
+                  currentValue[3],
+                  options["group_replication_single_primary_mode"]
+                ];
+              }),
         }
       };
     case "router_select_group_replication_primary_member":
@@ -258,9 +263,8 @@ function get_response(stmt_key, options) {
             {"name": "I.addresses->>'$.mysqlClassic'", "type": "LONGBLOB"},
             {"name": "I.addresses->>'$.mysqlX'", "type": "LONGBLOB"}
           ],
-          rows: options["group_replication_membership"].map(function(
-              currentValue) {
-            var xport = currentValue[4] === undefined ? 0 : currentValue[4];
+          rows: options["innodb_cluster_instances"].map(function(currentValue) {
+            var xport = currentValue[3] === undefined ? 0 : currentValue[3];
             return [
               options.cluster_id, options.innodb_cluster_name,
               options.innodb_cluster_replicaset_name, currentValue[0],
@@ -287,11 +291,10 @@ function get_response(stmt_key, options) {
             {"name": "I.addresses->>'$.mysqlX'", "type": "LONGBLOB"},
             {"name": "I.attributes", "type": "VAR_STRING"}
           ],
-          rows: options["group_replication_membership"].map(function(
-              currentValue) {
-            var xport = currentValue[4] === undefined ? 0 : currentValue[4];
+          rows: options["innodb_cluster_instances"].map(function(currentValue) {
+            var xport = currentValue[3] === undefined ? 0 : currentValue[3];
             var attributes =
-                currentValue[5] === undefined ? "" : currentValue[5];
+                currentValue[4] === undefined ? "" : currentValue[4];
             return [
               options.cluster_id, options.innodb_cluster_name, currentValue[0],
               currentValue[1] + ":" + currentValue[2],
@@ -317,11 +320,10 @@ function get_response(stmt_key, options) {
             {"name": "I.member_role", "type": "VAR_STRING"},
             {"name": "I.attributes", "type": "VAR_STRING"}
           ],
-          rows: options["group_replication_membership"].map(function(
-              currentValue) {
-            var xport = currentValue[4] === undefined ? 0 : currentValue[4];
+          rows: options["innodb_cluster_instances"].map(function(currentValue) {
+            var xport = currentValue[3] === undefined ? 0 : currentValue[3];
             var attributes =
-                currentValue[5] === undefined ? "" : currentValue[5];
+                currentValue[4] === undefined ? "" : currentValue[4];
             return [
               options.cluster_id, options.innodb_cluster_name, currentValue[0],
               currentValue[1] + ":" + currentValue[2],
@@ -366,7 +368,7 @@ function get_response(stmt_key, options) {
             "SELECT member_state FROM performance_schema.replication_group_members WHERE CAST(member_id AS char ascii) = CAST(@@server_uuid AS char ascii)",
         result: {
           columns: [{"type": "STRING", "name": "member_state"}],
-          rows: [["ONLINE"]]
+          rows: [[options.gr_member_state]]
         }
       };
     case "router_select_members_count":
@@ -378,7 +380,7 @@ function get_response(stmt_key, options) {
             {"type": "LONGLONG", "name": "num_onlines"},
             {"type": "LONGLONG", "name": "num_total"}
           ],
-          "rows": [[3, 3]]
+          "rows": [[options.gr_members_online, options.gr_members_all]]
         }
       };
     case "router_select_replication_group_name":
@@ -561,8 +563,8 @@ function get_response(stmt_key, options) {
           rows:
               options["replication_group_members"].map(function(currentValue) {
                 return [
-                  currentValue[0],
                   currentValue[1],
+                  currentValue[2],
                 ]
               }),
         }
@@ -589,11 +591,10 @@ function get_response(stmt_key, options) {
             {"name": "I.addresses->>'$.mysqlX'", "type": "LONGBLOB"},
             {"name": "I.attributes", "type": "VAR_STRING"}
           ],
-          rows: options["group_replication_membership"].map(function(
-              currentValue) {
-            var xport = currentValue[4] === undefined ? 0 : currentValue[4];
+          rows: options["innodb_cluster_instances"].map(function(currentValue) {
+            var xport = currentValue[3] === undefined ? 0 : currentValue[3];
             var attributes =
-                currentValue[5] === undefined ? "" : currentValue[5];
+                currentValue[4] === undefined ? "" : currentValue[4];
             return [
               options.innodb_cluster_replicaset_name, currentValue[0],
               currentValue[1] + ":" + currentValue[2],
@@ -659,17 +660,18 @@ function get_response(stmt_key, options) {
         result: {
           columns: [
             {"type": "STRING", "name": "cluster_id"},
-            {"type": "STRING", "name": "cluster_name"}, {
+            {"type": "STRING", "name": "cluster_name"},
+            {
               "type": "STRING",
               "name":
                   "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic'))"
-            }
+            },
           ],
           rows: options["innodb_cluster_instances"].map(function(currentValue) {
             return [
               options.cluster_id,
               options.innodb_cluster_name,
-              currentValue[0] + ":" + currentValue[1],
+              currentValue[1] + ":" + currentValue[2],
             ]
           })
         }
@@ -683,17 +685,14 @@ function get_response(stmt_key, options) {
         result: {
           columns: [
             {"type": "STRING", "name": "cluster_id"},
-            {"type": "STRING", "name": "cluster_name"}, {
-              "type": "STRING",
-              "name":
-                  "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic'))"
-            }
+            {"type": "STRING", "name": "cluster_name"},
+            {"type": "STRING", "name": "i.address"},
           ],
           rows: options["innodb_cluster_instances"].map(function(currentValue) {
             return [
               options.cluster_id,
               options.innodb_cluster_name,
-              currentValue[0] + ":" + currentValue[1],
+              currentValue[1] + ":" + currentValue[2],
             ]
           })
         }
@@ -709,7 +708,7 @@ function get_response(stmt_key, options) {
           }],
           rows: options["innodb_cluster_instances"].map(function(currentValue) {
             return [
-              currentValue[0] + ":" + currentValue[1],
+              currentValue[1] + ":" + currentValue[2],
             ]
           })
         }

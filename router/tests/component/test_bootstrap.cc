@@ -1686,7 +1686,8 @@ TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
   // launch mock server that is our metadata server
   launch_mysql_server_mock(runtime_json_stmts, server_port, EXIT_SUCCESS, false,
                            http_port);
-  set_mock_metadata(http_port, "cluster-specific-id", {server_port});
+  set_mock_metadata(http_port, "cluster-specific-id", {server_port}, 0,
+                    {server_port});
 
   ASSERT_NO_FATAL_FAILURE(launch_router({"-c", conf_file}));
 }
@@ -2533,7 +2534,7 @@ TEST_F(RouterBootstrapTest, SSLOptions) {
   launch_mysql_server_mock(runtime_json_stmts, server_port, EXIT_SUCCESS, false,
                            http_port);
   set_mock_metadata(http_port, "00000000-0000-0000-0000-0000000000g1",
-                    {server_port});
+                    {server_port}, 0, {server_port});
 
   // check that the Router is running fine with this configuration file
   ASSERT_NO_FATAL_FAILURE(launch_router({"-c", conf_file}));

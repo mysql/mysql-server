@@ -1,8 +1,10 @@
 var common_stmts = require("common_statements");
 
 if (mysqld.global.innodb_cluster_instances === undefined) {
-  mysqld.global.innodb_cluster_instances =
-      [["localhost", 5500], ["localhost", 5510], ["localhost", 5520]];
+  mysqld.global.innodb_cluster_instances = [
+    ["uuid-1", "localhost", 5500], ["uuid-2", "localhost", 5510],
+    ["uuid-3", "localhost", 5520]
+  ];
 }
 
 if (mysqld.global.cluster_name == undefined) {

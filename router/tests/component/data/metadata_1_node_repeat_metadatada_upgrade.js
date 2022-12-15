@@ -3,9 +3,11 @@ var gr_memberships = require("gr_memberships");
 
 var gr_node_host = "127.0.0.1";
 
-var group_replication_membership_online = gr_memberships.single_host(
+var group_replication_members_online = gr_memberships.single_host(
     gr_node_host, [[mysqld.session.port, "ONLINE"]], "uuid");
 
+var cluster_nodes = gr_memberships.single_host_cluster_nodes(
+    gr_node_host, [[mysqld.session.port]], "uuid");
 
 if (mysqld.global.md_query_count === undefined) {
   mysqld.global.md_query_count = 0;
@@ -40,12 +42,14 @@ var metadata_version =
     (mysqld.global.new_metadata === 1) ? [2, 0, 0] : [1, 0, 2];
 var options = {
   metadata_schema_version: metadata_version,
-  group_replication_membership: group_replication_membership_online,
+  gr_id: "uuid",
+  group_replication_members: group_replication_members_online,
+  innodb_cluster_instances: cluster_nodes,
 };
 
 // first node is PRIMARY
 options.group_replication_primary_member =
-    options.group_replication_membership[0][0];
+    options.group_replication_members[0][0];
 var common_responses = undefined;
 var common_responses_regex = undefined;
 var router_select_metadata = undefined;
@@ -64,6 +68,8 @@ if (mysqld.global.use_new_metadata === 1) {
         "router_select_cluster_type_v2",
         "router_select_group_replication_primary_member",
         "router_select_group_membership_with_primary_mode",
+        "router_check_member_state",
+        "router_select_members_count",
       ],
       options);
 
@@ -84,6 +90,8 @@ if (mysqld.global.use_new_metadata === 1) {
         "router_select_schema_version",
         "router_select_group_replication_primary_member",
         "router_select_group_membership_with_primary_mode",
+        "router_check_member_state",
+        "router_select_members_count",
       ],
       options);
 

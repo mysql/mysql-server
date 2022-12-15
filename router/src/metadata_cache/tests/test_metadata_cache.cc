@@ -127,6 +127,18 @@ class MetadataCacheTest2 : public ::testing::Test {
                           m.string_or_null("1")},
                      });
 
+    m.expect_query_one(
+        "SELECT member_state FROM performance_schema.replication_group_members "
+        "WHERE CAST(member_id AS char ascii) = CAST(@@server_uuid AS char "
+        "ascii)");
+    m.then_return(1, {{m.string_or_null("ONLINE")}});
+
+    m.expect_query_one(
+        "SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, "
+        "COUNT(*) as num_total FROM "
+        "performance_schema.replication_group_members");
+    m.then_return(2, {{m.string_or_null("3"), m.string_or_null("3")}});
+
     m.expect_query(
         "SELECT F.cluster_id, F.cluster_name, R.replicaset_name, "
         "I.mysql_server_uuid, "
@@ -201,12 +213,20 @@ class MetadataCacheTest2 : public ::testing::Test {
 void expect_cluster_routable(MetadataCache &mc) {
   std::vector<ManagedInstance> instances = mc.get_cluster_nodes();
   ASSERT_EQ(3U, instances.size());
-  EXPECT_EQ("uuid-server1", instances[0].mysql_server_uuid);
-  EXPECT_EQ(metadata_cache::ServerMode::ReadWrite, instances[0].mode);
-  EXPECT_EQ("uuid-server2", instances[1].mysql_server_uuid);
-  EXPECT_EQ(metadata_cache::ServerMode::ReadOnly, instances[1].mode);
-  EXPECT_EQ("uuid-server3", instances[2].mysql_server_uuid);
-  EXPECT_EQ(metadata_cache::ServerMode::ReadOnly, instances[2].mode);
+  const auto RW = metadata_cache::ServerMode::ReadWrite;
+  const auto RO = metadata_cache::ServerMode::ReadOnly;
+
+  for (const auto &expected_instance :
+       {std::pair("uuid-server1", RW), std::pair("uuid-server2", RO),
+        std::pair("uuid-server3", RO)}) {
+    EXPECT_NE(instances.end(),
+              std::find_if(instances.begin(), instances.end(),
+                           [&expected_instance](const auto &i) {
+                             return i.mysql_server_uuid ==
+                                        expected_instance.first &&
+                                    i.mode == expected_instance.second;
+                           }));
+  }
 }
 
 void expect_cluster_not_routable(GRMetadataCache &mc) {

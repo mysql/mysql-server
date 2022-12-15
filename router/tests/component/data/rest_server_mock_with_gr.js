@@ -7,8 +7,8 @@ if (mysqld.global.gr_nodes === undefined) {
   mysqld.global.gr_nodes = [[mysqld.session.port, "ONLINE"]];
 }
 
-var group_replication_membership_online =
-    gr_memberships.nodes(gr_node_host, mysqld.global.gr_nodes);
+var group_replication_members_online =
+    gr_memberships.gr_members(gr_node_host, mysqld.global.gr_nodes);
 
 // allow to change the connect_exec_time before the greeting of the server is
 // sent
@@ -17,13 +17,15 @@ var connect_exec_time = (mysqld.global.connect_exec_time === undefined) ?
     mysqld.global.connect_exec_time;
 
 var options = {
-  group_replication_membership: group_replication_membership_online,
+  group_replication_members: group_replication_members_online,
+  innodb_cluster_instances: gr_memberships.cluster_nodes(
+      mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   cluster_type: "gr",
 };
 
 // first node is PRIMARY
 options.group_replication_primary_member =
-    options.group_replication_membership[0][0];
+    options.group_replication_members[0][0];
 
 var common_responses = common_stmts.prepare_statement_responses(
     [
@@ -34,6 +36,8 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_commit",
       "router_select_schema_version",
       "router_select_cluster_type_v2",
+      "router_check_member_state",
+      "router_select_members_count",
       "router_select_group_membership_with_primary_mode",
       "router_select_group_replication_primary_member",
       "router_update_last_check_in_v2",

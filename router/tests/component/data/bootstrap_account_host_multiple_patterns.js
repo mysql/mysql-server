@@ -6,8 +6,6 @@ var common_stmts = require("common_statements");
       cluster_type: "gr",
 
       innodb_cluster_name: "test",
-      innodb_cluster_instances:
-          [["localhost", 5500], ["localhost", 5510], ["localhost", 5520]],
     };
 
     var common_responses = common_stmts.prepare_statement_responses(

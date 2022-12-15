@@ -9,7 +9,7 @@ var connect_exec_time = (mysqld.global.connect_exec_time === undefined) ?
     mysqld.global.connect_exec_time;
 
 var options = {
-  //  group_replication_membership: group_replication_membership_online,
+  //  group_replication_members: group_replication_members_online,
   cluster_type: "gr",
 };
 
