@@ -12072,6 +12072,12 @@ ER_IB_INDEX_LOADER_DONE
 ER_IB_INDEX_BUILDER_DONE
    eng "Builder::finish(): Completed building index=%s of table=%s, err=%zu."
 
+ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS_OPTION
+   eng "%s: '%s' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead."
+
+ER_IB_INDEX_LOG_VERSION_MISMATCH
+   eng "Index log version %u did not match. Max index version is %u. Recovery can't continue. Please make sure server is not starting up with the datadir generated in future version."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

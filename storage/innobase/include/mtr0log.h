@@ -40,7 +40,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 // Forward declaration
 struct dict_index_t;
 
-#define INDEX_LOG_VERSION 0x01
+/* Index logging version */
+constexpr uint8_t INDEX_LOG_VERSION_0 = 0;
+constexpr uint8_t INDEX_LOG_VERSION_CURRENT = 1;
+constexpr uint8_t INDEX_LOG_VERSION_MAX = INDEX_LOG_VERSION_CURRENT;
 
 #define COMPACT_FLAG 0x01
 #define VERSION_FLAG 0x02
