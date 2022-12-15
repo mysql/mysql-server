@@ -54,7 +54,7 @@ static Type get_result_type_from_extension(const std::string &ext) {
       {".png", Type::typePng},  {".js", Type::typeJs},
       {".mjs", Type::typeJs},   {".html", Type::typeHtml},
       {".htm", Type::typeHtml}, {".css", Type::typeCss},
-      {".map", Type::typePlain}};
+      {".svg", Type::typeSvg},  {".map", Type::typePlain}};
 
   log_debug("ext:'%s'", ext.c_str());
   auto i = map.find(ext);

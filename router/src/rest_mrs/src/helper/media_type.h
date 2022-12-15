@@ -41,6 +41,7 @@ enum MediaType {
   typeAvi,
   typeWav,
   typeJson,
+  typeSvg,
   typeDefault = typeJson
 };
 
