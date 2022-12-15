@@ -153,6 +153,8 @@ static const char *get_content_type(
       return "image/avi";
     case Handler::Result::Type::typeWav:
       return "image/wav";
+    case Handler::Result::Type::typeSvg:
+      return "image/svg+xml";
   }
 
   return "";
