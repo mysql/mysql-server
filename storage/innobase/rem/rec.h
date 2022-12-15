@@ -182,6 +182,17 @@ offsets[] array, first passed to rec_get_offsets() */
 constexpr uint32_t REC_OFFS_NORMAL_SIZE = 100;
 constexpr uint32_t REC_OFFS_SMALL_SIZE = 10;
 
+/** Instant state of a record. Determined by instant and version bit in info
+ * bits. */
+enum class Rec_instant_state {
+  /* Record is neither instant nor versioned: Instant: 0, Version: 0 */
+  REC_IS_SIMPLE,
+  /* Record is versioned but not instant: Instant: 0, Version: 1 */
+  REC_IS_VERSIONED,
+  /* Record is instant but not versioned: Instant: 1, Version: 0 */
+  REC_IS_INSTANT
+};
+
 /* Get the base address of offsets.  The extra_size is stored at
 this position, and following positions hold the end offsets of
 the fields. */
