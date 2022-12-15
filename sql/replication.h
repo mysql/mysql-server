@@ -195,6 +195,9 @@ typedef struct Trans_param {
     Flag to identify a 'CREATE TABLE ... AS SELECT'.
   */
   bool is_create_table_as_query_block;
+
+  /// pointer to server THD
+  THD *thd;
 } Trans_param;
 
 /**

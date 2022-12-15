@@ -1,0 +1,102 @@
+###############################################################################
+# This test validates behavior of Group Replication memory keys
+# when connection memory limits are exceed.
+#
+# Test:
+#   0. The test requires two serves
+#   1. Create table and configure parameters for mem_cnt_check_err
+#   2. Testing memory/group_rpl/write_set_encoded.
+#   3. Testing memory/group_rpl/Gcs_message_data::m_buffer.
+#   4. Cleanup
+#
+###############################################################################
+
+--source include/have_debug.inc
+--source include/linux.inc
+--source include/not_have_privilege_checks_user.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Connection closed. Connection memory limit.*");
+call mtr.add_suppression("Failed to gather the set of items written during the execution of the current transaction on session*");
+call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
+call mtr.add_suppression("Error sending sync before execution message from session*");
+call mtr.add_suppression('Generate write identification hash failed as the client session was killed');
+call mtr.add_suppression('Generate gcs messsage failed as the client session was killed');
+call mtr.add_suppression('Generate transaction message failed as the client session was killed');
+set session sql_log_bin=1;
+
+--echo
+--echo ########################################################################
+--echo # 1. Create table and configure parameters for mem_cnt_check_err
+--echo #
+
+CREATE TABLE t1(f0 INT NOT NULL PRIMARY KEY);
+
+--let $only_test = 0
+--let $start_from = 1
+--let $max_tests = 1000
+--let $validate_data = server1:test.t1, server2:test.t1
+
+--echo
+--echo ########################################################################
+--echo # 2. Testing memory/group_rpl/write_set_encoded.
+--echo #
+
+--let $memory_key = memory/group_rpl/write_set_encoded
+--let $missing_key = 1
+--let $test_query = INSERT INTO t1 (f0) VALUES ($missing_key)
+--source ../include/gr_mem_cnt_check_err.inc
+
+--echo
+--echo ########################################################################
+--echo # 3. Testing memory/group_rpl/Gcs_message_data::m_buffer.
+--echo #
+
+--let $memory_key = memory/group_rpl/Gcs_message_data::m_buffer
+--let $missing_key = 2
+--let $test_query = INSERT INTO t1 (f0) VALUES ($missing_key)
+--source ../include/gr_mem_cnt_check_err.inc
+
+--echo # Test query using consistency 'BEFORE'
+
+# memory/group_rpl/Gcs_message_data::m_buffer is used two times on transaction,
+# on trans_begin and trans_before_commit hooks
+
+--let $memory_key = memory/group_rpl/Gcs_message_data::m_buffer
+--let $missing_key = 3
+--let $test_query = SET @@SESSION.group_replication_consistency= 'BEFORE'; INSERT INTO t1 (f0) VALUES ($missing_key)
+--source ../include/gr_mem_cnt_check_err.inc
+
+--echo # Test query using consistency 'AFTER'
+
+--let $memory_key = memory/group_rpl/Gcs_message_data::m_buffer
+--let $missing_key = 4
+--let $test_query = SET @@SESSION.group_replication_consistency= 'AFTER'; INSERT INTO t1 (f0) VALUES ($missing_key)
+--source ../include/gr_mem_cnt_check_err.inc
+
+--echo
+--echo ########################################################################
+--echo # 4. Cleanup
+--echo #
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
+--source include/rpl_sync.inc
+
+--connection server1
+--let $server1_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
+--connection server2
+--let $server2_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
+--let $assert_text= 'server1 and server2 GTID_EXECUTED must be equal'
+--let $assert_cond= "$server1_gtid_executed" = "$server2_gtid_executed"
+--source include/assert.inc
+
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

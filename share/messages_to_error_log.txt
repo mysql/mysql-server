@@ -12225,6 +12225,9 @@ ER_REDUCED_DBLWR_PAGE_FOUND
 ER_IB_BULK_FLUSHER_PUNCH_HOLE
   eng "bulkflusher: Failed to punch hole: table=%s, index=%s, space_id=%zu, page_no=%zu, disk_page_size=%zu, hole_size=%zu, file=%s, err=%zu"
 
+ER_GRP_RPL_CONN_KILLED
+   eng "%s as the client session was killed."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

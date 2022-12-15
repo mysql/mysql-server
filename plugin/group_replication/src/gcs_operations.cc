@@ -402,7 +402,8 @@ int Gcs_operations::get_local_member_identifier(std::string &identifier) {
 }
 
 enum enum_gcs_error Gcs_operations::send_message(
-    const Plugin_gcs_message &message, bool skip_if_not_initialized) {
+    const Plugin_gcs_message &message, bool skip_if_not_initialized,
+    const THD *thd) {
   DBUG_TRACE;
   enum enum_gcs_error error = GCS_NOK;
   gcs_operations_lock->rdlock();
@@ -437,6 +438,16 @@ enum enum_gcs_error Gcs_operations::send_message(
 
   Gcs_member_identifier origin = gcs_control->get_local_member_identifier();
   Gcs_message gcs_message(origin, new Gcs_message_data(0, message_data.size()));
+
+  // message use memory key being tracked for connection limits,
+  // if exceed thread will be killed
+  if (thd != nullptr && thd->is_killed()) {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CONN_KILLED,
+                 "Generate gcs messsage failed");
+    gcs_operations_lock->unlock();
+    return GCS_NOK;
+  }
+
   gcs_message.get_message_data().append_to_payload(&message_data.front(),
                                                    message_data.size());
   error = gcs_communication->send_message(gcs_message);

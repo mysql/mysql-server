@@ -68,7 +68,8 @@ class Server_ongoing_transactions_handler : public Group_transaction_listener {
 
   int before_transaction_begin(my_thread_id thread_id,
                                ulong gr_consistency_level, ulong hold_timeout,
-                               enum_rpl_channel_type rpl_channel_type) override;
+                               enum_rpl_channel_type rpl_channel_type,
+                               const THD *thd) override;
 
   int before_commit(
       my_thread_id thread_id,

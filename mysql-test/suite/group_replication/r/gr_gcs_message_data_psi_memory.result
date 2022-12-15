@@ -10,7 +10,7 @@ Note	####	Storing MySQL user name or password information in the connection meta
 #    table and the memory summary tables.
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/Gcs_message_data::m_buffer';
 NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
-memory/group_rpl/Gcs_message_data::m_buffer	YES	NULL	global_statistics		0	Memory used for the transaction data payload which is send to the network.
+memory/group_rpl/Gcs_message_data::m_buffer	YES	NULL	controlled_by_default	controlled	0	Memory used for the transaction data payload which is send to the network.
 include/assert.inc ['There should be 1 entry corresponding to the Gcs_message_data::m_buffer in the setup_instruments table after starting GR']
 SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/Gcs_message_data::m_buffer';
 EVENT_NAME
@@ -49,7 +49,7 @@ include/stop_group_replication.inc
 #    Gcs_message_data::m_buffer remain in the tables after stopping GR.
 SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE 'memory/group_rpl/Gcs_message_data::m_buffer';
 NAME	ENABLED	TIMED	PROPERTIES	FLAGS	VOLATILITY	DOCUMENTATION
-memory/group_rpl/Gcs_message_data::m_buffer	YES	NULL	global_statistics		0	Memory used for the transaction data payload which is send to the network.
+memory/group_rpl/Gcs_message_data::m_buffer	YES	NULL	controlled_by_default	controlled	0	Memory used for the transaction data payload which is send to the network.
 include/assert.inc ['There should be 1 entry corresponding to the Gcs_message_data::m_buffer in the setup_instruments table after stopping GR']
 SELECT EVENT_NAME, CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/group_rpl/Gcs_message_data::m_buffer';
 EVENT_NAME	CURRENT_NUMBER_OF_BYTES_USED

@@ -596,7 +596,7 @@ static PSI_stage_info *all_group_replication_stages_keys[] = {
     &info_GR_STAGE_clone_execute};
 
 static PSI_memory_info all_group_replication_psi_memory_keys[] = {
-    {&key_write_set_encoded, "write_set_encoded", PSI_FLAG_ONLY_GLOBAL_STAT,
+    {&key_write_set_encoded, "write_set_encoded", PSI_FLAG_MEM_COLLECT,
      PSI_VOLATILITY_UNKNOWN,
      "Memory used to encode write set before getting broadcasted to group "
      "members."},

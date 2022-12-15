@@ -618,7 +618,7 @@ int Transaction_consistency_manager::after_commit(my_thread_id, rpl_sidno sidno,
 
 int Transaction_consistency_manager::before_transaction_begin(
     my_thread_id thread_id, ulong gr_consistency_level, ulong timeout,
-    enum_rpl_channel_type rpl_channel_type) {
+    enum_rpl_channel_type rpl_channel_type, const THD *thd) {
   DBUG_TRACE;
   int error = 0;
 
@@ -643,12 +643,10 @@ int Transaction_consistency_manager::before_transaction_begin(
 
   if (GROUP_REPLICATION_CONSISTENCY_BEFORE == consistency_level ||
       GROUP_REPLICATION_CONSISTENCY_BEFORE_AND_AFTER == consistency_level) {
-    error = transaction_begin_sync_before_execution(thread_id,
-                                                    consistency_level, timeout);
+    error = transaction_begin_sync_before_execution(
+        thread_id, consistency_level, timeout, thd);
     if (error) {
-      /* purecov: begin inspected */
       return error;
-      /* purecov: end */
     }
   }
 
@@ -673,7 +671,7 @@ int Transaction_consistency_manager::before_transaction_begin(
 int Transaction_consistency_manager::transaction_begin_sync_before_execution(
     my_thread_id thread_id,
     enum_group_replication_consistency_level consistency_level [[maybe_unused]],
-    ulong timeout) const {
+    ulong timeout, const THD *thd) const {
   DBUG_TRACE;
   assert(GROUP_REPLICATION_CONSISTENCY_BEFORE == consistency_level ||
          GROUP_REPLICATION_CONSISTENCY_BEFORE_AND_AFTER == consistency_level);
@@ -696,12 +694,14 @@ int Transaction_consistency_manager::transaction_begin_sync_before_execution(
 
   // send message
   Sync_before_execution_message message(thread_id);
-  if (gcs_module->send_message(message)) {
-    /* purecov: begin inspected */
+  if (gcs_module->send_message(message, false, thd)) {
+    // sent message failed so ticket aren't needed, it won't receive
+    // notifications
+    transactions_latch->releaseTicket(thread_id);
+    transactions_latch->waitTicket(thread_id);
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SEND_TRX_SYNC_BEFORE_EXECUTION_FAILED,
                  thread_id);
     return ER_GRP_TRX_CONSISTENCY_BEFORE;
-    /* purecov: end */
   }
 
   DBUG_PRINT("info", ("waiting for Sync_before_execution_message"));

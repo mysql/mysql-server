@@ -246,13 +246,15 @@ class Gcs_operations {
     @param[in] skip_if_not_initialized If true, the message will not be sent
                                        and no errors will returned when the
                                        GCS interface is not initialized
+    @param[in] thd       Server thd represent client connection
 
     @return the operation status
       @retval 0      OK
       @retval !=0    Error
   */
   enum enum_gcs_error send_message(const Plugin_gcs_message &message,
-                                   bool skip_if_not_initialized = false);
+                                   bool skip_if_not_initialized = false,
+                                   const THD *thd = nullptr);
 
   /**
     Send a transaction message to the group.

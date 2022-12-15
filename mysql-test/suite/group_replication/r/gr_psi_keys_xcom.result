@@ -146,7 +146,7 @@ stage/group_rpl/Group Replication Recovery: Connecting to donor	YES	YES		NULL	0	
 stage/group_rpl/Group Replication Recovery: Transferring state from donor	YES	YES		NULL	0	NULL
 stage/group_rpl/Group Replication Cloning process: Preparing	YES	YES	progress	NULL	0	NULL
 stage/group_rpl/Group Replication Cloning process: Executing	YES	YES	progress	NULL	0	NULL
-memory/group_rpl/write_set_encoded	YES	NULL	global_statistics		0	Memory used to encode write set before getting broadcasted to group members.
+memory/group_rpl/write_set_encoded	YES	NULL	controlled_by_default	controlled	0	Memory used to encode write set before getting broadcasted to group members.
 memory/group_rpl/certification_data	YES	NULL	global_statistics		0	Memory gets allocated for this Event name when new incoming transaction is received for certification.
 memory/group_rpl/certification_data_gc	YES	NULL	global_statistics		0	Memory used to hold the GTID_EXECUTED sent by each member for garbage collection.
 memory/group_rpl/certification_info	YES	NULL	global_statistics		0	Memory used to store certification information which is used to handle conflict resolution between transactions that execute concurrently.

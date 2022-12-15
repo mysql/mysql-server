@@ -147,7 +147,7 @@ static PSI_memory_info xcom_cache_memory_info[] = {
      PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN,
      "Memory usage statistics for the XCom cache."},
     {&key_MEM_Gcs_message_data_m_buffer, "Gcs_message_data::m_buffer",
-     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN,
+     PSI_FLAG_MEM_COLLECT, PSI_VOLATILITY_UNKNOWN,
      "Memory used for the transaction data payload which is send to the "
      "network."}};
 
@@ -194,8 +194,6 @@ int psi_report_mem_alloc(size_t size) {
       PSI_NOT_INSTRUMENTED) {
     return 0;
   }
-  /* This instrument is flagged global, so there should be no thread owner. */
-  assert(owner == nullptr);
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
   current_count += size;
   return 1;

@@ -47,11 +47,13 @@ class Group_transaction_listener {
     @param gr_consistency_level  the current consistency level for this session
     @param hold_timeout the max time to execute an action on this transaction
     @param channel_type type channel that receives transaction
+    @param thd server thd that represents client session
   */
   virtual int before_transaction_begin(my_thread_id thread_id,
                                        ulong gr_consistency_level,
                                        ulong hold_timeout,
-                                       enum_rpl_channel_type channel_type) = 0;
+                                       enum_rpl_channel_type channel_type,
+                                       const THD *thd) = 0;
 
   /**
     Executed before commit
@@ -114,10 +116,12 @@ class Group_transaction_observation_manager {
     @param gr_consistency_level  the current consistency level for this session
     @param hold_timeout the max time to execute an action on this transaction
     @param rpl_channel_type type channel that receives transaction
+    @param thd server thd that represents client session
   */
   int before_transaction_begin(my_thread_id thread_id,
                                ulong gr_consistency_level, ulong hold_timeout,
-                               enum_rpl_channel_type rpl_channel_type);
+                               enum_rpl_channel_type rpl_channel_type,
+                               const THD *thd);
 
   /*
     Executed before commit

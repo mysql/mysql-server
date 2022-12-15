@@ -49,26 +49,26 @@
 */
 #define BUFFER_READ_PKE 8
 
-void cleanup_transaction_write_set(
-    Transaction_write_set *transaction_write_set) {
+int add_write_set(Transaction_context_log_event *tcle, std::vector<uint64> *set,
+                  const THD *thd) {
   DBUG_TRACE;
-  if (transaction_write_set != nullptr) {
-    my_free(transaction_write_set->write_set);
-    my_free(transaction_write_set);
-  }
-}
-
-int add_write_set(Transaction_context_log_event *tcle,
-                  Transaction_write_set *set) {
-  DBUG_TRACE;
-  int iterator = set->write_set_size;
-  for (int i = 0; i < iterator; i++) {
+  for (std::vector<uint64>::iterator it = set->begin(); it != set->end();
+       ++it) {
     uchar buff[BUFFER_READ_PKE];
-    int8store(buff, set->write_set[i]);
+    int8store(buff, *it);
     uint64 const tmp_str_sz =
         base64_needed_encoded_length((uint64)BUFFER_READ_PKE);
     char *write_set_value =
         (char *)my_malloc(key_write_set_encoded, tmp_str_sz, MYF(MY_WME));
+    // key_write_set_encoded is being tracked for connection memory limits, if
+    // exceed thread will be killed
+    if (thd->is_killed()) {
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CONN_KILLED,
+                   "Generate write identification hash failed");
+      my_free(write_set_value);
+      return 1;
+    }
+
     if (!write_set_value) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL,
@@ -356,14 +356,16 @@ int group_replication_trans_before_commit(Trans_param *param) {
   }
 
   if (is_dml) {
-    Transaction_write_set *write_set =
-        get_transaction_write_set(param->thread_id);
+    Rpl_transaction_write_set_ctx *transaction_write_set_ctx =
+        param->thd->get_transaction()->get_transaction_write_set_ctx();
+
+    std::vector<uint64> *write_set = transaction_write_set_ctx->get_write_set();
     /*
       When GTID is specified we may have empty transactions, that is,
       a transaction may have not write set at all because it didn't
       change any data, it will just persist that GTID as applied.
     */
-    if ((write_set == nullptr) && (!is_gtid_specified) &&
+    if ((write_set->size() == 0) && (!is_gtid_specified) &&
         (!param->is_create_table_as_query_block)) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_EXTRACT_TRANS_WRITE_SET,
                    param->thread_id);
@@ -371,17 +373,13 @@ int group_replication_trans_before_commit(Trans_param *param) {
       goto err;
     }
 
-    if (write_set != nullptr) {
-      if (add_write_set(tcle, write_set)) {
-        /* purecov: begin inspected */
-        cleanup_transaction_write_set(write_set);
+    if (write_set->size() > 0) {
+      if (add_write_set(tcle, write_set, param->thd)) {
         LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_GATHER_TRANS_WRITE_SET,
                      param->thread_id);
         error = pre_wait_error;
         goto err;
-        /* purecov: end */
       }
-      cleanup_transaction_write_set(write_set);
       assert(is_gtid_specified || (tcle->get_write_set()->size() > 0));
     } else {
       /*
@@ -487,6 +485,15 @@ int group_replication_trans_before_commit(Trans_param *param) {
     } else {
       transaction_msg = new Transaction_with_guarantee_message(
           transaction_size, consistency_level);
+    }
+
+    // transaction_message use memory key being tracked for connection limits,
+    // if exceed thread will be killed
+    if (param->thd->is_killed()) {
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CONN_KILLED,
+                   "Generate transaction message failed");
+      error = pre_wait_error;
+      goto err;
     }
 
     if (binary_event_serialize(tcle, transaction_msg) ||
@@ -691,7 +698,7 @@ int group_replication_trans_begin(Trans_param *param, int &out) {
        *transaction_observers) {
     out = transaction_observer->before_transaction_begin(
         param->thread_id, param->group_replication_consistency,
-        param->hold_timeout, param->rpl_channel_type);
+        param->hold_timeout, param->rpl_channel_type, param->thd);
     if (out) break;
   }
   group_transaction_observation_manager->unlock_observer_list();

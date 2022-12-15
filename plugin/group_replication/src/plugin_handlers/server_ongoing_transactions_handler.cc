@@ -131,7 +131,7 @@ int Server_ongoing_transactions_handler::
 */
 /* purecov: begin inspected */
 int Server_ongoing_transactions_handler::before_transaction_begin(
-    my_thread_id, ulong, ulong, enum_rpl_channel_type) {
+    my_thread_id, ulong, ulong, enum_rpl_channel_type, const THD *) {
   return 0;
 }
 
