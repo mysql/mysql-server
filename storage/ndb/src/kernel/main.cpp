@@ -37,6 +37,11 @@
 
 #include <EventLogger.hpp>
 
+/* On Win32 applink.c must be included in one compilation unit */
+#ifdef _WIN32
+#include <openssl/applink.c>
+#endif
+
 #define JAM_FILE_ID 485
 
 #if defined VM_TRACE

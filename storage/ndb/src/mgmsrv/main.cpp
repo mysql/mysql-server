@@ -45,6 +45,10 @@
 #include <LogBuffer.hpp>
 #include <OutputStream.hpp>
 
+/* On Win32 applink.c must be included in one compilation unit */
+#ifdef _WIN32
+#include <openssl/applink.c>
+#endif
 
 #if defined VM_TRACE || defined ERROR_INSERT
 extern int g_errorInsert;

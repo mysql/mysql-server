@@ -53,6 +53,11 @@
 #include "util/SocketServer.hpp"
 #include "util/TlsKeyErrors.h"
 
+/* On Win32 applink.c must be included in one compilation unit */
+#ifdef _WIN32
+#include <openssl/applink.c>
+#endif
+
 /* ndb_basename() is not declared in any header file: */
 const char * ndb_basename(const char *path);
 
