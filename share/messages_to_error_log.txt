@@ -12078,6 +12078,9 @@ ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS_OPTION
 ER_IB_INDEX_LOG_VERSION_MISMATCH
    eng "Index log version %u did not match. Max index version is %u. Recovery can't continue. Please make sure server is not starting up with the datadir generated in future version."
 
+ER_WARN_COMPONENTS_INFRASTRUCTURE_MANIFEST_MULTIPLE_KEYRING
+   eng "Multiple keyring component URNs '%s' found in manifest file '%s'. Only one keyring component can be loaded at a time."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
