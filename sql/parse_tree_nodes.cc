@@ -1676,7 +1676,7 @@ bool PT_set_operation::contextualize_setop(Parse_context *pc,
   merge_descendants(pc, setop, ql);
 
   Query_expression *qe = pc->select->master_query_expression();
-  if (setop->set_block(qe->create_post_processing_block())) return true;
+  if (setop->set_block(qe->create_post_processing_block(setop))) return true;
   pc->m_stack.back().m_elts.push_back(setop);
   return false;
 }
@@ -3983,10 +3983,21 @@ bool PT_query_expression::contextualize(Parse_context *pc) {
     case QT_UNARY: {
       Query_term_unary *ex = down_cast<Query_term_unary *>(expr);
       Query_expression *qe = pc->select->master_query_expression();
-      if (ex->set_block(qe->create_post_processing_block())) return true;
-      if (m_order != nullptr) {
+
+      // The setting of no_table_names_allowed in the created post processing
+      // block below to false foreshadows our removing the parentheses in
+      // Query_term::pushdown_limit_order_by. We need to duplicate the logic
+      // here in order to allow a construction like
+      //
+      //   ( SELECT a FROM t ) ORDER BY t.a
+      //
+      // for which we remove the parentheses because the inner query expression
+      // has no LIMIT or ORDER BY of its own.
+      if (ex->set_block(qe->create_post_processing_block(ex))) return true;
+
+      if (m_order != nullptr)
         ex->query_block()->order_list = m_order->order_list->value;
-      }
+
       if (m_limit != nullptr) {
         ex->query_block()->select_limit = m_limit->limit_options.limit;
         ex->query_block()->offset_limit = m_limit->limit_options.opt_offset;
@@ -4044,7 +4055,7 @@ bool PT_query_expression::contextualize(Parse_context *pc) {
         ex = new (pc->mem_root) Query_term_unary(pc->mem_root, ex);
         if (ex == nullptr) return true;
         Query_expression *qe = pc->select->master_query_expression();
-        if (ex->set_block(qe->create_post_processing_block())) return true;
+        if (ex->set_block(qe->create_post_processing_block(ex))) return true;
       }
       if (m_order != nullptr) {
         ex->query_block()->order_list = m_order->order_list->value;

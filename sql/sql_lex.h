@@ -992,9 +992,12 @@ class Query_expression {
     constructor. Such blocks are not included in the list starting in
     Query_Expression::first_query_block, and Query_block::next_query_block().
     They blocks are accessed via Query_term::query_block().
+
+    @param term the term on behalf of which we are making a post processing
+                block
     @returns a query block
    */
-  Query_block *create_post_processing_block();
+  Query_block *create_post_processing_block(Query_term_set_op *term);
 
   bool prepare_query_term(THD *thd, Query_term *qts,
                           Query_result *common_result, ulonglong added_options,
