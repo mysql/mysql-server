@@ -327,6 +327,12 @@ bool Deployed_components::load() {
     loaded_ = true;
     free_memory();
   }
+  if (components_.find("keyring") != components_.rfind("keyring")) {
+    /* Multiple keyring component URNs present in manifest file */
+    LogErr(WARNING_LEVEL,
+           ER_WARN_COMPONENTS_INFRASTRUCTURE_MANIFEST_MULTIPLE_KEYRING,
+           components_.c_str(), current_reader->manifest_file().c_str());
+  }
   return true;
 }
 
