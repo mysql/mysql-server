@@ -1662,6 +1662,14 @@ dberr_t row_import::match_instant_metadata_in_target_table(THD *thd) {
     /* Search for this column in target table */
     dict_col_t *target_col = m_table->get_col_by_name(col_name);
 
+    if (target_col == nullptr) {
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "Instant metadata didn't match for dropped column");
+      return DB_ERROR;
+    }
+
+    ut_a(target_col != nullptr);
+
     if (!cfg_col->is_version_added_match(target_col) ||
         !cfg_col->is_version_dropped_match(target_col) ||
         (cfg_col->ind != target_col->ind) ||
