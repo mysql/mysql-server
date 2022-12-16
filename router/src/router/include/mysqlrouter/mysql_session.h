@@ -452,11 +452,18 @@ class ROUTER_LIB_EXPORT MySQLSession {
       const std::string &query);  // throws Error, std::logic_error
   virtual void query(
       const std::string &query, const RowProcessor &processor,
-      const FieldValidator &validator =
-          null_field_validator);  // throws Error, std::logic_error
+      const FieldValidator &validator);  // throws Error, std::logic_error
   virtual std::unique_ptr<MySQLSession::ResultRow> query_one(
       const std::string &query,
-      const FieldValidator &validator = null_field_validator);  // throws Error
+      const FieldValidator &validator);  // throws Error
+                                         //
+  void query(const std::string &stmt, const RowProcessor &processor) {
+    return query(stmt, processor, [](unsigned, MYSQL_FIELD *) {});
+  }
+
+  std::unique_ptr<MySQLSession::ResultRow> query_one(const std::string &stmt) {
+    return query_one(stmt, [](unsigned, MYSQL_FIELD *) {});
+  }
 
   virtual uint64_t last_insert_id() noexcept;
 
@@ -473,8 +480,6 @@ class ROUTER_LIB_EXPORT MySQLSession {
   virtual const char *ssl_cipher();
 
  protected:
-  static const std::function<void(unsigned, MYSQL_FIELD *)>
-      null_field_validator;
   std::unique_ptr<LoggingStrategy> logging_strategy_;
 
  private:

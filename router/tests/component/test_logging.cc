@@ -320,13 +320,13 @@ TEST_F(RouterLoggingTest, bad_loglevel) {
 
   // expect something like this to appear on STDERR
   // Configuration error: Log level 'unknown' is not valid. Valid values are:
-  // debug, error, fatal, info, note, system, and warning
+  // fatal, system, error, warning, info, note, and debug
   const std::string out = router.get_full_output();
   EXPECT_THAT(
       out.c_str(),
       HasSubstr(
           "Configuration error: Log level 'unknown' is not valid. Valid "
-          "values are: debug, error, fatal, info, note, system, and warning"));
+          "values are: fatal, system, error, warning, info, note, and debug"));
 }
 
 /**************************************************/
@@ -1058,7 +1058,7 @@ INSTANTIATE_TEST_SUITE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Log level 'invalid' is not valid. Valid "
-            "values are: debug, error, fatal, info, note, system, and warning"),
+            "values are: fatal, system, error, warning, info, note, and debug"),
 
         // Invalid log level in the sink section
         /*8*/
@@ -1070,7 +1070,7 @@ INSTANTIATE_TEST_SUITE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Log level 'invalid' is not valid. Valid "
-            "values are: debug, error, fatal, info, note, system, and warning"),
+            "values are: fatal, system, error, warning, info, note, and debug"),
 
         // Both level and sinks values invalid in the [logger] section
         /*9*/
@@ -1082,7 +1082,7 @@ INSTANTIATE_TEST_SUITE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Log level 'invalid' is not valid. Valid "
-            "values are: debug, error, fatal, info, note, system, and warning"),
+            "values are: fatal, system, error, warning, info, note, and debug"),
 
         // Logging folder is empty but we request filelog as sink
         /*10*/
@@ -1110,7 +1110,7 @@ INSTANTIATE_TEST_SUITE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Log level 'invalid' is not valid. Valid "
-            "values are: debug, error, fatal, info, note, system, and warning"),
+            "values are: fatal, system, error, warning, info, note, and debug"),
 
         // Let's also check that the eventlog is NOT supported
         LoggingConfigErrorParams(
@@ -1137,7 +1137,7 @@ INSTANTIATE_TEST_SUITE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Log level 'invalid' is not valid. Valid "
-            "values are: debug, error, fatal, info, note, system, and warning"),
+            "values are: fatal, system, error, warning, info, note, and debug"),
 
         // Let's also check that the syslog is NOT supported
         LoggingConfigErrorParams(
@@ -1620,8 +1620,8 @@ INSTANTIATE_TEST_SUITE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Timestamp precision 'unknown' is not valid. "
-            "Valid values are: microsecond, millisecond, ms, msec, nanosecond, "
-            "ns, nsec, s, sec, second, us, and usec"),
+            "Valid values are: second, sec, s, millisecond, msec, ms, "
+            "microsecond, usec, us, nanosecond, nsec, and ns"),
         // Unknown timestamp_precision value in the [logger] section
         /*1*/ /*TS_FR3_1*/
         LoggingConfigErrorParams(
@@ -1631,8 +1631,8 @@ INSTANTIATE_TEST_SUITE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Timestamp precision 'unknown' is not valid. "
-            "Valid values are: microsecond, millisecond, ms, msec, nanosecond, "
-            "ns, nsec, s, sec, second, us, and usec"),
+            "Valid values are: second, sec, s, millisecond, msec, ms, "
+            "microsecond, usec, us, nanosecond, nsec, and ns"),
         /*2*/ /*TS_FR4_1*/
         LoggingConfigErrorParams("[logger]\n"
                                  "sinks=consolelog,filelog\n"
