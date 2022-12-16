@@ -70,7 +70,7 @@ class Object {
   virtual const std::string &get_rest_canonical_url() = 0;
   virtual const std::string &get_rest_url() = 0;
   virtual const std::string &get_json_description() = 0;
-  virtual const std::string &get_rest_path() = 0;
+  virtual const std::vector<std::string> get_rest_path() = 0;
   virtual const std::string &get_rest_path_raw() = 0;
   virtual const std::string &get_rest_canonical_path() = 0;
   virtual const std::string &get_object_path() = 0;

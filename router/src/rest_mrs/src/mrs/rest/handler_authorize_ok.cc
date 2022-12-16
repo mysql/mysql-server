@@ -139,7 +139,7 @@ HandlerAuthorizeOk::HandlerAuthorizeOk(
     const std::string &rest_path_matcher, const std::string &options,
     const std::string &page_content_custom,
     interface::AuthorizeManager *auth_manager)
-    : Handler(url, rest_path_matcher, options, auth_manager),
+    : Handler(url, {rest_path_matcher}, options, auth_manager),
       service_id_{service_id},
       page_content_custom_{page_content_custom} {}
 

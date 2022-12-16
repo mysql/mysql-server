@@ -38,7 +38,8 @@ namespace rest {
 
 class Handler : public interface::RestHandler {
  public:
-  Handler(const std::string &url, const std::string &rest_path_matcher,
+  Handler(const std::string &url,
+          const std::vector<std::string> &rest_path_matcher,
           const std::string &options,
           interface::AuthorizeManager *auth_manager);
   ~Handler() override;
@@ -65,8 +66,8 @@ class Handler : public interface::RestHandler {
  protected:
   interface::Options options_;
   const std::string url_;
-  const std::string rest_path_matcher_;
-  void *handler_id_;
+  const std::vector<std::string> rest_path_matcher_;
+  std::vector<void *> handler_id_;
   interface::AuthorizeManager *authorization_manager_;
 };
 

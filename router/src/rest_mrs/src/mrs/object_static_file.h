@@ -59,7 +59,7 @@ class ObjectStaticFile : public mrs::interface::Object {
   const std::string &get_rest_canonical_url() override;
   const std::string &get_rest_url() override;
   const std::string &get_json_description() override;
-  const std::string &get_rest_path() override;
+  const std::vector<std::string> get_rest_path() override;
   const std::string &get_rest_path_raw() override;
   const std::string &get_rest_canonical_path() override;
   const std::string &get_object_path() override;

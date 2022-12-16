@@ -50,6 +50,8 @@ const std::string k_url{"https://mysql.com/mrs/schema/table"};
 const std::string k_path{"^/mrs/schema/table/?"};
 const std::string k_empty;
 
+using Strings = std::vector<std::string>;
+
 class RestHandlerObjectTests : public Test {
  public:
   void make_sut(const std::string &rest_url, const std::string &rest_path) {
@@ -57,7 +59,8 @@ class RestHandlerObjectTests : public Test {
         .WillRepeatedly(Return(&mock_route_schema_));
     EXPECT_CALL(mock_route_, get_options()).WillOnce(ReturnRef(k_empty));
     EXPECT_CALL(mock_route_, get_rest_url()).WillOnce(ReturnRef(rest_url));
-    EXPECT_CALL(mock_route_, get_rest_path()).WillOnce(ReturnRef(rest_path));
+    EXPECT_CALL(mock_route_, get_rest_path())
+        .WillOnce(Return(Strings{rest_path}));
     EXPECT_CALL(mock_http_component_, add_route(rest_path, _))
         .WillOnce(Invoke(
             [this](const ::std::string &,

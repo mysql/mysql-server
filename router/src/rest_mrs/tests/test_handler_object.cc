@@ -91,7 +91,7 @@ class HandleObjectTests : public Test {
       EXPECT_CALL(parent_.mock_request_, get_input_headers())
           .WillRepeatedly(ReturnRef(parent_.mock_input_headers));
       EXPECT_CALL(parent_.mock_route, get_rest_path())
-          .WillRepeatedly(ReturnRef(rest_path_));
+          .WillRepeatedly(Return(std::vector<std::string>({rest_path_})));
       EXPECT_CALL(parent_.mock_route, get_rest_url())
           .WillRepeatedly(ReturnRef(rest_url_));
       EXPECT_CALL(parent_.mock_route, get_rest_path_raw())
