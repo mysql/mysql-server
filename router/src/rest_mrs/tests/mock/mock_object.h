@@ -35,7 +35,7 @@ class MockRoute : public mrs::interface::Object {
   MOCK_METHOD(const std::string &, get_rest_canonical_url, (), (override));
   MOCK_METHOD(const std::string &, get_rest_url, (), (override));
   MOCK_METHOD(const std::string &, get_json_description, (), (override));
-  MOCK_METHOD(const std::string &, get_rest_path, (), (override));
+  MOCK_METHOD(const std::vector<std::string>, get_rest_path, (), (override));
   MOCK_METHOD(const std::string &, get_rest_path_raw, (), (override));
   MOCK_METHOD(const std::string &, get_rest_canonical_path, (), (override));
   MOCK_METHOD(const std::string &, get_object_path, (), (override));

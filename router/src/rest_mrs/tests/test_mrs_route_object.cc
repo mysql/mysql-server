@@ -154,7 +154,8 @@ TEST_F(RouteObjectTests, validate_route_generic_parameters) {
   EXPECT_EQ("http://mysql.com/ser/sch/metadata-catalog/obj",
             sut_->get_rest_canonical_url());
   EXPECT_EQ("http://mysql.com/ser/sch/obj", sut_->get_rest_url());
-  EXPECT_EQ("^/ser/sch/obj(/[0-9]*/?)?$", sut_->get_rest_path());
+  ASSERT_EQ(1, sut_->get_rest_path().size());
+  EXPECT_EQ("^/ser/sch/obj(/[0-9]*/?)?$", sut_->get_rest_path()[0]);
   EXPECT_EQ("/ser/sch/obj", sut_->get_rest_path_raw());
   EXPECT_EQ("^/ser/sch/metadata-catalog/obj/?$",
             sut_->get_rest_canonical_path());
@@ -242,7 +243,8 @@ TEST_F(RouteObjectTests, validate_route_parameters_after_update) {
   EXPECT_EQ("http://abc.de/mrs/sakila/metadata-catalog/city",
             sut_->get_rest_canonical_url());
   EXPECT_EQ("http://abc.de/mrs/sakila/city", sut_->get_rest_url());
-  EXPECT_EQ("^/mrs/sakila/city(/[0-9]*/?)?$", sut_->get_rest_path());
+  ASSERT_EQ(1, sut_->get_rest_path().size());
+  EXPECT_EQ("^/mrs/sakila/city(/[0-9]*/?)?$", sut_->get_rest_path()[0]);
   EXPECT_EQ("/mrs/sakila/city", sut_->get_rest_path_raw());
   EXPECT_EQ("^/mrs/sakila/metadata-catalog/city/?$",
             sut_->get_rest_canonical_path());

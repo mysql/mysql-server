@@ -541,7 +541,8 @@ static bool get_json_bool(const std::string &txt, const std::string key_name) {
   return false;
 }
 
-Handler::Handler(const std::string &url, const std::string &rest_path_matcher,
+Handler::Handler(const std::string &url,
+                 const std::vector<std::string> &rest_path_matcher,
                  const std::string &options,
                  mrs::interface::AuthorizeManager *auth_manager)
     : options_{get_json_obj(options, "headers"),
@@ -554,20 +555,21 @@ Handler::Handler(const std::string &url, const std::string &rest_path_matcher,
       url_{url},
       rest_path_matcher_{rest_path_matcher},
       authorization_manager_{auth_manager} {
-  auto handler = std::make_unique<RestRequestHandler>(this, auth_manager);
-
   log_debug("Handling new URL: '%s'", url_.c_str());
-  handler_id_ = HttpServerComponent::get_instance().add_route(
-      rest_path_matcher_, std::move(handler));
 
-  for (const auto &kv : options_.parameters_) {
-    log_debug("parameters %s=%s", kv.first.c_str(), kv.second.c_str());
+  for (auto &path : rest_path_matcher_) {
+    auto handler = std::make_unique<RestRequestHandler>(this, auth_manager);
+    log_debug("adding_route: '%s'", path.c_str());
+    handler_id_.emplace_back(HttpServerComponent::get_instance().add_route(
+        path, std::move(handler)));
   }
 }
 
 Handler::~Handler() {
   log_debug("Removing URL handler: '%s'", url_.c_str());
-  HttpServerComponent::get_instance().remove_route(handler_id_);
+  for (auto id : handler_id_) {
+    HttpServerComponent::get_instance().remove_route(id);
+  }
 }
 
 bool Handler::request_begin(RequestContext *) { return true; }

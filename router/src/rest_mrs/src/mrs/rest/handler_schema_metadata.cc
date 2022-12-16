@@ -41,7 +41,7 @@ using Route = mrs::interface::Object;
 
 HandlerSchemaMetadata::HandlerSchemaMetadata(
     RouteSchema *schema, mrs::interface::AuthorizeManager *auth_manager)
-    : Handler(schema->get_url(), schema->get_path(), schema->get_options(),
+    : Handler(schema->get_url(), {schema->get_path()}, schema->get_options(),
               auth_manager),
       schema_{schema} {}
 

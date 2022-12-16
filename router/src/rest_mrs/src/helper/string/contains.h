@@ -34,6 +34,14 @@ bool contains(const std::string &value, SubStrType &&sst) {
   return value.npos != value.find(sst);
 }
 
+inline bool ends_with(const std::string &value, const std::string &&sst) {
+  if (sst.empty()) return false;
+
+  auto pos = value.rfind(sst);
+  if (value.npos == pos) return false;
+  return value.length() - pos == sst.length();
+}
+
 }  // namespace helper
 
 #endif  // ROUTER_SRC_REST_MRS_SRC_HELPER_STRING_CONTAINS_H_

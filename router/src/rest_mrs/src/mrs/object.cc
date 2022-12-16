@@ -126,7 +126,7 @@ const std::string &Object::get_rest_url() { return url_route_; }
 
 const std::string &Object::get_json_description() { return json_description_; }
 
-const std::string &Object::get_rest_path() { return rest_path_; }
+const std::vector<std::string> Object::get_rest_path() { return {rest_path_}; }
 
 const std::string &Object::get_rest_canonical_path() {
   return rest_canonical_path_;

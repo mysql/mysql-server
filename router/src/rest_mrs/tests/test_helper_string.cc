@@ -24,6 +24,7 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include "helper/string/contains.h"
 #include "helper/string/hex.h"
 #include "mrs/database/entry/auth_user.h"
 
@@ -61,6 +62,19 @@ class UserIdContainer {
   UserId user_id_;
   uint64_t push_index_{0};
 };
+
+TEST(helper_string_ends_with, basic) {
+  ASSERT_FALSE(helper::ends_with("my first string", ""));
+  ASSERT_FALSE(helper::ends_with("my first string", "first"));
+  ASSERT_FALSE(helper::ends_with("my first string", "my"));
+  ASSERT_FALSE(helper::ends_with("my first string", "something"));
+
+  ASSERT_TRUE(helper::ends_with("my first string", "g"));
+  ASSERT_TRUE(helper::ends_with("my first string", "ing"));
+  ASSERT_TRUE(helper::ends_with("my first string", "string"));
+  ASSERT_TRUE(helper::ends_with("my first string", "first string"));
+  ASSERT_TRUE(helper::ends_with("my first string", "my first string"));
+}
 
 TEST(helper_string_unhex, first) {
   auto user_id =

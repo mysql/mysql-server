@@ -26,6 +26,7 @@
 
 #include <time.h>
 
+#include "helper/string/contains.h"
 #include "mrs/rest/handler_file.h"
 
 namespace mrs {
@@ -91,7 +92,14 @@ const std::string &ObjectStaticFile::get_json_description() {
   return empty;
 }
 
-const std::string &ObjectStaticFile::get_rest_path() { return rest_path_; }
+const std::vector<std::string> ObjectStaticFile::get_rest_path() {
+  const static std::string k_index_html = "/index.html$";
+  if (helper::ends_with(rest_path_, "/index.html$"))
+    return {rest_path_, rest_path_.substr(0, rest_path_.length() -
+                                                 k_index_html.length() + 1) +
+                            "$"};
+  return {rest_path_};
+}
 
 const std::string &ObjectStaticFile::get_rest_path_raw() {
   return rest_path_raw_;
@@ -170,8 +178,8 @@ collector::MysqlCacheManager *ObjectStaticFile::get_cache() { return cache_; }
 void ObjectStaticFile::update_variables() {
   rest_url_ = (is_ssl_ ? "https://" : "http://") + cse_.host +
               cse_.service_path + cse_.schema_path + cse_.file_path;
-  rest_path_ = "^" + cse_.service_path + cse_.schema_path + cse_.file_path +
-               "(/[0-9]*/?)?$";
+  rest_path_ =
+      "^" + cse_.service_path + cse_.schema_path + cse_.file_path + "$";
   rest_path_raw_ = cse_.service_path + cse_.schema_path + cse_.file_path;
   version_ = "\"" + std::to_string(time(nullptr)) + "-" +
              std::to_string(cse_.size) + "\"";

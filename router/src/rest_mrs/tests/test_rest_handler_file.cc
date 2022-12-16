@@ -72,7 +72,8 @@ class RestHandlerFileTests : public Test {
     EXPECT_CALL(mock_route_, get_id()).WillRepeatedly(Return(id));
     EXPECT_CALL(mock_route_, get_version()).WillRepeatedly(ReturnRef(version));
     EXPECT_CALL(mock_route_, get_object_path()).WillRepeatedly(ReturnRef(path));
-    EXPECT_CALL(mock_route_, get_rest_path()).WillRepeatedly(ReturnRef(path));
+    EXPECT_CALL(mock_route_, get_rest_path())
+        .WillRepeatedly(Return(std::vector<std::string>({path})));
     EXPECT_CALL(mock_route_, get_rest_url()).WillRepeatedly(ReturnRef(path));
     EXPECT_CALL(mock_request_, get_input_headers())
         .WillRepeatedly(ReturnRef(mock_input_headers));
