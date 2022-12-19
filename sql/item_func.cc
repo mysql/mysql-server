@@ -4461,6 +4461,7 @@ bool Item_udf_func::fix_fields(THD *thd, Item **) {
   if (udf.fix_fields(thd, this, arg_count, args)) return true;
   if (thd->is_error()) return true;
   used_tables_cache = udf.used_tables_cache;
+  m_non_deterministic = is_non_deterministic();
   fixed = true;
   return false;
 }
@@ -4570,6 +4571,21 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
 
   if (func->resolve_type(thd)) return true;
 
+  /*
+    Calculation of constness and non-deterministic property of a UDF is done
+    according to this algorithm:
+    - If any argument to the UDF is non-const, the used tables information
+      and constness of the UDF is derived from the aggregated properties of
+      the arguments.
+    - If all arguments to the UDF are const and the init function specifies
+      the UDF to be non-const, the UDF is marked as non-deterministic.
+    Thus, initid.const_item is only considered when all arguments are const,
+    and it's use is thus slightly inconsistent. However, the current behavior
+    seems to work well in most circumstances.
+
+    @todo Clarify the semantics of initid.const_item and make it affect
+          the constness and non-deterministic property more consistently.
+  */
   initid.max_length = func->max_length;
   initid.maybe_null = func->m_nullable;
   initid.const_item = used_tables_cache == 0;

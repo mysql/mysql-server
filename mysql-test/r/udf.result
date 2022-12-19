@@ -725,4 +725,21 @@ f1	median
 2	100
 DROP TABLE t1;
 DROP FUNCTION my_median;
+CREATE FUNCTION sequence RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+SELECT a FROM t1 WHERE a = sequence();
+a
+1
+2
+3
+4
+SELECT a FROM (SELECT sequence() AS seq, a FROM t1) AS dt WHERE a = seq;
+a
+1
+2
+3
+4
+DROP FUNCTION sequence;
+DROP TABLE t1;
 # End of the 8.0 tests

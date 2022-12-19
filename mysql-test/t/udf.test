@@ -867,4 +867,19 @@ let $query =
 DROP TABLE t1;
 DROP FUNCTION my_median;
 
+#
+# Bug#34666531: Mysqld failure - String::ptr()
+#
+
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION sequence RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+
+SELECT a FROM t1 WHERE a = sequence();
+SELECT a FROM (SELECT sequence() AS seq, a FROM t1) AS dt WHERE a = seq;
+
+DROP FUNCTION sequence;
+DROP TABLE t1;
+
 --echo # End of the 8.0 tests
