@@ -4,6 +4,7 @@ SELECT VARIABLE_NAME, MIN_VALUE, MAX_VALUE FROM performance_schema.variables_inf
 WHERE VARIABLE_NAME LIKE '%component%'
        ORDER BY VARIABLE_NAME;
 VARIABLE_NAME	MIN_VALUE	MAX_VALUE
+test_component.bool_ro_sys_var	0	0
 test_component.bool_sys_var	0	0
 test_component.enum_sys_var	0	0
 test_component.int_sys_var	0	1024
@@ -27,6 +28,7 @@ SELECT VARIABLE_NAME, MIN_VALUE, MAX_VALUE FROM performance_schema.variables_inf
 WHERE VARIABLE_NAME LIKE '%component%'
        ORDER BY VARIABLE_NAME;
 VARIABLE_NAME	MIN_VALUE	MAX_VALUE
+test_component.bool_ro_sys_var	0	0
 test_component.bool_sys_var	0	0
 test_component.enum_sys_var	0	0
 test_component.int_sys_var	0	1024

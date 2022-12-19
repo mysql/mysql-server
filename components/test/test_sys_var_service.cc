@@ -179,14 +179,29 @@ static mysql_service_status_t test_component_sys_var_service_init() {
     WRITE_LOG("%s\n", "unsigned longlong register_variable failed.");
   }
 
-  BOOL_CHECK_ARG(bool) bool_arg;
-  bool_arg.def_val = true;
+  {
+    BOOL_CHECK_ARG(bool) bool_arg;
+    bool_arg.def_val = true;
 
-  if (mysql_service_component_sys_variable_register->register_variable(
-          "test_component", "bool_sys_var", PLUGIN_VAR_BOOL,
-          "Registering bool sys_variable", nullptr, nullptr, (void *)&bool_arg,
-          (void *)&bool_variable_value)) {
-    WRITE_LOG("%s\n", "register_variable failed.");
+    if (mysql_service_component_sys_variable_register->register_variable(
+            "test_component", "bool_sys_var", PLUGIN_VAR_BOOL,
+            "Registering bool sys_variable", nullptr, nullptr,
+            (void *)&bool_arg, (void *)&bool_variable_value)) {
+      WRITE_LOG("%s\n", "register_variable failed.");
+    }
+  }
+
+  {
+    BOOL_CHECK_ARG(bool) bool_early_arg;
+    bool_early_arg.def_val = true;
+
+    if (mysql_service_component_sys_variable_register->register_variable(
+            "test_component", "bool_ro_sys_var",
+            PLUGIN_VAR_BOOL | PLUGIN_VAR_PERSIST_AS_READ_ONLY,
+            "Registering bool sys_variable persisted as read only", nullptr,
+            nullptr, (void *)&bool_early_arg, (void *)&bool_variable_value)) {
+      WRITE_LOG("%s\n", "register_variable failed.");
+    }
   }
 
   ENUM_CHECK_ARG(enum) enum_arg;
@@ -339,6 +354,11 @@ static mysql_service_status_t test_component_sys_var_service_deinit() {
   if (mysql_service_component_sys_variable_unregister->unregister_variable(
           "test_component", "bool_sys_var")) {
     WRITE_LOG("%s\n", "unregister_variable failed.");
+  }
+
+  if (mysql_service_component_sys_variable_unregister->unregister_variable(
+          "test_component", "bool_ro_sys_var")) {
+    WRITE_LOG("%s\n", "unregister_variable bool_ro_sys_var failed.");
   }
 
   if (mysql_service_component_sys_variable_unregister->unregister_variable(

@@ -133,15 +133,14 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     char ***argv;
     int argc_copy;
     char **argv_copy;
-    char **to_free = nullptr;
     void *mem;
     get_opt_arg_source *opts_arg_source;
     THD *thd = current_thd;
     bool option_value_found_in_install = false;
+    MEM_ROOT local_root{key_memory_comp_sys_var, 512};
 
     com_sys_var_len = strlen(component_name) + strlen(var_name) + 2;
-    com_sys_var_name =
-        (char *)my_malloc(key_memory_comp_sys_var, com_sys_var_len, MYF(0));
+    com_sys_var_name = new (&local_root) char[com_sys_var_len];
     strxmov(com_sys_var_name, component_name, ".", var_name, NullS);
     my_casedn_str(&my_charset_latin1, com_sys_var_name);
 
@@ -347,13 +346,22 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     */
     if (!option_value_found_in_install) {
       if (mysqld_server_started) {
+        Persisted_variables_cache *pv =
+            Persisted_variables_cache::get_instance();
         argc_copy = orig_argc;
-        to_free = argv_copy = (char **)my_malloc(
-            key_memory_comp_sys_var, (argc_copy + 1) * sizeof(char *), MYF(0));
+        argv_copy = new (&local_root) char *[argc_copy + 1];
         memcpy(argv_copy, orig_argv, argc_copy * sizeof(char *));
         argv_copy[argc_copy] = nullptr;
         argc = &argc_copy;
         argv = &argv_copy;
+        if (pv && pv->append_read_only_variables(argc, argv, true, true,
+                                                 &local_root)) {
+          LogErr(ERROR_LEVEL,
+                 ER_SYS_VAR_COMPONENT_FAILED_TO_PARSE_VARIABLE_OPTIONS,
+                 var_name);
+          if (opts) my_cleanup_options(opts);
+          goto end;
+        }
       } else {
         argc = get_remaining_argc();
         argv = get_remaining_argv();
@@ -371,8 +379,9 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
       }
     }
 
-    sysvar = reinterpret_cast<sys_var *>(
-        new sys_var_pluginvar(&chain, com_sys_var_name, opt));
+    sysvar = reinterpret_cast<sys_var *>(new sys_var_pluginvar(
+        &chain, my_strdup(key_memory_comp_sys_var, com_sys_var_name, MYF(0)),
+        opt));
 
     if (sysvar == nullptr) {
       LogErr(ERROR_LEVEL, ER_SYS_VAR_COMPONENT_OOM, var_name);
@@ -426,7 +435,6 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
 
   end:
     my_free(mem);
-    if (to_free) my_free(to_free);
 
     return ret;
   } catch (...) {
