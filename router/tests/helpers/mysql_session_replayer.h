@@ -48,21 +48,15 @@ class MySQLSessionReplayer : public mysqlrouter::MySQLSession {
    * @note validator is ignored (not implemented) - if you're running a test
    * that relies on proper emulation of validator, it may not work properly.
    */
-  virtual void query(
-      const std::string &sql, const RowProcessor &processor,
-      const FieldValidator &validator =
-          null_field_validator  // validator not implemented so far
-      ) override;
+  virtual void query(const std::string &sql, const RowProcessor &processor,
+                     const FieldValidator &validator) override;
 
   /**
    * @note validator is ignored (not implemented) - if you're running a test
    * that relies on proper emulation of validator, it may not work properly.
    */
   virtual std::unique_ptr<ResultRow> query_one(
-      const std::string &sql,
-      const FieldValidator &validator =
-          null_field_validator  // validator not implemented so far
-      ) override;
+      const std::string &sql, const FieldValidator &validator) override;
 
   virtual uint64_t last_insert_id() noexcept override;
   virtual unsigned warning_count() noexcept override;

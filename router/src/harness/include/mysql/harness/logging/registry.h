@@ -45,10 +45,6 @@ class Handler;
 
 class HARNESS_EXPORT Registry {
  public:
-  const static std::map<std::string, LogLevel> kLogLevels;
-  const static std::map<std::string, LogTimestampPrecision>
-      kLogTimestampPrecisions;
-
   Registry() = default;
   Registry(const Registry &) = delete;
   Registry &operator=(const Registry &) = delete;
