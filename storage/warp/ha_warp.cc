@@ -224,7 +224,7 @@ int ha_warp::rename_table(const char * from, const char * to, const dd::Table* ,
   DBUG_ENTER("ha_example::rename_table ");
   std::string cmd = "mv " + std::string(from) + ".data/ " + std::string(to) + ".data/";
   
-  system(cmd.c_str()); 
+  __attribute__((unused))int retval = system(cmd.c_str()); 
   DBUG_RETURN(0);
 }
 
@@ -276,7 +276,7 @@ int ha_warp::encode_quote(uchar *) {
         break;
 
       case MYSQL_TYPE_YEAR:
-        attribute.append((*field)->data_ptr()[0]);
+        (*field)->val_int_as_str(&attribute, false);
 
         no_quote = true;
         break;
@@ -536,12 +536,12 @@ int ha_warp::find_current_row(uchar *buf, ibis::table::cursor *cursor) {
         case MYSQL_TYPE_TINY:
         case MYSQL_TYPE_YEAR: {
           if(is_unsigned) {
-            unsigned char tmp = 0;
-            rc = cursor->getColumnAsUByte(cname.c_str(), tmp);
+            unsigned int tmp = 0;
+            rc = cursor->getColumnAsUInt(cname.c_str(), tmp);
             rc = (*field)->store(tmp, true);
           } else {
-            char tmp = 0;
-            rc = cursor->getColumnAsByte(cname.c_str(), tmp);
+            int tmp = 0;
+            rc = cursor->getColumnAsInt(cname.c_str(), tmp);
             rc = (*field)->store(tmp, false);
           }
           break;
@@ -829,7 +829,9 @@ void ha_warp::write_buffered_rows_to_disk() {
   auto part_name = basename(part_dir_copy);
   writer->write(part_dir.c_str(), part_name);
   writer->clearData();
-  //maintain_indexes(part_dir.c_str());
+  /*if(update_indexes) { 
+    maintain_indexes(part_dir.c_str());
+  }*/
   free(part_dir_copy);
   //delete writer;
   //writer = NULL;
@@ -942,7 +944,7 @@ int ha_warp::update_row(const uchar *, uchar *new_data) {
   // the statement will be rolled back and the deleted row 
   // will be 
   int retval = write_row(new_data);
-  
+    
   if(retval == 0) {
     // only log the delete and create the history lock 
     // if the write completed successfully.  The EX_LOCK
@@ -1225,7 +1227,7 @@ int ha_warp::repair(THD *, HA_CHECK_OPT *) {
   Called by the database to lock the table. Keep in mind that this
   is an internal lock.
 */
-THR_LOCK_DATA **ha_warp::store_lock(THD *, THR_LOCK_DATA **to,
+THR_LOCK_DATA **ha_warp::store_lock(THD *thd, THR_LOCK_DATA **to,
                                     enum thr_lock_type lock_type) {
   DBUG_ENTER("ha_warp::store_lock");
 
@@ -1236,7 +1238,7 @@ THR_LOCK_DATA **ha_warp::store_lock(THD *, THR_LOCK_DATA **to,
     lock_in_share_mode = true;
   }
 
-  if(lock_type == TL_WRITE) {
+  if(lock_type == TL_WRITE && thd->lex->sql_command == SQLCOM_SELECT) {
     lock_for_update = true;
   }
 
@@ -1359,7 +1361,7 @@ int ha_warp::create_writer(TABLE *table_arg) {
 
       case MYSQL_TYPE_YEAR:
         index_spec="<binning none/><encoding interval-equality/>";
-        datatype = ibis::UBYTE;
+        datatype = ibis::USHORT;
         break;
 
       case MYSQL_TYPE_DATE:
@@ -1577,7 +1579,7 @@ int ha_warp::rnd_init(bool) {
   if(push_where_clause == "") {
     push_where_clause = "1=1";
   }
-
+  
   if(pushdown_info->base_table != NULL) {
     partitions = NULL;
     base_table = pushdown_info->base_table;
@@ -1638,20 +1640,19 @@ void filter_fact_column(
   std::set<uint64_t>* matching_dim_rids,
   uint32_t* running_filter_threads,
   std::mutex* fact_filter_mutex ) 
-  { 
-    auto column_vals = column_query->getQualifiedLongs((fact_filter->first)->fact_column.c_str());
+{ 
+  auto column_vals = column_query->getQualifiedLongs((fact_filter->first)->fact_column.c_str());
     
-    uint32_t rownum = 1;
-    std::vector<uint64_t> matching_dim_rowids;
-    matching_dim_rowids.clear();
-    for(auto column_it = column_vals->begin(); column_it != column_vals->end(); ++column_it) {
-      ++rownum;
-      
-      auto find_it = fact_filter->second->find(*column_it);
-      if( find_it != fact_filter->second->end() ) {
-        matching_rids->push_back(rownum);
-        matching_dim_rids->insert(find_it->second);
-      }
+  uint32_t rownum = 1;
+  std::vector<uint64_t> matching_dim_rowids;
+  matching_dim_rowids.clear();
+  for(auto column_it = column_vals->begin(); column_it != column_vals->end(); ++column_it) {
+    ++rownum;
+    auto find_it = fact_filter->second->find(*column_it);
+    if( find_it != fact_filter->second->end() ) {
+      matching_rids->push_back(rownum);
+      matching_dim_rids->insert(find_it->second);
+    }
   }
   delete column_vals;
   column_vals = NULL;
@@ -2578,13 +2579,14 @@ int warp_push_to_engine(THD * thd , AccessPath * root_path, JOIN * join) {
     assert(pushdown_info != nullptr);
     ha->push_where_clause = "";
     const Item* remainder=nullptr;
+    //const Item* remainder1=nullptr;
     if(cond) {
-      remainder = ha->warp_cond_push(cond,true);
+      remainder = ha->cond_push(cond);
     }
     auto save_where = ha->push_where_clause;
     if(join->where_cond) {
       ha->push_where_clause = "";
-      ha->warp_cond_push(join->where_cond, true);
+      ha->cond_push(join->where_cond);
     }
     if(ha->push_where_clause != "") {
       ha->push_where_clause += " AND ";
@@ -2619,8 +2621,7 @@ int warp_push_to_engine(THD * thd , AccessPath * root_path, JOIN * join) {
 
    This code is called from ha_warp::engine_push in 8.0.20+
 */
-const Item *ha_warp::warp_cond_push(const Item *cond, bool other_tbls_ok) {
-  
+const Item *ha_warp::cond_push(const Item *cond) {
   static int depth=0;
   static int unpushed_condition_count = 0;
   static int condition_count = 0;
@@ -2671,7 +2672,7 @@ const Item *ha_warp::warp_cond_push(const Item *cond, bool other_tbls_ok) {
       */
       ++depth;
       
-      if(warp_cond_push(item, other_tbls_ok) != NULL) {
+      if(cond_push(item) != NULL) {
         unpushed_condition_count++;
         //items->push_back(item);
       }
@@ -3188,12 +3189,12 @@ int ha_warp::bitmap_merge_join() {
         case MYSQL_TYPE_TINY:
         case MYSQL_TYPE_YEAR: {
           if(is_unsigned) {
-            unsigned char tmp = 0;
-            rc = dim_cursor->getColumnAsUByte(dim_colname.c_str(), tmp);
+            unsigned int tmp = 0;
+            rc = dim_cursor->getColumnAsUInt(dim_colname.c_str(), tmp);
             matches->insert(std::make_pair(tmp, rownum));
           } else {
-            char tmp = 0;
-            rc = dim_cursor->getColumnAsByte(dim_colname.c_str(), tmp);
+            int tmp = 0;
+            rc = dim_cursor->getColumnAsInt(dim_colname.c_str(), tmp);
             matches->insert(std::make_pair(tmp, rownum));            
           }
           

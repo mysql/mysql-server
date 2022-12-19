@@ -19,10 +19,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-/*
- * ha_warp.cc:76:
-/data/warp/storage/warp/ha_warp.h:23:32: error: ‘-Werror=suggest-override’ is not an option that controls warnings [-Werror=pragmas]
-*/
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsuggest-override"
 #pragma GCC diagnostic push
@@ -824,7 +820,7 @@ class ha_warp : public handler {
 
   // Functions to support engine condition pushdown (ECP)
   //int engine_push(AQP::Table_access *table_aqp);
-  const Item* warp_cond_push(const Item *cond,	bool other_tbls_ok );
+  const Item* cond_push(const Item *cond);
 	
   int rename_table(const char * from, const char * to, const dd::Table* , dd::Table* );
 
