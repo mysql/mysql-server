@@ -1037,3 +1037,8 @@ static inline const byte *rec_get_nth_field_instant(const rec_t *rec,
 
   return (index->get_nth_default(n, len));
 }
+
+static inline bool rec_is_min_rec_flag_set(const rec_t *rec, bool is_comp) {
+  ut_ad(rec);
+  return (REC_INFO_MIN_REC_FLAG & rec_get_info_bits(rec, is_comp));
+}

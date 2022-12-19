@@ -12081,6 +12081,12 @@ ER_IB_INDEX_LOG_VERSION_MISMATCH
 ER_WARN_COMPONENTS_INFRASTRUCTURE_MANIFEST_MULTIPLE_KEYRING
    eng "Multiple keyring component URNs '%s' found in manifest file '%s'. Only one keyring component can be loaded at a time."
 
+ER_CHECK_TABLE_MIN_REC_FLAG_SET
+   eng "Minimum record flag is wrongly set to rec on page '%lu' at level '%lu' for index '%s' of table '%s'."
+
+ER_CHECK_TABLE_MIN_REC_FLAG_NOT_SET
+   eng "Minimum record flag is not set to first rec on page '%lu' at level '%lu' for index '%s' of table '%s'."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
