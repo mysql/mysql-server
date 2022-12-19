@@ -94,10 +94,14 @@ const std::string &ObjectStaticFile::get_json_description() {
 
 const std::vector<std::string> ObjectStaticFile::get_rest_path() {
   const static std::string k_index_html = "/index.html$";
-  if (helper::ends_with(rest_path_, "/index.html$"))
-    return {rest_path_, rest_path_.substr(0, rest_path_.length() -
-                                                 k_index_html.length() + 1) +
-                            "$"};
+  if (helper::ends_with(rest_path_, "/index.html$")) {
+    auto rest_path2 =
+        rest_path_.substr(0, rest_path_.length() - k_index_html.length() + 1) +
+        "$";
+    auto rest_path3 =
+        rest_path_.substr(0, rest_path_.length() - k_index_html.length()) + "$";
+    return {rest_path_, rest_path2, rest_path3};
+  }
   return {rest_path_};
 }
 
