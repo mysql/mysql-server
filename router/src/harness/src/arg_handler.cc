@@ -107,6 +107,7 @@ bool is_valid_option_value(const std::string &value) {
 
 void CmdArgHandler::process(const std::vector<std::string> &arguments) {
   rest_arguments_.clear();
+  found_unkown_argument_ = false;
 
   std::vector<std::pair<CmdOption::ActionFunc, std::string>> schedule;
   std::vector<std::pair<CmdOption::AtEndActionFunc, std::string>>
@@ -192,6 +193,8 @@ void CmdArgHandler::process(const std::vector<std::string> &arguments) {
     if (opt_iter == options_.end()) {
       if (!ignore_unknown_arguments)
         throw std::invalid_argument("unknown option '" + argpart + "'.");
+
+      found_unkown_argument_ = true;
     }
 
     // if ignore_unknown_arguments is true we use this no-op handler when we see

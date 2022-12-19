@@ -413,11 +413,15 @@ class HARNESS_EXPORT CmdArgHandler {
     return rest_arguments_;
   }
 
+  bool found_unknown_arguments() const noexcept {
+    return found_unkown_argument_;
+  }
+
   /** @brief Whether to allow rest arguments or not **/
-  bool allow_rest_arguments;
+  const bool allow_rest_arguments;
 
   /** @brief Whether to ignore unknown arguments **/
-  bool ignore_unknown_arguments;
+  const bool ignore_unknown_arguments;
 
   /** @brief The key is a section identificator (section name and optional
    * section key), the value is a map of all the overrides for a given section
@@ -435,6 +439,7 @@ class HARNESS_EXPORT CmdArgHandler {
   std::vector<std::string> rest_arguments_;
   /** @brief Keeps configuration options overwrites **/
   ConfigOverwrites config_overwrites_;
+  bool found_unkown_argument_{false};
 };
 
 #endif  // HARNESS_ARG_HANDLER_INCLUDED
