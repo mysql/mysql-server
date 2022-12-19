@@ -394,6 +394,44 @@ DECLARE_BOOL_METHOD(fetch_fields,
 DECLARE_BOOL_METHOD(field_count, (MYSQL_H mysql_h, unsigned int *num_fields));
 END_SERVICE_DEFINITION(mysql_command_field_info)
 
+#define MYSQL_COMMAND_FIELD_METADATA_NAME 0
+#define MYSQL_COMMAND_FIELD_METADATA_TABLE_NAME 1
+#define MYSQL_COMMAND_FIELD_METADATA_TABLE_DB_NAME 2
+
+/**
+  @ingroup group_components_services_inventory
+
+  Fetch the metadata of a service.
+
+  Usually used as follows:
+
+*/
+BEGIN_SERVICE_DEFINITION(mysql_command_field_metadata)
+/**
+  Retrieves the metadata for the field.
+
+  @param[in]  mysql_field_h A valid mysql field handle object.
+  @param[in]  metadata A metadata ID to fetch. Can be one of:
+
+--------------+-------------------------------------------+--------------------------------+
+     Type     |    Option                                 |Explanation |
+--------------+-------------------------------------------+--------------------------------+
+const char *  |MYSQL_COMMAND_FIELD_METADATA_NAME          |The field name. |
+--------------+-------------------------------------------+--------------------------------+
+const char *  |MYSQL_COMMAND_FIELD_METADATA_TABLE_NAME    |The table name. |
+--------------+-------------------------------------------+--------------------------------+
+const char *  |MYSQL_COMMAND_FIELD_METADATA_TABLE_DB_NAME |The table database
+name.        |
+--------------+-------------------------------------------+--------------------------------+
+
+  @param[out] data A buffer to receive the data fetched.
+  @retval true    failure
+  @retval false   success
+*/
+DECLARE_BOOL_METHOD(get,
+                    (MYSQL_FIELD_H mysql_field_h, int metadata, void *data));
+END_SERVICE_DEFINITION(mysql_command_field_metadata)
+
 /**
   @ingroup group_components_services_inventory
 

@@ -484,6 +484,9 @@ mysql_command_services_imp::fetch_field, mysql_command_services_imp::num_fields,
     mysql_command_services_imp::fetch_fields,
     mysql_command_services_imp::field_count END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_command_field_metadata)
+mysql_command_services_imp::field_metadata_get END_SERVICE_IMPLEMENTATION();
+
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_command_error_info)
 mysql_command_services_imp::sql_errno, mysql_command_services_imp::sql_error,
     mysql_command_services_imp::sql_state END_SERVICE_IMPLEMENTATION();
@@ -696,6 +699,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_text_consumer_get_string_v1),
     PROVIDES_SERVICE(mysql_server, mysql_text_consumer_client_capabilities_v1),
     PROVIDES_SERVICE(mysql_server, mysql_status_variable_string),
+    PROVIDES_SERVICE(mysql_server, mysql_command_field_metadata),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();

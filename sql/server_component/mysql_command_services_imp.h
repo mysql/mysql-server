@@ -127,6 +127,10 @@ class mysql_command_services_imp {
   static DEFINE_BOOL_METHOD(sql_error, (MYSQL_H mysql_h, char **errmsg));
   static DEFINE_BOOL_METHOD(sql_state,
                             (MYSQL_H mysql_h, char **sqlstate_errmsg));
+
+  /* mysql_command_field_metadata service APIs */
+  static DEFINE_BOOL_METHOD(field_metadata_get,
+                            (MYSQL_FIELD_H field_h, int metadata, void *data));
 };
 
 /** This is a wrapper class of all the mysql_text_consumer services refs */
