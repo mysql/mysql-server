@@ -8805,8 +8805,11 @@ bool Item_default_value::fix_fields(THD *thd, Item **) {
     return true;
   }
 
+  // If it's a generated column or otherwise doesn't have a default
+  // value, fail.
   Item_field *const field_arg = down_cast<Item_field *>(real_arg);
-  if (field_arg->field->is_flag_set(NO_DEFAULT_VALUE_FLAG)) {
+  if (field_arg->field->is_flag_set(NO_DEFAULT_VALUE_FLAG) ||
+      (field_arg->field->gcol_info != nullptr)) {
     my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), field_arg->field->field_name);
     return true;
   }
