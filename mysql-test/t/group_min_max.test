@@ -1979,3 +1979,22 @@ SELECT MAX(f1) FROM t1 WHERE f() = 0;
 
 DROP TABLE t1;
 DROP FUNCTION f;
+
+--echo # Bug#34317267: Assertion `!table->file->inited' failed in Mysql 8.0.29.
+
+CREATE TABLE t1 (k INT, KEY(k)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+
+SELECT *
+FROM t1 AS ra0 LEFT JOIN t1 AS ra1
+     ON ra0.k IN (SELECT MAX(ra0.k) FROM t1);
+
+SELECT *
+FROM t1 AS ra0 LEFT JOIN t1 AS ra1
+     ON ra0.k IN (SELECT MIN(ra0.k) FROM t1);
+
+SELECT *
+FROM t1 AS ra0 LEFT JOIN t1 AS ra1
+     ON ra0.k IN (SELECT COUNT(ra0.k) FROM t1);
+
+DROP TABLE t1;

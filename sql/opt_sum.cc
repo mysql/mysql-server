@@ -472,7 +472,15 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
             Item_field *item_field = down_cast<Item_field *>(expr);
             Table_ref *tr = item_field->table_ref;
             TABLE *table = tr->table;
-
+            /*
+              If table already has been read, we may use the values already
+              in record buffer. However, the logic around this is a bit unclear,
+              thus we skip this possible optimization for now.
+            */
+            if (table->const_table) {
+              aggr_impossible = true;
+              break;
+            }
             /*
               We must not have accessed this table instance yet, because
               it must be private to this query block, as we already ensured
