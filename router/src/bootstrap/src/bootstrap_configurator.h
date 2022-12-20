@@ -25,22 +25,26 @@
 #ifndef ROUTER_SRC_BOOTSTRAP_SRC_BOOTSTRAP_CONFIGURATOR_H_
 #define ROUTER_SRC_BOOTSTRAP_SRC_BOOTSTRAP_CONFIGURATOR_H_
 
+#include <set>
 #include <string>
 #include <vector>
 
-#include "mysql/harness/loader_config.h"
+#include "mysql/harness/config_parser.h"
 
 #include "bootstrap_credentials.h"
-#include "mysqlrouter/keyring_info.h"
+#include "keyring_handler.h"
 
 using String = std::string;
 using Strings = std::vector<std::string>;
+using UniqueStrings = std::set<std::string>;
 
 class BootstrapArguments;
 
 class BootstrapConfigurator {
  public:
   BootstrapConfigurator(BootstrapArguments *arguments);
+
+  bool can_configure();
 
   void create_mrs_users();
   void store_mrs_data_in_keyring();
@@ -51,17 +55,21 @@ class BootstrapConfigurator {
  private:
   void load_configuration();
 
+  struct RoutingConfig {
+    std::string key;
+    bool is_metadata_cache;
+  };
+  RoutingConfig get_config_classic_rw_section();
   BootstrapCredentials get_config_mrs_metadata_user();
   BootstrapCredentials get_config_mrs_data_user();
-  std::string get_config_keyring_path();
   std::string get_config_master_key_path();
 
   uint64_t get_config_router_id();
-  Strings get_account_host_args();
+  UniqueStrings get_account_host_args();
 
   BootstrapArguments *arguments_;
-  KeyringInfo keyring_info_;
-  mysql_harness::LoaderConfig config_{mysql_harness::Config::allow_keys};
+  KeyringHandler ki_handler_;
+  mysql_harness::Config config_{mysql_harness::Config::allow_keys};
 };
 
 #endif  // ROUTER_SRC_BOOTSTRAP_SRC_BOOTSTRAP_CONFIGURATOR_H_

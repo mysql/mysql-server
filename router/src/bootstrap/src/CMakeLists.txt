@@ -23,6 +23,7 @@
 
 MYSQL_ADD_EXECUTABLE(mysqlrouter_bootstrap
   bootstrap_configurator.cc
+  bootstrap_mysql_account.cc
   main.cc
   COMPONENT Router
   LINK_LIBRARIES

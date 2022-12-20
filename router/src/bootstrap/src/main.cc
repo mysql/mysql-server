@@ -58,15 +58,24 @@ int main(int argc, char **argv) {
                 << Vt100::render(Vt100::Render::ForegroundDefault) << std::endl;
       BootstrapConfigurator configurator{&application_arguments};
 
-      std::cout << "- Creating account(s) (only those that are needed)\n";
-      configurator.create_mrs_users();
+      bool if_not_exists = (application_arguments.user_options.account_create ==
+                            "if-not-exists") ||
+                           application_arguments.user_options.account.empty();
 
-      std::cout << "- Storing account in keyring\n";
-      configurator.store_mrs_data_in_keyring();
+      if (configurator.can_configure()) {
+        std::cout << "- Creating account(s) "
+                  << (if_not_exists ? "(only those that are needed, if any)"
+                                    : "")
+                  << "\n";
+        configurator.create_mrs_users();
 
-      std::cout << "- Adjusting configuration file "
-                << configurator.get_generated_configuration_file() << "\n";
-      configurator.store_configuration();
+        std::cout << "- Storing account in keyring\n";
+        configurator.store_mrs_data_in_keyring();
+
+        std::cout << "- Adjusting configuration file "
+                  << configurator.get_generated_configuration_file() << "\n";
+        configurator.store_configuration();
+      }
     }
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";
