@@ -171,13 +171,6 @@
 #define BSL10(m) BSL9(m) LE(m(10))
 #define BSL11(m) BSL10(m) LE(m(11))
 #define BSL12(m) BSL11(m) LE(m(12))
-#define BSL13(m) BSL12(m) LE(m(13))
-#define BSL14(m) BSL13(m) LE(m(14))
-#define BSL15(m) BSL14(m) LE(m(15))
-#define BSL16(m) BSL15(m) LE(m(16))
-#define BSL17(m) BSL16(m) LE(m(17))
-#define BSL18(m) BSL17(m) LE(m(18))
-#define BSL19(m) BSL18(m) LE(m(19))
 
 // a macro generating a blank-separated list in reverse order
 //
@@ -199,13 +192,6 @@
 #define RBSL10(m) LE(m(10)) RBSL9(m)
 #define RBSL11(m) LE(m(11)) RBSL10(m)
 #define RBSL12(m) LE(m(12)) RBSL11(m)
-#define RBSL13(m) LE(m(13)) RBSL12(m)
-#define RBSL14(m) LE(m(14)) RBSL13(m)
-#define RBSL15(m) LE(m(15)) RBSL14(m)
-#define RBSL16(m) LE(m(16)) RBSL15(m)
-#define RBSL17(m) LE(m(17)) RBSL16(m)
-#define RBSL18(m) LE(m(18)) RBSL17(m)
-#define RBSL19(m) LE(m(19)) RBSL18(m)
 
 // a macro generating a comma-separated list
 //
@@ -227,13 +213,6 @@
 #define CSL10(m) CSL9(m), LE(m(10))
 #define CSL11(m) CSL10(m), LE(m(11))
 #define CSL12(m) CSL11(m), LE(m(12))
-#define CSL13(m) CSL12(m), LE(m(13))
-#define CSL14(m) CSL13(m), LE(m(14))
-#define CSL15(m) CSL14(m), LE(m(15))
-#define CSL16(m) CSL15(m), LE(m(16))
-#define CSL17(m) CSL16(m), LE(m(17))
-#define CSL18(m) CSL17(m), LE(m(18))
-#define CSL19(m) CSL18(m), LE(m(19))
 
 // a macro generating a comma-preceded list
 //
@@ -255,13 +234,6 @@
 #define CPL10(m) CPL9(m), LE(m(10))
 #define CPL11(m) CPL10(m), LE(m(11))
 #define CPL12(m) CPL11(m), LE(m(12))
-#define CPL13(m) CPL12(m), LE(m(13))
-#define CPL14(m) CPL13(m), LE(m(14))
-#define CPL15(m) CPL14(m), LE(m(15))
-#define CPL16(m) CPL15(m), LE(m(16))
-#define CPL17(m) CPL16(m), LE(m(17))
-#define CPL18(m) CPL17(m), LE(m(18))
-#define CPL19(m) CPL18(m), LE(m(19))
 
 // a macro generating a comma-terminated list
 //
@@ -283,13 +255,6 @@
 #define CTL10(m) CTL9(m) LE(m(10)),
 #define CTL11(m) CTL10(m) LE(m(11)),
 #define CTL12(m) CTL11(m) LE(m(12)),
-#define CTL13(m) CTL12(m) LE(m(13)),
-#define CTL14(m) CTL13(m) LE(m(14)),
-#define CTL15(m) CTL14(m) LE(m(15)),
-#define CTL16(m) CTL15(m) LE(m(16)),
-#define CTL17(m) CTL16(m) LE(m(17)),
-#define CTL18(m) CTL17(m) LE(m(18)),
-#define CTL19(m) CTL18(m) LE(m(19)),
 
 // ---------------------------------------------------------------------------
 // Stringification Macros
@@ -340,13 +305,6 @@
 #define SCSL10(m) SCSL9(m) ", " STRING(m(10))
 #define SCSL11(m) SCSL10(m) ", " STRING(m(11))
 #define SCSL12(m) SCSL11(m) ", " STRING(m(12))
-#define SCSL13(m) SCSL12(m) ", " STRING(m(13))
-#define SCSL14(m) SCSL13(m) ", " STRING(m(14))
-#define SCSL15(m) SCSL14(m) ", " STRING(m(15))
-#define SCSL16(m) SCSL15(m) ", " STRING(m(16))
-#define SCSL17(m) SCSL16(m) ", " STRING(m(17))
-#define SCSL18(m) SCSL17(m) ", " STRING(m(18))
-#define SCSL19(m) SCSL18(m) ", " STRING(m(19))
 
 // macro generating a comma-preceded, stringified list
 //
@@ -369,13 +327,6 @@
 #define SCPL10(m) SCPL9(m) ", " STRING(m(10))
 #define SCPL11(m) SCPL10(m) ", " STRING(m(11))
 #define SCPL12(m) SCPL11(m) ", " STRING(m(12))
-#define SCPL13(m) SCPL12(m) ", " STRING(m(13))
-#define SCPL14(m) SCPL13(m) ", " STRING(m(14))
-#define SCPL15(m) SCPL14(m) ", " STRING(m(15))
-#define SCPL16(m) SCPL15(m) ", " STRING(m(16))
-#define SCPL17(m) SCPL16(m) ", " STRING(m(17))
-#define SCPL18(m) SCPL17(m) ", " STRING(m(18))
-#define SCPL19(m) SCPL18(m) ", " STRING(m(19))
 
 // ---------------------------------------------------------------------------
 // Name Definitions used in Wrapper Function Templates
@@ -574,6 +525,10 @@ inline void gset(JEPD, JFOPD CPL1(JFPD)) {
     RBSL##n(PARAM_CONV_END);                             \
   }
 
+// JEPD = "JNIEnv * env"
+// JCPD = "jclass cls"
+// CFPT = "typename P##n##T::CF_t"
+
 // generate the function templates (separate lines for proper error messages)
 TFD_F(0)
 TFD_F(1)
@@ -588,13 +543,6 @@ TFD_F(9)
 TFD_F(10)
 TFD_F(11)
 TFD_F(12)
-TFD_F(13)
-TFD_F(14)
-TFD_F(15)
-TFD_F(16)
-TFD_F(17)
-TFD_F(18)
-TFD_F(19)
 
 // ---------------------------------------------------------------------------
 // Non-Member and Static Member Function Calls, Return
@@ -627,15 +575,6 @@ TFD_FR(7)
 TFD_FR(8)
 TFD_FR(9)
 TFD_FR(10)
-TFD_FR(11)
-TFD_FR(12)
-TFD_FR(13)
-TFD_FR(14)
-TFD_FR(15)
-TFD_FR(16)
-TFD_FR(17)
-TFD_FR(18)
-TFD_FR(19)
 
 // ---------------------------------------------------------------------------
 // Non-Static Const/Non-Const Member Function Calls, No-Return
@@ -677,15 +616,6 @@ TFD_MF(7)
 TFD_MF(8)
 TFD_MF(9)
 TFD_MF(10)
-TFD_MF(11)
-TFD_MF(12)
-TFD_MF(13)
-TFD_MF(14)
-TFD_MF(15)
-TFD_MF(16)
-TFD_MF(17)
-TFD_MF(18)
-TFD_MF(19)
 
 // ---------------------------------------------------------------------------
 // Non-Static Const/Non-Const Member Function Calls, Return
@@ -728,15 +658,6 @@ TFD_MFR(7)
 TFD_MFR(8)
 TFD_MFR(9)
 TFD_MFR(10)
-TFD_MFR(11)
-TFD_MFR(12)
-TFD_MFR(13)
-TFD_MFR(14)
-TFD_MFR(15)
-TFD_MFR(16)
-TFD_MFR(17)
-TFD_MFR(18)
-TFD_MFR(19)
 
 // ---------------------------------------------------------------------------
 // Internal C++ Constructor/Destructor/Index Access Wrappers
@@ -860,15 +781,6 @@ TFD_CC(7)
 TFD_CC(8)
 TFD_CC(9)
 TFD_CC(10)
-TFD_CC(11)
-TFD_CC(12)
-TFD_CC(13)
-TFD_CC(14)
-TFD_CC(15)
-TFD_CC(16)
-TFD_CC(17)
-TFD_CC(18)
-TFD_CC(19)
 
 // ---------------------------------------------------------------------------
 // Constructor, Destructor, and Index Access Calls
@@ -944,15 +856,6 @@ TFD_C(7)
 TFD_C(8)
 TFD_C(9)
 TFD_C(10)
-TFD_C(11)
-TFD_C(12)
-TFD_C(13)
-TFD_C(14)
-TFD_C(15)
-TFD_C(16)
-TFD_C(17)
-TFD_C(18)
-TFD_C(19)
 
 // ---------------------------------------------------------------------------
 
