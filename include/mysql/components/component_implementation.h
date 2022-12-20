@@ -346,7 +346,7 @@ Example:
 
   @param service A valid service name.
 */
-#define SERIVCE_PLACEHOLDER(service) mysql_service_##service
+#define SERVICE_PLACEHOLDER(service) mysql_service_##service
 
 /**
   A macro to end the last declaration started with the BEGIN_COMPONENT_REQUIRES.
