@@ -64,6 +64,7 @@ class Configuration {
   std::string mysql_user_data_access_password_;
 
   std::set<std::string> routing_names_;
+  std::set<std::string> metada_names_;
 
  public:  // Options fetched from other plugins
   bool is_https_;

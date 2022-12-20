@@ -52,15 +52,44 @@ int main(int argc, char **argv) {
       if (EXIT_SUCCESS != status) return status;
     }
 
+    if (application_arguments.version) return 0;
+
+    if (application_arguments.help) {
+      std::cout << std::endl << "# MySQL REST Service options" << std::endl;
+      std::cout << "  --mode <all|bootstrap|mrs>" << std::endl;
+      std::cout
+          << "        Select the configuration mode, either if router should"
+          << std::endl;
+      std::cout << "        `bootstrap` or configure `mrs` (default: all)."
+                << std::endl;
+
+      std::cout << "  --mrs-metadata-account <USER_NAME>" << std::endl;
+      std::cout << "        Select MySQL Server account, which MRS should use "
+                << std::endl
+                << "        for meta-data-schema access." << std::endl;
+      std::cout << "  --mrs-data-account <USER_NAME>" << std::endl;
+      std::cout << "        Select MySQL Server account, which MRS should use "
+                   "for accessing "
+                << std::endl
+                << "        the user tables." << std::endl;
+      std::cout << "  --mrs-secret <SECRET>" << std::endl;
+      std::cout << "        Enables JWT token, by configuring SECRET which "
+                << std::endl;
+      std::cout << "        is going to use as SEED for token encryption."
+                << std::endl;
+      return 0;
+    }
+
     if (application_arguments.bootstrap_mode.should_configure_mrs()) {
       std::cout << Vt100::foreground(Vt100::Color::Yellow)
                 << "# Configuring `MRS` plugin..."
                 << Vt100::render(Vt100::Render::ForegroundDefault) << std::endl;
       BootstrapConfigurator configurator{&application_arguments};
 
-      bool if_not_exists = (application_arguments.user_options.account_create ==
-                            "if-not-exists") ||
-                           application_arguments.user_options.account.empty();
+      bool if_not_exists =
+          (application_arguments.user_options.account_create ==
+           "if-not-exists") ||
+          application_arguments.mrs_metadata_account.user.empty();
 
       if (configurator.can_configure()) {
         std::cout << "- Creating account(s) "

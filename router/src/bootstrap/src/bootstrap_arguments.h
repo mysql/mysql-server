@@ -171,6 +171,16 @@ class BootstrapArguments {
         [this](const std::string &) {
           user_options.force_password_validation = true;
         }},
+       {{"--version"},
+        " ",
+        CmdOptionValueReq::none,
+        "version",
+        [this](const std::string &) { version = true; }},
+       {{"--help"},
+        " ",
+        CmdOptionValueReq::none,
+        "help",
+        [this](const std::string &) { help = true; }},
        {{"--mode"},
         " ",
         CmdOptionValueReq::required,
@@ -300,6 +310,8 @@ class BootstrapArguments {
   std::string ssl_crlpath;
   std::string ssl_cert;
   std::string ssl_key;
+  bool version{false};
+  bool help{false};
 
   UserOptions user_options;
 
