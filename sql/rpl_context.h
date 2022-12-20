@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <memory>
 
+#include "libbinlogevents/include/compression/compressor.h"  // binary_log::transaction::compression::Compressor
 #include "my_inttypes.h"  // IWYU pragma: keep
 
 #include "sql/binlog/group_commit/bgc_ticket.h"

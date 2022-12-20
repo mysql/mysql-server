@@ -28,7 +28,7 @@
 #include <list>
 #include <mutex>  // std::adopt_lock_t
 
-#include "libbinlogevents/include/compression/base.h"
+#include "libbinlogevents/include/compression/base.h"  // binary_log::transaction::compression::type
 #include "libbinlogevents/include/gtids/global.h"
 #include "libbinlogevents/include/uuid.h"
 #include "map_helpers.h"

@@ -28,7 +28,7 @@
 #include <gtest/gtest.h>
 #include "libbinlogevents/include/binary_log.h"
 #include "libbinlogevents/include/compression/iterator.h"
-#include "libbinlogevents/include/compression/zstd.h"
+#include "libbinlogevents/include/compression/zstd_comp.h"
 #include "my_byteorder.h"
 
 namespace binary_log {

@@ -20,14 +20,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef COMPRESSION_ZSTD_INCLUDED
-#define COMPRESSION_ZSTD_INCLUDED
+#ifndef LIBBINLOGEVENTS_COMPRESSION_ZSTD_COMP_H_INCLUDED
+#define LIBBINLOGEVENTS_COMPRESSION_ZSTD_COMP_H_INCLUDED
 
 #include <zstd.h>
 #include <cstddef>
 #include <vector>
 
-#include "base.h"
+#include "compressor.h"
 
 namespace binary_log {
 namespace transaction {
@@ -126,61 +126,8 @@ class Zstd_comp : public Compressor {
   bool expand_buffer(size_t const &extra_bytes);
 };
 
-/**
-  This class implements a ZSTD decompressor.
- */
-class Zstd_dec : public Decompressor {
- private:
-  Zstd_dec &operator=(const Zstd_dec &rhs) = delete;
-  Zstd_dec(const Zstd_dec &) = delete;
-
- protected:
-  ZSTD_DStream *m_ctx{nullptr};
-
- public:
-  Zstd_dec();
-  ~Zstd_dec() override;
-
-  /**
-    Shall return the compression type code.
-
-    @return the compression type code.
-   */
-  type compression_type_code() override;
-
-  /**
-    Shall open the decompressor. This member function must be called
-    before any decompression operation takes place over the buffer
-    supplied.
-
-    @return false on success, true otherwise.
-   */
-  bool open() override;
-
-  /**
-    This member function shall decompress the buffer provided and put the
-    decompressed payload into the output buffer.
-
-    @param data a pointer to the buffer holding the data to decompress
-    @param length the size of the data to decompress.
-
-    @return false on success, true otherwise.
-   */
-  std::tuple<std::size_t, bool> decompress(const unsigned char *data,
-                                           size_t length) override;
-
-  /**
-    This member function shall close the decompressor. It must be called
-    after this decompressor is not needed anymore. It shall free the
-    resources it has used for the decompression activities.
-
-    @return false on success, true otherwise.
-   */
-  bool close() override;
-};
-
 }  // namespace compression
 }  // end of namespace transaction
 }  // end of namespace binary_log
 
-#endif
+#endif  // ifndef LIBBINLOGEVENTS_COMPRESSION_ZSTD_COMP_H_INCLUDED

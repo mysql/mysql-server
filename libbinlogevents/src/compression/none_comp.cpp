@@ -20,18 +20,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <compression/none.h>
+#include <compression/none_comp.h>
 #include <string.h>
 
 namespace binary_log {
 namespace transaction {
 namespace compression {
-
-/*
-   ****************************************************************
-   Compressor
-   ****************************************************************
- */
 
 void None_comp::set_compression_level(unsigned int) {} /* purecov: inspected */
 
@@ -45,31 +39,6 @@ bool None_comp::close() { return false; } /* purecov: inspected */
 
 std::tuple<std::size_t, bool> None_comp::compress(const unsigned char *buffer,
                                                   std::size_t length) {
-  /* purecov: begin inspected */
-  auto min_capacity = length + (m_buffer_cursor - m_buffer);
-  if (min_capacity > m_buffer_capacity)
-    if (reserve(min_capacity)) return std::make_tuple(length, true);
-
-  memcpy(m_buffer_cursor, buffer, length);
-  m_buffer_cursor += length;
-  return std::make_tuple(0, false);
-  /* purecov: end */
-}
-
-/*
-   ****************************************************************
-   Decompressor
-   ****************************************************************
- */
-
-type None_dec::compression_type_code() { return NONE; } /* purecov: inspected */
-
-bool None_dec::open() { return false; } /* purecov: inspected */
-
-bool None_dec::close() { return false; } /* purecov: inspected */
-
-std::tuple<std::size_t, bool> None_dec::decompress(const unsigned char *buffer,
-                                                   std::size_t length) {
   /* purecov: begin inspected */
   auto min_capacity = length + (m_buffer_cursor - m_buffer);
   if (min_capacity > m_buffer_capacity)

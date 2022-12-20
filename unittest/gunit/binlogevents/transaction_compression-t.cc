@@ -25,8 +25,10 @@
 
 #include <gtest/gtest.h>
 #include "libbinlogevents/include/binary_log.h"
-#include "libbinlogevents/include/compression/none.h"
-#include "libbinlogevents/include/compression/zstd.h"
+#include "libbinlogevents/include/compression/none_comp.h"
+#include "libbinlogevents/include/compression/none_dec.h"
+#include "libbinlogevents/include/compression/zstd_comp.h"
+#include "libbinlogevents/include/compression/zstd_dec.h"
 
 namespace binary_log {
 namespace transaction {

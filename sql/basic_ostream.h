@@ -23,7 +23,7 @@
 #ifndef BASIC_OSTREAM_INCLUDED
 #define BASIC_OSTREAM_INCLUDED
 #include <my_byteorder.h>
-#include "libbinlogevents/include/compression/base.h"
+#include "libbinlogevents/include/compression/compressor.h"
 #include "my_sys.h"
 #include "sql_string.h"
 

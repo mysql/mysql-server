@@ -27,8 +27,10 @@ SET(REPLICATION_SOURCES
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/base.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/factory.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/iterator.cpp
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/zstd.cpp
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/none.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/zstd_comp.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/zstd_dec.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/none_comp.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/none_dec.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/control_events.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/event_reader.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/gtids/gtid.cpp
