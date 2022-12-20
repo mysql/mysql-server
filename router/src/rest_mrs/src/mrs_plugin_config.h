@@ -60,11 +60,11 @@ class PluginConfig : public ::mysql_harness::BasePluginConfig,
 
  public:
   explicit PluginConfig(const ConfigSection *section,
-                        const std::vector<std::string> &routing_sections)
+                        const std::vector<std::string> &routing_sections,
+                        const std::vector<std::string> &metadatacaches_sections)
       : mysql_harness::BasePluginConfig(section) {
     static const char *kKeyringAttributePassword = "password";
     using StringOption = mysql_harness::StringOption;
-
     mysql_user_ = get_option(section, "mysql_user", StringOption{});
     mysql_user_data_access_ =
         get_option(section, "mysql_user_data_access", StringOption{});
@@ -82,8 +82,12 @@ class PluginConfig : public ::mysql_harness::BasePluginConfig,
         get_keyring_value(mysql_user_data_access_, kKeyringAttributePassword);
     jwt_secret_ = get_keyring_value("rest-user", "jwt_secret");
 
-    for (auto el : routing) {
+    for (auto el : routing_sections) {
       routing_names_.insert(el);
+    }
+
+    for (auto el : metadatacaches_sections) {
+      metada_names_.insert(el);
     }
 
     if (!std::all_of(
@@ -105,6 +109,11 @@ class PluginConfig : public ::mysql_harness::BasePluginConfig,
     // be in review)
     for (const auto &n : desitnations) {
       nodes_.emplace_back(n.address(), n.port());
+    }
+
+    // This is going to happen for metadata-cache, lets connect to router.
+    if (desitnations.empty()) {
+      nodes_.emplace_back(r.get_bind_address(), r.get_bind_port());
     }
 
     is_https_ = HttpServerComponent::get_instance().is_ssl_configured();

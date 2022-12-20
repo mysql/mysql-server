@@ -108,6 +108,7 @@ static std::unique_ptr<MrdsModule> g_mrds_module;
 static void init(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::AppInfo *info = get_app_info(env);
   std::vector<std::string> routing_instances;
+  std::vector<std::string> meta_instances;
 
   if (info == nullptr || nullptr == info->config) {
     return;
@@ -119,6 +120,8 @@ static void init(mysql_harness::PluginFuncEnv *env) {
          info->config->sections()) {
       if (section->name == "routing") {
         routing_instances.push_back(section->key);
+      } else if (section->name == "metadata_cache") {
+        meta_instances.push_back(section->key);
       }
     }
 
@@ -133,8 +136,8 @@ static void init(mysql_harness::PluginFuncEnv *env) {
           std::string("Found another config-section '") + kSectionName +
           "', only one allowed");
 
-    g_mrs_configuration.reset(
-        new mrs::PluginConfig(sections.front(), routing_instances));
+    g_mrs_configuration.reset(new mrs::PluginConfig(
+        sections.front(), routing_instances, meta_instances));
 
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
@@ -152,6 +155,10 @@ static void run(mysql_harness::PluginFuncEnv *env) {
     std::set<std::string> service_names;
     for (const auto &el : g_mrs_configuration->routing_names_)
       service_names.insert("routing:" + el);
+
+    for (const auto &el : g_mrs_configuration->metada_names_)
+      service_names.insert("metadata_cache:" + el);
+
     service_monitor.wait_for_services(service_names);
     g_mrs_configuration->init_runtime_configuration();
     g_mrds_module.reset(new MrdsModule(*g_mrs_configuration));
@@ -173,8 +180,8 @@ static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
 static std::array<const char *, 3> required = {
     {"logger", "http_server", "rest_api"}};
 
-static const std::array<const char *, 4> supported_options{"password", "user",
-                                                           "routing"};
+static const std::array<const char *, 4> supported_options{
+    "mysql_user", "mysql_user_data_access", "routing", "through_router"};
 
 // TODO(lkotula): Consider renaming the plugin from rest_mrds to mrds or
 // something other if it already changed in DB schema, consult with router
