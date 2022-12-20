@@ -33,6 +33,7 @@
 #include <string_view>
 #include <type_traits>
 
+#include "mysql/harness/config_option.h"
 #include "mysql/harness/string_utils.h"
 
 #include "harness_export.h"

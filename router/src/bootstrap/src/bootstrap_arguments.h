@@ -33,13 +33,16 @@
 #include "my_macros.h"
 
 #include "mysql/harness/arg_handler.h"
+#include "mysql/harness/config_option.h"
 #include "mysql/harness/filesystem.h"
 #include "mysqlrouter/default_paths.h"
 #include "mysqlrouter/mysql_session.h"
 
 #include "bootstrap_credentials.h"
 #include "bootstrap_mode.h"
+#include "bootstrap_mysql_account.h"
 
+using UniqueStrings = std::set<std::string>;
 using Strings = std::vector<std::string>;
 using CmdArguments = Strings;
 
@@ -134,7 +137,41 @@ class BootstrapArguments {
   }
 
   BooststrapCmdArgHandler router_parameters_{
-      {{{"--mode"},
+      {{{"--password-retries"},
+        "Number of the retries for generating the router's user password. "
+        "(bootstrap)",
+        CmdOptionValueReq::optional,
+        "password-retries",
+        [this](const std::string &retries) {
+          user_options.password_retries =
+              mysql_harness::option_as_uint<unsigned long>(
+                  retries, "--password-retries", 1, kMaxPasswordRetries);
+        }},
+       {{"--account-create"},
+        "",
+        CmdOptionValueReq::required,
+        "mode",
+        [this](const std::string &create) {
+          if (create != "always" && create != "if-not-exists" &&
+              create != "never")
+            throw std::runtime_error(
+                "Invalid value for --account-create option.  Valid values: "
+                "always, if-not-exists, never");
+          user_options.account_create = create;
+        }},
+       {{"--account"},
+        "",
+        CmdOptionValueReq::required,
+        "mode",
+        [this](const std::string &account) { user_options.account = account; }},
+       {{"--force-password-validation"},
+        "",
+        CmdOptionValueReq::none,
+        "",
+        [this](const std::string &) {
+          user_options.force_password_validation = true;
+        }},
+       {{"--mode"},
         " ",
         CmdOptionValueReq::required,
         "mode",
@@ -144,7 +181,7 @@ class BootstrapArguments {
         CmdOptionValueReq::required,
         "account-host",
         [this](const std::string &account_host) {
-          bootstrap_account_hosts.push_back(account_host);
+          bootstrap_account_hosts.insert(account_host);
         }},
        {{"-B", "--bootstrap"},
         "Bootstrap and configure Router for operation with a MySQL InnoDB "
@@ -264,13 +301,15 @@ class BootstrapArguments {
   std::string ssl_cert;
   std::string ssl_key;
 
+  UserOptions user_options;
+
   CmdArguments router_arguments;
   BootstrapMode bootstrap_mode{k_all};
   std::string bootstrap_uri;
   std::string bootstrap_socket;
   std::string bootstrap_directory;
   std::string bootstrap_user;
-  Strings bootstrap_account_hosts;
+  UniqueStrings bootstrap_account_hosts;
   bool bootstrap_disable_rest{false};
   bool is_mrs_bootstrap{true};
   BootstrapCredentials mrs_metadata_account{};
