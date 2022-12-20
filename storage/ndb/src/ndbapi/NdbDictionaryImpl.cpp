@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -7298,6 +7298,7 @@ NdbDictInterface::forceGCPWait(int type)
 
       m_impl->do_forceSend();
       m_impl->unlock();
+      break;
     }
     return m_error.code == 0 ? 0 : -1;
   }
