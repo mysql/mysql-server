@@ -192,6 +192,17 @@ bool AggregateIterator::Init() {
   m_current_rollup_position = -1;
   SetRollupLevel(INT_MAX);
 
+  // If the iterator has been executed before, restore the state of
+  // the table buffers. This is needed for correctness if there is an
+  // EQRefIterator below this iterator, as the restoring of the
+  // previous group in Read() may have disturbed the cache in
+  // EQRefIterator.
+  if (!m_first_row_next_group.is_empty()) {
+    LoadIntoTableBuffers(
+        m_tables, pointer_cast<const uchar *>(m_first_row_next_group.ptr()));
+    m_first_row_next_group.length(0);
+  }
+
   if (m_source->Init()) {
     return true;
   }
@@ -311,6 +322,11 @@ int AggregateIterator::Read() {
 
         if (err == -1) {
           m_seen_eof = true;
+
+          // We need to be able to restore the table buffers in Init()
+          // if the iterator is reexecuted (can happen if it's inside
+          // a correlated subquery).
+          StoreFromTableBuffers(m_tables, &m_first_row_next_group);
 
           // End of input rows; return the last group. (One would think this
           // LoadIntoTableBuffers() call is unneeded, since the last row read

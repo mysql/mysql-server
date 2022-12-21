@@ -2074,7 +2074,13 @@ struct TABLE {
   /// @return true if current row has been deleted (multi-table delete)
   bool has_deleted_row() const { return m_status & STATUS_DELETED; }
 
-  /// Save the NULL flags of the current row into the designated buffer
+  /// Save the NULL flags of the current row into the designated buffer.
+  /// This should be done before null-complementing a table accessed
+  /// with EQRefIterator or a const table, as they need to be able to
+  /// restore the original contents of the record buffer before
+  /// reading the next row. This is necessary because of their special
+  /// code for avoiding table access if the same row should be
+  /// accessed by the next read.
   void save_null_flags() {
     if (s->null_bytes > 0) memcpy(null_flags_saved, null_flags, s->null_bytes);
   }
