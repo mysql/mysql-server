@@ -27,11 +27,23 @@
 #include <vector>
 
 #include "mysql/harness/vt100.h"
+#include "print_version.h"
+#include "welcome_copyright_notice.h"
 
 #include "bootstrap_arguments.h"
 #include "bootstrap_configurator.h"
 #include "bootstrap_mode.h"
 #include "process_launcher_ex.h"
+
+void print_version(BootstrapArguments &b) {
+  std::string output;
+  build_version(b.path_this_application_.basename().str(), &output);
+  std::cout << output << std::endl;
+}
+
+void print_copyrights() {
+  std::cout << ORACLE_WELCOME_COPYRIGHT_NOTICE("2015") << std::endl;
+}
 
 int main(int argc, char **argv) {
   if (argc < 1) return -1;
@@ -43,7 +55,7 @@ int main(int argc, char **argv) {
 
     application_arguments.analyze(arguments);
 
-    if (application_arguments.bootstrap_mode.should_start_router()) {
+    if (application_arguments.should_start_router()) {
       ProcessLauncher pl{application_arguments.path_router_application_.str(),
                          application_arguments.router_arguments,
                          {}};
@@ -52,10 +64,72 @@ int main(int argc, char **argv) {
       if (EXIT_SUCCESS != status) return status;
     }
 
-    if (application_arguments.version) return 0;
+    if (application_arguments.version) {
+      print_version(application_arguments);
+      return 0;
+    }
 
     if (application_arguments.help) {
-      std::cout << std::endl << "# MySQL REST Service options" << std::endl;
+      print_version(application_arguments);
+      print_copyrights();
+
+      std::cout << Vt100::render(Vt100::Render::Bold) << "# Usage"
+                << Vt100::render(Vt100::Render::Normal) << "\n\n";
+      auto app = application_arguments.path_this_application_.basename().str();
+      std::cout << "      " << app << " --version|-V" << std::endl << std::endl;
+      std::cout << "      " << app << " --help" << std::endl << std::endl;
+      std::cout
+          << "      " << app << " [--account-host=<account-host>]" << std::endl
+          << "                  [--bootstrap-socket=<socket_name>]" << std::endl
+          << "                  [--client-ssl-cert=<path>]" << std::endl
+          << "                  [--client-ssl-cipher=<VALUE>]" << std::endl
+          << "                  [--client-ssl-curves=<VALUE>]" << std::endl
+          << "                  [--client-ssl-key=<path>]" << std::endl
+          << "                  [--client-ssl-mode=<mode>]" << std::endl
+          << "                  [--conf-base-port=<port>] [--conf-skip-tcp]"
+          << std::endl
+          << "                  [--conf-use-sockets] [--core-file=[<VALUE>]]"
+          << std::endl
+          << "                  [--connect-timeout=[<VALUE>]]" << std::endl
+          << "                  [--conf-use-gr-notifications=[<VALUE>]]"
+          << std::endl
+          << "                  [-d|--directory=<directory>] [--force]"
+          << std::endl
+          << "                  [--force-password-validation]" << std::endl
+          << "                  [--master-key-reader=<VALUE>]" << std::endl
+          << "                  [--master-key-writer=<VALUE>] [--name=[<name>]]"
+          << std::endl
+          << "                  [--password-retries=[<password-retries>]]"
+          << std::endl
+          << "                  [--read-timeout=[<VALUE>]]" << std::endl
+          << "                  [--report-host=<report-host>]" << std::endl
+          << "                  [--server-ssl-ca=<path>]" << std::endl
+          << "                  [--server-ssl-capath=<directory>]" << std::endl
+          << "                  [--server-ssl-cipher=<VALUE>]" << std::endl
+          << "                  [--server-ssl-crl=<path>]" << std::endl
+          << "                  [--server-ssl-crlpath=<directory>]" << std::endl
+          << "                  [--server-ssl-curves=<VALUE>]" << std::endl
+          << "                  [--server-ssl-mode=<ssl-mode>]" << std::endl
+          << "                  [--server-ssl-verify=<verify-mode>]"
+          << std::endl
+          << "                  [--ssl-ca=<path>] [--ssl-cert=<path>]"
+          << std::endl
+          << "                  [--ssl-cipher=<ciphers>] [--ssl-crl=<path>]"
+          << std::endl
+          << "                  [--ssl-crlpath=<directory>] [--ssl-key=<path>]"
+          << std::endl
+          << "                  [--ssl-mode=<mode>] [--tls-version=<versions>]"
+          << std::endl
+          << "                  [-u|--user=<username>]" << std::endl
+          << "                  [--conf-set-option=<conf-set-option>]"
+          << std::endl
+          << "                  <server_url>" << std::endl;
+
+      std::cout << std::endl
+                << Vt100::render(Vt100::Render::Bold)
+                << "# MySQL REST Service options"
+                << Vt100::render(Vt100::Render::Normal) << std::endl
+                << std::endl;
       std::cout << "  --mode <all|bootstrap|mrs>" << std::endl;
       std::cout
           << "        Select the configuration mode, either if router should"
@@ -77,6 +151,25 @@ int main(int argc, char **argv) {
                 << std::endl;
       std::cout << "        is going to use as SEED for token encryption."
                 << std::endl;
+
+      std::cout << std::endl
+                << Vt100::render(Vt100::Render::Bold) << "# Examples"
+                << Vt100::render(Vt100::Render::Normal) << std::endl
+                << std::endl;
+
+      constexpr const char kStartWithSudo[]{IF_WIN("", "sudo ")};
+      constexpr const char kStartWithUser[]{IF_WIN("", " --user=mysqlrouter")};
+
+      std::cout << "Bootstrap for use with InnoDB cluster into system-wide "
+                   "installation\n\n"
+                << "    " << kStartWithSudo << "mysqlrouter_bootstrap "
+                << kStartWithUser << " root@clusterinstance01"
+                << "\n\n"
+                << "Bootstrap for use with InnoDb cluster in a self-contained "
+                   "directory\n\n"
+                << "    "
+                << "mysqlrouter_bootstrap -d myrouter root@clusterinstance01"
+                << "\n\n";
       return 0;
     }
 

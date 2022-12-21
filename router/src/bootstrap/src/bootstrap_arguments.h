@@ -70,6 +70,16 @@ class BootstrapArguments {
     path_router_application_ = get_executable_mysqlrouter();
     arguments.erase(arguments.begin());
 
+    if (arguments.size() == 0) {
+      throw std::runtime_error(
+          "Bootstrap requires at lest one parameter with URI that points "
+          "MySQL-Server.");
+    }
+
+    auto buri = arguments.back();
+    if (arguments.back()[0] != '-') {
+      arguments = Strings(arguments.begin(), arguments.end() - 1);
+    }
     router_parameters_.process(arguments);
 
     if (bootstrap_mode.get() == BoostrapMode::k_bootstrap) {
@@ -92,6 +102,21 @@ class BootstrapArguments {
       if (!is_mrs_parameter(a)) router_arguments.push_back(a);
       skip_next = mrs_parameter_needs_second_argument(a);
     }
+
+    if (!(version || help)) {
+      if (buri.empty()) {
+        throw std::runtime_error(
+            "Bootstrap requires that last parameter is set URI that points "
+            "MySQL-Server.");
+      }
+      bootstrap_uri = buri;
+      router_arguments.push_back("-B");
+      router_arguments.push_back(bootstrap_uri);
+    }
+  }
+
+  bool should_start_router() {
+    return bootstrap_mode.should_start_router() && (!help && !version);
   }
 
  private:
@@ -171,7 +196,7 @@ class BootstrapArguments {
         [this](const std::string &) {
           user_options.force_password_validation = true;
         }},
-       {{"--version"},
+       {{"--version", "-V"},
         " ",
         CmdOptionValueReq::none,
         "version",
@@ -196,9 +221,11 @@ class BootstrapArguments {
        {{"-B", "--bootstrap"},
         "Bootstrap and configure Router for operation with a MySQL InnoDB "
         "cluster.",
-        CmdOptionValueReq::required,
+        CmdOptionValueReq::optional,
         "server_url",
-        [this](const std::string &server_url) { bootstrap_uri = server_url; }},
+        [this](const std::string &) {
+          throw std::runtime_error("Option --bootstrap/-B is not supported");
+        }},
        {{"--bootstrap-socket"},
         "Bootstrap and configure Router via a Unix socket",
         CmdOptionValueReq::required,
