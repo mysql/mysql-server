@@ -580,84 +580,84 @@ TFD_FR(10)
 // Non-Static Const/Non-Const Member Function Calls, No-Return
 // ---------------------------------------------------------------------------
 
-// parameters: n = n-ary function
+// parameters: n = n-ary function, cvqualifier = const or empty
 //
-// we do not generate a separate set of templates for const members anymore:
-//   cm = empty or 'const'
-//   #define TFD_MF(n,cm)
-//          ... void (SCFOT::*F)(CSL##n(CFPT)) cm >
-// for
-// - leads to template ambiguities with const member function ptr type
-// - empty macro arguments are undefined in ISO C90 and ISO C++98
-//
-#define TFD_MF(n)                                               \
-  template <TFOT, CTL##n(TFPTD) void (SCFOT::*F)(CSL##n(CFPT))> \
-  inline void gcall_mfv(JEPD, JFOPD CPL##n(JFPD)) {             \
-    TRACE(                                                      \
-        "void"                                                  \
-        " gcall_mfv(" SJET ", " SJFOT SCPL##n(SJFPT) ")");      \
-    SFD;                                                        \
-    TARGET_CONV_BEGIN;                                          \
-    BSL##n(PARAM_CONV_BEGIN);                                   \
-    ((cao).*F)(CSL##n(CAP));                                    \
-    RBSL##n(PARAM_CONV_END);                                    \
-    TARGET_CONV_END;                                            \
+#define TFD_MF(n, cvqualifier)                                              \
+  template <TFOT, CTL##n(TFPTD) void (SCFOT::*F)(CSL##n(CFPT)) cvqualifier> \
+  inline void gcall_mfv(JEPD, JFOPD CPL##n(JFPD)) {                         \
+    TRACE(                                                                  \
+        "void"                                                              \
+        " gcall_mfv(" SJET ", " SJFOT SCPL##n(SJFPT) ")");                  \
+    SFD;                                                                    \
+    TARGET_CONV_BEGIN;                                                      \
+    BSL##n(PARAM_CONV_BEGIN);                                               \
+    ((cao).*F)(CSL##n(CAP));                                                \
+    RBSL##n(PARAM_CONV_END);                                                \
+    TARGET_CONV_END;                                                        \
   }
 
 // generate the function templates (separate lines help error messages)
-TFD_MF(0)
-TFD_MF(1)
-TFD_MF(2)
-TFD_MF(3)
-TFD_MF(4)
-TFD_MF(5)
-TFD_MF(6)
-TFD_MF(7)
-TFD_MF(8)
-TFD_MF(9)
-TFD_MF(10)
+TFD_MF(0, )
+TFD_MF(1, )
+TFD_MF(2, )
+TFD_MF(3, )
+TFD_MF(4, )
+TFD_MF(5, )
+TFD_MF(6, )
+TFD_MF(7, )
+TFD_MF(8, )
+TFD_MF(9, )
+TFD_MF(10, )
+
+#ifndef _MSC_VER
+TFD_MF(0, const)
+TFD_MF(1, const)
+TFD_MF(2, const)
+TFD_MF(3, const)
+#endif
 
 // ---------------------------------------------------------------------------
 // Non-Static Const/Non-Const Member Function Calls, Return
 // ---------------------------------------------------------------------------
 
-// parameters: n = n-ary, cm = const member function qualifier
-//
-// we do not generate a separate set of templates for const members anymore:
-//   cm = empty or 'const'
-//   #define TFD_MFR(n,cm)
-//          ... CFRT (SCFOT::*F)(CSL##n(CFPT)) cm >
-// for
-// - leads to template ambiguities with const member function ptr type
-// - empty macro arguments are undefined in ISO C90 and ISO C++98
-//
-#define TFD_MFR(n)                                                     \
-  template <TFOT, TFRTD, CTL##n(TFPTD) CFRT (SCFOT::*F)(CSL##n(CFPT))> \
-  inline JFRT gcall_mfr(JEPD, JFOPD CPL##n(JFPD)) {                    \
-    TRACE(SJFRT " gcall_mfr(" SJET ", " SJFOT SCPL##n(SJFPT) ")");     \
-    JARD;                                                              \
-    SFD;                                                               \
-    TARGET_CONV_BEGIN;                                                 \
-    BSL##n(PARAM_CONV_BEGIN);                                          \
-    CARD = ((cao).*F)(CSL##n(CAP));                                    \
-    RESULT_CONV;                                                       \
-    RBSL##n(PARAM_CONV_END);                                           \
-    TARGET_CONV_END;                                                   \
-    return RESULT_CAST;                                                \
+// parameters: n = n-ary function, cvqualifier = const or empty
+#define TFD_MFR(n, cvqualifier)                                       \
+  template <TFOT, TFRTD,                                              \
+            CTL##n(TFPTD) CFRT (SCFOT::*F)(CSL##n(CFPT)) cvqualifier> \
+  inline JFRT gcall_mfr(JEPD, JFOPD CPL##n(JFPD)) {                   \
+    TRACE(SJFRT " gcall_mfr(" SJET ", " SJFOT SCPL##n(SJFPT) ")");    \
+    JARD;                                                             \
+    SFD;                                                              \
+    TARGET_CONV_BEGIN;                                                \
+    BSL##n(PARAM_CONV_BEGIN);                                         \
+    CARD = ((cao).*F)(CSL##n(CAP));                                   \
+    RESULT_CONV;                                                      \
+    RBSL##n(PARAM_CONV_END);                                          \
+    TARGET_CONV_END;                                                  \
+    return RESULT_CAST;                                               \
   }
 
 // generate the function templates (separate lines help error messages)
-TFD_MFR(0)
-TFD_MFR(1)
-TFD_MFR(2)
-TFD_MFR(3)
-TFD_MFR(4)
-TFD_MFR(5)
-TFD_MFR(6)
-TFD_MFR(7)
-TFD_MFR(8)
-TFD_MFR(9)
-TFD_MFR(10)
+TFD_MFR(0, )
+TFD_MFR(1, )
+TFD_MFR(2, )
+TFD_MFR(3, )
+TFD_MFR(4, )
+TFD_MFR(5, )
+TFD_MFR(6, )
+TFD_MFR(7, )
+TFD_MFR(8, )
+TFD_MFR(9, )
+TFD_MFR(10, )
+
+#ifndef _MSC_VER
+TFD_MFR(0, const)
+TFD_MFR(1, const)
+TFD_MFR(2, const)
+TFD_MFR(3, const)
+TFD_MFR(4, const)
+TFD_MFR(5, const)
+#endif
 
 // ---------------------------------------------------------------------------
 // Internal C++ Constructor/Destructor/Index Access Wrappers
