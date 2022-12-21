@@ -31,6 +31,7 @@
 #include <utility>
 
 #include "lex_string.h"
+#include "libbinlogevents/include/binlog_event.h"  // binary_log::max_log_event_size
 #include "m_string.h"
 #include "map_helpers.h"
 #include "my_byteorder.h"
@@ -51,7 +52,6 @@
 #include "sql/derror.h"      // ER_THD
 #include "sql/item_func.h"   // user_var_entry
 #include "sql/log.h"
-#include "sql/log_event.h"  // MAX_MAX_ALLOWED_PACKET
 #include "sql/mdl.h"
 #include "sql/mysqld.h"  // global_system_variables ...
 #include "sql/protocol.h"
@@ -344,7 +344,7 @@ void Binlog_sender::init() {
   m_wait_new_events =
       !((thd->server_id == 0) || ((m_flag & BINLOG_DUMP_NON_BLOCK) != 0));
   /* Binary event can be vary large. So set it to max allowed packet. */
-  thd->variables.max_allowed_packet = MAX_MAX_ALLOWED_PACKET;
+  thd->variables.max_allowed_packet = binary_log::max_log_event_size;
 
 #ifndef NDEBUG
   if (opt_sporadic_binlog_dump_fail && (binlog_dump_count++ % 2))

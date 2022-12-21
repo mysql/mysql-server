@@ -34,10 +34,6 @@ namespace binary {
   This is the abstract and base class for binary log BINARY codecs.
  */
 class Base_codec : public binary_log::codecs::Codec {
- public:
-  static const unsigned short UINT_64T_MIN_SIZE = 1;
-  static const unsigned short UINT_64T_MAX_SIZE = 1;
-
  protected:
   Event_reader *m_reader;
   inline Event_reader &reader() { return *m_reader; }

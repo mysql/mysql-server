@@ -29,6 +29,7 @@
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/group_replication_status_service.h>
+#include "libbinlogevents/include/binlog_event.h"  // binary_log::max_log_event_size
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -42,7 +43,6 @@
 #include "mysqld_error.h"       // ER_*
 #include "sql/clone_handler.h"  // is_data_dropped
 #include "sql/log.h"
-#include "sql/log_event.h"           // MAX_MAX_ALLOWED_PACKET
 #include "sql/mysqld.h"              // mysqld_port
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/replication.h"         // Trans_context_info
@@ -591,7 +591,7 @@ unsigned long get_replica_max_allowed_packet() {
 }
 
 unsigned long get_max_replica_max_allowed_packet() {
-  return MAX_MAX_ALLOWED_PACKET;
+  return binary_log::max_log_event_size;
 }
 
 bool is_server_restarting_after_clone() { return clone_startup; }

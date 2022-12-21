@@ -41,6 +41,19 @@ enum type {
   NONE = 255,
 };
 
+template <class T>
+bool type_is_valid(T t) {
+  switch (t) {
+    case ZSTD:
+      return true;
+    case NONE:
+      return true;
+    default:
+      break;
+  }
+  return false;
+}
+
 std::string type_to_string(type t);
 
 /**

@@ -263,7 +263,8 @@ class Database_rewrite {
       // start encoding it
       auto codec =
           binary_log::codecs::Factory::build_codec(tpe.header()->type_code);
-      uchar tpe_buffer[binary_log::Transaction_payload_event::MAX_DATA_LENGTH];
+      uchar tpe_buffer[binary_log::Transaction_payload_event::
+                           max_payload_data_header_length];
       auto result = codec->encode(new_tpe, tpe_buffer, sizeof(tpe_buffer));
       if (result.second == true) return Rewrite_result{nullptr, 0, 0, true};
 

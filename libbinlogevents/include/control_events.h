@@ -760,16 +760,58 @@ class Transaction_payload_event : public Binary_log_event {
   uint64_t m_uncompressed_size{0};
 
  public:
-  static const unsigned short COMPRESSION_TYPE_MIN_LENGTH = 1;
-  static const unsigned short COMPRESSION_TYPE_MAX_LENGTH = 9;
-  static const unsigned short PAYLOAD_SIZE_MIN_LENGTH = 0;
-  static const unsigned short PAYLOAD_SIZE_MAX_LENGTH = 9;
-  static const unsigned short UNCOMPRESSED_SIZE_MIN_LENGTH = 0;
-  static const unsigned short UNCOMPRESSED_SIZE_MAX_LENGTH = 9;
+  /// There are four fields: "compression type", "payload size",
+  /// "uncompressed size", and "end mark".  Each of the three first
+  /// fields is stored as a triple, where:
+  /// - the first element is a type code,
+  /// - the second element is a number containing the length of the
+  ///   third element, and
+  /// - the third element is the value.
+  /// The last field, "end mark", is stored as only a type code.  All
+  /// elements are stored in the "net_store_length" format.
+  /// net_store_length stores 64 bit numbers in a variable length
+  /// format, using 1 to 9 bytes depending on the magnitude of the
+  /// value; 1 for values up to 250, longer for bigger values.
+  ///
+  /// So:
+  /// - The first element in each triple is always length 1 since type
+  ///   codes are small;
+  /// - the second element in each triple is always length 1 since the
+  ///   third field is at most 9 bytes;
+  /// - the third field in each triple is:
+  ///   - at most 1 for the "compression type" since type codes are small;
+  ///   - at most 9 for the "payload size" and "uncompressed size".
+  /// - the end mark is always 1 byte since it is a constant value
+  ///   less than 250
+  static constexpr size_t compression_type_max_length = 1 + 1 + 1;
+  static constexpr size_t payload_size_max_length = 1 + 1 + 9;
+  static constexpr size_t uncompressed_size_max_length = 1 + 1 + 9;
+  static constexpr size_t end_mark_max_length = 1;
 
-  static const int MAX_DATA_LENGTH = COMPRESSION_TYPE_MAX_LENGTH +
-                                     PAYLOAD_SIZE_MAX_LENGTH +
-                                     UNCOMPRESSED_SIZE_MAX_LENGTH;
+  /// The maximum size of the "payload data header".
+  ///
+  /// Any log event consists of the common-header (19 bytes, same
+  /// format for all event types), followed by a post-header (size
+  /// defined per event type; 0 for payload events), followed by data
+  /// (variable length and defined by each event type).  For payload
+  /// events, the data contains a payload data header (these 4
+  /// fields), followed by the payload (compressed data).
+  static constexpr size_t max_payload_data_header_length =
+      compression_type_max_length + payload_size_max_length +
+      uncompressed_size_max_length + end_mark_max_length;
+
+  /// The maximum size of all headers, i.e., everything but the
+  /// payload.
+  ///
+  /// This includes common-header, post-header, and payload
+  /// data header.
+  static constexpr size_t max_length_of_all_headers =
+      LOG_EVENT_HEADER_LEN + Binary_log_event::TRANSACTION_PAYLOAD_HEADER_LEN +
+      max_payload_data_header_length;
+  /// The maximum length of the payload size, defined such that the total
+  /// event size does not exceed max_log_event_size.
+  static constexpr size_t max_payload_length =
+      max_log_event_size - max_length_of_all_headers;
   /**
     Creates @c Transaction_payload_event with the given data which has the
     given size.

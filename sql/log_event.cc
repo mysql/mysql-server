@@ -14135,9 +14135,8 @@ Log_event::enum_skip_reason Transaction_payload_log_event::do_shall_skip(
 bool Transaction_payload_log_event::write(Basic_ostream *ostream) {
   DBUG_TRACE;
   auto codec = binary_log::codecs::Factory::build_codec(header()->type_code);
-  auto buffer_size = MAX_DATA_LENGTH + LOG_EVENT_HEADER_LEN;
-  unsigned char buffer[MAX_DATA_LENGTH + LOG_EVENT_HEADER_LEN];
-  auto result = codec->encode(*this, buffer, buffer_size);
+  unsigned char buffer[max_length_of_all_headers];
+  auto result = codec->encode(*this, buffer, max_length_of_all_headers);
   size_t data_size = result.first + m_payload_size;
 
   if (result.second == true) goto end;
