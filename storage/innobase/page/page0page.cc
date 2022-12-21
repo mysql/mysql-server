@@ -2235,7 +2235,7 @@ bool page_validate(const page_t *page, dict_index_t *index) {
 
     DBUG_EXECUTE_IF(
         "check_table_set_wrong_min_bit",
-        if (!page_rec_is_infimum(rec) &&
+        if (page_rec_is_user_rec(rec) &&
             !(is_first_non_leaf_page && page_rec_is_first(rec, page))) {
           ut_ad(!rec_is_min_rec_flag_set(rec, page_is_comp(page)));
           ut_ad(page_is_comp(page));
@@ -2247,7 +2247,7 @@ bool page_validate(const page_t *page, dict_index_t *index) {
 
     DBUG_EXECUTE_IF(
         "check_table_reset_correct_min_bit",
-        if (!page_rec_is_infimum(rec) &&
+        if (page_rec_is_user_rec(rec) &&
             (is_first_non_leaf_page && page_rec_is_first(rec, page))) {
           ut_ad(rec_is_min_rec_flag_set(rec, page_is_comp(page)));
           ut_ad(page_is_comp(page));
@@ -2260,7 +2260,8 @@ bool page_validate(const page_t *page, dict_index_t *index) {
     /* REC_INFO_MIN_REC_FLAG must be set only for first record on first non-leaf
     page on a level. */
     if (rec_is_min_rec_flag_set(rec, page_is_comp(page))) {
-      if (!(is_first_non_leaf_page && page_rec_is_first(rec, page))) {
+      if (!page_rec_is_user_rec(rec) ||
+          !(is_first_non_leaf_page && page_rec_is_first(rec, page))) {
         ib::error(ER_CHECK_TABLE_MIN_REC_FLAG_SET, (unsigned long int)page_no,
                   (unsigned long int)btr_page_get_level(page), index->name(),
                   index->table_name);
@@ -2272,7 +2273,8 @@ bool page_validate(const page_t *page, dict_index_t *index) {
         goto func_exit;
       }
     } else {
-      if (is_first_non_leaf_page && page_rec_is_first(rec, page)) {
+      if (is_first_non_leaf_page && page_rec_is_user_rec(rec) &&
+          page_rec_is_first(rec, page)) {
         ib::error(ER_CHECK_TABLE_MIN_REC_FLAG_NOT_SET,
                   (unsigned long int)page_no,
                   (unsigned long int)btr_page_get_level(page), index->name(),
