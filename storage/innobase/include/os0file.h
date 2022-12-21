@@ -491,26 +491,6 @@ class IORequest {
   /** Disable transformations. */
   void disable_compression() { m_type |= NO_COMPRESSION; }
 
-  /** Set encryption algorithm
-  @param[in] type               The encryption algorithm to use */
-  void encryption_algorithm(Encryption::Type type) {
-    if (type == Encryption::NONE) {
-      return;
-    }
-
-    m_encryption.set_type(type);
-  }
-
-  /** Set encryption key and iv
-  @param[in] key                The encryption key to use
-  @param[in] key_len    length of the encryption key
-  @param[in] iv         The encryption iv to use */
-  void encryption_key(const byte *key, ulint key_len, const byte *iv) {
-    m_encryption.set_key(key);
-    m_encryption.set_key_length(key_len);
-    m_encryption.set_initial_vector(iv);
-  }
-
   /** Get the encryption algorithm.
   @return the encryption algorithm */
   [[nodiscard]] Encryption encryption_algorithm() const {

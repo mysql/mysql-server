@@ -1934,16 +1934,17 @@ struct PageCallback {
 };
 
 /** Iterate over all the pages in the tablespace.
+@param[in]  encryption_metadata the encryption metadata to use for reading
 @param[in]  table the table definition in the server
 @param[in]  n_io_buffers number of blocks to read and write together
 @param[in]  compression_type compression type if compression is enabled,
 else Compression::Type::NONE
 @param[in,out]  callback functor that will do the page updates
 @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t fil_tablespace_iterate(dict_table_t *table,
-                                             ulint n_io_buffers,
-                                             Compression::Type compression_type,
-                                             PageCallback &callback);
+[[nodiscard]] dberr_t fil_tablespace_iterate(
+    const Encryption_metadata &encryption_metadata, dict_table_t *table,
+    ulint n_io_buffers, Compression::Type compression_type,
+    PageCallback &callback);
 
 /** Looks for a pre-existing fil_space_t with the given tablespace ID
 and, if found, returns the name and filepath in newly allocated buffers

@@ -8269,11 +8269,8 @@ struct Fil_page_iterator {
   /** Buffer to use for IO */
   byte *m_io_buffer;
 
-  /** Encryption key */
-  byte *m_encryption_key;
-
-  /** Encruption iv */
-  byte *m_encryption_iv;
+  /** Encryption metadata */
+  const Encryption_metadata &m_encryption_metadata;
 
   /** FS Block Size */
   size_t block_size;
@@ -8348,11 +8345,8 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
     read_request.block_size(iter.block_size);
 
     /* For encrypted table, set encryption information. */
-    if (iter.m_encryption_key != nullptr && offset != 0) {
-      read_request.encryption_key(iter.m_encryption_key, Encryption::KEY_LEN,
-                                  iter.m_encryption_iv);
-
-      read_request.encryption_algorithm(Encryption::AES);
+    if (iter.m_encryption_metadata.can_encrypt() && offset != 0) {
+      read_request.get_encryption_info().set(iter.m_encryption_metadata);
     }
 
     err = os_file_read(read_request, iter.m_filepath, iter.m_file, io_buffer,
@@ -8394,11 +8388,8 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
     write_request.block_size(iter.block_size);
 
     /* For encrypted table, set encryption information. */
-    if (iter.m_encryption_key != nullptr && offset != 0) {
-      write_request.encryption_key(iter.m_encryption_key, Encryption::KEY_LEN,
-                                   iter.m_encryption_iv);
-
-      write_request.encryption_algorithm(Encryption::AES);
+    if (iter.m_encryption_metadata.can_encrypt() && offset != 0) {
+      write_request.get_encryption_info().set(iter.m_encryption_metadata);
     }
 
     /* For compressed table, set compressed information.
@@ -8516,7 +8507,8 @@ void fil_adjust_name_import(dict_table_t *table [[maybe_unused]],
   return;
 }
 
-dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
+dberr_t fil_tablespace_iterate(const Encryption_metadata &encryption_metadata,
+                               dict_table_t *table, ulint n_io_buffers,
                                Compression::Type compression_type,
                                PageCallback &callback) {
   dberr_t err;
@@ -8618,23 +8610,19 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
     err = DB_IO_ERROR;
 
   } else if ((err = callback.init(file_size, block)) == DB_SUCCESS) {
-    Fil_page_iterator iter;
-
-    iter.m_file = file;
-    iter.m_start = 0;
-    iter.m_end = file_size;
-    iter.m_filepath = filepath;
-    iter.m_file_size = file_size;
-    iter.m_n_io_buffers = n_io_buffers;
-    iter.m_page_size = callback.get_page_size().physical();
-    iter.block_size = block_size;
-
-    /* Set encryption info. */
-    iter.m_encryption_key = table->encryption_key;
-    iter.m_encryption_iv = table->encryption_iv;
-
-    iter.m_compression_type = compression_type;
-
+    Fil_page_iterator iter{
+        /* .m_file = */ file,
+        /* .m_filepath = */ filepath,
+        /* .m_start = */ 0,
+        /* .m_end = */ file_size,
+        /* .m_file_size = */ file_size,
+        /* .m_page_size = */ callback.get_page_size().physical(),
+        /* .m_n_io_buffers = */ n_io_buffers,
+        /* .m_io_buffer = */ nullptr,
+        /* .m_encryption_metadata = */ encryption_metadata,
+        /* .block_size = */ block_size,
+        /* .m_compression_type = */ compression_type,
+    };
     /* Check encryption is matched or not. */
     ulint space_flags = callback.get_space_flags();
 
@@ -8647,11 +8635,9 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
         err = DB_IO_NO_ENCRYPT_TABLESPACE;
       } else {
         /* encryption_key must have been populated while reading CFP file. */
-        ut_ad(table->encryption_key != nullptr &&
-              table->encryption_iv != nullptr);
+        ut_ad(encryption_metadata.can_encrypt());
 
-        if (table->encryption_key == nullptr ||
-            table->encryption_iv == nullptr) {
+        if (!encryption_metadata.can_encrypt()) {
           err = DB_ERROR;
         }
       }

@@ -2438,12 +2438,6 @@ detect this and will eventually quit sooner. */
   columns */
   dict_vcol_templ_t *vc_templ;
 
-  /** encryption key, it's only for export/import */
-  byte *encryption_key;
-
-  /** encryption iv, it's only for export/import */
-  byte *encryption_iv;
-
   /** remove the dict_table_t from cache after DDL operation */
   bool discard_after_ddl;
 
