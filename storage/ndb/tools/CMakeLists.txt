@@ -55,6 +55,8 @@ ADD_LIBRARY(ndbtools STATIC
   NdbImportCsvGram.cpp
   NdbImportUtil.cpp)
 
+ADD_DEPENDENCIES(clang_tidy_prerequisites ndbtools)
+
 IF(MY_COMPILER_IS_GNU_OR_CLANG)
   # Suppress warnings for undefined identifiers in bison output
   # For implicit-fallthrough - see Bug#34098818

@@ -2141,6 +2141,24 @@ ADD_CUSTOM_TARGET(protobuf_generated_all)
 # Utility target to generate everything created by MYSQL_ADD_EXECUTABLE().
 ADD_CUSTOM_TARGET(executable_all)
 
+# We may run clang-tidy on individual .h files. Tell clang to treat them as C++.
+# To generate entries for header files in compile_commands.json:
+# make clang_tidy_prerequisites, see below.
+# cd CMAKE_SOURCE_DIR
+# compdb -p build-clang-tidy list > foo
+# mv foo build-clang-tidy/compile_commands.json
+# cd build-clang-tidy
+# clang-tidy -p . ../include/lex_string.h
+IF(MY_COMPILER_IS_CLANG AND CMAKE_EXPORT_COMPILE_COMMANDS)
+  # See <cmake source root>/Modules/CMakeCXXInformation.cmake
+  SET(CMAKE_CXX_COMPILE_OBJECT
+    "<CMAKE_CXX_COMPILER> <DEFINES> <INCLUDES> <FLAGS> ")
+  STRING_APPEND(CMAKE_CXX_COMPILE_OBJECT " --language=c++ ")
+  STRING_APPEND(CMAKE_CXX_COMPILE_OBJECT " -o <OBJECT> -c <SOURCE>")
+  # We cannot do this, since <FLAGS> will be used for linking as well:
+  # STRING_APPEND(CMAKE_CXX_FLAGS " --language=c++")
+ENDIF()
+
 # Utility target to generate sources needed for clang-tidy.
 # Example usage:
 #
