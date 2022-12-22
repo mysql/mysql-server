@@ -1895,3 +1895,18 @@ EXPLAIN FORMAT=TREE SELECT 1 FROM t1 WHERE a IN
  WHERE t2.a = 0);
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#34890862: Mysql server crash : `item->hidden == hidden' in
+--echo #               assert_consistent_hidden_flags
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+
+SELECT *
+FROM (SELECT (SELECT SUM(t1.f1) FROM t1) AS subq
+      FROM t1 AS t2
+      WHERE t2.f1 IN (SELECT 1 FROM t1)
+      ORDER BY t2.f2, subq) AS dt;
+
+DROP TABLE t1;

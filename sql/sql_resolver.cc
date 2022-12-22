@@ -4499,12 +4499,27 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, Table_ref *tables,
       // If a non constant expression in order by is already
       // resolved, it must have been merged from a derived table.
       // So, we do not need to re-resolve in this query block. Add
-      // a hidden item instead.
-      uint size = fields->size();
-      order_item->hidden = true;
-      order->in_field_list = false;
-      fields->push_front(order_item);
-      ref_item_array[size] = order_item;
+      // a hidden item if not present in the visible fields list.
+      // Update with the correct ref item.
+      uint counter = fields->size();
+      for (uint i = 0; i < fields->size(); i++) {
+        if (order_item->eq(ref_item_array[i]->real_item(), false)) {
+          order->item = &ref_item_array[i];
+          // Order by is now referencing select expression, so increment the
+          // reference count for the select expression.
+          (*order->item)->increment_ref_count();
+          order->in_field_list = true;
+          counter = i;
+          break;
+        }
+      }
+      if (counter == fields->size()) {
+        // Add as a hidden item.
+        ref_item_array[counter] = order_item;
+        fields->push_front(order_item);
+        order_item->hidden = true;
+        order->in_field_list = false;
+      }
       continue;
     }
 
