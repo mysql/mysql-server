@@ -7604,6 +7604,23 @@ restart_cluster_failure:
     // any outstanding business
     schema_event_handler.post_epoch(current_epoch);
 
+    // Check for case where next event was dropped by post_epoch handling
+    // This effectively 'removes' the event from the stream, but since we have
+    // positioned on an event which is not yet processed, we should check
+    // whether that event should be processed or skipped.
+    if (unlikely(s_pOp != nullptr &&
+                 s_pOp->getState() == NdbEventOperation::EO_DROPPED)) {
+      s_pOp = s_ndb->nextEvent();
+      assert(s_pOp == nullptr ||
+             s_pOp->getState() != NdbEventOperation::EO_DROPPED);
+    }
+    if (unlikely(i_pOp != nullptr &&
+                 i_pOp->getState() == NdbEventOperation::EO_DROPPED)) {
+      i_pOp = i_ndb->nextEvent();
+      assert(i_pOp == nullptr ||
+             i_pOp->getState() != NdbEventOperation::EO_DROPPED);
+    }
+
     mem_root.Clear();
     *root_ptr = old_root;
 
