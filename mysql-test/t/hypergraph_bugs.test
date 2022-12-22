@@ -382,3 +382,31 @@ FROM t0 AS a NATURAL JOIN
      t1 AS g NATURAL JOIN
      t1 AS h;
 DROP TABLE t0, t1;
+
+
+--echo #
+--echo # Bug#34861693: Assertion
+--echo # `std::abs(1.0 - EstimateAggregateRows(child, query_block, path->aggreg
+--echo #
+
+CREATE TABLE num (n INT);
+INSERT INTO num VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t1 (a INT, b INT);
+
+INSERT INTO t1 SELECT n,n FROM num UNION SELECT n+10,n+10 FROM num;
+
+CREATE TABLE t2 (a INT, b INT);
+
+ANALYZE TABLE t1, t2;
+
+# The row estimate for "x1 LEFT JOIN (x2 LEFT JOIN x3)" may be different from that of
+#  "(x1 LEFT JOIN x2) LEFT JOIN x3" (see bug #33550360 "Inconsistent row estimates
+# in the hypergraph optimizer"). Then the the row estimate for GROUP BY will also depend
+# on the join order. This triggers the assert (i.e. bug#34861693).
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT x1.a+0 k, COUNT(x1.b) FROM t1 x1
+  LEFT JOIN t2 x2 ON x1.b=x2.a
+  LEFT JOIN t1 x3 ON x2.b=x3.a GROUP BY k;
+
+DROP TABLE t1,t2,num;

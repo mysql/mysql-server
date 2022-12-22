@@ -816,20 +816,9 @@ void EstimateAggregateCost(AccessPath *path, const Query_block *query_block,
   if (path->num_output_rows() == kUnknownRowCount) {
     path->set_num_output_rows(EstimateAggregateRows(
         child, query_block, path->aggregate().rollup, trace));
-  } else {
-    assert(path->num_output_rows() >= 0.0);
-    // Check that old and new estimate are approximately the same.
-    if (path->num_output_rows() < 1e-4) {
-      assert(EstimateAggregateRows(child, query_block, path->aggregate().rollup,
-                                   trace) < 1.1e-3);
-    } else {
-      assert(std::abs(1.0 - EstimateAggregateRows(child, query_block,
-                                                  path->aggregate().rollup,
-                                                  trace) /
-                                path->num_output_rows()) < 0.01);
-    }
   }
 
+  assert(path->num_output_rows() >= 0.0);
   path->init_cost = child->init_cost;
   path->init_once_cost = child->init_once_cost;
   path->cost = child->cost + kAggregateOneRowCost * child->num_output_rows();
