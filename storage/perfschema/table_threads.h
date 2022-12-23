@@ -92,6 +92,8 @@ struct row_threads {
   bool m_secondary;
   /** CURRENT_CONTROLLED_MEMORY, ... */
   PFS_session_all_memory_stat_row m_session_all_memory_row;
+  /** Column TELEMETRY_ACTIVE (read). */
+  bool m_telemetry_active;
 };
 
 class PFS_index_threads_by_thread_id : public PFS_index_threads {

@@ -33,6 +33,7 @@
 #include "my_sys.h"
 #include "mysys_err.h"
 #include "sql/mysqld.h"
+#include "storage/perfschema/mysql_server_telemetry_traces_service_imp.h"
 #include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_account.h"
 #include "storage/perfschema/pfs_builtin_memory.h"
@@ -265,6 +266,17 @@ int initialize_performance_schema(
   */
   init_pfs_tls_channels_instrumentation();
 
+  /*
+     Initialize telemetry tracing service.
+    This must be done:
+    - after the memory allocation for mutex instrumentation,
+      so that mutex LOCK_pfs_tracing_callback gets instrumented
+      (if the instrumentation is enabled),
+    - Even if the mutex LOCK_pfs_tracing_callback ends up not instrumented,
+       it still needs to be initialized.
+  */
+  initialize_mysql_server_telemetry_traces_service();
+
   if (init_failed) {
     return 1;
   }
@@ -324,6 +336,7 @@ static void cleanup_performance_schema() {
     find_XXX_class(key)
     will return PSI_NOT_INSTRUMENTED
   */
+  cleanup_mysql_server_telemetry_traces_service();
   cleanup_pfs_tls_channels_instrumentation();
   cleanup_pfs_plugin_table();
   cleanup_error();

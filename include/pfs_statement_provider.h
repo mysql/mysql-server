@@ -112,6 +112,11 @@ void pfs_set_statement_no_index_used_vc(PSI_statement_locker *locker);
 
 void pfs_set_statement_no_good_index_used_vc(PSI_statement_locker *locker);
 
+void pfs_notify_statement_query_attributes_vc(PSI_statement_locker *locker,
+                                              bool with_query_attributes);
+
+void pfs_statement_abort_telemetry_vc(PSI_statement_locker *locker);
+
 void pfs_set_statement_secondary_engine_vc(PSI_statement_locker *locker,
                                            bool secondary);
 

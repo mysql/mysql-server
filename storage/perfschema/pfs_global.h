@@ -40,6 +40,8 @@
 #include "my_inttypes.h"
 #include "sql/thr_malloc.h"
 
+#include <mysql/components/services/mysql_server_telemetry_traces_service.h>
+
 /**
   @file storage/perfschema/pfs_global.h
   Miscellaneous global dependencies (declarations).

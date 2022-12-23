@@ -1,0 +1,103 @@
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+CREATE TABLE t2(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
+PARTITION BY KEY(col1) PARTITIONS 5;
+CREATE PROCEDURE execute_dml(
+p_dml_type	INT,
+p_key_min	INT,
+p_key_range	INT,
+p_loop_count	INT,
+p_frequency	INT,
+p_is_rand	INT)
+BEGIN
+DECLARE v_idx		INT DEFAULT 0;
+DECLARE v_commit	INT DEFAULT 0;
+DECLARE v_key		INT DEFAULT 0;
+/* Loop and INSERT data at random position */
+WHILE(v_idx < p_loop_count) DO
+/* Generate key between 1 to p_loop_count */
+IF p_is_rand = 1 THEN
+SET v_key = p_key_min + FLOOR(RAND() * p_key_range);
+ELSE
+SET v_key = p_key_min + (v_idx  % p_key_range);
+END IF;
+CASE p_dml_type
+WHEN 0 THEN
+SET @clol3_text = CONCAT('Clone Test Row - ', v_key);
+INSERT INTO t1 (col1, col2, col3, col4) VALUES (
+v_key, v_key * 10,
+@clol3_text, REPEAT('Large Column Data ', 2048))
+ON DUPLICATE KEY UPDATE col2 = col2 + 1;
+INSERT INTO t2 (col1, col2, col3, col4) VALUES (
+v_key, v_key * 10,
+@clol3_text, REPEAT('Large Column Data ', 2048))
+ON DUPLICATE KEY UPDATE col2 = col2 + 1;
+WHEN 1 THEN
+UPDATE t1 SET col2 = v_idx + 1 WHERE col1 = v_key;
+UPDATE t2 SET col2 = v_idx + 1 WHERE col1 = v_key;
+WHEN 2 THEN
+DELETE FROM t1 WHERE col1 = v_key;
+DELETE FROM t2 WHERE col1 = v_key;
+ELSE
+DELETE FROM t1;
+DELETE FROM t2;
+END CASE;
+SET v_idx = v_idx + 1;
+/* Commit or rollback work at specified frequency. */
+IF v_idx % p_frequency = 0 THEN
+SET v_commit = FLOOR(RAND() * 2);
+IF v_commit = 0 AND p_is_rand = 1 THEN
+ROLLBACK;
+START TRANSACTION;
+ELSE
+COMMIT;
+START TRANSACTION;
+END IF;
+END IF;
+END WHILE;
+COMMIT;
+END|
+call execute_dml(0, 0, 1, 2, 1, 0);
+select count(*) from t1;
+count(*)
+1
+select count(*) from t2;
+count(*)
+1
+INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+# In connection default - Cloning database
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE execute_dml;
+UNINSTALL PLUGIN clone;
+Component logs:
+test_server_telemetry_traces_component_init init:
+ - System variables registered.
+ - Status variables registered.
+ - Telemetry per-session data slot registered.
+ - Telemetry session callbacks registered.
+ - Telemetry statement callbacks registered.
+End of init
+ tm_session_create: telemetry session started, increase refcount by user=root to 1
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET GLOBAL clone_autotune_concurrency = OFF')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET GLOBAL clone_max_concurrency = 8')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CLONE LOCAL DATA DIRECTORY = CLONE_DATADIR')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces'')
+test_server_telemetry_traces_component_deinit:
+ - Telemetry statement callbacks unregistered.
+ tm_session_destroy: telemetry session ended, decrease refcount to 0
+ - Current session aborted.
+ - Done waiting for telemetry sessions to finish (refcount = 0).
+ - Telemetry session callbacks unregistered.
+ - Telemetry per-session data slot unregistered.
+ - Status variables unregistered.
+ - System variables unregistered.
+End of deinit

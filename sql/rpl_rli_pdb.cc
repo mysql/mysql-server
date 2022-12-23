@@ -1954,6 +1954,8 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
 
   relay_log_number_to_name(start_relay_number, file_name);
 
+  PSI_thread *thread = thd_get_psi(rli->info_thd);
+
   while (!arrive_end) {
     Log_event *ev = nullptr;
 
@@ -2032,6 +2034,11 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
 
   error = false;
 end:
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  if (thread != nullptr) {
+    PSI_THREAD_CALL(abort_telemetry)(thread);
+  }
+#endif
   return error;
 }
 
@@ -2411,8 +2418,17 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
   start_relay_number = job_item->relay_number;
   start_relay_pos = job_item->relay_pos;
 
+  PSI_thread *thread = thd_get_psi(thd);
+
   /* Current event with Worker associator. */
   RLI_current_event_raii worker_curr_ev(worker, ev);
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  /* Check telemetry session status. */
+  if (thread != nullptr) {
+    PSI_THREAD_CALL(detect_telemetry)(thread);
+  }
+#endif
 
   while (true) {
     Slave_job_group *ptr_g;
@@ -2544,6 +2560,12 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
   remove_item_from_jobs(job_item, worker, rli);
   delete ev;
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  if (thread != nullptr) {
+    PSI_THREAD_CALL(abort_telemetry)(thread);
+  }
+#endif
+
   return 0;
 err:
   if (error) {
@@ -2556,6 +2578,11 @@ err:
                         worker->running_status));
     worker->slave_worker_ends_group(ev, error); /* last done sets post exec */
   }
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  if (thread != nullptr) {
+    PSI_THREAD_CALL(abort_telemetry)(thread);
+  }
+#endif
   return error;
 }
 

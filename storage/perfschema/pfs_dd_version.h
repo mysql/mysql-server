@@ -221,8 +221,13 @@
     per channel
     Modified column REQUIRE_TABLE_PRIMARY_KEY_CHECK in table
     replication_applier_configuration
+
+  80033:
+
+   - WL#15059: PERFORMANCE_SCHEMA, OTEL TRACE INTERFACE
+     New column TELEMETRY_ACTIVE added to performance_schema.threads
 */
 
-static const uint PFS_DD_VERSION = 80032;
+static const uint PFS_DD_VERSION = 80033;
 
 #endif /* PFS_DD_VERSION_H */

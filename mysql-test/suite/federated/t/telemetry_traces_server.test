@@ -1,0 +1,94 @@
+################################################################################
+# Test case to test telemetry tracing service functionality using test component
+# within the context of federated storage engine. We are validating that the requests
+# being passed to remote server are being processed by telemetry callbacks.
+#
+# This test script:
+#    - Installs the query_attributes and test_server_telemetry components.
+#    - Executes different statements and verifies that correct tracing action happened
+################################################################################
+
+--source include/have_server_telemetry_traces.inc
+--source include/have_debug.inc
+--source include/not_parallel.inc
+--source include/no_ps_protocol.inc
+
+source suite/federated/include/federated.inc;
+
+# connect to remote.
+connection slave;
+--disable_warnings
+DROP TABLE IF EXISTS federated.t1;
+--enable_warnings
+
+CREATE TABLE federated.t1 (
+  a int
+  );
+INSERT INTO federated.t1 (a) VALUES (42);
+
+# Install required components.
+INSTALL COMPONENT 'file://component_query_attributes';
+INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+
+--echo # check initial telemetry session refcount (should be 1)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+
+# connect to local.
+connection master;
+
+--echo # check telemetry session refcount on master server (variable should not exist)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE SERVER fedlink
+FOREIGN DATA WRAPPER mysql
+OPTIONS (
+  HOST '127.0.0.1',
+  PORT $SLAVE_MYPORT,
+  USER 'root',
+  PASSWORD '',
+  DATABASE 'federated');
+
+--disable_warnings
+DROP TABLE IF EXISTS federated.t1;
+--enable_warnings
+
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t1 (
+    a int
+    ) ENGINE="FEDERATED"
+    CONNECTION='fedlink/t1';
+
+# test
+SELECT * FROM federated.t1;
+
+# cleanup remote
+connection slave;
+
+--echo # check telemetry session refcount before component uninstall (should be 2)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+
+--send UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+--sleep 0.1
+connection master;
+SELECT * FROM federated.t1;
+connection slave;
+--reap
+UNINSTALL COMPONENT 'file://component_query_attributes';
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--echo Component logs:
+cat_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;
+remove_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;
+
+# connect to local.
+connection master;
+
+# cleanup test
+--disable_warnings
+DROP TABLE IF EXISTS federated.t1;
+--enable_warnings
+
+# cleanup
+DROP SERVER fedlink;
+source suite/federated/include/federated_cleanup.inc;

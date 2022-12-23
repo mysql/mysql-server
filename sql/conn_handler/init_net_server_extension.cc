@@ -90,6 +90,13 @@ static void net_after_header_psi(NET *net [[maybe_unused]], void *user_data,
     */
     MYSQL_END_IDLE_WAIT(thd->m_idle_psi);
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_thread *thread = thd_get_psi(thd);
+    if (thread != nullptr) {
+      PSI_THREAD_CALL(detect_telemetry)(thread);
+    }
+#endif
+
     if (!rc) {
       assert(thd->m_statement_psi == nullptr);
       thd->m_statement_psi = MYSQL_START_STATEMENT(

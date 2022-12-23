@@ -122,11 +122,12 @@ void table_tls_channel_status::materialize() {
     In order to minimize the duration of the lock, we store all
     properties locally. ::read_row_values will use the local buffer.
   */
-  mysql_rwlock_rdlock(&LOCK_pfs_tls_channels);
-  for (auto *channel : g_instrumented_tls_channels) {
+  pfs_tls_channels_lock_for_read();
+  const tls_channels &channels = pfs_get_instrumented_tls_channels();
+  for (auto *channel : channels) {
     process_one_channel(channel);
   }
-  mysql_rwlock_unlock(&LOCK_pfs_tls_channels);
+  pfs_tls_channels_unlock();
 }
 
 ha_rows table_tls_channel_status::get_row_count() {

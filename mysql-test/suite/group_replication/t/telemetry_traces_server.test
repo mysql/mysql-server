@@ -1,0 +1,87 @@
+###############################################################################
+# This test verifies that the statement replicated with group replication
+#  will be processed by the test server telemetry component.
+#
+# 0. The test requires two servers: M1 and M2
+# 1. Start group replication
+# 2. Install test server telemetry component on server2
+# 3. Add some data on server1
+# 4. Cleanup
+# 5. Verify telemetry component log from server2 contains replicated statement
+#
+
+--source include/have_server_telemetry_traces.inc
+--source include/have_group_replication_plugin.inc
+--source include/no_ps_protocol.inc
+
+--echo
+--echo #########################################################
+--echo # 1. Start group replication
+
+--source include/group_replication.inc
+
+--echo
+--echo #########################################################
+--echo # 2. Install test server telemetry component on server2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# Install required components.
+INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+
+--echo
+--echo #########################################################
+--echo # 3. Add some data on server1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+--source include/rpl_sync.inc
+
+--echo
+--echo ############################################################
+--echo # 4. Cleanup
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--send UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--sleep 0.1
+--reap
+
+--source include/group_replication_end.inc
+
+--echo
+--echo ###############################################################
+--echo # 5. Verify telemetry component log from server2 contains replicated statement
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+# To make test deterministic, do not output entire log
+# Just validate our statement got passed to telemetry callback
+# GR uses row-based replication, so we only see DDL query in the log
+--let $assert_text= Find replicated statement in telemetry log
+--let $assert_select= CREATE TABLE t1
+--let $assert_file= $MYSQLD_DATADIR/test_server_telemetry_traces_component.log
+--let $assert_count= 2
+--source include/assert_grep.inc
+remove_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;
+
+

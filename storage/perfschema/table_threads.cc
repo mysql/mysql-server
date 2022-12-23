@@ -73,6 +73,7 @@ Plugin_table table_threads::m_table_def(
     "  MAX_CONTROLLED_MEMORY BIGINT unsigned not null,\n"
     "  TOTAL_MEMORY BIGINT unsigned not null,\n"
     "  MAX_TOTAL_MEMORY BIGINT unsigned not null,\n"
+    "  TELEMETRY_ACTIVE ENUM ('YES', 'NO') not null,\n"
     "  PRIMARY KEY (THREAD_ID) USING HASH,\n"
     "  KEY (PROCESSLIST_ID) USING HASH,\n"
     "  KEY (THREAD_OS_ID) USING HASH,\n"
@@ -328,6 +329,8 @@ int table_threads::make_row(PFS_thread *pfs) {
 
   m_row.m_session_all_memory_row.set(&pfs->m_session_all_memory_stat);
 
+  m_row.m_telemetry_active = (pfs->m_telemetry_session != nullptr);
+
   if (!pfs->m_lock.end_optimistic_lock(&lock)) {
     return HA_ERR_RECORD_DELETED;
   }
@@ -474,6 +477,9 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
         case 21: /* TOTAL_MEMORY */
         case 22: /* MAX_TOTAL_MEMORY */
           m_row.m_session_all_memory_row.set_field(f->field_index() - 19, f);
+          break;
+        case 23: /* TELEMETRY_ACTIVE */
+          set_field_enum(f, m_row.m_telemetry_active ? ENUM_YES : ENUM_NO);
           break;
         default:
           assert(false);

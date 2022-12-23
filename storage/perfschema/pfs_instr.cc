@@ -720,6 +720,11 @@ PFS_thread *create_thread(PFS_thread_class *klass, PSI_thread_seqnum seqnum,
 
     pfs->m_session_all_memory_stat.reset();
 
+#ifdef HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE
+    pfs->m_telemetry = nullptr;
+    pfs->m_telemetry_session = nullptr;
+#endif /* HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE */
+
     pfs->m_lock.dirty_to_allocated(&dirty_state);
   }
 
@@ -821,6 +826,16 @@ void destroy_thread(PFS_thread *pfs) {
   pfs->reset_session_connect_attrs();
   pfs->m_thd = nullptr;
   pfs->m_cnt_thd = nullptr;
+
+#ifdef HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE
+  if (pfs->m_telemetry_session != nullptr) {
+    assert(pfs->m_telemetry != nullptr);
+    pfs->m_telemetry->m_tel_session_destroy(pfs->m_telemetry_session);
+  }
+
+  pfs->m_telemetry = nullptr;
+  pfs->m_telemetry_session = nullptr;
+#endif /* HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE */
 
   PFS_thread_class *klass = pfs->m_class;
   if (klass->is_singleton()) {

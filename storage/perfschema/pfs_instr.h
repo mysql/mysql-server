@@ -723,6 +723,10 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice {
 #endif
 
   PFS_session_all_memory_stat m_session_all_memory_stat;
+
+  /** Copy of g_telemetry. */
+  telemetry_t *m_telemetry;
+  telemetry_session_t *m_telemetry_session;
 };
 
 void carry_global_memory_stat_alloc_delta(PFS_memory_stat_alloc_delta *delta,

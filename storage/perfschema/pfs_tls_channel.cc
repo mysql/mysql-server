@@ -197,6 +197,10 @@
 tls_channels g_instrumented_tls_channels;
 static bool g_instrumented_tls_channels_inited = false;
 
+/**
+  RW lock that protects list of instrumented TLS channels.
+  @sa g_instrumented_tls_channels
+*/
 mysql_rwlock_t LOCK_pfs_tls_channels;
 static PSI_rwlock_key key_LOCK_pfs_tls_channels;
 static PSI_rwlock_info info_LOCK_pfs_tls_channels = {
@@ -241,4 +245,14 @@ void pfs_unregister_tls_channel_v1(TLS_channel_property_iterator *provider) {
     }
   }
   mysql_rwlock_unlock(&LOCK_pfs_tls_channels);
+}
+
+void pfs_tls_channels_lock_for_read() {
+  mysql_rwlock_rdlock(&LOCK_pfs_tls_channels);
+}
+
+void pfs_tls_channels_unlock() { mysql_rwlock_unlock(&LOCK_pfs_tls_channels); }
+
+tls_channels &pfs_get_instrumented_tls_channels() {
+  return g_instrumented_tls_channels;
 }

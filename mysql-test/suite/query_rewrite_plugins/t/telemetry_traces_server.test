@@ -1,0 +1,34 @@
+--echo #
+--echo # Tests the interaction between query rewriter plugin and server telemetry traces feature
+--echo #
+
+--source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+--source include/have_server_telemetry_traces.inc
+--source include/not_parallel.inc
+--source include/no_ps_protocol.inc
+
+--echo # Install query rewriter plugin
+--source suite/query_rewrite_plugins/include/install_rewriter.inc
+
+--echo # Prepare rewrite rules
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "original"', 'SELECT "rewritten"' );
+CALL query_rewrite.flush_rewrite_rules();
+
+--echo # Install required components
+INSTALL COMPONENT 'file://component_query_attributes';
+INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+
+--echo # Run test query, should be processed by telemetry
+--query_attributes trace on
+SELECT 'original';
+
+--echo # Cleanup
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+UNINSTALL COMPONENT 'file://component_query_attributes';
+--source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--echo Component logs:
+cat_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;
+remove_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;

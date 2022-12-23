@@ -399,6 +399,7 @@ MySQL clients support the protocol:
   @page PAGE_SERVICES Available services
 
   @subpage PAGE_TABLE_ACCESS_SERVICE
+  @subpage PAGE_MYSQL_SERVER_TELEMETRY_TRACES_SERVICE
 */
 
 
@@ -968,6 +969,7 @@ MySQL clients support the protocol:
 #include "sql/server_component/log_builtins_filter_imp.h"
 #include "sql/server_component/log_builtins_imp.h"
 #include "sql/server_component/mysql_server_keyring_lockable_imp.h"
+#include "sql/server_component/mysql_thd_store_imp.h"
 #include "sql/server_component/persistent_dynamic_loader_imp.h"
 #include "sql/srv_session.h"
 
@@ -2076,7 +2078,15 @@ static bool component_infrastructure_init() {
 /**
   This function is used to initialize the mysql_server component services.
 */
-static void server_component_init() { mysql_comp_sys_var_services_init(); }
+static void server_component_init() {
+  mysql_comp_sys_var_services_init();
+  init_thd_store_service();
+}
+
+/**
+  This function is used to de-initialize the mysql_server component services.
+*/
+static void server_component_deinit() { deinit_thd_store_service(); }
 
 /**
   Initializes MySQL Server component infrastructure part by initialize of
@@ -2093,6 +2103,9 @@ static bool mysql_component_infrastructure_init() {
   Disable_autocommit_guard autocommit_guard(thd.thd);
   dd::cache::Dictionary_client::Auto_releaser scope_releaser(
       thd.thd->dd_client());
+
+  server_component_init();
+
   if (persistent_dynamic_loader_init(thd.thd)) {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_PERSIST_LOADER_BOOTSTRAP);
     trans_rollback_stmt(thd.thd);
@@ -2100,7 +2113,6 @@ static bool mysql_component_infrastructure_init() {
     trans_rollback(thd.thd);
     return true;
   }
-  server_component_init();
   return trans_commit_stmt(thd.thd) || trans_commit(thd.thd);
 }
 
@@ -2114,6 +2126,7 @@ static bool mysql_component_infrastructure_init() {
   @retval true failure
 */
 static bool component_infrastructure_deinit() {
+  server_component_deinit();
   persistent_dynamic_loader_deinit();
   bool retval = false;
 
@@ -9552,6 +9565,18 @@ static int show_resource_group_support(THD *, SHOW_VAR *var, char *buf) {
   return 0;
 }
 
+static int show_telemetry_traces_support(THD * /*unused*/, SHOW_VAR *var,
+                                         char *buf) {
+  var->type = SHOW_BOOL;
+  var->value = buf;
+#ifdef HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE
+  *(pointer_cast<bool *>(buf)) = true;
+#else
+  *(pointer_cast<bool *>(buf)) = false;
+#endif /* HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE */
+  return 0;
+}
+
 SHOW_VAR status_vars[] = {
     {"Aborted_clients", (char *)&aborted_threads, SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"Aborted_connects", (char *)&show_aborted_connects, SHOW_FUNC,
@@ -9910,6 +9935,8 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Resource_group_supported", (char *)show_resource_group_support, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
+    {"Telemetry_traces_supported", (char *)show_telemetry_traces_support,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_ALL}};
 
 void add_terminator(vector<my_option> *options) {

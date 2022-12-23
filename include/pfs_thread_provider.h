@@ -147,6 +147,10 @@ void pfs_notify_session_disconnect_vc(PSI_thread *thread);
 
 void pfs_notify_session_change_user_vc(PSI_thread *thread);
 
+void pfs_detect_telemetry_vc(PSI_thread *thread);
+
+void pfs_abort_telemetry_vc(PSI_thread *thread);
+
 #endif /* WITH_LOCK_ORDER */
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER || PFS_DIRECT_CALL */

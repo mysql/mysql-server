@@ -12114,6 +12114,15 @@ ER_CHECK_TABLE_MIN_REC_FLAG_SET
 ER_CHECK_TABLE_MIN_REC_FLAG_NOT_SET
    eng "Minimum record flag is not set to first rec on page '%lu' at level '%lu' for index '%s' of table '%s'."
 
+ER_NOTE_COMPONENT_SLOT_REGISTRATION_SUCCESS
+  eng "Successfully registered slot '%d' for component '%s'."
+
+ER_NOTE_COMPONENT_SLOT_DEREGISTRATION_SUCCESS
+  eng "Successfully de-registered slot '%d' from component '%s'."
+
+ER_WARN_CANNOT_FREE_COMPONENT_DATA_DEALLOCATION_FAILED
+  eng "Cannot free resources stored by component '%s' in thread with ID: '%d'. Component failed to free required resources."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

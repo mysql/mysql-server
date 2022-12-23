@@ -170,3 +170,8 @@ MYSQL_ADD_COMPONENT(test_status_var_reader
   MODULE_ONLY
   TEST_ONLY
   )
+MYSQL_ADD_COMPONENT(test_mysql_thd_store_service
+  test_mysql_thd_store_service.cc
+  MODULE_ONLY
+  TEST_ONLY
+  )

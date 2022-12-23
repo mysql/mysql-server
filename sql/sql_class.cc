@@ -84,6 +84,7 @@
 #include "sql/query_result.h"
 #include "sql/rpl_rli.h"  // Relay_log_info
 #include "sql/rpl_transaction_write_set_ctx.h"
+#include "sql/server_component/mysql_thd_store_imp.h"
 #include "sql/sp_cache.h"         // sp_cache_clear
 #include "sql/sp_head.h"          // sp_head
 #include "sql/sql_audit.h"        // mysql_audit_free_thd
@@ -711,7 +712,8 @@ THD::THD(bool enable_plugins)
       m_is_plugin_fake_ddl(false),
       m_inside_system_variable_global_update(false),
       bind_parameter_values(nullptr),
-      bind_parameter_values_count(0) {
+      bind_parameter_values_count(0),
+      external_store_() {
   main_lex->reset();
   set_psi(nullptr);
   mdl_context.init(this);
@@ -1383,6 +1385,10 @@ void THD::release_resources() {
     rli_fake = nullptr;
   }
   mysql_audit_free_thd(this);
+
+  /* See if any component stored data. If so, try to free it */
+  if (!external_store_.empty())
+    (void)free_thd_store_resource(this, external_store_);
 
   if (current_thd == this) restore_globals();
 
@@ -3198,6 +3204,18 @@ void THD::inc_lock_usec(ulonglong lock_usec) {
 void THD::update_slow_query_status() {
   if (my_micro_time() > start_utime + variables.long_query_time)
     server_status |= SERVER_QUERY_WAS_SLOW;
+}
+
+bool THD::add_external(unsigned int slot, void *data) {
+  if (!data)
+    external_store_.erase(slot);
+  else
+    external_store_[slot] = data;
+  return false;
+}
+
+void *THD::fetch_external(unsigned int slot) {
+  return external_store_.at(slot) ? external_store_.at(slot) : nullptr;
 }
 
 /**

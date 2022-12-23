@@ -48,7 +48,8 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
-#include "my_time.h"  // SECS_PER_HOUR, SECS_PER_MIN
+#include "my_systime.h"  // my_sleep()
+#include "my_time.h"     // SECS_PER_HOUR, SECS_PER_MIN
 #include "mysql_client_fw.cc"
 #include "template_utils.h"
 
@@ -23369,6 +23370,52 @@ static void test_bug33535746() {
   myquery(rc);
 }
 
+static void test_zero_rpc(enum enum_server_command command, bool skip_check) {
+  MYSQL *conn;
+  char buff[50];
+  sprintf(buff, "command %d test", (int)command);
+
+  DIE_UNLESS((conn = mysql_client_init(nullptr)));
+  DIE_UNLESS(mysql_real_connect(conn, opt_host, opt_user, opt_password,
+                                opt_db ? opt_db : "test", opt_port,
+                                opt_unix_socket, CLIENT_FOUND_ROWS));
+  DIE_UNLESS(cli_advanced_command(conn, command, nullptr, 0, nullptr, 0,
+                                  skip_check, nullptr) != 0 ||
+             skip_check);
+  if (!skip_check) print_error(conn, buff);
+  mysql_close(conn);
+
+  // wait for session to be processed by telemetry
+  // this assures the logs are being deterministic
+  // (ordering not changed between multiple sessions)
+  my_sleep(500000);  // 500msec
+}
+
+/*
+  Used by perfschema.telemetry_traces_test_client test.
+  Send different COM commands, expect to see them
+  processed by server telemetry traces code
+  (entries appearing in "test server telemetry traces" component log).
+*/
+static void test_server_telemetry_traces() {
+  DBUG_TRACE;
+  myheader("test_server_telemetry_traces");
+
+  // wait for session to be processed by telemetry
+  // this assures the logs are being deterministic
+  // (ordering not changed between multiple sessions)
+  my_sleep(500000);  // 500msec
+
+  test_zero_rpc(COM_REFRESH, true);
+  test_zero_rpc(COM_PROCESS_KILL, true);
+  test_zero_rpc(COM_STMT_EXECUTE, true);
+  test_zero_rpc(COM_STMT_SEND_LONG_DATA, true);
+  test_zero_rpc(COM_STMT_CLOSE, true);
+  test_zero_rpc(COM_STMT_FETCH, true);
+  test_zero_rpc(COM_STMT_RESET, true);
+  test_zero_rpc(COM_SET_OPTION, true);
+}
+
 static void test_wl13128() {
   DBUG_TRACE;
   myheader("test_wl13128");
@@ -23797,6 +23844,7 @@ static struct my_tests_st my_tests[] = {
     {"test_wl13075", test_wl13075},
     {"test_bug34007830", test_bug34007830},
     {"test_bug33535746", test_bug33535746},
+    {"test_server_telemetry_traces", test_server_telemetry_traces},
     {"test_wl13128", test_wl13128},
     {"test_bug25584097", test_bug25584097},
     {"test_34556764", test_34556764},

@@ -68,6 +68,7 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   mysql_command_backend.cc
   mysql_status_variable_reader_imp.cc
   storing_auto_thd.cc
+  mysql_thd_store_imp.cc
   set_variables_helper.cc
   )
 

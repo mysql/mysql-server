@@ -158,10 +158,15 @@ DEFINE_BOOL_METHOD(mysql_string_imp::convert_to_buffer,
   assert(0 != strcmp(charset_name, "utf8"));
   try {
     String *str = reinterpret_cast<String *>(in_string);
+    if (str == nullptr || length == 0) return true;
+    if (str->length() == 0) {
+      out_buffer[0] = '\0';
+      return false;
+    }
     uint error;
     CHARSET_INFO *cs =
         get_charset_by_csname(charset_name, MY_CS_PRIMARY, MYF(0));
-    if (str == nullptr || cs == nullptr || length == 0) return true;
+    if (cs == nullptr) return true;
     size_t len = my_convert(out_buffer, length - 1, cs, str->ptr(),
                             str->length(), str->charset(), &error);
     out_buffer[len] = '\0';

@@ -82,6 +82,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_string_service_imp.h"
 #include "mysql_system_variable_update_imp.h"
 #include "mysql_thd_attributes_imp.h"
+#include "mysql_thd_store_imp.h"
 #include "mysql_transaction_delegate_control_imp.h"
 #include "mysqld_error.h"
 #include "persistent_dynamic_loader_imp.h"
@@ -134,8 +135,8 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, global_grants_check)
 dynamic_privilege_services_impl::has_global_grant END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_charset)
-mysql_string_imp::get_charset_utf8mb4,
-    mysql_string_imp::get_charset_by_name END_SERVICE_IMPLEMENTATION();
+mysql_string_imp::get_charset_utf8mb4, mysql_string_imp::get_charset_by_name,
+    END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_factory)
 mysql_string_imp::create,
@@ -548,6 +549,12 @@ END_SERVICE_IMPLEMENTATION();
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_status_variable_string)
 mysql_status_variable_reader_imp::get END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_store)
+Mysql_thd_store_service_imp::register_slot,
+    Mysql_thd_store_service_imp::unregister_slot,
+    Mysql_thd_store_service_imp::set, Mysql_thd_store_service_imp::get,
+    END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, persistent_dynamic_loader),
@@ -627,7 +634,8 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_statement_v1), */
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_statement_v2), */
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_statement_v3), */
-    PROVIDES_SERVICE(performance_schema, psi_statement_v4),
+    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_statement_v4), */
+    PROVIDES_SERVICE(performance_schema, psi_statement_v5),
     PROVIDES_SERVICE(performance_schema, psi_system_v1),
     PROVIDES_SERVICE(performance_schema, psi_table_v1),
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_thread_v1), */
@@ -657,6 +665,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_timestamp_v2),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_year_v1),
     PROVIDES_SERVICE(performance_schema, psi_tls_channel_v1),
+    PROVIDES_SERVICE(performance_schema, mysql_server_telemetry_traces_v1),
 
     PROVIDES_SERVICE(mysql_server, mysql_query_attributes_iterator),
     PROVIDES_SERVICE(mysql_server, mysql_query_attribute_string),
@@ -707,7 +716,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_text_consumer_get_string_v1),
     PROVIDES_SERVICE(mysql_server, mysql_text_consumer_client_capabilities_v1),
     PROVIDES_SERVICE(mysql_server, mysql_status_variable_string),
-    END_COMPONENT_PROVIDES();
+    PROVIDES_SERVICE(mysql_server, mysql_thd_store), END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();
 

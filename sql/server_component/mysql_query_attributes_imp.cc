@@ -101,7 +101,9 @@ class iterator {
     while (ofs < thd->bind_parameter_values_count) {
       ofs++;
       current++;
-      if (current->name_length > 0 && current->name) break;
+      if (ofs < thd->bind_parameter_values_count) {
+        if (current->name_length > 0 && current->name) break;
+      }
     }
     return ofs >= thd->bind_parameter_values_count;
   }
