@@ -1394,3 +1394,14 @@ FROM (SELECT 1
      (SELECT 1 FROM t1 UNION ALL SELECT 2 FROM t1) AS dt3;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#34919799: Assertion `cond->is_bool_func()' failed.
+--echo #
+
+CREATE TABLE t1 (f1 TINYINT);
+
+SELECT f1 FROM (SELECT f1 FROM t1 UNION SELECT f1 FROM t1 ) AS dt
+WHERE f1 > -32768 OR f1 = 1;
+
+DROP TABLE t1;

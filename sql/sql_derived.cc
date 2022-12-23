@@ -758,6 +758,11 @@ Item *Query_block::clone_expression(THD *thd, Item *item) {
   // original expression. Assign it to the corresponding field in the cloned
   // expression.
   if (copy_field_info(thd, item, cloned_item)) return nullptr;
+  // A boolean expression to be cloned comes from a WHERE condition,
+  // which treats UNKNOWN the same as FALSE, thus the cloned expression
+  // should have the same property. apply_is_true() is ignored for
+  // non-boolean expressions
+  cloned_item->apply_is_true();
   return resolve_expression(thd, cloned_item, this);
 }
 
