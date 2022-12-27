@@ -1,3 +1,4 @@
+
 --echo #
 --echo # WL#15254: SQL syntax extensions to support external language routines
 --echo #
@@ -10,6 +11,10 @@ DELIMITER //;
 
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE SQL
   BEGIN RETURN a-1; END //
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_name = "foo" //
 DROP FUNCTION foo//
 
 --echo # SQL is default
@@ -17,66 +22,143 @@ CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC
   BEGIN RETURN a-1; END //
 DROP FUNCTION foo//
 
---echo # Currently, no other language than SQL is supported
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
   return x-1;
 $$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS where Language like "%JAVA%"//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_name = "foo" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION JAVASCRIPT(a INTEGER) RETURNS INTEGER DETERMINISTIC
 LANGUAGE JAVASCRIPT
 AS $$
   return x-1;
 $$
 //
-
+SHOW CREATE FUNCTION JAVASCRIPT//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'JAVASCRIPT'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT JAVASCRIPT(2)//
+DROP FUNCTION JAVASCRIPT//
+
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE PYTHON
 AS $$
   return x-1;
 $$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE RUBY
 AS $$
   return x-1;
 $$
 //
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
 
 --echo # Test lower-case
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE javascript
 AS $$
   return x-1;
 $$
 //
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
 
 --echo # Test mixed-case
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE jAvaScRIpt
 AS $$
   return x-1;
 $$
 //
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
 
 --echo # Any valid identifier can be used for language name
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVA1
 AS $$
   return x-1;
 $$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE $NOLANG
 AS $$
   return x-1;
 $$
 //
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
 
 --error ER_PARSE_ERROR
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC
@@ -86,19 +168,37 @@ AS $$
 $$
 //
 
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE 123j
 AS $$
   return x-1;
 $$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE __
 AS $$
   return x-1;
 $$
 //
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
 
 --error ER_PARSE_ERROR
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC
@@ -159,13 +259,22 @@ LANGUAGE JAVASCRIPT DETERMINISTIC LANGUAGE SQL
   BEGIN RETURN a-1; END //
 DROP FUNCTION foo//
 
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE SQL DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
   return x-1;
 $$
 //
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
 
 --echo # Multiple languages in one clause is not allowed
 --error ER_PARSE_ERROR
@@ -178,7 +287,6 @@ $$
 
 
 --echo Check "weird" white space before and after JAVASCRIPT.
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE
 JAVASCRIPT
@@ -187,8 +295,17 @@ JAVASCRIPT
   return x-1;
 $$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE	
 	 JAVASCRIPT
@@ -196,16 +313,34 @@ AS $$
   return x-1;
 $$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE	  	 JAVASCRIPT  DETERMINISTIC	
 AS $$
   return x-1;
 $$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE
 -- Comment
@@ -215,6 +350,16 @@ AS $$
   return x-1;
 $$
 //
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
 
 --echo The language will here be interpreted to be BEGIN
 --error ER_PARSE_ERROR
@@ -249,13 +394,22 @@ $$
 //
 
 --echo #Combinations with other characteristics
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC NO SQL
 LANGUAGE JAVASCRIPT
 AS $$
   return x-1;
 $$
 //
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
 
 
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC NO SQL
@@ -267,32 +421,58 @@ CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE SQL NO SQL
   BEGIN RETURN a-1; END //
 DROP FUNCTION foo//
 
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVASCRIPT
 CONTAINS SQL
 AS $$
   return x-1;
 $$
 //
-
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
+
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC READS SQL DATA
 LANGUAGE JAVASCRIPT
 AS $$
   return x-1;
 $$
 //
-
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
+
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVASCRIPT
 MODIFIES SQL DATA
 AS $$
   return x-1;
 $$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
 
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE SQL
 CONTAINS SQL
@@ -311,14 +491,23 @@ DROP FUNCTION foo//
 
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER NOT DETERMINISTIC LANGUAGE SQL
   BEGIN RETURN a-1; END //
+DROP FUNCTION foo//
 
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER NOT DETERMINISTIC
 LANGUAGE JAVASCRIPT
 AS $$
   return x-1;
 $$
 //
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
 
 --echo # This is not SQL
 --error ER_PARSE_ERROR
@@ -335,6 +524,10 @@ BEGIN RETURN a-1; END //
 --echo # Repeat test cases for PROCEDURE
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE SQL
   BEGIN DECLARE b INTEGER DEFAULT a; END //
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_name = "bar" //
 DROP PROCEDURE bar//
 
 --echo # SQL is default
@@ -343,53 +536,149 @@ CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC
 DROP PROCEDURE bar//
 
 --echo # Currently, no other language than SQL is supported
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS where Language like "%JAVA%"//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_name = "bar" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE JAVASCRIPT(a INTEGER) DETERMINISTIC
 LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
-
+SHOW CREATE procedure JAVASCRIPT//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'JAVASCRIPT'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL JAVASCRIPT(2)//
+DROP procedure JAVASCRIPT//
+
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE PYTHON
 AS $$ let b = a; $$ //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE RUBY
 AS $$ let b = a; $$ //
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
 
 --echo # Test lower-case
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE javascript
 AS $$ let b = a; $$ //
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
 
 --echo # Test mixed-case
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE jAvaScRIpt
 AS $$ let b = a; $$ //
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
 
 --echo # Any valid identifier can be used for language name
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVA1
 AS $$ let b = a; $$ //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE $NOLANG
 AS $$ let b = a; $$ //
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
 
 --error ER_PARSE_ERROR
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE $$JAVASCRIPT
 AS $$ let b = a; $$ //
 
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE 123j
 AS $$ let b = a; $$ //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE __
 AS $$ let b = a; $$ //
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
 
 --error ER_PARSE_ERROR
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE "JAVASCRIPT"
@@ -423,10 +712,19 @@ LANGUAGE JAVASCRIPT DETERMINISTIC LANGUAGE SQL
   BEGIN DECLARE b INTEGER DEFAULT a; END //
 DROP PROCEDURE bar//
 
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE SQL DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
 
 --echo # Multiple languages in one clause is not allowed
 --error ER_PARSE_ERROR
@@ -435,31 +733,67 @@ LANGUAGE SQL DETERMINISTIC LANGUAGE JAVASCRIPT PYTHON
 AS $$ let b = a; $$ //
 
 --echo Check "weird" white space before and after JAVASCRIPT.
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE
 JAVASCRIPT
 
 AS $$ let b = a; $$ //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE	
 	 JAVASCRIPT
 AS $$ let b = a; $$ //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE	  	 JAVASCRIPT  DETERMINISTIC	
 AS $$ let b = a; $$ //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE
 -- Comment
 JAVASCRIPT
 -- Comment
 AS $$ let b = a; $$ //
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
 
 --echo The language will here be interpreted to be BEGIN
 --error ER_PARSE_ERROR
@@ -478,10 +812,19 @@ DETERMINISTIC LANGUAGE
 BEGIN a-1; END //
 
 --echo #Combinations with other characteristics
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC NO SQL
 LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
 
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC NO SQL
 LANGUAGE SQL
@@ -492,20 +835,47 @@ CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE SQL NO SQL
   BEGIN DECLARE b INTEGER DEFAULT a; END //
 DROP PROCEDURE bar//
 
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
 CONTAINS SQL
 AS $$ let b = a; $$ //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC READS SQL DATA
 LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
 MODIFIES SQL DATA
 AS $$ let b = a; $$ //
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
 
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE SQL
 CONTAINS SQL
@@ -524,10 +894,20 @@ DROP PROCEDURE bar//
 
 CREATE PROCEDURE bar(a INTEGER) NOT DETERMINISTIC LANGUAGE SQL
   BEGIN DECLARE b INTEGER DEFAULT a; END //
+DROP PROCEDURE bar//
 
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE PROCEDURE bar(a INTEGER) NOT DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
 
 --echo # This is not SQL
 --error ER_PARSE_ERROR
@@ -537,55 +917,133 @@ $$ let b = a; $$ //
 
 --echo # This is not Javascript
 --error ER_PARSE_ERROR
-CREATE PROCEDURE bar(a INTEGER) RETURNS INTEGER
+CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
+BEGIN DECLARE b INTEGER DEFAULT a; END //
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE SQL
 BEGIN DECLARE b INTEGER DEFAULT a; END //
 
 --echo # Check ALTER statements
 ALTER FUNCTION foo NO SQL //
+SHOW CREATE FUNCTION foo//
 
---echo # When dictionary support is ready, changing language will not be allowed
+--echo # Changing language will not be allowed
+--error ER_SP_NO_ALTER_LANGUAGE
 ALTER FUNCTION foo LANGUAGE SQL NO SQL //
 ALTER FUNCTION foo LANGUAGE JAVASCRIPT //
-ALTER PROCEDURE bar LANGUAGE JAVASCRIPT //
-
+SHOW CREATE FUNCTION foo//
+ALTER FUNCTION foo LANGUAGE javascript //
+SHOW CREATE FUNCTION foo//
 DROP FUNCTION foo //
+
+CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE SQL
+  BEGIN RETURN a-1; END //
+--error ER_SP_NO_ALTER_LANGUAGE
+ALTER FUNCTION foo LANGUAGE JAVASCRIPT //
+SHOW CREATE FUNCTION foo//
+ALTER FUNCTION foo LANGUAGE SQL NO SQL //
+SHOW CREATE FUNCTION foo//
+--error ER_PARSE_ERROR
+ALTER FUNCTION foo LANGUAGE NO SQL //
+DROP FUNCTION foo //
+
+ALTER PROCEDURE bar LANGUAGE SQL NO SQL //
+--error ER_SP_NO_ALTER_LANGUAGE
+ALTER PROCEDURE bar LANGUAGE JAVASCRIPT //
+SHOW CREATE PROCEDURE bar//
+DROP PROCEDURE bar //
+
+CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
+AS "let b = a;" //
+ALTER PROCEDURE bar LANGUAGE JAVASCRIPT //
+--error ER_SP_NO_ALTER_LANGUAGE
+ALTER PROCEDURE bar LANGUAGE SQL NO SQL //
+SHOW CREATE PROCEDURE bar//
+--error ER_PARSE_ERROR
+ALTER PROCEDURE bar LANGUAGE NO SQL //
 DROP PROCEDURE bar //
 
 --echo #
 --echo # Tests for inline code in external language
 --echo #
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
   return x-1;
 $$ //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS 'return x-1;' //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS "return x-1;" //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS '
   return x-1;
-' //
-
+}' //
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
 "
    return x-1;
 " //
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
 
 --echo Routine body must come after characteristics
 --error ER_PARSE_ERROR
@@ -596,7 +1054,6 @@ $$
 DETERMINISTIC LANGUAGE JAVASCRIPT
 //
 
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -604,8 +1061,17 @@ AS
   return "$$" + a + "$$";
 '
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -613,8 +1079,17 @@ $code$
   return "$$" + a + "$$";
 $code$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -622,8 +1097,17 @@ $coDE$
   return "$$" + a + "$$";
 $coDE$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -631,8 +1115,17 @@ $CODE$
   return "$$" + a + "$$";
 $CODE$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -640,8 +1133,17 @@ $tag$
   return "$$" + a + "$$";
 $tag$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -649,8 +1151,17 @@ $TAG$
   return "$$" + a + "$$";
 $TAG$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -658,8 +1169,17 @@ $NULL$
   return "$$" + a + "$$";
 $NULL$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -667,8 +1187,17 @@ $abdc_1234$
   return "$$" + a + "$$";
 $abdc_1234$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -676,8 +1205,17 @@ $_a$
   return "$$" + a + "$$";
 $_a$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -685,8 +1223,17 @@ $_$
   return "$$" + a + "$$";
 $_$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -694,8 +1241,17 @@ $0$
   return "$$" + a + "$$";
 $0$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -703,8 +1259,17 @@ $100$
   return "$$" + a + "$$";
 $100$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -712,8 +1277,17 @@ $12345678901234$
   return "$$" + a + "$$";
 $12345678901234$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -721,8 +1295,17 @@ $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM$
   return "$$" + a + "$$";
 $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -730,8 +1313,17 @@ $¡$
   return "$$" + a + "$$";
 $¡$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -739,8 +1331,17 @@ $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM¡™£¢∞§¶
   return "$$" + a + "$$";
 $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM¡™£¢∞§¶•ªº–≠œ∑´®†¥¨ˆøπ“‘«åß∂ƒ©˙∆˚¬…æΩ≈ç√∫µ≤≥÷⁄€‹›ﬁﬂ‡°·‚—±ÅÍÎÏ˝ÓÔÒÚÆ¸˛Ç◊ıÂ¯˘¿$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS	      $$
@@ -749,8 +1350,17 @@ AS	      $$
   return $x + $y$ + a;
 $$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -761,6 +1371,16 @@ $code$
 
 $code$
 //
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
 
 --error ER_PARSE_ERROR
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
@@ -944,103 +1564,211 @@ AS $a"b"$
 $a"b"$ //
 
 --echo # Test multi-byte characters in code (∂ is 3 bytes in UTF8)
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
   return "∂" + a + "$∂$";
 $$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$
   return "∂" + a + "$∂$$";
 $code$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$
   return "∂" + a + "$∂$$∂";
 $code$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$∂
   return "∂" + a + "$∂$";
 $$
 //
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
 
 --echo Test multi-byte characters in quote tags
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $∂$
   return "∂" + a + "∂$";
 $∂$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $co∂e$
   return "∂" + a + "$∂$$";
 $co∂e$
 //
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
 
 # The 4-byte UTF8 characters below may not be correctly displayed in an editor
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀$
   return "😀$😔" + a + "😀$😔$";
 $😀$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀😔$
   return "😀$😔" + a + "😀$😔$";
 $😀😔$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $x😀$
   return "$x😀😔" + a + "$x😀😔$";
 $x😀$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀x$
   return "$😀x😔$" + a + "$😀😔x$";
 $😀x$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $x😀y$
   return "$x😀😔y$" + a + "$x😀y😔$";
 $x😀y$
 //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $x😀y😔$
   return "😀😔$" + a + "😀$😔$";
 $x😀y😔$
 //
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
 
 --error ER_PARSE_ERROR
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
@@ -1070,12 +1798,20 @@ $code$
 
 --echo # Check some variants that should give external parse error
 --echo # if the language is supported
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE FUNCTION foo(x INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$ return "$$" + x + "$foo$"; $code$ //
-
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
+
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
@@ -1084,6 +1820,16 @@ AS $$
   return $x + $y;
 $$
 //
+SHOW CREATE FUNCTION foo//
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+SELECT foo(2)//
+DROP FUNCTION foo//
 
 --echo # Multiple occurrences of routine body is not allowed
 --error ER_PARSE_ERROR
@@ -1117,37 +1863,82 @@ CREATE FUNCTION foo() RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT//
 
 --echo # Repeat test cases for procedures
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE PROCEDURE bar(x INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
   let b = a;
 $$ //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(x INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS 'let b = a;' //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(x INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS "let b = a;" //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(x INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS '
   let b = a;
 ' //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(x INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
 "
    let b = a;
 " //
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
 
 --echo Routine body must come after characteristics
 --error ER_PARSE_ERROR
@@ -1158,7 +1949,6 @@ $$
 DETERMINISTIC LANGUAGE JAVASCRIPT
 //
 
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1166,8 +1956,17 @@ AS
   let b = "$$" + a + "$$";
 '
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1175,8 +1974,17 @@ $code$
   let b = "$$" + a + "$$";
 $code$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1184,8 +1992,17 @@ $coDE$
   let b = "$$" + a + "$$";
 $coDE$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1193,8 +2010,17 @@ $CODE$
   let b = "$$" + a + "$$";
 $CODE$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1202,8 +2028,17 @@ $tag$
   let b = "$$" + a + "$$";
 $tag$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1211,8 +2046,17 @@ $TAG$
   let b = "$$" + a + "$$";
 $TAG$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1220,8 +2064,17 @@ $NULL$
   let b = "$$" + a + "$$";
 $NULL$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1229,8 +2082,17 @@ $abdc_1234$
   let b = "$$" + a + "$$";
 $abdc_1234$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1238,8 +2100,17 @@ $_a$
   let b = "$$" + a + "$$";
 $_a$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1247,8 +2118,17 @@ $_$
   let b = "$$" + a + "$$";
 $_$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1256,8 +2136,17 @@ $0$
   let b = "$$" + a + "$$";
 $0$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1265,8 +2154,17 @@ $100$
   let b = "$$" + a + "$$";
 $100$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1274,8 +2172,17 @@ $12345678901234$
   let b = "$$" + a + "$$";
 $12345678901234$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1283,8 +2190,17 @@ $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM$
   let b = "$$" + a + "$$";
 $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1292,8 +2208,17 @@ $¡$
   let b = "$$" + a + "$$";
 $¡$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1301,8 +2226,17 @@ $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM¡™£¢∞§¶
   let b = "$$" + a + "$$";
 $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM¡™£¢∞§¶•ªº–≠œ∑´®†¥¨ˆøπ“‘«åß∂ƒ©˙∆˚¬…æΩ≈ç√∫µ≤≥÷⁄€‹›ﬁﬂ‡°·‚—±ÅÍÎÏ˝ÓÔÒÚÆ¸˛Ç◊ıÂ¯˘¿$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS	      $$
@@ -1311,8 +2245,17 @@ AS	      $$
   let b = $x + $y$ + a;
 $$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1323,6 +2266,16 @@ $code$
 
 $code$
 //
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
 
 --error ER_PARSE_ERROR
 CREATE PROCEDURE bar(x INTEGER)
@@ -1506,103 +2459,211 @@ AS $a"b"$
 $a"b"$ //
 
 --echo # Test multi-byte characters in code (∂ is 3 bytes in UTF8)
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
   let b = "∂" + a + "$∂$";
 $$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$
   let b = "∂" + a + "$∂$$";
 $code$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$
   let b = "∂" + a + "$∂$$∂";
 $code$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$∂
   let b = "∂" + a + "$∂$";
 $$
 //
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
 
 --echo Test multi-byte characters in quote tags
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $∂$
   let b = "∂" + a + "∂$";
 $∂$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $co∂e$
   let b = "∂" + a + "$∂$$";
 $co∂e$
 //
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
 
 # The 4-byte UTF8 characters below may not be correctly displayed in an editor
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀$
   let b = "😀$😔" + a + "😀$😔$";
 $😀$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀😔$
   let b = "😀$😔" + a + "😀$😔$";
 $😀😔$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $x😀$
   let b = "$x😀😔" + a + "$x😀😔$";
 $x😀$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀x$
   let b = "$😀x😔$" + a + "$😀😔x$";
 $😀x$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $x😀y$
   let b = "$x😀😔y$" + a + "$x😀y😔$";
 $x😀y$
 //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $x😀y😔$
   let b = "😀😔$" + a + "😀$😔$";
 $x😀y😔$
 //
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
 
 --error ER_PARSE_ERROR
 CREATE PROCEDURE bar(a INTEGER)
@@ -1632,12 +2693,20 @@ $code$
 
 --echo # Check some variants that should give external parse error
 --echo # if the language is supported
---error ER_SP_UNSUPPORTED_LANGUAGE
 CREATE PROCEDURE bar(x INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$ let b = "$$" + x + "$foo$"; $code$ //
-
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
 --error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
+
 CREATE PROCEDURE bar(x INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
@@ -1646,6 +2715,16 @@ AS $$
   let b = $x + $y;
 $$
 //
+SHOW CREATE procedure bar//
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+--error ER_SP_UNSUPPORTED_LANGUAGE
+CALL bar(2)//
+DROP procedure bar//
 
 --echo # Multiple occurrences of routine body is not allowed
 --error ER_PARSE_ERROR
@@ -1713,4 +2792,107 @@ SELECT 1 AS `$$`;
 SELECT 1 AS `$hi$`;
 SELECT 1 AS `$h$i`;
 
+--echo #
+--echo # WL#15454: Dictionary support for external languages
+--echo #
 
+DELIMITER //;
+
+--echo # Test generation of delimiter
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+'
+function (a)
+{
+  return "$$" + a + "$$";
+}
+'
+//
+SHOW CREATE FUNCTION foo//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+DROP FUNCTION foo//
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$code$
+function (a)
+{
+  return "$$" + a + "$$";
+}
+$code$
+//
+SHOW CREATE FUNCTION foo//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+DROP FUNCTION foo//
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$code$
+function (a)
+{
+  return "$$" + a + "$JAVASCRIPT$";
+}
+$code$
+//
+SHOW CREATE FUNCTION foo//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+DROP FUNCTION foo//
+
+--echo # Check collision with checksum-based dollar quote
+CREATE FUNCTION FOO(A INTEGER) RETURNS varchar(20)
+DETERMINISTIC LANGUAGE javascript
+AS
+$code$
+function (a)
+{
+  return "$$" + a + "$JAVASCRIPT$" + "$1918680441$";
+}
+$code$
+//
+SHOW CREATE FUNCTION foo//
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+DROP FUNCTION foo//
+
+--echo # Check that dictionary changes are persisted across server restarts
+
+CREATE FUNCTION foo(x INT) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$ return x-1; $$ //
+
+CREATE PROCEDURE bar(a INT) DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$ var b = a; $$ //
+
+DELIMITER ;//
+
+--source include/restart_mysqld.inc
+--source include/wait_until_connected_again.inc
+
+--replace_column 6 <modified> 7 <created>
+SHOW FUNCTION STATUS where Language like "%JAVA%";
+--replace_column 6 <modified> 7 <created>
+SHOW PROCEDURE STATUS where Language like "%JAVA%";
+
+SHOW CREATE FUNCTION foo;
+SHOW CREATE PROCEDURE bar;
+
+SELECT routine_name, routine_type, data_type, routine_body,
+       external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" ;
+
+DROP FUNCTION foo;
+DROP PROCEDURE bar;

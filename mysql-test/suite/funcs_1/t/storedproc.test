@@ -70,7 +70,7 @@ delimiter ;//
 --error ER_TOO_LONG_IDENT
 CALL sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde( 'abc' );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -87,7 +87,7 @@ delimiter ;//
 
 CALL sp1( 34 );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -104,7 +104,7 @@ delimiter ;//
 
 CALL sp1( 34 );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -121,7 +121,7 @@ delimiter ;//
 
 CALL sp1( 34 );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -185,9 +185,9 @@ BEGIN
     RETURN f1;
 END//
 delimiter ;//
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW FUNCTION STATUS WHERE db = 'db_storedproc';
 
 let $test_value = 1.7976931348623157493578e+308;
@@ -238,7 +238,7 @@ delimiter ;//
 
 CALL sp1( "value1" );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -254,7 +254,7 @@ delimiter ;//
 
 CALL sp1( "value1, value1" );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -270,7 +270,7 @@ delimiter ;//
 
 CALL sp1( "value1" );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -280,7 +280,7 @@ CREATE PROCEDURE sp1( f1 TEXT ) LANGUAGE SQL SELECT f1;
 
 CALL sp1( 'abc' );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE STATUS LIKE 'sp1';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -289,7 +289,7 @@ DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 text ) deterministic SELECT f1;
 CALL sp1( 'abc' );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE STATUS LIKE 'sp1';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -298,7 +298,7 @@ DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 TEXT ) NOT DETERMINISTIC SELECT f1;
 CALL sp1( 'abc' );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE STATUS LIKE 'sp1';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -307,7 +307,7 @@ DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 TEXT ) SQL SECURITY DEFINER SELECT f1;
 CALL sp1( 'abc' );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE STATUS LIKE 'sp1';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -316,7 +316,7 @@ DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 TEXT ) SQL SECURITY INVOKER SELECT f1;
 CALL sp1( 'abc' );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE STATUS LIKE 'sp1';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -325,7 +325,7 @@ DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 TEXT ) COMMENT 'this is simple' SELECT f1;
 CALL sp1( 'abc' );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE STATUS LIKE 'sp1';
 
 # cleanup
@@ -363,7 +363,7 @@ delimiter ;//
 
 SELECT fn1( ' world');
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -380,7 +380,7 @@ delimiter ;//
 
 SELECT fn1( 126 );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -411,7 +411,7 @@ delimiter ;//
 
 SELECT fn1( 1.3326e+8 );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -433,7 +433,7 @@ delimiter ;//
 --disable_warnings ER_DUPLICATED_VALUE_IN_TYPE ONCE
 SELECT fn1( "value1" );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -455,7 +455,7 @@ delimiter ;//
 --disable_warnings WARN_DATA_TRUNCATED,ER_DUPLICATED_VALUE_IN_TYPE ONCE
 SELECT fn1( "value1, value1" );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -471,7 +471,7 @@ delimiter ;//
 
 SELECT fn1( 126 );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -487,7 +487,7 @@ delimiter ;//
 
 SELECT fn1( 126 );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -503,7 +503,7 @@ delimiter ;//
 
 SELECT fn1( 126 );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -519,7 +519,7 @@ delimiter ;//
 
 SELECT fn1( 126 );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -535,7 +535,7 @@ delimiter ;//
 
 SELECT fn1( 126 );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 --disable_warnings ER_SP_DOES_NOT_EXIST ONCE
@@ -551,7 +551,7 @@ delimiter ;//
 
 SELECT fn1( 126 );
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 # cleanup
@@ -570,7 +570,7 @@ DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1 (f1 char(20) )
     SELECT * from t1 where f2 = f1;
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 show CREATE PROCEDURE sp1;
 
 # cleanup
@@ -588,7 +588,7 @@ DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1 (s char(20)) returns char(50)
    return concat('hello, ', s, '!');
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 show CREATE FUNCTION fn1;
 
 # cleanup
@@ -604,7 +604,7 @@ SHOW PROCEDURE status;
 CREATE PROCEDURE sp5()
    SELECT * from t1;
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE status like 'sp5';
 
 # cleanup
@@ -625,7 +625,7 @@ BEGIN
 END//
 delimiter ;//
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW FUNCTION STATUS LIKE 'fn5';
 
 # cleanup
@@ -2639,9 +2639,9 @@ alter function sp1 sql security invoker comment 'this is a function';
 
 alter procedure sp1 sql security DEFINER;
 alter function sp1 sql security DEFINER;
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 show CREATE PROCEDURE sp1;
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 show CREATE FUNCTION sp1;
 
 # clean up
@@ -22242,7 +22242,7 @@ BEGIN
 END//
 delimiter ;//
 
---replace_column 1 returned 2 returned 3 returned 4 returned 5 returned 6 returned 7 returned 8 returned 9 returned 10 returned 11 returned 12 returned
+--replace_column 1 returned 2 returned 3 returned 4 returned 5 returned 7 returned 7 returned 8 returned 9 returned 10 returned 11 returned 12 returned
 CALL spexecute06();
 DROP PROCEDURE spexecute06;
 DROP PROCEDURE sp6;
@@ -26132,13 +26132,13 @@ show CREATE PROCEDURE sp6b;
 
 show CREATE PROCEDURE sp6c;
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE status like 'sp6a';
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE status like 'sp6b';
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE status like 'sp6c';
 
 # cleanup
@@ -26165,7 +26165,7 @@ BEGIN
 END//
 delimiter ;//
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE status like 'sp6';
 
 # cleanup
@@ -26216,7 +26216,7 @@ CREATE FUNCTION sp6 (i1 longtext, i2 mediumint , i3 longblob, i4 year, i5 real) 
 END//
 delimiter ;//
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
   show  function status like 'sp6';
 
 # cleanup
@@ -26293,7 +26293,7 @@ CREATE FUNCTION fn1 (i1 real) returns real
 END//
 delimiter ;//
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
   show  procedure status like 'fn1';
 
 # cleanup
@@ -26326,7 +26326,7 @@ BEGIN
 END//
 delimiter ;//
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 # cleanup
@@ -26439,7 +26439,7 @@ BEGIN
 END//
 delimiter ;//
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
   show  function status like 'sp6';
 
 # cleanup
@@ -26479,7 +26479,7 @@ delimiter ;//
 
   alter procedure sp6 comment  'this is a new comment';
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE status like 'sp6';
 
 # cleanup
@@ -26531,7 +26531,7 @@ delimiter ;//
   alter function fn1 sql security invoker;
   alter function fn1 comment 'this is a function 3242#@%$#@';
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
   show  function status like 'fn1';
 
 # cleanup
@@ -26608,7 +26608,7 @@ delimiter ;//
 
 DROP PROCEDURE sp6;
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW PROCEDURE status like 'sp6';
 
 
@@ -26655,7 +26655,7 @@ delimiter ;//
 
 DROP FUNCTION fn1;
 
---replace_column 5 <modified> 6 <created>
+--replace_column 6 <modified> 7 <created>
 SHOW FUNCTION STATUS LIKE 'fn1';
 
 

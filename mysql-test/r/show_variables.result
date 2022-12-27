@@ -39,9 +39,9 @@ Charset	Description	Default collation	Maxlen
 SHOW COLLATION WHERE 0;
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 SHOW PROCEDURE STATUS WHERE 0;
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 SHOW FUNCTION STATUS WHERE 0;
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 DROP TABLE t1;
 # Bug#31667061: Inconsistent behavior of @@SQL_SELECT_LIMIT
 #               with prepared statements

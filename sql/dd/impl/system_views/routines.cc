@@ -104,7 +104,9 @@ Routines::Routines() {
   m_target_def.add_field(
       FIELD_DTD_IDENTIFIER, "DTD_IDENTIFIER",
       "IF(rtn.type = 'PROCEDURE', NULL, rtn.result_data_type_utf8)");
-  m_target_def.add_field(FIELD_ROUTINE_BODY, "ROUTINE_BODY", "'SQL'");
+  m_target_def.add_field(
+      FIELD_ROUTINE_BODY, "ROUTINE_BODY",
+      "IF(rtn.external_language = 'SQL', 'SQL', 'EXTERNAL')");
   m_target_def.add_field(
       FIELD_ROUTINE_DEFINITION, "ROUTINE_DEFINITION",
       "IF (CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, rtn.definer, TRUE),"

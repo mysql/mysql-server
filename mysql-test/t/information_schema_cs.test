@@ -164,9 +164,9 @@ delimiter ;|
 select parameter_style, sql_data_access, dtd_identifier
 from information_schema.routines where routine_schema='test';
 
---replace_column 5 # 6 #
+--replace_column 6 # 7 #
 show procedure status where db='test';
---replace_column 5 # 6 #
+--replace_column 6 # 7 #
 show function status where db='test';
 select a.ROUTINE_NAME from information_schema.ROUTINES a,
 information_schema.SCHEMATA b where
@@ -202,7 +202,7 @@ WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 show create procedure sel2;
 show create function sub1;
 show create function sub2;
---replace_column 5 # 6 #
+--replace_column 6 # 7 #
 show function status like "sub2";
 connection default;
 disconnect user1;

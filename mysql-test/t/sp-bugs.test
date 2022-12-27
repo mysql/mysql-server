@@ -197,13 +197,13 @@ DELIMITER ;$
 SELECT testf_bug11763507();
 SELECT TESTF_bug11763507();
 
---replace_column 5 # 6 #
+--replace_column 6 # 7 #
 SHOW FUNCTION STATUS LIKE  'testf_bug11763507';
---replace_column 5 # 6 #
+--replace_column 6 # 7 #
 SHOW FUNCTION STATUS WHERE NAME='testf_bug11763507';
---replace_column 5 # 6 #
+--replace_column 6 # 7 #
 SHOW FUNCTION STATUS LIKE  'TESTF_bug11763507';
---replace_column 5 # 6 #
+--replace_column 6 # 7 #
 SHOW FUNCTION STATUS WHERE NAME='TESTF_bug11763507';
 
 SHOW CREATE FUNCTION testf_bug11763507;
@@ -213,13 +213,13 @@ SHOW CREATE FUNCTION TESTF_bug11763507;
 CALL testp_bug11763507();
 CALL TESTP_bug11763507();
 
---replace_column 5 # 6 #
+--replace_column 6 # 7 #
 SHOW PROCEDURE STATUS LIKE  'testp_bug11763507';
---replace_column 5 # 6 #
+--replace_column 6 # 7 #
 SHOW PROCEDURE STATUS WHERE NAME='testp_bug11763507';
---replace_column 5 # 6 #
+--replace_column 6 # 7 #
 SHOW PROCEDURE STATUS LIKE  'TESTP_bug11763507';
---replace_column 5 # 6 #
+--replace_column 6 # 7 #
 SHOW PROCEDURE STATUS WHERE NAME='TESTP_bug11763507';
 
 SHOW CREATE PROCEDURE testp_bug11763507;

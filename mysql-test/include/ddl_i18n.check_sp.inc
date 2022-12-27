@@ -16,19 +16,19 @@ SHOW CREATE PROCEDURE mysqltest2.p4|
 --echo
 --echo
 
---replace_column 5 MODIFIED 6 CREATED
+--replace_column 6 MODIFIED 7 CREATED
 SHOW PROCEDURE STATUS LIKE 'p1'|
 
 --echo
---replace_column 5 MODIFIED 6 CREATED
+--replace_column 6 MODIFIED 7 CREATED
 SHOW PROCEDURE STATUS LIKE 'p2'|
 
 --echo
---replace_column 5 MODIFIED 6 CREATED
+--replace_column 6 MODIFIED 7 CREATED
 SHOW PROCEDURE STATUS LIKE 'p3'|
 
 --echo
---replace_column 5 MODIFIED 6 CREATED
+--replace_column 6 MODIFIED 7 CREATED
 SHOW PROCEDURE STATUS LIKE 'p4'|
 
 #   - Check INFORMATION_SCHEMA;

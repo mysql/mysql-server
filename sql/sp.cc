@@ -2066,6 +2066,59 @@ enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type,
   return ret;
 }
 
+static bool strnstr(const char *str, size_t length, const char *substr) {
+  size_t substr_len = strlen(substr);
+  if (substr_len == 0) return true;
+
+  for (const char *p = str; p <= str + length - substr_len; p++)
+    if (strncmp(p, substr, substr_len) == 0) return true;
+  return false;
+}
+
+/**
+   Make sure to choose a dollar quote that does not conflict with the
+   content of the routine.
+
+   This is only used for external language routines.
+
+   @param[in] chistics    Routine characteristics
+   @param[in] sp_body     Start of external language routine body.
+   @param[in] sp_body_len Length of routine body
+   @param[out] quote      Buffer to put the dollar quoute in
+
+   @return Length of dollar quote
+ */
+static size_t find_dollar_quote(const st_sp_chistics *chistics,
+                                const char *sp_body, size_t sp_body_len,
+                                char *quote) {
+  // Default delimiter is $$
+  strcpy(quote, "$$");
+  if (!strnstr(sp_body, sp_body_len, quote)) return 2;
+
+  // Try $language$ instead
+  quote[0] = '$';
+  strncpy(quote + 1, chistics->language.str, chistics->language.length);
+  quote[chistics->language.length + 1] = '$';
+  quote[chistics->language.length + 2] = '\0';
+  if (!strnstr(sp_body, sp_body_len, quote))
+    return chistics->language.length + 2;
+
+  // Use the checksum as tag
+  int i = 0;
+  do {
+    ha_checksum chk =
+        my_checksum(i++, reinterpret_cast<const unsigned char *>(sp_body),
+                    std::max((int)sp_body_len, 20));
+    String s;
+    s.set_int(chk, true, &my_charset_bin);
+    quote[0] = '$';
+    strncpy(quote + 1, s.c_ptr(), s.length());
+    quote[s.length() + 1] = '$';
+    quote[s.length() + 2] = '\0';
+  } while (strnstr(sp_body, sp_body_len, quote));
+  return strlen(quote);
+}
+
 /**
   Generates the CREATE... string from the table information.
 
@@ -2079,10 +2132,22 @@ static bool create_string(
     st_sp_chistics *chistics, const LEX_CSTRING &definer_user,
     const LEX_CSTRING &definer_host, sql_mode_t sql_mode, bool if_not_exists) {
   sql_mode_t old_sql_mode = thd->variables.sql_mode;
+  const bool is_sql = chistics->language.length == 0 ||
+                      native_strcasecmp(chistics->language.str, "SQL") == 0;
+
+  char dollar_quote[66];  // Max column size is 64; add 2 for the dollar chars
+  const size_t dollar_quote_len =
+      is_sql ? 0 : find_dollar_quote(chistics, body, bodylen, dollar_quote);
+  assert(dollar_quote_len <= 66);
+
   /* Make some room to begin with */
   if (buf->alloc(100 + dblen + 1 + namelen + paramslen + returnslen + bodylen +
                  chistics->comment.length + 10 /* length of " DEFINER= "*/ +
-                 USER_HOST_BUFF_SIZE))
+                 USER_HOST_BUFF_SIZE +
+                 (is_sql ? 0
+                         : sizeof("LANGUAGE=") + chistics->language.length +
+                               dollar_quote_len * 2 +
+                               5)))  // +5 for AS and white space
     return false;
 
   thd->variables.sql_mode = sql_mode;
@@ -2124,12 +2189,26 @@ static bool create_string(
   if (chistics->detistic) buf->append(STRING_WITH_LEN("    DETERMINISTIC\n"));
   if (chistics->suid == SP_IS_NOT_SUID)
     buf->append(STRING_WITH_LEN("    SQL SECURITY INVOKER\n"));
+  if (!is_sql) {
+    buf->append(STRING_WITH_LEN("    LANGUAGE "));
+    buf->append(chistics->language.str, chistics->language.length);
+    buf->append('\n');
+  }
   if (chistics->comment.length) {
     buf->append(STRING_WITH_LEN("    COMMENT "));
     append_unescaped(buf, chistics->comment.str, chistics->comment.length);
     buf->append('\n');
   }
+  if (dollar_quote_len > 0) {  // For external languages, add delimiters
+    buf->append("AS ");
+    buf->append(dollar_quote, dollar_quote_len);
+    buf->append('\n');
+  }
   buf->append(body, bodylen);
+  if (dollar_quote_len > 0) {
+    buf->append('\n');
+    buf->append(dollar_quote, dollar_quote_len);
+  }
   thd->variables.sql_mode = old_sql_mode;
   return true;
 }

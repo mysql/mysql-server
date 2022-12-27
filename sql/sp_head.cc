@@ -2659,7 +2659,12 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
 
   locker = MYSQL_START_SP(&psi_state, m_sp_share);
 #endif
-  err_status = execute(thd, true);
+  if (is_sql()) {
+    err_status = execute(thd, true);
+  } else {
+    my_error(ER_SP_UNSUPPORTED_LANGUAGE, MYF(0), m_chistics->language.str);
+    err_status = true;
+  }
 #ifdef HAVE_PSI_SP_INTERFACE
   MYSQL_END_SP(locker);
 #endif
@@ -2862,7 +2867,14 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
 
   locker = MYSQL_START_SP(&psi_state, m_sp_share);
 #endif
-  if (!err_status) err_status = execute(thd, true);
+  if (!err_status) {
+    if (is_sql()) {
+      err_status = execute(thd, true);
+    } else {
+      my_error(ER_SP_UNSUPPORTED_LANGUAGE, MYF(0), m_chistics->language.str);
+      err_status = true;
+    }
+  }
 #ifdef HAVE_PSI_SP_INTERFACE
   MYSQL_END_SP(locker);
 #endif
@@ -3166,6 +3178,11 @@ bool sp_head::show_routine_code(THD *thd) {
   uint ip;
 
   if (check_show_access(thd, &full_access) || !full_access) return true;
+
+  if (!is_sql()) {
+    my_error(ER_SP_UNSUPPORTED_LANGUAGE, MYF(0), m_chistics->language.str);
+    return true;
+  }
 
   mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_uint(NAME_STRING("Pos"), 0, 9));

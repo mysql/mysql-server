@@ -97,7 +97,7 @@ ERROR 42000: Identifier name 'sp1_thisisaveryverylongname234872934_thisisaveryve
 CALL sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde( 'abc' );
 ERROR 42000: Identifier name 'sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde' is too long
 SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 BINARY )
 LANGUAGE SQL DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
@@ -111,8 +111,8 @@ CALL sp1( 34 );
 Warnings:
 Warning	1265	Data truncated for column 'f1' at row 1
 SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp1	PROCEDURE	SQL	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 BLOB )
 LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
@@ -124,8 +124,8 @@ CALL sp1( 34 );
 @v1
 34
 SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp1	PROCEDURE	SQL	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 INT )
 LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
@@ -137,8 +137,8 @@ CALL sp1( 34 );
 @v1
 34
 SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp1	PROCEDURE	SQL	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 DECIMAL(256, 30) )
 LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
@@ -178,11 +178,11 @@ BEGIN
 RETURN f1;
 END//
 SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sproc_1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sproc_1	PROCEDURE	SQL	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE db = 'db_storedproc';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	func_1	FUNCTION	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	func_1	FUNCTION	SQL	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 UPDATE t1_aux SET f1 = NULL;
 SELECT f1,f1,f1,f1 INTO @v1_tab,@v1_proc,@v2_proc,@v1_func FROM t1_aux;
 UPDATE t1_aux SET f1 = 1.7976931348623157493578e+308;
@@ -1418,8 +1418,8 @@ value1
 Warnings:
 Note	1291	Column '' has duplicated value 'value1' in ENUM
 SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp1	PROCEDURE	SQL	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 SET("value1", "value1") )
 LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
@@ -1435,8 +1435,8 @@ Warnings:
 Note	1291	Column '' has duplicated value 'value1' in SET
 Warning	1265	Data truncated for column 'f1' at row 1
 SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp1	PROCEDURE	SQL	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 ENUM("value1", "value1") )
 LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
@@ -1451,56 +1451,56 @@ value1
 Warnings:
 Note	1291	Column '' has duplicated value 'value1' in ENUM
 SHOW PROCEDURE STATUS WHERE db = 'db_storedproc';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp1	PROCEDURE	SQL	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 TEXT ) LANGUAGE SQL SELECT f1;
 CALL sp1( 'abc' );
 f1
 abc
 SHOW PROCEDURE STATUS LIKE 'sp1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp1	PROCEDURE	SQL	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 text ) deterministic SELECT f1;
 CALL sp1( 'abc' );
 f1
 abc
 SHOW PROCEDURE STATUS LIKE 'sp1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp1	PROCEDURE	SQL	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 TEXT ) NOT DETERMINISTIC SELECT f1;
 CALL sp1( 'abc' );
 f1
 abc
 SHOW PROCEDURE STATUS LIKE 'sp1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp1	PROCEDURE	SQL	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 TEXT ) SQL SECURITY DEFINER SELECT f1;
 CALL sp1( 'abc' );
 f1
 abc
 SHOW PROCEDURE STATUS LIKE 'sp1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp1	PROCEDURE	SQL	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 TEXT ) SQL SECURITY INVOKER SELECT f1;
 CALL sp1( 'abc' );
 f1
 abc
 SHOW PROCEDURE STATUS LIKE 'sp1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	INVOKER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp1	PROCEDURE	SQL	root@localhost	<modified>	<created>	INVOKER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( f1 TEXT ) COMMENT 'this is simple' SELECT f1;
 CALL sp1( 'abc' );
 f1
 abc
 SHOW PROCEDURE STATUS LIKE 'sp1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp1	PROCEDURE	root@localhost	<modified>	<created>	DEFINER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp1	PROCEDURE	SQL	root@localhost	<modified>	<created>	DEFINER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE sp1_thisisaveryverylongname234872934_thisisaveryverylongname234872934;
 ERROR 42000: Identifier name 'sp1_thisisaveryverylongname234872934_thisisaveryverylongname234872934' is too long
 DROP PROCEDURE sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde;
@@ -1534,8 +1534,8 @@ SELECT fn1( ' world');
 fn1( ' world')
 hello world
 SHOW FUNCTION STATUS LIKE 'fn1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	DEFINER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	fn1	FUNCTION	SQL	root@localhost	<modified>	<created>	DEFINER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT
 LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
@@ -1547,8 +1547,8 @@ SELECT fn1( 126 );
 fn1( 126 )
 127
 SHOW FUNCTION STATUS LIKE 'fn1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	fn1	FUNCTION	SQL	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1( f1 DECIMAL(63, 31) ) RETURNS DECIMAL(63, 31)
 LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
@@ -1569,8 +1569,8 @@ SELECT fn1( 1.3326e+8 );
 fn1( 1.3326e+8 )
 134260000.000000000000000000000000000000
 SHOW FUNCTION STATUS LIKE 'fn1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	fn1	FUNCTION	SQL	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1( f1 ENUM("value1", "value1") ) RETURNS DECIMAL(63, 30)
 LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
@@ -1583,8 +1583,8 @@ SELECT fn1( "value1" );
 fn1( "value1" )
 1.000000000000000000000000000000
 SHOW FUNCTION STATUS LIKE 'fn1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	fn1	FUNCTION	SQL	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1( f1 SET("value1", "value1") ) RETURNS DECIMAL(63, 30)
 LANGUAGE SQL NOT DETERMINISTIC SQL SECURITY INVOKER COMMENT 'this is simple'
@@ -1597,8 +1597,8 @@ SELECT fn1( "value1, value1" );
 fn1( "value1, value1" )
 1.000000000000000000000000000000
 SHOW FUNCTION STATUS LIKE 'fn1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	fn1	FUNCTION	SQL	root@localhost	<modified>	<created>	INVOKER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT LANGUAGE SQL
 BEGIN
@@ -1609,8 +1609,8 @@ SELECT fn1( 126 );
 fn1( 126 )
 127
 SHOW FUNCTION STATUS LIKE 'fn1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	fn1	FUNCTION	SQL	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT DETERMINISTIC
 BEGIN
@@ -1621,8 +1621,8 @@ SELECT fn1( 126 );
 fn1( 126 )
 127
 SHOW FUNCTION STATUS LIKE 'fn1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	fn1	FUNCTION	SQL	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT NOT DETERMINISTIC
 BEGIN
@@ -1633,8 +1633,8 @@ SELECT fn1( 126 );
 fn1( 126 )
 127
 SHOW FUNCTION STATUS LIKE 'fn1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	fn1	FUNCTION	SQL	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT SQL SECURITY DEFINER
 BEGIN
@@ -1645,8 +1645,8 @@ SELECT fn1( 126 );
 fn1( 126 )
 127
 SHOW FUNCTION STATUS LIKE 'fn1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	fn1	FUNCTION	SQL	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT SQL SECURITY INVOKER
 BEGIN
@@ -1657,8 +1657,8 @@ SELECT fn1( 126 );
 fn1( 126 )
 127
 SHOW FUNCTION STATUS LIKE 'fn1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	INVOKER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	fn1	FUNCTION	SQL	root@localhost	<modified>	<created>	INVOKER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1( f1 SMALLINT ) RETURNS SMALLINT COMMENT 'this is simple'
 BEGIN
@@ -1669,8 +1669,8 @@ SELECT fn1( 126 );
 fn1( 126 )
 127
 SHOW FUNCTION STATUS LIKE 'fn1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	DEFINER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	fn1	FUNCTION	SQL	root@localhost	<modified>	<created>	DEFINER	this is simple	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION fn1;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -1688,7 +1688,7 @@ SELECT * from t1 where f2 = f1;
 show CREATE PROCEDURE sp1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 sp1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`(f1 char(20) )
-SELECT * from t1 where f2 = f1	latin1	<modified>	<created>
+SELECT * from t1 where f2 = f1	latin1	latin1_swedish_ci	<modified>
 DROP PROCEDURE sp1;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -1705,7 +1705,7 @@ return concat('hello, ', s, '!');
 show CREATE FUNCTION fn1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 fn1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `fn1`(s char(20)) RETURNS char(50) CHARSET utf8mb4
-return concat('hello, ', s, '!')	latin1	<modified>	<created>
+return concat('hello, ', s, '!')	latin1	latin1_swedish_ci	<modified>
 DROP FUNCTION fn1;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -1719,8 +1719,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 CREATE PROCEDURE sp5()
 SELECT * from t1;
 SHOW PROCEDURE status like 'sp5';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp5	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp5	PROCEDURE	SQL	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE sp5;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -1737,8 +1737,8 @@ set @b = 0.9 * a;
 return @b;
 END//
 SHOW FUNCTION STATUS LIKE 'fn5';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn5	FUNCTION	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	fn5	FUNCTION	SQL	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION fn5;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -3793,12 +3793,12 @@ show CREATE PROCEDURE sp1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 sp1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`()
     COMMENT 'this is a procedure'
-set @x= 3	latin1	<modified>	<created>
+set @x= 3	latin1	latin1_swedish_ci	<modified>
 show CREATE FUNCTION sp1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 sp1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `sp1`() RETURNS int
     COMMENT 'this is a function'
-return 4	latin1	<modified>	<created>
+return 4	latin1	latin1_swedish_ci	<modified>
 USE db_storedproc;
 DROP DATABASE db_storedproc_3122;
 DROP FUNCTION db_storedproc.sp1;
@@ -4151,7 +4151,7 @@ CREATE PROCEDURE sp1()
 as:BEGIN
 SELECT @x;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'as:BEGIN
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ':BEGIN
 SELECT @x;
 END' at line 2
 DROP PROCEDURE IF EXISTS sp1;
@@ -19455,7 +19455,7 @@ CALL sp6(2.00e+13, var1, var2, 2.00e+13, var3, var4, 2.00e+13, var5, var6, 2.00e
 END//
 CALL spexecute06();
 f1	f2	f3	f4	f5	f6	f7	f8	f9	f10	f11	f12
-returned	returned	returned	returned	returned	returned	returned	returned	returned	returned	returned	returned
+returned	returned	returned	returned	returned	0000-00-00 00:00:00	returned	returned	returned	returned	returned	returned
 DROP PROCEDURE spexecute06;
 DROP PROCEDURE sp6;
 DROP PROCEDURE IF EXISTS sp07;
@@ -22727,14 +22727,14 @@ set @x=i1;
 set @y=@x;
 END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE status like 'sp6a';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp6a	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp6a	PROCEDURE	SQL	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE status like 'sp6b';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp6b	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp6b	PROCEDURE	SQL	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE status like 'sp6c';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp6c	PROCEDURE	root@localhost	<modified>	<created>	DEFINER	this is a comment	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp6c	PROCEDURE	SQL	root@localhost	<modified>	<created>	DEFINER	this is a comment	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE sp6a;
 DROP PROCEDURE sp6b;
 DROP PROCEDURE sp6c;
@@ -22752,8 +22752,8 @@ set @x=i1;
 set @y=@x;
 END//
 SHOW PROCEDURE status like 'sp6';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp6	PROCEDURE	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp6	PROCEDURE	SQL	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE sp6;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -22786,8 +22786,8 @@ set @y=@x;
 return 0;
 END//
 show  function status like 'sp6';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp6	FUNCTION	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp6	FUNCTION	SQL	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION sp6;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -22808,7 +22808,7 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP PROCEDURE IF EXISTS sp6;
 show  procedure status like 'sp6';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
@@ -22837,7 +22837,7 @@ BEGIN
 return i1;
 END//
 show  procedure status like 'fn1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 DROP FUNCTION fn1;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -22859,8 +22859,8 @@ BEGIN
 return i1;
 END//
 SHOW FUNCTION STATUS LIKE 'fn1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	fn1	FUNCTION	SQL	root@localhost	<modified>	<created>	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION fn1;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -22901,7 +22901,7 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP FUNCTION IF EXISTS f1000;
 SHOW FUNCTION STATUS LIKE 'f1000';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
@@ -22931,7 +22931,7 @@ set @x=i1;
 set @y=@x;
 END//
 show  function status like 'sp6';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 DROP PROCEDURE sp6;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -22956,8 +22956,8 @@ END//
 alter procedure sp6 sql security invoker;
 alter procedure sp6 comment  'this is a new comment';
 SHOW PROCEDURE status like 'sp6';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	sp6	PROCEDURE	root@localhost	<modified>	<created>	INVOKER	this is a new comment	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	sp6	PROCEDURE	SQL	root@localhost	<modified>	<created>	INVOKER	this is a new comment	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE sp6;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -22995,8 +22995,8 @@ END//
 alter function fn1 sql security invoker;
 alter function fn1 comment 'this is a function 3242#@%$#@';
 show  function status like 'fn1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db_storedproc	fn1	FUNCTION	root@localhost	<modified>	<created>	INVOKER	this is a function 3242#@%$#@	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+db_storedproc	fn1	FUNCTION	SQL	root@localhost	<modified>	<created>	INVOKER	this is a function 3242#@%$#@	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION fn1;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -23052,7 +23052,7 @@ set @y=@x;
 END//
 DROP PROCEDURE sp6;
 SHOW PROCEDURE status like 'sp6';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
@@ -23082,7 +23082,7 @@ return i1;
 END//
 DROP FUNCTION fn1;
 SHOW FUNCTION STATUS LIKE 'fn1';
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 

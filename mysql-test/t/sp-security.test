@@ -48,7 +48,7 @@ insert into t1 values('test', 0);
 # A test procedure and function
 create procedure stamp(i int)
   insert into db1_secret.t1 values (user(), i);
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 show procedure status like 'stamp';
 
 delimiter |;
@@ -61,7 +61,7 @@ begin
   return v;
 end|
 delimiter ;|
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 show function status like 'db';
 
 # root can, of course
@@ -136,11 +136,11 @@ select * from t1;
 # Change to invoker's rights
 #
 alter procedure stamp sql security invoker;
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 show procedure status like 'stamp';
 
 alter function db sql security invoker;
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 show function status like 'db';
 
 # root still can
@@ -1185,9 +1185,9 @@ SHOW CREATE FUNCTION testdb.func_definer;
 --echo
 --echo # Should not return any rows.
 --echo
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW PROCEDURE STATUS WHERE db="testdb";
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW FUNCTION STATUS WHERE db="testdb";
 
 --disconnect conn1
@@ -1217,12 +1217,12 @@ SHOW CREATE FUNCTION testdb.func_definer;
 --echo
 --echo # Should show properties of proc_root and proc_definer.
 --echo
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW PROCEDURE STATUS WHERE db="testdb";
 --echo
 --echo # Should show properties of func_root and func_definer.
 --echo
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW FUNCTION STATUS WHERE db="testdb";
 
 --disconnect conn1
@@ -1256,9 +1256,9 @@ SHOW CREATE FUNCTION testdb.func_definer;
 --echo
 --echo # Should not return any rows.
 --echo
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW PROCEDURE STATUS WHERE db="testdb";
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW FUNCTION STATUS WHERE db="testdb";
 
 --echo
@@ -1287,12 +1287,12 @@ SHOW CREATE FUNCTION testdb.func_definer;
 --echo
 --echo # Should show properties of proc_root and proc_definer.
 --echo
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW PROCEDURE STATUS WHERE db="testdb";
 --echo
 --echo # Should show properties of func_root and func_definer.
 --echo
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW FUNCTION STATUS WHERE db="testdb";
 
 --disconnect conn1
@@ -1317,12 +1317,12 @@ SHOW CREATE FUNCTION testdb.func_definer;
 --echo
 --echo # Should show properties of proc_root and proc_definer.
 --echo
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW PROCEDURE STATUS WHERE db="testdb";
 --echo
 --echo # Should show properties of func_root and func_definer.
 --echo
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW FUNCTION STATUS WHERE db="testdb";
 
 --disconnect conn1
@@ -1356,12 +1356,12 @@ SHOW CREATE FUNCTION testdb.func_definer;
 
 --echo # Should show properties of proc_definer.
 --echo
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW PROCEDURE STATUS WHERE db="testdb";
 --echo
 --echo # Should show properties of func_definer.
 --echo
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW FUNCTION STATUS WHERE db="testdb";
 
 --disconnect conn1
@@ -1391,12 +1391,12 @@ SHOW CREATE FUNCTION testdb.func_definer;
 --echo
 --echo # Should show properties of proc_root and proc_definer.
 --echo
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW PROCEDURE STATUS WHERE db="testdb";
 --echo
 --echo # Should show properties of func_root and func_definer.
 --echo
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW FUNCTION STATUS WHERE db="testdb";
 
 --disconnect conn1
@@ -1426,12 +1426,12 @@ SHOW CREATE FUNCTION testdb.func_definer;
 --echo
 --echo # Should show properties of proc_root and proc_definer.
 --echo
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW PROCEDURE STATUS WHERE db="testdb";
 --echo
 --echo # Should show properties of func_root and func_definer.
 --echo
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW FUNCTION STATUS WHERE db="testdb";
 
 --disconnect conn1
@@ -1461,12 +1461,12 @@ SHOW CREATE FUNCTION testdb.func_definer;
 --echo
 --echo # Should show properties of proc_root and proc_definer.
 --echo
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW PROCEDURE STATUS WHERE db="testdb";
 --echo
 --echo # Should show properties of func_root and func_definer.
 --echo
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW FUNCTION STATUS WHERE db="testdb";
 
 --disconnect conn1
@@ -1505,9 +1505,9 @@ SHOW CREATE FUNCTION testdb.func_definer;
 --echo
 --echo # Should not return any rows.
 --echo
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW PROCEDURE STATUS WHERE db="testdb";
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 SHOW FUNCTION STATUS WHERE db="testdb";
 
 --disconnect conn1

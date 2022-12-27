@@ -373,20 +373,20 @@ END	utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
 
 
 SHOW PROCEDURE STATUS LIKE 'p1'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-mysqltest1	p1	PROCEDURE	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+mysqltest1	p1	PROCEDURE	SQL	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
 
 SHOW PROCEDURE STATUS LIKE 'p2'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-mysqltest1	p2	PROCEDURE	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+mysqltest1	p2	PROCEDURE	SQL	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
 
 SHOW PROCEDURE STATUS LIKE 'p3'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-mysqltest2	p3	PROCEDURE	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+mysqltest2	p3	PROCEDURE	SQL	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
 
 SHOW PROCEDURE STATUS LIKE 'p4'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-mysqltest2	p4	PROCEDURE	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+mysqltest2	p4	PROCEDURE	SQL	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
 
 
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_name = 'p1'|
@@ -649,20 +649,20 @@ END	utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
 
 
 SHOW PROCEDURE STATUS LIKE 'p1'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-mysqltest1	p1	PROCEDURE	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+mysqltest1	p1	PROCEDURE	SQL	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
 
 SHOW PROCEDURE STATUS LIKE 'p2'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-mysqltest1	p2	PROCEDURE	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+mysqltest1	p2	PROCEDURE	SQL	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
 
 SHOW PROCEDURE STATUS LIKE 'p3'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-mysqltest2	p3	PROCEDURE	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+mysqltest2	p3	PROCEDURE	SQL	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
 
 SHOW PROCEDURE STATUS LIKE 'p4'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-mysqltest2	p4	PROCEDURE	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+mysqltest2	p4	PROCEDURE	SQL	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
 
 
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_name = 'p1'|
@@ -1067,20 +1067,20 @@ END	utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
 
 
 SHOW PROCEDURE STATUS LIKE 'p1'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-mysqltest1	p1	PROCEDURE	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+mysqltest1	p1	PROCEDURE	SQL	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
 
 SHOW PROCEDURE STATUS LIKE 'p2'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-mysqltest1	p2	PROCEDURE	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+mysqltest1	p2	PROCEDURE	SQL	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
 
 SHOW PROCEDURE STATUS LIKE 'p3'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-mysqltest2	p3	PROCEDURE	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+mysqltest2	p3	PROCEDURE	SQL	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
 
 SHOW PROCEDURE STATUS LIKE 'p4'|
-Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-mysqltest2	p4	PROCEDURE	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+mysqltest2	p4	PROCEDURE	SQL	root@localhost	MODIFIED	CREATED	DEFINER		utf8mb3	utf8mb3_general_ci	utf8mb3_unicode_ci
 
 
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_name = 'p1'|

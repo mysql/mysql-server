@@ -143,6 +143,18 @@ class Routine_impl : public Entity_object_impl, virtual public Routine {
   }
 
   /////////////////////////////////////////////////////////////////////////
+  // external language.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const String_type &external_language() const override {
+    return m_external_language;
+  }
+
+  virtual void set_external_language(const String_type &el) override {
+    m_external_language = el;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
   // security_type.
   /////////////////////////////////////////////////////////////////////////
 
@@ -278,6 +290,7 @@ class Routine_impl : public Entity_object_impl, virtual public Routine {
   String_type m_definer_user;
   String_type m_definer_host;
   String_type m_comment;
+  String_type m_external_language;
 
   // Collections.
 

@@ -6,80 +6,232 @@
 #
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE SQL
 BEGIN RETURN a-1; END //
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_name = "foo" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	SQL	NULL	SQL	SQL	BEGIN RETURN a-1; END
 DROP FUNCTION foo//
 # SQL is default
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC
 BEGIN RETURN a-1; END //
 DROP FUNCTION foo//
-# Currently, no other language than SQL is supported
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS where Language like "%JAVA%"//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_name = "foo" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION JAVASCRIPT(a INTEGER) RETURNS INTEGER DETERMINISTIC
 LANGUAGE JAVASCRIPT
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION JAVASCRIPT//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+JAVASCRIPT	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `JAVASCRIPT`(a INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'JAVASCRIPT'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	JAVASCRIPT	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+JAVASCRIPT	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT JAVASCRIPT(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION JAVASCRIPT//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE PYTHON
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: 'PYTHON'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE PYTHON
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	PYTHON	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	PYTHON	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'PYTHON'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE RUBY
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: 'RUBY'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE RUBY
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	RUBY	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	RUBY	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'RUBY'.
+DROP FUNCTION foo//
 # Test lower-case
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE javascript
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: 'javascript'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 # Test mixed-case
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE jAvaScRIpt
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: 'jAvaScRIpt'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 # Any valid identifier can be used for language name
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVA1
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVA1'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVA1
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVA1	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVA1	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVA1'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE $NOLANG
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: '$NOLANG'. Code: 
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE $NOLANG
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	$NOLANG	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	$NOLANG	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: '$NOLANG'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC
 LANGUAGE $$JAVASCRIPT
 AS $$
@@ -95,17 +247,51 @@ AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: '123j'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE 123J
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	123J	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	123J	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: '123J'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE __
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: '__'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE __
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	__	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	__	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: '__'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC
 LANGUAGE "JAVASCRIPT"
 AS $$
@@ -176,9 +362,26 @@ AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 # Multiple languages in one clause is not allowed
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE SQL DETERMINISTIC LANGUAGE JAVASCRIPT PYTHON
@@ -197,9 +400,25 @@ AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    LANGUAGE JAVASCRIPT
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE	
 JAVASCRIPT
@@ -207,18 +426,51 @@ AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    LANGUAGE JAVASCRIPT
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE	  	 JAVASCRIPT  DETERMINISTIC	
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE
 -- Comment
@@ -228,9 +480,25 @@ AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    LANGUAGE JAVASCRIPT
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 The language will here be interpreted to be BEGIN
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE
@@ -269,9 +537,27 @@ AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    NO SQL
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC NO SQL
 LANGUAGE SQL
 BEGIN RETURN a-1; END //
@@ -285,27 +571,80 @@ AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC READS SQL DATA
 LANGUAGE JAVASCRIPT
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    READS SQL DATA
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVASCRIPT
 MODIFIES SQL DATA
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    MODIFIES SQL DATA
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE SQL
 CONTAINS SQL
 BEGIN RETURN a-1; END //
@@ -320,15 +659,31 @@ BEGIN RETURN a-1; END //
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER NOT DETERMINISTIC LANGUAGE SQL
 BEGIN RETURN a-1; END //
+DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER NOT DETERMINISTIC
 LANGUAGE JAVASCRIPT
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    LANGUAGE JAVASCRIPT
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
 # This is not SQL
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE SQL
@@ -342,6 +697,12 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 # Repeat test cases for PROCEDURE
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE SQL
 BEGIN DECLARE b INTEGER DEFAULT a; END //
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_name = "bar" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		SQL	NULL	SQL	SQL	BEGIN DECLARE b INTEGER DEFAULT a; END
 DROP PROCEDURE bar//
 # SQL is default
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC
@@ -350,42 +711,253 @@ DROP PROCEDURE bar//
 # Currently, no other language than SQL is supported
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS where Language like "%JAVA%"//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_name = "bar" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE JAVASCRIPT(a INTEGER) DETERMINISTIC
 LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
+SHOW CREATE procedure JAVASCRIPT//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+JAVASCRIPT	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `JAVASCRIPT`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'JAVASCRIPT'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	JAVASCRIPT	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+JAVASCRIPT	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL JAVASCRIPT(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure JAVASCRIPT//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE PYTHON
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: 'PYTHON'. Code:  let b = a; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE PYTHON
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	PYTHON	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	PYTHON	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'PYTHON'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE RUBY
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: 'RUBY'. Code:  let b = a; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE RUBY
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	RUBY	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	RUBY	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'RUBY'.
+DROP procedure bar//
 # Test lower-case
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE javascript
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: 'javascript'. Code:  let b = a; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 # Test mixed-case
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE jAvaScRIpt
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: 'jAvaScRIpt'. Code:  let b = a; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 # Any valid identifier can be used for language name
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVA1
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: 'JAVA1'. Code:  let b = a; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVA1
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVA1	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	JAVA1	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVA1'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE $NOLANG
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: '$NOLANG'. Code:  let b = a; 
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE $NOLANG
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	$NOLANG	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	$NOLANG	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: '$NOLANG'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE $$JAVASCRIPT
 AS $$ let b = a; $$ //
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$JAVASCRIPT
 AS $$ let b = a; $$' at line 1
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE 123j
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: '123j'. Code:  let b = a; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE 123J
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	123J	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	123J	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: '123J'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE __
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: '__'. Code:  let b = a; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE __
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	__	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	__	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: '__'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE "JAVASCRIPT"
 AS $$ let b = a; $$ //
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"JAVASCRIPT"
@@ -420,7 +992,27 @@ DROP PROCEDURE bar//
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE SQL DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 # Multiple languages in one clause is not allowed
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE SQL DETERMINISTIC LANGUAGE JAVASCRIPT PYTHON
@@ -431,23 +1023,100 @@ CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE
 JAVASCRIPT
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE	
 JAVASCRIPT
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE	  	 JAVASCRIPT  DETERMINISTIC	
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE
 -- Comment
 JAVASCRIPT
 -- Comment
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 The language will here be interpreted to be BEGIN
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE
@@ -465,7 +1134,28 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC NO SQL
 LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    NO SQL
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC NO SQL
 LANGUAGE SQL
 BEGIN DECLARE b INTEGER DEFAULT a; END //
@@ -476,15 +1166,77 @@ DROP PROCEDURE bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
 CONTAINS SQL
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC READS SQL DATA
 LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    READS SQL DATA
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
 MODIFIES SQL DATA
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    MODIFIES SQL DATA
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE SQL
 CONTAINS SQL
 BEGIN DECLARE b INTEGER DEFAULT a; END //
@@ -499,28 +1251,118 @@ BEGIN DECLARE b INTEGER DEFAULT a; END //
 DROP PROCEDURE bar//
 CREATE PROCEDURE bar(a INTEGER) NOT DETERMINISTIC LANGUAGE SQL
 BEGIN DECLARE b INTEGER DEFAULT a; END //
+DROP PROCEDURE bar//
 CREATE PROCEDURE bar(a INTEGER) NOT DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 # This is not SQL
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE SQL DETERMINISTIC LANGUAGE SQL
 $$ let b = a; $$ //
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$ let b = a; $$' at line 3
 # This is not Javascript
-CREATE PROCEDURE bar(a INTEGER) RETURNS INTEGER
+CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTEGER
-DETERMINISTIC LANGUAGE JAVASCRIPT
-BEGIN DECLARE b INTEGER DEFAULT a; END' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'END' at line 3
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE SQL
+BEGIN DECLARE b INTEGER DEFAULT a; END //
 # Check ALTER statements
 ALTER FUNCTION foo NO SQL //
-# When dictionary support is ready, changing language will not be allowed
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    NO SQL
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+# Changing language will not be allowed
 ALTER FUNCTION foo LANGUAGE SQL NO SQL //
+ERROR HY000: Altering the language of an existing routine is not possible.
 ALTER FUNCTION foo LANGUAGE JAVASCRIPT //
-ALTER PROCEDURE bar LANGUAGE JAVASCRIPT //
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    NO SQL
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+ALTER FUNCTION foo LANGUAGE javascript //
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    NO SQL
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION foo //
+CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE SQL
+BEGIN RETURN a-1; END //
+ALTER FUNCTION foo LANGUAGE JAVASCRIPT //
+ERROR HY000: Altering the language of an existing routine is not possible.
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS int
+    DETERMINISTIC
+BEGIN RETURN a-1; END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+ALTER FUNCTION foo LANGUAGE SQL NO SQL //
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS int
+    NO SQL
+    DETERMINISTIC
+BEGIN RETURN a-1; END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+ALTER FUNCTION foo LANGUAGE NO SQL //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+DROP FUNCTION foo //
+ALTER PROCEDURE bar LANGUAGE SQL NO SQL //
+ALTER PROCEDURE bar LANGUAGE JAVASCRIPT //
+ERROR HY000: Altering the language of an existing routine is not possible.
+SHOW CREATE PROCEDURE bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    NO SQL
+    DETERMINISTIC
+BEGIN DECLARE b INTEGER DEFAULT a; END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+DROP PROCEDURE bar //
+CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
+AS "let b = a;" //
+ALTER PROCEDURE bar LANGUAGE JAVASCRIPT //
+ALTER PROCEDURE bar LANGUAGE SQL NO SQL //
+ERROR HY000: Altering the language of an existing routine is not possible.
+SHOW CREATE PROCEDURE bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+ALTER PROCEDURE bar LANGUAGE NO SQL //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 DROP PROCEDURE bar //
 #
 # Tests for inline code in external language
@@ -530,34 +1372,125 @@ DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
 return x-1;
 $$ //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 return x-1;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS 'return x-1;' //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: return x-1;
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS "return x-1;" //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: return x-1;
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS '
   return x-1;
-' //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
-  return x-1;
-
+}' //
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+}
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+}
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
 "
    return x-1;
 " //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
-   return x-1;
-
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 Routine body must come after characteristics
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 AS $$
@@ -576,9 +1509,26 @@ AS
   return "$$" + a + "$$";
 '
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
-  return "$$" + a + "$$";
-
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$$" + a + "$$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -586,9 +1536,26 @@ $code$
 return "$$" + a + "$$";
 $code$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 return "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$$" + a + "$$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -596,9 +1563,26 @@ $coDE$
 return "$$" + a + "$$";
 $coDE$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 return "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$$" + a + "$$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -606,9 +1590,26 @@ $CODE$
 return "$$" + a + "$$";
 $CODE$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 return "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$$" + a + "$$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -616,9 +1617,26 @@ $tag$
 return "$$" + a + "$$";
 $tag$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 return "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$$" + a + "$$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -626,9 +1644,26 @@ $TAG$
 return "$$" + a + "$$";
 $TAG$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 return "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$$" + a + "$$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -636,9 +1671,26 @@ $NULL$
 return "$$" + a + "$$";
 $NULL$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 return "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$$" + a + "$$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -646,9 +1698,26 @@ $abdc_1234$
 return "$$" + a + "$$";
 $abdc_1234$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 return "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$$" + a + "$$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -656,9 +1725,26 @@ $_a$
 return "$$" + a + "$$";
 $_a$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 return "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$$" + a + "$$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -666,9 +1752,26 @@ $_$
 return "$$" + a + "$$";
 $_$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 return "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$$" + a + "$$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -676,9 +1779,26 @@ $0$
 return "$$" + a + "$$";
 $0$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 return "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$$" + a + "$$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -686,9 +1806,26 @@ $100$
 return "$$" + a + "$$";
 $100$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 return "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$$" + a + "$$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -696,9 +1833,26 @@ $12345678901234$
 return "$$" + a + "$$";
 $12345678901234$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 return "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$$" + a + "$$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -706,9 +1860,26 @@ $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM$
 return "$$" + a + "$$";
 $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 return "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$$" + a + "$$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -716,9 +1887,26 @@ $¡$
 return "$$" + a + "$$";
 $¡$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 return "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$$" + a + "$$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -726,9 +1914,26 @@ $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM¡™£¢∞§¶
 return "$$" + a + "$$";
 $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM¡™£¢∞§¶•ªº–≠œ∑´®†¥¨ˆøπ“‘«åß∂ƒ©˙∆˚¬…æΩ≈ç√∫µ≤≥÷⁄€‹›ﬁﬂ‡°·‚—±ÅÍÎÏ˝ÓÔÒÚÆ¸˛Ç◊ıÂ¯˘¿$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 return "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$$" + a + "$$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS	      $$
@@ -737,11 +1942,30 @@ const $y$ = 4;
 return $x + $y$ + a;
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 const $x = 3;
 const $y$ = 4;
 return $x + $y$ + a;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	const $x = 3;
+const $y$ = 4;
+return $x + $y$ + a;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -751,11 +1975,30 @@ const $y$$z = 4;
 return $x + $y$$z + a;
 $code$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 const x$$ = 3;
 const $y$$z = 4;
 return $x + $y$$z + a;
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	const x$$ = 3;
+const $y$$z = 4;
+return $x + $y$$z + a;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 $$
@@ -956,36 +2199,106 @@ AS $$
 return "∂" + a + "$∂$";
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 return "∂" + a + "$∂$";
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "∂" + a + "$∂$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$
 return "∂" + a + "$∂$$";
 $code$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 return "∂" + a + "$∂$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "∂" + a + "$∂$$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$
 return "∂" + a + "$∂$$∂";
 $code$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 return "∂" + a + "$∂$$∂";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "∂" + a + "$∂$$∂";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$∂
 return "∂" + a + "$∂$";
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: ∂
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+∂
 return "∂" + a + "$∂$";
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	∂
+return "∂" + a + "$∂$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 Test multi-byte characters in quote tags
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -993,72 +2306,226 @@ AS $∂$
 return "∂" + a + "∂$";
 $∂$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 return "∂" + a + "∂$";
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "∂" + a + "∂$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $co∂e$
 return "∂" + a + "$∂$$";
 $co∂e$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 return "∂" + a + "$∂$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "∂" + a + "$∂$$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀$
 return "😀$😔" + a + "😀$😔$";
 $😀$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
-return "ð$ð" + a + "ð$ð$";
-
+Warnings:
+Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string 'return...' from utf8mb4 to utf8mb3
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return "😀$😔" + a + "😀$😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "?$?" + a + "?$?$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀😔$
 return "😀$😔" + a + "😀$😔$";
 $😀😔$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
-return "ð$ð" + a + "ð$ð$";
-
+Warnings:
+Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string 'return...' from utf8mb4 to utf8mb3
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return "😀$😔" + a + "😀$😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "?$?" + a + "?$?$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $x😀$
 return "$x😀😔" + a + "$x😀😔$";
 $x😀$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
-return "$xðð" + a + "$xðð$";
-
+Warnings:
+Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string 'return...' from utf8mb4 to utf8mb3
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return "$x😀😔" + a + "$x😀😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$x??" + a + "$x??$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀x$
 return "$😀x😔$" + a + "$😀😔x$";
 $😀x$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
-return "$ðxð$" + a + "$ððx$";
-
+Warnings:
+Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string 'return...' from utf8mb4 to utf8mb3
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return "$😀x😔$" + a + "$😀😔x$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$?x?$" + a + "$??x$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $x😀y$
 return "$x😀😔y$" + a + "$x😀y😔$";
 $x😀y$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
-return "$xððy$" + a + "$xðyð$";
-
+Warnings:
+Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string 'return...' from utf8mb4 to utf8mb3
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return "$x😀😔y$" + a + "$x😀y😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$x??y$" + a + "$x?y?$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $x😀y😔$
 return "😀😔$" + a + "😀$😔$";
 $x😀y😔$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
-return "ðð$" + a + "ð$ð$";
-
+Warnings:
+Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string 'return...' from utf8mb4 to utf8mb3
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return "😀😔$" + a + "😀$😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "??$" + a + "?$?$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀😔$
@@ -1090,7 +2557,26 @@ $code$' at line 4
 CREATE FUNCTION foo(x INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$ return "$$" + x + "$foo$"; $code$ //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  return "$$" + x + "$foo$"; 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "$$" + x + "$foo$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	return "$$" + x + "$foo$";
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
@@ -1099,11 +2585,30 @@ const $y = 1
 return $x + $y;
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 const $x = x,
 const $y = 1
 return $x + $y;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW FUNCTION STATUS WHERE Name = 'foo'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	const $x = x,
+const $y = 1
+return $x + $y;
+SELECT foo(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP FUNCTION foo//
 # Multiple occurrences of routine body is not allowed
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1137,34 +2642,123 @@ DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
 let b = a;
 $$ //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(x INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 let b = a;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(x INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS 'let b = a;' //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: let b = a;
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(x INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(x INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS "let b = a;" //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: let b = a;
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(x INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(x INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS '
   let b = a;
 ' //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
-  let b = a;
-
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(x INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(x INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
 "
    let b = a;
 " //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
-   let b = a;
-
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(x INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 Routine body must come after characteristics
 CREATE PROCEDURE bar(x INTEGER)
 AS $$
@@ -1183,9 +2777,26 @@ AS
   let b = "$$" + a + "$$";
 '
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
-  let b = "$$" + a + "$$";
-
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$$" + a + "$$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1193,9 +2804,26 @@ $code$
 let b = "$$" + a + "$$";
 $code$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 let b = "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$$" + a + "$$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1203,9 +2831,26 @@ $coDE$
 let b = "$$" + a + "$$";
 $coDE$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 let b = "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$$" + a + "$$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1213,9 +2858,26 @@ $CODE$
 let b = "$$" + a + "$$";
 $CODE$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 let b = "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$$" + a + "$$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1223,9 +2885,26 @@ $tag$
 let b = "$$" + a + "$$";
 $tag$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 let b = "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$$" + a + "$$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1233,9 +2912,26 @@ $TAG$
 let b = "$$" + a + "$$";
 $TAG$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 let b = "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$$" + a + "$$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1243,9 +2939,26 @@ $NULL$
 let b = "$$" + a + "$$";
 $NULL$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 let b = "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$$" + a + "$$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1253,9 +2966,26 @@ $abdc_1234$
 let b = "$$" + a + "$$";
 $abdc_1234$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 let b = "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$$" + a + "$$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1263,9 +2993,26 @@ $_a$
 let b = "$$" + a + "$$";
 $_a$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 let b = "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$$" + a + "$$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1273,9 +3020,26 @@ $_$
 let b = "$$" + a + "$$";
 $_$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 let b = "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$$" + a + "$$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1283,9 +3047,26 @@ $0$
 let b = "$$" + a + "$$";
 $0$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 let b = "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$$" + a + "$$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1293,9 +3074,26 @@ $100$
 let b = "$$" + a + "$$";
 $100$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 let b = "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$$" + a + "$$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1303,9 +3101,26 @@ $12345678901234$
 let b = "$$" + a + "$$";
 $12345678901234$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 let b = "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$$" + a + "$$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1313,9 +3128,26 @@ $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM$
 let b = "$$" + a + "$$";
 $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 let b = "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$$" + a + "$$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1323,9 +3155,26 @@ $¡$
 let b = "$$" + a + "$$";
 $¡$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 let b = "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$$" + a + "$$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1333,9 +3182,26 @@ $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM¡™£¢∞§¶
 let b = "$$" + a + "$$";
 $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM¡™£¢∞§¶•ªº–≠œ∑´®†¥¨ˆøπ“‘«åß∂ƒ©˙∆˚¬…æΩ≈ç√∫µ≤≥÷⁄€‹›ﬁﬂ‡°·‚—±ÅÍÎÏ˝ÓÔÒÚÆ¸˛Ç◊ıÂ¯˘¿$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 let b = "$$" + a + "$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$$" + a + "$$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS	      $$
@@ -1344,11 +3210,30 @@ const $y$ = 4;
 let b = $x + $y$ + a;
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 const $x = 3;
 const $y$ = 4;
 let b = $x + $y$ + a;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	const $x = 3;
+const $y$ = 4;
+let b = $x + $y$ + a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1358,11 +3243,30 @@ const $y$$z = 4;
 let b = $x + $y$$z + a;
 $code$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 const x$$ = 3;
 const $y$$z = 4;
 let b = $x + $y$$z + a;
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	const x$$ = 3;
+const $y$$z = 4;
+let b = $x + $y$$z + a;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(x INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 $$
@@ -1563,36 +3467,106 @@ AS $$
 let b = "∂" + a + "$∂$";
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 let b = "∂" + a + "$∂$";
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "∂" + a + "$∂$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$
 let b = "∂" + a + "$∂$$";
 $code$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 let b = "∂" + a + "$∂$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "∂" + a + "$∂$$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$
 let b = "∂" + a + "$∂$$∂";
 $code$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 let b = "∂" + a + "$∂$$∂";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "∂" + a + "$∂$$∂";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$∂
 let b = "∂" + a + "$∂$";
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: ∂
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+∂
 let b = "∂" + a + "$∂$";
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	∂
+let b = "∂" + a + "$∂$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 Test multi-byte characters in quote tags
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1600,72 +3574,226 @@ AS $∂$
 let b = "∂" + a + "∂$";
 $∂$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 let b = "∂" + a + "∂$";
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "∂" + a + "∂$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $co∂e$
 let b = "∂" + a + "$∂$$";
 $co∂e$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
 let b = "∂" + a + "$∂$$";
-
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "∂" + a + "$∂$$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀$
 let b = "😀$😔" + a + "😀$😔$";
 $😀$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
-let b = "ð$ð" + a + "ð$ð$";
-
+Warnings:
+Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string 'let b ...' from utf8mb4 to utf8mb3
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = "😀$😔" + a + "😀$😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "?$?" + a + "?$?$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀😔$
 let b = "😀$😔" + a + "😀$😔$";
 $😀😔$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
-let b = "ð$ð" + a + "ð$ð$";
-
+Warnings:
+Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string 'let b ...' from utf8mb4 to utf8mb3
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = "😀$😔" + a + "😀$😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "?$?" + a + "?$?$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $x😀$
 let b = "$x😀😔" + a + "$x😀😔$";
 $x😀$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
-let b = "$xðð" + a + "$xðð$";
-
+Warnings:
+Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string 'let b ...' from utf8mb4 to utf8mb3
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = "$x😀😔" + a + "$x😀😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$x??" + a + "$x??$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀x$
 let b = "$😀x😔$" + a + "$😀😔x$";
 $😀x$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
-let b = "$ðxð$" + a + "$ððx$";
-
+Warnings:
+Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string 'let b ...' from utf8mb4 to utf8mb3
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = "$😀x😔$" + a + "$😀😔x$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$?x?$" + a + "$??x$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $x😀y$
 let b = "$x😀😔y$" + a + "$x😀y😔$";
 $x😀y$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
-let b = "$xððy$" + a + "$xðyð$";
-
+Warnings:
+Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string 'let b ...' from utf8mb4 to utf8mb3
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = "$x😀😔y$" + a + "$x😀y😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$x??y$" + a + "$x?y?$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $x😀y😔$
 let b = "😀😔$" + a + "😀$😔$";
 $x😀y😔$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
-let b = "ðð$" + a + "ð$ð$";
-
+Warnings:
+Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string 'let b ...' from utf8mb4 to utf8mb3
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = "😀😔$" + a + "😀$😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "??$" + a + "?$?$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀😔$
@@ -1697,7 +3825,26 @@ $code$' at line 4
 CREATE PROCEDURE bar(x INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$ let b = "$$" + x + "$foo$"; $code$ //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = "$$" + x + "$foo$"; 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(x INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "$$" + x + "$foo$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = "$$" + x + "$foo$";
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 CREATE PROCEDURE bar(x INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
@@ -1706,11 +3853,30 @@ const $y = 1
 let b = $x + $y;
 $$
 //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+SHOW CREATE procedure bar//
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(x INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
 const $x = x,
 const $y = 1
 let b = $x + $y;
-
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS WHERE Name = 'bar'//
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	const $x = x,
+const $y = 1
+let b = $x + $y;
+CALL bar(2)//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+DROP procedure bar//
 # Multiple occurrences of routine body is not allowed
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1783,3 +3949,169 @@ $hi$
 SELECT 1 AS `$h$i`;
 $h$i
 1
+#
+# WL#15454: Dictionary support for external languages
+#
+# Test generation of delimiter
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+'
+function (a)
+{
+  return "$$" + a + "$$";
+}
+'
+//
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+function (a)
+{
+  return "$$" + a + "$$";
+}
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	function (a)
+{
+  return "$$" + a + "$$";
+}
+DROP FUNCTION foo//
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$code$
+function (a)
+{
+return "$$" + a + "$$";
+}
+$code$
+//
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+function (a)
+{
+return "$$" + a + "$$";
+}
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	function (a)
+{
+return "$$" + a + "$$";
+}
+DROP FUNCTION foo//
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$code$
+function (a)
+{
+return "$$" + a + "$JAVASCRIPT$";
+}
+$code$
+//
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $1918680441$
+function (a)
+{
+return "$$" + a + "$JAVASCRIPT$";
+}
+$1918680441$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	function (a)
+{
+return "$$" + a + "$JAVASCRIPT$";
+}
+DROP FUNCTION foo//
+# Check collision with checksum-based dollar quote
+CREATE FUNCTION FOO(A INTEGER) RETURNS varchar(20)
+DETERMINISTIC LANGUAGE javascript
+AS
+$code$
+function (a)
+{
+return "$$" + a + "$JAVASCRIPT$" + "$1918680441$";
+}
+$code$
+//
+SHOW CREATE FUNCTION foo//
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+FOO	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `FOO`(A INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $2829575231$
+function (a)
+{
+return "$$" + a + "$JAVASCRIPT$" + "$1918680441$";
+}
+$2829575231$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" //
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+FOO	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	function (a)
+{
+return "$$" + a + "$JAVASCRIPT$" + "$1918680441$";
+}
+DROP FUNCTION foo//
+# Check that dictionary changes are persisted across server restarts
+CREATE FUNCTION foo(x INT) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$ return x-1; $$ //
+CREATE PROCEDURE bar(a INT) DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$ var b = a; $$ //
+# restart
+SHOW FUNCTION STATUS where Language like "%JAVA%";
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW PROCEDURE STATUS where Language like "%JAVA%";
+Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE FUNCTION foo;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INT) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE PROCEDURE bar;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INT)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+var b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT routine_name, routine_type, data_type, routine_body,
+external_name, external_language, parameter_style, routine_definition
+FROM information_schema.routines
+WHERE routine_schema = "test" ;
+ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	var b = a;
+DROP FUNCTION foo;
+DROP PROCEDURE bar;

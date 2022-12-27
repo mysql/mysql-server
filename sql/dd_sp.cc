@@ -79,6 +79,13 @@ void prepare_sp_chistics_from_dd_routine(const dd::Routine *routine,
       sp_chistics->daccess = SP_DEFAULT_ACCESS_MAPPING; /* purecov: deadcode */
   }
 
+  // External language.
+  if (!routine->external_language().empty()) {
+    sp_chistics->language = {routine->external_language().c_str(),
+                             routine->external_language().length()};
+  } else
+    sp_chistics->language = EMPTY_CSTR;
+
   // Security type.
   sp_chistics->suid = (routine->security_type() == dd::View::ST_INVOKER)
                           ? SP_IS_NOT_SUID

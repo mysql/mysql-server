@@ -1083,6 +1083,10 @@ Query_block *build_show_procedures_query(const POS &pos, THD *thd, String *wild,
   static const LEX_CSTRING field_type = {STRING_WITH_LEN("ROUTINE_TYPE")};
   static const LEX_CSTRING alias_type = {STRING_WITH_LEN("Type")};
 
+  static const LEX_CSTRING field_language = {
+      STRING_WITH_LEN("EXTERNAL_LANGUAGE")};
+  static const LEX_CSTRING alias_language = {STRING_WITH_LEN("Language")};
+
   static const LEX_CSTRING field_definer = {STRING_WITH_LEN("DEFINER")};
   static const LEX_CSTRING alias_definer = {STRING_WITH_LEN("Definer")};
 
@@ -1123,6 +1127,7 @@ Query_block *build_show_procedures_query(const POS &pos, THD *thd, String *wild,
   if (sub_query.add_select_item(field_db, alias_db) ||
       sub_query.add_select_item(field_name, alias_name) ||
       sub_query.add_select_item(field_type, alias_type) ||
+      sub_query.add_select_item(field_language, alias_language) ||
       sub_query.add_select_item(field_definer, alias_definer) ||
       sub_query.add_select_item(field_modified, alias_modified) ||
       sub_query.add_select_item(field_created, alias_created) ||

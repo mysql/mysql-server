@@ -9954,7 +9954,10 @@ ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS
   eng "'%s' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead."
 
 ER_SP_UNSUPPORTED_LANGUAGE
-  eng "Unsupported external language: '%s'. Code: %.*s"
+  eng "Unsupported external language: '%s'."
+
+ER_SP_NO_ALTER_LANGUAGE
+  eng "Altering the language of an existing routine is not possible."
 
 #
 #  End of 8.0 error messages (server-to-client).

@@ -109,6 +109,12 @@ class Procedure_impl : public Routine_impl, public Procedure {
   void set_sql_data_access(enum_sql_data_access sda) override {
     Routine_impl::set_sql_data_access(sda);
   }
+  virtual const String_type &external_language() const override {
+    return Routine_impl::external_language();
+  }
+  virtual void set_external_language(const String_type &el) override {
+    Routine_impl::set_external_language(el);
+  }
   View::enum_security_type security_type() const override {
     return Routine_impl::security_type();
   }

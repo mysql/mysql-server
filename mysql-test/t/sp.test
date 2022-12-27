@@ -1385,11 +1385,11 @@ call ifac(20)|
 --sorted_result
 select * from t3|
 drop table t3|
---replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 5 'root@localhost' 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 show function status like '%fac'|
 drop procedure ifac|
 drop function fac|
---replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 5 'root@localhost' 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 show function status like '%fac'|
 
 
@@ -1469,7 +1469,7 @@ begin
   end while;
 end|
 show create procedure opp|
---replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 5 'root@localhost' 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 show procedure status where name like '%p%' and db='test'|
 
 # This isn't the fastest way in the world to compute prime numbers, so
@@ -1487,7 +1487,7 @@ select * from t3 where i=45 or i=100 or i=199|
 drop table t3|
 drop procedure opp|
 drop procedure ip|
---replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 5 'root@localhost' 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 show procedure status where name like '%p%' and db='test'|
 
 
@@ -1500,13 +1500,13 @@ drop procedure if exists bar|
 create procedure bar(x char(16), y int)
  comment "111111111111" sql security invoker
  insert into test.t1 values (x, y)|
---replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 5 'root@localhost' 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 show procedure status like 'bar'|
 alter procedure bar comment "2222222222" sql security definer|
 alter procedure bar comment "3333333333"|
 alter procedure bar|
 show create procedure bar|
---replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 5 'root@localhost' 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 show procedure status like 'bar'|
 drop procedure bar|
 
@@ -2165,9 +2165,9 @@ begin
 end|
 create function bug2267_4() returns int return 100|
 
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 call bug2267_1()|
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 6 '0000-00-00 00:00:00' 7 '0000-00-00 00:00:00'
 call bug2267_2()|
 call bug2267_3()|
 call bug2267_4()|
@@ -9134,11 +9134,11 @@ CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostna
 --echo #and for function
 CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test() RETURNS INT RETURN 1;
 
---replace_column 5 # 6 #
+--replace_column 6 # 7 #
 SHOW PROCEDURE STATUS LIKE 'proc_test';
 DROP PROCEDURE test.proc_test;
 
---replace_column 5 # 6 #
+--replace_column 6 # 7 #
 SHOW FUNCTION STATUS LIKE 'f_test';
 DROP FUNCTION test.f_test;
 

@@ -218,7 +218,7 @@ namespace info_schema {
   - Bug#33781534: INFORMATION_SCHEMA.KEY_COLUMN_USAGE table is modified to
                   list invisible columns with key constraints.
 
-  80030: Current.
+  80030: Published in 8.0.30
   ------------------------------------
   Changes from version 80029:
   - Bug #33787300 Rename utf8_xxx collations to utf8mb3_xxx
@@ -233,12 +233,23 @@ namespace info_schema {
                 INFORMATION_SCHEMA.TABLE_CONSTRAINTS
                 INFORMATION_SCHEMA.TABLE_CONSTRAINTS_EXTENSIONS
 
-  80031: Next IS version number after the previous is public.
-  ------------------------------------
+  80031..80033: Not published.
+  ----------------------------------------------------------------------------
+  There are no changes from version 80030. Hence server versions 80031..80033
+  uses I_S version 80030.
+
+  80034: Current
+  ----------------------------------------------------------------------------
   Changes from version 80030:
+  - WL#15454: INFORMATION_SCHEMA.ROUTINES is modified so that ROUTINE_BODY
+              now depends on the value of EXTERNAL_LANGUAGE
+
+  80035: Next IS version number after the previous is public.
+  ------------------------------------
+  Changes from version 80035:
 */
 
-static const uint IS_DD_VERSION = 80030;
+static const uint IS_DD_VERSION = 80033;
 static_assert((IS_DD_VERSION <= MYSQL_VERSION_ID) ||
                   ((IS_DD_VERSION == 800201) && (MYSQL_VERSION_ID >= 80020)),
               "This release can not use a version number from the future");

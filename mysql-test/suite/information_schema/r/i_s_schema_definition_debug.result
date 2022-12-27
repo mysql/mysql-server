@@ -118,7 +118,7 @@ include/assert.inc [All expected I_S system views are present.]
 #         I_S system views.
 ########################################################################
 # Print the actual I_S version stored on disk.
-Current I_S_VERSION=80030
+Current I_S_VERSION=80033
 CREATE TABLE I_S_check_table (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 t TEXT NOT NULL,
 row_hash VARCHAR(64) DEFAULT NULL);
@@ -846,7 +846,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   CASE rtn.result_data_type  WHEN 'MYSQL_TYPE_STRING' THEN     (IF (cs_result.name='binary',NULL, cs_result.name))  WHEN 'MYSQL_TYPE_VAR_STRING' THEN     (IF (cs_result.name='binary',NULL, cs_result.name))  WHEN 'MYSQL_TYPE_VARCHAR' THEN     (IF (cs_result.name='binary',NULL, cs_result.name))  WHEN 'MYSQL_TYPE_TINY_BLOB' THEN     (IF (cs_result.name='binary',NULL, cs_result.name))  WHEN 'MYSQL_TYPE_MEDIUM_BLOB' THEN     (IF (cs_result.name='binary',NULL, cs_result.name))  WHEN 'MYSQL_TYPE_BLOB' THEN     (IF (cs_result.name='binary',NULL, cs_result.name))  WHEN 'MYSQL_TYPE_LONG_BLOB' THEN     (IF (cs_result.name='binary',NULL, cs_result.name))  WHEN 'MYSQL_TYPE_ENUM' THEN     (IF (cs_result.name='binary',NULL, cs_result.name))  WHEN 'MYSQL_TYPE_SET' THEN     (IF (cs_result.name='binary',NULL, cs_result.name))  ELSE NULL END AS CHARACTER_SET_NAME,
   CASE rtn.result_data_type  WHEN 'MYSQL_TYPE_STRING' THEN     (IF (cs_result.name='binary',NULL, coll_result.name))  WHEN 'MYSQL_TYPE_VAR_STRING' THEN     (IF (cs_result.name='binary',NULL, coll_result.name))  WHEN 'MYSQL_TYPE_VARCHAR' THEN     (IF (cs_result.name='binary',NULL, coll_result.name))  WHEN 'MYSQL_TYPE_TINY_BLOB' THEN     (IF (cs_result.name='binary',NULL, coll_result.name))  WHEN 'MYSQL_TYPE_MEDIUM_BLOB' THEN     (IF (cs_result.name='binary',NULL, coll_result.name))  WHEN 'MYSQL_TYPE_BLOB' THEN     (IF (cs_result.name='binary',NULL, coll_result.name))  WHEN 'MYSQL_TYPE_LONG_BLOB' THEN     (IF (cs_result.name='binary',NULL, coll_result.name))  WHEN 'MYSQL_TYPE_ENUM' THEN     (IF (cs_result.name='binary',NULL, coll_result.name))  WHEN 'MYSQL_TYPE_SET' THEN     (IF (cs_result.name='binary',NULL, coll_result.name))  ELSE NULL END AS COLLATION_NAME,
   IF(rtn.type = 'PROCEDURE', NULL, rtn.result_data_type_utf8) AS DTD_IDENTIFIER,
-  'SQL' AS ROUTINE_BODY,
+  IF(rtn.external_language = 'SQL', 'SQL', 'EXTERNAL') AS ROUTINE_BODY,
   IF (CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, rtn.definer, TRUE),    rtn.definition_utf8, NULL) AS ROUTINE_DEFINITION,
   NULL AS EXTERNAL_NAME,
   rtn.external_language AS EXTERNAL_LANGUAGE,
@@ -889,7 +889,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   CASE rtn.result_data_type  WHEN 'MYSQL_TYPE_STRING' THEN     (IF (cs_result.name='binary',NULL, cs_result.name))  WHEN 'MYSQL_TYPE_VAR_STRING' THEN     (IF (cs_result.name='binary',NULL, cs_result.name))  WHEN 'MYSQL_TYPE_VARCHAR' THEN     (IF (cs_result.name='binary',NULL, cs_result.name))  WHEN 'MYSQL_TYPE_TINY_BLOB' THEN     (IF (cs_result.name='binary',NULL, cs_result.name))  WHEN 'MYSQL_TYPE_MEDIUM_BLOB' THEN     (IF (cs_result.name='binary',NULL, cs_result.name))  WHEN 'MYSQL_TYPE_BLOB' THEN     (IF (cs_result.name='binary',NULL, cs_result.name))  WHEN 'MYSQL_TYPE_LONG_BLOB' THEN     (IF (cs_result.name='binary',NULL, cs_result.name))  WHEN 'MYSQL_TYPE_ENUM' THEN     (IF (cs_result.name='binary',NULL, cs_result.name))  WHEN 'MYSQL_TYPE_SET' THEN     (IF (cs_result.name='binary',NULL, cs_result.name))  ELSE NULL END AS CHARACTER_SET_NAME,
   CASE rtn.result_data_type  WHEN 'MYSQL_TYPE_STRING' THEN     (IF (cs_result.name='binary',NULL, coll_result.name))  WHEN 'MYSQL_TYPE_VAR_STRING' THEN     (IF (cs_result.name='binary',NULL, coll_result.name))  WHEN 'MYSQL_TYPE_VARCHAR' THEN     (IF (cs_result.name='binary',NULL, coll_result.name))  WHEN 'MYSQL_TYPE_TINY_BLOB' THEN     (IF (cs_result.name='binary',NULL, coll_result.name))  WHEN 'MYSQL_TYPE_MEDIUM_BLOB' THEN     (IF (cs_result.name='binary',NULL, coll_result.name))  WHEN 'MYSQL_TYPE_BLOB' THEN     (IF (cs_result.name='binary',NULL, coll_result.name))  WHEN 'MYSQL_TYPE_LONG_BLOB' THEN     (IF (cs_result.name='binary',NULL, coll_result.name))  WHEN 'MYSQL_TYPE_ENUM' THEN     (IF (cs_result.name='binary',NULL, coll_result.name))  WHEN 'MYSQL_TYPE_SET' THEN     (IF (cs_result.name='binary',NULL, coll_result.name))  ELSE NULL END AS COLLATION_NAME,
   IF(rtn.type = 'PROCEDURE', NULL, rtn.result_data_type_utf8) AS DTD_IDENTIFIER,
-  'SQL' AS ROUTINE_BODY,
+  IF(rtn.external_language = 'SQL', 'SQL', 'EXTERNAL') AS ROUTINE_BODY,
   IF (CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, rtn.definer, TRUE),    rtn.definition_utf8, NULL) AS ROUTINE_DEFINITION,
   NULL AS EXTERNAL_NAME,
   rtn.external_language AS EXTERNAL_LANGUAGE,
@@ -1649,8 +1649,8 @@ SET debug = '-d,fetch_system_view_definition';
 include/assert.inc [Found expected number of system views in DD.]
 include/assert.inc [Found expected number of system views in I_S_check_table.]
 include/assert.inc [The group concat max length is sufficient.]
-The schema checksum corresponds to I_S version 80030.
+The schema checksum corresponds to I_S version 80033.
 include/assert.inc [The schema checksum corresponds to a known I_S version.]
 include/assert.inc [The schema checksum corresponds to
-IS_VERSION 80030 stored on on disk.]
+IS_VERSION 80033 stored on on disk.]
 include/assert.inc [The stored I_S version is the latest published I_S version.]
