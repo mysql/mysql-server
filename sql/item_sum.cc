@@ -4757,11 +4757,22 @@ void Item_rank::update_after_wf_arguments_changed(THD *thd) {
   if (!order) return;
   ORDER *o = order->value.first;
   for (unsigned i = 0; i < m_previous.size(); ++i, o = o->next) {
-    if (thd->lex->is_exec_started())
-      thd->change_item_tree(m_previous[i]->get_item_ptr(),
-                            (*o->item)->real_item());
-    else
-      *m_previous[i]->get_item_ptr() = (*o->item)->real_item();
+    // If using the old optimizer, the references created for ORDER BY
+    // expressions should not be disturbed. The ref array slices depend
+    // on them. This is called only during resolving with ROLLUP in case
+    // of old optimizer.
+    Item **item_to_be_changed;
+    if (!thd->lex->using_hypergraph_optimizer) {
+      Item_ref *item_ref = down_cast<Item_ref *>(m_previous[i]->get_item());
+      item_to_be_changed = item_ref->ref_pointer();
+    } else {
+      item_to_be_changed = m_previous[i]->get_item_ptr();
+    }
+    if (thd->lex->is_exec_started()) {
+      thd->change_item_tree(item_to_be_changed, (*o->item)->real_item());
+    } else {
+      *item_to_be_changed = (*o->item)->real_item();
+    }
   }
 }
 
