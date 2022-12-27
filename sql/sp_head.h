@@ -442,6 +442,9 @@ class sp_head {
   /// Stored program characteristics.
   st_sp_chistics *m_chistics;
 
+  /// Code if language is not SQL
+  LEX_CSTRING code;
+
   /**
     The value of sql_mode system variable at the CREATE-time.
 
@@ -460,7 +463,6 @@ class sp_head {
   LEX_STRING m_params;
   LEX_CSTRING m_body;
   LEX_CSTRING m_body_utf8;
-  LEX_STRING m_defstr;
   LEX_STRING m_definer_user;
   LEX_STRING m_definer_host;
 

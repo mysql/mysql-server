@@ -5,11 +5,11 @@
 # Table names and columns.
 create table $t(id int);
 drop table $t;
-create table t(id int, $id int, $id2 int, $$id int, $ int, $1 int,$$$ int,
-               id$$$ int, 1$ int, `$$` int, _$ int, b$$lit$$ int);
+create table t(id int, $id int, $id2 int, `$$id` int, $ int, $1 int,
+               `$$$` int, id$$$ int, 1$ int, `$$` int, _$ int, b$$lit$$ int);
 
 # Multiple $ should also warn. Quoted identifiers should not give warning.
-select `$1`, $$$,$$id, '$someli$teral' from t where t.`$id` = 0;
+select `$1`, `$$$`,`$$id`, '$someli$teral' from t where t.`$id` = 0;
 SET sql_mode = sys.LIST_ADD(@@sql_mode, 'ANSI_QUOTES');
 select "$id2", "$$$" from t where t."$id" = 0;
 SET sql_mode = sys.LIST_DROP(@@sql_mode, 'ANSI_QUOTES');
@@ -18,7 +18,7 @@ SET sql_mode = sys.LIST_DROP(@@sql_mode, 'ANSI_QUOTES');
 select * from t where t.`$id` = 0 or `$id2` = 0 or b$$lit$$ = 0;
 
 # $ following a non-whitespace character.
-select id+$id+$$id from t;
+select id+$id+$id from t;
 
 # Views.
 create view $view as select id, $id2 from t;
@@ -42,10 +42,10 @@ drop table tpart;
 
 # Even though prepared statement text is in quoted string or in a dynamic sql,
 # occurences of $ident should be identified.
-prepare $stmt from 'select $$id, $id, `$$` from t';
+prepare $stmt from 'select `$$id`, $id, `$$` from t';
 execute $stmt;
 set @table_name:='t';
-set @sql:=concat('select $$id, $id, `$$` from ', @table_name);
+set @sql:=concat('select `$$id`, $id, `$$` from ', @table_name);
 prepare dynamic_stmt from @sql;
 execute dynamic_stmt;
 

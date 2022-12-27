@@ -12,127 +12,266 @@ CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC
 BEGIN RETURN a-1; END //
 DROP FUNCTION foo//
 # Currently, no other language than SQL is supported
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVASCRIPT
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return x-1;
+
 CREATE FUNCTION JAVASCRIPT(a INTEGER) RETURNS INTEGER DETERMINISTIC
 LANGUAGE JAVASCRIPT
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE PYTHON
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'PYTHON'.
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE RUBY
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'RUBY'.
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return x-1;
+
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE PYTHON
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: 'PYTHON'. Code: 
+return x-1;
+
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE RUBY
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: 'RUBY'. Code: 
+return x-1;
+
 # Test lower-case
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE javascript
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'javascript'.
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE javascript
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: 'javascript'. Code: 
+return x-1;
+
 # Test mixed-case
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE jAvaScRIpt
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'jAvaScRIpt'.
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE jAvaScRIpt
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: 'jAvaScRIpt'. Code: 
+return x-1;
+
 # Any valid identifier can be used for language name
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVA1
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'JAVA1'.
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE $NOLANG
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: '$NOLANG'.
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVA1
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVA1'. Code: 
+return x-1;
+
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE $NOLANG
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: '$NOLANG'. Code: 
+return x-1;
+
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC
 LANGUAGE $$JAVASCRIPT
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: '$$JAVASCRIPT'.
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE 123j
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: '123j'.
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE __
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: '__'.
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC
+AS $$
+return x-1;
+$$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$JAVASCRIPT
+AS $$
+return x-1;
+$$' at line 2
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE 123j
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: '123j'. Code: 
+return x-1;
+
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE __
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: '__'. Code: 
+return x-1;
+
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC
 LANGUAGE "JAVASCRIPT"
-  BEGIN RETURN a-1; END //
+AS $$
+return x-1;
+$$
+//
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"JAVASCRIPT"
-  BEGIN RETURN a-1; END' at line 2
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC
+AS $$
+return x-1;
+$$' at line 2
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC
 LANGUAGE 'JAVASCRIPT'
-  BEGIN RETURN a-1; END //
+AS $$
+return x-1;
+$$
+//
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''JAVASCRIPT'
-  BEGIN RETURN a-1; END' at line 2
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE " "
-  BEGIN RETURN a-1; END //
+AS $$
+return x-1;
+$$' at line 2
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE " "
+AS $$
+return x-1;
+$$
+//
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '" "
-  BEGIN RETURN a-1; END' at line 1
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE J?
-BEGIN RETURN a-1; END //
+AS $$
+return x-1;
+$$' at line 1
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE J?
+AS $$
+return x-1;
+$$
+//
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?
-BEGIN RETURN a-1; END' at line 1
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC
+AS $$
+return x-1;
+$$' at line 1
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC
 LANGUAGE \JAVASCRIPT
-BEGIN RETURN a-1; END //
+AS $$
+return x-1;
+$$
+//
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '\JAVASCRIPT
-BEGIN RETURN a-1; END' at line 2
+AS $$
+return x-1;
+$$' at line 2
 # An identifier may not consist solely of digits
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE 123
-BEGIN RETURN a-1; END //
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE 123
+AS $$
+return x-1;
+$$
+//
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '123
-BEGIN RETURN a-1; END' at line 1
+AS $$
+return x-1;
+$$' at line 1
 # MySQL allows multiple clauses for the same characteristics
 # (This is not according to SQL standard). Last one will take effect.
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
 LANGUAGE JAVASCRIPT DETERMINISTIC LANGUAGE SQL
 BEGIN RETURN a-1; END //
 DROP FUNCTION foo//
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE SQL DETERMINISTIC LANGUAGE JAVASCRIPT
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return x-1;
+
 # Multiple languages in one clause is not allowed
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE SQL DETERMINISTIC LANGUAGE JAVASCRIPT PYTHON
-BEGIN RETURN a-1; END //
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BEGIN RETURN a-1; END' at line 3
+AS $$
+return x-1;
+$$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS $$
+return x-1;
+$$' at line 3
 Check "weird" white space before and after JAVASCRIPT.
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE
 JAVASCRIPT
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return x-1;
+
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE	
 JAVASCRIPT
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return x-1;
+
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE	  	 JAVASCRIPT  DETERMINISTIC	
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return x-1;
+
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE
 -- Comment
 JAVASCRIPT
 -- Comment
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return x-1;
+
 The language will here be interpreted to be BEGIN
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE
 BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'BEGIN'.
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '; END' at line 3
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
 LANGUAGE SQL DETERMINISTIC LANGUAGE
 BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'BEGIN'.
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '; END' at line 3
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE
 BEGIN a-1; END //
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1; END' at line 3
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE
+AS $$
+return x-1;
+$$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS $$
+return x-1;
+$$' at line 3
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+LANGUAGE JAVASCRIPT DETERMINISTIC LANGUAGE
+AS $$
+return x-1;
+$$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS $$
+return x-1;
+$$' at line 3
 #Combinations with other characteristics
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC NO SQL
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC NO SQL
 LANGUAGE JAVASCRIPT
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return x-1;
+
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC NO SQL
 LANGUAGE SQL
 BEGIN RETURN a-1; END //
@@ -140,18 +279,33 @@ DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE SQL NO SQL
 BEGIN RETURN a-1; END //
 DROP FUNCTION foo//
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVASCRIPT
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVASCRIPT
 CONTAINS SQL
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC READS SQL DATA
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return x-1;
+
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC READS SQL DATA
 LANGUAGE JAVASCRIPT
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return x-1;
+
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVASCRIPT
 MODIFIES SQL DATA
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return x-1;
+
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE SQL
 CONTAINS SQL
 BEGIN RETURN a-1; END //
@@ -166,15 +320,25 @@ BEGIN RETURN a-1; END //
 DROP FUNCTION foo//
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER NOT DETERMINISTIC LANGUAGE SQL
 BEGIN RETURN a-1; END //
-CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER NOT DETERMINISTIC
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER NOT DETERMINISTIC
 LANGUAGE JAVASCRIPT
-BEGIN RETURN a-1; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+AS $$
+return x-1;
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return x-1;
+
 # This is not SQL
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
-LANGUAGE SQL DETERMINISTIC LANGUAGE SQL
-$$ return a-1; $$ //
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'return a-1; $$' at line 3
+DETERMINISTIC LANGUAGE SQL
+AS $$ return a-1; $$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$ return a-1; $$' at line 3
+# This is not Javascript
+CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+BEGIN RETURN a-1; END //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'END' at line 3
 # Repeat test cases for PROCEDURE
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE SQL
 BEGIN DECLARE b INTEGER DEFAULT a; END //
@@ -185,67 +349,68 @@ BEGIN DECLARE b INTEGER DEFAULT a; END //
 DROP PROCEDURE bar//
 # Currently, no other language than SQL is supported
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
 CREATE PROCEDURE JAVASCRIPT(a INTEGER) DETERMINISTIC
 LANGUAGE JAVASCRIPT
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE PYTHON
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: 'PYTHON'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: 'PYTHON'. Code:  let b = a; 
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE RUBY
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: 'RUBY'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: 'RUBY'. Code:  let b = a; 
 # Test lower-case
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE javascript
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: 'javascript'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: 'javascript'. Code:  let b = a; 
 # Test mixed-case
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE jAvaScRIpt
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: 'jAvaScRIpt'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: 'jAvaScRIpt'. Code:  let b = a; 
 # Any valid identifier can be used for language name
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVA1
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: 'JAVA1'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: 'JAVA1'. Code:  let b = a; 
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE $NOLANG
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: '$NOLANG'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: '$NOLANG'. Code:  let b = a; 
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE $$JAVASCRIPT
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: '$$JAVASCRIPT'.
+AS $$ let b = a; $$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$JAVASCRIPT
+AS $$ let b = a; $$' at line 1
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE 123j
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: '123j'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: '123j'. Code:  let b = a; 
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE __
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: '__'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: '__'. Code:  let b = a; 
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE "JAVASCRIPT"
-  BEGIN DECLARE b INTEGER DEFAULT a; END //
+AS $$ let b = a; $$ //
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"JAVASCRIPT"
-  BEGIN DECLARE b INTEGER DEFAULT a; END' at line 1
+AS $$ let b = a; $$' at line 1
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE 'JAVASCRIPT'
-  BEGIN DECLARE b INTEGER DEFAULT a; END //
+AS $$ let b = a; $$ //
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''JAVASCRIPT'
-  BEGIN DECLARE b INTEGER DEFAULT a; END' at line 1
+AS $$ let b = a; $$' at line 1
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE " "
-  BEGIN DECLARE b INTEGER DEFAULT a; END //
+AS $$ let b = a; $$ //
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '" "
-  BEGIN DECLARE b INTEGER DEFAULT a; END' at line 1
+AS $$ let b = a; $$' at line 1
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE J?
-BEGIN DECLARE b INTEGER DEFAULT a; END //
+AS $$ let b = a; $$ //
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?
-BEGIN DECLARE b INTEGER DEFAULT a; END' at line 1
+AS $$ let b = a; $$' at line 1
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE \JAVASCRIPT
-BEGIN DECLARE b INTEGER DEFAULT a; END //
+AS $$ let b = a; $$ //
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '\JAVASCRIPT
-BEGIN DECLARE b INTEGER DEFAULT a; END' at line 1
+AS $$ let b = a; $$' at line 1
 # An identifier may not consist solely of digits
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE 123
-BEGIN DECLARE b INTEGER DEFAULT a; END //
+AS $$ let b = a; $$ //
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '123
-BEGIN DECLARE b INTEGER DEFAULT a; END' at line 1
+AS $$ let b = a; $$' at line 1
 # MySQL allows multiple clauses for the same characteristics
 # (This is not according to SQL standard). Last one will take effect.
 CREATE PROCEDURE bar(a INTEGER)
@@ -254,35 +419,35 @@ BEGIN DECLARE b INTEGER DEFAULT a; END //
 DROP PROCEDURE bar//
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE SQL DETERMINISTIC LANGUAGE JAVASCRIPT
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
 # Multiple languages in one clause is not allowed
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE SQL DETERMINISTIC LANGUAGE JAVASCRIPT PYTHON
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BEGIN DECLARE b INTEGER DEFAULT a; END' at line 3
+AS $$ let b = a; $$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS $$ let b = a; $$' at line 3
 Check "weird" white space before and after JAVASCRIPT.
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE
 JAVASCRIPT
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE	
 JAVASCRIPT
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE	  	 JAVASCRIPT  DETERMINISTIC	
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE
 -- Comment
 JAVASCRIPT
 -- Comment
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
 The language will here be interpreted to be BEGIN
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE
@@ -299,8 +464,8 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 #Combinations with other characteristics
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC NO SQL
 LANGUAGE JAVASCRIPT
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC NO SQL
 LANGUAGE SQL
 BEGIN DECLARE b INTEGER DEFAULT a; END //
@@ -310,16 +475,16 @@ BEGIN DECLARE b INTEGER DEFAULT a; END //
 DROP PROCEDURE bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
 CONTAINS SQL
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC READS SQL DATA
 LANGUAGE JAVASCRIPT
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
 MODIFIES SQL DATA
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE SQL
 CONTAINS SQL
 BEGIN DECLARE b INTEGER DEFAULT a; END //
@@ -335,13 +500,20 @@ DROP PROCEDURE bar//
 CREATE PROCEDURE bar(a INTEGER) NOT DETERMINISTIC LANGUAGE SQL
 BEGIN DECLARE b INTEGER DEFAULT a; END //
 CREATE PROCEDURE bar(a INTEGER) NOT DETERMINISTIC LANGUAGE JAVASCRIPT
-BEGIN DECLARE b INTEGER DEFAULT a; END //
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
+AS $$ let b = a; $$ //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = a; 
 # This is not SQL
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE SQL DETERMINISTIC LANGUAGE SQL
 $$ let b = a; $$ //
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'let b = a; $$' at line 3
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$ let b = a; $$' at line 3
+# This is not Javascript
+CREATE PROCEDURE bar(a INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+BEGIN DECLARE b INTEGER DEFAULT a; END //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+BEGIN DECLARE b INTEGER DEFAULT a; END' at line 1
 # Check ALTER statements
 ALTER FUNCTION foo NO SQL //
 # When dictionary support is ready, changing language will not be allowed
@@ -350,3 +522,1264 @@ ALTER FUNCTION foo LANGUAGE JAVASCRIPT //
 ALTER PROCEDURE bar LANGUAGE JAVASCRIPT //
 DROP FUNCTION foo //
 DROP PROCEDURE bar //
+#
+# Tests for inline code in external language
+#
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$ //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return x-1;
+
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS 'return x-1;' //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: return x-1;
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS "return x-1;" //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: return x-1;
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS '
+  return x-1;
+' //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+  return x-1;
+
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+"
+   return x-1;
+" //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+   return x-1;
+
+Routine body must come after characteristics
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+AS $$
+return x-1;
+$$
+DETERMINISTIC LANGUAGE JAVASCRIPT
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$
+return x-1;
+$$
+DETERMINISTIC LANGUAGE JAVASCRIPT' at line 2
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+'
+  return "$$" + a + "$$";
+'
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+  return "$$" + a + "$$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$code$
+return "$$" + a + "$$";
+$code$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "$$" + a + "$$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$coDE$
+return "$$" + a + "$$";
+$coDE$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "$$" + a + "$$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$CODE$
+return "$$" + a + "$$";
+$CODE$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "$$" + a + "$$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$tag$
+return "$$" + a + "$$";
+$tag$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "$$" + a + "$$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$TAG$
+return "$$" + a + "$$";
+$TAG$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "$$" + a + "$$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$NULL$
+return "$$" + a + "$$";
+$NULL$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "$$" + a + "$$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$abdc_1234$
+return "$$" + a + "$$";
+$abdc_1234$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "$$" + a + "$$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$_a$
+return "$$" + a + "$$";
+$_a$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "$$" + a + "$$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$_$
+return "$$" + a + "$$";
+$_$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "$$" + a + "$$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$0$
+return "$$" + a + "$$";
+$0$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "$$" + a + "$$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$100$
+return "$$" + a + "$$";
+$100$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "$$" + a + "$$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$12345678901234$
+return "$$" + a + "$$";
+$12345678901234$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "$$" + a + "$$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM$
+return "$$" + a + "$$";
+$1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "$$" + a + "$$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$¡$
+return "$$" + a + "$$";
+$¡$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "$$" + a + "$$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM¡™£¢∞§¶•ªº–≠œ∑´®†¥¨ˆøπ“‘«åß∂ƒ©˙∆˚¬…æΩ≈ç√∫µ≤≥÷⁄€‹›ﬁﬂ‡°·‚—±ÅÍÎÏ˝ÓÔÒÚÆ¸˛Ç◊ıÂ¯˘¿$
+return "$$" + a + "$$";
+$1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM¡™£¢∞§¶•ªº–≠œ∑´®†¥¨ˆøπ“‘«åß∂ƒ©˙∆˚¬…æΩ≈ç√∫µ≤≥÷⁄€‹›ﬁﬂ‡°·‚—±ÅÍÎÏ˝ÓÔÒÚÆ¸˛Ç◊ıÂ¯˘¿$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "$$" + a + "$$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS	      $$
+const $x = 3;
+const $y$ = 4;
+return $x + $y$ + a;
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+const $x = 3;
+const $y$ = 4;
+return $x + $y$ + a;
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$code$
+const x$$ = 3;
+const $y$$z = 4;
+return $x + $y$$z + a;
+$code$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+const x$$ = 3;
+const $y$$z = 4;
+return $x + $y$$z + a;
+
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+$$
+return x-1;
+$$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$
+return x-1;
+$$' at line 3
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE 'return x-1;' //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''return x-1;'' at line 2
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE return x-1 //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'return x-1' at line 2
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC AS LANGUAGE JAVASCRIPT
+"return x-1;" //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'LANGUAGE JAVASCRIPT
+"return x-1;"' at line 2
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+$code$
+return "$$" + a + "$$";
+$code$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$code$
+return "$$" + a + "$$";
+$code$' at line 3
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $
+return x-1;
+$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$
+return x-1;
+$' at line 3
+# Test conflicting dollar quotes
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$
+return "$$" + a + "$$";
+$$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '" + a + "$$";
+$$' at line 4
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $code$
+return "$code$" + a + "$code$";
+$code$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '" + a + "$code$";
+$code$' at line 4
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$code$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$
+return x-1;
+$code$' at line 3
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$code$
+return "$$" + a + "$$";
+$$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$code$
+return "$$" + a + "$$";
+$$' at line 4
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$Code$
+return "$$" + a + "$$";
+$CODE$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$Code$
+return "$$" + a + "$$";
+$CODE$' at line 4
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$CodE$
+return "$$" + a + "$$";
+$code$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$CodE$
+return "$$" + a + "$$";
+$code$' at line 4
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS	      $$
+const $x = 3;
+const $y$ = 4;
+return $x + $y$ + a;
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$
+const $x = 3;
+const $y$ = 4;
+return $x + $y$ + a' at line 3
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$code$
+const x$$ = 3;
+const $y$$z = 4;
+return $x + $y$$z + a;
+$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$code$
+const x$$ = 3;
+const $y$$z = 4;
+return $x + $y$$z + a;
+$' at line 4
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM™∞•–≠∑†π“‘∂ƒ˙∆˚…Ω≈√∫≤≥⁄€‹›ﬁﬂ‡‚—˝˛◊ı˘$
+return "$$" + a + "$$";
+$1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM™∞•–≠∑†π“‘∂ƒ˙∆˚…Ω≈√∫≤≥⁄€‹›ﬁﬂ‡‚—˝˛◊ı˗$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM™∞•–≠â' at line 4
+Check cases with invalid dollar tags
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $+a$
+return x-1;
+$+a$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$+a$
+return x-1;
+$+a$' at line 3
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $a-$
+return x-1;
+$a-$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$a-$
+return x-1;
+$a-$' at line 3
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $a(b$
+return x-1;
+$a(b$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$a(b$
+return x-1;
+$a(b$' at line 3
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $a~b$
+return x-1;
+$a~b$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$a~b$
+return x-1;
+$a~b$' at line 3
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$' at line 3
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $ $
+return x-1;
+$ $ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$ $
+return x-1;
+$ $' at line 3
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $I'm$
+  return x-1;
+$I'm$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$I'm$
+  return x-1;
+$I'm$' at line 3
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $'Hi'$
+return x-1;
+$'Hi'$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$'Hi'$
+return x-1;
+$'Hi'$' at line 3
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $a"b"$
+return x-1;
+$a"b"$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$a"b"$
+return x-1;
+$a"b"$' at line 3
+# Test multi-byte characters in code (∂ is 3 bytes in UTF8)
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$
+return "∂" + a + "$∂$";
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "∂" + a + "$∂$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $code$
+return "∂" + a + "$∂$$";
+$code$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "∂" + a + "$∂$$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $code$
+return "∂" + a + "$∂$$∂";
+$code$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "∂" + a + "$∂$$∂";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$∂
+return "∂" + a + "$∂$";
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: ∂
+return "∂" + a + "$∂$";
+
+Test multi-byte characters in quote tags
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $∂$
+return "∂" + a + "∂$";
+$∂$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "∂" + a + "∂$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $co∂e$
+return "∂" + a + "$∂$$";
+$co∂e$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "∂" + a + "$∂$$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $😀$
+return "😀$😔" + a + "😀$😔$";
+$😀$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "ð$ð" + a + "ð$ð$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $😀😔$
+return "😀$😔" + a + "😀$😔$";
+$😀😔$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "ð$ð" + a + "ð$ð$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $x😀$
+return "$x😀😔" + a + "$x😀😔$";
+$x😀$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "$xðð" + a + "$xðð$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $😀x$
+return "$😀x😔$" + a + "$😀😔x$";
+$😀x$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "$ðxð$" + a + "$ððx$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $x😀y$
+return "$x😀😔y$" + a + "$x😀y😔$";
+$x😀y$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "$xððy$" + a + "$xðyð$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $x😀y😔$
+return "😀😔$" + a + "😀$😔$";
+$x😀y😔$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+return "ðð$" + a + "ð$ð$";
+
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $😀😔$
+return "😀$😔" + a + "😀$😔$";
+$😔😀$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$??$
+return "?$?" + a + "?$?$";
+$??$' at line 3
+# Escape sequences is not supported in dollar quoted strings
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$
+return "\$$" + a + "\$code$";
+$$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '" + a + "\$code$";
+$$' at line 4
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $code$
+return "\$$" + a + "\$code$";
+$code$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '";
+$code$' at line 4
+# Check some variants that should give external parse error
+# if the language is supported
+CREATE FUNCTION foo(x INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $code$ return "$$" + x + "$foo$"; $code$ //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  return "$$" + x + "$foo$"; 
+CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$
+const $x = x,
+const $y = 1
+return $x + $y;
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+const $x = x,
+const $y = 1
+return $x + $y;
+
+# Multiple occurrences of routine body is not allowed
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS 'return "$$" + a + "$foo$";'
+AS $$ return a-1; $$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS $$ return a-1; $$' at line 4
+CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $code$ return "$$" + a + "$foo$"; $code$
+AS $$ return a-1; $$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS $$ return a-1; $$' at line 4
+# Both external code and SQL code is not allowed
+CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$ return a-1; $$
+BEGIN RETURN a-1; END //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BEGIN RETURN a-1; END' at line 4
+CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
+DETERMINISTIC LANGUAGE SQL
+AS $$ return a-1; $$
+BEGIN RETURN a-1; END //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$ return a-1; $$
+BEGIN RETURN a-1; END' at line 3
+# Parse error if no routine body
+CREATE FUNCTION foo() RETURNS INTEGER
+DETERMINISTIC LANGUAGE JAVASCRIPT//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 2
+# Repeat test cases for procedures
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$ //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = a;
+
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS 'let b = a;' //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: let b = a;
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS "let b = a;" //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: let b = a;
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS '
+  let b = a;
+' //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+  let b = a;
+
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+"
+   let b = a;
+" //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+   let b = a;
+
+Routine body must come after characteristics
+CREATE PROCEDURE bar(x INTEGER)
+AS $$
+let b = a;
+$$
+DETERMINISTIC LANGUAGE JAVASCRIPT
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$
+let b = a;
+$$
+DETERMINISTIC LANGUAGE JAVASCRIPT' at line 2
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+'
+  let b = "$$" + a + "$$";
+'
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+  let b = "$$" + a + "$$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$code$
+let b = "$$" + a + "$$";
+$code$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "$$" + a + "$$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$coDE$
+let b = "$$" + a + "$$";
+$coDE$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "$$" + a + "$$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$CODE$
+let b = "$$" + a + "$$";
+$CODE$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "$$" + a + "$$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$tag$
+let b = "$$" + a + "$$";
+$tag$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "$$" + a + "$$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$TAG$
+let b = "$$" + a + "$$";
+$TAG$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "$$" + a + "$$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$NULL$
+let b = "$$" + a + "$$";
+$NULL$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "$$" + a + "$$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$abdc_1234$
+let b = "$$" + a + "$$";
+$abdc_1234$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "$$" + a + "$$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$_a$
+let b = "$$" + a + "$$";
+$_a$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "$$" + a + "$$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$_$
+let b = "$$" + a + "$$";
+$_$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "$$" + a + "$$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$0$
+let b = "$$" + a + "$$";
+$0$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "$$" + a + "$$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$100$
+let b = "$$" + a + "$$";
+$100$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "$$" + a + "$$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$12345678901234$
+let b = "$$" + a + "$$";
+$12345678901234$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "$$" + a + "$$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM$
+let b = "$$" + a + "$$";
+$1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "$$" + a + "$$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$¡$
+let b = "$$" + a + "$$";
+$¡$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "$$" + a + "$$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM¡™£¢∞§¶•ªº–≠œ∑´®†¥¨ˆøπ“‘«åß∂ƒ©˙∆˚¬…æΩ≈ç√∫µ≤≥÷⁄€‹›ﬁﬂ‡°·‚—±ÅÍÎÏ˝ÓÔÒÚÆ¸˛Ç◊ıÂ¯˘¿$
+let b = "$$" + a + "$$";
+$1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM¡™£¢∞§¶•ªº–≠œ∑´®†¥¨ˆøπ“‘«åß∂ƒ©˙∆˚¬…æΩ≈ç√∫µ≤≥÷⁄€‹›ﬁﬂ‡°·‚—±ÅÍÎÏ˝ÓÔÒÚÆ¸˛Ç◊ıÂ¯˘¿$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "$$" + a + "$$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS	      $$
+const $x = 3;
+const $y$ = 4;
+let b = $x + $y$ + a;
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+const $x = 3;
+const $y$ = 4;
+let b = $x + $y$ + a;
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$code$
+const x$$ = 3;
+const $y$$z = 4;
+let b = $x + $y$$z + a;
+$code$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+const x$$ = 3;
+const $y$$z = 4;
+let b = $x + $y$$z + a;
+
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+$$
+let b = a;
+$$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$
+let b = a;
+$$' at line 3
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE 'let b = a;' //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''let b = a;'' at line 2
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE let b = a //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '= a' at line 2
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC AS LANGUAGE JAVASCRIPT
+"let b = a;" //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'LANGUAGE JAVASCRIPT
+"let b = a;"' at line 2
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+$code$
+let b = "$$" + a + "$$";
+$code$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$code$
+let b = "$$" + a + "$$";
+$code$' at line 3
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $
+let b = a;
+$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$
+let b = a;
+$' at line 3
+# Test conflicting dollar quotes
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$
+let b = "$$" + a + "$$";
+$$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '" + a + "$$";
+$$' at line 4
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $code$
+let b = "$code$" + a + "$code$";
+$code$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '" + a + "$code$";
+$code$' at line 4
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$code$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$
+let b = a;
+$code$' at line 3
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$code$
+let b = "$$" + a + "$$";
+$$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$code$
+let b = "$$" + a + "$$";
+$$' at line 4
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$Code$
+let b = "$$" + a + "$$";
+$CODE$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$Code$
+let b = "$$" + a + "$$";
+$CODE$' at line 4
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$CodE$
+let b = "$$" + a + "$$";
+$code$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$CodE$
+let b = "$$" + a + "$$";
+$code$' at line 4
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS	      $$
+const $x = 3;
+const $y$ = 4;
+let b = $x + $y$ + a;
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$
+const $x = 3;
+const $y$ = 4;
+let b = $x + $y$ + a' at line 3
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$code$
+const x$$ = 3;
+const $y$$z = 4;
+let b = $x + $y$$z + a;
+$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$code$
+const x$$ = 3;
+const $y$$z = 4;
+let b = $x + $y$$z + a;
+$' at line 4
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS
+$1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM™∞•–≠∑†π“‘∂ƒ˙∆˚…Ω≈√∫≤≥⁄€‹›ﬁﬂ‡‚—˝˛◊ı˘$
+let b = "$$" + a + "$$";
+$1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM™∞•–≠∑†π“‘∂ƒ˙∆˚…Ω≈√∫≤≥⁄€‹›ﬁﬂ‡‚—˝˛◊ı˗$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM™∞•–≠â' at line 4
+Check cases with invalid dollar tags
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $+a$
+let b = a;
+$+a$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$+a$
+let b = a;
+$+a$' at line 3
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $a-$
+let b = a;
+$a-$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$a-$
+let b = a;
+$a-$' at line 3
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $a(b$
+let b = a;
+$a(b$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$a(b$
+let b = a;
+$a(b$' at line 3
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $a~b$
+let b = a;
+$a~b$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$a~b$
+let b = a;
+$a~b$' at line 3
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$' at line 3
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $ $
+let b = a;
+$ $ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$ $
+let b = a;
+$ $' at line 3
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $I'm$
+  let b = a;
+$I'm$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$I'm$
+  let b = a;
+$I'm$' at line 3
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $'Hi'$
+let b = a;
+$'Hi'$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$'Hi'$
+let b = a;
+$'Hi'$' at line 3
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $a"b"$
+let b = a;
+$a"b"$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$a"b"$
+let b = a;
+$a"b"$' at line 3
+# Test multi-byte characters in code (∂ is 3 bytes in UTF8)
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$
+let b = "∂" + a + "$∂$";
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "∂" + a + "$∂$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $code$
+let b = "∂" + a + "$∂$$";
+$code$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "∂" + a + "$∂$$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $code$
+let b = "∂" + a + "$∂$$∂";
+$code$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "∂" + a + "$∂$$∂";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$∂
+let b = "∂" + a + "$∂$";
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: ∂
+let b = "∂" + a + "$∂$";
+
+Test multi-byte characters in quote tags
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $∂$
+let b = "∂" + a + "∂$";
+$∂$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "∂" + a + "∂$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $co∂e$
+let b = "∂" + a + "$∂$$";
+$co∂e$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "∂" + a + "$∂$$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $😀$
+let b = "😀$😔" + a + "😀$😔$";
+$😀$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "ð$ð" + a + "ð$ð$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $😀😔$
+let b = "😀$😔" + a + "😀$😔$";
+$😀😔$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "ð$ð" + a + "ð$ð$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $x😀$
+let b = "$x😀😔" + a + "$x😀😔$";
+$x😀$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "$xðð" + a + "$xðð$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $😀x$
+let b = "$😀x😔$" + a + "$😀😔x$";
+$😀x$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "$ðxð$" + a + "$ððx$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $x😀y$
+let b = "$x😀😔y$" + a + "$x😀y😔$";
+$x😀y$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "$xððy$" + a + "$xðyð$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $x😀y😔$
+let b = "😀😔$" + a + "😀$😔$";
+$x😀y😔$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+let b = "ðð$" + a + "ð$ð$";
+
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $😀😔$
+let b = "😀$😔" + a + "😀$😔$";
+$😔😀$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$??$
+let b = "?$?" + a + "?$?$";
+$??$' at line 3
+# Escape sequences is not supported in dollar quoted strings
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$
+let b = "\$$" + a + "\$code$";
+$$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '" + a + "\$code$";
+$$' at line 4
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $code$
+let b = "\$$" + a + "\$code$";
+$code$
+//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '";
+$code$' at line 4
+# Check some variants that should give external parse error
+# if the language is supported
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $code$ let b = "$$" + x + "$foo$"; $code$ //
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code:  let b = "$$" + x + "$foo$"; 
+CREATE PROCEDURE bar(x INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$
+const $x = x,
+const $y = 1
+let b = $x + $y;
+$$
+//
+ERROR HY000: Unsupported external language: 'JAVASCRIPT'. Code: 
+const $x = x,
+const $y = 1
+let b = $x + $y;
+
+# Multiple occurrences of routine body is not allowed
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS 'let b = "$$" + a + "$foo$";'
+AS $$ let b = a-1; $$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS $$ let b = a-1; $$' at line 4
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $code$ let b = "$$" + a + "$foo$"; $code$
+AS $$ let b = a-1; $$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS $$ let b = a-1; $$' at line 4
+# Both external code and SQL code is not allowed
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE JAVASCRIPT
+AS $$ let b = a-1; $$
+BEGIN RETURN a-1; END //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BEGIN RETURN a-1; END' at line 4
+CREATE PROCEDURE bar(a INTEGER)
+DETERMINISTIC LANGUAGE SQL
+AS $$ let b = a-1; $$
+BEGIN RETURN a-1; END //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$ let b = a-1; $$
+BEGIN RETURN a-1; END' at line 3
+# Parse error if no routine body
+CREATE PROCEDURE bar()
+DETERMINISTIC LANGUAGE JAVASCRIPT//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 2
+# Check that dollar quotes can not be used in other context
+CREATE FUNCTION $$foo(x INTEGER) LET B =S INTEGER DETERMINISTIC
+LANGUAGE JAVASCRIPT AS $$ let b = x-1; $$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$foo(x INTEGER) LET B =S INTEGER DETERMINISTIC
+LANGUAGE JAVASCRIPT AS $$ let b ' at line 1
+CREATE PROCEDURE $$bar(a INTEGER) DETERMINISTIC
+LANGUAGE JAVASCRIPT AS $$ let b = a; $$ //
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$bar(a INTEGER) DETERMINISTIC
+LANGUAGE JAVASCRIPT AS $$ let b = a; $$' at line 1
+SELECT $$Hello world!$$;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$Hello world!$$' at line 1
+SELECT $hi$Hello world!$hi$;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$hi$Hello world!$hi$' at line 1
+# Check that dollars can still be used in identifiers
+SELECT 1 AS $hi;
+$hi
+1
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+SELECT 1 AS h$i;
+h$i
+1
+SELECT 1 AS h$$i;
+h$$i
+1
+SELECT 1 AS h$i$;
+h$i$
+1
+# Identifiers matching dollar quotes can no longer be used
+SELECT 1 AS $$;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$' at line 1
+SELECT 1 AS $hi$;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$hi$' at line 1
+SELECT 1 AS $h$i;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$h$i' at line 1
+# ... unless quoted
+SELECT 1 AS `$$`;
+$$
+1
+SELECT 1 AS `$hi$`;
+$hi$
+1
+SELECT 1 AS `$h$i`;
+$h$i
+1

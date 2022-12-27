@@ -1124,6 +1124,70 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip) {
   return nullptr;  // unexpected end of query
 }
 
+/**
+  Get the text literal between dollar quotes.
+
+  A dollar quote is of the form $tag$, where tag is zero or more characters.
+  The same characters that are permitted for unquoted identifiers,
+  except dollar, may be used for the tag.
+  That is, basic ASCII letters, digits 0-9, underscore,
+  and any multibyte UTF8 characters.
+
+  @param lip     The input stream. When called, the current position
+                 is right after the initial dollar character
+  @param tag_len The length of the tag
+
+  @returns The text literal without dollar quotes
+ */
+static LEX_CSTRING get_dollar_quoted_text(Lex_input_stream *lip, int tag_len) {
+  assert(lip->yyGetLast() == '$' && !lip->eof());
+
+  const CHARSET_INFO *cs = lip->m_thd->charset();
+
+  const uchar *left_delim = pointer_cast<const uchar *>(lip->get_tok_start());
+  lip->yySkipn(tag_len + 1);  // skip beyond the 2nd '$'
+
+  enum { TEXT_BODY, RIGHT_DELIMITER } state = TEXT_BODY;
+
+  const char *body_start = lip->get_cpp_ptr();
+  int delim_pos = 0;  // Position during delimiter matching
+
+  while (!lip->eof()) {
+    const uchar c = lip->yyGet();
+
+    switch (state) {
+      case TEXT_BODY:
+        if (use_mb(cs)) {
+          int mb_len =
+              my_ismbchar(cs, lip->get_ptr() - 1, lip->get_end_of_query());
+          if (mb_len > 1) {
+            lip->skip_binary(mb_len - 1);
+            break;
+          }
+        }
+        if (c == '$') {
+          state = RIGHT_DELIMITER;
+        }
+        break;
+
+      case RIGHT_DELIMITER:
+        if (c == left_delim[++delim_pos]) {
+          if (delim_pos == tag_len + 1) {
+            size_t length = lip->get_cpp_ptr() - body_start - tag_len - 2;
+            return LEX_CSTRING{body_start, length};
+          }
+        } else {  // Not a right delimiter after all
+          state = TEXT_BODY;
+          delim_pos = 0;
+        }
+        break;
+    }
+  }
+
+  assert(lip->eof());
+  return LEX_CSTRING{};  // error: unterminated text
+}
+
 uint Lex_input_stream::get_lineno(const char *raw_ptr) const {
   assert(m_buf <= raw_ptr && raw_ptr <= m_end_of_query);
   if (!(m_buf <= raw_ptr && raw_ptr <= m_end_of_query)) return 1;
@@ -1442,12 +1506,6 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
         }
         yylval->lex_str.length = lip->yytoklen;
         return (NCHAR_STRING);
-
-      case MY_LEX_IDENT_OR_DOLLAR_QUOTE:
-        state = MY_LEX_IDENT;
-        push_deprecated_warn_no_replacement(
-            lip->m_thd, "$ as the first character of an unquoted identifier");
-        break;
 
       case MY_LEX_IDENT_OR_HEX:
         if (lip->yyPeek() == '\'') {  // Found x'hex-number'
@@ -2043,6 +2101,42 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
                                       lip->m_cpp_text_end);
 
         return (result_state);
+
+      case MY_LEX_IDENT_OR_DOLLAR_QUOTED_TEXT: {
+        int len = 0;             /* Length of the tag of the dollar quote */
+        uchar p = lip->yyPeek(); /* Character succeeding first $ */
+        // Find $ character after the tag
+        while (p != '$' && ident_map[p] &&
+               lip->get_ptr() + len <= lip->get_end_of_query()) {
+          if (use_mb(cs)) {
+            int l =
+                my_ismbchar(cs, lip->get_ptr() + len, lip->get_end_of_query());
+            if (l > 1) len += l - 1;
+          }
+          p = lip->yyPeekn(++len);
+        }
+
+        if (p != '$') { /* Not a dollar quote, could be an identifier */
+          push_deprecated_warn_no_replacement(
+              lip->m_thd, "$ as the first character of an unquoted identifier");
+          state = MY_LEX_IDENT;
+          break;
+        } else {
+          LEX_CSTRING text = get_dollar_quoted_text(lip, len);
+          if (text == NULL_CSTR)
+            return ABORT_SYM;  // error: unterminated text
+          else {
+            yylval->lex_str.str = const_cast<char *>(text.str);
+            yylval->lex_str.length = text.length;
+
+            lip->body_utf8_append(text.str);
+            lip->body_utf8_append_literal(thd, &yylval->lex_str, cs,
+                                          text.str + text.length);
+
+            return DOLLAR_QUOTED_STRING_SYM;  // $$ ... $$
+          }
+        }
+      }
     }
   }
 }

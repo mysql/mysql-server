@@ -4,28 +4,23 @@ Warning	1681	'$ as the first character of an unquoted identifier' is deprecated 
 drop table $t;
 Warnings:
 Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
-create table t(id int, $id int, $id2 int, $$id int, $ int, $1 int,$$$ int,
-id$$$ int, 1$ int, `$$` int, _$ int, b$$lit$$ int);
+create table t(id int, $id int, $id2 int, `$$id` int, $ int, $1 int,
+`$$$` int, id$$$ int, 1$ int, `$$` int, _$ int, b$$lit$$ int);
 Warnings:
 Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
 Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
 Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
 Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
-Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
-Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
-select `$1`, $$$,$$id, '$someli$teral' from t where t.`$id` = 0;
+select `$1`, `$$$`,`$$id`, '$someli$teral' from t where t.`$id` = 0;
 $1	$$$	$$id	$someli$teral
-Warnings:
-Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
-Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
 SET sql_mode = sys.LIST_ADD(@@sql_mode, 'ANSI_QUOTES');
 select "$id2", "$$$" from t where t."$id" = 0;
 $id2	$$$
 SET sql_mode = sys.LIST_DROP(@@sql_mode, 'ANSI_QUOTES');
 select * from t where t.`$id` = 0 or `$id2` = 0 or b$$lit$$ = 0;
 id	$id	$id2	$$id	$	$1	$$$	id$$$	1$	$$	_$	b$$lit$$
-select id+$id+$$id from t;
-id+$id+$$id
+select id+$id+$id from t;
+id+$id+$id
 Warnings:
 Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
 Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
@@ -47,17 +42,15 @@ email varchar(35),
 )
 partition by key(`$joined`) partitions 6;
 drop table tpart;
-prepare $stmt from 'select $$id, $id, `$$` from t';
+prepare $stmt from 'select `$$id`, $id, `$$` from t';
 Warnings:
-Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
 Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
 execute $stmt;
 $$id	$id	$$
 set @table_name:='t';
-set @sql:=concat('select $$id, $id, `$$` from ', @table_name);
+set @sql:=concat('select `$$id`, $id, `$$` from ', @table_name);
 prepare dynamic_stmt from @sql;
 Warnings:
-Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
 Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
 execute dynamic_stmt;
 $$id	$id	$$

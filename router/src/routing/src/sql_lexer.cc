@@ -654,7 +654,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
         yylval->lex_str.length = lip->yytoklen;
         return (NCHAR_STRING);
 
-      case MY_LEX_IDENT_OR_DOLLAR_QUOTE:
+      case MY_LEX_IDENT_OR_DOLLAR_QUOTED_TEXT:
         state = MY_LEX_IDENT;
         push_deprecated_warn_no_replacement(
             lip->m_thd, "$ as the first character of an unquoted identifier");

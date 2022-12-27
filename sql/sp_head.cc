@@ -1737,7 +1737,6 @@ sp_head::sp_head(MEM_ROOT &&mem_root, enum_sp_type type)
 
   m_params = NULL_STR;
 
-  m_defstr = NULL_STR;
   m_body = NULL_CSTR;
   m_body_utf8 = NULL_CSTR;
 
@@ -1776,7 +1775,8 @@ void sp_head::set_body_start(THD *thd, const char *begin_ptr) {
 
 void sp_head::set_body_end(THD *thd) {
   Lex_input_stream *lip = &thd->m_parser_state->m_lip; /* shortcut */
-  const char *end_ptr = lip->get_cpp_ptr();            /* shortcut */
+
+  const char *end_ptr = is_sql() ? lip->get_cpp_ptr() : code.str + code.length;
 
   /* Make the string of parameters. */
 
@@ -1797,29 +1797,28 @@ void sp_head::set_body_end(THD *thd) {
   /* Make the string of body (in the original character set). */
 
   LEX_STRING body;
-  body.length = end_ptr - m_parser_data.get_body_start_ptr();
-  body.str = thd->strmake(m_parser_data.get_body_start_ptr(), body.length);
+  if (is_sql()) {
+    body.length = end_ptr - m_parser_data.get_body_start_ptr();
+    body.str = thd->strmake(m_parser_data.get_body_start_ptr(), body.length);
+  } else {
+    body.length = code.length;
+    body.str = thd->strmake(code.str, body.length);
+  }
   trim_whitespace(thd->charset(), &body);
   m_body = to_lex_cstring(body);
 
   /* Make the string of UTF-body. */
-
-  lip->body_utf8_append(end_ptr);
-
   LEX_STRING body_utf8;
-  body_utf8.length = lip->get_body_utf8_length();
-  body_utf8.str = thd->strmake(lip->get_body_utf8_str(), body_utf8.length);
+  if (is_sql()) {
+    lip->body_utf8_append(end_ptr);
+    body_utf8.length = lip->get_body_utf8_length();
+    body_utf8.str = thd->strmake(lip->get_body_utf8_str(), body_utf8.length);
+  } else {
+    thd->convert_string(&body_utf8, &my_charset_utf8mb3_general_ci, body.str,
+                        body.length, thd->charset());
+  }
   trim_whitespace(thd->charset(), &body_utf8);
   m_body_utf8 = to_lex_cstring(body_utf8);
-
-  /*
-    Make the string of whole stored-program-definition query (in the
-    original character set).
-  */
-
-  m_defstr.length = end_ptr - lip->get_cpp_buf();
-  m_defstr.str = thd->strmake(lip->get_cpp_buf(), m_defstr.length);
-  trim_whitespace(thd->charset(), &m_defstr);
 }
 
 bool sp_head::setup_trigger_fields(THD *thd, Table_trigger_field_support *tfs,

@@ -1398,6 +1398,8 @@ void warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> URL_SYM                    1202   /* MYSQL */
 %token<lexer.keyword> GENERATE_SYM               1203   /* MYSQL */
 
+%token                DOLLAR_QUOTED_STRING_SYM   1204   /* INTERNAL (used in lexer) */
+
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
@@ -1456,7 +1458,7 @@ void warn_on_deprecated_user_defined_collation(
         IDENT IDENT_QUOTED TEXT_STRING DECIMAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM
         LEX_HOSTNAME ULONGLONG_NUM select_alias ident opt_ident ident_or_text
         role_ident role_ident_or_text
-        IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
+        IDENT_sys TEXT_STRING_sys TEXT_STRING_literal DOLLAR_QUOTED_STRING_SYM
         NCHAR_STRING
         BIN_NUM TEXT_STRING_filesystem ident_or_empty
         TEXT_STRING_sys_nonewline TEXT_STRING_password TEXT_STRING_hash
@@ -1471,6 +1473,7 @@ void warn_on_deprecated_user_defined_collation(
         engine_or_all
         opt_binlog_in
         persisted_variable_ident
+        routine_string
 
 %type <lex_cstr>
         key_cache_name
@@ -17842,8 +17845,7 @@ sf_tail:
 
             lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
 
-            if (!(sp->m_flags & sp_head::HAS_RETURN))
-            {
+            if (sp->is_sql() && !(sp->m_flags & sp_head::HAS_RETURN)) {
               my_error(ER_SP_NORETURN, MYF(0), sp->m_qname.str);
               MYSQL_YYABORT;
             }
@@ -17886,15 +17888,27 @@ sf_tail:
           }
         ;
 
+routine_string:
+          TEXT_STRING_literal
+        | DOLLAR_QUOTED_STRING_SYM
+
 stored_routine_body:
-          sp_proc_stmt
+          AS routine_string
           {
-            // Currently, we only support SQL routines
-            // TODO: Check if language is supported
-            if (my_strcasecmp(system_charset_info,
-                              Lex->sphead->m_chistics->language.str, "SQL")) {
-              my_error(ER_SP_UNSUPPORTED_LANGUAGE, MYF(0),
-                       Lex->sphead->m_chistics->language);
+            sp_head *sp = Lex->sphead;
+            if (sp->is_sql()) {
+               YYTHD->syntax_error();
+               MYSQL_YYABORT;
+            }
+            sp->code = to_lex_cstring($2);
+
+            THD *thd = YYTHD;
+            sp_finish_parsing(thd);
+          }
+        | sp_proc_stmt
+          {
+            if (!Lex->sphead->is_sql()) {
+              YYTHD->syntax_error();
               MYSQL_YYABORT;
             }
 
