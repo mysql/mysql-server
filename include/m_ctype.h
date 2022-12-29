@@ -447,8 +447,6 @@ extern CHARSET_INFO my_charset_utf8mb3_bin;
 extern CHARSET_INFO my_charset_utf8mb4_bin;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_general_ci;
 
-#define MY_UTF8MB4 "utf8mb4"
-
 /* declarations for simple charsets */
 extern size_t my_strnxfrm_simple(const CHARSET_INFO *, uchar *dst,
                                  size_t dstlen, uint nweights, const uchar *src,

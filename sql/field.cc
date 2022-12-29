@@ -214,7 +214,7 @@ bool charset_prevents_inplace(const Field_str &from, const Create_field &to) {
       my_charset_same(to.charset, &my_charset_bin)) {
     return false;
   }
-  return (0 != strcmp(to.charset->csname, MY_UTF8MB4) ||
+  return (0 != strcmp(to.charset->csname, "utf8mb4") ||
           0 != strcmp(from.charset()->csname, "utf8mb3"));
 }
 
