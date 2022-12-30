@@ -1745,6 +1745,10 @@ NdbEventBuffer::nextEvent2()
 
       // If all event operations are dropped, ignore exceptional-event
       op = m_ndb->theImpl->m_ev_op;
+      while (op && op->m_state != NdbEventOperation::EO_EXECUTING)
+      {
+        op = op->m_next;
+      }
       if (op == NULL)
         continue;
 
@@ -1865,18 +1869,22 @@ NdbEventBuffer::getEpochEventOperations(Uint32* iter, Uint32* event_types, Uint3
 {
   DBUG_ENTER("NdbEventBuffer::getEpochEventOperations");
   EpochData *epoch = m_event_queue.first_epoch();
-  if (*iter < epoch->m_gci_op_count)
+  while (*iter < epoch->m_gci_op_count)
   {
     Gci_op g = epoch->m_gci_op_list[(*iter)++];
-    if (event_types != NULL)
-      *event_types = g.event_types;
-    if (cumulative_any_value != NULL)
-      *cumulative_any_value = g.cumulative_any_value;
-    DBUG_PRINT("info", ("gci: %u  g.op: 0x%lx  g.event_types: 0x%lx g.cumulative_any_value: 0x%lx 0x%x %s",
-                        (unsigned)epoch->m_gci.getGCI(), (long) g.op,
-                        (long) g.event_types, (long) g.cumulative_any_value,
-                        m_ndb->getReference(), m_ndb->getNdbObjectName()));
-    DBUG_RETURN(g.op);
+    if (g.op->m_state == NdbEventOperation::EO_EXECUTING)
+    {
+      if (event_types != NULL)
+        *event_types = g.event_types;
+      if (cumulative_any_value != NULL)
+        *cumulative_any_value = g.cumulative_any_value;
+      DBUG_PRINT("info", ("gci: %u  g.op: %p  g.event_types: 0x%lx"
+                          "g.cumulative_any_value: 0x%lx 0x%x %s",
+          (unsigned) epoch->m_gci.getGCI(), g.op,
+          (long) g.event_types, (long) g.cumulative_any_value,
+          m_ndb->getReference(), m_ndb->getNdbObjectName()));
+      DBUG_RETURN(g.op);
+    }
   }
   DBUG_RETURN(NULL);
 }
