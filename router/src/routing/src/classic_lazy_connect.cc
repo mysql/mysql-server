@@ -67,7 +67,10 @@ class FailedQueryHandler : public QuerySender::Handler {
 
 class IsTrueHandler : public QuerySender::Handler {
  public:
-  IsTrueHandler(LazyConnector &processor) : processor_(processor) {}
+  IsTrueHandler(LazyConnector &processor,
+                classic_protocol::message::server::Error on_cond_fail_error)
+      : processor_(processor),
+        on_condition_fail_error_(std::move(on_cond_fail_error)) {}
 
   void on_column_count(uint64_t count) override {
     if (count != 1) {
@@ -94,8 +97,7 @@ class IsTrueHandler : public QuerySender::Handler {
     }
 
     if (*fld != "1") {
-      processor_.failed(classic_protocol::message::server::Error{
-          0, "Replica not synced yet.", "HY000"});
+      processor_.failed(on_condition_fail_error_);
       return;
     }
   }
@@ -118,6 +120,8 @@ class IsTrueHandler : public QuerySender::Handler {
  private:
   LazyConnector &processor_;
   uint64_t row_count_{};
+
+  classic_protocol::message::server::Error on_condition_fail_error_;
 };
 
 /**
@@ -233,6 +237,10 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::process() {
       return fetch_sys_vars();
     case Stage::FetchSysVarsDone:
       return fetch_sys_vars_done();
+    case Stage::CheckReadOnly:
+      return check_read_only();
+    case Stage::CheckReadOnlyDone:
+      return check_read_only_done();
     case Stage::SetTrxCharacteristics:
       return set_trx_characteristics();
     case Stage::SetTrxCharacteristicsDone:
@@ -661,7 +669,7 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::set_schema() {
     connection()->push_processor(
         std::make_unique<InitSchemaSender>(connection(), client_schema));
   } else {
-    stage(Stage::WaitGtidExecuted);
+    stage(Stage::CheckReadOnly);  // skip set_schema_done
   }
 
   return Result::Again;
@@ -683,7 +691,56 @@ LazyConnector::set_schema_done() {
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("connect::set_schema::done"));
     }
-    stage(Stage::SetTrxCharacteristics);
+
+    stage(Stage::CheckReadOnly);
+  }
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+LazyConnector::check_read_only() {
+  if (connection()->expected_server_mode() ==
+      mysqlrouter::ServerMode::ReadOnly) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::check_read_only"));
+    }
+
+    trace_event_check_read_only_ =
+        trace_span(trace_event_connect_, "mysql/check_read_only");
+
+    connection()->push_processor(std::make_unique<QuerySender>(
+        connection(), "SELECT @@GLOBAL.super_read_only",
+        std::make_unique<IsTrueHandler>(
+            *this, classic_protocol::message::server::Error{
+                       0, "Expected @@GLOBAL.super_ready_only to be enabled.",
+                       "HY000"})));
+
+    stage(Stage::CheckReadOnlyDone);
+  } else {
+    stage(Stage::WaitGtidExecuted);  // skip check-read-only-done
+  }
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+LazyConnector::check_read_only_done() {
+  if (failed()) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::check_read_only::failed"));
+    }
+
+    trace_span_end(trace_event_check_read_only_,
+                   TraceEvent::StatusCode::kError);
+
+    stage(Stage::PoolOrClose);
+  } else {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::check_read_only::done"));
+    }
+
+    trace_span_end(trace_event_check_read_only_);
+
+    stage(Stage::WaitGtidExecuted);
   }
   return Result::Again;
 }
@@ -721,7 +778,10 @@ LazyConnector::wait_gtid_executed() {
       }
 
       connection()->push_processor(std::make_unique<QuerySender>(
-          connection(), oss.str(), std::make_unique<IsTrueHandler>(*this)));
+          connection(), oss.str(),
+          std::make_unique<IsTrueHandler>(
+              *this, classic_protocol::message::server::Error{
+                         0, "wait_for_my_writes timed out", "HY000"})));
     }
   }
 
