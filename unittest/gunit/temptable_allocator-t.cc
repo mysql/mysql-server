@@ -625,7 +625,7 @@ TEST_F(
 
   try {
     // Allocate another chunk
-    auto chunk3 = allocator.allocate(520_KiB);
+    auto chunk3 = allocator.allocate(1024_KiB);
     (void)chunk3;
   } catch (std::exception &) {
     EXPECT_TRUE(false);

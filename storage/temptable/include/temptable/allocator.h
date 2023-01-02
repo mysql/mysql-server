@@ -189,10 +189,8 @@ class TableResourceMonitor {
  */
 template <typename Block_size_policy, typename Block_source_policy>
 struct Allocation_scheme {
-  static Source block_source(size_t block_size,
-                             TableResourceMonitor *table_resource_monitor) {
-    return Block_source_policy::block_source(block_size,
-                                             table_resource_monitor);
+  static Source block_source(size_t block_size) {
+    return Block_source_policy::block_source(block_size);
   }
   static size_t block_size(size_t number_of_blocks, size_t n_bytes_requested) {
     return Block_size_policy::block_size(number_of_blocks, n_bytes_requested);
@@ -212,8 +210,7 @@ struct Allocation_scheme {
  *     tmp_table_size SYSVAR.
  * */
 struct Prefer_RAM_over_MMAP_policy {
-  static Source block_source(uint32_t block_size,
-                             TableResourceMonitor * = nullptr) {
+  static Source block_source(uint32_t block_size) {
     if (MemoryMonitor::RAM::consumption() < MemoryMonitor::RAM::threshold()) {
       if (MemoryMonitor::RAM::increase(block_size) <=
           MemoryMonitor::RAM::threshold()) {
@@ -231,38 +228,6 @@ struct Prefer_RAM_over_MMAP_policy {
       }
     }
     throw Result::RECORD_FILE_FULL;
-  }
-};
-
-/* Another concrete implementation of Block_source_policy, a type which controls
- * where TempTable allocator is going to be allocating next Block of memory
- * from. It acts the same as Prefer_RAM_over_MMAP_policy with the main
- * difference being that this policy obeys the per-table limit.
- *
- * What this means is that each temptable::Table is allowed to fit no more data
- * than the given threshold controlled through TableResourceMonitor abstraction.
- * TableResourceMonitor is a simple abstraction which is in its part an alias
- * for tmp_table_size, a system variable that end MySQL users will be using to
- * control this threshold.
- *
- * Updating the tmp_table_size threshold can only be done through the separate
- * SET statement which implies that the tmp_table_size threshold cannot be
- * updated during the duration of some query which is running within the same
- * session. Separate sessions can still of course change this value to their
- * liking.
- * */
-struct Prefer_RAM_over_MMAP_policy_obeying_per_table_limit {
-  static Source block_source(uint32_t block_size,
-                             TableResourceMonitor *table_resource_monitor) {
-    assert(table_resource_monitor);
-    assert(table_resource_monitor->consumption() <=
-           table_resource_monitor->threshold());
-
-    if (table_resource_monitor->consumption() + block_size >
-        table_resource_monitor->threshold())
-      throw Result::RECORD_FILE_FULL;
-
-    return Prefer_RAM_over_MMAP_policy::block_source(block_size);
   }
 };
 
@@ -314,8 +279,7 @@ struct Exponential_policy {
  * over MMAP allocations.
  */
 using Exponential_growth_preferring_RAM_over_MMAP =
-    Allocation_scheme<Exponential_policy,
-                      Prefer_RAM_over_MMAP_policy_obeying_per_table_limit>;
+    Allocation_scheme<Exponential_policy, Prefer_RAM_over_MMAP_policy>;
 
 /**
   Shared state between all instances of a given allocator.
@@ -556,9 +520,8 @@ inline T *Allocator<T, AllocationScheme>::allocate(size_t n_elements) {
   if (m_shared_block && m_shared_block->is_empty()) {
     const size_t block_size =
         AllocationScheme::block_size(0, n_bytes_requested);
-    *m_shared_block = Block(
-        block_size,
-        AllocationScheme::block_source(block_size, &m_table_resource_monitor));
+    *m_shared_block =
+        Block(block_size, AllocationScheme::block_source(block_size));
     block = m_shared_block;
   } else if (m_shared_block &&
              m_shared_block->can_accommodate(n_bytes_requested)) {
@@ -567,15 +530,30 @@ inline T *Allocator<T, AllocationScheme>::allocate(size_t n_elements) {
              !m_state->current_block.can_accommodate(n_bytes_requested)) {
     const size_t block_size = AllocationScheme::block_size(
         m_state->number_of_blocks, n_bytes_requested);
-    m_state->current_block = Block(
-        block_size,
-        AllocationScheme::block_source(block_size, &m_table_resource_monitor));
+    m_state->current_block =
+        Block(block_size, AllocationScheme::block_source(block_size));
     block = &m_state->current_block;
     ++m_state->number_of_blocks;
   } else {
     block = &m_state->current_block;
   }
 
+  /* temptable::Table is allowed to fit no more data than the given threshold
+   * controlled through TableResourceMonitor abstraction. TableResourceMonitor
+   * is a simple abstraction which is in its part an alias for tmp_table_size, a
+   * system variable that end MySQL users will be using to control this
+   * threshold.
+   *
+   * Updating the tmp_table_size threshold can only be done through the separate
+   * SET statement which implies that the tmp_table_size threshold cannot be
+   * updated during the duration of some query which is running within the same
+   * session. Separate sessions can still of course change this value to their
+   * liking.
+   */
+  if (m_table_resource_monitor.consumption() + n_bytes_requested >
+      m_table_resource_monitor.threshold()) {
+    throw Result::RECORD_FILE_FULL;
+  }
   m_table_resource_monitor.increase(n_bytes_requested);
 
   T *chunk_data =
