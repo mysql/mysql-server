@@ -340,4 +340,6 @@ bool ndb_get_parent_table_ids_in_dictionary(
     const NdbDictionary::Dictionary *dict,
     std::unordered_set<unsigned> &table_ids);
 
+bool ndb_dump_NDB_tables(Ndb *ndb);
+
 #endif

@@ -819,6 +819,17 @@ class Ndb_binlog_setup {
       return false;
     }
 
+    DBUG_EXECUTE_IF("ndb_dd_shuffle_ids", {
+      Ndb_dd_client dd_client(m_thd);
+      dd_client.dbug_shuffle_spi_for_NDB_tables();
+    });
+
+    DBUG_EXECUTE_IF("ndb_dd_dump", {
+      Ndb_dd_client dd_client(m_thd);
+      dd_client.dump_NDB_tables();
+      ndb_dump_NDB_tables(thd_ndb->ndb);
+    });
+
     Ndb_dd_sync dd_sync(m_thd, thd_ndb);
     if (initial_system_restart) {
       // Remove all NDB metadata from DD since this is an initial restart
