@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -342,6 +342,17 @@ static bool client_ssl_mode_is_satisfied(
   return true;
 }
 
+static bool client_compress_is_satisfied(
+    classic_protocol::capabilities::value_type client_capabilities,
+    classic_protocol::capabilities::value_type shared_capabilities) {
+  // client enabled "zlib-compress" without checking the server's caps.
+  //
+  // fail the connect.
+  return !(
+      client_capabilities.test(classic_protocol::capabilities::pos::compress) &&
+      !shared_capabilities.test(classic_protocol::capabilities::pos::compress));
+}
+
 static stdx::expected<size_t, std::error_code> send_ssl_connection_error_msg(
     Channel *dst_channel, ClassicProtocolState *dst_protocol,
     const std::string &msg) {
@@ -387,6 +398,21 @@ ClientGreetor::client_greeting() {
     const auto send_res = send_ssl_connection_error_msg(
         src_channel, src_protocol,
         "SSL connection error: SSL is required from client");
+    if (!send_res) return send_client_failed(send_res.error());
+
+    stage(Stage::Error);
+    return Result::SendToClient;
+  }
+
+  // fail connection from buggy clients that set the compress-cap without
+  // checking the server's capabilities.
+  if (!client_compress_is_satisfied(src_protocol->client_capabilities(),
+                                    src_protocol->shared_capabilities())) {
+    const auto send_res =
+        ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+            src_channel, src_protocol,
+            {ER_WRONG_COMPRESSION_ALGORITHM_CLIENT,
+             "Compression not supported by router."});
     if (!send_res) return send_client_failed(send_res.error());
 
     stage(Stage::Error);
@@ -500,21 +526,6 @@ static bool authentication_method_is_supported(
   auto it = std::find(supported_authentication_methods.begin(),
                       supported_authentication_methods.end(), auth_method_name);
   return it != supported_authentication_methods.end();
-}
-
-static bool client_compress_is_satisfied(
-    classic_protocol::capabilities::value_type client_capabilities,
-    classic_protocol::capabilities::value_type shared_capabilities) {
-  // client enabled "zlib-compress" without checking the server's caps.
-  //
-  // fail the connect.
-  if (client_capabilities.test(classic_protocol::capabilities::pos::compress) &&
-      !shared_capabilities.test(
-          classic_protocol::capabilities::pos::compress)) {
-    return false;
-  }
-
-  return true;
 }
 
 stdx::expected<Processor::Result, std::error_code>
