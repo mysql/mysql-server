@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -730,7 +730,6 @@ TEST_P(UnknownClusterSetTargetClusterTest, UnknownClusterSetTargetCluster) {
       "metadata_clusterset.js",
       /*router_options*/ R"({"target_cluster" : ")" + target_cluster + "\" }");
 
-  SCOPED_TRACE("// Prepare the dynamic state file for the Router");
   auto &router = launch_router(EXIT_SUCCESS, -1s);
 
   EXPECT_TRUE(wait_log_contains(router, GetParam().expected_error, 20s));
@@ -795,7 +794,6 @@ TEST_F(ClusterSetTest, TargetClusterEmptyInMetadata) {
                     "metadata_clusterset.js",
                     /*router_options*/ R"({"target_cluster" : "" })");
 
-  SCOPED_TRACE("// Prepare the dynamic state file for the Router");
   auto &router = launch_router(EXIT_SUCCESS, -1s);
 
   EXPECT_TRUE(wait_log_contains(router,

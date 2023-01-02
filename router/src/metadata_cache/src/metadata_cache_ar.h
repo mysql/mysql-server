@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,6 @@ class METADATA_CACHE_EXPORT ARMetadataCache : public MetadataCache {
    * Initialize a connection to the MySQL Metadata server.
    *
    * @param router_id id of the router in the cluster metadata
-   * @param cluster_specific_type_id id of the replication group
    * @param metadata_servers The servers that store the metadata
    * @param cluster_metadata metadata of the cluster
    * @param ttl_config metadata TTL configuration
@@ -46,7 +45,7 @@ class METADATA_CACHE_EXPORT ARMetadataCache : public MetadataCache {
    * @param thread_stack_size The maximum memory allocated for thread's stack
    */
   ARMetadataCache(
-      const unsigned router_id, const std::string &cluster_specific_type_id,
+      const unsigned router_id,
       const std::vector<mysql_harness::TCPAddress> &metadata_servers,
       std::shared_ptr<MetaData> cluster_metadata,
       const metadata_cache::MetadataCacheTTLConfig &ttl_config,
@@ -54,8 +53,8 @@ class METADATA_CACHE_EXPORT ARMetadataCache : public MetadataCache {
       const mysqlrouter::TargetCluster &target_cluster,
       const metadata_cache::RouterAttributes &router_attributes,
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes)
-      : MetadataCache(router_id, cluster_specific_type_id, "", metadata_servers,
-                      cluster_metadata, ttl_config, ssl_options, target_cluster,
+      : MetadataCache(router_id, "", metadata_servers, cluster_metadata,
+                      ttl_config, ssl_options, target_cluster,
                       router_attributes, thread_stack_size, false) {}
 
   bool refresh(bool needs_writable_node) override;

@@ -56,7 +56,8 @@ class MetadataChacheTTLTest : public RouterComponentTest {
  protected:
   std::string get_metadata_cache_section(
       ClusterType cluster_type = ClusterType::GR_V2,
-      const std::string &ttl = "0.5") {
+      const std::string &ttl = "0.5",
+      const std::string &cluster_name = "test") {
     const std::string cluster_type_str =
         (cluster_type == ClusterType::RS_V2) ? "rs" : "gr";
 
@@ -65,14 +66,14 @@ class MetadataChacheTTLTest : public RouterComponentTest {
         {"router_id", "1"},
         {"user", router_metadata_username},
         {"connect_timeout", "1"},
-        {"metadata_cluster", "test"}};
+        {"metadata_cluster", cluster_name}};
 
     if (!ttl.empty()) {
       options["ttl"] = ttl;
     }
 
-    return mysql_harness::ConfigBuilder::build_section("metadata_cache:test",
-                                                       options);
+    return mysql_harness::ConfigBuilder::build_section(
+        "metadata_cache:bootstrap", options);
   }
 
   std::string get_metadata_cache_routing_section(
@@ -420,7 +421,7 @@ TEST_P(MetadataChacheTTLTestParamInvalid, CheckTTLInvalid) {
   EXPECT_THAT(router.exit_code(), testing::Ne(0));
   EXPECT_TRUE(wait_log_contains(router,
                                 "Configuration error: option ttl in "
-                                "\\[metadata_cache:test\\] needs value "
+                                "\\[metadata_cache:bootstrap\\] needs value "
                                 "between 0 and 3600 inclusive",
                                 500ms));
 }
@@ -2403,6 +2404,108 @@ INSTANTIATE_TEST_SUITE_P(
     NoQuorum, MetadataServerNoQuorum,
     ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
                                             "GR_V2", ClusterType::GR_V2),
+                      MetadataTTLTestParams("metadata_dynamic_nodes.js",
+                                            "GR_V1", ClusterType::GR_V1)),
+    get_test_description);
+
+class MetadataCacheChangeClusterName
+    : public MetadataChacheTTLTest,
+      public ::testing::WithParamInterface<MetadataTTLTestParams> {};
+
+TEST_P(MetadataCacheChangeClusterName, ChangeClusterName) {
+  const size_t kClusterNodes{2};
+  std::vector<ProcessWrapper *> cluster_nodes;
+  std::vector<uint16_t> md_servers_classic_ports, md_servers_http_ports;
+
+  const std::string kInitialClusterName = "initial_cluster_name";
+  const std::string kChangedClusterName = "changed_cluster_name";
+
+  // launch the mock servers
+  for (size_t i = 0; i < kClusterNodes; ++i) {
+    const auto classic_port = port_pool_.get_next_available();
+    const auto http_port = port_pool_.get_next_available();
+    const std::string tracefile =
+        get_data_dir().join(GetParam().tracefile).str();
+    cluster_nodes.push_back(&launch_mysql_server_mock(
+        tracefile, classic_port, EXIT_SUCCESS, false, http_port));
+
+    md_servers_classic_ports.push_back(classic_port);
+    md_servers_http_ports.push_back(http_port);
+  }
+
+  auto set_metadata = [&](uint16_t http_port, unsigned int gr_pos,
+                          const std::string &cluster_name) {
+    auto globals = mock_GR_metadata_as_json(
+        "uuid", classic_ports_to_gr_nodes(md_servers_classic_ports), gr_pos,
+        classic_ports_to_cluster_nodes(md_servers_classic_ports));
+    JsonAllocator allocator;
+    globals.AddMember(
+        "cluster_name",
+        JsonValue(cluster_name.c_str(), cluster_name.length(), allocator),
+        allocator);
+    const auto globals_str = json_to_string(globals);
+    MockServerRestClient(http_port).set_globals(globals_str);
+  };
+
+  // initially set the name of the cluster in the metadata to the same value
+  // that was set in the Router configuration file
+  for (const auto [i, http_port] :
+       stdx::views::enumerate(md_servers_http_ports)) {
+    set_metadata(http_port, i, kInitialClusterName);
+  }
+
+  // launch the router
+  const std::string metadata_cache_section = get_metadata_cache_section(
+      GetParam().cluster_type, "0.1", kInitialClusterName);
+  const auto router_rw_port = port_pool_.get_next_available();
+  const std::string routing_rw_section = get_metadata_cache_routing_section(
+      router_rw_port, "PRIMARY", "first-available", "", "rw");
+  const auto router_ro_port = port_pool_.get_next_available();
+  const std::string routing_ro_section = get_metadata_cache_routing_section(
+      router_ro_port, "SECONDARY", "round-robin", "", "ro");
+  auto &router = launch_router(metadata_cache_section,
+                               routing_rw_section + routing_ro_section,
+                               md_servers_classic_ports, EXIT_SUCCESS,
+                               /*wait_for_notify_ready=*/30s);
+
+  // make sure that Router works
+  make_new_connection_ok(router_rw_port, md_servers_classic_ports[0]);
+  make_new_connection_ok(router_ro_port, md_servers_classic_ports[1]);
+
+  // now change the cluster name in the metadata
+  for (const auto [i, http_port] :
+       stdx::views::enumerate(md_servers_http_ports)) {
+    set_metadata(http_port, i, kChangedClusterName);
+  }
+
+  EXPECT_TRUE(
+      wait_for_transaction_count_increase(md_servers_http_ports[0], 2, 5s));
+
+  // the Router should still work
+  make_new_connection_ok(router_rw_port, md_servers_classic_ports[0]);
+  make_new_connection_ok(router_ro_port, md_servers_classic_ports[1]);
+
+  // now stop the Router and start it again, this is to make sure that not only
+  // change of the ClusterName while the Router is running works but also when
+  // it is restarted and loads the configuration from scratch
+  EXPECT_NO_THROW(router.kill());
+  check_exit_code(router, EXIT_SUCCESS, 5s);
+
+  /*auto &router2 = */ launch_router(metadata_cache_section,
+                                     routing_rw_section + routing_ro_section,
+                                     md_servers_classic_ports, EXIT_SUCCESS,
+                                     /*wait_for_notify_ready=*/30s);
+
+  make_new_connection_ok(router_rw_port, md_servers_classic_ports[0]);
+  make_new_connection_ok(router_ro_port, md_servers_classic_ports[1]);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ChangeClusterName, MetadataCacheChangeClusterName,
+    ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
+                                            "GR_V2", ClusterType::GR_V2),
+                      MetadataTTLTestParams("metadata_dynamic_nodes_v2_ar.js",
+                                            "AR", ClusterType::RS_V2),
                       MetadataTTLTestParams("metadata_dynamic_nodes.js",
                                             "GR_V1", ClusterType::GR_V1)),
     get_test_description);

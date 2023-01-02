@@ -51,6 +51,10 @@ if (mysqld.global.transaction_count === undefined) {
   mysqld.global.transaction_count = 0;
 }
 
+if (mysqld.global.cluster_name === undefined) {
+  mysqld.global.cluster_name = "test";
+}
+
 if (mysqld.global.gr_pos === undefined) {
   mysqld.global.gr_pos = 0;
 }
@@ -76,7 +80,8 @@ var options = {
   gr_members_online: online_gr_nodes,
   innodb_cluster_instances: gr_memberships.cluster_nodes(
       mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
-  gr_id: mysqld.global.gr_id
+  gr_id: mysqld.global.gr_id,
+  innodb_cluster_name: mysqld.global.cluster_name,
 };
 
 var router_start_transaction =

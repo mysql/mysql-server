@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -428,8 +428,8 @@ class ConfigGenerator {
                                 const std::set<std::string> &hostnames);
 
   ExistingConfigOptions get_options_from_config_if_it_exists(
-      const std::string &config_file_path, const std::string &cluster_name,
-      bool forcing_overwrite);
+      const std::string &config_file_path,
+      const mysqlrouter::ClusterInfo &cluster_info, bool forcing_overwrite);
 
   void update_router_info(uint32_t router_id, const Options &options);
 
@@ -467,9 +467,7 @@ class ConfigGenerator {
                            const std::string &hostname_override, bool force);
 
   void verify_router_account(const std::string &username,
-                             const std::string &password,
-                             const std::string &primary_cluster_name,
-                             bool strict);
+                             const std::string &password, bool strict);
 
   /**
    * @brief Prepare X.509 certificates for the Router.

@@ -3,6 +3,7 @@ var common_stmts = require("common_statements");
 var options = {
   metadata_schema_version: [1, 0, 2],
   cluster_type: "gr",
+  gr_id: mysqld.global.gr_id,
   innodb_cluster_name: "mycluster",
 };
 
@@ -21,7 +22,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_commit",
 
       // account verification
-      "router_select_metadata",
+      "router_select_metadata_account_verification",
       "router_select_group_replication_primary_member",
       "router_select_group_membership_with_primary_mode",
     ],

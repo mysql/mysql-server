@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -82,14 +82,14 @@ class FailoverTest : public ::testing::Test {
 
   void init_cache() {
     cache = std::make_shared<GRMetadataCache>(
-        kRouterId, group_uuid, "",
+        kRouterId, "",
         std::vector<mysql_harness::TCPAddress>{
             {"localhost", 32275},
         },
         cmeta, metadata_cache::MetadataCacheTTLConfig{10s, -1s, 20s},
         mysqlrouter::SSLOptions(),
         mysqlrouter::TargetCluster{
-            mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"},
+            mysqlrouter::TargetCluster::TargetType::ByUUID, group_uuid},
         metadata_cache::RouterAttributes{},
         mysql_harness::kDefaultStackSizeInKiloBytes, false);
   }
@@ -128,8 +128,8 @@ class FailoverTest : public ::testing::Test {
         "AS F JOIN mysql_innodb_cluster_metadata.replicasets AS R ON "
         "F.cluster_id = R.cluster_id "
         "JOIN mysql_innodb_cluster_metadata.instances AS I ON R.replicaset_id "
-        "= I.replicaset_id WHERE F.cluster_name = 'cluster-1' "
-        "AND R.attributes->>'$.group_replication_group_name' = "
+        "= I.replicaset_id WHERE "
+        "R.attributes->>'$.group_replication_group_name' = "
         "'3e4338a1-2c5d-49ac-8baa-e5a25ba61e76'");
     m.then_return(
         5,

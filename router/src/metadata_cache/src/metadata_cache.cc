@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -46,8 +46,7 @@ using mysql_harness::logging::LogLevel;
 IMPORT_LOG_FUNCTIONS()
 
 MetadataCache::MetadataCache(
-    const unsigned router_id, const std::string &cluster_type_specific_id,
-    const std::string &clusterset_id,
+    const unsigned router_id, const std::string &clusterset_id,
     const std::vector<mysql_harness::TCPAddress> &metadata_servers,
     std::shared_ptr<MetaData> cluster_metadata,
     const metadata_cache::MetadataCacheTTLConfig &ttl_config,
@@ -56,7 +55,6 @@ MetadataCache::MetadataCache(
     const metadata_cache::RouterAttributes &router_attributes,
     size_t thread_stack_size, bool use_cluster_notifications)
     : target_cluster_(target_cluster),
-      cluster_type_specific_id_(cluster_type_specific_id),
       clusterset_id_(clusterset_id),
       ttl_config_(ttl_config),
       ssl_options_(ssl_options),
@@ -612,8 +610,8 @@ bool MetadataCache::update_auth_cache() {
   if (meta_data_ && auth_metadata_fetch_enabled_) {
     try {
       rest_auth_([this](auto &rest_auth) {
-        rest_auth.rest_auth_data_ = meta_data_->fetch_auth_credentials(
-            target_cluster_, this->cluster_type_specific_id());
+        rest_auth.rest_auth_data_ =
+            meta_data_->fetch_auth_credentials(target_cluster_);
         rest_auth.last_credentials_update_ = std::chrono::system_clock::now();
       });
       return true;

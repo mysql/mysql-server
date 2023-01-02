@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,12 +39,10 @@ ARClusterMetadata::~ARClusterMetadata() = default;
 stdx::expected<metadata_cache::ClusterTopology, std::error_code>
 ARClusterMetadata::fetch_cluster_topology(
     const std::atomic<bool> &terminated,
-    mysqlrouter::TargetCluster & /*target_cluster*/,
-    const unsigned /*router_id*/,
+    mysqlrouter::TargetCluster &target_cluster, const unsigned /*router_id*/,
     const metadata_cache::metadata_servers_list_t &metadata_servers,
-    bool /* needs_writable_node */, const std::string &cluster_type_specific_id,
-    const std::string & /*clusterset_id*/, bool /*whole_topology*/,
-    std::size_t &instance_id) {
+    bool /* needs_writable_node */, const std::string & /*clusterset_id*/,
+    bool /*whole_topology*/, std::size_t &instance_id) {
   metadata_cache::ClusterTopology result;
 
   bool metadata_read = false;
@@ -79,8 +77,12 @@ ARClusterMetadata::fetch_cluster_topology(
       }
 
       uint64_t view_id{0};
-      if (!get_member_view_id(*metadata_connection_, cluster_type_specific_id,
-                              view_id)) {
+      const std::string cluster_id =
+          target_cluster.target_type() ==
+                  mysqlrouter::TargetCluster::TargetType::ByUUID
+              ? target_cluster.to_string()
+              : "";
+      if (!get_member_view_id(*metadata_connection_, cluster_id, view_id)) {
         log_warning("Failed fetching view_id from the metadata server on %s:%d",
                     metadata_server.address().c_str(), metadata_server.port());
         continue;
@@ -95,7 +97,7 @@ ARClusterMetadata::fetch_cluster_topology(
       }
 
       result = fetch_topology_from_member(*metadata_connection_, view_id,
-                                          cluster_type_specific_id);
+                                          cluster_id);
 
       this->view_id_ = view_id;
       metadata_read = true;

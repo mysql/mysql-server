@@ -56,8 +56,8 @@ if (mysqld.global.cluster_type === undefined) {
   mysqld.global.cluster_type = "gr";
 }
 
-if (mysqld.global.innodb_cluster_name === undefined) {
-  mysqld.global.innodb_cluster_name = "test";
+if (mysqld.global.cluster_name === undefined) {
+  mysqld.global.cluster_name = "test";
 }
 
 if (mysqld.global.gr_pos === undefined) {
@@ -86,7 +86,7 @@ var options = {
       mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   gr_id: mysqld.global.gr_id,
   cluster_type: mysqld.global.cluster_type,
-  innodb_cluster_name: mysqld.global.innodb_cluster_name,
+  innodb_cluster_name: mysqld.global.cluster_name,
 };
 
 if (mysqld.global.primary_id >= 0) {

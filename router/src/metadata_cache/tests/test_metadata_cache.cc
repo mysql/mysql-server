@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,7 @@ using mysql_harness::TCPAddress;
 using namespace std::chrono_literals;
 
 constexpr unsigned kRouterId = 2;
+static constexpr const char gr_id[] = "0000-0001";
 
 class MetadataCacheTest : public ::testing::Test {
  public:
@@ -55,7 +56,7 @@ class MetadataCacheTest : public ::testing::Test {
   MetadataCacheTest()
       : mf(metadata_cache::MetadataCacheMySQLSessionConfig{
             {"admin", "admin"}, 1, 1, 1}),
-        cache(kRouterId, "0000-0001", "", {TCPAddress("localhost", 32275)},
+        cache(kRouterId, "", {TCPAddress("localhost", 32275)},
               mock_metadata_factory_get_instance(
                   mysqlrouter::ClusterType::GR_V1,
                   metadata_cache::MetadataCacheMySQLSessionConfig{
@@ -63,7 +64,7 @@ class MetadataCacheTest : public ::testing::Test {
                   mysqlrouter::SSLOptions(), false, 0),
               metadata_cache::MetadataCacheTTLConfig{10s, -1s, 20s},
               mysqlrouter::SSLOptions(),
-              {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"},
+              {mysqlrouter::TargetCluster::TargetType::ByUUID, gr_id},
               metadata_cache::RouterAttributes{}) {
     cache.refresh(true);
   }
@@ -147,8 +148,8 @@ class MetadataCacheTest2 : public ::testing::Test {
         "AS F JOIN mysql_innodb_cluster_metadata.replicasets AS R ON "
         "F.cluster_id = R.cluster_id "
         "JOIN mysql_innodb_cluster_metadata.instances AS I ON R.replicaset_id "
-        "= I.replicaset_id WHERE F.cluster_name = 'cluster-1' "
-        "AND R.attributes->>'$.group_replication_group_name' = '0000-0001'");
+        "= I.replicaset_id WHERE "
+        "R.attributes->>'$.group_replication_group_name' = '0000-0001'");
     m.then_return(
         5,
         {// cluster_id, cluster_name, replicaset_name, mysql_server_uuid,
@@ -206,8 +207,6 @@ class MetadataCacheTest2 : public ::testing::Test {
       {"localhost", 3001},
       {"localhost", 3002},
   };
-
-  const std::string gr_id = "0000-0001";
 };
 
 void expect_cluster_routable(MetadataCache &mc) {
@@ -239,12 +238,11 @@ TEST_F(MetadataCacheTest2, basic_test) {
   expect_sql_metadata();
   expect_sql_members();
 
-  GRMetadataCache mc(
-      kRouterId, gr_id, "", metadata_servers, cmeta,
-      metadata_cache::MetadataCacheTTLConfig{10s, -1s, 20s},
-      mysqlrouter::SSLOptions(),
-      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"},
-      metadata_cache::RouterAttributes{});
+  GRMetadataCache mc(kRouterId, "", metadata_servers, cmeta,
+                     metadata_cache::MetadataCacheTTLConfig{10s, -1s, 20s},
+                     mysqlrouter::SSLOptions(),
+                     {mysqlrouter::TargetCluster::TargetType::ByUUID, gr_id},
+                     metadata_cache::RouterAttributes{});
   mc.refresh(true);
 
   // verify that cluster can be seen
@@ -273,12 +271,11 @@ TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
   // start off with all metadata servers up
   expect_sql_metadata();
   expect_sql_members();
-  GRMetadataCache mc(
-      kRouterId, gr_id, "", metadata_servers, cmeta,
-      metadata_cache::MetadataCacheTTLConfig{10s, -1s, 20s},
-      mysqlrouter::SSLOptions(),
-      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"},
-      metadata_cache::RouterAttributes{});
+  GRMetadataCache mc(kRouterId, "", metadata_servers, cmeta,
+                     metadata_cache::MetadataCacheTTLConfig{10s, -1s, 20s},
+                     mysqlrouter::SSLOptions(),
+                     {mysqlrouter::TargetCluster::TargetType::ByUUID, gr_id},
+                     metadata_cache::RouterAttributes{});
   mc.refresh(true);
   expect_cluster_routable(mc);
 

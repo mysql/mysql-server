@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -126,10 +126,10 @@ class TestConfigGenerator : public mysqlrouter::ConfigGenerator {
   }
 
   ExistingConfigOptions get_options_from_config_if_it_exists(
-      const std::string &config_file_path, const std::string &cluster_name,
-      bool forcing_overwrite) {
+      const std::string &config_file_path,
+      const mysqlrouter::ClusterInfo &cluster_info, bool forcing_overwrite) {
     return __base::get_options_from_config_if_it_exists(
-        config_file_path, cluster_name, forcing_overwrite);
+        config_file_path, cluster_info, forcing_overwrite);
   }
 
   void create_start_script(const std::string &program_name,
@@ -331,7 +331,8 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
     config_gen.init(kServerUrl, {});
 
     mock_mysql->expect_query("").then_return(
-        3, {{"91d01072-63cd-11ec-9a29-080027ac264d", "my-cluster",
+        4, {{"91d01072-63cd-11ec-9a29-080027ac264d",
+             "00d01072-63cd-11ec-9a29-080027ac264d", "my-cluster",
              "somehost:3306"}});
 
     const auto cluster_info = config_gen.metadata()->fetch_metadata_servers();
@@ -347,7 +348,8 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
     config_gen.init(kServerUrl, {});
 
     mock_mysql->expect_query("").then_return(
-        3, {{"91d01072-63cd-11ec-9a29-080027ac264d", "my-cluster",
+        4, {{"91d01072-63cd-11ec-9a29-080027ac264d",
+             "00d01072-63cd-11ec-9a29-080027ac264d", "my-cluster",
              "somehost:3306"}});
 
     const auto cluster_info = config_gen.metadata()->fetch_metadata_servers();
@@ -364,13 +366,15 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_three) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
 
-    // select c.cluster_id, c.cluster_name, i.address from
+    // select c.cluster_id, c.group_name as uuid, c.cluster_name, i.address from
     // mysql_innodb_cluster_metadata.v2_instances...
     mock_mysql->expect_query("").then_return(
-        3,
-        {{"91d0107263cd11ec9a29080027ac264d", "my-cluster", "somehost:3306"},
-         {"91d0107263cd11ec9a29080027ac264d", "my-cluster", "otherhost:3306"},
-         {"91d0107263cd11ec9a29080027ac264d", "my-cluster", "sumhost:3306"}});
+        4, {{"91d0107263cd11ec9a29080027ac264d", "replication-1", "my-cluster",
+             "somehost:3306"},
+            {"91d0107263cd11ec9a29080027ac264d", "replication-1", "my-cluster",
+             "otherhost:3306"},
+            {"91d0107263cd11ec9a29080027ac264d", "replication-1", "my-cluster",
+             "sumhost:3306"}});
 
     const auto cluster_info = config_gen.metadata()->fetch_metadata_servers();
 
@@ -2512,7 +2516,8 @@ static void expect_bootstrap_queries(
     const std::vector<query_entry_t> &expected_queries =
         expected_bootstrap_queries) {
   m->expect_query("").then_return(
-      3, {{"91d0107263cd11ec9a29080027ac264d", cluster_name, "somehost:3306"}});
+      4, {{"91d0107263cd11ec9a29080027ac264d", "replication-1", cluster_name,
+           "somehost:3306"}});
   for (const auto &query : expected_queries) {
     switch (query.action) {
       case ACTION_EXECUTE:
@@ -2626,8 +2631,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("select c.cluster_id")
-        .then_return(3, {{"91d0107263cd11ec9a29080027ac264d", "my-cluster",
-                          "somehost:3306"}});
+        .then_return(4, {{"91d0107263cd11ec9a29080027ac264d", "replication-1",
+                          "my-cluster", "somehost:3306"}});
     common_pass_group_name(mock_mysql.get());
     mock_mysql->expect_execute("START TRANSACTION").then_error("boo!", 1234);
 
@@ -2668,8 +2673,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
-        3,
-        {{"91d0107263cd11ec9a29080027ac264d", "my-cluster", "somehost:3306"}});
+        4, {{"91d0107263cd11ec9a29080027ac264d", "replication-1", "my-cluster",
+             "somehost:3306"}});
     common_pass_group_name(mock_mysql.get());
     // force a failure during account creation
     mock_mysql->expect_execute("").then_error("boo!", 1234);
@@ -2692,7 +2697,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
-        3, {{"91d0107263cd11ec9a29080027ac264d", "mycluter", "somehost:3306"}});
+        4, {{"91d0107263cd11ec9a29080027ac264d", "replication-1", "mycluter",
+             "somehost:3306"}});
 
     std::map<std::string, std::string> options2 = options;
     options2["name"] = "force\nfailure";
@@ -2720,8 +2726,8 @@ TEST_F(ConfigGeneratorTest, bug25391460) {
     expect_bootstrap_queries(mock_mysql.get(), "my-cluster");
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
-        3,
-        {{"91d0107263cd11ec9a29080027ac264d", "my-cluster", "somehost:3306"}});
+        4, {{"91d0107263cd11ec9a29080027ac264d", "replication-1", "my-cluster",
+             "somehost:3306"}});
 
     std::map<std::string, std::string> options;
     options["quiet"] = "1";
@@ -2778,8 +2784,8 @@ static void bootstrap_overwrite_test(
     expect_bootstrap_queries(mock_mysql, cluster_name);
   else
     mock_mysql->expect_query("").then_return(
-        3,
-        {{"91d0107263cd11ec9a29080027ac264d", cluster_name, "somehost:3306"}});
+        4, {{"91d0107263cd11ec9a29080027ac264d", "replication-1", cluster_name,
+             "somehost:3306"}});
 
   std::map<std::string, std::string> options;
   options["name"] = name;
@@ -2834,6 +2840,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir,
                                            "myname", false, "cluster", false,
                                            default_paths));
+  // remove state file to fallback to cluster-name verification
+  mysql_harness::delete_file(dir + "/data/state.json");
   mysql_harness::reset_keyring();
   ASSERT_THROW_LIKE(
       bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir, "myname",
@@ -2893,6 +2901,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
                                            "myname", false, "cluster", false,
                                            default_paths));
   mysql_harness::reset_keyring();
+  // remove state file to fallback to cluster-name verification
+  mysql_harness::delete_file(dir + "/data/state.json");
   ASSERT_THROW_LIKE(
       bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir, "xmyname",
                                false, "kluster", true, default_paths),
@@ -3107,7 +3117,7 @@ TEST_F(ConfigGeneratorTest, empty_config_file) {
   TestConfigGenerator::ExistingConfigOptions conf_options;
   EXPECT_NO_THROW(conf_options =
                       config_gen.get_options_from_config_if_it_exists(
-                          conf_path, "dummy", false));
+                          conf_path, {{}, "id", "uuid", "dummy"}, false));
   EXPECT_EQ(conf_options.router_id, uint32_t(0));
 
   mysql_harness::reset_keyring();

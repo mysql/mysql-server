@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -123,7 +123,6 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
   // cannot mock it as it has more than 10 parameters
   void cache_init(
       const mysqlrouter::ClusterType /*cluster_type*/, unsigned /*router_id*/,
-      const std::string & /*group_replication_id*/,
       const std::string & /*clusterset_id*/,
       const std::vector<mysql_harness::TCPAddress> & /*metadata_servers*/,
       const metadata_cache::MetadataCacheTTLConfig & /*ttl_config*/,
@@ -151,7 +150,6 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
 
   void instance_name(const std::string &) override {}
   std::string instance_name() const override { return "foo"; }
-  std::string cluster_type_specific_id() const override { return "foo"; }
   mysqlrouter::TargetCluster target_cluster() const override {
     return {mysqlrouter::TargetCluster::TargetType::ByName, "foo"};
   }
