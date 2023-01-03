@@ -4068,6 +4068,10 @@ CREATE TABLE t1 (a SERIAL, b INT);
 INSERT INTO t1(b) VALUES (1),(2),(3),(100);
 CREATE TABLE t2 (a SERIAL, b INT, c INT, INDEX(b,c));
 INSERT INTO t2(b,c) VALUES (10,10),(100,100),(200,200);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN  SELECT t1.* FROM t1 LEFT JOIN (SELECT a,b,c FROM t2 WHERE b=100 AND c<=100 AND c>=100) t ON t1.a=t.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
