@@ -3361,6 +3361,15 @@ check_yield(thr_data *selfptr,
             Uint32 *spin_time_in_us,
             NDB_TICKS start_spin_ticks)
 {
+#ifndef NDB_HAVE_CPU_PAUSE
+  /**
+   * If cpu_pause() was not implemented, 'min_spin_timer == 0' is enforced,
+   * and spin-before-yield is never attempted.
+   */
+  assert(false);
+  return true;  // -> yield immediately
+
+#else
   NDB_TICKS now;
   bool cont_flag = true;
   /**
@@ -3435,6 +3444,7 @@ check_yield(thr_data *selfptr,
   selfptr->m_micros_sleep += spin_micros;
   wait_time_tracking(selfptr, spin_micros);
   return false;
+#endif
 }
 
 /**
@@ -3449,6 +3459,15 @@ check_recv_yield(thr_data *selfptr,
                  Uint32 *spin_time_in_us,
                  NDB_TICKS start_spin_ticks)
 {
+#ifndef NDB_HAVE_CPU_PAUSE
+  /**
+   * If cpu_pause() was not implemented, 'min_spin_timer == 0' is enforced,
+   * and spin-before-yield is never attempted.
+   */
+  assert(false);
+  return true;  // -> yield immediately
+
+#else
   NDB_TICKS now;
   bool cont_flag = true;
   /**
@@ -3523,6 +3542,7 @@ check_recv_yield(thr_data *selfptr,
   selfptr->m_micros_sleep += spin_micros;
   wait_time_tracking(selfptr, spin_micros);
   return false;
+#endif
 }
 
 /**

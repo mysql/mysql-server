@@ -145,9 +145,9 @@ void NdbSpin()
 }
 
 #else
-void NdbSpin()
-{
-  /* Should not happen */
-  abort();
-}
+  /**
+   * If a 'pause' implementation is not available on the platform, we do
+   * not want the CPU to do spin-waiting either. Let compiler enforce it
+   * by not implementing the NdbSpin() at all in such cases.
+   */
 #endif
