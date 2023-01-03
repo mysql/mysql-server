@@ -7518,7 +7518,6 @@ Dblqh::handle_acquire_scan_frag_access(Fragrecord *fragPtrP)
     NdbMutex_Unlock(&fragPtrP->frag_mutex);
     start_time = NdbTick_getCurrentTicks();
     NdbSpin();
-    NdbSpin();
     /**
      * We wait a bit extra before moving into the spin loop.
      * Thus first wait is a bit longer.
@@ -7526,14 +7525,15 @@ Dblqh::handle_acquire_scan_frag_access(Fragrecord *fragPtrP)
     do
     {
       /**
-       * Inside of the spin loop we wake up about once per 2
-       * microseconds. To achieve this we call spin 4 times.
+       * Inside of the spin loop we wake up about once per
+       * microsecond. We extend the num_spins-wait if we
+       * had to wait multiple times.
        */
       spin_loops++;
-      num_spins += 2;
+      num_spins++;
       for (Uint32 i = 0; i < num_spins; i++)
       {
-        NdbSpin();
+        NdbSpin();  // ~1us
       }
       /**
        * Acquire mutex in a less active manner to ensure that
@@ -7623,11 +7623,10 @@ Dblqh::handle_acquire_read_key_frag_access(Fragrecord *fragPtrP,
     NdbMutex_Unlock(&fragPtrP->frag_mutex);
     start_time = NdbTick_getCurrentTicks();
     NdbSpin();
-    NdbSpin();
     do
     {
       spin_loops++;
-      num_spins += 2;
+      num_spins++;
       for (Uint32 i = 0; i < num_spins; i++)
       {
         NdbSpin();
@@ -7821,10 +7820,9 @@ Dblqh::handle_acquire_exclusive_frag_access(Fragrecord *fragPtrP,
     do
     {
       /**
-       * We spin two cycles to give the readers a fair chance to
-       * complete their task. Should be roughly 2 us with
-       * initial calls, after that we check after only 2 spin call
-       * which should be roughly 1 us.
+       * Initially we spin two 1us-cycles to give the readers a fair chance
+       * to complete their task. If this was not sufficient, we will extend
+       * spin_loops for the next wait.
        *
        * When we come here we will not hold the mutex.
        */
@@ -7832,7 +7830,7 @@ Dblqh::handle_acquire_exclusive_frag_access(Fragrecord *fragPtrP,
       spin_loops++;
       for (Uint32 i = 0; i < num_spins; i++)
       {
-        NdbSpin();
+        NdbSpin();  // ~1us
       }
       NdbMutex_Lock(&fragPtrP->frag_mutex);
       if (is_exclusive_condition_ready(fragPtrP))
