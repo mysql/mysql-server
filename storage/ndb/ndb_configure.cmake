@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -82,7 +82,6 @@ CHECK_SYMBOL_EXISTS(memset_s "string.h" HAVE_MEMSET_S)
 CHECK_SYMBOL_EXISTS(ffs "strings.h" HAVE_FFS)
 
 CHECK_INCLUDE_FILES(atomic.h HAVE_ATOMIC_H)
-CHECK_INCLUDE_FILES(sun_prefetch.h HAVE_SUN_PREFETCH_H)
 CHECK_INCLUDE_FILES(Processtopologyapi.h HAVE_PROCESSTOPOLOGYAPI_H)
 CHECK_INCLUDE_FILES(Processthreadsapi.h HAVE_PROCESSTHREADSAPI_H)
 CHECK_INCLUDE_FILES(ncursesw/curses.h HAVE_NCURSESW_CURSES_H)

@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,6 @@ SET(HAVE_FFS CACHE INTERNAL "")
 SET(HAVE_PTHREAD_MUTEXATTR_INIT CACHE INTERNAL "")
 SET(HAVE_PTHREAD_MUTEXATTR_SETTYPE CACHE INTERNAL "")
 SET(HAVE_PTHREAD_SETSCHEDPARAM CACHE INTERNAL "")
-SET(HAVE_SUN_PREFETCH_H CACHE INTERNAL "")
 SET(HAVE___BUILTIN_FFS CACHE INTERNAL "")
 SET(HAVE___BUILTIN_CTZ CACHE INTERNAL "")
 SET(HAVE___BUILTIN_CLZ CACHE INTERNAL "")

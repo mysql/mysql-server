@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+ Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -64,13 +64,6 @@ JTIE_DEFINE_BASIC_TYPE_MAPPING_SET( jlong, Uint64, Uint64 )
 #  define NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION 1
 #else
 
-// workaround for Sun Studio compilers (disambiguation of overloads)
-// (Studio 12.1 = 5.10):
-#if defined(__SUNPRO_CC)
-//#  if (__SUNPRO_CC == 0x510)
-#    define NDBJTIE_USE_WRAPPED_VARIANT_FOR_CONST_OVERLOADED_FUNCTION 1
-//#  endif
-#endif
 // workaround for MS Visual Studio compilers (disambiguation of overloads)
 // (VC7 = VS2003 = 1310, VC8 = VS2005 = 1400, VC9 = VS2008 = 1500, ...?):
 #if defined(_MSC_VER)

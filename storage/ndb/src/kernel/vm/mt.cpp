@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6598,8 +6598,7 @@ read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
    * Prefetching all m_write_index instances gives a small but visible
    * improvement.
    */
-#if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR > 10) || \
-    defined(USE_SUN_PREFETCH) || defined(USE_SPARC_PREFETCH)
+#if defined(__GNUC__)
   for (Uint32 jbb_instance = 0;
        jbb_instance < glob_num_job_buffers_per_thread;
        jbb_instance++)
