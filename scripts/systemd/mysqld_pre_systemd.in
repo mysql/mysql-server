@@ -23,17 +23,18 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 
-# Script used by systemd mysqld.service to run before executing mysqld
+# Script used by systemd @SYSTEMD_SERVICE_NAME@.service to run before executing mysqld
 
 get_option () {
     local section=$1
     local option=$2
     local default=$3
     local instance=$4
-    ret=$(/usr/bin/my_print_defaults  ${instance:+--defaults-group-suffix=@$instance} $section | \
-              grep '^--'${option}'=' | cut -d= -f2- | tail -n 1)
+    ret=$(@bindir@/my_print_defaults  ${instance:+--defaults-group-suffix=@$instance} $section | \
+	      grep '^--'${option}'=' | cut -d= -f2- | tail -n 1)
     [ -z "$ret" ] && ret=$default && sed -i -E \
         "/^\[mysqld@${instance}\]\$/a ${option}=$ret" /etc/my.cnf
+    echo $ret
     echo $ret
 }
 
@@ -49,10 +50,10 @@ install_validate_password_sql_file () {
 fix_mysql_upgrade_info () {
     datadir=$(get_option mysqld datadir "/var/lib/mysql${instance:+-$instance}" $instance)
     if [ -d  "$datadir" ]  && [ -O "$datadir/mysql_upgrade_info" ]; then
-        chown --reference="$datadir" "$datadir/mysql_upgrade_info"
-        if [ -x /usr/bin/chcon ]; then
+	chown --reference="$datadir" "$datadir/mysql_upgrade_info"
+	if [ -x /usr/bin/chcon ]; then
             /usr/bin/chcon --reference="$datadir" "$datadir/mysql_upgrade_info" > /dev/null 2>&1
-        fi
+	fi
     fi
 }
 
@@ -69,36 +70,37 @@ install_db () {
     local instance=$1
     datadir=$(get_option mysqld datadir "/var/lib/mysql${instance:+-$instance}" $instance)
     log=$(get_option mysqld 'log[_-]error' "/var/log/mysql${instance:+-$instance}.log" $instance)
-    tmpdir=$(get_option mysqld tmpdir "/tmp" $instance)
+	tmpdir=$(get_option mysqld tmpdir "/tmp" $instance)
     socket=$(get_option mysqld socket "/var/lib/mysql${instance:+-$instance}/mysql.sock" $instance)
-
+	
     # Restore log, dir, perms and SELinux contexts
 
     if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
-        install -d -m 0751 -omysql -gmysql "$datadir" || exit 1
+	install -d -m 0751 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$datadir" || exit 1
     fi
 
     if [ ! -e "$log" -a ! -h "$log" -a x$(dirname "$log") = "x/var/log" ]; then
-        case $(basename "$log") in
-            mysql*.log) install /dev/null -m0640 -omysql -gmysql "$log" ;;
-            *) ;;
-        esac
+	case $(basename "$log") in
+	    mysql*.log) install /dev/null -m0640 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$log" ;;
+	    *) ;;
+	esac
     fi
 
     if [ ! -d "$tmpdir" -a ! -h "$tmpdir" ]; then
         install -d -m 0751 -omysql -gmysql "$tmpdir" || exit 1
     fi
-
+	
     if [ -x /usr/sbin/restorecon ]; then
         /usr/sbin/restorecon "$datadir"
-        /usr/sbin/restorecon "$tmpdir"
+		/usr/sbin/restorecon "$tmpdir"
         [ -e "$log" ] && /usr/sbin/restorecon "$log"
-        for dir in /var/lib/mysql-files /var/lib/mysql-keyring ; do
+		[ -e "$socket" ] && /usr/sbin/restorecon "$socket"
+	for dir in /var/lib/mysql-files /var/lib/mysql-keyring ; do
             if [ -x /usr/sbin/semanage -a -d /var/lib/mysql -a -d $dir ] ; then
                 /usr/sbin/semanage fcontext -a -e /var/lib/mysql $dir >/dev/null 2>&1
                 /sbin/restorecon -r $dir
             fi
-        done
+	done
     fi
 
     # If special mysql dir is in place, skip db install
@@ -106,14 +108,14 @@ install_db () {
 
     # Create initial db and install validate_password plugin
     initfile="$(install_validate_password_sql_file)"
-    /usr/sbin/mysqld ${instance:+--defaults-group-suffix=@$instance} --initialize \
-                     --datadir="$datadir" --user=mysql --init-file="$initfile" \
-                     --tmpdir="$tmpdir" --log-error="$log"
+    @libexecdir@/mysqld ${instance:+--defaults-group-suffix=@$instance} --initialize \
+		     --datadir="$datadir" --user=@MYSQLD_USER@ --init-file="$initfile" \
+                     --tmpdir="$tmpdir" --log-error="$log" --socket="$socket"
     rm -f "$initfile"
 
     # Generate certs if needed
-    if [ -x /usr/bin/mysql_ssl_rsa_setup -a ! -e "${datadir}/server-key.pem" ] ; then
-        /usr/bin/mysql_ssl_rsa_setup --datadir="$datadir" --log-error="$log" --uid=mysql >/dev/null 2>&1
+    if [ -x @bindir@/mysql_ssl_rsa_setup -a ! -e "${datadir}/server-key.pem" ] ; then
+        @bindir@/mysql_ssl_rsa_setup --datadir="$datadir" --log-error="$log" --uid=@MYSQLD_USER@ >/dev/null 2>&1
     fi
     exit 0
 }
