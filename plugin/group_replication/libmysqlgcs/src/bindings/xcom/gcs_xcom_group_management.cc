@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,8 @@
 #include <iterator>
 
 Gcs_xcom_group_management::Gcs_xcom_group_management(
-    Gcs_xcom_proxy *xcom_proxy, const Gcs_group_identifier &group_identifier)
+    Gcs_xcom_proxy *xcom_proxy, const Gcs_group_identifier &group_identifier,
+    Gcs_xcom_view_change_control_interface *view_control)
     : m_xcom_proxy(xcom_proxy),
       m_gid(new Gcs_group_identifier(group_identifier.get_group_id())),
       m_xcom_nodes(),
@@ -40,7 +41,8 @@ Gcs_xcom_group_management::Gcs_xcom_group_management(
           reinterpret_cast<unsigned char *>(
               const_cast<char *>(m_gid->get_group_id().c_str())),
           m_gid->get_group_id().size())),
-      m_nodes_mutex() {
+      m_nodes_mutex(),
+      m_view_control(view_control) {
   m_nodes_mutex.init(key_GCS_MUTEX_Gcs_xcom_group_management_m_nodes_mutex,
                      nullptr);
 }
@@ -204,6 +206,28 @@ uint32_t Gcs_xcom_group_management::get_maximum_write_concurrency() const {
 
 enum_gcs_error Gcs_xcom_group_management::get_write_concurrency(
     uint32_t &event_horizon) const {
+  /*
+    We need to check if we are leaving, because xcom_get_event_horizon
+    needs to query XCom and wait for a reply, which does not happen
+    if we are leaving or if we do not belong to a group.
+
+    For that, we use View Control->is_leaving() and XCom Proxy->xcom_is_exit(),
+    which are synchronized inside View Control, although optimistically, because
+    they are set in diffenrent moments in time, with small window for races.
+    - is_leaving() is set when a client calls leave() on the public
+      interface;
+    - xcom_is_exit() is set when the XCom thread is stopped;
+
+    We are not using View Control->belongs_to_group(), because that method is
+    fully optimistic.
+  */
+  if (m_view_control->is_leaving() || m_xcom_proxy->xcom_is_exit()) {
+    MYSQL_GCS_LOG_DEBUG(
+        "Unable to request Write Concurrency. This member is leaving or it is "
+        "not on a group.")
+    return GCS_NOK;
+  }
+
   MYSQL_GCS_LOG_DEBUG(
       "The member is attempting to retrieve the event horizon.");
   bool const success =
