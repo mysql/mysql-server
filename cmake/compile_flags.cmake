@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -109,7 +109,7 @@ FUNCTION(ADD_LINUX_RPM_FLAGS)
     MESSAGE(FATAL_ERROR
       "WITH_PACKAGE_FLAGS=on but rpm --eval %optflags failed")
   ENDIF()
-ENDFUNCTION()
+ENDFUNCTION(ADD_LINUX_RPM_FLAGS)
 
 # Set CMAKE_C_FLAGS and CMAKE_CXX_FLAGS to
 #   dpkg-buildflags --get <lang>FLAGS CPPFLAGS
@@ -133,4 +133,31 @@ FUNCTION(ADD_LINUX_DEB_FLAGS)
     SET(CMAKE_MODULE_LINKER_FLAGS "${GET_LDFLAGS}" PARENT_SCOPE)
     SET(CMAKE_SHARED_LINKER_FLAGS "${GET_LDFLAGS}" PARENT_SCOPE)
   ENDFOREACH()
-ENDFUNCTION()
+ENDFUNCTION(ADD_LINUX_DEB_FLAGS)
+
+# See if we can do "-fuse-ld=${LINKER}" for gcc/clang on Linux.
+# If compilation/linking succeeds, we extend misc cmake LINKER_FLAGS,
+# and set OUTPUT_RESULT to 1.
+FUNCTION(CHECK_ALTERNATIVE_LINKER LINKER OUTPUT_RESULT)
+  CMAKE_PUSH_CHECK_STATE(RESET)
+
+  SET(CMAKE_REQUIRED_LIBRARIES "-fuse-ld=${LINKER}")
+  CHECK_C_SOURCE_COMPILES("int main() {}" C_LD_${LINKER}_RESULT)
+  CHECK_CXX_SOURCE_COMPILES("int main() {}" CXX_LD_${LINKER}_RESULT)
+  IF(C_LD_${LINKER}_RESULT AND CXX_LD_${LINKER}_RESULT)
+    FOREACH(flag
+        CMAKE_EXE_LINKER_FLAGS
+        CMAKE_MODULE_LINKER_FLAGS
+        CMAKE_SHARED_LINKER_FLAGS
+        )
+      STRING_APPEND(${flag} " -fuse-ld=${LINKER}")
+      SET(${flag} ${${flag}} PARENT_SCOPE)
+    ENDFOREACH()
+    SET(${OUTPUT_RESULT} 1 PARENT_SCOPE)
+  ELSE()
+    SET(${OUTPUT_RESULT} 0 PARENT_SCOPE)
+    MESSAGE(STATUS "Cannot use ${LINKER} on this platform")
+  ENDIF()
+
+  CMAKE_POP_CHECK_STATE()
+ENDFUNCTION(CHECK_ALTERNATIVE_LINKER)
