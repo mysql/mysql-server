@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include "classic_forwarder.h"
 
 #include "classic_connection_base.h"
+#include "classic_frame.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/tls_error.h"
 #include "tracer.h"
@@ -35,62 +36,6 @@ IMPORT_LOG_FUNCTIONS()
 
 static bool has_frame_header(ClassicProtocolState *src_protocol) {
   return src_protocol->current_frame().has_value();
-}
-
-static stdx::expected<std::pair<size_t, ClassicProtocolState::FrameInfo>,
-                      std::error_code>
-decode_frame_header(const net::const_buffer &recv_buf) {
-  const auto decode_res =
-      classic_protocol::decode<classic_protocol::frame::Header>(
-          net::buffer(recv_buf), 0);
-  if (!decode_res) {
-    const auto ec = decode_res.error();
-
-    if (ec == classic_protocol::codec_errc::not_enough_input) {
-      return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
-    }
-    return decode_res.get_unexpected();
-  }
-
-  const auto frame_header_res = decode_res.value();
-  const auto header_size = frame_header_res.first;
-  const auto seq_id = frame_header_res.second.seq_id();
-  const auto payload_size = frame_header_res.second.payload_size();
-
-  const auto frame_size = header_size + payload_size;
-
-  return {std::in_place, header_size,
-          ClassicProtocolState::FrameInfo{seq_id, frame_size, 0u}};
-}
-
-/**
- * ensure current_frame() has a current frame-info.
- *
- * @post after success returned, src_protocol->current_frame() has a frame
- * decoded.
- */
-static stdx::expected<void, std::error_code> ensure_frame_header(
-    Channel *src_channel, ClassicProtocolState *src_protocol) {
-  auto &recv_buf = src_channel->recv_plain_buffer();
-
-  const size_t min_size{4};
-  const auto cur_size = recv_buf.size();
-  if (cur_size < min_size) {
-    // read the rest of the header.
-    auto read_res = src_channel->read_to_plain(min_size - cur_size);
-    if (!read_res) return read_res.get_unexpected();
-
-    if (recv_buf.size() < min_size) {
-      return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
-    }
-  }
-
-  const auto decode_frame_res = decode_frame_header(net::buffer(recv_buf));
-  if (!decode_frame_res) return decode_frame_res.get_unexpected();
-
-  src_protocol->current_frame() = std::move(decode_frame_res.value()).second;
-
-  return {};
 }
 
 static stdx::expected<size_t, std::error_code> forward_frame_header_as_is(
@@ -136,7 +81,8 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
     Channel *src_channel, ClassicProtocolState *src_protocol,
     Channel *dst_channel, ClassicProtocolState *dst_protocol) {
   if (!has_frame_header(src_protocol)) {
-    auto read_res = ensure_frame_header(src_channel, src_protocol);
+    auto read_res =
+        ClassicFrame::ensure_frame_header(src_channel, src_protocol);
     if (!read_res) return read_res.get_unexpected();
   }
 
