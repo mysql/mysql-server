@@ -2071,6 +2071,7 @@ SET SESSION require_row_format = @@session.require_row_format;
 SET SESSION resultset_metadata = @@session.resultset_metadata;
 SET SESSION show_create_table_skip_secondary_engine = @@session.show_create_table_skip_secondary_engine;
 SET SESSION sql_log_bin = @@session.sql_log_bin;
+SET SESSION statement_id = @@session.statement_id;
 SET SESSION timestamp = @@session.timestamp;
 SET SESSION transaction_allow_batching = @@session.transaction_allow_batching;
 SET SESSION use_secondary_engine = @@session.use_secondary_engine;

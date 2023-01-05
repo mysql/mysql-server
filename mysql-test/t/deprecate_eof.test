@@ -5,6 +5,11 @@
 --echo # as part of OK packet is displayed as part of SELECT sql statement.
 --echo #
 
+--source include/no_ps_protocol.inc
+
+--echo # Restart the mysqld server with default options so, statement_id will work. 
+--source include/restart_mysqld.inc
+
 CREATE DATABASE wl7766;
 USE wl7766;
 CREATE TABLE t1 (a int);
