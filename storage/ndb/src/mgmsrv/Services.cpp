@@ -1893,15 +1893,19 @@ MgmApiSession::transporter_connect(Parser_t::Context &ctx,
 				   Properties const &args)
 {
   bool close_with_reset = true;
+  bool log_failure = false;
   BaseString errormsg;
-  if (!m_mgmsrv.transporter_connect(m_secure_socket.ndb_socket(),
-                                    errormsg, close_with_reset))
+  if (!m_mgmsrv.transporter_connect(m_secure_socket.ndb_socket(), errormsg,
+                                    close_with_reset, log_failure))
   {
     // Connection not allowed or failed
-    g_eventLogger->warning("Failed to convert connection "
-                           "from '%s' to transporter: %s",
-                           name(),
-                           errormsg.c_str());
+    if (log_failure)
+    {
+      g_eventLogger->warning("Failed to convert connection "
+                             "from '%s' to transporter: %s",
+                             name(),
+                             errormsg.c_str());
+    }
     // Close the socket to indicate failure to client
     m_secure_socket.close_with_reset(close_with_reset);
     m_secure_socket.invalidate(); // Already closed

@@ -357,7 +357,8 @@ public:
 
   bool transporter_connect(ndb_socket_t sockfd,
                            BaseString& errormsg,
-                           bool& close_with_reset);
+                           bool& close_with_reset,
+                           bool& log_failure);
 
   SocketServer *get_socket_server() { return &m_socket_server; }
 
