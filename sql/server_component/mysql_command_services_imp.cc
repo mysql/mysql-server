@@ -1105,3 +1105,25 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::sql_state,
   }
   return false;
 }
+
+DEFINE_BOOL_METHOD(mysql_command_services_imp::field_metadata_get,
+                   (MYSQL_FIELD_H field_h, int metadata, void *data))
+try {
+  MYSQL_FIELD *fld = reinterpret_cast<MYSQL_FIELD *>(field_h);
+
+  switch (metadata) {
+    case MYSQL_COMMAND_FIELD_METADATA_NAME:
+      *reinterpret_cast<const char **>(data) = fld->name;
+      return false;
+    case MYSQL_COMMAND_FIELD_METADATA_TABLE_NAME:
+      *reinterpret_cast<const char **>(data) = fld->table;
+      return false;
+    case MYSQL_COMMAND_FIELD_METADATA_TABLE_DB_NAME:
+      *reinterpret_cast<const char **>(data) = fld->db;
+      return false;
+  }
+  return true;
+} catch (...) {
+  mysql_components_handle_std_exception(__func__);
+  return true;
+}
