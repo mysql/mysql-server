@@ -12122,6 +12122,7 @@ ER_NOTE_COMPONENT_SLOT_DEREGISTRATION_SUCCESS
 
 ER_WARN_CANNOT_FREE_COMPONENT_DATA_DEALLOCATION_FAILED
   eng "Cannot free resources stored by component '%s' in thread with ID: '%d'. Component failed to free required resources."
+
 ER_IB_RESURRECT_TRX_INSERT
   eng "Transaction ID: %lu found for resurrecting inserts"
 
