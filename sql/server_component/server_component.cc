@@ -719,8 +719,8 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_text_consumer_get_string_v1),
     PROVIDES_SERVICE(mysql_server, mysql_text_consumer_client_capabilities_v1),
     PROVIDES_SERVICE(mysql_server, mysql_status_variable_string),
-    PROVIDES_SERVICE(mysql_server, mysql_thd_store), END_COMPONENT_PROVIDES();
-PROVIDES_SERVICE(mysql_server, mysql_command_field_metadata),
+    PROVIDES_SERVICE(mysql_server, mysql_thd_store),
+    PROVIDES_SERVICE(mysql_server, mysql_command_field_metadata),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();
