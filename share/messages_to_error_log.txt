@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -11525,7 +11525,7 @@ ER_AUTHENTICATION_OCI_NO_GROUPS_FOUND
   eng "User is not part of any groups. However, account is configured to use group mapping."
 
 ER_AUTHENTICATION_OCI_NONCE
-  eng "Public/private key mismatch (fingerprint %s) while authenticating user %s in tenancy %s ."
+  eng "Received OpenSSL error: %s while authenticating user %s with fingerprint %s in tenancy %s ."
 
 ER_HEALTH_WARNING_MEMORY_USAGE_LEVEL_1
   eng "%s: Warning Level 1 (%llu MiB): available=%llu MiB, total=%llu MiB, used=%.2f%%, mysqld=%llu MiB"
@@ -12122,6 +12122,21 @@ ER_NOTE_COMPONENT_SLOT_DEREGISTRATION_SUCCESS
 
 ER_WARN_CANNOT_FREE_COMPONENT_DATA_DEALLOCATION_FAILED
   eng "Cannot free resources stored by component '%s' in thread with ID: '%d'. Component failed to free required resources."
+
+ER_AUTHENTICATION_OCI_INVALID_TOKEN
+  eng "Invalid security token provided by '%s' for '%s'@'%s': %s."
+
+ER_AUTHENTICATION_OCI_TOKEN_DETAILS_MISMATCH
+  eng "Unknown user/tenancy (user: %s tenancy: %s) found in security token provided by '%s' for '%s'@'%s'."
+
+ER_AUTHENTICATION_OCI_TOKEN_NOT_VERIFIED
+  eng "Verification failed for security token provided by '%s' for '%s'@'%s' : %s."
+
+ER_AUTHENTICATION_OCI_DOWNLOAD_IDDP_PUBLIC_KEY
+  eng "Could not download IDDP Public key. Please check if security token provided by '%s' for '%s'@'%s' is valid."
+
+ER_AUTHENTICATION_OCI_NO_MATCHING_GROUPS_IN_TOKEN
+  eng "None of the groups extracted from security token matches any of the entries from authentication string."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2023, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -2182,6 +2182,7 @@ ADD_SUBDIRECTORY(libmysql)
 ADD_SUBDIRECTORY(libbinlogevents)
 ADD_SUBDIRECTORY(libbinlogstandalone)
 ADD_SUBDIRECTORY(libchangestreams)
+ADD_SUBDIRECTORY(sql-common/oci)
 
 IF(NOT WITHOUT_SERVER)
   IF(WITH_UNIT_TESTS)

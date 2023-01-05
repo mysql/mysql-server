@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,10 +34,15 @@ namespace oci {
 struct OCI_config_file {
   std::string key_file;
   std::string fingerprint;
+  std::string security_token_file;
 };
-OCI_config_file parse_oci_config_file(const std::string &oci_config);
+OCI_config_file parse_oci_config_file(const std::string &oci_config,
+                                      const char *oci_profile,
+                                      const std::string &expanded_path,
+                                      std::string &err_msg);
 std::string get_oci_config_file_location(const char *oci_config);
 std::string prepare_response(const std::string &fingerprint,
-                             const std::string &signature);
+                             const std::string &signature,
+                             const std::string &token);
 }  // namespace oci
 #endif  // AUTH_OCI_CLIENT_UTILITIES_H

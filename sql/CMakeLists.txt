@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -773,8 +773,6 @@ SET(SQL_SOURCE
   ../sql-common/my_path_permissions.cc
   ../sql-common/net_ns.cc
   ../sql-common/net_serv.cc
-  ../sql-common/oci/signing_key.cc
-  ../sql-common/oci/ssl.cc
   ../sql-common/sql_string.cc
   ../sql-common/bind_params.cc
   ../sql-common/json_binary.cc
@@ -1349,8 +1347,6 @@ MYSQL_ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc SKIP_INSTALL)
 
 IF(HAS_MISSING_PROFILE)
   ADD_COMPILE_FLAGS(
-    ../sql-common/oci/signing_key.cc
-    ../sql-common/oci/ssl.cc
     gen_lex_hash.cc
     COMPILE_FLAGS ${HAS_MISSING_PROFILE})
 ENDIF()

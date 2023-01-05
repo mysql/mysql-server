@@ -1,4 +1,4 @@
-# Copyright (c) 2021, 2023, Oracle and/or its affiliates.
+# Copyright (c) 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,29 +20,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-#
-# Configuration for building OCI authentication client Plug-in (client-side)
-#
+ADD_WSHADOW_WARNING()
 
-# The client authentication plug-in is part of the community build.
+SET(OCI_SOURCES
+  signing_key.cc
+  ssl.cc
+  utilities.cc
+  )
 
-# Skip it if disabled.
-IF(NOT WITH_AUTHENTICATION_CLIENT_PLUGINS)
-  MESSAGE(STATUS "Skipping the OCI authentication client plugin.")
-  RETURN()
-ENDIF()
-
-DISABLE_MISSING_PROFILE_WARNING()
-
-MYSQL_ADD_PLUGIN(
-  authentication_oci_client
-
-  # Authentication plugin main
-  authentication_oci_client_plugin.cc
-
-  LINK_LIBRARIES oci_common ${SSL_LIBRARIES}
-
-  CLIENT_ONLY
-  MODULE_ONLY MODULE_OUTPUT_NAME "authentication_oci_client"
+ADD_CONVENIENCE_LIBRARY(
+  oci_common
+  ${OCI_SOURCES}
 )
-
