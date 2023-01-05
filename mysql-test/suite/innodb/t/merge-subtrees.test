@@ -1,3 +1,4 @@
+--source include/have_innodb_16k.inc
 
 CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 char(255), f3 char(255),
    f4 char(255), f5 char(255));
