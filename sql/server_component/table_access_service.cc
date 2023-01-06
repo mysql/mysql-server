@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_dbug.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
+#include "sql/mysqld.h"  // mysqld_server_started
 #include "sql/mysqld_thd_manager.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
@@ -623,6 +624,14 @@ Table_access_impl::~Table_access_impl() {
   }
 
   close_thread_tables(m_child_thd);
+
+  if (!mysqld_server_started) {
+    /*
+      After initialization of the server, InnoDB's data dictionary cache is
+      reset. It requires all tables, including the cached ones, to be released.
+    */
+    close_cached_tables(m_child_thd, m_table_array, false, LONG_TIMEOUT);
+  }
 
   m_child_thd->release_resources();
   m_child_thd->restore_globals();
