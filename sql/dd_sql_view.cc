@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -573,9 +573,12 @@ static bool open_views_and_update_metadata(
     */
     if (!commit_dd_changes) uncommitted_tables->add_table(view);
 
-    // Prepare view query from the Item-tree built from the original query.
+    // Prepare view query from the Item-tree built using original query.
+    const CHARSET_INFO *view_client_cs;
+    resolve_charset(view->view_client_cs_name.str, system_charset_info,
+                    &view_client_cs);
     char view_query_buff[4096];
-    String view_query(view_query_buff, sizeof(view_query_buff), thd->charset());
+    String view_query(view_query_buff, sizeof(view_query_buff), view_client_cs);
     view_query.length(0);
 
     if (thd->lex->unit->is_mergeable() &&
