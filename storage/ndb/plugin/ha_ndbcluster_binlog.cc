@@ -712,6 +712,8 @@ class Ndb_binlog_setup {
       ndb_log_warning("Failed to read the schema UUID of DD");
       return false;
     }
+    ndb_log_verbose(50, "Data dictionary schema_uuid='%s'",
+                    dd_schema_uuid.c_str());
 
     if (dd_schema_uuid.empty()) {
       /*
@@ -746,11 +748,17 @@ class Ndb_binlog_setup {
       return false;
     }
     /*
-      Since the ndb_schema table exists already, the schema UUID also cannot be
-      empty as whichever mysqld created the table would also have updated the
-      schema UUID in NDB.
+      Since the ndb_schema table exists already, the schema UUID should not be
+      empty as, whichever mysqld created the table, would also have updated the
+      schema UUID in NDB. But in the rare case that a NDB is being restored from
+      scratch while MySQL DD was left alone, the ndb_schema UUID (NDB side) may
+      be empty while dd_schema (MySQL side) is not.
+      Trigger a initial restart to clean up all events and DD definitions
+      (warned here and effective below).
     */
-    assert(!ndb_schema_uuid.empty());
+    if (ndb_schema_uuid.empty()) {
+      ndb_log_warning("Detected an empty ndb_schema table in NDB");
+    }
 
     if (ndb_schema_uuid == dd_schema_uuid.c_str()) {
       /*
@@ -812,6 +820,15 @@ class Ndb_binlog_setup {
       return false;
     }
 
+    DBUG_EXECUTE_IF("ndb_schema_no_uuid", {
+      Ndb_schema_dist_table schema_dist_table(thd_ndb);
+      if (schema_dist_table.open()) {
+        // Simulate that ndb_schema exists but contains no row with uuid
+        // by simply deleting all rows
+        ndbcluster::ndbrequire(schema_dist_table.delete_all_rows());
+      }
+    });
+
     // Check if this is a initial restart/start
     bool initial_system_restart = false;
     if (!detect_initial_restart(thd_ndb, &initial_system_restart)) {
@@ -871,17 +888,15 @@ class Ndb_binlog_setup {
       return false;
     }
 
-    // If this is an initial start/restart, update the schema UUID in DD
-    if (initial_system_restart) {
-      // Retrieve the new schema UUID from NDB
-      std::string ndb_schema_uuid;
-      if (!schema_dist_table.get_schema_uuid(&ndb_schema_uuid)) return false;
-
-      // Update it in DD
-      if (!ndb_dd_update_schema_uuid(m_thd, ndb_schema_uuid)) {
-        ndb_log_warning("Failed to update schema uuid in DD.");
-        return false;
-      }
+    // ndb_schema setup should have installed a new UUID and sync'ed with DD
+    std::string schema_uuid;
+    ndbcluster::ndbrequire(schema_dist_table.get_schema_uuid(&schema_uuid));
+    dd::String_type dd_schema_uuid;
+    ndbcluster::ndbrequire(ndb_dd_get_schema_uuid(m_thd, &dd_schema_uuid));
+    if (schema_uuid != dd_schema_uuid.c_str()) {
+      ndb_log_error("Schema UUID from NDB '%s' != from DD Schema UUID '%s'",
+                    schema_uuid.c_str(), dd_schema_uuid.c_str());
+      assert(false);
     }
 
     Ndb_schema_result_table schema_result_table(thd_ndb);

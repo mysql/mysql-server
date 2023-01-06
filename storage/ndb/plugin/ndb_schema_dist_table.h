@@ -48,7 +48,8 @@ class Ndb_schema_dist_table : public Ndb_util_table {
    */
   bool update_schema_uuid_in_NDB(const std::string &schema_uuid) const;
 
-  static std::string old_ndb_schema_uuid;
+  // pre-upgrade uuid in NDB table
+  std::string m_ndb_schema_uuid;
 
  public:
   static const std::string DB_NAME;
@@ -70,10 +71,13 @@ class Ndb_schema_dist_table : public Ndb_util_table {
 
   bool need_upgrade() const override;
 
+  bool need_reinstall(const dd::Table *) const override;
+
   std::string define_table_dd() const override;
 
-  bool pre_upgrade() const override;
+  bool pre_upgrade() override;
   bool post_install() const override;
+  bool post_install_in_DD() const override;
 
   /**
      @brief Return number of bytes possible to store in the "slock" column
