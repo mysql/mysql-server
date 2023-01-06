@@ -409,6 +409,8 @@ class LogicalOrderings {
   Ordering ReduceOrdering(Ordering ordering, bool all_fds, Ordering tmp) const;
 
  private:
+  class OrderWithElementInserted;
+
   bool m_built = false;
 
   struct ItemInfo {

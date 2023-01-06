@@ -1307,6 +1307,80 @@ bool LogicalOrderings::FunctionalDependencyApplies(
 }
 
 /**
+   Given an order O and a functional dependency FD: S → x where S
+   is a subset of O, create new orderings by inserting x into O at
+   different positions, and add those to the set of orderings if they
+   could become interesting (@see
+   LogicalOrderings::CouldBecomeInterestingOrdering(Ordering ordering)).
+
+   This operation is implemented as a class to avoid an excessively
+   long parameter list.
+*/
+class LogicalOrderings::OrderWithElementInserted final {
+ public:
+  OrderWithElementInserted &SetContext(LogicalOrderings *context) {
+    m_context = context;
+    return *this;
+  }
+
+  OrderWithElementInserted &SetStateIdx(int state_idx) {
+    m_state_idx = state_idx;
+    return *this;
+  }
+
+  OrderWithElementInserted &SetFdIdx(int fd_idx) {
+    m_fd_idx = fd_idx;
+    return *this;
+  }
+
+  OrderWithElementInserted &SetOldOrdering(Ordering old_ordering) {
+    m_old_ordering = old_ordering;
+    return *this;
+  }
+
+  OrderWithElementInserted &SetStartPoint(size_t start_point) {
+    m_start_point = start_point;
+    return *this;
+  }
+
+  OrderWithElementInserted &SetItemToAdd(ItemHandle item_to_add) {
+    m_item_to_add = item_to_add;
+    return *this;
+  }
+
+  OrderWithElementInserted &SetDirection(enum_order direction) {
+    m_direction = direction;
+    return *this;
+  }
+
+  /// Add any potentially interesting orders.
+  void AddPotentiallyInterestingOrders(THD *thd);
+
+ private:
+  /// The enclosing  LogicalOrderings instance.
+  LogicalOrderings *m_context;
+
+  /// The originator state.
+  int m_state_idx;
+
+  /// The functional dependency with which we will extend m_old_ordering.
+  int m_fd_idx;
+
+  /// The ordering to be extended.
+  Ordering m_old_ordering;
+
+  /// The first position at which m_item_to_add. If ordering is needed,
+  /// this must be behind the last element of the FD head.
+  size_t m_start_point;
+
+  /// The item to add to the ordering.
+  ItemHandle m_item_to_add;
+
+  /// The desired direction of the extended ordering.
+  enum_order m_direction;
+};
+
+/**
   Remove duplicate entries from an ordering, in-place.
  */
 static void DeduplicateOrdering(Ordering *ordering) {
@@ -1317,6 +1391,59 @@ static void DeduplicateOrdering(Ordering *ordering) {
     }
   }
   ordering->resize(length);
+}
+
+void LogicalOrderings::OrderWithElementInserted::
+    AddPotentiallyInterestingOrders(THD *thd) {
+  assert(m_direction == ORDER_NOT_RELEVANT || !IsGrouping(m_old_ordering));
+
+  if (static_cast<int>(m_old_ordering.size()) >=
+      m_context->m_longest_ordering) {
+    return;
+  }
+
+  for (size_t add_pos = m_start_point; add_pos <= m_old_ordering.size();
+       ++add_pos) {
+    if (m_direction == ORDER_NOT_RELEVANT) {
+      // For groupings, only insert in the sorted sequence.
+      // (If we have found the right insertion spot, we immediately
+      // exit after this at the end of the loop.)
+      if (add_pos < m_old_ordering.size() &&
+          m_context->ItemHandleBeforeInGroup(m_old_ordering[add_pos].item,
+                                             m_item_to_add)) {
+        continue;
+      }
+
+      // For groupings, we just deduplicate right away.
+      // TODO(sgunders): When we get C++20, use operator<=> so that we
+      // can use a == b here instead of !(a < b) && !(b < a) as we do now.
+      if (add_pos < m_old_ordering.size() &&
+          !m_context->ItemHandleBeforeInGroup(m_item_to_add,
+                                              m_old_ordering[add_pos].item)) {
+        break;
+      }
+    }
+
+    OrderingElementsGuard tmp_guard(m_context, thd->mem_root);
+    Ordering new_ordering = tmp_guard.Get().prefix(m_old_ordering.size() + 1);
+
+    std::copy(m_old_ordering.cbegin(), m_old_ordering.cbegin() + add_pos,
+              new_ordering.begin());
+    new_ordering[add_pos].item = m_item_to_add;
+    new_ordering[add_pos].direction = m_direction;
+    std::copy(m_old_ordering.cbegin() + add_pos, m_old_ordering.cend(),
+              new_ordering.begin() + add_pos + 1);
+
+    DeduplicateOrdering(&new_ordering);
+
+    if (m_context->CouldBecomeInterestingOrdering(new_ordering)) {
+      m_context->AddEdge(thd, m_state_idx, m_fd_idx, new_ordering);
+    }
+
+    if (m_direction == ORDER_NOT_RELEVANT) {
+      break;
+    }
+  }
 }
 
 void LogicalOrderings::BuildNFSM(THD *thd) {
@@ -1424,12 +1551,22 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
         base_ordering = old_ordering;
       }
 
+      auto extended_order = [&]() {
+        return OrderWithElementInserted()
+            .SetContext(this)
+            .SetStateIdx(state_idx)
+            .SetFdIdx(fd_idx)
+            .SetOldOrdering(base_ordering)
+            .SetItemToAdd(item_to_add);
+      };
+
       // On S -> b, try to add b everywhere after the last element of S.
       if (IsGrouping(base_ordering)) {
         if (m_items[m_items[item_to_add].canonical_item].used_in_grouping) {
-          TryAddingOrderWithElementInserted(
-              thd, state_idx, fd_idx, base_ordering,
-              /*start_point=*/0, item_to_add, ORDER_NOT_RELEVANT);
+          extended_order()
+              .SetStartPoint(0)
+              .SetDirection(ORDER_NOT_RELEVANT)
+              .AddPotentiallyInterestingOrders(thd);
         }
       } else {
         // NOTE: We could have neither add_asc nor add_desc, if the item is used
@@ -1438,14 +1575,16 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
         bool add_asc = m_items[m_items[item_to_add].canonical_item].used_asc;
         bool add_desc = m_items[m_items[item_to_add].canonical_item].used_desc;
         if (add_asc) {
-          TryAddingOrderWithElementInserted(thd, state_idx, fd_idx,
-                                            base_ordering, start_point + 1,
-                                            item_to_add, ORDER_ASC);
+          extended_order()
+              .SetStartPoint(start_point + 1)
+              .SetDirection(ORDER_ASC)
+              .AddPotentiallyInterestingOrders(thd);
         }
         if (add_desc) {
-          TryAddingOrderWithElementInserted(thd, state_idx, fd_idx,
-                                            base_ordering, start_point + 1,
-                                            item_to_add, ORDER_DESC);
+          extended_order()
+              .SetStartPoint(start_point + 1)
+              .SetDirection(ORDER_DESC)
+              .AddPotentiallyInterestingOrders(thd);
         }
       }
     }
@@ -1469,55 +1608,6 @@ void LogicalOrderings::AddGroupingFromOrdering(THD *thd, int state_idx,
          return ItemBeforeInGroup(a, b);
        });
   AddEdge(thd, state_idx, /*required_fd_idx=*/0, tmp.prefix(ordering.size()));
-}
-
-void LogicalOrderings::TryAddingOrderWithElementInserted(
-    THD *thd, int state_idx, int fd_idx, Ordering old_ordering,
-    size_t start_point, ItemHandle item_to_add, enum_order direction) {
-  if (static_cast<int>(old_ordering.size()) >= m_longest_ordering) {
-    return;
-  }
-
-  for (size_t add_pos = start_point; add_pos <= old_ordering.size();
-       ++add_pos) {
-    if (direction == ORDER_NOT_RELEVANT) {
-      // For groupings, only insert in the sorted sequence.
-      // (If we have found the right insertion spot, we immediately
-      // exit after this at the end of the loop.)
-      if (add_pos < old_ordering.size() &&
-          ItemHandleBeforeInGroup(old_ordering[add_pos].item, item_to_add)) {
-        continue;
-      }
-
-      // For groupings, we just deduplicate right away.
-      // TODO(sgunders): When we get C++20, use operator<=> so that we
-      // can use a == b here instead of !(a < b) && !(b < a) as we do now.
-      if (add_pos < old_ordering.size() &&
-          !ItemHandleBeforeInGroup(item_to_add, old_ordering[add_pos].item)) {
-        break;
-      }
-    }
-
-    OrderingElementsGuard tmp_guard(this, thd->mem_root);
-    Ordering new_ordering = tmp_guard.Get().prefix(old_ordering.size() + 1);
-
-    std::copy(old_ordering.cbegin(), old_ordering.cbegin() + add_pos,
-              new_ordering.begin());
-    new_ordering[add_pos].item = item_to_add;
-    new_ordering[add_pos].direction = direction;
-    std::copy(old_ordering.cbegin() + add_pos, old_ordering.cend(),
-              new_ordering.begin() + add_pos + 1);
-
-    DeduplicateOrdering(&new_ordering);
-
-    if (CouldBecomeInterestingOrdering(new_ordering)) {
-      AddEdge(thd, state_idx, fd_idx, new_ordering);
-    }
-
-    if (direction == ORDER_NOT_RELEVANT) {
-      break;
-    }
-  }
 }
 
 // Clang vectorizes the inner loop below with -O2, but GCC does not. Enable
