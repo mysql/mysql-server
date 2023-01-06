@@ -70,6 +70,19 @@ class Bounds_checked_array {
     return {mem_root->ArrayAlloc<Element_type>(size), size};
   }
 
+  /// Make a copy of '*this'. Allocate memory for m_array on 'mem_root'.
+  Bounds_checked_array Clone(MEM_ROOT *mem_root) const {
+    if (data() == nullptr) {
+      return {};
+    } else {
+      Bounds_checked_array duplicate = Alloc(mem_root, size());
+      if (duplicate.m_array != nullptr) {
+        std::copy(cbegin(), cend(), duplicate.begin());
+      }
+      return duplicate;
+    }
+  }
+
   void reset() {
     m_array = nullptr;
     m_size = 0;
