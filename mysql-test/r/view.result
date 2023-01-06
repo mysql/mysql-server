@@ -6822,3 +6822,27 @@ SELECT * FROM v0;
 ERROR 42000: Table 't0' from one of the SELECTs cannot be used in global ORDER clause
 DROP VIEW v0;
 DROP TABLE t0;
+#
+# Bug#34800905 - View definition changes latin 1 Invalid utf8mb4 character
+#
+CREATE TABLE `t1` (`c1` SMALLINT DEFAULT NULL);
+CREATE VIEW v1 AS SELECT c1,'á' AS c2 FROM t1;
+INSERT INTO t1 (c1) VALUES ('0'), ('1');
+SET NAMES 'latin1';
+ALTER TABLE t1 RENAME t1_aux;
+ALTER TABLE t1_aux RENAME t1;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`c1` AS `c1`,'�' AS `c2` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
+SET NAMES DEFAULT;
+# Without fix, invalid character string error is reported for column c2.
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`c1` AS `c1`,'á' AS `c2` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
+# Without fix, incorrect values listed for column c2.
+SELECT * FROM v1;
+c1	c2
+0	á
+1	á
+DROP VIEW v1;
+DROP TABLE t1;
