@@ -212,6 +212,8 @@ struct FunctionalDependency {
 };
 
 class LogicalOrderings {
+  friend class OrderingElementsGuard;
+
  public:
   explicit LogicalOrderings(THD *thd);
 
@@ -404,8 +406,7 @@ class LogicalOrderings {
   }
 
   // See comment in .cc file.
-  Ordering ReduceOrdering(Ordering ordering, bool all_fds,
-                          OrderElement *tmpbuf) const;
+  Ordering ReduceOrdering(Ordering ordering, bool all_fds, Ordering tmp) const;
 
  private:
   bool m_built = false;
@@ -591,6 +592,11 @@ class LogicalOrderings {
   // After PruneFDs() has run, maps from the old indexes to the new indexes.
   Bounds_checked_array<int> m_optimized_fd_mapping;
 
+  /// We may potentially use a lot of Ordering::Elements objects, with short and
+  /// non-overlapping life times. Therefore we have a pool
+  /// to allow reuse and avoid allocating from MEM_ROOT each time.
+  Mem_root_array<OrderElement *> m_elements_pool;
+
   // The canonical order for two items in a grouping
   // (after BuildEquivalenceClasses() has run; enforced by
   // RecanonicalizeGroupings()). The reason why we sort by
@@ -650,21 +656,19 @@ class LogicalOrderings {
   void CreateHomogenizedOrderings(THD *thd);
   void AddHomogenizedOrderingIfPossible(
       THD *thd, Ordering reduced_ordering, bool used_at_end, int table_idx,
-      Bounds_checked_array<std::pair<ItemHandle, ItemHandle>> reverse_canonical,
-      OrderElement *tmpbuf);
+      Bounds_checked_array<std::pair<ItemHandle, ItemHandle>>
+          reverse_canonical);
 
   // See comment in .cc file.
   bool CouldBecomeInterestingOrdering(Ordering ordering) const;
 
   void BuildNFSM(THD *thd);
-  void AddGroupingFromOrdering(THD *thd, int state_idx, Ordering ordering,
-                               OrderElement *tmpbuf);
+  void AddGroupingFromOrdering(THD *thd, int state_idx, Ordering ordering);
   void TryAddingOrderWithElementInserted(THD *thd, int state_idx, int fd_idx,
                                          Ordering old_ordering,
                                          size_t start_point,
                                          ItemHandle item_to_add,
-                                         enum_order direction,
-                                         OrderElement *tmpbuf);
+                                         enum_order direction);
   void PruneNFSM(THD *thd);
   bool AlwaysActiveFD(int fd_idx);
   void FinalizeDFSMState(THD *thd, int state_idx);
@@ -693,6 +697,32 @@ class LogicalOrderings {
   bool FunctionalDependencyApplies(const FunctionalDependency &fd,
                                    const Ordering ordering,
                                    int *start_point) const;
+
+  /**
+    Fetch an Ordering::Elements object with size()==m_longest_ordering.
+    Get it from m_elements_pool if that is non-empty, otherwise allocate
+    from mem_root.
+  */
+  Ordering RetrieveOrdering(MEM_ROOT *mem_root) {
+    if (m_elements_pool.empty()) {
+      return Ordering::Alloc(mem_root, m_longest_ordering);
+    } else {
+      OrderElement *buffer = m_elements_pool.back();
+      m_elements_pool.pop_back();
+      return Ordering(buffer, m_longest_ordering);
+    }
+  }
+
+  /**
+     Return an Ordering::Elements object with size()==m_longest_ordering
+     to m_elements_pool.
+   */
+  void ReturnOrdering(Ordering ordering) {
+    // Overwrite the array with garbage, so that we have a better chance
+    // of detecting it if we by mistake access it afterwards.
+    TRASH(ordering.data(), m_longest_ordering * sizeof(ordering.data()[0]));
+    m_elements_pool.push_back(ordering.data());
+  }
 
   // Used for optimizer trace.
 

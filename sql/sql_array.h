@@ -126,6 +126,11 @@ class Bounds_checked_array {
   /// end   : Returns a pointer to the past-the-end element in the array.
   const_iterator end() const { return m_array + size(); }
 
+  /// Returns a pointer to the first element in the array.
+  const_iterator cbegin() const { return m_array; }
+  /// Returns a pointer to the past-the-end element in the array.
+  const_iterator cend() const { return m_array + size(); }
+
   Bounds_checked_array without_back() const {
     assert(m_size > 0);
     return Bounds_checked_array{m_array, m_size - 1};

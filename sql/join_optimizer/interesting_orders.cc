@@ -56,6 +56,39 @@ using std::swap;
 using std::unique;
 using std::upper_bound;
 
+/**
+   A scope-guard class for allocating an Ordering::Elements instance
+   which is automatically returned to the pool when we exit the scope of
+   the OrderingElementsGuard instance.
+*/
+class OrderingElementsGuard final {
+ public:
+  /**
+     @param context The object containing the pool.
+     @param mem_root For allocating additional Ordering::Elements instances if
+     needed.
+   */
+  OrderingElementsGuard(LogicalOrderings *context, MEM_ROOT *mem_root)
+      : m_context{context} {
+    m_elements = context->RetrieveOrdering(mem_root);
+  }
+
+  // No copying of this class.
+  OrderingElementsGuard(const OrderingElementsGuard &) = delete;
+  OrderingElementsGuard &operator=(const OrderingElementsGuard &) = delete;
+
+  ~OrderingElementsGuard() { m_context->ReturnOrdering(m_elements); }
+
+  Ordering &Get() { return m_elements; }
+
+ private:
+  /// The object containing the pool.
+  LogicalOrderings *m_context;
+
+  /// The instance fetched from the pool.
+  Ordering m_elements;
+};
+
 namespace {
 
 // Set some maximum limits on the size of the FSMs, in order to prevent runaway
@@ -136,7 +169,8 @@ LogicalOrderings::LogicalOrderings(THD *thd)
       m_states(thd->mem_root),
       m_edges(thd->mem_root),
       m_dfsm_states(thd->mem_root),
-      m_dfsm_edges(thd->mem_root) {
+      m_dfsm_edges(thd->mem_root),
+      m_elements_pool(thd->mem_root) {
   GetHandle(nullptr);  // Always has the zero handle.
 
   // Add the empty ordering/grouping.
@@ -844,11 +878,11 @@ bool LogicalOrderings::ImpliedByEarlierElements(ItemHandle item,
   Note that this could make the empty ordering interesting after merging.
  */
 void LogicalOrderings::PreReduceOrderings(THD *thd) {
-  OrderElement *tmpbuf =
-      thd->mem_root->ArrayAlloc<OrderElement>(m_longest_ordering);
+  OrderingElementsGuard tmp_guard(this, thd->mem_root);
   for (OrderingWithInfo &ordering : m_orderings) {
-    Ordering reduced_ordering = ReduceOrdering(ordering.ordering,
-                                               /*all_fds=*/false, tmpbuf);
+    Ordering reduced_ordering =
+        ReduceOrdering(ordering.ordering,
+                       /*all_fds=*/false, tmp_guard.Get());
     if (reduced_ordering.size() < ordering.ordering.size()) {
       ordering.ordering = DuplicateArray(thd, reduced_ordering);
     }
@@ -884,8 +918,8 @@ void LogicalOrderings::PreReduceOrderings(THD *thd) {
   for at-end groupings.
  */
 void LogicalOrderings::CreateOrderingsFromGroupings(THD *thd) {
-  OrderElement *tmpbuf =
-      thd->mem_root->ArrayAlloc<OrderElement>(m_longest_ordering);
+  OrderingElementsGuard tmp_guard(this, thd->mem_root);
+  Ordering &tmp = tmp_guard.Get();
 
   int num_original_orderings = m_orderings.size();
   for (int grouping_idx = 1; grouping_idx < num_original_orderings;
@@ -922,20 +956,19 @@ void LogicalOrderings::CreateOrderingsFromGroupings(THD *thd) {
       }
 
       for (size_t i = 0; i < ordering.size(); ++i) {
-        tmpbuf[i] = ordering[i];
+        tmp[i] = ordering[i];
       }
       int len = ordering.size();
       for (const OrderElement &element : grouping) {
         if (!Contains(ordering, element.item)) {
-          tmpbuf[len].item = element.item;
-          tmpbuf[len].direction = ORDER_ASC;  // Arbitrary.
+          tmp[len].item = element.item;
+          tmp[len].direction = ORDER_ASC;  // Arbitrary.
           ++len;
         }
       }
       assert(len == static_cast<int>(grouping.size()));
 
-      AddOrderingInternal(thd, Ordering(tmpbuf, len),
-                          OrderingWithInfo::HOMOGENIZED,
+      AddOrderingInternal(thd, tmp.prefix(len), OrderingWithInfo::HOMOGENIZED,
                           m_orderings[grouping_idx].used_at_end,
                           /*homogenize_tables=*/0);
     }
@@ -943,11 +976,11 @@ void LogicalOrderings::CreateOrderingsFromGroupings(THD *thd) {
     // Make a fallback ordering if no cover was found.
     if (!has_cover) {
       for (size_t i = 0; i < grouping.size(); ++i) {
-        tmpbuf[i].item = grouping[i].item;
-        tmpbuf[i].direction = ORDER_ASC;  // Arbitrary.
+        tmp[i].item = grouping[i].item;
+        tmp[i].direction = ORDER_ASC;  // Arbitrary.
       }
 
-      AddOrderingInternal(thd, Ordering(tmpbuf, grouping.size()),
+      AddOrderingInternal(thd, tmp.prefix(grouping.size()),
                           OrderingWithInfo::HOMOGENIZED,
                           m_orderings[grouping_idx].used_at_end,
                           /*homogenize_tables=*/0);
@@ -994,11 +1027,6 @@ void LogicalOrderings::CreateHomogenizedOrderings(THD *thd) {
   }
   sort(reverse_canonical.begin(), reverse_canonical.end());
 
-  OrderElement *tmpbuf =
-      thd->mem_root->ArrayAlloc<OrderElement>(m_longest_ordering);
-  OrderElement *tmpbuf2 =
-      thd->mem_root->ArrayAlloc<OrderElement>(m_longest_ordering);
-
   // Now, for each table, try to see if we can rewrite an ordering
   // to something only referring to that table, by swapping out non-conforming
   // items for others.
@@ -1014,9 +1042,11 @@ void LogicalOrderings::CreateHomogenizedOrderings(THD *thd) {
       // too.
       continue;
     }
+
+    OrderingElementsGuard tmp_guard(this, thd->mem_root);
     Ordering reduced_ordering = ReduceOrdering(
         m_orderings[ordering_idx].ordering,
-        /*all_fds=*/m_orderings[ordering_idx].used_at_end, tmpbuf);
+        /*all_fds=*/m_orderings[ordering_idx].used_at_end, tmp_guard.Get());
     if (reduced_ordering.empty()) {
       continue;
     }
@@ -1034,7 +1064,7 @@ void LogicalOrderings::CreateHomogenizedOrderings(THD *thd) {
     for (int table_idx : BitsSetIn(homogenize_tables)) {
       AddHomogenizedOrderingIfPossible(thd, reduced_ordering,
                                        m_orderings[ordering_idx].used_at_end,
-                                       table_idx, reverse_canonical, tmpbuf2);
+                                       table_idx, reverse_canonical);
     }
   }
 }
@@ -1049,33 +1079,34 @@ void LogicalOrderings::CreateHomogenizedOrderings(THD *thd) {
   tmpbuf is used as the memory store for the new ordering.
  */
 Ordering LogicalOrderings::ReduceOrdering(Ordering ordering, bool all_fds,
-                                          OrderElement *tmpbuf) const {
+                                          Ordering tmp) const {
   size_t reduced_length = 0;
   for (size_t part_idx = 0; part_idx < ordering.size(); ++part_idx) {
     if (ImpliedByEarlierElements(ordering[part_idx].item,
                                  ordering.prefix(part_idx), all_fds)) {
       // Delete this element.
     } else {
-      tmpbuf[reduced_length++] = ordering[part_idx];
+      tmp[reduced_length++] = ordering[part_idx];
     }
   }
-  return {tmpbuf, reduced_length};
+  return tmp.prefix(reduced_length);
 }
 
 /// Helper function for CreateHomogenizedOrderings().
 void LogicalOrderings::AddHomogenizedOrderingIfPossible(
     THD *thd, Ordering reduced_ordering, bool used_at_end, int table_idx,
-    Bounds_checked_array<pair<ItemHandle, ItemHandle>> reverse_canonical,
-    OrderElement *tmpbuf) {
+    Bounds_checked_array<pair<ItemHandle, ItemHandle>> reverse_canonical) {
   const table_map available_tables = table_map{1} << table_idx;
   int length = 0;
+  OrderingElementsGuard tmp_guard(this, thd->mem_root);
+  Ordering &tmp = tmp_guard.Get();
 
   for (OrderElement element : reduced_ordering) {
     if (IsSubset(m_items[element.item].item->used_tables(), available_tables)) {
       // Already OK.
-      if (!ImpliedByEarlierElements(element.item, Ordering(tmpbuf, length),
+      if (!ImpliedByEarlierElements(element.item, tmp.prefix(length),
                                     /*all_fds=*/used_at_end)) {
-        tmpbuf[length++] = element;
+        tmp[length++] = element;
       }
       continue;
     }
@@ -1096,13 +1127,13 @@ void LogicalOrderings::AddHomogenizedOrderingIfPossible(
     bool found = false;
     for (auto it = first; it != last; ++it) {
       if (IsSubset(m_items[it->second].item->used_tables(), available_tables)) {
-        if (ImpliedByEarlierElements(it->second, Ordering(tmpbuf, length),
+        if (ImpliedByEarlierElements(it->second, tmp.prefix(length),
                                      /*all_fds=*/used_at_end)) {
           // Unneeded in the new order, so delete it.
           // Similar to the reduction process above.
         } else {
-          tmpbuf[length].item = it->second;
-          tmpbuf[length].direction = element.direction;
+          tmp[length].item = it->second;
+          tmp[length].direction = element.direction;
           ++length;
         }
         found = true;
@@ -1117,14 +1148,14 @@ void LogicalOrderings::AddHomogenizedOrderingIfPossible(
 
   if (IsGrouping(reduced_ordering)) {
     // We've replaced some items, so we need to re-sort.
-    sort(tmpbuf, tmpbuf + length,
+    sort(tmp.begin(), tmp.begin() + length,
          [this](const OrderElement &a, const OrderElement &b) {
            return ItemBeforeInGroup(a, b);
          });
   }
 
-  AddOrderingInternal(thd, Ordering(tmpbuf, length),
-                      OrderingWithInfo::HOMOGENIZED, used_at_end,
+  AddOrderingInternal(thd, tmp.prefix(length), OrderingWithInfo::HOMOGENIZED,
+                      used_at_end,
                       /*homogenize_tables=*/0);
 }
 
@@ -1316,10 +1347,6 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
 
   // Add edges from functional dependencies, in a breadth-first search
   // (the array of m_states will expand as we go).
-  OrderElement *tmpbuf =
-      thd->mem_root->ArrayAlloc<OrderElement>(m_longest_ordering);
-  OrderElement *tmpbuf2 =
-      thd->mem_root->ArrayAlloc<OrderElement>(m_longest_ordering);
   for (size_t state_idx = 0; state_idx < m_states.size(); ++state_idx) {
     // Refuse to apply FDs for nondeterministic orderings other than possibly
     // ordering -> grouping; ie., (a) can _not_ be satisfied by (a, rand()).
@@ -1338,7 +1365,7 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
     // (which we always allow, even for nondeterministic items),
     // then to shorten the ordering.
     if (!IsGrouping(old_ordering) && !old_ordering.empty()) {
-      AddGroupingFromOrdering(thd, state_idx, old_ordering, tmpbuf);
+      AddGroupingFromOrdering(thd, state_idx, old_ordering);
     }
     if (!deterministic) {
       continue;
@@ -1368,10 +1395,12 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
 
       // On a = b, try to replace a with b or b with a.
       Ordering base_ordering;
+      OrderingElementsGuard tmp_guard(this, thd->mem_root);
+
       if (fd.type == FunctionalDependency::EQUIVALENCE) {
-        Ordering new_ordering{tmpbuf, old_ordering.size()};
-        memcpy(tmpbuf, &old_ordering[0],
-               sizeof(old_ordering[0]) * old_ordering.size());
+        Ordering new_ordering = tmp_guard.Get().prefix(old_ordering.size());
+        std::copy(old_ordering.cbegin(), old_ordering.cend(),
+                  new_ordering.begin());
         ItemHandle other_item = fd.head[0];
         if (new_ordering[start_point].item == item_to_add) {
           // b already existed, so it's a we must add.
@@ -1399,8 +1428,8 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
       if (IsGrouping(base_ordering)) {
         if (m_items[m_items[item_to_add].canonical_item].used_in_grouping) {
           TryAddingOrderWithElementInserted(
-              thd, state_idx, fd_idx, base_ordering, /*start_point=*/0,
-              item_to_add, ORDER_NOT_RELEVANT, tmpbuf2);
+              thd, state_idx, fd_idx, base_ordering,
+              /*start_point=*/0, item_to_add, ORDER_NOT_RELEVANT);
         }
       } else {
         // NOTE: We could have neither add_asc nor add_desc, if the item is used
@@ -1411,12 +1440,12 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
         if (add_asc) {
           TryAddingOrderWithElementInserted(thd, state_idx, fd_idx,
                                             base_ordering, start_point + 1,
-                                            item_to_add, ORDER_ASC, tmpbuf2);
+                                            item_to_add, ORDER_ASC);
         }
         if (add_desc) {
           TryAddingOrderWithElementInserted(thd, state_idx, fd_idx,
                                             base_ordering, start_point + 1,
-                                            item_to_add, ORDER_DESC, tmpbuf2);
+                                            item_to_add, ORDER_DESC);
         }
       }
     }
@@ -1424,28 +1453,27 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
 }
 
 void LogicalOrderings::AddGroupingFromOrdering(THD *thd, int state_idx,
-                                               Ordering ordering,
-                                               OrderElement *tmpbuf) {
-  memcpy(tmpbuf, &ordering[0], sizeof(*tmpbuf) * ordering.size());
+                                               Ordering ordering) {
+  OrderingElementsGuard tmp_guard(this, thd->mem_root);
+  Ordering &tmp = tmp_guard.Get();
+  std::copy(ordering.cbegin(), ordering.cend(), tmp.begin());
   for (size_t i = 0; i < ordering.size(); ++i) {
-    tmpbuf[i].direction = ORDER_NOT_RELEVANT;
-    if (!m_items[m_items[tmpbuf[i].item].canonical_item].used_in_grouping) {
+    tmp[i].direction = ORDER_NOT_RELEVANT;
+    if (!m_items[m_items[tmp[i].item].canonical_item].used_in_grouping) {
       // Pruned away.
       return;
     }
   }
-  sort(tmpbuf, tmpbuf + ordering.size(),
+  sort(tmp.begin(), tmp.begin() + ordering.size(),
        [this](const OrderElement &a, const OrderElement &b) {
          return ItemBeforeInGroup(a, b);
        });
-  AddEdge(thd, state_idx, /*required_fd_idx=*/0,
-          Ordering(tmpbuf, ordering.size()));
+  AddEdge(thd, state_idx, /*required_fd_idx=*/0, tmp.prefix(ordering.size()));
 }
 
 void LogicalOrderings::TryAddingOrderWithElementInserted(
     THD *thd, int state_idx, int fd_idx, Ordering old_ordering,
-    size_t start_point, ItemHandle item_to_add, enum_order direction,
-    OrderElement *tmpbuf) {
+    size_t start_point, ItemHandle item_to_add, enum_order direction) {
   if (static_cast<int>(old_ordering.size()) >= m_longest_ordering) {
     return;
   }
@@ -1470,16 +1498,16 @@ void LogicalOrderings::TryAddingOrderWithElementInserted(
       }
     }
 
-    if (add_pos > 0) {
-      memcpy(tmpbuf, &old_ordering[0], sizeof(*tmpbuf) * (add_pos));
-    }
-    tmpbuf[add_pos].item = item_to_add;
-    tmpbuf[add_pos].direction = direction;
-    if (old_ordering.size() > add_pos) {
-      memcpy(tmpbuf + add_pos + 1, &old_ordering[add_pos],
-             sizeof(*tmpbuf) * (old_ordering.size() - add_pos));
-    }
-    Ordering new_ordering{tmpbuf, old_ordering.size() + 1};
+    OrderingElementsGuard tmp_guard(this, thd->mem_root);
+    Ordering new_ordering = tmp_guard.Get().prefix(old_ordering.size() + 1);
+
+    std::copy(old_ordering.cbegin(), old_ordering.cbegin() + add_pos,
+              new_ordering.begin());
+    new_ordering[add_pos].item = item_to_add;
+    new_ordering[add_pos].direction = direction;
+    std::copy(old_ordering.cbegin() + add_pos, old_ordering.cend(),
+              new_ordering.begin() + add_pos + 1);
+
     DeduplicateOrdering(&new_ordering);
 
     if (CouldBecomeInterestingOrdering(new_ordering)) {

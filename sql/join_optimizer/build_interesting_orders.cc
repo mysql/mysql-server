@@ -383,7 +383,7 @@ Ordering ReduceFinalOrdering(THD *thd, const LogicalOrderings &orderings,
   Ordering full_ordering = orderings.ordering(ordering_idx);
   return orderings.ReduceOrdering(
       full_ordering, /*all_fds=*/true,
-      thd->mem_root->ArrayAlloc<OrderElement>(full_ordering.size()));
+      Ordering::Alloc(thd->mem_root, full_ordering.size()));
 }
 
 void BuildInterestingOrders(
