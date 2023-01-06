@@ -84,6 +84,8 @@ class mysql_command_services_imp {
  public:
   /* mysql_command_factory service apis */
   static DEFINE_BOOL_METHOD(init, (MYSQL_H * mysql_h));
+  static DEFINE_BOOL_METHOD(init_thread, (void *plugin));
+  static DEFINE_METHOD(void, deinit_thread, ());
   static DEFINE_BOOL_METHOD(connect, (MYSQL_H mysql_h));
   static DEFINE_BOOL_METHOD(reset, (MYSQL_H mysql_h));
   static DEFINE_BOOL_METHOD(close, (MYSQL_H mysql_h));

@@ -79,6 +79,27 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::init, (MYSQL_H * mysql_h)) {
 }
 
 /**
+  Calls srv_session_init_thread() to initialize a thread to use the session
+  service.
+
+  @param[in] plugin A plugin structure pointer.
+
+    @retval true    failure
+    @retval false   success
+*/
+DEFINE_BOOL_METHOD(mysql_command_services_imp::init_thread, (void *plugin)) {
+  return srv_session_init_thread(plugin);
+}
+
+/**
+  Calls srv_session_deinit_thread() to deinitialize a thread that has been using
+  the session service.
+*/
+DEFINE_METHOD(void, mysql_command_services_imp::deinit_thread, ()) {
+  srv_session_deinit_thread();
+}
+
+/**
   Calls mysql_real_connect api to connect to a MySQL server.
 
   @param[in] mysql_h A valid mysql object.
@@ -1074,6 +1095,7 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::sql_error,
     if (m_handle == nullptr) return true;
     auto mcs_ext = MYSQL_COMMAND_SERVICE_EXTN(m_handle->mysql);
     auto consumer_data = mcs_ext->consumer_srv_data;
+    if (consumer_data == nullptr) return true;
     strcpy(*errmsg,
            const_cast<char *>(
                reinterpret_cast<Dom_ctx *>(consumer_data)->m_err_msg->c_str()));
