@@ -2472,11 +2472,6 @@ IF(PACK_SEPARATE_COMPONENTS)
   SET(CPACK_COMPONENTS_GROUPING IGNORE)
 ENDIF()
 
-IF(UNIX)
-  INSTALL(FILES
-    Docs/mysql.info
-    DESTINATION ${INSTALL_INFODIR} OPTIONAL COMPONENT Info)
-ENDIF()
 #
 # RPM installs documentation directly from the source tree
 #
@@ -2502,7 +2497,6 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
     PATTERN "glibc*" EXCLUDE
     PATTERN "linuxthreads.txt" EXCLUDE
     PATTERN "myisam.txt" EXCLUDE
-    PATTERN "mysql.info" EXCLUDE
     PATTERN "sp-imp-spec.txt" EXCLUDE
     PATTERN "README.build" EXCLUDE
   )
