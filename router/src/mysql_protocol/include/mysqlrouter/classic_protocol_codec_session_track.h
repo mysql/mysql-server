@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -73,7 +73,7 @@ class Codec<session_track::TransactionState>
   /**
    * decode a session_track::TransactionState from a buffer-sequence.
    *
-   * @param buffers input buffser sequence
+   * @param buffer input buffer
    * @param caps protocol capabilities
    *
    * @retval std::pair<size_t, message::server::Ok> on success, with bytes
@@ -81,12 +81,9 @@ class Codec<session_track::TransactionState>
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
    */
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value,
-                  "buffers MUST be a const buffer sequence");
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     const auto payload_length_res = accu.template step<wire::VarInt>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -147,7 +144,7 @@ class Codec<session_track::TransactionCharacteristics>
   /**
    * decode a session_track::TransactionCharacteristics from a buffer-sequence.
    *
-   * @param buffers input buffser sequence
+   * @param buffer input buffer
    * @param caps protocol capabilities
    *
    * @retval std::pair<size_t, session_track::TransactionCharacteristics> on
@@ -155,12 +152,9 @@ class Codec<session_track::TransactionCharacteristics>
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
    */
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value,
-                  "buffers MUST be a const buffer sequence");
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     const auto characteristics_res = accu.template step<wire::VarString>();
 
@@ -201,7 +195,7 @@ class Codec<session_track::State>
   /**
    * decode a session_track::State from a buffer-sequence.
    *
-   * @param buffers input buffser sequence
+   * @param buffer input buffer
    * @param caps protocol capabilities
    *
    * @retval std::pair<size_t, session_track::State> on success, with bytes
@@ -209,10 +203,9 @@ class Codec<session_track::State>
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
    */
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto state_res = accu.template step<wire::FixedInt<1>>();
 
@@ -253,7 +246,7 @@ class Codec<session_track::Schema>
   /**
    * decode a session_track::Schema from a buffer-sequence.
    *
-   * @param buffers input buffser sequence
+   * @param buffer input buffer
    * @param caps protocol capabilities
    *
    * @retval std::pair<size_t, session_track::Schema> on success, with bytes
@@ -261,12 +254,9 @@ class Codec<session_track::Schema>
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
    */
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value,
-                  "buffers MUST be a const buffer sequence");
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto schema_res = accu.template step<wire::VarString>();
 
@@ -309,7 +299,7 @@ class Codec<session_track::SystemVariable>
   /**
    * decode a session_track::SystemVariable from a buffer-sequence.
    *
-   * @param buffers input buffser sequence
+   * @param buffer input buffer
    * @param caps protocol capabilities
    *
    * @retval std::pair<size_t, session_track::SystemVariable> on success, with
@@ -317,12 +307,9 @@ class Codec<session_track::SystemVariable>
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
    */
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value,
-                  "buffers MUST be a const buffer sequence");
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto key_res = accu.template step<wire::VarString>();
     auto value_res = accu.template step<wire::VarString>();
@@ -374,7 +361,7 @@ class Codec<session_track::Gtid>
   /**
    * decode a session_track::Gtid from a buffer-sequence.
    *
-   * @param buffers input buffser sequence
+   * @param buffer input buffer
    * @param caps protocol capabilities
    *
    * @retval std::pair<size_t, session_track::Gtid> on success, with bytes
@@ -382,10 +369,9 @@ class Codec<session_track::Gtid>
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
    */
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto spec_res = accu.template step<wire::FixedInt<1>>();
     auto gtid_res = accu.template step<wire::VarString>();
@@ -440,7 +426,7 @@ class Codec<session_track::Field>
   /**
    * decode a session_track::Field from a buffer-sequence.
    *
-   * @param buffers input buffser sequence
+   * @param buffer input buffer
    * @param caps protocol capabilities
    *
    * @retval std::pair<size_t, session_track::Field> on success, with bytes
@@ -448,11 +434,9 @@ class Codec<session_track::Field>
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
    */
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value);
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto type_res = accu.template step<wire::FixedInt<1>>();
     auto data_res = accu.template step<wire::VarString>();

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,6 @@
 #include "mysql/harness/stdx/bit.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/classic_protocol_constants.h"
-#include "mysqlrouter/partial_buffer_sequence.h"
 
 namespace classic_protocol {
 
@@ -129,7 +128,6 @@ namespace impl {
  *
  * - .step<wire::VarInt>()
  */
-template <class ConstBufferSequence>
 class DecodeBufferAccumulator {
  public:
   using buffer_type = net::const_buffer;
@@ -138,17 +136,13 @@ class DecodeBufferAccumulator {
   /**
    * construct a DecodeBufferAccumulator.
    *
-   * @param buffers a ConstBufferSequence
+   * @param buffer a net::const_buffer
    * @param caps classic-protocol capabilities
    * @param consumed bytes to skip from the buffers
    */
-  DecodeBufferAccumulator(const ConstBufferSequence &buffers,
+  DecodeBufferAccumulator(const net::const_buffer &buffer,
                           capabilities::value_type caps, size_t consumed = 0)
-      : buffers_{buffers}, caps_{caps} {
-    static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value,
-                  "buffers MUST be a const buffer sequence");
-    buffers_.consume(consumed);
-  }
+      : buffer_(buffer), caps_(caps), consumed_(consumed) {}
 
   /**
    * decode a Type from the buffer sequence.
@@ -185,11 +179,9 @@ class DecodeBufferAccumulator {
    *
    */
   result_type result() const {
-    if (!res_) {
-      return res_;
-    } else {
-      return buffers_.total_consumed();
-    }
+    if (!res_) return res_;
+
+    return consumed_;
   }
 
  private:
@@ -205,22 +197,24 @@ class DecodeBufferAccumulator {
 
     stdx::expected<std::pair<size_t, typename Codec<T>::value_type>,
                    std::error_code>
-        decode_res = Codec<T>::decode(buffers_.prepare(max_size), caps_);
+        decode_res =
+            Codec<T>::decode(net::buffer(buffer_ + consumed_, max_size), caps_);
     if (decode_res) {
-      buffers_.consume(decode_res->first);
+      consumed_ += decode_res->first;
 
       return decode_res->second;
-    } else {
-      if (!Try) {
-        // capture the first failure
-        res_ = stdx::make_unexpected(decode_res.error());
-      }
-      return stdx::make_unexpected(decode_res.error());
     }
+
+    if (!Try) {
+      // capture the first failure
+      res_ = stdx::make_unexpected(decode_res.error());
+    }
+    return stdx::make_unexpected(decode_res.error());
   }
 
-  PartialBufferSequence<ConstBufferSequence> buffers_;
+  net::const_buffer buffer_;
   const capabilities::value_type caps_;
+  size_t consumed_;
 
   result_type res_;
 };
