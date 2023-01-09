@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -138,8 +138,10 @@ ConnectProcessor::init_destination() {
                                                  std::to_string(dest->port())));
   }
 
-  trace(Tracer::Event().stage("connect::init_destination: " +
-                              mysql_harness::join(dests, ",")));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::init_destination: " +
+                                   mysql_harness::join(dests, ",")));
+  }
 
   destinations_it_ = destinations_.begin();
 
@@ -163,7 +165,9 @@ ConnectProcessor::init_destination() {
 }
 
 stdx::expected<Processor::Result, std::error_code> ConnectProcessor::resolve() {
-  trace(Tracer::Event().stage("connect::resolve"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::resolve"));
+  }
 
   const auto &destination = *destinations_it_;
 
@@ -177,7 +181,9 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::resolve() {
     // already connected before. Make sure the same endpoint is connected.
     const auto dest_id = connection()->get_destination_id();
 
-    trace(Tracer::Event().stage("connect::sticky: " + dest_id));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::sticky: " + dest_id));
+    }
 
     if (dest_id !=
         destination_id_from_endpoint(destination->hostname(),
@@ -288,9 +294,11 @@ ConnectProcessor::from_pool() {
                                             std::chrono::milliseconds(0));
       if (!poll_res && poll_res.error() == std::errc::timed_out) {
         // nothing to read -> socket is still up.
-        trace(Tracer::Event().stage(
-            "connect::from_pool: " +
-            destination_id_from_endpoint(*endpoints_it_)));
+        if (auto &tr = tracer()) {
+          tr.trace(Tracer::Event().stage(
+              "connect::from_pool: " +
+              destination_id_from_endpoint(*endpoints_it_)));
+        }
 
         // if the socket would be closed, recv() would return 0 for "eof".
         //
@@ -315,8 +323,10 @@ ConnectProcessor::from_pool() {
 }
 
 stdx::expected<Processor::Result, std::error_code> ConnectProcessor::connect() {
-  trace(Tracer::Event().stage("connect::connect: " +
-                              mysqlrouter::to_string(server_endpoint_)));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::connect: " +
+                                   mysqlrouter::to_string(server_endpoint_)));
+  }
 #if 0
   if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
     log_debug("trying %s", mysqlrouter::to_string(server_endpoint_).c_str());
@@ -418,11 +428,15 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::connect() {
       t.expires_after(
           connection()->context().get_destination_connect_timeout());
 
-      trace(Tracer::Event().stage("connect::wait"));
+      if (auto &tr = tracer()) {
+        tr.trace(Tracer::Event().stage("connect::wait"));
+      }
       t.async_wait([this](std::error_code ec) {
         if (ec) return;
 
-        trace(Tracer::Event().stage("connect::timed_out"));
+        if (auto &tr = tracer()) {
+          tr.trace(Tracer::Event().stage("connect::timed_out"));
+        }
 
         auto *socket_splicer = connection()->socket_splicer();
         auto &server_conn = socket_splicer->server_conn();
@@ -477,8 +491,10 @@ ConnectProcessor::connect_finish() {
 
     (void)server_conn.close();
 
-    trace(Tracer::Event().stage("connect::connect_finish: " +
-                                last_ec_.message()));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::connect_finish: " +
+                                     last_ec_.message()));
+    }
 
     stage(Stage::NextEndpoint);
     return Result::Again;
@@ -488,8 +504,10 @@ ConnectProcessor::connect_finish() {
   if (!sock_ec_res) {
     last_ec_ = sock_ec_res.error();
 
-    trace(Tracer::Event().stage("connect::connect_finish: " +
-                                last_ec_.message()));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::connect_finish: " +
+                                     last_ec_.message()));
+    }
 
     stage(Stage::NextEndpoint);
     return Result::Again;
@@ -500,8 +518,10 @@ ConnectProcessor::connect_finish() {
   if (sock_ec != std::error_code{}) {
     last_ec_ = sock_ec;
 
-    trace(Tracer::Event().stage("connect::connect_finish: " +
-                                last_ec_.message()));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::connect_finish: " +
+                                     last_ec_.message()));
+    }
 
     stage(Stage::NextEndpoint);
     return Result::Again;
@@ -513,7 +533,10 @@ ConnectProcessor::connect_finish() {
 
 stdx::expected<Processor::Result, std::error_code>
 ConnectProcessor::next_endpoint() {
-  trace(Tracer::Event().stage("connect::next_endpoint: " + last_ec_.message()));
+  if (auto &tr = tracer()) {
+    tr.trace(
+        Tracer::Event().stage("connect::next_endpoint: " + last_ec_.message()));
+  }
 
   std::advance(endpoints_it_, 1);
 
@@ -561,7 +584,9 @@ bool ConnectProcessor::is_destination_good(const std::string &hostname,
 
 stdx::expected<Processor::Result, std::error_code>
 ConnectProcessor::next_destination() {
-  trace(Tracer::Event().stage("connect::next_destination"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::next_destination"));
+  }
   do {
     std::advance(destinations_it_, 1);
 
@@ -595,7 +620,9 @@ ConnectProcessor::next_destination() {
 
 stdx::expected<Processor::Result, std::error_code>
 ConnectProcessor::connected() {
-  trace(Tracer::Event().stage("connect::connected"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::connected"));
+  }
 
   // remember the destination we connected too for connection-sharing.
   connection()->destination_id(destination_id_from_endpoint(*endpoints_it_));
@@ -623,7 +650,9 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::error() {
   // close socket if it is already open
   if (tcp_conn) (void)tcp_conn->close();
 
-  trace(Tracer::Event().stage("connect::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::error"));
+  }
 
   const auto ec = last_ec_;
 
@@ -648,7 +677,9 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::error() {
     // acceptor-ports
     //
     // fresh-connect == "destiantion-id is empty"
-    trace(Tracer::Event().stage("connect::error::all_down"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::error::all_down"));
+    }
     // all backends are down.
     MySQLRoutingComponent::get_instance()
         .api(connection()->context().get_id())

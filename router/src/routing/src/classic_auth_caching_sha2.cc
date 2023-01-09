@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -149,7 +149,10 @@ AuthCachingSha2Sender::send_password() {
   auto dst_protocol = connection()->server_protocol();
 
   if (socket_splicer->server_conn().is_secure_transport()) {
-    trace(Tracer::Event().stage("caching_sha2::sender::plaintext_password"));
+    if (auto &tr = tracer()) {
+      tr.trace(
+          Tracer::Event().stage("caching_sha2::sender::plaintext_password"));
+    }
     auto send_res = ClassicFrame::send_msg<
         classic_protocol::message::client::AuthMethodData>(
         dst_channel, dst_protocol, {password_ + '\0'});
@@ -157,7 +160,10 @@ AuthCachingSha2Sender::send_password() {
 
     stage(Stage::Response);
   } else {
-    trace(Tracer::Event().stage("caching_sha2::sender::public_key_request"));
+    if (auto &tr = tracer()) {
+      tr.trace(
+          Tracer::Event().stage("caching_sha2::sender::public_key_request"));
+    }
 
     auto send_res = Auth::send_public_key_request(dst_channel, dst_protocol);
     if (!send_res) return send_server_failed(send_res.error());
@@ -255,13 +261,18 @@ AuthCachingSha2Sender::auth_data() {
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (msg_res->auth_method_data() == std::string_view("\x04")) {
-    trace(Tracer::Event().stage("caching_sha2::sender::request_full_auth"));
+    if (auto &tr = tracer()) {
+      tr.trace(
+          Tracer::Event().stage("caching_sha2::sender::request_full_auth"));
+    }
 
     discard_current_msg(dst_channel, dst_protocol);
 
     return send_password();
   } else if (msg_res->auth_method_data() == std::string_view("\x03")) {
-    trace(Tracer::Event().stage("caching_sha2::sender::fast_auth_ok"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("caching_sha2::sender::fast_auth_ok"));
+    }
 
     // as the client did the slow path, it doesn't expect a fast-auth-ok.
     discard_current_msg(dst_channel, dst_protocol);
@@ -278,7 +289,9 @@ AuthCachingSha2Sender::auth_data() {
 stdx::expected<Processor::Result, std::error_code> AuthCachingSha2Sender::ok() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("caching_sha2::sender::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("caching_sha2::sender::ok"));
+  }
 
   return Result::Again;
 }
@@ -287,7 +300,9 @@ stdx::expected<Processor::Result, std::error_code>
 AuthCachingSha2Sender::error() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("caching_sha2::sender::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("caching_sha2::sender::error"));
+  }
 
   return Result::Again;
 }
@@ -330,7 +345,9 @@ AuthCachingSha2Forwarder::init() {
   auto dst_channel = socket_splicer->client_channel();
   auto dst_protocol = connection()->client_protocol();
 
-  trace(Tracer::Event().stage("caching_sha2::forward::switch"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("caching_sha2::forward::switch"));
+  }
 
   auto send_res = ClassicFrame::send_msg<
       classic_protocol::message::server::AuthMethodSwitch>(
@@ -354,14 +371,19 @@ AuthCachingSha2Forwarder::client_data() {
   if (!msg_res) return recv_client_failed(msg_res.error());
 
   if (Auth::is_public_key_request(msg_res->auth_method_data())) {
-    trace(Tracer::Event().stage("caching_sha2::forward::public_key_request"));
+    if (auto &tr = tracer()) {
+      tr.trace(
+          Tracer::Event().stage("caching_sha2::forward::public_key_request"));
+    }
 
     if (AuthBase::connection_has_public_key(connection())) {
       // send the router's public-key to be able to decrypt the client's
       // password.
       discard_current_msg(src_channel, src_protocol);
 
-      trace(Tracer::Event().stage("caching_sha2::forward::public_key"));
+      if (auto &tr = tracer()) {
+        tr.trace(Tracer::Event().stage("caching_sha2::forward::public_key"));
+      }
 
       auto pubkey_res = Auth::public_key_from_ssl_ctx_as_pem(
           connection()->context().source_ssl_ctx()->get());
@@ -402,7 +424,10 @@ AuthCachingSha2Forwarder::client_data() {
       return forward_client_to_server();
     }
   } else {
-    trace(Tracer::Event().stage("caching_sha2::forward::scrambled_password"));
+    if (auto &tr = tracer()) {
+      tr.trace(
+          Tracer::Event().stage("caching_sha2::forward::scrambled_password"));
+    }
 
     // if it isn't a public-key request, it is a fast-auth.
     stage(Stage::Response);
@@ -423,7 +448,9 @@ AuthCachingSha2Forwarder::encrypted_password() {
           src_channel, src_protocol);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("caching_sha2::forward::encrypted"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("caching_sha2::forward::encrypted"));
+  }
 
   if (AuthBase::connection_has_public_key(connection())) {
     auto recv_res = Auth::rsa_decrypt_password(
@@ -437,7 +464,9 @@ AuthCachingSha2Forwarder::encrypted_password() {
 
     return send_password();
   } else {
-    trace(Tracer::Event().stage("caching_sha2::forward::encrypted"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("caching_sha2::forward::encrypted"));
+    }
 
     stage(Stage::Response);
 
@@ -458,7 +487,10 @@ AuthCachingSha2Forwarder::plaintext_password() {
   if (!msg_res) return recv_client_failed(msg_res.error());
 
   if (socket_splicer->client_conn().is_secure_transport()) {
-    trace(Tracer::Event().stage("caching_sha2::forward::plaintext_password"));
+    if (auto &tr = tracer()) {
+      tr.trace(
+          Tracer::Event().stage("caching_sha2::forward::plaintext_password"));
+    }
 
     // remove trailing null
     src_protocol->password(std::string(
@@ -468,14 +500,19 @@ AuthCachingSha2Forwarder::plaintext_password() {
 
     return send_password();
   } else if (Auth::is_public_key_request(msg_res->auth_method_data())) {
-    trace(Tracer::Event().stage("caching_sha2::forward::public_key_request"));
+    if (auto &tr = tracer()) {
+      tr.trace(
+          Tracer::Event().stage("caching_sha2::forward::public_key_request"));
+    }
 
     if (AuthBase::connection_has_public_key(connection())) {
       // send the router's public-key to be able to decrypt the client's
       // password.
       discard_current_msg(src_channel, src_protocol);
 
-      trace(Tracer::Event().stage("caching_sha2::forward::public_key"));
+      if (auto &tr = tracer()) {
+        tr.trace(Tracer::Event().stage("caching_sha2::forward::public_key"));
+      }
 
       auto pubkey_res = Auth::public_key_from_ssl_ctx_as_pem(
           connection()->context().source_ssl_ctx()->get());
@@ -518,7 +555,9 @@ AuthCachingSha2Forwarder::plaintext_password() {
   } else {
     discard_current_msg(src_channel, src_protocol);
 
-    trace(Tracer::Event().stage("caching_sha2::forward::bad_message"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("caching_sha2::forward::bad_message"));
+    }
 
     return recv_client_failed(make_error_code(std::errc::bad_message));
   }
@@ -535,7 +574,10 @@ AuthCachingSha2Forwarder::send_password() {
 
   if (socket_splicer->server_conn().is_secure_transport()) {
     // the server-side is secure: send plaintext password
-    trace(Tracer::Event().stage("caching_sha2::forward::plaintext_password"));
+    if (auto &tr = tracer()) {
+      tr.trace(
+          Tracer::Event().stage("caching_sha2::forward::plaintext_password"));
+    }
 
     stage(Stage::Response);
 
@@ -544,7 +586,10 @@ AuthCachingSha2Forwarder::send_password() {
     if (!send_res) return send_server_failed(send_res.error());
   } else {
     // the server is NOT secure: ask for the server's publickey
-    trace(Tracer::Event().stage("caching_sha2::forward::public_key_request"));
+    if (auto &tr = tracer()) {
+      tr.trace(
+          Tracer::Event().stage("caching_sha2::forward::public_key_request"));
+    }
 
     stage(Stage::PublicKeyResponse);
 
@@ -629,7 +674,10 @@ AuthCachingSha2Forwarder::public_key_response() {
       return Result::Again;
   }
 
-  trace(Tracer::Event().stage("caching_sha2::forward::public_key_response"));
+  if (auto &tr = tracer()) {
+    tr.trace(
+        Tracer::Event().stage("caching_sha2::forward::public_key_response"));
+  }
 
   // if there is another packet, dump its payload for now.
   auto &recv_buf = src_channel->recv_plain_buffer();
@@ -657,7 +705,9 @@ AuthCachingSha2Forwarder::public_key() {
           dst_channel, dst_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("caching_sha2::forward::public-key"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("caching_sha2::forward::public-key"));
+  }
 
   if (!src_protocol->password().has_value()) {
     // the client's password isn't known.
@@ -703,7 +753,10 @@ AuthCachingSha2Forwarder::auth_data() {
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (msg_res->auth_method_data() == std::string_view("\x04")) {
-    trace(Tracer::Event().stage("caching_sha2::forward::request_full_auth"));
+    if (auto &tr = tracer()) {
+      tr.trace(
+          Tracer::Event().stage("caching_sha2::forward::request_full_auth"));
+    }
 
     if (src_protocol->password().has_value()) {
       discard_current_msg(dst_channel, dst_protocol);
@@ -715,7 +768,9 @@ AuthCachingSha2Forwarder::auth_data() {
       return forward_server_to_client();
     }
   } else if (msg_res->auth_method_data() == std::string_view("\x03")) {
-    trace(Tracer::Event().stage("caching_sha2::forward::fast_auth_ok"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("caching_sha2::forward::fast_auth_ok"));
+    }
 
     // next is a Ok packet.
     stage(Stage::Response);
@@ -745,8 +800,10 @@ AuthCachingSha2Forwarder::auth_data() {
       return forward_server_to_client(true);
     }
   } else {
-    trace(Tracer::Event().stage("caching_sha2::forward::??\n" +
-                                hexify(msg_res->auth_method_data())));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("caching_sha2::forward::??\n" +
+                                     hexify(msg_res->auth_method_data())));
+    }
     stage(Stage::Response);
 
     return forward_server_to_client();
@@ -757,7 +814,9 @@ stdx::expected<Processor::Result, std::error_code>
 AuthCachingSha2Forwarder::ok() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("caching_sha2::forward::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("caching_sha2::forward::ok"));
+  }
 
   // leave the message in the queue for the AuthForwarder.
   return Result::Again;
@@ -767,7 +826,9 @@ stdx::expected<Processor::Result, std::error_code>
 AuthCachingSha2Forwarder::error() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("caching_sha2::forward::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("caching_sha2::forward::error"));
+  }
 
   // leave the message in the queue for the AuthForwarder.
   return Result::Again;

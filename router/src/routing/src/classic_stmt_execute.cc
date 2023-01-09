@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,9 @@ StmtExecuteProcessor::process() {
 
 stdx::expected<Processor::Result, std::error_code>
 StmtExecuteProcessor::command() {
-  trace(Tracer::Event().stage("stmt_execute::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_execute::command"));
+  }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
@@ -81,7 +83,9 @@ StmtExecuteProcessor::command() {
     //   server.
     discard_current_msg(src_channel, src_protocol);
 
-    trace(Tracer::Event().stage("stmt_execute::error"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("stmt_execute::error"));
+    }
 
     auto send_res =
         ClassicFrame::send_msg<classic_protocol::message::server::Error>(
@@ -140,7 +144,9 @@ StmtExecuteProcessor::column_count() {
                                                              src_protocol);
   if (!column_count_res) return recv_server_failed(column_count_res.error());
 
-  trace(Tracer::Event().stage("stmt_execute::column_count"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_execute::column_count"));
+  }
 
   src_protocol->columns_left = column_count_res->value();
 
@@ -151,7 +157,9 @@ StmtExecuteProcessor::column_count() {
 
 stdx::expected<Processor::Result, std::error_code>
 StmtExecuteProcessor::column() {
-  trace(Tracer::Event().stage("stmt_execute::column"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_execute::column"));
+  }
 
   auto src_protocol = connection()->server_protocol();
 
@@ -171,7 +179,9 @@ StmtExecuteProcessor::column() {
 
 stdx::expected<Processor::Result, std::error_code>
 StmtExecuteProcessor::end_of_columns() {
-  trace(Tracer::Event().stage("stmt_execute::end_of_columns"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_execute::end_of_columns"));
+  }
 
   stage(Stage::Row);
 
@@ -199,7 +209,9 @@ stdx::expected<Processor::Result, std::error_code> StmtExecuteProcessor::row() {
       stage(Stage::EndOfRows);
       return Result::Again;
     case Msg::Row:
-      trace(Tracer::Event().stage("stmt_execute::row"));
+      if (auto &tr = tracer()) {
+        tr.trace(Tracer::Event().stage("stmt_execute::row"));
+      }
       return forward_server_to_client(true);
   }
 
@@ -216,7 +228,9 @@ StmtExecuteProcessor::end_of_rows() {
       src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("stmt_execute::end_of_rows"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_execute::end_of_rows"));
+  }
 
   auto msg = std::move(*msg_res);
 
@@ -231,7 +245,9 @@ StmtExecuteProcessor::end_of_rows() {
 }
 
 stdx::expected<Processor::Result, std::error_code> StmtExecuteProcessor::ok() {
-  trace(Tracer::Event().stage("stmt_execute::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_execute::ok"));
+  }
 
   stage(Stage::Done);
 
@@ -240,7 +256,9 @@ stdx::expected<Processor::Result, std::error_code> StmtExecuteProcessor::ok() {
 
 stdx::expected<Processor::Result, std::error_code>
 StmtExecuteProcessor::error() {
-  trace(Tracer::Event().stage("stmt_execute::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_execute::error"));
+  }
 
   stage(Stage::Done);
 

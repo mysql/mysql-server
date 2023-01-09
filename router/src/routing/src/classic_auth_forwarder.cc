@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -124,8 +124,11 @@ AuthGenericForwarder::init() {
   auto dst_channel = socket_splicer->client_channel();
   auto dst_protocol = connection()->client_protocol();
 
-  trace(Tracer::Event().stage("generic::forward::switch: " + auth_method_name_ +
+  if (auto &tr = tracer()) {
+    tr.trace(
+        Tracer::Event().stage("generic::forward::switch: " + auth_method_name_ +
                               "\n" + hexify(initial_server_auth_data_)));
+  }
 
   auto send_res = ClassicFrame::send_msg<
       classic_protocol::message::server::AuthMethodSwitch>(
@@ -148,9 +151,11 @@ AuthGenericForwarder::client_data() {
           src_channel, src_protocol);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
-  trace(Tracer::Event().stage(
-      "generic::forward::client:\n" +
-      mysql_harness::hexify(msg_res->auth_method_data())));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage(
+        "generic::forward::client:\n" +
+        mysql_harness::hexify(msg_res->auth_method_data())));
+  }
 
   // if it isn't a public-key request, it is a fast-auth.
   stage(Stage::Response);
@@ -214,8 +219,10 @@ AuthGenericForwarder::auth_data() {
           dst_channel, dst_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("generic::forward::data\n" +
-                              hexify(msg_res->auth_method_data())));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("generic::forward::data\n" +
+                                   hexify(msg_res->auth_method_data())));
+  }
   stage(Stage::ClientData);
 
   return forward_server_to_client();
@@ -224,7 +231,9 @@ AuthGenericForwarder::auth_data() {
 stdx::expected<Processor::Result, std::error_code> AuthGenericForwarder::ok() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("generic::forward::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("generic::forward::ok"));
+  }
 
   // leave the message in the queue for the AuthForwarder.
   return Result::Again;
@@ -234,7 +243,9 @@ stdx::expected<Processor::Result, std::error_code>
 AuthGenericForwarder::error() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("generic::forward::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("generic::forward::error"));
+  }
 
   // leave the message in the queue for the AuthForwarder.
   return Result::Again;
@@ -290,7 +301,10 @@ stdx::expected<Processor::Result, std::error_code> AuthForwarder::init() {
             : "old_password";
   }
 
-  trace(Tracer::Event().stage("auth::forwarder::direct: " + auth_method_name));
+  if (auto &tr = tracer()) {
+    tr.trace(
+        Tracer::Event().stage("auth::forwarder::direct: " + auth_method_name));
+  }
 
   if (auth_method_name == AuthSha256Password::kName) {
     connection()->push_processor(std::make_unique<AuthSha256Forwarder>(
@@ -333,7 +347,10 @@ AuthForwarder::auth_method_switch() {
   dst_protocol->auth_method_name(msg.auth_method());
   dst_protocol->auth_method_data(msg.auth_method_data());
 
-  trace(Tracer::Event().stage("auth::forwarder::switch: " + msg.auth_method()));
+  if (auto &tr = tracer()) {
+    tr.trace(
+        Tracer::Event().stage("auth::forwarder::switch: " + msg.auth_method()));
+  }
 
   discard_current_msg(src_channel, src_protocol);
 
@@ -409,7 +426,9 @@ stdx::expected<Processor::Result, std::error_code> AuthForwarder::response() {
       return Result::Again;
   }
 
-  trace(Tracer::Event().stage("auth::forwarder::response"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("auth::forwarder::response"));
+  }
 
   // if there is another packet, dump its payload for now.
   auto &recv_buf = src_channel->recv_plain_buffer();
@@ -426,7 +445,9 @@ stdx::expected<Processor::Result, std::error_code> AuthForwarder::response() {
 stdx::expected<Processor::Result, std::error_code> AuthForwarder::ok() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("auth::forwarder::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("auth::forwarder::ok"));
+  }
 
   // leave the message in the queue for the caller.
   return Result::Again;
@@ -435,7 +456,9 @@ stdx::expected<Processor::Result, std::error_code> AuthForwarder::ok() {
 stdx::expected<Processor::Result, std::error_code> AuthForwarder::error() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("auth::forwarder::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("auth::forwarder::error"));
+  }
 
   // leave the message in the queue for the caller.
   return Result::Again;

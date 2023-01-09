@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,9 @@ RegisterReplicaForwarder::process() {
 
 stdx::expected<Processor::Result, std::error_code>
 RegisterReplicaForwarder::command() {
-  trace(Tracer::Event().stage("register_replica::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("register_replica::command"));
+  }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
@@ -73,7 +75,9 @@ RegisterReplicaForwarder::command() {
 
 stdx::expected<Processor::Result, std::error_code>
 RegisterReplicaForwarder::connect() {
-  trace(Tracer::Event().stage("register_replica::connect"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("register_replica::connect"));
+  }
 
   stage(Stage::Connected);
 
@@ -99,13 +103,17 @@ RegisterReplicaForwarder::connected() {
 
     discard_current_msg(src_channel, src_protocol);
 
-    trace(Tracer::Event().stage("register_replica::error"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("register_replica::error"));
+    }
 
     stage(Stage::Done);
     return Result::Again;
   }
 
-  trace(Tracer::Event().stage("register_replica::connected"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("register_replica::connected"));
+  }
   stage(Stage::Response);
   return forward_client_to_server();
 }
@@ -136,7 +144,9 @@ RegisterReplicaForwarder::response() {
       return Result::Again;
   }
 
-  trace(Tracer::Event().stage("register_replica::response"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("register_replica::response"));
+  }
 
   log_debug("register_replica::response: unexpected msg-type '%02x'", msg_type);
 
@@ -145,7 +155,9 @@ RegisterReplicaForwarder::response() {
 
 stdx::expected<Processor::Result, std::error_code>
 RegisterReplicaForwarder::ok() {
-  trace(Tracer::Event().stage("register_replica::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("register_replica::ok"));
+  }
 
   stage(Stage::Done);
 
@@ -154,7 +166,9 @@ RegisterReplicaForwarder::ok() {
 
 stdx::expected<Processor::Result, std::error_code>
 RegisterReplicaForwarder::error() {
-  trace(Tracer::Event().stage("register_replica::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("register_replica::error"));
+  }
 
   stage(Stage::Done);
 

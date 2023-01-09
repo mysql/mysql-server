@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,9 @@ StatisticsForwarder::process() {
 
 stdx::expected<Processor::Result, std::error_code>
 StatisticsForwarder::command() {
-  trace(Tracer::Event().stage("statistics::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("statistics::command"));
+  }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
@@ -66,7 +68,9 @@ StatisticsForwarder::command() {
 
 stdx::expected<Processor::Result, std::error_code>
 StatisticsForwarder::connect() {
-  trace(Tracer::Event().stage("statistics::connect"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("statistics::connect"));
+  }
 
   stage(Stage::Connected);
 
@@ -92,13 +96,17 @@ StatisticsForwarder::connected() {
 
     discard_current_msg(src_channel, src_protocol);
 
-    trace(Tracer::Event().stage("statistics::error"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("statistics::error"));
+    }
 
     stage(Stage::Done);
     return Result::Again;
   }
 
-  trace(Tracer::Event().stage("statistics::connected"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("statistics::connected"));
+  }
 
   stage(Stage::Response);
   return forward_client_to_server();
@@ -106,7 +114,9 @@ StatisticsForwarder::connected() {
 
 stdx::expected<Processor::Result, std::error_code>
 StatisticsForwarder::response() {
-  trace(Tracer::Event().stage("statistics::response"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("statistics::response"));
+  }
 
   stage(Stage::Done);
 

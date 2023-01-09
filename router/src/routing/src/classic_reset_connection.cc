@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,9 @@ ResetConnectionForwarder::process() {
 
 stdx::expected<Processor::Result, std::error_code>
 ResetConnectionForwarder::command() {
-  trace(Tracer::Event().stage("reset_connection::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("reset_connection::command"));
+  }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
@@ -84,7 +86,9 @@ ResetConnectionForwarder::command() {
 
 stdx::expected<Processor::Result, std::error_code>
 ResetConnectionForwarder::connect() {
-  trace(Tracer::Event().stage("reset_connection::connect"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("reset_connection::connect"));
+  }
 
   stage(Stage::Connected);
 
@@ -110,13 +114,17 @@ ResetConnectionForwarder::connected() {
 
     discard_current_msg(src_channel, src_protocol);
 
-    trace(Tracer::Event().stage("reset_connection::error"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("reset_connection::error"));
+    }
 
     stage(Stage::Done);
     return Result::Again;
   }
 
-  trace(Tracer::Event().stage("reset_connection::connected"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("reset_connection::connected"));
+  }
 
   stage(Stage::Response);
   return forward_client_to_server();
@@ -160,7 +168,9 @@ ResetConnectionForwarder::ok() {
       src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("reset_connection::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("reset_connection::ok"));
+  }
 
   auto msg = std::move(*msg_res);
 
@@ -217,7 +227,9 @@ ResetConnectionSender::command() {
   auto dst_channel = socket_splicer->server_channel();
   auto dst_protocol = connection()->server_protocol();
 
-  trace(Tracer::Event().stage("reset_connection::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("reset_connection::command"));
+  }
 
   const auto send_res = ClassicFrame::send_msg<
       classic_protocol::message::client::ResetConnection>(dst_channel,
@@ -265,7 +277,9 @@ stdx::expected<Processor::Result, std::error_code> ResetConnectionSender::ok() {
       src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("reset_connection::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("reset_connection::ok"));
+  }
 
   auto msg = std::move(*msg_res);
 

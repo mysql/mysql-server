@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -85,7 +85,9 @@ stdx::expected<Processor::Result, std::error_code> AuthCleartextSender::init() {
           dst_channel, dst_protocol, {password_});
   if (!send_res) return send_server_failed(send_res.error());
 
-  trace(Tracer::Event().stage("cleartext::sender::password"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("cleartext::sender::password"));
+  }
 
   stage(Stage::Response);
 
@@ -135,7 +137,9 @@ AuthCleartextSender::response() {
 stdx::expected<Processor::Result, std::error_code> AuthCleartextSender::ok() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("cleartext::sender::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("cleartext::sender::ok"));
+  }
 
   return Result::Again;
 }
@@ -144,7 +148,9 @@ stdx::expected<Processor::Result, std::error_code>
 AuthCleartextSender::error() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("cleartext::sender::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("cleartext::sender::error"));
+  }
 
   return Result::Again;
 }
@@ -175,7 +181,9 @@ AuthCleartextForwarder::init() {
   auto dst_channel = socket_splicer->client_channel();
   auto dst_protocol = connection()->client_protocol();
 
-  trace(Tracer::Event().stage("cleartext::forward::switch"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("cleartext::forward::switch"));
+  }
 
   auto send_res = ClassicFrame::send_msg<
       classic_protocol::message::server::AuthMethodSwitch>(
@@ -199,7 +207,9 @@ AuthCleartextForwarder::client_data() {
           src_channel, src_protocol);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("cleartext::forward::plaintext_password"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("cleartext::forward::plaintext_password"));
+  }
 
   stage(Stage::Response);
 
@@ -234,7 +244,9 @@ AuthCleartextForwarder::response() {
       return Result::Again;
   }
 
-  trace(Tracer::Event().stage("cleartext::forward::response"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("cleartext::forward::response"));
+  }
 
   // if there is another packet, dump its payload for now.
   auto &recv_buf = src_channel->recv_plain_buffer();
@@ -252,7 +264,9 @@ stdx::expected<Processor::Result, std::error_code>
 AuthCleartextForwarder::ok() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("cleartext::forward::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("cleartext::forward::ok"));
+  }
 
   // leave the message in the queue for the AuthForwarder.
   return Result::Again;
@@ -262,7 +276,9 @@ stdx::expected<Processor::Result, std::error_code>
 AuthCleartextForwarder::error() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("cleartext::forward::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("cleartext::forward::error"));
+  }
 
   // leave the message in the queue for the AuthForwarder.
   return Result::Again;

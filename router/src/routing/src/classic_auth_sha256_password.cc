@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,10 @@ stdx::expected<Processor::Result, std::error_code> AuthSha256Sender::init() {
   auto dst_protocol = connection()->server_protocol();
 
   if (dst_channel->ssl() || password_.empty()) {
-    trace(Tracer::Event().stage("sha256_password::sender::plaintext_password"));
+    if (auto &tr = tracer()) {
+      tr.trace(
+          Tracer::Event().stage("sha256_password::sender::plaintext_password"));
+    }
 
     auto send_res = ClassicFrame::send_msg<
         classic_protocol::message::client::AuthMethodData>(
@@ -123,7 +126,10 @@ stdx::expected<Processor::Result, std::error_code> AuthSha256Sender::init() {
 
     stage(Stage::Response);
   } else {
-    trace(Tracer::Event().stage("sha256_password::sender::public_key_request"));
+    if (auto &tr = tracer()) {
+      tr.trace(
+          Tracer::Event().stage("sha256_password::sender::public_key_request"));
+    }
     auto send_res = Auth::send_public_key_request(dst_channel, dst_protocol);
     if (!send_res) return send_server_failed(send_res.error());
 
@@ -206,7 +212,9 @@ AuthSha256Sender::public_key() {
 stdx::expected<Processor::Result, std::error_code> AuthSha256Sender::ok() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("sha256_password::sender::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("sha256_password::sender::ok"));
+  }
 
   return Result::Again;
 }
@@ -214,7 +222,9 @@ stdx::expected<Processor::Result, std::error_code> AuthSha256Sender::ok() {
 stdx::expected<Processor::Result, std::error_code> AuthSha256Sender::error() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("sha256_password::sender::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("sha256_password::sender::error"));
+  }
 
   return Result::Again;
 }
@@ -251,8 +261,9 @@ stdx::expected<Processor::Result, std::error_code> AuthSha256Forwarder::init() {
   auto *socket_splicer = connection()->socket_splicer();
   auto dst_channel = socket_splicer->client_channel();
   auto dst_protocol = connection()->client_protocol();
-
-  trace(Tracer::Event().stage("sha256_password::forward::switch"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("sha256_password::forward::switch"));
+  }
 
   auto send_res = ClassicFrame::send_msg<
       classic_protocol::message::server::AuthMethodSwitch>(
@@ -275,9 +286,10 @@ AuthSha256Forwarder::client_data() {
       ClassicFrame::recv_msg<classic_protocol::message::client::AuthMethodData>(
           src_channel, src_protocol);
   if (!msg_res) return recv_client_failed(msg_res.error());
-
-  trace(Tracer::Event().stage("sha256_password::forward::client_data:\n" +
-                              hexify(msg_res->auth_method_data())));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("sha256_password::forward::client_data:\n" +
+                                   hexify(msg_res->auth_method_data())));
+  }
 
   if (src_channel->ssl() ||
       msg_res->auth_method_data() == Auth::kEmptyPassword) {
@@ -285,22 +297,28 @@ AuthSha256Forwarder::client_data() {
     src_protocol->password(std::string(
         AuthBase::strip_trailing_null(msg_res->auth_method_data())));
 
-    trace(Tracer::Event().stage("sha256_password::forward::password:\n" +
-                                hexify(*src_protocol->password())));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("sha256_password::forward::password:\n" +
+                                     hexify(*src_protocol->password())));
+    }
 
     discard_current_msg(src_channel, src_protocol);
 
     return send_password();
   } else if (Auth::is_public_key_request(msg_res->auth_method_data())) {
-    trace(
-        Tracer::Event().stage("sha256_password::forward::public_key_request"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage(
+          "sha256_password::forward::public_key_request"));
+    }
 
     if (AuthBase::connection_has_public_key(connection())) {
       // send the router's public-key to be able to decrypt the client's
       // password.
       discard_current_msg(src_channel, src_protocol);
 
-      trace(Tracer::Event().stage("sha256_password::forward::public_key"));
+      if (auto &tr = tracer()) {
+        tr.trace(Tracer::Event().stage("sha256_password::forward::public_key"));
+      }
 
       auto pubkey_res = Auth::public_key_from_ssl_ctx_as_pem(
           connection()->context().source_ssl_ctx()->get());
@@ -367,21 +385,27 @@ AuthSha256Forwarder::encrypted_password() {
         connection()->context().source_ssl_ctx()->get(),
         msg_res->auth_method_data(), src_protocol->auth_method_data());
     if (!recv_res) {
-      trace(Tracer::Event().stage("sha256_password::forward::decrypt:\n" +
-                                  recv_res.error().message()));
+      if (auto &tr = tracer()) {
+        tr.trace(Tracer::Event().stage("sha256_password::forward::decrypt:\n" +
+                                       recv_res.error().message()));
+      }
       return recv_client_failed(recv_res.error());
     }
 
     src_protocol->password(*recv_res);
 
-    trace(Tracer::Event().stage("sha256_password::forward::password:\n" +
-                                hexify(*src_protocol->password())));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("sha256_password::forward::password:\n" +
+                                     hexify(*src_protocol->password())));
+    }
 
     discard_current_msg(src_channel, src_protocol);
 
     return send_password();
   } else {
-    trace(Tracer::Event().stage("sha256_password::forward::encrypted"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("sha256_password::forward::encrypted"));
+    }
 
     stage(Stage::Response);
 
@@ -402,8 +426,10 @@ AuthSha256Forwarder::send_password() {
     // the server-side is encrypted (or the password is empty):
     //
     // send plaintext password
-    trace(
-        Tracer::Event().stage("sha256_password::forward::plaintext_password"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage(
+          "sha256_password::forward::plaintext_password"));
+    }
 
     stage(Stage::Response);
 
@@ -412,8 +438,10 @@ AuthSha256Forwarder::send_password() {
     if (!send_res) return send_server_failed(send_res.error());
   } else {
     // the server is NOT encrypted: ask for the server's publickey
-    trace(
-        Tracer::Event().stage("sha256_password::forward::public_key_request"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage(
+          "sha256_password::forward::public_key_request"));
+    }
 
     stage(Stage::PublicKeyResponse);
 
@@ -452,7 +480,9 @@ AuthSha256Forwarder::response() {
       return Result::Again;
   }
 
-  trace(Tracer::Event().stage("sha256_password::forward::response"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("sha256_password::forward::response"));
+  }
 
   // if there is another packet, dump its payload for now.
   auto &recv_buf = src_channel->recv_plain_buffer();
@@ -496,7 +526,9 @@ AuthSha256Forwarder::public_key_response() {
       return Result::Again;
   }
 
-  trace(Tracer::Event().stage("sha256_password::forward::response"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("sha256_password::forward::response"));
+  }
 
   // if there is another packet, dump its payload for now.
   auto &recv_buf = src_channel->recv_plain_buffer();
@@ -527,7 +559,9 @@ AuthSha256Forwarder::public_key() {
           dst_channel, dst_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("sha256_password::forward::public_key"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("sha256_password::forward::public_key"));
+  }
 
   if (!src_protocol->password().has_value()) {
     stage(Stage::EncryptedPassword);
@@ -547,7 +581,10 @@ AuthSha256Forwarder::public_key() {
                                                   initial_server_auth_data_);
   if (!encrypted_res) return send_server_failed(encrypted_res.error());
 
-  trace(Tracer::Event().stage("sha256_password::forward::encrypted_password"));
+  if (auto &tr = tracer()) {
+    tr.trace(
+        Tracer::Event().stage("sha256_password::forward::encrypted_password"));
+  }
 
   auto send_res =
       Auth::send_encrypted_password(dst_channel, dst_protocol, *encrypted_res);
@@ -561,7 +598,9 @@ AuthSha256Forwarder::public_key() {
 stdx::expected<Processor::Result, std::error_code> AuthSha256Forwarder::ok() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("sha256_password::forward::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("sha256_password::forward::ok"));
+  }
 
   return Result::Again;
 }
@@ -570,7 +609,9 @@ stdx::expected<Processor::Result, std::error_code>
 AuthSha256Forwarder::error() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("sha256_password::forward::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("sha256_password::forward::error"));
+  }
 
   return Result::Again;
 }

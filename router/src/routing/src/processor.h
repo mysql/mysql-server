@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -122,7 +122,11 @@ class Processor : public BasicProcessor {
   static void log_fatal_error_code(const char *msg, std::error_code ec);
 
   // see MysqlClassicConnection::trace()
-  void trace(Tracer::Event e);
+  [[deprecated(
+      "use 'if (auto &tr = tracer()) { tr.trace(...); } instead")]] void
+  trace(Tracer::Event e);
+
+  Tracer &tracer();
 
   /**
    * forward the current packet from the server-side to the client-side.

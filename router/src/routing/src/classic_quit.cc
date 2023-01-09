@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,9 @@ stdx::expected<Processor::Result, std::error_code> QuitProcessor::command() {
           src_channel, src_protocol);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("quit::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("quit::command"));
+  }
 
   {
     // if the client already shutdown the socket, close our side of it too.
@@ -113,9 +115,11 @@ stdx::expected<Processor::Result, std::error_code> QuitProcessor::command() {
         net::socket_base::message_peek);
     if (recv_res && recv_res.value() == 0) {
       // client already closed the socket.
-      trace(Tracer::Event()
-                .stage("close::client")
-                .direction(Tracer::Event::Direction::kClientClose));
+      if (auto &tr = tracer()) {
+        tr.trace(Tracer::Event()
+                     .stage("close::client")
+                     .direction(Tracer::Event::Direction::kClientClose));
+      }
       (void)socket_splicer->client_conn().close();
     }
   }
@@ -141,7 +145,9 @@ stdx::expected<Processor::Result, std::error_code> QuitProcessor::command() {
                 std::make_unique<ClassicProtocolState>()})));
 
     if (!is_full_res) {
-      trace(Tracer::Event().stage("quit::pooled"));
+      if (auto &tr = tracer()) {
+        tr.trace(Tracer::Event().stage("quit::pooled"));
+      }
 
       // the connect was pooled, discard the Quit message.
       discard_current_msg(src_channel, src_protocol);

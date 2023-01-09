@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -143,7 +143,9 @@ ChangeUserForwarder::command() {
 
   discard_current_msg(src_channel, src_protocol);
 
-  trace(Tracer::Event().stage("change_user::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("change_user::command"));
+  }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
@@ -162,7 +164,9 @@ ChangeUserForwarder::command() {
 
 stdx::expected<Processor::Result, std::error_code>
 ChangeUserForwarder::connect() {
-  trace(Tracer::Event().stage("change_user::connect"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("change_user::connect"));
+  }
 
   stage(Stage::Connected);
 
@@ -194,13 +198,17 @@ ChangeUserForwarder::connected() {
 
     discard_current_msg(src_channel, src_protocol);
 
-    trace(Tracer::Event().stage("change_user::connect::error"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("change_user::connect::error"));
+    }
 
     stage(Stage::Done);
     return Result::Again;
   }
 
-  trace(Tracer::Event().stage("change_user::connected"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("change_user::connected"));
+  }
 
   if (server_protocol->server_greeting()) {
     // from pool.
@@ -229,7 +237,9 @@ ChangeUserForwarder::response() {
 }
 
 stdx::expected<Processor::Result, std::error_code> ChangeUserForwarder::ok() {
-  trace(Tracer::Event().stage("change_user::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("change_user::ok"));
+  }
 
   // allow connection sharing again.
   connection()->connection_sharing_allowed_reset();
@@ -258,7 +268,9 @@ SET @@SESSION.session_track_schema           = 'ON',
 
 stdx::expected<Processor::Result, std::error_code>
 ChangeUserForwarder::error() {
-  trace(Tracer::Event().stage("change_user::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("change_user::error"));
+  }
 
   auto *socket_splicer = connection()->socket_splicer();
 
@@ -502,7 +514,9 @@ stdx::expected<Processor::Result, std::error_code> ChangeUserSender::command() {
       ;
 #endif
 
-  trace(Tracer::Event().stage("change_user::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("change_user::command"));
+  }
 
   dst_protocol->seq_id(0xff);  // reset seq-id
 
@@ -548,7 +562,9 @@ ChangeUserSender::final_response() {
       return Result::Again;
   }
 
-  trace(Tracer::Event().stage("change_user::response"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("change_user::response"));
+  }
 
   return stdx::make_unexpected(make_error_code(std::errc::bad_message));
 }
@@ -563,7 +579,9 @@ stdx::expected<Processor::Result, std::error_code> ChangeUserSender::ok() {
       src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("change_user::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("change_user::ok"));
+  }
 
   auto msg = std::move(*msg_res);
 
@@ -601,7 +619,10 @@ stdx::expected<Processor::Result, std::error_code> ChangeUserSender::error() {
           src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("change_user::error: " + msg_res->message()));
+  if (auto &tr = tracer()) {
+    tr.trace(
+        Tracer::Event().stage("change_user::error: " + msg_res->message()));
+  }
 
   connection()->authenticated(false);
 

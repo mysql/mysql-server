@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -123,7 +123,11 @@ void Processor::log_fatal_error_code(const char *msg, std::error_code ec) {
             ec.value());
 }
 
-void Processor::trace(Tracer::Event e) { return connection()->trace(e); }
+void Processor::trace(Tracer::Event event) {
+  return connection()->trace(std::move(event));
+}
+
+Tracer &Processor::tracer() { return connection()->tracer(); }
 
 stdx::expected<Processor::Result, std::error_code>
 Processor::forward_server_to_client(bool noflush) {

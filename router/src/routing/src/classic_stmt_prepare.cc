@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,9 @@ StmtPrepareForwarder::process() {
 
 stdx::expected<Processor::Result, std::error_code>
 StmtPrepareForwarder::command() {
-  trace(Tracer::Event().stage("stmt_prepare::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_prepare::command"));
+  }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
@@ -79,7 +81,9 @@ StmtPrepareForwarder::command() {
 
 stdx::expected<Processor::Result, std::error_code>
 StmtPrepareForwarder::connect() {
-  trace(Tracer::Event().stage("stmt_prepare::connect"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_prepare::connect"));
+  }
 
   stage(Stage::Connected);
 
@@ -105,13 +109,17 @@ StmtPrepareForwarder::connected() {
 
     discard_current_msg(src_channel, src_protocol);
 
-    trace(Tracer::Event().stage("stmt_prepare::error"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("stmt_prepare::error"));
+    }
 
     stage(Stage::Done);
     return Result::Again;
   }
 
-  trace(Tracer::Event().stage("stmt_prepare::connected"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_prepare::connected"));
+  }
 
   stage(Stage::Response);
   return forward_client_to_server();
@@ -143,7 +151,9 @@ StmtPrepareForwarder::response() {
       return Result::Again;
   }
 
-  trace(Tracer::Event().stage("stmt_prepare::response"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_prepare::response"));
+  }
 
   return stdx::make_unexpected(make_error_code(std::errc::bad_message));
 }
@@ -158,7 +168,9 @@ stdx::expected<Processor::Result, std::error_code> StmtPrepareForwarder::ok() {
           src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("stmt_prepare::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_prepare::ok"));
+  }
 
   auto stmt_prep_ok = *msg_res;
 
@@ -181,7 +193,9 @@ bool StmtPrepareForwarder::has_more_messages() const {
 stdx::expected<Processor::Result, std::error_code>
 StmtPrepareForwarder::param() {
   if (params_left_ > 0) {
-    trace(Tracer::Event().stage("stmt_prepare::param"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("stmt_prepare::param"));
+    }
     if (--params_left_ == 0) {
       stage(Stage::EndOfParams);
     }
@@ -205,14 +219,18 @@ StmtPrepareForwarder::end_of_params() {
     return Result::Again;
   }
 
-  trace(Tracer::Event().stage("stmt_prepare::end_of_params"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_prepare::end_of_params"));
+  }
   return forward_server_to_client(has_more_messages());
 }
 
 stdx::expected<Processor::Result, std::error_code>
 StmtPrepareForwarder::column() {
   if (columns_left_ > 0) {
-    trace(Tracer::Event().stage("stmt_prepare::column"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("stmt_prepare::column"));
+    }
     if (--columns_left_ == 0) {
       stage(Stage::EndOfColumns);
     }
@@ -236,13 +254,17 @@ StmtPrepareForwarder::end_of_columns() {
     return Result::Again;
   }
 
-  trace(Tracer::Event().stage("stmt_prepare::end_of_columns"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_prepare::end_of_columns"));
+  }
   return forward_server_to_client();
 }
 
 stdx::expected<Processor::Result, std::error_code>
 StmtPrepareForwarder::error() {
-  trace(Tracer::Event().stage("stmt_prepare::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_prepare::error"));
+  }
 
   stage(Stage::Done);
 

@@ -55,7 +55,9 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::process() {
 }
 
 stdx::expected<Processor::Result, std::error_code> LazyConnector::connect() {
-  trace(Tracer::Event().stage("connect::connect"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::connect"));
+  }
 
   auto *socket_splicer = connection()->socket_splicer();
   auto &server_conn = socket_splicer->server_conn();
@@ -83,7 +85,9 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::connected() {
   auto server_protocol = connection()->server_protocol();
 
   if (!server_conn.is_open()) {
-    trace(Tracer::Event().stage("connect::not_connected"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::not_connected"));
+    }
     // looks like connection failed, leave.
     stage(Stage::Done);
     return Result::Again;
@@ -117,7 +121,9 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::connected() {
 
 stdx::expected<Processor::Result, std::error_code>
 LazyConnector::authenticated() {
-  trace(Tracer::Event().stage("connect::authenticated"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::authenticated"));
+  }
 
   if (!connection()->authenticated()) {
     stage(Stage::Done);

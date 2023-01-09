@@ -153,7 +153,9 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::process() {
 
 stdx::expected<Processor::Result, std::error_code> ClientGreetor::error() {
   // after the greetings error has been sent to the client.
-  trace(Tracer::Event().stage("client::greeting::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("client::greeting::error"));
+  }
 
   auto &client_conn = connection()->socket_splicer()->client_conn();
 
@@ -164,7 +166,9 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::error() {
 }
 
 stdx::expected<Processor::Result, std::error_code> ClientGreetor::init() {
-  trace(Tracer::Event().stage("client::init"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("client::init"));
+  }
 
   if (!connection()->greeting_from_router()) {
     stage(Stage::ServerFirstGreeting);
@@ -259,7 +263,9 @@ ClientGreetor::server_greeting() {
                              {/* no shared caps yet */});
   if (!send_res) return send_client_failed(send_res.error());
 
-  trace(Tracer::Event().stage("server::greeting"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("server::greeting"));
+  }
 
   dst_protocol->auth_method_data(server_greeting_msg.auth_method_data());
   dst_protocol->server_greeting(server_greeting_msg);
@@ -381,7 +387,9 @@ ClientGreetor::client_greeting() {
     return recv_client_failed(make_error_code(std::errc::bad_message));
   }
 
-  trace(Tracer::Event().stage("client::greeting"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("client::greeting"));
+  }
 
   src_protocol->client_greeting(msg);
   src_protocol->client_capabilities(msg.capabilities());
@@ -476,7 +484,9 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::tls_accept() {
   auto *client_channel = socket_splicer->client_channel();
 
   if (!client_channel->tls_init_is_finished()) {
-    trace(Tracer::Event().stage("tls::accept"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("tls::accept"));
+    }
 
     auto res = socket_splicer->tls_accept();
     if (!res) {
@@ -541,7 +551,9 @@ ClientGreetor::client_greeting_after_tls() {
 
   auto msg = std::move(*msg_res);
 
-  trace(Tracer::Event().stage("client::greeting"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("client::greeting"));
+  }
 
   src_protocol->client_greeting(msg);
   src_protocol->auth_method_name(msg.auth_method_name());
@@ -553,7 +565,9 @@ ClientGreetor::client_greeting_after_tls() {
   discard_current_msg(src_channel, src_protocol);
 
   if (!authentication_method_is_supported(msg.auth_method_name())) {
-    trace(Tracer::Event().stage("client::greeting::error"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("client::greeting::error"));
+    }
 
     const auto send_res =
         ClassicFrame::send_msg<classic_protocol::message::server::Error>(
@@ -572,7 +586,9 @@ ClientGreetor::client_greeting_after_tls() {
   // checking if the server's capabilities.
   if (!client_compress_is_satisfied(src_protocol->client_capabilities(),
                                     src_protocol->shared_capabilities())) {
-    trace(Tracer::Event().stage("client::greeting::error"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("client::greeting::error"));
+    }
     const auto send_res =
         ClassicFrame::send_msg<classic_protocol::message::server::Error>(
             src_channel, src_protocol,
@@ -611,7 +627,9 @@ ClientGreetor::request_plaintext_password() {
       dst_channel, dst_protocol);
   if (!send_res) return send_client_failed(send_res.error());
 
-  trace(Tracer::Event().stage("server::auth::request::plain"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("server::auth::request::plain"));
+  }
 
   stage(Stage::PlaintextPassword);
   return Result::SendToClient;
@@ -660,7 +678,9 @@ ClientGreetor::plaintext_password() {
       src_channel, src_protocol);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("client::auth::plain"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("client::auth::plain"));
+  }
 
   if (auto pwd = password_from_auth_method_data(msg_res->value())) {
     src_protocol->password(*pwd);
@@ -674,7 +694,9 @@ ClientGreetor::plaintext_password() {
 }
 
 stdx::expected<Processor::Result, std::error_code> ClientGreetor::accepted() {
-  trace(Tracer::Event().stage("client::greeting::client_done"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("client::greeting::client_done"));
+  }
 
   auto *dst_protocol = connection()->server_protocol();
 
@@ -708,10 +730,14 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::accepted() {
 stdx::expected<Processor::Result, std::error_code>
 ClientGreetor::authenticated() {
   if (connection()->authenticated()) {
-    trace(Tracer::Event().stage("greeting::auth::done"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("greeting::auth::done"));
+    }
     stage(Stage::Ok);
   } else {
-    trace(Tracer::Event().stage("greeting::error"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("greeting::error"));
+    }
     stage(Stage::Error);
   }
   return Result::Again;
@@ -902,7 +928,9 @@ ServerGreetor::server_greeting() {
  */
 stdx::expected<Processor::Result, std::error_code>
 ServerGreetor::server_greeting_error() {
-  trace(Tracer::Event().stage("server::greeting::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("server::greeting::error"));
+  }
 
   // don't increment the error-counter
   connection()->client_greeting_sent(true);
@@ -1016,7 +1044,9 @@ ServerGreetor::server_greeting_greeting() {
   src_protocol->server_capabilities(caps);
   src_protocol->server_greeting(server_greeting_msg);
 
-  trace(Tracer::Event().stage("server::greeting::greeting"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("server::greeting::greeting"));
+  }
 
   auto msg = src_protocol->server_greeting().value();
 
@@ -1210,7 +1240,9 @@ ServerGreetor::client_greeting_start_tls() {
           });
   if (!send_res) return send_server_failed(send_res.error());
 
-  trace(Tracer::Event().stage("client::greeting (start-tls)"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("client::greeting (start-tls)"));
+  }
 
   stage(Stage::TlsConnectInit);
 
@@ -1275,7 +1307,9 @@ ServerGreetor::client_greeting_full() {
 
   client_greeting_msg.attributes(attrs);
 
-  trace(Tracer::Event().stage("client::greeting::plain"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("client::greeting::plain"));
+  }
 
   if (src_protocol->password().has_value()) {
     // scramble with the server's auth-data to trigger a fast-auth.
@@ -1369,7 +1403,9 @@ ServerGreetor::tls_connect() {
   if (!dst_channel->tls_init_is_finished()) {
     const auto res = dst_channel->tls_connect();
 
-    trace(Tracer::Event().stage("tls::connect"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("tls::connect"));
+    }
 
     if (!res) {
       if (res.error() == TlsErrc::kWantRead) {
@@ -1407,7 +1443,9 @@ ServerGreetor::tls_connect() {
           return send_client_failed(ec);
         }
 
-        trace(Tracer::Event().stage("server::greeting::error"));
+        if (auto &tr = tracer()) {
+          tr.trace(Tracer::Event().stage("server::greeting::error"));
+        }
 
         // close the server-socket as no futher communication is expected.
         (void)socket_splicer->server_conn().close();
@@ -1465,7 +1503,9 @@ ServerGreetor::client_greeting_after_tls() {
   client_greeting_msg.schema(src_protocol->schema());
   client_greeting_msg.capabilities(dst_protocol->client_capabilities());
 
-  trace(Tracer::Event().stage("client::greeting (tls)"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("client::greeting (tls)"));
+  }
 
   if (src_protocol->password().has_value()) {
     // scramble with the server's auth-data to trigger a fast-auth.
@@ -1560,7 +1600,9 @@ ServerGreetor::final_response() {
  * router<-server: auth error.
  */
 stdx::expected<Processor::Result, std::error_code> ServerGreetor::auth_error() {
-  trace(Tracer::Event().stage("server::auth::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("server::auth::error"));
+  }
 
   stage(Stage::Error);
 
@@ -1584,7 +1626,9 @@ stdx::expected<Processor::Result, std::error_code> ServerGreetor::auth_ok() {
       src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("server::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("server::ok"));
+  }
 
   auto msg = std::move(*msg_res);
 
@@ -1654,14 +1698,18 @@ ServerFirstConnector::server_greeting() {
   auto &server_conn = socket_splicer->server_conn();
 
   if (!server_conn.is_open()) {
-    trace(Tracer::Event().stage("connect::error"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::error"));
+    }
 
     stage(Stage::Error);
 
     return Result::Again;
   }
 
-  trace(Tracer::Event().stage("server::greeting"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("server::greeting"));
+  }
 
   stage(Stage::ServerGreeted);
 
@@ -1905,11 +1953,15 @@ ServerFirstAuthenticator::client_greeting_start_tls() {
   if (!send_res) return send_server_failed(send_res.error());
 
   if (connection()->source_ssl_mode() == SslMode::kPassthrough) {
-    trace(Tracer::Event().stage("client::greeting (forward-tls)"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("client::greeting (forward-tls)"));
+    }
 
     stage(Stage::TlsForwardInit);
   } else {
-    trace(Tracer::Event().stage("client::greeting (start-tls)"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("client::greeting (start-tls)"));
+    }
 
     stage(Stage::TlsConnectInit);
 
@@ -1937,7 +1989,9 @@ ServerFirstAuthenticator::client_greeting_start_tls() {
 
 stdx::expected<Processor::Result, std::error_code>
 ServerFirstAuthenticator::client_greeting_full() {
-  trace(Tracer::Event().stage("client::greeting (full)"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("client::greeting (full)"));
+  }
 
   auto *socket_splicer = connection()->socket_splicer();
   auto *src_channel = socket_splicer->client_channel();
@@ -2156,7 +2210,9 @@ ServerFirstAuthenticator::tls_connect() {
   if (!dst_channel->tls_init_is_finished()) {
     const auto res = dst_channel->tls_connect();
 
-    trace(Tracer::Event().stage("tls::connect"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("tls::connect"));
+    }
 
     if (!res) {
       if (res.error() == TlsErrc::kWantRead) {
@@ -2193,7 +2249,9 @@ ServerFirstAuthenticator::tls_connect() {
           return send_client_failed(ec);
         }
 
-        trace(Tracer::Event().stage("server::greeting::error"));
+        if (auto &tr = tracer()) {
+          tr.trace(Tracer::Event().stage("server::greeting::error"));
+        }
 
         // close the server-socket as no futher communication is expected.
         (void)socket_splicer->server_conn().close();
@@ -2211,7 +2269,9 @@ ServerFirstAuthenticator::tls_connect() {
 
 stdx::expected<Processor::Result, std::error_code>
 ServerFirstAuthenticator::client_greeting_after_tls() {
-  trace(Tracer::Event().stage("client::greeting(first)"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("client::greeting(first)"));
+  }
 
   auto *socket_splicer = connection()->socket_splicer();
   auto *src_channel = socket_splicer->client_channel();
@@ -2330,7 +2390,9 @@ ServerFirstAuthenticator::final_response() {
  */
 stdx::expected<Processor::Result, std::error_code>
 ServerFirstAuthenticator::auth_error() {
-  trace(Tracer::Event().stage("server::auth::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("server::auth::error"));
+  }
 
   stage(Stage::Error);  // close the server connection after the Error msg was
                         // sent.
@@ -2351,7 +2413,9 @@ ServerFirstAuthenticator::auth_ok() {
       src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("server::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("server::ok"));
+  }
 
   auto msg = std::move(*msg_res);
 

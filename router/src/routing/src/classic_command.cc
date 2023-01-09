@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -128,7 +128,9 @@ void CommandProcessor::client_idle_timeout() {
   auto *socket_splicer = connection()->socket_splicer();
   auto &server_conn = socket_splicer->server_conn();
 
-  trace(Tracer::Event().stage("client::idle::timeout"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("client::idle::timeout"));
+  }
 
   // if we still have a server connection, move it to the pool
   if (server_conn.is_open()) {
@@ -149,12 +151,16 @@ void CommandProcessor::client_idle_timeout() {
                             std::make_unique<ClassicProtocolState>()})));
 
       if (is_full_res) {
-        trace(Tracer::Event().stage("client::idle::pool_full"));
+        if (auto &tr = tracer()) {
+          tr.trace(Tracer::Event().stage("client::idle::pool_full"));
+        }
         // not pooled, restore.
         server_conn = make_connection_from_pooled(std::move(*is_full_res));
 
       } else {
-        trace(Tracer::Event().stage("server::pooled"));
+        if (auto &tr = tracer()) {
+          tr.trace(Tracer::Event().stage("server::pooled"));
+        }
       }
     }
   }
@@ -345,7 +351,9 @@ CommandProcessor::wait_client_cancelled() {
       ClassicFrame::ensure_has_msg_prefix(dst_channel, dst_protocol);
   if (!read_res) return recv_server_failed(read_res.error());
 
-  trace(Tracer::Event().stage("server::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("server::error"));
+  }
 
   // should be a Error packet.
   return forward_server_to_client();
@@ -368,14 +376,18 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
     auto ec = read_res.error();
 
     if (ec == std::errc::operation_would_block || ec == TlsErrc::kWantRead) {
-      trace(Tracer::Event().stage("client::idle"));
+      if (auto &tr = tracer()) {
+        tr.trace(Tracer::Event().stage("client::idle"));
+      }
 
       auto &t = connection()->read_timer();
 
       using namespace std::chrono_literals;
 
       if (server_conn.is_open() && connection()->connection_sharing_allowed()) {
-        trace(Tracer::Event().stage("client::idle::starting"));
+        if (auto &tr = tracer()) {
+          tr.trace(Tracer::Event().stage("client::idle::starting"));
+        }
 
         if (connection()->diagnostic_area_changed()) {
           // inject a SHOW WARNINGS.
@@ -518,7 +530,9 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
       return push_processor<RegisterReplicaForwarder>(connection());
   }
 
-  trace(Tracer::Event().stage("cmd::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("cmd::command"));
+  }
 
   // unknown command
   // drain the current command from the recv-buffers.
