@@ -186,7 +186,8 @@ class Persisted_variables_cache final {
   */
   bool append_read_only_variables(int *argc, char ***argv,
                                   bool arg_separator_added = false,
-                                  bool plugin_options = false);
+                                  bool plugin_options = false,
+                                  MEM_ROOT *root_to_use = nullptr);
 
   /**
     append PARSE EARLY read only persisted variables to command

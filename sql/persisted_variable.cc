@@ -1155,6 +1155,25 @@ bool Persisted_variables_cache::set_persisted_options(
       if (set_source(m_persisted_dynamic_variables))
         (void)set_source(m_persisted_dynamic_sensitive_variables);
 
+      /*
+        We need to keep the currently set persisted variable into the in-memory
+        copy for plugin vars for further UNINSTALL followed by INSTALL sans
+        restart.
+      */
+      if (sysvar->cast_pluginvar() && !plugin_options) {
+        auto &plugin_vars =
+            m_persisted_dynamic_sensitive_plugin_variables.find(iter) ==
+                    m_persisted_dynamic_sensitive_plugin_variables.end()
+                ? m_persisted_dynamic_plugin_variables
+                : m_persisted_dynamic_sensitive_plugin_variables;
+#ifndef NDEBUG
+        auto ret =
+#endif
+            plugin_vars.insert(iter);
+        // the value should not be present in the plugins copy
+        assert(ret.second);
+      }
+
       return false;
     };
     /*
@@ -1993,16 +2012,19 @@ err:
                                         handled during plugin install.
                                         If set to true options are handled
                                         as part of
-  install plugin.
+  @param [in] root                      The memory root to use for the
+                                        allocations. Null if you want to use
+                                        the PV cache root(s). install plugin.
 
   @return 0 Success
   @return 1 Failure
 */
 bool Persisted_variables_cache::append_read_only_variables(
     int *argc, char ***argv, bool arg_separator_added /* = false */,
-    bool plugin_options /* = false */) {
+    bool plugin_options /* = false */, MEM_ROOT *root /* = nullptr */) {
   Prealloced_array<char *, 100> my_args(key_memory_persisted_variables);
-  MEM_ROOT alloc{key_memory_persisted_variables, 512};
+  MEM_ROOT local_alloc{key_memory_persisted_variables, 512};
+  MEM_ROOT &alloc = root ? *root : local_alloc;
 
   if (plugin_options == false) keyring_support_available();
 
@@ -2056,11 +2078,13 @@ bool Persisted_variables_cache::append_read_only_variables(
     res[my_args.size() + *argc + (extra_args - 1)] = nullptr; /* last null */
     (*argc) += (int)my_args.size() + (extra_args - 1);
     *argv = res;
-    if (plugin_options)
-      ro_persisted_plugin_argv_alloc =
-          std::move(alloc);  // Possibly overwrite previous.
-    else
-      ro_persisted_argv_alloc = std::move(alloc);
+    if (!root) {
+      if (plugin_options)
+        ro_persisted_plugin_argv_alloc =
+            std::move(alloc);  // Possibly overwrite previous.
+      else
+        ro_persisted_argv_alloc = std::move(alloc);
+    }
     return false;
   }
   return false;
