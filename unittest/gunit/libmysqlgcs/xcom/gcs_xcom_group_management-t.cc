@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,13 +116,38 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
   MOCK_METHOD0(xcom_input_try_pop, xcom_input_request_ptr());
 };
 
+class mock_gcs_xcom_view_change_control_interface
+    : public Gcs_xcom_view_change_control_interface {
+ public:
+  MOCK_METHOD0(start_view_exchange, void());
+  MOCK_METHOD0(end_view_exchange, void());
+  MOCK_METHOD0(wait_for_view_change_end, void());
+  MOCK_METHOD0(is_view_changing, bool());
+  MOCK_METHOD0(start_leave, bool());
+  MOCK_METHOD0(end_leave, void());
+  MOCK_METHOD0(is_leaving, bool());
+  MOCK_METHOD0(start_join, bool());
+  MOCK_METHOD0(end_join, void());
+  MOCK_METHOD0(is_joining, bool());
+
+  MOCK_METHOD1(set_current_view, void(Gcs_view *));
+  MOCK_METHOD0(get_current_view, Gcs_view *());
+  MOCK_METHOD0(belongs_to_group, bool());
+  MOCK_METHOD1(set_belongs_to_group, void(bool));
+  MOCK_METHOD1(set_unsafe_current_view, void(Gcs_view *));
+  MOCK_METHOD0(get_unsafe_current_view, Gcs_view *());
+
+  MOCK_METHOD0(finalize, void());
+  MOCK_METHOD0(is_finalized, bool());
+};
+
 class XcomGroupManagementTest : public GcsBaseTest {
  protected:
   XcomGroupManagementTest() = default;
 
   void SetUp() override {
     group_id = new Gcs_group_identifier("only_group");
-    xcom_group_mgmt_if = new Gcs_xcom_group_management(&proxy, *group_id);
+    xcom_group_mgmt_if = new Gcs_xcom_group_management(&proxy, *group_id, &vce);
   }
 
   void TearDown() override {
@@ -133,6 +158,7 @@ class XcomGroupManagementTest : public GcsBaseTest {
   Gcs_group_identifier *group_id;
 
   mock_gcs_xcom_proxy proxy;
+  mock_gcs_xcom_view_change_control_interface vce;
   Gcs_xcom_group_management *xcom_group_mgmt_if;
 };
 
@@ -276,6 +302,25 @@ TEST_F(XcomGroupManagementTest, DisallowForcingSameMembership) {
 
   free(blobs[0].data.data_val);
   free(blobs[1].data.data_val);
+}
+
+TEST_F(XcomGroupManagementTest, getWriteConcurrencyGroupLeaving) {
+  EXPECT_CALL(vce, is_leaving()).Times(1).WillOnce(Return(true));
+
+  uint32_t out_value;
+  enum_gcs_error result = xcom_group_mgmt_if->get_write_concurrency(out_value);
+
+  ASSERT_EQ(GCS_NOK, result);
+}
+
+TEST_F(XcomGroupManagementTest, getWriteConcurrencyNoGroup) {
+  EXPECT_CALL(vce, is_leaving()).Times(1).WillOnce(Return(false));
+  EXPECT_CALL(proxy, xcom_is_exit()).Times(1).WillOnce(Return(true));
+
+  uint32_t out_value;
+  enum_gcs_error result = xcom_group_mgmt_if->get_write_concurrency(out_value);
+
+  ASSERT_EQ(GCS_NOK, result);
 }
 
 }  // namespace gcs_xcom_groupmanagement_unittest

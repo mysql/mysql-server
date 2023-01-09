@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,8 @@
 class Gcs_xcom_group_management : public Gcs_group_management_interface {
  public:
   explicit Gcs_xcom_group_management(
-      Gcs_xcom_proxy *xcom_proxy, const Gcs_group_identifier &group_identifier);
+      Gcs_xcom_proxy *xcom_proxy, const Gcs_group_identifier &group_identifier,
+      Gcs_xcom_view_change_control_interface *view_control);
   ~Gcs_xcom_group_management() override;
 
   enum_gcs_error modify_configuration(
@@ -125,6 +126,12 @@ class Gcs_xcom_group_management : public Gcs_group_management_interface {
     Mutex used to prevent concurrent access to nodes.
   */
   My_xp_mutex_impl m_nodes_mutex;
+
+  /*
+    Regulate the access to certain methods, mainly avoid sending requests
+    if this node is stopping.
+  */
+  Gcs_xcom_view_change_control_interface *m_view_control;
 
   /*
     Disabling the copy constructor and assignment operator.
