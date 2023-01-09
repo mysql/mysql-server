@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -177,8 +177,12 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::set_vars() {
     }
   }
 
-  for (auto var : sysvars) {
+  for (const auto &var : sysvars) {
+    // already set earlier.
     if (var.first == "session_track_system_variables") continue;
+
+    // is read-only
+    if (var.first == "statement_id") continue;
 
     set_session_var(q, var.first, var.second);
   }
