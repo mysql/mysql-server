@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -720,7 +720,6 @@ install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysco
 %endif
 
 # Remove files pages we explicitly do not want to package
-rm -rf %{buildroot}%{_infodir}/mysql.info*
 rm -f %{buildroot}%{_datadir}/mysql-*/win_install_firewall.sql
 rm -f %{buildroot}%{_datadir}/mysql-*/audit_log_filter_win_install.sql
 
