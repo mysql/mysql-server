@@ -2,6 +2,7 @@
 # Check if a replicated statement gets processed by telemetry on replica
 ################################################################################
 
+--source include/only_mts_replica_parallel_workers.inc
 --source include/have_server_telemetry_traces.inc
 # Statement replication format needed for stmt to be visible to telemetry
 --source include/have_binlog_format_statement.inc
