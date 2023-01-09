@@ -40,7 +40,7 @@ static bool has_frame_header(ClassicProtocolState *src_protocol) {
 
 static stdx::expected<size_t, std::error_code> forward_frame_header_as_is(
     Channel *src_channel, Channel *dst_channel, size_t header_size) {
-  auto &recv_buf = src_channel->recv_plain_buffer();
+  auto &recv_buf = src_channel->recv_plain_view();
 
   return dst_channel->write(net::buffer(recv_buf, header_size));
 }
@@ -88,7 +88,7 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
 
   auto &current_frame = src_protocol->current_frame().value();
 
-  auto &recv_buf = src_channel->recv_plain_buffer();
+  auto &recv_buf = src_channel->recv_plain_view();
   if (current_frame.forwarded_frame_size_ == 0) {
     const size_t header_size{4};
 
@@ -114,7 +114,7 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
     current_frame.forwarded_frame_size_ = transferred;
 
     // skip the original header
-    net::dynamic_buffer(recv_buf).consume(transferred);
+    src_channel->consume_plain(transferred);
   }
 
 #if 0
@@ -132,10 +132,13 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
 
   if (rest_of_frame_size > 0) {
     // try to fill the recv-buf up to the end of the frame
+    //
+    // ... not more than kMaxForwardSize to avoid reading all 16M at once.
+    const size_t kMaxForwardSize{64UL * 1024};
+
     if (rest_of_frame_size > recv_buf.size()) {
-      // ... not more than 16k to avoid reading all 16M at once.
       auto read_res = src_channel->read_to_plain(
-          std::min(rest_of_frame_size - recv_buf.size(), size_t{16 * 1024}));
+          std::min(rest_of_frame_size - recv_buf.size(), kMaxForwardSize));
       if (!read_res) return read_res.get_unexpected();
     }
 
@@ -150,7 +153,7 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
     size_t transferred = write_res.value();
     current_frame.forwarded_frame_size_ += transferred;
 
-    net::dynamic_buffer(recv_buf).consume(transferred);
+    src_channel->consume_plain(transferred);
   }
 
   bool src_side_is_done{false};
@@ -236,9 +239,7 @@ ServerToClientForwarder::process() {
 stdx::expected<Processor::Result, std::error_code>
 ServerToClientForwarder::forward() {
   auto forward_res = forward_frame_sequence();
-  if (!forward_res) {
-    return recv_server_failed(forward_res.error());
-  }
+  if (!forward_res) return recv_server_failed(forward_res.error());
 
   switch (forward_res.value()) {
     case ForwardResult::kWantRecvDestination:
@@ -264,7 +265,7 @@ ServerToClientForwarder::forward() {
       // resultset.
       // - buffering less: faster forwarding of smaller packets if the server
       // is send to generate packets.
-      constexpr const size_t kForceFlushAfterBytes{16 * 1024};
+      constexpr const size_t kForceFlushAfterBytes{64UL * 1024};
 
       if (flush_before_next_func_optional_ &&
           dst_channel->send_buffer().size() < kForceFlushAfterBytes) {

@@ -116,7 +116,7 @@ AuthNativeSender::response() {
   }
 
   // if there is another packet, dump its payload for now.
-  auto &recv_buf = src_channel->recv_plain_buffer();
+  auto &recv_buf = src_channel->recv_plain_view();
 
   // get as much data of the current frame from the recv-buffers to log it.
   (void)ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
@@ -234,7 +234,7 @@ AuthNativeForwarder::response() {
   }
 
   // if there is another packet, dump its payload for now.
-  auto &recv_buf = src_channel->recv_plain_buffer();
+  auto &recv_buf = src_channel->recv_plain_view();
 
   // get as much data of the current frame from the recv-buffers to log it.
   (void)ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);

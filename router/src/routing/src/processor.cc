@@ -98,7 +98,7 @@ stdx::expected<void, std::error_code> Processor::discard_current_msg(
 
   auto &current_frame = *opt_current_frame;
 
-  auto &recv_buf = src_channel->recv_plain_buffer();
+  auto &recv_buf = src_channel->recv_plain_view();
 
   if (recv_buf.size() < current_frame.frame_size_) {
     // received message is incomplete.
@@ -109,7 +109,7 @@ stdx::expected<void, std::error_code> Processor::discard_current_msg(
     return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
   }
 
-  net::dynamic_buffer(recv_buf).consume(current_frame.frame_size_);
+  src_channel->consume_plain(current_frame.frame_size_);
 
   // unset current frame and also current-msg
   src_protocol->current_frame().reset();
