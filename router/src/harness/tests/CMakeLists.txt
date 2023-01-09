@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -138,6 +138,7 @@ SET(TESTS
   test_stdx_flags.cc
   test_stdx_io_file_handle.cc
   test_stdx_monitor.cc
+  test_stdx_span.cc
   test_stdx_ranges.cc
 )
 
