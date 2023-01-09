@@ -1,0 +1,104 @@
+# === Purpose ===
+#
+# When binlog_order_commits is off then binlog rotate will wait for 'm_prep_xids' decrease to zero.
+# However 'm_prep_xids' is decreased before update thd's GTID to 'executed_gtids' so GTID may be missed
+# in the next binlog file's Previous_gtids event (see function MYSQL_BIN_LOG::finish_commit)
+#
+# ==== Requirements ====
+#
+# R1. Client transactions are guaranteed to have monotonically increasing GTIDs
+# without gaps between the generated numbers.
+#
+# === Implementation ====
+#
+# Ensure GTID XID is decreased after commit
+# 1. Create table t1. GTID 1
+# 2. Insert into t1. GTID 2 in a new connection. Stop after commit and decrease XID.
+# 3. Insert into t1. GTID 3. Rotate log file. XID 1-3 should be used in 'master-bin.000002'.
+# 4. Check GTID are used out by looking at log file 'master-bin.000002'.
+#
+# === References ===
+#
+# BUG #34930969	Contribution by Tencent: Previous_gtids miss gtid when binlog_order_commits off
+#
+--source include/have_debug.inc
+--source include/have_innodb.inc
+--source include/have_debug.inc
+--source include/have_gtid.inc
+--source include/have_log_bin.inc
+
+--echo #
+--echo # Use default connection to master.
+--echo #
+
+--connection default
+
+RESET MASTER;
+
+SET @old_binlog_order_commits = @@global.binlog_order_commits;
+SET GLOBAL binlog_order_commits = 0;
+
+--echo #
+--echo # Create table. Use GTID 1
+--echo #
+
+CREATE TABLE t1 (id INT PRIMARY KEY);
+
+--echo #
+--echo # Make another connection. Set to stop at after dec_prep_xids.
+--echo #
+
+--connect(con1,localhost,root,,)
+SET DEBUG_SYNC = "after_dec_prep_xids SIGNAL signal.after_dec_prep_xids_reached WAIT_FOR signal.after_dec_prep_xids_unblock";
+
+--echo #
+--echo # Use GTID 2. Stop after dec_prep_xids. If commit is executed before
+--echo # dec_prep_xids then GTID 2 will be used out.
+--echo #
+
+--send
+INSERT INTO t1 VALUES(1);
+
+--echo #
+--echo # Use default connection to master.
+--echo #
+
+--connection default
+
+--echo #
+--echo # Wait until after_dec_prep_xids is reached
+--echo #
+
+SET DEBUG_SYNC = "now WAIT_FOR signal.after_dec_prep_xids_reached";
+
+--echo #
+--echo # Use GTID 3. Force to rotate to log 'master-bin.000002'
+--echo # All GTID 1-3 should be used in 'master-bin.000001'
+--echo #
+
+SET SESSION debug = "+d,force_rotate";
+INSERT INTO t1 VALUES(2);
+SET SESSION debug = "-d,force_rotate";
+
+--echo #
+--echo # Add transaction in new binary log 'master-bin.000002'
+--echo # GTID 4 should be used.
+--echo #
+
+SET DEBUG_SYNC = 'now SIGNAL signal.after_dec_prep_xids_unblock';
+INSERT INTO t1 VALUES(3);
+
+--echo #
+--echo # Check all GTID 1-3 are used by looking at 'master-bin.000002'
+--echo #
+
+--let $assert_cond = \'[\'SHOW BINLOG EVENTS IN "master-bin.000002" LIMIT 1, 1\', Info, 1]\' LIKE \'%1-3\'
+--let $assert_text = Previous_gtids should use UUID:1-3 GTID
+--source include/assert.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+
+DROP TABLE t1;
+SET GLOBAL binlog_order_commits = @old_binlog_order_commits;
