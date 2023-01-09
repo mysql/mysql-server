@@ -2214,6 +2214,7 @@ class Query_block : public Query_term {
   bool decorrelate_derived_scalar_subquery_post(
       THD *thd, Table_ref *derived, Lifted_fields_map *lifted_where_fields,
       bool added_card_check);
+  void replace_referenced_item(Item *const old_item, Item *const new_item);
   void remap_tables(THD *thd);
   bool resolve_subquery(THD *thd);
   void mark_item_as_maybe_null_if_rollup_item(Item *item);

@@ -5839,6 +5839,7 @@ static bool replace_aggregate_in_list(Item::Aggregate_replacement &info,
     new_item->update_used_tables();
     if (new_item != select_expr) {
       new_item->hidden = was_hidden;
+      new_item->increment_ref_count();
       *lii = new_item;
       for (size_t i = 0; i < list->size(); i++) {
         if ((*ref_item_array)[i] == select_expr)
@@ -6464,6 +6465,8 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
       // now that replaces_field has inherited the upper context
       pair.second->context = &new_derived->context;
 
+      replaces_field->increment_ref_count();
+
       for (const auto &[expr, was_hidden] : contrib_exprs) {
         Item_field *replacement = replaces_field;
         // If this expression was hidden, we need to make a copy of the derived
@@ -6830,6 +6833,7 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
         lifted_fields->m_field_positions.push_back(fields.size() -
                                                    hidden_fields);
         fields.push_back(inner_field);
+        inner_field->increment_ref_count();
         // We have added to fields; master_query_expression->types must
         // always be equal to it;
         master_query_expression()->types.push_back(inner_field);
@@ -6883,11 +6887,12 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
   // added to group by above.
   if (!selected_field_in_group_by &&
       !fields[first_non_hidden]->has_aggregation()) {
-    Item *func_any =
-        new (thd->mem_root) Item_func_any_value(fields[first_non_hidden]);
+    Item *const old_field = fields[first_non_hidden];
+    Item *func_any = new (thd->mem_root) Item_func_any_value(old_field);
     if (func_any == nullptr) return true;
     if (func_any->fix_fields(thd, &func_any)) return true;
     fields[first_non_hidden] = func_any;
+    replace_referenced_item(old_field, func_any);
   }
 
   if (!m_agg_func_used) {
@@ -6921,6 +6926,7 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
     base_ref_items[fields.size()] = cnt;
     lifted_fields->m_field_positions.push_back(fields.size() - hidden_fields);
     fields.push_back(cnt);
+    cnt->increment_ref_count();
     m_agg_func_used = true;
     // Add a new column to the derived table's query expression
     derived->derived_query_expression()->types.push_back(cnt);
@@ -7000,6 +7006,31 @@ bool Query_block::decorrelate_derived_scalar_subquery_post(
   }
   derived->join_cond()->update_used_tables();
   return false;
+}
+
+/**
+  Replace item in select list and preserve its reference count.
+
+  @param old_item  Item to be replaced.
+  @param new_item  Item to replace the old item.
+
+  If old item is present in base_ref_items, make sure it is replaced there.
+
+  Also make sure that reference count for old item is preserved in new item.
+*/
+void Query_block::replace_referenced_item(Item *const old_item,
+                                          Item *const new_item) {
+  for (size_t i = 0; i < fields.size(); i++) {
+    if (base_ref_items[i] == old_item) {
+      base_ref_items[i] = new_item;
+      break;
+    }
+  }
+  // Keep the same number of references as for the old expression:
+  new_item->increment_ref_count();
+  while (old_item->decrement_ref_count() > 0) {
+    new_item->increment_ref_count();
+  }
 }
 
 /**
@@ -7691,15 +7722,7 @@ bool Query_block::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
           return true;
         Item *unwrapped_select_expr = unwrap_rollup_group(select_expr);
         if (unwrapped_select_expr != prev_value) {
-          // If we replace a subquery in the select field list, possibly
-          // hidden inside a rollup wrapper, replace corresponding item
-          // in base_ref_items
-          for (size_t i = 0; i < fields.size(); i++) {
-            if (base_ref_items[i] == prev_value)
-              base_ref_items[i] = unwrapped_select_expr;
-          }
-          // All items in select list must have a positive ref count.
-          unwrapped_select_expr->increment_ref_count();
+          replace_referenced_item(prev_value, unwrapped_select_expr);
         }
         if (fields.size() != old_size) {
           // The (implicit) iterator over fields has been invalidated,

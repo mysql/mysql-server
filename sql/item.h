@@ -3401,8 +3401,20 @@ class Item : public Parse_tree_node {
   Item_result cmp_context;  ///< Comparison context
  private:
   /**
-    Number of references to this item from Item_ref objects. Used during
-    resolving to manage proper deletion of item sub-trees.
+    Number of references to this item. It is used for two purposes:
+    1. When eliminating redundant expressions, the reference count is used
+       to tell how many Item_ref objects that point to an item. When a
+       sub-tree of items is eliminated, it is traversed and any item that
+       is referenced from an Item_ref has its reference count decremented.
+       Only when the reference count reaches zero is the item actually deleted.
+    2. Keeping track of unused expressions selected from merged derived tables.
+       An item that is added to the select list of a query block has its
+       reference count set to 1. Any references from outer query blocks are
+       through Item_ref objects, thus they will cause the reference count
+       to be incremented. At end of resolving, the reference counts of all
+       items in select list of merged derived tables are decremented, thus
+       if the reference count becomes zero, the expression is known to
+       be unused and can be removed.
   */
   uint m_ref_count{0};
   const bool is_parser_item;  ///< true if allocated directly by parser
