@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -247,6 +247,7 @@ enum enum_ssl_init_error {
   SSL_FIPS_MODE_FAILED,
   SSL_INITERR_ECDHFAIL,
   SSL_INITERR_X509_VERIFY_PARAM,
+  SSL_INITERR_INVALID_CA,
   SSL_INITERR_LASTERR
 };
 const char *sslGetErrString(enum enum_ssl_init_error err);

@@ -206,8 +206,11 @@ static const char *ssl_error_string[] = {
     "SSL context is not usable without certificate and private key",
     "SSL_CTX_set_tmp_dh failed",
     "TLS version is invalid",
+    "FIPS mode invalid",
+    "FIPS mode failed",
     "Failed to set ecdh information",
-    "Failed to set X509 verification parameter"};
+    "Failed to set X509 verification parameter",
+    "Invalid CA certificate"};
 
 const char *sslGetErrString(enum enum_ssl_init_error e) {
   assert(SSL_INITERR_NOERROR < e && e < SSL_INITERR_LASTERR);

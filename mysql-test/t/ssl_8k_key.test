@@ -3,7 +3,8 @@
 --source include/allowed_ciphers.inc
 
 #echo Suppress expiration warning by the server check: no CA
-call mtr.add_suppression("Server SSL certificate doesn't verify");
+call mtr.add_suppression("Failed to validate certificate .*");
+call mtr.add_suppression("Server certificate .* verification has failed. Check logs for more details");
 
 #
 # Bug#29784 YaSSL assertion failure when reading 8k key.

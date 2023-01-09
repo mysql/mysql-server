@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,8 @@ std::string mysql_main_channel("mysql_main");
 std::string mysql_admin_channel("mysql_admin");
 
 /** SSL context options */
+
+bool opt_tls_certificates_enforced_validation{false};
 
 /* Related to client server connection port */
 static const char *opt_ssl_ca = nullptr;

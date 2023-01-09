@@ -1,6 +1,8 @@
 # The SSL library may fail initializing during this one
 call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
-
+call mtr.add_suppression("Failed to set up TLS. Check logs for details");
+call mtr.add_suppression("Internal TLS error.*");
+call mtr.add_suppression("Server certificate .* verification has failed. Check logs for more details");
 
 --echo # WL#14481: deprecated --ssl
 --let $assert_select = Please use --tls-version='' instead

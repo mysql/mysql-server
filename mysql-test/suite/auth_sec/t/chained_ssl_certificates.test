@@ -33,7 +33,8 @@
 # --ssl-ca option
 
 #Suppress warning by the server certificate verification check: unrelated CA
-call mtr.add_suppression("Server SSL certificate doesn't verify");
+call mtr.add_suppression("Failed to validate certificate .*");
+call mtr.add_suppression("Server certificate .* verification has failed. Check logs for more details");
 
 --source include/allowed_ciphers.inc
 

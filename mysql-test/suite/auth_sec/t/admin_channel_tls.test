@@ -8,6 +8,9 @@
 --disable_query_log
 CALL mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
 CALL mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+call mtr.add_suppression("Failed to set up TLS. Check logs for details");
+call mtr.add_suppression("Internal TLS error.*");
+call mtr.add_suppression("Server certificate .* verification has failed. Check logs for more details");
 --enable_query_log
 
 --echo # Create test user

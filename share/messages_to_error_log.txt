@@ -10308,7 +10308,7 @@ ER_IB_RECV_FIRST_REC_GROUP_INVALID
 ER_DD_UPGRADE_COMPLETED
   eng "Data dictionary upgrade from version '%u' to '%u' completed."
 
-ER_SSL_SERVER_CERT_VERIFY_FAILED
+OBSOLETE_ER_SSL_SERVER_CERT_VERIFY_FAILED
   eng "Server SSL certificate doesn't verify: %s"
 
 ER_PERSIST_OPTION_USER_TRUNCATED
@@ -12215,6 +12215,27 @@ ER_COMPONENT_MASKING_RANDOM_CREATE_REASON
 
 ER_COMPONENT_MASKING_CANNOT_ACCESS_TABLE
   eng "Cannot access %s.%s table."
+
+ER_WARN_CANT_OPEN_CERTIFICATE
+  eng "Cannot open certificate %s. Please check the cerificate"
+
+ER_FAILED_TO_VALIDATE_CERTIFICATES_SERVER_EXIT
+  eng "Certificate validation has failed. Stopping the server as --enforce-certificate-validation is enabled"
+
+ER_WARN_CA_CERT_VERIFY_FAILED
+  eng "CA certificate/certficates is invalid. Please check logs for more details."
+
+ER_WARN_FAILED_TO_SETUP_TLS
+  eng "Internal TLS error %s:%s:%d:%s"
+
+ER_TLS_LIBRARY_ERROR_INTERNAL
+  eng "Failed to set up TLS. Check logs for details"
+
+ER_SERVER_CERT_VERIFY_FAILED
+  eng "Server certificate %s verification has failed. Check logs for more details"
+
+ER_WARN_CERTIFICATE_ERROR_STRING
+  eng "Failed to validate certificate %s because %s"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
