@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -509,7 +509,7 @@ class MysqlRoutingClassicConnectionBase
   void diagnostic_area_changed(bool diagnostic_area_changed) {
     diagnostic_area_changed_ = diagnostic_area_changed;
   }
-  uint16_t diagnostic_area_changed() const { return diagnostic_area_changed_; }
+  bool diagnostic_area_changed() const { return diagnostic_area_changed_; }
 
   enum class FromEither {
     None,
