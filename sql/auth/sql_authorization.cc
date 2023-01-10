@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -227,7 +227,6 @@ opt_always_activate_roles_on_login is set to true.
 
  */
 
-namespace {
 /**
   Class to handle sanity checks for GRANT ... AS ... statement
 */
@@ -480,14 +479,13 @@ bool Grant_validator::validate() {
   @retval true Privilege is registered
   @retval false Otherwise
 */
-bool is_dynamic_privilege_registered(const std::string &privilege) {
+static bool is_dynamic_privilege_registered(const std::string &privilege) {
   if (get_dynamic_privilege_register()->find(privilege) !=
       get_dynamic_privilege_register()->end()) {
     return true;
   }
   return false;
 }
-}  // namespace
 
 Granted_roles_graph *g_granted_roles = nullptr;
 Role_index_map *g_authid_to_vertex = nullptr;
