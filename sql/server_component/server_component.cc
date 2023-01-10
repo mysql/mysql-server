@@ -174,6 +174,9 @@ mysql_string_imp::is_upper, mysql_string_imp::is_lower,
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_reset)
 mysql_string_imp::reset END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_substr)
+mysql_string_imp::substr END_SERVICE_IMPLEMENTATION();
+
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_append)
 mysql_string_imp::append END_SERVICE_IMPLEMENTATION();
 
@@ -576,6 +579,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_string_ctype),
     PROVIDES_SERVICE(mysql_server, mysql_string_reset),
     PROVIDES_SERVICE(mysql_server, mysql_string_append),
+    PROVIDES_SERVICE(mysql_server, mysql_string_substr),
     PROVIDES_SERVICE(mysql_server, mysql_string_compare),
     PROVIDES_SERVICE(mysql_server, mysql_string_get_data_in_charset),
     PROVIDES_SERVICE(mysql_server, log_builtins),

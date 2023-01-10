@@ -1252,8 +1252,12 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_enterprise_encryption.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_masking.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_masking_functions.so
 %attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
 %attr(644, root, root) %{_datadir}/mysql-*/firewall_profile_migration.sql
+%attr(644, root, root) %{_datadir}/mysql-*/masking_functions_install.sql
+%attr(644, root, root) %{_datadir}/mysql-*/masking_functions_uninstall.sql
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
 %endif # aws_sdk
@@ -1341,6 +1345,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_enterprise_encryption.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_masking.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_masking_functions.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_aws.so
 %endif # aws_sdk
@@ -1865,6 +1871,10 @@ fi
 %changelog
 * Thu Oct 13 2022 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 8.0.33-1
 - Added component_test_server_telemetry_traces, component_test_mysql_thd_store_service
+
+* Tue Oct 11 2022 Michal Jankowski <michal.jankowski@oracle.com> - 8.0.33-1
+- Added component_masking.so component
+- Added component_masking_functions.so component
 
 * Tue Jun 28 2022 Samar Pratap Singh <samar.pratap.singh@oracle.com> - 8.0.31-1
 - Added component_keyring_oci

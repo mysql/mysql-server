@@ -12162,6 +12162,60 @@ ER_AUTHENTICATION_OCI_DOWNLOAD_IDDP_PUBLIC_KEY
 ER_AUTHENTICATION_OCI_NO_MATCHING_GROUPS_IN_TOKEN
   eng "None of the groups extracted from security token matches any of the entries from authentication string."
 
+ER_SYS_VAR_REGISTRATION
+  eng "Cannot register variable '%s'. Please check if it is not already registered by another component."
+
+ER_SYS_VAR_DEREGISTRATION
+  eng "Cannot unregister variable '%s'. Please check if it was registered properly in the first place."
+
+ER_UDF_REGISTRATION
+  eng "Cannot register function '%s'. Please check if it is not already registered by another component."
+
+ER_UDF_DEREGISTRATION
+  eng "Cannot unregister function '%s'. Please check if it was registered properly in the first place."
+
+ER_PRIVILEGE_REGISTRATION
+  eng "Cannot register privilege '%s'. Please check if it is not already registered."
+
+ER_PRIVILEGE_DEREGISTRATION
+  eng "Cannot unregister privilege '%s'. Please check if it was registered properly in the first place."
+
+ER_UDF_EXEC_FAILURE
+  eng "Error while executing UDF %s."
+
+ER_UDF_EXEC_FAILURE_REASON
+  eng "Error while executing UDF %s: %s."
+
+ER_COMPONENT_SERVICE_CALL
+  eng "%s failed."
+
+ER_COMPONENT_SERVICE_CALL_RESULT
+  eng "%s failed with %u."
+
+ER_COMPONENT_LOCK
+  eng "Lock failed at %s : %u."
+
+ER_COMPONENT_UNLOCK
+  eng "Lock from %s : %u failed to unlock."
+
+ER_COMPONENT_MASKING_OTHER_ERROR
+  eng "Masking component error: '%s'."
+
+ER_COMPONENT_MASKING_ABI
+  eng "%s failed."
+
+ER_COMPONENT_MASKING_ABI_REASON
+  eng "%s failed because %s."
+
+ER_COMPONENT_MASKING_RANDOM_CREATE
+  eng "Creation of random context failed."
+
+ER_COMPONENT_MASKING_RANDOM_CREATE_REASON
+  eng "Creation of random context failed because %s."
+
+ER_COMPONENT_MASKING_CANNOT_ACCESS_TABLE
+  eng "Cannot access %s.%s table."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

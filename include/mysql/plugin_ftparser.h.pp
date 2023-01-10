@@ -47,8 +47,14 @@ struct MYSQL_XID {
   char data[128];
 };
 #include <mysql/components/services/bits/system_variables_bits.h>
+struct st_mysql_value {
+  int (*value_type)(struct st_mysql_value *);
+  const char *(*val_str)(struct st_mysql_value *, char *buffer, int *length);
+  int (*val_real)(struct st_mysql_value *, double *realbuf);
+  int (*val_int)(struct st_mysql_value *, long long *intbuf);
+  int (*is_unsigned)(struct st_mysql_value *);
+};
 struct SYS_VAR;
-struct st_mysql_value;
 typedef int (*mysql_var_check_func)(void * thd, SYS_VAR *var, void *save,
                                     struct st_mysql_value *value);
 typedef void (*mysql_var_update_func)(void * thd, SYS_VAR *var,
@@ -81,13 +87,6 @@ struct st_mysql_storage_engine {
 struct handlerton;
 struct Mysql_replication {
   int interface_version;
-};
-struct st_mysql_value {
-  int (*value_type)(struct st_mysql_value *);
-  const char *(*val_str)(struct st_mysql_value *, char *buffer, int *length);
-  int (*val_real)(struct st_mysql_value *, double *realbuf);
-  int (*val_int)(struct st_mysql_value *, long long *intbuf);
-  int (*is_unsigned)(struct st_mysql_value *);
 };
 int thd_in_lock_tables(const void * thd);
 int thd_tablespace_op(const void * thd);
