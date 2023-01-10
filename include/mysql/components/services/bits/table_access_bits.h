@@ -207,6 +207,11 @@ typedef int (*check_table_fields_v1_t)(Table_access ta, TA_table table,
   the index is opened.
   Otherwise, an error is returned, and the index is not opened.
 
+  @note The list of columns must contain the ACTUAL columns in the index
+  rather than USER defined (used on SQL level). The actual list depends on
+  engine and current implementation. E.g. InnoDB may add columns to the user
+  defined set.
+
   @param ta Table access
   @param table Opened table
   @param index_name Index name, in UTF8MB4, must match the table DDL.

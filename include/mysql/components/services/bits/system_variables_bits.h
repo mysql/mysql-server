@@ -76,4 +76,26 @@
 #define PLUGIN_VAR_SENSITIVE 0x80000 /**< Sensitive variable */
 /** @} */
 
+/**
+  st_mysql_value struct for reading values from mysqld.
+  Used by server variables framework to parse user-provided values.
+  Will be used for arguments when implementing UDFs.
+
+  Note that val_str() returns a string in temporary memory
+  that will be freed at the end of statement. Copy the string
+  if you need it to persist.
+*/
+
+#define MYSQL_VALUE_TYPE_STRING 0
+#define MYSQL_VALUE_TYPE_REAL 1
+#define MYSQL_VALUE_TYPE_INT 2
+
+struct st_mysql_value {
+  int (*value_type)(struct st_mysql_value *);
+  const char *(*val_str)(struct st_mysql_value *, char *buffer, int *length);
+  int (*val_real)(struct st_mysql_value *, double *realbuf);
+  int (*val_int)(struct st_mysql_value *, long long *intbuf);
+  int (*is_unsigned)(struct st_mysql_value *);
+};
+
 #endif /* COMPONENTS_SERVICES_BITS_SYSTEM_VARIABLES_BITS_H */
