@@ -61,17 +61,18 @@ static void log_ssl_error(const char * fn_name)
   int code;
   while((code = ERR_get_error()) != 0) {
     ERR_error_string_n(code, buffer, sizeof(buffer));
-    g_eventLogger->error("NDB TLS (%s): %s", fn_name, buffer);
+    g_eventLogger->error("NDB TLS %s: %s", fn_name, buffer);
   }
 }
 
+/* This is only used by read & write routines */
 static ssize_t handle_ssl_error(int err, const char * fn) {
   switch(err) {
     case SSL_ERROR_NONE:
       assert(false);      // we should not be here on success
       return 0;
     case SSL_ERROR_SSL:
-      log_ssl_error( fn); // OpenSSL knows more about the error
+      log_ssl_error(fn); // OpenSSL knows more about the error
       return 0;           // caller should close the socket
     case SSL_ERROR_WANT_READ:
     case SSL_ERROR_WANT_WRITE:
@@ -142,9 +143,13 @@ bool NdbSocket::ssl_handshake() {
   int r = SSL_do_handshake(ssl);
   if(r == 1) return true;
 
-  r = handle_ssl_error(r, "ssl_handshake");
-  require(r != TLS_BUSY_TRY_AGAIN);  // always use blocking I/O for handshake
+  int err = SSL_get_error(ssl, r);
+  require(err != SSL_ERROR_WANT_READ); // always use blocking I/O for handshake
+  require(err != SSL_ERROR_WANT_WRITE);
+  const char * desc = SSL_is_server(ssl) ?
+    "handshake failed in server" : "handshake failed in client";
 
+  log_ssl_error(desc);
   close();
   invalidate();
   return false;
@@ -186,16 +191,19 @@ bool NdbSocket::disable_locking() {
 
 // ssl_close
 void NdbSocket::ssl_close() {
+  Guard2 guard(mutex);     // acquire mutex if non-null
   set_nonblocking(false);  // set to blocking
   SSL_shutdown(ssl);       // wait for close
   socket_table_clear_ssl(s.s);
   SSL_free(ssl);
+  ssl = nullptr;
 }
 
 #if OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL
 
 bool NdbSocket::update_keys(bool req_peer) const {
   if(ssl && (SSL_version(ssl) == TLS1_3_VERSION)) {
+    Guard2 guard(mutex); // acquire mutex if non-null
     int flag = req_peer ? SSL_KEY_UPDATE_REQUESTED
                         : SSL_KEY_UPDATE_NOT_REQUESTED;
     return SSL_key_update(ssl, flag);
@@ -216,11 +224,6 @@ bool NdbSocket::key_update_pending() const {
   return (bool) SSL_renegotiate_pending(ssl);
 }
 
-static ssize_t handle_ssl_error(SSL * ssl, int returnValue, const char * fn)
-{
-  return handle_ssl_error(SSL_get_error(ssl, returnValue), fn);
-}
-
 ssize_t NdbSocket::ssl_recv(char *buf, size_t len) const
 {
   bool r;
@@ -230,8 +233,10 @@ ssize_t NdbSocket::ssl_recv(char *buf, size_t len) const
     r = SSL_read_ex(ssl, buf, len, &nread);
   }
 
-  Debug_Log("SSL_read(%zd): %s %zd", len, r ? "ok":"X", nread);
-  return r ? nread : handle_ssl_error(ssl, 0, "SSL_read");
+  if(r) return nread;
+  int err = SSL_get_error(ssl, r);
+  Debug_Log("SSL_read(%zd): ERR %d", len, err);
+  return handle_ssl_error(err, "SSL_read");
 }
 
 ssize_t NdbSocket::ssl_peek(char *buf, size_t len) const
@@ -243,25 +248,30 @@ ssize_t NdbSocket::ssl_peek(char *buf, size_t len) const
     r = SSL_peek_ex(ssl, buf, len, &nread);
   }
 
-  Debug_Log("SSL_peek(%zd): %s %zd", len, r ? "ok":"X", nread);
-  return r ? nread : handle_ssl_error(ssl, 0, "SSL_read");
+  if(r) return nread;
+  int err = SSL_get_error(ssl, r);
+  Debug_Log("SSL_peek(%zd): ERR %d", len, err);
+  return handle_ssl_error(err, "SSL_peek");
 }
 
 ssize_t NdbSocket::ssl_send(const char * buf, size_t len) const
 {
   size_t nwrite = 0;
-  bool r = ssl_send(buf, len, &nwrite);
-  if(r) return nwrite;
-  int e = SSL_get_error(ssl, 0);
-  require(e != SSL_ERROR_WANT_READ);
-  return handle_ssl_error(e, "SSL_write");
+  int err = 0;
+
+  /* Locked section */
+  {
+    Guard2 guard(mutex);
+    if(unlikely(ssl == nullptr)) return -1; // conn. closed by another thread
+    if(SSL_write_ex(ssl, buf, len, &nwrite))
+      return nwrite;
+    err = SSL_get_error(ssl, 0);
+  }
+
+  require(err != SSL_ERROR_WANT_READ);
+  return handle_ssl_error(err, "SSL_write");
 }
 
-bool NdbSocket::ssl_send(const char * buf, size_t len, size_t *nwrite) const
-{
-  Guard2 guard(mutex);
-  return SSL_write_ex(ssl, buf, len, nwrite);
-}
 
 #else
 static constexpr ssize_t too_old = NDB_OPENSSL_TOO_OLD;
@@ -290,71 +300,63 @@ static constexpr const int MaxTlsRecord = 16000;
 static constexpr size_t MaxSingleBuffer = 12 * 1024;
 
 int NdbSocket::consolidate(const struct iovec *vec,
-                           const int nvec, const int start) const
+                           const int nvec) const
 {
   int n = 0;
   size_t total = 0;
-  for(int i = start; i < nvec ; i++) {
+  for(int i = 0; i < nvec ; i++) {
     size_t len = vec[i].iov_len;
     if(len > MaxSingleBuffer) break;
     total += len;
     if(total > MaxTlsRecord) break;
     n++;
   }
+  if(n == 0) n = 1;
   return n;
 }
 
 ssize_t NdbSocket::ssl_writev(const struct iovec *vec, int nvec) const
 {
-  int i = 0, result = 0;
-  size_t total = 0;
-  while(i < nvec) {
-    if(vec[i].iov_len == 0) {
-      i += 1;
-      continue;
-    }
-    int n = consolidate(vec, nvec, i);
+  while(nvec > 0 && vec->iov_len == 0) {
+    vec++;
+    nvec--;
+  }
+
+  ssize_t total = 0;
+  while(nvec > 0) {
+    int sent;
+    int n = consolidate(vec, nvec);
     if(n > 1) {
-      result = send_several_iov(vec, i, n);
-      i += n;
+      sent = send_several_iov(vec, n);
     } else {
-      result = send_one_iov((const char *) vec[i].iov_base, vec[i].iov_len);
-      i += 1;
+      sent = ssl_send((const char *) vec[0].iov_base, vec[0].iov_len);
     }
-    if (result < 1) break;
-    total += result;
+
+    if(sent > 0) {
+      vec += n;
+      nvec -= n;
+      total += sent;
+    } else if(total > 0) {
+      break;  // return total bytes sent prior to error
+    } else {
+      return sent; // no data has been sent; return error code
+    }
   }
-  return total ? total : result;
+  return total;
 }
 
-int NdbSocket::send_one_iov(const char * base, size_t len) const
-{
-  size_t sent = 0;
-  while(sent < len) {
-    int r = ssl_send(base + sent, len - sent);
-    if(r > 0)
-      sent += r;
-    else if(sent && (r == TLS_BUSY_TRY_AGAIN))
-      return sent;
-    else
-      return r;
-  }
-  return sent;
-}
-
-int NdbSocket::send_several_iov(const struct iovec * vec,
-                                int start, int n) const {
+int NdbSocket::send_several_iov(const struct iovec * vec, int n) const {
   size_t len = 0;
   char buff[MaxTlsRecord];
 
   for(int i = 0 ; i < n ; i++) {
-    const struct iovec & v = vec[start + i];
+    const struct iovec & v = vec[i];
     memcpy(buff + len, v.iov_base, v.iov_len);
     len += v.iov_len;
     assert(len <= MaxTlsRecord);
   }
 
-  return send_one_iov(buff, len);
+  return ssl_send(buff, len);
 }
 
 
