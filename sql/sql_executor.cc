@@ -2981,26 +2981,6 @@ void JOIN::create_access_paths() {
   m_root_access_path = path;
 }
 
-// Disable eq_ref caching. This is done for streaming aggregation because
-// EQRefIterator's cache assumes table->record[0] is unmodified between two
-// calls to Read(), but AggregateIterator may have changed it in the meantime
-// when switching between groups.
-//
-// TODO(khatlen): Caching could be left enabled if a STREAM access path is added
-// just below the AGGREGATE access path. The hypergraph optimizer does that, but
-// adding intermediate temporary tables is harder to do with the old optimizer,
-// so we just disable caching for now.
-static void DisableEqRefCache(AccessPath *path) {
-  WalkAccessPaths(path, /*join=*/nullptr,
-                  WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
-                  [](AccessPath *subpath, const JOIN *) {
-                    if (subpath->type == AccessPath::EQ_REF) {
-                      subpath->eq_ref().ref->disable_cache = true;
-                    }
-                    return false;
-                  });
-}
-
 AccessPath *JOIN::create_root_access_path_for_join() {
   if (select_count) {
     return NewUnqualifiedCountAccessPath(thd);
@@ -3087,7 +3067,6 @@ AccessPath *JOIN::create_root_access_path_for_join() {
       // (We can also aggregate as we go after the materialization step;
       // see below. We won't be aggregating twice, though.)
       if (!qep_tab->tmp_table_param->precomputed_group_by) {
-        DisableEqRefCache(path);
         path = NewAggregateAccessPath(thd, path,
                                       rollup_state != RollupState::NONE);
         EstimateAggregateCost(path, query_block);
@@ -3333,7 +3312,6 @@ AccessPath *JOIN::create_root_access_path_for_join() {
     }
 #endif
     if (!tmp_table_param.precomputed_group_by) {
-      DisableEqRefCache(path);
       path =
           NewAggregateAccessPath(thd, path, rollup_state != RollupState::NONE);
       EstimateAggregateCost(path, query_block);

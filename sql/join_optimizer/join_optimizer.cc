@@ -5291,21 +5291,6 @@ void EnableFullTextCoveringIndexes(const Query_block *query_block) {
   }
 }
 
-/// Does this path contain an EQ_REF path which has caching enabled?
-bool HasEqRefWithCache(AccessPath *path) {
-  bool found = false;
-  WalkAccessPaths(path, /*join=*/nullptr,
-                  WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
-                  [&found](const AccessPath *subpath, const JOIN *) {
-                    if (subpath->type == AccessPath::EQ_REF &&
-                        !subpath->eq_ref().ref->disable_cache) {
-                      found = true;
-                    }
-                    return found;
-                  });
-  return found;
-}
-
 /**
   Creates a ZERO_ROWS access path for an always empty join result, or a
   ZERO_ROWS_AGGREGATED in case of an implicitly grouped query. The zero rows
@@ -5340,13 +5325,8 @@ AccessPath CreateStreamingAggregationPath(THD *thd, AccessPath *path,
 
   // Create a streaming node, if one is needed. It is needed for aggregation of
   // some full-text queries, because AggregateIterator doesn't preserve the
-  // position of the underlying scans. It is also needed if the query contains
-  // an EQ_REF path which caches the previous result, because EQRefIterator's
-  // caching assumes table->record[0] is left untouched between two calls to
-  // Read(), but AggregateIterator may change it when it switches between
-  // groups. Adding a STREAM object ensures that the EQRefIterator and the
-  // AggregateIterator work on different TABLE objects.
-  if (join->contains_non_aggregated_fts() || HasEqRefWithCache(path)) {
+  // position of the underlying scans.
+  if (join->contains_non_aggregated_fts()) {
     child_path = NewStreamingAccessPath(
         thd, path, join, /*temp_table_param=*/nullptr, /*table=*/nullptr,
         /*ref_slice=*/-1);
