@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3377,6 +3377,7 @@ uint64 l_cache_flusher_global_version;
 /**
   Utility function for removing all items from the hash.
   @param ptr A pointer to a Acl_hash_entry
+  @param arg not used
   @return Always 0 with the intention that this causes the hash_search
   function to iterate every single element in the hash.
 */

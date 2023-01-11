@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -66,6 +66,11 @@ sql/rpl_utility.h:[0-9]+: warning:
 libbinlogevents/include/binlog_event.h:[0-9]+: warning:
 libbinlogevents/include/codecs/binary.h:[0-9]+: warning:
 libbinlogevents/include/trx_boundary_parser.h:[0-9]+: warning:
+plugin/group_replication/src/applier.cc:[0-9]+: warning:
+sql/log_event.h:[0-9]+: warning:
+sql/rpl_replica.cc:[0-9]+: warning:
+sql/rpl_trx_tracking.h:[0-9]+: warning:
+sql/rpl_utility.h:[0-9]+: warning:
 #
 # BUG#32245629 - FIX DOXYGEN WARNINGS IN THE OPTIMIZER CODE
 # 07-DEC-2020 Erlend Dahl
@@ -77,6 +82,15 @@ sql/sql_optimizer.cc:[0-9]+: warning:
 sql/sql_optimizer_internal.h:[0-9]+: warning:
 sql/sql_prepare.cc:[0-9]+: warning:
 sql/sql_table.cc:[0-9]+: warning:
+sql-common/json_dom.h:[0-9]+: warning:
+sql/handler.cc:[0-9]+: warning:
+sql/handler.h:[0-9]+: warning:
+sql/item_func.h:[0-9]+: warning:
+sql/range_optimizer/index_range_scan_plan.cc:[0-9]+: warning:
+sql/range_optimizer/index_skip_scan_plan.cc:[0-9]+: warning:
+sql/range_optimizer/index_skip_scan_plan.h:[0-9]+: warning:
+sql/range_optimizer/path_helpers.h:[0-9]+: warning:
+sql/range_optimizer/range_analysis.cc:[0-9]+: warning:
 
 #===========================================================================
 # 08-DEC-2020 Marc Alff
@@ -87,7 +101,6 @@ sql/sql_table.cc:[0-9]+: warning:
 #
 # https://github.com/doxygen/doxygen/issues/8413
 #
-sql/auth/sql_authorization.cc:.*no [uniquely]* matching class member found for
 sql/join_optimizer/join_optimizer.cc:.*no matching class member found for
 sql/rpl_info_dummy.cc:.*no uniquely matching class member found for
 sql/rpl_info_table.cc:.*no uniquely matching class member found for
@@ -110,98 +123,4 @@ sql/sql_prepare.cc:.*no uniquely matching class member found for
 #
 Possible candidates:
 ^[ ]+
-#===========================================================================
-
-#===========================================================================
-# Bug#33594208 Doxygen CMake script does not parse correctly doxygen error
-# file with '[' and ']
-# 22-NOV-2021 Marcin Babij
-#
-# Ignore rules are based on files that introduced errors since the parsing
-# first broke.
-#
-client/mysqltest.cc:[0-9]+: warning:
-components/logging/log_filter_dragnet.cc:[0-9]+: warning:
-components/logging/log_sink_syseventlog.cc:[0-9]+: warning:
-components/mysqlbackup/backup_page_tracker.cc:[0-9]+: warning:
-include/my_dbug.h:[0-9]+: warning:
-libbinlogevents/include/binlog_event.h:[0-9]+: warning:
-libbinlogevents/include/codecs/binary.h:[0-9]+: warning:
-libbinlogevents/include/trx_boundary_parser.h:[0-9]+: warning:
-libbinlogevents/include/wrapper_functions.h:[0-9]+: warning:
-mysys/kqueue_timers.cc:[0-9]+: warning:
-mysys/mf_unixpath.cc:[0-9]+: warning:
-mysys/my_mess.cc:[0-9]+: warning:
-mysys/my_syslog.cc:[0-9]+: warning:
-plugin/group_replication/src/applier.cc:[0-9]+: warning:
-plugin/version_token/version_token.cc:[0-9]+: warning:
-sql-common/client.cc:[0-9]+: warning:
-sql-common/compression.cc:[0-9]+: warning:
-sql-common/json_dom.h:[0-9]+: warning:
-sql-common/net_serv.cc:[0-9]+: warning:
-sql/auth/partitioned_rwlock.h:[0-9]+: warning:
-sql/auth/sha2_password.cc:[0-9]+: warning:
-sql/auth/sql_auth_cache.cc:[0-9]+: warning:
-sql/auth/sql_authorization.cc:[0-9]+: warning:
-sql/auth/sql_user_table.cc:[0-9]+: warning:
-sql/auto_thd.h:[0-9]+: warning:
-sql/dd/impl/sdi.h:[0-9]+: warning:
-sql/field.h:[0-9]+: warning:
-sql/handler.cc:[0-9]+: warning:
-sql/handler.h:[0-9]+: warning:
-sql/item.h:[0-9]+: warning:
-sql/item_func.h:[0-9]+: warning:
-sql/join_optimizer/explain_access_path.h:[0-9]+: warning:
-sql/key.cc:[0-9]+: warning:
-sql/log.cc:[0-9]+: warning:
-sql/log_event.h:[0-9]+: warning:
-sql/opt_explain_format.h:[0-9]+: warning:
-sql/opt_explain_json.cc:[0-9]+: warning:
-sql/opt_hints.h:[0-9]+: warning:
-sql/parse_tree_column_attrs.h:[0-9]+: warning:
-sql/parse_tree_hints.h:[0-9]+: warning:
-sql/partitioning/partition_handler.h:[0-9]+: warning:
-sql/query_result.h:[0-9]+: warning:
-sql/range_optimizer/index_range_scan_plan.cc:[0-9]+: warning:
-sql/range_optimizer/index_skip_scan_plan.cc:[0-9]+: warning:
-sql/range_optimizer/index_skip_scan_plan.h:[0-9]+: warning:
-sql/range_optimizer/path_helpers.h:[0-9]+: warning:
-sql/range_optimizer/range_analysis.cc:[0-9]+: warning:
-sql/regexp/errors.cc:[0-9]+: warning:
-sql/rpl_gtid_execution.cc:[0-9]+: warning:
-sql/rpl_info_factory.cc:[0-9]+: warning:
-sql/rpl_info_factory.h:[0-9]+: warning:
-sql/rpl_record.h:[0-9]+: warning:
-sql/rpl_replica.cc:[0-9]+: warning:
-sql/rpl_trx_tracking.h:[0-9]+: warning:
-sql/rpl_utility.h:[0-9]+: warning:
-sql/server_component/log_sink_buffer.h:[0-9]+: warning:
-sql/server_component/log_sink_perfschema.cc:[0-9]+: warning:
-sql/server_component/log_sink_trad.cc:[0-9]+: warning:
-sql/sp_instr.h:[0-9]+: warning:
-sql/sql_audit.cc:[0-9]+: warning:
-sql/sql_lex_hints.h:[0-9]+: warning:
-sql/sql_parse.cc:[0-9]+: warning:
-sql/sql_partition.cc:[0-9]+: warning:
-sql/sql_plugin.cc:[0-9]+: warning:
-sql/sql_thd_api.cc:[0-9]+: warning:
-sql/sql_time.cc:[0-9]+: warning:
-sql/sql_tmp_table.cc:[0-9]+: warning:
-sql/sql_union.h:[0-9]+: warning:
-sql/sys_vars.cc:[0-9]+: warning:
-sql/sys_vars.h:[0-9]+: warning:
-sql/uniques.cc:[0-9]+: warning:
-storage/federated/ha_federated.h:[0-9]+: warning:
-storage/myisam/ha_myisam.h:[0-9]+: warning:
-storage/perfschema/ha_perfschema.cc:[0-9]+: warning:
-storage/perfschema/pfs_instr.cc:[0-9]+: warning:
-storage/perfschema/pfs_plugin_table.cc:[0-9]+: warning:
-storage/perfschema/service_pfs_notification.cc:[0-9]+: warning:
-strings/ctype-cp932.cc:[0-9]+: warning:
-strings/ctype-eucjpms.cc:[0-9]+: warning:
-strings/ctype-gb18030.cc:[0-9]+: warning:
-strings/ctype-sjis.cc:[0-9]+: warning:
-strings/ctype-ujis.cc:[0-9]+: warning:
-strings/ctype-utf8.cc:[0-9]+: warning:
-vio/vio.cc:[0-9]+: warning:
 #===========================================================================

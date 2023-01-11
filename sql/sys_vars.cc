@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6907,9 +6907,7 @@ static bool handle_offline_mode(sys_var *, THD *thd, enum_var_type) {
   @retval true failure
   @retval false success
 
-  @param self the system variable to set value for
   @param thd the session context
-  @param setv the SET operations metadata
 */
 static bool check_offline_mode(sys_var * /*self*/, THD *thd,
                                set_var * /*setv*/) {
