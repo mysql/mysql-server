@@ -226,7 +226,67 @@ Warnings:
 Warning	1296	Specified key 'PRIMARY' was too long (max = 3056 bytes); statistics will not be generated
 # errins-type=bug34917498, use small computeHash scratch buffer
 include/assert_grep.inc [Found expected error ndb-4278]
+create table t15a (
+a int primary key,
+b tinyint unsigned
+) engine=ndb CHARACTER SET latin1;
+create table t15b (
+a int primary key,
+b smallint unsigned
+) engine=ndb CHARACTER SET latin1;
+create table t15c (
+a int primary key,
+b mediumint unsigned
+) engine=ndb CHARACTER SET latin1;
+create table t15d (
+a int primary key,
+b int unsigned
+) engine=ndb CHARACTER SET latin1;
+create table t15e (
+a int primary key,
+b bigint unsigned
+) engine=ndb CHARACTER SET latin1;
+include/assert_grep.inc [Rows containing negative values for t15a.b are rejected]
+select * from t15a order by a;
+a	b
+1	1
+3	168
+4	222
+5	174
+7	7
+include/assert_grep.inc [Rows containing negative values for t15b.b are rejected]
+select * from t15b order by a;
+a	b
+1	1
+3	168
+4	222
+5	174
+7	7
+include/assert_grep.inc [Rows containing negative values for t15c.b are rejected]
+select * from t15c order by a;
+a	b
+1	1
+3	168
+4	222
+5	174
+7	7
+include/assert_grep.inc [Rows containing negative values for t15d.b are rejected]
+select * from t15d order by a;
+a	b
+1	1
+3	168
+4	222
+5	174
+7	7
+include/assert_grep.inc [Rows containing negative values for t15e.b are rejected]
+select * from t15e order by a;
+a	b
+1	1
+3	168
+4	222
+5	174
+7	7
 drop table tpersons;
 drop table t1, t1ver, t2, t2ver, t4, t5a, t5b, t5c,
 t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver, t10, t10ver,
-t11, t11ver, t12, t12ver, t13, t14;
+t11, t11ver, t12, t12ver, t13, t14, t15a, t15b, t15c, t15d, t15e;

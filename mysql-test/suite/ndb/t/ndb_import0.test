@@ -863,11 +863,127 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
 
 # END t11
 
+# Check that it is not possible to import negative values into an unsigned int column.
+
+--write_file $MYSQLTEST_VARDIR/tmp/t15.csv
+1,1
+7,7
+2,-1
+3,168
+4,222
+5,174
+EOF
+
+create table t15a (
+  a int primary key,
+  b tinyint unsigned
+) engine=ndb CHARACTER SET latin1;
+
+create table t15b (
+  a int primary key,
+  b smallint unsigned
+) engine=ndb CHARACTER SET latin1;
+
+create table t15c (
+  a int primary key,
+  b mediumint unsigned
+) engine=ndb CHARACTER SET latin1;
+
+create table t15d (
+  a int primary key,
+  b int unsigned
+) engine=ndb CHARACTER SET latin1;
+
+create table t15e (
+  a int primary key,
+  b bigint unsigned
+) engine=ndb CHARACTER SET latin1;
+
+# Try to import negative values into a tinyint unsigned column
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cn
+ --rejects=1
+ test $MYSQLTEST_VARDIR/tmp/t15.csv -t t15a > $NDB_TOOLS_OUTPUT 2>&1;
+
+--let $assert_file=$NDB_TOOLS_OUTPUT
+--let $assert_text=Rows containing negative values for t15a.b are rejected
+--let $assert_select=rejected 1
+--let $assert_match= rejected 1
+--source include/assert_grep.inc
+
+# Verify the rows from the csv file are imported correctly, except the -1
+# given for the unsigned int column
+select * from t15a order by a;
+
+# Try to import negative values into a smallint unsigned column
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cn
+ --rejects=1
+ test $MYSQLTEST_VARDIR/tmp/t15.csv -t t15b > $NDB_TOOLS_OUTPUT 2>&1;
+
+--let $assert_file=$NDB_TOOLS_OUTPUT
+--let $assert_text=Rows containing negative values for t15b.b are rejected
+--let $assert_select=rejected 1
+--let $assert_match= rejected 1
+--source include/assert_grep.inc
+
+# Verify the rows from the csv file are imported correctly, except the -1
+# given for the unsigned int column
+select * from t15b order by a;
+
+# Try to import negative values into a mediumint unsigned column
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cn
+ --rejects=1
+ test $MYSQLTEST_VARDIR/tmp/t15.csv -t t15c > $NDB_TOOLS_OUTPUT 2>&1;
+
+--let $assert_file=$NDB_TOOLS_OUTPUT
+--let $assert_text=Rows containing negative values for t15c.b are rejected
+--let $assert_select=rejected 1
+--let $assert_match= rejected 1
+--source include/assert_grep.inc
+
+# Verify the rows from the csv file are imported correctly, except the -1
+# given for the unsigned int column
+select * from t15c order by a;
+
+# Try to import negative values into a int unsigned column
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cn
+ --rejects=1
+ test $MYSQLTEST_VARDIR/tmp/t15.csv -t t15d > $NDB_TOOLS_OUTPUT 2>&1;
+
+--let $assert_file=$NDB_TOOLS_OUTPUT
+--let $assert_text=Rows containing negative values for t15d.b are rejected
+--let $assert_select=rejected 1
+--let $assert_match= rejected 1
+--source include/assert_grep.inc
+
+# Verify the rows from the csv file are imported correctly, except the -1
+# given for the unsigned int column
+select * from t15d order by a;
+
+# Try to import negative values into a bigint unsigned column
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cn
+ --rejects=1
+ test $MYSQLTEST_VARDIR/tmp/t15.csv -t t15e > $NDB_TOOLS_OUTPUT 2>&1;
+
+--let $assert_file=$NDB_TOOLS_OUTPUT
+--let $assert_text=Rows containing negative values for t15e.b are rejected
+--let $assert_select=rejected 1
+--let $assert_match= rejected 1
+--source include/assert_grep.inc
+
+# Verify the rows from the csv file are imported correctly, except the -1
+# given for the unsigned int column
+select * from t15e order by a;
+
 drop table tpersons;
 
 drop table t1, t1ver, t2, t2ver, t4, t5a, t5b, t5c,
            t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver, t10, t10ver,
-           t11, t11ver, t12, t12ver, t13, t14;
+           t11, t11ver, t12, t12ver, t13, t14, t15a, t15b, t15c, t15d, t15e;
 
 
 --source suite/ndb/include/backup_restore_cleanup.inc
