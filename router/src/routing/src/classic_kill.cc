@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,9 @@ stdx::expected<Processor::Result, std::error_code> KillForwarder::process() {
 }
 
 stdx::expected<Processor::Result, std::error_code> KillForwarder::command() {
-  trace(Tracer::Event().stage("kill::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("kill::command"));
+  }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
@@ -67,7 +69,9 @@ stdx::expected<Processor::Result, std::error_code> KillForwarder::command() {
 }
 
 stdx::expected<Processor::Result, std::error_code> KillForwarder::connect() {
-  trace(Tracer::Event().stage("kill::connect"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("kill::connect"));
+  }
 
   stage(Stage::Connected);
 
@@ -92,13 +96,17 @@ stdx::expected<Processor::Result, std::error_code> KillForwarder::connected() {
 
     discard_current_msg(src_channel, src_protocol);
 
-    trace(Tracer::Event().stage("kill::error"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("kill::error"));
+    }
 
     stage(Stage::Done);
     return Result::Again;
   }
 
-  trace(Tracer::Event().stage("kill::connected"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("kill::connected"));
+  }
 
   stage(Stage::Response);
   return forward_client_to_server();
@@ -113,7 +121,9 @@ stdx::expected<Processor::Result, std::error_code> KillForwarder::response() {
       ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
   if (!read_res) return recv_server_failed(read_res.error());
 
-  trace(Tracer::Event().stage("kill::response"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("kill::response"));
+  }
 
   const uint8_t msg_type = src_protocol->current_msg_type().value();
 
@@ -135,7 +145,9 @@ stdx::expected<Processor::Result, std::error_code> KillForwarder::response() {
 }
 
 stdx::expected<Processor::Result, std::error_code> KillForwarder::ok() {
-  trace(Tracer::Event().stage("kill::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("kill::ok"));
+  }
 
   stage(Stage::Done);
 
@@ -143,7 +155,9 @@ stdx::expected<Processor::Result, std::error_code> KillForwarder::ok() {
 }
 
 stdx::expected<Processor::Result, std::error_code> KillForwarder::error() {
-  trace(Tracer::Event().stage("kill::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("kill::error"));
+  }
 
   stage(Stage::Done);
 

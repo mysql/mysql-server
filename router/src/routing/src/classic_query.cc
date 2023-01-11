@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -810,8 +810,10 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
             src_channel, src_protocol);
     if (!msg_res) return recv_client_failed(msg_res.error());
 
-    trace(Tracer::Event().stage("query::command: " +
-                                msg_res->statement().substr(0, 1024)));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("query::command: " +
+                                     msg_res->statement().substr(0, 1024)));
+    }
 
     if (connection()->connection_sharing_allowed()) {
       // the diagnostics-area is only maintained, if connection-sharing is
@@ -852,8 +854,10 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
 
     stmt_classified_ = classify(msg_res->statement(), true);
 
-    trace(Tracer::Event().stage("query::classified: " +
-                                mysqlrouter::to_string(stmt_classified_)));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("query::classified: " +
+                                     mysqlrouter::to_string(stmt_classified_)));
+    }
 
     // SET session_track... is forbidden if router sets session-trackers on the
     // server-side.
@@ -861,7 +865,9 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
         connection()->connection_sharing_possible()) {
       discard_current_msg(src_channel, src_protocol);
 
-      trace(Tracer::Event().stage("query::forbidden"));
+      if (auto &tr = tracer()) {
+        tr.trace(Tracer::Event().stage("query::forbidden"));
+      }
 
       auto send_res =
           ClassicFrame::send_msg<classic_protocol::message::server::Error>(
@@ -882,8 +888,9 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
         connection()->connection_sharing_allowed()) {
       discard_current_msg(src_channel, src_protocol);
 
-      trace(Tracer::Event().stage("query::forbidden"));
-
+      if (auto &tr = tracer()) {
+        tr.trace(Tracer::Event().stage("query::forbidden"));
+      }
       auto send_res = ClassicFrame::send_msg<
           classic_protocol::message::server::Error>(
           src_channel, src_protocol,
@@ -909,7 +916,9 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
 }
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::connect() {
-  trace(Tracer::Event().stage("query::connect"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::connect"));
+  }
 
   stage(Stage::Connected);
 
@@ -934,13 +943,16 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::connected() {
 
     discard_current_msg(src_channel, src_protocol);
 
-    trace(Tracer::Event().stage("query::error"));
-
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("query::error"));
+    }
     stage(Stage::Done);
     return Result::Again;
   }
 
-  trace(Tracer::Event().stage("query::connected"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::connected"));
+  }
   stage(Stage::Response);
   return forward_client_to_server();
 }
@@ -979,7 +991,9 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::response() {
 }
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::load_data() {
-  trace(Tracer::Event().stage("query::load_data"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::load_data"));
+  }
 
   stage(Stage::Data);
   return forward_server_to_client();
@@ -993,7 +1007,9 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::data() {
   auto read_res = ClassicFrame::ensure_frame_header(src_channel, src_protocol);
   if (!read_res) return recv_client_failed(read_res.error());
 
-  trace(Tracer::Event().stage("query::data"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::data"));
+  }
 
   // local-data is finished with an empty packet.
   if (src_protocol->current_frame()->frame_size_ == 4) {
@@ -1013,7 +1029,9 @@ QueryForwarder::column_count() {
       src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("query::column_count"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::column_count"));
+  }
 
   columns_left_ = msg_res->value();
 
@@ -1023,9 +1041,9 @@ QueryForwarder::column_count() {
 }
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::column() {
-  const auto trace_event = Tracer::Event().stage("query::column");
-
-  trace(trace_event);
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::column"));
+  }
 
   if (--columns_left_ == 0) {
     stage(Stage::ColumnEnd);
@@ -1056,12 +1074,16 @@ QueryForwarder::column_end() {
     stage(Stage::RowOrEnd);
     return Result::Again;
   } else if (!server_skips_end_of_columns && !router_skips_end_of_columns) {
-    trace(Tracer::Event().stage("query::column_end::eof"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("query::column_end::eof"));
+    }
     stage(Stage::RowOrEnd);
     return forward_server_to_client(true);
   } else if (!server_skips_end_of_columns && router_skips_end_of_columns) {
     // client is new, server is old: drop the server's EOF.
-    trace(Tracer::Event().stage("query::column_end::skip_eof"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("query::column_end::skip_eof"));
+    }
 
     auto msg_res =
         ClassicFrame::recv_msg<classic_protocol::message::server::Eof>(
@@ -1073,8 +1095,11 @@ QueryForwarder::column_end() {
     stage(Stage::RowOrEnd);
     return Result::Again;
   } else {
-    // client is old, server is new: inject an EOF between column-meta and rows.
-    trace(Tracer::Event().stage("query::column_end::add_eof"));
+    // client is old, server is new: inject an EOF between column-meta and
+    // rows.
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("query::column_end::add_eof"));
+    }
 
     auto msg_res =
         ClassicFrame::send_msg<classic_protocol::message::server::Eof>(
@@ -1125,7 +1150,9 @@ QueryForwarder::row_or_end() {
 }
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::row() {
-  trace(Tracer::Event().stage("query::row"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::row"));
+  }
 
   stage(Stage::RowOrEnd);
   return forward_server_to_client(true /* noflush */);
@@ -1140,7 +1167,9 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::row_end() {
       src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("query::row_end"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::row_end"));
+  }
 
   auto msg = std::move(*msg_res);
 
@@ -1154,7 +1183,9 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::row_end() {
           classic_protocol::status::pos::more_results_exist)) {
     stage(Stage::Response);  // another resultset is coming
 
-    trace(Tracer::Event().stage("query::more_resultsets"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("query::more_resultsets"));
+    }
     return forward_server_to_client(true);
   } else {
     if (stmt_classified_ & StmtClassifier::StateChangeOnSuccess) {
@@ -1179,7 +1210,9 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::ok() {
       src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("query::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::ok"));
+  }
 
   auto msg = std::move(*msg_res);
 
@@ -1196,8 +1229,9 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::ok() {
   if (msg.status_flags().test(
           classic_protocol::status::pos::more_results_exist)) {
     stage(Stage::Response);  // another resultset is coming
-
-    trace(Tracer::Event().stage("query::more_resultsets"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("query::more_resultsets"));
+    }
     return forward_server_to_client(true);
   } else {
     if (msg.warning_count() > 0) {
@@ -1213,7 +1247,9 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::ok() {
 }
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::error() {
-  trace(Tracer::Event().stage("query::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::error"));
+  }
 
   if (stmt_classified_ & StmtClassifier::StateChangeOnError) {
     connection()->some_state_changed(true);
@@ -1266,8 +1302,10 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::command() {
   auto dst_channel = socket_splicer->server_channel();
   auto dst_protocol = connection()->server_protocol();
 
-  trace(Tracer::Event().stage("query::command"));
-  trace(Tracer::Event().stage(">> " + stmt_));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::command"));
+    tr.trace(Tracer::Event().stage(">> " + stmt_));
+  }
 
   dst_protocol->seq_id(0xff);
 
@@ -1323,7 +1361,9 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::load_data() {
       src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("query::load_data"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::load_data"));
+  }
 
   // we could decode the filename here.
 
@@ -1338,7 +1378,9 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::data() {
   auto dst_channel = socket_splicer->server_channel();
   auto dst_protocol = connection()->server_protocol();
 
-  trace(Tracer::Event().stage("query::data"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::data"));
+  }
 
   // an empty packet.
   auto send_res = ClassicFrame::send_msg<classic_protocol::wire::String>(
@@ -1358,7 +1400,9 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::column_count() {
           src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("query::column_count"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::column_count"));
+  }
 
   if (handler_) handler_->on_column_count(msg_res->count());
 
@@ -1380,7 +1424,9 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::column() {
           src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("query::column"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::column"));
+  }
 
   discard_current_msg(src_channel, src_protocol);
 
@@ -1413,7 +1459,9 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::column_end() {
       src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("query::column_end"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::column_end"));
+  }
 
   discard_current_msg(src_channel, src_protocol);
 
@@ -1460,7 +1508,9 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::row() {
       src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("query::row"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::row"));
+  }
 
   discard_current_msg(src_channel, src_protocol);
 
@@ -1493,12 +1543,16 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::row_end() {
 
   if (eof_msg.status_flags().test(
           classic_protocol::status::pos::more_results_exist)) {
-    trace(Tracer::Event().stage("query::more_resultsets"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("query::more_resultsets"));
+    }
     stage(Stage::Response);
 
     return Result::Again;
   } else {
-    trace(Tracer::Event().stage("query::row_end"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("query::row_end"));
+    }
     stage(Stage::Done);
     return Result::Again;
   }
@@ -1529,10 +1583,14 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::ok() {
 
   if (msg.status_flags().test(
           classic_protocol::status::pos::more_results_exist)) {
-    trace(Tracer::Event().stage("query::ok::more"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("query::ok::more"));
+    }
     stage(Stage::Response);
   } else {
-    trace(Tracer::Event().stage("query::ok::done"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("query::ok::done"));
+    }
     stage(Stage::Done);
   }
   return Result::Again;
@@ -1548,7 +1606,9 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::error() {
           src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("query::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::error"));
+  }
 
   discard_current_msg(src_channel, src_protocol);
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,9 @@ StmtParamAppendDataProcessor::process() {
 
 stdx::expected<Processor::Result, std::error_code>
 StmtParamAppendDataProcessor::command() {
-  trace(Tracer::Event().stage("stmt_param_append_data::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_param_append_data::command"));
+  }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {

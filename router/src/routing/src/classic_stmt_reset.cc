@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,9 @@ StmtResetProcessor::process() {
 
 stdx::expected<Processor::Result, std::error_code>
 StmtResetProcessor::command() {
-  trace(Tracer::Event().stage("stmt_reset::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_reset::command"));
+  }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
@@ -66,7 +68,9 @@ StmtResetProcessor::command() {
 
     discard_current_msg(src_channel, src_protocol);
 
-    trace(Tracer::Event().stage("stmt_reset::error"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("stmt_reset::error"));
+    }
 
     auto send_res =
         ClassicFrame::send_msg<classic_protocol::message::server::Error>(
@@ -109,13 +113,17 @@ StmtResetProcessor::response() {
       return Result::Again;
   }
 
-  trace(Tracer::Event().stage("stmt_reset::response"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_reset::response"));
+  }
 
   return stdx::make_unexpected(make_error_code(std::errc::bad_message));
 }
 
 stdx::expected<Processor::Result, std::error_code> StmtResetProcessor::ok() {
-  trace(Tracer::Event().stage("stmt_reset::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_reset::ok"));
+  }
 
   stage(Stage::Done);
 
@@ -123,7 +131,9 @@ stdx::expected<Processor::Result, std::error_code> StmtResetProcessor::ok() {
 }
 
 stdx::expected<Processor::Result, std::error_code> StmtResetProcessor::error() {
-  trace(Tracer::Event().stage("stmt_reset::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_reset::error"));
+  }
 
   stage(Stage::Done);
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,9 @@ stdx::expected<Processor::Result, std::error_code> ReloadForwarder::process() {
 }
 
 stdx::expected<Processor::Result, std::error_code> ReloadForwarder::command() {
-  trace(Tracer::Event().stage("reload::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("reload::command"));
+  }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
@@ -69,7 +71,9 @@ stdx::expected<Processor::Result, std::error_code> ReloadForwarder::command() {
 }
 
 stdx::expected<Processor::Result, std::error_code> ReloadForwarder::connect() {
-  trace(Tracer::Event().stage("reload::connect"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("reload::connect"));
+  }
 
   stage(Stage::Connected);
 
@@ -95,20 +99,26 @@ ReloadForwarder::connected() {
 
     discard_current_msg(src_channel, src_protocol);
 
-    trace(Tracer::Event().stage("reload::error"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("reload::error"));
+    }
 
     stage(Stage::Done);
     return Result::Again;
   }
 
-  trace(Tracer::Event().stage("reload::connected"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("reload::connected"));
+  }
 
   stage(Stage::Response);
   return forward_client_to_server();
 }
 
 stdx::expected<Processor::Result, std::error_code> ReloadForwarder::response() {
-  trace(Tracer::Event().stage("reload::response"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("reload::response"));
+  }
 
   auto *socket_splicer = connection()->socket_splicer();
   auto src_channel = socket_splicer->server_channel();
@@ -138,7 +148,9 @@ stdx::expected<Processor::Result, std::error_code> ReloadForwarder::response() {
 }
 
 stdx::expected<Processor::Result, std::error_code> ReloadForwarder::ok() {
-  trace(Tracer::Event().stage("reload::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("reload::ok"));
+  }
 
   stage(Stage::Done);
 
@@ -146,7 +158,9 @@ stdx::expected<Processor::Result, std::error_code> ReloadForwarder::ok() {
 }
 
 stdx::expected<Processor::Result, std::error_code> ReloadForwarder::error() {
-  trace(Tracer::Event().stage("reload::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("reload::error"));
+  }
 
   stage(Stage::Done);
 

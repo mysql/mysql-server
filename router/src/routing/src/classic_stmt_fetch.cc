@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,9 @@ StmtFetchProcessor::process() {
 
 stdx::expected<Processor::Result, std::error_code>
 StmtFetchProcessor::command() {
-  trace(Tracer::Event().stage("stmt_fetch::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_fetch::command"));
+  }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
@@ -119,13 +121,17 @@ StmtFetchProcessor::response() {
       return Result::Again;
   }
 
-  trace(Tracer::Event().stage("stmt_fetch::response"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_fetch::response"));
+  }
 
   return stdx::make_unexpected(make_error_code(std::errc::bad_message));
 }
 
 stdx::expected<Processor::Result, std::error_code> StmtFetchProcessor::row() {
-  trace(Tracer::Event().stage("stmt_fetch::row"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_fetch::row"));
+  }
 
   stage(Stage::Response);
 
@@ -134,7 +140,9 @@ stdx::expected<Processor::Result, std::error_code> StmtFetchProcessor::row() {
 
 stdx::expected<Processor::Result, std::error_code>
 StmtFetchProcessor::end_of_rows() {
-  trace(Tracer::Event().stage("stmt_fetch::end_of_rows"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_fetch::end_of_rows"));
+  }
 
   stage(Stage::Done);
 
@@ -142,7 +150,9 @@ StmtFetchProcessor::end_of_rows() {
 }
 
 stdx::expected<Processor::Result, std::error_code> StmtFetchProcessor::error() {
-  trace(Tracer::Event().stage("stmt_fetch::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_fetch::error"));
+  }
 
   stage(Stage::Done);
 

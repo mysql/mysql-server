@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,9 @@ stdx::expected<Processor::Result, std::error_code> CloneForwarder::process() {
 }
 
 stdx::expected<Processor::Result, std::error_code> CloneForwarder::command() {
-  trace(Tracer::Event().stage("clone::switch"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("clone::switch"));
+  }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
@@ -92,7 +94,9 @@ stdx::expected<Processor::Result, std::error_code> CloneForwarder::command() {
 }
 
 stdx::expected<Processor::Result, std::error_code> CloneForwarder::connect() {
-  trace(Tracer::Event().stage("clone::connect"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("clone::connect"));
+  }
 
   stage(Stage::Connected);
 
@@ -117,13 +121,17 @@ stdx::expected<Processor::Result, std::error_code> CloneForwarder::connected() {
 
     discard_current_msg(src_channel, src_protocol);
 
-    trace(Tracer::Event().stage("clone::error"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("clone::error"));
+    }
 
     stage(Stage::Done);
     return Result::Again;
   }
 
-  trace(Tracer::Event().stage("clone::connected"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("clone::connected"));
+  }
   stage(Stage::Response);
   return forward_client_to_server();
 }
@@ -153,13 +161,17 @@ stdx::expected<Processor::Result, std::error_code> CloneForwarder::response() {
       return Result::Again;
   }
 
-  trace(Tracer::Event().stage("clone::response"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("clone::response"));
+  }
 
   return stdx::make_unexpected(make_error_code(std::errc::bad_message));
 }
 
 stdx::expected<Processor::Result, std::error_code> CloneForwarder::ok() {
-  trace(Tracer::Event().stage("clone::switched"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("clone::switched"));
+  }
 
   stage(Stage::CloneCommand);
 
@@ -167,7 +179,9 @@ stdx::expected<Processor::Result, std::error_code> CloneForwarder::ok() {
 }
 
 stdx::expected<Processor::Result, std::error_code> CloneForwarder::error() {
-  trace(Tracer::Event().stage("clone::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("clone::error"));
+  }
 
   stage(Stage::Done);
 
@@ -219,14 +233,18 @@ CloneForwarder::clone_command() {
       return Result::Again;
   }
 
-  trace(Tracer::Event().stage("clone::clone::*"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("clone::clone::*"));
+  }
 
   return stdx::make_unexpected(make_error_code(std::errc::bad_message));
 }
 
 stdx::expected<Processor::Result, std::error_code>
 CloneForwarder::clone_init() {
-  trace(Tracer::Event().stage("clone::cmd::init"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("clone::cmd::init"));
+  }
 
   stage(Stage::CloneResponse);
 
@@ -235,7 +253,9 @@ CloneForwarder::clone_init() {
 
 stdx::expected<Processor::Result, std::error_code>
 CloneForwarder::clone_attach() {
-  trace(Tracer::Event().stage("clone::cmd::attach"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("clone::cmd::attach"));
+  }
 
   stage(Stage::CloneResponse);
 
@@ -244,7 +264,9 @@ CloneForwarder::clone_attach() {
 
 stdx::expected<Processor::Result, std::error_code>
 CloneForwarder::clone_reinit() {
-  trace(Tracer::Event().stage("clone::cmd::reinit"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("clone::cmd::reinit"));
+  }
 
   stage(Stage::CloneResponse);
 
@@ -253,7 +275,9 @@ CloneForwarder::clone_reinit() {
 
 stdx::expected<Processor::Result, std::error_code>
 CloneForwarder::clone_execute() {
-  trace(Tracer::Event().stage("clone::cmd::execute"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("clone::cmd::execute"));
+  }
 
   stage(Stage::CloneResponse);
 
@@ -261,7 +285,9 @@ CloneForwarder::clone_execute() {
 }
 
 stdx::expected<Processor::Result, std::error_code> CloneForwarder::clone_ack() {
-  trace(Tracer::Event().stage("clone::cmd::ack"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("clone::cmd::ack"));
+  }
 
   stage(Stage::CloneResponse);
 
@@ -270,7 +296,9 @@ stdx::expected<Processor::Result, std::error_code> CloneForwarder::clone_ack() {
 
 stdx::expected<Processor::Result, std::error_code>
 CloneForwarder::clone_exit() {
-  trace(Tracer::Event().stage("clone::cmd::exit"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("clone::cmd::exit"));
+  }
 
   stage(Stage::CloneResponse);
 
@@ -310,7 +338,9 @@ CloneForwarder::clone_response() {
 
 stdx::expected<Processor::Result, std::error_code>
 CloneForwarder::clone_data() {
-  trace(Tracer::Event().stage("clone::data"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("clone::data"));
+  }
 
   stage(Stage::CloneResponse);
 
@@ -319,7 +349,9 @@ CloneForwarder::clone_data() {
 
 stdx::expected<Processor::Result, std::error_code>
 CloneForwarder::clone_complete() {
-  trace(Tracer::Event().stage("clone::complete"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("clone::complete"));
+  }
 
   if (clone_cmd_ ==
       ClassicFrame::cmd_byte<classic_protocol::clone::client::Exit>()) {
@@ -333,7 +365,9 @@ CloneForwarder::clone_complete() {
 
 stdx::expected<Processor::Result, std::error_code>
 CloneForwarder::clone_error() {
-  trace(Tracer::Event().stage("clone::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("clone::error"));
+  }
 
   if (clone_cmd_ ==
       ClassicFrame::cmd_byte<classic_protocol::clone::client::Exit>()) {

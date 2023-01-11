@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,9 @@ InitSchemaForwarder::process() {
 
 stdx::expected<Processor::Result, std::error_code>
 InitSchemaForwarder::command() {
-  trace(Tracer::Event().stage("init_schema::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("init_schema::command"));
+  }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
@@ -72,7 +74,9 @@ InitSchemaForwarder::command() {
 
 stdx::expected<Processor::Result, std::error_code>
 InitSchemaForwarder::connect() {
-  trace(Tracer::Event().stage("init_schema::connect"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("init_schema::connect"));
+  }
 
   stage(Stage::Connected);
 
@@ -98,13 +102,17 @@ InitSchemaForwarder::connected() {
 
     discard_current_msg(src_channel, src_protocol);
 
-    trace(Tracer::Event().stage("init_schema::error"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("init_schema::error"));
+    }
 
     stage(Stage::Done);
     return Result::Again;
   }
 
-  trace(Tracer::Event().stage("init_schema::connected"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("init_schema::connected"));
+  }
 
   stage(Stage::Response);
   return forward_client_to_server();
@@ -136,7 +144,9 @@ InitSchemaForwarder::response() {
       return Result::Again;
   }
 
-  trace(Tracer::Event().stage("init_schema::response"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("init_schema::response"));
+  }
 
   return stdx::make_unexpected(make_error_code(std::errc::bad_message));
 }
@@ -151,7 +161,9 @@ stdx::expected<Processor::Result, std::error_code> InitSchemaForwarder::ok() {
       src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("init_schema::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("init_schema::ok"));
+  }
 
   auto msg = std::move(*msg_res);
 
@@ -170,7 +182,9 @@ stdx::expected<Processor::Result, std::error_code> InitSchemaForwarder::ok() {
 
 stdx::expected<Processor::Result, std::error_code>
 InitSchemaForwarder::error() {
-  trace(Tracer::Event().stage("init_schema::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("init_schema::error"));
+  }
 
   stage(Stage::Done);
 
@@ -199,8 +213,10 @@ stdx::expected<Processor::Result, std::error_code> InitSchemaSender::command() {
   auto dst_channel = socket_splicer->server_channel();
   auto dst_protocol = connection()->server_protocol();
 
-  trace(Tracer::Event().stage("init_schema::command"));
-  trace(Tracer::Event().stage(">> " + schema_));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("init_schema::command"));
+    tr.trace(Tracer::Event().stage(">> " + schema_));
+  }
 
   dst_protocol->seq_id(0xff);
 
@@ -239,7 +255,9 @@ InitSchemaSender::response() {
       return Result::Again;
   }
 
-  trace(Tracer::Event().stage("init_schema::response"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("init_schema::response"));
+  }
 
   return stdx::make_unexpected(make_error_code(std::errc::bad_message));
 }
@@ -253,7 +271,9 @@ stdx::expected<Processor::Result, std::error_code> InitSchemaSender::ok() {
       src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("init_schema::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("init_schema::ok"));
+  }
 
   auto msg = std::move(*msg_res);
 
@@ -280,7 +300,9 @@ stdx::expected<Processor::Result, std::error_code> InitSchemaSender::error() {
           src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("init_schema::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("init_schema::error"));
+  }
 
   discard_current_msg(src_channel, src_protocol);
 

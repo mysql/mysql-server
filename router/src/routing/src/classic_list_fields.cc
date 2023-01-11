@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,9 @@ ListFieldsForwarder::process() {
 
 stdx::expected<Processor::Result, std::error_code>
 ListFieldsForwarder::command() {
-  trace(Tracer::Event().stage("list_fields::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("list_fields::command"));
+  }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
@@ -89,7 +91,9 @@ ListFieldsForwarder::command() {
 
 stdx::expected<Processor::Result, std::error_code>
 ListFieldsForwarder::connect() {
-  trace(Tracer::Event().stage("list_fields::connect"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("list_fields::connect"));
+  }
 
   stage(Stage::Connected);
 
@@ -115,13 +119,17 @@ ListFieldsForwarder::connected() {
 
     discard_current_msg(src_channel, src_protocol);
 
-    trace(Tracer::Event().stage("list_fields::error"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("list_fields::error"));
+    }
 
     stage(Stage::Done);
     return Result::Again;
   }
 
-  trace(Tracer::Event().stage("list_fields::connected"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("list_fields::connected"));
+  }
 
   stage(Stage::Response);
   return forward_client_to_server();
@@ -153,7 +161,9 @@ ListFieldsForwarder::response() {
       return Result::Again;
   }
 
-  trace(Tracer::Event().stage("list_fields::column"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("list_fields::column"));
+  }
 
   // don't force the flush to the client as more messages from the server
   // follow.
@@ -161,7 +171,9 @@ ListFieldsForwarder::response() {
 }
 
 stdx::expected<Processor::Result, std::error_code> ListFieldsForwarder::eof() {
-  trace(Tracer::Event().stage("list_fields::end_of_columns"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("list_fields::end_of_columns"));
+  }
 
   stage(Stage::Done);
 
@@ -170,7 +182,9 @@ stdx::expected<Processor::Result, std::error_code> ListFieldsForwarder::eof() {
 
 stdx::expected<Processor::Result, std::error_code>
 ListFieldsForwarder::error() {
-  trace(Tracer::Event().stage("list_fields::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("list_fields::error"));
+  }
 
   stage(Stage::Done);
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,9 @@ BinlogDumpForwarder::process() {
 
 stdx::expected<Processor::Result, std::error_code>
 BinlogDumpForwarder::command() {
-  trace(Tracer::Event().stage("binlog_dump::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("binlog_dump::command"));
+  }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
@@ -76,7 +78,9 @@ BinlogDumpForwarder::command() {
 
 stdx::expected<Processor::Result, std::error_code>
 BinlogDumpForwarder::connect() {
-  trace(Tracer::Event().stage("binlog_dump::connect"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("binlog_dump::connect"));
+  }
 
   stage(Stage::Connected);
 
@@ -102,13 +106,17 @@ BinlogDumpForwarder::connected() {
 
     discard_current_msg(src_channel, src_protocol);
 
-    trace(Tracer::Event().stage("binlog_dump::error"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("binlog_dump::error"));
+    }
 
     stage(Stage::Done);
     return Result::Again;
   }
 
-  trace(Tracer::Event().stage("binlog_dump::connected"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("binlog_dump::connected"));
+  }
   stage(Stage::Response);
   return forward_client_to_server();
 }
@@ -151,7 +159,9 @@ BinlogDumpForwarder::response() {
 
 stdx::expected<Processor::Result, std::error_code>
 BinlogDumpForwarder::event() {
-  trace(Tracer::Event().stage("binlog_dump::event"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("binlog_dump::event"));
+  }
 
   stage(Stage::Response);
 
@@ -160,7 +170,9 @@ BinlogDumpForwarder::event() {
 
 stdx::expected<Processor::Result, std::error_code>
 BinlogDumpForwarder::end_of_stream() {
-  trace(Tracer::Event().stage("binlog_dump::end_of_stream"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("binlog_dump::end_of_stream"));
+  }
 
   // avoid reuse of the connection as the server will close it.
   connection()->some_state_changed(true);
@@ -172,7 +184,9 @@ BinlogDumpForwarder::end_of_stream() {
 
 stdx::expected<Processor::Result, std::error_code>
 BinlogDumpForwarder::error() {
-  trace(Tracer::Event().stage("binlog_dump::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("binlog_dump::error"));
+  }
 
   // avoid reuse of the connection as the server will close it.
   connection()->some_state_changed(true);

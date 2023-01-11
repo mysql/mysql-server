@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -164,6 +164,32 @@ class BasicConnection : public ConnectionBase {
   void async_send(recv_buffer_type &buf,
                   std::function<void(std::error_code ec, size_t transferred)>
                       completion) override {
+    if (sock_.native_non_blocking()) {
+      // if the socket is non-blocking try to send directly as the send-buffer
+      // is usually empty
+      auto write_res = net::write(sock_, net::dynamic_buffer(buf),
+                                  net::transfer_at_least(1));
+      if (write_res) {
+        net::defer(sock_.get_executor(), [completion = std::move(completion),
+                                          transferred = *write_res]() {
+          completion({}, transferred);
+        });
+        return;
+      }
+
+      const auto ec = write_res.error();
+
+      if (ec != make_error_condition(std::errc::operation_would_block) &&
+          ec !=
+              make_error_condition(std::errc::resource_unavailable_try_again)) {
+        net::defer(sock_.get_executor(), [completion = std::move(completion),
+                                          ec]() { completion(ec, 0); });
+        return;
+      }
+
+      // if it would-block, use the normal async-write.
+    }
+
     net::async_write(sock_, net::dynamic_buffer(buf), net::transfer_at_least(1),
                      std::move(completion));
   }

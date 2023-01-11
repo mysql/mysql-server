@@ -496,6 +496,8 @@ class MysqlRoutingClassicConnectionBase
  public:
   void trace(Tracer::Event e) { tracer_.trace(e); }
 
+  Tracer &tracer() { return tracer_; }
+
  private:
   Tracer tracer_{false};
 

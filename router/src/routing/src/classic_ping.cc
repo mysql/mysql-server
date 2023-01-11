@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,9 @@ stdx::expected<Processor::Result, std::error_code> PingForwarder::process() {
 }
 
 stdx::expected<Processor::Result, std::error_code> PingForwarder::command() {
-  trace(Tracer::Event().stage("ping::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("ping::command"));
+  }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
@@ -65,7 +67,9 @@ stdx::expected<Processor::Result, std::error_code> PingForwarder::command() {
 }
 
 stdx::expected<Processor::Result, std::error_code> PingForwarder::connect() {
-  trace(Tracer::Event().stage("ping::connect"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("ping::connect"));
+  }
 
   stage(Stage::Connected);
 
@@ -90,13 +94,17 @@ stdx::expected<Processor::Result, std::error_code> PingForwarder::connected() {
 
     discard_current_msg(src_channel, src_protocol);
 
-    trace(Tracer::Event().stage("ping::error"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("ping::error"));
+    }
 
     stage(Stage::Done);
     return Result::Again;
   }
 
-  trace(Tracer::Event().stage("ping::connected"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("ping::connected"));
+  }
   stage(Stage::Response);
   return forward_client_to_server();
 }
@@ -122,13 +130,17 @@ stdx::expected<Processor::Result, std::error_code> PingForwarder::response() {
       return Result::Again;
   }
 
-  trace(Tracer::Event().stage("ping::response"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("ping::response"));
+  }
 
   return stdx::make_unexpected(make_error_code(std::errc::bad_message));
 }
 
 stdx::expected<Processor::Result, std::error_code> PingForwarder::ok() {
-  trace(Tracer::Event().stage("ping::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("ping::ok"));
+  }
 
   stage(Stage::Done);
 

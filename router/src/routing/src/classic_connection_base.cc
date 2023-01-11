@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -212,9 +212,11 @@ void MysqlRoutingClassicConnectionBase::client_socket_failed(std::error_code ec,
       (void)client_conn.shutdown(net::socket_base::shutdown_send);
     }
     (void)client_conn.close();
-    trace(Tracer::Event()
-              .stage("close::client")
-              .direction(Tracer::Event::Direction::kClientClose));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event()
+                   .stage("close::client")
+                   .direction(Tracer::Event::Direction::kClientClose));
+    }
   }
 
   if (call_finish) finish();
@@ -691,7 +693,9 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
 void MysqlRoutingClassicConnectionBase::trace_and_call_function(
     Tracer::Event::Direction dir, std::string_view stage,
     MysqlRoutingClassicConnectionBase::Function func) {
-  trace(Tracer::Event().stage(stage).direction(dir));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage(stage).direction(dir));
+  }
 
   call_next_function(func);
 }
