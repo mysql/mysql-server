@@ -155,7 +155,7 @@ static int init_sock_probe(sock_probe *s)
      We are just starting or have filled up all pre-allocated entries.
      Need to allocate some more.
      */
-    if (i==ifrpsize || i==0)
+    if (i==ifrpsize / (int)sizeof(struct ifreq *) || i==0)
     {
 		ifrpsize+= IFRP_INIT_ARR_SIZE * (int)sizeof(struct ifreq *);
       /* allocate one more block */
