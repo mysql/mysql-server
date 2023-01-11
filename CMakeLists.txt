@@ -1209,45 +1209,29 @@ IF (ENABLE_GPROF AND NOT WIN32 AND NOT APPLE)
   STRING_APPEND(CMAKE_EXE_LINKER_FLAGS " -pg")
 ENDIF()
 
-# Use lld for Clang if available and not explicitly disabled.
-# Also works for gcc on Debian/Ubuntu. Do 'apt install lld'.
+# Use lld on Linux if available and not explicitly disabled.
+# You need to install the 'lld' RPM/DEB package.
 # LTO build fails with lld, so turn it off by default.
-IF(LINUX AND NOT WITH_LTO AND NOT CMAKE_COMPILER_FLAG_WITH_LTO)
+IF(LINUX AND NOT ALTERNATIVE_LD AND
+    NOT WITH_LTO AND NOT CMAKE_COMPILER_FLAG_WITH_LTO)
   OPTION(USE_LD_LLD "Use llvm lld linker" ON)
 ELSE()
   OPTION(USE_LD_LLD "Use llvm lld linker" OFF)
 ENDIF()
 
-IF(USE_LD_LLD)
-  CMAKE_PUSH_CHECK_STATE(RESET)
-
-  # RPM builds on Fedora use -specs files.
-  # This may cause the test for -fuse-ld=lld to succeed, when it should fail.
-  SET(SAVE_CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
-  SET(SAVE_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-  STRING(REGEX REPLACE "-specs=/usr/lib/rpm/redhat/.*"  ""
-    CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
-  STRING(REGEX REPLACE "-specs=/usr/lib/rpm/redhat/.*"  ""
-    CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-
-  SET(CMAKE_REQUIRED_LIBRARIES "-fuse-ld=lld")
-  CHECK_C_SOURCE_COMPILES("int main() {}" C_LD_LLD_RESULT)
-  CHECK_CXX_SOURCE_COMPILES("int main() {}" CXX_LD_LLD_RESULT)
-  IF(C_LD_LLD_RESULT AND CXX_LD_LLD_RESULT)
-    FOREACH(flag
-        CMAKE_C_LINK_FLAGS
-        CMAKE_CXX_LINK_FLAGS
-        CMAKE_EXE_LINKER_FLAGS
-        CMAKE_MODULE_LINKER_FLAGS
-        CMAKE_SHARED_LINKER_FLAGS
-        )
-      STRING_APPEND(${flag} " -fuse-ld=lld")
-    ENDFOREACH()
-  ENDIF()
-  SET(CMAKE_C_FLAGS ${SAVE_CMAKE_C_FLAGS})
-  SET(CMAKE_CXX_FLAGS ${SAVE_CMAKE_CXX_FLAGS})
-  CMAKE_POP_CHECK_STATE()
+# If ALTERNATIVE_LD is set, we must use it.
+IF(ALTERNATIVE_LD AND USE_LD_LLD)
+  MESSAGE(WARNING
+    "The compiler ${ALTERNATIVE_GPP} is not compatible with lld")
+  SET(USE_LD_LLD 0)
+  SET(USE_LD_LLD 0 CACHE INTERNAL "" FORCE)
 ENDIF()
+
+SET(USING_LD_LLD 0)
+IF(USE_LD_LLD)
+  CHECK_ALTERNATIVE_LINKER("lld" USING_LD_LLD)
+ENDIF()
+SET(USING_LD_LLD ${USING_LD_LLD} CACHE INTERNAL "")
 
 IF(LINUX_STANDALONE)
   # ON by default in pushbuild, but only for standalone builds.
