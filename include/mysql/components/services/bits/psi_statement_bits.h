@@ -25,6 +25,7 @@
 
 #ifndef MYSQL_ABI_CHECK
 #include <stddef.h> /* size_t */
+#include <stdint.h> /* uint64_t */
 #endif
 
 #include <mysql/components/services/bits/psi_bits.h>
