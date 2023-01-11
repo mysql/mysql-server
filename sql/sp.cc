@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2002, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2081,25 +2081,23 @@ static bool strnstr(const char *str, size_t length, const char *substr) {
 
    This is only used for external language routines.
 
-   @param[in] chistics    Routine characteristics
-   @param[in] sp_body     Start of external language routine body.
-   @param[in] sp_body_len Length of routine body
-   @param[out] quote      Buffer to put the dollar quoute in
+   @param[in] chistics      Routine characteristics
+   @param[in] sp_body       Start of external language routine body
+   @param[in] sp_body_len   Length of routine body
+   @param[out] quote        Buffer to put the dollar quote in
+   @param[in] max_quote_len Max length of dollar quote (incl. null term.)
 
    @return Length of dollar quote
  */
 static size_t find_dollar_quote(const st_sp_chistics *chistics,
                                 const char *sp_body, size_t sp_body_len,
-                                char *quote) {
+                                char *quote, size_t max_quote_len) {
   // Default delimiter is $$
-  strcpy(quote, "$$");
+  snprintf(quote, max_quote_len, "$$");
   if (!strnstr(sp_body, sp_body_len, quote)) return 2;
 
   // Try $language$ instead
-  quote[0] = '$';
-  strncpy(quote + 1, chistics->language.str, chistics->language.length);
-  quote[chistics->language.length + 1] = '$';
-  quote[chistics->language.length + 2] = '\0';
+  snprintf(quote, max_quote_len, "$%s$", chistics->language.str);
   if (!strnstr(sp_body, sp_body_len, quote))
     return chistics->language.length + 2;
 
@@ -2109,12 +2107,7 @@ static size_t find_dollar_quote(const st_sp_chistics *chistics,
     ha_checksum chk =
         my_checksum(i++, reinterpret_cast<const unsigned char *>(sp_body),
                     std::max((int)sp_body_len, 20));
-    String s;
-    s.set_int(chk, true, &my_charset_bin);
-    quote[0] = '$';
-    strncpy(quote + 1, s.c_ptr(), s.length());
-    quote[s.length() + 1] = '$';
-    quote[s.length() + 2] = '\0';
+    snprintf(quote, max_quote_len, "$%u$", chk);
   } while (strnstr(sp_body, sp_body_len, quote));
   return strlen(quote);
 }
@@ -2135,10 +2128,14 @@ static bool create_string(
   const bool is_sql = chistics->language.length == 0 ||
                       native_strcasecmp(chistics->language.str, "SQL") == 0;
 
-  char dollar_quote[66];  // Max column size is 64; add 2 for the dollar chars
+  // Max column size is 64; +3 for dollar characters and null terminator
+  const size_t max_quote_len = 67;
+  char dollar_quote[max_quote_len];
   const size_t dollar_quote_len =
-      is_sql ? 0 : find_dollar_quote(chistics, body, bodylen, dollar_quote);
-  assert(dollar_quote_len <= 66);
+      is_sql ? 0
+             : find_dollar_quote(chistics, body, bodylen, dollar_quote,
+                                 max_quote_len);
+  assert(dollar_quote_len < max_quote_len);
 
   /* Make some room to begin with */
   if (buf->alloc(100 + dblen + 1 + namelen + paramslen + returnslen + bodylen +
