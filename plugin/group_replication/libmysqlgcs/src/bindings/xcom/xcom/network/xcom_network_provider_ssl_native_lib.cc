@@ -196,7 +196,7 @@ static long process_tls_version(const char *tls_version) {
 
   if (!tls_version || !xcom_strcasecmp(tls_version, ctx_flag_default)) return 0;
 
-  if (strlen(tls_version) - 1 > sizeof(tls_version_option)) return -1;
+  if (strlen(tls_version) + 1 > sizeof(tls_version_option)) return -1;
 
   snprintf(tls_version_option, sizeof(tls_version_option), "%s", tls_version);
   token = xcom_strtok(tls_version_option, separator, &saved_ctx);
