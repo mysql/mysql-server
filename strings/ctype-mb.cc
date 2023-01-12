@@ -729,7 +729,7 @@ bool my_like_range_mb(const CHARSET_INFO *cs, const char *ptr,
         'ab\min\min\min\min' and 'ab\max\max\max\max'.
 
       */
-      const char *contraction_flags = nullptr;
+      const MY_UCA_INFO::flags_type *contraction_flags = nullptr;
       if (cs->uca) contraction_flags = cs->uca->contraction_flags;
       if (contraction_flags && ptr + 1 < end &&
           my_uca_can_be_contraction_head(contraction_flags, (uint8_t)*ptr)) {
@@ -875,7 +875,7 @@ bool my_like_range_generic(const CHARSET_INFO *cs, const char *ptr,
       goto pad_min_max;
     }
 
-    const char *contraction_flags = nullptr;
+    const MY_UCA_INFO::flags_type *contraction_flags = nullptr;
     if (cs->uca) contraction_flags = cs->uca->contraction_flags;
     if (contraction_flags &&
         my_uca_can_be_contraction_head(contraction_flags, wc) &&

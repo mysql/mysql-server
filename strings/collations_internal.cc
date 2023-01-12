@@ -654,7 +654,7 @@ Collations::~Collations() {
   for (auto p : m_all_by_id) {
     CHARSET_INFO *cs = p.second;
     if (cs->coll && cs->coll->uninit) {
-      cs->coll->uninit(cs);
+      cs->coll->uninit(cs, m_loader);
     }
   }
   if (m_owns_loader) {

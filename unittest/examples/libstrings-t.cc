@@ -42,6 +42,10 @@ int main() {
   std::cout << "Ok: " << cs->csname << std::endl;
   const CHARSET_INFO *alias_cs = mysql::collation::find_primary("utf8");
   std::cout << "Ok: " << alias_cs->csname << std::endl;
+  const CHARSET_INFO *zh_cs =
+      mysql::collation::find_by_name("utf8mb4_zh_0900_as_cs");
+  std::cout << "Ok: " << zh_cs->csname << " " << zh_cs->m_coll_name
+            << std::endl;
   mysql::collation::shutdown();
   return 0;
 }

@@ -65,6 +65,7 @@ extern PSI_file_key key_file_charset;
 
 /* These keys are always defined. */
 
+extern PSI_memory_key key_memory_charset_loader;
 extern PSI_memory_key key_memory_lf_node;
 extern PSI_memory_key key_memory_lf_dynarray;
 extern PSI_memory_key key_memory_lf_slist;

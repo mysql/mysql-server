@@ -65,6 +65,9 @@ bool init_state_maps(MY_CHARSET_LOADER *loader, CHARSET_INFO *cs) {
   uint8_t *ident_map = nullptr;
   enum my_lex_states *state_map = nullptr;
 
+  // This character set has already been initialized.
+  if (cs->state_maps != nullptr && cs->ident_map != nullptr) return false;
+
   lex_state_maps_st *lex_state_maps = static_cast<lex_state_maps_st *>(
       loader->once_alloc(sizeof(lex_state_maps_st)));
 

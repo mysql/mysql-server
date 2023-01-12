@@ -63,11 +63,16 @@
 #include "template_utils.h"
 
 MY_UCA_INFO my_uca_v400 = {
-    UCA_V400,
+    UCA_V400, /* version */
+    nullptr,  /* in case we clone an instance */
 
-    0xFFFF,                                 /* maxchar           */
-    uca_length, uca_weight, false, nullptr, /* contractions      */
-    nullptr,
+    0xFFFF,     /* maxchar           */
+    uca_length, /* lengths */
+    nullptr,    /* m_allocated_weights */
+    uca_weight, /* weights */
+    false,      /* have_contractions */
+    nullptr,    /* contraction_nodes      */
+    nullptr,    /* contraction_flags */
 
     /* Logical positions */
     0x0009, /* first_non_ignorable       p != ignore                  */
@@ -95,10 +100,12 @@ MY_UCA_INFO my_uca_v400 = {
 /******************************************************/
 
 MY_UCA_INFO my_uca_v520 = {
-    UCA_V520,
+    UCA_V520, /* version */
+    nullptr,  /* in case we clone an instance */
 
     0x10FFFF, /* maxchar           */
     uca520_length,
+    nullptr, /* m_allocated_weights */
     uca520_weight,
     false,
     nullptr, /* contractions      */
@@ -771,7 +778,7 @@ class my_uca_scanner {
   unsigned wbeg_stride{0}; /* Number of bytes between weights in string */
   const uint8_t *sbeg;     /* Beginning of the input string          */
   const uint8_t *send;     /* End of the input string                */
-  const MY_UCA_INFO *uca;
+  const MY_UCA_INFO *uca{nullptr};
   uint16_t implicit[10]{};
   my_wc_t prev_char{0};  // Previous code point we scanned, if any.
   const CHARSET_INFO *cs;
@@ -890,9 +897,9 @@ class uca_scanner_900 : public my_uca_scanner {
   @param flag     flag: "is contraction head", "is contraction tail"
 */
 
-static inline void my_uca_add_contraction_flag(char *flags, my_wc_t wc,
-                                               int flag) {
-  flags[wc & MY_UCA_CNT_FLAG_MASK] |= flag;
+static inline void my_uca_add_contraction_flag(MY_UCA_INFO::flags_type *flags,
+                                               my_wc_t wc, int flag) {
+  (*flags)[wc & MY_UCA_CNT_FLAG_MASK] |= flag;
 }
 
 /**
@@ -969,9 +976,9 @@ const uint16_t *my_uca_contraction2_weight(
   @retval true  - can be previous context head
 */
 
-static inline bool my_uca_can_be_previous_context_head(const char *flags,
-                                                       my_wc_t wc) {
-  return flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_PREVIOUS_CONTEXT_HEAD;
+static inline bool my_uca_can_be_previous_context_head(
+    const MY_UCA_INFO::flags_type *flags, my_wc_t wc) {
+  return (*flags)[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_PREVIOUS_CONTEXT_HEAD;
 }
 
 /**
@@ -984,9 +991,9 @@ static inline bool my_uca_can_be_previous_context_head(const char *flags,
   @retval true - can be contraction tail
 */
 
-static inline bool my_uca_can_be_previous_context_tail(const char *flags,
-                                                       my_wc_t wc) {
-  return flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_PREVIOUS_CONTEXT_TAIL;
+static inline bool my_uca_can_be_previous_context_tail(
+    const MY_UCA_INFO::flags_type *flags, my_wc_t wc) {
+  return (*flags)[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_PREVIOUS_CONTEXT_TAIL;
 }
 
 /**
@@ -2804,13 +2811,13 @@ typedef enum {
 } my_coll_shift_method;
 
 struct MY_COLL_RULES {
-  MY_UCA_INFO *uca;   /* Unicode weight data               */
-  size_t nrules;      /* Number of rules in the rule array */
-  size_t mrules;      /* Number of allocated rules         */
-  MY_COLL_RULE *rule; /* Rule array                        */
-  MY_CHARSET_LOADER *loader;
-  MY_CHARSET_ERRMSG *errmsg;
-  my_coll_shift_method shift_after_method;
+  MY_UCA_INFO *uca{nullptr};   /* Unicode weight data               */
+  size_t nrules{0};            /* Number of rules in the rule array */
+  size_t mrules{0};            /* Number of allocated rules         */
+  MY_COLL_RULE *rule{nullptr}; /* Rule array                        */
+  MY_CHARSET_LOADER *loader{nullptr};
+  MY_CHARSET_ERRMSG *errmsg{nullptr};
+  my_coll_shift_method shift_after_method{my_shift_method_simple};
 };
 
 /**
@@ -3727,9 +3734,9 @@ static bool my_uca_copy_page(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
                              const MY_UCA_INFO *src, MY_UCA_INFO *dst,
                              size_t page) {
   const unsigned dst_size = 256 * dst->lengths[page] * sizeof(uint16_t);
-  if (!(dst->weights[page] =
-            static_cast<uint16_t *>((loader->once_alloc)(dst_size))))
-    return true;
+  dst->weights[page] = static_cast<uint16_t *>(loader->mem_malloc(dst_size));
+  if (dst->weights[page] == nullptr) return true;
+  dst->m_allocated_weights->at(page) = 1;
 
   assert(src->lengths[page] <= dst->lengths[page]);
   memset(dst->weights[page], 0, dst_size);
@@ -4093,6 +4100,7 @@ static void copy_ja_han_pages(const CHARSET_INFO *cs, MY_UCA_INFO *dst) {
     // may already be set.
     assert(dst->weights[page] == nullptr ||
            dst->weights[page] == ja_han_pages[page - MIN_JA_HAN_PAGE]);
+    assert(dst->m_allocated_weights->at(page) == 0);
     dst->weights[page] = ja_han_pages[page - MIN_JA_HAN_PAGE];
   }
 }
@@ -4102,9 +4110,13 @@ static void copy_ja_han_pages(const CHARSET_INFO *cs, MY_UCA_INFO *dst) {
   characters with uca9dump (see dump_zh_pages() in uca9-dump.cc). Replace the
   DUCET pages with these pages.
  */
-static void copy_zh_han_pages(MY_UCA_INFO *dst) {
+static void copy_zh_han_pages(MY_UCA_INFO *dst, MY_CHARSET_LOADER *loader) {
   for (int page = MIN_ZH_HAN_PAGE; page <= MAX_ZH_HAN_PAGE; page++) {
     if (zh_han_pages[page - MIN_ZH_HAN_PAGE]) {
+      if (dst->m_allocated_weights->at(page)) {
+        loader->mem_free(dst->weights[page]);
+        dst->m_allocated_weights->at(page) = 0;
+      }
       dst->weights[page] = zh_han_pages[page - MIN_ZH_HAN_PAGE];
     }
   }
@@ -4208,8 +4220,7 @@ static void modify_all_zh_pages(Reorder_param *reorder_param, MY_UCA_INFO *dst,
 }
 
 static bool init_weight_level(CHARSET_INFO *cs, MY_COLL_RULES *rules, int level,
-                              MY_UCA_INFO *dst, const MY_UCA_INFO *src,
-                              bool lengths_are_temporary) {
+                              MY_UCA_INFO *dst, const MY_UCA_INFO *src) {
   MY_COLL_RULE *r, *rlast;
   size_t i, npages = (src->maxchar + 1) / 256;
   bool has_contractions = false;
@@ -4220,19 +4231,14 @@ static bool init_weight_level(CHARSET_INFO *cs, MY_COLL_RULES *rules, int level,
   if (check_rules(rules, dst, src)) return true;
 
   /* Allocate memory for pages and their lengths */
-  if (lengths_are_temporary) {
-    if (!(dst->lengths = static_cast<uint8_t *>(malloc(npages)))) return true;
-    if (!(dst->weights = static_cast<uint16_t **>(
-              (loader->once_alloc)(npages * sizeof(uint16_t *))))) {
-      free(dst->lengths);
-      return true;
-    }
-  } else {
-    if (!(dst->lengths =
-              static_cast<uint8_t *>((loader->once_alloc)(npages))) ||
-        !(dst->weights = static_cast<uint16_t **>(
-              (loader->once_alloc)(npages * sizeof(uint16_t *)))))
-      return true;
+  dst->lengths = static_cast<uint8_t *>(loader->mem_malloc(npages));
+  dst->weights =
+      static_cast<uint16_t **>(loader->mem_malloc(npages * sizeof(uint16_t *)));
+  if (dst->lengths == nullptr || dst->weights == nullptr) return true;
+
+  if (dst->m_allocated_weights == nullptr) {
+    dst->m_allocated_weights = new std::vector<uint8_t>();
+    dst->m_allocated_weights->resize(npages, 0);
   }
 
   /*
@@ -4273,10 +4279,7 @@ static bool init_weight_level(CHARSET_INFO *cs, MY_COLL_RULES *rules, int level,
   if (has_contractions) {
     dst->have_contractions = true;
     dst->contraction_nodes = new std::vector<MY_CONTRACTION>(0);
-    if (!(dst->contraction_flags =
-              (char *)loader->once_alloc(MY_UCA_CNT_FLAG_SIZE)))
-      return true;
-    memset(dst->contraction_flags, 0, MY_UCA_CNT_FLAG_SIZE);
+    dst->contraction_flags = new std::array<char, MY_UCA_CNT_FLAG_SIZE>{};
   }
   if (cs->coll_param == &zh_coll_param) {
     /*
@@ -4292,7 +4295,7 @@ static bool init_weight_level(CHARSET_INFO *cs, MY_COLL_RULES *rules, int level,
         return rc;
     }
     modify_all_zh_pages(cs->coll_param->reorder_param, dst, npages);
-    copy_zh_han_pages(dst);
+    copy_zh_han_pages(dst, loader);
   } else {
     /* Allocate pages that we'll overwrite and copy default weights */
     for (i = 0; i < npages; i++) {
@@ -4742,7 +4745,8 @@ static bool create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
     return false; /* Ok to add a collation without tailoring */
 
   MY_COLL_RULES rules;
-  MY_UCA_INFO new_uca, *src_uca = nullptr;
+  MY_UCA_INFO new_uca;
+  MY_UCA_INFO *src_uca = nullptr;
   int rc = 0;
   MY_UCA_INFO *src, *dst;
   size_t npages;
@@ -4751,11 +4755,9 @@ static bool create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
   errmsg->errcode = 0;
   *errmsg->errarg = '\0';
 
-  memset(&rules, 0, sizeof(rules));
   rules.loader = loader;
   rules.errmsg = errmsg;
   rules.uca = cs->uca ? cs->uca : &my_uca_v400; /* For logical positions, etc */
-  memset(&new_uca, 0, sizeof(new_uca));
 
   /* Parse ICU Collation Customization expression */
   if ((rc = my_coll_rule_parse(&rules, cs->tailoring,
@@ -4801,45 +4803,64 @@ static bool create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
   }
 
   npages = (src->maxchar + 1) / 256;
-  if (rules.uca->version == UCA_V900) {
-    if (!(src->lengths = static_cast<uint8_t *>(malloc(npages)))) {
-      goto ex;
-    }
+  lengths_are_temporary = (rules.uca->version == UCA_V900);
+  if (lengths_are_temporary) {
+    src->lengths = static_cast<uint8_t *>(loader->mem_malloc(npages));
+    if (src->lengths == nullptr) goto ex;
     synthesize_lengths_900(src->lengths, src->weights, npages);
   }
 
-  lengths_are_temporary = (rules.uca->version == UCA_V900);
-  if ((rc = init_weight_level(cs, &rules, 0, dst, src, lengths_are_temporary)))
-    goto ex;
+  if ((rc = init_weight_level(cs, &rules, 0, dst, src))) goto ex;
 
   if (lengths_are_temporary) {
-    free(src->lengths);
-    free(dst->lengths);
+    loader->mem_free(src->lengths);
+    loader->mem_free(dst->lengths);
     src->lengths = nullptr;
     dst->lengths = nullptr;
   }
 
   new_uca.version = src_uca->version;
-  if (!(cs->uca = (MY_UCA_INFO *)loader->once_alloc(sizeof(MY_UCA_INFO)))) {
-    rc = 1;
-    goto ex;
-  }
-  memset(cs->uca, 0, sizeof(MY_UCA_INFO));
-  cs->uca[0] = new_uca;
+  new_uca.m_based_on = src_uca;
+  cs->uca = new MY_UCA_INFO(new_uca);
 
 ex:
   free(rules.rule);
   if (rc != 0 && errmsg->errcode) {
     delete new_uca.contraction_nodes;
+    delete new_uca.contraction_flags;
     loader->reporter(ERROR_LEVEL, errmsg->errcode, errmsg->errarg);
   }
   return rc;
 }
 
-static void my_coll_uninit_uca(CHARSET_INFO *cs) {
+static void my_coll_uninit_uca(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader) {
   if (cs->uca && cs->uca->contraction_nodes) {
     delete cs->uca->contraction_nodes;
+    delete cs->uca->contraction_flags;
     cs->uca->contraction_nodes = nullptr;
+    cs->uca->contraction_flags = nullptr;
+  }
+  if (cs->uca != nullptr && cs->uca != &my_uca_v400 &&
+      cs->uca != &my_uca_v520 && cs->uca != &my_uca_v900) {
+    if (cs->uca->m_allocated_weights != nullptr) {
+      for (size_t i = 0; i < cs->uca->m_allocated_weights->size(); ++i) {
+        if (cs->uca->m_allocated_weights->at(i) != 0) {
+          loader->mem_free(cs->uca->weights[i]);
+          cs->uca->weights[i] = nullptr;
+        }
+      }
+    }
+    loader->mem_free(cs->uca->lengths);
+    cs->uca->lengths = nullptr;
+    loader->mem_free(cs->uca->weights);
+    cs->uca->weights = nullptr;
+
+    delete cs->uca->m_allocated_weights;
+    cs->uca->m_allocated_weights = nullptr;
+
+    MY_UCA_INFO *to_be_deleted = cs->uca;
+    cs->uca = cs->uca->m_based_on;
+    delete to_be_deleted;
     cs->state &= ~MY_CS_READY;
   }
 }

@@ -32,6 +32,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <deque>
 
 #include "mysql/attribute.h"
@@ -228,6 +229,9 @@ class MY_CHARSET_LOADER {
   */
   virtual void *once_alloc(size_t);
 
+  virtual void *mem_malloc(size_t size) { return malloc(size); }
+  virtual void mem_free(void *ptr) { free(ptr); }
+
  private:
   std::deque<void *> m_delete_list;
 };
@@ -239,7 +243,7 @@ enum Pad_attribute { PAD_SPACE, NO_PAD };
 /* See strings/CHARSET_INFO.txt for information about this structure  */
 struct MY_COLLATION_HANDLER {
   bool (*init)(CHARSET_INFO *, MY_CHARSET_LOADER *, MY_CHARSET_ERRMSG *);
-  void (*uninit)(CHARSET_INFO *);
+  void (*uninit)(CHARSET_INFO *, MY_CHARSET_LOADER *);
   /* Collation routines */
   int (*strnncoll)(const CHARSET_INFO *, const uint8_t *, size_t,
                    const uint8_t *, size_t, bool);

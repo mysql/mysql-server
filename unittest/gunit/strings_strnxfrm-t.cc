@@ -2696,4 +2696,14 @@ TEST(StrmxfrmHashTest, HashStability) {
   }
 }
 
+TEST(StrXfrmTest, LoadAndUnloadChinese) {
+  for (int i = 0; i < 10; ++i) {
+    CHARSET_INFO *csa = init_collation("utf8mb4_zh_0900_as_cs");
+    EXPECT_NE(csa, nullptr);
+    charset_uninit();
+    CHARSET_INFO *csb = init_collation("utf8mb4_zh_0900_as_cs");
+    EXPECT_NE(csb, nullptr);
+  }
+}
+
 }  // namespace strnxfrm_unittest

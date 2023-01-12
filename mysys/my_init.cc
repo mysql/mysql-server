@@ -539,6 +539,8 @@ static PSI_memory_info all_mysys_memory[] = {
 
     {&key_memory_max_alloca, "max_alloca", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
      PSI_DOCUMENT_ME},
+    {&key_memory_charset_loader, "charset_loader", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     PSI_DOCUMENT_ME},
     {&key_memory_lf_node, "lf_node", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_lf_dynarray, "lf_dynarray", PSI_FLAG_ONLY_GLOBAL_STAT, 0,

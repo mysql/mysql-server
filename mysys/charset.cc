@@ -104,6 +104,12 @@ class Mysys_charset_loader : public MY_CHARSET_LOADER {
     return my_once_alloc(sz, MYF(MY_WME));
   }
 
+  void *mem_malloc(size_t sz) override {
+    return my_malloc(key_memory_charset_loader, sz, MYF(MY_WME));
+  }
+
+  void mem_free(void *ptr) override { my_free(ptr); }
+
   void *read_file(const char *path, size_t *size) override;
 };
 
