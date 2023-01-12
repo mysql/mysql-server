@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -210,7 +210,7 @@ bool Generate_scramble::scramble(unsigned char *scramble,
   unsigned char *scramble_stage1;
 
   if (!scramble || scramble_length != m_digest_length) {
-    DBUG_PRINT("info", ("Unexpected scrable length"
+    DBUG_PRINT("info", ("Unexpected scramble length"
                         "Expected: %d, Actual: %d",
                         m_digest_length, !scramble ? 0 : scramble_length));
     return true;
@@ -250,7 +250,7 @@ bool Generate_scramble::scramble(unsigned char *scramble,
   if (m_digest_generator->update_digest(digest_stage2, m_digest_length) ||
       m_digest_generator->update_digest(m_rnd.c_str(), m_rnd.length()) ||
       m_digest_generator->retrieve_digest(scramble_stage1, m_digest_length)) {
-    DBUG_PRINT("info", ("Failed to generate scrmable_stage1: "
+    DBUG_PRINT("info", ("Failed to generate scramble_stage1: "
                         "SHA2(digest_stage2, m_rnd)"));
     return true;
   }
@@ -374,7 +374,7 @@ bool Validate_scramble::validate() {
   @note
     SHA2(src) => X
     SHA2(X) => Y
-    SHA2(XOR(rnd, Y) => Z
+    SHA2(Y, rnd) => Z
     XOR(X, Z) => scramble
 
   @returns Status of scramble generation
