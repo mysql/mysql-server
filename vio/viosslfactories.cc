@@ -474,7 +474,7 @@ long process_tls_version(const char *tls_version) {
       !my_strcasecmp(&my_charset_latin1, tls_version, ctx_flag_default))
     return 0;
 
-  if (strlen(tls_version) - 1 > sizeof(tls_version_option)) return -1;
+  if (strlen(tls_version) + 1 > sizeof(tls_version_option)) return -1;
 
   snprintf(tls_version_option, sizeof(tls_version_option), "%s", tls_version);
   token = my_strtok_r(tls_version_option, separator, &lasts);
