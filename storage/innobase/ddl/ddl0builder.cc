@@ -46,6 +46,24 @@ Created 2020-11-01 by Sunny Bains. */
 #include "scope_guard.h"
 #include "ut0stage.h"
 
+#ifdef UNIV_DEBUG
+static bool g_ddl_delay_clust_index = false;
+
+/** This is a debug variable. In the Builder::State::SETUP_SORT there is a
+duplicate check which can be enabled or disabled using this variable. Refer
+to the innodb_interpreter commands "ddl_disable_dupcheck_in_setup_sort" and
+"ddl_enable_dupcheck_in_setup_sort" to control this variable. */
+static bool g_ddl_disable_dupcheck_in_setup_sort = false;
+
+void disable_dupcheck_in_setup_sort() {
+  g_ddl_disable_dupcheck_in_setup_sort = true;
+}
+void enable_dupcheck_in_setup_sort() {
+  g_ddl_disable_dupcheck_in_setup_sort = false;
+}
+
+#endif /* UNIV_DEBUG */
+
 namespace ddl {
 
 /** Write records to a temporary file. */
@@ -366,12 +384,18 @@ dberr_t Split_writer::create_build_thread() {
   if (err != DB_SUCCESS) {
     return err;
   }
+
+  /* Data is already sorted and checked for duplicates. Hence it is not
+  necessary to do it again. */
+  btr_load->disable_check_order();
+
   m_builder->m_btree_loads.push_back(btr_load);
   const size_t btree_load_id = m_builder->m_btree_loads.size() - 1;
 #ifdef UNIV_DEBUG
   ut_ad(btree_load_id < m_builder->m_files_vec.size());
   auto load_file = m_builder->m_files_vec[btree_load_id];
   ut_ad(load_file.m_size > 0);
+  ut_ad(load_file.is_open());
 #endif /* UNIV_DEBUG */
 
   m_builder->m_build_threads.emplace_back(
@@ -512,6 +536,10 @@ dberr_t Builder::split_data_into_files(Builder *builder,
   ulint *offsets;
   const mrec_t *rec;
   while ((err = merge_cursor.fetch(rec, offsets)) == DB_SUCCESS) {
+    if (merge_cursor.duplicates_detected()) {
+      err = DB_DUPLICATE_KEY;
+      break;
+    }
     err = split_writer.write(rec, offsets);
     ut_ad(err == DB_SUCCESS);
     err = merge_cursor.next();
@@ -1122,17 +1150,17 @@ Builder::Builder(ddl::Context &ctx, Loader &loader, size_t i) noexcept
 }
 
 Builder::~Builder() noexcept {
-  for (auto &file : m_files_vec) {
-    file.close();
-  }
-  m_files_vec.clear();
-
   for (auto &thr : m_build_threads) {
     if (thr.joinable()) {
       thr.join();
     }
   }
   m_build_threads.clear();
+
+  for (auto &file : m_files_vec) {
+    file.close();
+  }
+  m_files_vec.clear();
 
   for (auto thread_ctx : m_thread_ctxs) {
     ut::delete_(thread_ctx);
@@ -2240,8 +2268,8 @@ dberr_t Builder::check_duplicates(Thread_ctxs &dupcheck, Dup *dup) noexcept {
   auto prev_dtuple = dtuple;
   Scoped_heap prev_tuple_heap;
 
-  /* For secondary indexes we have to compare all the columns for the index,
-  this includes the cluster index primary key columns too. */
+  /* For secondary indexes we have to compare all the columns for the
+  index, this includes the cluster index primary key columns too. */
   Compare_key compare_key(m_index, dup, !m_sort_index->is_clustered());
 
   const auto n_compare = dict_index_get_n_unique_in_tree(m_index);
@@ -2284,12 +2312,14 @@ dberr_t Builder::check_duplicates(Thread_ctxs &dupcheck, Dup *dup) noexcept {
 dberr_t Builder::btree_subtree_build(Builder *builder,
                                      size_t btree_load_id) noexcept {
   builder->m_is_subtree = true;
-  auto load_file = builder->m_files_vec[btree_load_id];
+  ut_a(!builder->m_files_vec.empty());
+  ut_a(btree_load_id < builder->m_files_vec.size());
+  const file_t &load_file = builder->m_files_vec[btree_load_id];
   Btree_load *btr_load = builder->get_btree_load(btree_load_id);
   Context &ctx = builder->ctx();
   const auto io_buffer_size = ctx.load_io_buffer_size(1);
   ut_ad(load_file.m_size > 0);
-  ut_ad(load_file.is_open());
+  ut_a(load_file.is_open());
   File_cursor cursor(builder, load_file.fd(), io_buffer_size, load_file.m_size,
                      nullptr, load_file.m_n_recs);
 
@@ -2461,7 +2491,8 @@ dberr_t Builder::btree_build_mt() noexcept {
 }
 
 dberr_t Builder::full_sort() noexcept {
-  Merge_cursor cursor(this, nullptr, nullptr);
+  Dup dup = {m_index, m_ctx.m_table, m_ctx.m_col_map, 0};
+  Merge_cursor cursor(this, &dup, m_local_stage);
   const auto io_buffer_size = m_ctx.load_io_buffer_size(m_thread_ctxs.size());
 
   size_t total_files{};
@@ -2490,7 +2521,7 @@ dberr_t Builder::full_sort() noexcept {
     cause race with single threaded build. */
     set_next_state(State::BTREE_BUILD);
   } else {
-    split_data_into_files(this, cursor);
+    err = split_data_into_files(this, cursor);
     set_next_state(State::BTREE_BUILD_MT);
   }
 
@@ -2625,6 +2656,9 @@ dberr_t Builder::create_merge_sort_tasks() noexcept {
       ut_a(n_single + n_empty == dupcheck.size() ||
            (n_empty == 0 && n_single == dupcheck.size()) ||
            (n_single == 0 && n_multiple + n_empty == dupcheck.size()));
+    }
+    if (g_ddl_disable_dupcheck_in_setup_sort) {
+      dupcheck.clear();
     }
 #endif /* UNIV_DEBUG */
     auto err = check_duplicates(dupcheck, &dup);
@@ -2958,6 +2992,15 @@ void Builder::set_next_state() noexcept {
 dberr_t Loader::Task::operator()() noexcept {
   dberr_t err;
 
+#ifdef UNIV_DEBUG
+  if (g_ddl_delay_clust_index) {
+    if (m_builder->index()->is_clustered()) {
+      g_ddl_delay_clust_index = false;
+      std::this_thread::sleep_for(std::chrono::seconds{10});
+    }
+  }
+#endif /* UNIV_DEBUG */
+
   switch (m_builder->get_state()) {
     case Builder::State::SETUP_SORT:
       ut_a(!m_builder->is_skip_file_sort());
@@ -3041,7 +3084,6 @@ size_t Merge_cursor::get_max_data_size() const noexcept {
   }
   return N;
 }
-
 }  // namespace ddl
 
 #ifdef UNIV_DEBUG
@@ -3058,4 +3100,6 @@ void set_bulk_load_split_mode(size_t split_mode) {
       break;
   }
 }
+
+void ddl_delay_clust_index() { g_ddl_delay_clust_index = true; }
 #endif /* UNIV_DEBUG */

@@ -672,6 +672,12 @@ Ret_t Tester::run(const std::string &cmdline) noexcept {
     bulk_load_enable_slow_io_debug();
   } else if (command == "bulk_load_disable_slow_io") {
     bulk_load_disable_slow_io_debug();
+  } else if (command == "ddl_delay_clust_index") {
+    ddl_delay_clust_index();
+  } else if (command == "ddl_disable_dupcheck_in_setup_sort") {
+    disable_dupcheck_in_setup_sort();
+  } else if (command == "ddl_enable_dupcheck_in_setup_sort") {
+    enable_dupcheck_in_setup_sort();
   } else {
     ret = RET_CMD_TBD;
   }

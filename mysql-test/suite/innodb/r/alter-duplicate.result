@@ -1,0 +1,41 @@
+#
+# Bug #34946579 i_innodb.innodb-alter : Retry attempts for reading
+# partial data failed
+#
+CREATE TABLE t(a INT, b INT, c CHAR(255) DEFAULT '' NOT NULL)engine=innodb;
+INSERT INTO t(a) VALUES(1),(2),(3),(4),(5),(6),(7),(8);
+INSERT INTO t(a) SELECT 8+a FROM t;
+INSERT INTO t(a) SELECT 16+a FROM t;
+INSERT INTO t(a) SELECT 32+a FROM t;
+INSERT INTO t(a) SELECT 64+a FROM t;
+INSERT INTO t(a) SELECT 128+a FROM t;
+INSERT INTO t(a) VALUES(1);
+SELECT COUNT(*) FROM t;
+COUNT(*)
+257
+SELECT a, b, c FROM t LIMIT 5;
+a	b	c
+1	NULL	
+2	NULL	
+3	NULL	
+4	NULL	
+5	NULL	
+SET innodb_interpreter = 'ddl_delay_clust_index';
+ALTER TABLE t ADD PRIMARY KEY (a), ADD INDEX(b), ALGORITHM=INPLACE;
+ERROR 23000: Duplicate entry 'NULL' for key 't.b'
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+ALTER TABLE t ADD UNIQUE KEY (a), ALGORITHM=INPLACE;
+ERROR 23000: Duplicate entry '1' for key 't.a'
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+SET innodb_interpreter = 'ddl_disable_dupcheck_in_setup_sort';
+ALTER TABLE t ADD UNIQUE KEY (a), ALGORITHM=INPLACE;
+ERROR 23000: Duplicate entry '1' for key 't.a'
+SET innodb_interpreter = 'ddl_enable_dupcheck_in_setup_sort';
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;

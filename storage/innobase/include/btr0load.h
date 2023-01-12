@@ -852,6 +852,10 @@ class Btree_load : private ut::Non_copyable {
     return m_bulk_flusher.get_max_queue_size();
   }
 
+  /** If the data is already sorted and checked for duplicates, then we can
+  disable doing it again. */
+  void disable_check_order() { m_check_order = false; }
+
  private:
   /** Number of ranges to cache. */
   size_t m_max_cached{};

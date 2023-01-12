@@ -1,0 +1,32 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug #34946579 i_innodb.innodb-alter : Retry attempts for reading
+--echo # partial data failed
+--echo #
+
+# no primary key, so duplicate rows will be allowed
+CREATE TABLE t(a INT, b INT, c CHAR(255) DEFAULT '' NOT NULL)engine=innodb;
+INSERT INTO t(a) VALUES(1),(2),(3),(4),(5),(6),(7),(8);
+INSERT INTO t(a) SELECT 8+a FROM t;
+INSERT INTO t(a) SELECT 16+a FROM t;
+INSERT INTO t(a) SELECT 32+a FROM t;
+INSERT INTO t(a) SELECT 64+a FROM t;
+INSERT INTO t(a) SELECT 128+a FROM t;
+INSERT INTO t(a) VALUES(1);
+SELECT COUNT(*) FROM t;
+SELECT a, b, c FROM t LIMIT 5;
+SET innodb_interpreter = 'ddl_delay_clust_index';
+--error ER_DUP_ENTRY
+ALTER TABLE t ADD PRIMARY KEY (a), ADD INDEX(b), ALGORITHM=INPLACE;
+CHECK TABLE t;
+--error ER_DUP_ENTRY
+ALTER TABLE t ADD UNIQUE KEY (a), ALGORITHM=INPLACE;
+CHECK TABLE t;
+SET innodb_interpreter = 'ddl_disable_dupcheck_in_setup_sort';
+--error ER_DUP_ENTRY
+ALTER TABLE t ADD UNIQUE KEY (a), ALGORITHM=INPLACE;
+SET innodb_interpreter = 'ddl_enable_dupcheck_in_setup_sort';
+CHECK TABLE t;
+DROP TABLE t;
+
