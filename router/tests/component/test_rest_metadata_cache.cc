@@ -566,7 +566,7 @@ static const RestApiTestParams rest_api_valid_methods[]{
           [](const JsonValue *value) -> void {
             ASSERT_NE(value, nullptr);
             ASSERT_TRUE(value->IsString());
-            ASSERT_STREQ(value->GetString(), "test");
+            ASSERT_STREQ(value->GetString(), "");
           }},
          {"/groupReplicationId",
           [](const JsonValue *value) -> void {

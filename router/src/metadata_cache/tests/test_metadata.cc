@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -2130,9 +2130,9 @@ TEST_F(MetadataTest, FetchInstances_ok) {
     auto target_cluster = mysqlrouter::TargetCluster(
         mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name");
     EXPECT_CALL(session_factory.get(session), flag_succeed(_, 3310));
-    const auto res = metadata.fetch_cluster_topology(
-        terminated, target_cluster, 0, metadata_servers, true, "gr-id", "",
-        false, instance_id);
+    const auto res = metadata.fetch_cluster_topology(terminated, target_cluster,
+                                                     0, metadata_servers, true,
+                                                     "", false, instance_id);
 
     EXPECT_TRUE(res);
     EXPECT_EQ(0u, instance_id);
@@ -2230,9 +2230,9 @@ TEST_F(MetadataTest, FetchInstances_fail) {
     std::atomic<bool> terminated{false};
     auto target_cluster = mysqlrouter::TargetCluster(
         mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name");
-    const auto res = metadata.fetch_cluster_topology(
-        terminated, target_cluster, 0, metadata_servers, true, "gr-id", "",
-        false, instance_id);
+    const auto res = metadata.fetch_cluster_topology(terminated, target_cluster,
+                                                     0, metadata_servers, true,
+                                                     "", false, instance_id);
 
     EXPECT_TRUE(res);
     EXPECT_EQ(0u, instance_id);

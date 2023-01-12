@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -351,14 +351,18 @@ bool ClusterMetadata::update_router_last_check_in(
 
 static std::string get_limit_target_cluster_clause(
     const mysqlrouter::TargetCluster &target_cluster,
-    const std::string &cluster_type_specific_id,
+    const mysqlrouter::ClusterType &cluster_type,
     mysqlrouter::MySQLSession &session) {
   switch (target_cluster.target_type()) {
     case mysqlrouter::TargetCluster::TargetType::ByUUID:
-      return "(SELECT cluster_id FROM "
-             "mysql_innodb_cluster_metadata.v2_gr_clusters C WHERE "
-             "C.attributes->>'$.group_replication_group_name' = " +
-             session.quote(target_cluster.to_string()) + ")";
+      if (cluster_type == mysqlrouter::ClusterType::RS_V2) {
+        return session.quote(target_cluster.to_string());
+      } else {
+        return "(SELECT cluster_id FROM "
+               "mysql_innodb_cluster_metadata.v2_gr_clusters C WHERE "
+               "C.group_name = " +
+               session.quote(target_cluster.to_string()) + ")";
+      }
     case mysqlrouter::TargetCluster::TargetType::ByName:
       return "(SELECT cluster_id FROM "
              "mysql_innodb_cluster_metadata.v2_clusters WHERE cluster_name=" +
@@ -372,22 +376,22 @@ static std::string get_limit_target_cluster_clause(
              "CSM.cluster_id = "
              "C.cluster_id WHERE CSM.member_role = 'PRIMARY' and "
              "CSM.clusterset_id = " +
-             session.quote(cluster_type_specific_id) + ")";
+             session.quote(target_cluster.to_string()) + ")";
   }
 }
 
 ClusterMetadata::auth_credentials_t ClusterMetadata::fetch_auth_credentials(
-    const mysqlrouter::TargetCluster &target_cluster,
-    const std::string &cluster_type_specific_id) {
+    const mysqlrouter::TargetCluster &target_cluster) {
   ClusterMetadata::auth_credentials_t auth_credentials;
   if (!metadata_connection_) {
     return auth_credentials;
   }
+
   const std::string query =
       "SELECT user, authentication_string, privileges, authentication_method "
       "FROM mysql_innodb_cluster_metadata.v2_router_rest_accounts WHERE "
       "cluster_id="s +
-      get_limit_target_cluster_clause(target_cluster, cluster_type_specific_id,
+      get_limit_target_cluster_clause(target_cluster, get_cluster_type(),
                                       *metadata_connection_);
 
   auto result_processor =

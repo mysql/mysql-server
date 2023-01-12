@@ -7,6 +7,7 @@ var gr_members = gr_memberships.members(mysqld.global.gr_members);
 var options = {
   metadata_schema_version: [1, 0, 2],
   cluster_type: "gr",
+  gr_id: mysqld.global.gr_id,
   innodb_cluster_name: mysqld.global.cluster_name,
   replication_group_members: gr_members,
 

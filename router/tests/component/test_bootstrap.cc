@@ -434,11 +434,6 @@ TEST_P(RouterReBootstrapOkBasePortTest, RouterReBootstrapOkBasePort) {
   const auto param = GetParam();
   const std::string tracefile = "bootstrap_gr.js";
 
-  std::vector<Config> mock_servers{
-      {"127.0.0.1", port_pool_.get_next_available(),
-       port_pool_.get_next_available(), get_data_dir().join(tracefile).str()},
-  };
-
   const uint16_t server_port = port_pool_.get_next_available();
   const std::string json_stmts = get_data_dir().join(tracefile).str();
   launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
@@ -457,9 +452,6 @@ TEST_P(RouterReBootstrapOkBasePortTest, RouterReBootstrapOkBasePort) {
 
   const std::string conf_file2 =
       mysql_harness::Path(bootstrap_dir.name()).join("mysqlrouter.conf").str();
-
-  // let's check if the actual config file contains what we expect:
-  const std::string config_file_str2 = get_file_output(conf_file2);
 
   // do the second bootstrap using the same directory
   std::vector<std::string> cmdline_second_bs = {
@@ -2538,6 +2530,56 @@ TEST_F(RouterBootstrapTest, SSLOptions) {
 
   // check that the Router is running fine with this configuration file
   ASSERT_NO_FATAL_FAILURE(launch_router({"-c", conf_file}));
+}
+
+/**
+ * @test
+ *       verify that TODO
+ */
+TEST_F(RouterComponentBootstrapTest, RouterReBootstrapClusetNameChange) {
+  const std::string tracefile = "bootstrap_gr.js";
+
+  const std::string kInitialClusterName = "initial_cluster_name";
+  const std::string kChangedClusterName = "changed_cluster_name";
+
+  const auto classic_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
+  const std::string json_stmts = get_data_dir().join(tracefile).str();
+  launch_mysql_server_mock(json_stmts, classic_port, EXIT_SUCCESS, false,
+                           http_port);
+
+  set_mock_bootstrap_data(http_port, kInitialClusterName,
+                          {{"localhost", classic_port}}, {2, 1, 0}, "gr-uuid");
+
+  // do the first bootstrap
+  std::vector<std::string> cmdline_bs = {"--bootstrap=root:"s + kRootPassword +
+                                             "@localhost:"s +
+                                             std::to_string(classic_port),
+                                         "-d", bootstrap_dir.name()};
+
+  auto &router_bs1 = launch_router_for_bootstrap(cmdline_bs);
+  check_exit_code(router_bs1, EXIT_SUCCESS);
+
+  // change the cluster name
+  set_mock_bootstrap_data(http_port, kChangedClusterName,
+                          {{"localhost", classic_port}}, {2, 1, 0}, "gr-uuid");
+
+  //   const std::string conf_file2 =
+  //       mysql_harness::Path(bootstrap_dir.name()).join("mysqlrouter.conf").str();
+
+  //   // let's check if the actual config file contains what we expect
+  //   const std::string config_file_str2 = get_file_output(conf_file2);
+
+  // do the second bootstrap using the same directory
+  //   cmdline_bs.push_back("--force");
+  auto &router_bs2 = launch_router_for_bootstrap(cmdline_bs);
+  check_exit_code(router_bs2, EXIT_SUCCESS);
+
+  const std::string conf_file =
+      mysql_harness::Path(bootstrap_dir.name()).join("mysqlrouter.conf").str();
+
+  // let's check if the actual config file contains what we expect:
+  // const std::string config_file_str = get_file_output(conf_file);
 }
 
 int main(int argc, char *argv[]) {

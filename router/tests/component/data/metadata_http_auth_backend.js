@@ -3,10 +3,6 @@ var gr_memberships = require("gr_memberships");
 
 var gr_node_host = "127.0.0.1";
 
-if (mysqld.global.gr_id === undefined) {
-  mysqld.global.gr_id = "uuid";
-}
-
 if (mysqld.global.gr_nodes === undefined) {
   mysqld.global.gr_nodes = [];
 }
@@ -81,8 +77,8 @@ var common_responses = common_stmts.prepare_statement_responses(
     ],
     options);
 
-var router_select_rest_accounts_credentials =
-    common_stmts.get("router_select_rest_accounts_credentials", options);
+var router_select_rest_accounts_credentials_gr_by_uuid = common_stmts.get(
+    "router_select_rest_accounts_credentials_gr_by_uuid", options);
 
 var common_responses_regex = common_stmts.prepare_statement_responses_regex(
     [
@@ -98,7 +94,8 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
         (res = common_stmts.handle_regex_stmt(stmt, common_responses_regex)) !==
         undefined) {
       return res;
-    } else if (stmt === router_select_rest_accounts_credentials.stmt) {
+    } else if (
+        stmt === router_select_rest_accounts_credentials_gr_by_uuid.stmt) {
       mysqld.global.rest_auth_query_count++;
       if (mysqld.global.error_on_md_query === 1) {
         return {
@@ -109,7 +106,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
           }
         }
       } else
-        return router_select_rest_accounts_credentials;
+        return router_select_rest_accounts_credentials_gr_by_uuid;
     } else {
       return common_stmts.unknown_statement_response(stmt);
     }

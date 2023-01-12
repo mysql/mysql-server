@@ -305,13 +305,12 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
   }
 
   // ---- account validation queries ----
-  static std::string sql_val1(const std::string &cluster_name = "test") {
+  static std::string sql_val1() {
     return "select C.cluster_id, C.cluster_name, I.mysql_server_uuid, "
            "I.endpoint, I.xendpoint, I.attributes "
            "from mysql_innodb_cluster_metadata.v2_instances I join "
            "mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = "
-           "C.cluster_id where C.cluster_name = '" +
-           cluster_name + "'";
+           "C.cluster_id where C.cluster_name = 'some_cluster_name'";
   }
   static std::string sql_val2() {
     return "show status like 'group_replication_primary_member'";

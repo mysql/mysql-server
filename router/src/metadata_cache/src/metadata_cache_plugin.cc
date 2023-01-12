@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -244,15 +244,22 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     // need for locking here
     g_router_attributes.metadata_user_name = config.user;
 
-    md_cache->cache_init(
-        config.cluster_type, config.router_id, cluster_type_specific_id,
-        clusterset_id, config.metadata_servers_addresses, ttl_config,
-        make_ssl_options(section),
-        mysqlrouter::TargetCluster{
-            mysqlrouter::TargetCluster::TargetType::ByName,
-            config.cluster_name},
-        session_config, g_router_attributes, config.thread_stack_size,
-        config.use_gr_notifications, config.get_view_id());
+    using TargetType = mysqlrouter::TargetCluster::TargetType;
+
+    // very old state.json files will not have UUID, in that case we fallback to
+    // using cluster name from static configuration
+    const bool identify_cluster_by_name = cluster_type_specific_id.empty();
+    mysqlrouter::TargetCluster target_cluster{
+        identify_cluster_by_name ? TargetType::ByName : TargetType::ByUUID,
+        identify_cluster_by_name ? config.cluster_name
+                                 : cluster_type_specific_id};
+
+    md_cache->cache_init(config.cluster_type, config.router_id, clusterset_id,
+                         config.metadata_servers_addresses, ttl_config,
+                         make_ssl_options(section), target_cluster,
+                         session_config, g_router_attributes,
+                         config.thread_stack_size, config.use_gr_notifications,
+                         config.get_view_id());
 
     // register callback
     md_cache_dynamic_state = std::move(config.metadata_cache_dynamic_state);

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -60,9 +60,6 @@ class METADATA_CACHE_EXPORT MetadataCache
    * Initialize a connection to the MySQL Metadata server.
    *
    * @param router_id id of the router in the cluster metadata
-   * @param cluster_type_specific_id id of the ReplicaSet in case of the
-   * ReplicaSet, Replication Group name for GR Cluster (if bootstrapped as a
-   * single Cluster, empty otherwise)
    * @param clusterset_id UUID of the ClusterSet the Cluster belongs to (if
    * bootstrapped as a ClusterSet, empty otherwise)
    * @param metadata_servers The servers that store the metadata
@@ -77,8 +74,7 @@ class METADATA_CACHE_EXPORT MetadataCache
    * should use GR notifications as an additional trigger for metadata refresh
    */
   MetadataCache(
-      const unsigned router_id, const std::string &cluster_type_specific_id,
-      const std::string &clusterset_id,
+      const unsigned router_id, const std::string &clusterset_id,
       const std::vector<mysql_harness::TCPAddress> &metadata_servers,
       std::shared_ptr<MetaData> cluster_metadata,
       const metadata_cache::MetadataCacheTTLConfig &ttl_config,
@@ -212,9 +208,6 @@ class METADATA_CACHE_EXPORT MetadataCache
     });
   }
 
-  std::string cluster_type_specific_id() const {
-    return cluster_type_specific_id_;
-  }
   std::chrono::milliseconds ttl() const { return ttl_config_.ttl; }
   mysqlrouter::TargetCluster target_cluster() const { return target_cluster_; }
 
@@ -296,10 +289,6 @@ class METADATA_CACHE_EXPORT MetadataCache
 
   // identifies the Cluster we work with
   mysqlrouter::TargetCluster target_cluster_;
-
-  // For GR cluster Group Replication ID, for AR cluster cluster_id from the
-  // metadata
-  const std::string cluster_type_specific_id_;
 
   // Id of the ClusterSet in case of the ClusterSet setup
   const std::string clusterset_id_;

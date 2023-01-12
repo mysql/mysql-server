@@ -3,9 +3,14 @@ var gr_memberships = require("gr_memberships");
 
 var gr_node_host = "127.0.0.1";
 
+if (mysqld.global.innodb_cluster_name === undefined) {
+  mysqld.global.innodb_cluster_name = "test";
+}
+
 
 var options = {
   metadata_schema_version: [1, 0, 2],
+  innodb_cluster_name: mysqld.global.innodb_cluster_name,
   group_replication_members:
       gr_memberships.gr_members(gr_node_host, mysqld.global.gr_nodes),
   innodb_cluster_instances:

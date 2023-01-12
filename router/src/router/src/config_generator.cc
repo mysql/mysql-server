@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1449,11 +1449,11 @@ std::string ConfigGenerator::bootstrap_deployment(
   bool force = user_options.find("force") != user_options.end();
   bool quiet = user_options.find("quiet") != user_options.end();
 
-  // get router_id and username from config and/or command-line
   auto cluster_info = metadata_->fetch_metadata_servers();
 
+  // get router_id and username from config and/or command-line
   auto conf_options = get_options_from_config_if_it_exists(
-      config_file_path.str(), cluster_info.name, force);
+      config_file_path.str(), cluster_info, force);
 
   // if user provided --account, override username with it
   conf_options.username =
@@ -1522,8 +1522,7 @@ std::string ConfigGenerator::bootstrap_deployment(
   // test out the connection that Router would use
   {
     bool strict = user_options.count("strict");
-    verify_router_account(conf_options.username, password, cluster_info.name,
-                          strict);
+    verify_router_account(conf_options.username, password, strict);
   }
 
   store_credentials_in_keyring(auto_clean, user_options, conf_options.router_id,
@@ -1652,9 +1651,9 @@ std::set<std::string> ConfigGenerator::get_account_host_args(
   return account_hosts;
 }
 
-void ConfigGenerator::verify_router_account(
-    const std::string &username, const std::string &password,
-    const std::string &primary_cluster_name, bool strict) {
+void ConfigGenerator::verify_router_account(const std::string &username,
+                                            const std::string &password,
+                                            bool strict) {
   out_stream_ << "- Verifying account (using it to run SQL queries that would "
                  "be run by Router)"
               << std::endl;
@@ -1683,12 +1682,10 @@ See https://dev.mysql.com/doc/mysql-router/8.0/en/ for more information.)";
     }
   };
 
-  auto run_sql_queries = [&primary_cluster_name,
-                          this](MySQLSession &rtr_acct_sess) {
+  auto run_sql_queries = [this](MySQLSession &rtr_acct_sess) {
     // no need to differentiate between SQL queries and statements, as both can
     // be called with mysql_real_query() (called inside MySQLSession::execute())
-    const auto stmts =
-        metadata_->get_routing_mode_queries(primary_cluster_name);
+    const auto stmts = metadata_->get_routing_mode_queries();
 
     // we just call them (ignore the resultset) - all we care about is whether
     // they execute without error
@@ -3222,6 +3219,32 @@ uint16_t get_x_protocol_port(const mysql_harness::Config &conf,
   return 0;
 }
 
+namespace {
+
+std::string get_cluster_type_specific_uuid(
+    const mysql_harness::Config &conf, mysqlrouter::ClusterType cluster_type) {
+  if (!conf.has_default("dynamic_state")) {
+    return "";
+  }
+  const std::string dynamic_state_file = conf.get_default("dynamic_state");
+
+  mysql_harness::DynamicState dynamic_state{dynamic_state_file};
+  ClusterMetadataDynamicState mdc_dynamic_state(&dynamic_state, cluster_type);
+  try {
+    mdc_dynamic_state.load();
+  } catch (...) {
+    return "";
+  }
+
+  if (cluster_type == mysqlrouter::ClusterType::GR_CS) {
+    return mdc_dynamic_state.get_clusterset_id();
+  } else {
+    return mdc_dynamic_state.get_cluster_type_specific_id();
+  }
+}
+
+}  // namespace
+
 /**
  * Get selected configuration options from the existing Router configuration
  * file.
@@ -3235,8 +3258,8 @@ uint16_t get_x_protocol_port(const mysql_harness::Config &conf,
  * `forcing_overwrite`.
  *
  * @param config_file_path /path/to/config/file
- * @param cluster_name Cluster name for which Router id and user should be
- *                     returned
+ * @param cluster_info Information about the Cluster for which Router id and
+ *                     user should be returned
  * @param forcing_overwrite Action to take on unexpected cluster in config, see
  *                          function description
  *
@@ -3246,8 +3269,8 @@ uint16_t get_x_protocol_port(const mysql_harness::Config &conf,
  */
 ConfigGenerator::ExistingConfigOptions
 ConfigGenerator::get_options_from_config_if_it_exists(
-    const std::string &config_file_path, const std::string &cluster_name,
-    bool forcing_overwrite) {
+    const std::string &config_file_path,
+    const mysqlrouter::ClusterInfo &cluster_info, bool forcing_overwrite) {
   ConfigGenerator::ExistingConfigOptions result;
 
   // no config
@@ -3267,60 +3290,76 @@ ConfigGenerator::get_options_from_config_if_it_exists(
         "supported");
   }
 
-  // Thanks to the above limitation, this for() loop runs exactly once and
-  // section == sections.front() always.  If section != `<cluster_name>`, the
-  // code will fall back to if (!forcing_overwrite) {..} below
-  std::string existing_cluster;
+  bool cluster_verified{false};
+  // get uuid from the dynamic configuration file
+  const auto uuid =
+      get_cluster_type_specific_uuid(config, metadata_->get_type());
+  if (!uuid.empty()) {
+    if (!forcing_overwrite && cluster_info.cluster_type_specific_id != uuid) {
+      throw std::runtime_error(
+          "The given Router instance is already configured for a cluster with "
+          "UUID '" +
+          uuid + "'.\n" +
+          "If you'd like to replace it, please use the --force configuration "
+          "option.");
+    }
+    cluster_verified = true;
+  }
+
+  // We already checked that there is a single metadata_cache secion in the
+  // configuration file so this loop runs exactly once
   for (auto const &section : sections) {
-    if (section->has("metadata_cluster")) {
-      existing_cluster = section->get("metadata_cluster");
-      if (existing_cluster == cluster_name) {
-        // get router_id
-        if (section->has("router_id")) {
-          std::string tmp = section->get("router_id");
-          char *end;
-          result.router_id = std::strtoul(tmp.c_str(), &end, 10);
-          if (end == tmp.c_str() || errno == ERANGE) {
-            throw std::runtime_error("Invalid router_id '" + tmp +
-                                     "' for cluster '" + cluster_name +
-                                     "' in " + config_file_path);
-          }
-        } else {
-          result.router_id = 0;
-          log_warning("WARNING: router_id not set for cluster '%s'",
-                      cluster_name.c_str());
+    if (!section->has("metadata_cluster")) {
+      break;
+    }
+
+    if (!cluster_verified) {
+      const std::string existing_cluster_name =
+          section->get("metadata_cluster");
+      if (existing_cluster_name != cluster_info.name) {
+        if (!result.valid && !forcing_overwrite) {
+          // it means that config exists, [metadata_cache] exists,
+          // but [metadata_cache].metadata_cluster does not exist or it's
+          // different from `cluster_name`.
+          throw std::runtime_error(
+              "The given Router instance is already configured for a cluster "
+              "named '" +
+              existing_cluster_name +
+              "'.\nIf you'd like to replace it, please use the --force "
+              "configuration option.");
         }
-
-        // get username, example: user=mysql_router4_kot8tcepf3kn
-        if (section->has("user"))
-          result.username = section->get("user");
-        else
-          log_warning("WARNING: user not set for cluster '%s'",
-                      cluster_name.c_str());
-
-        result.valid = true;
       }
     }
+
+    // get router_id
+    if (section->has("router_id")) {
+      std::string tmp = section->get("router_id");
+      char *end;
+      result.router_id = std::strtoul(tmp.c_str(), &end, 10);
+      if (end == tmp.c_str() || errno == ERANGE) {
+        throw std::runtime_error(
+            "Invalid router_id in the existing config file " +
+            config_file_path);
+      }
+    } else {
+      result.router_id = 0;
+      log_warning("WARNING: router_id not set in the existing config file: %s",
+                  config_file_path.c_str());
+    }
+
+    // get username, example: user=mysql_router4_kot8tcepf3kn
+    if (section->has("user"))
+      result.username = section->get("user");
+    else
+      log_warning(
+          "WARNING: No metadata user found in the existinf config file %s",
+          config_file_path.c_str());
+
+    result.valid = true;
   }
 
   result.rw_x_port = get_x_protocol_port(config, "PRIMARY");
   result.ro_x_port = get_x_protocol_port(config, "SECONDARY");
-
-  if (!result.valid && !forcing_overwrite) {
-    // it means that config exists, [metadata_cache] exists,
-    // but [metadata_cache].metadata_cluster does not exist or it's different
-    // from `cluster_name`.
-    std::string msg;
-    msg +=
-        "The given Router instance is already configured for a cluster named "
-        "'" +
-        existing_cluster + "'.\n";
-    msg +=
-        "If you'd like to replace it, please use the --force configuration "
-        "option.";
-    // XXX when multiple-clusters is supported, also suggest --add
-    throw std::runtime_error(msg);
-  }
 
   return result;
 }

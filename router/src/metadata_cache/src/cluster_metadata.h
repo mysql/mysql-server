@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -118,8 +118,7 @@ class METADATA_CACHE_EXPORT ClusterMetadata : public MetaData {
       const unsigned router_id) override;
 
   auth_credentials_t fetch_auth_credentials(
-      const mysqlrouter::TargetCluster &target_cluster,
-      const std::string &cluster_type_specific_id) override;
+      const mysqlrouter::TargetCluster &target_cluster) override;
 
   std::optional<metadata_cache::metadata_server_t> find_rw_server(
       const std::vector<metadata_cache::ManagedInstance> &instances);

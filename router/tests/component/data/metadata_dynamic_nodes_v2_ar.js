@@ -42,6 +42,9 @@ if (mysqld.global.error_on_md_query === undefined) {
   mysqld.global.error_on_md_query = 0;
 }
 
+if (mysqld.global.cluster_name === undefined) {
+  mysqld.global.cluster_name = "test";
+}
 
 if (mysqld.global.cluster_type === undefined) {
   mysqld.global.cluster_type = "ar";
@@ -67,7 +70,7 @@ var options = {
       cluster_nodes_online[mysqld.global.primary_id][2] :
       mysqld.global.primary_id,
   cluster_type: mysqld.global.cluster_type,
-  innodb_cluster_name: "test",
+  innodb_cluster_name: mysqld.global.cluster_name,
 };
 
 var select_port = common_stmts.get("select_port", options);

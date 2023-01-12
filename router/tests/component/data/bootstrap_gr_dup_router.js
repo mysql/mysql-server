@@ -13,6 +13,7 @@ if (mysqld.global.cluster_name == undefined) {
 
 var options = {
   cluster_type: "gr",
+  gr_id: mysqld.global.gr_id,
   innodb_cluster_name: mysqld.global.cluster_name,
   innodb_cluster_instances: mysqld.global.innodb_cluster_instances,
 };
@@ -28,7 +29,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_members_count",
       "router_select_replication_group_name",
       "router_show_cipher_status",
-      "router_select_cluster_instances_v2",
+      "router_select_cluster_instances_v2_gr",
       "router_start_transaction",
       "router_commit",
       "router_clusterset_present",

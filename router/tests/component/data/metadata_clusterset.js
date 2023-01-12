@@ -37,7 +37,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_members_count",
       "router_select_replication_group_name",
       "router_show_cipher_status",
-      "router_select_cluster_instances_v2",
+      "router_select_cluster_instances_v2_gr",
       "router_commit",
       "router_router_options",
       "router_rollback",
