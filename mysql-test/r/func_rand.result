@@ -5,8 +5,8 @@
 # equal.
 EXPLAIN FORMAT=tree SELECT 1 WHERE RAND() < RAND();
 EXPLAIN
--> Filter: (rand() < rand())  (cost=0.00 rows=1)
-    -> Rows fetched before execution  (cost=0.00 rows=1)
+-> Filter: (rand() < rand())  (cost=0..0 rows=1)
+    -> Rows fetched before execution  (cost=0..0 rows=1)
 
 #
 # Bug#33535379 Wrong value for RAND() expression when aggregating on empty table.

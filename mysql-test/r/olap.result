@@ -824,12 +824,12 @@ INSERT INTO t2 VALUES (100);
 EXPLAIN FORMAT=tree
 SELECT a, b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
 EXPLAIN
--> Table scan on <temporary>  (cost=2.50..2.50 rows=0)
-    -> Temporary table  (cost=0.00..0.00 rows=0)
+-> Table scan on <temporary>  (cost=2.5..2.5 rows=0)
+    -> Temporary table  (cost=0..0 rows=0)
         -> Group (no aggregates)
             -> Sort: t1.a, t2.b
-                -> Stream results  (cost=0.80 rows=2)
-                    -> Inner hash join (no condition)  (cost=0.80 rows=2)
+                -> Stream results  (cost=0.8 rows=2)
+                    -> Inner hash join (no condition)  (cost=0.8 rows=2)
                         -> Index scan on t1 using PRIMARY  (cost=0.45 rows=2)
                         -> Hash
                             -> Table scan on t2  (cost=0.35 rows=1)
@@ -1562,12 +1562,12 @@ EXPLAIN FORMAT=tree SELECT i, j, i+j, AVG(j) over () from t1 GROUP BY i,j
 WITH ROLLUP HAVING i+j is NULL ORDER BY i;
 EXPLAIN
 -> Sort: t1.i
-    -> Table scan on <temporary>  (cost=2.50..2.50 rows=0)
-        -> Temporary table  (cost=0.00..0.00 rows=0)
+    -> Table scan on <temporary>  (cost=2.5..2.5 rows=0)
+        -> Temporary table  (cost=0..0 rows=0)
             -> Window aggregate with buffering: avg(j) OVER () 
                 -> Filter: ((rollup_group_item(t1.i,0) + rollup_group_item(t1.j,1)) is null)
-                    -> Table scan on <temporary>  (cost=2.50..2.50 rows=0)
-                        -> Temporary table  (cost=0.00..0.00 rows=0)
+                    -> Table scan on <temporary>  (cost=2.5..2.5 rows=0)
+                        -> Temporary table  (cost=0..0 rows=0)
                             -> Group (no aggregates)
                                 -> Sort: t1.i, t1.j
                                     -> Stream results  (cost=1.75 rows=15)

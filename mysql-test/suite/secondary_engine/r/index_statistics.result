@@ -231,8 +231,8 @@ Note	1003	Query is executed in secondary engine; the actual query plan may diver
 # (No occurrence of "Range checked for each record" in the plan.)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 a, t1 b WHERE a.id < b.id;
 EXPLAIN
--> Filter: (a.id < b.id)  (cost=X rows=33)
-    -> Inner hash join (no condition)  (cost=X rows=33)
+-> Filter: (a.id < b.id)  (cost=X rows=33.3)
+    -> Inner hash join (no condition)  (cost=X rows=33.3)
         -> Table scan on b in secondary engine MOCK  (cost=X rows=10)
         -> Hash
             -> Table scan on a in secondary engine MOCK  (cost=X rows=10)

@@ -187,15 +187,15 @@ SELECT t3.b
 FROM t3 JOIN t4 ON t3.pk = t4.pk
 );
 EXPLAIN
--> Inner hash join (t2.b = t1.a)  (cost=2.00 rows=2)
-    -> Table scan on t2  (cost=0.18 rows=3)
+-> Inner hash join (t2.b = t1.a)  (cost=2 rows=2)
+    -> Table scan on t2  (cost=0.175 rows=3)
     -> Hash
         -> Nested loop inner join  (cost=1.15 rows=2)
             -> Table scan on t1  (cost=0.45 rows=2)
-            -> Nested loop semijoin with duplicate removal on b_key  (cost=1.00 rows=1)
-                -> Index lookup on t3 using b_key (b=t1.a)  (cost=0.30 rows=1)
-                -> Filter: (t4.pk = t3.pk)  (cost=0.30 rows=1)
-                    -> Table scan on t4  (cost=0.30 rows=2)
+            -> Nested loop semijoin with duplicate removal on b_key  (cost=1 rows=1)
+                -> Index lookup on t3 using b_key (b=t1.a)  (cost=0.3 rows=1)
+                -> Filter: (t4.pk = t3.pk)  (cost=0.3 rows=1)
+                    -> Table scan on t4  (cost=0.3 rows=2)
 
 SELECT *
 FROM t1

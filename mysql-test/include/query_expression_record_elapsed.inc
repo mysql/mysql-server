@@ -39,8 +39,8 @@ my @explain = split (/\\n/, $explain[1]);
 # Extract the line:
 my $explain = $explain[0];
 # so now extract the cost from that line and insert into timings table.
-$explain =~ /actual time=[0-9]+[.][0-9]+[.][.]([0-9]+[.][0-9]+)/;
-my $query = "INSERT INTO timings(t) VALUES($1)";
+$explain  =~ /actual time=[0-9.+-e]+[.][.](?<time>[0-9.e+-]+)/;
+my $query = "INSERT INTO timings(t) VALUES($+{time})";
 my $rc =
   ` $mysql \\
    --host=127.0.0.1 \\

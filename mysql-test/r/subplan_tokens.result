@@ -6,14 +6,14 @@ test.t1	analyze	status	OK
 SET DEBUG='+d,subplan_tokens';
 EXPLAIN FORMAT=tree SELECT * FROM t1;
 EXPLAIN
--> [0xeed2c0bd3e39ba93] Table scan on t1  (cost=0.08..0.25 rows=3)
+-> [0xeed2c0bd3e39ba93] Table scan on t1  (cost=0.0833..0.25 rows=3)
 
 To force this plan, use:
 SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93';
 
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY a;
 EXPLAIN
--> [0x2215d3ce44f01b0d] Index scan on t1 using a  (cost=0.08..0.25 rows=3)
+-> [0x2215d3ce44f01b0d] Index scan on t1 using a  (cost=0.0836..0.251 rows=3)
 
 To force this plan, use:
 SET DEBUG='+d,subplan_tokens,force_subplan_0x2215d3ce44f01b0d';
@@ -22,7 +22,7 @@ SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93';
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY a;
 EXPLAIN
 -> [0xd3135ef8a92cb9b8] Sort: t1.a  (cost=1.03..1.03 rows=3)
-    -> [0xeed2c0bd3e39ba93] Table scan on t1  (cost=0.08..0.25 rows=3)
+    -> [0xeed2c0bd3e39ba93] Table scan on t1  (cost=0.0833..0.25 rows=3)
 
 To force this plan, use:
 SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93,force_subplan_0xd3135ef8a92cb9b8';
@@ -34,10 +34,10 @@ SET DEBUG='+d,subplan_tokens,'
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t1 AS t2 ON t1.a=t2.a ORDER BY t1.a;
 EXPLAIN
 -> [0x1836646581797f8f] Sort: t1.a  (cost=2.09..2.09 rows=3)
-    -> [0x38d170e70c04e92c] Inner hash join (t1.a = t2.a)  (cost=0.80..1.31 rows=3)
-        -> [0xeed2c0bd3e39ba93] Table scan on t1  (cost=0.08..0.25 rows=3)
+    -> [0x38d170e70c04e92c] Inner hash join (t1.a = t2.a)  (cost=0.803..1.31 rows=3)
+        -> [0xeed2c0bd3e39ba93] Table scan on t1  (cost=0.0833..0.25 rows=3)
         -> Hash
-            -> [0x079e429c703ec298] Table scan on t2  (cost=0.08..0.25 rows=3)
+            -> [0x079e429c703ec298] Table scan on t2  (cost=0.0833..0.25 rows=3)
 
 To force this plan, use:
 SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93,force_subplan_0x079e429c703ec298,force_subplan_0x38d170e70c04e92c,force_subplan_0x1836646581797f8f';
@@ -45,8 +45,8 @@ SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93,force_subplan_0x07
 SET DEBUG='-d,subplan_tokens';
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t1 AS t2 ON t1.a=t2.a ORDER BY t1.a;
 EXPLAIN
--> Nested loop inner join  (cost=0.33..1.00 rows=3)
-    -> Index scan on t2 using a  (cost=0.08..0.25 rows=3)
+-> Nested loop inner join  (cost=0.334..1 rows=3)
+    -> Index scan on t2 using a  (cost=0.0836..0.251 rows=3)
     -> Index lookup on t1 using a (a=t2.a)  (cost=0.25..0.25 rows=1)
 
 DROP TABLE t1;

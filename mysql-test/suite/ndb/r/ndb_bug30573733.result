@@ -56,19 +56,19 @@ t AS t1, t AS t2, t as t3, t as t4
 JOIN t as t5 ON t5.pk = t4.col_int
 ;
 EXPLAIN
--> Aggregate: count(0)  (cost=143821.25 rows=1)
-    -> Nested loop inner join  (cost=104758.75 rows=390625)
-        -> Inner hash join (no condition)  (cost=65690.00 rows=390625)
-            -> Table scan on t4, activating pushed join of 2 tables  (cost=0.40 rows=25)
+-> Aggregate: count(0)  (cost=143821 rows=1)
+    -> Nested loop inner join  (cost=104759 rows=390625)
+        -> Inner hash join (no condition)  (cost=65690 rows=390625)
+            -> Table scan on t4, activating pushed join of 2 tables  (cost=0.4 rows=25)
             -> Hash
-                -> Inner hash join (no condition)  (cost=20377.50 rows=15625)
-                    -> Table scan on t3  (cost=10.00 rows=25)
+                -> Inner hash join (no condition)  (cost=20378 rows=15625)
+                    -> Table scan on t3  (cost=10 rows=25)
                     -> Hash
-                        -> Inner hash join (no condition)  (cost=12565.00 rows=625)
-                            -> Table scan on t2  (cost=250.10 rows=25)
+                        -> Inner hash join (no condition)  (cost=12565 rows=625)
+                            -> Table scan on t2  (cost=250 rows=25)
                             -> Hash
-                                -> Table scan on t1  (cost=6252.50 rows=25)
-        -> Single-row index lookup on t5 using PRIMARY (pk=t4.col_int), child of t4 in pushed join  (cost=0.00 rows=1)
+                                -> Table scan on t1  (cost=6252 rows=25)
+        -> Single-row index lookup on t5 using PRIMARY (pk=t4.col_int), child of t4 in pushed join  (cost=16.3e-6 rows=1)
 
 Warnings:
 Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access

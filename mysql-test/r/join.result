@@ -1793,10 +1793,10 @@ Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT t1.i AS a, (SELECT t2.i FROM t t2 WHERE t1.j = t2.j ORDER BY j DESC, i DESC LIMIT 1) AS b FROM t t1;
 EXPLAIN
--> Index scan on t1 using j  (cost=411.60 rows=4096)
+-> Index scan on t1 using j  (cost=412 rows=4096)
 -> Select #2 (subquery in projection; dependent)
-    -> Limit: 1 row(s)  (cost=410.97 rows=1)
-        -> Covering index lookup on t2 using j (j=t1.j) (reverse)  (cost=410.97 rows=4096)
+    -> Limit: 1 row(s)  (cost=411 rows=1)
+        -> Covering index lookup on t2 using j (j=t1.j) (reverse)  (cost=411 rows=4096)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.j' of SELECT #2 was resolved in SELECT #1
@@ -2045,11 +2045,11 @@ EXPLAIN
 -> Nested loop inner join  (cost=1.75 rows=4)
     -> Filter: (t1.a > t1.a)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Limit: 1 row(s)  (cost=1.00 rows=2)
-        -> Nested loop inner join  (cost=1.00 rows=2)
-            -> Filter: (t3.a = t1.a)  (cost=0.30 rows=1)
-                -> Table scan on t3  (cost=0.30 rows=2)
-            -> Table scan on t2  (cost=0.70 rows=2)
+    -> Limit: 1 row(s)  (cost=1 rows=2)
+        -> Nested loop inner join  (cost=1 rows=2)
+            -> Filter: (t3.a = t1.a)  (cost=0.3 rows=1)
+                -> Table scan on t3  (cost=0.3 rows=2)
+            -> Table scan on t2  (cost=0.7 rows=2)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1

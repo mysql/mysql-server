@@ -1951,12 +1951,12 @@ group by t1.b
 order by t1.b, cnt;
 EXPLAIN
 -> Sort: t1.b, cnt
-    -> Stream results  (cost=4012.80 rows=4)
-        -> Group aggregate: count(distinct t2.b)  (cost=4012.80 rows=4)
-            -> Nested loop inner join  (cost=4011.20 rows=16)
-                -> Sort: t1.b  (cost=4001.60 rows=16)
-                    -> Table scan on t1  (cost=4001.60 rows=16)
-                -> Index lookup on t2 using PRIMARY (a=t1.c)  (cost=0.51 rows=1)
+    -> Stream results  (cost=4013 rows=4)
+        -> Group aggregate: count(distinct t2.b)  (cost=4013 rows=4)
+            -> Nested loop inner join  (cost=4011 rows=16)
+                -> Sort: t1.b  (cost=4002 rows=16)
+                    -> Table scan on t1  (cost=4002 rows=16)
+                -> Index lookup on t2 using PRIMARY (a=t1.c)  (cost=0.506 rows=1)
 
 Warnings:
 Note	1003	Can't push table 't2' as child of 't1', it is in a sorted-branch which can't be referred.

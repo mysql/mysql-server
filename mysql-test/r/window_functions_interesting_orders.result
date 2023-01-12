@@ -79,7 +79,7 @@ EXPLAIN
 -> Remove duplicates from input grouped on t1.a, t1.b  (cost=3.65..5.05 rows=8)
     -> Window aggregate with buffering: sum(t1.b) OVER (PARTITION BY t1.a )   (cost=3.55..4.25 rows=8)
         -> Sort: t1.a, t1.b  (cost=3.45..3.45 rows=8)
-            -> Table scan on t1  (cost=0.03..0.25 rows=8)
+            -> Table scan on t1  (cost=0.0312..0.25 rows=8)
 
 EXPLAIN FORMAT=tree SELECT DISTINCT a, SUM(c) OVER (ORDER BY b) FROM t1 ORDER BY a;
 EXPLAIN

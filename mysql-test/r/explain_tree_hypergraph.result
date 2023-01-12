@@ -11,25 +11,25 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b = (SELECT MAX(b) FROM t1 x2 WHERE x2.a>x1.a);
 EXPLAIN
--> Filter: (x1.b = (select #2))  (cost=2.38..23.75 rows=10)
-    -> Table scan on x1  (cost=0.03..0.25 rows=10)
+-> Filter: (x1.b = (select #2))  (cost=2.38..23.8 rows=10)
+    -> Table scan on x1  (cost=0.025..0.25 rows=10)
     -> Select #2 (subquery in condition; dependent)
         -> Aggregate: max(x2.b)  (cost=2.25..2.25 rows=1)
-            -> Filter: (x2.a > x1.a)  (cost=0.12..1.25 rows=10)
-                -> Table scan on x2  (cost=0.03..0.25 rows=10)
+            -> Filter: (x2.a > x1.a)  (cost=0.125..1.25 rows=10)
+                -> Table scan on x2  (cost=0.025..0.25 rows=10)
 
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b IN (SELECT MAX(b) FROM t1 x2 WHERE x2.a>x1.a);
 EXPLAIN
--> Filter: <in_optimizer>(x1.b,<exists>(select #2))  (cost=2.48..24.75 rows=10)
-    -> Table scan on x1  (cost=0.03..0.25 rows=10)
+-> Filter: <in_optimizer>(x1.b,<exists>(select #2))  (cost=2.48..24.8 rows=10)
+    -> Table scan on x1  (cost=0.025..0.25 rows=10)
     -> Select #2 (subquery in condition; dependent)
         -> Filter: (<cache>(x1.b) = <ref_null_helper>(max(x2.b)))  (cost=2.35..2.35 rows=1)
             -> Aggregate: max(x2.b)  (cost=2.25..2.25 rows=1)
-                -> Filter: (x2.a > x1.a)  (cost=0.12..1.25 rows=10)
-                    -> Table scan on x2  (cost=0.03..0.25 rows=10)
+                -> Filter: (x2.a > x1.a)  (cost=0.125..1.25 rows=10)
+                    -> Table scan on x2  (cost=0.025..0.25 rows=10)
 
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
@@ -37,68 +37,182 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b = (SELECT MAX(b) FROM t1 x2 WHERE x2.a>5);
 EXPLAIN
 -> Filter: (x1.b = (select #2))  (cost=1.19..2.31 rows=10)
-    -> Table scan on x1  (cost=0.03..0.25 rows=10)
+    -> Table scan on x1  (cost=0.025..0.25 rows=10)
     -> Select #2 (subquery in condition; run only once)
         -> Aggregate: max(x2.b)  (cost=1.06..1.06 rows=1)
-            -> Index range scan on x2 using PRIMARY over (5 < a)  (cost=0.17..0.66 rows=4)
+            -> Index range scan on x2 using PRIMARY over (5 < a)  (cost=0.165..0.661 rows=4)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b IN (SELECT MAX(b) FROM t1 x2 WHERE x2.a>5);
 EXPLAIN
 -> Filter: <in_optimizer>(x1.b,x1.b in (select #2))  (cost=1.49..3.51 rows=10)
-    -> Table scan on x1  (cost=0.03..0.25 rows=10)
+    -> Table scan on x1  (cost=0.025..0.25 rows=10)
     -> Select #2 (subquery in condition; run only once)
         -> Filter: ((x1.b = `<materialized_subquery>`.`MAX(b)`))  (cost=1.26..1.26 rows=1)
             -> Limit: 1 row(s)  (cost=1.16..1.16 rows=1)
                 -> Index lookup on <materialized_subquery> using <auto_distinct_key> (MAX(b)=x1.b)
                     -> Materialize with deduplication  (cost=1.16..1.16 rows=1)
                         -> Aggregate: max(x2.b)  (cost=1.06..1.06 rows=1)
-                            -> Index range scan on x2 using PRIMARY over (5 < a)  (cost=0.17..0.66 rows=4)
+                            -> Index range scan on x2 using PRIMARY over (5 < a)  (cost=0.165..0.661 rows=4)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b = (SELECT MAX(b) FROM t1 x2 WHERE x2.a>10*rand(0));
 EXPLAIN
--> Filter: (x1.b = (select #2))  (cost=2.38..23.75 rows=10)
-    -> Table scan on x1  (cost=0.03..0.25 rows=10)
+-> Filter: (x1.b = (select #2))  (cost=2.38..23.8 rows=10)
+    -> Table scan on x1  (cost=0.025..0.25 rows=10)
     -> Select #2 (subquery in condition; uncacheable)
         -> Aggregate: max(x2.b)  (cost=2.25..2.25 rows=1)
-            -> Filter: (x2.a > (10 * rand(0)))  (cost=0.12..1.25 rows=10)
-                -> Table scan on x2  (cost=0.03..0.25 rows=10)
+            -> Filter: (x2.a > (10 * rand(0)))  (cost=0.125..1.25 rows=10)
+                -> Table scan on x2  (cost=0.025..0.25 rows=10)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1
 WHERE x1.b IN (SELECT MAX(b) FROM t1 x2 WHERE x2.a>10*rand(0));
 EXPLAIN
--> Filter: <in_optimizer>(x1.b,<exists>(select #2))  (cost=2.48..24.75 rows=10)
-    -> Table scan on x1  (cost=0.03..0.25 rows=10)
+-> Filter: <in_optimizer>(x1.b,<exists>(select #2))  (cost=2.48..24.8 rows=10)
+    -> Table scan on x1  (cost=0.025..0.25 rows=10)
     -> Select #2 (subquery in condition; dependent)
         -> Filter: (<cache>(x1.b) = <ref_null_helper>(max(x2.b)))  (cost=2.35..2.35 rows=1)
             -> Aggregate: max(x2.b)  (cost=2.25..2.25 rows=1)
-                -> Filter: (x2.a > (10 * rand(0)))  (cost=0.12..1.25 rows=10)
-                    -> Table scan on x2  (cost=0.03..0.25 rows=10)
+                -> Filter: (x2.a > (10 * rand(0)))  (cost=0.125..1.25 rows=10)
+                    -> Table scan on x2  (cost=0.025..0.25 rows=10)
 
 EXPLAIN FORMAT=TREE SELECT SUM(x1.a) s FROM t1 x1
 GROUP BY x1.b HAVING s>(SELECT MAX(x2.a) FROM t1 x2);
 EXPLAIN
--> Filter: (s > (select #2))  (cost=6.24..7.14 rows=3)
-    -> Group aggregate: sum(x1.a)  (cost=4.89..5.57 rows=3)
+-> Filter: (s > (select #2))  (cost=6.24..7.14 rows=3.16)
+    -> Group aggregate: sum(x1.a)  (cost=4.89..5.57 rows=3.16)
         -> Sort: x1.b  (cost=4.57..4.57 rows=10)
-            -> Table scan on x1  (cost=0.03..0.25 rows=10)
+            -> Table scan on x1  (cost=0.025..0.25 rows=10)
     -> Select #2 (subquery in condition; run only once)
         -> Aggregate: max(x2.a)  (cost=1.25..1.25 rows=1)
-            -> Table scan on x2  (cost=0.03..0.25 rows=10)
+            -> Table scan on x2  (cost=0.025..0.25 rows=10)
 
 EXPLAIN FORMAT=TREE SELECT SUM(x1.a) s FROM t1 x1
 GROUP BY x1.b HAVING s>(SELECT MAX(x2.a+RAND(0)) FROM t1 x2);
 EXPLAIN
--> Filter: (s > (select #2))  (cost=6.24..9.84 rows=3)
-    -> Group aggregate: sum(x1.a)  (cost=4.89..5.57 rows=3)
+-> Filter: (s > (select #2))  (cost=6.24..9.84 rows=3.16)
+    -> Group aggregate: sum(x1.a)  (cost=4.89..5.57 rows=3.16)
         -> Sort: x1.b  (cost=4.57..4.57 rows=10)
-            -> Table scan on x1  (cost=0.03..0.25 rows=10)
+            -> Table scan on x1  (cost=0.025..0.25 rows=10)
     -> Select #2 (subquery in condition; uncacheable)
         -> Aggregate: max((x2.a + rand(0)))  (cost=1.25..1.25 rows=1)
-            -> Table scan on x2  (cost=0.03..0.25 rows=10)
+            -> Table scan on x2  (cost=0.025..0.25 rows=10)
 -> Select #2 (subquery in projection; uncacheable)
     -> Aggregate: max((x2.a + rand(0)))  (cost=1.25..1.25 rows=1)
-        -> Table scan on x2  (cost=0.03..0.25 rows=10)
+        -> Table scan on x2  (cost=0.025..0.25 rows=10)
 
 DROP TABLE num,t1;
+#
+# Bug#34114563 EXPLAIN ANALYZE: Use at least one significant digit for average
+# of actual rows
+#
+CREATE TABLE num10 (n INT);
+INSERT INTO num10 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t1(
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+f INT,
+g INT,
+h INT,
+KEY(d)
+);
+INSERT INTO t1
+SELECT n%17, n% 19, n, n, n, n, n, n
+FROM (SELECT d1.n+d2.n*10+d3.n*100 n FROM num10 d1, num10 d2, num10 d3) num1000;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a,b,c,d,e,f,g,h;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'a'.
+test.t1	histogram	status	Histogram statistics created for column 'b'.
+test.t1	histogram	status	Histogram statistics created for column 'c'.
+test.t1	histogram	status	Histogram statistics created for column 'd'.
+test.t1	histogram	status	Histogram statistics created for column 'e'.
+test.t1	histogram	status	Histogram statistics created for column 'f'.
+test.t1	histogram	status	Histogram statistics created for column 'g'.
+test.t1	histogram	status	Histogram statistics created for column 'h'.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE c<720;
+EXPLAIN
+-> Filter: (t1.c < 720)  (cost=0.141..102 rows=720)
+    -> Table scan on t1  (cost=0.0015..1.5 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3 WHERE x1.c<721 AND x2.c<900;
+EXPLAIN
+-> Nested loop inner join  (cost=174..1.02e+6 rows=649e+6)
+    -> Inner hash join (no condition)  (cost=174..45788 rows=648900)
+        -> Filter: (x2.c < 900)  (cost=0.113..102 rows=900)
+            -> Table scan on x2  (cost=0.0015..1.5 rows=1000)
+        -> Hash
+            -> Filter: (x1.c < 721)  (cost=0.141..102 rows=721)
+                -> Table scan on x1  (cost=0.0015..1.5 rows=1000)
+    -> Table scan on x3  (cost=0.0015..1.5 rows=1000)
+
+EXPLAIN ANALYZE FORMAT=TREE SELECT * FROM t1 x1, t1 x2 WHERE x1.c=x2.d AND x1.d>900 AND x2.a=x2.b;
+EXPLAIN
+-> Nested loop inner join  (cost=11.9..69.6 rows=5.82) (actual rows=17 loops=1)
+    -> Index range scan on x1 using d over (900 < d)  (cost=0.353..34.9 rows=99) (actual rows=99 loops=1)
+    -> Filter: (x2.a = x2.b)  (cost=0.35..0.35 rows=0.0588) (actual rows=0.172 loops=99)
+        -> Index lookup on x2 using d (d=x1.c)  (cost=0.25..0.25 rows=1) (actual rows=1 loops=99)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3 WHERE x1.c<921 AND x2.c<900;
+EXPLAIN
+-> Nested loop inner join  (cost=192..1.3e+6 rows=829e+6)
+    -> Inner hash join (no condition)  (cost=192..58408 rows=828900)
+        -> Filter: (x1.c < 921)  (cost=0.11..102 rows=921)
+            -> Table scan on x1  (cost=0.0015..1.5 rows=1000)
+        -> Hash
+            -> Filter: (x2.c < 900)  (cost=0.113..102 rows=900)
+                -> Table scan on x2  (cost=0.0015..1.5 rows=1000)
+    -> Table scan on x3  (cost=0.0015..1.5 rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE e=0 AND c=0;
+EXPLAIN
+-> Filter: ((t1.e = 0) and (t1.c = 0))  (rows=0.001)
+    -> Table scan on t1  (rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE e=0 AND c=0 AND f<999;
+EXPLAIN
+-> Filter: ((t1.e = 0) and (t1.c = 0) and (t1.f < 999))  (rows=999e-6)
+    -> Table scan on t1  (rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2 LIMIT 999999;
+EXPLAIN
+-> Limit: 999999 row(s)  (rows=999999)
+    -> Nested loop inner join  (rows=1e+6)
+        -> Table scan on x1  (rows=1000)
+        -> Table scan on x2  (rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE d=0 AND c=0 AND e=0 AND f=0 AND g=0;
+EXPLAIN
+-> Filter: ((t1.c = 0) and (t1.e = 0) and (t1.f = 0) and (t1.g = 0))  (rows=1e-12)
+    -> Index lookup on t1 using d (d=0)  (rows=1)
+
+EXPLAIN FORMAT=TREE
+SELECT * FROM t1 WHERE a=0 AND b=0 AND c=0 AND e=0 AND f=0 AND g=0 AND h=0;
+EXPLAIN
+-> Filter: ((t1.c = 0) and (t1.e = 0) and (t1.f = 0) and (t1.g = 0) and (t1.h = 0) and (t1.b = 0) and (t1.a = 0))  (rows=0)
+    -> Table scan on t1  (rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3 LIMIT 999500000;
+EXPLAIN
+-> Limit: 999500000 row(s)  (rows=1e+9)
+    -> Nested loop inner join  (rows=1e+9)
+        -> Nested loop inner join  (rows=1e+6)
+            -> Table scan on x1  (rows=1000)
+            -> Table scan on x2  (rows=1000)
+        -> Table scan on x3  (rows=1000)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3 LIMIT 999499999;
+EXPLAIN
+-> Limit: 999499999 row(s)  (rows=999e+6)
+    -> Nested loop inner join  (rows=1e+9)
+        -> Nested loop inner join  (rows=1e+6)
+            -> Table scan on x1  (rows=1000)
+            -> Table scan on x2  (rows=1000)
+        -> Table scan on x3  (rows=1000)
+
+DROP TABLE num10,t1;

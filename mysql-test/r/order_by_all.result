@@ -797,8 +797,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 1) or (`test`.`t1`.`b` is null)) order by `test`.`t1`.`a`
 explain format=tree select * from t1 where b=1 or b is null order by a;
 EXPLAIN
--> Sort: t1.a  (cost=0.90 rows=4)
-    -> Index lookup on t1 using b (b=1 or NULL), with index condition: ((t1.b = 1) or (t1.b is null))  (cost=0.90 rows=4)
+-> Sort: t1.a  (cost=0.9 rows=4)
+    -> Index lookup on t1 using b (b=1 or NULL), with index condition: ((t1.b = 1) or (t1.b is null))  (cost=0.9 rows=4)
 
 select * from t1 where b=1 or b is null order by a;
 a	b

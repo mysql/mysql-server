@@ -370,7 +370,7 @@ EXPLAIN FORMAT=TREE SELECT COUNT(*)
 FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 EXPLAIN
--> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+-> Rows fetched before execution  (cost=0..0 rows=1)
 
 FLUSH STATUS;
 SELECT COUNT(*)
@@ -393,7 +393,7 @@ EXPLAIN FORMAT=TREE SELECT COUNT(title)
 FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 EXPLAIN
--> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+-> Rows fetched before execution  (cost=0..0 rows=1)
 
 SELECT COUNT(title)
 FROM wp
