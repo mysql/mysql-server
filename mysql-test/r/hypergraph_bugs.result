@@ -19,7 +19,7 @@ EXPLAIN
 -> Nested loop inner join  (cost=1.16..1.16 rows=0.3)
     -> Nested loop left join  (cost=0.91..0.91 rows=0.3)
         -> Filter: (t1.a = 5)  (cost=0.55..0.55 rows=0.3)
-            -> Table scan on t1  (cost=0.08..0.25 rows=3)
+            -> Table scan on t1  (cost=0.0833..0.25 rows=3)
         -> Filter: ((t2.a = 5) and (t1.a = 5))  (cost=0.36..0.36 rows=0.01)
             -> Table scan on t2  (cost=0.25..0.25 rows=1)
     -> Table scan on t3  (cost=0.25..0.25 rows=1)
@@ -47,13 +47,13 @@ INSERT INTO t2 VALUES (1);
 INSERT INTO t3 VALUES (1);
 EXPLAIN FORMAT=tree SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
 EXPLAIN
--> Nested loop left join  (cost=0.90..0.90 rows=0.04)
-    -> Nested loop inner join  (cost=0.90..0.90 rows=0.04)
+-> Nested loop left join  (cost=0.9..0.9 rows=0.04)
+    -> Nested loop inner join  (cost=0.9..0.9 rows=0.04)
         -> Filter: (t0.a0 = 1)  (cost=0.45..0.45 rows=0.2)
-            -> Table scan on t0  (cost=0.12..0.25 rows=2)
+            -> Table scan on t0  (cost=0.125..0.25 rows=2)
         -> Filter: (t1.a1 = 1)  (cost=0.45..0.45 rows=0.2)
-            -> Table scan on t1  (cost=0.12..0.25 rows=2)
-    -> Zero rows (Join condition rejects all rows)  (cost=0.00..0.00 rows=0)
+            -> Table scan on t1  (cost=0.125..0.25 rows=2)
+    -> Zero rows (Join condition rejects all rows)  (cost=0..0 rows=0)
 
 SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
 a0	a1	a2	a3
@@ -135,7 +135,7 @@ t RIGHT JOIN
 (SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
 ON t.x = dt.m;
 EXPLAIN
--> Zero rows (Impossible WHERE)  (cost=0.00..0.00 rows=0)
+-> Zero rows (Impossible WHERE)  (cost=0..0 rows=0)
 
 SELECT * FROM
 t RIGHT JOIN
@@ -395,11 +395,11 @@ LEFT JOIN t1 AS t4 ON TRUE
 WHERE (t3.f2 <> t3.f2 OR t4.f2 = t2.f2))) AS t5 JOIN t1 AS t6
 ON TRUE;
 EXPLAIN
--> Nested loop inner join  (rows=1e-05)
-    -> Nested loop semijoin  (rows=1e-05)
+-> Nested loop inner join  (rows=10e-6)
+    -> Nested loop semijoin  (rows=10e-6)
         -> Filter: (t1.f1 = t1.f1)  (rows=0.1)
             -> Table scan on t1  (rows=1)
-        -> Filter: (t2.f2 = t4.f2)  (rows=0.0001)
+        -> Filter: (t2.f2 = t4.f2)  (rows=100e-6)
             -> Nested loop left join  (rows=0.001)
                 -> Filter: (t3.f1 = t2.f2)  (rows=0.001)
                     -> Nested loop inner join  (rows=0.01)

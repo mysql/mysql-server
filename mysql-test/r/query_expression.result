@@ -1784,14 +1784,14 @@ i
 2
 EXPLAIN FORMAT=tree SELECT * FROM (SELECT i FROM t2 INTERSECT SELECT i FROM t2 ORDER BY i) x1 WHERE i < 5;
 EXPLAIN
--> Table scan on x1  (rows=1)
-    -> Materialize  (rows=1)
-        -> Sort: i  (rows=1)
-            -> Table scan on <intersect temporary>  (rows=1)
-                -> Intersect materialize with deduplication  (rows=1)
-                    -> Filter: (t2.i < 5)  (rows=1)
+-> Table scan on x1  (rows=1.33)
+    -> Materialize  (rows=1.33)
+        -> Sort: i  (rows=1.33)
+            -> Table scan on <intersect temporary>  (rows=1.33)
+                -> Intersect materialize with deduplication  (rows=1.33)
+                    -> Filter: (t2.i < 5)  (rows=1.33)
                         -> Table scan on t2  (rows=4)
-                    -> Filter: (t2.i < 5)  (rows=1)
+                    -> Filter: (t2.i < 5)  (rows=1.33)
                         -> Table scan on t2  (rows=4)
 
 #
@@ -2237,7 +2237,7 @@ EXPLAIN FORMAT=tree
 SELECT * FROM t1 UNION     (SELECT * FROM t1 ORDER BY 1 LIMIT 3);
 EXPLAIN
 -> Table scan on <union temporary>  (cost=3.16..5.53 rows=10)
-    -> Union materialize with deduplication  (cost=2.90..2.90 rows=10)
+    -> Union materialize with deduplication  (cost=2.9..2.9 rows=10)
         -> Table scan on t1  (cost=0.95 rows=7)
         -> Limit: 3 row(s)  (cost=0.95 rows=3)
             -> Sort: t1.a, limit input to 3 row(s) per chunk  (cost=0.95 rows=7)
@@ -2247,7 +2247,7 @@ EXPLAIN FORMAT=tree
 SELECT * FROM t1 INTERSECT (SELECT * FROM t1 ORDER BY 1 LIMIT 3);
 EXPLAIN
 -> Table scan on <intersect temporary>  (cost=3.05..4.74 rows=3)
-    -> Intersect materialize with deduplication  (cost=2.20..2.20 rows=3)
+    -> Intersect materialize with deduplication  (cost=2.2..2.2 rows=3)
         -> Table scan on t1  (cost=0.95 rows=7)
         -> Limit: 3 row(s)  (cost=0.95 rows=3)
             -> Sort: t1.a, limit input to 3 row(s) per chunk  (cost=0.95 rows=7)
@@ -2257,7 +2257,7 @@ EXPLAIN FORMAT=tree
 SELECT * FROM t1 EXCEPT    (SELECT * FROM t1 ORDER BY 1 LIMIT 3);
 EXPLAIN
 -> Table scan on <except temporary>  (cost=2.97..5.19 rows=7)
-    -> Except materialize with deduplication  (cost=2.60..2.60 rows=7)
+    -> Except materialize with deduplication  (cost=2.6..2.6 rows=7)
         -> Table scan on t1  (cost=0.95 rows=7)
         -> Limit: 3 row(s)  (cost=0.95 rows=3)
             -> Sort: t1.a, limit input to 3 row(s) per chunk  (cost=0.95 rows=7)
@@ -2296,8 +2296,8 @@ ON x.a = t2.a AND x.b = t2.b
 ORDER BY 1, 2;
 EXPLAIN
 -> Sort: x.a, x.b
-    -> Stream results  (rows=15)
-        -> Inner hash join (x.b = t2.b), (x.a = t2.a)  (rows=15)
+    -> Stream results  (rows=14.9)
+        -> Inner hash join (x.b = t2.b), (x.a = t2.a)  (rows=14.9)
             -> Table scan on x  (rows=8)
                 -> Intersect materialize with deduplication  (rows=8)
                     -> Table scan on t1  (rows=15)
@@ -2328,8 +2328,8 @@ ON x.a = t2.a AND x.b = t2.b
 ORDER BY 1, 2;
 EXPLAIN
 -> Sort: x.a, x.b
-    -> Stream results  (rows=15)
-        -> Inner hash join (x.b = t2.b), (x.a = t2.a)  (rows=15)
+    -> Stream results  (rows=14.9)
+        -> Inner hash join (x.b = t2.b), (x.a = t2.a)  (rows=14.9)
             -> Table scan on x  (rows=8)
                 -> Intersect all materialize  (rows=8)
                     -> Table scan on t1  (rows=15)

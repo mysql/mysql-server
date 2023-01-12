@@ -7428,7 +7428,7 @@ EXPLAIN
 -> Window aggregate: row_number() OVER (ORDER BY 's' ) 
     -> Filter: (b.pk is null)  (cost=0.35 rows=1)
         -> Nested loop left join  (cost=0.35 rows=1)
-            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+            -> Rows fetched before execution  (cost=0..0 rows=1)
             -> Sort: 's'  (cost=0.35 rows=1)
                 -> Filter: ('s' = b.c)  (cost=0.35 rows=1)
                     -> Table scan on b  (cost=0.35 rows=1)

@@ -560,7 +560,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` 
 explain format=tree select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 EXPLAIN
 -> Filter: ((t1.colb = 'bar') and (t1.cola = 'foo'))  (rows=29)
-    -> Intersect rows sorted by row ID  (rows=29)
+    -> Intersect rows sorted by row ID  (rows=29.2)
         -> Index range scan on t1 using cola over (cola = 'foo')  (rows=504)
         -> Index range scan on t1 using colb over (colb = 'bar')  (rows=504)
 

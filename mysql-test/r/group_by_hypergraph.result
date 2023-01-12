@@ -96,7 +96,7 @@ EXPLAIN
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c,a;
 EXPLAIN
--> Group (no aggregates)  (rows=32) (actual rows=55 loops=1)
+-> Group (no aggregates)  (rows=32.3) (actual rows=55 loops=1)
     -> Sort: t1.c, t1.a  (rows=1000) (actual rows=1000 loops=1)
         -> Index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
 
@@ -114,7 +114,7 @@ EXPLAIN
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY g,h,i,j,k,l;
 EXPLAIN
--> Group (no aggregates)  (rows=47) (actual rows=10 loops=1)
+-> Group (no aggregates)  (rows=46.8) (actual rows=10 loops=1)
     -> Sort: t1.g, t1.h, t1.i, t1.j, t1.k, t1.l  (rows=1000) (actual rows=1000 loops=1)
         -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
 
@@ -140,13 +140,13 @@ EXPLAIN
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY e,f;
 EXPLAIN
--> Group (no aggregates)  (rows=65) (actual rows=143 loops=1)
+-> Group (no aggregates)  (rows=64.8) (actual rows=143 loops=1)
     -> Sort: t1.e, t1.f  (rows=1000) (actual rows=1000 loops=1)
         -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b>95 GROUP BY e,f;
 EXPLAIN
--> Group (no aggregates)  (rows=28) (actual rows=40 loops=1)
+-> Group (no aggregates)  (rows=27.7) (actual rows=40 loops=1)
     -> Sort: t1.e, t1.f  (rows=40) (actual rows=40 loops=1)
         -> Filter: (t1.b > 95)  (rows=40) (actual rows=40 loops=1)
             -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
@@ -159,7 +159,7 @@ EXPLAIN
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b>95 GROUP BY c+0,e+0;
 EXPLAIN
--> Group (no aggregates)  (rows=12) (actual rows=40 loops=1)
+-> Group (no aggregates)  (rows=11.7) (actual rows=40 loops=1)
     -> Sort: (t1.c + 0), (t1.e + 0)  (rows=40) (actual rows=40 loops=1)
         -> Filter: (t1.b > 95)  (rows=40) (actual rows=40 loops=1)
             -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
@@ -192,7 +192,7 @@ EXPLAIN
 
 EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY c2;
 EXPLAIN
--> Group (no aggregates)  (rows=3) (actual rows=3 loops=1)
+-> Group (no aggregates)  (rows=3.16) (actual rows=3 loops=1)
     -> Nested loop inner join  (rows=10000) (actual rows=10000 loops=1)
         -> Sort: t2.c2  (rows=10) (actual rows=10 loops=1)
             -> Table scan on t2  (rows=10) (actual rows=10 loops=1)

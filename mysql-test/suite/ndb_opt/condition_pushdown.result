@@ -3526,10 +3526,10 @@ explain format=tree
 select * from t1
 where d > (select avg(d) from t1);
 EXPLAIN
--> Table scan on t1, with pushed condition: (t1.d > (select #2))  (cost=750.10 rows=1)
+-> Table scan on t1, with pushed condition: (t1.d > (select #2))  (cost=750 rows=1)
     -> Select #2 (subquery in pushed condition; run only once)
-        -> Aggregate: avg(t1.d)  (cost=750.60 rows=1)
-            -> Table scan on t1  (cost=750.30 rows=3)
+        -> Aggregate: avg(t1.d)  (cost=751 rows=1)
+            -> Table scan on t1  (cost=750 rows=3)
 
 SELECT variable_value into @read_cnt0
 FROM performance_schema.global_status
@@ -3595,7 +3595,7 @@ insert into t1 values
 explain format=tree
 select * from t1 where b > 2;
 EXPLAIN
--> Table scan on t1, with pushed condition: (t1.b > 2)  (cost=4001.60 rows=5)
+-> Table scan on t1, with pushed condition: (t1.b > 2)  (cost=4002 rows=5.33)
 
 explain format=tree
 select * from t1 where a > 2;
@@ -3611,30 +3611,30 @@ EXPLAIN
 explain format=tree
 select * from t1 where a = 2 and c > 0;
 EXPLAIN
--> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)  (cost=2.10 rows=1)
+-> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)  (cost=2.1 rows=1)
 
 explain format=tree
 select * from t1 where a = 2 and c > 0 order by d;
 EXPLAIN
--> Sort: t1.d  (cost=2.10 rows=3)
-    -> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)  (cost=2.10 rows=3)
+-> Sort: t1.d  (cost=2.1 rows=3)
+    -> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)  (cost=2.1 rows=3)
 
 explain format=tree
 select * from t1 where b > 0 order by a;
 EXPLAIN
--> Index scan on t1 using PRIMARY, with pushed condition: (t1.b > 0)  (cost=4001.60 rows=5)
+-> Index scan on t1 using PRIMARY, with pushed condition: (t1.b > 0)  (cost=4002 rows=5.33)
 
 explain format=tree
 select * from t1 where b > 0 order by a desc;
 EXPLAIN
--> Index scan on t1 using PRIMARY (reverse), with pushed condition: (t1.b > 0)  (cost=4001.60 rows=5)
+-> Index scan on t1 using PRIMARY (reverse), with pushed condition: (t1.b > 0)  (cost=4002 rows=5.33)
 
 explain format=tree
 select * from t1 join t1 as t2 on t2.a = t1.b and t2.c > 3;
 EXPLAIN
--> Nested loop inner join  (cost=4011.20 rows=5)
-    -> Table scan on t1, activating pushed join of 2 tables  (cost=4001.60 rows=16)
-    -> Index lookup on t2 using PRIMARY (a=t1.b), child of t1 in pushed join, with pushed condition: (t2.c > 3)  (cost=0.50 rows=0.3)
+-> Nested loop inner join  (cost=4011 rows=5.33)
+    -> Table scan on t1, activating pushed join of 2 tables  (cost=4002 rows=16)
+    -> Index lookup on t2 using PRIMARY (a=t1.b), child of t1 in pushed join, with pushed condition: (t2.c > 3)  (cost=0.502 rows=0.333)
 
 drop table t1;
 #

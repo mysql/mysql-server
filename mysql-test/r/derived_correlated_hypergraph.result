@@ -14,11 +14,11 @@ EXPLAIN FORMAT=TREE
 SELECT 1 FROM t1, LATERAL (SELECT DISTINCT t1.x) AS dt, t2
 WHERE t2.pk = dt.x;
 EXPLAIN
--> Nested loop inner join  (cost=0.50..0.50 rows=1)
+-> Nested loop inner join  (cost=0.5..0.5 rows=1)
     -> Table scan on t1  (cost=0.25..0.25 rows=1)
     -> Nested loop inner join  (cost=0.25..0.25 rows=1)
-        -> Stream results  (cost=0.00..0.00 rows=1)
-            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+        -> Stream results  (cost=0..0 rows=1)
+            -> Rows fetched before execution  (cost=0..0 rows=1)
         -> Single-row index lookup on t2 using PRIMARY (pk=dt.x)  (cost=0.25..0.25 rows=1)
 
 Warnings:

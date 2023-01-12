@@ -8,6 +8,8 @@
 set optimizer_switch='batched_key_access=off,block_nested_loop=off,mrr_cost_based=off';
 
 --source include/not_hypergraph.inc  # Everything in this test depends heavily on the plans chosen.
+--source include/elide_costs.inc
+
 
 # Basic table scan.
 CREATE TABLE t1 ( f1 INT );
@@ -407,11 +409,11 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (a INTEGER, b INTEGER, PRIMARY KEY ( a ));
 INSERT INTO t1 VALUES (1,3), (2,4), (3,5);
 ANALYZE TABLE t1;
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN ANALYZE SELECT * FROM t1 AS a JOIN t1 AS b ON a.a=b.b ORDER BY a.b+b.a LIMIT 3;
 
 # Same, but with some parts that are never executed.
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN ANALYZE SELECT * FROM t1 AS a, t1 AS b WHERE a.b=500;
 DROP TABLE t1;
 
@@ -424,7 +426,7 @@ EXPLAIN ANALYZE FOR CONNECTION 1;
 EXPLAIN ANALYZE FORMAT=TRADITIONAL SELECT 1;
 --error ER_NOT_SUPPORTED_YET
 EXPLAIN ANALYZE FORMAT=JSON SELECT 1;
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN ANALYZE FORMAT=TREE SELECT 1;
 
 # An information_schema table.
@@ -445,7 +447,7 @@ DROP TABLE t1;
 CREATE TABLE t1 ( f1 INTEGER );
 INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 ANALYZE TABLE t1;
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN ANALYZE SELECT f1, ( SELECT COUNT(*) FROM t1 AS inner_t1 WHERE inner_t1.f1 < t1.f1 ) FROM t1;
 DROP TABLE t1;
 
@@ -468,7 +470,7 @@ DROP TABLE t1,t2;
 --echo #
 
 CREATE TABLE t1 ( a INTEGER );
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN ANALYZE SELECT COUNT(*) FROM t1;
 DROP TABLE t1;
 
@@ -490,7 +492,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INTEGER);
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 ANALYZE TABLE t1;
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN ANALYZE SELECT * FROM t1 LEFT JOIN ( SELECT * FROM t1 ORDER BY t1.a LIMIT 3 ) d1 ON TRUE;
 DROP TABLE t1;
 
@@ -538,7 +540,7 @@ EXPLAIN FORMAT=tree
 # scanning over clustered primary keys. (The filter is redundant.)
 #
 
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN ANALYZE
   SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE pk > 1 OR a > 2 OR b > 3;
 
@@ -585,7 +587,7 @@ ANALYZE TABLE t;
 EXPLAIN FORMAT=TREE DELETE t FROM t WHERE 0=1;
 
 # Demonstrates EXPLAIN ANALYZE on a DELETE statement.
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN ANALYZE DELETE t1 FROM t t1, t t2 WHERE t1.x = t2.x + 1;
 # EXPLAIN ANALYZE DELETE should delete rows. Currently, it does not.
 # (And EXPLAIN ANALYZE UPDATE/INSERT don't modify the table either.)
@@ -604,7 +606,7 @@ INSERT INTO t VALUES (1, 2), (2, 3), (3, 4);
 ANALYZE TABLE t;
 
 # Demonstrates EXPLAIN ANALYZE on an UPDATE statement.
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN ANALYZE UPDATE t t1, t t2 SET t1.x = t2.y WHERE t1.x = t2.x;
 # EXPLAIN ANALYZE UPDATE should update rows. Currently, it does not.
 # (And EXPLAIN ANALYZE INSERT/DELETE don't modify the table either.)
@@ -623,7 +625,7 @@ INSERT INTO t1 VALUES (1,1);
 ANALYZE TABLE t1;
 
 # Only second CTE reference evaluated.
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN ANALYZE
 WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
 (SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=10*d2.a JOIN tx ON d2.b=i1) UNION
@@ -636,28 +638,28 @@ WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
 SELECT 2 FROM tx;
 
 # Only first CTE reference evaluated.
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN ANALYZE
 WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
 SELECT 2 FROM tx UNION
 (SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=-d2.a JOIN tx ON d2.b=i1);
 
 # Both CTE references evaluated.
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN ANALYZE
 WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
 SELECT 2 FROM tx UNION
 (SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=d2.a JOIN tx ON d2.b=i1);
 
 # No CTE reference evaluated.
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN ANALYZE
 WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
 (SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=10*d2.a JOIN tx ON d2.b=i1) UNION
 (SELECT 1 FROM t1 d1 JOIN t1 d2 ON d1.a=-d2.a JOIN tx ON d2.b=i1);
 
 # CTE executed in subquery only.
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN ANALYZE
 WITH x1 AS (SELECT MAX(a) AS m1 FROM t1 GROUP BY b)
 SELECT * FROM x1 y1 WHERE y1.m1 = (SELECT MAX(m1) FROM x1);
@@ -666,7 +668,7 @@ SELECT * FROM x1 y1 WHERE y1.m1 = (SELECT MAX(m1) FROM x1);
 --echo #  Bug#34051681 mysqld asan crash at ExplainMaterializeAccessPath
 --echo #
 # CTE in subquery never executed.
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN ANALYZE
 WITH x1 AS (SELECT MAX(a) AS m1 FROM t1 GROUP BY b)
 SELECT * FROM t1 y1 LEFT JOIN t1 y2 ON y1.a=-y2.a
@@ -686,12 +688,12 @@ ANALYZE TABLE t1;
 
 # Check that we get the right row count for "Aggregate using temporary table".
 # We aggregate three rows in a temporary table even if we just read two of them.
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN ANALYZE INSERT INTO t1 SELECT 4, SUM(i) k1 FROM t1 GROUP BY j LIMIT 2;
 
 # Check that we get the right row count for "Materialize CTE".
 # We materialize three rows even if we just read two of them.
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN ANALYZE WITH cte AS (SELECT SUM(i) k1 FROM t1 GROUP BY j)
 SELECT * FROM cte LIMIT 2;
 
