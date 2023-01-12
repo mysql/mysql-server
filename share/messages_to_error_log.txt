@@ -1815,7 +1815,7 @@ ER_RPL_REPLICA_ERROR_LOADING_USER_DEFINED_LIBRARY
   eng "Error loading user-defined library, replica SQL thread aborted. Install the missing library, and restart the replica SQL thread with \"START REPLICA\". We stopped at log '%s' position %s"
 
 ER_RPL_REPLICA_ERROR_RUNNING_QUERY
-  eng "Error running query, replica SQL thread aborted. Fix the problem, and restart the replica SQL thread with \"STARTREPLICA\". We stopped at log '%s' position %s"
+  eng "Error running query, replica SQL thread aborted. Fix the problem, and restart the replica SQL thread with \"START REPLICA\". We stopped at log '%s' position %s"
 
 ER_RPL_REPLICA_SQL_THREAD_EXITING
   eng "Replica SQL thread%s exiting, replication stopped in log '%s' at position %s"
