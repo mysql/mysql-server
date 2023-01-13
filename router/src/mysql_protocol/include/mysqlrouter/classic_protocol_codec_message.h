@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,6 @@
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/classic_protocol_wire.h"
-#include "mysqlrouter/partial_buffer_sequence.h"
 
 namespace classic_protocol {
 
@@ -128,10 +127,9 @@ class Codec<message::server::Greeting>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     // proto-version
     auto protocol_version_res = accu.template step<wire::FixedInt<1>>();
@@ -159,7 +157,7 @@ class Codec<message::server::Greeting>
       if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
       // 3.21.x doesn't send more.
-      if (buffer_size(buffers) <= accu.result().value()) {
+      if (buffer_size(buffer) <= accu.result().value()) {
         return std::make_pair(
             accu.result().value(),
             value_type(protocol_version_res->value(), version_res->value(),
@@ -255,10 +253,9 @@ class Codec<message::server::AuthMethodSwitch>
 
   static constexpr uint8_t cmd_byte() noexcept { return 0xfe; }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     // proto-version
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
@@ -310,10 +307,9 @@ class Codec<message::server::AuthMethodData>
 
   static constexpr uint8_t cmd_byte() noexcept { return 0x01; }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -382,7 +378,7 @@ class Codec<message::server::Ok>
    * precondition:
    * - input starts with cmd_byte()
    *
-   * @param buffers input buffser sequence
+   * @param buffer input buffser sequence
    * @param caps protocol capabilities
    *
    * @retval std::pair<size_t, message::server::Ok> on success, with bytes
@@ -391,10 +387,9 @@ class Codec<message::server::Ok>
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
    */
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -526,7 +521,7 @@ class Codec<message::server::Eof>
    * precondition:
    * - input starts with cmd_byte()
    *
-   * @param buffers input buffser sequence
+   * @param buffer input buffser sequence
    * @param caps protocol capabilities
    *
    * @retval std::pair<size_t, message::server::Eof> on success, with bytes
@@ -535,10 +530,9 @@ class Codec<message::server::Eof>
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
    */
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     const auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -656,10 +650,9 @@ class Codec<message::server::Error>
     return std::numeric_limits<size_t>::max();
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -713,10 +706,9 @@ class Codec<message::server::ColumnCount>
     return std::numeric_limits<size_t>::max();
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto count_res = accu.template step<wire::VarInt>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -790,10 +782,9 @@ class Codec<message::server::ColumnMeta>
     return std::numeric_limits<size_t>::max();
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     if (!caps[capabilities::pos::protocol_41]) {
       // 3.2x protocol used up to 4.0.x
@@ -928,10 +919,9 @@ class Codec<message::server::SendFileRequest>
 
   static constexpr uint8_t cmd_byte() noexcept { return 0xfb; }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -999,10 +989,9 @@ class Codec<message::server::StmtPrepareOk>
 
   constexpr static uint8_t cmd_byte() noexcept { return 0x00; }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     auto stmt_id_res = accu.template step<wire::FixedInt<4>>();
@@ -1066,14 +1055,13 @@ class Codec<message::server::Row>
     return std::numeric_limits<size_t>::max();
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     std::vector<value_type::value_type> fields;
 
-    const size_t buf_size = buffer_size(buffers);
+    const size_t buf_size = buffer_size(buffer);
 
     while (accu.result() && (accu.result().value() < buf_size)) {
       // field may other be a Null or a VarString
@@ -1084,7 +1072,7 @@ class Codec<message::server::Row>
         auto field_res = accu.template step<wire::VarString>();
         if (!field_res) return stdx::make_unexpected(field_res.error());
 
-        fields.emplace_back(std::move(field_res->value()));
+        fields.emplace_back(field_res->value());
       }
     }
 
@@ -1193,11 +1181,10 @@ class Codec<message::server::StmtRow>
     return std::numeric_limits<size_t>::max();
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps,
+      const net::const_buffer &buffer, capabilities::value_type caps,
       std::vector<field_type::value_type> types) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     const auto row_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -1314,10 +1301,9 @@ class Codec<message::server::Statistics>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto stats_res = accu.template step<wire::String>();
 
@@ -1351,10 +1337,9 @@ class CodecSimpleCommand
 
   static constexpr size_t max_size() noexcept { return 1; }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, ValueType>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -1500,10 +1485,9 @@ class Codec<message::client::InitSchema>
     return static_cast<uint8_t>(CommandByte::InitSchema);
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -1549,10 +1533,9 @@ class Codec<message::client::Query>
     return static_cast<uint8_t>(CommandByte::Query);
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -1598,10 +1581,9 @@ class Codec<message::client::SendFile>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto payload_res = accu.template step<wire::String>();
     if (!accu.result()) return accu.result().get_unexpected();
@@ -1641,10 +1623,9 @@ class Codec<message::client::ListFields>
     return static_cast<uint8_t>(CommandByte::ListFields);
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -1692,10 +1673,9 @@ class Codec<message::client::Reload>
     return static_cast<uint8_t>(CommandByte::Refresh);
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -1745,10 +1725,9 @@ class Codec<message::client::Kill>
     return static_cast<uint8_t>(CommandByte::ProcessKill);
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -1794,10 +1773,9 @@ class Codec<message::client::StmtPrepare>
     return static_cast<uint8_t>(CommandByte::StmtPrepare);
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -1925,7 +1903,7 @@ class Codec<message::client::StmtExecute>
   /**
    * decode a sequence of buffers into a message::client::ExecuteStmt.
    *
-   * @param buffers sequence of buffers
+   * @param buffer sequence of buffers
    * @param caps protocol capabilities
    * @param param_count_lookup callable that expects a 'uint32_t statement_id'
    * that returns and integer that's convertible to 'stdx::expected<uint16_t,
@@ -1964,11 +1942,11 @@ class Codec<message::client::StmtExecute>
    *   });
    * \endcode
    */
-  template <class ConstBufferSequence, class Func>
+  template <class Func>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps,
+      const net::const_buffer &buffer, capabilities::value_type caps,
       Func &&param_count_lookup) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -2135,10 +2113,9 @@ class Codec<message::client::StmtParamAppendData>
     return static_cast<uint8_t>(CommandByte::StmtSendLongData);
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -2187,10 +2164,9 @@ class Codec<message::client::StmtClose>
     return static_cast<uint8_t>(CommandByte::StmtClose);
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -2236,10 +2212,9 @@ class Codec<message::client::StmtReset>
     return static_cast<uint8_t>(CommandByte::StmtReset);
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -2285,10 +2260,9 @@ class Codec<message::client::SetOption>
     return static_cast<uint8_t>(CommandByte::SetOption);
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -2335,10 +2309,9 @@ class Codec<message::client::StmtFetch>
     return static_cast<uint8_t>(CommandByte::StmtFetch);
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -2478,10 +2451,9 @@ class Codec<message::client::Greeting>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto capabilities_lo_res = accu.template step<wire::FixedInt<2>>();
     if (!capabilities_lo_res)
@@ -2568,7 +2540,7 @@ class Codec<message::client::Greeting>
       stdx::expected<wire::NulTermString, std::error_code> auth_method_res;
       if (shared_capabilities
               [classic_protocol::capabilities::pos::plugin_auth]) {
-        if (net::buffer_size(buffers) == accu.result().value()) {
+        if (net::buffer_size(buffer) == accu.result().value()) {
           // even with plugin_auth set, the server is fine, if no
           // auth_method_name is sent.
           auth_method_res = wire::NulTermString{};
@@ -2673,10 +2645,9 @@ class Codec<message::client::AuthMethodData>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto auth_method_data_res = accu.template step<wire::String>();
 
@@ -2748,10 +2719,9 @@ class Codec<message::client::ChangeUser>
     return static_cast<uint8_t>(CommandByte::ChangeUser);
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -2788,7 +2758,7 @@ class Codec<message::client::ChangeUser>
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
     // 3.23.x-4.0 don't send more.
-    if (buffer_size(buffers) <= accu.result().value()) {
+    if (buffer_size(buffer) <= accu.result().value()) {
       return std::make_pair(
           accu.result().value(),
           value_type(username_res->value(), auth_method_data_res->value(),
@@ -2873,10 +2843,9 @@ class Codec<message::client::BinlogDump>
     return static_cast<uint8_t>(CommandByte::BinlogDump);
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -2943,10 +2912,9 @@ class Codec<message::client::RegisterReplica>
     return static_cast<uint8_t>(CommandByte::RegisterReplica);
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -3032,10 +3000,9 @@ class Codec<message::client::BinlogDumpGtid>
     return static_cast<uint8_t>(CommandByte::BinlogDumpGtid);
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());

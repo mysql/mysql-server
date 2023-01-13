@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,6 @@
 #include "mysqlrouter/classic_protocol_codec_base.h"
 #include "mysqlrouter/classic_protocol_codec_error.h"
 #include "mysqlrouter/classic_protocol_wire.h"
-#include "mysqlrouter/partial_buffer_sequence.h"
 
 namespace classic_protocol {
 /**
@@ -82,24 +81,28 @@ class Codec<wire::FixedInt<IntSize>> {
    */
   static constexpr size_t max_size() noexcept { return int_size; }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type /* caps */) {
-    typename value_type::value_type v{};
-
-    size_t copied = buffer_copy(net::buffer(&v, int_size), buffers);
-
-    if (copied != int_size) {
+      const net::const_buffer &buffer, capabilities::value_type /* caps */) {
+    if (buffer.size() < int_size) {
       // not enough data in buffers.
       return stdx::make_unexpected(
           make_error_code(codec_errc::not_enough_input));
     }
 
+    union {
+      std::array<uint8_t, int_size> ar;
+      typename value_type::value_type value{};
+    };
+
+    std::copy(static_cast<const unsigned char *>(buffer.data()),
+              static_cast<const unsigned char *>(buffer.data()) + int_size,
+              ar.data());
+
     if (stdx::endian::native == stdx::endian::big) {
-      v = stdx::byteswap(v);
+      value = stdx::byteswap(value);
     }
 
-    return std::make_pair(copied, value_type(v));
+    return std::make_pair(int_size, value_type(value));
   }
 
  private:
@@ -161,10 +164,9 @@ class Codec<wire::VarInt> : public impl::EncodeBase<Codec<wire::VarInt>> {
 
   static constexpr size_t max_size() noexcept { return 9; }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     // length
     auto first_byte_res = accu.template step<wire::FixedInt<1>>();
@@ -211,12 +213,11 @@ class Codec<wire::Null> : public Codec<wire::FixedInt<1>> {
   Codec(value_type, capabilities::value_type caps)
       : Codec<wire::FixedInt<1>>(nul_byte, caps) {}
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type /* caps */) {
+      const net::const_buffer &buffer, capabilities::value_type /* caps */) {
     uint8_t v;
 
-    size_t copied = buffer_copy(net::buffer(&v, 1), buffers);
+    size_t copied = buffer_copy(net::buffer(&v, 1), buffer);
 
     if (copied != 1) {
       return stdx::make_unexpected(
@@ -239,8 +240,7 @@ class Codec<void> {
  public:
   using value_type = size_t;
 
-  Codec(value_type v, capabilities::value_type caps)
-      : v_{std::move(v)}, caps_{caps} {}
+  Codec(value_type val, capabilities::value_type caps) : v_(val), caps_{caps} {}
 
   size_t size() const noexcept { return v_; }
 
@@ -253,10 +253,9 @@ class Codec<void> {
     return buffer_copy(buffer, net::buffer(std::vector<char>(size())));
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type /* caps */) {
-    size_t buf_size = buffer_size(buffers);
+      const net::const_buffer &buffer, capabilities::value_type /* caps */) {
+    size_t buf_size = buffer.size();
 
     return std::make_pair(buf_size, buf_size);
   }
@@ -292,10 +291,9 @@ class Codec<wire::String> {
     return buffer_copy(buffer, net::const_buffer(v_.value().data(), size()));
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type /* caps */) {
-    size_t buf_size = buffer_size(buffers);
+      const net::const_buffer &buffer, capabilities::value_type /* caps */) {
+    size_t buf_size = buffer_size(buffer);
 
     // MUST handle the empty case as &s.front() for .empty() std::string is
     // undefined and may trigger an assert()ion on glibc's implementation
@@ -305,8 +303,7 @@ class Codec<wire::String> {
     std::string s;
     s.resize(buf_size);
 
-    size_t len =
-        buffer_copy(net::mutable_buffer(&s.front(), s.size()), buffers);
+    size_t len = buffer_copy(net::mutable_buffer(&s.front(), s.size()), buffer);
 
     return std::make_pair(len, value_type(s));
   }
@@ -333,12 +330,12 @@ class Codec<wire::VarString> : public impl::EncodeBase<Codec<wire::VarString>> {
 
  public:
   using value_type = wire::VarString;
-  using __base = impl::EncodeBase<Codec<value_type>>;
+  using base_type = impl::EncodeBase<Codec<value_type>>;
 
-  friend __base;
+  friend base_type;
 
-  Codec(value_type v, capabilities::value_type caps)
-      : __base(caps), v_{std::move(v)} {}
+  Codec(value_type val, capabilities::value_type caps)
+      : base_type(caps), v_{std::move(val)} {}
 
   static size_t max_size() noexcept {
     // we actually don't know what the size of the null-term string is ...
@@ -346,10 +343,9 @@ class Codec<wire::VarString> : public impl::EncodeBase<Codec<wire::VarString>> {
     return std::numeric_limits<size_t>::max();
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
     // decode the length
     auto var_string_len_res = accu.template step<wire::VarInt>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -383,12 +379,12 @@ class Codec<wire::NulTermString>
 
  public:
   using value_type = wire::NulTermString;
-  using __base = impl::EncodeBase<Codec<value_type>>;
+  using base_type = impl::EncodeBase<Codec<value_type>>;
 
-  friend __base;
+  friend base_type;
 
-  Codec(value_type v, capabilities::value_type caps)
-      : __base(caps), v_{std::move(v)} {}
+  Codec(value_type val, capabilities::value_type caps)
+      : base_type(caps), v_{std::move(val)} {}
 
   static size_t max_size() noexcept {
     // we actually don't know what the size of the null-term string is ...
@@ -396,38 +392,31 @@ class Codec<wire::NulTermString>
     return std::numeric_limits<size_t>::max();
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type /* caps */) {
+      const net::const_buffer &buffer, capabilities::value_type /* caps */) {
     // length of the string before the \0
     size_t len{};
 
     // we don't know where the \0 will be be, scan all buffers for the first
     // one.
-    const auto bufend = buffer_sequence_end(buffers);
-    for (auto bufcur = buffer_sequence_begin(buffers); bufcur != bufend;
-         ++bufcur) {
-      const auto first = static_cast<const uint8_t *>(bufcur->data());
-      const auto last = first + bufcur->size();
+    const auto *first = static_cast<const uint8_t *>(buffer.data());
+    const auto *last = first + buffer.size();
 
-      const auto pos = std::find(first, last, '\0');
-      if (pos != last) {
-        // \0 was found
-        len += std::distance(first, pos);
+    const auto *pos = std::find(first, last, '\0');
+    if (pos != last) {
+      // \0 was found
+      len += std::distance(first, pos);
 
-        // builds a string from the buffer-sequence's content
-        std::string s;
-        if (len > 0) {
-          // ensure we don't trigger undefined behaviour by using &s.front() if
-          // s.size() is 0
-          s.resize(len);
-          buffer_copy(net::mutable_buffer(&s.front(), s.size()), buffers, len);
-        }
-
-        return std::make_pair(len + 1, value_type(s));  // consume the \0 too
-      } else {
-        len += buffer_size(*bufcur);
+      // builds a string from the buffer-sequence's content
+      std::string s;
+      if (len > 0) {
+        // ensure we don't trigger undefined behaviour by using &s.front() if
+        // s.size() is 0
+        s.resize(len);
+        buffer_copy(net::mutable_buffer(&s.front(), s.size()), buffer, len);
       }
+
+      return std::make_pair(len + 1, value_type(s));  // consume the \0 too
     }
 
     // no 0-term found
