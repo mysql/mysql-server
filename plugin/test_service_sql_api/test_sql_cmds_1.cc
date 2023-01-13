@@ -40,7 +40,7 @@
 #include "template_utils.h"
 #include "thr_cond.h"
 
-#define STRING_BUFFER 1024
+static constexpr int STRING_BUFFER = 1024 * 4;
 
 static const char *sep =
     "======================================================\n";

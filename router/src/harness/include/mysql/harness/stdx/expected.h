@@ -208,7 +208,7 @@ union storage_t {
 
  private:
   value_type value_;
-  error_type error_;
+  error_type error_{};
 };
 
 /**
@@ -247,7 +247,7 @@ union storage_t<void, E> {
   constexpr error_type &&error() && { return std::move(error_); }
 
  private:
-  error_type error_;
+  error_type error_{};
 };
 
 // member_policy to disable implicit constructors and assignment operations

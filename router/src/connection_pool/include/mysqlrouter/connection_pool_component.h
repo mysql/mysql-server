@@ -27,6 +27,7 @@
 
 #include <memory>  // shared_ptr
 #include <mutex>
+#include <string>
 #include <unordered_map>
 #include <vector>
 

@@ -42,7 +42,7 @@
 #include "mysql_com.h"
 #include "template_utils.h"
 
-#define STRING_BUFFER 256
+static constexpr int STRING_BUFFER = 256 * 2;
 
 static File outfile;
 
