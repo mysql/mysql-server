@@ -7159,7 +7159,6 @@ void pfs_end_statement_vc(PSI_statement_locker *locker, void *stmt_da) {
     }
 
     if (pfs_program != nullptr) {
-      PFS_statement_stat *sub_stmt_stat = nullptr;
       sub_stmt_stat = &pfs_program->m_stmt_stat;
       if (sub_stmt_stat != nullptr) {
         if (pfs_flags & STATE_FLAG_TIMED) {
@@ -7197,17 +7196,16 @@ void pfs_end_statement_vc(PSI_statement_locker *locker, void *stmt_da) {
 
     if (pfs_prepared_stmt != nullptr) {
       if (state->m_in_prepare) {
-        PFS_single_stat *prepared_stmt_stat = nullptr;
-        prepared_stmt_stat = &pfs_prepared_stmt->m_prepare_stat;
-        if (prepared_stmt_stat != nullptr) {
+        PFS_single_stat *prepare_stat = nullptr;
+        prepare_stat = &pfs_prepared_stmt->m_prepare_stat;
+        if (prepare_stat != nullptr) {
           if (pfs_flags & STATE_FLAG_TIMED) {
-            prepared_stmt_stat->aggregate_value(wait_time);
+            prepare_stat->aggregate_value(wait_time);
           } else {
-            prepared_stmt_stat->aggregate_counted();
+            prepare_stat->aggregate_counted();
           }
         }
       } else {
-        PFS_statement_stat *prepared_stmt_stat = nullptr;
         prepared_stmt_stat = &pfs_prepared_stmt->m_execute_stat;
         if (prepared_stmt_stat != nullptr) {
           if (pfs_flags & STATE_FLAG_TIMED) {
@@ -7245,14 +7243,6 @@ void pfs_end_statement_vc(PSI_statement_locker *locker, void *stmt_da) {
           }
         }
       }
-    }
-
-    if (pfs_program != nullptr) {
-      sub_stmt_stat = &pfs_program->m_stmt_stat;
-    }
-
-    if (pfs_prepared_stmt != nullptr && !state->m_in_prepare) {
-      prepared_stmt_stat = &pfs_prepared_stmt->m_execute_stat;
     }
   }
 
@@ -7361,9 +7351,9 @@ void pfs_end_statement_vc(PSI_statement_locker *locker, void *stmt_da) {
     tel_data.m_sql_text = state->m_query_sample;
     tel_data.m_sql_text_length = state->m_query_sample_length;
 
-    const sql_digest_storage *digest_storage = state->m_digest;
-    if (digest_storage != nullptr) {
-      compute_digest_text(digest_storage, &digest_text);
+    const sql_digest_storage *tel_digest_storage = state->m_digest;
+    if (tel_digest_storage != nullptr) {
+      compute_digest_text(tel_digest_storage, &digest_text);
       tel_data.m_digest_text = digest_text.ptr();
     } else {
       tel_data.m_digest_text = nullptr;
