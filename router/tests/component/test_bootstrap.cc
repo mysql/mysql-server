@@ -2534,7 +2534,8 @@ TEST_F(RouterBootstrapTest, SSLOptions) {
 
 /**
  * @test
- *       verify that TODO
+ *       verify that Router can be re-bootstrapped using the same directory if
+ * the cluster name has changed in the meantime
  */
 TEST_F(RouterComponentBootstrapTest, RouterReBootstrapClusetNameChange) {
   const std::string tracefile = "bootstrap_gr.js";
@@ -2564,22 +2565,9 @@ TEST_F(RouterComponentBootstrapTest, RouterReBootstrapClusetNameChange) {
   set_mock_bootstrap_data(http_port, kChangedClusterName,
                           {{"localhost", classic_port}}, {2, 1, 0}, "gr-uuid");
 
-  //   const std::string conf_file2 =
-  //       mysql_harness::Path(bootstrap_dir.name()).join("mysqlrouter.conf").str();
-
-  //   // let's check if the actual config file contains what we expect
-  //   const std::string config_file_str2 = get_file_output(conf_file2);
-
   // do the second bootstrap using the same directory
-  //   cmdline_bs.push_back("--force");
   auto &router_bs2 = launch_router_for_bootstrap(cmdline_bs);
   check_exit_code(router_bs2, EXIT_SUCCESS);
-
-  const std::string conf_file =
-      mysql_harness::Path(bootstrap_dir.name()).join("mysqlrouter.conf").str();
-
-  // let's check if the actual config file contains what we expect:
-  // const std::string config_file_str = get_file_output(conf_file);
 }
 
 int main(int argc, char *argv[]) {
