@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2004, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,6 @@ require "lib/mtr_misc.pl";
 require "lib/mtr_process.pl";
 
 our $secondary_engine_support = eval 'use mtr_secondary_engine; 1';
-
 # Global variable to keep track of completed test cases
 my $completed = [];
 
@@ -2489,13 +2488,13 @@ sub set_build_thread_ports($) {
 
   if ($secondary_engine_support) {
     # Reserve a port for secondary engine server
-    if ($group_replication and $ports_per_thread == 50) {
+    if ($group_replication) {
       # When both group replication and secondary engine are enabled,
       # ports_per_thread value should be 50.
       # - First set of 20 ports are reserved for mysqld servers (10 each for
       #   standard and admin connections)
       # - Second set of 10 ports are reserver for Group replication
-      # - Third set of 10 ports are reserved for secondary engine server
+      # - Third set of 10 ports are reserved for secondary engine plugin
       # - Fourth and last set of 10 ports are reserved for X plugin
       $::secondary_engine_port = $baseport + 30;
     } else {
@@ -5272,9 +5271,6 @@ sub run_testcase ($) {
     # Check if it was secondary engine server that died
     if ($tinfo->{'secondary-engine'} and
         grep($proc eq $_, started(secondary_engine_servers()))) {
-      # Secondary engine server is shutdown automatically when
-      # mysqld server is shutdown.
-      next if ($proc->{EXIT_STATUS} == 0);
       # Secondary engine server crashed or died
       $tinfo->{'secondary_engine_srv_crash'} = 1;
       $tinfo->{'comment'} =
