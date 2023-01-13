@@ -183,6 +183,9 @@ void print_fatal_signal(int sig) {
     my_safe_printf_stderr("Query (%p): ", thd->query().str);
     my_safe_puts_stderr(thd->query().str,
                         std::min(size_t{1024}, thd->query().length));
+    my_safe_printf_stderr("DB (%p): ", thd->db().str);
+    my_safe_puts_stderr(thd->db().str,
+                        std::min(size_t{64}, thd->db().length));
     my_safe_printf_stderr("Connection ID (thread ID): %u\n", thd->thread_id());
     my_safe_printf_stderr("Status: %s\n\n", kreason);
   }
