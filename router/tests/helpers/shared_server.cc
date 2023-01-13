@@ -113,7 +113,14 @@ void SharedServer::initialize_server(const std::string &datadir) {
                   mysql_harness::Path::directory_separator + "mysqld-init.err",
           });
   proc.set_logging_path(datadir, "mysqld-init.err");
-  ASSERT_NO_THROW(proc.wait_for_exit(60s));
+  try {
+    proc.wait_for_exit(90s);  // throws when it times out.
+  } catch (const std::exception &e) {
+    process_manager().dump_logs();
+
+    FAIL() << e.what();
+  }
+
   if (proc.exit_code() != 0) {
     mysqld_failed_to_start_ = true;
 
