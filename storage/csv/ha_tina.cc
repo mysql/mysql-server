@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -643,9 +643,6 @@ int ha_tina::find_current_row(uchar *buf) {
   bool read_all;
   DBUG_TRACE;
 
-  // Clear BLOB data from the previous row.
-  blobroot.ClearForReuse();
-
   /*
     We do not read further then local_saved_data_file_length in order
     not to conflict with undergoing concurrent insert.
@@ -654,6 +651,9 @@ int ha_tina::find_current_row(uchar *buf) {
                                    local_saved_data_file_length, &eoln_len)) ==
       0)
     return HA_ERR_END_OF_FILE;
+
+  // Clear BLOB data from the previous row.
+  blobroot.ClearForReuse();
 
   /* We must read all columns in case a table is opened for update */
   read_all = !bitmap_is_clear_all(table->write_set);
