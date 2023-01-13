@@ -1,3 +1,6 @@
+--source include/elide_costs.inc
+
+
 CREATE TABLE t1 (f1 INT, f2 INT, f3 CHAR(1), f4 CHAR(1), f5 CHAR(1), f6 CHAR(1), f7 CHAR(1),
 PRIMARY KEY (f5, f1), KEY (f2), KEY (f3), KEY (f4), KEY(f7) );
 INSERT INTO t1 VALUES (1, 1, 'a', 'h', 'i', '', ''), (2, 3, 'a', 'h', 'i', '', ''),
@@ -202,7 +205,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1) */ COUNT(*) FROM t1 WHERE (f4 = 'h' AND f2 = 
 EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2,f3,f7) */ COUNT(*) FROM t1 WHERE (f4 = 'h' AND f2 = 2 AND f3 = 'b') OR (f7 = 'd' AND f6 = 'e');
 # Demonstrates EXPLAIN ANALYZE (and thus, also the tree format) of unions of intersections. The filter is redundant.
 --skip_if_hypergraph  # Does not support INDEX_MERGE yet.
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN ANALYZE SELECT /*+ INDEX_MERGE(t1 f2,f3,f7) */ COUNT(*) FROM t1 WHERE (f4 = 'h' AND f2 = 2 AND f3 = 'b') OR (f7 = 'd' AND f6 = 'e');
 # intersect(f4,PRIMARY), since it's the cheapest access method.
 EXPLAIN SELECT f3 FROM t1 WHERE f4 = 'f' AND f2 = 3 AND f5 > '';

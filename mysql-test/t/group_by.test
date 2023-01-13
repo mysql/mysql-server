@@ -1,4 +1,5 @@
 --source include/elide_costs.inc
+--source include/elide_costs_and_rows.inc
 # Innodb page size 16k required
 
 # Initialise
@@ -2821,7 +2822,7 @@ while ($i < 2) {
 INSERT INTO t VALUES ('1', 10), ('1', 11), ('2', 20), ('2', 20), ('3', 30);
 --source include/turn_off_only_full_group_by.inc
 # Verify that we get streaming.
---replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
+--replace_regex $elide_costs_and_rows
 --skip_if_hypergraph   # Does not use streaming (just sorts directly).
 EXPLAIN FORMAT=tree SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
 --sorted_result

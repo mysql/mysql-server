@@ -3814,8 +3814,8 @@ EXPLAIN FORMAT=tree SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY
 EXPLAIN
 -> Group aggregate: count(distinct t.b)
     -> Sort: -(a)
-        -> Stream results  (cost=*** rows=***)
-            -> Table scan on t  (cost=*** rows=***)
+        -> Stream results  (...)
+            -> Table scan on t  (...)
 
 Warnings:
 Note	1276	Field or reference 'test.t.a' of SELECT #2 was resolved in SELECT #1
@@ -3848,8 +3848,8 @@ EXPLAIN FORMAT=tree SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY
 EXPLAIN
 -> Group aggregate: count(distinct t.b)
     -> Sort: -(a)
-        -> Stream results  (cost=*** rows=***)
-            -> Table scan on t  (cost=*** rows=***)
+        -> Stream results  (...)
+            -> Table scan on t  (...)
 
 Warnings:
 Note	1276	Field or reference 'test.t.a' of SELECT #2 was resolved in SELECT #1
@@ -4795,12 +4795,12 @@ FROM t2, t3 WHERE t2.x = t3.id AND t2.y + t3.y < t1.y
 GROUP BY t2.y
 ) AS dt;
 EXPLAIN
--> Nested loop inner join  (rows=10)
+-> Nested loop inner join  (rows=10.4)
     -> Invalidate materialized tables (row from t1)  (rows=6)
         -> Table scan on t1  (rows=6)
-    -> Table scan on dt  (rows=2)
-        -> Materialize (invalidate on row from t1)  (rows=2)
-            -> Group aggregate: sum(t3.x)  (rows=2)
+    -> Table scan on dt  (rows=1.73)
+        -> Materialize (invalidate on row from t1)  (rows=1.73)
+            -> Group aggregate: sum(t3.x)  (rows=1.73)
                 -> Nested loop inner join  (rows=3)
                     -> Sort: t2.y  (rows=3)
                         -> Filter: (t2.x is not null)  (rows=3)
@@ -4837,7 +4837,7 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT t1.a, MAX(t2.b) FROM t1 LEFT JOIN t2 ON t1.b = t2.a AND t1.a <> 2
 GROUP BY t1.a;
 EXPLAIN
--> Group aggregate: max(t2.b)  (rows=2)
+-> Group aggregate: max(t2.b)  (rows=1.73)
     -> Nested loop left join  (rows=3)
         -> Index scan on t1 using PRIMARY  (rows=3)
         -> Filter: (t1.a <> 2)  (rows=1)
