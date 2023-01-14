@@ -2060,7 +2060,7 @@ ACL_USER *decoy_user(const LEX_CSTRING &username, const LEX_CSTRING &hostname,
     } else {
       const int DECIMAL_SHIFT = 1000;
       const int random_number = static_cast<int>(my_rnd(rand) * DECIMAL_SHIFT);
-      uint plugin_num = (uint)(random_number % ((uint)PLUGIN_LAST));
+      uint plugin_num = (uint)(random_number % ((uint)PLUGIN_LAST-1));
       user->plugin =
           Cached_authentication_plugins::cached_plugins_names[plugin_num];
       unknown_accounts->clear_if_greater(MAX_UNKNOWN_ACCOUNTS);
