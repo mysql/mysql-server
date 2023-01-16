@@ -47,6 +47,7 @@ SET(test_files
   test_setup_named_socket_service.cc
   test_setup_tcp_service.cc
   test_auth_digest.cc
+  test_classic_quit_sender.cc
   test_classic_reset_connection_sender.cc
   )
 

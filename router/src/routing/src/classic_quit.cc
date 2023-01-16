@@ -180,3 +180,53 @@ QuitProcessor::client_shutdown() {
   // wait for the client to send data ... which should be a connection close.
   return Result::RecvFromClient;
 }
+
+// sender
+
+stdx::expected<Processor::Result, std::error_code> QuitSender::process() {
+  switch (stage()) {
+    case Stage::Command:
+      return command();
+    case Stage::CloseSocket:
+      return close_socket();
+    case Stage::Done:
+      return Result::Done;
+  }
+
+  harness_assert_this_should_not_execute();
+}
+
+stdx::expected<Processor::Result, std::error_code> QuitSender::command() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *dst_protocol = connection()->server_protocol();
+  auto *dst_channel = socket_splicer->server_channel();
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("quit::command"));
+  }
+
+  dst_protocol->seq_id(0xff);
+
+  auto msg_res =
+      ClassicFrame::send_msg<classic_protocol::message::client::Quit>(
+          dst_channel, dst_protocol, {});
+  if (!msg_res) return send_server_failed(msg_res.error());
+
+  stage(Stage::CloseSocket);
+  return Result::SendToServer;
+}
+
+stdx::expected<Processor::Result, std::error_code> QuitSender::close_socket() {
+  auto *socket_splicer = connection()->socket_splicer();
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event()
+                 .stage("quit::close")
+                 .direction(Tracer::Event::Direction::kServerClose));
+  }
+
+  (void)socket_splicer->server_conn().close();
+
+  stage(Stage::Done);
+  return Result::Again;
+}
