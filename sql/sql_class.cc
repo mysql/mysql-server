@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1358,6 +1358,8 @@ void THD::release_resources() {
   mysql_mutex_lock(&LOCK_thd_query);
   mysql_mutex_unlock(&LOCK_thd_query);
 
+  mysql_audit_free_thd(this);
+
   stmt_map.reset(); /* close all prepared statements */
   if (!is_cleanup_done()) cleanup();
 
@@ -1384,7 +1386,6 @@ void THD::release_resources() {
     delete rli_fake;
     rli_fake = nullptr;
   }
-  mysql_audit_free_thd(this);
 
   /* See if any component stored data. If so, try to free it */
   if (!external_store_.empty())
