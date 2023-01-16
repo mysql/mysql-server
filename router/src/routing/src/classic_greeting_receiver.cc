@@ -214,7 +214,8 @@ ClientGreetor::server_greeting() {
       classic_protocol::capabilities::expired_passwords |
       classic_protocol::capabilities::session_track |
       classic_protocol::capabilities::text_result_with_session_tracking |
-      classic_protocol::capabilities::optional_resultset_metadata
+      classic_protocol::capabilities::optional_resultset_metadata |
+      classic_protocol::capabilities::query_attributes
       // compress_zstd (not yet)
   );
 

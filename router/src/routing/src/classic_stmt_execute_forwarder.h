@@ -33,6 +33,8 @@ class StmtExecuteForwarder : public ForwardingProcessor {
 
   enum class Stage {
     Command,
+    Forward,
+    ForwardDone,
     Response,
     ColumnCount,
     Column,
@@ -51,6 +53,8 @@ class StmtExecuteForwarder : public ForwardingProcessor {
 
  private:
   stdx::expected<Result, std::error_code> command();
+  stdx::expected<Result, std::error_code> forward();
+  stdx::expected<Result, std::error_code> forward_done();
   stdx::expected<Result, std::error_code> response();
   stdx::expected<Result, std::error_code> column_count();
   stdx::expected<Result, std::error_code> column();

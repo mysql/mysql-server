@@ -272,6 +272,7 @@ ConnectProcessor::from_pool() {
     client_caps
         // connection specific.
         .reset(classic_protocol::capabilities::pos::ssl)
+        .reset(classic_protocol::capabilities::pos::query_attributes)
         .reset(classic_protocol::capabilities::pos::compress)
         .reset(classic_protocol::capabilities::pos::compress_zstd)
         // session specific capabilities which can be recovered by
@@ -284,6 +285,7 @@ ConnectProcessor::from_pool() {
           auto pooled_caps = pooled_conn.shared_capabilities();
 
           pooled_caps.reset(classic_protocol::capabilities::pos::ssl)
+              .reset(classic_protocol::capabilities::pos::query_attributes)
               .reset(classic_protocol::capabilities::pos::compress)
               .reset(classic_protocol::capabilities::pos::compress_zstd)
               .reset(classic_protocol::capabilities::pos::multi_statements);

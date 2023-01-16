@@ -41,6 +41,9 @@ class QueryForwarder : public ForwardingProcessor {
     Connect,
     Connected,
 
+    Forward,
+    ForwardDone,
+
     Response,
     ColumnCount,
     Column,
@@ -67,6 +70,8 @@ class QueryForwarder : public ForwardingProcessor {
   stdx::expected<Result, std::error_code> command();
   stdx::expected<Result, std::error_code> connect();
   stdx::expected<Result, std::error_code> connected();
+  stdx::expected<Result, std::error_code> forward();
+  stdx::expected<Result, std::error_code> forward_done();
   stdx::expected<Result, std::error_code> response();
   stdx::expected<Result, std::error_code> load_data();
   stdx::expected<Result, std::error_code> data();

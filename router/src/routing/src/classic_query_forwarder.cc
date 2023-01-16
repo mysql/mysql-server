@@ -27,6 +27,7 @@
 #include <charconv>
 #include <limits>
 #include <memory>
+#include <sstream>
 #include <system_error>
 #include <variant>
 
@@ -34,9 +35,12 @@
 #include "classic_frame.h"
 #include "classic_lazy_connect.h"
 #include "harness_assert.h"
+#include "hexify.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqld_error.h"  // mysql errors
+#include "mysqlrouter/classic_protocol_codec_binary.h"
+#include "mysqlrouter/classic_protocol_codec_error.h"
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/utils.h"  // to_string
 #include "show_warnings_parser.h"
@@ -56,6 +60,12 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::process() {
       return connect();
     case Stage::Connected:
       return connected();
+
+    case Stage::Forward:
+      return forward();
+    case Stage::ForwardDone:
+      return forward_done();
+
     case Stage::Response:
       return response();
     case Stage::ColumnCount:
@@ -561,20 +571,454 @@ intercept_diagnostics_area_queries(std::string_view stmt) {
   }
 }
 
+template <class T>
+static constexpr uint16_t binary_type() {
+  return classic_protocol::Codec<T>::type();
+}
+
+namespace classic_protocol::borrowable::binary {
+template <bool Borrowed>
+std::ostream &operator<<(
+    std::ostream &os,
+    const classic_protocol::borrowable::binary::String<Borrowed> &v) {
+  os << std::quoted(v.value());
+  return os;
+}
+
+template <bool Borrowed>
+std::ostream &operator<<(
+    std::ostream &os,
+    const classic_protocol::borrowable::binary::Json<Borrowed> &v) {
+  os << v.value();
+  return os;
+}
+
+template <bool Borrowed>
+std::ostream &operator<<(
+    std::ostream &os,
+    const classic_protocol::borrowable::binary::Varchar<Borrowed> &v) {
+  os << std::quoted(v.value());
+  return os;
+}
+
+template <bool Borrowed>
+std::ostream &operator<<(
+    std::ostream &os,
+    const classic_protocol::borrowable::binary::VarString<Borrowed> &v) {
+  os << std::quoted(v.value());
+  return os;
+}
+
+template <bool Borrowed>
+std::ostream &operator<<(
+    std::ostream &os,
+    const classic_protocol::borrowable::binary::Decimal<Borrowed> &v) {
+  os << v.value();
+  return os;
+}
+
+template <bool Borrowed>
+std::ostream &operator<<(
+    std::ostream &os,
+    const classic_protocol::borrowable::binary::NewDecimal<Borrowed> &v) {
+  os << v.value();
+  return os;
+}
+
+std::ostream &operator<<(
+    std::ostream &os, const classic_protocol::borrowable::binary::Double &v) {
+  os << v.value();
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os,
+                         const classic_protocol::borrowable::binary::Float &v) {
+  os << v.value();
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os,
+                         const classic_protocol::borrowable::binary::Tiny &v) {
+  os << static_cast<unsigned int>(v.value());
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os,
+                         const classic_protocol::borrowable::binary::Int24 &v) {
+  os << v.value();
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os,
+                         const classic_protocol::borrowable::binary::Short &v) {
+  os << v.value();
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os,
+                         const classic_protocol::borrowable::binary::Long &v) {
+  os << v.value();
+  return os;
+}
+
+std::ostream &operator<<(
+    std::ostream &os, const classic_protocol::borrowable::binary::LongLong &v) {
+  os << v.value();
+  return os;
+}
+
+template <bool Borrowed>
+std::ostream &operator<<(
+    std::ostream &os,
+    const classic_protocol::borrowable::binary::TinyBlob<Borrowed> &v) {
+  os << std::quoted(v.value());
+  return os;
+}
+
+template <bool Borrowed>
+std::ostream &operator<<(
+    std::ostream &os,
+    const classic_protocol::borrowable::binary::Blob<Borrowed> &v) {
+  os << std::quoted(v.value());
+  return os;
+}
+
+template <bool Borrowed>
+std::ostream &operator<<(
+    std::ostream &os,
+    const classic_protocol::borrowable::binary::MediumBlob<Borrowed> &v) {
+  os << std::quoted(v.value());
+  return os;
+}
+
+template <bool Borrowed>
+std::ostream &operator<<(
+    std::ostream &os,
+    const classic_protocol::borrowable::binary::LongBlob<Borrowed> &v) {
+  os << std::quoted(v.value());
+  return os;
+}
+
+std::ostream &operator<<(
+    std::ostream &os,
+    const classic_protocol::borrowable::binary::DatetimeBase &v) {
+  std::ostringstream oss;
+
+  oss << std::setfill('0')  //
+      << std::setw(4) << v.year() << "-" << std::setw(2)
+      << static_cast<unsigned int>(v.month()) << "-" << std::setw(2)
+      << static_cast<unsigned int>(v.day());
+  if (v.hour() || v.minute() || v.second() || v.microsecond()) {
+    oss << " " << std::setw(2) << static_cast<unsigned int>(v.hour()) << ":"
+        << std::setw(2) << static_cast<unsigned int>(v.minute()) << ":"
+        << std::setw(2) << static_cast<unsigned int>(v.second());
+
+    if (v.microsecond()) {
+      oss << "." << std::setw(6) << v.microsecond();
+    }
+  }
+
+  os << oss.str();
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os,
+                         const classic_protocol::binary::Time &v) {
+  std::ostringstream oss;
+
+  oss << std::setfill('0')  //
+      << static_cast<unsigned int>(v.days()) << "d " << std::setw(2)
+      << static_cast<unsigned int>(v.hour()) << ":" << std::setw(2)
+      << static_cast<unsigned int>(v.minute()) << ":" << std::setw(2)
+      << static_cast<unsigned int>(v.second());
+
+  if (v.microsecond()) {
+    oss << "." << std::setw(6) << v.microsecond();
+  }
+
+  os << oss.str();
+  return os;
+}
+}  // namespace classic_protocol::borrowable::binary
+
+static stdx::expected<std::string, std::error_code> param_to_string(
+    const classic_protocol::message::client::Query::Param &p) {
+  enum class BinaryType {
+    Decimal = binary_type<classic_protocol::binary::Decimal>(),
+    NewDecimal = binary_type<classic_protocol::binary::NewDecimal>(),
+    Double = binary_type<classic_protocol::binary::Double>(),
+    Float = binary_type<classic_protocol::binary::Float>(),
+    LongLong = binary_type<classic_protocol::binary::LongLong>(),
+    Long = binary_type<classic_protocol::binary::Long>(),
+    Int24 = binary_type<classic_protocol::binary::Int24>(),
+    Short = binary_type<classic_protocol::binary::Short>(),
+    Tiny = binary_type<classic_protocol::binary::Tiny>(),
+    String = binary_type<classic_protocol::binary::String>(),
+    Varchar = binary_type<classic_protocol::binary::Varchar>(),
+    VarString = binary_type<classic_protocol::binary::VarString>(),
+    MediumBlob = binary_type<classic_protocol::binary::MediumBlob>(),
+    TinyBlob = binary_type<classic_protocol::binary::TinyBlob>(),
+    Blob = binary_type<classic_protocol::binary::Blob>(),
+    LongBlob = binary_type<classic_protocol::binary::LongBlob>(),
+    Json = binary_type<classic_protocol::binary::Json>(),
+    Date = binary_type<classic_protocol::binary::Date>(),
+    DateTime = binary_type<classic_protocol::binary::DateTime>(),
+    Timestamp = binary_type<classic_protocol::binary::Timestamp>(),
+    Time = binary_type<classic_protocol::binary::Time>(),
+  };
+
+  std::ostringstream oss;
+
+  auto type = p.type_and_flags & 0xff;
+
+  oss << "<" << type << "> ";
+
+  switch (BinaryType{type}) {
+    case BinaryType::Double: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::Double>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::Float: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::Float>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::Tiny: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::Tiny>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::Short: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::Short>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::Int24: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::Int24>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::Long: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::Long>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::LongLong: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::LongLong>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::String: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::String>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::VarString: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::VarString>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::Varchar: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::Varchar>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::Json: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::Json>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::TinyBlob: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::TinyBlob>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::MediumBlob: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::MediumBlob>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::Blob: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::Blob>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::LongBlob: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::LongBlob>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::Date: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::Date>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::DateTime: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::DateTime>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::Timestamp: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::Timestamp>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::Time: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::Time>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::Decimal: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::Decimal>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+    case BinaryType::NewDecimal: {
+      auto decode_res =
+          classic_protocol::decode<classic_protocol::binary::NewDecimal>(
+              net::buffer(*p.value), {});
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      oss << decode_res->second;
+      break;
+    }
+  }
+
+  return oss.str();
+}
+
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->client_channel();
-  auto src_protocol = connection()->client_protocol();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection()->client_protocol();
 
-  if (connection()->connection_sharing_possible()) {
+  if (!connection()->connection_sharing_possible()) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("query::command"));
+    }
+  } else {
     auto msg_res =
         ClassicFrame::recv_msg<classic_protocol::message::client::Query>(
             src_channel, src_protocol);
-    if (!msg_res) return recv_client_failed(msg_res.error());
+    if (!msg_res) {
+      // all codec-errors should result in a Malformed Packet error..
+      if (msg_res.error().category() !=
+          make_error_code(classic_protocol::codec_errc::not_enough_input)
+              .category()) {
+        return recv_client_failed(msg_res.error());
+      }
+
+      discard_current_msg(src_channel, src_protocol);
+
+      auto send_msg =
+          ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+              src_channel, src_protocol,
+              {ER_MALFORMED_PACKET, "Malformed communication packet", "HY000"});
+      if (!send_msg) send_client_failed(send_msg.error());
+
+      stage(Stage::Done);
+
+      return Result::SendToClient;
+    }
 
     if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("query::command: " +
-                                     msg_res->statement().substr(0, 1024)));
+      std::ostringstream oss;
+
+      for (const auto &param : msg_res->values()) {
+        oss << "\n";
+        oss << "- " << param.name << ": ";
+
+        if (!param.value) {
+          oss << "NULL";
+        } else if (auto param_str = param_to_string(param)) {
+          oss << param_str.value();
+        }
+      }
+
+      tr.trace(Tracer::Event().stage(
+          "query::command: " + msg_res->statement().substr(0, 1024) +
+          oss.str()));
     }
 
     if (connection()->connection_sharing_allowed()) {
@@ -681,11 +1125,10 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
     stage(Stage::Connect);
-    return Result::Again;
   } else {
-    stage(Stage::Response);
-    return forward_client_to_server();
+    stage(Stage::Forward);
   }
+  return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::connect() {
@@ -723,8 +1166,100 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::connected() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("query::connected"));
   }
+
+  stage(Stage::Forward);
+
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code> QueryForwarder::forward() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_protocol = connection()->client_protocol();
+  auto *dst_protocol = connection()->server_protocol();
+
+  auto client_caps = src_protocol->shared_capabilities();
+  auto server_caps = dst_protocol->shared_capabilities();
+
+  if (client_caps.test(classic_protocol::capabilities::pos::query_attributes) ==
+      server_caps.test(classic_protocol::capabilities::pos::query_attributes)) {
+    // if caps are the same, forward the message as is
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("query::forward"));
+    }
+
+    stage(Stage::ForwardDone);
+
+    return forward_client_to_server();
+  }
+
+  // ... otherwise: recode the message.
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::forward::recode"));
+  }
+
+  auto *src_channel = socket_splicer->client_channel();
+  auto *dst_channel = socket_splicer->server_channel();
+
+  auto msg_res =
+      ClassicFrame::recv_msg<classic_protocol::message::client::Query>(
+          src_channel, src_protocol);
+  if (!msg_res) {
+    // all codec-errors should result in Bad Message.
+    if (msg_res.error().category() !=
+        make_error_code(classic_protocol::codec_errc::not_enough_input)
+            .category()) {
+      return recv_client_failed(msg_res.error());
+    }
+
+    discard_current_msg(src_channel, src_protocol);
+
+    auto send_msg =
+        ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+            src_channel, src_protocol,
+            {ER_MALFORMED_PACKET, "Malformed communication packet", "HY000"});
+    if (!send_msg) send_client_failed(send_msg.error());
+
+    stage(Stage::Done);
+
+    return Result::SendToClient;
+  }
+
+  // if the message contains attributes, error.
+  if (!msg_res->values().empty()) {
+    discard_current_msg(src_channel, src_protocol);
+
+    auto send_msg = ClassicFrame::send_msg<
+        classic_protocol::message::server::Error>(
+        src_channel, src_protocol,
+        {ER_MALFORMED_PACKET,
+         "Message contains attributes, but server does not support attributes.",
+         "HY000"});
+    if (!send_msg) send_client_failed(send_msg.error());
+
+    stage(Stage::Done);
+
+    return Result::SendToClient;
+  }
+
+  auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, *msg_res);
+  if (!send_res) return send_server_failed(send_res.error());
+
+  discard_current_msg(src_channel, src_protocol);
+
+  stage(Stage::ForwardDone);
+  return Result::SendToServer;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+QueryForwarder::forward_done() {
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::forward::done"));
+  }
+
   stage(Stage::Response);
-  return forward_client_to_server();
+
+  return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::response() {

@@ -37,6 +37,10 @@ StmtExecuteForwarder::process() {
   switch (stage()) {
     case Stage::Command:
       return command();
+    case Stage::Forward:
+      return forward();
+    case Stage::ForwardDone:
+      return forward_done();
     case Stage::Response:
       return response();
     case Stage::ColumnCount:
@@ -139,11 +143,93 @@ StmtExecuteForwarder::command() {
 
     stage(Stage::Done);
     return Result::SendToClient;
-  } else {
-    stage(Stage::Response);
+  }
+
+  stage(Stage::Forward);
+
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+StmtExecuteForwarder::forward() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_protocol = connection()->client_protocol();
+  auto *dst_protocol = connection()->server_protocol();
+
+  auto client_caps = src_protocol->shared_capabilities();
+  auto server_caps = dst_protocol->shared_capabilities();
+
+  if (client_caps.test(classic_protocol::capabilities::pos::query_attributes) ==
+      server_caps.test(classic_protocol::capabilities::pos::query_attributes)) {
+    // if caps are the same, forward the message as is
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("stmt_execute::forward"));
+    }
+
+    stage(Stage::ForwardDone);
 
     return forward_client_to_server();
   }
+
+  // ... otherwise: recode the message.
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_execute::forward::recode"));
+  }
+
+  auto *src_channel = socket_splicer->client_channel();
+  auto *dst_channel = socket_splicer->server_channel();
+
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::client::StmtExecute>(src_channel,
+                                                                src_protocol);
+  if (!msg_res) {
+    // all codec-errors should result in Bad Message.
+    if (msg_res.error().category() !=
+        make_error_code(classic_protocol::codec_errc::not_enough_input)
+            .category()) {
+      return recv_client_failed(msg_res.error());
+    }
+
+    discard_current_msg(src_channel, src_protocol);
+
+    classic_protocol::borrowed::message::server::Error err_msg{
+        ER_MALFORMED_PACKET, "Malformed communication packet", "HY000"};
+
+    if (msg_res.error() ==
+        classic_protocol::codec_errc::statement_id_not_found) {
+      err_msg = {ER_UNKNOWN_STMT_HANDLER, "Unknown prepared statement id",
+                 "HY000"};
+    }
+
+    auto send_msg = ClassicFrame::send_msg(src_channel, src_protocol, err_msg);
+    if (!send_msg) send_client_failed(send_msg.error());
+
+    stage(Stage::Done);
+
+    return Result::SendToClient;
+  }
+
+  // if the msg contains query attributes, but the server doesn't support
+  // attributes, ignore them.
+  //
+  // libmysqlclient behaves the same, if mysql_bind_param() is called with a
+  // server which doesn't support query-attributes.
+
+  auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, *msg_res);
+  if (!send_res) return send_server_failed(send_res.error());
+
+  discard_current_msg(src_channel, src_protocol);
+
+  stage(Stage::ForwardDone);
+  return Result::SendToServer;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+StmtExecuteForwarder::forward_done() {
+  stage(Stage::Response);
+
+  return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code>

@@ -914,20 +914,29 @@ TEST_P(ShareConnectionTestWithRestartedServer,
     ASSERT_NO_FATAL_FAILURE(wait_stopped_intermediate_router(inter));
   }
 
-  // caps for the error-packet parser
-  auto caps = classic_protocol::capabilities::protocol_41;
+  // caps of the server.
+  auto caps = classic_protocol::capabilities::protocol_41 |     // server::Error
+              classic_protocol::capabilities::query_attributes  // client::Query
+      ;
 
   // send one command per connection.
   for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
     SCOPED_TRACE("// testing command " + std::to_string(ndx));
     std::vector<uint8_t> buf;
 
-    {
+    if (ndx == 3) {
+      auto encode_res = classic_protocol::encode<classic_protocol::frame::Frame<
+          classic_protocol::message::client::Query>>({0, {""}}, caps,
+                                                     net::dynamic_buffer(buf));
+      ASSERT_NO_ERROR(encode_res);
+    } else {
       auto encode_res = classic_protocol::encode<
           classic_protocol::frame::Frame<classic_protocol::wire::FixedInt<1>>>(
           {0, {static_cast<uint8_t>(ndx)}}, caps, net::dynamic_buffer(buf));
       ASSERT_NO_ERROR(encode_res);
+    }
 
+    {
       auto send_res = net::impl::socket::send(cli.native_handle(), buf.data(),
                                               buf.size(), 0);
       ASSERT_NO_ERROR(send_res);
@@ -1074,20 +1083,22 @@ TEST_P(ShareConnectionTestWithRestartedServer,
     }
   }
 
-  // caps for the error-packet parser
-  auto caps = classic_protocol::capabilities::protocol_41;
+  // caps of the server.
+  auto caps = classic_protocol::capabilities::protocol_41 |     // server::Error
+              classic_protocol::capabilities::query_attributes  // client::Query
+      ;
 
   // send one command per connection.
   for (auto [ndx, cli] : stdx::views::enumerate(clis)) {
     SCOPED_TRACE("// testing command " + std::to_string(ndx));
     std::vector<uint8_t> buf;
 
-    {
-      auto encode_res = classic_protocol::encode<
-          classic_protocol::frame::Frame<classic_protocol::wire::FixedInt<1>>>(
-          {0, {static_cast<uint8_t>(ndx)}}, caps, net::dynamic_buffer(buf));
-      ASSERT_NO_ERROR(encode_res);
+    auto encode_res = classic_protocol::encode<
+        classic_protocol::frame::Frame<classic_protocol::wire::FixedInt<1>>>(
+        {0, {static_cast<uint8_t>(ndx)}}, caps, net::dynamic_buffer(buf));
+    ASSERT_NO_ERROR(encode_res);
 
+    {
       auto send_res = net::impl::socket::send(cli.native_handle(), buf.data(),
                                               buf.size(), 0);
       ASSERT_NO_ERROR(send_res);
@@ -1177,8 +1188,11 @@ TEST_P(ShareConnectionTestWithRestartedServer,
           expected_error_code = 1046;  // no database selected
           break;
         case cmd_byte<classic_protocol::message::client::Query>():  // 3
-          expected_error_code =
-              (GetParam().client_ssl_mode != kPassthrough) ? 1065 : 1835;
+          expected_error_code = (GetParam().client_ssl_mode == kPreferred &&
+                                 GetParam().server_ssl_mode == kAsClient)
+                                    ? 1065  // query was empty
+                                    : 1835  // malformed packet
+              ;
           break;
         case cmd_byte<classic_protocol::message::client::StmtPrepare>():  // 22
 
