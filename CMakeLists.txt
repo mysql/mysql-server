@@ -1367,7 +1367,7 @@ ENDIF()
 
 # Fedora 34, RHEL9: undefined reference to symbol 'crc32_z@@ZLIB_1.2.9'
 IF(LINUX_FEDORA_34 OR LINUX_RHEL9)
-  IF(NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld")
+  IF(NOT USING_LD_LLD)
     STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--copy-dt-needed-entries")
   ENDIF()
 ENDIF()
