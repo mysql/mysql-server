@@ -224,12 +224,14 @@ ResetConnectionSender::process() {
 stdx::expected<Processor::Result, std::error_code>
 ResetConnectionSender::command() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto dst_channel = socket_splicer->server_channel();
-  auto dst_protocol = connection()->server_protocol();
+  auto *dst_channel = socket_splicer->server_channel();
+  auto *dst_protocol = connection()->server_protocol();
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("reset_connection::command"));
   }
+
+  dst_protocol->seq_id(0xff);  // reset seq-id
 
   const auto send_res = ClassicFrame::send_msg<
       classic_protocol::message::client::ResetConnection>(dst_channel,
@@ -244,8 +246,8 @@ ResetConnectionSender::command() {
 stdx::expected<Processor::Result, std::error_code>
 ResetConnectionSender::response() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
 
   auto read_res =
       ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);

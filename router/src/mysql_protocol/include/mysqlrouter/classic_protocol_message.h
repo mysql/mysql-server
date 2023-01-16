@@ -202,15 +202,29 @@ class Ok {
         message_{std::move(message)},
         session_changes_{std::move(session_changes)} {}
 
+  void status_flags(classic_protocol::status::value_type flags) {
+    status_flags_ = flags;
+  }
+
   classic_protocol::status::value_type status_flags() const noexcept {
     return status_flags_;
   }
+
+  void warning_count(uint16_t count) { warning_count_ = count; }
   uint16_t warning_count() const noexcept { return warning_count_; }
+
+  void last_insert_id(uint64_t val) { last_insert_id_ = val; }
   uint64_t last_insert_id() const noexcept { return last_insert_id_; }
+
+  void affected_rows(uint64_t val) { affected_rows_ = val; }
   uint64_t affected_rows() const noexcept { return affected_rows_; }
 
+  void message(const std::string &msg) { message_ = msg; }
   std::string message() const { return message_; }
 
+  void session_changes(const std::string &changes) {
+    session_changes_ = changes;
+  }
   /**
    * get session-changes.
    *

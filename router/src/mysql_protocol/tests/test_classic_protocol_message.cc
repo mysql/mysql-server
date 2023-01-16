@@ -214,6 +214,46 @@ INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageServerOkTest,
                            return test_param_info.param.test_name;
                          });
 
+TEST(MessageServerOk, warning_count) {
+  classic_protocol::message::server::Ok msg;
+
+  EXPECT_EQ(msg.warning_count(), 0);
+  msg.warning_count(1);
+  EXPECT_EQ(msg.warning_count(), 1);
+}
+
+TEST(MessageServerOk, last_insert_id) {
+  classic_protocol::message::server::Ok msg;
+
+  EXPECT_EQ(msg.last_insert_id(), 0);
+  msg.last_insert_id(1);
+  EXPECT_EQ(msg.last_insert_id(), 1);
+}
+
+TEST(MessageServerOk, affected_rows) {
+  classic_protocol::message::server::Ok msg;
+
+  EXPECT_EQ(msg.affected_rows(), 0);
+  msg.affected_rows(1);
+  EXPECT_EQ(msg.affected_rows(), 1);
+}
+
+TEST(MessageServerOk, message) {
+  classic_protocol::message::server::Ok msg;
+
+  EXPECT_EQ(msg.message(), "");
+  msg.message("hi");
+  EXPECT_EQ(msg.message(), "hi");
+}
+
+TEST(MessageServerOk, session_changes) {
+  classic_protocol::message::server::Ok msg;
+
+  EXPECT_EQ(msg.session_changes(), "");
+  msg.session_changes("hi");
+  EXPECT_EQ(msg.session_changes(), "hi");
+}
+
 // server::Eof
 
 using CodecMessageServerEofTest =
