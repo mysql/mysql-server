@@ -1591,9 +1591,7 @@ bool Query_block::resolve_subquery(THD *thd) {
   }
 
   if (!choice_made) {
-    if (subq_predicate->select_transformer(thd, this) ==
-        Item_subselect::RES_ERROR)
-      return true;
+    return subq_predicate->select_transformer(thd, this);
   }
   return false;
 }
@@ -3964,7 +3962,6 @@ bool Query_block::flatten_subqueries(THD *thd) {
   for (subq = subq_begin; subq < subq_end; subq++) {
     auto subq_item = *subq;
     if (subq_item->strategy != Subquery_strategy::UNSPECIFIED) continue;
-    Item_subselect::trans_res res;
     subq_item->changed = false;
     subq_item->fixed = false;
 
@@ -3972,12 +3969,11 @@ bool Query_block::flatten_subqueries(THD *thd) {
     thd->lex->set_current_query_block(subq_item->unit->first_query_block());
 
     // This is the only part of the function which uses a JOIN.
-    res = subq_item->select_transformer(thd,
-                                        subq_item->unit->first_query_block());
+    if (subq_item->select_transformer(thd,
+                                      subq_item->unit->first_query_block()))
+      return true;
 
     thd->lex->set_current_query_block(save_query_block);
-
-    if (res == Item_subselect::RES_ERROR) return true;
 
     subq_item->changed = true;
     subq_item->fixed = true;

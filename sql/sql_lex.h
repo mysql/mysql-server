@@ -1253,8 +1253,11 @@ class Query_block : public Query_term {
 
   void mark_as_dependent(Query_block *last, bool aggregate);
 
+  /// @returns true if query block references any tables
+  bool has_tables() const { return m_table_list.elements != 0; }
+
   /// @return true if query block is explicitly grouped (non-empty GROUP BY)
-  bool is_explicitly_grouped() const { return group_list.elements > 0; }
+  bool is_explicitly_grouped() const { return group_list.elements != 0; }
 
   /**
     @return true if this query block is implicitly grouped, ie it is not

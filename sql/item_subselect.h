@@ -154,7 +154,6 @@ class Item_subselect : public Item_result_field {
   /// subquery is transformed
   bool changed;
 
-  enum trans_res { RES_OK, RES_REDUCE, RES_ERROR };
   enum subs_type {
     UNKNOWN_SUBS,
     SINGLEROW_SUBS,
@@ -189,7 +188,7 @@ class Item_subselect : public Item_result_field {
 
   void cleanup() override;
   virtual void reset() { null_value = true; }
-  virtual trans_res select_transformer(THD *thd, Query_block *select) = 0;
+  virtual bool select_transformer(THD *thd, Query_block *select) = 0;
   bool assigned() const { return value_assigned; }
   void assigned(bool a) { value_assigned = a; }
   enum Type type() const override;
@@ -289,7 +288,7 @@ class Item_singlerow_subselect : public Item_subselect {
   subs_type substype() const override { return SINGLEROW_SUBS; }
 
   void reset() override;
-  trans_res select_transformer(THD *thd, Query_block *select) override;
+  bool select_transformer(THD *thd, Query_block *select) override;
   void store(uint i, Item *item);
   double val_real() override;
   longlong val_int() override;
@@ -454,9 +453,9 @@ class Item_exists_subselect : public Item_subselect {
 
   void notify_removal() override { strategy = Subquery_strategy::DELETED; }
 
-  trans_res select_transformer(THD *, Query_block *) override {
+  bool select_transformer(THD *, Query_block *) override {
     strategy = Subquery_strategy::SUBQ_EXISTS;
-    return RES_OK;
+    return false;
   }
   subs_type substype() const override { return EXISTS_SUBS; }
   bool is_bool_func() const override { return true; }
@@ -656,15 +655,15 @@ class Item_in_subselect : public Item_exists_subselect {
     null_value = false;
     was_null = false;
   }
-  trans_res select_transformer(THD *thd, Query_block *select) override;
-  trans_res select_in_like_transformer(THD *thd, Query_block *select,
-                                       Comp_creator *func);
-  trans_res single_value_transformer(THD *thd, Query_block *select,
-                                     Comp_creator *func);
-  trans_res row_value_transformer(THD *thd, Query_block *select);
-  trans_res single_value_in_to_exists_transformer(THD *thd, Query_block *select,
-                                                  Comp_creator *func);
-  trans_res row_value_in_to_exists_transformer(THD *thd, Query_block *select);
+  bool select_transformer(THD *thd, Query_block *select) override;
+  bool select_in_like_transformer(THD *thd, Query_block *select,
+                                  Comp_creator *func);
+  bool single_value_transformer(THD *thd, Query_block *select,
+                                Comp_creator *func);
+  bool row_value_transformer(THD *thd, Query_block *select);
+  bool single_value_in_to_exists_transformer(THD *thd, Query_block *select,
+                                             Comp_creator *func);
+  bool row_value_in_to_exists_transformer(THD *thd, Query_block *select);
   bool subquery_allows_materialization(THD *thd, Query_block *query_block,
                                        const Query_block *outer);
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
@@ -723,7 +722,7 @@ class Item_allany_subselect final : public Item_in_subselect {
 
   // only ALL subquery has upper not
   subs_type substype() const override { return all ? ALL_SUBS : ANY_SUBS; }
-  trans_res select_transformer(THD *thd, Query_block *select) override;
+  bool select_transformer(THD *thd, Query_block *select) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
 };
