@@ -4343,6 +4343,18 @@ bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
   return false;
 }
 
+static Item_rollup_group_item *find_rollup_item_in_group_list(
+    Item *item, Query_block *query_block) {
+  for (ORDER *group = query_block->group_list.first; group;
+       group = group->next) {
+    Item_rollup_group_item *rollup_item = group->rollup_item;
+    if (item->eq(rollup_item, /*binary_cmp=*/false)) {
+      return rollup_item;
+    }
+  }
+  return nullptr;
+}
+
 /**
   For each rollup wrapper below the given item, replace its argument with a
   temporary field, e.g.
@@ -4364,14 +4376,12 @@ bool replace_contents_of_rollup_wrappers_with_tmp_fields(THD *thd,
         Item_rollup_group_item *rollup_item =
             down_cast<Item_rollup_group_item *>(item);
 
-        Item *real_item = item;
-        while (is_rollup_group_wrapper(real_item)) {
-          real_item = unwrap_rollup_group(real_item)->real_item();
-        }
-        ORDER *order = select->find_in_group_list(real_item, nullptr);
+        Item_rollup_group_item *group_rollup_item =
+            find_rollup_item_in_group_list(rollup_item, select);
+        assert(group_rollup_item != nullptr);
         Item_rollup_group_item *new_item = new Item_rollup_group_item(
             rollup_item->min_rollup_level(),
-            order->rollup_item->inner_item()->get_tmp_table_item(thd));
+            group_rollup_item->inner_item()->get_tmp_table_item(thd));
         if (new_item == nullptr ||
             select->join->rollup_group_items.push_back(new_item)) {
           return {ReplaceResult::ERROR, nullptr};
@@ -4499,9 +4509,10 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
       rollup_item->inner_item()->set_result_field(item->get_result_field());
       new_item = rollup_item->inner_item()->get_tmp_table_item(thd);
 
-      ORDER *order =
-          select->find_in_group_list(rollup_item->inner_item(), nullptr);
-      order->rollup_item->inner_item()->set_result_field(
+      Item_rollup_group_item *group_rollup_item =
+          find_rollup_item_in_group_list(rollup_item, select);
+      assert(group_rollup_item != nullptr);
+      group_rollup_item->inner_item()->set_result_field(
           item->get_result_field());
 
       new_item =
