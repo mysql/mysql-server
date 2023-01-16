@@ -539,7 +539,7 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
   (void)ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
 
   log_debug("client sent unknown command: %s",
-            hexify(src_channel->recv_plain_buffer()).c_str());
+            hexify(src_channel->recv_plain_view()).c_str());
 
   // try to discard the current message.
   //

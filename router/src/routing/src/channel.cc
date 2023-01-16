@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "channel.h"
 
+#include <cassert>
+
 #include <openssl/ssl.h>
 
+#include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 
@@ -148,25 +151,26 @@ stdx::expected<size_t, std::error_code> Channel::read_plain(
     }
 
     return res;
-  } else {
-    if (recv_buffer().empty()) {
-      return stdx::make_unexpected(
-          make_error_code(std::errc::operation_would_block));
-    }
-
-    auto dyn_buf = net::dynamic_buffer(recv_buffer());
-
-    auto transferred = net::buffer_copy(b, dyn_buf.data(0, b.size()));
-
-    dyn_buf.consume(transferred);
-
-    return transferred;
   }
+
+  if (recv_view_.empty()) {
+    return stdx::make_unexpected(
+        make_error_code(std::errc::operation_would_block));
+  }
+
+  auto transferred = net::buffer_copy(
+      b, net::buffer(recv_view_.first(std::min(b.size(), recv_view_.size()))));
+
+  consume_raw(transferred);
+
+  return transferred;
 }
 
 stdx::expected<size_t, std::error_code> Channel::flush_from_recv_buf() {
   if (ssl_) {
     auto &recv_buf = recv_buffer();
+
+    view_discard_raw();
 
     size_t transferred{};
 
@@ -185,6 +189,9 @@ stdx::expected<size_t, std::error_code> Channel::flush_from_recv_buf() {
       dyn_buf.consume(res.value());
 
       transferred += res.value();
+
+      // recv-buffer changed, update the view.
+      view_sync_raw();
     }
 
     return transferred;
@@ -225,19 +232,20 @@ stdx::expected<size_t, std::error_code> Channel::flush_to_send_buf() {
 }
 
 stdx::expected<size_t, std::error_code> Channel::read_to_plain(size_t sz) {
-  auto &plain_buf = recv_plain_buffer();
+  if (!ssl_) {
+    // as the connection is plaintext, use the recv-buffer directly.
+    return std::min(sz, recv_view_.size());
+  }
 
   {
     const auto flush_res = flush_from_recv_buf();
-    if (!flush_res) {
-      return flush_res.get_unexpected();
-    } else {
-#if defined(DEBUG_SSL)
-      std::cerr << __LINE__ << ": " << from << "::ssl->" << from << "::enc"
-                << ": " << flush_res.value() << std::endl;
-#endif
-    }
+    if (!flush_res) return stdx::make_unexpected(flush_res.error());
   }
+
+  auto &plain_buf = recv_plain_buffer_;
+
+  // consume all data that was consumed via the view already.
+  view_discard_plain();
 
   size_t bytes_read{};
   // decrypt from src-ssl into the ssl-plain-buf
@@ -247,15 +255,12 @@ stdx::expected<size_t, std::error_code> Channel::read_to_plain(size_t sz) {
     // append to the plain buffer
     const auto read_res = read(dyn_buf, sz);
     if (read_res) {
-#if defined(DEBUG_SSL)
-      std::cerr << __LINE__ << ": " << from << "::ssl->" << from << "::dec"
-                << ": " << read_res.value() << std::endl;
-#endif
-
       const size_t transferred = read_res.value();
 
       sz -= transferred;
       bytes_read += transferred;
+
+      view_sync_plain();
     } else {
       // read from client failed.
 
@@ -274,6 +279,47 @@ stdx::expected<size_t, std::error_code> Channel::read_to_plain(size_t sz) {
 
   return bytes_read;
 }
+
+const Channel::recv_view_type &Channel::recv_view() const { return recv_view_; }
+
+const Channel::recv_view_type &Channel::recv_plain_view() const {
+  return ssl_ ? recv_plain_view_ : recv_view_;
+}
+
+void Channel::consume_raw(size_t count) {
+  assert(count <= recv_view_.size());
+
+  recv_view_ = {recv_view_.data() + count, recv_view_.size() - count};
+}
+
+void Channel::consume_plain(size_t count) {
+  if (ssl_) {
+    assert(count <= recv_plain_view_.size());
+
+    recv_plain_view_ = {recv_plain_view_.data() + count,
+                        recv_plain_view_.size() - count};
+  } else {
+    consume_raw(count);
+  }
+}
+
+void Channel::view_discard_raw() {
+  net::dynamic_buffer(recv_buffer_)
+      .consume(recv_buffer_.size() - recv_view_.size());
+}
+
+void Channel::view_discard_plain() {
+  if (ssl_) {
+    net::dynamic_buffer(recv_plain_buffer_)
+        .consume(recv_plain_buffer_.size() - recv_plain_view_.size());
+  } else {
+    view_discard_raw();
+  }
+}
+
+void Channel::view_sync_raw() { recv_view_ = recv_buffer_; }
+
+void Channel::view_sync_plain() { recv_plain_view_ = recv_plain_buffer_; }
 
 #if 0
 size_t Channel::plain_pending() const {

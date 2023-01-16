@@ -1584,7 +1584,7 @@ ServerGreetor::final_response() {
   }
 
   // if there is another packet, dump its payload for now.
-  auto &recv_buf = src_channel->recv_plain_buffer();
+  auto &recv_buf = src_channel->recv_plain_view();
 
   // get as much data of the current frame from the recv-buffers to log it.
   (void)ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
@@ -2055,13 +2055,14 @@ ServerFirstAuthenticator::client_greeting_full() {
 }
 
 static TlsErrc forward_tls(Channel *src_channel, Channel *dst_channel) {
-  auto &plain = src_channel->recv_plain_buffer();
-  src_channel->read_to_plain(5);
-
-  auto plain_buf = net::dynamic_buffer(plain);
   // at least the TLS record header.
   const size_t tls_header_size{5};
-  while (plain_buf.size() >= tls_header_size) {
+  const size_t tls_type_offset{5};
+
+  src_channel->read_to_plain(tls_header_size);
+
+  const auto &plain = src_channel->recv_plain_view();
+  while (plain.size() >= tls_header_size) {
     // plain is TLS traffic.
     const uint8_t tls_content_type = plain[0];
     const uint16_t tls_payload_size = (plain[3] << 8) | plain[4];
@@ -2075,30 +2076,29 @@ static TlsErrc forward_tls(Channel *src_channel, Channel *dst_channel) {
                   static_cast<TlsContentType>(tls_content_type))
                   .c_str());
 #endif
-    if (plain_buf.size() < tls_header_size + tls_payload_size) {
+    if (plain.size() < tls_header_size + tls_payload_size) {
       src_channel->read_to_plain(tls_header_size + tls_payload_size -
-                                 plain_buf.size());
+                                 plain.size());
     }
 
-    if (plain_buf.size() < tls_header_size + tls_payload_size) {
+    if (plain.size() < tls_header_size + tls_payload_size) {
       // there isn't the full frame yet.
       return TlsErrc::kWantRead;
     }
 
     const auto write_res = dst_channel->write(
-        plain_buf.data(0, tls_header_size + tls_payload_size));
-    if (!write_res) {
-      return TlsErrc::kWantWrite;
-    }
+        net::buffer(plain.subspan(0, tls_header_size + tls_payload_size)));
+    if (!write_res) return TlsErrc::kWantWrite;
 
     // if TlsAlert in handshake, the connection goes back to plain
     if (static_cast<TlsContentType>(tls_content_type) ==
             TlsContentType::kAlert &&
-        plain.size() >= 6 && plain[5] == 0x02) {
+        plain.size() > tls_type_offset && plain[tls_type_offset] == 0x02) {
       src_channel->is_tls(false);
       dst_channel->is_tls(false);
     }
-    plain_buf.consume(write_res.value());
+
+    src_channel->consume_plain(*write_res);
   }
 
   // want more
@@ -2113,9 +2113,9 @@ ServerFirstAuthenticator::tls_forward() {
   auto server_channel = socket_splicer->server_channel();
 
   bool client_recv_buf_changed =
-      client_last_recv_buf_size_ != client_channel->recv_buffer().size();
+      client_last_recv_buf_size_ != client_channel->recv_plain_view().size();
   bool server_recv_buf_changed =
-      server_last_recv_buf_size_ != server_channel->recv_buffer().size();
+      server_last_recv_buf_size_ != server_channel->recv_plain_view().size();
   bool client_send_buf_changed =
       client_last_send_buf_size_ != client_channel->send_buffer().size();
   bool server_send_buf_changed =
@@ -2124,7 +2124,7 @@ ServerFirstAuthenticator::tls_forward() {
   if (client_recv_buf_changed || server_send_buf_changed) {
     forward_tls(client_channel, server_channel);
 
-    client_last_recv_buf_size_ = client_channel->recv_buffer().size();
+    client_last_recv_buf_size_ = client_channel->recv_plain_view().size();
     server_last_send_buf_size_ = server_channel->send_buffer().size();
 
     if (!server_channel->send_buffer().empty()) {
@@ -2136,7 +2136,7 @@ ServerFirstAuthenticator::tls_forward() {
   } else if (server_recv_buf_changed || client_send_buf_changed) {
     forward_tls(server_channel, client_channel);
 
-    server_last_recv_buf_size_ = server_channel->recv_buffer().size();
+    server_last_recv_buf_size_ = server_channel->recv_plain_view().size();
     client_last_send_buf_size_ = client_channel->send_buffer().size();
 
     if (!client_channel->send_buffer().empty()) {
@@ -2373,7 +2373,7 @@ ServerFirstAuthenticator::final_response() {
   }
 
   // if there is another packet, dump its payload for now.
-  auto &recv_buf = src_channel->recv_plain_buffer();
+  auto &recv_buf = src_channel->recv_plain_view();
 
   // get as much data of the current frame from the recv-buffers to log it.
   (void)ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ class ClassicFrame {
         ClassicFrame::recv_frame_sequence(src_channel, src_protocol);
     if (!read_res) return stdx::make_unexpected(read_res.error());
 
-    auto &recv_buf = src_channel->recv_plain_buffer();
+    auto &recv_buf = src_channel->recv_plain_view();
 
     auto decode_res =
         classic_protocol::decode<classic_protocol::frame::Frame<Msg>>(

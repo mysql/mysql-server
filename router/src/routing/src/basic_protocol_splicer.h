@@ -304,6 +304,13 @@ class ProtocolStateBase {
  */
 class TlsSwitchableConnection {
  public:
+  //    16kb per buffer
+  //     2   buffers per channel (send/recv)
+  //     2   channels per connection
+  // 10000   connections
+  // = 640MByte
+  static constexpr size_t kRecvBufferSize{16UL * 1024};
+
   TlsSwitchableConnection(std::unique_ptr<ConnectionBase> conn,
                           std::unique_ptr<RoutingConnectionBase> routing_conn,
                           SslMode ssl_mode,
@@ -312,7 +319,9 @@ class TlsSwitchableConnection {
         routing_conn_{std::move(routing_conn)},
         ssl_mode_{std::move(ssl_mode)},
         channel_{std::make_unique<Channel>()},
-        protocol_{std::move(state)} {}
+        protocol_{std::move(state)} {
+    channel_->recv_buffer().reserve(kRecvBufferSize);
+  }
 
   TlsSwitchableConnection(std::unique_ptr<ConnectionBase> conn,
                           std::unique_ptr<RoutingConnectionBase> routing_conn,
@@ -322,7 +331,9 @@ class TlsSwitchableConnection {
         routing_conn_{std::move(routing_conn)},
         ssl_mode_{std::move(ssl_mode)},
         channel_{std::move(channel)},
-        protocol_{std::move(state)} {}
+        protocol_{std::move(state)} {
+    channel_->recv_buffer().reserve(kRecvBufferSize);
+  }
 
   [[nodiscard]] std::vector<std::pair<std::string, std::string>>
   initial_connection_attributes() const {
@@ -346,7 +357,16 @@ class TlsSwitchableConnection {
     harness_assert(conn_ != nullptr);
     harness_assert(channel_ != nullptr);
 
-    conn_->async_recv(channel_->recv_buffer(), std::forward<Func>(func));
+    // discard everything that has been marked as 'consumed'
+    channel_->view_discard_raw();
+
+    conn_->async_recv(channel_->recv_buffer(),
+                      [this, func = std::forward<Func>(func)](
+                          std::error_code ec, size_t transferred) {
+                        channel_->view_sync_raw();
+
+                        func(ec, transferred);
+                      });
   }
 
   /**
