@@ -2568,6 +2568,8 @@ class Item_equal final : public Item_bool_func {
   bool compare_as_dates{false};
 
  public:
+  ~Item_equal() override;
+
   Item_equal(Item_field *f1, Item_field *f2);
   Item_equal(Item *c, Item_field *f);
   explicit Item_equal(Item_equal *item_equal);
