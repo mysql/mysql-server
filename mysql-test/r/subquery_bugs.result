@@ -1117,19 +1117,19 @@ GROUP BY table_user.id
 ) AS d
 ) AS users FROM table_city;
 EXPLAIN
--> Index scan on table_city using PRIMARY (rows=6)
+-> Index scan on table_city using PRIMARY  (rows=6)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: group_concat(d.id separator ',') (rows=1)
-        -> Table scan on d (rows=5)
-            -> Materialize (rows=5)
-                -> Table scan on <temporary> (rows=5)
-                    -> Temporary table with deduplication (rows=5)
-                        -> Nested loop inner join (rows=5)
-                            -> Filter: (table_city.id = `<subquery4>`.city) (rows=5)
-                                -> Table scan on <subquery4> (rows=5.25)
-                                    -> Materialize with deduplication (rows=5.25)
-                                        -> Index lookup on table_city_user using city (city=table_city.id) (rows=5.25)
-                            -> Single-row covering index lookup on table_user using PRIMARY (id=`<subquery4>`.`user`) (rows=1)
+    -> Aggregate: group_concat(d.id separator ',')  (rows=1)
+        -> Table scan on d  (rows=5)
+            -> Materialize  (rows=5)
+                -> Table scan on <temporary>  (rows=5)
+                    -> Temporary table with deduplication  (rows=5)
+                        -> Nested loop inner join  (rows=5)
+                            -> Filter: (table_city.id = `<subquery4>`.city)  (rows=5)
+                                -> Table scan on <subquery4>  (rows=5.25)
+                                    -> Materialize with deduplication  (rows=5.25)
+                                        -> Index lookup on table_city_user using city (city=table_city.id)  (rows=5.25)
+                            -> Single-row covering index lookup on table_user using PRIMARY (id=`<subquery4>`.`user`)  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.table_city.id' of SELECT #4 was resolved in SELECT #1

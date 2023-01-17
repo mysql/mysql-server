@@ -1,5 +1,4 @@
 --source include/elide_costs.inc
---source include/elide_costs_and_rows.inc
 # Innodb page size 16k required
 
 # Initialise

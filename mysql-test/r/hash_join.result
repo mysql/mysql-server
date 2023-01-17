@@ -4195,10 +4195,10 @@ INSERT INTO t1 VALUES (1),(2),(3),(4);
 INSERT INTO t2 VALUES (1),(2);
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN vmerge AS v ON t1.f1 = v.f1;
 EXPLAIN
--> Left hash join (no condition), extra conditions: (t1.f1 = 1)  (cost=*** rows=***)
-    -> Table scan on t1  (cost=*** rows=***)
+-> Left hash join (no condition), extra conditions: (t1.f1 = 1)  (...)
+    -> Table scan on t1  (...)
     -> Hash
-        -> Table scan on t2  (cost=*** rows=***)
+        -> Table scan on t2  (...)
 
 DROP TABLE t1,t2;
 DROP VIEW vmerge;

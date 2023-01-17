@@ -2641,7 +2641,7 @@ CREATE VIEW vmerge AS SELECT 1 AS f1, f1 AS b_f1 FROM t2;
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 INSERT INTO t2 VALUES (1),(2);
 
---replace_regex /cost=\d+.\d+(\.\.\d+\.\d+)?/cost=***/  /rows=\d+/rows=***/
+--replace_regex $elide_costs_and_rows
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN vmerge AS v ON t1.f1 = v.f1;
 
 DROP TABLE t1,t2;

@@ -101,10 +101,10 @@ EXPLAIN FORMAT=tree SELECT DISTINCT JSON_ARRAYAGG(char_field), JSON_ARRAYAGG(2) 
 EXPLAIN
 -> Sort: t1.id
     -> Sort with duplicate removal: `JSON_ARRAYAGG(char_field)`, `JSON_ARRAYAGG(2)`
-        -> Stream results
-            -> Group aggregate: json_arrayagg(t1.char_field), json_arrayagg(2)
-                -> Sort: t1.id
-                    -> Table scan on t1
+        -> Stream results  (...)
+            -> Group aggregate: json_arrayagg(t1.char_field), json_arrayagg(2)  (...)
+                -> Sort: t1.id  (...)
+                    -> Table scan on t1  (...)
 
 DROP TABLE t1;
 SET sql_mode=DEFAULT;
@@ -126,17 +126,17 @@ FROM t1 AS SUBQUERY1_t1, (t2 AS SUBQUERY1_t2 STRAIGHT_JOIN t1 ON TRUE)
 )
 ORDER BY t1.f2;
 EXPLAIN
--> Remove duplicate (t1, table2) rows using temporary table (weedout)
-    -> Nested loop left join
-        -> Sort row IDs: t1.f2
-            -> Table scan on t1
-        -> Nested loop inner join
-            -> Nested loop inner join
-                -> Nested loop inner join
-                    -> Constant row from SUBQUERY1_t2  (cost=0.175..0.175 rows=1)
-                    -> Table scan on table2
-                -> Index scan on SUBQUERY1_t1 using PRIMARY
-            -> Index scan on t1 using PRIMARY
+-> Remove duplicate (t1, table2) rows using temporary table (weedout)  (...)
+    -> Nested loop left join  (...)
+        -> Sort row IDs: t1.f2  (...)
+            -> Table scan on t1  (...)
+        -> Nested loop inner join  (...)
+            -> Nested loop inner join  (...)
+                -> Nested loop inner join  (...)
+                    -> Constant row from SUBQUERY1_t2  (...)
+                    -> Table scan on table2  (...)
+                -> Index scan on SUBQUERY1_t1 using PRIMARY  (...)
+            -> Index scan on t1 using PRIMARY  (...)
 
 DROP TABLE t1, t2;
 #

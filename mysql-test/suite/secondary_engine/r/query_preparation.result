@@ -87,7 +87,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM t1;
 EXPLAIN
--> Table scan on t1 in secondary engine MOCK  (cost=X rows=3)
+-> Table scan on t1 in secondary engine MOCK  (rows=3)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
@@ -986,8 +986,8 @@ Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE a IS NULL;
 EXPLAIN
-Found last_insert_id() in the plan.
-    -> Table scan on t in secondary engine MOCK  (cost=X rows=1)
+-> Filter: (t.a = <cache>(last_insert_id()))  (rows=1)
+    -> Table scan on t in secondary engine MOCK  (rows=1)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one

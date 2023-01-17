@@ -1,4 +1,5 @@
 --source include/have_ndb.inc
+--source include/elide_costs.inc
 
 --vertical_results
 --result_format 2
@@ -115,17 +116,17 @@ assert($key == "PRIMARY");
 
 select * from blocks where block_number in (250,251);
 
---replace_regex /cost=[0-9]+\.[0-9]+/cost=#/
+--replace_regex $elide_costs
 explain format=tree select * from blocks where block_number in (250,251);
 
---replace_regex /cost=[0-9]+\.[0-9]+/cost=#/
+--replace_regex $elide_costs
 explain format=tree select * from blocks order by block_number;
 
---replace_regex /cost=[0-9]+\.[0-9]+/cost=#/
+--replace_regex $elide_costs
 explain format=tree select * from blocks where block_number < 250;
 
 ## Can scan backwards:
---replace_regex /cost=[0-9]+\.[0-9]+/cost=#/
+--replace_regex $elide_costs
 explain format=tree select * from blocks where block_number > 250
   order by block_number desc;
 
@@ -152,11 +153,11 @@ select param_name from ndb$config_params where param_number = 1;
 select param_name from ndb$config_params where param_number = 40000;
 
 ## The plan for counters
---replace_regex /cost=[0-9]+\.[0-9]+/cost=#/
+--replace_regex $elide_costs
 explain format=tree select * from counters;
 
 ## The plan for memory_per_fragment
---replace_regex /cost=[0-9]+\.[0-9]+/cost=#/
+--replace_regex $elide_costs
 explain format=tree select * from memory_per_fragment;
 
 ## WL#11968 tables and views
@@ -215,7 +216,7 @@ CREATE VIEW memory_per_fragment AS
 --enable_query_log
 --enable_result_log
 
---replace_regex /cost=[0-9]+\.[0-9]+/cost=#/
+--replace_regex $elide_costs
 explain format=tree select * from memory_per_fragment;
 
 
