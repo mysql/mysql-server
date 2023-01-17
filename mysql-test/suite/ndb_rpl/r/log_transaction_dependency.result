@@ -16,9 +16,6 @@ SET GLOBAL replica_parallel_type = LOGICAL_CLOCK;
 Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL replica_parallel_workers = 3;
-SET GLOBAL replica_parallel_workers = 0;
-Warnings:
-Warning	1287	'0' is deprecated and will be removed in a future release. Please use 1 instead
 SET GLOBAL replica_transaction_retries = 0;
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
 SET @save_binlog_transaction_dependency_history_size = @@GLOBAL.binlog_transaction_dependency_history_size;

@@ -74,7 +74,6 @@ SET @save_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
 
 SET GLOBAL replica_parallel_type = LOGICAL_CLOCK;
 SET GLOBAL replica_parallel_workers = 3;
-SET GLOBAL replica_parallel_workers = 0; # Workaround until WL#14885
 SET GLOBAL replica_transaction_retries = 0;
 
 --connection master
