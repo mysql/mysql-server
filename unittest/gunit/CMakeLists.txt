@@ -197,14 +197,6 @@ SET(TESTS
   varlen_sort
   )
 
-# TODO(tdidriks) fix
-# error: static assertion failed:
-# allocator_traits<A>::rebind_alloc<A::value_type> must be A
-# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=72792
-IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 13)
-  LIST(REMOVE_ITEM TESTS stl_alloc)
-ENDIF()
-
 SET(ALL_SMALL_TESTS)
 FOREACH(test ${TESTS})
   LIST(APPEND ALL_SMALL_TESTS ${test}-t.cc)
