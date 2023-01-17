@@ -6952,6 +6952,11 @@ longlong Item_equal::val_int() {
   return 1;
 }
 
+Item_equal::~Item_equal() {
+  destroy(eval_item);
+  eval_item = nullptr;
+}
+
 bool Item_equal::resolve_type(THD *thd) {
   Item *item;
   // As such item is created during optimization, types of members are known:
