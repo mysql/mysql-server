@@ -51,6 +51,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <time.h>
 
 #include <chrono>
+#include <limits>
 
 #include "btr0sea.h"
 #include "buf0flu.h"
@@ -1580,7 +1581,13 @@ void srv_export_innodb_status(void) {
   export_vars.innodb_data_pending_writes = os_n_pending_writes;
 
   export_vars.innodb_data_pending_fsyncs =
-      log_pending_flushes() + fil_n_pending_tablespace_flushes;
+      log_pending_flushes() + fil_n_pending_tablespace_flushes.load();
+
+  // Check against unsigned underflow in debug - values close to max value
+  // may be result of mismatched increment/decrement or data race; investigate
+  // on failure
+  ut_ad(export_vars.innodb_data_pending_fsyncs <=
+        std::numeric_limits<ulint>::max() - 1000);
 
   export_vars.innodb_data_fsyncs = os_n_fsyncs;
 

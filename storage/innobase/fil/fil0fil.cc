@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /** @file fil/fil0fil.cc
 The tablespace memory cache */
 
+#include <fil0fil.h>
 #include "my_config.h"
 
 #include "detail/fil/open_files_limit.h"
@@ -284,7 +285,7 @@ const char *dot_ext[] = {"",     ".ibd", ".cfg",   ".cfp",
                          ".ibt", ".ibu", ".dblwr", ".bdblwr"};
 
 /** Number of pending tablespace flushes */
-ulint fil_n_pending_tablespace_flushes = 0;
+std::atomic<std::uint64_t> fil_n_pending_tablespace_flushes = 0;
 
 /** Number of files currently open */
 std::atomic_size_t fil_n_files_open{0};
@@ -8059,7 +8060,7 @@ void Fil_shard::space_flush(space_id_t space_id) {
 
       case FIL_TYPE_TABLESPACE:
       case FIL_TYPE_IMPORT:
-        ++fil_n_pending_tablespace_flushes;
+        fil_n_pending_tablespace_flushes.fetch_add(1);
         break;
     }
 
@@ -8119,7 +8120,7 @@ void Fil_shard::space_flush(space_id_t space_id) {
 
       case FIL_TYPE_TABLESPACE:
       case FIL_TYPE_IMPORT:
-        --fil_n_pending_tablespace_flushes;
+        fil_n_pending_tablespace_flushes.fetch_sub(1);
         continue;
     }
 

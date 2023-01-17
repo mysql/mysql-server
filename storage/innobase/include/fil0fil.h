@@ -48,6 +48,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/dd/object_id.h"
 
 #include <atomic>
+#include <cstdint>
 #include <list>
 #include <vector>
 
@@ -1332,7 +1333,7 @@ inline bool fil_page_index_page_check(const byte *page) {
 /** @} */
 
 /** Number of pending tablespace flushes */
-extern ulint fil_n_pending_tablespace_flushes;
+extern std::atomic<std::uint64_t> fil_n_pending_tablespace_flushes;
 
 /** Number of files currently open */
 extern std::atomic_size_t fil_n_files_open;
