@@ -3,7 +3,7 @@
      -Brian Aker
 
   This file was modified by Oracle on 02-08-2016.
-  Modifications Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Modifications Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 */
 
 /* zlib.h -- interface of the 'zlib' general purpose compression library
