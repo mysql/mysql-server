@@ -7793,9 +7793,9 @@ void os_aio_print(FILE *file) {
   fprintf(file,
           "Pending flushes (fsync) log: " UINT64PF
           "; "
-          "buffer pool: " ULINTPF "\n" ULINTPF " OS file reads, " ULINTPF
+          "buffer pool: " UINT64PF "\n" ULINTPF " OS file reads, " ULINTPF
           " OS file writes, " ULINTPF " OS fsyncs\n",
-          n_log_pending_flushes, fil_n_pending_tablespace_flushes,
+          n_log_pending_flushes, fil_n_pending_tablespace_flushes.load(),
           os_n_file_reads, os_n_file_writes, os_n_fsyncs);
 
   auto pending_writes = os_n_pending_writes.load();
