@@ -3,7 +3,7 @@
  * It was generated using rpcgen.
  */
 #include "xcom_vp.h"
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -699,7 +699,7 @@ xdr_pax_msg_1_0 (XDR *xdrs, pax_msg *objp)
  * It was generated using rpcgen.
  */
 #include "xcom_vp.h"
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -1393,7 +1393,7 @@ xdr_pax_msg_1_1 (XDR *xdrs, pax_msg *objp)
  * It was generated using rpcgen.
  */
 #include "xcom_vp.h"
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -2086,7 +2086,7 @@ xdr_pax_msg_1_2 (XDR *xdrs, pax_msg *objp)
  * It was generated using rpcgen.
  */
 #include "xcom_vp.h"
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -2774,7 +2774,7 @@ xdr_pax_msg_1_3 (XDR *xdrs, pax_msg *objp)
  * It was generated using rpcgen.
  */
 #include "xcom_vp.h"
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -3465,7 +3465,7 @@ xdr_pax_msg_1_4 (XDR *xdrs, pax_msg *objp)
  * It was generated using rpcgen.
  */
 #include "xcom_vp.h"
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -4156,7 +4156,7 @@ xdr_pax_msg_1_5 (XDR *xdrs, pax_msg *objp)
  * It was generated using rpcgen.
  */
 #include "xcom_vp.h"
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -4845,7 +4845,7 @@ xdr_pax_msg_1_6 (XDR *xdrs, pax_msg *objp)
  * It was generated using rpcgen.
  */
 #include "xcom_vp.h"
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -5529,7 +5529,7 @@ xdr_pax_msg_1_7 (XDR *xdrs, pax_msg *objp)
  * It was generated using rpcgen.
  */
 #include "xcom_vp.h"
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -6213,7 +6213,7 @@ xdr_pax_msg_1_8 (XDR *xdrs, pax_msg *objp)
  * It was generated using rpcgen.
  */
 #include "xcom_vp.h"
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -6886,7 +6886,7 @@ xdr_pax_msg_1_9 (XDR *xdrs, pax_msg *objp)
  * It was generated using rpcgen.
  */
 #include "xcom_vp.h"
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.

@@ -7,7 +7,7 @@
     ${CMAKE_SOURCE_DIR}/strings/ctype-extra.cc
 */
 
-/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
