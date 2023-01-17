@@ -40,12 +40,14 @@
 class Thd_ndb;
 class NdbRecord;
 class Ndb_apply_status_table;
+class Relay_log_info;
 
 /*
    Contains functionality that extends Thd_ndb for replication applier
 */
 class Ndb_applier {
   Thd_ndb *const m_thd_ndb;
+  Relay_log_info *const m_rli;
   const std::string m_channel_name;
   std::unique_ptr<Ndb_apply_status_table> m_apply_status;
   Ndb_replica::ChannelPtr m_channel;
@@ -243,9 +245,9 @@ class Ndb_applier {
 
   // Extract current log positions of the channel
   struct Positions {
-    const char *log_name;
-    ulonglong start_pos;  // Group start position
-    ulonglong end_pos;    // Group end position
+    const char *log_name;  // Source log name
+    ulonglong start_pos;   // Group start position
+    ulonglong end_pos;     // Group end position
   };
   Positions get_log_positions() const;
 

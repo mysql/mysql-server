@@ -4272,7 +4272,7 @@ class View_change_log_event : public binary_log::View_change_event,
   rpl_gno get_seq_number() { return seq_number; }
 };
 
-inline bool is_gtid_event(Log_event *evt) {
+inline bool is_gtid_event(const Log_event *evt) {
   return (evt->get_type_code() == binary_log::GTID_LOG_EVENT ||
           evt->get_type_code() == binary_log::ANONYMOUS_GTID_LOG_EVENT);
 }

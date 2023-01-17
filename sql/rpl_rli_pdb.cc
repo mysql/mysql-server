@@ -2430,6 +2430,8 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
   }
 #endif
 
+  worker->set_group_master_log_name(rli->get_group_master_log_name());
+
   while (true) {
     Slave_job_group *ptr_g;
 
@@ -2469,6 +2471,8 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
       if (unlikely(error)) goto err;
       ptr_g->new_fd_event = nullptr;
     }
+
+    worker->set_group_source_log_start_end_pos(ev);
 
     error = worker->slave_worker_exec_event(ev);
 
