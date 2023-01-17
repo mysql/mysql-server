@@ -2138,15 +2138,6 @@ longlong Item_func_truth::val_int() {
 bool Item_in_optimizer::fix_left(THD *thd, Item **) {
   Item *left = down_cast<Item_in_subselect *>(args[0])->left_expr;
   /*
-    Eliminate Item_view_ref objects, but keep Item_ref since the latter may
-    be needed for slice handling. Elimination is needed to avoid a bad
-   reference count if subquery predicate is eliminated.
-  */
-  while (left->type() == REF_ITEM &&
-         down_cast<Item_ref *>(left)->ref_type() == Item_ref::VIEW_REF) {
-    left = down_cast<Item_ref *>(left)->ref_item();
-  }
-  /*
     Because get_cache() depends on type of left arg, if this arg is a PS param
     we must decide of its type now. We cannot wait until we know the type of
     the subquery's SELECT list.
@@ -2160,13 +2151,23 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **) {
 
   cache->setup(left);
   used_tables_cache = left->used_tables();
+
+  /*
+    Propagate used tables information to the cache objects.
+    Since the cache objects will be used in synthesized predicates that are
+    added to the subquery's query expression, we need to add extra references
+    to them, since on removal these will be decremented twice.
+  */
   if (cache->cols() == 1) {
+    left->real_item()->increment_ref_count();
     cache->set_used_tables(used_tables_cache);
   } else {
     uint n = cache->cols();
     for (uint i = 0; i < n; i++) {
-      ((Item_cache *)cache->element_index(i))
-          ->set_used_tables(left->element_index(i)->used_tables());
+      Item_cache *const element =
+          down_cast<Item_cache *>(cache->element_index(i));
+      element->set_used_tables(left->element_index(i)->used_tables());
+      element->real_item()->increment_ref_count();
     }
   }
   not_null_tables_cache = left->not_null_tables();
