@@ -5,7 +5,7 @@
 # Input:  $query - a variable containing the SQL command to be analyzed
 # Output: stdout only
 #
---source include/elide_costs_and_rows.inc
+--source include/elide_costs.inc
 
 #
 # Communicating with Perl subroutine in query_expression_record_elapsed.inc

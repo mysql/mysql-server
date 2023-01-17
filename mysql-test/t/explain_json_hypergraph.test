@@ -4,6 +4,7 @@
 #
 
 --source include/have_hypergraph.inc
+--source include/elide_costs.inc
 
 --echo #
 --echo # Table scan, subquery, aggregates
@@ -136,7 +137,7 @@ CREATE TABLE t2 (a INT NOT NULL,b CHAR(3) NOT NULL,PRIMARY KEY (a, b));
 INSERT INTO t2 VALUES (1,'a'),(1,'b'),(3,'F');
 ANALYZE TABLE t1, t2;
 # Mask out all actual times
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 EXPLAIN analyze FORMAT=TREE SELECT t1.a, GROUP_CONCAT(t2.b) AS b FROM t1 LEFT JOIN t2 ON t1.a=t2.a GROUP BY t1.a ORDER BY t1.b;
 EXPLAIN FORMAT=JSON SELECT t1.a, GROUP_CONCAT(t2.b) AS b FROM t1 LEFT JOIN t2 ON t1.a=t2.a GROUP BY t1.a ORDER BY t1.b;
 drop table t1;
