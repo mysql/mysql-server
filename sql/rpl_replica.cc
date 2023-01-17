@@ -4530,6 +4530,9 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
     if (sql_delay_event(ev, thd, rli))
       return SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK;
 
+    // Setting positions for STA. Worker positions are set on
+    // slave_worker_exec_job_group
+    rli->set_group_source_log_start_end_pos(ev);
     exec_res = ev->apply_event(rli);
 
     DBUG_EXECUTE_IF("simulate_stop_when_mta_in_group",

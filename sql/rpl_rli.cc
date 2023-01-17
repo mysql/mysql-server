@@ -136,6 +136,9 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       group_relay_log_pos(0),
       event_relay_log_number(0),
       event_relay_log_pos(0),
+      group_source_log_seen_start_pos(false),
+      group_source_log_start_pos(0),
+      group_source_log_end_pos(0),
       event_start_pos(0),
       group_master_log_pos(0),
       gtid_set(nullptr),
@@ -2907,6 +2910,32 @@ void Relay_log_info::post_commit(bool on_rollback) {
              !static_cast<Query_log_event *>(current_event)->has_ddl_committed);
     }
   }
+}
+
+void Relay_log_info::set_group_source_log_start_end_pos(const Log_event *ev) {
+  DBUG_TRACE;
+  if (!group_source_log_seen_start_pos &&
+      (ev->starts_group() || is_gtid_event(ev))) {
+    group_source_log_seen_start_pos = true;
+    group_source_log_start_pos =
+        ev->common_header->log_pos - ev->common_header->data_written;
+    DBUG_PRINT("exit",
+               ("group_source_log_start_pos: %d %zu %llu", ev->get_type_code(),
+                ev->common_header->data_written, group_source_log_start_pos));
+  }
+
+  if (ev->ends_group() || (ev->get_type_code() == binary_log::QUERY_EVENT)) {
+    group_source_log_seen_start_pos = false;
+    group_source_log_end_pos = ev->common_header->log_pos;
+    DBUG_PRINT("exit",
+               ("group_source_log_end_pos: %d %zu %llu", ev->get_type_code(),
+                ev->common_header->data_written, group_source_log_end_pos));
+  }
+}
+
+std::tuple<ulonglong, ulonglong>
+Relay_log_info::get_group_source_log_start_end_pos() const {
+  return std::make_tuple(group_source_log_start_pos, group_source_log_end_pos);
 }
 
 void Relay_log_info::notify_relay_log_truncated() {

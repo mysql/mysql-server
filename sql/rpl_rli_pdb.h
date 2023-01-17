@@ -957,7 +957,7 @@ TABLE *mts_move_temp_tables_to_thd(THD *, TABLE *, enum_mts_parallel_type);
 bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *w,
                          Relay_log_info *rli);
 
-inline Slave_worker *get_thd_worker(THD *thd) {
+inline Slave_worker *get_thd_worker(const THD *thd) {
   return static_cast<Slave_worker *>(thd->rli_slave);
 }
 

@@ -44,6 +44,7 @@ Ndb_applier::Ndb_applier(Thd_ndb *thd_ndb, std::string channel_name,
                          Uint32 num_workers,
                          std::vector<Uint32> written_server_ids)
     : m_thd_ndb(thd_ndb),
+      m_rli(thd_ndb->get_thd()->rli_slave),
       m_channel_name(channel_name),
       m_channel(channel),
       m_applier_id(channel->get_next_applier_id()),
@@ -394,30 +395,15 @@ bool Ndb_applier::verify_next_epoch(Uint64 next_epoch) const {
 
 Ndb_applier::Positions Ndb_applier::get_log_positions() const {
   DBUG_TRACE;
-  channel_map.rdlock();
-  const Master_info *channel_mi = channel_map.get_mi(m_channel_name.c_str());
-  channel_map.unlock();
 
-  Relay_log_info *const rli = channel_mi->rli;
-  mysql_mutex_lock(&rli->data_lock);
-  const char *log_name = rli->get_group_master_log_name();
-  const ulonglong start_pos = rli->get_group_master_log_pos();
-  const ulonglong end_pos = start_pos + (rli->get_future_event_relay_log_pos() -
-                                         rli->get_group_relay_log_pos());
-  mysql_mutex_unlock(&rli->data_lock);
+  mysql_mutex_lock(&m_rli->data_lock);
+  const char *log_name = m_rli->get_group_master_log_name();
+  const auto [start_pos, end_pos] = m_rli->get_group_source_log_start_end_pos();
+  mysql_mutex_unlock(&m_rli->data_lock);
 
   DBUG_PRINT("exit", ("log_name: '%s'", log_name));
   DBUG_PRINT("exit", ("start_pos: %llu", start_pos));
   DBUG_PRINT("exit", ("end_pos: %llu", end_pos));
-
-  const THD *const thd = m_thd_ndb->get_thd();
-  Relay_log_info *const rli_worker = thd->rli_slave;
-  if (rli_worker != rli) {
-    assert(is_mts_worker(thd));
-    // Bug#34806344 Current group positions different in worker
-    // In the worker it's currently not possible to reliably extract the
-    // current groups start_pos and end_pos.
-  }
 
   return {log_name, start_pos, end_pos};
 }

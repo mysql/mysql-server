@@ -28,15 +28,6 @@ let $binlog_end = `SELECT end_pos FROM mysql.ndb_apply_status
                     WHERE server_id = $master_server_id`;
 #echo binlog_end: $binlog_end;
 
-# Bug#34806344 Current group positions different in worker
-# The groups start and end_pos are not always current, force skip checks
-# by assigning the expected values from source
-if (`SELECT @@GLOBAL.replica_parallel_workers != 0`) {
-  let $binlog_start = $source_start_pos;
-  let $binlog_end = $source_end_pos;
-}
-
-
 if ($binlog_file != $source_file) {
   echo Detected mismatching file;
   echo master_server_id: $master_server_id;
