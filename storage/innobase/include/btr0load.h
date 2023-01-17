@@ -572,6 +572,10 @@ class Btree_load : private ut::Non_copyable {
   @return DB_SUCCESS on success or an error code on failure. */
   dberr_t init();
 
+  /** Check if the index build operation has been interrupted.
+  @return true if the index build operation is interrupted, false otherwise.*/
+  bool is_interrupted() const;
+
   /** Get the index object.
   @return index object. */
   dict_index_t *index() const { return m_index; }

@@ -375,6 +375,11 @@ dberr_t Page_extent::flush() {
   dberr_t err{DB_SUCCESS};
   const page_no_t n_pages = m_page_loads.size();
 
+  /* No need to flush any pages if index build has been interrupted. */
+  if (m_btree_load->is_interrupted()) {
+    return err;
+  }
+
   if (n_pages == 0) {
     /* Nothing to do. */
     return err;
@@ -389,16 +394,10 @@ dberr_t Page_extent::flush() {
   std::sort(m_page_loads.begin(), m_page_loads.end(), Page_load_compare());
 
 #ifdef UNIV_DEBUG
-  bool in_order = true;
   for (size_t i = m_range.first, j = 0;
        i < m_range.second && j < m_page_loads.size(); ++i, ++j) {
-    if (in_order) {
-      if (i != m_page_loads[j]->get_page_no()) {
-        in_order = false;
-      }
-    }
+    ut_ad(i == m_page_loads[j]->get_page_no());
   }
-  ut_ad(in_order);
 #endif /* UNIV_DEBUG */
 
   for (auto &page_load : m_page_loads) {
@@ -3512,4 +3511,8 @@ dberr_t Btree_load::Merger::root_page_commit(Page_load *root_load) {
     }
   }
   return err;
+}
+
+bool Btree_load::is_interrupted() const {
+  return (m_trx != nullptr && trx_is_interrupted(m_trx));
 }
