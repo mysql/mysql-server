@@ -26,8 +26,8 @@
 #include <sys/types.h>
 #include <new>
 
-#include "m_ctype.h"  // my_strcasecmp
 #include "my_sharedlib.h"
+#include "mysql/strings/m_ctype.h"                 // my_strcasecmp
 #include "sql/dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
 #include "sql/dd/impl/types/weak_object_impl.h"
 #include "sql/dd/object_id.h"
@@ -35,6 +35,7 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/foreign_key.h"          // dd::Foreign_key
 #include "sql/dd/types/foreign_key_element.h"  // IWYU pragma: keep
+#include "sql/mysqld_cs.h"
 
 namespace dd {
 

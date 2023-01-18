@@ -28,6 +28,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 
+#include "m_string.h"
 #include "my_config.h"  // NOLINT(build/include_subdir)
 #include "my_io.h"      // NOLINT(build/include_subdir)
 

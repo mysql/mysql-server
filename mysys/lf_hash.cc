@@ -41,7 +41,6 @@
 #include <atomic>
 
 #include "lf.h"
-#include "m_ctype.h"
 #include "my_atomic.h"
 #include "my_bit.h"
 #include "my_compiler.h"
@@ -49,6 +48,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysys/mysys_priv.h"
 #include "template_utils.h"
 

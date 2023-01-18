@@ -27,12 +27,16 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "m_ctype.h"
+#include "m_string.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/strings/m_ctype.h"
+#include "nulls.h"
+#include "string_with_len.h"
+#include "strxnmov.h"
 #include "thr_mutex.h"
 
 /** Event strings. */

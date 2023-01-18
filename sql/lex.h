@@ -25,8 +25,8 @@
 
 /* This file includes all reserved words and functions */
 
-#include "m_string.h"
 #include "sql/lex_symbol.h"
+#include "string_with_len.h"
 
 /* We don't want to include sql_yacc.h into gen_lex_hash */
 #ifdef NO_YACC_SYMBOLS

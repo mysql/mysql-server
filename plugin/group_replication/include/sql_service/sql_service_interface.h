@@ -28,6 +28,8 @@
 #define MAX_NUMBER_RETRIES 100
 #define SESSION_WAIT_TIMEOUT 2
 
+struct CHARSET_INFO;
+
 class Sql_service_interface {
  private:
   /** Pointer to Srv_session class */

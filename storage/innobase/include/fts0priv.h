@@ -40,6 +40,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "que0types.h"
 #include "univ.i"
 
+struct CHARSET_INFO;
+
 /* The various states of the FTS sub system pertaining to a table with
 FTS indexes defined on it. */
 enum fts_table_state_enum {

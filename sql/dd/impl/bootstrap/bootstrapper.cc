@@ -31,11 +31,11 @@
 #include <utility>
 #include <vector>
 
-#include "m_ctype.h"
 #include "my_dbug.h"
-#include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/my_loglevel.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_version.h"  // MYSQL_VERSION_ID
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"

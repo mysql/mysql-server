@@ -42,6 +42,7 @@
 #include "consumer_printer.hpp"
 #include "consumer_restore.hpp"
 #include "my_alloc.h"
+#include "nulls.h"
 
 #include <NdbThread.h>
 

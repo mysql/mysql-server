@@ -24,8 +24,8 @@
 
 #include <new>
 
-#include "m_ctype.h"
 #include "m_string.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "sql/dd/impl/raw/object_keys.h"       // dd::Global_name_key
 #include "sql/dd/impl/raw/raw_record.h"        // dd::Raw_record

@@ -53,6 +53,8 @@
 #include "sql/table.h"    // Table_ref
 #include "thr_lock.h"
 
+struct CHARSET_INFO;
+
 namespace dd {
 namespace sdi {
 Import_target::Import_target(String_type &&path, bool in_datadir)

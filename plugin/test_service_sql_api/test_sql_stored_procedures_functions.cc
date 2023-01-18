@@ -41,6 +41,8 @@
 #include "sql_string.h" /* STRING_PSI_MEMORY_KEY */
 #include "template_utils.h"
 
+struct CHARSET_INFO;
+
 static const char *log_filename = "test_sql_stored_procedures_functions";
 
 struct st_test_statement {

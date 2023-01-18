@@ -32,7 +32,6 @@
 
 #include "keycache.h"
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -43,6 +42,7 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/strings/m_ctype.h"
 #include "prealloced_array.h"
 #include "sql/events.h"
 #include "sql/field.h"

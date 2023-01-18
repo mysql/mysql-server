@@ -32,11 +32,11 @@
 #include <cstddef>
 
 #include "field_types.h"  // MYSQL_TYPE_DATETIME
-#include "m_ctype.h"
 
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "my_time.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
 #include "sql/enum_query_type.h"

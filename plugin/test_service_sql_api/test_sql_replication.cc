@@ -40,6 +40,8 @@
 #include "mysql_com.h"
 #include "template_utils.h"
 
+struct CHARSET_INFO;
+
 static const char *log_filename = "test_sql_replication";
 
 struct st_test_statement {

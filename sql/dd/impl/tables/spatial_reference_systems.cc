@@ -25,7 +25,7 @@
 #include <string.h>
 #include <new>
 
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/dd/impl/raw/object_keys.h"  // Parent_id_range_key
 #include "sql/dd/impl/raw/raw_record.h"
 #include "sql/dd/impl/tables/dd_properties.h"  // TARGET_DD_VERSION

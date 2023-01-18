@@ -28,6 +28,7 @@
 #include <limits>
 
 #include "m_string.h"
+#include "mysql/strings/int2str.h"
 #include "unittest/gunit/benchmark.h"
 
 namespace m_string_unittest {

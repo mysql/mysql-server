@@ -28,11 +28,10 @@
 #include <cstring>
 
 #include "lex_string.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_alloc.h"
 
 #include "my_sqlcommand.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"
 #include "sql/item_subselect.h"
@@ -46,6 +45,7 @@
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
+#include "string_with_len.h"
 
 extern struct st_opt_hint_info opt_hint_info[];
 

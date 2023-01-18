@@ -28,7 +28,6 @@
 #include <functional>
 
 #include "lf.h"
-#include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_murmur3.h"
@@ -48,6 +47,7 @@
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/psi_mdl.h"
 #include "mysql/service_thd_wait.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "sql/debug_sync.h"

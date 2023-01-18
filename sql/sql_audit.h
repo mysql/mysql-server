@@ -26,7 +26,6 @@
 #include <string.h>
 
 #include "lex_string.h"
-#include "m_string.h"
 #include "my_command.h"
 #include "mysql/plugin_audit.h"
 #include "sql/error_handler.h"

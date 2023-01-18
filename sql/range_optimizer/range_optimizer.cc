@@ -96,13 +96,13 @@
 #include <set>
 
 #include "field_types.h"  // enum_field_types
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "scope_guard.h"
@@ -1442,8 +1442,8 @@ void print_key_value(String *out, const KEY_PART_INFO *key_part,
       field->charset() == &my_charset_bin) {
     out->append("0x");
     for (uint i = 0; i < store_length; i++) {
-      out->append(_dig_vec_lower[*(key + i) >> 4]);
-      out->append(_dig_vec_lower[*(key + i) & 0x0F]);
+      out->append(dig_vec_lower[*(key + i) >> 4]);
+      out->append(dig_vec_lower[*(key + i) & 0x0F]);
     }
     return;
   }

@@ -29,10 +29,10 @@
 #include <sys/types.h>
 #include <algorithm>
 
-#include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/mysqld.h"
 #include "sql/psi_memory_key.h"
 #include "sql_string.h"

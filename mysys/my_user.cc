@@ -28,6 +28,7 @@
 #include "my_user.h"
 #include "m_string.h"
 #include "my_hostname.h"  // HOSTNAME_LENGTH
+#include "my_inttypes.h"  // uint
 #include "mysql_com.h"    // USERNAME_LENGTH
 
 /*

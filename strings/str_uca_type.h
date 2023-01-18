@@ -25,9 +25,10 @@
 #ifndef STR_UCA_TYPE_H
 #define STR_UCA_TYPE_H
 
+#include <cstdint>
 #include <vector>
 
-#include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
 
 /*
   So far we have only Croatian collation needs to reorder Latin and
@@ -47,8 +48,8 @@ enum enum_char_grp {
 };
 
 struct Weight_boundary {
-  uint16 begin;
-  uint16 end;
+  uint16_t begin;
+  uint16_t end;
 };
 
 struct Reorder_wt_rec {
@@ -60,7 +61,7 @@ struct Reorder_param {
   enum enum_char_grp reorder_grp[UCA_MAX_CHAR_GRP];
   struct Reorder_wt_rec wt_rec[2 * UCA_MAX_CHAR_GRP];
   int wt_rec_num;
-  uint16 max_weight;
+  uint16_t max_weight;
 };
 
 enum enum_case_first { CASE_FIRST_OFF, CASE_FIRST_UPPER, CASE_FIRST_LOWER };
@@ -111,7 +112,7 @@ struct MY_CONTRACTION {
   std::vector<MY_CONTRACTION> child_nodes_context;
 
   // weight and with_context are only useful when is_contraction_tail is true.
-  uint16 weight[MY_UCA_MAX_WEIGHT_SIZE]; /* Its weight string, 0-terminated */
+  uint16_t weight[MY_UCA_MAX_WEIGHT_SIZE]; /* Its weight string, 0-terminated */
   bool is_contraction_tail;
   size_t contraction_len;
 };
@@ -121,8 +122,8 @@ struct MY_UCA_INFO {
 
   // Collation weights.
   my_wc_t maxchar;
-  uchar *lengths;
-  uint16 **weights;
+  uint8_t *lengths;
+  uint16_t **weights;
   bool have_contractions;
   std::vector<MY_CONTRACTION> *contraction_nodes;
   /*
@@ -165,9 +166,9 @@ struct MY_UCA_INFO {
     been occupied to do reordering. There might be weight conflict if we still
     use 0x54A4. Please also see the comment on modify_all_zh_pages().
    */
-  uint16 extra_ce_pri_base;  // Primary weight of extra CE
-  uint16 extra_ce_sec_base;  // Secondary weight of extra CE
-  uint16 extra_ce_ter_base;  // Tertiary weight of extra CE
+  uint16_t extra_ce_pri_base;  // Primary weight of extra CE
+  uint16_t extra_ce_sec_base;  // Secondary weight of extra CE
+  uint16_t extra_ce_ter_base;  // Tertiary weight of extra CE
 };
 
 #define MY_UCA_CNT_FLAG_SIZE 4096
@@ -244,6 +245,6 @@ inline bool my_uca_can_be_contraction_tail(const char *flags, my_wc_t wc) {
   return flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_TAIL;
 }
 
-const uint16 *my_uca_contraction2_weight(
+const uint16_t *my_uca_contraction2_weight(
     const std::vector<MY_CONTRACTION> *cont_nodes, my_wc_t wc1, my_wc_t wc2);
 #endif

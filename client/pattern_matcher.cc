@@ -27,6 +27,8 @@
 #include "my_dbug.h"
 #include "my_sys.h"
 
+struct CHARSET_INFO;
+
 /**
   @brief Parses concatenated patterns and adds them to internal pattern list
 

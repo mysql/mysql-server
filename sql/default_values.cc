@@ -34,6 +34,7 @@
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
+#include "mysql/strings/dtoa.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/create_field.h"
@@ -44,11 +45,10 @@
 #include "sql/dd_table_share.h"   // dd_get_old_field_type
 #include "sql/field.h"            // calc_pack_length
 #include "sql/gis/srid.h"
-#include "sql/handler.h"     // handler
-#include "sql/item.h"        // Item
-#include "sql/my_decimal.h"  // DECIMAL_MAX_SCALE
-#include "sql/sql_class.h"   // THD
-#include "sql/sql_list.h"    // List
+#include "sql/handler.h"    // handler
+#include "sql/item.h"       // Item
+#include "sql/sql_class.h"  // THD
+#include "sql/sql_list.h"   // List
 #include "sql/table.h"
 
 /**

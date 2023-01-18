@@ -21,9 +21,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/udf/udf_single_primary.h"
+#include "m_string.h"
 #include "plugin/group_replication/include/group_actions/primary_election_action.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/udf/udf_utils.h"
+#include "string_with_len.h"
 
 static char *group_replication_set_as_primary(UDF_INIT *, UDF_ARGS *args,
                                               char *result,

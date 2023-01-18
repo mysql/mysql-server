@@ -30,22 +30,20 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/lex_symbol.h"
 #include "sql/lexer_yystype.h"
 #include "sql/sql_class.h"
 #include "sql/sql_digest_stream.h"
 #include "sql/sql_lex_hash.h"
-#include "sql_chars.h"
+#include "strings/sql_chars.h"
 
 #include "sql/sql_hints.yy.h"
 
 class PT_hint_list;
 union YYSTYPE;
-
-void hint_lex_init_maps(CHARSET_INFO *cs, hint_lex_char_classes *hint_map);
 
 /// Lexical scanner for hint comments.
 ///

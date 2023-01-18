@@ -26,22 +26,22 @@
 #include <boost/graph/properties.hpp>
 #include <new>
 
-#include "m_ctype.h"
 #include "m_string.h"  // LEX_CSTRING
 #include "mutex_lock.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/plugin_auth.h"  // st_mysql_auth
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
@@ -81,6 +81,8 @@
 #include "sql/tztime.h"  // Time_zone
 #include "sql/xa.h"
 #include "sql_string.h"
+#include "str2int.h"
+#include "string_with_len.h"
 #include "thr_lock.h"
 #include "thr_mutex.h"
 

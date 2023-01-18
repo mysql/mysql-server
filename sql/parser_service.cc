@@ -26,7 +26,6 @@
 #include <new>
 
 #include "lex_string.h"
-#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
@@ -56,6 +55,7 @@
 #include "sql/system_variables.h"
 #include "sql/transaction.h"  // trans_commit_stmt
 #include "sql_string.h"
+#include "string_with_len.h"
 #include "template_utils.h"
 
 /**

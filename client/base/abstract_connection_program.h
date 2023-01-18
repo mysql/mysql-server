@@ -34,6 +34,8 @@
 #include "client/base/mysql_connection_options.h"
 #include "client/client_priv.h"
 
+struct CHARSET_INFO;
+
 namespace Mysql {
 namespace Tools {
 namespace Base {

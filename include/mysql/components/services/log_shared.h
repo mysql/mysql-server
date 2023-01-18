@@ -27,7 +27,7 @@
 
 #include "my_basename.h"
 #include "my_inttypes.h"
-#include "my_loglevel.h"
+#include "mysql/my_loglevel.h"
 
 /** fallback: includer may not have set this to something sensible. */
 #ifndef LOG_SUBSYSTEM_TAG

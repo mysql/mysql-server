@@ -26,6 +26,8 @@
 #include "sql/dd/impl/tables/dd_properties.h"  // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_impl.h"
 
+struct CHARSET_INFO;
+
 namespace dd {
 
 namespace tables {

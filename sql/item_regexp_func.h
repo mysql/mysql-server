@@ -66,6 +66,7 @@
 
 // assert
 #include "my_inttypes.h"  // MY_INT32_NUM_DECIMAL_DIGITS
+#include "mysql/strings/m_ctype.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_strfunc.h"
 #include "sql/mysqld.h"  // make_unique_destroy_only

@@ -35,6 +35,7 @@
 #include "my_systime.h"  // my_sleep()
 #include "pfs_thread_provider.h"
 #include "storage/perfschema/pfs_server.h"
+#include "template_utils.h"
 
 int pfs_get_thread_system_attrs_by_id_vc(PSI_thread *thread,
                                          ulonglong thread_id,

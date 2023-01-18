@@ -25,10 +25,11 @@
 #include "plugin/x/client/xrow_impl.h"
 
 #include <cassert>
+#include <cstdint>
 #include <utility>
 
-#include "m_string.h"
 #include "my_compiler.h"
+#include "mysql/strings/dtoa.h"
 
 namespace xcl {
 namespace details {
@@ -108,7 +109,7 @@ XRow_impl::XRow_impl(Metadata *metadata, Context *context)
     : m_metadata(metadata), m_context(context) {}
 
 int32_t XRow_impl::get_number_of_fields() const {
-  return static_cast<int32>(m_row->field_size());
+  return static_cast<int32_t>(m_row->field_size());
 }
 
 bool XRow_impl::is_null(const int32_t field_index) const {

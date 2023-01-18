@@ -29,7 +29,6 @@
 #include <utility>
 #include <vector>
 
-#include "m_ctype.h"
 #include "mf_wcomp.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -37,6 +36,7 @@
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
@@ -47,6 +47,8 @@
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 #include "sql/table.h"
+#include "string_with_len.h"
+#include "strmake.h"
 
 extern bool initialized;
 

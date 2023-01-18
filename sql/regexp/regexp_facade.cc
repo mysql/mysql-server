@@ -33,6 +33,8 @@
 #include "sql_string.h"
 #include "template_utils.h"
 
+struct CHARSET_INFO;
+
 namespace regexp {
 
 /**

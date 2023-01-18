@@ -28,7 +28,7 @@
 #include <string>
 #include <vector>
 
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/field.h"
 #include "sql/iterators/row_iterator.h"
 #include "sql/sql_class.h"

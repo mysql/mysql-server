@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <set>
 #include <sstream>
 #include "my_sys.h"
+#include "mysql/mysql_lex_string.h"
 #include "required_services.h"
 
 class FileLogger {

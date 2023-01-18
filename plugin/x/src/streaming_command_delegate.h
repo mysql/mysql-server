@@ -38,6 +38,8 @@
 #include "plugin/x/src/ngs/protocol/metadata_builder.h"
 #include "plugin/x/src/notices.h"
 
+struct CHARSET_INFO;
+
 namespace xpl {
 
 class Streaming_command_delegate : public ngs::Command_delegate {

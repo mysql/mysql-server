@@ -30,9 +30,11 @@
 #define SQL_BITMAP_INCLUDED
 
 #include <assert.h>
-#include "m_string.h"      // longlong2str
-#include "my_bitmap.h"     // MY_BITMAP
-#include "my_byteorder.h"  // int8store
+
+#include "dig_vec.h"
+#include "my_bitmap.h"              // MY_BITMAP
+#include "my_byteorder.h"           // int8store
+#include "mysql/strings/int2str.h"  // longlong2str
 
 #include "template_utils.h"
 
@@ -109,14 +111,19 @@ class Bitmap {
   bool operator!=(const Bitmap &map2) const { return !(*this == map2); }
   char *print(char *buf) const {
     char *s = buf;
-    const uchar *e = pointer_cast<const uchar *>(&buffer[0]),
-                *b = e + sizeof(buffer) - 1;
-    while (!*b && b > e) b--;
-    if ((*s = _dig_vec_upper[*b >> 4]) != '0') s++;
-    *s++ = _dig_vec_upper[*b & 15];
+    const uchar *e = pointer_cast<const uchar *>(&buffer[0]);
+    const uchar *b = e + sizeof(buffer) - 1;
+    while (*b == 0 && b > e) {
+      b--;
+    }
+    *s = dig_vec_upper[*b >> 4];
+    if (*s != '0') {
+      s++;
+    }
+    *s++ = dig_vec_upper[*b & 15];
     while (--b >= e) {
-      *s++ = _dig_vec_upper[*b >> 4];
-      *s++ = _dig_vec_upper[*b & 15];
+      *s++ = dig_vec_upper[*b >> 4];
+      *s++ = dig_vec_upper[*b & 15];
     }
     *s = 0;
     return buf;

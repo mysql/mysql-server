@@ -31,14 +31,13 @@
 #include <sys/types.h>
 #include <string>
 
-#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_thread.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql_com.h"
@@ -65,6 +64,7 @@
 #include "sql/system_variables.h"
 #include "sql/thd_raii.h"
 #include "sql/transaction_info.h"
+#include "string_with_len.h"
 
 namespace bootstrap {
 

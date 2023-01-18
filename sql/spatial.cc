@@ -32,13 +32,13 @@
 #include <type_traits>
 #include <utility>
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_byteorder.h"
 
 #include "my_macros.h"
 #include "my_sys.h"
 #include "myisampack.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "sql/check_stack.h"  // check_stack_overrun
@@ -47,8 +47,9 @@
 #include "sql/gis_bg_traits.h"  // IWYU pragma: keep
 #include "sql/gstream.h"        // Gis_read_stream
 #include "sql/psi_memory_key.h"
-#include "sql/sql_const.h"   // STACK_MIN_SIZE
-#include "sql_string.h"      // String
+#include "sql/sql_const.h"  // STACK_MIN_SIZE
+#include "sql_string.h"     // String
+#include "string_with_len.h"
 #include "template_utils.h"  // pointer_cast
 #include "unsafe_string_append.h"
 

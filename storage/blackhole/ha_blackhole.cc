@@ -24,6 +24,7 @@
 #include "storage/blackhole/ha_blackhole.h"
 
 #include "ft_global.h"
+#include "m_string.h"
 #include "map_helpers.h"
 #include "my_alloc.h"
 #include "my_base.h"

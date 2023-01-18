@@ -27,6 +27,7 @@
 #include <algorithm>
 
 #include <mysqld_error.h>
+#include "sql/mysqld_cs.h"
 
 using std::string;
 using std::unique_ptr;

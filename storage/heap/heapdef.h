@@ -22,8 +22,7 @@
 
 /* This file is included in all heap-files */
 
-#include "heap.h" /* Structs & some defines */
-#include "m_string.h"
+#include "heap.h"    /* Structs & some defines */
 #include "my_base.h" /* This includes global */
 #include "my_sys.h"
 #include "my_thread.h"

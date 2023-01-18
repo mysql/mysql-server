@@ -34,9 +34,11 @@
 #include "client/base/abstract_options_provider.h"
 #include "client/base/abstract_program.h"
 #include "compression.h"
-#include "m_ctype.h"
+#include "m_string.h"
 #include "multi_factor_passwordopt-vars.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysys_err.h"
+#include "nulls.h"
 #include "typelib.h"
 
 using Mysql::Tools::Base::Abstract_program;

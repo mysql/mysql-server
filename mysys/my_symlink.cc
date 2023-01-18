@@ -47,6 +47,8 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysys_err.h"
+#include "nulls.h"
+#include "strmake.h"
 #ifndef _WIN32
 #include <sys/stat.h>
 #endif

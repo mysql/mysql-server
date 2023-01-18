@@ -28,12 +28,12 @@
 /* This file is for Shift JIS charset, and created by tommy@valley.ne.jp.
  */
 
-#include <stddef.h>
-#include <sys/types.h>
+#include <cstddef>
+#include <cstdint>
 
-#include "m_ctype.h"
 #include "my_compiler.h"
-#include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
+#include "strings/m_ctype_internals.h"
 #include "template_utils.h"
 
 /*
@@ -44,7 +44,7 @@
  * .configure. mbmaxlen_sjis=2
  */
 
-static const uchar ctype_sjis[257] = {
+static const uint8_t ctype_sjis[257] = {
     0,                                              /* For standard library */
     0040, 0040, 0040, 0040, 0040, 0040, 0040, 0040, /* NUL ^A - ^G */
     0040, 0050, 0050, 0050, 0050, 0050, 0040, 0040, /* ^H - ^O */
@@ -74,7 +74,8 @@ static const uchar ctype_sjis[257] = {
     0020, 0020, 0020, 0020, 0020, 0020, 0020, 0020, 0020, 0020, 0020, 0020,
     0020, 0020, 0020, 0020, 0020, 0000, 0000, 0000};
 
-static const uchar to_lower_sjis[] = {
+// clang-format off
+static const uint8_t to_lower_sjis[] = {
     '\000',        '\001',        '\002',        '\003',        '\004',
     '\005',        '\006',        '\007',        '\010',        '\011',
     '\012',        '\013',        '\014',        '\015',        '\016',
@@ -100,35 +101,37 @@ static const uchar to_lower_sjis[] = {
     'n',           'o',           'p',           'q',           'r',
     's',           't',           'u',           'v',           'w',
     'x',           'y',           'z',           '{',           '|',
-    '}',           '~',           '\177',        (uchar)'\200', (uchar)'\201',
-    (uchar)'\202', (uchar)'\203', (uchar)'\204', (uchar)'\205', (uchar)'\206',
-    (uchar)'\207', (uchar)'\210', (uchar)'\211', (uchar)'\212', (uchar)'\213',
-    (uchar)'\214', (uchar)'\215', (uchar)'\216', (uchar)'\217', (uchar)'\220',
-    (uchar)'\221', (uchar)'\222', (uchar)'\223', (uchar)'\224', (uchar)'\225',
-    (uchar)'\226', (uchar)'\227', (uchar)'\230', (uchar)'\231', (uchar)'\232',
-    (uchar)'\233', (uchar)'\234', (uchar)'\235', (uchar)'\236', (uchar)'\237',
-    (uchar)'\240', (uchar)'\241', (uchar)'\242', (uchar)'\243', (uchar)'\244',
-    (uchar)'\245', (uchar)'\246', (uchar)'\247', (uchar)'\250', (uchar)'\251',
-    (uchar)'\252', (uchar)'\253', (uchar)'\254', (uchar)'\255', (uchar)'\256',
-    (uchar)'\257', (uchar)'\260', (uchar)'\261', (uchar)'\262', (uchar)'\263',
-    (uchar)'\264', (uchar)'\265', (uchar)'\266', (uchar)'\267', (uchar)'\270',
-    (uchar)'\271', (uchar)'\272', (uchar)'\273', (uchar)'\274', (uchar)'\275',
-    (uchar)'\276', (uchar)'\277', (uchar)'\300', (uchar)'\301', (uchar)'\302',
-    (uchar)'\303', (uchar)'\304', (uchar)'\305', (uchar)'\306', (uchar)'\307',
-    (uchar)'\310', (uchar)'\311', (uchar)'\312', (uchar)'\313', (uchar)'\314',
-    (uchar)'\315', (uchar)'\316', (uchar)'\317', (uchar)'\320', (uchar)'\321',
-    (uchar)'\322', (uchar)'\323', (uchar)'\324', (uchar)'\325', (uchar)'\326',
-    (uchar)'\327', (uchar)'\330', (uchar)'\331', (uchar)'\332', (uchar)'\333',
-    (uchar)'\334', (uchar)'\335', (uchar)'\336', (uchar)'\337', (uchar)'\340',
-    (uchar)'\341', (uchar)'\342', (uchar)'\343', (uchar)'\344', (uchar)'\345',
-    (uchar)'\346', (uchar)'\347', (uchar)'\350', (uchar)'\351', (uchar)'\352',
-    (uchar)'\353', (uchar)'\354', (uchar)'\355', (uchar)'\356', (uchar)'\357',
-    (uchar)'\360', (uchar)'\361', (uchar)'\362', (uchar)'\363', (uchar)'\364',
-    (uchar)'\365', (uchar)'\366', (uchar)'\367', (uchar)'\370', (uchar)'\371',
-    (uchar)'\372', (uchar)'\373', (uchar)'\374', (uchar)'\375', (uchar)'\376',
-    (uchar)'\377'};
+    '}',           '~',           '\177',        u'\200',       u'\201',
+    u'\202',       u'\203',       u'\204',       u'\205',       u'\206',
+    u'\207',       u'\210',       u'\211',       u'\212',       u'\213',
+    u'\214',       u'\215',       u'\216',       u'\217',       u'\220',
+    u'\221',       u'\222',       u'\223',       u'\224',       u'\225',
+    u'\226',       u'\227',       u'\230',       u'\231',       u'\232',
+    u'\233',       u'\234',       u'\235',       u'\236',       u'\237',
+    u'\240',       u'\241',       u'\242',       u'\243',       u'\244',
+    u'\245',       u'\246',       u'\247',       u'\250',       u'\251',
+    u'\252',       u'\253',       u'\254',       u'\255',       u'\256',
+    u'\257',       u'\260',       u'\261',       u'\262',       u'\263',
+    u'\264',       u'\265',       u'\266',       u'\267',       u'\270',
+    u'\271',       u'\272',       u'\273',       u'\274',       u'\275',
+    u'\276',       u'\277',       u'\300',       u'\301',       u'\302',
+    u'\303',       u'\304',       u'\305',       u'\306',       u'\307',
+    u'\310',       u'\311',       u'\312',       u'\313',       u'\314',
+    u'\315',       u'\316',       u'\317',       u'\320',       u'\321',
+    u'\322',       u'\323',       u'\324',       u'\325',       u'\326',
+    u'\327',       u'\330',       u'\331',       u'\332',       u'\333',
+    u'\334',       u'\335',       u'\336',       u'\337',       u'\340',
+    u'\341',       u'\342',       u'\343',       u'\344',       u'\345',
+    u'\346',       u'\347',       u'\350',       u'\351',       u'\352',
+    u'\353',       u'\354',       u'\355',       u'\356',       u'\357',
+    u'\360',       u'\361',       u'\362',       u'\363',       u'\364',
+    u'\365',       u'\366',       u'\367',       u'\370',       u'\371',
+    u'\372',       u'\373',       u'\374',       u'\375',       u'\376',
+    u'\377'};
+// clang-format on
 
-static const uchar to_upper_sjis[] = {
+// clang-format off
+static const uint8_t to_upper_sjis[] = {
     '\000',        '\001',        '\002',        '\003',        '\004',
     '\005',        '\006',        '\007',        '\010',        '\011',
     '\012',        '\013',        '\014',        '\015',        '\016',
@@ -154,35 +157,37 @@ static const uchar to_upper_sjis[] = {
     'N',           'O',           'P',           'Q',           'R',
     'S',           'T',           'U',           'V',           'W',
     'X',           'Y',           'Z',           '{',           '|',
-    '}',           '~',           '\177',        (uchar)'\200', (uchar)'\201',
-    (uchar)'\202', (uchar)'\203', (uchar)'\204', (uchar)'\205', (uchar)'\206',
-    (uchar)'\207', (uchar)'\210', (uchar)'\211', (uchar)'\212', (uchar)'\213',
-    (uchar)'\214', (uchar)'\215', (uchar)'\216', (uchar)'\217', (uchar)'\220',
-    (uchar)'\221', (uchar)'\222', (uchar)'\223', (uchar)'\224', (uchar)'\225',
-    (uchar)'\226', (uchar)'\227', (uchar)'\230', (uchar)'\231', (uchar)'\232',
-    (uchar)'\233', (uchar)'\234', (uchar)'\235', (uchar)'\236', (uchar)'\237',
-    (uchar)'\240', (uchar)'\241', (uchar)'\242', (uchar)'\243', (uchar)'\244',
-    (uchar)'\245', (uchar)'\246', (uchar)'\247', (uchar)'\250', (uchar)'\251',
-    (uchar)'\252', (uchar)'\253', (uchar)'\254', (uchar)'\255', (uchar)'\256',
-    (uchar)'\257', (uchar)'\260', (uchar)'\261', (uchar)'\262', (uchar)'\263',
-    (uchar)'\264', (uchar)'\265', (uchar)'\266', (uchar)'\267', (uchar)'\270',
-    (uchar)'\271', (uchar)'\272', (uchar)'\273', (uchar)'\274', (uchar)'\275',
-    (uchar)'\276', (uchar)'\277', (uchar)'\300', (uchar)'\301', (uchar)'\302',
-    (uchar)'\303', (uchar)'\304', (uchar)'\305', (uchar)'\306', (uchar)'\307',
-    (uchar)'\310', (uchar)'\311', (uchar)'\312', (uchar)'\313', (uchar)'\314',
-    (uchar)'\315', (uchar)'\316', (uchar)'\317', (uchar)'\320', (uchar)'\321',
-    (uchar)'\322', (uchar)'\323', (uchar)'\324', (uchar)'\325', (uchar)'\326',
-    (uchar)'\327', (uchar)'\330', (uchar)'\331', (uchar)'\332', (uchar)'\333',
-    (uchar)'\334', (uchar)'\335', (uchar)'\336', (uchar)'\337', (uchar)'\340',
-    (uchar)'\341', (uchar)'\342', (uchar)'\343', (uchar)'\344', (uchar)'\345',
-    (uchar)'\346', (uchar)'\347', (uchar)'\350', (uchar)'\351', (uchar)'\352',
-    (uchar)'\353', (uchar)'\354', (uchar)'\355', (uchar)'\356', (uchar)'\357',
-    (uchar)'\360', (uchar)'\361', (uchar)'\362', (uchar)'\363', (uchar)'\364',
-    (uchar)'\365', (uchar)'\366', (uchar)'\367', (uchar)'\370', (uchar)'\371',
-    (uchar)'\372', (uchar)'\373', (uchar)'\374', (uchar)'\375', (uchar)'\376',
-    (uchar)'\377'};
+    '}',           '~',           '\177',        u'\200',       u'\201',
+    u'\202',       u'\203',       u'\204',       u'\205',       u'\206',
+    u'\207',       u'\210',       u'\211',       u'\212',       u'\213',
+    u'\214',       u'\215',       u'\216',       u'\217',       u'\220',
+    u'\221',       u'\222',       u'\223',       u'\224',       u'\225',
+    u'\226',       u'\227',       u'\230',       u'\231',       u'\232',
+    u'\233',       u'\234',       u'\235',       u'\236',       u'\237',
+    u'\240',       u'\241',       u'\242',       u'\243',       u'\244',
+    u'\245',       u'\246',       u'\247',       u'\250',       u'\251',
+    u'\252',       u'\253',       u'\254',       u'\255',       u'\256',
+    u'\257',       u'\260',       u'\261',       u'\262',       u'\263',
+    u'\264',       u'\265',       u'\266',       u'\267',       u'\270',
+    u'\271',       u'\272',       u'\273',       u'\274',       u'\275',
+    u'\276',       u'\277',       u'\300',       u'\301',       u'\302',
+    u'\303',       u'\304',       u'\305',       u'\306',       u'\307',
+    u'\310',       u'\311',       u'\312',       u'\313',       u'\314',
+    u'\315',       u'\316',       u'\317',       u'\320',       u'\321',
+    u'\322',       u'\323',       u'\324',       u'\325',       u'\326',
+    u'\327',       u'\330',       u'\331',       u'\332',       u'\333',
+    u'\334',       u'\335',       u'\336',       u'\337',       u'\340',
+    u'\341',       u'\342',       u'\343',       u'\344',       u'\345',
+    u'\346',       u'\347',       u'\350',       u'\351',       u'\352',
+    u'\353',       u'\354',       u'\355',       u'\356',       u'\357',
+    u'\360',       u'\361',       u'\362',       u'\363',       u'\364',
+    u'\365',       u'\366',       u'\367',       u'\370',       u'\371',
+    u'\372',       u'\373',       u'\374',       u'\375',       u'\376',
+    u'\377'};
+// clang-format on
 
-static const uchar sort_order_sjis[] = {
+// clang-format off
+static const uint8_t sort_order_sjis[] = {
     '\000',        '\001',        '\002',        '\003',        '\004',
     '\005',        '\006',        '\007',        '\010',        '\011',
     '\012',        '\013',        '\014',        '\015',        '\016',
@@ -208,33 +213,34 @@ static const uchar sort_order_sjis[] = {
     'N',           'O',           'P',           'Q',           'R',
     'S',           'T',           'U',           'V',           'W',
     'X',           'Y',           'Z',           '{',           '|',
-    '}',           '~',           '\177',        (uchar)'\200', (uchar)'\201',
-    (uchar)'\202', (uchar)'\203', (uchar)'\204', (uchar)'\205', (uchar)'\206',
-    (uchar)'\207', (uchar)'\210', (uchar)'\211', (uchar)'\212', (uchar)'\213',
-    (uchar)'\214', (uchar)'\215', (uchar)'\216', (uchar)'\217', (uchar)'\220',
-    (uchar)'\221', (uchar)'\222', (uchar)'\223', (uchar)'\224', (uchar)'\225',
-    (uchar)'\226', (uchar)'\227', (uchar)'\230', (uchar)'\231', (uchar)'\232',
-    (uchar)'\233', (uchar)'\234', (uchar)'\235', (uchar)'\236', (uchar)'\237',
-    (uchar)'\240', (uchar)'\241', (uchar)'\242', (uchar)'\243', (uchar)'\244',
-    (uchar)'\245', (uchar)'\246', (uchar)'\247', (uchar)'\250', (uchar)'\251',
-    (uchar)'\252', (uchar)'\253', (uchar)'\254', (uchar)'\255', (uchar)'\256',
-    (uchar)'\257', (uchar)'\260', (uchar)'\261', (uchar)'\262', (uchar)'\263',
-    (uchar)'\264', (uchar)'\265', (uchar)'\266', (uchar)'\267', (uchar)'\270',
-    (uchar)'\271', (uchar)'\272', (uchar)'\273', (uchar)'\274', (uchar)'\275',
-    (uchar)'\276', (uchar)'\277', (uchar)'\300', (uchar)'\301', (uchar)'\302',
-    (uchar)'\303', (uchar)'\304', (uchar)'\305', (uchar)'\306', (uchar)'\307',
-    (uchar)'\310', (uchar)'\311', (uchar)'\312', (uchar)'\313', (uchar)'\314',
-    (uchar)'\315', (uchar)'\316', (uchar)'\317', (uchar)'\320', (uchar)'\321',
-    (uchar)'\322', (uchar)'\323', (uchar)'\324', (uchar)'\325', (uchar)'\326',
-    (uchar)'\327', (uchar)'\330', (uchar)'\331', (uchar)'\332', (uchar)'\333',
-    (uchar)'\334', (uchar)'\335', (uchar)'\336', (uchar)'\337', (uchar)'\340',
-    (uchar)'\341', (uchar)'\342', (uchar)'\343', (uchar)'\344', (uchar)'\345',
-    (uchar)'\346', (uchar)'\347', (uchar)'\350', (uchar)'\351', (uchar)'\352',
-    (uchar)'\353', (uchar)'\354', (uchar)'\355', (uchar)'\356', (uchar)'\357',
-    (uchar)'\360', (uchar)'\361', (uchar)'\362', (uchar)'\363', (uchar)'\364',
-    (uchar)'\365', (uchar)'\366', (uchar)'\367', (uchar)'\370', (uchar)'\371',
-    (uchar)'\372', (uchar)'\373', (uchar)'\374', (uchar)'\375', (uchar)'\376',
-    (uchar)'\377'};
+    '}',           '~',           '\177',        u'\200',       u'\201',
+    u'\202',       u'\203',       u'\204',       u'\205',       u'\206',
+    u'\207',       u'\210',       u'\211',       u'\212',       u'\213',
+    u'\214',       u'\215',       u'\216',       u'\217',       u'\220',
+    u'\221',       u'\222',       u'\223',       u'\224',       u'\225',
+    u'\226',       u'\227',       u'\230',       u'\231',       u'\232',
+    u'\233',       u'\234',       u'\235',       u'\236',       u'\237',
+    u'\240',       u'\241',       u'\242',       u'\243',       u'\244',
+    u'\245',       u'\246',       u'\247',       u'\250',       u'\251',
+    u'\252',       u'\253',       u'\254',       u'\255',       u'\256',
+    u'\257',       u'\260',       u'\261',       u'\262',       u'\263',
+    u'\264',       u'\265',       u'\266',       u'\267',       u'\270',
+    u'\271',       u'\272',       u'\273',       u'\274',       u'\275',
+    u'\276',       u'\277',       u'\300',       u'\301',       u'\302',
+    u'\303',       u'\304',       u'\305',       u'\306',       u'\307',
+    u'\310',       u'\311',       u'\312',       u'\313',       u'\314',
+    u'\315',       u'\316',       u'\317',       u'\320',       u'\321',
+    u'\322',       u'\323',       u'\324',       u'\325',       u'\326',
+    u'\327',       u'\330',       u'\331',       u'\332',       u'\333',
+    u'\334',       u'\335',       u'\336',       u'\337',       u'\340',
+    u'\341',       u'\342',       u'\343',       u'\344',       u'\345',
+    u'\346',       u'\347',       u'\350',       u'\351',       u'\352',
+    u'\353',       u'\354',       u'\355',       u'\356',       u'\357',
+    u'\360',       u'\361',       u'\362',       u'\363',       u'\364',
+    u'\365',       u'\366',       u'\367',       u'\370',       u'\371',
+    u'\372',       u'\373',       u'\374',       u'\375',       u'\376',
+    u'\377'};
+// clang-format on
 
 #define issjishead(c) \
   ((0x81 <= (c) && (c) <= 0x9f) || ((0xe0 <= (c)) && (c) <= 0xfc))
@@ -242,18 +248,21 @@ static const uchar sort_order_sjis[] = {
   ((0x40 <= (c) && (c) <= 0x7e) || (0x80 <= (c) && (c) <= 0xfc))
 
 extern "C" {
-static uint ismbchar_sjis(const CHARSET_INFO *cs [[maybe_unused]],
-                          const char *p, const char *e) {
-  return (issjishead((uchar)*p) && (e - p) > 1 && issjistail((uchar)p[1]) ? 2
-                                                                          : 0);
+static unsigned ismbchar_sjis(const CHARSET_INFO *cs [[maybe_unused]],
+                              const char *p, const char *e) {
+  return (issjishead((uint8_t)*p) && (e - p) > 1 && issjistail((uint8_t)p[1])
+              ? 2
+              : 0);
 }
 
-static uint mbcharlen_sjis(const CHARSET_INFO *cs [[maybe_unused]], uint c) {
-  return (issjishead((uchar)c) ? 2 : 1);
+static unsigned mbcharlen_sjis(const CHARSET_INFO *cs [[maybe_unused]],
+                               unsigned c) {
+  return (issjishead((uint8_t)c) ? 2 : 1);
 }
 }  // extern "C"
 
-#define sjiscode(c, d) ((((uint)(uchar)(c)) << 8) | (uint)(uchar)(d))
+#define sjiscode(c, d) \
+  ((((unsigned)(uint8_t)(c)) << 8) | (unsigned)(uint8_t)(d))
 
 static const MY_UNICASE_CHARACTER c81[256] = {
     /* 8100-810F */
@@ -1360,24 +1369,25 @@ static const MY_UNICASE_CHARACTER *my_caseinfo_pages_sjis[256] = {
 static MY_UNICASE_INFO my_caseinfo_sjis = {0xFFFF, my_caseinfo_pages_sjis};
 
 static int my_strnncoll_sjis_internal(const CHARSET_INFO *cs,
-                                      const uchar **a_res, size_t a_length,
-                                      const uchar **b_res, size_t b_length) {
-  const uchar *a = *a_res, *b = *b_res;
-  const uchar *a_end = a + a_length;
-  const uchar *b_end = b + b_length;
+                                      const uint8_t **a_res, size_t a_length,
+                                      const uint8_t **b_res, size_t b_length) {
+  const uint8_t *a = *a_res;
+  const uint8_t *b = *b_res;
+  const uint8_t *a_end = a + a_length;
+  const uint8_t *b_end = b + b_length;
   while (a < a_end && b < b_end) {
     if (ismbchar_sjis(cs, pointer_cast<const char *>(a),
                       pointer_cast<const char *>(a_end)) &&
         ismbchar_sjis(cs, pointer_cast<const char *>(b),
                       pointer_cast<const char *>(b_end))) {
-      uint a_char = sjiscode(*a, *(a + 1));
-      uint b_char = sjiscode(*b, *(b + 1));
+      unsigned a_char = sjiscode(*a, *(a + 1));
+      unsigned b_char = sjiscode(*b, *(b + 1));
       if (a_char != b_char) return (int)a_char - (int)b_char;
       a += 2;
       b += 2;
     } else {
-      if (sort_order_sjis[(uchar)*a] != sort_order_sjis[(uchar)*b])
-        return sort_order_sjis[(uchar)*a] - sort_order_sjis[(uchar)*b];
+      if (sort_order_sjis[(uint8_t)*a] != sort_order_sjis[(uint8_t)*b])
+        return sort_order_sjis[(uint8_t)*a] - sort_order_sjis[(uint8_t)*b];
       a++;
       b++;
     }
@@ -1388,18 +1398,19 @@ static int my_strnncoll_sjis_internal(const CHARSET_INFO *cs,
 }
 
 extern "C" {
-static int my_strnncoll_sjis(const CHARSET_INFO *cs, const uchar *a,
-                             size_t a_length, const uchar *b, size_t b_length,
+static int my_strnncoll_sjis(const CHARSET_INFO *cs, const uint8_t *a,
+                             size_t a_length, const uint8_t *b, size_t b_length,
                              bool b_is_prefix) {
   int res = my_strnncoll_sjis_internal(cs, &a, a_length, &b, b_length);
   if (b_is_prefix && a_length > b_length) a_length = b_length;
   return res ? res : (int)(a_length - b_length);
 }
 
-static int my_strnncollsp_sjis(const CHARSET_INFO *cs, const uchar *a,
-                               size_t a_length, const uchar *b,
+static int my_strnncollsp_sjis(const CHARSET_INFO *cs, const uint8_t *a,
+                               size_t a_length, const uint8_t *b,
                                size_t b_length) {
-  const uchar *a_end = a + a_length, *b_end = b + b_length;
+  const uint8_t *a_end = a + a_length;
+  const uint8_t *b_end = b + b_length;
   int res = my_strnncoll_sjis_internal(cs, &a, a_length, &b, b_length);
 
   if (!res && (a != a_end || b != b_end)) {
@@ -1424,7 +1435,7 @@ static int my_strnncollsp_sjis(const CHARSET_INFO *cs, const uchar *a,
 }  // extern "C"
 
 /* SJIS->Unicode conversion table */
-static const uint16 sjis_to_unicode[65536] = {
+static const uint16_t sjis_to_unicode[65536] = {
     0x0000, 0x0001, 0x0002, 0x0003, /* 0000 */
     0x0004, 0x0005, 0x0006, 0x0007, 0x0008, 0x0009, 0x000A, 0x000B,
     0x000C, 0x000D, 0x000E, 0x000F, 0x0010, 0x0011, 0x0012, 0x0013,
@@ -9621,7 +9632,7 @@ static const uint16 sjis_to_unicode[65536] = {
 };
 
 /* Unicode->SJIS conversion table */
-static const uint16 unicode_to_sjis[65536] = {
+static const uint16_t unicode_to_sjis[65536] = {
     0x0000, 0x0001, 0x0002, 0x0003, /* 0000 */
     0x0004, 0x0005, 0x0006, 0x0007, 0x0008, 0x0009, 0x000A, 0x000B,
     0x000C, 0x000D, 0x000E, 0x000F, 0x0010, 0x0011, 0x0012, 0x0013,
@@ -17844,7 +17855,7 @@ static const uint16 unicode_to_sjis[65536] = {
 */
 extern "C" {
 static int my_mb_wc_sjis(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *pwc,
-                         const uchar *s, const uchar *e) {
+                         const uint8_t *s, const uint8_t *e) {
   int hi;
 
   if (s >= e) return MY_CS_TOOSMALL;
@@ -17884,7 +17895,7 @@ static int my_mb_wc_sjis(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *pwc,
   @retval   MY_CS_ILUNI    If the Unicode character does not exist in SJIS
 */
 static int my_wc_mb_sjis(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
-                         uchar *s, uchar *e) {
+                         uint8_t *s, uint8_t *e) {
   int code;
 
   if ((int)wc < 0x80) /* ASCII: [U+0000..U+007F] -> [00-7F] */
@@ -17902,7 +17913,7 @@ static int my_wc_mb_sjis(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
       goto mb;
     }
     if (s >= e) return MY_CS_TOOSMALL;
-    s[0] = (uchar)wc; /* ASCII */
+    s[0] = (uint8_t)wc; /* ASCII */
     return 1;
   }
 
@@ -17926,8 +17937,8 @@ mb:
 static size_t my_numcells_sjis(const CHARSET_INFO *cs [[maybe_unused]],
                                const char *str, const char *str_end) {
   size_t clen;
-  const uchar *b = (const uchar *)str;
-  const uchar *e = (const uchar *)str_end;
+  const uint8_t *b = pointer_cast<const uint8_t *>(str);
+  const uint8_t *e = pointer_cast<const uint8_t *>(str_end);
 
   for (clen = 0; b < e;) {
     if (*b >= 0xA1 && *b <= 0xDF) {
@@ -17954,14 +17965,14 @@ static size_t my_well_formed_len_sjis(const CHARSET_INFO *cs [[maybe_unused]],
   const char *b0 = b;
   *error = 0;
   while (pos-- && b < e) {
-    if ((uchar)b[0] < 128) {
+    if ((uint8_t)b[0] < 128) {
       /* Single byte ascii character */
       b++;
-    } else if (issjishead((uchar)*b) && (e - b) > 1 &&
-               issjistail((uchar)b[1])) {
+    } else if (issjishead((uint8_t)*b) && (e - b) > 1 &&
+               issjistail((uint8_t)b[1])) {
       /* Double byte character */
       b += 2;
-    } else if (((uchar)*b) >= 0xA1 && ((uchar)*b) <= 0xDF) {
+    } else if (((uint8_t)*b) >= 0xA1 && ((uint8_t)*b) <= 0xDF) {
       /* Half width kana */
       b++;
     } else {

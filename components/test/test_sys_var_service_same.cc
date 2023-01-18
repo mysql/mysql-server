@@ -27,6 +27,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/plugin.h>
 
 #include "my_macros.h"
+#include "nulls.h"
+#include "template_utils.h"
 #include "typelib.h"
 
 #define VARIABLE_BUFFER_SIZE 1023

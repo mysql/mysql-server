@@ -34,7 +34,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include "m_ctype.h"
 #include "m_string.h"  // my_stpcpy
 #include "map_helpers.h"
 #include "my_alloc.h"
@@ -43,7 +42,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
@@ -56,11 +54,14 @@
 #include "mysql/components/services/bits/psi_rwlock_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_rwlock.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"  // ER_*
-#include "sql/derror.h"    // ER_THD
+#include "nulls.h"
+#include "sql/derror.h"  // ER_THD
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/iterators/row_iterator.h"
@@ -78,6 +79,8 @@
 #include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_*
+#include "string_with_len.h"
+#include "strxnmov.h"
 #include "thr_lock.h"
 #include "udf_registration_imp.h"
 

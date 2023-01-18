@@ -47,6 +47,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/thread_type.h"
+#include "nulls.h"
 #include "sql/binlog.h"       // mysql_bin_log
 #include "sql/current_thd.h"  // current_thd
 #include "sql/mysqld.h"
@@ -63,6 +64,7 @@
 #include "sql/transaction_info.h"
 #include "violite.h"
 
+struct CHARSET_INFO;
 struct mysql_cond_t;
 struct mysql_mutex_t;
 

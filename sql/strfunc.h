@@ -29,9 +29,10 @@
 #include <utility>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"  // MYSQL_LEX_CSTRING
+#include "mysql/strings/m_ctype.h"
+#include "template_utils.h"
 
 class THD;
 struct MEM_ROOT;

@@ -26,16 +26,15 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_base.h"
 #include "my_inttypes.h"
-#include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_user.h"  // parse_user
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/my_loglevel.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -60,6 +59,7 @@
 #include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 #include "thr_lock.h"
 
 namespace dd {

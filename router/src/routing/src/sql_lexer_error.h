@@ -25,7 +25,7 @@
 #ifndef ROUTING_SQL_LEXER_ERROR_INCLUDED
 #define ROUTING_SQL_LEXER_ERROR_INCLUDED
 
-#include "m_ctype.h"  // my_charset_...
+#include "mysql/strings/m_ctype.h"  // my_charset_...
 
 class THD;
 

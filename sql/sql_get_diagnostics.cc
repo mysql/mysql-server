@@ -25,10 +25,10 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "sql/item.h"
 #include "sql/sp_rcontext.h"  // sp_rcontext

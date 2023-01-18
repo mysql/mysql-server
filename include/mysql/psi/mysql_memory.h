@@ -30,6 +30,7 @@
 
 #include "my_compiler.h"
 #include "my_inttypes.h"
+#include "template_utils.h"
 
 /* HAVE_PSI_*_INTERFACE */
 #include "my_psi_config.h"  // IWYU pragma: keep

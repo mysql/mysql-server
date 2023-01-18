@@ -38,6 +38,7 @@
 #include "my_io.h"
 #include "mysys/mysys_priv.h"
 #include "prealloced_array.h"
+#include "strmake.h"
 #include "template_utils.h"
 
 #if defined(_WIN32)

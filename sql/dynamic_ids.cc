@@ -27,11 +27,11 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "m_ctype.h"
 #include "m_string.h"  // my_strtok_r
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql_string.h"  // String
 
 Server_ids::Server_ids() : dynamic_ids(PSI_NOT_INSTRUMENTED) {}

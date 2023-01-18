@@ -31,7 +31,6 @@
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 
-#include "m_string.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                         // ER_*
@@ -46,6 +45,7 @@
 #include "sql/dd/types/index.h"
 #include "sql/dd/types/object_table.h"
 #include "sql/dd/types/weak_object.h"
+#include "string_with_len.h"
 
 namespace dd {
 class Entity_object_impl;

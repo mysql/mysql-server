@@ -25,10 +25,10 @@
 #include <string>
 
 #include "lex_string.h"
-#include "m_ctype.h"  // CHARSET_INFO
 #include "m_string.h"
 #include "my_time.h"  // TIME_to_ulonglong_datetime
 #include "mysql/components/services/log_builtins.h"  // LogErr
+#include "mysql/strings/m_ctype.h"                   // CHARSET_INFO
 #include "mysql_com.h"                               // NAME_LEN
 #include "sql/dd/impl/bootstrap/bootstrap_ctx.h"     // DD_bootstrap_ctx
 #include "sql/dd/properties.h"                       // dd::Properties

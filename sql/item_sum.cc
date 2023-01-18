@@ -46,6 +46,9 @@
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_sys.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/m_ctype.h"
+#include "mysql/strings/my_strtoll10.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql-common/json_dom.h"
@@ -87,6 +90,7 @@
 #include "sql/temp_table_param.h"  // Temp_table_param
 #include "sql/uniques.h"           // Unique
 #include "sql/window.h"
+#include "string_with_len.h"
 
 using std::max;
 using std::min;

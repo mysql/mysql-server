@@ -31,11 +31,12 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <string>
 
-#include "m_string.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
+#include "string_with_len.h"
 
 class THD;
 

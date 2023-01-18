@@ -28,12 +28,12 @@
 #include <string>
 #include <utility>
 
-#include "m_ctype.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld.h"  // opt_table_encryption_privilege_check
 #include "mysqld_error.h"
@@ -76,9 +76,9 @@ bool validate_tspnamelen(const LEXSTR &name) {
     return true;
   }
 
-  if (name.length > NAME_LEN ||
-      my_numchars_mb(system_charset_info, name.str, name.str + name.length) >
-          NAME_CHAR_LEN) {
+  if (name.length > NAME_LEN || system_charset_info->cset->numchars(
+                                    system_charset_info, name.str,
+                                    name.str + name.length) > NAME_CHAR_LEN) {
     // Byte length exceeding NAME_LEN, and character length exceeding
     // NAME_CHAR_LEN not allowed
     my_error(ER_TOO_LONG_IDENT, MYF(0), name.str);

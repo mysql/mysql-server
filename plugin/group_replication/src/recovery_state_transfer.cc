@@ -33,6 +33,7 @@
 #include "plugin/group_replication/include/plugin_variables/recovery_endpoints.h"
 #include "plugin/group_replication/include/recovery_channel_state_observer.h"
 #include "plugin/group_replication/include/recovery_state_transfer.h"
+#include "string_with_len.h"
 
 using std::string;
 

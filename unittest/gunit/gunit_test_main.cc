@@ -41,8 +41,11 @@
 #include "mysql/psi/mysql_mutex.h"
 
 class Cost_constant_cache;
-CHARSET_INFO *system_charset_info = nullptr;
 class THD;
+
+struct CHARSET_INFO;
+
+CHARSET_INFO *system_charset_info = nullptr;
 
 #ifdef _WIN32
 #define SIGNAL_FMT "exception 0x%x"

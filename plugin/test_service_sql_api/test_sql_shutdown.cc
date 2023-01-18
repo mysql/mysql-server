@@ -43,6 +43,8 @@
 
 #define STRING_BUFFER_SIZE 1024
 
+struct CHARSET_INFO;
+
 static const char *sep =
     "======================================================\n";
 

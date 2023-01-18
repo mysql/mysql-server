@@ -32,15 +32,16 @@
 #include <sys/types.h>
 #include <functional>
 
-#include "m_string.h"
-#include "my_getopt.h"
-#include "mysql.h"
-#include "template_utils.h"
-#include "typelib.h"
-
 #ifdef MYSQL_SERVER
 #error This header is supposed to be used only in the client
 #endif
+
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "mysql.h"
+#include "nulls.h"
+#include "template_utils.h"
+#include "typelib.h"
 
 const char *ssl_mode_names_lib[] = {"DISABLED",  "PREFERRED",       "REQUIRED",
                                     "VERIFY_CA", "VERIFY_IDENTITY", NullS};

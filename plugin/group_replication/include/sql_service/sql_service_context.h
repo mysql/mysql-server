@@ -28,6 +28,8 @@
 #include "my_inttypes.h"
 #include "plugin/group_replication/include/sql_service/sql_service_context_base.h"
 
+struct CHARSET_INFO;
+
 class Sql_service_context : public Sql_service_context_base {
  public:
   Sql_service_context(Sql_resultset *rset) : resultset(rset) {

@@ -98,11 +98,12 @@
 #include <mysql/plugin.h>
 #include <algorithm>
 
-#include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
+#include "mysql/strings/m_ctype.h"
+#include "nulls.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"
 #include "sql/mysqld.h"
@@ -114,6 +115,9 @@
 #include "storage/myisam/ha_myisam.h"
 #include "storage/myisam/myisamdef.h"
 #include "storage/myisammrg/myrg_def.h"
+#include "string_with_len.h"
+#include "strmake.h"
+#include "strxnmov.h"
 #include "typelib.h"
 
 using std::max;

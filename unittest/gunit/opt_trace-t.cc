@@ -34,14 +34,14 @@
 #include <regex>
 #include <string>
 
-#include "m_ctype.h"
-#include "m_string.h"  // llstr
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/strings/int2str.h"
 #include "mysys_err.h"  // for testing of OOM
 #include "sql-common/json_dom.h"
+#include "sql/mysqld_cs.h"
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 

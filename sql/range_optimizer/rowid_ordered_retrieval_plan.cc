@@ -28,11 +28,11 @@
 #include <algorithm>
 #include <utility>
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"

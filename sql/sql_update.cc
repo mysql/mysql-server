@@ -34,7 +34,6 @@
 
 #include "field_types.h"
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "mem_root_deque.h"  // mem_root_deque
 #include "my_alloc.h"
 #include "my_base.h"
@@ -47,6 +46,7 @@
 #include "my_table_map.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"  // Prealloced_array

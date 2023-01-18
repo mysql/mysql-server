@@ -39,6 +39,8 @@
 
 #include "my_config.h"
 
+#include "mysql/attribute.h"
+
 /*
   The macros below are borrowed from include/linux/compiler.h in the
   Linux kernel. Use them to indicate the likelihood of the truthfulness
@@ -88,19 +90,6 @@ constexpr bool unlikely(bool expr) { return expr; }
 /* Provide __func__ macro definition for Visual Studio. */
 #if defined(_MSC_VER)
 #define __func__ __FUNCTION__
-#endif
-
-/*
-  Disable MY_ATTRIBUTE for Sun Studio and Visual Studio.
-  Note that Sun Studio supports some __attribute__ variants,
-  but not format or unused which we use quite a lot.
-*/
-#ifndef MY_ATTRIBUTE
-#if defined(__GNUC__) || defined(__clang__)
-#define MY_ATTRIBUTE(A) __attribute__(A)
-#else
-#define MY_ATTRIBUTE(A)
-#endif
 #endif
 
 #if defined(_MSC_VER)

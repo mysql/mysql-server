@@ -30,14 +30,16 @@
 #include <stdio.h>
 #include <new>
 
+#include "dig_vec.h"
 #include "lex_string.h"
-#include "m_ctype.h"
-#include "m_string.h"  // _dig_vec_lower
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "prealloced_array.h"
 #include "sql/current_thd.h"
 #include "sql/enum_query_type.h"
@@ -45,6 +47,7 @@
 #include "sql/item.h"  // Item
 #include "sql/table.h"
 #include "sql_string.h"  // String
+#include "string_with_len.h"
 
 namespace {
 /**
@@ -691,7 +694,7 @@ void Buffer::append_escaped(const char *str, size_t length) {
           *pbuf++ = '1';
           ascii_code -= 16;
         }
-        *pbuf++ = _dig_vec_lower[ascii_code];
+        *pbuf++ = dig_vec_lower[ascii_code];
       } else
         *pbuf++ = c;  // Normal character, no escaping needed.
     }

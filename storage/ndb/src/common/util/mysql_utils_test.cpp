@@ -35,6 +35,7 @@
 #include "decimal_utils.hpp"
 #include "CharsetMap.hpp"
 
+#include "decimal.h"
 #include "my_sys.h"
 #include "mysql.h"
 

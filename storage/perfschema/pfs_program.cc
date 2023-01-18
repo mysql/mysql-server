@@ -38,7 +38,8 @@
 
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "sql/mysqld.h"  //system_charset_info
+#include "mysql/strings/m_ctype.h"
+#include "sql/mysqld_cs.h"  // system_charset_info
 #include "sql_string.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 #include "storage/perfschema/pfs_global.h"

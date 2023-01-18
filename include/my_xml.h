@@ -91,7 +91,7 @@ void my_xml_set_leave_handler(MY_XML_PARSER *st,
 void my_xml_set_user_data(MY_XML_PARSER *st, void *);
 
 size_t my_xml_error_pos(MY_XML_PARSER *st);
-uint my_xml_error_lineno(MY_XML_PARSER *st);
+unsigned my_xml_error_lineno(MY_XML_PARSER *st);
 
 const char *my_xml_error_string(MY_XML_PARSER *st);
 

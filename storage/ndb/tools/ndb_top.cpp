@@ -46,6 +46,7 @@
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include "my_default.h"
 #include "map_helpers.h"
+#include "nulls.h"
 
 #define require(a) \
   if (!(a)) \

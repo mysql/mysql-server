@@ -22,9 +22,9 @@
 
 #include "sql/rpl_info.h"
 
-#include "m_string.h"  // strmake
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "strmake.h"
 #include "thr_mutex.h"
 
 Rpl_info::Rpl_info(const char *type,

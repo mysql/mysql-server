@@ -37,6 +37,8 @@
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_thd.h"
 
+struct CHARSET_INFO;
+
 /**
  * The SqlScanFilter is a regular NdbScanFilter, except that it
  * use the NULL-compare semantic specified by ISO-SQL, instead of

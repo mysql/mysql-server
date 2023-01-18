@@ -40,6 +40,8 @@
 class ha_ndbcluster;
 class NdbEventOperation;
 
+struct CHARSET_INFO;
+
 enum Ndb_binlog_type {
   NBT_DEFAULT = 0,
   NBT_NO_LOGGING = 1,

@@ -53,9 +53,9 @@
 
 #include "include/compression.h"
 
-#include "my_loglevel.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/my_loglevel.h"
 #include "mysql_com.h"
 #include "sql/protocol.h"
 #include "sql/rpl_trx_tracking.h"
@@ -88,7 +88,11 @@
 #include "myisam.h"  // myisam_flush
 #include "mysql/plugin_group_replication.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_version.h"
+#include "nulls.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // validate_user_plugins
 #include "sql/binlog.h"            // mysql_bin_log
@@ -137,6 +141,7 @@
 #include "sql/transaction.h"  // trans_commit_stmt
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
+#include "string_with_len.h"
 #include "template_utils.h"  // pointer_cast
 #include "thr_lock.h"
 #ifdef _WIN32

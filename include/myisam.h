@@ -35,8 +35,6 @@
 #include <time.h>
 
 #include "keycache.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_base.h"
 #include "my_check_opt.h"
 #include "my_checksum.h"  // ha_checksum
@@ -44,6 +42,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
+#include "mysql/strings/m_ctype.h"
 
 /*
   Limit max keys according to HA_MAX_POSSIBLE_KEY

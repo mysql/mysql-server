@@ -41,6 +41,7 @@
 #include <mutex>
 #include <thread>
 
+#include "m_string.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -50,7 +51,11 @@
 #include "my_macros.h"
 #include "my_systime.h"  // my_sleep()
 #include "my_time.h"     // SECS_PER_HOUR, SECS_PER_MIN
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_client_fw.cc"
+#include "nulls.h"
+#include "strxmov.h"
 #include "template_utils.h"
 
 #include <list>

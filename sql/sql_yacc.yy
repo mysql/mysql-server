@@ -61,7 +61,6 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "ft_global.h"
 #include "lex_string.h"
 #include "libbinlogevents/include/binlog_event.h"
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_base.h"
@@ -76,6 +75,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "myisammrg.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
@@ -138,8 +138,8 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/sql_backup_lock.h"                   // Sql_cmd_lock_instance
 #include "sql/sql_class.h"      /* Key_part_spec, enum_filetype */
 #include "sql/sql_cmd_srs.h"
+#include "sql/sql_component.h"
 #include "sql/sql_connect.h"
-#include "sql/sql_component.h"                     // Sql_cmd_uninstall_component
 #include "sql/sql_error.h"
 #include "sql/sql_exchange.h"
 #include "sql/sql_get_diagnostics.h"               // Sql_cmd_get_diagnostics
@@ -164,8 +164,10 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/trigger_def.h"
 #include "sql/window_lex.h"
 #include "sql/xa/sql_cmd_xa.h"                   // Sql_cmd_xa...
-#include "sql_chars.h"
 #include "sql_string.h"
+#include "strcont.h"
+#include "strings/sql_chars.h"
+#include "strxnmov.h"
 #include "thr_lock.h"
 #include "violite.h"
 

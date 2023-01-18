@@ -38,6 +38,7 @@
 #include "my_systime.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 #include "sql/malloc_allocator.h"
+#include "string_with_len.h"
 
 void log_primary_member_details();
 

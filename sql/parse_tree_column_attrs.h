@@ -32,13 +32,13 @@
 
 #include "field_types.h"
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
 
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"

@@ -33,7 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <mutex>
 #include <string>
 #include <vector>
-#include "my_loglevel.h"
+#include "mysql/my_loglevel.h"
 const constexpr char *jemalloc_dll_name = "jemalloc.dll";
 const constexpr char *jemalloc_malloc_function_name = "je_malloc";
 const constexpr char *jemalloc_calloc_function_name = "je_calloc";

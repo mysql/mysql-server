@@ -42,6 +42,7 @@
 #ifndef NDEBUG
 #include "plugin/group_replication/include/sql_service/sql_command_test.h"
 #endif
+#include "string_with_len.h"
 
 /*
   Buffer to read the write_set value as a string.

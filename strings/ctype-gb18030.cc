@@ -28,74 +28,74 @@
 
 // This file is for Chinese character sets GB18030-2005.
 
-#include <assert.h>
-#include <string.h>
-#include <sys/types.h>
+#include <cassert>
+#include <cstdint>
+#include <cstring>
 
-#include "m_ctype.h"
 #include "my_compiler.h"
 
-#include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
+#include "strings/m_ctype_internals.h"
 #include "template_utils.h"
 
-#define is_mb_1(c) ((uchar)(c) <= 0x7F)
-#define is_mb_odd(c) (0x81 <= (uchar)(c) && (uchar)(c) <= 0xFE)
-#define is_mb_even_2(c)                          \
-  ((0x40 <= (uchar)(c) && (uchar)(c) <= 0x7E) || \
-   (0x80 <= (uchar)(c) && (uchar)(c) <= 0xFE))
-#define is_mb_even_4(c) (0x30 <= (uchar)(c) && (uchar)(c) <= 0x39)
+#define is_mb_1(c) ((uint8_t)(c) <= 0x7F)
+#define is_mb_odd(c) (0x81 <= (uint8_t)(c) && (uint8_t)(c) <= 0xFE)
+#define is_mb_even_2(c)                              \
+  ((0x40 <= (uint8_t)(c) && (uint8_t)(c) <= 0x7E) || \
+   (0x80 <= (uint8_t)(c) && (uint8_t)(c) <= 0xFE))
+#define is_mb_even_4(c) (0x30 <= (uint8_t)(c) && (uint8_t)(c) <= 0x39)
 
 /* The following three represent the min value of every single byte
 of 2/4-byte gb18030 code */
-static const uint MIN_MB_ODD_BYTE = 0x81;
-static const uint MIN_MB_EVEN_BYTE_2 = 0x40;
-static const uint MIN_MB_EVEN_BYTE_4 = 0x30;
+static const unsigned MIN_MB_ODD_BYTE = 0x81;
+static const unsigned MIN_MB_EVEN_BYTE_2 = 0x40;
+static const unsigned MIN_MB_EVEN_BYTE_4 = 0x30;
 
 /* Difference between min gb18030 4-byte encoding 0x81308130 and
 max possible gb18030 encoding 0xFE39FE39 */
-static const uint MAX_GB18030_DIFF = 0x18398F;
+static const unsigned MAX_GB18030_DIFF = 0x18398F;
 
 /* The difference used in mapping 2-byte unicode to 4-byte gb18030 */
-static const uint UNI2_TO_GB4_DIFF = 7456;
+static const unsigned UNI2_TO_GB4_DIFF = 7456;
 
 /* The offset used in unicase mapping is for those 4-byte gb18030,
 which are mapped by the diff, plus the offset */
-static const uint UNICASE_4_BYTE_OFFSET = 0x80;
+static const unsigned UNICASE_4_BYTE_OFFSET = 0x80;
 
 /* The following two used in unicase mapping are for 2-byte gb18030,
 which are mapped directly */
-static const uint MIN_2_BYTE_UNICASE = 0xA000;
-static const uint MAX_2_BYTE_UNICASE = 0xDFFF;
+static const unsigned MIN_2_BYTE_UNICASE = 0xA000;
+static const unsigned MAX_2_BYTE_UNICASE = 0xDFFF;
 
 /* The following two used in unicase mapping are for 3-byte unicode,
 and they are mapped to 4-byte gb18030 */
-static const uint MIN_3_BYTE_FROM_UNI = 0x2E600;
-static const uint MAX_3_BYTE_FROM_UNI = 0x2E6FF;
+static const unsigned MIN_3_BYTE_FROM_UNI = 0x2E600;
+static const unsigned MAX_3_BYTE_FROM_UNI = 0x2E6FF;
 
 /* 3 ranges(included) that cover the Chinese characters defined by the
 collation PINYIN in UNICODE CLDR24 */
-static const uint PINYIN_2_BYTE_START = 0x8140;
-static const uint PINYIN_2_BYTE_END = 0xFE9F;
+static const unsigned PINYIN_2_BYTE_START = 0x8140;
+static const unsigned PINYIN_2_BYTE_END = 0xFE9F;
 
-static const uint PINYIN_4_BYTE_1_START = 0x8138FD38;
-static const uint PINYIN_4_BYTE_1_END = 0x82359232;
-static const uint PINYIN_4_1_DIFF = 11328;
+static const unsigned PINYIN_4_BYTE_1_START = 0x8138FD38;
+static const unsigned PINYIN_4_BYTE_1_END = 0x82359232;
+static const unsigned PINYIN_4_1_DIFF = 11328;
 
-static const uint PINYIN_4_BYTE_2_START = 0x95328236;
-static const uint PINYIN_4_BYTE_2_END = 0x98399836;
-static const uint PINYIN_4_2_DIFF = 254536;
+static const unsigned PINYIN_4_BYTE_2_START = 0x95328236;
+static const unsigned PINYIN_4_BYTE_2_END = 0x98399836;
+static const unsigned PINYIN_4_2_DIFF = 254536;
 
 /* Two base used for weight, PINYIN is for Chinese chars and COMMON
 is for all other 4-byte non-Chinese chars */
-static const uint PINYIN_WEIGHT_BASE = 0xFFA00000;
-static const uint COMMON_WEIGHT_BASE = 0xFF000000;
+static const unsigned PINYIN_WEIGHT_BASE = 0xFFA00000;
+static const unsigned COMMON_WEIGHT_BASE = 0xFF000000;
 
 /**
   The array used for "type of characters" bit mask for each
   character. The ctype[0] is reserved for EOF(-1), so we use
   ctype[(char)+1]. Also refer to strings/CHARSET_INFO.txt
 */
-static const uchar ctype_gb18030[257] = {
+static const uint8_t ctype_gb18030[257] = {
     0, /* For standard library */
     32,  32,  32,  32,  32,  32,  32,  32,  32,  40,  40, 40, 40, 40, 32, 32,
     32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32, 32, 32, 32, 32, 32,
@@ -117,7 +117,7 @@ static const uchar ctype_gb18030[257] = {
 /**
   The array[256] used in casedn
 */
-static const uchar to_lower_gb18030[] = {
+static const uint8_t to_lower_gb18030[] = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
     0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
     0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, ' ',  '!',  '"',  '#',
@@ -144,7 +144,7 @@ static const uchar to_lower_gb18030[] = {
 /**
   The array[256] used in caseup
 */
-static const uchar to_upper_gb18030[] = {
+static const uint8_t to_upper_gb18030[] = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
     0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
     0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, ' ',  '!',  '"',  '#',
@@ -171,7 +171,7 @@ static const uchar to_upper_gb18030[] = {
 /**
   The array[256] used for strings comparison
 */
-static const uchar sort_order_gb18030[] = {
+static const uint8_t sort_order_gb18030[] = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
     0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
     0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, ' ',  '!',  '"',  '#',
@@ -3076,7 +3076,7 @@ static MY_UNICASE_INFO my_caseinfo_gb18030 = {0xFFFF,
   including all 2-byte code points in [GB+8140, GB+FEFE],
   with 0 for those invalid code points
 */
-static const uint16 tab_gb18030_2_uni[] = {
+static const uint16_t tab_gb18030_2_uni[] = {
     0x4E02, 0x4E04, 0x4E05, 0x4E06, 0x4E0F, 0x4E12, 0x4E17, 0x4E1F, 0x4E20,
     0x4E21, 0x4E23, 0x4E26, 0x4E29, 0x4E2E, 0x4E2F, 0x4E31, 0x4E33, 0x4E35,
     0x4E37, 0x4E3C, 0x4E40, 0x4E41, 0x4E42, 0x4E44, 0x4E46, 0x4E4A, 0x4E51,
@@ -5778,7 +5778,7 @@ static const uint16 tab_gb18030_2_uni[] = {
   (GB+84318537, GB+8431A439]
   Others can be calculated algorithmically
 */
-static const uint16 tab_gb18030_4_uni[] = {
+static const uint16_t tab_gb18030_4_uni[] = {
     0x0080, 0x0081, 0x0082, 0x0083, 0x0084, 0x0085, 0x0086, 0x0087, 0x0088,
     0x0089, 0x008A, 0x008B, 0x008C, 0x008D, 0x008E, 0x008F, 0x0090, 0x0091,
     0x0092, 0x0093, 0x0094, 0x0095, 0x0096, 0x0097, 0x0098, 0x0099, 0x009A,
@@ -7001,7 +7001,7 @@ static const uint16 tab_gb18030_4_uni[] = {
   the diff for 4-byte gb18030 code, otherwise, it's the
   corresponding 2-byte gb18030 code
 */
-static const uint16 tab_uni_gb18030_p1[] = {
+static const uint16_t tab_uni_gb18030_p1[] = {
     0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007, 0x0008,
     0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x000E, 0x000F, 0x0010, 0x0011,
     0x0012, 0x0013, 0x0014, 0x0015, 0x0016, 0x0017, 0x0018, 0x0019, 0x001A,
@@ -11535,7 +11535,7 @@ static const uint16 tab_uni_gb18030_p1[] = {
   For Unicode in [0xE000, 0xE865) and (0xF92B, 0xFFFF]
   The values here have the same meaning with tab_uni_gb18030_p1
 */
-static const uint16 tab_uni_gb18030_p2[] = {
+static const uint16_t tab_uni_gb18030_p2[] = {
     0xAAA1, 0xAAA2, 0xAAA3, 0xAAA4, 0xAAA5, 0xAAA6, 0xAAA7, 0xAAA8, 0xAAA9,
     0xAAAA, 0xAAAB, 0xAAAC, 0xAAAD, 0xAAAE, 0xAAAF, 0xAAB0, 0xAAB1, 0xAAB2,
     0xAAB3, 0xAAB4, 0xAAB5, 0xAAB6, 0xAAB7, 0xAAB8, 0xAAB9, 0xAABA, 0xAABB,
@@ -12003,7 +12003,7 @@ static const uint16 tab_uni_gb18030_p2[] = {
   Weight array for those 2-byte gb18030 code points in the range
   [GB+8140, GB+FE9F]. If it's not a Chinese char, the weight is 0
 */
-static const uint16 gb18030_2_weight_py[] = {
+static const uint16_t gb18030_2_weight_py[] = {
     15308, 26403, 32018, 10022, 20221, 3853,  26996, 6117,  24523, 17600, 36813,
     1796,  14235, 12424, 13777, 9402,  2763,  40603, 9858,  14080, 7905,  35363,
     35610, 31400, 14287, 35292, 36111, 11015, 3298,  36190, 34284, 8336,  14288,
@@ -14179,7 +14179,7 @@ static const uint16 gb18030_2_weight_py[] = {
   array is the diff between the code point and GB+8138FE38
   The weights would be 0 for non-Chinese chars
 */
-static const uint16 gb18030_4_weight_py_p1[] = {
+static const uint16_t gb18030_4_weight_py_p1[] = {
     36865, 34286, 36250, 25280, 14183, 0,     5349,  2049,  32720, 31179, 30440,
     30441, 31180, 27773, 34914, 12676, 12467, 33203, 27209, 28151, 0,     25382,
     25370, 37683, 5007,  0,     20420, 27553, 27554, 1590,  38908, 38905, 23963,
@@ -14893,7 +14893,7 @@ static const uint16 gb18030_4_weight_py_p1[] = {
   The weights would be 0 for non-Chinese chars
   This range maps from Unicode [U+20000, U+2FFFF], which is CJK extension
 */
-static const uint16 gb18030_4_weight_py_p2[] = {
+static const uint16_t gb18030_4_weight_py_p2[] = {
     10308, 23140, 0,     24134, 0,     9894,  0,     0,     0,     24520, 2354,
     0,     0,     26998, 0,     0,     0,     0,     0,     27613, 14821, 0,
     0,     0,     0,     0,     0,     37216, 0,     15539, 0,     0,     0,
@@ -19162,8 +19162,8 @@ static const uint16 gb18030_4_weight_py_p2[] = {
   @param[in] srclen length of valid chars, should be 1, 2 or 4 only
   @return           the gb18030 code
 */
-static inline uint gb18030_chs_to_code(const uchar *src, size_t srclen) {
-  uint r = 0;
+static inline unsigned gb18030_chs_to_code(const uint8_t *src, size_t srclen) {
+  unsigned r = 0;
 
   assert(srclen == 1 || srclen == 2 || srclen == 4);
 
@@ -19193,11 +19193,11 @@ static inline uint gb18030_chs_to_code(const uchar *src, size_t srclen) {
   @param[in]  code   gb18030 code
   @return            the length of dest used to store the gb18030 chars
 */
-static size_t code_to_gb18030_chs(uchar *dst, size_t dstlen, uint code) {
+static size_t code_to_gb18030_chs(uint8_t *dst, size_t dstlen, unsigned code) {
   size_t i, len = 0;
-  uchar *dst_end = dst + dstlen;
-  uchar r[4];
-  for (i = 0; code != 0; i++, code >>= 8) r[i] = (uchar)(code & 0xFF);
+  uint8_t *dst_end = dst + dstlen;
+  uint8_t r[4];
+  for (i = 0; code != 0; i++, code >>= 8) r[i] = (uint8_t)(code & 0xFF);
 
   assert(i == 1 || i == 2 || i == 4);
   for (; i > 0 && dst < dst_end; --i, ++len) *dst++ = r[i - 1];
@@ -19215,17 +19215,18 @@ static size_t code_to_gb18030_chs(uchar *dst, size_t dstlen, uint code) {
                       space in dst
                       0 otherwise
 */
-static uint diff_to_gb18030_4(uchar *dst, uint dstlen, uint diff) {
+static unsigned diff_to_gb18030_4(uint8_t *dst, unsigned dstlen,
+                                  unsigned diff) {
   assert(dstlen >= 4);
 
   if (diff > MAX_GB18030_DIFF || dstlen < 4) return 0;
 
-  dst[3] = (uchar)(diff % 10) + MIN_MB_EVEN_BYTE_4;
+  dst[3] = (uint8_t)(diff % 10) + MIN_MB_EVEN_BYTE_4;
   diff /= 10;
-  dst[2] = (uchar)(diff % 126) + MIN_MB_ODD_BYTE;
+  dst[2] = (uint8_t)(diff % 126) + MIN_MB_ODD_BYTE;
   diff /= 126;
-  dst[1] = (uchar)(diff % 10) + MIN_MB_EVEN_BYTE_4;
-  dst[0] = (uchar)(diff / 10) + MIN_MB_ODD_BYTE;
+  dst[1] = (uint8_t)(diff % 10) + MIN_MB_EVEN_BYTE_4;
+  dst[0] = (uint8_t)(diff / 10) + MIN_MB_ODD_BYTE;
 
   return 4;
 }
@@ -19236,8 +19237,8 @@ static uint diff_to_gb18030_4(uchar *dst, uint dstlen, uint diff) {
   @param[in] code 4-byte gb18030 code
   @return         the diff
 */
-static uint gb18030_4_code_to_diff(uint code) {
-  uint diff = 0;
+static unsigned gb18030_4_code_to_diff(unsigned code) {
+  unsigned diff = 0;
 
   assert(is_mb_odd((code >> 24) & 0xFF));
   diff += ((code >> 24) & 0xFF) - MIN_MB_ODD_BYTE;
@@ -19261,7 +19262,7 @@ static uint gb18030_4_code_to_diff(uint code) {
   @param[in] src 4-byte gb18030 code in bytes
   @return        the diff
 */
-static inline uint gb18030_4_chs_to_diff(const uchar *src) {
+static inline unsigned gb18030_4_chs_to_diff(const uint8_t *src) {
   return (src[0] - MIN_MB_ODD_BYTE) * 12600 +
          (src[1] - MIN_MB_EVEN_BYTE_4) * 1260 +
          (src[2] - MIN_MB_ODD_BYTE) * 10 + (src[3] - MIN_MB_EVEN_BYTE_4);
@@ -19277,8 +19278,8 @@ static inline uint gb18030_4_chs_to_diff(const uchar *src) {
                 0 if not
 */
 extern "C" {
-static uint my_ismbchar_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
-                                const char *p, const char *e) {
+static unsigned my_ismbchar_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
+                                    const char *p, const char *e) {
   assert(e > p);
 
   if (e - p <= 1 || !is_mb_odd(p[0])) return 0;
@@ -19301,8 +19302,8 @@ static uint my_ismbchar_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
   @retval       1/2/4 accordingly if the leading byte(s) indicate
                 the code would be gb18030, otherwise 0
 */
-static uint my_mbcharlen_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
-                                 uint c) {
+static unsigned my_mbcharlen_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
+                                     unsigned c) {
   if (c <= 0xFF)
     /* We use is_mb_odd instead of is_mb_1 here, because in other cs,
     they return 1 for every char that doesn't represent a leading byte
@@ -19328,25 +19329,24 @@ static uint my_mbcharlen_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
                  3) MY_CS_ILUNI if we can't encode unicode to gb18030
 */
 static int my_wc_mb_gb18030_chs(const CHARSET_INFO *cs [[maybe_unused]],
-                                my_wc_t wc, uchar *s, uchar *e) {
-  uint idx = 0;
-  uint len;
-  uint16 cp = 0;
-  uint err;
+                                my_wc_t wc, uint8_t *s, uint8_t *e) {
+  unsigned idx = 0;
+  uint16_t cp = 0;
+  unsigned err = 0;
 
   if (s >= e) return MY_CS_TOOSMALL;
 
   if (wc < 0x80) {
     /* [0x00, 0x7F] */
-    s[0] = (uchar)wc;
+    s[0] = (uint8_t)wc;
     return 1;
   }
 
-  len = 2;
+  unsigned len = 2;
   if (wc < 0x9FA6) {
     /* [0x80, 0x9FA6) */
     cp = tab_uni_gb18030_p1[wc - 0x80];
-    if ((uint)((cp >> 8) & 0xFF) < MIN_MB_ODD_BYTE) {
+    if ((unsigned)((cp >> 8) & 0xFF) < MIN_MB_ODD_BYTE) {
       idx = cp;
       len = 4;
     }
@@ -19360,7 +19360,7 @@ static int my_wc_mb_gb18030_chs(const CHARSET_INFO *cs [[maybe_unused]],
   } else if (wc < 0xE865) {
     /* [0xE000, 0xE865) */
     cp = tab_uni_gb18030_p2[wc - 0xE000];
-    if ((uint)((cp >> 8) & 0xFF) < MIN_MB_ODD_BYTE) {
+    if ((unsigned)((cp >> 8) & 0xFF) < MIN_MB_ODD_BYTE) {
       idx = cp + UNI2_TO_GB4_DIFF;
       len = 4;
     }
@@ -19371,7 +19371,7 @@ static int my_wc_mb_gb18030_chs(const CHARSET_INFO *cs [[maybe_unused]],
   } else if (wc <= 0XFFFF) {
     /* (0xF92B, 0xFFFF] */
     cp = tab_uni_gb18030_p2[wc - 0xE000 - 4295];
-    if ((uint)((cp >> 8) & 0xFF) < MIN_MB_ODD_BYTE) {
+    if ((unsigned)((cp >> 8) & 0xFF) < MIN_MB_ODD_BYTE) {
       idx = cp + UNI2_TO_GB4_DIFF;
       len = 4;
     }
@@ -19388,8 +19388,8 @@ static int my_wc_mb_gb18030_chs(const CHARSET_INFO *cs [[maybe_unused]],
     case 2:
       if (s + 2 > e) return MY_CS_TOOSMALL2;
 
-      s[0] = (uchar)((cp >> 8) & 0xFF);
-      s[1] = (uchar)(cp & 0xFF);
+      s[0] = (uint8_t)((cp >> 8) & 0xFF);
+      s[1] = (uint8_t)(cp & 0xFF);
 
       return len;
     case 4:
@@ -19419,9 +19419,9 @@ static int my_wc_mb_gb18030_chs(const CHARSET_INFO *cs [[maybe_unused]],
                      wrong by sequence
 */
 static int my_mb_wc_gb18030(const CHARSET_INFO *cs [[maybe_unused]],
-                            my_wc_t *pwc, const uchar *s, const uchar *e) {
-  uint idx = 0;
-  uint cp = 0;
+                            my_wc_t *pwc, const uint8_t *s, const uint8_t *e) {
+  unsigned idx = 0;
+  unsigned cp = 0;
 
   if (s >= e) return MY_CS_TOOSMALL;
 
@@ -19514,7 +19514,7 @@ static size_t my_well_formed_len_gb18030(const CHARSET_INFO *cs
   *error = 0;
 
   while (pos-- && b < e) {
-    if (is_mb_1((uchar)b[0]))
+    if (is_mb_1((uint8_t)b[0]))
       ++b;
     else if (b < emb && is_mb_odd(b[0]) && is_mb_even_2(b[1]))
       b += 2;
@@ -19540,23 +19540,24 @@ static size_t my_well_formed_len_gb18030(const CHARSET_INFO *cs
   @return           the case info(MY_UNICASE_CHARACTER) of given gb18030 code
 */
 static const MY_UNICASE_CHARACTER *get_case_info(const CHARSET_INFO *cs,
-                                                 const uchar *src,
+                                                 const uint8_t *src,
                                                  size_t srclen) {
   const MY_UNICASE_CHARACTER *p = nullptr;
-  uint diff, code;
+  unsigned diff = 0;
+  unsigned code = 0;
 
   assert(cs != nullptr);
 
   switch (srclen) {
     case 1:
-      return &cs->caseinfo->page[0][(uchar)src[0]];
+      return &cs->caseinfo->page[0][(uint8_t)src[0]];
     case 2:
       if (src[0] < ((MIN_2_BYTE_UNICASE >> 8) & 0xFF) ||
           src[0] > ((MAX_2_BYTE_UNICASE >> 8) & 0xFF))
         return nullptr;
 
-      p = cs->caseinfo->page[(uchar)src[0]];
-      return p ? &p[(uchar)src[1]] : nullptr;
+      p = cs->caseinfo->page[(uint8_t)src[0]];
+      return p ? &p[(uint8_t)src[1]] : nullptr;
     case 4:
       diff = gb18030_4_chs_to_diff(src);
       code = 0;
@@ -19582,13 +19583,12 @@ static const MY_UNICASE_CHARACTER *get_case_info(const CHARSET_INFO *cs,
   @param[in] code    code in one MY_UNICASE_CHARACTER
   @return            gb18030 code
 */
-static uint case_info_code_to_gb18030(uint code) {
+static unsigned case_info_code_to_gb18030(unsigned code) {
   if ((code >= MIN_2_BYTE_UNICASE && code <= MAX_2_BYTE_UNICASE) ||
       code < UNICASE_4_BYTE_OFFSET)
     return code;
   else {
-    uint r;
-    uchar gbchs[4];
+    uint8_t gbchs[4];
 
     if (code >= UNICASE_4_BYTE_OFFSET && code < MIN_2_BYTE_UNICASE)
       code -= UNICASE_4_BYTE_OFFSET;
@@ -19598,7 +19598,7 @@ static uint case_info_code_to_gb18030(uint code) {
     else
       assert(0);
 
-    r = diff_to_gb18030_4(gbchs, 4, code);
+    unsigned r = diff_to_gb18030_4(gbchs, 4, code);
     assert(r == 4);
 
     return r == 4 ? gb18030_chs_to_code(gbchs, 4) : 0;
@@ -19616,8 +19616,8 @@ static uint case_info_code_to_gb18030(uint code) {
   @retval             the gb18030 code according to is_upper
                       0 if no upper-case or lower-case exists
 */
-static uint get_casefolded_code(const CHARSET_INFO *cs, const uchar *src,
-                                size_t srclen, size_t is_upper) {
+static unsigned get_casefolded_code(const CHARSET_INFO *cs, const uint8_t *src,
+                                    size_t srclen, size_t is_upper) {
   const MY_UNICASE_CHARACTER *ch = get_case_info(cs, src, srclen);
 
   assert(srclen == 1 || srclen == 2 || srclen == 4);
@@ -19642,21 +19642,22 @@ static uint get_casefolded_code(const CHARSET_INFO *cs, const uchar *src,
 */
 static size_t my_casefold_gb18030(const CHARSET_INFO *cs, char *src,
                                   size_t srclen, char *dst, size_t dstlen,
-                                  const uchar *map, bool is_upper) {
+                                  const uint8_t *map, bool is_upper) {
   char *srcend = src + srclen;
   char *dst0 = dst;
   char *dst_end = dst + dstlen;
 
   while (src < srcend) {
-    uint mblen = my_ismbchar_gb18030(cs, src, srcend);
+    unsigned mblen = my_ismbchar_gb18030(cs, src, srcend);
 
     assert(dst < dst_end);
     if (mblen) {
-      uint code = get_casefolded_code(cs, (uchar *)src, mblen, is_upper);
+      unsigned code = get_casefolded_code(cs, pointer_cast<uint8_t *>(src),
+                                          mblen, is_upper);
 
       if (code != 0) {
-        size_t mblen_dst =
-            code_to_gb18030_chs((uchar *)dst, dst_end - dst, code);
+        size_t mblen_dst = code_to_gb18030_chs(pointer_cast<uint8_t *>(dst),
+                                               dst_end - dst, code);
 
         assert(dst + mblen_dst <= dst_end);
         src += mblen;
@@ -19674,7 +19675,7 @@ static size_t my_casefold_gb18030(const CHARSET_INFO *cs, char *src,
         *dst++ = *src++;
       }
     } else
-      *dst++ = (char)map[(uchar)(*src++)];
+      *dst++ = (char)map[(uint8_t)(*src++)];
   }
 
   return (size_t)(dst - dst0);
@@ -19741,16 +19742,17 @@ static size_t my_casedn_gb18030_uca(const CHARSET_INFO *cs, char *src,
 
   uni_plane = cs->caseinfo;
 
-  while ((src < srcend) && (srcres = my_mb_wc_gb18030(cs, &wc, (uchar *)src,
-                                                      (uchar *)srcend)) > 0) {
+  while ((src < srcend) &&
+         (srcres = my_mb_wc_gb18030(cs, &wc, pointer_cast<uint8_t *>(src),
+                                    pointer_cast<uint8_t *>(srcend))) > 0) {
     if (wc <= uni_plane->maxchar) {
       const MY_UNICASE_CHARACTER *page;
       if ((page = uni_plane->page[(wc >> 8) & 0xFF]))
         wc = page[wc & 0xFF].tolower;
     }
 
-    if ((dstres =
-             my_wc_mb_gb18030_chs(cs, wc, (uchar *)dst, (uchar *)dstend)) <= 0)
+    if ((dstres = my_wc_mb_gb18030_chs(cs, wc, pointer_cast<uint8_t *>(dst),
+                                       pointer_cast<uint8_t *>(dstend))) <= 0)
       break;
 
     src += srcres;
@@ -19784,16 +19786,17 @@ static size_t my_caseup_gb18030_uca(const CHARSET_INFO *cs, char *src,
 
   uni_plane = cs->caseinfo;
 
-  while ((src < srcend) && (srcres = my_mb_wc_gb18030(cs, &wc, (uchar *)src,
-                                                      (uchar *)srcend)) > 0) {
+  while ((src < srcend) &&
+         (srcres = my_mb_wc_gb18030(cs, &wc, pointer_cast<uint8_t *>(src),
+                                    pointer_cast<uint8_t *>(srcend))) > 0) {
     if (wc <= uni_plane->maxchar) {
       const MY_UNICASE_CHARACTER *page;
       if ((page = uni_plane->page[(wc >> 8) & 0xFF]))
         wc = page[wc & 0xFF].toupper;
     }
 
-    if ((dstres =
-             my_wc_mb_gb18030_chs(cs, wc, (uchar *)dst, (uchar *)dstend)) <= 0)
+    if ((dstres = my_wc_mb_gb18030_chs(cs, wc, pointer_cast<uint8_t *>(dst),
+                                       pointer_cast<uint8_t *>(dstend))) <= 0)
       break;
 
     src += srcres;
@@ -19816,18 +19819,18 @@ static size_t my_caseup_gb18030_uca(const CHARSET_INFO *cs, char *src,
                   which shall be PINYIN_WEIGHT_BASE + none-zero seq NO.
                   otherwise, PINYIN_WEIGHT_BASE
 */
-static uint get_weight_if_chinese_character(uint code) {
+static unsigned get_weight_if_chinese_character(unsigned code) {
   if (code >= PINYIN_2_BYTE_START && code <= PINYIN_2_BYTE_END) {
-    uint idx = (((code >> 8) & 0xFF) - MIN_MB_ODD_BYTE) * 0xBE + (code & 0xFF) -
-               MIN_MB_EVEN_BYTE_2;
+    unsigned idx = (((code >> 8) & 0xFF) - MIN_MB_ODD_BYTE) * 0xBE +
+                   (code & 0xFF) - MIN_MB_EVEN_BYTE_2;
     if ((code & 0xFF) > 0x7F) idx -= 0x01;
 
     return PINYIN_WEIGHT_BASE + gb18030_2_weight_py[idx];
   } else if (code >= PINYIN_4_BYTE_1_START && code <= PINYIN_4_BYTE_1_END) {
-    uint idx = gb18030_4_code_to_diff(code) - PINYIN_4_1_DIFF;
+    unsigned idx = gb18030_4_code_to_diff(code) - PINYIN_4_1_DIFF;
     return PINYIN_WEIGHT_BASE + gb18030_4_weight_py_p1[idx];
   } else if (code >= PINYIN_4_BYTE_2_START && code <= PINYIN_4_BYTE_2_END) {
-    uint idx = gb18030_4_code_to_diff(code) - PINYIN_4_2_DIFF;
+    unsigned idx = gb18030_4_code_to_diff(code) - PINYIN_4_2_DIFF;
     return PINYIN_WEIGHT_BASE + gb18030_4_weight_py_p2[idx];
   }
 
@@ -19868,19 +19871,19 @@ static uint get_weight_if_chinese_character(uint code) {
   @param[in] mblen the length of multi-bytes gb18030 code
   @return          the weight of the given gb18030 code point
 */
-static uint get_weight_for_mbchar(const CHARSET_INFO *cs, const uchar *src,
-                                  size_t mblen) {
-  uint weight, caseup_code, code = gb18030_chs_to_code(src, mblen);
+static unsigned get_weight_for_mbchar(const CHARSET_INFO *cs,
+                                      const uint8_t *src, size_t mblen) {
+  unsigned code = gb18030_chs_to_code(src, mblen);
 
   assert(mblen == 2 || mblen == 4);
 
   /* Make sure the max 4-byte gb18030 code has the max weight */
   if (code == 0xFE39FE39) return 0xFFFFFFFF;
 
-  weight = get_weight_if_chinese_character(code);
+  unsigned weight = get_weight_if_chinese_character(code);
   if (weight > PINYIN_WEIGHT_BASE) return weight;
 
-  caseup_code = get_casefolded_code(cs, src, mblen, 1);
+  unsigned caseup_code = get_casefolded_code(cs, src, mblen, 1);
   if (caseup_code == 0) caseup_code = code;
 
   weight = (caseup_code <= 0xFFFF)
@@ -19899,16 +19902,16 @@ static uint get_weight_for_mbchar(const CHARSET_INFO *cs, const uchar *src,
   @param[in]  s_len  length of the code
   @return     weight the weight of the code
 */
-static uint get_weight_for_gb18030_chs(const CHARSET_INFO *cs, const char *s,
-                                       size_t s_len) {
+static unsigned get_weight_for_gb18030_chs(const CHARSET_INFO *cs,
+                                           const char *s, size_t s_len) {
   assert(s_len == 1 || s_len == 2 || s_len == 4);
 
   if (s_len == 1) {
     assert(is_mb_1(*s));
-    return cs->sort_order[(uchar)*s];
+    return cs->sort_order[(uint8_t)*s];
   }
 
-  return get_weight_for_mbchar(cs, (const uchar *)s, s_len);
+  return get_weight_for_mbchar(cs, pointer_cast<const uint8_t *>(s), s_len);
 }
 
 /**
@@ -19935,7 +19938,7 @@ static size_t get_code_and_length(const CHARSET_INFO *cs, const char *s,
   if ((len = my_ismbchar_gb18030(cs, s, e)) == 0) return 0;
 
   assert(len == 2 || len == 4);
-  *code = gb18030_chs_to_code((const uchar *)s, len);
+  *code = gb18030_chs_to_code(pointer_cast<const uint8_t *>(s), len);
   return len;
 }
 
@@ -19955,31 +19958,33 @@ static size_t get_code_and_length(const CHARSET_INFO *cs, const char *s,
                           <0 if the second string is bigger
 */
 static int my_strnncoll_gb18030_internal(const CHARSET_INFO *cs,
-                                         const uchar **s_res, size_t s_length,
-                                         const uchar **t_res, size_t t_length) {
-  const uchar *s = *s_res;
-  const uchar *t = *t_res;
-  const uchar *se = s + s_length;
-  const uchar *te = t + t_length;
+                                         const uint8_t **s_res, size_t s_length,
+                                         const uint8_t **t_res,
+                                         size_t t_length) {
+  const uint8_t *s = *s_res;
+  const uint8_t *t = *t_res;
+  const uint8_t *se = s + s_length;
+  const uint8_t *te = t + t_length;
 
   assert(cs != nullptr);
 
   while (s < se && t < te) {
-    uint mblen_s = my_ismbchar_gb18030(cs, pointer_cast<const char *>(s),
-                                       pointer_cast<const char *>(se));
-    uint mblen_t = my_ismbchar_gb18030(cs, pointer_cast<const char *>(t),
-                                       pointer_cast<const char *>(te));
+    unsigned mblen_s = my_ismbchar_gb18030(cs, pointer_cast<const char *>(s),
+                                           pointer_cast<const char *>(se));
+    unsigned mblen_t = my_ismbchar_gb18030(cs, pointer_cast<const char *>(t),
+                                           pointer_cast<const char *>(te));
 
     if (mblen_s > 0 && mblen_t > 0) {
-      uint code_s = get_weight_for_mbchar(cs, s, mblen_s);
-      uint code_t = get_weight_for_mbchar(cs, t, mblen_t);
+      unsigned code_s = get_weight_for_mbchar(cs, s, mblen_s);
+      unsigned code_t = get_weight_for_mbchar(cs, t, mblen_t);
 
       if (code_s != code_t) return code_s > code_t ? 1 : -1;
 
       s += mblen_s;
       t += mblen_t;
     } else if (mblen_s == 0 && mblen_t == 0) {
-      uchar so = cs->sort_order[*s++], to = cs->sort_order[*t++];
+      uint8_t so = cs->sort_order[*s++];
+      uint8_t to = cs->sort_order[*t++];
       if (so != to) return (int)(so - to);
     } else
       return mblen_s == 0 ? -1 : 1;
@@ -20005,8 +20010,8 @@ static int my_strnncoll_gb18030_internal(const CHARSET_INFO *cs,
                          -1 if the second string is bigger
 */
 extern "C" {
-static int my_strnncoll_gb18030(const CHARSET_INFO *cs, const uchar *s,
-                                size_t s_length, const uchar *t,
+static int my_strnncoll_gb18030(const CHARSET_INFO *cs, const uint8_t *s,
+                                size_t s_length, const uint8_t *t,
                                 size_t t_length, bool t_is_prefix) {
   int res = my_strnncoll_gb18030_internal(cs, &s, s_length, &t, t_length);
 
@@ -20031,10 +20036,11 @@ static int my_strnncoll_gb18030(const CHARSET_INFO *cs, const uchar *s,
                       1 if the first string is bigger
                       -1 if the second string is bigger
 */
-static int my_strnncollsp_gb18030(const CHARSET_INFO *cs, const uchar *s,
-                                  size_t s_length, const uchar *t,
+static int my_strnncollsp_gb18030(const CHARSET_INFO *cs, const uint8_t *s,
+                                  size_t s_length, const uint8_t *t,
                                   size_t t_length) {
-  const uchar *se = s + s_length, *te = t + t_length;
+  const uint8_t *se = s + s_length;
+  const uint8_t *te = t + t_length;
   int res = my_strnncoll_gb18030_internal(cs, &s, s_length, &t, t_length);
 
   if (!res && (s != se || t != te)) {
@@ -20070,22 +20076,23 @@ static int my_strnncollsp_gb18030(const CHARSET_INFO *cs, const uchar *s,
   @param[in]  flags    flags for strxfrm
   @return              the length of the sort key
 */
-static size_t my_strnxfrm_gb18030(const CHARSET_INFO *cs, uchar *dst,
-                                  size_t dstlen, uint nweights,
-                                  const uchar *src, size_t srclen, uint flags) {
-  uchar *ds = dst;
-  uchar *de = dst + dstlen;
-  const uchar *se = src + srclen;
-  const uchar *sort_order;
+static size_t my_strnxfrm_gb18030(const CHARSET_INFO *cs, uint8_t *dst,
+                                  size_t dstlen, unsigned nweights,
+                                  const uint8_t *src, size_t srclen,
+                                  unsigned flags) {
+  uint8_t *ds = dst;
+  uint8_t *de = dst + dstlen;
+  const uint8_t *se = src + srclen;
 
   assert(cs != nullptr);
-  sort_order = cs->sort_order;
+  const uint8_t *sort_order = cs->sort_order;
 
   for (; dst < de && src < se && nweights; nweights--) {
-    uint mblen = cs->cset->ismbchar(cs, (const char *)src, (const char *)se);
+    unsigned mblen = cs->cset->ismbchar(cs, pointer_cast<const char *>(src),
+                                        pointer_cast<const char *>(se));
 
     if (mblen > 0) {
-      uint weight = get_weight_for_mbchar(cs, src, mblen);
+      unsigned weight = get_weight_for_mbchar(cs, src, mblen);
       dst += code_to_gb18030_chs(dst, de - dst, weight);
       src += mblen;
     } else {
@@ -20111,8 +20118,9 @@ static int my_strcasecmp_gb18030(const CHARSET_INFO *cs, const char *s,
                                  const char *t) {
   size_t s_length = strlen(s);
   size_t t_length = strlen(t);
-  int res = my_strnncoll_gb18030_internal(cs, (const uchar **)&s, s_length,
-                                          (const uchar **)&t, t_length);
+  int res = my_strnncoll_gb18030_internal(
+      cs, pointer_cast<const uint8_t **>(&s), s_length,
+      pointer_cast<const uint8_t **>(&t), t_length);
 
   return res ? res : (int)(s_length - t_length);
 }
@@ -20125,18 +20133,16 @@ static int my_strcasecmp_gb18030(const CHARSET_INFO *cs, const char *s,
   @param[in] unicode unicode code
   @return            gb18030 code
 */
-static uint unicode_to_gb18030_code(const CHARSET_INFO *cs, int unicode) {
-  uchar dst[4];
-  uint dst_len;
-  int res;
+static unsigned unicode_to_gb18030_code(const CHARSET_INFO *cs, int unicode) {
+  uint8_t dst[4];
 
   assert(cs != nullptr);
 
-  res = cs->cset->wc_mb(cs, unicode, dst, dst + 4);
+  int res = cs->cset->wc_mb(cs, unicode, dst, dst + 4);
 
   assert(res == 1 || res == 2 || res == 4);
 
-  dst_len = (uint)res;
+  unsigned dst_len = res;
   return gb18030_chs_to_code(dst, dst_len);
 }
 
@@ -20158,8 +20164,9 @@ static uint unicode_to_gb18030_code(const CHARSET_INFO *cs, int unicode) {
 */
 static int my_wildcmp_gb18030_impl(const CHARSET_INFO *cs, const char *str,
                                    const char *str_end, const char *wildstr,
-                                   const char *wildend, uint escape, uint w_one,
-                                   uint w_many, int recurse_level) {
+                                   const char *wildend, unsigned escape,
+                                   unsigned w_one, unsigned w_many,
+                                   int recurse_level) {
   int result = -1; /* Not found, using wildcards */
   size_t s_gb, w_gb;
   size_t s_len = 0, w_len;
@@ -20294,7 +20301,7 @@ static int my_wildcmp_gb18030(const CHARSET_INFO *cs, const char *str,
     we don't need to do conversion.
    */
   assert((w_one == -1 || w_one == '_') && (w_many == -1 || w_many == '%'));
-  uint escape_gb = unicode_to_gb18030_code(cs, escape);
+  unsigned escape_gb = unicode_to_gb18030_code(cs, escape);
 
   return my_wildcmp_gb18030_impl(cs, str, str_end, wildstr, wildend, escape_gb,
                                  w_one, w_many, 1);
@@ -20309,19 +20316,18 @@ static int my_wildcmp_gb18030(const CHARSET_INFO *cs, const char *str,
   @param[in,out] n1   n1
   @param[in,out] n2   n2
 */
-static void my_hash_sort_gb18030(const CHARSET_INFO *cs, const uchar *s,
-                                 size_t slen, uint64 *n1, uint64 *n2) {
-  const uchar *e = s + slen;
-  uint64 tmp1, tmp2;
-  size_t len;
-  size_t s_gb;
-  uint ch;
+static void my_hash_sort_gb18030(const CHARSET_INFO *cs, const uint8_t *s,
+                                 size_t slen, uint64_t *n1, uint64_t *n2) {
+  const uint8_t *e = s + slen;
+  size_t len = 0;
+  size_t s_gb = 0;
+  unsigned ch = 0;
 
   /* Skip trailing spaces */
   while (e > s && e[-1] == 0x20) e--;
 
-  tmp1 = *n1;
-  tmp2 = *n2;
+  uint64_t tmp1 = *n1;
+  uint64_t tmp2 = *n2;
 
   while ((len = get_code_and_length(cs, (const char *)s, (const char *)e,
                                     &s_gb)) != 0) {

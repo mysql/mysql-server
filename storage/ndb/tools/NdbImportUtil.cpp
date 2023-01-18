@@ -27,7 +27,7 @@
 
 #include <time.h>
 
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #include "my_sys.h"
 #include <NdbDictionaryImpl.hpp>
 

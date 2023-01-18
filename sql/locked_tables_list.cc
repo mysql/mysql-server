@@ -22,6 +22,8 @@
 
 #include "sql/locked_tables_list.h"
 
+#include "mysql/strings/m_ctype.h"
+#include "nulls.h"
 #include "sql/lock.h"       // mysql_unlock_tables
 #include "sql/mysqld.h"     // table_alias_charset
 #include "sql/sql_base.h"   // close_thread_tables

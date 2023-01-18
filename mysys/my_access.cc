@@ -31,11 +31,12 @@
 
 #include <errno.h>
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"  // IWYU pragma: keep
+#include "mysql/strings/m_ctype.h"
+#include "nulls.h"
 
 #ifdef _WIN32
 

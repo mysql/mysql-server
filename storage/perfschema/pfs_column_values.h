@@ -24,7 +24,6 @@
 #define PFS_COLUMN_VALUES_H
 
 #include "lex_string.h"
-#include "m_string.h" /* LEX_STRING */
 
 /**
   @file storage/perfschema/pfs_column_values.h

@@ -29,13 +29,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/log_builtins.h>
 #include "component_sys_var_service_imp.h"
 #include "lex_string.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_getopt.h"
 #include "my_inttypes.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
@@ -45,13 +42,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/components/services/component_sys_var_service.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/system_variable_source_type.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/status_var.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "sql/current_thd.h"
 #include "sql/error_handler.h"  // Internal_error_handler
 #include "sql/log.h"
@@ -66,6 +67,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/sys_vars_shared.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
+#include "strxmov.h"
 
 #define FREE_RECORD(sysvar)                                              \
   my_free(const_cast<char *>(                                            \

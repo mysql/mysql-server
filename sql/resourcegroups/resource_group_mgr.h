@@ -28,7 +28,6 @@
 #include <string>
 #include <vector>
 
-#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/components/service.h"
@@ -45,6 +44,7 @@
 #include "sql/mdl.h"
 #include "sql/resourcegroups/resource_group_basic_types.h"
 #include "sql/sql_class.h"
+#include "string_with_len.h"
 
 namespace dd {
 class Resource_group;

@@ -34,6 +34,7 @@
 #include "my_dbug.h"
 #include "mysql/psi/mysql_cond.h"   // mysql_cond_t
 #include "mysql/psi/mysql_mutex.h"  // mysql_mutex_t
+#include "nulls.h"                  // NullS
 #include "sql/sql_class.h"          // THD
 #include "sql/table.h"              // is_infoschema_db() / is_perfschema_db()
 #include "storage/ndb/include/ndbapi/NdbError.hpp"    // NdbError

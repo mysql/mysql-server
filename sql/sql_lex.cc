@@ -31,11 +31,13 @@
 #include <initializer_list>
 
 #include "field_types.h"
-#include "m_ctype.h"
+#include "m_string.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/collations.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_version.h"  // MYSQL_VERSION_ID
 #include "mysqld_error.h"
 #include "prealloced_array.h"  // Prealloced_array
@@ -73,6 +75,7 @@
 #include "sql/table_function.h"
 #include "sql/window.h"
 #include "sql_update.h"  // Sql_cmd_update
+#include "string_with_len.h"
 #include "template_utils.h"
 
 class PT_hint_list;
@@ -156,19 +159,6 @@ Table_ident::Table_ident(Protocol *protocol, const LEX_CSTRING &db_arg,
     db = NULL_CSTR;
   else
     db = db_arg;
-}
-
-bool lex_init() {
-  DBUG_TRACE;
-
-  for (CHARSET_INFO **cs = all_charsets;
-       cs < all_charsets + array_elements(all_charsets) - 1; cs++) {
-    if (*cs && (*cs)->ctype && is_supported_parser_charset(*cs)) {
-      if (init_state_maps(*cs)) return true;  // OOM
-    }
-  }
-
-  return false;
 }
 
 void lex_free() {  // Call this when daemon ends
@@ -1585,14 +1575,13 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
         /*
            Note: "SELECT _bla AS 'alias'"
            _bla should be considered as a IDENT if charset haven't been found.
-           So we don't use MYF(MY_WME) with get_charset_by_csname to avoid
-           producing an error.
+           So we don't want to produce any warning in find_primary.
         */
 
         if (yylval->lex_str.str[0] == '_') {
           auto charset_name = yylval->lex_str.str + 1;
           const CHARSET_INFO *underscore_cs =
-              get_charset_by_csname(charset_name, MY_CS_PRIMARY, MYF(0));
+              mysql::collation::find_primary(charset_name);
           if (underscore_cs) {
             lip->warn_on_deprecated_charset(underscore_cs, charset_name);
             if (underscore_cs == &my_charset_utf8mb4_0900_ai_ci) {

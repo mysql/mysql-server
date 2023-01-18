@@ -20,16 +20,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "include/m_string.h"
 #include "include/my_dbug.h"
 #include "sql/sql_class.h"
 
+#include "m_string.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/derror.h" /* ER_THD */
 #include "sql/rpl_async_conn_failover_add_source_udf.h"
 #include "sql/rpl_async_conn_failover_table_operations.h"
 #include "sql/rpl_group_replication.h"
 #include "sql/rpl_io_monitor.h"
+#include "string_with_len.h"
 
 const int DEFAULT_WEIGHT_VAL = 50;
 

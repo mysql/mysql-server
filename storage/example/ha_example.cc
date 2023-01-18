@@ -96,6 +96,7 @@
 
 #include "my_dbug.h"
 #include "mysql/plugin.h"
+#include "nulls.h"
 #include "sql/sql_class.h"
 #include "sql/sql_plugin.h"
 #include "typelib.h"

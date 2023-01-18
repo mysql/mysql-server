@@ -29,7 +29,7 @@
 #include <atomic>
 #include <functional>
 
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql_string.h"
 #include "template_utils.h"
 

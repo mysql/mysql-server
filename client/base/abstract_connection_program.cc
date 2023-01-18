@@ -24,6 +24,8 @@
 
 #include "client/base/abstract_connection_program.h"
 
+struct CHARSET_INFO;
+
 using namespace Mysql::Tools::Base;
 
 Abstract_connection_program::Abstract_connection_program()

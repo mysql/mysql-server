@@ -28,7 +28,7 @@
 #include <cstring>
 #include <vector>
 #include <kernel_types.h>
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #include "API.hpp"
 #include <NdbOut.hpp>
 

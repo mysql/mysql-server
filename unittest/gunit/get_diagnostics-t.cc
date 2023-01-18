@@ -31,6 +31,7 @@
 #include "sql/item_func.h"
 #include "sql/sql_class.h"
 #include "sql/sql_get_diagnostics.h"
+#include "string_with_len.h"
 #include "unittest/gunit/test_utils.h"
 
 namespace get_diagnostics_unittest {

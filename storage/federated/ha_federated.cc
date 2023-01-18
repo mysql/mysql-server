@@ -386,7 +386,6 @@
 #include <string>
 
 #include "lex_string.h"
-#include "m_string.h"
 #include "map_helpers.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
@@ -396,6 +395,8 @@
 #include "myisam.h"  // TT_USEFRM
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/strings/m_ctype.h"
+#include "mysql/strings/my_strtoll10.h"
 #include "sql/current_thd.h"
 #include "sql/key.h"     // key_copy
 #include "sql/mysqld.h"  // my_localhost
@@ -403,6 +404,8 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_servers.h"  // FOREIGN_SERVER, get_server_by_name
 #include "sql_common.h"
+#include "string_with_len.h"
+#include "strmake.h"
 #include "template_utils.h"
 #include "unsafe_string_append.h"
 

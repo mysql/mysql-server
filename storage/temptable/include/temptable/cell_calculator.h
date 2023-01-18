@@ -29,9 +29,9 @@ TempTable Cell_calculator declaration. */
 #include <algorithm>
 #include <cstdint>
 
-#include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_murmur3.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/field.h"
 #include "sql/key.h"
 #include "storage/temptable/include/temptable/cell.h"

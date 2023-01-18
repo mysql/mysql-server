@@ -33,6 +33,7 @@
 #include "sql/dd/impl/raw/object_keys.h"  // dd::Primary_id_key
 #include "sql/dd/impl/raw/raw_record.h"   // dd::Raw_new_record
 #include "sql/dd/impl/sdi_impl.h"         // sdi read/write functions
+#include "string_with_len.h"
 
 namespace dd {
 

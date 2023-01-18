@@ -30,31 +30,31 @@ structures, MY_CHARSET_HANDLER and MY_COLLATION_HANDLER.
 
 struct CHARSET_INFO
 {
-  uint      number;
-  uint      primary_number;
-  uint      binary_number;
-  uint      state;
+  unsigned  number;
+  unsigned  primary_number;
+  unsigned  binary_number;
+  unsigned  state;
 
   const char *csname;
   const char *m_coll_name;
   const char *comment;
 
-  const uchar *ctype;
-  const uchar *to_lower;
-  const uchar *to_upper;
-  const uchar *sort_order;
+  const uint8_t *ctype;
+  const uint8_t *to_lower;
+  const uint8_t *to_upper;
+  const uint8_t *sort_order;
 
-  const uint16     *tab_to_uni;
+  const uint16_t   *tab_to_uni;
   const MY_UNI_IDX *tab_from_uni;
 
-  uchar state_map[256];
-  uchar ident_map[256];
+  uint8_t state_map[256];
+  uint8_t ident_map[256];
 
-  uint      strxfrm_multiply;
-  uint      mbminlen;
-  uint      mbmaxlen;
-  uint      mbmaxlenlen;
-  uint16    max_sort_char; /* For LIKE optimization */
+  unsigned  strxfrm_multiply;
+  unsigned  mbminlen;
+  unsigned  mbmaxlen;
+  unsigned  mbmaxlenlen;
+  uint16_t  max_sort_char; /* For LIKE optimization */
 
   MY_CHARSET_HANDLER *cset;
   MY_COLLATION_HANDLER *coll;

@@ -30,7 +30,7 @@
 #include <optional>
 #include <sstream>
 
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 
 using namespace Mysql::Tools::Dump;
 

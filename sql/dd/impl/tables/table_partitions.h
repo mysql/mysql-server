@@ -30,6 +30,8 @@
 
 class THD;
 
+struct CHARSET_INFO;
+
 namespace dd {
 class Object_key;
 class Raw_record;

@@ -27,7 +27,6 @@
 #include <sys/types.h>
 #include <atomic>
 
-#include "m_string.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

@@ -36,6 +36,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "mem0mem.h"
 
+struct CHARSET_INFO;
+
 /* The type of AST Node */
 enum fts_ast_type_t {
   FTS_AST_OPER,               /*!< Operator */

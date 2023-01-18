@@ -44,6 +44,8 @@
 #include "my_io.h"
 #include "my_sys.h"
 #include "mysys/my_static.h"
+#include "nulls.h"
+#include "strxmov.h"
 
 static char *find_file_in_path(char *to, const char *name);
 

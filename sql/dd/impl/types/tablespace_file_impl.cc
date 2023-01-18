@@ -46,6 +46,7 @@
 #include "sql/error_handler.h"  // Internal_error_handler
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
+#include "string_with_len.h"
 
 using dd::tables::Tablespace_files;
 

@@ -41,7 +41,6 @@
 
 #include "ft_global.h"
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "m_string.h"
 #include "mem_root_deque.h"
 #include "my_alloc.h"
@@ -53,6 +52,9 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -97,6 +99,7 @@
 #include "sql/table_function.h"  // Table_function
 #include "sql/visible_fields.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 #include "template_utils.h"
 
 class Opt_trace_context;

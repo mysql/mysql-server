@@ -24,8 +24,8 @@
 
 #include "sql/sql_do.h"
 
-#include "m_ctype.h"
 #include "my_dbug.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/item.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"

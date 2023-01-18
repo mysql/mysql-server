@@ -36,6 +36,7 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
@@ -59,6 +60,7 @@
 #include "sql/sql_plugin_ref.h"
 #include "sql/trigger_def.h"
 #include "sql_string.h"
+#include "strmake.h"
 
 /**
   Create an object to represent a SP variable in the Item-hierarchy.

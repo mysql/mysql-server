@@ -25,7 +25,7 @@
 
 #include <stddef.h>
 
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 
 /*
   Unicode ctype data

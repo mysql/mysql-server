@@ -39,9 +39,9 @@
 #include <vector>
 
 #include "decimal.h"
+#include "dig_vec.h"
 #include "field_types.h"
 #include "keycache.h"  // dflt_key_cache
-#include "m_ctype.h"
 #include "m_string.h"
 #include "mutex_lock.h"  // MUTEX_LOCK
 #include "my_alloc.h"
@@ -52,7 +52,6 @@
 #include "my_dbug.h"
 #include "my_hostname.h"
 #include "my_io.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -60,14 +59,19 @@
 #include "my_thread_local.h"
 #include "mysql/components/services/log_builtins.h"  // LogErr
 #include "mysql/components/services/log_shared.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"  // st_mysql_plugin
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "scope_guard.h"         // Scope_guard
 #include "sql/auth/auth_acls.h"  // DB_ACLS
 #include "sql/auth/auth_common.h"
@@ -137,6 +141,8 @@
 #include "sql/trigger.h"                   // Trigger
 #include "sql/tztime.h"                    // my_tz_SYSTEM
 #include "sql_string.h"
+#include "string_with_len.h"
+#include "strmake.h"
 #include "template_utils.h"
 #include "thr_lock.h"
 
@@ -5545,8 +5551,8 @@ static void get_cs_converted_string_value(THD *thd, String *input_str,
 
       high = (*ptr) >> 4;
       low = (*ptr) & 0x0F;
-      buf[0] = _dig_vec_upper[high];
-      buf[1] = _dig_vec_upper[low];
+      buf[0] = dig_vec_upper[high];
+      buf[1] = dig_vec_upper[low];
       buf[2] = 0;
       output_str->append((const char *)buf);
       ptr++;

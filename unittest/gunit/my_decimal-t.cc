@@ -31,6 +31,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "mysql/strings/dtoa.h"
 #include "sql/my_decimal.h"
 #include "unittest/gunit/test_utils.h"
 

@@ -45,7 +45,7 @@
 #include <fcntl.h>
 #include <process.h>
 #endif
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 
 /*
   Old options is used when recreating database, from myisamchk

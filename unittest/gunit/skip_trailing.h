@@ -29,8 +29,8 @@
 
 #include <stddef.h>
 
-#include "m_ctype.h"
 #include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
 
 namespace skip_trailing_space_unittest {
 

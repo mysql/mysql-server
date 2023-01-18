@@ -23,10 +23,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_query_attributes_imp.h"
 
 #include <decimal.h>
-#include <m_ctype.h>
 #include <my_byteorder.h>
 #include <my_time.h>
 #include <mysql/com_data.h>
+#include <mysql/strings/dtoa.h>
+#include <mysql/strings/m_ctype.h>
 #include <mysql_time.h>
 #include <sql/current_thd.h>
 #include <sql/my_decimal.h>

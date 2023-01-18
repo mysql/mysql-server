@@ -27,13 +27,15 @@
 #include <unordered_map>
 #include <utility>
 
-#include "m_ctype.h"
-#include "m_string.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_list.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/status_var.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
+#include "nulls.h"
 #include "sql/current_thd.h"
 #include "sql/item.h"
 #include "sql/mysqld.h"
@@ -46,6 +48,7 @@
 #include "sql/sys_vars_shared.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"
+#include "strxmov.h"
 #include "template_utils.h"
 #include "typelib.h"
 

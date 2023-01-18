@@ -37,15 +37,21 @@
 #include <utility>
 
 #include "decimal.h"
+#include "dig_vec.h"
 #include "float.h"
 #include "limits.h"
+#include "m_string.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "myisampack.h"  // mi_int8store
 #include "mysql.h"       // IS_NUM
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/m_ctype.h"
+#include "mysql/strings/my_strtoll10.h"
 #include "mysql_time.h"
+#include "nulls.h"
 #include "sql-common/json_dom.h"  // Json_wrapper
 #include "sql/aggregate_check.h"  // Distinct_check
 #include "sql/auth/auth_acls.h"
@@ -84,6 +90,9 @@
 #include "sql/system_variables.h"
 #include "sql/thd_raii.h"
 #include "sql/tztime.h"  // my_tz_UTC
+#include "string_with_len.h"
+#include "strmake.h"
+#include "strxmov.h"
 #include "template_utils.h"
 #include "typelib.h"
 #include "unsafe_string_append.h"
@@ -7062,8 +7071,8 @@ longlong Item_hex_string::val_int() {
         *errptr++ = '\'';
         for (ptr = str_value.ptr(); ptr < end; ++ptr) {
           if (errptr > errbuff + sizeof(errbuff) - 4) break;
-          *errptr++ = _dig_vec_lower[((uchar)*ptr) >> 4];
-          *errptr++ = _dig_vec_lower[((uchar)*ptr) & 0x0F];
+          *errptr++ = dig_vec_lower[((uchar)*ptr) >> 4];
+          *errptr++ = dig_vec_lower[((uchar)*ptr) & 0x0F];
         }
         *errptr++ = '\'';
         *errptr++ = 0;
@@ -7130,8 +7139,8 @@ void Item_hex_string::print(const THD *, String *str,
   const uchar *end = ptr + str_value.length();
   str->append("0x");
   for (; ptr != end; ptr++) {
-    str->append(_dig_vec_lower[*ptr >> 4]);
-    str->append(_dig_vec_lower[*ptr & 0x0F]);
+    str->append(dig_vec_lower[*ptr >> 4]);
+    str->append(dig_vec_lower[*ptr & 0x0F]);
   }
 }
 

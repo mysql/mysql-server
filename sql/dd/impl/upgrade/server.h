@@ -27,12 +27,15 @@
 
 #include <set>
 
+#include "my_inttypes.h"
 #include "my_sys.h"  // ErrorHandlerFunctionPointer
 #include "sql/dd/string_type.h"
 #include "sql/error_handler.h"  // Internal_error_handler
 
 class THD;
 class Time_zone;
+
+struct CHARSET_INFO;
 
 using sql_mode_t = ulonglong;
 

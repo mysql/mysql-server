@@ -26,8 +26,9 @@
 #ifndef ut0log_h
 #define ut0log_h
 
-#include "my_loglevel.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/my_loglevel.h"
+#include "mysqld_error.h"
 #include "ut0core.h"
 
 /** Get the format string for the logger.

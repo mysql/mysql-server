@@ -29,9 +29,9 @@
 
 #include "mysql/service_srv_session.h"
 #ifndef MYSQL_ABI_CHECK
-#include <stdint.h>    /* uint16_t */
-#include "m_string.h"  /* LEX_CSTRING */
-#include "my_thread.h" /* my_thread_id */
+#include <stdint.h>     /* uint16_t */
+#include "lex_string.h" /* LEX_CSTRING */
+#include "my_thread.h"  /* my_thread_id */
 #include "my_thread_local.h"
 #include "mysql_com.h" /* Vio for violite.h */
 #include "plugin.h"    /* MYSQL_THD */

@@ -43,7 +43,7 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include "m_ctype.h"
+#include "m_string.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -51,6 +51,8 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
+#include "mysql/strings/m_ctype.h"
+#include "nulls.h"
 #include "sql/field.h"
 #include "storage/myisam/fulltext.h"
 #include "storage/myisam/myisam_sys.h"

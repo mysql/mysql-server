@@ -32,6 +32,7 @@
 #include "mysql/components/services/log_builtins.h"  // LogErr
 #include "mysqld.h"                                  // opt_noacl
 #include "mysqld_error.h"               // ER_SPECIFIC_ACCESS_DENIED_ERROR
+#include "nulls.h"                      // NullS
 #include "sql/auth/auth_acls.h"         // SHUTDOWN_ACL
 #include "sql/auth/sql_security_ctx.h"  // Security_context
 #include "sql/sql_class.h"              // THD

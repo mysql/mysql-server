@@ -27,6 +27,7 @@
 #include "lex_string.h"
 #include "sql/opt_costconstantcache.h"
 #include "sql/opt_costmodel.h"
+#include "string_with_len.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/test_utils.h"
 

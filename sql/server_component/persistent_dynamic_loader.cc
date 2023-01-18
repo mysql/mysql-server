@@ -32,15 +32,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <utility>
 #include <vector>
 
-#include "m_ctype.h"
-#include "m_string.h"
 #include "mutex_lock.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
 
 #include "my_inttypes.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/components/service_implementation.h"
@@ -49,7 +46,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "persistent_dynamic_loader_imp.h"
 #include "scope_guard.h"
@@ -70,6 +69,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 #include "thr_lock.h"
 #include "thr_mutex.h"
 

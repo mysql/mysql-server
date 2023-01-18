@@ -30,10 +30,10 @@
 #include "include/compression.h"
 #include "include/mutex_lock.h"
 #include "my_dbug.h"
-#include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/my_loglevel.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
@@ -45,6 +45,8 @@
 #include "sql/rpl_msr.h"      // channel_map
 #include "sql/rpl_replica.h"  // master_retry_count
 #include "sql/sql_class.h"
+#include "string_with_len.h"
+#include "strmake.h"
 
 enum {
   LINES_IN_MASTER_INFO_WITH_SSL = 14,

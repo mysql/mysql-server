@@ -32,6 +32,8 @@
 #include "sql/dd/types/function.h"   // dd::Function
 #include "sql/dd/types/procedure.h"  // dd::Procedure
 
+struct CHARSET_INFO;
+
 namespace dd {
 namespace tables {
 

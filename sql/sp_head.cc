@@ -37,7 +37,6 @@
 #include <utility>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
@@ -52,7 +51,9 @@
 #include "mysql/psi/mysql_error.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_statement.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
+#include "nulls.h"
 #include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // *_ACL
@@ -93,6 +94,8 @@
 #include "sql/transaction.h"  // trans_commit_stmt
 #include "sql/trigger_def.h"
 #include "sql_string.h"
+#include "string_with_len.h"
+#include "strxmov.h"
 #include "template_utils.h"  // pointer_cast
 #include "thr_lock.h"
 

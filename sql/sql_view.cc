@@ -30,7 +30,6 @@
 #include <utility>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "m_string.h"
 #include "mem_root_deque.h"  // mem_root_deque
 #include "my_alloc.h"        // operator new
@@ -41,6 +40,7 @@
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -84,6 +84,7 @@
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 #include "thr_lock.h"
 
 namespace dd {

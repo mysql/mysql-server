@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <stddef.h>
 
 #include <mysql/components/service.h>
+#include <nulls.h>
 
 #include <mysql/components/services/bits/system_variables_bits.h>
 

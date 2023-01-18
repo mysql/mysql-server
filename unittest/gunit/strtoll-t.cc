@@ -23,6 +23,8 @@
 #include <gtest/gtest.h>
 #include <limits.h>
 
+#include "strings/m_ctype_internals.h"
+
 /*
 
   ==== Purpose ====
@@ -41,9 +43,9 @@
   the overflow error when receiving a number like 18446744073709551915
 
 */
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
+#include "mysql/strings/my_strtoll10.h"
 
 TEST(StringToULLTest, OverflowedNumber) {
   unsigned long long number;

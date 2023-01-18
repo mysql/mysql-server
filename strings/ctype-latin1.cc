@@ -25,15 +25,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <stddef.h>
-#include <sys/types.h>
+#include <cstddef>
+#include <cstdint>
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
-#include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
+#include "strings/m_ctype_internals.h"
 
-static const uchar ctype_latin1[] = {
+static const uint8_t ctype_latin1[] = {
     0,  32,  32,  32,  32,  32,  32,  32,  32,  32,  40,  40, 40, 40, 40, 32,
     32, 32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32, 32, 32, 32, 32,
     32, 72,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16, 16, 16, 16, 16,
@@ -52,7 +52,7 @@ static const uchar ctype_latin1[] = {
     2,  2,   2,   2,   2,   2,   2,   2,   16,  2,   2,   2,  2,  2,  2,  2,
     2};
 
-static const uchar to_lower_latin1[] = {
+static const uint8_t to_lower_latin1[] = {
     0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
     15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
     30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,
@@ -72,7 +72,7 @@ static const uchar to_lower_latin1[] = {
     240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254,
     255};
 
-static const uchar to_upper_latin1[] = {
+static const uint8_t to_upper_latin1[] = {
     0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
     15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
     30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,
@@ -92,7 +92,7 @@ static const uchar to_upper_latin1[] = {
     208, 209, 210, 211, 212, 213, 214, 247, 216, 217, 218, 219, 220, 221, 222,
     255};
 
-static const uchar sort_order_latin1[] = {
+static const uint8_t sort_order_latin1[] = {
     0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
     15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
     30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,
@@ -164,7 +164,7 @@ static const unsigned short cs_to_uni[256] = {
     0x00EA, 0x00EB, 0x00EC, 0x00ED, 0x00EE, 0x00EF, 0x00F0, 0x00F1, 0x00F2,
     0x00F3, 0x00F4, 0x00F5, 0x00F6, 0x00F7, 0x00F8, 0x00F9, 0x00FA, 0x00FB,
     0x00FC, 0x00FD, 0x00FE, 0x00FF};
-static const uchar pl00[256] = {
+static const uint8_t pl00[256] = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
     0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
     0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23,
@@ -187,7 +187,7 @@ static const uchar pl00[256] = {
     0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF,
     0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB,
     0xFC, 0xFD, 0xFE, 0xFF};
-static const uchar pl01[256] = {
+static const uint8_t pl01[256] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -210,7 +210,7 @@ static const uchar pl01[256] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00};
-static const uchar pl02[256] = {
+static const uint8_t pl02[256] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -233,7 +233,7 @@ static const uchar pl02[256] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00};
-static const uchar pl20[256] = {
+static const uint8_t pl20[256] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x96, 0x97, 0x00, 0x00, 0x00,
     0x91, 0x92, 0x82, 0x00, 0x93, 0x94, 0x84, 0x00, 0x86, 0x87, 0x95, 0x00,
@@ -256,7 +256,7 @@ static const uchar pl20[256] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00};
-static const uchar pl21[256] = {
+static const uint8_t pl21[256] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x99, 0x00,
@@ -279,7 +279,7 @@ static const uchar pl21[256] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00};
-static const uchar *uni_to_cs[256] = {
+static const uint8_t *uni_to_cs[256] = {
     pl00,    pl01,    pl02,    nullptr, nullptr, nullptr, nullptr, nullptr,
     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
@@ -315,7 +315,7 @@ static const uchar *uni_to_cs[256] = {
 
 extern "C" {
 static int my_mb_wc_latin1(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *wc,
-                           const uchar *str, const uchar *end) {
+                           const uint8_t *str, const uint8_t *end) {
   if (str >= end) return MY_CS_TOOSMALL;
 
   *wc = cs_to_uni[*str];
@@ -323,14 +323,12 @@ static int my_mb_wc_latin1(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *wc,
 }
 
 static int my_wc_mb_latin1(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
-                           uchar *str, uchar *end) {
-  const uchar *pl;
-
+                           uint8_t *str, uint8_t *end) {
   if (str >= end) return MY_CS_TOOSMALL;
 
   if (wc > 0xFFFF) return MY_CS_ILUNI;
 
-  pl = uni_to_cs[wc >> 8];
+  const uint8_t *pl = uni_to_cs[wc >> 8];
   str[0] = pl ? pl[wc & 0xFF] : '\0';
   return (!str[0] && wc) ? MY_CS_ILUNI : 1;
 }
@@ -418,7 +416,7 @@ CHARSET_INFO my_charset_latin1 = {
  * Ü, ü, Ö, ö, Ä, ä
  */
 
-static const uchar sort_order_latin1_de[] = {
+static const uint8_t sort_order_latin1_de[] = {
     0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
     15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
     30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,
@@ -442,7 +440,7 @@ static const uchar sort_order_latin1_de[] = {
   same as sort_order_latin_de, but maps ALL accented chars to unaccented ones
 */
 
-static const uchar combo1map[] = {
+static const uint8_t combo1map[] = {
     0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
     15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
     30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,
@@ -462,7 +460,7 @@ static const uchar combo1map[] = {
     68,  78,  79,  79,  79,  79,  79,  247, 216, 85,  85,  85,  85,  89,  222,
     89};
 
-static const uchar combo2map[] = {
+static const uint8_t combo2map[] = {
     0, 0, 0, 0, 0,  0, 0,  0,  0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0,
     0, 0, 0, 0, 0,  0, 0,  0,  0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0,
     0, 0, 0, 0, 0,  0, 0,  0,  0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0,
@@ -489,12 +487,15 @@ static const uchar combo2map[] = {
 
 extern "C" {
 static int my_strnncoll_latin1_de(const CHARSET_INFO *cs [[maybe_unused]],
-                                  const uchar *a, size_t a_length,
-                                  const uchar *b, size_t b_length,
+                                  const uint8_t *a, size_t a_length,
+                                  const uint8_t *b, size_t b_length,
                                   bool b_is_prefix) {
-  const uchar *a_end = a + a_length;
-  const uchar *b_end = b + b_length;
-  uchar a_char, a_extend = 0, b_char, b_extend = 0;
+  const uint8_t *a_end = a + a_length;
+  const uint8_t *b_end = b + b_length;
+  uint8_t a_char = 0;
+  uint8_t a_extend = 0;
+  uint8_t b_char = 0;
+  uint8_t b_extend = 0;
 
   while ((a < a_end || a_extend) && (b < b_end || b_extend)) {
     if (a_extend) {
@@ -522,11 +523,14 @@ static int my_strnncoll_latin1_de(const CHARSET_INFO *cs [[maybe_unused]],
 }
 
 static int my_strnncollsp_latin1_de(const CHARSET_INFO *cs [[maybe_unused]],
-                                    const uchar *a, size_t a_length,
-                                    const uchar *b, size_t b_length) {
-  const uchar *a_end = a + a_length, *b_end = b + b_length;
-  uchar a_char, a_extend = 0, b_char, b_extend = 0;
-  int res;
+                                    const uint8_t *a, size_t a_length,
+                                    const uint8_t *b, size_t b_length) {
+  const uint8_t *a_end = a + a_length;
+  const uint8_t *b_end = b + b_length;
+  uint8_t a_char = 0;
+  uint8_t a_extend = 0;
+  uint8_t b_char = 0;
+  uint8_t b_extend = 0;
 
   while ((a < a_end || a_extend) && (b < b_end || b_extend)) {
     if (a_extend) {
@@ -549,7 +553,7 @@ static int my_strnncollsp_latin1_de(const CHARSET_INFO *cs [[maybe_unused]],
   if (a_extend) return 1;
   if (b_extend) return -1;
 
-  res = 0;
+  int res = 0;
   if (a != a_end || b != b_end) {
     int swap = 1;
     /*
@@ -570,15 +574,15 @@ static int my_strnncollsp_latin1_de(const CHARSET_INFO *cs [[maybe_unused]],
   return res;
 }
 
-static size_t my_strnxfrm_latin1_de(const CHARSET_INFO *cs, uchar *dst,
-                                    size_t dstlen, uint nweights,
-                                    const uchar *src, size_t srclen,
-                                    uint flags) {
-  uchar *de = dst + dstlen;
-  const uchar *se = src + srclen;
-  uchar *d0 = dst;
+static size_t my_strnxfrm_latin1_de(const CHARSET_INFO *cs, uint8_t *dst,
+                                    size_t dstlen, unsigned nweights,
+                                    const uint8_t *src, size_t srclen,
+                                    unsigned flags) {
+  uint8_t *de = dst + dstlen;
+  const uint8_t *se = src + srclen;
+  uint8_t *d0 = dst;
   for (; src < se && dst < de && nweights; src++, nweights--) {
-    uchar chr = combo1map[*src];
+    uint8_t chr = combo1map[*src];
     *dst++ = chr;
     if ((chr = combo2map[*src]) && dst < de) {
       *dst++ = chr;
@@ -588,27 +592,23 @@ static size_t my_strnxfrm_latin1_de(const CHARSET_INFO *cs, uchar *dst,
 }
 
 static void my_hash_sort_latin1_de(const CHARSET_INFO *cs [[maybe_unused]],
-                                   const uchar *key, size_t len, uint64 *nr1,
-                                   uint64 *nr2) {
-  const uchar *end;
-  uint64 tmp1;
-  uint64 tmp2;
-
+                                   const uint8_t *key, size_t len,
+                                   uint64_t *nr1, uint64_t *nr2) {
   /*
     Remove end space. We have to do this to be able to compare
     'AE' and 'Ä' as identical
   */
-  end = skip_trailing_space(key, len);
+  const uint8_t *end = skip_trailing_space(key, len);
 
-  tmp1 = *nr1;
-  tmp2 = *nr2;
+  uint64_t tmp1 = *nr1;
+  uint64_t tmp2 = *nr2;
 
   for (; key < end; key++) {
-    uint X = (uint)combo1map[(uint)*key];
-    tmp1 ^= (uint64)((((uint)tmp1 & 63) + tmp2) * X) + (tmp1 << 8);
+    unsigned X = (unsigned)combo1map[(unsigned)*key];
+    tmp1 ^= (uint64_t)((((unsigned)tmp1 & 63) + tmp2) * X) + (tmp1 << 8);
     tmp2 += 3;
     if ((X = combo2map[*key])) {
-      tmp1 ^= (uint64)((((uint)tmp1 & 63) + tmp2) * X) + (tmp1 << 8);
+      tmp1 ^= (uint64_t)((((unsigned)tmp1 & 63) + tmp2) * X) + (tmp1 << 8);
       tmp2 += 3;
     }
   }

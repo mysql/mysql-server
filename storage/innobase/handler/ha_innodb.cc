@@ -46,6 +46,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_config.h"
 #endif /* !UNIV_HOTBACKUP */
 
+#include <cstdint>
+
 #include <auto_thd.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -147,7 +149,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_data_lock.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysys_err.h"
+#include "nulls.h"
 #include "os0thread-create.h"
 #include "os0thread.h"
 #include "p_s.h"
@@ -165,6 +170,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0mon.h"
 #include "srv0srv.h"
 #include "srv0start.h"
+#include "string_with_len.h"
 #include "sync0sync.h"
 #ifdef UNIV_DEBUG
 #include "trx0purge.h"
@@ -2318,7 +2324,7 @@ const char *innobase_get_err_msg(int error_code) /*!< in: MySQL error code */
 @param[out] mbminlen Minimum length of a char (in bytes)
 @param[out] mbmaxlen Maximum length of a char (in bytes) */
 void innobase_get_cset_width(ulint cset, ulint *mbminlen, ulint *mbmaxlen) {
-  CHARSET_INFO *cs;
+  const CHARSET_INFO *cs = nullptr;
   ut_ad(cset <= MAX_CHAR_COLL_NUM);
   ut_ad(mbminlen);
   ut_ad(mbmaxlen);
@@ -2532,16 +2538,15 @@ os_fd_t innobase_mysql_tmpfile(const char *path) {
 /** Wrapper around MySQL's copy_and_convert function.
  @return number of bytes copied to 'to' */
 static ulint innobase_convert_string(
-    void *to,              /*!< out: converted string */
-    ulint to_length,       /*!< in: number of bytes reserved
-                           for the converted string */
-    CHARSET_INFO *to_cs,   /*!< in: character set to convert to */
-    const void *from,      /*!< in: string to convert */
-    ulint from_length,     /*!< in: number of bytes to convert */
-    CHARSET_INFO *from_cs, /*!< in: character set to convert
-                           from */
-    uint *errors)          /*!< out: number of errors encountered
-                           during the conversion */
+    void *to,                    /*!< out: converted string */
+    ulint to_length,             /*!< in: number of bytes reserved
+                                 for the converted string */
+    const CHARSET_INFO *to_cs,   /*!< in: character set to convert to */
+    const void *from,            /*!< in: string to convert */
+    ulint from_length,           /*!< in: number of bytes to convert */
+    const CHARSET_INFO *from_cs, /*!< in: character set to convert from */
+    uint *errors)                /*!< out: number of errors encountered
+                                 during the conversion */
 {
   return (copy_and_convert((char *)to, (uint32)to_length, to_cs,
                            (const char *)from, (uint32)from_length, from_cs,
@@ -2566,7 +2571,7 @@ ulint innobase_raw_format(const char *data,   /*!< in: raw data */
 {
   /* XXX we use a hard limit instead of allocating
   but_size bytes from the heap */
-  CHARSET_INFO *data_cs;
+  const CHARSET_INFO *data_cs = nullptr;
   char buf_tmp[8192];
   ulint buf_tmp_used;
   uint num_errors;
@@ -7796,8 +7801,8 @@ extern size_t innobase_fts_casedn_str(CHARSET_INFO *cs, char *src,
   }
 }
 
-inline bool true_word_char(int c, uchar ch) {
-  return c & (_MY_U | _MY_L | _MY_NMR) || ch == '_';
+inline bool true_word_char(int c, uint8_t ch) {
+  return ((c & (MY_CHAR_U | MY_CHAR_L | MY_CHAR_NMR)) != 0) || ch == '_';
 }
 
 /** Get the next token from the given string and store it in *token.

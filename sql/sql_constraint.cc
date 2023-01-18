@@ -22,7 +22,8 @@
 
 #include "sql/sql_constraint.h"
 
-#include "my_sys.h"              // my_error
+#include "my_sys.h"  // my_error
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"        // ER_*
 #include "sql/dd/types/table.h"  // dd::Table
 #include "sql/field.h"           // Field

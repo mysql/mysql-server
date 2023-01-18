@@ -29,11 +29,11 @@
 #include <algorithm>
 #include <limits>
 
-#include "m_ctype.h"
 #include "mem_root_deque.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "sql/field.h"
 #include "sql/handler.h"

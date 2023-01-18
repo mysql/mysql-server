@@ -40,6 +40,7 @@
 
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "template_utils.h"
 #include "unittest/gunit/benchmark.h"
 #include "unittest/gunit/strnxfrm.h"
@@ -89,8 +90,7 @@ void expect_arrays_equal(const uchar *expected, const uchar *got, size_t len) {
 }
 
 CHARSET_INFO *init_collation(const char *name) {
-  MY_CHARSET_LOADER loader;
-  return my_collation_get_by_name(&loader, name, MYF(0));
+  return get_charset_by_name(name, MYF(0));
 }
 
 int compare_through_strxfrm(CHARSET_INFO *cs, const char *a, const char *b) {
@@ -2348,7 +2348,7 @@ TEST(StrxfrmLenTest, StrnxfrmLenIsLongEnoughForAllCharacters) {
   // Load one collation to get everything going.
   init_collation("utf8mb4_0900_ai_ci");
 
-  for (CHARSET_INFO *cs : all_charsets) {
+  for (const CHARSET_INFO *cs : all_charsets) {
     if (cs && (cs->state & MY_CS_AVAILABLE)) {
       SCOPED_TRACE(cs->m_coll_name);
       test_strnxfrmlen(init_collation(cs->m_coll_name));
@@ -2662,7 +2662,7 @@ TEST(StrmxfrmHashTest, HashStability) {
       "character sets, but should at least be enough to make the nr1 value go "
       "up past the 32-bit mark.";
 
-  for (CHARSET_INFO *cs : all_charsets) {
+  for (const CHARSET_INFO *cs : all_charsets) {
     if (cs && (cs->state & MY_CS_AVAILABLE)) {
       init_collation(cs->m_coll_name);
 

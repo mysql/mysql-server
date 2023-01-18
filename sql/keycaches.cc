@@ -22,9 +22,9 @@
 
 #include "sql/keycaches.h"
 
-#include "m_string.h"
 #include "my_dbug.h"
 #include "mysys/mysys_priv.h"
+#include "string_with_len.h"
 #include "template_utils.h"
 
 /****************************************************************************

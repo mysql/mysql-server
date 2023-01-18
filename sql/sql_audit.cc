@@ -25,11 +25,10 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "m_ctype.h"
+#include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
@@ -39,10 +38,13 @@
 #include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "prealloced_array.h"
 #include "sql/auto_thd.h"  // Auto_THD
 #include "sql/command_mapping.h"
@@ -58,6 +60,7 @@
 #include "sql/sql_rewrite.h"  // mysql_rewrite_query
 #include "sql/table.h"
 #include "sql_string.h"
+#include "strxnmov.h"
 #include "thr_mutex.h"
 
 namespace {

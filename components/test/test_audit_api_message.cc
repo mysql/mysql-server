@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <ctype.h>
 #include <m_string.h>
 #include <my_compiler.h>
+#include <my_inttypes.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/audit_api_message_service.h>
@@ -30,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string_with_len.h>
 #include <sys/types.h>
 #include <string>
 

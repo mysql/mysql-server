@@ -32,7 +32,6 @@
 #include <optional>
 
 #include "field_types.h"
-#include "m_ctype.h"
 #include "my_byteorder.h"
 #include "my_compare.h"
 #include "my_compiler.h"
@@ -40,6 +39,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
@@ -336,8 +336,8 @@ static void do_field_varbinary_pre50(Copy_field *copy, const Field *from_field,
   from_field->val_str(&copy->tmp);
 
   /* Use the same function as in 4.1 to trim trailing spaces */
-  size_t length = my_lengthsp_8bit(&my_charset_bin, copy->tmp.c_ptr_quick(),
-                                   from_field->field_length);
+  size_t length = my_charset_latin1.cset->lengthsp(
+      &my_charset_latin1, copy->tmp.c_ptr_quick(), from_field->field_length);
 
   to_field->store(copy->tmp.c_ptr_quick(), length, copy->tmp.charset());
 }

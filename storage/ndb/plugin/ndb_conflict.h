@@ -41,6 +41,8 @@ class NdbRecord;
 struct CHARSET_INFO;
 struct NdbError;
 
+struct CHARSET_INFO;
+
 enum enum_conflict_fn_type {
   CFT_NDB_UNDEF = 0,
   CFT_NDB_MAX,

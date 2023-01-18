@@ -44,6 +44,7 @@
 #include "sql/dd/types/column.h"                 // Column
 #include "sql/dd/types/object_table.h"
 #include "sql/dd/types/weak_object.h"
+#include "string_with_len.h"
 
 namespace dd {
 class Entity_object_impl;

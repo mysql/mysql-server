@@ -38,7 +38,8 @@
 #include "client/dump/privilege.h"
 #include "client/dump/stored_procedure.h"
 #include "client/dump/view.h"
-#include "m_ctype.h"
+#include "m_string.h"
+#include "mysql/strings/m_ctype.h"
 
 using namespace Mysql::Tools::Dump;
 

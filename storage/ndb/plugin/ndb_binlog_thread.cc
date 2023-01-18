@@ -28,9 +28,9 @@
 #include <cstdint>
 
 // Using
-#include "m_string.h"  // NullS
 #include "my_dbug.h"
 #include "mysql/status_var.h"  // enum_mysql_show_type
+#include "nulls.h"             // NullS
 #include "sql/current_thd.h"   // current_thd
 #include "storage/ndb/include/ndbapi/NdbError.hpp"
 #include "storage/ndb/plugin/ndb_apply_status_table.h"

@@ -20,7 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-
 ## ADD_COMPILE_FLAGS(<source files> COMPILE_FLAGS <flags>)
 ## Use this for adding compiler flags to source files.
 FUNCTION(ADD_COMPILE_FLAGS)

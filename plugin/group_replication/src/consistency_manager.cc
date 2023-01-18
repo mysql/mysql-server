@@ -28,6 +28,7 @@
 #include "plugin/group_replication/include/plugin_messages/sync_before_execution_message.h"
 #include "plugin/group_replication/include/plugin_messages/transaction_prepared_message.h"
 #include "plugin/group_replication/include/plugin_psi.h"
+#include "string_with_len.h"
 
 Transaction_consistency_info::Transaction_consistency_info(
     my_thread_id thread_id, bool local_transaction, const rpl_sid *sid,

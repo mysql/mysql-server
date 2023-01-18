@@ -27,12 +27,11 @@
 
 #include "field_types.h"
 #include "lex_string.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_bitmap.h"  // MY_BITMAP
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/changestreams/misc/replicated_columns_view_factory.h"  // get_columns_view
@@ -49,6 +48,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"  // TABLE
 #include "sql_string.h"
+#include "string_with_len.h"
 #include "template_utils.h"  // down_cast
 
 class Json_diff_vector;

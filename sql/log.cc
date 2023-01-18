@@ -38,13 +38,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "m_string.h"
 #include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_rwlock.h"
+#include "mysql/strings/int2str.h"
 #include "mysql_time.h"
+#include "nulls.h"
 #include "server_component/log_sink_buffer.h"  // log_sink_buffer_flush()
 #include "sql_string.h"
+#include "strxnmov.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -59,8 +63,6 @@
 #include <utility>
 
 #include "lex_string.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_dir.h"
@@ -70,6 +72,7 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_my_plugin_log.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"
@@ -96,6 +99,9 @@
 #include "sql/sql_time.h"  // calc_time_from_sec
 #include "sql/system_variables.h"
 #include "sql/table.h"  // TABLE_FIELD_TYPE
+#include "string_with_len.h"
+#include "strmake.h"
+#include "strxmov.h"
 #include "thr_lock.h"
 #include "thr_mutex.h"
 #ifdef _WIN32

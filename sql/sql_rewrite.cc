@@ -77,11 +77,10 @@
 #include <string>
 
 #include "lex_string.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
 #include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // GRANT_ACL
@@ -99,6 +98,7 @@
 #include "sql/sql_show.h"  // append_identifier
 #include "sql/table.h"
 #include "sql_string.h"  // String
+#include "string_with_len.h"
 #include "violite.h"
 
 #ifndef NDEBUG

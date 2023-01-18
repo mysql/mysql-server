@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <new>
 
+#include "m_string.h"
 #include "sql/dd/impl/types/index_impl.h"        // dd::Index_impl
 #include "sql/dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
 #include "sql/dd/sdi_fwd.h"

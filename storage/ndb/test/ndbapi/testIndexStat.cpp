@@ -26,7 +26,7 @@
 #include <algorithm>
 
 #include <ndb_global.h>
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #include <ndb_opts.h>
 #include <NdbApi.hpp>
 #include <NdbIndexStat.hpp>

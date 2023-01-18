@@ -41,6 +41,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/current_thd.h"
 #include "sql/mysqld_thd_manager.h"
 #include "sql/sql_thd_internal_api.h"  // create_internal_thd
+#include "string_with_len.h"
 
 class THD;
 

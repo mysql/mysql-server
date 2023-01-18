@@ -29,13 +29,13 @@
 #include <atomic>
 
 #include "lex_string.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_psi_config.h"
 #include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql/psi/mysql_sp.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"          // EE_OUTOFMEMORY
+#include "nulls.h"              // NullS
 #include "sql/derror.h"         // ER_THD
 #include "sql/error_handler.h"  // Internal_error_handler
 #include "sql/sp.h"             // sp_add_used_routine
@@ -51,6 +51,8 @@
 #include "sql/system_variables.h"
 #include "sql/trigger_creation_ctx.h"  // Trigger_creation_ctx
 #include "sql_string.h"
+#include "string_with_len.h"
+#include "strxmov.h"
 
 class sp_rcontext;
 struct MEM_ROOT;

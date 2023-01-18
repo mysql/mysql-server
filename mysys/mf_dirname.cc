@@ -28,12 +28,12 @@
 #include <stddef.h>
 
 #ifdef _WIN32
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #endif
-#include "m_string.h"
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_sys.h"  // IWYU pragma: keep
+#include "strmake.h"
 
 /**
   @file mysys/mf_dirname.cc
@@ -123,7 +123,7 @@ size_t dirname_part(char *to, const char *name, size_t *to_res_length) {
   Adds a FN_LIBCHAR to end if the result string if there isn't one
   and the last isn't dev_char.
   Copies data from 'from' until ASCII(0) for until from == from_end
-  If you want to use the whole 'from' string, just send NullS as the
+  If you want to use the whole 'from' string, just send nullptr as the
   last argument.
 
   If the result string is larger than FN_REFLEN -1, then it's cut.

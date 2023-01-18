@@ -26,6 +26,9 @@
 #ifndef ut0core_h
 #define ut0core_h
 
+#include <string.h>
+#include <sstream>
+
 #include "ut0dbg.h"
 
 namespace ut {

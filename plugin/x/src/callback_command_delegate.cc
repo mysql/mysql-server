@@ -31,6 +31,8 @@
 #include "plugin/x/src/ngs/memory.h"
 #include "plugin/x/src/xpl_log.h"
 
+struct CHARSET_INFO;
+
 namespace xpl {
 
 Callback_command_delegate::Field_value::Field_value()

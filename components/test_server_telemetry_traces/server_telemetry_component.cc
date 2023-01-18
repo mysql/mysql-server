@@ -23,6 +23,7 @@
 #include "server_telemetry_component.h"
 #include <cinttypes>  // PRId64
 #include <thread>     // sleep_for()
+#include "mysql/mysql_lex_string.h"
 #include "server_telemetry_data.h"
 #include "template_utils.h"  // pointer_cast
 

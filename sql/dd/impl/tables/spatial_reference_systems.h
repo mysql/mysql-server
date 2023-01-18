@@ -30,6 +30,8 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/spatial_reference_system.h"
 
+struct CHARSET_INFO;
+
 namespace dd {
 
 class Item_name_key;

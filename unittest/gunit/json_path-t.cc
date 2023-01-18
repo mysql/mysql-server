@@ -29,7 +29,7 @@
 #include <string>
 #include <utility>
 
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql-common/json_dom.h"
 #include "sql-common/json_path.h"
 #include "sql_string.h"

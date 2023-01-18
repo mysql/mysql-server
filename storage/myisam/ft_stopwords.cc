@@ -31,6 +31,9 @@
 #include "my_io.h"
 #include "storage/myisam/ftdefs.h"
 #include "storage/myisam/myisamdef.h"
+#include "template_utils.h"
+
+struct CHARSET_INFO;
 
 static CHARSET_INFO *ft_stopword_cs = nullptr;
 

@@ -34,6 +34,7 @@
 #include "sql/range_optimizer/range_analysis.h"
 #include "sql/range_optimizer/range_optimizer.h"
 #include "sql/range_optimizer/tree.h"
+#include "string_with_len.h"
 #include "unittest/gunit/fake_range_opt_param.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/handler-t.h"

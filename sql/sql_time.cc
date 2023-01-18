@@ -39,13 +39,13 @@
 #include <time.h>
 
 #include "decimal.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_compiler.h"
 
 #include "my_macros.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"
 #include "sql/field.h"
@@ -54,6 +54,7 @@
 #include "sql/sql_const.h"
 #include "sql/system_variables.h"
 #include "sql/tztime.h"  // struct Time_zone
+#include "string_with_len.h"
 
 /**
   Name description of interval names used in statements.

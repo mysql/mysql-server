@@ -25,8 +25,8 @@
 #include <string.h>
 
 #include "lex_string.h"
-#include "m_string.h"
 #include "my_sqlcommand.h"
+#include "nulls.h"
 #include "sql/dd/info_schema/show_query_builder.h"  // Select_lex_builder
 #include "sql/dd/info_schema/table_stats.h"
 #include "sql/dd/string_type.h"
@@ -36,6 +36,7 @@
 #include "sql/sql_lex.h"
 #include "sql/table.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 
 namespace dd {
 namespace info_schema {

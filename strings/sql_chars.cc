@@ -26,15 +26,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+
+#include "mysql/strings/m_ctype.h"
 #include "sql_chars.h"
-
-#include <assert.h>
-#include <stddef.h>
-#include <sys/types.h>
-
-#include "m_ctype.h"
-
-#include "my_sys.h"
 
 static void hint_lex_init_maps(CHARSET_INFO *cs,
                                enum hint_lex_char_classes *hint_map) {
@@ -64,26 +61,26 @@ static void hint_lex_init_maps(CHARSET_INFO *cs,
   hint_map[u'/'] = HINT_CHR_SLASH;
 }
 
-bool init_state_maps(CHARSET_INFO *cs) {
-  uint i;
-  uchar *ident_map;
+bool init_state_maps(MY_CHARSET_LOADER *loader, CHARSET_INFO *cs) {
+  uint8_t *ident_map = nullptr;
   enum my_lex_states *state_map = nullptr;
 
-  lex_state_maps_st *lex_state_maps = (lex_state_maps_st *)my_once_alloc(
-      sizeof(lex_state_maps_st), MYF(MY_WME));
+  lex_state_maps_st *lex_state_maps = static_cast<lex_state_maps_st *>(
+      loader->once_alloc(sizeof(lex_state_maps_st)));
 
   if (lex_state_maps == nullptr) return true;  // OOM
 
   cs->state_maps = lex_state_maps;
   state_map = lex_state_maps->main_map;
 
-  if (!(cs->ident_map = ident_map = (uchar *)my_once_alloc(256, MYF(MY_WME))))
+  if (!(cs->ident_map = ident_map =
+            static_cast<uint8_t *>(loader->once_alloc(256))))
     return true;  // OOM
 
   hint_lex_init_maps(cs, lex_state_maps->hint_map);
 
   /* Fill state_map with states to get a faster parser */
-  for (i = 0; i < 256; i++) {
+  for (unsigned i = 0; i < 256; i++) {
     if (my_isalpha(cs, i))
       state_map[i] = MY_LEX_IDENT;
     else if (my_isdigit(cs, i))
@@ -96,38 +93,37 @@ bool init_state_maps(CHARSET_INFO *cs) {
     else
       state_map[i] = MY_LEX_CHAR;
   }
-  state_map[(uchar)'_'] = state_map[(uchar)'$'] = MY_LEX_IDENT;
-  state_map[(uchar)'\''] = MY_LEX_STRING;
-  state_map[(uchar)'.'] = MY_LEX_REAL_OR_POINT;
-  state_map[(uchar)'>'] = state_map[(uchar)'='] = state_map[(uchar)'!'] =
-      MY_LEX_CMP_OP;
-  state_map[(uchar)'<'] = MY_LEX_LONG_CMP_OP;
-  state_map[(uchar)'&'] = state_map[(uchar)'|'] = MY_LEX_BOOL;
-  state_map[(uchar)'#'] = MY_LEX_COMMENT;
-  state_map[(uchar)';'] = MY_LEX_SEMICOLON;
-  state_map[(uchar)':'] = MY_LEX_SET_VAR;
+  state_map[u'_'] = state_map[u'$'] = MY_LEX_IDENT;
+  state_map[u'\''] = MY_LEX_STRING;
+  state_map[u'.'] = MY_LEX_REAL_OR_POINT;
+  state_map[u'>'] = state_map[u'='] = state_map[u'!'] = MY_LEX_CMP_OP;
+  state_map[u'<'] = MY_LEX_LONG_CMP_OP;
+  state_map[u'&'] = state_map[u'|'] = MY_LEX_BOOL;
+  state_map[u'#'] = MY_LEX_COMMENT;
+  state_map[u';'] = MY_LEX_SEMICOLON;
+  state_map[u':'] = MY_LEX_SET_VAR;
   state_map[0] = MY_LEX_EOL;
-  state_map[(uchar)'/'] = MY_LEX_LONG_COMMENT;
-  state_map[(uchar)'*'] = MY_LEX_END_LONG_COMMENT;
-  state_map[(uchar)'@'] = MY_LEX_USER_END;
-  state_map[(uchar)'`'] = MY_LEX_USER_VARIABLE_DELIMITER;
-  state_map[(uchar)'"'] = MY_LEX_STRING_OR_DELIMITER;
+  state_map[u'/'] = MY_LEX_LONG_COMMENT;
+  state_map[u'*'] = MY_LEX_END_LONG_COMMENT;
+  state_map[u'@'] = MY_LEX_USER_END;
+  state_map[u'`'] = MY_LEX_USER_VARIABLE_DELIMITER;
+  state_map[u'"'] = MY_LEX_STRING_OR_DELIMITER;
 
   /*
     Create a second map to make it faster to find identifiers
   */
-  for (i = 0; i < 256; i++) {
-    ident_map[i] = (uchar)(state_map[i] == MY_LEX_IDENT ||
-                           state_map[i] == MY_LEX_NUMBER_IDENT);
+  for (unsigned i = 0; i < 256; i++) {
+    ident_map[i] = static_cast<uint8_t>(state_map[i] == MY_LEX_IDENT ||
+                                        state_map[i] == MY_LEX_NUMBER_IDENT);
   }
 
   /* Special handling of hex and binary strings */
-  state_map[(uchar)'x'] = state_map[(uchar)'X'] = MY_LEX_IDENT_OR_HEX;
-  state_map[(uchar)'b'] = state_map[(uchar)'B'] = MY_LEX_IDENT_OR_BIN;
-  state_map[(uchar)'n'] = state_map[(uchar)'N'] = MY_LEX_IDENT_OR_NCHAR;
+  state_map[u'x'] = state_map[u'X'] = MY_LEX_IDENT_OR_HEX;
+  state_map[u'b'] = state_map[u'B'] = MY_LEX_IDENT_OR_BIN;
+  state_map[u'n'] = state_map[u'N'] = MY_LEX_IDENT_OR_NCHAR;
 
   /* Special handling of '$' for dollar quoted strings */
-  state_map[(uchar)'$'] = MY_LEX_IDENT_OR_DOLLAR_QUOTED_TEXT;
+  state_map[u'$'] = MY_LEX_IDENT_OR_DOLLAR_QUOTED_TEXT;
 
   return false;
 }

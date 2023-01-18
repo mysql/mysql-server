@@ -28,6 +28,12 @@
   @file include/m_string.h
 */
 
+/*
+  This file is for trivial constant definitions and in-line wrappers only.
+
+  Please don't add new stuff to this file unnecessarily.
+*/
+
 #include <float.h>
 #include <limits.h>
 #include <stdbool.h>  // IWYU pragma: keep
@@ -37,46 +43,17 @@
 #include <string.h>
 
 #include <algorithm>
+#include <cstdint>
 
-#include "decimal.h"
 #include "lex_string.h"
 #include "my_config.h"
-#include "my_inttypes.h"
-#include "my_macros.h"
-
-/**
-  Definition of the null string (a null pointer of type char *),
-  used in some of our string handling code. New code should use
-  nullptr instead.
-*/
-#define NullS (char *)0
-
-/*
-  my_str_malloc(), my_str_realloc() and my_str_free() are assigned to
-  implementations in strings/alloc.cc, but can be overridden in
-  the calling program.
- */
-extern void *(*my_str_malloc)(size_t);
-extern void *(*my_str_realloc)(void *, size_t);
-extern void (*my_str_free)(void *);
-
-/* Declared in int2str.cc. */
-extern const char _dig_vec_upper[];
-extern const char _dig_vec_lower[];
-
-/* Prototypes for string functions */
-
-extern char *strmake(char *dst, const char *src, size_t length);
-extern char *strcont(char *src, const char *set);
-extern char *strxmov(char *dst, const char *src, ...);
-extern char *strxnmov(char *dst, size_t len, const char *src, ...);
 
 /*
   bchange(dst, old_length, src, new_length, tot_length)
   replaces old_length characters at dst to new_length characters from
   src in a buffer with tot_length bytes.
 */
-static inline void bchange(uchar *dst, size_t old_length, const uchar *src,
+static inline void bchange(uint8_t *dst, size_t old_length, const uint8_t *src,
                            size_t new_length, size_t tot_length) {
   memmove(dst + new_length, dst + old_length, tot_length - old_length);
   memcpy(dst, src, new_length);
@@ -200,7 +177,7 @@ static inline char *my_stpncpy(char *dst, const char *src, size_t n) {
 #endif
 }
 
-static inline longlong my_strtoll(const char *nptr, char **endptr, int base) {
+static inline long long my_strtoll(const char *nptr, char **endptr, int base) {
 #if defined _WIN32
   return _strtoi64(nptr, endptr, base);
 #else
@@ -208,7 +185,8 @@ static inline longlong my_strtoll(const char *nptr, char **endptr, int base) {
 #endif
 }
 
-static inline ulonglong my_strtoull(const char *nptr, char **endptr, int base) {
+static inline unsigned long long my_strtoull(const char *nptr, char **endptr,
+                                             int base) {
 #if defined _WIN32
   return _strtoui64(nptr, endptr, base);
 #else
@@ -252,74 +230,14 @@ static inline int is_prefix(const char *s, const char *t) {
   return 1; /* WRONG */
 }
 
-/* Conversion routines */
-typedef enum { MY_GCVT_ARG_FLOAT, MY_GCVT_ARG_DOUBLE } my_gcvt_arg_type;
-
-double my_strtod(const char *str, const char **end, int *error);
-size_t my_fcvt(double x, int precision, char *to, bool *error);
-size_t my_fcvt_compact(double x, char *to, bool *error);
-size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
-               bool *error);
-
-/*
-  The longest string my_fcvt can return is 311 + "precision" bytes.
-  Here we assume that we never call my_fcvt() with precision >=
-  DECIMAL_NOT_SPECIFIED
-  (+ 1 byte for the terminating '\0').
-*/
-static constexpr int FLOATING_POINT_BUFFER{311 + DECIMAL_NOT_SPECIFIED};
-
-/*
-  We want to use the 'e' format in some cases even if we have enough space
-  for the 'f' one just to mimic sprintf("%.15g") behavior for large integers,
-  and to improve it for numbers < 10^(-4).
-  That is, for |x| < 1 we require |x| >= 10^(-15), and for |x| > 1 we require
-  it to be integer and be <= 10^DBL_DIG for the 'f' format to be used.
-  We don't lose precision, but make cases like "1e200" or "0.00001" look nicer.
-*/
-#define MAX_DECPT_FOR_F_FORMAT DBL_DIG
-
-/*
-  The maximum possible field width for my_gcvt() conversion.
-  (DBL_DIG + 2) significant digits + sign + "." + ("e-NNN" or
-  MAX_DECPT_FOR_F_FORMAT zeros for cases when |x|<1 and the 'f' format is used).
-*/
-#define MY_GCVT_MAX_FIELD_WIDTH \
-  (DBL_DIG + 4 + std::max(5, MAX_DECPT_FOR_F_FORMAT))
-
-const char *str2int(const char *src, int radix, long lower, long upper,
-                    long *val);
-longlong my_strtoll10(const char *nptr, const char **endptr, int *error);
-char *ll2str(int64_t val, char *dst, int radix, bool upcase);
-char *longlong10_to_str(int64_t val, char *dst, int radix);
-
-inline char *longlong2str(int64_t val, char *dst, int radix) {
-  return ll2str(val, dst, radix, true);
-}
-
-/*
-  This function saves a longlong value in a buffer and returns the pointer to
-  the buffer.
-*/
-static inline char *llstr(longlong value, char *buff) {
-  longlong10_to_str(value, buff, -10);
-  return buff;
-}
-
-static inline char *ullstr(longlong value, char *buff) {
-  longlong10_to_str(value, buff, 10);
-  return buff;
-}
-
-#define STRING_WITH_LEN(X) (X), ((sizeof(X) - 1))
-
 /**
   Skip trailing space (ASCII spaces only).
 
   @return New end of the string.
 */
-static inline const uchar *skip_trailing_space(const uchar *ptr, size_t len) {
-  const uchar *end = ptr + len;
+static inline const uint8_t *skip_trailing_space(const uint8_t *ptr,
+                                                 size_t len) {
+  const uint8_t *end = ptr + len;
   while (end - ptr >= 8) {
     uint64_t chunk;
     memcpy(&chunk, end - 8, sizeof(chunk));

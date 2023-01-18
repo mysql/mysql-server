@@ -33,9 +33,9 @@
 #include <string>
 #include <utility>  // std::pair
 
-#include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_base.h"  // ha_rows
+#include "mysql/strings/m_ctype.h"
 #include "mysql_time.h"
 #include "sql/histograms/value_map_type.h"
 

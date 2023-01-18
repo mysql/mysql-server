@@ -25,7 +25,9 @@
 #ifndef CARRAY_HPP
 #define CARRAY_HPP
 
+#include "ErrorReporter.hpp"
 #include "ndbd_malloc.hpp"
+#include "Pool.hpp"
 
 #define JAM_FILE_ID 271
 

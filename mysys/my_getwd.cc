@@ -49,11 +49,13 @@
 #include "my_thread_local.h"
 #include "mysys/my_static.h"
 #include "mysys_err.h"
+#include "nulls.h"
+#include "strmake.h"
 #if defined(_WIN32)
 #include <direct.h>
 #include <dos.h>
 
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #endif
 
 /* Gets current working directory in buff.

@@ -58,17 +58,16 @@
  * .configure. strxfrm_multiply_tis620=4
  */
 
-#include <string.h>
-#include <sys/types.h>
-
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
 
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_compiler.h"
-#include "my_inttypes.h"
-#include "my_macros.h"
+#include "mysql/strings/m_ctype.h"
+#include "strings/m_ctype_internals.h"
+#include "strings/str_alloc.h"
 #include "strings/t_ctype.h"
+#include "template_utils.h"
 
 #define M L_MIDDLE
 #define U L_UPPER
@@ -341,7 +340,7 @@ static const int t_ctype[][TOT_LEVELS] = {
     /*0xFF*/ {255 /*IGNORE*/, IGNORE, IGNORE, IGNORE, X},
 };
 
-static const uchar ctype_tis620[257] = {
+static const uint8_t ctype_tis620[257] = {
     0, /* For standard library */
     32,  32,  32,  32,  32,  32,  32,  32,  32,  40,  40, 40, 40, 40, 32, 32,
     32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32, 32, 32, 32, 32, 32,
@@ -361,7 +360,8 @@ static const uchar ctype_tis620[257] = {
     0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  0,  0,  0,  0,  0,
 };
 
-static const uchar to_lower_tis620[] = {
+// clang-format off
+static const uint8_t to_lower_tis620[] = {
     '\000',        '\001',        '\002',        '\003',        '\004',
     '\005',        '\006',        '\007',        '\010',        '\011',
     '\012',        '\013',        '\014',        '\015',        '\016',
@@ -387,36 +387,38 @@ static const uchar to_lower_tis620[] = {
     'n',           'o',           'p',           'q',           'r',
     's',           't',           'u',           'v',           'w',
     'x',           'y',           'z',           '{',           '|',
-    '}',           '~',           '\177',        (uchar)'\200', (uchar)'\201',
-    (uchar)'\202', (uchar)'\203', (uchar)'\204', (uchar)'\205', (uchar)'\206',
-    (uchar)'\207', (uchar)'\210', (uchar)'\211', (uchar)'\212', (uchar)'\213',
-    (uchar)'\214', (uchar)'\215', (uchar)'\216', (uchar)'\217', (uchar)'\220',
-    (uchar)'\221', (uchar)'\222', (uchar)'\223', (uchar)'\224', (uchar)'\225',
-    (uchar)'\226', (uchar)'\227', (uchar)'\230', (uchar)'\231', (uchar)'\232',
-    (uchar)'\233', (uchar)'\234', (uchar)'\235', (uchar)'\236', (uchar)'\237',
-    (uchar)'\240', (uchar)'\241', (uchar)'\242', (uchar)'\243', (uchar)'\244',
-    (uchar)'\245', (uchar)'\246', (uchar)'\247', (uchar)'\250', (uchar)'\251',
-    (uchar)'\252', (uchar)'\253', (uchar)'\254', (uchar)'\255', (uchar)'\256',
-    (uchar)'\257', (uchar)'\260', (uchar)'\261', (uchar)'\262', (uchar)'\263',
-    (uchar)'\264', (uchar)'\265', (uchar)'\266', (uchar)'\267', (uchar)'\270',
-    (uchar)'\271', (uchar)'\272', (uchar)'\273', (uchar)'\274', (uchar)'\275',
-    (uchar)'\276', (uchar)'\277', (uchar)'\300', (uchar)'\301', (uchar)'\302',
-    (uchar)'\303', (uchar)'\304', (uchar)'\305', (uchar)'\306', (uchar)'\307',
-    (uchar)'\310', (uchar)'\311', (uchar)'\312', (uchar)'\313', (uchar)'\314',
-    (uchar)'\315', (uchar)'\316', (uchar)'\317', (uchar)'\320', (uchar)'\321',
-    (uchar)'\322', (uchar)'\323', (uchar)'\324', (uchar)'\325', (uchar)'\326',
-    (uchar)'\327', (uchar)'\330', (uchar)'\331', (uchar)'\332', (uchar)'\333',
-    (uchar)'\334', (uchar)'\335', (uchar)'\336', (uchar)'\337', (uchar)'\340',
-    (uchar)'\341', (uchar)'\342', (uchar)'\343', (uchar)'\344', (uchar)'\345',
-    (uchar)'\346', (uchar)'\347', (uchar)'\350', (uchar)'\351', (uchar)'\352',
-    (uchar)'\353', (uchar)'\354', (uchar)'\355', (uchar)'\356', (uchar)'\357',
-    (uchar)'\360', (uchar)'\361', (uchar)'\362', (uchar)'\363', (uchar)'\364',
-    (uchar)'\365', (uchar)'\366', (uchar)'\367', (uchar)'\370', (uchar)'\371',
-    (uchar)'\372', (uchar)'\373', (uchar)'\374', (uchar)'\375', (uchar)'\376',
-    (uchar)'\377',
+    '}',           '~',           '\177',        u'\200',       u'\201',
+    u'\202',       u'\203',       u'\204',       u'\205',       u'\206',
+    u'\207',       u'\210',       u'\211',       u'\212',       u'\213',
+    u'\214',       u'\215',       u'\216',       u'\217',       u'\220',
+    u'\221',       u'\222',       u'\223',       u'\224',       u'\225',
+    u'\226',       u'\227',       u'\230',       u'\231',       u'\232',
+    u'\233',       u'\234',       u'\235',       u'\236',       u'\237',
+    u'\240',       u'\241',       u'\242',       u'\243',       u'\244',
+    u'\245',       u'\246',       u'\247',       u'\250',       u'\251',
+    u'\252',       u'\253',       u'\254',       u'\255',       u'\256',
+    u'\257',       u'\260',       u'\261',       u'\262',       u'\263',
+    u'\264',       u'\265',       u'\266',       u'\267',       u'\270',
+    u'\271',       u'\272',       u'\273',       u'\274',       u'\275',
+    u'\276',       u'\277',       u'\300',       u'\301',       u'\302',
+    u'\303',       u'\304',       u'\305',       u'\306',       u'\307',
+    u'\310',       u'\311',       u'\312',       u'\313',       u'\314',
+    u'\315',       u'\316',       u'\317',       u'\320',       u'\321',
+    u'\322',       u'\323',       u'\324',       u'\325',       u'\326',
+    u'\327',       u'\330',       u'\331',       u'\332',       u'\333',
+    u'\334',       u'\335',       u'\336',       u'\337',       u'\340',
+    u'\341',       u'\342',       u'\343',       u'\344',       u'\345',
+    u'\346',       u'\347',       u'\350',       u'\351',       u'\352',
+    u'\353',       u'\354',       u'\355',       u'\356',       u'\357',
+    u'\360',       u'\361',       u'\362',       u'\363',       u'\364',
+    u'\365',       u'\366',       u'\367',       u'\370',       u'\371',
+    u'\372',       u'\373',       u'\374',       u'\375',       u'\376',
+    u'\377',
 };
+// clang-format on
 
-static const uchar to_upper_tis620[] = {
+// clang-format off
+static const uint8_t to_upper_tis620[] = {
     '\000',        '\001',        '\002',        '\003',        '\004',
     '\005',        '\006',        '\007',        '\010',        '\011',
     '\012',        '\013',        '\014',        '\015',        '\016',
@@ -442,36 +444,38 @@ static const uchar to_upper_tis620[] = {
     'N',           'O',           'P',           'Q',           'R',
     'S',           'T',           'U',           'V',           'W',
     'X',           'Y',           'Z',           '{',           '|',
-    '}',           '~',           '\177',        (uchar)'\200', (uchar)'\201',
-    (uchar)'\202', (uchar)'\203', (uchar)'\204', (uchar)'\205', (uchar)'\206',
-    (uchar)'\207', (uchar)'\210', (uchar)'\211', (uchar)'\212', (uchar)'\213',
-    (uchar)'\214', (uchar)'\215', (uchar)'\216', (uchar)'\217', (uchar)'\220',
-    (uchar)'\221', (uchar)'\222', (uchar)'\223', (uchar)'\224', (uchar)'\225',
-    (uchar)'\226', (uchar)'\227', (uchar)'\230', (uchar)'\231', (uchar)'\232',
-    (uchar)'\233', (uchar)'\234', (uchar)'\235', (uchar)'\236', (uchar)'\237',
-    (uchar)'\240', (uchar)'\241', (uchar)'\242', (uchar)'\243', (uchar)'\244',
-    (uchar)'\245', (uchar)'\246', (uchar)'\247', (uchar)'\250', (uchar)'\251',
-    (uchar)'\252', (uchar)'\253', (uchar)'\254', (uchar)'\255', (uchar)'\256',
-    (uchar)'\257', (uchar)'\260', (uchar)'\261', (uchar)'\262', (uchar)'\263',
-    (uchar)'\264', (uchar)'\265', (uchar)'\266', (uchar)'\267', (uchar)'\270',
-    (uchar)'\271', (uchar)'\272', (uchar)'\273', (uchar)'\274', (uchar)'\275',
-    (uchar)'\276', (uchar)'\277', (uchar)'\300', (uchar)'\301', (uchar)'\302',
-    (uchar)'\303', (uchar)'\304', (uchar)'\305', (uchar)'\306', (uchar)'\307',
-    (uchar)'\310', (uchar)'\311', (uchar)'\312', (uchar)'\313', (uchar)'\314',
-    (uchar)'\315', (uchar)'\316', (uchar)'\317', (uchar)'\320', (uchar)'\321',
-    (uchar)'\322', (uchar)'\323', (uchar)'\324', (uchar)'\325', (uchar)'\326',
-    (uchar)'\327', (uchar)'\330', (uchar)'\331', (uchar)'\332', (uchar)'\333',
-    (uchar)'\334', (uchar)'\335', (uchar)'\336', (uchar)'\337', (uchar)'\340',
-    (uchar)'\341', (uchar)'\342', (uchar)'\343', (uchar)'\344', (uchar)'\345',
-    (uchar)'\346', (uchar)'\347', (uchar)'\350', (uchar)'\351', (uchar)'\352',
-    (uchar)'\353', (uchar)'\354', (uchar)'\355', (uchar)'\356', (uchar)'\357',
-    (uchar)'\360', (uchar)'\361', (uchar)'\362', (uchar)'\363', (uchar)'\364',
-    (uchar)'\365', (uchar)'\366', (uchar)'\367', (uchar)'\370', (uchar)'\371',
-    (uchar)'\372', (uchar)'\373', (uchar)'\374', (uchar)'\375', (uchar)'\376',
-    (uchar)'\377',
+    '}',           '~',           '\177',        u'\200',       u'\201',
+    u'\202',       u'\203',       u'\204',       u'\205',       u'\206',
+    u'\207',       u'\210',       u'\211',       u'\212',       u'\213',
+    u'\214',       u'\215',       u'\216',       u'\217',       u'\220',
+    u'\221',       u'\222',       u'\223',       u'\224',       u'\225',
+    u'\226',       u'\227',       u'\230',       u'\231',       u'\232',
+    u'\233',       u'\234',       u'\235',       u'\236',       u'\237',
+    u'\240',       u'\241',       u'\242',       u'\243',       u'\244',
+    u'\245',       u'\246',       u'\247',       u'\250',       u'\251',
+    u'\252',       u'\253',       u'\254',       u'\255',       u'\256',
+    u'\257',       u'\260',       u'\261',       u'\262',       u'\263',
+    u'\264',       u'\265',       u'\266',       u'\267',       u'\270',
+    u'\271',       u'\272',       u'\273',       u'\274',       u'\275',
+    u'\276',       u'\277',       u'\300',       u'\301',       u'\302',
+    u'\303',       u'\304',       u'\305',       u'\306',       u'\307',
+    u'\310',       u'\311',       u'\312',       u'\313',       u'\314',
+    u'\315',       u'\316',       u'\317',       u'\320',       u'\321',
+    u'\322',       u'\323',       u'\324',       u'\325',       u'\326',
+    u'\327',       u'\330',       u'\331',       u'\332',       u'\333',
+    u'\334',       u'\335',       u'\336',       u'\337',       u'\340',
+    u'\341',       u'\342',       u'\343',       u'\344',       u'\345',
+    u'\346',       u'\347',       u'\350',       u'\351',       u'\352',
+    u'\353',       u'\354',       u'\355',       u'\356',       u'\357',
+    u'\360',       u'\361',       u'\362',       u'\363',       u'\364',
+    u'\365',       u'\366',       u'\367',       u'\370',       u'\371',
+    u'\372',       u'\373',       u'\374',       u'\375',       u'\376',
+    u'\377',
 };
+// clang-format on
 
-static const uchar sort_order_tis620[] = {
+// clang-format off
+static const uint8_t sort_order_tis620[] = {
     '\000',        '\001',        '\002',        '\003',        '\004',
     '\005',        '\006',        '\007',        '\010',        '\011',
     '\012',        '\013',        '\014',        '\015',        '\016',
@@ -497,34 +501,35 @@ static const uchar sort_order_tis620[] = {
     'N',           'O',           'P',           'Q',           'R',
     'S',           'T',           'U',           'V',           'W',
     'X',           'Y',           'Z',           '{',           '|',
-    '}',           'Y',           '\177',        (uchar)'\200', (uchar)'\201',
-    (uchar)'\202', (uchar)'\203', (uchar)'\204', (uchar)'\205', (uchar)'\206',
-    (uchar)'\207', (uchar)'\210', (uchar)'\211', (uchar)'\212', (uchar)'\213',
-    (uchar)'\214', (uchar)'\215', (uchar)'\216', (uchar)'\217', (uchar)'\220',
-    (uchar)'\221', (uchar)'\222', (uchar)'\223', (uchar)'\224', (uchar)'\225',
-    (uchar)'\226', (uchar)'\227', (uchar)'\230', (uchar)'\231', (uchar)'\232',
-    (uchar)'\233', (uchar)'\234', (uchar)'\235', (uchar)'\236', (uchar)'\237',
-    (uchar)'\240', (uchar)'\241', (uchar)'\242', (uchar)'\243', (uchar)'\244',
-    (uchar)'\245', (uchar)'\246', (uchar)'\247', (uchar)'\250', (uchar)'\251',
-    (uchar)'\252', (uchar)'\253', (uchar)'\254', (uchar)'\255', (uchar)'\256',
-    (uchar)'\257', (uchar)'\260', (uchar)'\261', (uchar)'\262', (uchar)'\263',
-    (uchar)'\264', (uchar)'\265', (uchar)'\266', (uchar)'\267', (uchar)'\270',
-    (uchar)'\271', (uchar)'\272', (uchar)'\273', (uchar)'\274', (uchar)'\275',
-    (uchar)'\276', (uchar)'\277', (uchar)'\300', (uchar)'\301', (uchar)'\302',
-    (uchar)'\303', (uchar)'\304', (uchar)'\305', (uchar)'\306', (uchar)'\307',
-    (uchar)'\310', (uchar)'\311', (uchar)'\312', (uchar)'\313', (uchar)'\314',
-    (uchar)'\315', (uchar)'\316', (uchar)'\317', (uchar)'\320', (uchar)'\321',
-    (uchar)'\322', (uchar)'\323', (uchar)'\324', (uchar)'\325', (uchar)'\326',
-    (uchar)'\327', (uchar)'\330', (uchar)'\331', (uchar)'\332', (uchar)'\333',
-    (uchar)'\334', (uchar)'\335', (uchar)'\336', (uchar)'\337', (uchar)'\340',
-    (uchar)'\341', (uchar)'\342', (uchar)'\343', (uchar)'\344', (uchar)'\345',
-    (uchar)'\346', (uchar)'\347', (uchar)'\350', (uchar)'\351', (uchar)'\352',
-    (uchar)'\353', (uchar)'\354', (uchar)'\355', (uchar)'\356', (uchar)'\357',
-    (uchar)'\360', (uchar)'\361', (uchar)'\362', (uchar)'\363', (uchar)'\364',
-    (uchar)'\365', (uchar)'\366', (uchar)'\367', (uchar)'\370', (uchar)'\371',
-    (uchar)'\372', (uchar)'\373', (uchar)'\374', (uchar)'\375', (uchar)'\376',
-    (uchar)'\377',
+    '}',           'Y',           '\177',        u'\200',       u'\201',
+    u'\202',       u'\203',       u'\204',       u'\205',       u'\206',
+    u'\207',       u'\210',       u'\211',       u'\212',       u'\213',
+    u'\214',       u'\215',       u'\216',       u'\217',       u'\220',
+    u'\221',       u'\222',       u'\223',       u'\224',       u'\225',
+    u'\226',       u'\227',       u'\230',       u'\231',       u'\232',
+    u'\233',       u'\234',       u'\235',       u'\236',       u'\237',
+    u'\240',       u'\241',       u'\242',       u'\243',       u'\244',
+    u'\245',       u'\246',       u'\247',       u'\250',       u'\251',
+    u'\252',       u'\253',       u'\254',       u'\255',       u'\256',
+    u'\257',       u'\260',       u'\261',       u'\262',       u'\263',
+    u'\264',       u'\265',       u'\266',       u'\267',       u'\270',
+    u'\271',       u'\272',       u'\273',       u'\274',       u'\275',
+    u'\276',       u'\277',       u'\300',       u'\301',       u'\302',
+    u'\303',       u'\304',       u'\305',       u'\306',       u'\307',
+    u'\310',       u'\311',       u'\312',       u'\313',       u'\314',
+    u'\315',       u'\316',       u'\317',       u'\320',       u'\321',
+    u'\322',       u'\323',       u'\324',       u'\325',       u'\326',
+    u'\327',       u'\330',       u'\331',       u'\332',       u'\333',
+    u'\334',       u'\335',       u'\336',       u'\337',       u'\340',
+    u'\341',       u'\342',       u'\343',       u'\344',       u'\345',
+    u'\346',       u'\347',       u'\350',       u'\351',       u'\352',
+    u'\353',       u'\354',       u'\355',       u'\356',       u'\357',
+    u'\360',       u'\361',       u'\362',       u'\363',       u'\364',
+    u'\365',       u'\366',       u'\367',       u'\370',       u'\371',
+    u'\372',       u'\373',       u'\374',       u'\375',       u'\376',
+    u'\377',
 };
+// clang-format on
 
 /*
   Convert thai string to "Standard C String Function" sortable string
@@ -535,15 +540,11 @@ static const uchar sort_order_tis620[] = {
     len			Length of tstr
 */
 
-static size_t thai2sortable(uchar *tstr, size_t len) {
-  uchar *p;
-  size_t tlen;
-  uchar l2bias;
-
-  tlen = len;
-  l2bias = 256 - 8;
-  for (p = tstr; tlen > 0; p++, tlen--) {
-    uchar c = *p;
+static size_t thai2sortable(uint8_t *tstr, size_t len) {
+  size_t tlen = len;
+  uint8_t l2bias = 256 - 8;
+  for (uint8_t *p = tstr; tlen > 0; p++, tlen--) {
+    uint8_t c = *p;
 
     if (isthai(c)) {
       const int *t_ctype0 = t_ctype[c];
@@ -591,41 +592,42 @@ static size_t thai2sortable(uchar *tstr, size_t len) {
 
 extern "C" {
 static int my_strnncoll_tis620(const CHARSET_INFO *cs [[maybe_unused]],
-                               const uchar *s1, size_t len1, const uchar *s2,
-                               size_t len2, bool s2_is_prefix) {
-  uchar buf[80];
-  uchar *tc1, *tc2;
-  int i;
+                               const uint8_t *s1, size_t len1,
+                               const uint8_t *s2, size_t len2,
+                               bool s2_is_prefix) {
+  uint8_t buf[80];
 
   if (s2_is_prefix && len1 > len2) len1 = len2;
 
-  tc1 = buf;
+  uint8_t *tc1 = buf;
   if ((len1 + len2 + 2) > (int)sizeof(buf))
-    tc1 = static_cast<uchar *>(my_str_malloc(len1 + len2 + 2));
-  tc2 = tc1 + len1 + 1;
+    tc1 = static_cast<uint8_t *>(my_str_malloc(len1 + len2 + 2));
+  uint8_t *tc2 = tc1 + len1 + 1;
   memcpy(tc1, s1, len1);
   tc1[len1] = 0; /* if length(s1)> len1, need to put 'end of string' */
   memcpy(tc2, s2, len2);
   tc2[len2] = 0; /* put end of string */
   thai2sortable(tc1, len1);
   thai2sortable(tc2, len2);
-  i = strcmp((char *)tc1, (char *)tc2);
+  int i = strcmp(pointer_cast<char *>(tc1), pointer_cast<char *>(tc2));
   if (tc1 != buf) my_str_free(tc1);
   return i;
 }
 
 static int my_strnncollsp_tis620(const CHARSET_INFO *cs [[maybe_unused]],
-                                 const uchar *a0, size_t a_length,
-                                 const uchar *b0, size_t b_length) {
-  uchar buf[80], *end, *a, *b, *alloced = nullptr;
-  size_t length;
+                                 const uint8_t *a0, size_t a_length,
+                                 const uint8_t *b0, size_t b_length) {
+  uint8_t buf[80];
+  uint8_t *alloced = nullptr;
+  size_t length = 0;
   int res = 0;
 
-  a = buf;
+  uint8_t *a = buf;
   if ((a_length + b_length + 2) > (int)sizeof(buf))
-    alloced = a = (uchar *)my_str_malloc(a_length + b_length + 2);
+    alloced = a =
+        pointer_cast<uint8_t *>(my_str_malloc(a_length + b_length + 2));
 
-  b = a + a_length + 1;
+  uint8_t *b = a + a_length + 1;
   memcpy(a, a0, a_length);
   a[a_length] = 0; /* if length(a0)> len1, need to put 'end of string' */
   memcpy(b, b0, b_length);
@@ -633,7 +635,7 @@ static int my_strnncollsp_tis620(const CHARSET_INFO *cs [[maybe_unused]],
   a_length = thai2sortable(a, a_length);
   b_length = thai2sortable(b, b_length);
 
-  end = a + (length = std::min(a_length, b_length));
+  uint8_t *end = a + (length = std::min(a_length, b_length));
   while (a < end) {
     if (*a++ != *b++) {
       res = ((int)a[-1] - (int)b[-1]);
@@ -674,9 +676,10 @@ ret:
   Ret: Converted string size
 */
 
-static size_t my_strnxfrm_tis620(const CHARSET_INFO *cs, uchar *dst,
-                                 size_t dstlen, uint nweights, const uchar *src,
-                                 size_t srclen, uint flags) {
+static size_t my_strnxfrm_tis620(const CHARSET_INFO *cs, uint8_t *dst,
+                                 size_t dstlen, unsigned nweights,
+                                 const uint8_t *src, size_t srclen,
+                                 unsigned flags) {
   size_t dstlen0 = dstlen;
   size_t min_len = std::min(dstlen, srclen);
   size_t len = 0;
@@ -694,8 +697,8 @@ static size_t my_strnxfrm_tis620(const CHARSET_INFO *cs, uchar *dst,
   len = thai2sortable(dst, len);
   dstlen = std::min(dstlen, size_t(nweights));
   len = std::min(len, size_t(dstlen));
-  len = my_strxfrm_pad(cs, dst, dst + len, dst + dstlen, (uint)(dstlen - len),
-                       flags);
+  len = my_strxfrm_pad(cs, dst, dst + len, dst + dstlen,
+                       (unsigned)(dstlen - len), flags);
   if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && len < dstlen0) {
     size_t fill_length = dstlen0 - len;
     cs->cset->fill(cs, (char *)dst + len, fill_length, cs->pad_char);
@@ -735,7 +738,7 @@ static const unsigned short cs_to_uni[256] = {
     0x0E4A, 0x0E4B, 0x0E4C, 0x0E4D, 0x0E4E, 0x0E4F, 0x0E50, 0x0E51, 0x0E52,
     0x0E53, 0x0E54, 0x0E55, 0x0E56, 0x0E57, 0x0E58, 0x0E59, 0x0E5A, 0x0E5B,
     0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD};
-static const uchar pl00[256] = {
+static const uint8_t pl00[256] = {
     0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007, 0x0008,
     0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x000E, 0x000F, 0x0010, 0x0011,
     0x0012, 0x0013, 0x0014, 0x0015, 0x0016, 0x0017, 0x0018, 0x0019, 0x001A,
@@ -765,7 +768,7 @@ static const uchar pl00[256] = {
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
     0x0000, 0x0000, 0x0000, 0x0000};
-static const uchar pl0E[256] = {
+static const uint8_t pl0E[256] = {
     0x0000, 0x00A1, 0x00A2, 0x00A3, 0x00A4, 0x00A5, 0x00A6, 0x00A7, 0x00A8,
     0x00A9, 0x00AA, 0x00AB, 0x00AC, 0x00AD, 0x00AE, 0x00AF, 0x00B0, 0x00B1,
     0x00B2, 0x00B3, 0x00B4, 0x00B5, 0x00B6, 0x00B7, 0x00B8, 0x00B9, 0x00BA,
@@ -795,7 +798,7 @@ static const uchar pl0E[256] = {
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
     0x0000, 0x0000, 0x0000, 0x0000};
-static const uchar plFF[256] = {
+static const uint8_t plFF[256] = {
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
@@ -825,7 +828,7 @@ static const uchar plFF[256] = {
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
     0x0000, 0x00FF, 0x0000, 0x0000};
-static const uchar *uni_to_cs[256] = {
+static const uint8_t *uni_to_cs[256] = {
     pl00,    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, pl0E,    nullptr,
     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
@@ -861,7 +864,7 @@ static const uchar *uni_to_cs[256] = {
 
 extern "C" {
 static int my_mb_wc_tis620(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *wc,
-                           const uchar *str, const uchar *end) {
+                           const uint8_t *str, const uint8_t *end) {
   if (str >= end) return MY_CS_TOOSMALL;
 
   *wc = cs_to_uni[*str];
@@ -869,12 +872,10 @@ static int my_mb_wc_tis620(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *wc,
 }
 
 static int my_wc_mb_tis620(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
-                           uchar *str, uchar *end) {
-  const uchar *pl;
-
+                           uint8_t *str, uint8_t *end) {
   if (str >= end) return MY_CS_TOOSMALL;
 
-  pl = uni_to_cs[(wc >> 8) & 0xFF];
+  const uint8_t *pl = uni_to_cs[(wc >> 8) & 0xFF];
   str[0] = pl ? pl[wc & 0xFF] : '\0';
   return (!str[0] && wc) ? MY_CS_ILUNI : 1;
 }

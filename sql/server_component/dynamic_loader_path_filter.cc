@@ -28,11 +28,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql_com.h>  // NAME_CHAR_LEN
 #include <string>
 
-#include "m_ctype.h"  // system_charset_info
 #include "my_io.h"
 #include "my_sharedlib.h"
 #include "sql/mysqld.h"      // scheme_file_srv
+#include "sql/mysqld_cs.h"   // system_charset_info
 #include "sql/sql_plugin.h"  // opt_plugin_dir
+
+struct CHARSET_INFO;
 
 typedef std::string my_string;
 

@@ -30,7 +30,6 @@
 #include <regex>
 
 #include "libbinlogevents/include/binlog_event.h"
-#include "m_ctype.h"
 #include "mutex_lock.h"  // Mutex_lock
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -46,8 +45,11 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/service_thd_wait.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "sql/auth/auth_acls.h"  // SUPER_ACL
 #include "sql/auth/roles.h"      // Roles::Role_activation
 #include "sql/auth/sql_auth_cache.h"
@@ -75,6 +77,8 @@
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
 #include "sql_string.h"
+#include "string_with_len.h"
+#include "strmake.h"
 #include "thr_mutex.h"
 
 class Item;

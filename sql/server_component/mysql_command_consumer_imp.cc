@@ -26,8 +26,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "include/my_sys.h"
 #include "include/my_time.h"
 #include "include/mysql/service_command.h"
+#include "include/mysql/strings/int2str.h"
+#include "include/mysql/strings/m_ctype.h"
 #include "include/mysqld_error.h"
-#include "m_ctype.h"
 #include "sql/my_decimal.h"
 #include "sql/server_component/mysql_command_services_imp.h"
 #include "sql_string.h"  // String

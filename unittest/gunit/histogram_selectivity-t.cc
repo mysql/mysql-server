@@ -27,9 +27,9 @@
 
 #include <gtest/gtest.h>
 
-#include "m_ctype.h"                     // my_charset_utf8mb4_0900_ai_ci
 #include "my_alloc.h"                    // MEM_ROOT
 #include "my_time.h"                     // MYSQL_TIME
+#include "mysql/strings/m_ctype.h"       // my_charset_utf8mb4_0900_ai_ci
 #include "sql/field.h"                   // my_charset_numeric
 #include "sql/histograms/equi_height.h"  // Equi_height
 #include "sql/histograms/histogram.h"    // Histogram, Histogram_comparator

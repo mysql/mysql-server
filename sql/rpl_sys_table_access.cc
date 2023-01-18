@@ -37,6 +37,8 @@
 #include "sql/table.h"
 #include "sql/transaction.h"
 
+struct CHARSET_INFO;
+
 Rpl_sys_table_access::Rpl_sys_table_access(const std::string &schema_name,
                                            const std::string &table_name,
                                            uint max_num_field)

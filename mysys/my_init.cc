@@ -43,8 +43,6 @@
 #include <sys/types.h>
 #include <unordered_map>
 
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -67,9 +65,14 @@
 #include "mysql/psi/psi_rwlock.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_thread.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysys/my_static.h"
 #include "mysys/mysys_priv.h"
 #include "mysys_err.h"
+#include "nulls.h"
+#include "str2int.h"
+#include "strxmov.h"
+#include "template_utils.h"
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
@@ -454,10 +457,10 @@ PSI_stage_info stage_waiting_for_disk_space = {0, "Waiting for disk space", 0,
                                                PSI_DOCUMENT_ME};
 
 PSI_mutex_key key_IO_CACHE_append_buffer_lock, key_IO_CACHE_SHARE_mutex,
-    key_KEY_CACHE_cache_lock, key_THR_LOCK_charset, key_THR_LOCK_heap,
-    key_THR_LOCK_lock, key_THR_LOCK_malloc, key_THR_LOCK_mutex,
-    key_THR_LOCK_myisam, key_THR_LOCK_net, key_THR_LOCK_open,
-    key_THR_LOCK_threads, key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap;
+    key_KEY_CACHE_cache_lock, key_THR_LOCK_heap, key_THR_LOCK_lock,
+    key_THR_LOCK_malloc, key_THR_LOCK_mutex, key_THR_LOCK_myisam,
+    key_THR_LOCK_net, key_THR_LOCK_open, key_THR_LOCK_threads, key_TMPDIR_mutex,
+    key_THR_LOCK_myisam_mmap;
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 
@@ -466,8 +469,6 @@ static PSI_mutex_info all_mysys_mutexes[] = {
      PSI_DOCUMENT_ME},
     {&key_IO_CACHE_SHARE_mutex, "IO_CACHE::SHARE_mutex", 0, 0, PSI_DOCUMENT_ME},
     {&key_KEY_CACHE_cache_lock, "KEY_CACHE::cache_lock", 0, 0, PSI_DOCUMENT_ME},
-    {&key_THR_LOCK_charset, "THR_LOCK_charset", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME},
     {&key_THR_LOCK_heap, "THR_LOCK_heap", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
     {&key_THR_LOCK_lock, "THR_LOCK_lock", PSI_FLAG_SINGLETON, 0,
@@ -537,10 +538,6 @@ static PSI_memory_info all_mysys_memory[] = {
 #endif
 
     {&key_memory_max_alloca, "max_alloca", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
-     PSI_DOCUMENT_ME},
-    {&key_memory_charset_file, "charset_file", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
-     PSI_DOCUMENT_ME},
-    {&key_memory_charset_loader, "charset_loader", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_lf_node, "lf_node", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
      PSI_DOCUMENT_ME},

@@ -195,7 +195,7 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
     if (csNumber != 0) {
       unsigned err;
       ndbrequire(csNumber <= NDB_ARRAY_SIZE(all_charsets));
-      CHARSET_INFO *cs = all_charsets[csNumber];
+      const CHARSET_INFO *cs = all_charsets[csNumber];
       ndbrequire(cs != 0);
       if ((err = NdbSqlUtil::check_column_for_ordered_index(typeId, cs))) {
         jam();

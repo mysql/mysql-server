@@ -45,6 +45,7 @@
 
 #include "include/compression.h"
 #include "include/mutex_lock.h"
+#include "m_string.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/bits/psi_memory_bits.h"
 #include "mysql/components/services/bits/psi_stage_bits.h"
@@ -53,6 +54,7 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/status_var.h"
+#include "mysql/strings/int2str.h"
 #include "sql/changestreams/apply/replication_thread_status.h"
 #include "sql/rpl_channel_service_interface.h"
 #ifdef HAVE_SYS_TIME_H
@@ -77,8 +79,6 @@
 #include "libbinlogevents/include/compression/iterator.h"
 #include "libbinlogevents/include/control_events.h"
 #include "libbinlogevents/include/debug_vars.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "mutex_lock.h"  // MUTEX_LOCK
 #include "my_bitmap.h"   // MY_BITMAP
 #include "my_byteorder.h"
@@ -87,16 +87,17 @@
 #include "my_dbug.h"
 #include "my_dir.h"
 #include "my_io.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread_local.h"  // thread_local_key_t
 #include "mysql.h"            // MYSQL
+#include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/thread_type.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -159,6 +160,9 @@
 #include "sql/transaction_info.h"
 #include "sql_common.h"  // end_server
 #include "sql_string.h"
+#include "str2int.h"
+#include "string_with_len.h"
+#include "strmake.h"
 #include "typelib.h"
 #ifndef NDEBUG
 #include "rpl_debug_points.h"

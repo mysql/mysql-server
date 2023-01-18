@@ -27,6 +27,7 @@
 #include "libbinlogevents/include/binlog_event.h"
 #include "m_string.h"
 #include "my_byteorder.h"
+#include "string_with_len.h"
 
 #if !defined(NDEBUG) && defined(HAVE_MYSYS)
 /* Event parser state names */

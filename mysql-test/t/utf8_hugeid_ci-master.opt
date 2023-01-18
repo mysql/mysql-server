@@ -1,0 +1,3 @@
+--force-restart
+--no-console
+--character-sets-dir=$MYSQL_TEST_DIR/std_data/utf8_hugeid_ci/

@@ -27,7 +27,8 @@
 #include <stdio.h>
 
 #include "mf_wcomp.h"
-#include "sql/mysqld.h"  // system_charset_info
+#include "mysql/strings/m_ctype.h"
+#include "sql/mysqld_cs.h"  // system_charset_info
 #include "storage/ndb/plugin/ndb_ndbapi_errors.h"
 #include "storage/ndb/plugin/ndb_share.h"
 #include "storage/ndb/plugin/ndb_sleep.h"

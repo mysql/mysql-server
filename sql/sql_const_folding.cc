@@ -44,6 +44,7 @@
 #include "my_decimal.h"                    // my_decimal, my_decimal_cmp
 #include "my_inttypes.h"                   // longlong, ulonglong
 #include "my_time.h"                       // TIME_to_longlong_datetime_packed
+#include "mysql/strings/dtoa.h"            // DECIMAL_NOT_SPECIFIED
 #include "mysql/udf_registration_types.h"  // INT_RESULT, STRING_RESULT
 #include "mysql_time.h"                    // MYSQL_TIME
 #include "sql/field.h"                     // Field_real, Field

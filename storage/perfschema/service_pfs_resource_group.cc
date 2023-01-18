@@ -31,6 +31,7 @@
 #include <mysql/plugin.h>
 
 #include "storage/perfschema/pfs_server.h"
+#include "template_utils.h"
 
 extern int pfs_set_thread_resource_group_vc(const char *group_name,
                                             int group_name_len,

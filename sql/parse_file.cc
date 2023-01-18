@@ -26,7 +26,6 @@
 #include <limits.h>
 #include <string.h>
 
-#include "m_string.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -35,6 +34,7 @@
 #include "my_io.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/strings/my_strtoll10.h"
 #include "mysqld_error.h"  // ER_*
 #include "sql/mysqld.h"    // key_file_fileparser
 #include "sql/sql_list.h"  // List_iterator_fast

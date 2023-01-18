@@ -50,6 +50,7 @@
 #include "my_rnd.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys/my_default_priv.h"
+#include "nulls.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"
 

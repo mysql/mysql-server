@@ -23,10 +23,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "udf_metadata_imp.h"
 #include <assert.h>
 #include <mysql/components/service_implementation.h>
-#include "m_ctype.h"
 
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
+#include "sql/mysqld_cs.h"
 #include "sql/sql_udf.h"
 #include "template_utils.h"
 

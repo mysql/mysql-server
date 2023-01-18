@@ -28,15 +28,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   found, it is prepended to the buffered log-events.
 */
 
-#include <my_time.h>          // MYSQL_TIME_STATUS
-#include <mysql_time.h>       // MYSQL_TIME
-#include <iostream>           // std::cerr
-#include "log_sink_buffer.h"  // struct log_line_buffer
-#include "log_sink_trad.h"    // parse_trad_field()
-#include "my_dir.h"           // MY_STAT
-#include "my_loglevel.h"
+#include <my_time.h>                                 // MYSQL_TIME_STATUS
+#include <mysql_time.h>                              // MYSQL_TIME
+#include <iostream>                                  // std::cerr
+#include "log_sink_buffer.h"                         // struct log_line_buffer
+#include "log_sink_trad.h"                           // parse_trad_field()
+#include "my_dir.h"                                  // MY_STAT
 #include "mysql/components/services/log_builtins.h"  // LogEvent()
 #include "mysql/components/services/log_service.h"
+#include "mysql/my_loglevel.h"
 #include "mysqld_error.h"  // ER_STACKTRACE
 #include "sql/log.h"       // iso8601_timestamp_to_microseconds()
 #include "sql/sql_list.h"  // List

@@ -30,6 +30,8 @@
 #include "m_string.h"
 #include "my_inttypes.h"
 #include "my_stacktrace.h"
+#include "mysql/strings/int2str.h"
+#include "template_utils.h"
 #include "unittest/gunit/test_utils.h"
 #include "unittest/gunit/thread_utils.h"
 

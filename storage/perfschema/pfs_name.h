@@ -28,11 +28,13 @@
   Object names (declarations).
 */
 
+#include <assert.h>
 #include <string.h>
 
-#include "m_ctype.h"
 #include "my_hostname.h"  // HOSTNAME_LENGTH
-#include "mysql_com.h"    // NAME_LEN
+#include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
+#include "mysql_com.h"  // NAME_LEN
 
 /* Not used yet. */
 #define ROLENAME_CHAR_LENGTH 32

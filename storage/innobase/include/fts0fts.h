@@ -50,6 +50,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0vec.h"
 #include "ut0wqueue.h"
 
+struct CHARSET_INFO;
+
 /** "NULL" value of a document id. */
 #define FTS_NULL_DOC_ID 0
 

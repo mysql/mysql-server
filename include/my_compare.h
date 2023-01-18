@@ -29,9 +29,9 @@
 
 #include <sys/types.h>
 
-#include "m_ctype.h" /* CHARSET_INFO */
 #include "my_inttypes.h"
 #include "myisampack.h"
+#include "mysql/strings/m_ctype.h" /* CHARSET_INFO */
 
 /*
   There is a hard limit for the maximum number of keys as there are only

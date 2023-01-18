@@ -36,6 +36,7 @@
 #include "sql/sql_list.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
+#include "template_utils.h"
 #include "unittest/gunit/gunit_test_main.h"
 
 namespace sql_list_unittest {

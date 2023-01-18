@@ -30,7 +30,6 @@
 
 #include "field_types.h"
 #include "lex_string.h"
-#include "m_string.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
 
@@ -44,6 +43,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 
 class Item;
 class Item_case_expr;

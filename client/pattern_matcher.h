@@ -22,9 +22,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <m_ctype.h>
 #include <string>
 #include <unordered_set>
+
+#include "mysql/strings/m_ctype.h"
 
 /**
   Enables comparison of strings against particular set of patterns. Patterns

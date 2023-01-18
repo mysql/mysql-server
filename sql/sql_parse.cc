@@ -44,7 +44,6 @@
 
 #include "dur_prop.h"
 #include "field_types.h"  // enum_field_types
-#include "m_ctype.h"
 #include "m_string.h"
 #include "mem_root_deque.h"
 #include "mutex_lock.h"  // MUTEX_LOCK
@@ -54,7 +53,6 @@
 #include "my_hostname.h"
 #include "my_inttypes.h"  // TODO: replace with cstdint
 #include "my_io.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
@@ -65,15 +63,18 @@
 #include "mysql/components/services/bits/plugin_audit_connection_types.h"  // EVENT_TRACKING_CONNECTION_CHANGE_USER
 #include "mysql/components/services/bits/psi_statement_bits.h"  // PSI_statement_info
 #include "mysql/components/services/log_builtins.h"             // LogErr
+#include "mysql/my_loglevel.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"  // EE_CAPACITY_EXCEEDED
+#include "nulls.h"
 #include "pfs_thread_provider.h"
 #include "prealloced_array.h"
 #include "scope_guard.h"
@@ -175,6 +176,9 @@
 #include "sql/transaction.h"  // trans_rollback_implicit
 #include "sql/transaction_info.h"
 #include "sql_string.h"
+#include "string_with_len.h"
+#include "strmake.h"
+#include "strxmov.h"
 #include "template_utils.h"
 #include "thr_lock.h"
 #include "violite.h"

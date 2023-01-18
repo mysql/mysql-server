@@ -23,6 +23,7 @@
 #include <gtest/gtest.h>
 
 #include "sql/field.h"
+#include "string_with_len.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/field_temporal_utils.h"
 #include "unittest/gunit/test_utils.h"

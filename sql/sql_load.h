@@ -27,9 +27,9 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 
 #include "my_sqlcommand.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/current_thd.h"
 #include "sql/sql_cmd.h"         /* Sql_cmd */
 #include "sql/sql_data_change.h" /* enum_duplicates */

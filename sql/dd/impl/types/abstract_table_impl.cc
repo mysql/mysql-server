@@ -32,9 +32,9 @@
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_version.h"  // MYSQL_VERSION_ID
 #include "mysqld_error.h"   // ER_*
 #include "sql/auth/sql_security_ctx.h"
@@ -52,6 +52,7 @@
 #include "sql/dd/types/table.h"
 #include "sql/dd/types/view.h"  // View
 #include "sql/dd/types/weak_object.h"
+#include "string_with_len.h"
 
 using dd::tables::Columns;
 using dd::tables::Tables;

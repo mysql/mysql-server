@@ -24,6 +24,7 @@
 
 #include "sql/field.h"
 #include "sql/sql_class.h"
+#include "string_with_len.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/mock_field_long.h"
 #include "unittest/gunit/test_utils.h"

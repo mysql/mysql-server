@@ -38,8 +38,6 @@
 #include <utility>
 
 #include "lex_string.h"
-#include "m_ctype.h"
-#include "m_string.h" /* STRING_WITH_LEN */
 #include "map_helpers.h"
 #include "my_alloc.h"
 #include "my_base.h"
@@ -49,9 +47,11 @@
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_statement.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "sql/auth/acl_change_notification.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
@@ -89,6 +89,8 @@
 #include "sql/transaction.h" /* trans_commit_stmt */
 #include "sql/tztime.h"
 #include "sql_string.h"
+#include "string_with_len.h"
+#include "strxmov.h"
 #include "thr_lock.h"
 #include "typelib.h"
 #include "violite.h"

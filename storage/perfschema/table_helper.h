@@ -47,6 +47,7 @@
 #include "storage/perfschema/pfs_stat.h"
 #include "storage/perfschema/pfs_timer.h"
 
+struct CHARSET_INFO;
 struct PFS_host;
 struct PFS_user;
 struct PFS_account;

@@ -40,8 +40,6 @@
 #include <utility>
 
 #include "decimal.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "mf_wcomp.h"  // wild_one, wild_many
 #include "my_alloc.h"
 #include "my_bit.h"
@@ -49,6 +47,8 @@
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
@@ -89,6 +89,7 @@
 #include "sql/sql_time.h"  // str_to_datetime
 #include "sql/system_variables.h"
 #include "sql/thd_raii.h"
+#include "string_with_len.h"
 
 using std::max;
 using std::min;

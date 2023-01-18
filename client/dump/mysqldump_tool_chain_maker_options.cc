@@ -28,7 +28,7 @@
 #include <sstream>
 #include <string>
 
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 
 using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;

@@ -30,6 +30,7 @@
 #include "mysql/plugin.h"
 // Using
 #include "sql/sql_plugin.h"
+#include "string_with_len.h"
 
 Ndb_plugin_reference::Ndb_plugin_reference() : plugin(nullptr) {}
 

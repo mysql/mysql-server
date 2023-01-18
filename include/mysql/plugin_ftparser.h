@@ -35,6 +35,10 @@
 #include "plugin.h"
 #endif
 
+#ifndef MYSQL_ABI_CHECK
+struct CHARSET_INFO;
+#endif
+
 /* Parsing modes. Set in  MYSQL_FTPARSER_PARAM::mode */
 enum enum_ftparser_mode {
   /*

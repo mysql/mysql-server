@@ -44,6 +44,7 @@
 #include "sql/dd/types/weak_object.h"
 #include "sql/dd_table_share.h"  // dd_get_old_field_type()
 #include "sql/field.h"
+#include "string_with_len.h"
 
 namespace dd {
 class Object_key;

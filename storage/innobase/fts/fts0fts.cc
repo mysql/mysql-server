@@ -45,7 +45,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "lob0lob.h"
 
+#include "m_string.h"
 #include "my_dbug.h"
+#include "mysql/strings/m_ctype.h"
 
 #include "dict0dd.h"
 #include "lob0lob.h"

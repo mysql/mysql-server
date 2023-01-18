@@ -23,7 +23,6 @@
 #include "sql/sql_show_status.h"
 
 #include "lex_string.h"
-#include "m_string.h"  // STRING_WITH_LEN
 #include "my_alloc.h"  // operator new
 #include "my_sqlcommand.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
@@ -36,6 +35,7 @@
 #include "sql/sql_lex.h"               // Query_options
 #include "sql/strfunc.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 
 /**
   Build a replacement query for SHOW STATUS.

@@ -77,6 +77,7 @@
 
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h"
+#include "m_string.h"
 #include "my_atomic.h"
 #include "my_systime.h"  // my_micro_time()
 #include "mysys_err.h"   // EE_ERROR_LAST for globerrs

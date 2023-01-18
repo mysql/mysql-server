@@ -29,6 +29,8 @@
 #include "my_inttypes.h"
 #include "plugin/group_replication/include/sql_service/sql_resultset.h"
 
+struct CHARSET_INFO;
+
 class Sql_service_context_base {
  public:
   /** The sql service callbacks that will call the below virtual methods*/

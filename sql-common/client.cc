@@ -46,10 +46,10 @@
 #include <stdarg.h>
 #include <sys/types.h>
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_config.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysys_err.h"
 #ifndef _WIN32
 #include <netdb.h>
@@ -77,18 +77,22 @@
 #include "my_default.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_openssl_fips.h"  // OPENSSL_ERROR_LENGTH, set_fips_mode
 #include "my_psi_config.h"
 #include "my_shm_defaults.h"
 #include "mysql.h"
 #include "mysql/client_authentication.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/plugin_auth_common.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/int2str.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
+#include "strmake.h"
+#include "strxmov.h"
+#include "strxnmov.h"
 #include "template_utils.h"
 #include "typelib.h"
 #include "violite.h"

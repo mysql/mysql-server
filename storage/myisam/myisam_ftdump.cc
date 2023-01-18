@@ -27,9 +27,11 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+#include "m_string.h"
 #include "my_compiler.h"
 #include "my_getopt.h"
 #include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
 #include "print_version.h"
 #include "storage/myisam/ftdefs.h"
 #include "storage/myisam/myisamdef.h"

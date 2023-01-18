@@ -36,7 +36,7 @@
 #include "client/dump/sql_formatter.h"
 #include "client/dump/standard_writer.h"
 #include "client/dump/view.h"
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 
 using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;

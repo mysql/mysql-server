@@ -23,6 +23,7 @@
 #ifndef LIBBINLOGEVENTS_COMPRESSION_COMPRESSOR_H_INCLUDED
 #define LIBBINLOGEVENTS_COMPRESSION_COMPRESSOR_H_INCLUDED
 
+#include <cstddef>
 #include <tuple>
 #include "base.h"
 

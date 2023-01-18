@@ -34,9 +34,9 @@
 
 #include <sys/types.h>
 
-#include "m_ctype.h"
 #include "my_base.h"
 #include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
 
 #define HA_FT_MAXBYTELEN 336
 #define HA_FT_MAXCHARLEN (HA_FT_MAXBYTELEN / 4)

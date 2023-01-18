@@ -1231,7 +1231,7 @@ TupTriggerData_pool c_triggerPool;
 
     ReadFunction* readFunctionArray;
     UpdateFunction* updateFunctionArray;
-    CHARSET_INFO** charsetArray;
+    const CHARSET_INFO** charsetArray;
     
     Uint32 readKeyArray;
     /*
@@ -3122,7 +3122,7 @@ private:
   void sendAlterTabRef(Signal *signal, Uint32 errorCode);
   void sendAlterTabConf(Signal *, Uint32 clientData=RNIL);
 
-  void handleCharsetPos(Uint32 csNumber, CHARSET_INFO** charsetArray,
+  void handleCharsetPos(Uint32 csNumber, const CHARSET_INFO ** charsetArray,
                         Uint32 noOfCharsets,
                         Uint32 & charsetIndex, Uint32 & attrDes2);
   Uint32 computeTableMetaData(TablerecPtr regTabPtr, Uint32 line);

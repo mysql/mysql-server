@@ -40,6 +40,8 @@
 #include "sql/dd/types/object_table.h"
 #include "sql/dd/types/weak_object.h"
 
+struct CHARSET_INFO;
+
 using dd::tables::Triggers;
 
 namespace dd {

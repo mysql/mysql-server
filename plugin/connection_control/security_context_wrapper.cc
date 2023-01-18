@@ -29,6 +29,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_acl.h" /* SUPER_ACL */
 #include "sql/sql_class.h"    /* THD, Security context */
+#include "string_with_len.h"
 
 namespace connection_control {
 /**

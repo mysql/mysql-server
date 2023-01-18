@@ -28,9 +28,9 @@
 #include <string>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/psi_memory_key.h"
 #include "sql/sp_head.h"
 

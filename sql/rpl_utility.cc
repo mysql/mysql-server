@@ -32,9 +32,9 @@
 #include "libbinlogevents/export/binary_log_funcs.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
-#include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/service_mysql_alloc.h"
 #include "sql/thr_malloc.h"
 
@@ -45,12 +45,12 @@ struct TYPELIB;
 #include <algorithm>
 
 #include "libbinlogevents/include/binlog_event.h"  // checksum_crv32
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/psi_memory.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "sql/changestreams/misc/replicated_columns_view_factory.h"  // get_columns_view
 #include "sql/create_field.h"

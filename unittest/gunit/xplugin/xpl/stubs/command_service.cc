@@ -24,6 +24,8 @@
 
 #include "mysql/service_command.h"
 
+struct CHARSET_INFO;
+
 int command_service_run_command(MYSQL_SESSION, enum enum_server_command,
                                 const union COM_DATA *, const CHARSET_INFO *,
                                 const struct st_command_service_cbs *,

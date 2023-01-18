@@ -47,13 +47,14 @@
 #include <boost/iterator/iterator_facade.hpp>        // operator-
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"  // operator new
 #include "my_byteorder.h"
 #include "my_compiler.h"  // MY_ATTRIBUTE
 #include "my_config.h"
 #include "my_dbug.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql-common/json_dom.h"  // Json_wrapper
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"
@@ -91,6 +92,7 @@
 #include "sql/srs_fetcher.h"
 #include "sql/system_variables.h"
 #include "sql/thr_malloc.h"
+#include "string_with_len.h"
 #include "template_utils.h"
 #include "unsafe_string_append.h"
 

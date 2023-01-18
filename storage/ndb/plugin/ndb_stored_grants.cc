@@ -28,6 +28,7 @@
 #include <mutex>
 #include <unordered_set>
 
+#include "m_string.h"
 #include "mysql/components/my_service.h"
 #include "mysql/components/services/dynamic_privilege.h"
 #include "sql/auth/acl_change_notification.h"
@@ -41,6 +42,7 @@
 #include "storage/ndb/plugin/ndb_sql_metadata_table.h"
 #include "storage/ndb/plugin/ndb_thd.h"
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
+#include "string_with_len.h"
 
 using ChangeNotice = const Acl_change_notification;
 

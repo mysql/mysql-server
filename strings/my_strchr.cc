@@ -25,10 +25,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <stddef.h>
-#include <sys/types.h>
+#include <cstddef>
 
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 
 /**
   Calculate the length of the initial segment of 'str' which consists
@@ -65,7 +64,7 @@ size_t my_strcspn(const CHARSET_INFO *cs, const char *str, const char *str_end,
                   const char *reject, size_t reject_length) {
   const char *ptr_str, *ptr_reject;
   const char *reject_end = reject + reject_length;
-  uint mbl = 0;
+  unsigned mbl = 0;
 
   for (ptr_str = str; ptr_str < str_end; ptr_str += mbl) {
     mbl = my_mbcharlen_ptr(cs, ptr_str, str_end);

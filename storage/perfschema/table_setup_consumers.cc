@@ -38,6 +38,7 @@
 #include "storage/perfschema/pfs_events_transactions.h"
 #include "storage/perfschema/pfs_events_waits.h"
 #include "storage/perfschema/pfs_instr.h"
+#include "string_with_len.h"
 
 #define COUNT_SETUP_CONSUMERS 16
 

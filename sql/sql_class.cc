@@ -32,18 +32,17 @@
 #include <utility>
 
 #include "field_types.h"
-#include "m_ctype.h"
 #include "m_string.h"
 #include "mutex_lock.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_loglevel.h"
 #include "my_systime.h"
 #include "my_thread.h"
 #include "my_time.h"
 #include "mysql/components/services/bits/psi_error_bits.h"
 #include "mysql/components/services/log_builtins.h"  // LogErr
 #include "mysql/components/services/log_shared.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_error.h"
@@ -53,6 +52,7 @@
 #include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysys_err.h"  // EE_OUTOFMEMORY
 #include "pfs_statement_provider.h"
 #include "rpl_source.h"  // unregister_slave
@@ -113,6 +113,7 @@
 #include "sql/xa/transaction_cache.h"            // xa::Transaction_cache
 #include "storage/perfschema/pfs_instr_class.h"  // PFS_CLASS_STAGE
 #include "storage/perfschema/terminology_use_previous.h"
+#include "string_with_len.h"
 #include "template_utils.h"
 #include "thr_mutex.h"
 

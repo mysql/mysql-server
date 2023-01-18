@@ -22,6 +22,7 @@
 
 #include "plugin/group_replication/include/udf/udf_member_actions.h"
 #include <cinttypes>
+#include "m_string.h"
 #include "mutex_lock.h"
 #include "mysql/plugin.h"
 #include "plugin/group_replication/include/plugin.h"

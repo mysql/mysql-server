@@ -28,15 +28,17 @@
 #include <sstream>
 #include <string>
 
-#include "m_ctype.h"
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_loglevel.h"
+#include "mysql/my_loglevel.h"
+#include "mysql/strings/m_ctype.h"
 #if !defined(HAVE_PSI_INTERFACE)
 #include "mysql/psi/mysql_rwlock.h"
 #endif
 #include "mysql/service_mysql_alloc.h"
 #include "mysys_err.h"
+#include "template_utils.h"
 #include "vio/vio_priv.h"
 
 #include <openssl/dh.h>

@@ -24,7 +24,7 @@
 
 #include "my_config.h"
 
-#include "my_loglevel.h"
+#include "mysql/my_loglevel.h"
 #include "sql/derror.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -32,8 +32,6 @@
 #include <list>
 
 #include "libbinlogevents/include/control_events.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_base.h"
 #include "my_command.h"
 #include "my_dbug.h"
@@ -43,6 +41,7 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_thread.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/thread_type.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
@@ -61,6 +60,7 @@
 #include "sql/sql_parse.h"  // mysql_reset_thd_for_next_command
 #include "sql/system_variables.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 
 using std::list;
 using std::string;

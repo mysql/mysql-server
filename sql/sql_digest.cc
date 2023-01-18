@@ -28,17 +28,18 @@
 
 #include <assert.h>
 #include "lex_string.h"
-#include "m_ctype.h"
 
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "sha2.h"                   // SHA256
 #include "sql/lexer_yystype.h"      // Lexer_yystype
 #include "sql/sql_digest_stream.h"  // sql_digest_state
 #include "sql/sql_yacc.h"           // Generated code.
 #include "sql_string.h"             // String
+#include "template_utils.h"
 
 #define LEX_TOKEN_WITH_DEFINITION
 #include "sql/lex_token.h"

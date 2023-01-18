@@ -38,8 +38,6 @@
 #include <string_view>
 
 #include "lex_string.h"
-#include "m_ctype.h"   // my_convert
-#include "m_string.h"  // LEX_CSTRING
 #include "memory_debugging.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
@@ -49,6 +47,7 @@
 #include "mysql/mysql_lex_string.h"  // LEX_STRING
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"  // my_free
+#include "mysql/strings/m_ctype.h"      // my_convert
 
 struct MEM_ROOT;
 

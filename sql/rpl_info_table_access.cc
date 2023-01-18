@@ -25,12 +25,12 @@
 #include <stddef.h>
 
 #include "libbinlogevents/include/binlog_event.h"
-#include "m_ctype.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/thread_type.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"

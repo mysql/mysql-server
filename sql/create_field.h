@@ -27,9 +27,9 @@
 
 #include "field_types.h"
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_base.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/dd/types/column.h"
 #include "sql/field.h"
 #include "sql/gis/srid.h"

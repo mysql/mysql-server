@@ -34,8 +34,6 @@
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 
-#include "m_string.h"
-
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                         // ER_*
@@ -53,6 +51,7 @@
 #include "sql/dd/types/column_type_element.h"  // Column_type_element
 #include "sql/dd/types/object_table.h"
 #include "sql/dd/types/weak_object.h"
+#include "string_with_len.h"
 
 using dd::tables::Column_type_elements;
 using dd::tables::Columns;

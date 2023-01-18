@@ -40,15 +40,14 @@
 #include <memory>     // unique_ptr
 #include <string>
 
-#include "m_ctype.h"
-#include "m_string.h"
-
 #include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql-common/json_dom.h"
 #include "sql/psi_memory_key.h"  // key_memory_JSON
 #include "sql/sql_const.h"       // STRING_BUFFER_USUAL_SIZE
 #include "sql_string.h"          // String
-#include "template_utils.h"      // down_cast
+#include "string_with_len.h"
+#include "template_utils.h"  // down_cast
 
 namespace {
 

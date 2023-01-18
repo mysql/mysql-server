@@ -37,6 +37,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "log_sink_perfschema.h"
 #include "log_sink_trad.h"
 
+#include "m_string.h"
 #include "mysys_err.h"
 
 #include <mysql/components/services/log_shared.h>  // data types
@@ -51,6 +52,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/mysqld.h"       // opt_log_(timestamps|error_services),
 #include "sql/sql_class.h"    // THD
 #include "sql/tztime.h"       // my_tz_OFFSET0
+#include "string_with_len.h"
 
 // Must come after sql/log.h.
 #include "mysql/components/services/log_builtins.h"

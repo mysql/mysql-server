@@ -31,12 +31,12 @@
 
 #include "lex_string.h"
 #include "libbinlogevents/include/uuid.h"  // Uuid
-#include "m_ctype.h"
 
 #include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "my_time.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"

@@ -27,13 +27,12 @@
 #include <utility>
 
 #include "lex_string.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_dbug.h"
 #include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "mysql_com.h"    // USERNAME_LENGTH
 #include "sql/auth/auth_common.h"
 #include "sql/auth/partial_revokes.h"
+#include "sql/mysqld_cs.h"
 #include "sql/sql_const.h"
 #include "sql_string.h"
 

@@ -27,6 +27,7 @@
 #include <mysql/components/my_service.h>
 #include "my_inttypes.h"
 #include "my_thread.h"
+#include "mysql/strings/m_ctype.h"
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"

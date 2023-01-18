@@ -31,6 +31,7 @@
 
 #include "my_sys.h"  // escape_string_for_mysql NOLINT(build/include_subdir)
 #include "mysql/plugin.h"
+#include "mysql/strings/m_ctype.h"
 
 namespace xpl {
 

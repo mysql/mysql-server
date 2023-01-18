@@ -41,6 +41,8 @@
 #include "sql_string.h" /* STRING_PSI_MEMORY_KEY */
 #include "template_utils.h"
 
+struct CHARSET_INFO;
+
 static const char *log_filename = "test_sql_2_sessions";
 
 #define STRING_BUFFER_SIZE 1024

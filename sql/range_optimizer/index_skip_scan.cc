@@ -26,11 +26,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/handler.h"
 #include "sql/psi_memory_key.h"
 #include "sql/range_optimizer/internal.h"

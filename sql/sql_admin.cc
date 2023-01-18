@@ -32,7 +32,6 @@
 #include <utility>
 
 #include "keycache.h"
-#include "m_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_dir.h"
@@ -44,8 +43,10 @@
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "scope_guard.h"  // Variable_scope_guard
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // *_ACL
@@ -97,6 +98,8 @@
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"  // trans_rollback_stmt
 #include "sql_string.h"
+#include "string_with_len.h"
+#include "strxmov.h"
 #include "thr_lock.h"
 #include "violite.h"
 

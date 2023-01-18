@@ -41,6 +41,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
+#include "string_with_len.h"
 
 Commit_order_manager::Commit_order_manager(uint32 worker_numbers)
     : m_workers(worker_numbers) {

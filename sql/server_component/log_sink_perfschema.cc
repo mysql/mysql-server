@@ -50,9 +50,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "log_sink_perfschema_imp.h"
 #include "log_sink_trad.h"  // log_sink_trad_parse_log_line()
 #include "my_dir.h"
-#include "my_loglevel.h"
 #include "my_systime.h"  // my_micro_time()
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/my_loglevel.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"
 #include "sql/log.h"

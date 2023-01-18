@@ -37,6 +37,8 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
+#include "nulls.h"
+#include "strxnmov.h"
 
 /**
   Returns full load-path for a file. to may be = path.

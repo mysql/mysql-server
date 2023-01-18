@@ -28,6 +28,8 @@
 
 #include "sql/mysqld.h"
 
+struct CHARSET_INFO;
+
 namespace mysqld {
 
 bool is_terminating() { return connection_events_loop_aborted(); }

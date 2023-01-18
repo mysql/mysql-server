@@ -24,19 +24,20 @@
 #include <stddef.h>
 
 #include "lex_string.h"
-#include "m_ctype.h" /* my_charset_utf8mb3_bin */
 #include "m_string.h"
 /* assert */
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_validate_password.h" /* validate_password plugin */
+#include "mysql/strings/m_ctype.h"          /* my_charset_utf8_bin */
 #include "mysqld_error.h"                   /* To get ER_NOT_VALID_PASSWORD */
 #include "sql/current_thd.h"
 #include "sql/mysqld.h" /* srv_registry */
 #include "sql/sql_plugin.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/validate_password.h>

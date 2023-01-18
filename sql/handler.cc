@@ -45,13 +45,11 @@
 
 #include "keycache.h"
 #include "libbinlogevents/include/binlog_event.h"
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_bit.h"     // my_count_bits
 #include "my_bitmap.h"  // MY_BITMAP
 #include "my_check_opt.h"
 #include "my_dbug.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
@@ -61,6 +59,7 @@
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -68,6 +67,7 @@
 #include "mysql/psi/mysql_transaction.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysql_version.h"  // MYSQL_VERSION_ID
 #include "mysqld_error.h"
@@ -127,6 +127,7 @@
 #include "sql/xa/sql_cmd_xa.h"  // Sql_cmd_xa_*
 #include "sql_string.h"
 #include "sql_tmp_table.h"  // free_tmp_table
+#include "string_with_len.h"
 #include "template_utils.h"
 #include "uniques.h"  // Unique_on_insert
 #include "varlen_sort.h"

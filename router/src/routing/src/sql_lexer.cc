@@ -33,20 +33,20 @@
 #include <iostream>
 
 #include "lex_string.h"  // LEX_STRING
-#include "m_ctype.h"     // my_charset_...
 #include "my_compiler.h"
-#include "my_dbug.h"        // DBUG_SET
-#include "my_inttypes.h"    // uchar, uint, ...
-#include "my_sys.h"         // strmake_root
-#include "mysql_version.h"  // MYSQL_VERSION_ID
+#include "my_dbug.h"                // DBUG_SET
+#include "my_inttypes.h"            // uchar, uint, ...
+#include "my_sys.h"                 // strmake_root
+#include "mysql/strings/m_ctype.h"  // my_charset_...
+#include "mysql_version.h"          // MYSQL_VERSION_ID
 #include "sql/lexer_yystype.h"
 #include "sql/sql_digest_stream.h"
 #include "sql/sql_lex_hash.h"
 #include "sql/sql_yacc.h"
 #include "sql/system_variables.h"
-#include "sql_chars.h"  // my_lex_states
 #include "sql_lexer_input_stream.h"
 #include "sql_lexer_thd.h"
+#include "strings/sql_chars.h"  // my_lex_states
 
 // class THD;
 
@@ -1259,19 +1259,6 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
   }
 }
 
-bool lex_init(void) {
-  DBUG_TRACE;
-
-  for (CHARSET_INFO **cs = all_charsets;
-       cs < all_charsets + array_elements(all_charsets) - 1; cs++) {
-    if (*cs && (*cs)->ctype && is_supported_parser_charset(*cs)) {
-      if (init_state_maps(*cs)) return true;  // OOM
-    }
-  }
-
-  return false;
-}
-
 std::once_flag lexer_init;
 
 SqlLexer::SqlLexer(THD *session) : session_{session} {
@@ -1279,8 +1266,6 @@ SqlLexer::SqlLexer(THD *session) : session_{session} {
     my_init();
 
     get_collation_number("latin1");  // init the charset subsystem
-
-    lex_init();  // init the state-maps for the parser
   });
 }
 

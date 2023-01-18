@@ -111,6 +111,9 @@
 
 #include "decimal.h"
 
+#ifdef HAVE_ALLOCA_H
+#include <alloca.h>
+#endif
 #include <limits.h>
 #include <math.h>
 #include <stdint.h>
@@ -120,12 +123,12 @@
 #include <utility>
 
 #include "integer_digits.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
-#include "my_sys.h" /* for my_alloca */
+#include "my_inttypes.h"
 #include "myisampack.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/m_ctype.h"
+#include "mysql/strings/my_strtoll10.h"
 
 /**
   Internally decimal numbers are stored base 10^9 (see DIG_BASE below)
@@ -1076,11 +1079,7 @@ int decimal2double(const decimal_t *from, double *to) {
   rc = decimal2string(from, strbuf, &len);
   const char *end = strbuf + len;
 
-  DBUG_PRINT("info", ("interm.: %s", strbuf));
-
   *to = my_strtod(strbuf, &end, &error);
-
-  DBUG_PRINT("info", ("result: %f", *to));
 
   return (rc != E_DEC_OK) ? rc : (error ? E_DEC_OVERFLOW : E_DEC_OK);
 }
@@ -1100,11 +1099,9 @@ int decimal2double(const decimal_t *from, double *to) {
 int double2decimal(double from, decimal_t *to) {
   char buff[FLOATING_POINT_BUFFER];
   int res;
-  DBUG_TRACE;
   const char *end = buff + my_gcvt(from, MY_GCVT_ARG_DOUBLE,
                                    (int)sizeof(buff) - 1, buff, nullptr);
   res = string2decimal(buff, to, &end);
-  DBUG_PRINT("exit", ("res: %d", res));
   return res;
 }
 
@@ -1455,7 +1452,7 @@ int decimal2bin(const decimal_t *from, uchar *to, int precision, int frac) {
   if (fsize0 > fsize1) {
     uchar *to_end = orig_to + orig_fsize0 + orig_isize0;
 
-    while (fsize0-- > fsize1 && to < to_end) *to++ = (uchar)mask;
+    while (fsize0-- > fsize1 && to < to_end) *to++ = static_cast<uchar>(mask);
   }
   orig_to[0] ^= 0x80;
 
@@ -1492,12 +1489,11 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale,
       frac0x = scale - frac0 * DIG_PER_DEC1, intg1 = intg0 + (intg0x > 0),
       frac1 = frac0 + (frac0x > 0);
   dec1 *buf = to->buf, mask = (*from & 0x80) ? 0 : -1;
-  const uchar *stop;
-  uchar *d_copy;
+  const uchar *stop = nullptr;
   int bin_size = decimal_bin_size_inline(precision, scale);
 
   sanity(to);
-  d_copy = (uchar *)my_alloca(bin_size);
+  uchar *d_copy = static_cast<uchar *>(alloca(bin_size));
   memcpy(d_copy, from, bin_size);
   d_copy[0] ^= 0x80;
   from = d_copy;
@@ -2311,7 +2307,8 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
 
   len1 = (i = ROUND_UP(prec1)) + ROUND_UP(2 * frac2 + scale_incr + 1) + 1;
   len1 = std::max(len1, 3);
-  if (!(tmp1 = (dec1 *)my_alloca(len1 * sizeof(dec1)))) return E_DEC_OOM;
+  if (!(tmp1 = static_cast<dec1 *>(alloca(len1 * sizeof(dec1)))))
+    return E_DEC_OOM;
   memcpy(tmp1, buf1, i * sizeof(dec1));
   memset(tmp1 + i, 0, (len1 - i) * sizeof(dec1));
 

@@ -91,6 +91,7 @@ lock at the same time as multiple read locks.
 #include <unistd.h>
 #endif
 
+#include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

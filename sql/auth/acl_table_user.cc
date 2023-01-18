@@ -29,18 +29,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "field_types.h"   /* MYSQL_TYPE_ENUM, MYSQL_TYPE_JSON */
 #include "lex_string.h"    /* LEX_CSTRING */
-#include "m_ctype.h"       /* my_charset_* */
-#include "m_string.h"      /* STRING_WITH_LEN */
 #include "my_base.h"       /* HA_ERR_* */
 #include "my_dbug.h"       /* DBUG macros */
 #include "my_inttypes.h"   /* MYF, uchar, longlong, ulonglong */
-#include "my_loglevel.h"   /* WARNING_LEVEL, loglevel, ERROR_LEVEL */
 #include "my_sqlcommand.h" /* SQLCOM_ALTER_USER, SQLCOM_GRANT */
 #include "my_sys.h"        /* my_error */
 #include "mysql/components/services/bits/psi_bits.h" /* PSI_NOT_INSTRUMENTED */
 #include "mysql/components/services/log_builtins.h"  /* for LogEvent, LogErr */
+#include "mysql/my_loglevel.h"                       /* WARNING_LEVEL */
 #include "mysql/plugin.h" /* st_mysql_plugin, MYSQL_AUTHENTICATION_PLUGIN */
 #include "mysql/plugin_auth.h"      /* st_mysql_auth */
+#include "mysql/strings/m_ctype.h"  /* my_charset_* */
 #include "mysql_time.h"             /* MYSQL_TIME, MYSQL_TIMESTAMP_ERROR */
 #include "mysqld_error.h"           /* ER_* */
 #include "prealloced_array.h"       /* Prealloced_array */
@@ -70,6 +69,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/table.h"            /* TABLE, TABLE_SHARE, ... */
 #include "sql/tztime.h"           /* Time_zone */
 #include "sql_string.h"           /* String */
+#include "string_with_len.h"      /* STRING_WITH_LEN */
 #include "template_utils.h"       /* down_cast */
 #include "typelib.h"              /* TYPELIB */
 #include "violite.h"              /* SSL_* */

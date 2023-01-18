@@ -35,8 +35,8 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysys/mysys_priv.h"
 #include "mysys_err.h"

@@ -42,6 +42,7 @@
 #include "my_inttypes.h"
 #include "sql/current_thd.h"
 #include "sql/sql_class.h"
+#include "string_with_len.h"
 
 static MYSQL_PLUGIN plugin_info_ptr;
 static SERVICE_TYPE(registry) *reg_srv = nullptr;

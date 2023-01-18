@@ -32,8 +32,6 @@
 #include <utility>
 
 #include "lex_string.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -41,6 +39,8 @@
 #include "my_sys.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/plugin.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -67,6 +67,7 @@
 #include "sql/trigger_chain.h"  // Trigger_chain
 #include "sql/trigger_def.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 #include "varlen_sort.h"
 
 using std::string;

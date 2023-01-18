@@ -39,6 +39,8 @@
 #include "mysql_com.h"
 #include "template_utils.h"
 
+struct CHARSET_INFO;
+
 static const char *log_filename = "test_sql_processlist";
 
 #define STRING_BUFFER_SIZE 1100

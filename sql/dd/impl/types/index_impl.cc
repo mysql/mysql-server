@@ -52,6 +52,7 @@
 #include "sql/dd/types/object_table.h"
 #include "sql/dd/types/weak_object.h"
 #include "sql/field.h"
+#include "string_with_len.h"
 
 using dd::tables::Index_column_usage;
 using dd::tables::Indexes;

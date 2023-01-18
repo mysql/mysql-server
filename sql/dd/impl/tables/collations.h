@@ -31,6 +31,8 @@
 
 class THD;
 
+struct CHARSET_INFO;
+
 namespace dd {
 class Global_name_key;
 class Raw_record;

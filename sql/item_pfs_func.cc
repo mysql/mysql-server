@@ -34,11 +34,10 @@
 #include <cstdio>
 #include <cstdlib>  // abs
 
-#include "m_ctype.h"
-
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/components/services/bits/psi_thread_bits.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "pfs_thread_provider.h"
 #include "sql/field.h"

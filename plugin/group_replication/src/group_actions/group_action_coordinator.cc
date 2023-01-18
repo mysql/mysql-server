@@ -28,6 +28,7 @@
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_messages/group_action_message.h"
 #include "plugin/group_replication/include/replication_threads_api.h"
+#include "string_with_len.h"
 
 Group_action_information::Group_action_information(
     bool is_local_arg, Group_action *action,

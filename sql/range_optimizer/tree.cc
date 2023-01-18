@@ -26,13 +26,12 @@
 #include <set>
 #include <utility>
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "memory_debugging.h"
 #include "my_dbug.h"
-#include "my_loglevel.h"
 #include "my_sqlcommand.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "sql/handler.h"
 #include "sql/key.h"

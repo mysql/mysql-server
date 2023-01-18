@@ -44,6 +44,7 @@
 #include "sql/sql_const.h"
 #include "sql/table.h"
 #include "sql_string.h"  // StringBuffer
+#include "string_with_len.h"
 #include "template_utils.h"
 
 class THD;

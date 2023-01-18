@@ -33,6 +33,7 @@
 #include "m_string.h"  // my_stpcpy
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/psi_memory_key.h"
 
 static inline bool is_numeric_beginning(const char *pc, const size_t len) {

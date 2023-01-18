@@ -35,13 +35,13 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "template_utils.h"
 
 /*

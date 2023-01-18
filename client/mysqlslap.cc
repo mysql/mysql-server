@@ -109,6 +109,7 @@ TODO:
 
 #include "client/client_priv.h"
 #include "compression.h"
+#include "m_string.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -116,6 +117,7 @@ TODO:
 #include "my_io.h"
 #include "my_systime.h"
 #include "mysql/service_mysql_alloc.h"
+#include "nulls.h"
 #include "print_version.h"
 #include "thr_cond.h"
 #include "typelib.h"

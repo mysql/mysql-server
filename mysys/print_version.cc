@@ -37,10 +37,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <sstream>
-#include "m_string.h"
+
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysql_version.h"
+#include "nulls.h"
+#include "strxmov.h"
 
 #ifdef MYSQL_SERVER_SUFFIX
 #define MYSQL_SERVER_SUFFIX_STR STRINGIFY_ARG(MYSQL_SERVER_SUFFIX)

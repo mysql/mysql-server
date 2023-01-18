@@ -25,7 +25,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <utility>
 
 #include "lex_string.h"
-#include "m_string.h"
 #include "mutex_lock.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -46,6 +45,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/sql_plugin.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_table.h" /* write_to_binlog */
+#include "string_with_len.h"
 
 /*
   @brief

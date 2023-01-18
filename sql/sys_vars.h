@@ -43,7 +43,6 @@
 
 #include "keycache.h"  // dflt_key_cache
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_base.h"
 #include "my_bit.h"  // my_count_bits
 #include "my_compiler.h"
@@ -54,6 +53,9 @@
 #include "mysql/plugin.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/status_var.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"

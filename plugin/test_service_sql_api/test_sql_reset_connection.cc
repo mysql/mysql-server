@@ -44,6 +44,8 @@
 
 static constexpr int STRING_BUFFER = 256 * 2;
 
+struct CHARSET_INFO;
+
 static File outfile;
 
 static void WRITE_STR(const char *format) {

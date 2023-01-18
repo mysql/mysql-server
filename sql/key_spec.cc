@@ -27,10 +27,10 @@
 #include <cstring>
 #include <string>
 
-#include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/create_field.h"   // Create_field

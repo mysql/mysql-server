@@ -25,7 +25,7 @@
 
 #include <string.h>
 
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #include "my_sys.h"
 
 #define MYSQL_BINARY_CHARSET 63

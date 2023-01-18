@@ -25,7 +25,7 @@
 #include <ndb_global.h>
 #include <cstring>
 #include "my_sys.h"
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 
 #define DBDICT_C
 #include "Dbdict.hpp"

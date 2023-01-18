@@ -30,10 +30,10 @@
 
 #include "my_config.h"
 
-#include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/my_loglevel.h"
 #include "pfs_thread_provider.h"
 #include "sql/table.h"
 
@@ -56,7 +56,6 @@
 #include <utility>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "m_string.h"  // my_stpcpy
 #include "map_helpers.h"
 #include "my_command.h"
@@ -67,6 +66,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql-common/net_ns.h"  // set_network_namespace
@@ -90,6 +90,7 @@
 #include "sql/sql_plugin.h"  // plugin_thdvar_cleanup
 #include "sql/system_variables.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 #include "violite.h"
 
 #ifdef HAVE_ARPA_INET_H

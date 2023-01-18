@@ -45,13 +45,12 @@
 #include "libbinlogevents/include/debug_vars.h"
 #include "libbinlogevents/include/table_id.h"
 #include "libbinlogevents/include/wrapper_functions.h"
-#include "m_ctype.h"
+#include "m_string.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_io.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_systime.h"
 #include "my_table_map.h"
@@ -60,9 +59,14 @@
 #include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
+#include "nulls.h"
 #include "psi_memory_key.h"
 #include "query_options.h"
 #include "scope_guard.h"
@@ -78,6 +82,8 @@
 #include "sql/xa/sql_cmd_xa.h"  // Sql_cmd_xa_*
 #include "sql_const.h"
 #include "sql_string.h"
+#include "strmake.h"
+#include "strxmov.h"
 #include "template_utils.h"
 
 #ifndef MYSQL_SERVER
@@ -157,6 +163,7 @@
 #include "sql/transaction.h"  // trans_rollback_stmt
 #include "sql/transaction_info.h"
 #include "sql/tztime.h"  // Time_zone
+#include "string_with_len.h"
 #include "thr_lock.h"
 #define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
 Error_log_throttle slave_ignored_err_throttle(
@@ -183,6 +190,8 @@ PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 
 using std::max;
 using std::min;
+
+#define ILLEGAL_CHARSET_INFO_NUMBER (~0U)
 
 /**
   BINLOG_CHECKSUM variable.

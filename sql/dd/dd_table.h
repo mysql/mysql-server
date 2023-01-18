@@ -41,6 +41,7 @@ class THD;
 namespace dd {
 class Schema;
 }  // namespace dd
+struct CHARSET_INFO;
 struct TABLE;
 
 class Sql_check_constraint_spec;

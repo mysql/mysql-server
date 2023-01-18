@@ -21,7 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA. */
 
 #include "sql/gis/st_units_of_measure.h"
-#include <m_ctype.h>
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 namespace gis {
 

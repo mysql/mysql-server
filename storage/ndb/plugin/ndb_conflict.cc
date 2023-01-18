@@ -27,7 +27,10 @@
 #include <inttypes.h>
 
 #include "my_dbug.h"
+#include "mysql/strings/m_ctype.h"
+#include "nulls.h"
 #include "sql/mysqld.h"  // lower_case_table_names
+#include "sql/mysqld_cs.h"
 #include "storage/ndb/include/ndbapi/Ndb.hpp"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 #include "storage/ndb/include/ndbapi/NdbError.hpp"
@@ -38,6 +41,7 @@
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
 #include "storage/ndb/plugin/ndb_table_guard.h"
+#include "strxnmov.h"
 
 extern ulong opt_ndb_slave_conflict_role;
 

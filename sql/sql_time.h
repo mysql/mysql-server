@@ -42,10 +42,10 @@
 
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_time.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_time.h"    /* enum_mysql_timestamp_type */
 #include "sql/sql_error.h" /* Sql_condition */
 #include "sql_string.h"

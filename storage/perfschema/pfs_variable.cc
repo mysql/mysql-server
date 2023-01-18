@@ -34,9 +34,11 @@
   Performance schema system variable and status variable (implementation).
 */
 
+#include "m_string.h"
 #include "mutex_lock.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"
 #include "sql/derror.h"

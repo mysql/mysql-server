@@ -27,7 +27,7 @@
 
 #include <functional>
 
-#include "m_string.h"                                 // is_prefix
+#include "m_string.h"                                 // native_strncasecmp
 #include "storage/ndb/plugin/ha_ndbcluster_binlog.h"  // ndbcluster_binlog_setup_table
 #include "storage/ndb/plugin/ndb_dd.h"                // ndb_dd_fs_name_case
 #include "storage/ndb/plugin/ndb_dd_client.h"         // Ndb_dd_client

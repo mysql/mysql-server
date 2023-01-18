@@ -40,6 +40,8 @@
 #include "mysql/service_mysql_alloc.h"
 #include "sql_string.h"
 
+struct CHARSET_INFO;
+
 /*
   wait-free dynamic array, see lf_dynarray.c
 

@@ -28,12 +28,14 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_getopt.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysys_err.h"
+#include "nulls.h"
 #include "print_version.h"
+#include "template_utils.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 static bool verbose;

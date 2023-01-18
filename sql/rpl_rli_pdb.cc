@@ -71,6 +71,8 @@
 #include "sql/sql_lex.h"
 #include "sql/table.h"
 #include "sql/transaction_info.h"
+#include "string_with_len.h"
+#include "strmake.h"
 #include "thr_mutex.h"
 
 #ifndef NDEBUG

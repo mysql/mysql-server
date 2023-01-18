@@ -22,7 +22,7 @@
 #ifndef SQL_USER_TABLE_INCLUDED
 #define SQL_USER_TABLE_INCLUDED
 
-#include "my_loglevel.h"                 // loglevel
+#include "mysql/my_loglevel.h"           // loglevel
 #include "sql/sql_system_table_check.h"  // System_table_intact
 
 class THD;

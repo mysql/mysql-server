@@ -53,9 +53,9 @@
 
 #include "base64.h"  // base64_encode_max_arg_length
 #include "decimal.h"
+#include "dig_vec.h"
 #include "field_types.h"  // MYSQL_TYPE_BIT
 #include "lex_string.h"   // LEX_CSTRING
-#include "m_ctype.h"      // is_supported_parser_charset
 #include "m_string.h"
 #include "my_aes.h"    // MY_AES_IV_SIZE
 #include "my_alloc.h"  // MEM_ROOT
@@ -65,8 +65,7 @@
 #include "my_dbug.h"
 #include "my_dir.h"  // For my_stat
 #include "my_io.h"
-#include "my_loglevel.h"  // WARNING_LEVEL
-#include "my_md5.h"       // MD5_HASH_SIZE
+#include "my_md5.h"  // MD5_HASH_SIZE
 #include "my_md5_size.h"
 #include "my_rnd.h"  // my_rand_buffer
 #include "my_sqlcommand.h"
@@ -75,11 +74,16 @@
 #include "myisampack.h"
 #include "mysql/components/services/bits/my_io_bits.h"  // File
 #include "mysql/components/services/log_builtins.h"     // LogErr
+#include "mysql/my_loglevel.h"                          // WARNING_LEVEL
 #include "mysql/mysql_lex_string.h"                     // MYSQL_LEX_CSTRING
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"  // is_supported_parser_charset
 #include "mysqld_error.h"
 #include "mysys_err.h"
+#include "nulls.h"
 #include "sha1.h"  // SHA1_HASH_SIZE
 #include "sha2.h"
 #include "sql/auth/auth_acls.h"
@@ -118,6 +122,8 @@
 #include "sql/table.h"
 #include "sql/val_int_compare.h"  // Integer_value
 #include "sql_string.h"           // needs_conversion
+#include "string_with_len.h"
+#include "strxmov.h"
 #include "template_utils.h"
 #include "typelib.h"
 #include "unhex.h"
@@ -4162,7 +4168,7 @@ static char clock_seq_and_node_str[] = "-0000-000000000000";
 static void tohex(char *to, uint from, uint len) {
   to += len;
   while (len--) {
-    *--to = _dig_vec_lower[from & 15];
+    *--to = dig_vec_lower[from & 15];
     from >>= 4;
   }
 }
@@ -4214,8 +4220,8 @@ String *mysql_generate_uuid(String *str) {
     }
     s = clock_seq_and_node_str + sizeof(clock_seq_and_node_str) - 1;
     for (i = sizeof(mac) - 1; i >= 0; i--) {
-      *--s = _dig_vec_lower[mac[i] & 15];
-      *--s = _dig_vec_lower[mac[i] >> 4];
+      *--s = dig_vec_lower[mac[i] & 15];
+      *--s = dig_vec_lower[mac[i] >> 4];
     }
     randominit(&uuid_rand, tmp + (ulong)server_start_time,
                tmp + (ulong)thd->status_var.bytes_sent);
@@ -5001,17 +5007,15 @@ String *Item_func_get_dd_index_private_data::val_str(String *str) {
 */
 CHARSET_INFO *mysqld_collation_get_by_name(const char *name,
                                            CHARSET_INFO *name_cs) {
-  CHARSET_INFO *cs;
-  MY_CHARSET_LOADER loader;
-  char error[1024];
-
-  if (!(cs = my_collation_get_by_name(&loader, name, MYF(0)))) {
+  MY_CHARSET_ERRMSG errmsg;
+  CHARSET_INFO *cs = my_collation_get_by_name(name, MYF(0), &errmsg);
+  if (cs == nullptr) {
     ErrConvString err(name, strlen(name), name_cs);
     my_error(ER_UNKNOWN_COLLATION, MYF(0), err.ptr());
-    if (loader.errcode) {
-      snprintf(error, sizeof(error) - 1, EE(loader.errcode), loader.errarg);
+    if (errmsg.errcode != 0) {
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_UNKNOWN_COLLATION, "%s", error);
+                          ER_UNKNOWN_COLLATION, EE(errmsg.errcode),
+                          errmsg.errarg);
     }
   }
   return cs;

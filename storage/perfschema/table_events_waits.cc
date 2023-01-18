@@ -29,10 +29,10 @@
 
 #include <assert.h>
 #include "lex_string.h"
-#include "m_string.h"
 #include "my_compiler.h"
 
 #include "my_thread.h"
+#include "mysql/strings/int2str.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
 #include "sql/table.h"
@@ -42,6 +42,7 @@
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/pfs_timer.h"
+#include "string_with_len.h"
 
 bool PFS_index_events_waits::match(PFS_thread *pfs) {
   if (m_fields >= 1) {

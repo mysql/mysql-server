@@ -28,6 +28,7 @@
 #include "plugin/group_replication/include/consistency_manager.h"
 #include "plugin/group_replication/include/handlers/pipeline_handlers.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "string_with_len.h"
 
 using std::string;
 

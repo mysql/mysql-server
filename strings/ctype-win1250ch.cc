@@ -48,15 +48,15 @@
  * .configure. strxfrm_multiply_win1250ch=2
  */
 
-#include <string.h>
-#include <sys/types.h>
+#include <cstdint>
+#include <cstring>
 
-#include "m_ctype.h"
 #include "my_compiler.h"
-#include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
+#include "strings/m_ctype_internals.h"
 #include "template_utils.h"
 
-static uint16 tab_cp1250_uni[256] = {
+static uint16_t tab_cp1250_uni[256] = {
     0,      0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007, 0x0008,
     0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x000E, 0x000F, 0x0010, 0x0011,
     0x0012, 0x0013, 0x0014, 0x0015, 0x0016, 0x0017, 0x0018, 0x0019, 0x001A,
@@ -88,7 +88,7 @@ static uint16 tab_cp1250_uni[256] = {
     0x00FC, 0x00FD, 0x0163, 0x02D9};
 
 /* 0000-00FD , 254 chars */
-static const uchar tab_uni_cp1250_plane00[] = {
+static const uint8_t tab_uni_cp1250_plane00[] = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
     0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
     0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23,
@@ -113,7 +113,7 @@ static const uchar tab_uni_cp1250_plane00[] = {
     0xFC, 0xFD};
 
 /* 0102-017E , 125 chars */
-static const uchar tab_uni_cp1250_plane01[] = {
+static const uint8_t tab_uni_cp1250_plane01[] = {
     0xC3, 0xE3, 0xA5, 0xB9, 0xC6, 0xE6, 0x00, 0x00, 0x00, 0x00, 0xC8, 0xE8,
     0xCF, 0xEF, 0xD0, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCA, 0xEA,
     0xCC, 0xEC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -127,7 +127,7 @@ static const uchar tab_uni_cp1250_plane01[] = {
     0x9F, 0xAF, 0xBF, 0x8E, 0x9E};
 
 /* 2013-20AC , 154 chars */
-static const uchar tab_uni_cp1250_plane20[] = {
+static const uint8_t tab_uni_cp1250_plane20[] = {
     0x96, 0x97, 0x00, 0x00, 0x00, 0x91, 0x92, 0x82, 0x00, 0x93, 0x94, 0x84,
     0x00, 0x86, 0x87, 0x95, 0x00, 0x00, 0x00, 0x85, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x89, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -143,12 +143,12 @@ static const uchar tab_uni_cp1250_plane20[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80};
 
 /* 02C7-02DD ,  23 chars */
-static const uchar tab_uni_cp1250_plane02[] = {
+static const uint8_t tab_uni_cp1250_plane02[] = {
     0xA1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0xA2, 0xFF, 0x00, 0xB2, 0x00, 0xBD};
 
 /* 2122-2122 ,   1 chars */
-static const uchar tab_uni_cp1250_plane21[] = {0x99};
+static const uint8_t tab_uni_cp1250_plane21[] = {0x99};
 
 static MY_UNI_IDX idx_uni_cp1250[] = {{0x0000, 0x00FD, tab_uni_cp1250_plane00},
                                       {0x0102, 0x017E, tab_uni_cp1250_plane01},
@@ -157,7 +157,7 @@ static MY_UNI_IDX idx_uni_cp1250[] = {{0x0000, 0x00FD, tab_uni_cp1250_plane00},
                                       {0x2122, 0x2122, tab_uni_cp1250_plane21},
                                       {0, 0, nullptr}};
 
-static const uchar ctype_win1250ch[] = {
+static const uint8_t ctype_win1250ch[] = {
     0x00, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x28, 0x28,
     0x28, 0x28, 0x28, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
     0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x48, 0x10, 0x10,
@@ -181,7 +181,7 @@ static const uchar ctype_win1250ch[] = {
     0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x10, 0x02, 0x02, 0x02,
     0x02, 0x02, 0x02, 0x02, 0x10};
 
-static const uchar to_lower_win1250ch[] = {
+static const uint8_t to_lower_win1250ch[] = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
     0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
     0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23,
@@ -205,7 +205,7 @@ static const uchar to_lower_win1250ch[] = {
     0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb,
     0xfc, 0xfd, 0xfe, 0xff};
 
-static const uchar to_upper_win1250ch[] = {
+static const uint8_t to_upper_win1250ch[] = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
     0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
     0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23,
@@ -229,7 +229,7 @@ static const uchar to_upper_win1250ch[] = {
     0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xf7, 0xd8, 0xd9, 0xda, 0xdb,
     0xdc, 0xdd, 0xde, 0xff};
 
-static const uchar sort_order_win1250ch[] = {
+static const uint8_t sort_order_win1250ch[] = {
     0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
     15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
     30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,
@@ -249,7 +249,7 @@ static const uchar sort_order_win1250ch[] = {
     240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254,
     255};
 
-static const uchar _sort_order_win1250ch1[] = {
+static const uint8_t _sort_order_win1250ch1[] = {
     0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81,
     0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81,
     0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81,
@@ -297,7 +297,7 @@ static const uchar _sort_order_win1250ch1[] = {
     0xa8, 0xb3, 0xb3, 0xb4, 0xb4, 0xb4, 0xb4, 0xf4, 0xb8, 0xbd, 0xbd, 0xbd,
     0xbd, 0xc1, 0xbc, 0xf5};
 
-static const uchar _sort_order_win1250ch2[] = {
+static const uint8_t _sort_order_win1250ch2[] = {
     0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
     0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
     0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21,
@@ -348,19 +348,19 @@ static const uchar _sort_order_win1250ch2[] = {
 namespace {
 
 struct wordvalue {
-  const uchar *word;
-  uchar pass1;
-  uchar pass2;
+  const uint8_t *word;
+  uint8_t pass1;
+  uint8_t pass2;
 };
 
 }  // namespace
 
 static struct wordvalue doubles[] = {
-    {pointer_cast<const uchar *>("ch"), 0xad, 0x03},
-    {pointer_cast<const uchar *>("c"), 0xa6, 0x02},
-    {pointer_cast<const uchar *>("Ch"), 0xad, 0x02},
-    {pointer_cast<const uchar *>("CH"), 0xad, 0x01},
-    {pointer_cast<const uchar *>("C"), 0xa6, 0x01},
+    {pointer_cast<const uint8_t *>("ch"), 0xad, 0x03},
+    {pointer_cast<const uint8_t *>("c"), 0xa6, 0x02},
+    {pointer_cast<const uint8_t *>("Ch"), 0xad, 0x02},
+    {pointer_cast<const uint8_t *>("CH"), 0xad, 0x01},
+    {pointer_cast<const uint8_t *>("C"), 0xa6, 0x01},
 };
 
 #define NEXT_CMP_VALUE(src, p, pass, value, len)                            \
@@ -379,15 +379,15 @@ static struct wordvalue doubles[] = {
     if (value == 0xff) {                                                    \
       int i;                                                                \
       for (i = 0; i < (int)sizeof(doubles); i++) {                          \
-        const uchar *patt = doubles[i].word;                                \
-        const uchar *q = (const uchar *)p;                                  \
+        const uint8_t *patt = doubles[i].word;                              \
+        const uint8_t *q = pointer_cast<const uint8_t *>(p);                \
         while (*patt && !(IS_END(q, src, len)) && (*patt == *q)) {          \
           patt++;                                                           \
           q++;                                                              \
         }                                                                   \
         if (!(*patt)) {                                                     \
           value = (int)((pass == 0) ? doubles[i].pass1 : doubles[i].pass2); \
-          p = (const uchar *)q - 1;                                         \
+          (p) = (const uint8_t *)q - 1;                                     \
           break;                                                            \
         }                                                                   \
       }                                                                     \
@@ -401,17 +401,17 @@ static struct wordvalue doubles[] = {
 
 extern "C" {
 static int my_strnncoll_win1250ch(const CHARSET_INFO *cs [[maybe_unused]],
-                                  const uchar *s1, size_t len1, const uchar *s2,
-                                  size_t len2, bool s2_is_prefix) {
+                                  const uint8_t *s1, size_t len1,
+                                  const uint8_t *s2, size_t len2,
+                                  bool s2_is_prefix) {
   int v1, v2;
-  const uchar *p1, *p2;
   int pass1 = 0, pass2 = 0;
   int diff;
 
   if (s2_is_prefix && len1 > len2) len1 = len2;
 
-  p1 = s1;
-  p2 = s2;
+  const uint8_t *p1 = s1;
+  const uint8_t *p2 = s2;
 
   do {
     NEXT_CMP_VALUE(s1, p1, pass1, v1, (int)len1);
@@ -425,8 +425,9 @@ static int my_strnncoll_win1250ch(const CHARSET_INFO *cs [[maybe_unused]],
   TODO: Has to be fixed as strnncollsp in ctype-simple
 */
 
-static int my_strnncollsp_win1250ch(const CHARSET_INFO *cs, const uchar *s,
-                                    size_t slen, const uchar *t, size_t tlen) {
+static int my_strnncollsp_win1250ch(const CHARSET_INFO *cs, const uint8_t *s,
+                                    size_t slen, const uint8_t *t,
+                                    size_t tlen) {
   for (; slen && s[slen - 1] == ' '; slen--)
     ;
   for (; tlen && t[tlen - 1] == ' '; tlen--)
@@ -435,15 +436,14 @@ static int my_strnncollsp_win1250ch(const CHARSET_INFO *cs, const uchar *s,
 }
 
 static size_t my_strnxfrm_win1250ch(const CHARSET_INFO *cs [[maybe_unused]],
-                                    uchar *dest, size_t len,
-                                    uint nweights_arg [[maybe_unused]],
-                                    const uchar *src, size_t srclen,
-                                    uint flags) {
+                                    uint8_t *dest, size_t len,
+                                    unsigned nweights_arg [[maybe_unused]],
+                                    const uint8_t *src, size_t srclen,
+                                    unsigned flags) {
   int value;
-  const uchar *p;
+  const uint8_t *p = src;
   int pass = 0;
   size_t totlen = 0;
-  p = src;
 
   if (!(flags & 0x0F)) /* All levels by default */
     flags |= 0x0F;
@@ -463,7 +463,7 @@ static size_t my_strnxfrm_win1250ch(const CHARSET_INFO *cs [[maybe_unused]],
 
 #undef IS_END
 
-static const uchar like_range_prefix_min_win1250ch[] = {
+static const uint8_t like_range_prefix_min_win1250ch[] = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
     0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
     0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23,
@@ -495,7 +495,7 @@ static const uchar like_range_prefix_min_win1250ch[] = {
   For all other characters:   prefix_max[i]    == i
 */
 
-static const uchar like_range_prefix_max_win1250ch[] = {
+static const uint8_t like_range_prefix_max_win1250ch[] = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
     0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
     0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23,
@@ -557,10 +557,12 @@ static bool my_like_range_win1250ch(const CHARSET_INFO *cs, const char *ptr,
       ptr++;                                  /* Skip escape */
     else if (*ptr == w_one || *ptr == w_many) /* '_' or '%' in SQL */
       break;
-    *min_str = like_range_prefix_min_win1250ch[(uint)(uchar)(*ptr)];
+    *min_str = static_cast<char>(
+        like_range_prefix_min_win1250ch[(unsigned)(uint8_t)(*ptr)]);
     if (*min_str != min_sort_char) only_min_found = 0;
     min_str++;
-    *max_str++ = like_range_prefix_max_win1250ch[(uint)(uchar)(*ptr)];
+    *max_str++ = static_cast<char>(
+        like_range_prefix_max_win1250ch[(unsigned)(uint8_t)(*ptr)]);
   }
 
   if (cs->state & MY_CS_BINSORT)

@@ -33,6 +33,7 @@
 #include "mysqld_error.h"
 #include "plugin/connection_control/connection_control_coordinator.h" /* g_connection_event_coordinator */
 #include "plugin/connection_control/connection_delay_api.h" /* connection_delay apis */
+#include "template_utils.h"
 
 static SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;

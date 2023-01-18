@@ -70,7 +70,6 @@ TODO:
 #include <sys/types.h>
 #include <algorithm>
 
-#include "m_string.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -85,6 +84,7 @@ TODO:
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/int2str.h"
 #include "mysys/mysys_priv.h"
 #include "thr_mutex.h"
 

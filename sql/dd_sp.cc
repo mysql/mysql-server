@@ -29,12 +29,13 @@
 #include <string>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "sql/dd/collection.h"
 #include "sql/dd/properties.h"   // Properties
@@ -53,6 +54,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 #include "typelib.h"
 
 void prepare_sp_chistics_from_dd_routine(const dd::Routine *routine,

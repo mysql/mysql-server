@@ -31,6 +31,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysys_err.h"
 #include "sql/mysqld.h"
 #include "storage/perfschema/mysql_server_telemetry_traces_service_imp.h"

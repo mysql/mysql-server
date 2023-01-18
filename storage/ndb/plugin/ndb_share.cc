@@ -41,6 +41,8 @@
 #include "storage/ndb/plugin/ndb_require.h"
 #include "storage/ndb/plugin/ndb_table_map.h"
 
+struct CHARSET_INFO;
+
 extern Ndb *g_ndb;
 
 // Protecting the list of NDB_SHARE's as well as each shares refcount and list

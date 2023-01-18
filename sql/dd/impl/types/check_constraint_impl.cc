@@ -29,6 +29,7 @@
 #include "sql/dd/impl/transaction_impl.h"          // Open_dictionary_tables_ctx
 #include "sql/dd/impl/types/table_impl.h"          // Table_impl
 #include "sql/error_handler.h"                     // Internal_error_handler
+#include "string_with_len.h"
 
 namespace dd {
 class Object_key;

@@ -32,13 +32,13 @@
 #include <sys/types.h>
 #include <algorithm>
 
-#include "m_ctype.h"
 #include "my_base.h"
 #include "my_byteorder.h"
 #include "my_compare.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "myisampack.h"
+#include "mysql/strings/m_ctype.h"
 
 #define CMP_NUM(a, b) (((a) < (b)) ? -1 : ((a) == (b)) ? 0 : 1)
 

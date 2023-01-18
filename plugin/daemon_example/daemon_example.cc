@@ -38,6 +38,7 @@
 #include "my_thread.h"
 #include "mysql/psi/mysql_memory.h"
 #include "sql/sql_plugin.h"  // st_plugin_int
+#include "template_utils.h"
 
 PSI_memory_key key_memory_mysql_heartbeat_context;
 

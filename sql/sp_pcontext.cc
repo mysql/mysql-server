@@ -23,13 +23,13 @@
 #include "sql/sp_pcontext.h"
 
 #include <assert.h>
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_alloc.h"
 
 #include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/sql_class.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 
 bool sp_condition_value::equals(const sp_condition_value *cv) const {
   assert(cv);

@@ -31,8 +31,8 @@
 #include <unordered_set>
 #include <utility>
 
-#include "m_ctype.h"
 #include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/malloc_allocator.h"
 #include "sql/mem_root_allocator.h"
 #include "template_utils.h"

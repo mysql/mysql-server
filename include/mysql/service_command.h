@@ -37,7 +37,7 @@
 #ifndef MYSQL_ABI_CHECK
 #include <stdint.h> /* uint32_t */
 #include "field_types.h"
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #endif
 
 /* POD structure for the field metadata from the server */

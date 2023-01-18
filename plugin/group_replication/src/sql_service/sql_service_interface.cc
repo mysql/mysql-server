@@ -31,6 +31,8 @@
 #include "my_dbug.h"
 #include "my_systime.h"  // my_sleep()
 
+struct CHARSET_INFO;
+
 static SERVICE_TYPE_NO_CONST(mysql_admin_session) * admin_session_factory;
 
 /* Sql_service_interface constructor */

@@ -35,6 +35,7 @@
 #include "plugin/group_replication/include/recovery.h"
 #include "plugin/group_replication/include/recovery_channel_state_observer.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
+#include "string_with_len.h"
 
 using std::list;
 using std::string;

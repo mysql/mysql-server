@@ -23,8 +23,8 @@
 #ifndef SQL_SYSTEM_TABLE_CHECK_INCLUDED
 #define SQL_SYSTEM_TABLE_CHECK_INCLUDED
 
-#include "my_loglevel.h"                             // enum loglevel
 #include "mysql/components/services/log_builtins.h"  // LogErr, LogEvent
+#include "mysql/my_loglevel.h"                       // enum loglevel
 #include "mysqld_error.h"                            // ER_*
 #include "sql/table.h"                               // Table_check_intact
 

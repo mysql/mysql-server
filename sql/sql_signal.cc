@@ -25,14 +25,13 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/components/services/bits/psi_error_bits.h"
 #include "mysql/psi/mysql_error.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"     // ER_*
 #include "sql/derror.h"       // ER_THD
 #include "sql/item.h"         // Item
@@ -41,6 +40,7 @@
 #include "sql/sql_class.h"    // THD
 #include "sql/sql_lex.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 
 struct MEM_ROOT;
 

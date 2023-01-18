@@ -30,10 +30,10 @@
 #include <cstring>
 #include <memory>
 
-#include "m_ctype.h"
 #include "m_string.h"
 
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -1211,14 +1211,14 @@ static void my_xpath_lex_scan(MY_XPATH *xpath, MY_XPATH_LEX *lex,
   if ((length = xpath->cs->cset->ctype(
            xpath->cs, &ctype, reinterpret_cast<const uchar *>(beg),
            reinterpret_cast<const uchar *>(end))) > 0 &&
-      ((ctype & (_MY_L | _MY_U)) || *beg == '_')) {
+      ((ctype & (MY_CHAR_L | MY_CHAR_U)) != 0 || *beg == '_')) {
     // scan until the end of the idenfitier
     for (beg += length;
          (length = xpath->cs->cset->ctype(
               xpath->cs, &ctype, reinterpret_cast<const uchar *>(beg),
               reinterpret_cast<const uchar *>(end))) > 0 &&
-         ((ctype & (_MY_L | _MY_U | _MY_NMR)) || *beg == '_' || *beg == '-' ||
-          *beg == '.');
+         ((ctype & (MY_CHAR_L | MY_CHAR_U | MY_CHAR_NMR)) != 0 || *beg == '_' ||
+          *beg == '-' || *beg == '.');
          beg += length) /* no op */
       ;
     lex->end = beg;

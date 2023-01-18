@@ -32,15 +32,19 @@
 #include <time.h>
 
 #include "lex_string.h"
+#include "m_string.h"
 #include "map_helpers.h"
 #include "my_alloc.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_systime.h"
 #include "my_thread.h"
+#include "mysql/my_loglevel.h"
+#include "mysql/strings/int2str.h"
+#include "nulls.h"
 #include "sql/check_stack.h"
 #include "sql/clone_handler.h"
 #include "sql_string.h"
+#include "strmake.h"
 #include "template_utils.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -77,6 +81,7 @@
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/thread_type.h"
 #include "mysqld_error.h"
 #include "partition_info.h"
@@ -134,6 +139,7 @@
 #include "sql/xa.h"
 #include "sql/xa/sql_cmd_xa.h"  // Sql_cmd_xa_*
 #include "sql_partition.h"
+#include "string_with_len.h"
 #include "thr_lock.h"
 
 class Item;

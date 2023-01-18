@@ -39,6 +39,8 @@ template <class T>
 class List;
 class Field;
 
+struct CHARSET_INFO;
+
 class Protocol {
  private:
   /// Pointer to the Protocol below on the stack.

@@ -22,6 +22,8 @@
 
 #include "sql/dd/impl/types/resource_group_impl.h"
 
+#include "m_string.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/dd/dd_utility.h"                   // normalize_string()
 #include "sql/dd/impl/raw/object_keys.h"         // Primary_id_keys
 #include "sql/dd/impl/raw/raw_record.h"          // Raw_record

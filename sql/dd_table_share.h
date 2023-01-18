@@ -25,9 +25,9 @@
 #include <sys/types.h>
 
 #include "field_types.h"
-#include "m_ctype.h"
 #include "my_inttypes.h"
-#include "my_sys.h"            // get_charset
+#include "my_sys.h"  // get_charset
+#include "mysql/strings/m_ctype.h"
 #include "sql/dd/object_id.h"  // dd::Object_id
 
 class Field;

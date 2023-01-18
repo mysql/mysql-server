@@ -40,6 +40,8 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "nulls.h"
+#include "strmake.h"
 
 /**
   Formats a filename with possible replace of directory of extension

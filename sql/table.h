@@ -31,7 +31,6 @@
 #include "field_types.h"
 #include "lex_string.h"
 #include "libbinlogevents/include/table_id.h"  // Table_id
-#include "m_ctype.h"
 #include "map_helpers.h"
 #include "mem_root_deque.h"
 #include "my_alloc.h"
@@ -44,12 +43,14 @@
 #include "my_table_map.h"
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/psi_table_bits.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/dd/types/foreign_key.h"  // dd::Foreign_key::enum_rule
 #include "sql/enum_query_type.h"       // enum_query_type
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/mdl.h"  // MDL_wait_for_subgraph
 #include "sql/mem_root_array.h"
+#include "sql/mysqld_cs.h"
 #include "sql/opt_costmodel.h"  // Cost_model_table
 #include "sql/partition_info.h"
 #include "sql/record_buffer.h"  // Record_buffer

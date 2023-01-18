@@ -26,6 +26,7 @@
 
 #include "my_dbug.h"
 #include "mysql/service_thd_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/key_spec.h"
 #include "sql/mysqld.h"  // global_system_variables table_alias_charset ...
 #include "sql/sql_class.h"
@@ -37,6 +38,7 @@
 #include "storage/ndb/plugin/ndb_schema_trans_guard.h"
 #include "storage/ndb/plugin/ndb_table_guard.h"
 #include "storage/ndb/plugin/ndb_thd.h"
+#include "string_with_len.h"
 #include "template_utils.h"
 
 #define ERR_RETURN(err)              \

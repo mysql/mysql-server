@@ -26,7 +26,8 @@
 #include "mysql/psi/mysql_file.h"  // MYSQL_FILE
 #include "print_version.h"
 #include "sql/time_zone_common.h"
-#include "sql/tzfile.h"                // TZ_MAX_REV_RANGES, tzhead
+#include "sql/tzfile.h"  // TZ_MAX_REV_RANGES, tzhead
+#include "strmake.h"
 #include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 /*

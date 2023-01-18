@@ -23,7 +23,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include "common.h"
-#include "my_loglevel.h"
+#include "mysql/my_loglevel.h"
 
 // Client-side logging function
 

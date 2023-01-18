@@ -29,7 +29,6 @@
 
 #include "compression.h"  // COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE
 #include "libbinlogevents/include/binlog_event.h"  // enum_binlog_checksum_alg
-#include "m_string.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"
@@ -43,6 +42,7 @@
 #include "sql/rpl_rli.h"                  // rli->get_log_lock()
 #include "sql/rpl_trx_boundary_parser.h"  // Transaction_boundary_parser
 #include "sql/sql_const.h"
+#include "strmake.h"
 
 class Rpl_info_handler;
 class Server_ids;

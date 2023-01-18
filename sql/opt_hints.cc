@@ -27,9 +27,8 @@
 #include <string.h>
 #include <algorithm>
 
-#include "m_ctype.h"
-
 #include "my_table_map.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"  // ER_THD
@@ -47,6 +46,7 @@
 #include "sql/sql_optimizer.h"  // JOIN class
 #include "sql/sql_select.h"
 #include "sql/table.h"
+#include "string_with_len.h"
 
 struct MEM_ROOT;
 

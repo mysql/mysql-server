@@ -22,8 +22,8 @@
 
 #include <string.h>
 
-#include "m_ctype.h"
 #include "my_dbug.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/rpl_gtid.h"
 
 // const int Gtid_specification::MAX_TEXT_LENGTH;

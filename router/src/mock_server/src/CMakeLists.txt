@@ -33,6 +33,10 @@ ADD_CUSTOM_COMMAND(OUTPUT mysql_server_mock_schema.cc mysql_server_mock_schema.h
                      "SqlQueryJsonSchema"
                    DEPENDS mysql_server_mock_schema.js)
 
+ADD_CUSTOM_TARGET(mysql_server_mock_schema
+  DEPENDS mysql_server_mock_schema.cc mysql_server_mock_schema.h
+  )
+ADD_DEPENDENCIES(clang_tidy_prerequisites mysql_server_mock_schema)
 
 SET(common_libraries)
 SET(math_libraries)
@@ -159,6 +163,7 @@ add_harness_plugin(mock_server
     router_lib
     harness_tls
   )
+ADD_DEPENDENCIES(mock_server mysql_server_mock_schema)
 
 TARGET_INCLUDE_DIRECTORIES(mock_server SYSTEM PUBLIC
   ${DUKTAPE_SOURCE_DIR}/src/

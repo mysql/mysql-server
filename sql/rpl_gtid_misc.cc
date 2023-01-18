@@ -33,6 +33,7 @@
 #include "my_macros.h"
 #include "my_thread.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "nulls.h"
 #include "sql/rpl_gtid.h"
 #include "typelib.h"
 

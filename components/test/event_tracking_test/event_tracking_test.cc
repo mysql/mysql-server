@@ -26,7 +26,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <cstdlib>
 #include <iostream>
 
-#include "m_ctype.h"                   /* Character set */
 #include "my_alloc.h"                  /* MEM_ROOT */
 #include "my_dbug.h"                   /* DEBUG macros */
 #include "my_default.h"                /* print_defaults */
@@ -36,6 +35,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_sys.h"                    /* MY_INIT */
 #include "mysql.h"                     /* MYSQL */
 #include "mysql/service_mysql_alloc.h" /* my_strdup */
+#include "mysql/strings/m_ctype.h"     /* Character set */
 #include "mysql_com.h"                 /* get_tty_password */
 #include "print_version.h"             /* print_version */
 #include "scope_guard.h"               /* create_scope_guard */

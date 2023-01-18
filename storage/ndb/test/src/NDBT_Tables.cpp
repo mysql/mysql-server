@@ -27,7 +27,7 @@
 #include <NDBT_Table.hpp>
 #include <NDBT_Tables.hpp>
 #include <NdbEnv.h>
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 
 /* ******************************************************* */
 //    Define Ndb standard tables 

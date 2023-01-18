@@ -27,10 +27,16 @@
 #include <algorithm>
 #include <limits>
 
+#include "dig_vec.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"  // MAX_BIGINT_WIDTH
+#include "string_with_len.h"
+#include "template_utils.h"
 
 using std::max;
 using std::min;
@@ -1079,8 +1085,8 @@ size_t convert_to_printable(char *to, size_t to_len, const char *from,
         break;
       *t++ = '\\';
       *t++ = 'x';
-      *t++ = _dig_vec_upper[((unsigned char)*f) >> 4];
-      *t++ = _dig_vec_upper[((unsigned char)*f) & 0x0F];
+      *t++ = dig_vec_upper[((unsigned char)*f) >> 4];
+      *t++ = dig_vec_upper[((unsigned char)*f) & 0x0F];
     }
     if (t_end - t >= 3)  // '...'
       dots = t;
@@ -1116,8 +1122,8 @@ size_t bin_to_hex_str(char *to, size_t to_len, const char *from,
   in = from;
 
   for (i = 0; i < from_len; i++, in++) {
-    *out++ = _dig_vec_upper[((unsigned char)*in) >> 4];
-    *out++ = _dig_vec_upper[((unsigned char)*in) & 0xF];
+    *out++ = dig_vec_upper[((unsigned char)*in) >> 4];
+    *out++ = dig_vec_upper[((unsigned char)*in) & 0xF];
   }
 
   *out = '\0';

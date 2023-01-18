@@ -27,7 +27,9 @@
 #include <iomanip>
 #include <string>
 
+#include "mysql/strings/dtoa.h"
 #include "sql/gis/st_units_of_measure.h"
+
 namespace dd {
 namespace system_views {
 

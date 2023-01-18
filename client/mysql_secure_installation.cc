@@ -27,8 +27,9 @@
 #include <sys/types.h>
 
 #include "client/client_priv.h"
+#include "m_string.h"
 #ifdef _WIN32
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #endif
 #include "my_alloc.h"
 #include "my_compiler.h"
@@ -39,6 +40,7 @@
 #include "my_shm_defaults.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "print_version.h"
 #include "typelib.h"
 #include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE

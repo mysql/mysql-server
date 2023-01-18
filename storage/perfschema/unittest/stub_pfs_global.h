@@ -23,6 +23,7 @@
 #include <assert.h>
 #include <string.h>
 
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "storage/perfschema/pfs_global.h"
 

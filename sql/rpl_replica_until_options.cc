@@ -27,15 +27,16 @@
 
 #include "libbinlogevents/include/binlog_event.h"
 #include "m_string.h"
-#include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
 #include "sql/log.h"
 #include "sql/log_event.h"
 #include "sql/rpl_group_replication.h"
 #include "sql/rpl_rli.h"
+#include "strmake.h"
 
 int Until_position::init(const char *log_name, my_off_t log_pos) {
   m_until_log_pos = log_pos;

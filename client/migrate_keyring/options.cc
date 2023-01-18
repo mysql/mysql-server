@@ -22,11 +22,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <sys/types.h>
+
+#include <cstddef>
+#include <cstdio>
 #include <cstring>
 #include <iostream>
 #include <string>
+#include <utility>
 
-#include <m_ctype.h>                  /* Character set */
 #include <my_alloc.h>                 /* MEM_ROOT */
 #include <my_default.h>               /* print_defaults */
 #include <my_getopt.h>                /* Options handling */
@@ -38,6 +42,10 @@
 #include <print_version.h>            /* print_version */
 #include <typelib.h>                  /* find_type_or_exit */
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include "m_string.h"
+#include "mysql/strings/m_ctype.h" /* Character set */
+#include "nulls.h"
+#include "template_utils.h"
 
 #include "options.h"
 #include "utilities.h"

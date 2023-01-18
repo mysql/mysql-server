@@ -32,6 +32,7 @@
 
 #include <array>
 
+#include "my_inttypes.h"
 #include "sql/partitioning/partition_handler.h"
 #include "storage/ndb/include/kernel/ndb_limits.h"
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"

@@ -20,9 +20,9 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "m_ctype.h"
 #include "my_command.h"
 #include "mysql/service_command.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/srv_session.h"
 
 /**

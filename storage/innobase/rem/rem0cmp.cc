@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ha_prototypes.h"
 #include "handler0alter.h"
+#include "mysql/strings/m_ctype.h"
 #include "rem0cmp.h"
 #include "srv0srv.h"
 namespace dd {

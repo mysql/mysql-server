@@ -25,8 +25,8 @@
 
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_inttypes.h"  // TODO: replace with cstdint
+#include "mysql/strings/m_ctype.h"
 #include "sql/comp_creator.h"
 #include "sql/field.h"
 #include "sql/item.h"

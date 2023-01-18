@@ -25,11 +25,12 @@
 
 #include <new>
 
-#include "m_ctype.h"                               // my_strcasecmp
+#include "mysql/strings/m_ctype.h"                 // my_strcasecmp
 #include "sql/dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/check_constraint.h"  // dd::Check_constraint
+#include "sql/mysqld_cs.h"
 
 namespace dd {
 

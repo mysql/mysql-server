@@ -29,7 +29,6 @@
 #include <functional>
 
 #include "debug_sync.h"  // DEBUG_SYNC
-#include "m_ctype.h"
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -38,6 +37,7 @@
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_statement.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"  // Prealloced_array
@@ -73,6 +73,7 @@
 #include "sql/transaction_info.h"
 #include "sql/trigger.h"  // Trigger
 #include "sql/trigger_def.h"
+#include "string_with_len.h"
 #include "unsafe_string_append.h"
 
 class Cmp_splocal_locations {

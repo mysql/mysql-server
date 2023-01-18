@@ -44,6 +44,8 @@
 #include <mysql/components/services/log_builtins.h>
 #include <mysqld_error.h>
 
+struct CHARSET_INFO;
+
 static const char *log_filename = "test_session_info";
 
 static File outfile;

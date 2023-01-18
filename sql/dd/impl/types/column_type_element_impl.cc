@@ -31,11 +31,9 @@
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 
-#include "m_ctype.h"
-#include "m_string.h"
-
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"                // ER_*
 #include "sql/dd/impl/raw/raw_record.h"  // Raw_record
 #include "sql/dd/impl/sdi_impl.h"        // sdi read/write functions
@@ -46,6 +44,7 @@
 #include "sql/dd/types/weak_object.h"
 #include "sql/dd_table_share.h"  // dd_get_mysql_charset
 #include "sql/sql_const.h"       // MAX_INTERVAL_VALUE_LENGTH
+#include "string_with_len.h"
 
 namespace dd {
 class Column;

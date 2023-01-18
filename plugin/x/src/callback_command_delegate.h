@@ -34,6 +34,8 @@
 
 #include "plugin/x/src/ngs/command_delegate.h"
 
+struct CHARSET_INFO;
+
 namespace xpl {
 class Callback_command_delegate : public ngs::Command_delegate {
  public:

@@ -35,6 +35,8 @@
 #include "storage/myisam/ftdefs.h"
 #include "storage/myisam/myisamdef.h"
 
+struct CHARSET_INFO;
+
 void _mi_ft_segiterator_init(MI_INFO *info, uint keynr, const uchar *record,
                              FT_SEG_ITERATOR *ftsi) {
   DBUG_TRACE;

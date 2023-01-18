@@ -26,9 +26,9 @@
 #include <new>
 #include <sstream>
 
-#include "m_ctype.h"
 #include "my_base.h"  // HA_WHOLE_KEY
 
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "sql/dd/impl/raw/raw_key.h"              // dd::Raw_key
 #include "sql/dd/impl/raw/raw_table.h"            // dd::Raw_table

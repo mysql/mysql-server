@@ -30,15 +30,12 @@
 #include <unordered_map>
 #include <utility>
 
-#include "m_ctype.h"
-#include "m_string.h"  // strmake
 #include "map_helpers.h"
 #include "mutex_lock.h"  // Mutex_lock
 #include "my_byteorder.h"
 #include "my_command.h"
 #include "my_dbug.h"
 #include "my_io.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
@@ -46,9 +43,11 @@
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_global_access
@@ -74,6 +73,7 @@
 #include "sql/sql_list.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"
+#include "strmake.h"
 #include "thr_mutex.h"
 #include "typelib.h"
 

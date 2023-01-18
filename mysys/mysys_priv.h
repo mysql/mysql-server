@@ -29,7 +29,6 @@
 
 #include <memory>  // std::unique_ptr
 
-#include "my_inttypes.h"  // myf
 #include "my_macros.h"
 
 #include "my_psi_config.h"
@@ -44,10 +43,10 @@
 #include "mysql/psi/mysql_mutex.h"  // for mysql_mutex_lock
 
 extern PSI_mutex_key key_IO_CACHE_append_buffer_lock, key_IO_CACHE_SHARE_mutex,
-    key_KEY_CACHE_cache_lock, key_THR_LOCK_charset, key_THR_LOCK_heap,
-    key_THR_LOCK_lock, key_THR_LOCK_malloc, key_THR_LOCK_mutex,
-    key_THR_LOCK_myisam, key_THR_LOCK_net, key_THR_LOCK_open,
-    key_THR_LOCK_threads, key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap;
+    key_KEY_CACHE_cache_lock, key_THR_LOCK_heap, key_THR_LOCK_lock,
+    key_THR_LOCK_malloc, key_THR_LOCK_mutex, key_THR_LOCK_myisam,
+    key_THR_LOCK_net, key_THR_LOCK_open, key_THR_LOCK_threads, key_TMPDIR_mutex,
+    key_THR_LOCK_myisam_mmap;
 
 extern PSI_rwlock_key key_SAFE_HASH_lock;
 
@@ -58,7 +57,6 @@ extern PSI_stage_info stage_waiting_for_table_level_lock;
 
 extern mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open;
 extern mysql_mutex_t THR_LOCK_net;
-extern mysql_mutex_t THR_LOCK_charset;
 
 #ifdef HAVE_LINUX_LARGE_PAGES
 extern PSI_file_key key_file_proc_meminfo;
@@ -67,8 +65,6 @@ extern PSI_file_key key_file_charset;
 
 /* These keys are always defined. */
 
-extern PSI_memory_key key_memory_charset_file;
-extern PSI_memory_key key_memory_charset_loader;
 extern PSI_memory_key key_memory_lf_node;
 extern PSI_memory_key key_memory_lf_dynarray;
 extern PSI_memory_key key_memory_lf_slist;

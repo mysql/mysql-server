@@ -83,7 +83,6 @@
 #include <atomic>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
@@ -91,6 +90,7 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_common.h"  // SUPER_ACL

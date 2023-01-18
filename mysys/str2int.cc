@@ -34,7 +34,7 @@
   The result is a pointer to the first character after the number;
   trailing spaces will NOT be skipped.
 
-  If an error is detected, the result will be NullS, the value put
+  If an error is detected, the result will be nullptr, the value put
   in val will be 0, and errno will be set to
         EDOM	if there are no digits
         ERANGE	if the result would overflow or otherwise fail to lie
@@ -49,11 +49,12 @@
   call has no problems.
 */
 
-#include <errno.h>
-#include <limits.h>
+#include "str2int.h"
 
-#include "m_ctype.h"
-#include "m_string.h"  // IWYU pragma: keep
+#include <cerrno>
+#include <climits>
+
+#include "mysql/strings/m_ctype.h"
 
 #define char_val(X)                          \
   (X >= '0' && X <= '9'                      \

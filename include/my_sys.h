@@ -52,12 +52,12 @@
 #include <time.h>
 
 #include <atomic>  // error_handler_hook
+#include <cstring>
 
-#include "m_string.h" /* IWYU pragma: keep */
 #include "my_compiler.h"
 #include "my_compress.h"
 #include "my_inttypes.h"
-#include "my_loglevel.h"
+#include "mysql/my_loglevel.h"
 
 /* HAVE_PSI_*_INTERFACE */
 #include "my_psi_config.h" /* IWYU pragma: keep */
@@ -71,9 +71,12 @@
 #include "mysql/components/services/bits/psi_memory_bits.h"
 #include "mysql/components/services/bits/psi_stage_bits.h"
 #include "sql/stream_cipher.h"
+#include "string_with_len.h"
+
+class MY_CHARSET_LOADER;
 
 struct CHARSET_INFO;
-struct MY_CHARSET_LOADER;
+struct MY_CHARSET_ERRMSG;
 
 struct PSI_cond_bootstrap;
 struct PSI_data_lock_bootstrap;
@@ -260,8 +263,8 @@ extern int (*is_killed_hook)(const void *opaque_thd);
 /* charsets */
 #define MY_ALL_CHARSETS_SIZE 2048
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *default_charset_info;
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *all_charsets[MY_ALL_CHARSETS_SIZE];
-extern CHARSET_INFO compiled_charsets[];
+extern MYSQL_PLUGIN_IMPORT const CHARSET_INFO
+    *all_charsets[MY_ALL_CHARSETS_SIZE];
 
 /* statistics */
 extern ulong my_tmp_file_created;
@@ -476,8 +479,9 @@ struct ST_FILE_ID {
 };
 
 typedef void (*my_error_reporter)(enum loglevel level, uint ecode, ...);
+typedef void (*my_error_vreporter)(enum loglevel level, uint ecode, va_list);
 
-extern my_error_reporter my_charset_error_reporter;
+extern my_error_vreporter my_charset_error_reporter;
 
 /* defines for mf_iocache */
 extern PSI_file_key key_file_io_cache;
@@ -874,17 +878,16 @@ int my_msync(int, void *, size_t, int);
 /* character sets */
 extern uint get_charset_number(const char *cs_name, uint cs_flags);
 extern uint get_collation_number(const char *name);
-extern const char *get_collation_name(uint cs_number);
+extern const char *get_collation_name(uint charset_number);
 
 extern CHARSET_INFO *get_charset(uint cs_number, myf flags);
 extern CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags);
-extern CHARSET_INFO *my_collation_get_by_name(MY_CHARSET_LOADER *loader,
-                                              const char *name, myf flags);
+extern CHARSET_INFO *my_collation_get_by_name(const char *collation_name,
+                                              myf flags, MY_CHARSET_ERRMSG *);
 extern CHARSET_INFO *get_charset_by_csname(const char *cs_name, uint cs_flags,
                                            myf my_flags);
-extern CHARSET_INFO *my_charset_get_by_name(MY_CHARSET_LOADER *loader,
-                                            const char *name, uint cs_flags,
-                                            myf my_flags);
+extern CHARSET_INFO *my_charset_get_by_name(const char *name, uint cs_flags,
+                                            myf my_flags, MY_CHARSET_ERRMSG *);
 extern bool resolve_charset(const char *cs_name, const CHARSET_INFO *default_cs,
                             const CHARSET_INFO **cs);
 extern bool resolve_collation(const char *cl_name,
@@ -893,7 +896,6 @@ extern bool resolve_collation(const char *cl_name,
 extern char *get_charsets_dir(char *buf);
 extern bool my_charset_same(const CHARSET_INFO *cs1, const CHARSET_INFO *cs2);
 extern bool init_compiled_charsets(myf flags);
-extern void add_compiled_collation(CHARSET_INFO *cs);
 extern size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
                                       char *to, size_t to_length,
                                       const char *from, size_t length);

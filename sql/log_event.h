@@ -68,6 +68,8 @@
 #include "sql/sql_const.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
+#include "string_with_len.h"
+#include "strmake.h"
 #include "typelib.h"  // TYPELIB
 
 class THD;

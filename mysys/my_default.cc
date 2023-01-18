@@ -57,7 +57,6 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_aes.h"
 #include "my_alloc.h"
@@ -69,14 +68,18 @@
 #include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_version.h"  // MYSQL_PERSIST_CONFIG_NAME
 #include "mysys/my_default_priv.h"
 #include "mysys/mysys_priv.h"
 #include "mysys_err.h"
+#include "nulls.h"
+#include "strmake.h"
+#include "strxmov.h"
 #include "typelib.h"
 #ifdef _WIN32
 #include <winbase.h>

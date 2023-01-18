@@ -24,11 +24,12 @@
 #include <gtest/gtest.h>
 #include <string>
 
-#include "m_ctype.h"
 #include "mf_wcomp.h"  // wild_compare_full, wild_one, wild_any
 #include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/sql_class.h"
 #include "sql/strfunc.h"  // casedn
+#include "strings/m_ctype_internals.h"
 
 using std::min;
 
@@ -564,8 +565,7 @@ TEST_F(StringsUTF8mb4Test, MyIsmbcharUtf8mb4) {
 class StringsUTF8mb4_900Test : public ::testing::Test {
  protected:
   void SetUp() override {
-    MY_CHARSET_LOADER loader;
-    m_charset = my_collation_get_by_name(&loader, "utf8mb4_0900_ai_ci", MYF(0));
+    m_charset = get_charset_by_name("utf8mb4_0900_ai_ci", MYF(0));
   }
 
   bool equals(const char *a, const char *b) {
@@ -605,8 +605,7 @@ TEST_F(StringsUTF8mb4_900Test, MyUCA900Collate) {
 class StringsUTF8mb4_900_AS_CS_NoPad_Test : public ::testing::Test {
  protected:
   void SetUp() override {
-    MY_CHARSET_LOADER loader;
-    m_charset = my_collation_get_by_name(&loader, "utf8mb4_0900_as_cs", MYF(0));
+    m_charset = get_charset_by_name("utf8mb4_0900_as_cs", MYF(0));
   }
 
   int compare(const char *a, const char *b, bool b_is_prefix) {
@@ -666,9 +665,7 @@ static bool uca_wildcmp(const CHARSET_INFO *cs, const char *str,
 }
 
 TEST(UCAWildCmpTest, UCA900WildCmp) {
-  MY_CHARSET_LOADER loader;
-  CHARSET_INFO *cs =
-      my_collation_get_by_name(&loader, "utf8mb4_0900_ai_ci", MYF(0));
+  CHARSET_INFO *cs = get_charset_by_name("utf8mb4_0900_ai_ci", MYF(0));
 
   EXPECT_TRUE(uca_wildcmp(cs, "abc", "abc"));
   EXPECT_TRUE(uca_wildcmp(cs, "Abc", "aBc"));
@@ -695,9 +692,7 @@ TEST(UCAWildCmpTest, UCA900WildCmp) {
 }
 
 TEST(UCAWildCmpTest, UCA900WildCmpCaseSensitive) {
-  MY_CHARSET_LOADER loader;
-  CHARSET_INFO *cs =
-      my_collation_get_by_name(&loader, "utf8mb4_0900_as_cs", MYF(0));
+  CHARSET_INFO *cs = get_charset_by_name("utf8mb4_0900_as_cs", MYF(0));
 
   EXPECT_TRUE(uca_wildcmp(cs, "abc", "abc"));
   EXPECT_FALSE(uca_wildcmp(cs, "Abc", "aBc"));
@@ -724,9 +719,7 @@ TEST(UCAWildCmpTest, UCA900WildCmpCaseSensitive) {
 }
 
 TEST(UCAWildCmpTest, UCA900WildCmp_AS_CI) {
-  MY_CHARSET_LOADER loader;
-  CHARSET_INFO *cs =
-      my_collation_get_by_name(&loader, "utf8mb4_0900_as_ci", MYF(0));
+  CHARSET_INFO *cs = get_charset_by_name("utf8mb4_0900_as_ci", MYF(0));
   EXPECT_TRUE(uca_wildcmp(cs, "ǎḄÇ", "Ǎḅç"));
   EXPECT_FALSE(uca_wildcmp(cs, "ÁḆĈ", "Ǎḅç"));
   EXPECT_TRUE(uca_wildcmp(cs, "ǍBc", "_bc"));

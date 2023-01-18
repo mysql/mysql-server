@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,23 +25,34 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#ifndef INCLUDE_MYSQL_STRINGS_INT2STR_H_
+#define INCLUDE_MYSQL_STRINGS_INT2STR_H_
+
+#include <cstdint>
+
+#include "mysql/strings/api.h"
+
+MYSQL_STRINGS_EXPORT char *ll2str(int64_t val, char *dst, int radix,
+                                  bool upcase);
+
+MYSQL_STRINGS_EXPORT char *longlong10_to_str(int64_t val, char *dst, int radix);
+
+static inline char *longlong2str(int64_t val, char *dst, int radix) {
+  return ll2str(val, dst, radix, true);
+}
+
 /*
-  strcont(str, set) if str contains any character in the string set.
-  The result is the position of the first found character in str, or NullS
-  if there isn't anything found.
- */
+  This function saves a long long value in a buffer and returns the pointer to
+  the buffer.
+*/
+static inline char *llstr(long long value, char *buff) {
+  longlong10_to_str(value, buff, -10);
+  return buff;
+}
 
-#include "m_string.h"  // IWYU pragma: keep
+static inline char *ullstr(long long value, char *buff) {
+  longlong10_to_str(value, buff, 10);
+  return buff;
+}
 
-char *strcont(char *str, const char *set) {
-  const char *start = set;
-
-  while (*str) {
-    while (*set) {
-      if (*set++ == *str) return str;
-    }
-    set = start;
-    str++;
-  }
-  return nullptr;
-} /* strcont */
+#endif  // INCLUDE_MYSQL_STRINGS_INT2STR_H_

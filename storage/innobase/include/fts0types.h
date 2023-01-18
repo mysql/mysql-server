@@ -41,6 +41,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0byte.h"
 #include "ut0rbt.h"
 
+struct CHARSET_INFO;
+
 /** Types used within FTS. */
 struct fts_que_t;
 struct fts_node_t;

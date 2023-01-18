@@ -40,13 +40,13 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread.h"
 #include "my_thread_local.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_thread.h"
@@ -75,7 +75,6 @@ mysql_mutex_t THR_LOCK_malloc;
 mysql_mutex_t THR_LOCK_open;
 mysql_mutex_t THR_LOCK_lock;
 mysql_mutex_t THR_LOCK_net;
-mysql_mutex_t THR_LOCK_charset;
 #ifndef NDEBUG
 mysql_mutex_t THR_LOCK_threads;
 mysql_cond_t THR_COND_threads;
@@ -136,9 +135,6 @@ void my_thread_global_reinit() {
   mysql_mutex_destroy(&THR_LOCK_open);
   mysql_mutex_init(key_THR_LOCK_open, &THR_LOCK_open, MY_MUTEX_INIT_FAST);
 
-  mysql_mutex_destroy(&THR_LOCK_charset);
-  mysql_mutex_init(key_THR_LOCK_charset, &THR_LOCK_charset, MY_MUTEX_INIT_FAST);
-
 #ifndef NDEBUG
   mysql_mutex_destroy(&THR_LOCK_threads);
   mysql_mutex_init(key_THR_LOCK_threads, &THR_LOCK_threads, MY_MUTEX_INIT_FAST);
@@ -187,7 +183,6 @@ bool my_thread_global_init() {
 
   mysql_mutex_init(key_THR_LOCK_malloc, &THR_LOCK_malloc, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_open, &THR_LOCK_open, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_THR_LOCK_charset, &THR_LOCK_charset, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_lock, &THR_LOCK_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_myisam, &THR_LOCK_myisam, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(key_THR_LOCK_myisam_mmap, &THR_LOCK_myisam_mmap,
@@ -244,7 +239,6 @@ void my_thread_global_end() {
   mysql_mutex_destroy(&THR_LOCK_myisam_mmap);
   mysql_mutex_destroy(&THR_LOCK_heap);
   mysql_mutex_destroy(&THR_LOCK_net);
-  mysql_mutex_destroy(&THR_LOCK_charset);
 #ifndef NDEBUG
   if (all_threads_killed) {
     mysql_mutex_destroy(&THR_LOCK_threads);

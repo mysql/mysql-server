@@ -33,6 +33,7 @@
 #include "my_alloc.h"
 #include "my_checksum.h"  // ha_checksum
 #include "my_icp.h"
+#include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "myisam.h"     /* Structs & some defines */
 #include "myisampack.h" /* packing of keys */

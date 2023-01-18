@@ -23,8 +23,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "m_ctype.h"
 #include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/item_cmpfunc.h"  // Item_bool_func
 #include "sql/item_func.h"
 #include "sql/item_strfunc.h"    // Item_str_func

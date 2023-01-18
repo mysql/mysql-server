@@ -30,6 +30,7 @@
 #include <openssl/sha.h>
 
 #include "my_base.h"
+#include "mysql/strings/dtoa.h"
 #include "sha2.h"
 #include "sql-common/json_dom.h"
 #include "sql/filesort.h"

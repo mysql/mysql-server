@@ -22,6 +22,8 @@
 
 #ifndef BASIC_ISTREAM_INCLUDED
 #define BASIC_ISTREAM_INCLUDED
+
+#include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
 

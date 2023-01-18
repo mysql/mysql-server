@@ -28,7 +28,7 @@
 #include <cmath>
 
 #include "my_byteorder.h"
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 
 /*
  * Data types.  The entries must be in the numerical order.

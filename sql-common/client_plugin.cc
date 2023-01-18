@@ -47,8 +47,6 @@
 #include <sys/types.h>
 
 #include "errmsg.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -61,7 +59,10 @@
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
+#include "nulls.h"
 #include "sql_common.h"
+#include "strxnmov.h"
 #include "template_utils.h"
 
 #ifdef HAVE_DLFCN_H

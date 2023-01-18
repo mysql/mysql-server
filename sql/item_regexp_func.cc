@@ -34,6 +34,7 @@
 #include <optional>
 
 #include "my_dbug.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"      // MAX_BLOB_WIDTH
 #include "sql/item_func.h"  // agg_arg_charsets_for_comparison()
 #include "sql/sql_class.h"  // THD

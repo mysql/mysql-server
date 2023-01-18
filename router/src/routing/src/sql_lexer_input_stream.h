@@ -29,12 +29,12 @@
 #include <cstddef>
 #include <cstring>  // memcpy
 
-#include "lex_string.h"   // LEX_STRING
-#include "m_ctype.h"      // my_charset_...
-#include "my_inttypes.h"  // uchar, uint, ...
+#include "lex_string.h"             // LEX_STRING
+#include "my_inttypes.h"            // uchar, uint, ...
+#include "mysql/strings/m_ctype.h"  // my_charset_...
 #include "sql/lexer_yystype.h"
 #include "sql/sql_digest_stream.h"
-#include "sql_chars.h"  // my_lex_states
+#include "strings/sql_chars.h"  // my_lex_states
 
 #include "sql_lexer_error.h"  // warn_on_...
 

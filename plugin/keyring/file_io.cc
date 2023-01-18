@@ -32,6 +32,7 @@
 #include <sstream>
 #include <utility>
 
+#include "my_inttypes.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"
 #include "sql/current_thd.h"

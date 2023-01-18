@@ -40,6 +40,8 @@
 #define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8mb4"
 #define MAX_NAME_LEN (64 * 3)
 
+struct CHARSET_INFO;
+
 namespace Mysql {
 namespace Tools {
 namespace Dump {

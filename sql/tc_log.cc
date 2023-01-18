@@ -32,9 +32,9 @@
 
 #include "map_helpers.h"
 #include "my_alloc.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"
 #ifdef HAVE_SYS_MMAN_H

@@ -27,6 +27,7 @@
 #include "plugin/group_replication/include/plugin_handlers/offline_mode_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/read_mode_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/stage_monitor_handler.h"
+#include "string_with_len.h"
 
 void *Autorejoin_thread::launch_thread(void *arg) {
   Autorejoin_thread *thd = static_cast<Autorejoin_thread *>(arg);

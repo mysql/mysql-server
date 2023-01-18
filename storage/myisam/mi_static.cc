@@ -36,6 +36,7 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
+#include "template_utils.h"
 
 LIST *myisam_open_list = nullptr;
 uchar myisam_file_magic[] = {

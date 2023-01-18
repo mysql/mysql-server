@@ -32,12 +32,12 @@
 #include <vector>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_murmur3.h"  // murmur3_32
 #include "my_xxhash.h"   // IWYU pragma: keep
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "sql-common/json_binary.h"
 #include "sql-common/json_dom.h"

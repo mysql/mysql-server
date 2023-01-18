@@ -30,7 +30,6 @@
 #include <mysql.h>
 
 #include "errmsg.h"
-#include "m_string.h"
 #include "my_getopt.h"
 #include "my_sys.h"
 

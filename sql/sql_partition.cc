@@ -50,9 +50,7 @@
 #include <cstring>
 
 #include "field_types.h"  // enum_field_types
-#include "m_ctype.h"      // system_charset_info
-#include "m_string.h"
-#include "my_alloc.h"  // operator new
+#include "my_alloc.h"     // operator new
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
@@ -65,10 +63,13 @@
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"  // system_charset_info
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "sql/create_field.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
@@ -103,6 +104,8 @@
 #include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"  // sql_calloc
 #include "sql_string.h"
+#include "string_with_len.h"
+#include "strxmov.h"
 
 using std::max;
 using std::min;

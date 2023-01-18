@@ -25,7 +25,7 @@
 
 #include <sys/types.h>
 
-#include "m_string.h"
+#include "dig_vec.h"
 #include "my_inttypes.h"
 
 /**
@@ -43,8 +43,8 @@ int compute_md5_hash(char *digest, const char *buf, int len);
 static inline void array_to_hex(char *to, const unsigned char *str, uint len) {
   const unsigned char *str_end = str + len;
   for (; str != str_end; ++str) {
-    *to++ = _dig_vec_lower[((uchar)*str) >> 4];
-    *to++ = _dig_vec_lower[((uchar)*str) & 0x0F];
+    *to++ = dig_vec_lower[((uchar)*str) >> 4];
+    *to++ = dig_vec_lower[((uchar)*str) & 0x0F];
   }
 }
 

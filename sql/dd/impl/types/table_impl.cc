@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/dd/impl/types/table_impl.h"
+#include "string_with_len.h"
 
 #include <assert.h>
 #include <string.h>
@@ -36,6 +37,7 @@
 #include "m_string.h"
 
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"                         // ER_*
 #include "sql/current_thd.h"                      // current_thd
 #include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // dd::bootstrap::DD_bootstrap_ctx

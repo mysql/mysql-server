@@ -30,6 +30,8 @@
 #include "sql/dd/impl/transaction_impl.h"  // Transaction_ro
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 
+struct CHARSET_INFO;
+
 namespace dd {
 namespace tables {
 

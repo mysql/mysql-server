@@ -25,11 +25,11 @@
 #include <string.h>
 #include <memory>
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/thread_type.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"

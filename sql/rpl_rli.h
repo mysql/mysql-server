@@ -34,18 +34,17 @@
 
 #include "lex_string.h"
 #include "libbinlogevents/include/binlog_event.h"
-#include "m_string.h"
 #include "map_helpers.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/components/services/bits/mysql_cond_bits.h"
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/psi_mutex_bits.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/thread_type.h"
 #include "prealloced_array.h"  // Prealloced_array
@@ -63,6 +62,7 @@
 #include "sql/sql_class.h"    // THD
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "strmake.h"
 
 class Commit_order_manager;
 class Master_info;

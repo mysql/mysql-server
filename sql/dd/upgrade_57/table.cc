@@ -44,14 +44,16 @@
 #include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_user.h"  // parse_user
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/my_loglevel.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"                    // ER_*
+#include "nulls.h"                           // NullS
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd.h"                       // dd::get_dictionary
 #include "sql/dd/dd_schema.h"                // Schema_MDL_locker
@@ -99,6 +101,7 @@
 #include "sql/trigger_chain.h"
 #include "sql/trigger_def.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 #include "thr_lock.h"
 
 class Sroutine_hash_entry;

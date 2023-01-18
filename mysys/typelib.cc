@@ -34,13 +34,14 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
+#include "template_utils.h"
 #include "typelib.h"
 
 #define is_field_separator(X) ((X) == ',' || (X) == '=')

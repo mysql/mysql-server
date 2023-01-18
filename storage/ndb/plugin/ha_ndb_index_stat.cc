@@ -30,7 +30,9 @@
 #include <time.h>
 #include <atomic>
 
+#include "m_string.h"
 #include "my_dbug.h"
+#include "nulls.h"
 #include "sql/field.h"
 #include "sql/mysqld.h"  // LOCK_global_system_variables
 #include "sql/partition_info.h"

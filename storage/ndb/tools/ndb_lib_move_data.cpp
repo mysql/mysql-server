@@ -22,7 +22,7 @@
 
 #include "util/require.h"
 #include <ndb_global.h>
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #include <NdbOut.hpp>
 #include <NdbApi.hpp>
 #include <NDBT.hpp>

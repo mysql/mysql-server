@@ -26,8 +26,8 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "m_string.h"
 #include "my_base.h"
+#include "nulls.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_list.h"
 

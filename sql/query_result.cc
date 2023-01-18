@@ -35,13 +35,13 @@
 #include <cstring>
 
 #include "lex_string.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_dbug.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "nulls.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/item.h"
 #include "sql/item_func.h"
@@ -56,6 +56,8 @@
 #include "sql/system_variables.h"
 #include "sql/visible_fields.h"
 #include "sql_string.h"
+#include "strmake.h"
+#include "strxnmov.h"
 #include "template_utils.h"  // pointer_cast
 
 using std::min;

@@ -26,8 +26,8 @@
 #include <mysql/plugin_ftparser.h>
 #include <stdlib.h>
 
-#include "m_ctype.h"
 #include "my_compiler.h"
+#include "mysql/strings/m_ctype.h"
 
 static long number_of_calls = 0; /* for SHOW STATUS, see below */
 

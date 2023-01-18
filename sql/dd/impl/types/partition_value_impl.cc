@@ -41,6 +41,7 @@
 #include "sql/dd/impl/types/partition_impl.h"  // Partition_impl
 #include "sql/dd/types/object_table.h"
 #include "sql/dd/types/weak_object.h"
+#include "string_with_len.h"
 
 namespace dd {
 class Object_key;

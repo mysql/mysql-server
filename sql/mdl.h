@@ -29,9 +29,9 @@
 #include <new>
 #include <unordered_map>
 
-#include "m_string.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
+#include "strmake.h"
 
 #include "my_inttypes.h"
 #include "my_psi_config.h"

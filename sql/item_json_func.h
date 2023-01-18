@@ -31,10 +31,9 @@
 #include <memory>
 #include <utility>  // std::forward
 
-#include "m_ctype.h"
-
 #include "my_inttypes.h"
 #include "my_time.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"

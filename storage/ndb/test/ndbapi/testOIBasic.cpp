@@ -34,7 +34,7 @@
 #include <NdbTick.h>
 #include <NdbHost.h>
 #include <NdbSleep.h>
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #include "my_sys.h"
 #include <NdbSqlUtil.hpp>
 #include <ndb_version.h>

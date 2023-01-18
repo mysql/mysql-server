@@ -23,9 +23,9 @@
 #include "sql/sql_check_constraint.h"
 
 #include "libbinlogevents/include/binlog_event.h"  // UNDEFINED_SERVER_VERSION
-#include "m_ctype.h"                               // CHARSET_INFO
 #include "my_inttypes.h"                           // MYF, uchar
 #include "my_sys.h"                                // my_error
+#include "mysql/strings/m_ctype.h"                 // CHARSET_INFO
 #include "mysql/thread_type.h"                     // SYSTEM_THREAD_SLAVE_*
 #include "mysql_com.h"                             // NAME_CHAR_LEN
 #include "mysqld_error.h"                          // ER_*

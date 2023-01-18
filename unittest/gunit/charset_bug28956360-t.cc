@@ -22,8 +22,8 @@
 
 #include <gtest/gtest.h>
 
-#include "m_ctype.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 
 namespace charset_bug28956360_unittest {
 

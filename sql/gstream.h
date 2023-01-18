@@ -26,9 +26,9 @@
 #include <stddef.h>
 
 #include "lex_string.h"
-#include "m_ctype.h" /* my_charset_latin1, my_charset_bin */
-#include "m_string.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h" /* my_charset_latin1, my_charset_bin */
+#include "nulls.h"
 
 class THD;
 

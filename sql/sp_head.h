@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "lex_string.h"
+#include "m_string.h"
 #include "map_helpers.h"
 #include "my_alloc.h"
 #include "my_dbug.h"

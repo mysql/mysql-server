@@ -22,6 +22,7 @@
 
 #include <assert.h>
 #include <sys/types.h>
+#include <cfloat>
 #include <cmath>
 
 #include "my_byteorder.h"

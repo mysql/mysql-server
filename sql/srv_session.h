@@ -26,13 +26,13 @@
 #include <stdint.h>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_command.h"
 #include "my_psi_config.h"
 #include "my_thread_local.h"
 #include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql/service_command.h"
 #include "mysql/service_srv_session.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/protocol_callback.h"
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"

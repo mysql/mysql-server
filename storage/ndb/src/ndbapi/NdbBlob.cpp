@@ -27,7 +27,7 @@
 #include <signaldata/TcKeyReq.hpp>
 #include <NdbEnv.h>
 #include <ndb_version.h>
-#include <m_ctype.h>
+#include "mysql/strings/m_ctype.h"
 
 /*
  * Reading index table directly (as a table) is faster but there are

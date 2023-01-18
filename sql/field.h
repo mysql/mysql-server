@@ -38,7 +38,6 @@
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
 #include "libbinlogevents/export/binary_log_funcs.h"  // my_time_binary_length
-#include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_base.h"  // ha_storage_media
 #include "my_bitmap.h"
@@ -47,6 +46,8 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"  // MYSQL_TIME_NOTE_TRUNCATED
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"

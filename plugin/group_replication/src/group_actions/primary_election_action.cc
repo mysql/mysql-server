@@ -25,6 +25,7 @@
 #include "plugin/group_replication/include/plugin_handlers/server_ongoing_transactions_handler.h"
 #include "plugin/group_replication/include/plugin_messages/group_action_message.h"
 #include "plugin/group_replication/include/services/system_variable/set_system_variable.h"
+#include "string_with_len.h"
 #include "template_utils.h"
 
 Primary_election_action::Primary_election_action()

@@ -29,11 +29,14 @@
 #include <mysql/components/services/log_builtins.h>
 #include "my_config.h"
 #include "my_sys.h"
+#include "mysql/strings/int2str.h"
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "sql/current_thd.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
 #include "sql/sql_error.h"
+#include "strxnmov.h"
 
 bool is_existing_windows_group_name(const char *group_name) {
   // First, let's get a SID for the given group name...

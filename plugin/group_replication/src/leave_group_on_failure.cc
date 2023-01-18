@@ -30,6 +30,7 @@
 #include "plugin/group_replication/include/gcs_view_modification_notifier.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/offline_mode_handler.h"
+#include "string_with_len.h"
 
 void leave_group_on_failure::leave(
     const leave_group_on_failure::mask &actions, longlong error_to_log,

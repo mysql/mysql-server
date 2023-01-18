@@ -71,12 +71,12 @@
  * .configure. strxfrm_multiply_czech=4
  */
 
-#include <string.h>
-#include <sys/types.h>
+#include <cstdint>
+#include <cstring>
 
-#include "m_ctype.h"
 #include "my_compiler.h"
-#include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
+#include "strings/m_ctype_internals.h"
 #include "template_utils.h"
 
 /*
@@ -162,17 +162,17 @@ namespace {
 
 struct wordvalue {
   const char *word;
-  const uchar *outvalue;
+  const uint8_t *outvalue;
 };
 
 }  // namespace
 
 static struct wordvalue doubles[] = {
-    {"ch", pointer_cast<const uchar *>("\014\031\057\057")},
-    {"Ch", pointer_cast<const uchar *>("\014\031\060\060")},
-    {"CH", pointer_cast<const uchar *>("\014\031\061\061")},
-    {"c", pointer_cast<const uchar *>("\005\012\021\021")},
-    {"C", pointer_cast<const uchar *>("\005\012\022\022")},
+    {"ch", pointer_cast<const uint8_t *>("\014\031\057\057")},
+    {"Ch", pointer_cast<const uint8_t *>("\014\031\060\060")},
+    {"CH", pointer_cast<const uint8_t *>("\014\031\061\061")},
+    {"c", pointer_cast<const uint8_t *>("\005\012\021\021")},
+    {"C", pointer_cast<const uint8_t *>("\005\012\022\022")},
 };
 
 /*
@@ -260,8 +260,8 @@ static struct wordvalue doubles[] = {
     }               /* ignore value */                            \
     if (value == 2) /* space */                                   \
     {                                                             \
-      const uchar *tmp;                                           \
-      const uchar *runner = ++p;                                  \
+      const uint8_t *tmp;                                         \
+      const uint8_t *runner = ++(p);                              \
       while (!(IS_END(runner, src, len)) &&                       \
              (CZ_SORT_TABLE[pass][*runner] == 2))                 \
         runner++; /* skip all spaces */                           \
@@ -289,7 +289,7 @@ static struct wordvalue doubles[] = {
         }                                                         \
         if (!(pattern[j])) {                                      \
           value = (int)(doubles[i].outvalue[pass]);               \
-          p = (const uchar *)q - 1;                               \
+          (p) = pointer_cast<const uint8_t *>(q) - 1;             \
           break;                                                  \
         }                                                         \
       }                                                           \
@@ -305,18 +305,17 @@ static struct wordvalue doubles[] = {
 
 extern "C" {
 static int my_strnncoll_czech(const CHARSET_INFO *cs [[maybe_unused]],
-                              const uchar *s1, size_t len1, const uchar *s2,
+                              const uint8_t *s1, size_t len1, const uint8_t *s2,
                               size_t len2, bool s2_is_prefix) {
   int v1, v2;
-  const uchar *p1, *p2, *store1, *store2;
   int pass1 = 0, pass2 = 0;
 
   if (s2_is_prefix && len1 > len2) len1 = len2;
 
-  p1 = s1;
-  p2 = s2;
-  store1 = s1;
-  store2 = s2;
+  const uint8_t *p1 = s1;
+  const uint8_t *p2 = s2;
+  const uint8_t *store1 = s1;
+  const uint8_t *store2 = s2;
 
   do {
     int diff;
@@ -331,8 +330,8 @@ static int my_strnncoll_czech(const CHARSET_INFO *cs [[maybe_unused]],
   TODO: Fix this one to compare strings as they are done in ctype-simple1
 */
 
-static int my_strnncollsp_czech(const CHARSET_INFO *cs, const uchar *s,
-                                size_t slen, const uchar *t, size_t tlen) {
+static int my_strnncollsp_czech(const CHARSET_INFO *cs, const uint8_t *s,
+                                size_t slen, const uint8_t *t, size_t tlen) {
   for (; slen && s[slen - 1] == ' '; slen--)
     ;
   for (; tlen && t[tlen - 1] == ' '; tlen--)
@@ -354,15 +353,15 @@ static size_t my_strnxfrmlen_czech(const CHARSET_INFO *cs [[maybe_unused]],
 */
 
 static size_t my_strnxfrm_czech(const CHARSET_INFO *cs [[maybe_unused]],
-                                uchar *dest, size_t len,
-                                uint nweights_arg [[maybe_unused]],
-                                const uchar *src, size_t srclen, uint flags) {
+                                uint8_t *dest, size_t len,
+                                unsigned nweights_arg [[maybe_unused]],
+                                const uint8_t *src, size_t srclen,
+                                unsigned flags) {
   int value;
-  const uchar *p, *store;
   int pass = 0;
   size_t totlen = 0;
-  p = src;
-  store = src;
+  const uint8_t *p = src;
+  const uint8_t *store = src;
 
   if (!(flags & 0x0F)) /* All levels by default */
     flags |= 0x0F;
@@ -429,7 +428,7 @@ static bool my_like_range_czech(const CHARSET_INFO *cs, const char *ptr,
                                 char w_many, size_t res_length, char *min_str,
                                 char *max_str, size_t *min_length,
                                 size_t *max_length) {
-  uchar value;
+  uint8_t value = 0;
   const char *end = ptr + ptr_length;
   char *min_org = min_str;
   char *min_end = min_str + res_length;
@@ -448,7 +447,7 @@ static bool my_like_range_czech(const CHARSET_INFO *cs, const char *ptr,
       ptr++;
     } /* Skip escape */
 
-    value = CZ_SORT_TABLE[0][(int)(uchar)*ptr];
+    value = CZ_SORT_TABLE[0][(int)(uint8_t)*ptr];
 
     if (value == 0) /* Ignore in the first pass */
     {
@@ -490,7 +489,7 @@ static bool my_like_range_czech(const CHARSET_INFO *cs, const char *ptr,
  * definition table reworked by Jaromir Dolecek <dolecek@ics.muni.cz>
  */
 
-static const uchar ctype_czech[257] = {
+static const uint8_t ctype_czech[257] = {
     0,  32,  32,  32,  32,  32,  32,  32,  32,  32,  40,  40, 40, 40, 40, 32,
     32, 32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32, 32, 32, 32, 32,
     32, 72,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16, 16, 16, 16, 16,
@@ -510,7 +509,7 @@ static const uchar ctype_czech[257] = {
     16,
 };
 
-static const uchar to_lower_czech[] = {
+static const uint8_t to_lower_czech[] = {
     0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
     15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
     30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,
@@ -531,7 +530,7 @@ static const uchar to_lower_czech[] = {
     255,
 };
 
-static const uchar to_upper_czech[] = {
+static const uint8_t to_upper_czech[] = {
     0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
     15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
     30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,
@@ -552,7 +551,7 @@ static const uchar to_upper_czech[] = {
     255,
 };
 
-static const uchar sort_order_czech[] = {
+static const uint8_t sort_order_czech[] = {
     0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
     15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
     30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,
@@ -573,7 +572,7 @@ static const uchar sort_order_czech[] = {
     255,
 };
 
-static uint16 tab_8859_2_uni[256] = {
+static uint16_t tab_8859_2_uni[256] = {
     0,      0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007, 0x0008,
     0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x000E, 0x000F, 0x0010, 0x0011,
     0x0012, 0x0013, 0x0014, 0x0015, 0x0016, 0x0017, 0x0018, 0x0019, 0x001A,
@@ -605,7 +604,7 @@ static uint16 tab_8859_2_uni[256] = {
     0x00FC, 0x00FD, 0x0163, 0x02D9};
 
 /* 0000-00FD , 254 chars */
-static const uchar tab_uni_8859_2_plane00[] = {
+static const uint8_t tab_uni_8859_2_plane00[] = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
     0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
     0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23,
@@ -630,7 +629,7 @@ static const uchar tab_uni_8859_2_plane00[] = {
     0xFC, 0xFD};
 
 /* 0102-017E , 125 chars */
-static const uchar tab_uni_8859_2_plane01[] = {
+static const uint8_t tab_uni_8859_2_plane01[] = {
     0xC3, 0xE3, 0xA1, 0xB1, 0xC6, 0xE6, 0x00, 0x00, 0x00, 0x00, 0xC8, 0xE8,
     0xCF, 0xEF, 0xD0, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xCA, 0xEA,
     0xCC, 0xEC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -644,7 +643,7 @@ static const uchar tab_uni_8859_2_plane01[] = {
     0xBC, 0xAF, 0xBF, 0xAE, 0xBE};
 
 /* 02C7-02DD ,  23 chars */
-static const uchar tab_uni_8859_2_plane02[] = {
+static const uint8_t tab_uni_8859_2_plane02[] = {
     0xB7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0xA2, 0xFF, 0x00, 0xB2, 0x00, 0xBD};
 

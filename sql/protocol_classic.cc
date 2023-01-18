@@ -435,17 +435,18 @@
 
 #include "decimal.h"
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_byteorder.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql/com_data.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_socket.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"
 #include "sql/field.h"
@@ -461,6 +462,8 @@
 #include "sql/sql_prepare.h"  // Prepared_statement
 #include "sql/system_variables.h"
 #include "sql_string.h"
+#include "string_with_len.h"
+#include "strmake.h"
 #include "template_utils.h"
 
 using std::max;

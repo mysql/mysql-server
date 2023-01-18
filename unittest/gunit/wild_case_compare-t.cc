@@ -24,6 +24,7 @@
 
 #include "sql/auth/auth_common.h"
 #include "sql/mysqld.h"
+#include "sql/mysqld_cs.h"
 
 namespace wild_case_compare_unittest {
 

@@ -28,9 +28,9 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "my_loglevel.h"
 #include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/my_loglevel.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -46,6 +46,7 @@
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/int2str.h"
 #include "prealloced_array.h"
 #include "sql/rpl_gtid.h"
 #include "sql/sql_const.h"

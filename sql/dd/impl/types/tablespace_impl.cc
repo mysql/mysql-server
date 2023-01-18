@@ -66,11 +66,11 @@
 #include "sql/handler.h"    // handlerton
 #include "sql/sql_class.h"  // THD
 #include "sql/strfunc.h"    // casedn
-
-#include "m_string.h"
+#include "string_with_len.h"
 
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"  // ER_*
 
 using dd::tables::Index_partitions;

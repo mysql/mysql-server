@@ -106,8 +106,6 @@ When one supplies long data for a placeholder:
 
 #include "decimal.h"
 #include "field_types.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "map_helpers.h"
 #include "my_alloc.h"
 #include "my_byteorder.h"
@@ -122,10 +120,14 @@ When one supplies long data for a placeholder:
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_ps.h"  // MYSQL_EXECUTE_PS
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_table_access
@@ -177,6 +179,7 @@ When one supplies long data for a placeholder:
 #include "sql/transaction.h"  // trans_rollback_implicit
 #include "sql/window.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 #include "violite.h"
 
 namespace resourcegroups {

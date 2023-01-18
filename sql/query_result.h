@@ -26,13 +26,17 @@
 #include <assert.h>
 #include <sys/types.h>
 
+#include <cstddef>
+
+#include "mem_root_deque.h"
 #include "my_base.h"
 
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
 #include "mysql/components/services/bits/my_io_bits.h"  // File
-#include "mysqld_error.h"                               // ER_*
+#include "mysql/strings/m_ctype.h"
+#include "mysqld_error.h"  // ER_*
 #include "sql/sql_list.h"
 
 class Item;

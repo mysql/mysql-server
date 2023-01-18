@@ -32,6 +32,7 @@
 #include <mysql/components/services/log_builtins.h>
 #include <mysqld_error.h>
 
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -41,6 +42,8 @@
 #include "thr_cond.h"
 
 static constexpr int STRING_BUFFER = 1024 * 4;
+
+struct CHARSET_INFO;
 
 static const char *sep =
     "======================================================\n";

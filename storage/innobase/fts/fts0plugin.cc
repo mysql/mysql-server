@@ -36,6 +36,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0tokenize.h"
 #include "mysql/plugin.h"
 
+struct CHARSET_INFO;
+
 /** FTS default parser init
  @return 0 */
 static int fts_default_parser_init(MYSQL_FTPARSER_PARAM *param [

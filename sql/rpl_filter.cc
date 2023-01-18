@@ -32,7 +32,6 @@
 #include <map>
 #include <utility>
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "mf_wcomp.h"  // wild_one, wild_many
 #include "my_dbug.h"
@@ -41,6 +40,7 @@
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -59,6 +59,7 @@
 #include "sql/table.h"  // Table_ref
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 #include "template_utils.h"  // my_free_container_pointers
 
 extern PSI_memory_key key_memory_array_buffer;

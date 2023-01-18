@@ -28,20 +28,20 @@
 #include <string.h>
 #include <algorithm>
 
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compare.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/field.h"  // Field
 #include "sql/handler.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/table.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 
 using std::max;
 using std::min;

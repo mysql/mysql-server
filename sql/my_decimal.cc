@@ -31,10 +31,10 @@
 #endif
 
 #include "decimal.h"
-#include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "my_time.h"          // TIME_to_ulonglong_date
+#include "my_time.h"  // TIME_to_ulonglong_date
+#include "mysql/strings/m_ctype.h"
 #include "mysql_time.h"       // MYSQL_TIME
 #include "mysqld_error.h"     // ER_*
 #include "sql/current_thd.h"  // current_thd

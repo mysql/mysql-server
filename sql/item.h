@@ -40,8 +40,6 @@
 #include "decimal.h"
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "memory_debugging.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
@@ -52,10 +50,14 @@
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_time.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/m_ctype.h"
+#include "mysql/strings/my_strtoll10.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "sql/enum_query_type.h"
 #include "sql/field.h"  // Derivation
 #include "sql/mem_root_array.h"
@@ -70,6 +72,7 @@
 #include "sql/thr_malloc.h"
 #include "sql/trigger_def.h"  // enum_trigger_variable_type
 #include "sql_string.h"
+#include "string_with_len.h"
 #include "template_utils.h"
 
 class Item;

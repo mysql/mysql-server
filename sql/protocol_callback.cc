@@ -26,7 +26,7 @@
 #include <stddef.h>
 #include <algorithm>
 
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"

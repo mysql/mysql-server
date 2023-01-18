@@ -41,11 +41,12 @@
 #include <algorithm>
 
 #include "decimal.h"
-#include "m_ctype.h"
 
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_time_t.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/m_ctype.h"
 
 class String;
 struct MYSQL_TIME;

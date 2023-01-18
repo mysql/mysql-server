@@ -36,11 +36,10 @@
 #include <string>
 #include <vector>
 
-#include "m_ctype.h"
-#include "m_string.h"  // STRING_WITH_LEN
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_version.h"  // MYSQL_VERSION_ID
 #include "mysqld_error.h"
@@ -66,6 +65,7 @@
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_plugin_ref.h"
 #include "sql/strfunc.h"  // lex_cstring_handle
+#include "string_with_len.h"
 
 /**
   @defgroup sdi Serialized Dictionary Information

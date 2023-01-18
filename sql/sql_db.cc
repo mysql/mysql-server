@@ -41,7 +41,6 @@
 #include <vector>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_command.h"
 #include "my_dbug.h"
@@ -56,9 +55,12 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"  // EE_*
+#include "nulls.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // SELECT_ACL
 #include "sql/auth/sql_security_ctx.h"
@@ -98,6 +100,9 @@
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"  // trans_rollback_stmt
 #include "sql_string.h"
+#include "string_with_len.h"
+#include "strmake.h"
+#include "strxmov.h"
 #include "typelib.h"
 
 /*

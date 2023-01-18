@@ -708,7 +708,6 @@ MySQL clients support the protocol:
 #include "my_default.h"  // print_defaults
 #include "my_dir.h"
 #include "my_getpwnam.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_shm_defaults.h"  // IWYU pragma: keep
 #include "my_stacktrace.h"    // my_set_exception_pointers
@@ -720,6 +719,7 @@ MySQL clients support the protocol:
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/mysql_runtime_error_service.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_cond.h"
@@ -738,6 +738,7 @@ MySQL clients support the protocol:
 #include "mysql/psi/psi_idle.h"
 #include "mysql/psi/psi_mdl.h"
 #include "mysql/psi/psi_memory.h"
+#include "sql/mysqld_cs.h"
 #include "mysql/psi/psi_mutex.h"
 #include "mysql/psi/psi_rwlock.h"
 #include "mysql/psi/psi_socket.h"
@@ -749,6 +750,8 @@ MySQL clients support the protocol:
 #include "mysql/psi/psi_tls_channel.h"
 #include "mysql/psi/psi_transaction.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/thread_type.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
@@ -756,6 +759,7 @@ MySQL clients support the protocol:
 #include "mysqld_error.h"
 #include "mysys/build_id.h"
 #include "mysys_err.h"  // EXIT_OUT_OF_MEMORY
+#include "nulls.h"
 #include "pfs_thread_provider.h"
 #include "print_version.h"
 #include "scope_guard.h"                            // create_scope_guard()
@@ -876,8 +880,13 @@ MySQL clients support the protocol:
 #include "sql/xa/transaction_cache.h"  // xa::Transaction_cache
 #include "sql_common.h"                // mysql_client_plugin_init
 #include "sql_string.h"
+#include "string_with_len.h"
+#include "strmake.h"
+#include "strxmov.h"
+#include "strxnmov.h"
 #include "storage/myisam/ha_myisam.h"  // HA_RECOVER_OFF
 #include "storage/perfschema/pfs_services.h"
+#include "strings/str_alloc.h"
 #include "thr_lock.h"
 #include "thr_mutex.h"
 #include "typelib.h"
@@ -1890,6 +1899,7 @@ static void option_error_reporter(enum loglevel level, uint ecode, ...) {
   Character set and collation error reporter that prints to sql error log.
   @param level          log message level
   @param ecode          Error code of the error message.
+  @param args           va_list list of arguments for the message
 
   This routine is used to print character set and collation
   warnings and errors inside an already running mysqld server,
@@ -1897,11 +1907,8 @@ static void option_error_reporter(enum loglevel level, uint ecode, ...) {
   and its initialization does not go well for some reasons.
 */
 
-static void charset_error_reporter(enum loglevel level, uint ecode, ...) {
-  va_list args;
-  va_start(args, ecode);
+static void charset_error_reporter(loglevel level, uint ecode, va_list args) {
   error_log_print(level, ecode, args);
-  va_end(args);
 }
 
 struct rand_struct sql_rand;  ///< used by sql_class.cc:THD::THD()
@@ -4914,7 +4921,6 @@ int init_common_variables() {
 #endif
 
   if (get_options(&remaining_argc, &remaining_argv)) return 1;
-
   /*
     The opt_bin_log can be false (binary log is disabled) only if
     --skip-log-bin/--disable-log-bin is configured or while the
@@ -5147,11 +5153,6 @@ int init_common_variables() {
                                character_set_filesystem_name,
                                "--character-set-filesystem");
   global_system_variables.character_set_filesystem = character_set_filesystem;
-
-  if (lex_init()) {
-    LogErr(ERROR_LEVEL, ER_OOM);
-    return 1;
-  }
 
   while (!(my_default_lc_time_names = my_locale_by_name(
                nullptr, lc_time_names_name, strlen(lc_time_names_name)))) {
@@ -7045,13 +7046,15 @@ static void test_lc_time_sz() {
     for (const char **month = (*loc)->month_names->type_names; *month;
          month++) {
       max_month_len = std::max(
-          max_month_len, my_numchars_mb(&my_charset_utf8mb3_general_ci, *month,
-                                        *month + strlen(*month)));
+          max_month_len,
+          my_charset_utf8mb3_general_ci.cset->numchars(
+              &my_charset_utf8mb3_general_ci, *month, *month + strlen(*month)));
     }
     for (const char **day = (*loc)->day_names->type_names; *day; day++) {
-      max_day_len =
-          std::max(max_day_len, my_numchars_mb(&my_charset_utf8mb3_general_ci,
-                                               *day, *day + strlen(*day)));
+      max_day_len = std::max(
+          max_day_len,
+          my_charset_utf8mb3_general_ci.cset->numchars(
+              &my_charset_utf8mb3_general_ci, *day, *day + strlen(*day)));
     }
     if ((*loc)->max_month_name_length != max_month_len ||
         (*loc)->max_day_name_length != max_day_len) {

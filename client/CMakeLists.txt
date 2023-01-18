@@ -176,7 +176,7 @@ MERGE_CONVENIENCE_LIBRARIES(json_binlog_static
 MYSQL_ADD_EXECUTABLE(json_client_library_main
   json_client_library_main.cc
   INCLUDE_DIRECTORIES ../sql
-  LINK_LIBRARIES json_client_library  strings
+  LINK_LIBRARIES json_client_library  strings mysys
   SKIP_INSTALL
   )
 

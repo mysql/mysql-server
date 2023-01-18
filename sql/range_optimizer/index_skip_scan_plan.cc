@@ -28,11 +28,11 @@
 #include <string.h>
 #include <algorithm>
 
-#include "m_ctype.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/handler.h"

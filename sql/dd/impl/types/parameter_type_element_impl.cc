@@ -26,10 +26,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "m_ctype.h"
-
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "sql/dd/impl/raw/raw_record.h"                  // Raw_record
 #include "sql/dd/impl/tables/parameter_type_elements.h"  // Parameter_type_elements

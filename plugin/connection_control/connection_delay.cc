@@ -25,10 +25,10 @@
 #include <mysql/psi/mysql_thread.h>
 #include <time.h>
 
-#include "m_ctype.h" /* my_charset_bin */
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_systime.h"
+#include "mysql/strings/m_ctype.h" /* my_charset_bin */
 #include "mysqld_error.h"
 #include "plugin/connection_control/connection_control.h"
 #include "plugin/connection_control/security_context_wrapper.h"

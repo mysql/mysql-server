@@ -23,6 +23,7 @@
 #include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::*
 
 #include "my_time.h"  // TIME_to_ulonglong_datetime
+#include "mysql/strings/m_ctype.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dd.h"          // dd::create_object
 #include "sql/dd/impl/utils.h"  // dd::my_time_t_to_ull_datetime()

@@ -28,9 +28,9 @@
 #include <new>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 
 #include "my_inttypes.h"  // TODO: replace with cstdint
+#include "mysql/strings/m_ctype.h"
 #include "mysql_time.h"
 #include "sql/item.h"
 #include "sql/item_func.h"       // Item etc.

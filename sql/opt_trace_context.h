@@ -29,6 +29,8 @@
 #include "mysql/components/services/bits/psi_bits.h"
 #include "prealloced_array.h"
 
+struct CHARSET_INFO;
+
 /**
    @file
    This contains the declaration of class Opt_trace_context, which is needed

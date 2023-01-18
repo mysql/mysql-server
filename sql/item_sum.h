@@ -38,8 +38,6 @@
 #include <vector>
 
 #include "field_types.h"  // enum_field_types
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
 
@@ -48,6 +46,8 @@
 #include "my_table_map.h"
 #include "my_time.h"
 #include "my_tree.h"  // TREE
+#include "mysql/strings/m_ctype.h"
+#include "mysql/strings/my_strtoll10.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"

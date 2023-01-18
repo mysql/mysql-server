@@ -50,20 +50,19 @@
 
 #include "my_config.h"
 
-#include <assert.h>
+#include "mysql/strings/dtoa.h"
+
 #include <algorithm>
+#include <cassert>
+#include <cerrno>
+#include <cfloat>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <limits>
 
-#include "decimal.h"
-#include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
-
-#include <errno.h>
-#include <float.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "m_string.h"
+#include "template_utils.h"
 
 #ifndef EOVERFLOW
 #define EOVERFLOW 84
@@ -586,14 +585,9 @@ double my_strtod(const char *str, const char **end, int *error) {
   TODO: check if we can get rid of the above two
 */
 
-typedef int32 Long;
-typedef uint32 ULong;
-typedef int64 LLong;
-typedef uint64 ULLong;
-
 typedef union {
   double d;
-  ULong L[2];
+  uint32_t L[2];
 } U;
 
 #if defined(WORDS_BIGENDIAN)
@@ -662,13 +656,13 @@ typedef union {
 
 #define Bcopy(x, y)                          \
   memcpy((char *)&x->sign, (char *)&y->sign, \
-         2 * sizeof(int) + y->wds * sizeof(ULong))
+         2 * sizeof(int) + (y)->wds * sizeof(uint32_t))
 
 /* Arbitrary-length integer */
 
 typedef struct Bigint {
   union {
-    ULong *x;            /* points right after this Bigint object */
+    uint32_t *x;         /* points right after this Bigint object */
     struct Bigint *next; /* to maintain free lists */
   } p;
   int k;      /* 2^k = maxwds */
@@ -707,7 +701,7 @@ static Bigint *Balloc(int k, Stack_alloc *alloc) {
     int x, len;
 
     x = 1 << k;
-    len = MY_ALIGN(sizeof(Bigint) + x * sizeof(ULong), SIZEOF_CHARP);
+    len = MY_ALIGN(sizeof(Bigint) + x * sizeof(uint32_t), SIZEOF_CHARP);
 
     if (alloc->free + len <= alloc->end) {
       rv = (Bigint *)alloc->free;
@@ -719,7 +713,7 @@ static Bigint *Balloc(int k, Stack_alloc *alloc) {
     rv->maxwds = x;
   }
   rv->sign = rv->wds = 0;
-  rv->p.x = (ULong *)(rv + 1);
+  rv->p.x = pointer_cast<uint32_t *>((rv + 1));
   return rv;
 }
 
@@ -775,19 +769,17 @@ static void dtoa_free(char *gptr, char *buf, size_t buf_size) {
 /* Multiply by m and add a */
 
 static Bigint *multadd(Bigint *b, int m, int a, Stack_alloc *alloc) {
-  int i, wds;
-  ULong *x;
-  ULLong carry, y;
-  Bigint *b1;
+  uint64_t y = 0;
+  Bigint *b1 = nullptr;
 
-  wds = b->wds;
-  x = b->p.x;
-  i = 0;
-  carry = a;
+  int wds = b->wds;
+  uint32_t *x = b->p.x;
+  int i = 0;
+  uint64_t carry = a;
   do {
-    y = *x * (ULLong)m + carry;
+    y = *x * (uint64_t)m + carry;
     carry = y >> 32;
-    *x++ = (ULong)(y & FFFFFFFF);
+    *x++ = (uint32_t)(y & FFFFFFFF);
   } while (++i < wds);
   if (carry) {
     if (wds >= b->maxwds) {
@@ -796,7 +788,7 @@ static Bigint *multadd(Bigint *b, int m, int a, Stack_alloc *alloc) {
       Bfree(b, alloc);
       b = b1;
     }
-    b->p.x[wds++] = (ULong)carry;
+    b->p.x[wds++] = (uint32_t)carry;
     b->wds = wds;
   }
   return b;
@@ -816,13 +808,13 @@ static Bigint *multadd(Bigint *b, int m, int a, Stack_alloc *alloc) {
   @param y9    Pre-computed value of the first nine digits.
   @param alloc Stack allocator for Bigints.
  */
-static Bigint *s2b(const char *s, int nd0, int nd, ULong y9,
+static Bigint *s2b(const char *s, int nd0, int nd, uint32_t y9,
                    Stack_alloc *alloc) {
   Bigint *b;
   int i, k;
-  Long x, y;
+  int32_t y = 0;
 
-  x = (nd + 8) / 9;
+  int32_t x = (nd + 8) / 9;
   for (k = 0, y = 1; x > y; y <<= 1, k++)
     ;
   b = Balloc(k, alloc);
@@ -843,7 +835,7 @@ static Bigint *s2b(const char *s, int nd0, int nd, ULong y9,
   return b;
 }
 
-static int hi0bits(ULong x) {
+static int hi0bits(uint32_t x) {
   int k = 0;
 
   if (!(x & 0xffff0000)) {
@@ -869,9 +861,9 @@ static int hi0bits(ULong x) {
   return k;
 }
 
-static int lo0bits(ULong *y) {
+static int lo0bits(uint32_t *y) {
   int k;
-  ULong x = *y;
+  uint32_t x = *y;
 
   if (x & 7) {
     if (x & 1) return 0;
@@ -924,9 +916,12 @@ static Bigint *i2b(int i, Stack_alloc *alloc) {
 static Bigint *mult(Bigint *a, Bigint *b, Stack_alloc *alloc) {
   Bigint *c;
   int k, wa, wb, wc;
-  ULong *x, *xa, *xae, *xb, *xbe, *xc, *xc0;
-  ULong y;
-  ULLong carry, z;
+  uint32_t *x = nullptr;
+  uint32_t *xa = nullptr;
+  uint32_t *xc = nullptr;
+  uint32_t y = 0;
+  uint64_t carry = 0;
+  uint64_t z = 0;
 
   if (a->wds < b->wds) {
     c = a;
@@ -941,21 +936,21 @@ static Bigint *mult(Bigint *a, Bigint *b, Stack_alloc *alloc) {
   c = Balloc(k, alloc);
   for (x = c->p.x, xa = x + wc; x < xa; x++) *x = 0;
   xa = a->p.x;
-  xae = xa + wa;
-  xb = b->p.x;
-  xbe = xb + wb;
-  xc0 = c->p.x;
+  uint32_t *xae = xa + wa;
+  uint32_t *xb = b->p.x;
+  uint32_t *xbe = xb + wb;
+  uint32_t *xc0 = c->p.x;
   for (; xb < xbe; xc0++) {
     if ((y = *xb++)) {
       x = xa;
       xc = xc0;
       carry = 0;
       do {
-        z = *x++ * (ULLong)y + *xc + carry;
+        z = *x++ * (uint64_t)y + *xc + carry;
         carry = z >> 32;
-        *xc++ = (ULong)(z & FFFFFFFF);
+        *xc++ = (uint32_t)(z & FFFFFFFF);
       } while (x < xae);
-      *xc = (ULong)carry;
+      *xc = (uint32_t)carry;
     }
   }
   for (xc0 = c->p.x, xc = xc0 + wc; wc > 0 && !*--xc; --wc)
@@ -969,7 +964,7 @@ static Bigint *mult(Bigint *a, Bigint *b, Stack_alloc *alloc) {
   vasting majority of dtoa_r cases.
 */
 
-static ULong powers5[] = {
+static uint32_t powers5[] = {
     625UL,
 
     390625UL,
@@ -1033,17 +1028,17 @@ static Bigint *pow5mult(Bigint *b, int k, Stack_alloc *alloc) {
 static Bigint *lshift(Bigint *b, int k, Stack_alloc *alloc) {
   int i, k1, n, n1;
   Bigint *b1;
-  ULong *x, *x1, *xe, z;
+  uint32_t z = 0;
 
   n = k >> 5;
   k1 = b->k;
   n1 = n + b->wds + 1;
   for (i = b->maxwds; n1 > i; i <<= 1) k1++;
   b1 = Balloc(k1, alloc);
-  x1 = b1->p.x;
+  uint32_t *x1 = b1->p.x;
   for (i = 0; i < n; i++) *x1++ = 0;
-  x = b->p.x;
-  xe = x + b->wds;
+  uint32_t *x = b->p.x;
+  uint32_t *xe = x + b->wds;
   if (k &= 0x1f) {
     k1 = 32 - k;
     z = 0;
@@ -1062,16 +1057,15 @@ static Bigint *lshift(Bigint *b, int k, Stack_alloc *alloc) {
 }
 
 static int cmp(Bigint *a, Bigint *b) {
-  ULong *xa, *xa0, *xb, *xb0;
   int i, j;
 
   i = a->wds;
   j = b->wds;
   if (i -= j) return i;
-  xa0 = a->p.x;
-  xa = xa0 + j;
-  xb0 = b->p.x;
-  xb = xb0 + j;
+  uint32_t *xa0 = a->p.x;
+  uint32_t *xa = xa0 + j;
+  uint32_t *xb0 = b->p.x;
+  uint32_t *xb = xb0 + j;
   for (;;) {
     if (*--xa != *--xb) return *xa < *xb ? -1 : 1;
     if (xa <= xa0) break;
@@ -1080,10 +1074,10 @@ static int cmp(Bigint *a, Bigint *b) {
 }
 
 static Bigint *diff(Bigint *a, Bigint *b, Stack_alloc *alloc) {
-  Bigint *c;
+  Bigint *c = nullptr;
   int i, wa, wb;
-  ULong *xa, *xae, *xb, *xbe, *xc;
-  ULLong borrow, y;
+  uint64_t borrow = 0;
+  uint64_t y = 0;
 
   i = cmp(a, b);
   if (!i) {
@@ -1102,22 +1096,22 @@ static Bigint *diff(Bigint *a, Bigint *b, Stack_alloc *alloc) {
   c = Balloc(a->k, alloc);
   c->sign = i;
   wa = a->wds;
-  xa = a->p.x;
-  xae = xa + wa;
+  uint32_t *xa = a->p.x;
+  uint32_t *xae = xa + wa;
   wb = b->wds;
-  xb = b->p.x;
-  xbe = xb + wb;
-  xc = c->p.x;
+  uint32_t *xb = b->p.x;
+  uint32_t *xbe = xb + wb;
+  uint32_t *xc = c->p.x;
   borrow = 0;
   do {
-    y = (ULLong)*xa++ - *xb++ - borrow;
-    borrow = y >> 32 & (ULong)1;
-    *xc++ = (ULong)(y & FFFFFFFF);
+    y = (uint64_t)*xa++ - *xb++ - borrow;
+    borrow = y >> 32 & (uint32_t)1;
+    *xc++ = (uint32_t)(y & FFFFFFFF);
   } while (xb < xbe);
   while (xa < xae) {
     y = *xa++ - borrow;
-    borrow = y >> 32 & (ULong)1;
-    *xc++ = (ULong)(y & FFFFFFFF);
+    borrow = y >> 32 & (uint32_t)1;
+    *xc++ = (uint32_t)(y & FFFFFFFF);
   }
   while (!*--xc) wa--;
   c->wds = wa;
@@ -1125,30 +1119,29 @@ static Bigint *diff(Bigint *a, Bigint *b, Stack_alloc *alloc) {
 }
 
 static double ulp(U *x) {
-  Long L;
   U u;
 
-  L = (word0(x) & Exp_mask) - (P - 1) * Exp_msk1;
+  int32_t L = (word0(x) & Exp_mask) - (P - 1) * Exp_msk1;
   word0(&u) = L;
   word1(&u) = 0;
   return dval(&u);
 }
 
 static double b2d(Bigint *a, int *e) {
-  ULong *xa, *xa0, w, y, z;
+  uint32_t z = 0;
   int k;
   U d;
 #define d0 word0(&d)
 #define d1 word1(&d)
 
-  xa0 = a->p.x;
-  xa = xa0 + a->wds;
-  y = *--xa;
+  uint32_t *xa0 = a->p.x;
+  uint32_t *xa = xa0 + a->wds;
+  uint32_t y = *--xa;
   k = hi0bits(y);
   *e = 32 - k;
   if (k < Ebits) {
     d0 = Exp_1 | y >> (Ebits - k);
-    w = xa > xa0 ? *--xa : 0;
+    uint32_t w = xa > xa0 ? *--xa : 0;
     d1 = y << ((32 - Ebits) + k) | w >> (Ebits - k);
     goto ret_d;
   }
@@ -1170,13 +1163,14 @@ ret_d:
 static Bigint *d2b(U *d, int *e, int *bits, Stack_alloc *alloc) {
   Bigint *b;
   int de, k;
-  ULong *x, y, z;
+  uint32_t y = 0;
+  uint32_t z = 0;
   int i;
 #define d0 word0(d)
 #define d1 word1(d)
 
   b = Balloc(1, alloc);
-  x = b->p.x;
+  uint32_t *x = b->p.x;
 
   z = d0 & Frac_mask;
   d0 &= 0x7fffffff; /* clear sign bit, which we ignore */
@@ -1275,8 +1269,9 @@ static double my_strtod_int(const char *s00, const char **se, int *error,
   const char *s, *s0, *s1, *end = *se;
   double aadj, aadj1;
   U aadj2, adj, rv, rv0;
-  Long L;
-  ULong y, z;
+  int32_t L = 0;
+  uint32_t y = 0;
+  uint32_t z = 0;
   Bigint *bb = nullptr, *bb1, *bd = nullptr, *bd0, *bs = nullptr,
          *delta = nullptr;
 #ifdef Honor_FLT_ROUNDS
@@ -1398,7 +1393,7 @@ dig_done:
         s1 = s;
         // Avoid overflow in loop body below.
         while (++s < end && (c = *s) >= '0' && c <= '9' &&
-               L < (std::numeric_limits<Long>::max() - 255) / 10) {
+               L < (std::numeric_limits<int32_t>::max() - 255) / 10) {
           L = 10 * L + c - '0';
         }
         if (s - s1 > 8 || L > 19999)
@@ -1788,7 +1783,7 @@ dig_done:
     } else {
       if (scale && y <= 2 * P * Exp_msk1) {
         if (aadj <= 0x7fffffff) {
-          if ((z = (ULong)aadj) <= 0) z = 1;
+          if ((z = (uint32_t)aadj) <= 0) z = 1;
           aadj = z;
           aadj1 = dsign ? aadj : -aadj;
         }
@@ -1807,7 +1802,7 @@ dig_done:
     if (!scale)
       if (y == z) {
         /* Can we stop now? */
-        L = (Long)aadj;
+        L = (int32_t)aadj;
         aadj -= L;
         /* The tolerances below are conservative. */
         if (dsign || word1(&rv) || word0(&rv) & Bndry_mask) {
@@ -1839,8 +1834,14 @@ ret:
 
 static int quorem(Bigint *b, Bigint *S) {
   int n;
-  ULong *bx, *bxe, q, *sx, *sxe;
-  ULLong borrow, carry, y, ys;
+  uint32_t *bx = nullptr;
+  uint32_t *bxe = nullptr;
+  uint32_t *sx = nullptr;
+  uint32_t *sxe = nullptr;
+  uint64_t borrow = 0;
+  uint64_t carry = 0;
+  uint64_t y = 0;
+  uint64_t ys = 0;
 
   n = S->wds;
   if (b->wds < n) return 0;
@@ -1848,16 +1849,16 @@ static int quorem(Bigint *b, Bigint *S) {
   sxe = sx + --n;
   bx = b->p.x;
   bxe = bx + n;
-  q = *bxe / (*sxe + 1); /* ensure q <= true quotient */
+  uint32_t q = *bxe / (*sxe + 1); /* ensure q <= true quotient */
   if (q) {
     borrow = 0;
     carry = 0;
     do {
-      ys = *sx++ * (ULLong)q + carry;
+      ys = *sx++ * (uint64_t)q + carry;
       carry = ys >> 32;
       y = *bx - (ys & FFFFFFFF) - borrow;
-      borrow = y >> 32 & (ULong)1;
-      *bx++ = (ULong)(y & FFFFFFFF);
+      borrow = y >> 32 & (uint32_t)1;
+      *bx++ = (uint32_t)(y & FFFFFFFF);
     } while (sx <= sxe);
     if (!*bxe) {
       bx = b->p.x;
@@ -1875,8 +1876,8 @@ static int quorem(Bigint *b, Bigint *S) {
       ys = *sx++ + carry;
       carry = ys >> 32;
       y = *bx - (ys & FFFFFFFF) - borrow;
-      borrow = y >> 32 & (ULong)1;
-      *bx++ = (ULong)(y & FFFFFFFF);
+      borrow = y >> 32 & (uint32_t)1;
+      *bx++ = (uint32_t)(y & FFFFFFFF);
     } while (sx <= sxe);
     bx = b->p.x;
     bxe = bx + n;
@@ -1919,7 +1920,7 @@ static int quorem(Bigint *b, Bigint *S) {
            guarantee that the floating-point calculation has given
            the correctly rounded result.  For k requested digits and
            "uniformly" distributed input, the probability is
-           something like 10^(k-15) that we must resort to the Long
+           something like 10^(k-15) that we must resort to the int32_t
            calculation.
  */
 
@@ -1963,9 +1964,9 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
   int bbits, b2, b5, be, dig, i, ieps, ilim = 0, ilim0, ilim1 = 0, j, j1, k, k0,
                                        k_check, leftright, m2, m5, s2, s5,
                                        spec_case, try_quick;
-  Long L;
+  int32_t L = 0;
   int denorm;
-  ULong x;
+  uint32_t x = 0;
   Bigint *b, *b1, *delta, *mlo = nullptr, *mhi, *S;
   U d2, eps, u;
   double ds;
@@ -2169,7 +2170,7 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
       /* Use Steele & White method of only generating digits needed. */
       dval(&eps) = 0.5 / tens[ilim - 1] - dval(&eps);
       for (i = 0;;) {
-        L = (Long)dval(&u);
+        L = (int32_t)dval(&u);
         dval(&u) -= L;
         *s++ = '0' + (int)L;
         if (dval(&u) < dval(&eps)) goto ret1;
@@ -2182,7 +2183,7 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
       /* Generate ilim digits, then fix them up. */
       dval(&eps) *= tens[ilim - 1];
       for (i = 1;; i++, dval(&u) *= 10.) {
-        L = (Long)(dval(&u));
+        L = (int32_t)(dval(&u));
         if (!(dval(&u) -= L)) ilim = i;
         *s++ = '0' + (int)L;
         if (i == ilim) {
@@ -2216,7 +2217,7 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
       goto one_digit;
     }
     for (i = 1;; i++, dval(&u) *= 10.) {
-      L = (Long)(dval(&u) / ds);
+      L = (int32_t)(dval(&u) / ds);
       dval(&u) -= L * ds;
 #ifdef Check_FLT_ROUNDS
       /* If FLT_ROUNDS == 2, L will usually be high by 1 */

@@ -39,13 +39,13 @@
 #include <string>
 
 #include "keycache.h"
-#include "m_ctype.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysys/mysys_priv.h"
 #include "template_utils.h"
 

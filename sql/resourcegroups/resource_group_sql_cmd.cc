@@ -29,8 +29,6 @@
 #include <utility>
 #include <vector>
 
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
@@ -38,6 +36,7 @@
 #include "mysql/components/services/bits/psi_thread_bits.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "pfs_thread_provider.h"
@@ -62,6 +61,7 @@
 #include "sql/sql_lex.h"  // is_invalid_string
 #include "sql/system_variables.h"
 #include "sql/thd_raii.h"
+#include "string_with_len.h"
 
 namespace dd {
 class Resource_group;

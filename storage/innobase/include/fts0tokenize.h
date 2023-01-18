@@ -30,13 +30,17 @@ this program; if not, write to the Free Software Foundation, Inc.,
  Created 2014/11/17 Shaohua Wang
  ***********************************************************************/
 
+#include <cstdint>
+
 #include "ft_global.h"
-#include "m_ctype.h"
 #include "mysql/plugin_ftparser.h"
+#include "mysql/strings/m_ctype.h"
 
 /* Macros and structs below are from ftdefs.h in MyISAM */
 /** Check a char is true word */
-#define true_word_char(c, ch) ((c) & (_MY_U | _MY_L | _MY_NMR) || (ch) == '_')
+inline bool true_word_char(int c, uint8_t ch) {
+  return ((c & (MY_CHAR_U | MY_CHAR_L | MY_CHAR_NMR)) != 0) || ch == '_';
+}
 
 /** Boolean search syntax */
 static const char *fts_boolean_syntax = DEFAULT_FTB_SYNTAX;

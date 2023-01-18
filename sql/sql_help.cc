@@ -30,7 +30,6 @@
 #include <string>
 #include <utility>
 
-#include "m_ctype.h"
 #include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
@@ -38,6 +37,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "sql/debug_sync.h"
 #include "sql/field.h"

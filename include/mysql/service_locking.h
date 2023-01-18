@@ -32,6 +32,7 @@
 */
 
 #ifndef MYSQL_ABI_CHECK
+#include <stddef.h>
 #include <stdint.h>
 #endif /* MYSQL_ABI_CHECK */
 

@@ -55,12 +55,14 @@ TODO:
 #include <mysql/psi/mysql_file.h>
 #include <algorithm>
 
+#include "m_string.h"
 #include "map_helpers.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_memory.h"
+#include "nulls.h"
 #include "sql/derror.h"
 #include "sql/field.h"
 #include "sql/sql_class.h"

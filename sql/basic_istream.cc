@@ -25,6 +25,7 @@
 #include <my_sys.h>
 #include <mysql/psi/mysql_file.h>
 #include "my_dbug.h"
+#include "my_inttypes.h"
 
 IO_CACHE_istream::IO_CACHE_istream() = default;
 

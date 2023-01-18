@@ -69,6 +69,7 @@
 #include "sql/sql_truncate.h"        // Sql_cmd_truncate_table
 #include "sql/table.h"               // Common_table_expr
 #include "sql/window_lex.h"
+#include "string_with_len.h"
 #include "thr_lock.h"
 
 class Item;

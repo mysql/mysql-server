@@ -53,14 +53,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <exception>
 #include <iostream>
 #include <sstream>
-#include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"
 #include "my_getopt.h"
 #include "my_io.h"
 #include "my_macros.h"
+#include "nulls.h"
 #include "print_version.h"
+#include "template_utils.h"
 #include "typelib.h"
 #include "welcome_copyright_notice.h"
 

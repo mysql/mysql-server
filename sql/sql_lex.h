@@ -41,8 +41,6 @@
 #include <utility>
 
 #include "lex_string.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "map_helpers.h"
 #include "mem_root_deque.h"
 #include "memory_debugging.h"
@@ -57,6 +55,7 @@
 #include "my_thread_local.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/service_mysql_alloc.h"  // my_free
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"                // Prealloced_array
@@ -89,8 +88,9 @@
 #include "sql/thr_malloc.h"
 #include "sql/trigger_def.h"  // enum_trigger_action_time_type
 #include "sql/visible_fields.h"
-#include "sql_chars.h"
 #include "sql_string.h"
+#include "string_with_len.h"
+#include "strings/sql_chars.h"
 #include "thr_lock.h"  // thr_lock_type
 #include "violite.h"   // SSL_type
 
@@ -4667,7 +4667,6 @@ struct st_lex_local : public LEX {
   }
 };
 
-extern bool lex_init(void);
 extern void lex_free(void);
 extern bool lex_start(THD *thd);
 extern void lex_end(LEX *lex);

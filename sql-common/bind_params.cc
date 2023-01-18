@@ -36,6 +36,7 @@
 #include "mysql.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "sql_common.h"
 
 /*

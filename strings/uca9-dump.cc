@@ -56,22 +56,21 @@
     6. uca9dump zh --in_file=/path/to/zh_han.txt --out_file=/path/to/yourfile
 */
 
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <map>
-#include <set>
+#include <utility>
 
 #include "m_string.h"
 #include "my_compiler.h"
+#include "mysql/strings/m_ctype.h"
 #include "strings/mb_wc.h"
 #include "strings/uca900_data.h"  // uca900_weights[]
 
-typedef unsigned char uchar;
-typedef unsigned short uint16;
-typedef unsigned int uint;
 typedef unsigned long my_wc_t;
 
 #define MY_UCA_MAXWEIGHT_TO_PARSE 64
@@ -89,7 +88,7 @@ typedef unsigned long my_wc_t;
 
 struct MY_UCA_ITEM {
   int num_of_ce; /* Number of collation elements */
-  uint16 weight[MY_UCA_MAXWEIGHT_TO_DUMP + 1];
+  uint16_t weight[MY_UCA_MAXWEIGHT_TO_DUMP + 1];
   /* +1 for trailing num_of_ce */
 };
 
@@ -247,8 +246,8 @@ static int my_decompose_hangul_syllable(my_wc_t syllable, my_wc_t *jamo) {
 void my_put_jamo_weights(const my_wc_t *hangul_jamo, int jamo_cnt,
                          MY_UCA_ITEM *item, const MY_UCA *uca) {
   for (int jamoind = 0; jamoind < jamo_cnt; jamoind++) {
-    uint16 *implicit_weight = item->weight + jamoind * MY_UCA_CE_SIZE;
-    const uint16 *jamo_weight = uca->item[hangul_jamo[jamoind]].weight;
+    uint16_t *implicit_weight = item->weight + jamoind * MY_UCA_CE_SIZE;
+    const uint16_t *jamo_weight = uca->item[hangul_jamo[jamoind]].weight;
     *implicit_weight = *jamo_weight;
     *(implicit_weight + 1) = *(jamo_weight + 1);
     *(implicit_weight + 2) = *(jamo_weight + 2) + 1;
@@ -342,7 +341,7 @@ static char *prefix_name(const MY_UCA *uca) {
 
 static char *page_name(const MY_UCA *uca, int page, bool pageloaded) {
   static char page_name_buf[120];
-  static char page_name_null[] = "NULL";
+  static char page_name_null[] = "nullptr";
 
   if (pageloaded) {
     snprintf(page_name_buf, sizeof(page_name_buf), "%s_p%03X", prefix_name(uca),
@@ -356,9 +355,9 @@ static void print_one_page(const MY_UCA *uca, int page,
                            const char *page_name_prefix, int maxnum,
                            FILE *outfile) {
   if (page_name_prefix == nullptr)
-    fprintf(outfile, "uint16 %s[] = {\n", page_name(uca, page, true));
+    fprintf(outfile, "uint16_t %s[] = {\n", page_name(uca, page, true));
   else
-    fprintf(outfile, "uint16 %s%03X[] = {\n", page_name_prefix, page);
+    fprintf(outfile, "uint16_t %s%03X[] = {\n", page_name_prefix, page);
 
   fprintf(outfile, "  /* Number of CEs for each character. */\n");
   for (int offs = 0; offs < MY_UCA_CHARS_PER_PAGE; ++offs) {
@@ -384,7 +383,7 @@ static void print_one_page(const MY_UCA *uca, int page,
     for (int offs = 0; offs < MY_UCA_CHARS_PER_PAGE; offs++) {
       const int code = page * MY_UCA_CHARS_PER_PAGE + offs;
       const MY_UCA_ITEM *item = &uca->item[code];
-      const uint16 *weight = item->weight;
+      const uint16_t *weight = item->weight;
       fprintf(outfile, "  0x%04X,   /* U+%04X */\n", weight[i], code);
     }
   }
@@ -454,12 +453,12 @@ int dump_ja_hans(MY_UCA *uca, FILE *infile, FILE *outfile) {
     }
   }
 
-  fprintf(outfile, "#include \"my_inttypes.h\"\n\n");
+  fprintf(outfile, "#include <cstdint>\n\n");
   fprintf(outfile, "extern const int MIN_JA_HAN_PAGE = 0x%X;\n", min_page);
   fprintf(outfile, "extern const int MAX_JA_HAN_PAGE = 0x%X;\n\n", max_page);
   // Print weights.
   for (int page = 0; page < ja_han_page_cnt; page++) {
-    fprintf(outfile, "uint16 ja_han_page%2X[]= {\n", min_page + page);
+    fprintf(outfile, "uint16_t ja_han_page%2X[]= {\n", min_page + page);
     fprintf(outfile, "  /* Number of CEs for each character. */\n");
     for (int offs = 0; offs < MY_UCA_CHARS_PER_PAGE; ++offs) {
       int ind = (page << 8) + offs;
@@ -484,14 +483,14 @@ int dump_ja_hans(MY_UCA *uca, FILE *infile, FILE *outfile) {
         const int ind = page * MY_UCA_CHARS_PER_PAGE + offs;
         const int code = (page + min_page) * MY_UCA_CHARS_PER_PAGE + offs;
         const MY_UCA_ITEM *item = &uca->item[ind];
-        const uint16 *weight = item->weight;
+        const uint16_t *weight = item->weight;
         fprintf(outfile, "  0x%04X,   /* U+%04X */\n", weight[i], code);
       }
     }
     fprintf(outfile, "};\n\n");
   }
   /* Print page index */
-  fprintf(outfile, "uint16* ja_han_pages[%d]= {\n", ja_han_page_cnt);
+  fprintf(outfile, "uint16_t* ja_han_pages[%d]= {\n", ja_han_page_cnt);
   for (int page = 0; page < ja_han_page_cnt; page++) {
     if (!(page % 5))
       fprintf(outfile, "%13s%2X", "ja_han_page", page + min_page);
@@ -519,7 +518,7 @@ int dump_ja_hans(MY_UCA *uca, FILE *infile, FILE *outfile) {
   weight as before reordering, we decide to change the leading primary weight of
   the implicit weight as below.
  */
-uint16 change_zh_implicit(uint16 weight) {
+uint16_t change_zh_implicit(uint16_t weight) {
   switch (weight) {
     case 0xFB00:
       return 0xF621;
@@ -546,7 +545,7 @@ uint16 change_zh_implicit(uint16 weight) {
   The implicit weight and the code point is not 1 : 1 map. But for the Han
   characters in zh.xml file, each one has unique implicit weight from others.
  */
-my_wc_t convert_implicit_to_ch(uint16 first, uint16 second) {
+my_wc_t convert_implicit_to_ch(uint16_t first, uint16_t second) {
   assert(first >= 0xFB40 && first <= 0xFBC1);
   if (first < 0xFB80)
     return (((first - 0xFB40) << 15) | (second & 0x7FFF));
@@ -622,14 +621,14 @@ int dump_zh_hans(MY_UCA *uca, int *pageloaded, FILE *infile, FILE *outfile) {
             uca->item[ch_off].num_of_ce =
                 UCA900_NUM_OF_CE(uca900_weight[page], off);
             for (int level = 0; level < 3; level++) {
-              uint16 *weight =
+              uint16_t *weight =
                   UCA900_WEIGHT_ADDR(uca900_weight[page], level, off);
-              uint16 *dst = uca->item[ch_off].weight + level;
+              uint16_t *dst = uca->item[ch_off].weight + level;
               for (int ce = 0; ce < uca->item[ch_off].num_of_ce; ce++) {
                 if (*weight >= 0x1C47 && *weight <= 0x54A3) {
                   *dst = *weight + 0xBDC4 - 0x1C47;
                 } else if (*weight >= 0xFB00) {  // implicit weight
-                  uint16 next_implicit =
+                  uint16_t next_implicit =
                       *(weight + UCA900_DISTANCE_BETWEEN_WEIGHTS);
                   my_wc_t ch = convert_implicit_to_ch(*weight, next_implicit);
                   if (zh_han_to_single_weight_map.find(ch) !=
@@ -671,7 +670,7 @@ int dump_zh_hans(MY_UCA *uca, int *pageloaded, FILE *infile, FILE *outfile) {
     }
   }
 
-  fprintf(outfile, "#include \"my_inttypes.h\"\n\n");
+  fprintf(outfile, "#include <cstdint>\n\n");
   fprintf(outfile, "extern const int MIN_ZH_HAN_PAGE = 0x%X;\n", min_page);
   fprintf(outfile, "extern const int MAX_ZH_HAN_PAGE = 0x%X;\n\n", max_page);
   for (int page = min_page; page <= max_page; page++) {
@@ -684,19 +683,19 @@ int dump_zh_hans(MY_UCA *uca, int *pageloaded, FILE *infile, FILE *outfile) {
     }
   }
 
-  fprintf(outfile, "uint16* zh_han_pages[%d] = {\n", max_page - min_page + 1);
+  fprintf(outfile, "uint16_t* zh_han_pages[%d] = {\n", max_page - min_page + 1);
   for (int page = min_page; page <= max_page; page++) {
     if (!((page - min_page) % 5)) {
       if (pageloaded[page]) {
         fprintf(outfile, "%10s%03X", "zh_han_p", page);
       } else {
-        fprintf(outfile, "%13s", "NULL");
+        fprintf(outfile, "%13s", "nullptr");
       }
     } else {
       if (pageloaded[page]) {
         fprintf(outfile, "%9s%03X", "zh_han_p", page);
       } else {
-        fprintf(outfile, "%12s", "NULL");
+        fprintf(outfile, "%12s", "nullptr");
       }
     }
     if ((page - min_page + 1) != MY_UCA_NPAGES) fprintf(outfile, ",");
@@ -765,7 +764,7 @@ int dump_ducet(MY_UCA *uca, int *pageloaded, FILE *infile, FILE *outfile) {
   }
 
   /* Print page index */
-  fprintf(outfile, "uint16* %s_weight[%d]= {\n", prefix_name(uca),
+  fprintf(outfile, "uint16_t* %s_weight[%d]= {\n", prefix_name(uca),
           MY_UCA_NPAGES);
   for (int page = 0; page < MY_UCA_NPAGES; page++) {
     if (!(page % 6))

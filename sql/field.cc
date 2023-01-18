@@ -27,8 +27,8 @@
 #include <float.h>
 #include <stddef.h>
 
-#include "m_ctype.h"
 #include "my_config.h"
+#include "mysql/strings/m_ctype.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -48,6 +48,8 @@
 #include "my_double2ulonglong.h"
 #include "my_sqlcommand.h"
 #include "myisampack.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/int2str.h"
 #include "sql-common/json_binary.h"  // json_binary::serialize
 #include "sql-common/json_dom.h"     // Json_dom, Json_wrapper
 #include "sql/create_field.h"
@@ -84,7 +86,8 @@
 #include "sql/system_variables.h"
 #include "sql/time_zone_common.h"
 #include "sql/transaction_info.h"
-#include "sql/tztime.h"      // Time_zone
+#include "sql/tztime.h"  // Time_zone
+#include "string_with_len.h"
 #include "template_utils.h"  // pointer_cast
 #include "typelib.h"
 

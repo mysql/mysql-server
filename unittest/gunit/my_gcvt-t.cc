@@ -22,8 +22,9 @@
 
 #include <gtest/gtest.h>
 
-#include "m_ctype.h"
 #include "my_sys.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/sql_const.h"
 
 namespace double_to_string_to_double_unittest {
@@ -39,8 +40,8 @@ class GcvtTest : public ::testing::TestWithParam<double> {
 INSTANTIATE_TEST_SUITE_P(Foo, GcvtTest, ::testing::ValuesIn(test_values));
 
 CHARSET_INFO *init_collation(const char *name) {
-  MY_CHARSET_LOADER loader;
-  return my_collation_get_by_name(&loader, name, MYF(0));
+  MY_CHARSET_ERRMSG errmsg;
+  return my_collation_get_by_name(name, MYF(0), &errmsg);
 }
 
 TEST_P(GcvtTest, Convert) {

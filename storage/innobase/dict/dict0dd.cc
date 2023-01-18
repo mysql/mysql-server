@@ -69,6 +69,7 @@ Data dictionary interface */
 #include "ha_innopart.h"
 #include "ha_prototypes.h"
 #include "mysql/plugin.h"
+#include "mysql/strings/m_ctype.h"
 #include "query_options.h"
 #include "sql/create_field.h"
 #include "sql/mysqld.h"  // lower_case_file_system

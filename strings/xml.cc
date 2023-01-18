@@ -25,13 +25,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <stdio.h>
-#include <string.h>
-#include <sys/types.h>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <limits>
 
-#include "m_string.h"
-#include "my_inttypes.h"
 #include "my_xml.h"
+#include "string_with_len.h"
+#include "strings/str_alloc.h"
 
 #define MY_XML_UNKNOWN 'U'
 #define MY_XML_EOF 'E'
@@ -100,9 +101,9 @@ static char my_xml_ctype[256] = {
     /*F0*/ 3, 3, 3, 3, 3, 3, 3, 3,
     3,        3, 3, 3, 3, 3, 3, 3};
 
-#define my_xml_is_space(c) (my_xml_ctype[(uchar)(c)] & MY_XML_SPC)
-#define my_xml_is_id0(c) (my_xml_ctype[(uchar)(c)] & MY_XML_ID0)
-#define my_xml_is_id1(c) (my_xml_ctype[(uchar)(c)] & MY_XML_ID1)
+#define my_xml_is_space(c) (my_xml_ctype[(uint8_t)(c)] & MY_XML_SPC)
+#define my_xml_is_id0(c) (my_xml_ctype[(uint8_t)(c)] & MY_XML_ID0)
+#define my_xml_is_id1(c) (my_xml_ctype[(uint8_t)(c)] & MY_XML_ID1)
 
 static const char *lex2str(int lex) {
   switch (lex) {
@@ -236,9 +237,10 @@ static int my_xml_attr_ensure_space(MY_XML_PARSER *st, size_t len) {
   size_t ofs = st->attr.end - st->attr.start;
   len++;  // Add terminating zero.
   if (ofs + len > st->attr.buffer_size) {
-    st->attr.buffer_size = (SIZE_T_MAX - len) / 2 > st->attr.buffer_size
-                               ? st->attr.buffer_size * 2 + len
-                               : SIZE_T_MAX;
+    st->attr.buffer_size =
+        (std::numeric_limits<size_t>::max() - len) / 2 > st->attr.buffer_size
+            ? st->attr.buffer_size * 2 + len
+            : std::numeric_limits<size_t>::max();
 
     if (!st->attr.buffer) {
       st->attr.buffer = (char *)my_str_malloc(st->attr.buffer_size);
@@ -507,10 +509,9 @@ size_t my_xml_error_pos(MY_XML_PARSER *p) {
   return (size_t)(p->cur - beg);
 }
 
-uint my_xml_error_lineno(MY_XML_PARSER *p) {
-  uint res = 0;
-  const char *s;
-  for (s = p->beg; s < p->cur; s++) {
+unsigned my_xml_error_lineno(MY_XML_PARSER *st) {
+  unsigned res = 0;
+  for (const char *s = st->beg; s < st->cur; s++) {
     if (s[0] == '\n') res++;
   }
   return res;

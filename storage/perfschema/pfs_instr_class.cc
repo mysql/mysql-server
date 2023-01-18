@@ -40,6 +40,7 @@
 #include "my_sys.h"
 #include "my_systime.h"
 #include "mysql/psi/mysql_thread.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/mysqld.h"  // lower_case_table_names
 #include "sql/table.h"
 #include "storage/perfschema/pfs_buffer_container.h"

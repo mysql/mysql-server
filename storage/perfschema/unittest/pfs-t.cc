@@ -26,9 +26,9 @@
 #include <mysql/psi/psi_file.h>
 #include <string.h>
 
-#include "m_ctype.h"
 #include "my_io.h"
 #include "my_thread.h"
+#include "sql/mysqld_cs.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_instr.h"

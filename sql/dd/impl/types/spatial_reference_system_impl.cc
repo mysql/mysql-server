@@ -38,6 +38,7 @@
 #include "sql/dd/impl/tables/spatial_reference_systems.h"  // Spatial_reference_sy...
 #include "sql/dd/impl/transaction_impl.h"  // Open_dictionary_tables_ctx
 #include "sql/gis/srs/srs.h"               // gis::srs::parse_wkt
+#include "string_with_len.h"
 
 namespace dd {
 class Sdi_rcontext;

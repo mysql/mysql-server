@@ -30,9 +30,8 @@
 #include <string>
 
 #include "decimal.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_time.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_time.h"
 #include "sql/item.h"
 #include "sql/item_timefunc.h"
@@ -44,6 +43,7 @@
 #include "sql/sql_lex.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 #include "unittest/gunit/test_utils.h"
 
 namespace item_timefunc_unittest {

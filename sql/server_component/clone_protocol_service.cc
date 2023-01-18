@@ -41,6 +41,8 @@
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dictionary.h"
 
+struct CHARSET_INFO;
+
 /** The minimum idle timeout in seconds. It is kept at 8 hours which is also
 the Server default. Currently recipient sends ACK during state transition.
 In future we could have better time controlled ACK. */

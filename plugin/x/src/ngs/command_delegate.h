@@ -29,9 +29,9 @@
 #include <vector>
 
 #include "decimal.h"      // NOLINT(build/include_subdir)
-#include "m_ctype.h"      // NOLINT(build/include_subdir)
 #include "my_compiler.h"  // NOLINT(build/include_subdir)
 #include "mysql/service_command.h"
+#include "mysql/strings/m_ctype.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/src/ngs/error_code.h"
 

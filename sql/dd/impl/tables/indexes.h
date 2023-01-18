@@ -27,6 +27,8 @@
 #include "sql/dd/object_id.h"                     // dd::Object_id
 #include "sql/dd/string_type.h"
 
+struct CHARSET_INFO;
+
 namespace dd {
 class Object_key;
 

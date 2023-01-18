@@ -30,7 +30,7 @@
 #include <string.h>
 
 #include "my_inttypes.h"
-#include "my_loglevel.h"
+#include "mysql/my_loglevel.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -47,6 +47,7 @@
 #include "sql/mysqld.h"  // mysql_data_home
 #include "sql/psi_memory_key.h"
 #include "sql_string.h"
+#include "strmake.h"
 
 long init_ulongvar_from_file(ulong *var, IO_CACHE *f, ulong default_val);
 long init_strvar_from_file(char *var, size_t max_size, IO_CACHE *f,

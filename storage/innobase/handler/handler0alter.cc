@@ -80,6 +80,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_dbug.h"
 #include "my_io.h"
+#include "mysql/strings/m_ctype.h"
 
 #include "clone0api.h"
 #include "ddl0ddl.h"

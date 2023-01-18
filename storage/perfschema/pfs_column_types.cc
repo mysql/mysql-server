@@ -30,6 +30,7 @@
 
 #include "lex_string.h"
 #include "m_string.h" /* LEX_STRING */
+#include "string_with_len.h"
 #include "template_utils.h"
 
 struct s_object_type_map {

@@ -35,12 +35,12 @@
 
 #include <boost/variant/get.hpp>
 
-#include "m_ctype.h"   // my_strcasecmp
-#include "m_string.h"  // my_fcvt_compact
+#include "mysql/strings/dtoa.h"  // my_fcvt_compact
 
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysqld_error.h"  // ER_*
+#include "mysql/strings/m_ctype.h"  // my_strcasecmp
+#include "mysqld_error.h"           // ER_*
 #include "sql/gis/srs/wkt_parser.h"
 
 /// Check that an element doesn't have an authority clause with a different

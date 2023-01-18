@@ -33,11 +33,11 @@
 
 #include <stddef.h>
 
-#include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/my_loglevel.h"
+#include "mysql/strings/m_ctype.h"
 #if defined(_WIN32)
 #include <stdio.h>
 

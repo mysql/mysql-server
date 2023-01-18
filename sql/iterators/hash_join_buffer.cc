@@ -30,13 +30,13 @@
 #include <unordered_map>
 
 #include "field_types.h"
-#include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_bit.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 
 #include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item_cmpfunc.h"

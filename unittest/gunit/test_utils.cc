@@ -30,10 +30,10 @@
 #include <string>
 
 #include "gtest/gtest-message.h"
-#include "m_ctype.h"
 #include "m_string.h"
 // assert
 #include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "sql/binlog.h"
 #include "sql/client_settings.h"

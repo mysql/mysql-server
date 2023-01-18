@@ -30,10 +30,10 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include "m_ctype.h"
 
 #include "my_byteorder.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #ifdef MYSQL_SERVER
 #include "sql/check_stack.h"

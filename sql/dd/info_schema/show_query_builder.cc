@@ -23,7 +23,6 @@
 #include "sql/dd/info_schema/show_query_builder.h"  // Select_lex_builder
 
 #include <assert.h>
-#include "m_string.h"  // STRING_WITH_LEN
 
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
@@ -40,6 +39,7 @@
 #include "sql/sql_lex.h"  // Query_options
 #include "sql/strfunc.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 
 class Item;
 

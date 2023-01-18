@@ -25,10 +25,10 @@
 #include <atomic>
 #include <memory>  // unique_ptr
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_time.h"  // TIME_to_ulonglong_datetime
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd.h"                       // dd::get_dictionary

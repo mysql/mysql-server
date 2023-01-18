@@ -23,6 +23,7 @@
 #include <algorithm>  // std::find
 #include "binlog.h"   // mysql_bin_log
 #include "mysqld.h"   // key_rwlock_gtid_mode_lock
+#include "nulls.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_msr.h"  // channel_map
 

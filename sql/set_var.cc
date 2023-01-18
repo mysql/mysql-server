@@ -31,19 +31,21 @@
 #include <string_view>
 #include <utility>
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_io.h"
-#include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // SUPER_ACL, generate_password
@@ -74,6 +76,8 @@
 #include "sql/table.h"             // table
 #include "sql/thd_raii.h"          // Prepared_stmt_arena_holder
 #include "sql_string.h"
+#include "string_with_len.h"
+#include "strxnmov.h"
 
 using std::min;
 using std::string;

@@ -34,8 +34,8 @@
 
 #include "dur_prop.h"  // durability_properties
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "mysql/components/services/bits/psi_thread_bits.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/handler.h"  // enum_tx_isolation
 
 class THD;

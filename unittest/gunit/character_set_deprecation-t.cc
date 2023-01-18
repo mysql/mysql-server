@@ -28,6 +28,8 @@
 #include "sql/mysqld.h"
 #include "unittest/gunit/parsertest.h"
 
+struct CHARSET_INFO;
+
 namespace character_set_deprecation_unittest {
 
 /**

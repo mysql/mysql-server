@@ -25,7 +25,6 @@
 #include "sql/sql_show_processlist.h"
 
 #include "lex_string.h"
-#include "m_string.h"  // STRING_WITH_LEN
 #include "sql/auth/auth_acls.h"
 #include "sql/debug_sync.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
@@ -39,6 +38,7 @@
 #include "sql/sql_parse.h"         // check_table_access
 #include "sql/strfunc.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 
 /**
   Implement SHOW PROCESSLIST by using performance schema.processlist

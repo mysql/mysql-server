@@ -31,6 +31,7 @@
 #include <time.h>
 #include <algorithm>
 
+#include "m_string.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -41,9 +42,11 @@
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_tree.h"
+#include "mysql/strings/int2str.h"
 #include "mysys_err.h"
 #include "print_version.h"
 #include "sql/field.h"
+#include "sql/mysqld_cs.h"
 #include "storage/myisam/myisam_sys.h"
 #include "storage/myisam/myisamdef.h"
 #include "storage/myisam/queues.h"

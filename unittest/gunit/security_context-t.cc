@@ -24,8 +24,8 @@
 
 #include <gtest/gtest.h>
 
-#include "m_string.h"
 #include "sql/sql_class.h"
+#include "string_with_len.h"
 #include "unittest/gunit/test_utils.h"
 
 namespace security_context_unittest {

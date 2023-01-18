@@ -23,8 +23,8 @@
 #include "sql/opt_explain_format.h"
 
 #include <assert.h>
-#include "m_ctype.h"
 
+#include "mysql/strings/m_ctype.h"
 #include "sql/current_thd.h"
 #include "sql/sql_class.h"
 

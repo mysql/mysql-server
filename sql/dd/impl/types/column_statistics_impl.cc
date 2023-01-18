@@ -30,9 +30,7 @@
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 
-#include "m_ctype.h"
-#include "m_string.h"  // STRING_WITH_LEN
-
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "sql-common/json_dom.h"  // Json_*
 #include "sql/auth/sql_security_ctx.h"
@@ -46,6 +44,7 @@
 #include "sql/histograms/histogram.h"              // histograms::Histogram
                                                    // histograms::Error_context
 #include "sql-common/json_dom.h"                   // Json_*
+#include "string_with_len.h"
 #include "template_utils.h"
 
 namespace dd {

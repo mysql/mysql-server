@@ -26,6 +26,8 @@
 #include "sql/dd/impl/types/object_table_definition_impl.h"  // dd::Raw_record
 #include "sql/dd/impl/types/resource_group_impl.h"  // dd::Resource_group_impl
 
+struct CHARSET_INFO;
+
 namespace dd {
 namespace tables {
 

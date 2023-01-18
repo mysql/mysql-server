@@ -22,9 +22,9 @@
 
 #include <gtest/gtest.h>
 
-#include "m_ctype.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "unittest/gunit/benchmark.h"
 
 namespace strings_valid_check_unittest {
@@ -40,9 +40,7 @@ static void BM_UTF8_Valid_Check(size_t num_iterations) {
       "できるため、Web、Web2.0、SaaS、ISV、通信関連企業の 先見的なIT 責任者"
       "の方々から大変な好評を博しています。";
   const int len = strlen(content);
-  MY_CHARSET_LOADER loader;
-  const CHARSET_INFO *cs =
-      my_collation_get_by_name(&loader, "utf8mb4_0900_ai_ci", MYF(0));
+  const CHARSET_INFO *cs = get_charset_by_name("utf8mb4_0900_ai_ci", MYF(0));
   int error = 0;
 
   StartBenchmarkTiming();

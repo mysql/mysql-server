@@ -22,10 +22,10 @@
 
 #include "sql/dd/dd_utility.h"
 
-#include "m_ctype.h"
 #include "mysql/components/services/log_builtins.h"  // LogErr
-#include "mysqld_error.h"                            // ER_...
-#include "sql/handler.h"                             // handlerton
+#include "mysql/strings/m_ctype.h"
+#include "mysqld_error.h"  // ER_...
+#include "sql/handler.h"   // handlerton
 
 namespace dd {
 

@@ -40,7 +40,7 @@
 #include "client/logger.h"
 #include "client/path.h"
 #ifdef _WIN32
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #endif
 #include "my_alloc.h"
 #include "my_compiler.h"

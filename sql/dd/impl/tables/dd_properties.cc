@@ -25,12 +25,12 @@
 #include <assert.h>
 #include <string>
 
-#include "m_ctype.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"

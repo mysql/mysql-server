@@ -28,9 +28,8 @@
 #include <set>
 #include <vector>
 
-#include "m_ctype.h"
-
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/dd/cache/dictionary_client.h"     // dd::cache::Dictionary_...
 #include "sql/dd/dd.h"                          // dd::create_object
 #include "sql/dd/impl/cache/storage_adapter.h"  // Storage_adapter
@@ -124,14 +123,14 @@ bool Collations::populate(THD *thd) const {
   for (int internal_charset_id = 0;
        internal_charset_id < MY_ALL_CHARSETS_SIZE && !error;
        internal_charset_id++) {
-    CHARSET_INFO *cs = all_charsets[internal_charset_id];
+    const CHARSET_INFO *cs = all_charsets[internal_charset_id];
     if (cs && (cs->state & MY_CS_PRIMARY) && (cs->state & MY_CS_AVAILABLE) &&
         !(cs->state & MY_CS_HIDDEN)) {
       // We have identified a primary collation
       for (int internal_collation_id = 0;
            internal_collation_id < MY_ALL_CHARSETS_SIZE && !error;
            internal_collation_id++) {
-        CHARSET_INFO *cl = all_charsets[internal_collation_id];
+        const CHARSET_INFO *cl = all_charsets[internal_collation_id];
         if (cl && (cl->state & MY_CS_AVAILABLE) && my_charset_same(cs, cl)) {
           // Remove the id from the set of non-updated old ids.
           prev_coll_ids.erase(cl->number);

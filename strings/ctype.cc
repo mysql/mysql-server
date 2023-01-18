@@ -25,23 +25,25 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-
 #include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
 
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_byteorder.h"
-
-#include "my_inttypes.h"
-#include "my_loglevel.h"
-#include "my_macros.h"
+#include "my_sys.h"
 #include "my_xml.h"
+#include "mysql/my_loglevel.h"
+#include "mysql/strings/collations.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysys_err.h"
+#include "sql_chars.h"
+#include "strings/collations_internal.h"
+#include "strings/m_ctype_internals.h"
+#include "template_utils.h"
 
 /*
 
@@ -61,7 +63,9 @@
 
 */
 
-int (*my_string_stack_guard)(int) = nullptr;
+extern CHARSET_INFO my_charset_ucs2_unicode_ci;
+extern CHARSET_INFO my_charset_utf16_unicode_ci;
+extern CHARSET_INFO my_charset_utf8mb4_unicode_ci;
 
 static char *mstr(char *str, const char *src, size_t l1, size_t l2) {
   l1 = l1 < l2 ? l1 : l2;
@@ -285,11 +289,11 @@ static struct my_cs_file_section_st *cs_file_sec(const char *attr, size_t len) {
 typedef struct my_cs_file_info {
   char csname[MY_CS_NAME_SIZE];
   char name[MY_CS_NAME_SIZE];
-  uchar ctype[MY_CS_CTYPE_TABLE_SIZE];
-  uchar to_lower[MY_CS_TO_LOWER_TABLE_SIZE];
-  uchar to_upper[MY_CS_TO_UPPER_TABLE_SIZE];
-  uchar sort_order[MY_CS_SORT_ORDER_TABLE_SIZE];
-  uint16 tab_to_uni[MY_CS_TO_UNI_TABLE_SIZE];
+  uint8_t ctype[MY_CS_CTYPE_TABLE_SIZE];
+  uint8_t to_lower[MY_CS_TO_LOWER_TABLE_SIZE];
+  uint8_t to_upper[MY_CS_TO_UPPER_TABLE_SIZE];
+  uint8_t sort_order[MY_CS_SORT_ORDER_TABLE_SIZE];
+  uint16_t tab_to_uni[MY_CS_TO_UNI_TABLE_SIZE];
   char comment[MY_CS_CSDESCR_SIZE];
   char *tailoring;
   size_t tailoring_length;
@@ -315,23 +319,21 @@ static void my_charset_file_init(MY_CHARSET_FILE *i) {
   i->tailoring_alloced_length = 0;
 }
 
-static void my_charset_file_free(MY_CHARSET_FILE *i) {
-  i->loader->mem_free(i->tailoring);
-}
+static void my_charset_file_free(MY_CHARSET_FILE *i) { free(i->tailoring); }
 
 static int my_charset_file_tailoring_realloc(MY_CHARSET_FILE *i,
                                              size_t newlen) {
   if (i->tailoring_alloced_length > newlen ||
-      (i->tailoring = static_cast<char *>(i->loader->mem_realloc(
-           i->tailoring,
-           (i->tailoring_alloced_length = (newlen + 32 * 1024)))))) {
+      (i->tailoring = static_cast<char *>(
+           realloc(i->tailoring,
+                   (i->tailoring_alloced_length = (newlen + 32U * 1024U)))))) {
     return MY_XML_OK;
   }
   return MY_XML_ERROR;
 }
 
-static int fill_uchar(uchar *a, uint size, const char *str, size_t len) {
-  uint i = 0;
+static int fill_uchar(uint8_t *a, unsigned size, const char *str, size_t len) {
+  unsigned i = 0;
   const char *s, *b, *e = str + len;
 
   for (s = str; s < e; i++) {
@@ -341,13 +343,14 @@ static int fill_uchar(uchar *a, uint size, const char *str, size_t len) {
     for (; (s < e) && !strchr(" \t\r\n", s[0]); s++)
       ;
     if (s == b || i > size) break;
-    a[i] = (uchar)strtoul(b, nullptr, 16);
+    a[i] = (uint8_t)strtoul(b, nullptr, 16);
   }
   return 0;
 }
 
-static int fill_uint16(uint16 *a, uint size, const char *str, size_t len) {
-  uint i = 0;
+static int fill_uint16(uint16_t *a, unsigned size, const char *str,
+                       size_t len) {
+  unsigned i = 0;
 
   const char *s, *b, *e = str + len;
   for (s = str; s < e; i++) {
@@ -357,7 +360,7 @@ static int fill_uint16(uint16 *a, uint size, const char *str, size_t len) {
     for (; (s < e) && !strchr(" \t\r\n", s[0]); s++)
       ;
     if (s == b || i > size) break;
-    a[i] = (uint16)strtol(b, nullptr, 16);
+    a[i] = (uint16_t)strtol(b, nullptr, 16);
   }
   return 0;
 }
@@ -406,8 +409,8 @@ static size_t scan_one_character(const char *s, const char *e, my_wc_t *wc) {
     return 1;
   } else /* Non-escaped character */
   {
-    int rc = cs->cset->mb_wc(cs, wc, pointer_cast<const uchar *>(s),
-                             pointer_cast<const uchar *>(e));
+    int rc = cs->cset->mb_wc(cs, wc, pointer_cast<const uint8_t *>(s),
+                             pointer_cast<const uint8_t *>(e));
     if (rc > 0) return (size_t)rc;
   }
   return 0;
@@ -742,7 +745,7 @@ static int cs_value(MY_XML_PARSER *st, const char *attr, size_t len) {
 }  // extern "C"
 
 bool my_parse_charset_xml(MY_CHARSET_LOADER *loader, const char *buf,
-                          size_t len) {
+                          size_t len, MY_CHARSET_ERRMSG *errmsg) {
   MY_XML_PARSER p;
   struct my_cs_file_info info;
   bool rc;
@@ -759,8 +762,8 @@ bool my_parse_charset_xml(MY_CHARSET_LOADER *loader, const char *buf,
   my_charset_file_free(&info);
   if (rc != MY_XML_OK) {
     const char *errstr = my_xml_error_string(&p);
-    if (sizeof(loader->errarg) > 32 + strlen(errstr)) {
-      sprintf(loader->errarg, "at line %d pos %d: %s",
+    if (sizeof(errmsg->errarg) > 32 + strlen(errstr)) {
+      sprintf(errmsg->errarg, "at line %d pos %d: %s",
               my_xml_error_lineno(&p) + 1, (int)my_xml_error_pos(&p),
               my_xml_error_string(&p));
     }
@@ -771,18 +774,18 @@ bool my_parse_charset_xml(MY_CHARSET_LOADER *loader, const char *buf,
 /*
   Check repertoire: detect pure ascii strings
 */
-uint my_string_repertoire(const CHARSET_INFO *cs, const char *str,
-                          size_t length) {
+unsigned my_string_repertoire(const CHARSET_INFO *cs, const char *str,
+                              size_t length) {
   const char *strend = str + length;
   if (cs->mbminlen == 1) {
     for (; str < strend; str++) {
-      if (((uchar)*str) > 0x7F) return MY_REPERTOIRE_UNICODE30;
+      if (((uint8_t)*str) > 0x7F) return MY_REPERTOIRE_UNICODE30;
     }
   } else {
     my_wc_t wc;
     int chlen;
-    for (; (chlen = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(str),
-                                    pointer_cast<const uchar *>(strend))) > 0;
+    for (; (chlen = cs->cset->mb_wc(cs, &wc, pointer_cast<const uint8_t *>(str),
+                                    pointer_cast<const uint8_t *>(strend))) > 0;
          str += chlen) {
       if (wc > 0x7F) return MY_REPERTOIRE_UNICODE30;
     }
@@ -793,7 +796,7 @@ uint my_string_repertoire(const CHARSET_INFO *cs, const char *str,
 /*
   Returns repertoire for charset
 */
-uint my_charset_repertoire(const CHARSET_INFO *cs) {
+unsigned my_charset_repertoire(const CHARSET_INFO *cs) {
   return cs->state & MY_CS_PUREASCII ? MY_REPERTOIRE_ASCII
                                      : MY_REPERTOIRE_UNICODE30;
 }
@@ -820,9 +823,8 @@ bool my_charset_is_8bit_pure_ascii(const CHARSET_INFO *cs) {
   ascii on the range 0x00..0x7F.
 */
 bool my_charset_is_ascii_compatible(const CHARSET_INFO *cs) {
-  uint i;
   if (!cs->tab_to_uni) return true;
-  for (i = 0; i < 128; i++) {
+  for (unsigned i = 0; i < 128; i++) {
     if (cs->tab_to_uni[i] != i) return false;
   }
   return true;
@@ -846,18 +848,19 @@ bool my_charset_is_ascii_compatible(const CHARSET_INFO *cs) {
 static size_t my_convert_internal(char *to, size_t to_length,
                                   const CHARSET_INFO *to_cs, const char *from,
                                   size_t from_length,
-                                  const CHARSET_INFO *from_cs, uint *errors) {
+                                  const CHARSET_INFO *from_cs,
+                                  unsigned *errors) {
   int cnvres;
   my_wc_t wc;
-  const uchar *from_end = (const uchar *)from + from_length;
+  const uint8_t *from_end = pointer_cast<const uint8_t *>(from) + from_length;
   char *to_start = to;
-  uchar *to_end = (uchar *)to + to_length;
+  uint8_t *to_end = pointer_cast<uint8_t *>(to) + to_length;
   my_charset_conv_mb_wc mb_wc = from_cs->cset->mb_wc;
   my_charset_conv_wc_mb wc_mb = to_cs->cset->wc_mb;
-  uint error_count = 0;
+  unsigned error_count = 0;
 
   while (true) {
-    if ((cnvres = (*mb_wc)(from_cs, &wc, pointer_cast<const uchar *>(from),
+    if ((cnvres = (*mb_wc)(from_cs, &wc, pointer_cast<const uint8_t *>(from),
                            from_end)) > 0)
       from += cnvres;
     else if (cnvres == MY_CS_ILSEQ) {
@@ -876,7 +879,7 @@ static size_t my_convert_internal(char *to, size_t to_length,
       break;  // Not enough characters
 
   outp:
-    if ((cnvres = (*wc_mb)(to_cs, wc, (uchar *)to, to_end)) > 0)
+    if ((cnvres = (*wc_mb)(to_cs, wc, pointer_cast<uint8_t *>(to), to_end)) > 0)
       to += cnvres;
     else if (cnvres == MY_CS_ILUNI && wc != '?') {
       error_count++;
@@ -886,7 +889,7 @@ static size_t my_convert_internal(char *to, size_t to_length,
       break;
   }
   *errors = error_count;
-  return (uint32)(to - to_start);
+  return (uint32_t)(to - to_start);
 }
 
 /**
@@ -907,8 +910,9 @@ static size_t my_convert_internal(char *to, size_t to_length,
 
 size_t my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
                   const char *from, size_t from_length,
-                  const CHARSET_INFO *from_cs, uint *errors) {
-  size_t length, length2;
+                  const CHARSET_INFO *from_cs, unsigned *errors) {
+  size_t length = 0;
+  size_t length2 = 0;
   /*
     If any of the character sets is not ASCII compatible,
     immediately switch to slow mb_wc->wc_mb method.
@@ -938,7 +942,7 @@ size_t my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
       *errors = 0;
       return length2;
     }
-    if ((static_cast<uchar>(*from)) > 0x7F) /* A non-ASCII character */
+    if ((static_cast<uint8_t>(*from)) > 0x7F) /* A non-ASCII character */
     {
       size_t copied_length = length2 - length;
       to_length -= copied_length;
@@ -963,10 +967,11 @@ size_t my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
   @param[in]  e    end of the char sequence
   @return     The length of the first code, or 0 for invalid code
 */
-uint my_mbcharlen_ptr(const CHARSET_INFO *cs, const char *s, const char *e) {
-  uint len = my_mbcharlen(cs, (uchar)*s);
+unsigned my_mbcharlen_ptr(const CHARSET_INFO *cs, const char *s,
+                          const char *e) {
+  unsigned len = my_mbcharlen(cs, (uint8_t)*s);
   if (len == 0 && my_mbmaxlenlen(cs) == 2 && s + 1 < e) {
-    len = my_mbcharlen_2(cs, (uchar)*s, (uchar) * (s + 1));
+    len = my_mbcharlen_2(cs, (uint8_t)*s, (uint8_t) * (s + 1));
     /* It could be either a valid multi-byte GB18030 code, or invalid
     gb18030 code if return value is 0 */
     assert(len == 0 || len == 2 || len == 4);
@@ -999,8 +1004,8 @@ bool my_is_prefixidx_cand(const CHARSET_INFO *cs, const char *wildstr,
   /* Find first occurrence of w_many pattern. */
   while (wildstr < wildend) {
     int res;
-    if ((res = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(wildstr),
-                               pointer_cast<const uchar *>(wildend))) <= 0) {
+    if ((res = cs->cset->mb_wc(cs, &wc, pointer_cast<const uint8_t *>(wildstr),
+                               pointer_cast<const uint8_t *>(wildend))) <= 0) {
       if (res == MY_CS_ILSEQ) /* Bad sequence */
         return false;
       return true; /* End of the string */
@@ -1010,8 +1015,9 @@ bool my_is_prefixidx_cand(const CHARSET_INFO *cs, const char *wildstr,
     if (wc == (my_wc_t)w_many) break;
 
     if (wc == (my_wc_t)escape) {
-      if ((res = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(wildstr),
-                                 pointer_cast<const uchar *>(wildend))) <= 0) {
+      if ((res =
+               cs->cset->mb_wc(cs, &wc, pointer_cast<const uint8_t *>(wildstr),
+                               pointer_cast<const uint8_t *>(wildend))) <= 0) {
         if (res == MY_CS_ILSEQ) /* Bad sequence */
           return false;
         (*prefix_len)++;
@@ -1025,8 +1031,8 @@ bool my_is_prefixidx_cand(const CHARSET_INFO *cs, const char *wildstr,
   /* If further char is not w_many then not a candidate prefix sequence. */
   while (wildstr < wildend) {
     int res;
-    if ((res = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(wildstr),
-                               pointer_cast<const uchar *>(wildend))) <= 0) {
+    if ((res = cs->cset->mb_wc(cs, &wc, pointer_cast<const uint8_t *>(wildstr),
+                               pointer_cast<const uint8_t *>(wildend))) <= 0) {
       if (res == MY_CS_ILSEQ) /* Bad sequence */
         return false;
       return true; /* End of the string */
@@ -1037,4 +1043,249 @@ bool my_is_prefixidx_cand(const CHARSET_INFO *cs, const char *wildstr,
   }
 
   return true;
+}
+
+static void *once_memdup(MY_CHARSET_LOADER *loader, const void *from,
+                         size_t size) {
+  void *ret = loader->once_alloc(size);
+  if (ret == nullptr) return nullptr;
+  memcpy(ret, from, size);
+  return ret;
+}
+
+static const char *once_strdup(MY_CHARSET_LOADER *loader, const char *from) {
+  return static_cast<char *>(
+      once_memdup(loader, static_cast<const char *>(from), strlen(from) + 1));
+}
+
+static void simple_cs_init_functions(CHARSET_INFO *cs) {
+  if (cs->state & MY_CS_BINSORT)
+    cs->coll = &my_collation_8bit_bin_handler;
+  else
+    cs->coll = &my_collation_8bit_simple_ci_handler;
+
+  cs->cset = &my_charset_8bit_handler;
+}
+
+static bool cs_copy_data(MY_CHARSET_LOADER *loader, CHARSET_INFO *to,
+                         CHARSET_INFO *from) {
+  to->number = from->number ? from->number : to->number;
+
+  if (from->csname) {
+    to->csname = once_strdup(loader, from->csname);
+    if (to->csname == nullptr) return true;
+  }
+
+  if (from->m_coll_name) {
+    to->m_coll_name = once_strdup(loader, from->m_coll_name);
+    if (to->m_coll_name == nullptr) return true;
+  }
+
+  if (from->comment) {
+    to->comment = once_strdup(loader, from->comment);
+    if (to->comment == nullptr) return true;
+  }
+
+  if (from->ctype) {
+    to->ctype = static_cast<uint8_t *>(
+        once_memdup(loader, from->ctype, MY_CS_CTYPE_TABLE_SIZE));
+    if (to->ctype == nullptr) return true;
+  }
+
+  if (from->to_lower) {
+    to->to_lower = static_cast<uint8_t *>(
+        once_memdup(loader, from->to_lower, MY_CS_TO_LOWER_TABLE_SIZE));
+    if (to->to_lower == nullptr) return true;
+  }
+
+  if (from->to_upper) {
+    to->to_upper = static_cast<uint8_t *>(
+        once_memdup(loader, from->to_upper, MY_CS_TO_UPPER_TABLE_SIZE));
+    if (to->to_upper == nullptr) return true;
+  }
+
+  if (from->sort_order) {
+    to->sort_order = static_cast<uint8_t *>(
+        once_memdup(loader, from->sort_order, MY_CS_SORT_ORDER_TABLE_SIZE));
+    if (to->sort_order == nullptr) return true;
+  }
+
+  if (from->tab_to_uni) {
+    size_t sz = MY_CS_TO_UNI_TABLE_SIZE * sizeof(uint16_t);
+    to->tab_to_uni =
+        static_cast<uint16_t *>(once_memdup(loader, from->tab_to_uni, sz));
+    if (to->tab_to_uni == nullptr) return true;
+  }
+
+  if (from->tailoring) {
+    to->tailoring = once_strdup(loader, from->tailoring);
+    if (to->tailoring == nullptr) return true;
+  }
+
+  return false;
+}
+
+static bool simple_cs_is_full(CHARSET_INFO *cs) {
+  return ((cs->csname && cs->tab_to_uni && cs->ctype && cs->to_upper &&
+           cs->to_lower) &&
+          (cs->number && cs->m_coll_name &&
+           (cs->sort_order || (cs->state & MY_CS_BINSORT))));
+}
+
+static void copy_uca_collation(CHARSET_INFO *to, CHARSET_INFO *from) {
+  to->cset = from->cset;
+  to->coll = from->coll;
+  to->strxfrm_multiply = from->strxfrm_multiply;
+  to->min_sort_char = from->min_sort_char;
+  to->max_sort_char = from->max_sort_char;
+  to->mbminlen = from->mbminlen;
+  to->mbmaxlen = from->mbmaxlen;
+  to->caseup_multiply = from->caseup_multiply;
+  to->casedn_multiply = from->casedn_multiply;
+  to->state |= MY_CS_STRNXFRM | MY_CS_UNICODE;
+}
+
+static void clear_cs_info(CHARSET_INFO *cs) {
+  cs->number = 0;
+  cs->primary_number = 0;
+  cs->binary_number = 0;
+  cs->m_coll_name = nullptr;
+  cs->state = 0;
+  cs->sort_order = nullptr;
+}
+
+MY_CHARSET_LOADER::~MY_CHARSET_LOADER() {
+  for (void *x : m_delete_list) {
+    free(x);
+  }
+}
+
+int MY_CHARSET_LOADER::add_collation(CHARSET_INFO *cs) {
+  if (cs->m_coll_name == nullptr) {
+    assert(false);
+    return MY_XML_OK;  // TODO: "MY_XML_ERROR" & error message?
+  }
+  if (cs->number >= MY_ALL_CHARSETS_SIZE) {
+    // e.g: collation name="utf8_hugeid_ci" id="2047000000"
+    char buff[1024];
+    snprintf(buff, sizeof(buff), "Too big collation id: %u", cs->number);
+    reporter(ERROR_LEVEL, EE_COLLATION_PARSER_ERROR, buff);
+    return MY_XML_ERROR;
+  }
+  CHARSET_INFO *dst = mysql::collation_internals::entry->find_by_name_unsafe(
+      mysql::collation::Name{cs->m_coll_name});
+  if (dst == nullptr) {
+    if (cs->number == 0) {
+      assert(false);
+      return MY_XML_OK;  // TODO: "MY_XML_ERROR" & error message?
+    }
+  } else if (dst->number != cs->number && cs->number != 0) {
+    assert(false);
+    return MY_XML_OK;  // TODO: "MY_XML_ERROR" & error message?
+  }
+  const unsigned cs_number = dst ? dst->number : cs->number;
+  if (dst == nullptr) {
+    dst = static_cast<CHARSET_INFO *>(once_alloc(sizeof(CHARSET_INFO)));
+    if (dst == nullptr) return MY_XML_ERROR;  // OOM
+    memset(dst, 0, sizeof(*dst));
+  } else if (dst->state & MY_CS_COMPILED) {
+    // Disallow overwriting compiled character sets
+    clear_cs_info(cs);
+    return MY_XML_OK;  // Just ignore it. TODO: really???
+  }
+
+  dst->number = cs_number;
+  dst->state = cs->state;
+  if (cs->primary_number == cs_number) {
+    dst->state |= MY_CS_PRIMARY;
+  }
+  if (cs->binary_number == cs_number) {
+    dst->state |= MY_CS_BINSORT;
+  }
+
+  if (!(dst->state & MY_CS_COMPILED)) {
+    if (cs_copy_data(this, dst, cs)) return MY_XML_ERROR;
+
+    dst->caseup_multiply = dst->casedn_multiply = 1;
+    dst->levels_for_compare = 1;
+
+    if (!strcmp(cs->csname, "ucs2")) {
+      copy_uca_collation(dst, &my_charset_ucs2_unicode_ci);
+      dst->state |= MY_CS_LOADED | MY_CS_NONASCII;
+    } else if (!strcmp(cs->csname, "utf8") || !strcmp(cs->csname, "utf8mb3")) {
+      copy_uca_collation(dst, &my_charset_utf8mb3_unicode_ci);
+      dst->ctype = my_charset_utf8mb3_unicode_ci.ctype;
+      dst->state |= MY_CS_LOADED;
+    } else if (!strcmp(cs->csname, "utf8mb4")) {
+      copy_uca_collation(dst, &my_charset_utf8mb4_unicode_ci);
+      dst->ctype = my_charset_utf8mb4_unicode_ci.ctype;
+      dst->state |= MY_CS_LOADED;
+    } else if (!strcmp(cs->csname, "utf16")) {
+      copy_uca_collation(dst, &my_charset_utf16_unicode_ci);
+      dst->state |= MY_CS_LOADED | MY_CS_NONASCII;
+    } else if (!strcmp(cs->csname, "utf32")) {
+      copy_uca_collation(dst, &my_charset_utf32_unicode_ci);
+      dst->state |= MY_CS_LOADED | MY_CS_NONASCII;
+    } else {
+      const uint8_t *sort_order = dst->sort_order;
+      simple_cs_init_functions(dst);
+      dst->mbminlen = 1;
+      dst->mbmaxlen = 1;
+      if (simple_cs_is_full(dst)) {
+        dst->state |= MY_CS_LOADED;
+      }
+
+      /*
+        Check if case sensitive sort order: A < a < B.
+        We need MY_CS_FLAG for regex library, and for
+        case sensitivity flag for 5.0 client protocol,
+        to support isCaseSensitive() method in JDBC driver
+      */
+      if (sort_order &&
+          sort_order[static_cast<int>('A')] <
+              sort_order[static_cast<int>('a')] &&
+          sort_order[static_cast<int>('a')] < sort_order[static_cast<int>('B')])
+        dst->state |= MY_CS_CSSORT;
+
+      if (my_charset_is_8bit_pure_ascii(dst)) {
+        dst->state |= MY_CS_PUREASCII;
+      }
+      if (!my_charset_is_ascii_compatible(cs)) {
+        dst->state |= MY_CS_NONASCII;
+      }
+    }
+    if (dst->ctype && is_supported_parser_charset(dst) &&
+        init_state_maps(this, dst)) {
+      return MY_XML_ERROR;
+    }
+    dst->state |= MY_CS_AVAILABLE;
+  } else {
+    /*
+      We need the below to make get_collation_name()
+      and get_charset_number() working even if a
+      character set has not been really incompiled.
+      The above functions are used for example
+      in error message compiler utilities/comp_err.cc.
+    */
+    if (cs->comment)
+      if (!(dst->comment = once_strdup(this, cs->comment))) return MY_XML_ERROR;
+    if (cs->csname)
+      if (!(dst->csname = once_strdup(this, cs->csname))) return MY_XML_ERROR;
+    if (cs->m_coll_name)
+      if (!(dst->m_coll_name = once_strdup(this, cs->m_coll_name)))
+        return MY_XML_ERROR;
+  }
+  clear_cs_info(cs);
+  if (mysql::collation_internals::entry->add_internal_collation(dst)) {
+    return MY_XML_ERROR;  // TODO: error message on duplicates?
+  }
+  return MY_XML_OK;
+}
+
+void *MY_CHARSET_LOADER::once_alloc(size_t size) {
+  void *ret = malloc(size);
+  if (ret != nullptr) {
+    m_delete_list.push_back(ret);
+  }
+  return ret;
 }

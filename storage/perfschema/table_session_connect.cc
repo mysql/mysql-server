@@ -35,6 +35,8 @@
 #include "sql/table.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 
+struct CHARSET_INFO;
+
 bool PFS_index_session_connect::match(PFS_thread *pfs) {
   if (m_fields >= 1) {
     if (!m_key_1.match(pfs)) {

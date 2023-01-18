@@ -31,6 +31,7 @@
 #include "connection_handler_manager.h"  // Connection_handler_manager
 #include "init_net_server_extension.h"   // init_net_server_extension
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/strings/int2str.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"      // global_system_variables
 #include "sql/named_pipe.h"  // create_server_named_pipe.

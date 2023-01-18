@@ -29,12 +29,11 @@
 #include <vector>
 
 #include "field_types.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "mysql/mysql_lex_string.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "scope_guard.h"
@@ -94,6 +93,8 @@
 #include "sql/trigger_def.h"
 #include "sql/window.h"  // Window
 #include "sql_string.h"
+#include "string_with_len.h"
+#include "strxmov.h"
 #include "template_utils.h"
 
 static constexpr const size_t MAX_SYS_VAR_LENGTH{32};

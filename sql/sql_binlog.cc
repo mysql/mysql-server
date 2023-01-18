@@ -30,7 +30,6 @@
 #include "base64.h"  // base64_needed_decoded_length
 #include "lex_string.h"
 #include "libbinlogevents/include/binlog_event.h"
-#include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -48,6 +47,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/system_variables.h"
+#include "string_with_len.h"
 
 /**
   Check if the event type is allowed in a BINLOG statement.

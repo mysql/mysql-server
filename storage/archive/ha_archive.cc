@@ -30,6 +30,7 @@
 #include <mysql/plugin.h>
 
 #include "lex_string.h"
+#include "m_string.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -39,6 +40,7 @@
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
+#include "nulls.h"
 #include "sql/derror.h"
 #include "sql/field.h"
 #include "sql/sql_class.h"

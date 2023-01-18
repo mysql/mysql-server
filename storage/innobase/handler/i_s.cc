@@ -60,6 +60,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
 #include "mysql/plugin.h"
+#include "mysql/strings/m_ctype.h"
 #include "page0zip.h"
 #include "pars0pars.h"
 #include "sql/sql_class.h" /* For THD */

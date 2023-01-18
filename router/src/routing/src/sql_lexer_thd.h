@@ -25,9 +25,9 @@
 #ifndef ROUTING_SQL_LEXER_THD_INCLUDED
 #define ROUTING_SQL_LEXER_THD_INCLUDED
 
-#include "m_ctype.h"   // CHARSET_INFO
-#include "my_alloc.h"  // MEM_ROOT
-#include "my_sys.h"    // strmake_root
+#include "my_alloc.h"               // MEM_ROOT
+#include "my_sys.h"                 // strmake_root
+#include "mysql/strings/m_ctype.h"  // CHARSET_INFO
 #include "sql_lexer_parser_state.h"
 
 class THD {

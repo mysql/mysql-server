@@ -39,7 +39,6 @@
 #include <bitset>
 #include <type_traits>
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -47,12 +46,16 @@
 #include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_version.h"  // MYSQL_PERSIST_CONFIG_NAME
 #include "mysys/mysys_priv.h"
 #include "mysys_err.h"
+#include "strmake.h"
 #include "typelib.h"
 
 typedef void (*init_func_p)(const struct my_option *option, void *variable,

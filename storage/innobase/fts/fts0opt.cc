@@ -53,6 +53,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0list.h"
 #include "ut0wqueue.h"
 
+struct CHARSET_INFO;
+
 /** The FTS optimize thread's work queue. */
 static ib_wqueue_t *fts_optimize_wq;
 

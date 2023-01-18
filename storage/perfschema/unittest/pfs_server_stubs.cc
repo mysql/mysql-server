@@ -28,7 +28,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 #include "sql/sql_show.h"

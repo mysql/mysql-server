@@ -43,7 +43,6 @@
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_io.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
@@ -53,6 +52,7 @@
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
@@ -60,10 +60,12 @@
 #include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_version.h"  // MYSQL_VERSION_ID
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "sql-common/json_dom.h"  // Json_wrapper
 #include "sql-common/json_path.h"
 #include "sql/auth/auth_acls.h"
@@ -121,6 +123,9 @@
 #include "sql/trigger_def.h"
 #include "sql_const.h"
 #include "sql_string.h"
+#include "string_with_len.h"
+#include "strxmov.h"
+#include "strxnmov.h"
 #include "template_utils.h"  // down_cast
 #include "thr_mutex.h"
 /* INFORMATION_SCHEMA name */

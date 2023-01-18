@@ -36,6 +36,7 @@
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_rwlock.h"  // mysql_rwlock_t
+#include "mysql/strings/m_ctype.h"   // my_isspace
 #include "prealloced_array.h"        // Prealloced_array
 #include "sql/rpl_reporting.h"       // MAX_SLAVE_ERRMSG
 #include "template_utils.h"

@@ -25,11 +25,11 @@
 
 #include <string.h>
 
-#include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/thread_type.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"  // ER_INVALID_CHARACTER_STRING

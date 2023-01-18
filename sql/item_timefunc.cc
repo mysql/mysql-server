@@ -43,13 +43,16 @@
 
 #include "decimal.h"
 #include "lex_string.h"
-#include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "my_systime.h"  // my_micro_time
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
+#include "mysql/strings/my_strtoll10.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "sql/current_thd.h"
 #include "sql/dd/info_schema/table_stats.h"
 #include "sql/dd/object_id.h"  // dd::Object_id
@@ -65,6 +68,8 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/tztime.h"  // Time_zone
+#include "string_with_len.h"
+#include "strmake.h"
 #include "template_utils.h"
 #include "typelib.h"
 

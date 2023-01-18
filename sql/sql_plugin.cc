@@ -29,8 +29,6 @@
 #include <string.h>
 #include <optional>
 
-#include "m_ctype.h"
-#include "m_string.h"
 #include "map_helpers.h"
 #include "mutex_lock.h"  // MUTEX_LOCK
 #include "my_alloc.h"
@@ -41,7 +39,6 @@
 #include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_list.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
@@ -53,6 +50,7 @@
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/system_variable_source_type.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/plugin_auth.h"
 #include "mysql/plugin_clone.h"
@@ -65,9 +63,11 @@
 #include "mysql/psi/mysql_system.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_table_access
@@ -114,6 +114,9 @@
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_rollback_stmt
 #include "sql_string.h"
+#include "string_with_len.h"
+#include "strxmov.h"
+#include "strxnmov.h"
 #include "template_utils.h"  // pointer_cast
 #include "thr_lock.h"
 #include "thr_mutex.h"

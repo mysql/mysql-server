@@ -52,6 +52,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysys/mysys_priv.h"
 #include "mysys_err.h"
+#include "nulls.h"
 
 #ifdef WIN32
 #include <fcntl.h>  // O_EXCL

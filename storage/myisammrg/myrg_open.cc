@@ -33,6 +33,7 @@
 #include "mysql/psi/mysql_file.h"
 #include "storage/myisam/myisamdef.h"
 #include "storage/myisammrg/myrg_def.h"
+#include "strmake.h"
 #include "typelib.h"
 
 /*

@@ -78,4 +78,5 @@ SET(CMAKE_THREAD_LIBS_INIT -lpthread CACHE INTERNAL "" FORCE)
 # Solaris specific large page support
 CHECK_SYMBOL_EXISTS(MHA_MAPSIZE_VA sys/mman.h  HAVE_SOLARIS_LARGE_PAGES)
 
+SET(LINK_FLAG_NO_UNDEFINED "-Wl,--no-undefined")
 SET(LINK_FLAG_Z_DEFS "-z,defs")

@@ -26,7 +26,6 @@
 #include <atomic>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_io.h"
@@ -39,6 +38,7 @@
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_thd_engine_lock.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
@@ -64,6 +64,7 @@
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 #include "violite.h"
 
 struct MYSQL_LEX_STRING;

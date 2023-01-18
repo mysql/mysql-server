@@ -92,6 +92,7 @@
 
 #include <algorithm>
 
+#include "dig_vec.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -100,6 +101,8 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/strings/int2str.h"
+#include "nulls.h"
 #include "thr_mutex.h"
 #include "thr_rwlock.h"
 
@@ -1395,8 +1398,8 @@ void _db_dump_(uint _line_, const char *keyword, const unsigned char *memory,
         fputc('\n', cs->stack->out_file);
         pos = 3;
       }
-      fputc(_dig_vec_upper[((tmp >> 4) & 15)], cs->stack->out_file);
-      fputc(_dig_vec_upper[tmp & 15], cs->stack->out_file);
+      fputc(dig_vec_upper[((tmp >> 4) & 15)], cs->stack->out_file);
+      fputc(dig_vec_upper[tmp & 15], cs->stack->out_file);
       fputc(' ', cs->stack->out_file);
     }
     (void)fputc('\n', cs->stack->out_file);

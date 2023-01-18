@@ -26,12 +26,14 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "my_compiler.h"  // include before mysql_com.h because of STDCALL
+#include "mysql_com.h"    // TODO: fix mysql_com.h dependency on my_compiler.h
+
 #include "field_types.h"  // enum_field_types
-#include "m_ctype.h"
 #include "my_command.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "mysql_com.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_time.h"
 #include "sql/protocol.h"  // Protocol
 #include "violite.h"

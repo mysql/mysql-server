@@ -43,6 +43,8 @@
 #include "sql/dd/types/parameter.h"
 #include "sql/dd/types/weak_object.h"
 
+struct CHARSET_INFO;
+
 using dd::tables::Parameters;
 using dd::tables::Routines;
 

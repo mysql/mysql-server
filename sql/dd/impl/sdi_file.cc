@@ -42,7 +42,6 @@
 #endif
 
 #include "lex_string.h"
-#include "m_ctype.h"
 
 #include "my_dir.h"
 #include "my_inttypes.h"
@@ -50,6 +49,7 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"  // mysql_file_create
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "sql/dd/impl/sdi.h"        // dd::Sdi_type
 #include "sql/dd/impl/sdi_utils.h"  // dd::sdi_util::checked_return

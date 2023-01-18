@@ -21,11 +21,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef MY_LOGLEVEL_H
-#define MY_LOGLEVEL_H
+#ifndef INCLUDE_MYSQL_MY_LOGLEVEL_H_
+#define INCLUDE_MYSQL_MY_LOGLEVEL_H_
 
 /**
-  @file include/my_loglevel.h
+  @file include/mysql/my_loglevel.h
   Definition of the global "loglevel" enumeration.
 
   The values defined here have a fixed relationship
@@ -44,4 +44,4 @@ enum loglevel {
   INFORMATION_LEVEL = 3
 };
 
-#endif  // MY_LOGLEVEL_H
+#endif  // INCLUDE_MYSQL_MY_LOGLEVEL_H_

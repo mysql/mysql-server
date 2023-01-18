@@ -28,9 +28,8 @@
 #include <set>
 #include <vector>
 
-#include "m_ctype.h"
-
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/dd/cache/dictionary_client.h"     // dd::cache::Dictionary_...
 #include "sql/dd/dd.h"                          // dd::create_object
 #include "sql/dd/impl/cache/storage_adapter.h"  // Storage_adapter
@@ -124,7 +123,7 @@ bool Character_sets::populate(THD *thd) const {
   for (int internal_charset_id = 0;
        internal_charset_id < MY_ALL_CHARSETS_SIZE && !error;
        internal_charset_id++) {
-    CHARSET_INFO *cs = all_charsets[internal_charset_id];
+    const CHARSET_INFO *cs = all_charsets[internal_charset_id];
     if (cs && (cs->state & MY_CS_PRIMARY) && (cs->state & MY_CS_AVAILABLE) &&
         !(cs->state & MY_CS_HIDDEN)) {
       // Remove the id from the set of non-updated old ids.

@@ -32,6 +32,8 @@
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
+#include "nulls.h"
+#include "template_utils.h"
 #include "typelib.h"
 
 LIST *myrg_open_list = nullptr;

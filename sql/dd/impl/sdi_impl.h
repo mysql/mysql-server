@@ -30,11 +30,11 @@
 #include <rapidjson/prettywriter.h>  // rapidjson::PrettyWriter
 #include <memory>
 
-#include "base64.h"    // base64_encode
-#include "m_string.h"  // STRING_WITH_LEN
+#include "base64.h"  // base64_encode
 
 #include "prealloced_array.h"  // Prealloced_array
 #include "sql/dd/object_id.h"  // Object_id typedef
+#include "sql/dd/string_type.h"
 
 /**
   @file

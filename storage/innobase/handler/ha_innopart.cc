@@ -68,6 +68,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
 #include "mysql/plugin.h"

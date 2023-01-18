@@ -84,6 +84,7 @@
 #include "my_thread.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_thread.h"
+#include "mysql/strings/m_ctype.h"
 #include "pfs_error_provider.h"
 /* Make sure exported prototypes match the implementation. */
 #include "pfs_file_provider.h"

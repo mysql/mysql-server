@@ -40,6 +40,8 @@
 #ifdef MYSQL_SERVER
 #include "mysql_com_server.h"
 #endif
+
+struct CHARSET_INFO;
 struct MEM_ROOT;
 
 #ifdef __cplusplus

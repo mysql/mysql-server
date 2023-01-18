@@ -32,11 +32,11 @@
 #include <math.h>
 #include <sys/types.h>
 
-#include "m_ctype.h"
-#include "m_string.h"
+#include "dig_vec.h"
 #include "my_alloc.h"
 #include "my_sys.h"
 #include "my_time.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysys_err.h"
 #ifndef _WIN32
 #include <netdb.h>
@@ -50,6 +50,7 @@
 #include <algorithm>
 
 #include "errmsg.h"
+#include "m_string.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -61,9 +62,16 @@
 #include "my_thread_local.h"
 #include "mysql.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/my_strtoll10.h"
 #include "mysql_com.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
+#include "nulls.h"
+#include "string_with_len.h"
+#include "strmake.h"
+#include "strxnmov.h"
 #include "template_utils.h"
 #include "violite.h"
 
@@ -990,8 +998,8 @@ ulong STDCALL mysql_hex_string(char *to, const char *from, ulong length) {
   const char *end;
 
   for (end = from + length; from < end; from++) {
-    *to++ = _dig_vec_upper[((unsigned char)*from) >> 4];
-    *to++ = _dig_vec_upper[((unsigned char)*from) & 0x0F];
+    *to++ = dig_vec_upper[((unsigned char)*from) >> 4];
+    *to++ = dig_vec_upper[((unsigned char)*from) & 0x0F];
   }
   *to = '\0';
   return (ulong)(to - to0);

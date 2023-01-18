@@ -41,6 +41,8 @@
 #include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/pfs_setup_actor.h"
 
+struct CHARSET_INFO;
+
 THR_LOCK table_setup_actors::m_table_lock;
 
 Plugin_table table_setup_actors::m_table_def(

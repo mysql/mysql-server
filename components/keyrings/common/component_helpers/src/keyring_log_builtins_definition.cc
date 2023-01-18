@@ -28,7 +28,7 @@
 #include <memory>
 #include <sstream>
 
-#include <m_string.h>
+#include <string_with_len.h>
 
 #include <components/keyrings/common/component_helpers/include/keyring_log_builtins_definition.h>
 /** Error structure */

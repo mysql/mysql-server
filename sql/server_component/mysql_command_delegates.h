@@ -25,13 +25,13 @@
 #define MYSQL_COMMAND_DELEGATES_H
 
 #include <include/decimal.h>
-#include <include/m_ctype.h>
 #include <include/my_compiler.h>
 #include <include/mysql.h>
 #include <include/mysql/service_command.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/mysql_admin_session.h>
 #include <mysql/components/services/mysql_command_consumer.h>
+#include <mysql/strings/m_ctype.h>
 
 class Command_delegate {
  public:

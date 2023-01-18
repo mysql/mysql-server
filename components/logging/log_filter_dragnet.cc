@@ -116,7 +116,7 @@ static SHOW_VAR show_var_filter_rules_decompile[] = {
 /*
   STRING_WITH_LEN
 */
-#include <m_string.h>
+#include <string_with_len.h>
 
 static bool inited = false;
 static int opened = 0;

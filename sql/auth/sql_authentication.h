@@ -28,10 +28,10 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_thread_local.h"    // my_thread_id
 #include "mysql/plugin_auth.h"  // MYSQL_SERVER_AUTH_INFO
 #include "mysql/plugin_auth_common.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/sql_plugin_ref.h"  // plugin_ref
 
 class ACL_USER;

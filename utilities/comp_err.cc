@@ -51,7 +51,6 @@
 #include <utility>
 #include <vector>
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_checksum.h"
@@ -63,8 +62,12 @@
 #include "my_sys.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
+#include "mysql/strings/my_strtoll10.h"
+#include "nulls.h"
 #include "prealloced_array.h"
 #include "print_version.h"
+#include "strxmov.h"
 #include "welcome_copyright_notice.h"
 
 #define MAX_ERROR_NAME_LENGTH 64

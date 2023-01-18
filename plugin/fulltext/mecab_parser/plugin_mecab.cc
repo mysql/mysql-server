@@ -23,6 +23,7 @@
 #include "my_config.h"
 
 #include "my_compiler.h"
+#include "mysql/strings/m_ctype.h"
 
 MY_COMPILER_DIAGNOSTIC_PUSH()
 // include/mecab.h:1384:22: warning: empty paragraph passed to '@param' command
@@ -36,6 +37,7 @@ MY_COMPILER_DIAGNOSTIC_POP()
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>
 
+#include "m_string.h"
 #include "mysqld_error.h"
 #include "storage/innobase/include/fts0tokenize.h"
 

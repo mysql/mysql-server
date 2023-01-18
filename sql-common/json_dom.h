@@ -58,6 +58,8 @@ class Json_wrapper;
 class String;
 class THD;
 
+struct CHARSET_INFO;
+
 typedef Prealloced_array<Json_wrapper, 16> Json_wrapper_vector;
 typedef Prealloced_array<Json_dom *, 16> Json_dom_vector;
 

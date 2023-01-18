@@ -28,6 +28,8 @@
 #include <memory>
 #include <vector>
 
+#include "m_string.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/dd/string_type.h"                    // dd::String_type
 #include "sql/dd/types/object_table_definition.h"  // dd::Object_table_definition
 #include "sql/mysqld.h"                            // lower_case_table_names

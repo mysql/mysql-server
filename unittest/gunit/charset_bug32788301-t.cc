@@ -22,14 +22,14 @@
 
 #include <gtest/gtest.h>
 
-#include "m_ctype.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 
 namespace charset_bug32788301_unittest {
 
 CHARSET_INFO *init_collation(const char *name) {
-  MY_CHARSET_LOADER loader;
-  return my_collation_get_by_name(&loader, name, MYF(0));
+  MY_CHARSET_ERRMSG errmsg;
+  return my_collation_get_by_name(name, MYF(0), &errmsg);
 }
 
 TEST(CharsetBug32788301Unittest, LoadUninitLoad) {

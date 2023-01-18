@@ -26,10 +26,10 @@
 #include <sys/types.h>
 
 #include <vector>
-#include "m_ctype.h"
 #include "map_helpers.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
+#include "mysql/strings/m_ctype.h"
 #include "plugin/keyring/common/i_keyring_io.h"
 #include "plugin/keyring/common/i_keys_container.h"
 #include "plugin/keyring/common/keyring_key.h"

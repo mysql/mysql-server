@@ -30,6 +30,8 @@
 
 class Json_wrapper;
 class THD;
+
+struct CHARSET_INFO;
 struct TABLE;
 
 /**

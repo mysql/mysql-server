@@ -25,10 +25,10 @@
 #include "sql/trigger_chain.h"
 
 #include <assert.h>
-#include "m_ctype.h"
 
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"          // ER_*
 #include "sql/dd/types/trigger.h"  // name_collation
 #include "sql/mysqld.h"            // table_alias_charset

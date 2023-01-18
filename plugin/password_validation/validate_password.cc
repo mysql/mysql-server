@@ -48,7 +48,9 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/service_security_context.h"
 #include "mysqld_error.h"
+#include "nulls.h"
 #include "sql/sql_error.h"
+#include "template_utils.h"
 #include "typelib.h"
 
 class THD;

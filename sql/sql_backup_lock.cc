@@ -24,7 +24,6 @@
 
 #include <utility>
 
-#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -33,6 +32,7 @@
 #include "sql/mdl.h"
 #include "sql/system_variables.h"
 #include "sql_class.h"  // THD
+#include "string_with_len.h"
 
 /**
   Check if a current user has the privilege BACKUP_ADMIN required to run

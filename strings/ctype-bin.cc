@@ -38,18 +38,17 @@
   Needless to say, this also means that using it can be rather dangerous.
  */
 
-#include <string.h>
-#include <sys/types.h>
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
-#include "my_inttypes.h"
-#include "my_macros.h"
+#include "mysql/strings/m_ctype.h"
+#include "strings/m_ctype_internals.h"
 #include "template_utils.h"
 
-static const uchar ctype_bin[] = {
+static const uint8_t ctype_bin[] = {
     0,  32,  32,  32,  32,  32,  32,  32,  32,  32,  40,  40, 40, 40, 40, 32,
     32, 32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32, 32, 32, 32, 32,
     32, 72,  16,  16,  16,  16,  16,  16,  16,  16,  16,  16, 16, 16, 16, 16,
@@ -71,7 +70,7 @@ static const uchar ctype_bin[] = {
 
 /* Dummy array for toupper / tolower / sortorder */
 
-static const uchar bin_char_array[] = {
+static const uint8_t bin_char_array[] = {
     0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
     15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
     30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,
@@ -92,14 +91,14 @@ static const uchar bin_char_array[] = {
     255};
 
 extern "C" {
-static bool my_coll_init_8bit_bin(CHARSET_INFO *cs,
-                                  MY_CHARSET_LOADER *loader [[maybe_unused]]) {
+static bool my_coll_init_8bit_bin(CHARSET_INFO *cs, MY_CHARSET_LOADER *,
+                                  MY_CHARSET_ERRMSG *) {
   cs->max_sort_char = 255;
   return false;
 }
 
 static int my_strnncoll_binary(const CHARSET_INFO *cs [[maybe_unused]],
-                               const uchar *s, size_t slen, const uchar *t,
+                               const uint8_t *s, size_t slen, const uint8_t *t,
                                size_t tlen, bool t_is_prefix) {
   size_t len = std::min(slen, tlen);
   const int cmp = len == 0 ? 0 : memcmp(s, t, len);  // memcmp(a, b, 0) == 0
@@ -136,14 +135,15 @@ static size_t my_lengthsp_binary(const CHARSET_INFO *cs [[maybe_unused]],
 */
 
 extern "C" {
-static int my_strnncollsp_binary(const CHARSET_INFO *cs, const uchar *s,
-                                 size_t slen, const uchar *t, size_t tlen) {
+static int my_strnncollsp_binary(const CHARSET_INFO *cs, const uint8_t *s,
+                                 size_t slen, const uint8_t *t, size_t tlen) {
   return my_strnncoll_binary(cs, s, slen, t, tlen, false);
 }
 
 static int my_strnncoll_8bit_bin(const CHARSET_INFO *cs [[maybe_unused]],
-                                 const uchar *s, size_t slen, const uchar *t,
-                                 size_t tlen, bool t_is_prefix) {
+                                 const uint8_t *s, size_t slen,
+                                 const uint8_t *t, size_t tlen,
+                                 bool t_is_prefix) {
   size_t len = std::min(slen, tlen);
   int cmp = memcmp(s, t, len);
   return cmp ? cmp : (int)((t_is_prefix ? len : slen) - tlen);
@@ -172,17 +172,14 @@ static int my_strnncoll_8bit_bin(const CHARSET_INFO *cs [[maybe_unused]],
 */
 
 static int my_strnncollsp_8bit_bin(const CHARSET_INFO *cs [[maybe_unused]],
-                                   const uchar *a, size_t a_length,
-                                   const uchar *b, size_t b_length) {
-  const uchar *end;
-  size_t length;
-  int res;
-
-  end = a + (length = std::min(a_length, b_length));
+                                   const uint8_t *a, size_t a_length,
+                                   const uint8_t *b, size_t b_length) {
+  size_t length = std::min(a_length, b_length);
+  const uint8_t *end = a + length;
   while (a < end) {
     if (*a++ != *b++) return ((int)a[-1] - (int)b[-1]);
   }
-  res = 0;
+  int res = 0;
   if (a_length != b_length) {
     int swap = 1;
     /*
@@ -223,14 +220,14 @@ static int my_strcasecmp_bin(const CHARSET_INFO *cs [[maybe_unused]],
 }
 }  // extern "C"
 
-uint my_mbcharlen_8bit(const CHARSET_INFO *cs [[maybe_unused]],
-                       uint c [[maybe_unused]]) {
+unsigned my_mbcharlen_8bit(const CHARSET_INFO *cs [[maybe_unused]],
+                           unsigned c [[maybe_unused]]) {
   return 1;
 }
 
 extern "C" {
 static int my_mb_wc_bin(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *wc,
-                        const uchar *str, const uchar *end) {
+                        const uint8_t *str, const uint8_t *end) {
   if (str >= end) return MY_CS_TOOSMALL;
 
   *wc = str[0];
@@ -238,7 +235,7 @@ static int my_mb_wc_bin(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t *wc,
 }
 
 static int my_wc_mb_bin(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
-                        uchar *s, uchar *e) {
+                        uint8_t *s, uint8_t *e) {
   if (s >= e) return MY_CS_TOOSMALL;
 
   if (wc < 256) {
@@ -251,11 +248,9 @@ static int my_wc_mb_bin(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
 
 extern "C" {
 static void my_hash_sort_8bit_bin(const CHARSET_INFO *cs [[maybe_unused]],
-                                  const uchar *key, size_t len, uint64 *nr1,
-                                  uint64 *nr2) {
-  const uchar *pos = key;
-  uint64 tmp1;
-  uint64 tmp2;
+                                  const uint8_t *key, size_t len, uint64_t *nr1,
+                                  uint64_t *nr2) {
+  const uint8_t *pos = key;
 
   /*
      Remove trailing spaces. We have to do this to be able to compare
@@ -263,11 +258,12 @@ static void my_hash_sort_8bit_bin(const CHARSET_INFO *cs [[maybe_unused]],
   */
   key = skip_trailing_space(key, len);
 
-  tmp1 = *nr1;
-  tmp2 = *nr2;
+  uint64_t tmp1 = *nr1;
+  uint64_t tmp2 = *nr2;
 
   for (; pos < key; pos++) {
-    tmp1 ^= (uint64)((((uint)tmp1 & 63) + tmp2) * ((uint)*pos)) + (tmp1 << 8);
+    tmp1 ^= (uint64_t)((((unsigned)tmp1 & 63) + tmp2) * ((unsigned)*pos)) +
+            (tmp1 << 8);
     tmp2 += 3;
   }
 
@@ -276,19 +272,18 @@ static void my_hash_sort_8bit_bin(const CHARSET_INFO *cs [[maybe_unused]],
 }
 
 static void my_hash_sort_bin(const CHARSET_INFO *cs [[maybe_unused]],
-                             const uchar *key, size_t len, uint64 *nr1,
-                             uint64 *nr2) {
-  const uchar *pos = key;
-  uint64 tmp1;
-  uint64 tmp2;
+                             const uint8_t *key, size_t len, uint64_t *nr1,
+                             uint64_t *nr2) {
+  const uint8_t *pos = key;
 
   key += len;
 
-  tmp1 = *nr1;
-  tmp2 = *nr2;
+  uint64_t tmp1 = *nr1;
+  uint64_t tmp2 = *nr2;
 
   for (; pos < key; pos++) {
-    tmp1 ^= (uint64)((((uint)tmp1 & 63) + tmp2) * ((uint)*pos)) + (tmp1 << 8);
+    tmp1 ^= (uint64_t)((((unsigned)tmp1 & 63) + tmp2) * ((unsigned)*pos)) +
+            (tmp1 << 8);
     tmp2 += 3;
   }
 
@@ -330,7 +325,7 @@ static int my_wildcmp_bin_impl(const CHARSET_INFO *cs, const char *str,
       if (wildstr == wildend) break;
     }
     if (*wildstr == w_many) { /* Found w_many */
-      uchar cmp;
+      uint8_t cmp = 0;
       wildstr++;
       /* Remove any '%' and '_' from the wild search string */
       for (; wildstr != wildend; wildstr++) {
@@ -351,7 +346,7 @@ static int my_wildcmp_bin_impl(const CHARSET_INFO *cs, const char *str,
       INC_PTR(cs, wildstr, wildend); /* This is compared through cmp */
       cmp = likeconv(cs, cmp);
       do {
-        while (str != str_end && (uchar)likeconv(cs, *str) != cmp) str++;
+        while (str != str_end && (uint8_t)likeconv(cs, *str) != cmp) str++;
         if (str++ == str_end) return (-1);
         {
           int tmp =
@@ -374,21 +369,22 @@ int my_wildcmp_bin(const CHARSET_INFO *cs, const char *str, const char *str_end,
 }
 
 extern "C" {
-static size_t my_strnxfrm_8bit_bin_pad_space(const CHARSET_INFO *cs, uchar *dst,
-                                             size_t dstlen, uint nweights,
-                                             const uchar *src, size_t srclen,
-                                             uint flags) {
+static size_t my_strnxfrm_8bit_bin_pad_space(const CHARSET_INFO *cs,
+                                             uint8_t *dst, size_t dstlen,
+                                             unsigned nweights,
+                                             const uint8_t *src, size_t srclen,
+                                             unsigned flags) {
   srclen = std::min(srclen, dstlen);
   srclen = std::min<size_t>(srclen, nweights);
   if (dst != src && srclen > 0) memcpy(dst, src, srclen);
   return my_strxfrm_pad(cs, dst, dst + srclen, dst + dstlen,
-                        static_cast<uint>(nweights - srclen), flags);
+                        static_cast<unsigned>(nweights - srclen), flags);
 }
 
-static size_t my_strnxfrm_8bit_bin_no_pad(const CHARSET_INFO *cs, uchar *dst,
-                                          size_t dstlen, uint nweights,
-                                          const uchar *src, size_t srclen,
-                                          uint flags) {
+static size_t my_strnxfrm_8bit_bin_no_pad(const CHARSET_INFO *cs, uint8_t *dst,
+                                          size_t dstlen, unsigned nweights,
+                                          const uint8_t *src, size_t srclen,
+                                          unsigned flags) {
   srclen = std::min(srclen, dstlen);
   srclen = std::min<size_t>(srclen, nweights);
   if (dst != src && srclen > 0) memcpy(dst, src, srclen);
@@ -400,10 +396,14 @@ static size_t my_strnxfrm_8bit_bin_no_pad(const CHARSET_INFO *cs, uchar *dst,
   return srclen;
 }
 
-static uint my_instr_bin(const CHARSET_INFO *cs [[maybe_unused]], const char *b,
-                         size_t b_length, const char *s, size_t s_length,
-                         my_match_t *match, uint nmatch) {
-  const uchar *str, *search, *end, *search_end;
+static unsigned my_instr_bin(const CHARSET_INFO *cs [[maybe_unused]],
+                             const char *b, size_t b_length, const char *s,
+                             size_t s_length, my_match_t *match,
+                             unsigned nmatch) {
+  const uint8_t *str = nullptr;
+  const uint8_t *search = nullptr;
+  const uint8_t *end = nullptr;
+  const uint8_t *search_end = nullptr;
 
   if (s_length <= b_length) {
     if (!s_length) {
@@ -415,30 +415,28 @@ static uint my_instr_bin(const CHARSET_INFO *cs [[maybe_unused]], const char *b,
       return 1; /* Empty string is always found */
     }
 
-    str = (const uchar *)b;
-    search = (const uchar *)s;
-    end = (const uchar *)b + b_length - s_length + 1;
-    search_end = (const uchar *)s + s_length;
+    str = pointer_cast<const uint8_t *>(b);
+    search = pointer_cast<const uint8_t *>(s);
+    end = pointer_cast<const uint8_t *>(b) + b_length - s_length + 1;
+    search_end = pointer_cast<const uint8_t *>(s) + s_length;
 
   skip:
     while (str != end) {
       if ((*str++) == (*search)) {
-        const uchar *i, *j;
-
-        i = str;
-        j = search + 1;
+        const uint8_t *i = str;
+        const uint8_t *j = search + 1;
 
         while (j != search_end)
           if ((*i++) != (*j++)) goto skip;
 
         if (nmatch > 0) {
           match[0].beg = 0;
-          match[0].end = (uint)(str - (const uchar *)b - 1);
+          match[0].end = (unsigned)(str - pointer_cast<const uint8_t *>(b) - 1);
           match[0].mb_len = match[0].end;
 
           if (nmatch > 1) {
             match[1].beg = match[0].end;
-            match[1].end = (uint)(match[0].end + s_length);
+            match[1].end = (unsigned)(match[0].end + s_length);
             match[1].mb_len = match[1].end - match[1].beg;
           }
         }

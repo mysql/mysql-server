@@ -55,6 +55,7 @@
 #include "sql/sql_servers.h"  // servers_reload
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "string_with_len.h"
 
 /**
   Check the privileges required to execute a FLUSH command

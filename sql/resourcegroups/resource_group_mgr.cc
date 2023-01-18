@@ -31,7 +31,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include "m_ctype.h"
 #include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_psi_config.h"
@@ -40,6 +39,7 @@
 #include "mysql/components/services/log_builtins.h"  // LogErr
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/service_plugin_registry.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/thread_type.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -61,6 +61,7 @@
 #include "sql/system_variables.h"
 #include "sql/thd_raii.h"
 #include "sql_string.h"  // to_lex_cstring
+#include "string_with_len.h"
 
 namespace resourcegroups {
 const char *SYS_DEFAULT_RESOURCE_GROUP_NAME = "SYS_default";

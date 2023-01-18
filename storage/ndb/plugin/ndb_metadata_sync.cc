@@ -27,6 +27,7 @@
 
 #include <sstream>
 
+#include "nulls.h"                                    // NullS
 #include "sql/sql_class.h"                            // THD
 #include "storage/ndb/include/ndbapi/Ndb.hpp"         // Ndb
 #include "storage/ndb/plugin/ha_ndbcluster_binlog.h"  // ndbcluster_binlog_setup_table

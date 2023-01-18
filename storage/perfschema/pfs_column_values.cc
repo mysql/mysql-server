@@ -28,6 +28,9 @@
 
 #include "storage/perfschema/pfs_column_values.h"
 
+#include "lex_string.h"
+#include "string_with_len.h"
+
 LEX_CSTRING PERFORMANCE_SCHEMA_str = {STRING_WITH_LEN("performance_schema")};
 
 LEX_CSTRING mutex_instrument_prefix = {STRING_WITH_LEN("wait/synch/mutex")};

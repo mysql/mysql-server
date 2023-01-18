@@ -26,9 +26,12 @@
 
 #include <unordered_map>
 
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "mysql/plugin.h"
+#include "mysql/strings/m_ctype.h"
+#include "nulls.h"
 #include "sql/auth/acl_change_notification.h"
 #include "sql/binlog.h"
 #include "sql/dd/types/abstract_table.h"  // dd::enum_table_type
@@ -87,6 +90,7 @@
 #include "storage/ndb/plugin/ndb_thd.h"
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 #include "storage/ndb/plugin/ndb_upgrade_util.h"
+#include "string_with_len.h"
 
 typedef NdbDictionary::Event NDBEVENT;
 typedef NdbDictionary::Table NDBTAB;

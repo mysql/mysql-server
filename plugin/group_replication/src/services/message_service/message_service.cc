@@ -26,6 +26,7 @@
 #include <mysql/components/services/registry.h>
 #include "plugin/group_replication/include/leave_group_on_failure.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "string_with_len.h"
 
 DEFINE_BOOL_METHOD(send, (const char *tag, const unsigned char *data,
                           const size_t data_length)) {

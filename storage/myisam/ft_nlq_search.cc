@@ -35,6 +35,8 @@
 #include "storage/myisam/myisamdef.h"
 #include "template_utils.h"
 
+struct CHARSET_INFO;
+
 /* search with natural language queries */
 
 typedef struct ft_doc_rec {

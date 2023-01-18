@@ -28,6 +28,7 @@
 #include "sql/field.h"
 #include "sql/table.h"
 #include "sql/udf_service_util.h"
+#include "string_with_len.h"
 
 class Rpl_sys_table_access;
 class Json_wrapper;

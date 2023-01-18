@@ -22,8 +22,8 @@
 
 #include "client/mysqltest/regular_expressions.h"
 
-#include "m_ctype.h"
 #include "my_compiler.h"
+#include "mysql/strings/m_ctype.h"
 
 [[noreturn]] extern void die(const char *fmt, ...)
     MY_ATTRIBUTE((format(printf, 1, 2)));

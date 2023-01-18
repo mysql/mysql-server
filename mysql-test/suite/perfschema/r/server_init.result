@@ -20,10 +20,6 @@ where name like "wait/synch/mutex/mysys/THR_LOCK_net";
 count(name)
 1
 select count(name) from mutex_instances
-where name like "wait/synch/mutex/mysys/THR_LOCK_charset";
-count(name)
-1
-select count(name) from mutex_instances
 where name like "wait/synch/mutex/sql/LOCK_open";
 count(name)
 1

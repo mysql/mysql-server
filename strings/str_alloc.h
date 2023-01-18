@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,41 +25,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*  File   : strmake.c
-    Author : Michael Widenius
-    Updated: 20 Jul 1984
-    Defines: strmake()
+#ifndef STRINGS_STR_ALLOC_H_
+#define STRINGS_STR_ALLOC_H_
 
-    strmake(dst,src,length) moves length characters, or until end, of src to
-    dst and appends a closing NUL to dst.
-    Note that if strlen(src) >= length then dst[length] will be set to \0
-    strmake() returns pointer to closing null
-*/
+#include <cstddef>
 
-#include <stddef.h>
-#include "m_string.h"  // IWYU pragma: keep
+/*
+  my_str_malloc(), my_str_realloc() and my_str_free() are assigned to
+  implementations in strings/alloc.cc, but can be overridden in
+  the calling program.
+ */
+extern void *(*my_str_malloc)(size_t);
+extern void *(*my_str_realloc)(void *, size_t);
+extern void (*my_str_free)(void *);
 
-char *strmake(char *dst, const char *src, size_t length) {
-#ifdef EXTRA_DEBUG
-  /*
-    'length' is the maximum length of the string; the buffer needs
-    to be one character larger to accommodate the terminating '\0'.
-    This is easy to get wrong, so we make sure we write to the
-    entire length of the buffer to identify incorrect buffer-sizes.
-    We only initialise the "unused" part of the buffer here, a) for
-    efficiency, and b) because dst==src is allowed, so initialising
-    the entire buffer would overwrite the source-string. Also, we
-    write a character rather than '\0' as this makes spotting these
-    problems in the results easier.
-  */
-  uint n = 0;
-  while (n < length && src[n++])
-    ;
-  memset(dst + n, (int)'Z', length - n + 1);
-#endif
-
-  while (length--)
-    if (!(*dst++ = *src++)) return dst - 1;
-  *dst = 0;
-  return dst;
-}
+#endif  // STRINGS_STR_ALLOC_H_

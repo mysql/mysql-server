@@ -28,11 +28,9 @@
 #include <unordered_map>
 #include <utility>
 
-#include "m_ctype.h"
-#include "m_string.h"
+#include "dig_vec.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
@@ -40,10 +38,12 @@
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/plugin.h"  // MYSQL_XIDDATASIZE
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_transaction.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "scope_guard.h"  // Scope_guard
@@ -79,6 +79,7 @@
 #include "sql/xa/sql_xa_commit.h"      // Sql_cmd_xa_commit
 #include "sql/xa/transaction_cache.h"  // xa::Transaction_cache
 #include "sql_string.h"
+#include "string_with_len.h"
 #include "template_utils.h"
 #include "thr_mutex.h"
 
@@ -526,9 +527,9 @@ char *XID::xid_to_str(char *buf) const {
         3 octal numbers to ensure that the next number is not seen
         as part of the octal number
       */
-      if (c > 077 || is_next_dig) *s++ = _dig_vec_lower[c >> 6];
-      if (c > 007 || is_next_dig) *s++ = _dig_vec_lower[(c >> 3) & 7];
-      *s++ = _dig_vec_lower[c & 7];
+      if (c > 077 || is_next_dig) *s++ = dig_vec_lower[c >> 6];
+      if (c > 007 || is_next_dig) *s++ = dig_vec_lower[(c >> 3) & 7];
+      *s++ = dig_vec_lower[c & 7];
     } else {
       if (c == '\'' || c == '\\') *s++ = '\\';
       *s++ = c;

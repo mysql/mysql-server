@@ -36,12 +36,12 @@
 
 #include "map_helpers.h"
 #include "mutex_lock.h"
-#include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_systime.h"  // my_micro_time()
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/my_loglevel.h"
 #include "thr_mutex.h"
 
 #ifndef _WIN32
@@ -61,13 +61,13 @@
 #include <unordered_map>
 #include <utility>
 
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"  // specialflag

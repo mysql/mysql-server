@@ -27,9 +27,9 @@
 #ifdef _WIN32
 
 #include <assert.h>
-#include "m_ctype.h"
 
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysys_priv.h"
 
 extern CHARSET_INFO my_charset_utf16le_bin;

@@ -55,6 +55,7 @@ This file contains the implementation of error and warnings related
 #include <algorithm>
 
 #include "decimal.h"
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -63,6 +64,8 @@ This file contains the implementation of error and warnings related
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"  // ER_THD
@@ -74,6 +77,8 @@ This file contains the implementation of error and warnings related
 #include "sql/sql_lex.h"
 #include "sql/system_variables.h"
 #include "sql/thr_malloc.h"
+#include "string_with_len.h"
+#include "strmake.h"
 
 using std::max;
 using std::min;

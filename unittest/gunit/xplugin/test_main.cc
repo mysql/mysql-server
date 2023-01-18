@@ -25,8 +25,8 @@
 #include <gtest/gtest.h>
 #include <stdio.h>
 
-#include "m_ctype.h"
 #include "my_sys.h"
+#include "mysql/strings/m_ctype.h"
 
 #include "unittest/gunit/xplugin/xcl/test_environment.h"
 #include "unittest/gunit/xplugin/xpl/test_environment.h"

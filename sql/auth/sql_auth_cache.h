@@ -37,7 +37,6 @@
 
 #include "lex_string.h"
 #include "lf.h"
-#include "m_ctype.h"
 #include "map_helpers.h"
 #include "mf_wcomp.h"  // wild_many, wild_one, wild_prefix
 #include "my_alloc.h"
@@ -47,6 +46,7 @@
 #include "my_sys.h"
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/mysql_lex_string.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"   // SCRAMBLE_LENGTH
 #include "mysql_time.h"  // MYSQL_TIME
 #include "sql/auth/auth_common.h"

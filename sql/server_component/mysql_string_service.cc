@@ -24,15 +24,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <sys/types.h>
 
 #include <mysql/components/minimal_chassis.h>
-#include "m_ctype.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/components/service_implementation.h"
 #include "mysql/components/services/mysql_string.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_string_service_imp.h"
 #include "sql_string.h"
+#include "template_utils.h"
 
 PSI_memory_key key_memory_string_service_iterator;
 
@@ -356,7 +357,7 @@ DEFINE_BOOL_METHOD(mysql_string_imp::is_upper,
   try {
     st_string_iterator *iterator = (st_string_iterator *)iter;
     if (iterator == nullptr) return true;
-    *out = (iterator->ctype & _MY_U);
+    *out = (iterator->ctype & MY_CHAR_U) != 0;
     return false;
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
@@ -369,7 +370,7 @@ DEFINE_BOOL_METHOD(mysql_string_imp::is_lower,
   try {
     st_string_iterator *iterator = (st_string_iterator *)iter;
     if (iterator == nullptr) return true;
-    *out = (iterator->ctype & _MY_L);
+    *out = (iterator->ctype & MY_CHAR_L) != 0;
     return false;
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
@@ -382,7 +383,7 @@ DEFINE_BOOL_METHOD(mysql_string_imp::is_digit,
   try {
     st_string_iterator *iterator = (st_string_iterator *)iter;
     if (iterator == nullptr) return true;
-    *out = (iterator->ctype & _MY_NMR);
+    *out = (iterator->ctype & MY_CHAR_NMR) != 0;
     return false;
   } catch (...) {
     mysql_components_handle_std_exception(__func__);

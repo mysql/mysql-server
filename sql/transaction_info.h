@@ -34,6 +34,7 @@
 #include "sql/rpl_transaction_ctx.h"            // Rpl_transaction_ctx
 #include "sql/rpl_transaction_write_set_ctx.h"  // Transaction_write_set_ctx
 #include "sql/xa.h"                             // XID_STATE
+#include "strmake.h"
 
 class Ha_trx_info;
 class Ha_trx_info_list;

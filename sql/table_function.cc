@@ -28,10 +28,9 @@
 #include <utility>
 
 #include "field_types.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_sys.h"
 #include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
@@ -52,6 +51,7 @@
 #include "sql/table.h"
 #include "sql/thd_raii.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 
 /******************************************************************************
   Implementation of Table_function

@@ -30,6 +30,7 @@
 #include "mysql.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"
+#include "string_with_len.h"
 
 bool rpl_semi_sync_replica_enabled;
 char rpl_semi_sync_replica_status = 0;

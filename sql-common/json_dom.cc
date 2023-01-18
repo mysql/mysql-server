@@ -43,8 +43,9 @@
 
 #include "base64.h"
 #include "decimal.h"
-#include "m_ctype.h"
-#include "m_string.h"  // my_gcvt, _dig_vec_lower
+#include "dig_vec.h"
+#include "json_binary.h"
+#include "m_string.h"
 #include "my_byteorder.h"
 #include "my_compare.h"
 #include "my_dbug.h"
@@ -53,6 +54,10 @@
 #include "my_time.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
+#include "mysql/strings/my_strtoll10.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"  // ER_*
 #include "sql/malloc_allocator.h"
@@ -75,6 +80,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 #include "template_utils.h"  // down_cast, pointer_cast
 
 #ifndef MYSQL_SERVER
@@ -1123,9 +1129,8 @@ static bool escape_character(char c, String *buf) {
     Unprintable control character, use a hexadecimal number.
     The meaning of such a number determined by ISO/IEC 10646.
   */
-  return buf->append("u00", 3) ||
-         buf->append(_dig_vec_lower[(c & 0xf0) >> 4]) ||
-         buf->append(_dig_vec_lower[(c & 0x0f)]);
+  return buf->append("u00", 3) || buf->append(dig_vec_lower[(c & 0xf0) >> 4]) ||
+         buf->append(dig_vec_lower[(c & 0x0f)]);
 }
 
 bool double_quote(const char *cptr, size_t length, String *buf) {

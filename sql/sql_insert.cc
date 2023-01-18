@@ -37,8 +37,6 @@
 
 #include "field_types.h"
 #include "lex_string.h"
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
@@ -51,6 +49,8 @@
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/mysql_table.h"  // IWYU pragma: keep
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "pfs_table_provider.h"
@@ -105,6 +105,7 @@
 #include "sql/trigger_def.h"
 #include "sql/visible_fields.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 #include "template_utils.h"
 #include "thr_lock.h"
 

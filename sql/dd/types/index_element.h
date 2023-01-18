@@ -23,6 +23,7 @@
 #ifndef DD__INDEX_ELEMENT_INCLUDED
 #define DD__INDEX_ELEMENT_INCLUDED
 
+#include "m_string.h"
 #include "my_inttypes.h"
 #include "sql/dd/sdi_fwd.h"            // dd::Sdi_wcontext
 #include "sql/dd/types/weak_object.h"  // dd::Weak_object

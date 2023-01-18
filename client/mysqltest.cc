@@ -76,7 +76,7 @@
 
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
-#include "m_ctype.h"
+#include "m_string.h"
 #include "map_helpers.h"
 #include "mf_wcomp.h"  // wild_compare
 #include "my_compiler.h"
@@ -91,9 +91,16 @@
 #include "my_stacktrace.h"
 #include "my_systime.h"  // my_sleep()
 #include "my_thread_local.h"
+#include "mysql/strings/dtoa.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"
+#include "nulls.h"
 #include "prealloced_array.h"
 #include "print_version.h"
 #include "sql_common.h"
+#include "str2int.h"
+#include "strmake.h"
+#include "strxmov.h"
 #include "template_utils.h"
 #include "typelib.h"
 #include "violite.h"

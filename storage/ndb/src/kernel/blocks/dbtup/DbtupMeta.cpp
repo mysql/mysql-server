@@ -1234,8 +1234,8 @@ Dbtup::handleAlterTablePrepare(Signal *signal,
       ALTER_TAB_REQ[commit]).
     */
     Uint32* desc= &tableDescriptor[tableDescriptorRef].tabDescr;
-    CHARSET_INFO** CharsetArray=
-      (CHARSET_INFO**)(desc + regAlterTabOpPtr.p->tabDesOffset[2]);
+    const CHARSET_INFO** CharsetArray=
+      (const CHARSET_INFO**)(desc + regAlterTabOpPtr.p->tabDesOffset[2]);
     memcpy(CharsetArray, regTabPtr->charsetArray,
            sizeof(*CharsetArray)*regTabPtr->noOfCharsets);
     Uint32 * const attrDesPtrStart = desc + regAlterTabOpPtr.p->tabDesOffset[4];
@@ -1534,13 +1534,13 @@ Dbtup::handleAlterTableAbort(Signal *signal,
   charsetIndex will be updated to point to next free charsetPos slot.
 */
 void
-Dbtup::handleCharsetPos(Uint32 csNumber, CHARSET_INFO** charsetArray,
+Dbtup::handleCharsetPos(Uint32 csNumber, const CHARSET_INFO** charsetArray,
                         Uint32 noOfCharsets,
                         Uint32 & charsetIndex, Uint32 & attrDes2)
 {
   if (csNumber != 0)
   { 
-    CHARSET_INFO* cs = all_charsets[csNumber];
+    const CHARSET_INFO* cs = all_charsets[csNumber];
     ndbrequire(cs != NULL);
     Uint32 i= 0;
     while (i < charsetIndex)
@@ -1878,7 +1878,7 @@ void Dbtup::setUpDescriptorReferences(Uint32 descriptorReference,
   Uint32* desc= &tableDescriptor[descriptorReference].tabDescr;
   regTabPtr->readFunctionArray= (ReadFunction*)(desc + offset[0]);
   regTabPtr->updateFunctionArray= (UpdateFunction*)(desc + offset[1]);
-  regTabPtr->charsetArray= (CHARSET_INFO**)(desc + offset[2]);
+  regTabPtr->charsetArray= (const CHARSET_INFO**)(desc + offset[2]);
   regTabPtr->readKeyArray= descriptorReference + offset[3];
   regTabPtr->tabDescriptor= descriptorReference + offset[4];
   regTabPtr->m_real_order_descriptor = descriptorReference + offset[5];

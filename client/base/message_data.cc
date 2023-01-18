@@ -25,8 +25,9 @@
 #include "client/base/message_data.h"
 #include "errmsg.h"
 
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql_string.h"
+#include "template_utils.h"
 
 using namespace Mysql::Tools::Base;
 

@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/service_mysql_alloc.h"
 #include "sql/auth/i_sha2_password.h"
 #include "sql/auth/sha2_password_common.h"
+#include "template_utils.h"
 #include "unittest/gunit/test_utils.h"
 
 namespace sha2_password_unittest {

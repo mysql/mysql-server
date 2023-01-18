@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "sql/log.h"
 #include "storage/perfschema/pfs_builtin_memory.h"

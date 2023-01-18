@@ -40,7 +40,6 @@
 #include "decimal.h"      // *2decimal
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -49,6 +48,7 @@
 #include "my_systime.h"
 #include "my_time.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
 #include "scope_guard.h"          // create_scope_guard

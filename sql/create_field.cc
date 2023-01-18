@@ -22,6 +22,8 @@
 
 #include "sql/create_field.h"
 
+#include "m_string.h"
+#include "mysql/strings/dtoa.h"
 #include "sql/derror.h"
 #include "sql/field.h"
 #include "sql/item.h"
@@ -36,6 +38,8 @@
 static constexpr const size_t MAX_BIT_FIELD_LENGTH{64};
 /** YYYYMMDDHHMMSS */
 static constexpr const size_t MAX_DATETIME_COMPRESSED_WIDTH{14};
+
+struct CHARSET_INFO;
 
 /**
     Constructs a column definition from an object representing an actual

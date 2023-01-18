@@ -25,19 +25,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <assert.h>
-#include <stdint.h>
-#include <string.h>
+#include "mysql/strings/int2str.h"
+
+#include <cassert>
+#include <cstdint>
+#include <cstring>
 #include <iterator>
 
+#include "dig_vec.h"
 #include "integer_digits.h"
-#include "m_string.h"  // IWYU pragma: keep
-
-/*
-  _dig_vec arrays are public because they are used in several outer places.
-*/
-const char _dig_vec_upper[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-const char _dig_vec_lower[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 
 /**
   Converts a 64-bit integer value to its character form and moves it to the
@@ -58,7 +54,8 @@ const char _dig_vec_lower[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 */
 char *ll2str(int64_t val, char *dst, int radix, bool upcase) {
   char buffer[65];
-  const char *const dig_vec = upcase ? _dig_vec_upper : _dig_vec_lower;
+  const char *const dig_vec =
+      upcase ? dig_vec_upper.data() : dig_vec_lower.data();
   auto uval = static_cast<uint64_t>(val);
 
   if (radix < 0) {

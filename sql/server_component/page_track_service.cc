@@ -16,6 +16,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include <sql/handler.h>
 #include <sql/sql_class.h>
 #include "mysql_page_track_imp.h"
+#include "string_with_len.h"
 
 /** Check if thd has backup privilege.
 @param[in]	thd	thread context

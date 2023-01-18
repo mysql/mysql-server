@@ -24,11 +24,11 @@
 
 #include <stddef.h>
 
-#include "m_ctype.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_time.h"
+#include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "sql/dd/properties.h"  // dd::Properties
 #include "sql/field.h"          // Field

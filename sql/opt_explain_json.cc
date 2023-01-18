@@ -29,11 +29,10 @@
 #include <cstddef>  // size_t
 #include <cstdio>
 
-#include "m_ctype.h"
-#include "m_string.h"
 #include "my_alloc.h"  // operator new
 #include "my_compiler.h"
 
+#include "mysql/strings/m_ctype.h"
 #include "sql-common/json_dom.h"
 #include "sql/current_thd.h"  // current_thd
 #include "sql/enum_query_type.h"
@@ -52,6 +51,7 @@
 #include "sql/temp_table_param.h"
 #include "sql/window.h"
 #include "sql_string.h"
+#include "string_with_len.h"
 
 class Query_expression;
 

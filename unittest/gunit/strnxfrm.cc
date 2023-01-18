@@ -26,6 +26,9 @@
 
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "strings/m_ctype_internals.h"
+
+struct CHARSET_INFO;
 
 namespace strnxfrm_unittest {
 

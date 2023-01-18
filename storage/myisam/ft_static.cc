@@ -28,6 +28,8 @@
 #include "my_inttypes.h"
 #include "storage/myisam/ftdefs.h"
 
+struct CHARSET_INFO;
+
 ulong ft_min_word_len = 4;
 ulong ft_max_word_len = HA_FT_MAXCHARLEN;
 ulong ft_query_expansion_limit = 5;

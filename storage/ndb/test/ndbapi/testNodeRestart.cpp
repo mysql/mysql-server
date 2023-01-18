@@ -36,7 +36,7 @@
 #include <RefConvert.hpp>
 #include <NdbEnv.h>
 #include <NdbMgmd.hpp>
-#include "m_ctype.h"
+#include "mysql/strings/m_ctype.h"
 #include "my_sys.h"
 #include <ndb_rand.h>
 #include <NdbHost.h>

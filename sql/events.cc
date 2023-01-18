@@ -32,22 +32,23 @@
 #include <vector>
 
 #include "lex_string.h"
-#include "m_ctype.h"  // CHARSET_INFO
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/bits/psi_memory_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_thread.h"
+#include "mysql/strings/int2str.h"
+#include "mysql/strings/m_ctype.h"  // CHARSET_INFO
 #include "mysql_com.h"
 #include "mysqld_error.h"  // ER_*
 #include "sql/auth/auth_acls.h"
@@ -84,6 +85,7 @@
 #include "sql/transaction.h"
 #include "sql/tztime.h"  // Time_zone
 #include "sql_string.h"  // String
+#include "string_with_len.h"
 
 /**
   @addtogroup Event_Scheduler

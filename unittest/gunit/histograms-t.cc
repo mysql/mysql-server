@@ -26,10 +26,10 @@
 #include <string>  // std::string
 
 #include "lex_string.h"
-#include "m_ctype.h"  // my_charset_latin1, my_charset_bin
 #include "my_inttypes.h"
 #include "my_systime.h"                  // my_micro_time()
 #include "my_time.h"                     // MYSQL_TIME
+#include "mysql/strings/m_ctype.h"       // my_charset_latin1, my_charset_bin
 #include "sql-common/json_dom.h"         // Json_object
 #include "sql/field.h"                   // my_charset_numeric
 #include "sql/histograms/equi_height.h"  // Equi_height
@@ -2149,9 +2149,7 @@ TEST_F(HistogramsTest, MultiByteStrings) {
     Declare the strings to have UCS2 character set, which is fixed 2 byte per
     character.
   */
-  MY_CHARSET_LOADER loader;
-  CHARSET_INFO *cs =
-      my_collation_get_by_name(&loader, "ucs2_general_ci", MYF(0));
+  CHARSET_INFO *cs = get_charset_by_name("ucs2_general_ci", MYF(0));
 
   Value_map<String> long_strings(cs, Value_map_type::STRING);
 

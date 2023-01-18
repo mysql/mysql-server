@@ -20,45 +20,29 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <assert.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
+#include <algorithm>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <deque>
 
+#include "mysql/my_loglevel.h"
+#include "mysql/strings/collations.h"
+#include "mysql/strings/m_ctype.h"
+#include "strings/collations_internal.h"
+#include "strings/m_ctype_internals.h"
 #include "welcome_copyright_notice.h"
 
-#include "m_ctype.h"
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
-#include "my_config.h"
-
-#include "my_compiler.h"
-
-#include "my_inttypes.h"
-#include "my_io.h"
-#include "my_loglevel.h"
-#include "my_macros.h"
-#include "my_xml.h"
-#include "template_utils.h"
-
-#define ROW_LEN 16
-#define ROW16_LEN 8
-#define MAX_BUF 64 * 1024
-
-static CHARSET_INFO all_charsets[512];
+constexpr int ROW_LEN = 16;
+constexpr int ROW16_LEN = 8;
+constexpr int MAX_BUF = 64 * 1024;
 
 static void print_array(FILE *f, const char *set, const char *name,
-                        const uchar *a, int n) {
-  int i;
+                        const uint8_t *a, int n) {
+  fprintf(f, "static const uint8_t %s_%s[] = {\n", name, set);
 
-  fprintf(f, "static const uchar %s_%s[] = {\n", name, set);
-
-  for (i = 0; i < n; i++) {
+  for (int i = 0; i < n; i++) {
     fprintf(f, "0x%02X", a[i]);
     fprintf(f, (i + 1 < n) ? "," : "");
     fprintf(f, ((i + 1) % ROW_LEN == n % ROW_LEN) ? "\n" : "");
@@ -67,12 +51,10 @@ static void print_array(FILE *f, const char *set, const char *name,
 }
 
 static void print_array16(FILE *f, const char *set, const char *name,
-                          const uint16 *a, int n) {
-  int i;
+                          const uint16_t *a, int n) {
+  fprintf(f, "static const uint16_t %s_%s[] = {\n", name, set);
 
-  fprintf(f, "static const uint16 %s_%s[] = {\n", name, set);
-
-  for (i = 0; i < n; i++) {
+  for (int i = 0; i < n; i++) {
     fprintf(f, "0x%04X", a[i]);
     fprintf(f, (i + 1 < n) ? "," : "");
     fprintf(f, ((i + 1) % ROW16_LEN == n % ROW16_LEN) ? "\n" : "");
@@ -80,115 +62,44 @@ static void print_array16(FILE *f, const char *set, const char *name,
   fprintf(f, "};\n\n");
 }
 
-static int get_charset_number(const char *charset_name) {
-  CHARSET_INFO *cs;
-  for (cs = all_charsets; cs < all_charsets + array_elements(all_charsets);
-       cs++) {
-    if (cs->m_coll_name && !strcmp(cs->m_coll_name, charset_name))
-      return cs->number;
-  }
-  return 0;
-}
-
-static uchar *mdup(const uchar *src, uint len) {
-  auto *dst = static_cast<uchar *>(malloc(len));
-  if (!dst) exit(1);
-  memcpy(dst, src, len);
-  return dst;
-}
-
-static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from) {
-  to->number = from->number ? from->number : to->number;
-  to->state |= from->state;
-
-  if (from->csname) {
-    free(const_cast<char *>(to->csname));
-    to->csname = strdup(from->csname);
-  }
-
-  if (from->m_coll_name) {
-    free(const_cast<char *>(to->m_coll_name));
-    to->m_coll_name = strdup(from->m_coll_name);
-  }
-  if (from->comment) to->comment = strdup(from->comment);
-
-  if (from->ctype) to->ctype = mdup(from->ctype, MY_CS_CTYPE_TABLE_SIZE);
-  if (from->to_lower)
-    to->to_lower = mdup(from->to_lower, MY_CS_TO_LOWER_TABLE_SIZE);
-  if (from->to_upper)
-    to->to_upper = mdup(from->to_upper, MY_CS_TO_UPPER_TABLE_SIZE);
-  if (from->sort_order) {
-    to->sort_order = mdup(from->sort_order, MY_CS_SORT_ORDER_TABLE_SIZE);
-    /*
-      set_max_sort_char(to);
-    */
-  }
-  if (from->tab_to_uni) {
-    uint sz = MY_CS_TO_UNI_TABLE_SIZE * sizeof(uint16);
-    to->tab_to_uni = pointer_cast<uint16 *>(
-        mdup(pointer_cast<const uchar *>(from->tab_to_uni), sz));
-    /*
-    create_fromuni(to);
-    */
-  }
-}
-
-static bool simple_cs_is_full(CHARSET_INFO *cs) {
+static bool simple_cs_is_full(const CHARSET_INFO *cs) {
   return ((cs->csname && cs->tab_to_uni && cs->ctype && cs->to_upper &&
            cs->to_lower) &&
           (cs->number && cs->m_coll_name &&
            (cs->sort_order || (cs->state & MY_CS_BINSORT))));
 }
 
-static int add_collation(CHARSET_INFO *cs) {
-  if (cs->m_coll_name &&
-      (cs->number || (cs->number = get_charset_number(cs->m_coll_name)))) {
-    if (!(all_charsets[cs->number].state & MY_CS_COMPILED)) {
-      simple_cs_copy_data(&all_charsets[cs->number], cs);
-    }
+static char buf[MAX_BUF];
 
-    cs->number = 0;
-    cs->m_coll_name = nullptr;
-    cs->state = 0;
-    cs->sort_order = nullptr;
-    cs->state = 0;
-  }
-  return MY_XML_OK;
-}
-
-class LOCAL_CHARSET_LOADER final : public MY_CHARSET_LOADER {
-  void *once_alloc(size_t sz) override { return malloc(sz); }
-  void *mem_malloc(size_t sz) override { return malloc(sz); }
-  void *mem_realloc(void *p, size_t sz) override { return realloc(p, sz); }
-  void mem_free(void *p) override { free(p); }
-
-  int add_collation(CHARSET_INFO *cs) override { return ::add_collation(cs); }
+class Loader : public MY_CHARSET_LOADER {
+ public:
+  void reporter(loglevel, unsigned /* errcode */, ...) override {}
+  void *read_file(const char *path, size_t *size) override;
 };
 
-static int my_read_charset_file(const char *filename) {
-  char buf[MAX_BUF];
-  int fd;
-  uint len;
-  LOCAL_CHARSET_LOADER loader;
+void *Loader::read_file(const char *path, size_t *size) {
+  buf[0] = '\0';
+  static bool first_call = true;
+  if (!first_call) {
+    return buf;
+  }
+  first_call = false;
 
-  if ((fd = open(filename, O_RDONLY)) < 0) {
-    fprintf(stderr, "Can't open '%s'\n", filename);
-    return 1;
+  FILE *fd = fopen(path, "rb");
+  if (fd == nullptr) {
+    fprintf(stderr, "Can't open '%s'\n", path);
+    return nullptr;
   }
 
-  len = read(fd, buf, MAX_BUF);
-  assert(len < MAX_BUF);
-  close(fd);
+  unsigned len = fread(buf, 1, sizeof(buf), fd);
+  fclose(fd);
 
-  if (my_parse_charset_xml(&loader, buf, len)) {
-    fprintf(stderr, "Error while parsing '%s': %s\n", filename, loader.errarg);
-    exit(1);
-  }
-
-  return false;
+  *size = len;
+  // Caller will free() result, so strdup our static buffer.
+  return strdup(buf);
 }
 
-static int is_case_sensitive(CHARSET_INFO *cs) {
+static int is_case_sensitive(const CHARSET_INFO *cs) {
   return (cs->sort_order &&
           cs->sort_order[static_cast<int>('A')] <
               cs->sort_order[static_cast<int>('a')] &&
@@ -198,7 +109,7 @@ static int is_case_sensitive(CHARSET_INFO *cs) {
              : 0;
 }
 
-static void dispcset(FILE *f, CHARSET_INFO *cs) {
+static void dispcset(FILE *f, const CHARSET_INFO *cs) {
   fprintf(f, "{\n");
   fprintf(f, "  %d,%d,%d,\n", cs->number, 0, 0);
   fprintf(f, "  MY_CS_COMPILED%s%s%s%s%s,\n",
@@ -278,10 +189,8 @@ static void dispcset(FILE *f, CHARSET_INFO *cs) {
   fprintf(f, "}\n");
 }
 
-int main(int argc, char **argv [[maybe_unused]]) {
-  CHARSET_INFO ncs;
-  CHARSET_INFO *cs;
-  char filename[256];
+int main(int argc, char **argv) {
+  CHARSET_INFO ncs{};
   FILE *f = stdout;
 
   if (argc < 2) {
@@ -289,21 +198,17 @@ int main(int argc, char **argv [[maybe_unused]]) {
     exit(EXIT_FAILURE);
   }
 
-  memset(&ncs, 0, sizeof(ncs));
-  memset(&all_charsets, 0, sizeof(all_charsets));
+  mysql::collation::initialize(argv[1], new Loader);
 
-  sprintf(filename, "%s/%s", argv[1], "Index.xml");
-  my_read_charset_file(filename);
-
-  for (cs = all_charsets; cs < all_charsets + array_elements(all_charsets);
-       cs++) {
-    if (cs->number && !(cs->state & MY_CS_COMPILED)) {
-      if ((!simple_cs_is_full(cs)) && (cs->csname)) {
-        sprintf(filename, "%s/%s.xml", argv[1], cs->csname);
-        my_read_charset_file(filename);
-      }
-    }
-  }
+  std::deque<const CHARSET_INFO *> sorted_by_number;
+  mysql::collation_internals::entry->iterate(
+      [&sorted_by_number](const CHARSET_INFO *cs) {
+        if (!(cs->state & MY_CS_INLINE)) {
+          sorted_by_number.push_back(cs);
+        }
+      });
+  std::sort(sorted_by_number.begin(), sorted_by_number.end(),
+            [](auto a, auto b) { return a->number < b->number; });
 
   fprintf(f, "/*\n");
   fprintf(f,
@@ -318,14 +223,15 @@ int main(int argc, char **argv [[maybe_unused]]) {
           "    ${CMAKE_SOURCE_DIR}/strings/ctype-extra.cc\n");
   fprintf(f, "*/\n\n");
   fprintf(f, ORACLE_GPL_FOSS_COPYRIGHT_NOTICE("2003"));
-  fprintf(f, "#include <stddef.h>\n\n");
-  fprintf(f, "#include \"m_ctype.h\"\n");
-  fprintf(f, "#include \"my_inttypes.h\"\n\n");
+  fprintf(f, "\n");
+  fprintf(f, "#include <cstdint>\n\n");
+  fprintf(f, "#include \"mysql/strings/m_ctype.h\"\n");
+  fprintf(f, "#include \"strings/m_ctype_internals.h\"\n\n");
 
   fprintf(f, "/* clang-format off */\n\n");
 
-  for (cs = all_charsets; cs < all_charsets + array_elements(all_charsets);
-       cs++) {
+  for (const CHARSET_INFO *cs : sorted_by_number) {
+    if (cs == nullptr) continue;
     if (simple_cs_is_full(cs)) {
       print_array(f, cs->m_coll_name, "ctype", cs->ctype,
                   MY_CS_CTYPE_TABLE_SIZE);
@@ -343,8 +249,8 @@ int main(int argc, char **argv [[maybe_unused]]) {
   }
 
   fprintf(f, "CHARSET_INFO compiled_charsets[] = {\n");
-  for (cs = all_charsets; cs < all_charsets + array_elements(all_charsets);
-       cs++) {
+  for (const CHARSET_INFO *cs : sorted_by_number) {
+    if (cs == nullptr) continue;
     if (simple_cs_is_full(cs)) {
       dispcset(f, cs);
       fprintf(f, ",\n");
@@ -353,6 +259,7 @@ int main(int argc, char **argv [[maybe_unused]]) {
 
   dispcset(f, &ncs);
   fprintf(f, "};\n");
+  mysql::collation::shutdown();
 
   return 0;
 }

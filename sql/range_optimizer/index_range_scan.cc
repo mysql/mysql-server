@@ -29,7 +29,6 @@
 #include <algorithm>
 
 #include "field_types.h"
-#include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_base.h"
@@ -37,6 +36,7 @@
 #include "my_sys.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/strings/m_ctype.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/key.h"
 #include "sql/psi_memory_key.h"

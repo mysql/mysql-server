@@ -25,13 +25,12 @@
   Char classes for lexical scanners
 */
 
-#ifndef SQL_LEX_CHARS_INCLUDED
-#define SQL_LEX_CHARS_INCLUDED
+#ifndef STRINGS_SQL_CHARS_H_
+#define STRINGS_SQL_CHARS_H_
 
 #include "my_compiler.h"
-#include "my_inttypes.h"
-#include "my_macros.h"
 
+class MY_CHARSET_LOADER;
 struct CHARSET_INFO;
 
 enum MY_ATTRIBUTE((__packed__)) my_lex_states {
@@ -94,6 +93,6 @@ struct lex_state_maps_st {
 
 typedef struct lex_state_maps_st lex_state_maps_st;
 
-bool init_state_maps(CHARSET_INFO *cs);
+bool init_state_maps(MY_CHARSET_LOADER *, CHARSET_INFO *);
 
-#endif /* SQL_LEX_CHARS_INCLUDED */
+#endif  // STRINGS_SQL_CHARS_H_

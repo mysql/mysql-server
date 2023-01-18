@@ -34,12 +34,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include <string>
 #include <vector>
 
+#include "m_string.h"
 #include "mysql/components/services/dynamic_privilege.h"
 #include "mysql/components/services/udf_registration.h"
 #include "mysql/plugin.h"
 #include "mysql/service_plugin_registry.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
+#include "string_with_len.h"
 
 #include "db0err.h"
 #include "dict0dd.h"

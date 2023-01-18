@@ -42,10 +42,13 @@
 #include "mysqld_error.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"
+#include "sql/mysqld_cs.h"
 #include "sql/thr_malloc.h"
 #include "unittest/gunit/benchmark.h"
 #include "unittest/gunit/test_mdl_context_owner.h"
 #include "unittest/gunit/thread_utils.h"
+
+struct CHARSET_INFO;
 
 /*
   Mock thd_wait_begin/end functions

@@ -34,6 +34,8 @@
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/table_helper.h"
 
+struct CHARSET_INFO;
+
 #define MAX_ATTR_NAME_CHARS 32
 #define MAX_ATTR_VALUE_CHARS 1024
 #define MAX_UTF8MB4_BYTES 4

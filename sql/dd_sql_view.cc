@@ -28,12 +28,12 @@
 #include <vector>
 
 #include "lex_string.h"
-#include "m_ctype.h"  // my_casedn_str
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/strings/m_ctype.h"  // my_casedn_str
 #include "mysqld_error.h"
 #include "sql/auth/auth_common.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
