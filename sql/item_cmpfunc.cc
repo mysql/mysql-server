@@ -798,8 +798,8 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
       if (cmp_collation.set((*left)->collation, (*right)->collation,
                             MY_COLL_CMP_CONV) ||
           cmp_collation.derivation == DERIVATION_NONE) {
-        my_coll_agg_error((*left)->collation, (*right)->collation,
-                          owner->func_name());
+        const char *func_name = owner ? owner->func_name() : "";
+        my_coll_agg_error((*left)->collation, (*right)->collation, func_name);
         return true;
       }
       if (cmp_collation.collation == &my_charset_bin) {
