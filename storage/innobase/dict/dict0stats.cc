@@ -3821,5 +3821,5 @@ void test_dict_stats_all() {
 }
 /** @} */
 
-#endif /* UNIV_ENABLE_UNIT_TEST_DICT_STATS */
+#endif /* UNIV_COMPILE_TEST_FUNCS */
 /** @} */

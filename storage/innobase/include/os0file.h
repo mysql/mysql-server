@@ -1599,15 +1599,19 @@ the "Blocks" allocated in this block_cache are used to hold the decrypted
 page data. */
 void os_create_block_cache();
 
-/** Initializes the asynchronous io system. Creates one array each for ibuf
-and log i/o. Also creates one array each for read and write where each
+/** Initializes the asynchronous io system.
+Creates an array for ibuf i/o (if not in read-only mode).
+Also creates one array each for read and write where each
 array is divided logically into n_readers and n_writers
 respectively. The caller must create an i/o handler thread for each
-segment in these arrays.
-No i/o handler thread needs to be created for that
+segment in these arrays by calling os_aio_start_threads().
+
 @param[in]      n_readers       number of reader threads
 @param[in]      n_writers       number of writer threads */
 bool os_aio_init(ulint n_readers, ulint n_writers);
+
+/** Starts one thread for each segment created in os_aio_init */
+void os_aio_start_threads();
 
 /**
 Frees the asynchronous io system. */
@@ -1659,11 +1663,8 @@ for. NOTE: this function will also take care of freeing the AIO slot,
 therefore no other thread is allowed to do the freeing!
 @param[in]      segment         The number of the segment in the AIO arrays to
                                 wait for; segment 0 is the ibuf I/O thread,
-                                segment 1 the log I/O thread, then follow the
-                                non-ibuf read threads, and as the last are the
-                                non-ibuf write threads; if this is
-                                ULINT_UNDEFINED, then it means that sync AIO
-                                is used, and this parameter is ignored
+                                then follow the non-ibuf read threads,
+                                and as the last are the non-ibuf write threads
 @param[out]     m1              the messages passed with the AIO request; note
                                 that also in the case where the AIO operation
                                 failed, these output parameters are valid and

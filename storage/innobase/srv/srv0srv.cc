@@ -2656,10 +2656,8 @@ static void srv_master_wait(srv_slot_t *slot) {
 
   srv_suspend_thread(slot);
 
-  /* DO NOT CHANGE THIS STRING. innobase_start_or_create_for_mysql()
-  waits for database activity to die down when converting < 4.1.x
-  databases, and relies on this string being exactly as it is. InnoDB
-  manual also mentions this string in several places. */
+  /* DO NOT CHANGE THIS STRING.
+  InnoDB manual also mentions this string in several places. */
   srv_main_thread_op_info = "waiting for server activity";
 
   os_event_wait(slot->event);
