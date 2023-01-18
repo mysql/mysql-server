@@ -460,3 +460,31 @@ t1 AS g NATURAL JOIN
 t1 AS h;
 1
 DROP TABLE t0, t1;
+#
+# Bug#34861693: Assertion
+# `std::abs(1.0 - EstimateAggregateRows(child, query_block, path->aggreg
+#
+CREATE TABLE num (n INT);
+INSERT INTO num VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 SELECT n,n FROM num UNION SELECT n+10,n+10 FROM num;
+CREATE TABLE t2 (a INT, b INT);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT x1.a+0 k, COUNT(x1.b) FROM t1 x1
+LEFT JOIN t2 x2 ON x1.b=x2.a
+LEFT JOIN t1 x3 ON x2.b=x3.a GROUP BY k;
+EXPLAIN
+-> Group aggregate: count(x1.b)  (rows=4.47)
+    -> Sort: k  (rows=20)
+        -> Left hash join (x1.b = x2.a)  (rows=20)
+            -> Table scan on x1  (rows=20)
+            -> Hash
+                -> Nested loop left join  (rows=2)
+                    -> Table scan on x2  (rows=1)
+                    -> Filter: (x2.b = x3.a)  (rows=2)
+                        -> Table scan on x3  (rows=20)
+
+DROP TABLE t1,t2,num;
