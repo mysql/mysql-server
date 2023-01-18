@@ -3553,6 +3553,7 @@ GROUP BY t1.a;
 # The query plan that caused wrong results was a nested loop join with
 # a primary key lookup on t2 on the inner side, and with a streaming
 # aggregation node on top (not "Aggregate using temporary table").
+--skip_if_hypergraph   # Different row estimates.
 --replace_regex $elide_costs
 --eval EXPLAIN FORMAT=TREE $query
 
