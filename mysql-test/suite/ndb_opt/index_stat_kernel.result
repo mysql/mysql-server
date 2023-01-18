@@ -1,4 +1,4 @@
-CREATE TABLE t1 (
+CREATE TABLE table_with_one_index (
 a INT NOT NULL,
 b INT NOT NULL,
 PRIMARY KEY USING HASH (a),
@@ -10,4 +10,7 @@ YES
 Insert rows to trigger automatic update of stats
 Wait for stats update
 Stats automatically updated
-DROP TABLE t1;
+Insert more rows to trigger another automatic update of stats
+Wait for stats update
+Stats automatically updated
+DROP TABLE table_with_one_index;

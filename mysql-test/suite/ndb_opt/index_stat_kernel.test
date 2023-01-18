@@ -5,7 +5,7 @@
 # index stats in the kernel
 #
 
-CREATE TABLE t1 (
+CREATE TABLE table_with_one_index (
   a INT NOT NULL,
   b INT NOT NULL,
   PRIMARY KEY USING HASH (a),
@@ -14,7 +14,7 @@ CREATE TABLE t1 (
 
 --echo Check if the stats have been automatically created
 --let $index_stat_db=test
---let $index_stat_table=t1
+--let $index_stat_table=table_with_one_index
 --source check_index_stat_created.inc
 
 --echo Insert rows to trigger automatic update of stats
@@ -23,13 +23,40 @@ CREATE TABLE t1 (
 while ($i)
 {
   --dec $i
-  --eval INSERT INTO t1 VALUES ($i, $i % 10)
+  --eval INSERT INTO table_with_one_index VALUES ($i, $i % 10)
 }
 --enable_query_log
 
 --echo Wait for stats update
 --let $index_stat_db=test
---let $index_stat_table=t1
+--let $index_stat_table=table_with_one_index
 --source wait_index_stat_updated.inc
 
-DROP TABLE t1;
+--echo Insert more rows to trigger another automatic update of stats
+--disable_query_log
+# The fragment being tracked for index stats has around 125 (1000/8) rows at this
+# point. Inserting 250 more rows in the table should lead to around 30 new rows
+# in the fragment.
+#
+# Change % in fragment = 30/155*100 = 19.35%
+# Scale factor = 1 + 100% * log2 (155) = 8.25 (approximately)
+# Scaled trigger % = 100/8.25 = 12.12%
+# Thus, the inserting 250 rows should lead to a stats update.
+#
+# Inserting 150 rows instead of 250 did not trigger a stats update
+# in manual testing.
+--let $i = 1250
+while ($i > 1000)
+{
+  --dec $i
+  --eval INSERT INTO table_with_one_index VALUES ($i, $i % 10)
+}
+--enable_query_log
+
+--echo Wait for stats update
+--let $index_stat_db=test
+--let $index_stat_table=table_with_one_index
+--let $expected_version=2
+--source wait_index_stat_updated.inc
+
+DROP TABLE table_with_one_index;

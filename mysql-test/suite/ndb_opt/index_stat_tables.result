@@ -13,3 +13,6 @@ ERROR 42S02: Table 'mysql.ndb_index_stat_sample' doesn't exist
 SHOW WARNINGS;
 Level	Code	Message
 Error	1146	Table 'mysql.ndb_index_stat_sample' doesn't exist
+SHOW CREATE VIEW ndbinfo.index_stats;
+View	Create View	character_set_client	collation_connection
+index_stats	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`index_stats` AS select `ndbinfo`.`ndb$index_stats`.`index_id` AS `index_id`,`ndbinfo`.`ndb$index_stats`.`index_version` AS `index_version`,`ndbinfo`.`ndb$index_stats`.`sample_version` AS `sample_version`,`ndbinfo`.`ndb$index_stats`.`load_time` AS `load_time`,`ndbinfo`.`ndb$index_stats`.`sample_count` AS `sample_count` from `ndbinfo`.`ndb$index_stats`	utf8mb4	utf8mb4_0900_ai_ci
