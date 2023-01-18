@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,19 +29,19 @@ package com.mysql.clusterj;
  */
 public interface Constants {
 
-	/** The name of the environment variable to set the logger factory */
-	static final String ENV_CLUSTERJ_LOGGER_FACTORY_NAME = "CLUSTERJ_LOGGER_FACTORY";
+    /** The name of the environment variable to set the logger factory */
+    static final String ENV_CLUSTERJ_LOGGER_FACTORY_NAME = "CLUSTERJ_LOGGER_FACTORY";
 
-	/** The name of the connection service property */
+    /** The name of the connection service property */
     static final String PROPERTY_CLUSTER_CONNECTION_SERVICE = "com.mysql.clusterj.connection.service";
 
     /** The name of the connection string property. For details, see
-     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-constructor">Ndb_cluster_connection constructor</a>
+     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection.html#ndb-ndb-cluster-connection-constructor">Ndb_cluster_connection constructor</a>
      */
     static final String PROPERTY_CLUSTER_CONNECTSTRING = "com.mysql.clusterj.connectstring";
 
     /** The name of the initial timeout for cluster connection to connect to MGM before connecting to data nodes
-     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-set-timeout">Ndb_cluster_connection::set_timeout()</a>
+     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection.html#ndb-ndb-cluster-connection-set-timeout">Ndb_cluster_connection::set_timeout()</a>
      */
     static final String PROPERTY_CLUSTER_CONNECT_TIMEOUT_MGM = "com.mysql.clusterj.connect.timeout.mgm";
 
@@ -49,7 +49,7 @@ public interface Constants {
     static final int DEFAULT_PROPERTY_CLUSTER_CONNECT_TIMEOUT_MGM = 30000;
 
     /** The name of the connection retries property. For details, see
-     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-connect">Ndb_cluster_connection::connect()</a>
+     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection.html#ndb-ndb-cluster-connection-connect">Ndb_cluster_connection::connect()</a>
      */
     static final String PROPERTY_CLUSTER_CONNECT_RETRIES = "com.mysql.clusterj.connect.retries";
 
@@ -88,7 +88,7 @@ public interface Constants {
     static final int DEFAULT_PROPERTY_CONNECTION_RECONNECT_TIMEOUT = 0;
 
     /** The name of the connection delay property. For details, see
-     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-connect">Ndb_cluster_connection::connect()</a>
+     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection.html#ndb-ndb-cluster-connection-connect">Ndb_cluster_connection::connect()</a>
      */
     static final String PROPERTY_CLUSTER_CONNECT_DELAY = "com.mysql.clusterj.connect.delay";
 
@@ -117,7 +117,7 @@ public interface Constants {
     static final long DEFAULT_PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_START = 1;
 
     /** The name of the connection verbose property. For details, see
-     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-connect">Ndb_cluster_connection::connect()</a>
+     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection.html#ndb-ndb-cluster-connection-connect">Ndb_cluster_connection::connect()</a>
      */
     static final String PROPERTY_CLUSTER_CONNECT_VERBOSE = "com.mysql.clusterj.connect.verbose";
 
@@ -125,7 +125,7 @@ public interface Constants {
     static final int DEFAULT_PROPERTY_CLUSTER_CONNECT_VERBOSE = 0;
 
     /** The name of the connection timeout before property. For details, see
-     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-wait-until-ready">Ndb_cluster_connection::wait_until_ready()</a>
+     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection.html#ndb-ndb-cluster-connection-wait-until-ready">Ndb_cluster_connection::wait_until_ready()</a>
      */
     static final String PROPERTY_CLUSTER_CONNECT_TIMEOUT_BEFORE = "com.mysql.clusterj.connect.timeout.before";
 
@@ -133,7 +133,7 @@ public interface Constants {
     static final int DEFAULT_PROPERTY_CLUSTER_CONNECT_TIMEOUT_BEFORE = 30;
 
     /** The name of the connection timeout after property. For details, see
-     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-wait-until-ready">Ndb_cluster_connection::wait_until_ready()</a>
+     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection.html#ndb-ndb-cluster-connection-wait-until-ready">Ndb_cluster_connection::wait_until_ready()</a>
      */
     static final String PROPERTY_CLUSTER_CONNECT_TIMEOUT_AFTER = "com.mysql.clusterj.connect.timeout.after";
 
@@ -142,9 +142,11 @@ public interface Constants {
 
     /** The cpu binding of the receive threads for the connections in the
      * connection pool. The default is no cpu binding for receive threads.
-     * If this property is specified and connection pool size is not the
-     * default (1), the number of cpuids of the list must match the
-     * connection pool size.
+     * If this property is specified, the number of cpu ids in the list
+     * must be equal to :
+     * a) the connection pool size if the connection pooling is not disabled
+     *   (i.e. connection pool size > 0) (or)
+     * b) 1 if the connection pooling is disabled.
      */
     static final String PROPERTY_CONNECTION_POOL_RECV_THREAD_CPUIDS = "com.mysql.clusterj.connection.pool.recv.thread.cpuids";
 
@@ -157,7 +159,7 @@ public interface Constants {
     static final int DEFAULT_PROPERTY_CONNECTION_POOL_RECV_THREAD_ACTIVATION_THRESHOLD = 8;
 
     /** The name of the database property. For details, see the catalogName parameter in the Ndb constructor.
-     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-methods.html#ndb-ndb-constructor">Ndb constructor</a>
+     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb.html#ndb-ndb-constructor">Ndb constructor</a>
      */
     static final String PROPERTY_CLUSTER_DATABASE = "com.mysql.clusterj.database";
 
@@ -165,7 +167,7 @@ public interface Constants {
     static final String DEFAULT_PROPERTY_CLUSTER_DATABASE = "test";
 
     /** The name of the maximum number of transactions property. For details, see
-     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-methods.html#ndb-ndb-init">Ndb::init()</a>
+     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb.html#ndb-ndb-init">Ndb::init()</a>
      */
     static final String PROPERTY_CLUSTER_MAX_TRANSACTIONS = "com.mysql.clusterj.max.transactions";
 
