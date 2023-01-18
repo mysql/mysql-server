@@ -242,7 +242,7 @@ class SharedServer {
     proc.set_logging_path(mysqld_dir_name(), "mysqld.err");
     try {
       proc.wait_for_exit(90s);
-    } catch (const std::exception &e) {
+    } catch (const std::exception &) {
       process_manager().dump_logs();
 
       mysqld_failed_to_start_ = true;
