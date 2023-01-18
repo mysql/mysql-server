@@ -818,10 +818,12 @@ void EstimateAggregateCost(AccessPath *path, const Query_block *query_block,
         child, query_block, path->aggregate().rollup, trace));
   }
 
-  assert(path->num_output_rows() >= 0.0);
   path->init_cost = child->init_cost;
   path->init_once_cost = child->init_once_cost;
-  path->cost = child->cost + kAggregateOneRowCost * child->num_output_rows();
+
+  path->cost = child->cost +
+               kAggregateOneRowCost * std::max(0.0, child->num_output_rows());
+
   path->num_output_rows_before_filter = path->num_output_rows();
   path->cost_before_filter = path->cost;
   path->ordering_state = child->ordering_state;
