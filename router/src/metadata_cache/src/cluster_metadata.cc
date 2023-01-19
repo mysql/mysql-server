@@ -38,6 +38,7 @@
 
 #include "dim.h"
 #include "group_replication_metadata.h"
+#include "log_suppressor.h"
 #include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/utility/string.h"  // string_format
@@ -50,6 +51,7 @@
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
 #include "tcp_address.h"
 
+using metadata_cache::LogSuppressor;
 using mysql_harness::EventStateTracker;
 using mysql_harness::logging::LogLevel;
 using mysqlrouter::ClusterType;
@@ -445,63 +447,6 @@ ClusterMetadata::find_rw_server(
   return {};
 }
 
-// helper class - helps to log the warning about the instance only when the
-// warning condition changes
-struct LogSuppressor {
-  static LogSuppressor &instance() {
-    static LogSuppressor instance_;
-    return instance_;
-  }
-
-  std::string get_warning_hidden(const std::string &instance_uuid) const {
-    if (warnings_.count(instance_uuid) == 0) {
-      return "";
-    }
-
-    return warnings_.at(instance_uuid).warning_hidden;
-  }
-
-  void set_warning_hidden(const std::string &instance_uuid,
-                          const std::string &warning) {
-    warnings_[instance_uuid].warning_hidden = warning;
-  }
-
-  std::string get_warning_disconnect_existing_sessions_when_hidden(
-      const std::string &instance_uuid) {
-    if (warnings_.count(instance_uuid) == 0) {
-      return "";
-    }
-
-    return warnings_.at(instance_uuid)
-        .warning_disconnect_existing_sessions_when_hidden;
-  }
-
-  void set_warning_disconnect_existing_sessions_when_hidden(
-      const std::string &instance_uuid, const std::string &warning) {
-    warnings_[instance_uuid].warning_disconnect_existing_sessions_when_hidden =
-        warning;
-  }
-
- private:
-  struct instance_warnings {
-    /* warning about the incorrect JSON for _hidden in the metadata from the
-     * last query */
-    std::string warning_hidden;
-
-    /* last warning about the incorrect JSON for
-     * _disconnect_existing_sessions_when_hidden from the last query */
-    std::string warning_disconnect_existing_sessions_when_hidden;
-  };
-
-  // the key in the map is the instance_id
-  std::map<std::string, instance_warnings> warnings_;
-
-  // singleton
-  LogSuppressor() = default;
-  LogSuppressor(const LogSuppressor &) = delete;
-  LogSuppressor &operator=(const LogSuppressor &) = delete;
-};
-
 void set_instance_attributes(metadata_cache::ManagedInstance &instance,
                              const std::string &attributes) {
   std::string warning;
@@ -512,35 +457,28 @@ void set_instance_attributes(metadata_cache::ManagedInstance &instance,
   instance.hidden =
       mysqlrouter::InstanceAttributes::get_hidden(attributes, warning);
   // we want to log the warning only when it's changing
-  if (warning !=
-      log_suppressor.get_warning_hidden(instance.mysql_server_uuid)) {
-    if (!warning.empty()) {
-      log_warning("Error parsing _hidden from attributes JSON string: %s",
-                  warning.c_str());
-    } else {
-      log_warning("Successfully parsed _hidden from attributes JSON string");
-    }
-    log_suppressor.set_warning_hidden(instance.mysql_server_uuid, warning);
-  }
+  const std::string message =
+      warning.empty()
+          ? "Successfully parsed _hidden from attributes JSON string"
+          : "Error parsing _hidden from attributes JSON string: " + warning;
+
+  log_suppressor.log_message(LogSuppressor::MessageId::kHidden,
+                             instance.mysql_server_uuid, message,
+                             !warning.empty());
 
   instance.disconnect_existing_sessions_when_hidden =
       mysqlrouter::InstanceAttributes::
           get_disconnect_existing_sessions_when_hidden(attributes, warning);
   // we want to log the warning only when it's changing
-  if (warning !=
-      log_suppressor.get_warning_disconnect_existing_sessions_when_hidden(
-          instance.mysql_server_uuid)) {
-    if (!warning.empty()) {
-      log_warning(
-          "Error parsing _disconnect_existing_sessions_when_hidden from "
-          "attributes JSON string: %s",
-          warning.c_str());
-    } else {
-      log_warning(
-          "Successfully parsed _disconnect_existing_sessions_when_hidden from "
-          "attributes JSON string");
-    }
-    log_suppressor.set_warning_disconnect_existing_sessions_when_hidden(
-        instance.mysql_server_uuid, warning);
-  }
+  const std::string message2 =
+      warning.empty()
+          ? "Successfully parsed _disconnect_existing_sessions_when_hidden "
+            "from attributes JSON string"
+          : "Error parsing _disconnect_existing_sessions_when_hidden from "
+            "attributes JSON string: " +
+                warning;
+
+  log_suppressor.log_message(
+      LogSuppressor::MessageId::kDisconnectExistingSessionsWhenHidden,
+      instance.mysql_server_uuid, message2, !warning.empty());
 }

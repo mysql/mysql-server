@@ -34,6 +34,7 @@ ADD_LIBRARY(metadata_cache
   cache_api.cc
   group_replication_metadata.cc
   gr_notifications_listener.cc
+  log_suppressor.cc
   router_cs_options.cc
 )
 TARGET_LINK_LIBRARIES(metadata_cache
