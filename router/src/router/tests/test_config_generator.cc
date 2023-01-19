@@ -265,6 +265,14 @@ static void common_pass_schema_version(MySQLSessionReplayer *m) {
                       m->string_or_null("3")}});
 }
 
+static void common_pass_current_instance_attributes(MySQLSessionReplayer *m) {
+  m->expect_query_one(
+      "select i.attributes from mysql_innodb_cluster_metadata.v2_this_instance "
+      "ti left join mysql_innodb_cluster_metadata.v2_instances i "
+      "on ti.instance_id = i.instance_id");
+  m->then_return(1, {{""}});
+}
+
 static void common_pass_cluster_type(MySQLSessionReplayer *m) {
   m->expect_query_one(
       "select cluster_type from "
@@ -317,6 +325,7 @@ static void common_pass_metadata_checks(MySQLSessionReplayer *m) {
   common_pass_setup_session(m);
   common_pass_schema_version(m);
   common_pass_cluster_type(m);
+  common_pass_current_instance_attributes(m);
   common_pass_metadata_supported(m);
   common_pass_group_replication_online(m);
   common_pass_group_has_quorum(m);
@@ -331,9 +340,9 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
     config_gen.init(kServerUrl, {});
 
     mock_mysql->expect_query("").then_return(
-        4, {{"91d01072-63cd-11ec-9a29-080027ac264d",
+        5, {{"91d01072-63cd-11ec-9a29-080027ac264d",
              "00d01072-63cd-11ec-9a29-080027ac264d", "my-cluster",
-             "somehost:3306"}});
+             "somehost:3306", ""}});
 
     const auto cluster_info = config_gen.metadata()->fetch_metadata_servers();
 
@@ -348,9 +357,9 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
     config_gen.init(kServerUrl, {});
 
     mock_mysql->expect_query("").then_return(
-        4, {{"91d01072-63cd-11ec-9a29-080027ac264d",
+        5, {{"91d01072-63cd-11ec-9a29-080027ac264d",
              "00d01072-63cd-11ec-9a29-080027ac264d", "my-cluster",
-             "somehost:3306"}});
+             "somehost:3306", ""}});
 
     const auto cluster_info = config_gen.metadata()->fetch_metadata_servers();
 
@@ -366,15 +375,15 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_three) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
 
-    // select c.cluster_id, c.group_name as uuid, c.cluster_name, i.address from
-    // mysql_innodb_cluster_metadata.v2_instances...
+    // select c.cluster_id, c.group_name as uuid, c.cluster_name, i.address,
+    // i.attributes from mysql_innodb_cluster_metadata.v2_instances...
     mock_mysql->expect_query("").then_return(
-        4, {{"91d0107263cd11ec9a29080027ac264d", "replication-1", "my-cluster",
-             "somehost:3306"},
+        5, {{"91d0107263cd11ec9a29080027ac264d", "replication-1", "my-cluster",
+             "somehost:3306", ""},
             {"91d0107263cd11ec9a29080027ac264d", "replication-1", "my-cluster",
-             "otherhost:3306"},
+             "otherhost:3306", ""},
             {"91d0107263cd11ec9a29080027ac264d", "replication-1", "my-cluster",
-             "sumhost:3306"}});
+             "sumhost:3306", ""}});
 
     const auto cluster_info = config_gen.metadata()->fetch_metadata_servers();
 
@@ -391,7 +400,7 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_invalid) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
 
-    mock_mysql->expect_query("").then_return(3, {});
+    mock_mysql->expect_query("").then_return(5, {});
     // no replicasets/clusters defined
     ASSERT_THROW(config_gen.metadata()->fetch_metadata_servers(),
                  std::runtime_error);
@@ -420,6 +429,7 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
     common_pass_setup_session(mock_mysql.get());
     common_pass_schema_version(mock_mysql.get());
     common_pass_cluster_type(mock_mysql.get());
+    common_pass_current_instance_attributes(mock_mysql.get());
     // invalid number of values returned from query for metadata support
     mock_mysql->expect_query_one(
         "select count(*) from "
@@ -441,6 +451,7 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
     common_pass_setup_session(mock_mysql.get());
     common_pass_schema_version(mock_mysql.get());
     common_pass_cluster_type(mock_mysql.get());
+    common_pass_current_instance_attributes(mock_mysql.get());
     common_pass_metadata_supported(mock_mysql.get());
 
     mock_mysql->expect_query_one(
@@ -462,6 +473,7 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
     common_pass_setup_session(mock_mysql.get());
     common_pass_schema_version(mock_mysql.get());
     common_pass_cluster_type(mock_mysql.get());
+    common_pass_current_instance_attributes(mock_mysql.get());
     common_pass_metadata_supported(mock_mysql.get());
     common_pass_group_replication_online(mock_mysql.get());
 
@@ -2516,8 +2528,9 @@ static void expect_bootstrap_queries(
     const std::vector<query_entry_t> &expected_queries =
         expected_bootstrap_queries) {
   m->expect_query("").then_return(
-      4, {{"91d0107263cd11ec9a29080027ac264d", "replication-1", cluster_name,
-           "somehost:3306"}});
+      5, {{"91d0107263cd11ec9a29080027ac264d", "replication-1", cluster_name,
+           "somehost:3306", ""}});
+
   for (const auto &query : expected_queries) {
     switch (query.action) {
       case ACTION_EXECUTE:
@@ -2631,8 +2644,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("select c.cluster_id")
-        .then_return(4, {{"91d0107263cd11ec9a29080027ac264d", "replication-1",
-                          "my-cluster", "somehost:3306"}});
+        .then_return(5, {{"91d0107263cd11ec9a29080027ac264d", "replication-1",
+                          "my-cluster", "somehost:3306", ""}});
     common_pass_group_name(mock_mysql.get());
     mock_mysql->expect_execute("START TRANSACTION").then_error("boo!", 1234);
 
@@ -2674,7 +2687,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
         4, {{"91d0107263cd11ec9a29080027ac264d", "replication-1", "my-cluster",
-             "somehost:3306"}});
+             "somehost:3306", ""}});
     common_pass_group_name(mock_mysql.get());
     // force a failure during account creation
     mock_mysql->expect_execute("").then_error("boo!", 1234);
@@ -2697,9 +2710,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
-        4, {{"91d0107263cd11ec9a29080027ac264d", "replication-1", "mycluter",
-             "somehost:3306"}});
-
+        5, {{"91d0107263cd11ec9a29080027ac264d", "replication-1", "mycluter",
+             "somehost:3306", ""}});
     std::map<std::string, std::string> options2 = options;
     options2["name"] = "force\nfailure";
 
@@ -2726,8 +2738,8 @@ TEST_F(ConfigGeneratorTest, bug25391460) {
     expect_bootstrap_queries(mock_mysql.get(), "my-cluster");
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
-        4, {{"91d0107263cd11ec9a29080027ac264d", "replication-1", "my-cluster",
-             "somehost:3306"}});
+        5, {{"91d0107263cd11ec9a29080027ac264d", "replication-1", "my-cluster",
+             "somehost:3306", ""}});
 
     std::map<std::string, std::string> options;
     options["quiet"] = "1";
@@ -2784,8 +2796,8 @@ static void bootstrap_overwrite_test(
     expect_bootstrap_queries(mock_mysql, cluster_name);
   else
     mock_mysql->expect_query("").then_return(
-        4, {{"91d0107263cd11ec9a29080027ac264d", "replication-1", cluster_name,
-             "somehost:3306"}});
+        5, {{"91d0107263cd11ec9a29080027ac264d", "replication-1", cluster_name,
+             "somehost:3306", ""}});
 
   std::map<std::string, std::string> options;
   options["name"] = name;
@@ -3390,6 +3402,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage3_create_config) {
   common_pass_setup_session(mock_mysql.get());
   common_pass_schema_version(mock_mysql.get());
   common_pass_cluster_type(mock_mysql.get());
+  common_pass_current_instance_attributes(mock_mysql.get());
   common_pass_metadata_supported(mock_mysql.get());
   common_pass_group_replication_online(mock_mysql.get());
   common_pass_group_has_quorum(mock_mysql.get());

@@ -147,7 +147,7 @@ TEST_P(ClusterSetBootstrapTargetClusterTest, ClusterSetBootstrapTargetCluster) {
   // check the state file that was produced
   // [@FR12]
   check_state_file(state_file_path, ClusterType::GR_CS, clusterset_data_.uuid,
-                   clusterset_data_.get_all_nodes_classic_ports(), view_id);
+                   clusterset_data_.get_md_servers_classic_ports(), view_id);
 
   const std::string config_file_str = get_file_output(conf_file_path);
 
@@ -488,7 +488,7 @@ TEST_P(ClusterSetConfUseGrNotificationParamTest,
   // check the state file that was produced
   // [@FR12]
   check_state_file(state_file_path, ClusterType::GR_CS, clusterset_data_.uuid,
-                   clusterset_data_.get_all_nodes_classic_ports(), view_id);
+                   clusterset_data_.get_md_servers_classic_ports(), view_id);
 
   // check if the expected config options were added to the configuration file
   const auto conf_file_content =
@@ -727,7 +727,7 @@ TEST_P(ClusterSetBootstrapClusterNotFoundErrorTest,
   const unsigned bootstrap_node_id = GetParam().bootstrap_node_id;
 
   create_clusterset(view_id, 0, /*primary_cluster_id*/ 0,
-                    "bootstrap_clusterset.js", "", "",
+                    "bootstrap_clusterset.js", "", "", "",
                     /*simulate_cluster_not_found*/ true);
 
   std::vector<std::string> bootsrtap_params{
@@ -993,6 +993,66 @@ TEST_F(RouterClusterSetBootstrapTest, PrimaryClusterQueriedFirst) {
                 get_session_init_count(cluster.nodes[node_id].http_port));
     }
   }
+}
+
+/**
+ * @test
+ *       verify that bootstrapping using Read Replica address fails and proper
+ * error message is printed
+ */
+TEST_F(RouterClusterSetBootstrapTest, FailToBootstrapFromReadReplica) {
+  const std::vector<size_t> read_replicas_per_cluster{1, 0, 0};
+  create_clusterset(view_id, /*target_cluster_id*/ 0,
+                    /*primary_cluster_id*/ 0, "bootstrap_clusterset.js", "", "",
+                    ".*", false, false, read_replicas_per_cluster);
+
+  const auto &read_replica_node =
+      clusterset_data_.clusters[0]
+          .nodes[clusterset_data_.clusters[0].nodes.size() - 1];
+  std::vector<std::string> bootstrap_params = {
+      "--bootstrap=127.0.0.1:" + std::to_string(read_replica_node.classic_port),
+      "-d", bootstrap_directory.name()};
+
+  auto &router = launch_router_for_bootstrap(bootstrap_params, EXIT_FAILURE);
+
+  EXPECT_NO_THROW(router.wait_for_exit());
+  EXPECT_THAT(
+      router.get_full_output(),
+      ::testing::HasSubstr("Error: Bootstrapping using the Read Replica "
+                           "Instance address is not supported"));
+
+  check_exit_code(router, EXIT_FAILURE);
+}
+
+/**
+ * @test
+ *       verify that Rad Replicas are not added to the state file as metadata
+ * servers during bootstrap
+ */
+TEST_F(RouterClusterSetBootstrapTest, BootstrapWithReadReaplicas) {
+  // let's configure the ClusterSet so that each of 3 clusters has 1 Read
+  // Replica
+  const std::vector<size_t> read_replicas_per_cluster{1, 1, 1};
+  create_clusterset(view_id, /*target_cluster_id*/ 0,
+                    /*primary_cluster_id*/ 0, "bootstrap_clusterset.js", "", "",
+                    ".*", false, false, read_replicas_per_cluster);
+
+  std::vector<std::string> bootstrap_params = {
+      "--bootstrap=127.0.0.1:" +
+          std::to_string(clusterset_data_.clusters[0].nodes[0].classic_port),
+      "-d", bootstrap_directory.name()};
+
+  auto &router = launch_router_for_bootstrap(bootstrap_params, EXIT_SUCCESS);
+
+  check_exit_code(router, EXIT_SUCCESS);
+
+  const std::string state_file_path =
+      bootstrap_directory.name() + "/data/state.json";
+
+  // the Read Replicas should not get written to the state file as metadata
+  // servers
+  check_state_file(state_file_path, ClusterType::GR_CS, clusterset_data_.uuid,
+                   clusterset_data_.get_md_servers_classic_ports(), view_id);
 }
 
 int main(int argc, char *argv[]) {

@@ -22,8 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef METADATA_CACHE_ROUTER_CS_OPTIONS_INCLUDED
-#define METADATA_CACHE_ROUTER_CS_OPTIONS_INCLUDED
+#ifndef METADATA_CACHE_ROUTER_OPTIONS_INCLUDED
+#define METADATA_CACHE_ROUTER_OPTIONS_INCLUDED
 
 #include "cluster_metadata.h"
 
@@ -68,23 +68,43 @@ class RouterClusterSetOptions {
    */
   bool get_use_replica_primary_as_rw() const;
 
- private:
-  std::string get_router_option_str(const std::string &options,
-                                    const std::string &name,
-                                    const std::string &default_value,
-                                    std::string &out_error) const;
-
-  uint32_t get_router_option_uint(const std::string &options,
-                                  const std::string &name,
-                                  const uint32_t &default_value,
-                                  std::string &out_error) const;
-
-  uint32_t get_router_option_bool(const std::string &options,
-                                  const std::string &name,
-                                  const bool &default_value,
-                                  std::string &out_error) const;
-
   std::string options_str_;
 };
 
-#endif  // METADATA_CACHE_ROUTER_CS_OPTIONS_INCLUDED
+enum class ReadReplicasMode { append, replace, ignore };
+static const ReadReplicasMode kDefaultReadReplicasMode =
+    ReadReplicasMode::ignore;
+
+std::string to_string(const ReadReplicasMode mode);
+
+/** @class RouterOptions
+ *
+ * @brief Represents the Router options in v2_routers view in the metadata
+ * schema
+ */
+class RouterOptions {
+ public:
+  RouterOptions(mysqlrouter::MetadataSchemaVersion schema_version)
+      : schema_version_(std::move(schema_version)) {}
+
+  /** @brief Pupulate the object by reading the options from the metadata
+   *
+   * @param session mysql server session to read metadata with
+   * @param router_id id of the Router in the metadata
+   *
+   * @returns true if successful, false otherwise
+   */
+  bool read_from_metadata(mysqlrouter::MySQLSession &session,
+                          const unsigned router_id);
+
+  /** @brief Get the Read Replicas mode assigned to a given Router in the
+   * metadata
+   */
+  ReadReplicasMode get_read_replicas_mode() const;
+
+ private:
+  std::string options_str_;
+  mysqlrouter::MetadataSchemaVersion schema_version_;
+};
+
+#endif  // METADATA_CACHE_ROUTER_OPTIONS_INCLUDED

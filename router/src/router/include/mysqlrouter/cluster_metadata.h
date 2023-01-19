@@ -27,6 +27,7 @@
 
 #include "mysqlrouter/router_export.h"
 
+#include <optional>
 #include <stdexcept>
 #include <string>
 
@@ -192,5 +193,11 @@ constexpr const bool kNodeTagHiddenDefault{false};
 constexpr const bool kNodeTagDisconnectWhenHiddenDefault{true};
 
 enum class InstanceType { GroupMember, AsyncMember, ReadReplica, Unsupported };
+
+std::optional<InstanceType> ROUTER_LIB_EXPORT
+str_to_instance_type(const std::string &);
+
+std::string ROUTER_LIB_EXPORT to_string(const InstanceType);
+
 }  // namespace mysqlrouter
 #endif

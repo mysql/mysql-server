@@ -148,6 +148,11 @@ class FailoverTest : public ::testing::Test {
           m.string_or_null("localhost:3002"),
           m.string_or_null("localhost:30020")}});
 
+    m.expect_query_one(
+        "SELECT options FROM mysql_innodb_cluster_metadata.v2_routers WHERE "
+        "router_id = 1");
+    m.then_return(1, {{m.string_or_null("{}")}});
+
     m.expect_execute("COMMIT");
     m.then_ok();
   }

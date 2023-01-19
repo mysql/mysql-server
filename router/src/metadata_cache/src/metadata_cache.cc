@@ -381,11 +381,11 @@ void MetadataCache::on_refresh_failed(bool terminated,
       if (clearing) cluster_topology_.clear_all_members();
     }
     if (clearing) {
+      on_instances_changed(md_servers_reachable, {}, {});
       const auto log_level =
           refresh_state_changed ? LogLevel::kInfo : LogLevel::kDebug;
       log_custom(log_level,
                  "... cleared current routing table as a precaution");
-      on_instances_changed(md_servers_reachable, {}, {});
     }
   }
 }

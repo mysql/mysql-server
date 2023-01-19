@@ -131,6 +131,10 @@ const std::string query_status =
     "FROM performance_schema.replication_group_members "
     "WHERE channel_name = 'group_replication_applier'";
 
+const std::string query_router_options =
+    "SELECT options FROM mysql_innodb_cluster_metadata.v2_routers WHERE "
+    "router_id = 0";
+
 const std::string setup_session1 =
     "SET @@SESSION.autocommit=1, @@SESSION.character_set_client=utf8, "
     "@@SESSION.character_set_results=utf8, "
@@ -402,7 +406,6 @@ class MetadataTest : public ::testing::Test {
   // set instances that would be returned by successful
   // metadata.fetch_instances_from_metadata_server() for a healthy 3-node setup.
   // Only some tests need this variable.
-
   const ManagedCluster typical_cluster{
       "cluster-id",
       "cluster-name",
@@ -1650,8 +1653,8 @@ TEST_F(MetadataTest, UpdateClusterStatus_PrimaryMember_FailConnectOnNode2) {
 
   // since 1st query_primary_member failed, update_cluster_status_from_gr()
   // should try to connect to instance-2. Let's make that new connections fail
-  // by NOT using enable_connection(session)
-  // enable_connection(++session, 3320); // we don't call this on purpose
+  // by NOT using enable_connection(session) enable_connection(++session, 3320);
+  // we don't call this on purpose
   EXPECT_CALL(session_factory.get(++session), flag_fail(_, 3320)).Times(1);
 
   // Next
@@ -2172,6 +2175,11 @@ TEST_F(MetadataTest, FetchInstances_ok) {
               query(StartsWith(query_metadata), _, _))
       .Times(1)
       .WillOnce(Invoke(resultset_metadata));
+  EXPECT_CALL(session_factory.get(session),
+              query_one(StartsWith(query_router_options), _))
+      .Times(1)
+      .WillOnce(Return(ByMove(
+          std::make_unique<MySQLSession::ResultRow>(MySQLSession::Row{"{}"}))));
   EXPECT_CALL(session_factory.get(session), execute(StartsWith(execute_commit)))
       .Times(1);
   EXPECT_CALL(session_factory.get(session),
@@ -2265,7 +2273,11 @@ TEST_F(MetadataTest, FetchInstances_fail) {
               query(StartsWith(query_metadata), _, _))
       .Times(1)
       .WillOnce(Invoke(resultset_metadata));
-
+  EXPECT_CALL(session_factory.get(session),
+              query_one(StartsWith(query_router_options), _))
+      .Times(1)
+      .WillOnce(Return(ByMove(
+          std::make_unique<MySQLSession::ResultRow>(MySQLSession::Row{"{}"}))));
   // fail query_primary_member, then further connections
   EXPECT_CALL(session_factory.get(session),
               query(StartsWith(query_primary_member), _, _))

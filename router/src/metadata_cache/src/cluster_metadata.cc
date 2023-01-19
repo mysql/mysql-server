@@ -449,36 +449,68 @@ ClusterMetadata::find_rw_server(
 
 void set_instance_attributes(metadata_cache::ManagedInstance &instance,
                              const std::string &attributes) {
-  std::string warning;
   auto &log_suppressor = LogSuppressor::instance();
 
   instance.attributes = attributes;
 
-  instance.hidden =
-      mysqlrouter::InstanceAttributes::get_hidden(attributes, warning);
+  const auto default_instance_type = instance.type;
+  const auto type_attr = mysqlrouter::InstanceAttributes::get_instance_type(
+      attributes, default_instance_type);
+
+  if (type_attr) {
+    instance.type = type_attr.value();
+  }
+
   // we want to log the warning only when it's changing
   const std::string message =
-      warning.empty()
-          ? "Successfully parsed _hidden from attributes JSON string"
-          : "Error parsing _hidden from attributes JSON string: " + warning;
+      type_attr
+          ? "Successfully parsed instance_type from attributes JSON string"
+          : "Error parsing instance_type from attributes JSON string: " +
+                type_attr.error();
 
-  log_suppressor.log_message(LogSuppressor::MessageId::kHidden,
-                             instance.mysql_server_uuid, message,
-                             !warning.empty());
+  log_suppressor.log_message(LogSuppressor::MessageId::kInstanceType,
+                             instance.mysql_server_uuid, message, !type_attr);
 
-  instance.disconnect_existing_sessions_when_hidden =
-      mysqlrouter::InstanceAttributes::
-          get_disconnect_existing_sessions_when_hidden(attributes, warning);
+  if (instance.type == mysqlrouter::InstanceType::ReadReplica) {
+    instance.mode = metadata_cache::ServerMode::ReadOnly;
+  }
+
+  const auto hidden_attr = mysqlrouter::InstanceAttributes::get_hidden(
+      attributes, mysqlrouter::kNodeTagHiddenDefault);
+
+  instance.hidden =
+      hidden_attr ? hidden_attr.value() : mysqlrouter::kNodeTagHiddenDefault;
+
   // we want to log the warning only when it's changing
   const std::string message2 =
-      warning.empty()
+      hidden_attr ? "Successfully parsed _hidden from attributes JSON string"
+                  : "Error parsing _hidden from attributes JSON string: " +
+                        hidden_attr.error();
+
+  log_suppressor.log_message(LogSuppressor::MessageId::kHidden,
+                             instance.mysql_server_uuid, message2,
+                             !hidden_attr);
+
+  const auto disconnect_existing_sessions_when_hidden_attr = mysqlrouter::
+      InstanceAttributes::get_disconnect_existing_sessions_when_hidden(
+          attributes, mysqlrouter::kNodeTagDisconnectWhenHiddenDefault);
+
+  instance.disconnect_existing_sessions_when_hidden =
+      disconnect_existing_sessions_when_hidden_attr
+          ? disconnect_existing_sessions_when_hidden_attr.value()
+          : mysqlrouter::kNodeTagDisconnectWhenHiddenDefault;
+
+  // we want to log the warning only when it's changing
+  const std::string message3 =
+      disconnect_existing_sessions_when_hidden_attr
           ? "Successfully parsed _disconnect_existing_sessions_when_hidden "
             "from attributes JSON string"
           : "Error parsing _disconnect_existing_sessions_when_hidden from "
             "attributes JSON string: " +
-                warning;
+                disconnect_existing_sessions_when_hidden_attr.error();
 
   log_suppressor.log_message(
       LogSuppressor::MessageId::kDisconnectExistingSessionsWhenHidden,
-      instance.mysql_server_uuid, message2, !warning.empty());
+      instance.mysql_server_uuid, message3,
+      !disconnect_existing_sessions_when_hidden_attr);
 }

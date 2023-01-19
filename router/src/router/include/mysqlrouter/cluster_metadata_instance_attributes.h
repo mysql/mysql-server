@@ -35,11 +35,16 @@
 namespace mysqlrouter {
 
 struct InstanceAttributes {
-  static bool ROUTER_LIB_EXPORT get_hidden(const std::string &attributes,
-                                           std::string &out_warning);
+  static stdx::expected<InstanceType, std::string> ROUTER_LIB_EXPORT
+  get_instance_type(const std::string &attributes,
+                    const mysqlrouter::InstanceType default_instance_type);
 
-  static bool ROUTER_LIB_EXPORT get_disconnect_existing_sessions_when_hidden(
-      const std::string &attributes, std::string &out_warning);
+  static stdx::expected<bool, std::string> ROUTER_LIB_EXPORT
+  get_hidden(const std::string &attributes, bool default_res);
+
+  static stdx::expected<bool, std::string> ROUTER_LIB_EXPORT
+  get_disconnect_existing_sessions_when_hidden(const std::string &attributes,
+                                               bool default_res);
 };
 
 }  // namespace mysqlrouter

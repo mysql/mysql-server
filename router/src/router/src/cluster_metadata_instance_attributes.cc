@@ -46,31 +46,63 @@ using mysqlrouter::InstanceType;
 namespace {
 
 /**
- * @brief Returns value fo the bool tag set in the attributes
+ * @brief Returns value for the string field set in the attributes
  *
  * @param attributes    string containing JSON with the attributes
- * @param name          name of the tag to be fetched
- * @param default_value value to be returned if the given tag is missing or
- * invalid or if the JSON string is invalid
- * @param[out] out_warning  output parameter where the function sets the
- * descriptive warning in case there was a JSON parsing error
+ * @param name          name of the field to be fetched
  *
- * @note the function always sets out_warning to "" at the beginning
- *
- * @return value of the bool tag
+ * @retval value of the attribute JSON field as string
+ * @retval std::nullptr if the given field is missing
+ * @retval error message if reading attribute from JSON failed.
  */
-bool get_bool_tag(const std::string_view &attributes,
-                  const std::string_view &name, bool default_value,
-                  std::string &out_warning) {
-  out_warning = "";
+stdx::expected<std::optional<std::string>, std::string> get_string_attribute(
+    const std::string_view &attributes, const std::string_view &name) {
+  if (attributes.empty()) return std::nullopt;
+
+  rapidjson::Document json_doc;
+  json_doc.Parse(attributes.data(), attributes.size());
+
+  if (!json_doc.IsObject()) {
+    return stdx::make_unexpected("not a valid JSON object");
+  }
+
+  const auto it =
+      json_doc.FindMember(rapidjson::Value{name.data(), name.size()});
+
+  if (it == json_doc.MemberEnd()) {
+    return std::nullopt;
+  }
+
+  if (!it->value.IsString()) {
+    return stdx::make_unexpected("attributes." + std::string(name) +
+                                 " not a string");
+  }
+
+  return it->value.GetString();
+}
+
+/**
+ * @brief Returns value for the boolean field set in the attributes
+ *
+ * @param attributes    string containing JSON with the attributes
+ * @param name          name of the field to be fetched
+ * @param default_value value to be returned in case the given attribute is not
+ *                      present in the JSON
+ *
+ * @retval value of the attribute JSON field as boolean
+ * @retval std::nullptr if the given field is missing
+ * @retval error message if reading attribute from JSON failed.
+ */
+stdx::expected<bool, std::string> get_bool_tag(
+    const std::string_view &attributes, const std::string_view &name,
+    bool default_value) {
   if (attributes.empty()) return default_value;
 
   rapidjson::Document json_doc;
   json_doc.Parse(attributes.data(), attributes.size());
 
   if (!json_doc.IsObject()) {
-    out_warning = "not a valid JSON object";
-    return default_value;
+    return stdx::make_unexpected("not a valid JSON object");
   }
 
   const auto tags_it = json_doc.FindMember("tags");
@@ -79,8 +111,7 @@ bool get_bool_tag(const std::string_view &attributes,
   }
 
   if (!tags_it->value.IsObject()) {
-    out_warning = "tags - not a valid JSON object";
-    return default_value;
+    return stdx::make_unexpected("tags - not a valid JSON object");
   }
 
   const auto tags = tags_it->value.GetObject();
@@ -92,8 +123,8 @@ bool get_bool_tag(const std::string_view &attributes,
   }
 
   if (!it->value.IsBool()) {
-    out_warning = "tags." + std::string(name) + " not a boolean";
-    return default_value;
+    return stdx::make_unexpected("tags." + std::string(name) +
+                                 " not a boolean");
   }
 
   return it->value.GetBool();
@@ -103,17 +134,37 @@ bool get_bool_tag(const std::string_view &attributes,
 
 namespace mysqlrouter {
 
-bool InstanceAttributes::get_hidden(const std::string &attributes,
-                                    std::string &out_warning) {
-  return get_bool_tag(attributes, mysqlrouter::kNodeTagHidden,
-                      mysqlrouter::kNodeTagHiddenDefault, out_warning);
+stdx::expected<InstanceType, std::string> InstanceAttributes::get_instance_type(
+    const std::string &attributes,
+    const mysqlrouter::InstanceType default_instance_type) {
+  const auto type_attr = get_string_attribute(attributes, "instance_type");
+  if (!type_attr) {
+    return stdx::make_unexpected(type_attr.error());
+  }
+
+  if (!type_attr.value()) {
+    return default_instance_type;
+  }
+
+  auto result = mysqlrouter::str_to_instance_type(*type_attr.value());
+  if (!result) {
+    return stdx::make_unexpected("Unknown attributes.instance_type value: '" +
+                                 *type_attr.value() + "'");
+  }
+
+  return *result;
 }
 
-bool InstanceAttributes::get_disconnect_existing_sessions_when_hidden(
-    const std::string &attributes, std::string &out_warning) {
+stdx::expected<bool, std::string> InstanceAttributes::get_hidden(
+    const std::string &attributes, bool default_res) {
+  return get_bool_tag(attributes, mysqlrouter::kNodeTagHidden, default_res);
+}
+
+stdx::expected<bool, std::string>
+InstanceAttributes::get_disconnect_existing_sessions_when_hidden(
+    const std::string &attributes, bool default_res) {
   return get_bool_tag(attributes, mysqlrouter::kNodeTagDisconnectWhenHidden,
-                      mysqlrouter::kNodeTagDisconnectWhenHiddenDefault,
-                      out_warning);
+                      default_res);
 }
 
 }  // namespace mysqlrouter

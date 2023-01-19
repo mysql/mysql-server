@@ -414,6 +414,15 @@
 
 IMPORT_LOG_FUNCTIONS()
 
+namespace {
+std::string get_read_replica_info(
+    const metadata_cache::ManagedInstance &instance) {
+  return instance.type == mysqlrouter::InstanceType::ReadReplica
+             ? "Read Replica"
+             : "";
+}
+}  // namespace
+
 bool GRMetadataCache::refresh(bool needs_writable_node) {
   bool changed{false};
   uint64_t view_id{0};
@@ -476,9 +485,10 @@ bool GRMetadataCache::refresh(bool needs_writable_node) {
             cluster.name.c_str(), cluster.members.size(),
             cluster.single_primary_mode ? "single-primary" : "multi-primary");
         for (const auto &mi : cluster.members) {
-          log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
+          log_info("    %s:%i / %i - mode=%s %s %s", mi.host.c_str(), mi.port,
                    mi.xport, to_string(mi.mode).c_str(),
-                   get_hidden_info(mi).c_str());
+                   get_hidden_info(mi).c_str(),
+                   get_read_replica_info(mi).c_str());
         }
       }
     }

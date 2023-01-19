@@ -1,13 +1,3 @@
-/**
- * run 1 node on the current host
- *
- * - 1 PRIMARY
- *
- * via HTTP interface
- *
- * - md_query_count
- */
-
 var common_stmts = require("common_statements");
 var gr_memberships = require("gr_memberships");
 
@@ -15,9 +5,8 @@ if (mysqld.global.gr_node_host === undefined) {
   mysqld.global.gr_node_host = "127.0.0.1";
 }
 
-
 if (mysqld.global.gr_id === undefined) {
-  mysqld.global.gr_id = "uuid";
+  mysqld.global.gr_id = "00-000";
 }
 
 if (mysqld.global.gr_nodes === undefined) {
@@ -56,16 +45,43 @@ if (mysqld.global.cluster_type === undefined) {
   mysqld.global.cluster_type = "gr";
 }
 
-if (mysqld.global.cluster_name === undefined) {
-  mysqld.global.cluster_name = "test";
+if (mysqld.global.innodb_cluster_name === undefined) {
+  mysqld.global.innodb_cluster_name = "test";
 }
 
-if (mysqld.global.gr_pos === undefined) {
-  mysqld.global.gr_pos = 0;
-}
+var gr_nodes = function(host, port_and_state) {
+  return port_and_state.map(function(current_value) {
+    return [
+      current_value[0],  // uuid
+      host,
+      current_value[0],  // classic port
+      current_value[1],  // status
+      current_value[2],  // x port
+    ];
+  });
+};
+
+var cluster_nodes = function(host, port_and_state) {
+  return port_and_state.map(function(current_value) {
+    return [
+      current_value[0],  // uuid
+      host,
+      current_value[0],  // classic port
+      current_value[1],  // x port
+      current_value[2],  // attributes
+    ];
+  });
+};
 
 var members = gr_memberships.gr_members(
     mysqld.global.gr_node_host, mysqld.global.gr_nodes);
+
+var cluster_nodes_all =
+    cluster_nodes(mysqld.global.gr_node_host, mysqld.global.cluster_nodes)
+
+const member_state = members[mysqld.global.gr_pos] ?
+    members[mysqld.global.gr_pos][3] :
+    undefined;
 
 const online_gr_nodes = members
                             .filter(function(memb, indx) {
@@ -73,22 +89,19 @@ const online_gr_nodes = members
                             })
                             .length;
 
-const member_state = members[mysqld.global.gr_pos] ?
-    members[mysqld.global.gr_pos][3] :
-    undefined;
-
 var options = {
   group_replication_members: members,
   gr_member_state: member_state,
   gr_members_all: members.length,
   gr_members_online: online_gr_nodes,
-  innodb_cluster_instances: gr_memberships.cluster_nodes(
-      mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
+  innodb_cluster_instances: cluster_nodes_all,
   gr_id: mysqld.global.gr_id,
   cluster_type: mysqld.global.cluster_type,
-  innodb_cluster_name: mysqld.global.cluster_name,
+  innodb_cluster_name: mysqld.global.innodb_cluster_name,
+  router_options: mysqld.global.router_options,
 };
 
+// first node is PRIMARY
 if (mysqld.global.primary_id >= 0) {
   options.group_replication_primary_member =
       options.group_replication_members[mysqld.global.primary_id][0];
@@ -147,31 +160,6 @@ var router_start_transaction =
     } else if (stmt === router_select_metadata.stmt) {
       mysqld.global.md_query_count++;
       return router_select_metadata;
-    } else if (stmt === "set @@mysqlx_wait_timeout = 28800") {
-      if (mysqld.global.mysqlx_wait_timeout_unsupported === 0) return {
-          ok: {}
-        }
-      else
-        return {
-          error: {
-            code: 1193,
-            sql_state: "HY001",
-            message: "Unknown system variable 'mysqlx_wait_timeout'"
-          }
-        }
-    } else if (stmt === "enable_notices") {
-      if (mysqld.global.gr_notices_unsupported === 0) return {
-          ok: {}
-        }
-      else
-        return {
-          error: {
-            code: 5163,
-            sql_state: "HY001",
-            message:
-                "Invalid notice name group_replication/membership/quorum_loss"
-          }
-        }
     } else {
       return common_stmts.unknown_statement_response(stmt);
     }

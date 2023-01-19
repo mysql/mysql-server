@@ -37,12 +37,21 @@ namespace metadata_cache {
 class LogSuppressor {
  public:
   enum class MessageId {
+    /* incorrect JSON for _disconnect_existing_sessions_when_hidden from the
+       last query */
+    kDisconnectExistingSessionsWhenHidden,
+
     /* incorrect JSON for _hidden in the metadata from  the last query */
     kHidden,
 
-    /* incorrect JSON for _disconnect_existing_sessions_when_hidden from the
-       last query */
-    kDisconnectExistingSessionsWhenHidden
+    /* instance type incompatible with the Cluster type */
+    kIncompatibleInstanceType,
+
+    /* incorrect JSON for instance_type from the last query */
+    kInstanceType,
+
+    /* incorrect JSON or value for read_replicas_mode */
+    kReadReplicasMode
   };
 
   static LogSuppressor &instance() {

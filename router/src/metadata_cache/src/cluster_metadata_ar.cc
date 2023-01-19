@@ -24,11 +24,13 @@
 
 #include "cluster_metadata_ar.h"
 
+#include "log_suppressor.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/utils.h"  // strtoull_checked
 #include "mysqlrouter/utils_sqlstring.h"
 
+using metadata_cache::LogSuppressor;
 using mysqlrouter::MySQLSession;
 using mysqlrouter::sqlstring;
 using mysqlrouter::strtoull_checked;
@@ -206,7 +208,19 @@ metadata_cache::ClusterTopology ARClusterMetadata::fetch_topology_from_member(
 
     set_instance_attributes(instance, get_string(row[6]));
 
-    cluster.members.push_back(instance);
+    std::string warning;
+    if (instance.type == mysqlrouter::InstanceType::AsyncMember) {
+      cluster.members.push_back(instance);
+    } else {
+      warning = "Ignoring unsupported instance " + instance.host + ":" +
+                std::to_string(instance.port) + ", type: '" +
+                mysqlrouter::to_string(instance.type).c_str() + "'";
+    }
+
+    LogSuppressor::instance().log_message(
+        LogSuppressor::MessageId::kIncompatibleInstanceType,
+        instance.mysql_server_uuid, warning, !warning.empty());
+
     return true;  // get next row if available
   };
 
