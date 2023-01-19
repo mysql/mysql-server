@@ -133,6 +133,9 @@ class METADATA_CACHE_EXPORT ManagedInstance {
   /** Should the Router disconnect existing client sessions to the node when it
    * is hidden */
   bool disconnect_existing_sessions_when_hidden;
+  /** Should the node be ignored for new and existing connections (for example
+   * due to the read_replicas_mode) */
+  bool ignore{false};
 };
 
 using cluster_nodes_list_t = std::vector<ManagedInstance>;

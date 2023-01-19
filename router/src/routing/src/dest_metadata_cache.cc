@@ -242,9 +242,11 @@ std::pair<AllowedNodes, bool> DestMetadataCacheGroup::get_available(
         [&](const metadata_cache::ManagedInstance &i) {
           if (for_new_connections && query_quarantined_destinations_callback_) {
             return i.mode == metadata_cache::ServerMode::ReadOnly &&
-                   !i.hidden && !query_quarantined_destinations_callback_(i);
+                   !i.hidden && !i.ignore &&
+                   !query_quarantined_destinations_callback_(i);
           } else {
-            return i.mode == metadata_cache::ServerMode::ReadOnly && !i.hidden;
+            return i.mode == metadata_cache::ServerMode::ReadOnly &&
+                   !i.hidden && !i.ignore;
           }
         });
 
@@ -259,6 +261,7 @@ std::pair<AllowedNodes, bool> DestMetadataCacheGroup::get_available(
   }
 
   for (const auto &it : instances) {
+    if (it.ignore) continue;
     if (for_new_connections) {
       // for new connections skip (do not include) the node if it is hidden - it
       // is not allowed
@@ -305,7 +308,7 @@ AllowedNodes DestMetadataCacheGroup::get_available_primaries(
   AllowedNodes result;
 
   for (const auto &it : managed_servers) {
-    if (it.hidden) continue;
+    if (it.hidden || it.ignore) continue;
 
     auto port = (protocol_ == Protocol::Type::kXProtocol) ? it.xport : it.port;
 

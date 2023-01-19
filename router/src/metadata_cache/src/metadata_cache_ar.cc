@@ -78,7 +78,7 @@ bool ARMetadataCache::refresh(bool needs_writable_node) {
       log_info("view_id = %" PRIu64 ", (%i members)", view_id,
                (int)cluster_members.size());
       for (const auto &mi : cluster_members) {
-        log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
+        log_info("    %s:%i / %i - mode=%s%s", mi.host.c_str(), mi.port,
                  mi.xport, to_string(mi.mode).c_str(),
                  get_hidden_info(mi).c_str());
       }

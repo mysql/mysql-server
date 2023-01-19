@@ -418,8 +418,19 @@ namespace {
 std::string get_read_replica_info(
     const metadata_cache::ManagedInstance &instance) {
   return instance.type == mysqlrouter::InstanceType::ReadReplica
-             ? "Read Replica"
+             ? " Read Replica"
              : "";
+}
+
+std::string get_ignored_info(const metadata_cache::ManagedInstance &instance) {
+  std::string result;
+  if (instance.ignore) {
+    result = instance.type == mysqlrouter::InstanceType::ReadReplica
+                 ? " [ignored]"
+                 : " [replaced by Read Replicas]";
+  }
+
+  return result;
 }
 }  // namespace
 
@@ -485,10 +496,10 @@ bool GRMetadataCache::refresh(bool needs_writable_node) {
             cluster.name.c_str(), cluster.members.size(),
             cluster.single_primary_mode ? "single-primary" : "multi-primary");
         for (const auto &mi : cluster.members) {
-          log_info("    %s:%i / %i - mode=%s %s %s", mi.host.c_str(), mi.port,
-                   mi.xport, to_string(mi.mode).c_str(),
-                   get_hidden_info(mi).c_str(),
-                   get_read_replica_info(mi).c_str());
+          log_info(
+              "    %s:%i / %i - mode=%s%s%s%s", mi.host.c_str(), mi.port,
+              mi.xport, to_string(mi.mode).c_str(), get_hidden_info(mi).c_str(),
+              get_read_replica_info(mi).c_str(), get_ignored_info(mi).c_str());
         }
       }
     }

@@ -408,8 +408,9 @@ void GRClusterMetadata::update_cluster_status_from_gr(
           fetch_group_replication_members(
               *gr_member_connection,
               single_primary_mode);  // throws metadata_cache::metadata_error
-      log_debug("Cluster '%s' has %zu members in metadata, %zu in status table",
-                cluster.name.c_str(), gr_members.size(), member_status.size());
+      log_debug(
+          "Cluster '%s' has %zu GR members in metadata, %zu in status table",
+          cluster.name.c_str(), gr_members.size(), member_status.size());
 
       // check status of all nodes; updates instances
       // ------------------vvvvvvvvvvvvvvvvvv
@@ -752,29 +753,28 @@ void apply_read_replicas_mode(metadata_cache::cluster_nodes_list_t &nodes,
   switch (mode) {
     case ReadReplicasMode::append:
       // nothing to do, the nodes set already contains the read replicas if
-      // there were any configured in the metadata
+      // there were any configured in the metadata, all have 'ignore' flag
+      // cleared
       break;
     case ReadReplicasMode::ignore:
-      // we need to remove the ReadReplicas from the nodes that were read from
-      // the metadata
-      nodes.erase(std::remove_if(
-                      nodes.begin(), nodes.end(),
-                      [](const metadata_cache::ManagedInstance &i) {
-                        return i.mode == metadata_cache::ServerMode::ReadOnly &&
-                               i.type == mysqlrouter::InstanceType::ReadReplica;
-                      }),
-                  nodes.end());
+      // we need to tag ReadReplicas as 'ignore'
+      std::for_each(nodes.begin(), nodes.end(),
+                    [](metadata_cache::ManagedInstance &i) {
+                      if (i.mode == metadata_cache::ServerMode::ReadOnly &&
+                          i.type == mysqlrouter::InstanceType::ReadReplica) {
+                        i.ignore = true;
+                      }
+                    });
       break;
     case ReadReplicasMode::replace:
-      // we need to remove all the non-ReadReplicas RO nodes from the nodes
-      // read from the metadata
-      nodes.erase(std::remove_if(
-                      nodes.begin(), nodes.end(),
-                      [](const metadata_cache::ManagedInstance &i) {
-                        return i.mode == metadata_cache::ServerMode::ReadOnly &&
-                               i.type != mysqlrouter::InstanceType::ReadReplica;
-                      }),
-                  nodes.end());
+      // we need to tag non-ReadReplica RO nodes as 'ignore'
+      std::for_each(nodes.begin(), nodes.end(),
+                    [](metadata_cache::ManagedInstance &i) {
+                      if (i.mode == metadata_cache::ServerMode::ReadOnly &&
+                          i.type != mysqlrouter::InstanceType::ReadReplica) {
+                        i.ignore = true;
+                      }
+                    });
       break;
   }
 }

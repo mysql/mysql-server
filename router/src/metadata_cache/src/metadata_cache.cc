@@ -238,7 +238,8 @@ bool metadata_cache::ManagedInstance::operator==(
          role == other.role && host == other.host && port == other.port &&
          xport == other.xport && hidden == other.hidden &&
          disconnect_existing_sessions_when_hidden ==
-             other.disconnect_existing_sessions_when_hidden;
+             other.disconnect_existing_sessions_when_hidden &&
+         ignore == other.ignore;
 }
 
 metadata_cache::ManagedInstance::ManagedInstance(
@@ -344,7 +345,7 @@ std::string get_hidden_info(const metadata_cache::ManagedInstance &instance) {
   // if both values are default return empty string
   if (instance.hidden || !instance.disconnect_existing_sessions_when_hidden) {
     result =
-        "hidden=" + (instance.hidden ? "yes"s : "no"s) +
+        " hidden=" + (instance.hidden ? "yes"s : "no"s) +
         " disconnect_when_hidden=" +
         (instance.disconnect_existing_sessions_when_hidden ? "yes"s : "no"s);
   }
