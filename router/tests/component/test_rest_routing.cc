@@ -157,7 +157,7 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
   config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
       "metadata_cache:test",
       {
-          {"router_id", "3"},
+          {"router_id", "1"},
           {"user", keyring_username},
           {"metadata_cluster", "test"},
           // 198.51.100.0/24 is a reserved address block, it could not be
@@ -1146,7 +1146,7 @@ TEST_P(RestRoutingApiTestCluster, ensure_openapi_cluster) {
   const std::string keyring_username = "mysql_router1_user";
   config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
       "metadata_cache:test", {
-                                 {"router_id", "3"},
+                                 {"router_id", "1"},
                                  {"user", keyring_username},
                                  {"metadata_cluster", "test"},
                                  {"bootstrap_server_addresses",

@@ -157,6 +157,7 @@ TEST_F(SplicerTest, invalid_metadata) {
                   {"bootstrap_server_addresses",
                    "mysql://127.0.0.1:" + std::to_string(server_port)},
                   {"metadata_cluster", "test"},
+                  {"router_id", "1"},
               }),
       },
       "");
