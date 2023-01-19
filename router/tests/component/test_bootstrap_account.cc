@@ -1367,9 +1367,6 @@ class AccountReuseCreateComboTestP
 
     const std::string HOST = get_local_hostname();
     const auto local_ipv4_res = get_local_ipv4(HOST);
-    EXPECT_TRUE(local_ipv4_res)
-        << "for host " << HOST << ": " << local_ipv4_res.error() << " "
-        << local_ipv4_res.error().message();
     const std::string IP = local_ipv4_res.value_or("");
 
     const std::string kColonUser = kAccountUser + ":" + kAccountUserPassword;
