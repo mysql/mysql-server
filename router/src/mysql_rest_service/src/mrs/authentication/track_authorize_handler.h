@@ -47,6 +47,7 @@ class TrackAuthorizeHandler : public interface::AuthorizeHandler {
     return handler_->get_service_id();
   }
 
+  bool redirects() const override { return handler_->redirects(); }
   UniversalId get_id() const override { return handler_->get_id(); }
 
   const AuthApp &get_entry() const override { return handler_->get_entry(); }
@@ -55,11 +56,9 @@ class TrackAuthorizeHandler : public interface::AuthorizeHandler {
     return handler_->is_authorized(session, user);
   }
 
-  bool authorize(Session *session, http::Url *url,
-                 SqlSessionCached *sql_session, HttpHeaders &input_headers,
+  bool authorize(RequestContext &ctxt, Session *session,
                  AuthUser *out_user) override {
-    return handler_->authorize(session, url, sql_session, input_headers,
-                               out_user);
+    return handler_->authorize(ctxt, session, out_user);
   }
 
  private:

@@ -39,8 +39,11 @@
 #include "mrs/rest/request_context.h"
 
 #include "collector/mysql_cache_manager.h"
+#include "helper/container/generic.h"
 #include "helper/json/rapid_json_to_map.h"
+#include "helper/json/rapid_json_to_struct.h"
 #include "helper/json/text_to.h"
+#include "helper/string/contains.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -122,38 +125,38 @@ uint32_t get_access_right_from_http_method(const uint32_t method) {
 }
 
 static const char *get_content_type(
-    const Handler::Result::Type type,
+    const Handler::HttpResult::Type type,
     const std::optional<std::string> &type_text) {
   if (type_text) return type_text.value().c_str();
 
   switch (type) {
-    case Handler::Result::Type::typeJson:
+    case Handler::HttpResult::Type::typeJson:
       return "application/json";
-    case Handler::Result::Type::typeUnknownBinary:
+    case Handler::HttpResult::Type::typeUnknownBinary:
       return "application/octet-stream";
-    case Handler::Result::Type::typeUnknownText:
+    case Handler::HttpResult::Type::typeUnknownText:
       return "text/plain";
-    case Handler::Result::Type::typePlain:
+    case Handler::HttpResult::Type::typePlain:
       return "text/plain";
-    case Handler::Result::Type::typeHtml:
+    case Handler::HttpResult::Type::typeHtml:
       return "text/html";
-    case Handler::Result::Type::typeJs:
+    case Handler::HttpResult::Type::typeJs:
       return "text/javascript";
-    case Handler::Result::Type::typeCss:
+    case Handler::HttpResult::Type::typeCss:
       return "text/css";
-    case Handler::Result::Type::typePng:
+    case Handler::HttpResult::Type::typePng:
       return "image/png";
-    case Handler::Result::Type::typeJpg:
+    case Handler::HttpResult::Type::typeJpg:
       return "image/jpeg";
-    case Handler::Result::Type::typeGif:
+    case Handler::HttpResult::Type::typeGif:
       return "image/gif";
-    case Handler::Result::Type::typeBmp:
+    case Handler::HttpResult::Type::typeBmp:
       return "image/bmp";
-    case Handler::Result::Type::typeAvi:
+    case Handler::HttpResult::Type::typeAvi:
       return "image/avi";
-    case Handler::Result::Type::typeWav:
+    case Handler::HttpResult::Type::typeWav:
       return "image/wav";
-    case Handler::Result::Type::typeSvg:
+    case Handler::HttpResult::Type::typeSvg:
       return "image/svg+xml";
   }
 
@@ -176,6 +179,12 @@ std::string get_http_method_name(HttpMethod::type type) {
   return std::to_string(type);
 }
 
+const char *value_or_empty_string(const char *value) {
+  if (nullptr == value) return "";
+
+  return value;
+}
+
 void trace_error(const http::ErrorChangeResponse &e) {
   log_debug("Catch: ErrorChangeResponse name: %s", e.name());
   log_debug("Catch: ErrorChangeResponse retry: %s",
@@ -195,6 +204,11 @@ void trace_error(const mysqlrouter::MySQLSession::Error &e) {
 
 void trace_error(const std::exception &e) {
   log_debug("Catch: std::exception message: %s", e.what());
+}
+
+void trace_error(const Handler::HttpResult &e) {
+  log_debug("Catch: HttpResult with code: %i", (int)e.status);
+  log_debug("Catch: HttpResult with message: %s", e.response.c_str());
 }
 
 class RestRequestHandler : public BaseRequestHandler {
@@ -227,118 +241,149 @@ class RestRequestHandler : public BaseRequestHandler {
     }
   }
 
-  void handle_request(HttpRequest &req) override {
-    RequestContext request_ctxt{&req};
+  Handler::HttpResult handle_request_impl(RequestContext &ctxt) {
+    ctxt.sql_session_cache = auth_manager_->get_cache()->get_empty(
+        collector::kMySQLConnectionMetadata);
 
-    try {
-      Handler::Result result;
-      request_ctxt.sql_session_cache = auth_manager_->get_cache()->get_empty(
-          collector::kMySQLConnectionMetadata);
+    const auto service_id = rest_handler_->get_service_id();
+    const auto method = ctxt.request->get_method();
 
-      auto &out_hdrs = req.get_output_headers();
-      const auto service_id = rest_handler_->get_service_id();
-      const auto method = req.get_method();
+    log_debug("handle_request(service_id:%s): start(url='%s')",
+              service_id.to_string().c_str(),
+              ctxt.request->get_uri().join().c_str());
 
-      log_debug("handle_request(service_id:%s): start(url='%s')",
-                service_id.to_string().c_str(),
-                request_ctxt.request->get_uri().join().c_str());
+    auto options = rest_handler_->get_options();
+    auto &ih = ctxt.request->get_input_headers();
+    auto &oh = ctxt.request->get_output_headers();
 
-      auto options = rest_handler_->get_options();
+    trace_http("Request", options.debug.http.request, method, ih,
+               ctxt.request->get_input_buffer());
 
-      trace_http("Request", options.debug.http.request,
-                 request_ctxt.request->get_method(), req.get_input_headers(),
-                 req.get_input_buffer());
-
-      for (auto &kv : rest_handler_->get_options().parameters_) {
-        auto &oh = request_ctxt.request->get_output_headers();
-        oh.add(kv.first.c_str(), kv.second.c_str());
+    for (auto &kv : rest_handler_->get_options().parameters_) {
+      if (mysql_harness::make_lower(kv.first) ==
+          "Access-Control-Allow-Origin") {
+        if (rest_handler_->get_options().allowed_origins.type !=
+            mrs::interface::Options::AllowedOrigins::AllowNone) {
+          continue;
+        }
       }
+      oh.add(kv.first.c_str(), kv.second.c_str());
+    }
 
-      if (method == HttpMethod::Options) {
-        send_reply(req, HttpStatusCode::Ok);
-        return;
+    std::string origin{value_or_empty_string(ih.get("Origin"))};
+
+    if (!origin.empty()) {
+      using AO = mrs::interface::Options::AllowedOrigins;
+      auto &ao = rest_handler_->get_options().allowed_origins;
+      switch (ao.type) {
+        case AO::AllowAll:
+          oh.add("Access-Control-Allow-Origin", origin.c_str());
+          break;
+        case AO::AllowSpecified:
+          if (helper::container::has(ao.allowed_origins, origin))
+            oh.add("Access-Control-Allow-Origin", origin.c_str());
+          break;
+        case AO::AllowNone:
+          break;
       }
+    }
 
-      if (!rest_handler_->request_begin(&request_ctxt)) {
-        log_debug("'request_begin' returned false");
-        throw http::Error{HttpStatusCode::Forbidden};
-      }
+    if (method == HttpMethod::Options) {
+      throw http::Error{HttpStatusCode::Ok};
+    }
 
-      auto required_access = get_access_right_from_http_method(method);
-      if (!(required_access & rest_handler_->get_access_rights())) {
-        log_debug(
-            "'required_access' denied, required_access:%i, "
-            "access:%i",
-            required_access, rest_handler_->get_access_rights());
-        throw http::Error{HttpStatusCode::Forbidden};
-      }
+    if (!rest_handler_->request_begin(&ctxt)) {
+      log_debug("'request_begin' returned false");
+      throw http::Error{HttpStatusCode::Forbidden};
+    }
 
-      auto required_auth = rest_handler_->requires_authentication();
-      if (Handler::Authorization::kNotNeeded != required_auth) {
-        log_debug("RestRequestHandler(service_id:%s): authenticate",
-                  service_id.to_string().c_str());
+    auto required_access = get_access_right_from_http_method(method);
+    if (!(required_access & rest_handler_->get_access_rights())) {
+      log_debug(
+          "'required_access' denied, required_access:%i, "
+          "access:%i",
+          required_access, rest_handler_->get_access_rights());
+      throw http::Error{HttpStatusCode::Forbidden};
+    }
 
-        // request_ctxt.user is valid after success of this call
-        if (Handler::Authorization::kRequires == required_auth) {
-          http::Url url{request_ctxt.request->get_uri()};
-          if (!auth_manager_->authorize(service_id, &request_ctxt.cookies, &url,
-                                        &request_ctxt.sql_session_cache,
-                                        req.get_input_headers(),
-                                        &request_ctxt.user)) {
-            log_debug("Authentication handler returned false");
+    auto required_auth = rest_handler_->requires_authentication();
+    if (Handler::Authorization::kNotNeeded != required_auth) {
+      log_debug("RestRequestHandler(service_id:%s): authenticate",
+                service_id.to_string().c_str());
+
+      // request_ctxt.user is valid after success of this call
+      if (Handler::Authorization::kRequires == required_auth) {
+        try {
+          if (!auth_manager_->authorize(service_id, ctxt, &ctxt.user)) {
+            log_debug("Authentication handler fails");
             throw http::Error(HttpStatusCode::Unauthorized);
           }
-        } else {
-          // Just check the user
-          auth_manager_->is_authorized(service_id, &request_ctxt.cookies,
-                                       req.get_input_headers(),
-                                       &request_ctxt.user);
+
+        } catch (const Handler::HttpResult &force_result) {
+          if (rest_handler_->get_options().debug.log_exceptions)
+            trace_error(force_result);
+          return force_result;
         }
 
-        rest_handler_->authorization(&request_ctxt);
+        log_debug("Authentication handler ok.");
+      } else {
+        // Just check the user
+        auth_manager_->is_authorized(service_id, ctxt, &ctxt.user);
+      }
 
-        if (rest_handler_->may_check_access()) {
-          log_debug("RestRequestHandler(service_id:%s): required_access:%i",
-                    service_id.to_string().c_str(), required_access);
-          if (!(required_access &
-                check_privileges(request_ctxt.user.privileges, service_id,
-                                 rest_handler_->get_schema_id(),
-                                 rest_handler_->get_db_object_id()))) {
-            throw http::Error{HttpStatusCode::Forbidden};
-          }
+      rest_handler_->authorization(&ctxt);
+
+      if (rest_handler_->may_check_access()) {
+        log_debug("RestRequestHandler(service_id:%s): required_access:%i",
+                  service_id.to_string().c_str(), required_access);
+        if (!(required_access &
+              check_privileges(ctxt.user.privileges, service_id,
+                               rest_handler_->get_schema_id(),
+                               rest_handler_->get_db_object_id()))) {
+          throw http::Error{HttpStatusCode::Forbidden};
         }
       }
+    }
 
-      log_debug(
-          "RestRequestHandler(service_id:%s): dispatch(method:%s, path:%s)",
-          service_id.to_string().c_str(),
-          request_ctxt.request->get_uri().get_path().c_str(),
-          get_http_method_name(request_ctxt.request->get_method()).c_str());
-      switch (method) {
-        case HttpMethod::Get:
-          result = rest_handler_->handle_get(&request_ctxt);
-          break;
+    log_debug("RestRequestHandler(service_id:%s): dispatch(method:%s, path:%s)",
+              service_id.to_string().c_str(),
+              ctxt.request->get_uri().get_path().c_str(),
+              get_http_method_name(ctxt.request->get_method()).c_str());
+    switch (method) {
+      case HttpMethod::Get:
+        return rest_handler_->handle_get(&ctxt);
+        break;
 
-        case HttpMethod::Post: {
-          auto &input_buffer = req.get_input_buffer();
-          auto size = input_buffer.length();
-          result = rest_handler_->handle_post(&request_ctxt,
-                                              input_buffer.pop_front(size));
-        } break;
+      case HttpMethod::Post: {
+        auto &input_buffer = ctxt.request->get_input_buffer();
+        auto size = input_buffer.length();
+        return rest_handler_->handle_post(&ctxt, input_buffer.pop_front(size));
+      } break;
 
-        case HttpMethod::Delete:
-          result = rest_handler_->handle_delete(&request_ctxt);
-          break;
+      case HttpMethod::Delete:
+        return rest_handler_->handle_delete(&ctxt);
+        break;
 
-        case HttpMethod::Put:
-          result = rest_handler_->handle_put(&request_ctxt);
-          break;
+      case HttpMethod::Put:
+        return rest_handler_->handle_put(&ctxt);
+        break;
 
-        default:
-          throw http::Error{HttpStatusCode::MethodNotAllowed};
-      }
+      default:
+        throw http::Error{HttpStatusCode::MethodNotAllowed};
+    }
+  }
+
+  const char *to_cstr(bool b) { return b ? "true" : "false"; }
+
+  void handle_request(HttpRequest &req) override {
+    RequestContext request_ctxt{&req, auth_manager_};
+
+    try {
+      auto result = handle_request_impl(request_ctxt);
 
       auto &b = req.get_output_buffer();
+      auto &out_hdrs = req.get_output_headers();
+
       b.add(result.response.c_str(), result.response.length());
 
       if (!result.etag.empty()) {
@@ -407,6 +452,8 @@ class RestRequestHandler : public BaseRequestHandler {
     const http::Error &e = err_to_http_error(err);
     if (!rest_handler_->request_error(ctxt, e)) {
       switch (e.status) {
+        case HttpStatusCode::Ok:
+          [[fallthrough]];
         case HttpStatusCode::NotModified:
           send_reply(*ctxt->request, e.status, e.message);
           break;
@@ -514,48 +561,120 @@ class RestRequestHandler : public BaseRequestHandler {
   mrs::interface::AuthorizeManager *auth_manager_;
 };
 
-static Parameters get_json_obj(const std::string &txt,
-                               const std::string key_name) {
-  using namespace helper::json;
-  RapidReaderHandlerToMapOfSimpleValues sub_object;
-  ExtractSubObjectHandler<RapidReaderHandlerToMapOfSimpleValues> extractor{
-      key_name, sub_object};
-  text_to(&extractor, txt);
-  return sub_object.get_result();
+namespace cvt {
+using std::to_string;
+const std::string &to_string(const std::string &str) { return str; }
+}  // namespace cvt
+
+static const char *to_cstr(const bool b) { return b ? "true" : "false"; }
+
+template <typename ValueType, bool default_value = false>
+bool to_bool(const ValueType &value) {
+  using std::to_string;
+  const static std::map<std::string, bool> allowed_values{
+      {"true", true}, {"false", false}, {"1", true}, {"0", false}};
+  auto it = allowed_values.find(cvt::to_string(value));
+  if (it != allowed_values.end()) {
+    return it->second;
+  }
+
+  return default_value;
 }
 
-static bool get_json_bool(const std::string &txt, const std::string key_name) {
-  using namespace helper::json;
-  RapidReaderHandlerToMapOfSimpleValues extractor{4};
-  text_to(&extractor, txt);
-  if (extractor.get_result().count(key_name)) {
-    auto value = extractor.get_result().at(key_name);
-    const static std::map<std::string, bool> allowed_values{
-        {"true", true}, {"false", false}, {"1", true}, {"0", false}};
-    auto it = allowed_values.find(value);
-    if (it != allowed_values.end()) {
-      return it->second;
+class ParseOptions
+    : public helper::json::RapidReaderHandlerToStruct<mrs::interface::Options> {
+ public:
+  template <typename ValueType>
+  void handle_object_value(const std::string &key, const ValueType &vt) {
+    log_debug("handle_object_value key:%s, v:%s", key.c_str(),
+              cvt::to_string(vt).c_str());
+    static const std::string kHeaders = "headers.";
+    using std::to_string;
+
+    if (helper::starts_with(key, kHeaders)) {
+      result_.parameters_[key.substr(kHeaders.length())] = cvt::to_string(vt);
+    } else if (key == "logging.exceptions") {
+      result_.debug.log_exceptions = to_bool(vt);
+    } else if (key == "logging.request.headers") {
+      result_.debug.http.request.header_ = to_bool(vt);
+    } else if (key == "logging.request.body") {
+      result_.debug.http.request.body_ = to_bool(vt);
+    } else if (key == "logging.response.headers") {
+      result_.debug.http.response.header_ = to_bool(vt);
+    } else if (key == "logging.response.body") {
+      log_debug("handle_object_value hit %s", to_cstr(to_bool(vt)));
+      result_.debug.http.response.body_ = to_bool(vt);
+    } else if (key == "returnInternalErrorDetails") {
+      result_.debug.http.response.detailed_errors_ = to_bool(vt);
+    } else if (key == "http.allowedOrigin" &&
+               mysql_harness::make_lower(cvt::to_string(vt)) == "auto") {
+      result_.allowed_origins.type = Result::AllowedOrigins::AllowAll;
     }
   }
 
-  return false;
+  template <typename ValueType>
+  void handle_array_value(const std::string &key, const ValueType &vt) {
+    using std::to_string;
+    if (key == "http.allowedOrigin") {
+      result_.allowed_origins.type = Result::AllowedOrigins::AllowSpecified;
+      result_.allowed_origins.allowed_origins.push_back(cvt::to_string(vt));
+    }
+  }
+
+  template <typename ValueType>
+  void handle_value(const ValueType &vt) {
+    const auto &key = get_current_key();
+    if (is_object_path()) {
+      handle_object_value(key, vt);
+    } else if (is_array_value()) {
+      handle_array_value(key, vt);
+    }
+  }
+
+  bool String(const Ch *v, rapidjson::SizeType v_len, bool) override {
+    handle_value(std::string{v, v_len});
+    return true;
+  }
+
+  bool RawNumber(const Ch *v, rapidjson::SizeType v_len, bool) override {
+    handle_value(std::string{v, v_len});
+    return true;
+  }
+
+  bool Bool(bool v) override {
+    handle_value(v);
+    return true;
+  }
+};
+
+mrs::interface::Options parse_json_options(const std::string &options) {
+  return helper::json::text_to_handler<ParseOptions>(options);
 }
 
 Handler::Handler(const std::string &url,
                  const std::vector<std::string> &rest_path_matcher,
                  const std::string &options,
                  mrs::interface::AuthorizeManager *auth_manager)
-    : options_{get_json_obj(options, "headers"),
-               {{{get_json_bool(options, "logging.request.headers"),
-                  get_json_bool(options, "logging.request.body")},
-                 {get_json_bool(options, "logging.response.headers"),
-                  get_json_bool(options, "logging.response.body"),
-                  get_json_bool(options, "returnInternalErrorDetails")}},
-                get_json_bool(options, "logging.exceptions")}},
+    : options_{parse_json_options(options)},
       url_{url},
       rest_path_matcher_{rest_path_matcher},
       authorization_manager_{auth_manager} {
   log_debug("Handling new URL: '%s'", url_.c_str());
+
+  for (const auto &kv : options_.parameters_) {
+    log_debug("headers: '%s':'%s'", kv.first.c_str(), kv.second.c_str());
+  }
+  log_debug("debug.log_exceptions: %s", to_cstr(options_.debug.log_exceptions));
+  log_debug("debug.http.request.header: %s",
+            to_cstr(options_.debug.http.request.header_));
+  log_debug("debug.http.request.body: %s",
+            to_cstr(options_.debug.http.request.body_));
+  log_debug("debug.http.response.header: %s",
+            to_cstr(options_.debug.http.response.header_));
+  log_debug("debug.http.response.body: %s",
+            to_cstr(options_.debug.http.response.body_));
+  log_debug("debug.http.response.detailed_errors_: %s",
+            to_cstr(options_.debug.http.response.detailed_errors_));
 
   for (auto &path : rest_path_matcher_) {
     auto handler = std::make_unique<RestRequestHandler>(this, auth_manager);

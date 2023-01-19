@@ -42,11 +42,11 @@ class HandlerSP : public rest::Handler {
         route_{r},
         auth_manager_{auth_manager} {}
 
-  Result handle_get(rest::RequestContext *ctxt) override;
-  Result handle_delete(rest::RequestContext *ctxt) override;
-  Result handle_put(rest::RequestContext *ctxt) override;
-  Result handle_post(rest::RequestContext *ctxt,
-                     const std::vector<uint8_t> &document) override;
+  HttpResult handle_get(rest::RequestContext *ctxt) override;
+  HttpResult handle_delete(rest::RequestContext *ctxt) override;
+  HttpResult handle_put(rest::RequestContext *ctxt) override;
+  HttpResult handle_post(rest::RequestContext *ctxt,
+                         const std::vector<uint8_t> &document) override;
 
   void authorization(rest::RequestContext *ctxt) override;
   Authorization requires_authentication() const override;

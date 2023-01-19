@@ -38,6 +38,8 @@ class MockAuthHandlerFactory : public mrs::interface::AuthHandlerFactory {
               (const AuthApp &entry), (const, override));
   MOCK_METHOD(AuthHandlerPtr, create_google_auth_handler,
               (const AuthApp &entry), (const, override));
+  MOCK_METHOD(AuthHandlerPtr, create_scram_auth_handler,
+              (const AuthApp &entry, const std::string &rd), (const, override));
 };
 
 #endif  // ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_AUTH_HANDLER_FACTORY_H_

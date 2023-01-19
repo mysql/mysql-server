@@ -21,7 +21,9 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-
+#define OPENSSL_NO_DEPRECATED_3_0
+#define OPENSSL_NO_DEPRECATED_1_1_0
+#define OSSL_DEPRECATEDIN_3_0 extern
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 

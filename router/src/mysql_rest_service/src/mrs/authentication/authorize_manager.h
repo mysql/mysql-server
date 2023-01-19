@@ -75,11 +75,10 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
   void update(const Entries &entries) override;
 
   bool unauthorize(ServiceId id, http::Cookie *cookies) override;
-  bool authorize(ServiceId id, http::Cookie *cookies, http::Url *url,
-                 SqlSessionCached *sql_session, HttpHeaders &input_headers,
+  bool authorize(ServiceId id, rest::RequestContext &ctxt,
                  AuthUser *out_user) override;
-  bool is_authorized(ServiceId id, http::Cookie *cookies,
-                     HttpHeaders &input_headers, AuthUser *user) override;
+  bool is_authorized(ServiceId id, rest::RequestContext &ctxt,
+                     AuthUser *user) override;
 
   std::string get_jwt_token(UniversalId service_id, Session *s) override;
   Session *get_current_session(ServiceId id, HttpHeaders &input_headers,
@@ -87,8 +86,7 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
   void discard_current_session(ServiceId id, http::Cookie *cookies) override;
   users::UserManager *get_user_manager() override;
   collector::MysqlCacheManager *get_cache() override { return cache_manager_; }
-  std::vector<std::string> get_supported_authentication_applications(
-      ServiceId id) override;
+  Container get_supported_authentication_applications(ServiceId id) override;
 
  private:
   AuthorizeHandlerPtr make_auth(const AuthApp &entry);
@@ -118,6 +116,20 @@ class AuthorizeManager : public mrs::interface::AuthorizeManager,
   Container container_;
   std::string jwt_secret_;
   AuthHandlerFactoryPtr factory_;
+
+  /*
+   * Random data, created at `authorization_manager` creation.
+   *
+   * Those data should be used for fake keys generation. Which concated with
+   * user name, may be used for the generation and user shouldn't be able to
+   * detect the fake generation was used.
+   *
+   * Ideally, the data should be constant while the whole live of the service.
+   * For example the attacker should be able to query the user and store its
+   * "salt", and after logner time the same query should return the same salt
+   * (even if the user doesn't exists).
+   */
+  const std::string random_data_;
 };
 
 }  // namespace authentication

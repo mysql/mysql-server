@@ -44,6 +44,11 @@ class MysqlCacheManager;
 }  // namespace collector
 
 namespace mrs {
+
+namespace rest {
+struct RequestContext;
+}  // namespace rest
+
 namespace interface {
 
 class AuthorizeManager {
@@ -56,23 +61,22 @@ class AuthorizeManager {
   using AuthUser = database::entry::AuthUser;
   using Entries = std::vector<AuthApp>;
   using ServiceId = UniversalId;
+  using Container = std::vector<AuthorizeHandlerPtr>;
 
   virtual ~AuthorizeManager() = default;
 
   virtual void update(const Entries &entries) = 0;
 
-  virtual bool authorize(ServiceId id, http::Cookie *cookies, http::Url *url,
-                         SqlSessionCached *sql_session,
-                         HttpHeaders &input_headers, AuthUser *out_user) = 0;
-  virtual bool is_authorized(ServiceId id, http::Cookie *cookies,
-                             HttpHeaders &input_headers, AuthUser *user) = 0;
+  virtual bool authorize(ServiceId id, rest::RequestContext &ctxt,
+                         AuthUser *out_user) = 0;
+  virtual bool is_authorized(ServiceId id, rest::RequestContext &ctxt,
+                             AuthUser *user) = 0;
   virtual bool unauthorize(ServiceId id, http::Cookie *cookies) = 0;
   virtual std::string get_jwt_token(ServiceId service_id, Session *s) = 0;
   virtual Session *get_current_session(ServiceId id, HttpHeaders &input_headers,
                                        http::Cookie *cookies) = 0;
   virtual users::UserManager *get_user_manager() = 0;
-  virtual std::vector<std::string> get_supported_authentication_applications(
-      ServiceId id) = 0;
+  virtual Container get_supported_authentication_applications(ServiceId id) = 0;
 
   // TODO(lkotula): = 0 (Shouldn't be in review)
   virtual void discard_current_session(ServiceId, http::Cookie *) {}

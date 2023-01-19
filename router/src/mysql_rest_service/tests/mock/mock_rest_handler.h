@@ -39,12 +39,12 @@ class MockRestHandler : public mrs::interface::RestHandler {
   MOCK_METHOD(mrs::UniversalId, get_schema_id, (), (const, override));
   MOCK_METHOD(uint32_t, get_access_rights, (), (const, override));
   MOCK_METHOD(bool, is_json_response, (), (const, override));
-  MOCK_METHOD(Result, handle_get, (RequestContext * ctxt), (override));
-  MOCK_METHOD(Result, handle_post,
+  MOCK_METHOD(HttpResult, handle_get, (RequestContext * ctxt), (override));
+  MOCK_METHOD(HttpResult, handle_post,
               (RequestContext * ctxt, const std::vector<uint8_t> &document),
               (override));
-  MOCK_METHOD(Result, handle_delete, (RequestContext * ctxt), (override));
-  MOCK_METHOD(Result, handle_put, (RequestContext * ctxt), (override));
+  MOCK_METHOD(HttpResult, handle_delete, (RequestContext * ctxt), (override));
+  MOCK_METHOD(HttpResult, handle_put, (RequestContext * ctxt), (override));
 
   MOCK_METHOD(void, destroy, (), ());
 

@@ -36,7 +36,7 @@
 namespace mrs {
 namespace rest {
 
-using Result = Handler::Result;
+using HttpResult = Handler::HttpResult;
 
 HandlerMetadata::HandlerMetadata(Route *route,
                                  mrs::interface::AuthorizeManager *auth_manager)
@@ -59,7 +59,7 @@ void HandlerMetadata::authorization(rest::RequestContext *ctxt) {
   throw_unauthorize_when_check_auth_fails(ctxt);
 }
 
-Result HandlerMetadata::handle_get(rest::RequestContext *) {
+HttpResult HandlerMetadata::handle_get(rest::RequestContext *) {
   rapidjson::Document json_doc;
   {
     rapidjson::Document::AllocatorType &allocator = json_doc.GetAllocator();
@@ -134,18 +134,18 @@ Result HandlerMetadata::handle_get(rest::RequestContext *) {
   return std::string(json_buf.GetString(), json_buf.GetLength());
 }
 
-Result HandlerMetadata::handle_post(
+HttpResult HandlerMetadata::handle_post(
     [[maybe_unused]] rest::RequestContext *ctxt,
     [[maybe_unused]] const std::vector<uint8_t> &document) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-Result HandlerMetadata::handle_delete([
+HttpResult HandlerMetadata::handle_delete([
     [maybe_unused]] rest::RequestContext *ctxt) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-Result HandlerMetadata::handle_put([
+HttpResult HandlerMetadata::handle_put([
     [maybe_unused]] rest::RequestContext *ctxt) {
   throw http::Error(HttpStatusCode::Forbidden);
 }

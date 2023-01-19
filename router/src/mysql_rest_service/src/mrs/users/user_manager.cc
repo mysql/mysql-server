@@ -34,6 +34,17 @@ using AuthUser = UserManager::AuthUser;
 
 namespace {
 
+bool should_update_db_entry(const AuthUser &provided, const AuthUser &db) {
+  //  assert(!provided.has_user_id);
+
+  // The user manager can update, only following fields.
+  if (provided.name != db.name) return true;
+  if (provided.email != db.email) return true;
+  if (provided.vendor_user_id != db.vendor_user_id) return true;
+
+  return false;
+}
+
 class NoLock {
  public:
   NoLock(std::mutex &) {}
@@ -52,8 +63,9 @@ void UserManager::user_invalidate(const UserId id) {
 
 AuthUser *UserManager::cache_get(AuthUser *out_user, bool *out_is_different) {
   AuthUser *result = nullptr;
+  UserIndex idx(*out_user);
 
-  result = user_cache_.get_cached_value(UserIndex(*out_user));
+  result = user_cache_.get_cached_value(idx);
   if (result) return result;
 
   if (out_user->email.empty() && out_user->name.empty()) return nullptr;
@@ -62,14 +74,29 @@ AuthUser *UserManager::cache_get(AuthUser *out_user, bool *out_is_different) {
   log_debug("input: %s", to_string(*out_user).c_str());
   for (auto &kv : container) {
     auto &value = kv.second;
-    log_debug("C: %s", to_string(value).c_str());
-    if (out_user->match_other_fields(value)) {
-      *out_is_different = true;
-      return &value;
+    bool is_different = false;
+
+    if (!out_user->email.empty()) {
+      if (out_user->email == value.email)
+        result = &value;
+      else
+        is_different = true;
+    }
+
+    if (!out_user->name.empty()) {
+      if (out_user->name == value.name)
+        result = &value;
+      else
+        is_different = true;
+    }
+
+    if (result && out_is_different) {
+      *out_is_different = is_different;
+      break;
     }
   }
 
-  return nullptr;
+  return result;
 }
 
 bool UserManager::user_get_by_id(UserId user_id, AuthUser *out_user,
@@ -91,15 +118,21 @@ bool UserManager::user_get_by_id(UserId user_id, AuthUser *out_user,
   return true;
 }
 
-bool UserManager::user_get(AuthUser *out_user, SqlSessionCache *out_cache) {
+bool UserManager::user_get(AuthUser *out_user, SqlSessionCache *out_cache,
+                           const bool update_changed) {
+  assert(!out_user->has_user_id &&
+         "Search shouldn't be done by ID. The class provides other methods to "
+         "achieve this.");
   AuthUser tmp_user;
   AuthUser *found_user = nullptr;
   bool needs_update = false;
+  bool *needs_update_ptr = (update_changed ? &needs_update : nullptr);
 
-  log_debug("user_get %s", to_string(*out_user).c_str());
+  log_debug("user_get %s, update_changed=%s", to_string(*out_user).c_str(),
+            (update_changed ? "true" : "false"));
   {
     ReadLock lock{mutex_user_cache_};
-    found_user = cache_get(out_user, &needs_update);
+    found_user = cache_get(out_user, needs_update_ptr);
     if (found_user) {
       if (!needs_update) {
         *out_user = *found_user;
@@ -116,7 +149,7 @@ bool UserManager::user_get(AuthUser *out_user, SqlSessionCache *out_cache) {
   WriteLock lock(mutex_user_cache_);
   if (!found_user) {
     log_debug("user not found in the cache");
-    found_user = cache_get(out_user, &needs_update);
+    found_user = cache_get(out_user, needs_update_ptr);
 
     if (found_user) {
       if (!needs_update && found_user->login_permitted) {
@@ -129,8 +162,8 @@ bool UserManager::user_get(AuthUser *out_user, SqlSessionCache *out_cache) {
 
   if (!found_user) {
     log_debug("Looking inside DB");
-    found_user = query_user(out_cache, out_user, &needs_update);
-
+    found_user = query_user(out_cache, out_user, needs_update_ptr);
+    if (update_changed && needs_update) needs_update = false;
     if (found_user) {
       if (!needs_update && found_user->login_permitted) {
         log_debug("found in DB");
@@ -149,6 +182,9 @@ bool UserManager::user_get(AuthUser *out_user, SqlSessionCache *out_cache) {
     // Copy/preserve data that are not provided by remote
     out_user->login_permitted = found_user->login_permitted;
     out_user->privileges = found_user->privileges;
+    out_user->auth_string = found_user->auth_string;
+    out_user->groups = found_user->groups;
+    out_user->options = found_user->options;
 
     log_debug("Updating user from %s to %s", to_string(*found_user).c_str(),
               to_string(*out_user).c_str());
@@ -177,7 +213,8 @@ AuthUser *UserManager::query_user(SqlSessionCache *out_cache,
   auto &user = user_query.get_user();
   auto result = user_cache_.set(user, user);
 
-  *is_different = !(*out_user == user_query.get_user());
+  if (is_different)
+    *is_different = should_update_db_entry(*out_user, user_query.get_user());
 
   return result;
 }

@@ -43,7 +43,7 @@ class UserManager {
   using UserId = AuthUser::UserId;
   using UserIndex = AuthUser::UserIndex;
   using Cache = helper::cache::Cache<UserIndex, AuthUser, 100, PolicyLru>;
-  using Handler = interface::AuthorizeHandler;
+  using Handler = mrs::interface::AuthorizeHandler;
   using SqlSessionCache = Handler::SqlSessionCached;
 
  public:
@@ -54,7 +54,16 @@ class UserManager {
 
   bool user_get_by_id(UserId user_id, AuthUser *out_user,
                       SqlSessionCache *out_cache);
-  bool user_get(AuthUser *out_user, SqlSessionCache *out_cache);
+  /**
+   * Find the user data inside a cache or DB.
+   *
+   * If the user entry provided to the function differs from
+   * the entry found (cache/db), then the DB entry is updated.
+   * This behavior is provided for account that are
+   * imported/managed by other sources like in case of OAUTH2.
+   */
+  bool user_get(AuthUser *out_user, SqlSessionCache *out_cache,
+                const bool update_changed = true);
   void user_invalidate(const UserId id);
 
  private:

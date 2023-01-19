@@ -28,6 +28,7 @@
 #include "mrs/authentication/oauth2_facebook_handler.h"
 #include "mrs/authentication/oauth2_google_handler.h"
 #include "mrs/authentication/oauth2_twitter_handler.h"
+#include "mrs/authentication/scram_handler.h"
 
 namespace mrs {
 namespace authentication {
@@ -52,6 +53,11 @@ AuthHandlerPtr AuthHandlerFactory::create_twitter_auth_handler(
 AuthHandlerPtr AuthHandlerFactory::create_google_auth_handler(
     const AuthApp &entry) const {
   return std::make_shared<Oauth2GoogleHandler>(entry);
+}
+
+AuthHandlerPtr AuthHandlerFactory::create_scram_auth_handler(
+    const AuthApp &entry, const std::string &rd) const {
+  return std::make_shared<ScramHandler>(entry, rd);
 }
 
 }  // namespace authentication

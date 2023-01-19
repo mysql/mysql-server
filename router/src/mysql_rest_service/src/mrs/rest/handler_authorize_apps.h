@@ -51,11 +51,11 @@ class HandlerAuthorizeApps : public Handler {
   UniversalId get_schema_id() const override;
   uint32_t get_access_rights() const override;
 
-  Result handle_get(RequestContext *ctxt) override;
-  Result handle_post(RequestContext *ctxt,
-                     const std::vector<uint8_t> &document) override;
-  Result handle_delete(RequestContext *ctxt) override;
-  Result handle_put(RequestContext *ctxt) override;
+  HttpResult handle_get(RequestContext *ctxt) override;
+  HttpResult handle_post(RequestContext *ctxt,
+                         const std::vector<uint8_t> &document) override;
+  HttpResult handle_delete(RequestContext *ctxt) override;
+  HttpResult handle_put(RequestContext *ctxt) override;
 
  private:
   UniversalId service_id_;

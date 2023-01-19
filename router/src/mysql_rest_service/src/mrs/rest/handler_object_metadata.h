@@ -49,11 +49,11 @@ class HandlerMetadata : public Handler {
 
   void authorization(rest::RequestContext *ctxt) override;
 
-  Result handle_get(rest::RequestContext *ctxt) override;
-  Result handle_post(rest::RequestContext *ctxt,
-                     const std::vector<uint8_t> &document) override;
-  Result handle_delete(rest::RequestContext *ctxt) override;
-  Result handle_put(rest::RequestContext *ctxt) override;
+  HttpResult handle_get(rest::RequestContext *ctxt) override;
+  HttpResult handle_post(rest::RequestContext *ctxt,
+                         const std::vector<uint8_t> &document) override;
+  HttpResult handle_delete(rest::RequestContext *ctxt) override;
+  HttpResult handle_put(rest::RequestContext *ctxt) override;
 
   Route *route_;
 };

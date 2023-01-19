@@ -30,6 +30,10 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   helper/json/to_sqlstring.cc
   helper/token/jwt.cc
   helper/mysql_column_types.cc
+  mrs/authentication/helper/crypto.cc
+  mrs/authentication/helper/http_result.cc
+  mrs/authentication/helper/scram.cc
+  mrs/authentication/helper/option_parser.cc
   mrs/authentication/authorize_manager.cc
   mrs/authentication/auth_handler_factory.cc
   mrs/authentication/basic_handler.cc
@@ -38,6 +42,8 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   mrs/authentication/oauth2_google_handler.cc
   mrs/authentication/oauth2_handler.cc
   mrs/authentication/www_authentication_handler.cc
+  mrs/authentication/sasl_handler.cc
+  mrs/authentication/scram_handler.cc
   mrs/database/filter_object_generator.cc
   mrs/database/schema_monitor.cc
   mrs/database/query_changes_auth_app.cc

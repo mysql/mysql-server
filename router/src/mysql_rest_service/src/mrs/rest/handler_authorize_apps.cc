@@ -40,7 +40,7 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace rest {
 
-using Result = HandlerAuthorizeApps::Result;
+using HttpResult = HandlerAuthorizeApps::HttpResult;
 using Route = mrs::interface::Object;
 
 HandlerAuthorizeApps::HandlerAuthorizeApps(
@@ -71,24 +71,36 @@ uint32_t HandlerAuthorizeApps::get_access_rights() const {
   return Route::kRead;
 }
 
-Result HandlerAuthorizeApps::handle_get(RequestContext *) {
+HttpResult HandlerAuthorizeApps::handle_get(RequestContext *) {
   helper::json::SerializerToText serializer;
-  serializer.add_array().add(
+  using namespace std::string_literals;
+  auto auth_apps =
       authorization_manager_->get_supported_authentication_applications(
-          service_id_));
-  return {serializer.get_result(), Result::Type::typeJson};
+          service_id_);
+
+  {
+    auto arr = serializer.add_array();
+    for (auto &app : auth_apps) {
+      auto obj = arr->add_object();
+      auto &entry = app->get_entry();
+      obj->member_add_value("name", entry.app_name);
+      obj->member_add_value("vendorId", "0x"s + entry.vendor_id.to_string());
+    }
+  }
+
+  return {serializer.get_result(), HttpResult::Type::typeJson};
 }
 
-Result HandlerAuthorizeApps::handle_post(RequestContext *,
-                                         const std::vector<uint8_t> &) {
+HttpResult HandlerAuthorizeApps::handle_post(RequestContext *,
+                                             const std::vector<uint8_t> &) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-Result HandlerAuthorizeApps::handle_delete(RequestContext *) {
+HttpResult HandlerAuthorizeApps::handle_delete(RequestContext *) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-Result HandlerAuthorizeApps::handle_put(RequestContext *) {
+HttpResult HandlerAuthorizeApps::handle_put(RequestContext *) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 

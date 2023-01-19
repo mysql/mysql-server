@@ -34,6 +34,9 @@
 
 #include "mrs/database/entry/auth_privilege.h"
 #include "mrs/database/entry/universal_id.h"
+#include "mysql/harness/logging/logging.h"
+
+IMPORT_LOG_FUNCTIONS()
 
 namespace mrs {
 namespace database {
@@ -66,6 +69,9 @@ struct AuthUser {
         return user_id == other.user_id;
       }
 
+      if (vendor_user_id.empty()) return false;
+      if (other.vendor_user_id.empty()) return false;
+
       return vendor_user_id.compare(other.vendor_user_id) == 0;
     }
 
@@ -74,7 +80,19 @@ struct AuthUser {
         return user_id < other.user_id;
       }
 
+      if (vendor_user_id.empty()) return true;
+      if (other.vendor_user_id.empty()) return true;
+
       return vendor_user_id.compare(other.vendor_user_id) < 0;
+    }
+
+    std::string to_string() const {
+      std::string result = "{";
+      result += "vendor_id:" + vendor_user_id;
+      if (has_user_id) result += ", user_id:" + user_id.to_string();
+
+      result += "}";
+      return result;
     }
 
     bool has_user_id{false};
@@ -87,40 +105,12 @@ struct AuthUser {
   UniversalId app_id;
   std::string name;
   std::string email;
+  std::string auth_string;
   std::string vendor_user_id;
   bool login_permitted{true};
   std::vector<AuthPrivilege> privileges;
   std::set<UniversalId> groups;
-
-  bool operator==(const AuthUser &other) const {
-    if (has_user_id && other.has_user_id) {
-      if (user_id != other.user_id) return false;
-    }
-
-    if (app_id != other.app_id) return false;
-
-    if (name != other.name) return false;
-
-    if (email != other.email) return false;
-
-    if (vendor_user_id != other.vendor_user_id) return false;
-
-    if (login_permitted != other.login_permitted) return false;
-
-    return true;
-  }
-
-  bool match_other_fields(const AuthUser &other) const {
-    if (!name.empty()) {
-      if (name == other.name) return true;
-    }
-
-    if (!email.empty()) {
-      if (email == other.email) return true;
-    }
-
-    return false;
-  }
+  std::string options;
 };
 
 inline std::string to_string(const AuthUser &ud) {
@@ -133,6 +123,7 @@ inline std::string to_string(const AuthUser &ud) {
   if (!ud.name.empty()) map["name"] = ud.name;
   if (!ud.email.empty()) map["email"] = ud.email;
   if (!ud.vendor_user_id.empty()) map["vendor_user_id"] = ud.vendor_user_id;
+  if (!ud.auth_string.empty()) map["auth_string"] = ud.auth_string;
   map["login_permitted"] = ud.login_permitted ? "true" : "false";
 
   for (const auto &kv : map) {

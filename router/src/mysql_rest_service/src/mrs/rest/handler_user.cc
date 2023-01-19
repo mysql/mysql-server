@@ -42,14 +42,14 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace rest {
 
-using Result = HandlerUser::Result;
+using HttpResult = HandlerUser::HttpResult;
 using Route = mrs::interface::Object;
 
 uint32_t HandlerUser::get_access_rights() const {
   return Route::kRead | Route::kUpdate;
 }
 
-Result HandlerUser::handle_put(RequestContext *ctxt) {
+HttpResult HandlerUser::handle_put(RequestContext *ctxt) {
   using namespace std::string_literals;
   auto &input_buffer = ctxt->request->get_input_buffer();
   auto size = input_buffer.length();

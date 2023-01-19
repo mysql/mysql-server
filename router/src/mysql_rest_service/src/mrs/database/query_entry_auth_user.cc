@@ -34,6 +34,18 @@
 namespace mrs {
 namespace database {
 
+namespace {
+
+mysqlrouter::sqlstring value_or_empty_is_null(const std::string &value) {
+  if (value.empty()) return {"NULL"};
+
+  mysqlrouter::sqlstring result{"?"};
+  result << value;
+  return result;
+}
+
+}  // namespace
+
 using AuthUser = QueryEntryAuthUser::AuthUser;
 
 bool QueryEntryAuthUser::query_user(MySQLSession *session,
@@ -42,8 +54,9 @@ bool QueryEntryAuthUser::query_user(MySQLSession *session,
   // TODO(lkotula): do a proper Query building, that resistant to SQL injection
   // (Shouldn't be in review)
   query_ = {
-      "SELECT id, auth_app_id, name, email, vendor_user_id, login_permitted "
-      "FROM mysql_rest_service_metadata.mrs_user WHERE !=? ?"};
+      "SELECT id, auth_app_id, name, email, vendor_user_id, login_permitted, "
+      "app_options, auth_string FROM mysql_rest_service_metadata.mrs_user "
+      "WHERE !=? ?"};
 
   query_ << (user_data->has_user_id ? "id" : "auth_app_id");
   if (user_data->has_user_id)
@@ -62,14 +75,17 @@ bool QueryEntryAuthUser::query_user(MySQLSession *session,
                  << user_data->vendor_user_id);
       break;
     }
-
     if (!user_data->email.empty()) {
-      query_ << (mysqlrouter::sqlstring("and email=? ") << user_data->email);
+      query_ << (mysqlrouter::sqlstring("and convert(email using utf8)=? "
+                                        "COLLATE \"utf8mb4_general_ci\"")
+                 << user_data->email);
       break;
     }
 
     if (!user_data->name.empty()) {
-      query_ << (mysqlrouter::sqlstring("and name=? ") << user_data->name);
+      query_ << (mysqlrouter::sqlstring("and convert(name using utf8)=? "
+                                        "COLLATE \"utf8mb4_general_ci\"")
+                 << user_data->name);
       break;
     }
 
@@ -103,8 +119,11 @@ AuthUser::UserId QueryEntryAuthUser::insert_user(
       "name, "
       "email, vendor_user_id, login_permitted) VALUES(?, ?, ?, ?, ?, ?)"};
 
-  query_ << to_sqlstring(uuid) << user->app_id << user->name << user->email
-         << user->vendor_user_id << user->login_permitted;
+  query_ << to_sqlstring(uuid) << user->app_id
+         << value_or_empty_is_null(user->name)
+         << value_or_empty_is_null(user->email)
+         << value_or_empty_is_null(user->vendor_user_id)
+         << user->login_permitted;
 
   execute(session);
 
@@ -125,10 +144,12 @@ bool QueryEntryAuthUser::update_user(MySQLSession *session,
 
   query_ = {
       "UPDATE mysql_rest_service_metadata.mrs_user SET auth_app_id=?,name=?, "
-      "email=?, vendor_user_id=?, login_permitted=? WHERE id=?"};
+      "email=?, vendor_user_id=? WHERE id=?"};
 
-  query_ << user->app_id << user->name << user->email << user->vendor_user_id
-         << user->login_permitted << to_sqlstring(user->user_id);
+  query_ << user->app_id << value_or_empty_is_null(user->name)
+         << value_or_empty_is_null(user->email)
+         << value_or_empty_is_null(user->vendor_user_id)
+         << to_sqlstring(user->user_id);
 
   execute(session);
   return true;
@@ -148,6 +169,8 @@ void QueryEntryAuthUser::on_row(const Row &row) {
   mysql_row.unserialize(&user_data_.email);
   mysql_row.unserialize(&user_data_.vendor_user_id);
   mysql_row.unserialize(&user_data_.login_permitted);
+  mysql_row.unserialize(&user_data_.options);
+  mysql_row.unserialize(&user_data_.auth_string);
 
   ++loaded_;
 }

@@ -22,8 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_HANDLER_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_HANDLER_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_AUTHENTICATION_HANDLER_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_AUTHENTICATION_HANDLER_H_
 
 #include "collector/mysql_cache_manager.h"
 #include "mrs/database/entry/auth_app.h"
@@ -31,10 +31,10 @@
 #include "mrs/http/session_manager.h"
 #include "mrs/http/url.h"
 #include "mrs/interface/universal_id.h"
-
 #include "mysqlrouter/http_request.h"
 
 namespace mrs {
+
 namespace rest {
 struct RequestContext;
 }  // namespace rest
@@ -52,17 +52,17 @@ class AuthorizeHandler {
  public:
   virtual ~AuthorizeHandler() = default;
 
+  virtual bool redirects() const = 0;
   virtual UniversalId get_service_id() const = 0;
   virtual UniversalId get_id() const = 0;
   virtual const AuthApp &get_entry() const = 0;
 
   virtual bool is_authorized(Session *session, AuthUser *user) = 0;
-  virtual bool authorize(Session *session, http::Url *url,
-                         SqlSessionCached *sql_session,
-                         HttpHeaders &input_headers, AuthUser *out_user) = 0;
+  virtual bool authorize(RequestContext &ctxt, Session *session,
+                         AuthUser *out_user) = 0;
 };
 
 }  // namespace interface
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_HANDLER_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_AUTHENTICATION_HANDLER_H_

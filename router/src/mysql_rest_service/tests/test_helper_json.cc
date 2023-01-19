@@ -26,6 +26,7 @@
 #include <map>
 
 #include "helper/json/rapid_json_to_map.h"
+#include "helper/json/rapid_json_to_struct.h"
 #include "helper/json/serializer_to_text.h"
 #include "helper/json/text_to.h"
 #include "helper/json/to_string.h"
@@ -33,6 +34,7 @@
 
 using namespace helper;
 using namespace helper::json;
+using testing::ElementsAre;
 
 using MapJsonObj = std::map<std::string, std::string>;
 
@@ -185,4 +187,75 @@ TEST(Json, handler_of_simple_values_array_object_ignored) {
   ASSERT_EQ("", get_json_value(k_level, k_document, "b.d"));
   ASSERT_EQ("", get_json_value(k_level, k_document, "b.e.h"));
   ASSERT_EQ("20", get_json_value(k_level, k_document, "c"));
+}
+
+class JsonIntArray
+    : public helper::json::RapidReaderHandlerToStruct<std::vector<int>> {
+ public:
+  JsonIntArray(const std::string &path) : path_{path} {}
+
+  bool Int64(int64_t value) override {
+    handle_int(value);
+    return true;
+  }
+
+  bool Uint64(uint64_t value) override {
+    handle_int(value);
+    return true;
+  }
+
+  bool Int(int value) override {
+    handle_int(value);
+    return true;
+  }
+
+  bool Uint(unsigned value) override {
+    handle_int(value);
+    return true;
+  }
+  bool RawNumber(const Ch *c, rapidjson::SizeType, bool) override {
+    return Int64(as_int64(c));
+  }
+
+  int64_t as_int64(const char *s) {
+    int64_t i;
+    if (1 == sscanf(s, "%" SCNd64, &i)) {
+      return i;
+    }
+
+    return 0;
+  }
+
+  template <typename V>
+  void handle_int(V value) {
+    if (is_object_path()) return;
+    if (path_ != get_current_key()) return;
+
+    result_.push_back(static_cast<int>(value));
+  }
+
+  std::string path_;
+};
+
+template <typename Extractor>
+static auto get_json_array_int_value(const std::string &txt,
+                                     const std::string key_name) {
+  using namespace helper::json;
+  Extractor extractor{key_name};
+  if (!helper::json::text_to(&extractor, txt)) {
+    ADD_FAILURE() << "Testcase input data are invalid (JSON).";
+    return typename Extractor::Result();
+  }
+
+  return extractor.get_result();
+}
+
+TEST(JsonStruct, handler_of_values_array) {
+  auto extract_array = &get_json_array_int_value<JsonIntArray>;
+  const std::string k_document1{"[1,2,3,10]"};
+  const std::string k_document2{"{\"a\":[1,2,3,10], \"b\":{\"c\":[8,20]}}"};
+
+  ASSERT_THAT(extract_array(k_document1, ""), ElementsAre(1, 2, 3, 10));
+  ASSERT_THAT(extract_array(k_document2, "a"), ElementsAre(1, 2, 3, 10));
+  ASSERT_THAT(extract_array(k_document2, "b.c"), ElementsAre(8, 20));
 }

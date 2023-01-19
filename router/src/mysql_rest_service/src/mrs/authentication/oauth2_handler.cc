@@ -30,14 +30,15 @@
 #include <rapidjson/memorystream.h>
 #include <rapidjson/reader.h>
 
-#include <helper/json/text_to.h>
 #include "helper/container/map.h"
 #include "helper/json/rapid_json_to_map.h"
+#include "helper/json/text_to.h"
 #include "helper/json/to_string.h"
 #include "mrs/authentication/www_authentication_handler.h"
 #include "mrs/http/error.h"
 #include "mrs/http/url.h"
 #include "mrs/http/utilities.h"
+#include "mrs/rest/request_context.h"
 
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/string_utils.h"
@@ -54,6 +55,11 @@ namespace authentication {
 
 using GenericSessionData = Oauth2Handler::GenericSessionData;
 using AuthApp = mrs::database::entry::AuthApp;
+
+bool Oauth2Handler::redirects() const {
+  log_debug("Oauth2Handler::redirects");
+  return true;
+}
 
 void Oauth2Handler::RequestHandlerJsonSimpleObject::before_send(HttpRequest *) {
 }
@@ -214,8 +220,7 @@ bool Oauth2Handler::is_authorized(Session *session, AuthUser *user) {
   return true;
 }
 
-bool Oauth2Handler::authorize(Session *session, http::Url *url,
-                              SqlSessionCached *sql_session, HttpHeaders &,
+bool Oauth2Handler::authorize(RequestContext &ctxt, Session *session,
                               AuthUser *out_user) {
   const static std::string kCode{"code"};
   const static std::string kState{"state"};
@@ -223,7 +228,8 @@ bool Oauth2Handler::authorize(Session *session, http::Url *url,
   const static std::string kToken{"token"};
   auto session_data = session->get_data<GenericSessionData>();
 
-  http::Url::Parameaters &query_parameters = url->parameters_;
+  auto url = ctxt.get_http_url();
+  http::Url::Parameaters &query_parameters = url.parameters_;
   const bool token_in_parameters = 0 != query_parameters.count(kToken);
   const bool code_in_parameters = 0 != query_parameters.count(kCode);
 
@@ -239,7 +245,7 @@ bool Oauth2Handler::authorize(Session *session, http::Url *url,
   if (nullptr == session_data) {
     if (!token_in_parameters && !code_in_parameters) {
       log_debug("SessionData doesn't exist in new-session");
-      new_session_start_login(session, url);
+      new_session_start_login(session, &url);
       return false;
     }
 
@@ -268,7 +274,7 @@ bool Oauth2Handler::authorize(Session *session, http::Url *url,
             "session, and redirecting.");
         // TODO(lkotula): Limit somehow the number of retries (Shouldn't be in
         // review)
-        new_session_start_login(session, url);
+        new_session_start_login(session, &url);
         return false;
       }
 
@@ -279,7 +285,7 @@ bool Oauth2Handler::authorize(Session *session, http::Url *url,
     }
       [[fallthrough]];
     case Session::kTokenVerified:
-      if (!http_verify_account(session, session_data, sql_session))
+      if (!http_verify_account(session, session_data, &ctxt.sql_session_cache))
         return false;
       session->state = Session::kUserVerified;
 

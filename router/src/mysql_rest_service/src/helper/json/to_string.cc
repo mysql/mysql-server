@@ -23,23 +23,22 @@
 */
 
 #include "helper/json/to_string.h"
+#include "helper/json/serializer_to_text.h"
 
 namespace helper {
 namespace json {
 
-// TODO(lkotula): Use rapid json to format this map (Shouldn't be in review)
-std::string to_string(const std::map<std::string, std::string> &map) {
-  std::string result = "{";
-  bool first = true;
+std::string to_string(const MapObject &map) {
+  SerializerToText stt;
 
-  for (auto &kv : map) {
-    if (!first) result += ", ";
-    result += "\"" + kv.first + "\": \"" + kv.second + "\"";
-
-    first = false;
+  {
+    auto obj = stt.add_object();
+    for (auto &kv : map) {
+      obj->member_add_value(kv.first, kv.second);
+    }
   }
 
-  return result + "}";
+  return stt.get_result();
 }
 
 }  // namespace json

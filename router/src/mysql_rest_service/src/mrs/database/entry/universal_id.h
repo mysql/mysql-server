@@ -55,6 +55,9 @@ struct UniversalId {
 
   uint8_t raw[k_size];
 
+  const uint8_t *begin() const { return std::begin(raw); }
+  const uint8_t *end() const { return std::end(raw); }
+
   void operator=(const UniversalId &other) { memcpy(raw, other.raw, k_size); }
 
   bool operator==(const UniversalId &other) const {

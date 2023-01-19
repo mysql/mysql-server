@@ -142,5 +142,7 @@ void Cookie::set(const std::string &cookie_name, const std::string &value,
   cookies_[cookie_name] = value;
 }
 
+std::map<std::string, std::string> &Cookie::direct() { return cookies_; }
+
 }  // namespace http
 }  // namespace mrs

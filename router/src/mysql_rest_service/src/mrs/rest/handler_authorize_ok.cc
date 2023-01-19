@@ -35,7 +35,7 @@
 namespace mrs {
 namespace rest {
 
-using Result = HandlerAuthorizeOk::Result;
+using HttpResult = HandlerAuthorizeOk::HttpResult;
 using Route = mrs::interface::Object;
 
 // clang-format off
@@ -161,23 +161,23 @@ UniversalId HandlerAuthorizeOk::get_schema_id() const {
 
 uint32_t HandlerAuthorizeOk::get_access_rights() const { return Route::kRead; }
 
-Result HandlerAuthorizeOk::handle_get(RequestContext *) {
+HttpResult HandlerAuthorizeOk::handle_get(RequestContext *) {
   if (page_content_custom_.empty())
     return {k_page_content_default, helper::MediaType::typeHtml};
 
   return {page_content_custom_, helper::MediaType::typeHtml};
 }
 
-Result HandlerAuthorizeOk::handle_post(RequestContext *,
-                                       const std::vector<uint8_t> &) {
+HttpResult HandlerAuthorizeOk::handle_post(RequestContext *,
+                                           const std::vector<uint8_t> &) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-Result HandlerAuthorizeOk::handle_delete(RequestContext *) {
+HttpResult HandlerAuthorizeOk::handle_delete(RequestContext *) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-Result HandlerAuthorizeOk::handle_put(RequestContext *) {
+HttpResult HandlerAuthorizeOk::handle_put(RequestContext *) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 

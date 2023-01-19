@@ -76,7 +76,7 @@ void QueryEntriesAuthApp::on_row(const Row &row) {
   mysql_row.unserialize_with_converter(&entry.service_id,
                                        entry::UniversalId::from_raw);
   mysql_row.unserialize(&entry.service_name);
-  mysql_row.unserialize(&entry.name);
+  mysql_row.unserialize(&entry.vendor_name);
   mysql_row.unserialize(&entry.app_name);
   mysql_row.unserialize(&entry.active);
   mysql_row.unserialize(&entry.url);
@@ -95,6 +95,9 @@ void QueryEntriesAuthApp::on_row(const Row &row) {
   mysql_row.unserialize(&entry.options);
   mysql_row.unserialize(&entry.redirect);
   mysql_row.unserialize(&entry.redirection_default_page);
+  mysql_row.skip();
+  mysql_row.unserialize_with_converter(&entry.vendor_id,
+                                       entry::UniversalId::from_raw);
 
   entry.deleted = false;
 }

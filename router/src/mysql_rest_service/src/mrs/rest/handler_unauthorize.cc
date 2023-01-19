@@ -34,7 +34,7 @@
 namespace mrs {
 namespace rest {
 
-using Result = HandlerUnauthorize::Result;
+using HttpResult = HandlerUnauthorize::HttpResult;
 using Route = mrs::interface::Object;
 
 std::string impl_get_json_response_ok() {
@@ -80,22 +80,22 @@ UniversalId HandlerUnauthorize::get_schema_id() const {
 
 uint32_t HandlerUnauthorize::get_access_rights() const { return Route::kRead; }
 
-Result HandlerUnauthorize::handle_get(RequestContext *ctxt) {
+HttpResult HandlerUnauthorize::handle_get(RequestContext *ctxt) {
   auth_manager_->unauthorize(service_id_, &ctxt->cookies);
   return {HttpStatusCode::Unauthorized, get_json_response_ok(),
-          Result::Type::typeJson};
+          HttpResult::Type::typeJson};
 }
 
-Result HandlerUnauthorize::handle_post(RequestContext *,
-                                       const std::vector<uint8_t> &) {
+HttpResult HandlerUnauthorize::handle_post(RequestContext *,
+                                           const std::vector<uint8_t> &) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-Result HandlerUnauthorize::handle_delete(RequestContext *) {
+HttpResult HandlerUnauthorize::handle_delete(RequestContext *) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-Result HandlerUnauthorize::handle_put(RequestContext *) {
+HttpResult HandlerUnauthorize::handle_put(RequestContext *) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
