@@ -1173,7 +1173,7 @@ select * from information_schema.engines WHERE ENGINE="MyISAM";
 
 # Tests printing of MaterializeInformationSchemaTableIterator with nontrivial
 # table iterators.
---replace_regex $elide_costs_and_rows
+--replace_regex $elide_metrics
 explain format=tree select * from information_schema.engines WHERE ENGINE="MyISAM";
 
 #
