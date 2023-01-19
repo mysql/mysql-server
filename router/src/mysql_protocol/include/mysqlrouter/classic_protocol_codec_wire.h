@@ -66,14 +66,21 @@ class Codec<wire::FixedInt<IntSize>> {
    * encode value_type into buffer.
    */
   stdx::expected<size_t, std::error_code> encode(
-      const net::mutable_buffer &buffer) const {
-    auto v = v_.value();
-
-    if (stdx::endian::native == stdx::endian::big) {
-      v = stdx::byteswap(v);
+      net::mutable_buffer buffer) const {
+    if (buffer.size() < int_size) {
+      return stdx::make_unexpected(make_error_code(std::errc::no_buffer_space));
     }
 
-    return buffer_copy(buffer, net::const_buffer(&v, int_size));
+    auto int_val = v_.value();
+
+    if (stdx::endian::native == stdx::endian::big) {
+      int_val = stdx::byteswap(int_val);
+    }
+
+    std::copy_n(reinterpret_cast<const std::byte *>(&int_val), int_size,
+                static_cast<std::byte *>(buffer.data()));
+
+    return int_size;
   }
 
   /**
@@ -89,14 +96,10 @@ class Codec<wire::FixedInt<IntSize>> {
           make_error_code(codec_errc::not_enough_input));
     }
 
-    union {
-      std::array<uint8_t, int_size> ar;
-      typename value_type::value_type value{};
-    };
+    typename value_type::value_type value{};
 
-    std::copy(static_cast<const unsigned char *>(buffer.data()),
-              static_cast<const unsigned char *>(buffer.data()) + int_size,
-              ar.data());
+    std::copy_n(static_cast<const std::byte *>(buffer.data()), int_size,
+                reinterpret_cast<std::byte *>(&value));
 
     if (stdx::endian::native == stdx::endian::big) {
       value = stdx::byteswap(value);
@@ -215,18 +218,18 @@ class Codec<wire::Null> : public Codec<wire::FixedInt<1>> {
 
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
       const net::const_buffer &buffer, capabilities::value_type /* caps */) {
-    uint8_t v;
-
-    size_t copied = buffer_copy(net::buffer(&v, 1), buffer);
-
-    if (copied != 1) {
+    if (buffer.size() < 1) {
       return stdx::make_unexpected(
           make_error_code(codec_errc::not_enough_input));
-    } else if (v != nul_byte) {
+    }
+
+    const uint8_t nul_val = *static_cast<const uint8_t *>(buffer.data());
+
+    if (nul_val != nul_byte) {
       return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
     }
 
-    return std::make_pair(copied, value_type());
+    return std::make_pair(1, value_type());
   }
 };
 
@@ -250,7 +253,17 @@ class Codec<void> {
 
   stdx::expected<size_t, std::error_code> encode(
       const net::mutable_buffer &buffer) const {
-    return buffer_copy(buffer, net::buffer(std::vector<char>(size())));
+    if (buffer.size() < size()) {
+      return stdx::make_unexpected(make_error_code(std::errc::no_buffer_space));
+    }
+
+    auto *first = static_cast<std::uint8_t *>(buffer.data());
+    auto *last = first + size();
+
+    // fill with 0
+    std::fill(first, last, 0);
+
+    return size();
   }
 
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
@@ -288,24 +301,26 @@ class Codec<wire::String> {
 
   stdx::expected<size_t, std::error_code> encode(
       const net::mutable_buffer &buffer) const {
-    return buffer_copy(buffer, net::const_buffer(v_.value().data(), size()));
+    if (buffer.size() < size()) {
+      return stdx::make_unexpected(make_error_code(std::errc::no_buffer_space));
+    }
+
+    // in -> out
+    std::copy_n(reinterpret_cast<const std::byte *>(v_.value().data()), size(),
+                static_cast<std::byte *>(buffer.data()));
+
+    return size();
   }
 
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
       const net::const_buffer &buffer, capabilities::value_type /* caps */) {
-    size_t buf_size = buffer_size(buffer);
+    const size_t buf_size = buffer_size(buffer);
 
-    // MUST handle the empty case as &s.front() for .empty() std::string is
-    // undefined and may trigger an assert()ion on glibc's implementation
-    if (0 == buf_size) {
-      return std::make_pair(buf_size, value_type(std::string()));
-    }
-    std::string s;
-    s.resize(buf_size);
+    if (0 == buf_size) return std::make_pair(buf_size, value_type());
 
-    size_t len = buffer_copy(net::mutable_buffer(&s.front(), s.size()), buffer);
-
-    return std::make_pair(len, value_type(s));
+    return std::make_pair(
+        buf_size,
+        value_type({static_cast<const char *>(buffer.data()), buffer.size()}));
   }
 
  private:
@@ -395,32 +410,26 @@ class Codec<wire::NulTermString>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
       const net::const_buffer &buffer, capabilities::value_type /* caps */) {
     // length of the string before the \0
-    size_t len{};
 
-    // we don't know where the \0 will be be, scan all buffers for the first
-    // one.
     const auto *first = static_cast<const uint8_t *>(buffer.data());
     const auto *last = first + buffer.size();
 
     const auto *pos = std::find(first, last, '\0');
-    if (pos != last) {
-      // \0 was found
-      len += std::distance(first, pos);
-
-      // builds a string from the buffer-sequence's content
-      std::string s;
-      if (len > 0) {
-        // ensure we don't trigger undefined behaviour by using &s.front() if
-        // s.size() is 0
-        s.resize(len);
-        buffer_copy(net::mutable_buffer(&s.front(), s.size()), buffer, len);
-      }
-
-      return std::make_pair(len + 1, value_type(s));  // consume the \0 too
+    if (pos == last) {
+      // no 0-term found
+      return stdx::make_unexpected(
+          make_error_code(codec_errc::missing_nul_term));
     }
 
-    // no 0-term found
-    return stdx::make_unexpected(make_error_code(codec_errc::missing_nul_term));
+    // \0 was found
+    size_t len = std::distance(first, pos);
+    if (len == 0) {
+      return std::make_pair(len + 1, value_type());  // consume the \0 too
+    }
+
+    return std::make_pair(len + 1,
+                          value_type({static_cast<const char *>(buffer.data()),
+                                      len}));  // consume the \0 too
   }
 
  private:

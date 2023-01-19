@@ -105,26 +105,23 @@ stdx::expected<size_t, std::error_code> encode(const T &v,
 }
 
 /**
- * decode a message from a buffer sequence.
+ * decode a message from a buffer.
  *
- * @param buffers buffer sequence to read from
+ * @param buffer buffer to read from
  * @param caps protocol capabilities
  * @returns number of bytes read from 'buffers' and a T on success, or
  * std::error_code on error
  */
-template <class T, class ConstBufferSequence>
+template <class T>
 stdx::expected<std::pair<size_t, T>, std::error_code> decode(
-    const ConstBufferSequence &buffers, capabilities::value_type caps) {
-  static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value,
-                "buffers MUST be a const buffer sequence");
-
-  return Codec<T>::decode(buffers, caps);
+    const net::const_buffer &buffer, capabilities::value_type caps) {
+  return Codec<T>::decode(buffer, caps);
 }
 
 namespace impl {
 
 /**
- * Generator of decoded Types of a buffer-sequence.
+ * Generator of decoded Types of a buffer.
  *
  * - .step<wire::VarInt>()
  */
