@@ -48,6 +48,7 @@ MYSQL_ADD_PLUGIN(temptable
   ${TEMPTABLE_SOURCES}
   STORAGE_ENGINE
   MANDATORY
+  LINK_LIBRARIES extra::rapidjson
 )
 
 # Only used for debugging.

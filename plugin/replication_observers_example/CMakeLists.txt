@@ -29,6 +29,7 @@ MYSQL_ADD_PLUGIN(replication_observers_example
   MODULE_ONLY
   MODULE_OUTPUT_NAME "replication_observers_example_plugin"
   TEST_ONLY
+  LINK_LIBRARIES extra::rapidjson
   )
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)

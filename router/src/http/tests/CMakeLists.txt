@@ -105,7 +105,7 @@ IF(LIBFUZZER_COMPILE_FLAGS)
     ../src/kdf_pbkdf2.cc
     ../src/mcf_error.cc
     COMPONENT Router
-    LINK_LIBRARIES ${SSL_LIBRARIES} metadata_cache
+    LINK_LIBRARIES ${SSL_LIBRARIES} metadata_cache extra::rapidjson
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     SKIP_INSTALL
     )
