@@ -40,35 +40,75 @@ namespace wire {
 // - nul-terminated strings
 // - NULL
 
-class VarInt {
+template <class U>
+class BasicInt {
  public:
-  using value_type = int64_t;
+  using value_type = U;
 
-  constexpr VarInt(value_type v) : v_{v} {}
+  constexpr BasicInt(value_type val) : val_{val} {}
 
-  constexpr value_type value() const noexcept { return v_; }
+  constexpr value_type value() const { return val_; }
 
  private:
-  value_type v_;
+  value_type val_;
 };
 
-constexpr bool operator==(const VarInt &a, const VarInt &b) {
-  return a.value() == b.value();
+template <class U>
+constexpr bool operator==(const BasicInt<U> &lhs, const BasicInt<U> &rhs) {
+  return lhs.value() == rhs.value();
 }
+
+class VarInt : public BasicInt<int64_t> {
+ public:
+  using BasicInt::BasicInt;
+};
+
+template <int Size>
+class FixedInt;
+
+template <>
+class FixedInt<1> : public BasicInt<uint8_t> {
+ public:
+  using BasicInt::BasicInt;
+};
+
+template <>
+class FixedInt<2> : public BasicInt<uint16_t> {
+ public:
+  using BasicInt::BasicInt;
+};
+
+template <>
+class FixedInt<3> : public BasicInt<uint32_t> {
+ public:
+  using BasicInt::BasicInt;
+};
+
+template <>
+class FixedInt<4> : public BasicInt<uint32_t> {
+ public:
+  using BasicInt::BasicInt;
+};
+
+template <>
+class FixedInt<8> : public BasicInt<uint64_t> {
+ public:
+  using BasicInt::BasicInt;
+};
 
 class String {
  public:
-  String() : s_{} {}
-  String(std::string s) : s_{std::move(s)} {}
+  String() = default;
+  String(std::string str) : str_{std::move(str)} {}
 
-  std::string value() const { return s_; }
+  std::string value() const { return str_; }
 
  private:
-  std::string s_;
+  std::string str_;
 };
 
-inline bool operator==(const String &a, const String &b) {
-  return a.value() == b.value();
+inline bool operator==(const String &lhs, const String &rhs) {
+  return lhs.value() == rhs.value();
 }
 
 class NulTermString : public String {
@@ -79,79 +119,6 @@ class NulTermString : public String {
 class VarString : public String {
  public:
   using String::String;
-};
-
-template <int Size>
-class FixedInt;
-
-template <>
-class FixedInt<1> {
- public:
-  using value_type = uint8_t;
-
-  constexpr FixedInt(value_type v) : v_{std::move(v)} {}
-
-  constexpr value_type value() const { return v_; }
-
- private:
-  value_type v_;
-};
-
-template <int Size>
-constexpr bool operator==(const FixedInt<Size> &a, const FixedInt<Size> &b) {
-  return a.value() == b.value();
-}
-
-template <>
-class FixedInt<2> {
- public:
-  using value_type = uint16_t;
-
-  constexpr FixedInt(value_type v) : v_{std::move(v)} {}
-
-  constexpr value_type value() const { return v_; }
-
- private:
-  value_type v_;
-};
-
-template <>
-class FixedInt<3> {
- public:
-  using value_type = uint32_t;
-
-  constexpr FixedInt(value_type v) : v_{std::move(v)} {}
-
-  constexpr value_type value() const { return v_; }
-
- private:
-  value_type v_;
-};
-
-template <>
-class FixedInt<4> {
- public:
-  using value_type = uint32_t;
-
-  constexpr FixedInt(value_type v) : v_{std::move(v)} {}
-
-  constexpr value_type value() const { return v_; }
-
- private:
-  value_type v_;
-};
-
-template <>
-class FixedInt<8> {
- public:
-  using value_type = uint64_t;
-
-  constexpr FixedInt(value_type v) : v_{std::move(v)} {}
-
-  constexpr value_type value() const { return v_; }
-
- private:
-  value_type v_;
 };
 
 class Null {};
