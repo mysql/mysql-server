@@ -29,6 +29,7 @@ MYSQL_ADD_EXECUTABLE(mysqlrouter_plugin_info
   LINK_LIBRARIES
   harness-library
   mysys
+  extra::rapidjson
   ${CMAKE_DL_LIBS}
   )
 

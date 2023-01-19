@@ -35,6 +35,7 @@ MYSQL_ADD_PLUGIN(semisync_source
   MODULE_ONLY
   MODULE_OUTPUT_NAME "semisync_source"
   VISIBILITY_HIDDEN
+  LINK_LIBRARIES extra::rapidjson
   )
 
 MYSQL_ADD_PLUGIN(semisync_replica
@@ -44,6 +45,7 @@ MYSQL_ADD_PLUGIN(semisync_replica
   MODULE_ONLY
   MODULE_OUTPUT_NAME "semisync_replica"
   VISIBILITY_HIDDEN
+  LINK_LIBRARIES extra::rapidjson
   )
 
 MYSQL_ADD_PLUGIN(semisync_master
@@ -54,6 +56,7 @@ MYSQL_ADD_PLUGIN(semisync_master
   MODULE_ONLY
   MODULE_OUTPUT_NAME "semisync_master"
   VISIBILITY_HIDDEN
+  LINK_LIBRARIES extra::rapidjson
   )
 
 MYSQL_ADD_PLUGIN(semisync_slave
@@ -63,4 +66,5 @@ MYSQL_ADD_PLUGIN(semisync_slave
   MODULE_ONLY
   MODULE_OUTPUT_NAME "semisync_slave"
   VISIBILITY_HIDDEN
+  LINK_LIBRARIES extra::rapidjson
   )

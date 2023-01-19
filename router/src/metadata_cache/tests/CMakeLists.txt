@@ -60,6 +60,7 @@ ADD_TEST_FILE(test_plugin_config.cc
   LIB_DEPENDS
     metadata_cache
     test-helpers
+    extra::rapidjson
   )
 ROUTERTEST_GET_TARGET(T "test_plugin_config.cc" "${TEST_MODULE}")
 TARGET_COMPILE_DEFINITIONS(${T}

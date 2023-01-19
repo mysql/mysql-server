@@ -366,7 +366,8 @@ table_replication_applier_global_filters.cc
 table_binary_log_transaction_compression_stats.cc
 )
 MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES}
-  STORAGE_ENGINE MANDATORY STATIC_ONLY)
+  STORAGE_ENGINE MANDATORY STATIC_ONLY
+  LINK_LIBRARIES extra::rapidjson)
 
 IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest)

@@ -103,7 +103,7 @@ ENDIF()
 
 ADD_LIBRARY(myisam_library STATIC ${MYISAM_SOURCES})
 ADD_DEPENDENCIES(myisam_library GenError)
-TARGET_LINK_LIBRARIES(myisam_library mysys)
+TARGET_LINK_LIBRARIES(myisam_library mysys extra::rapidjson)
 
 MYSQL_ADD_PLUGIN(myisam ha_myisam.cc
   STORAGE_ENGINE

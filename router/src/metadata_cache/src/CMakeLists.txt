@@ -42,6 +42,8 @@ TARGET_LINK_LIBRARIES(metadata_cache
   router_lib
   mysqlxclient_lite
   router_mysqlxmessages
+  PRIVATE
+    extra::rapidjson
   )
 TARGET_INCLUDE_DIRECTORIES(metadata_cache
   PRIVATE
@@ -82,6 +84,7 @@ add_harness_plugin(metadata_cache_plugin
   metadata_cache
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
+TARGET_LINK_LIBRARIES(metadata_cache_plugin PRIVATE extra::rapidjson)
 GENERATE_EXPORT_HEADER(metadata_cache_plugin
   EXPORT_FILE_NAME
   ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/metadata_cache_plugin_export.h
