@@ -41,3 +41,14 @@ IF(WIN32)
     test_classic_protocol_message.cc
     COMPILE_FLAGS "/bigobj")
 ENDIF()
+
+FOREACH(test_file
+    test_microbench.cc
+  )
+  ADD_GOOGLETEST_FILE(${test_file}
+    EXTRA_SOURCES ${CMAKE_SOURCE_DIR}/unittest/gunit/benchmark.cc
+    MODULE ${TEST_MODULE}
+    SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
+    INCLUDE_DIRS ../include/
+    LIB_DEPENDS harness_stdx)
+ENDFOREACH()
