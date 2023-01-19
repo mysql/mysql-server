@@ -34,6 +34,7 @@ SET(lib_source_files
   config_files.cc
   cluster_metadata.cc
   cluster_metadata_dynamic_state.cc
+  cluster_metadata_instance_attributes.cc
   sys_user_operations.cc
   utils.cc
   uri.cc

@@ -34,7 +34,6 @@ SET(TEST_MODULE metadata_cache)
 FOREACH(test_file
     test_cache_plugin.cc
     test_failover.cc
-    test_instance_attributes.cc
     test_metadata.cc
     test_metadata_cache.cc
     )

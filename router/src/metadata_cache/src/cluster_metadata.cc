@@ -42,6 +42,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/utility/string.h"  // string_format
 #include "mysqld_error.h"
+#include "mysqlrouter/cluster_metadata_instance_attributes.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"  // string_format
@@ -52,6 +53,7 @@
 using mysql_harness::EventStateTracker;
 using mysql_harness::logging::LogLevel;
 using mysqlrouter::ClusterType;
+using mysqlrouter::InstanceType;
 using mysqlrouter::MySQLSession;
 using mysqlrouter::sqlstring;
 using namespace std::string_literals;
@@ -443,72 +445,6 @@ ClusterMetadata::find_rw_server(
   return {};
 }
 
-/**
- * @brief Returns value fo the bool tag set in the attributes
- *
- * @param attributes    string containing JSON with the attributes
- * @param name          name of the tag to be fetched
- * @param default_value value to be returned if the given tag is missing or
- * invalid or if the JSON string is invalid
- * @param[out] out_warning  output parameter where the function sets the
- * descriptive warning in case there was a JSON parsing error
- *
- * @note the function always sets out_warning to "" at the beginning
- *
- * @return value of the bool tag
- */
-static bool get_bool_tag(const std::string_view &attributes,
-                         const std::string_view &name, bool default_value,
-                         std::string &out_warning) {
-  out_warning = "";
-  if (attributes.empty()) return default_value;
-
-  rapidjson::Document json_doc;
-  json_doc.Parse(attributes.data(), attributes.size());
-
-  if (!json_doc.IsObject()) {
-    out_warning = "not a valid JSON object";
-    return default_value;
-  }
-
-  const auto tags_it = json_doc.FindMember("tags");
-  if (tags_it == json_doc.MemberEnd()) {
-    return default_value;
-  }
-
-  if (!tags_it->value.IsObject()) {
-    out_warning = "tags - not a valid JSON object";
-    return default_value;
-  }
-
-  const auto tags = tags_it->value.GetObject();
-
-  const auto it = tags.FindMember(rapidjson::Value{name.data(), name.size()});
-
-  if (it == tags.MemberEnd()) {
-    return default_value;
-  }
-
-  if (!it->value.IsBool()) {
-    out_warning = "tags." + std::string(name) + " not a boolean";
-    return default_value;
-  }
-
-  return it->value.GetBool();
-}
-
-bool get_hidden(const std::string &attributes, std::string &out_warning) {
-  return get_bool_tag(attributes, metadata_cache::kNodeTagHidden,
-                      metadata_cache::kNodeTagHiddenDefault, out_warning);
-}
-
-bool get_disconnect_existing_sessions_when_hidden(const std::string &attributes,
-                                                  std::string &out_warning) {
-  return get_bool_tag(attributes, metadata_cache::kNodeTagDisconnectWhenHidden,
-                      metadata_cache::kNodeTagDisconnectWhenHiddenDefault,
-                      out_warning);
-}
-
 // helper class - helps to log the warning about the instance only when the
 // warning condition changes
 struct LogSuppressor {
@@ -573,7 +509,8 @@ void set_instance_attributes(metadata_cache::ManagedInstance &instance,
 
   instance.attributes = attributes;
 
-  instance.hidden = get_hidden(attributes, warning);
+  instance.hidden =
+      mysqlrouter::InstanceAttributes::get_hidden(attributes, warning);
   // we want to log the warning only when it's changing
   if (warning !=
       log_suppressor.get_warning_hidden(instance.mysql_server_uuid)) {
@@ -587,7 +524,8 @@ void set_instance_attributes(metadata_cache::ManagedInstance &instance,
   }
 
   instance.disconnect_existing_sessions_when_hidden =
-      get_disconnect_existing_sessions_when_hidden(attributes, warning);
+      mysqlrouter::InstanceAttributes::
+          get_disconnect_existing_sessions_when_hidden(attributes, warning);
   // we want to log the warning only when it's changing
   if (warning !=
       log_suppressor.get_warning_disconnect_existing_sessions_when_hidden(

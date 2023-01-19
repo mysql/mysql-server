@@ -184,5 +184,13 @@ class TargetCluster {
       InvalidatedClusterRoutingPolicy::DropAll};
 };
 
+constexpr const std::string_view kNodeTagHidden{"_hidden"};
+constexpr const std::string_view kNodeTagDisconnectWhenHidden{
+    "_disconnect_existing_sessions_when_hidden"};
+
+constexpr const bool kNodeTagHiddenDefault{false};
+constexpr const bool kNodeTagDisconnectWhenHiddenDefault{true};
+
+enum class InstanceType { GroupMember, AsyncMember, ReadReplica, Unsupported };
 }  // namespace mysqlrouter
 #endif

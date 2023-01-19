@@ -242,7 +242,7 @@ bool metadata_cache::ManagedInstance::operator==(
 }
 
 metadata_cache::ManagedInstance::ManagedInstance(
-    InstanceType p_type, const std::string &p_mysql_server_uuid,
+    mysqlrouter::InstanceType p_type, const std::string &p_mysql_server_uuid,
     const ServerMode p_mode, const ServerRole p_role, const std::string &p_host,
     const uint16_t p_port, const uint16_t p_xport)
     : type(p_type),
@@ -251,14 +251,21 @@ metadata_cache::ManagedInstance::ManagedInstance(
       role(p_role),
       host(p_host),
       port(p_port),
-      xport(p_xport) {}
+      xport(p_xport),
+      hidden(mysqlrouter::kNodeTagHiddenDefault),
+      disconnect_existing_sessions_when_hidden(
+          mysqlrouter::kNodeTagDisconnectWhenHiddenDefault) {}
 
-metadata_cache::ManagedInstance::ManagedInstance(InstanceType p_type) {
+metadata_cache::ManagedInstance::ManagedInstance(
+    mysqlrouter::InstanceType p_type)
+    : hidden(mysqlrouter::kNodeTagHiddenDefault),
+      disconnect_existing_sessions_when_hidden(
+          mysqlrouter::kNodeTagDisconnectWhenHiddenDefault) {
   type = p_type;
 }
 
-metadata_cache::ManagedInstance::ManagedInstance(InstanceType p_type,
-                                                 const TCPAddress &addr)
+metadata_cache::ManagedInstance::ManagedInstance(
+    mysqlrouter::InstanceType p_type, const TCPAddress &addr)
     : ManagedInstance(p_type) {
   host = addr.address();
   port = addr.port();

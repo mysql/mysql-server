@@ -343,7 +343,7 @@ void GRClusterMetadata::update_cluster_status_from_gr(
   // which simplifies the implementations
   std::vector<metadata_cache::ManagedInstance *> gr_members;
   for (auto &member : cluster.members) {
-    if (member.type == metadata_cache::InstanceType::GroupMember) {
+    if (member.type == mysqlrouter::InstanceType::GroupMember) {
       gr_members.push_back(&member);
     }
   }
@@ -985,8 +985,7 @@ GRMetadataBackendV1::fetch_instances_from_metadata_server(
           std::to_string(row.size()));
     }
 
-    metadata_cache::ManagedInstance s{
-        metadata_cache::InstanceType::GroupMember};
+    metadata_cache::ManagedInstance s{mysqlrouter::InstanceType::GroupMember};
     s.mysql_server_uuid = get_string(row[3]);
     if (!set_instance_ports(s, row, 4, 5)) {
       return true;  // next row
@@ -1066,7 +1065,7 @@ GRMetadataBackendV2::fetch_instances_from_metadata_server(
     }
 
     metadata_cache::ManagedInstance instance{
-        metadata_cache::InstanceType::GroupMember};
+        mysqlrouter::InstanceType::GroupMember};
     instance.mysql_server_uuid = get_string(row[2]);
     if (!set_instance_ports(instance, row, 3, 4)) {
       return true;  // next row
@@ -1277,7 +1276,7 @@ GRClusterSetMetadataBackend::update_clusterset_topology_from_metadata_server(
           mysqlrouter::URI uri_classic("mysql://" + node_addr_classic);
           mysqlrouter::URI uri_x("mysql://" + node_addr_x);
           result.clusters_data.back().members.emplace_back(
-              metadata_cache::InstanceType::GroupMember, node_uuid,
+              mysqlrouter::InstanceType::GroupMember, node_uuid,
               metadata_cache::ServerMode::ReadOnly,
               metadata_cache::ServerRole::Secondary, uri_classic.host,
               uri_classic.port, uri_x.port);

@@ -189,7 +189,7 @@ metadata_cache::ClusterTopology ARClusterMetadata::fetch_topology_from_member(
     cluster.id = get_string(row[0]);
     cluster.name = get_string(row[1]);
     metadata_cache::ManagedInstance instance{
-        metadata_cache::InstanceType::AsyncMember};
+        mysqlrouter::InstanceType::AsyncMember};
     instance.mysql_server_uuid = get_string(row[2]);
 
     if (!set_instance_ports(instance, row, 3, 4)) {

@@ -60,7 +60,7 @@ using mysqlrouter::MySQLSession;
 using State = GroupReplicationMember::State;
 using Role = GroupReplicationMember::Role;
 
-constexpr auto GR = metadata_cache::InstanceType::GroupMember;
+constexpr auto GR = mysqlrouter::InstanceType::GroupMember;
 ////////////////////////////////////////////////////////////////////////////////
 //
 // These tests focus on testing functionality implemented in

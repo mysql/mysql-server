@@ -116,7 +116,7 @@ class MockNG : public GRClusterMetadata {
   unsigned int fetch_ttl() override;
 #endif
  private:
-  static constexpr auto GR = metadata_cache::InstanceType::GroupMember;
+  static constexpr auto GR = mysqlrouter::InstanceType::GroupMember;
 };
 
 #endif  // MOCK_METADATA_INCLUDED
