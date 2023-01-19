@@ -167,7 +167,7 @@
  *
  * ### Stage 2: Query GR, combine results with MD, determine availability
  *
- * Implemented in: `ClusterMetadata::update_cluster_status()`
+ * Implemented in: `ClusterMetadata::update_cluster_status_from_gr()`
  *
  * Here MDC iterates through the list of GR members obtained from MD in Stage
  * 1.2, until it finds a "trustworthy" GR node. A "trustworthy" GR node is one
@@ -195,7 +195,7 @@
  *
  * #### Stage 2.1: Connect to GR node
  *
- * Implemented in: `ClusterMetadata::update_cluster_status()`
+ * Implemented in: `ClusterMetadata::update_cluster_status_from_gr()`
  *
  * New connection to GR node is established (on failure, Stage 2 progresses to
  * next iteration).
@@ -236,8 +236,8 @@
  *
  * #### Stage 2.3: Quorum test
  *
- * Implemented in: `ClusterMetadata::update_cluster_status()` and
- *                   `ClusterMetadata::check_cluster_status()`
+ * Implemented in: `ClusterMetadata::update_cluster_status_from_gr()` and
+ *                   `ClusterMetadata::check_cluster_status_in_gr()`
  *
  * MD and GR data collected up to now are compared, to see if GR node just
  * queried belongs to an available cluster (or to an available cluster

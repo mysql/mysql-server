@@ -332,26 +332,36 @@ GRClusterMetadata::GRClusterMetadata(
   }
 }
 
-void GRClusterMetadata::update_cluster_status(
+void GRClusterMetadata::update_cluster_status_from_gr(
     metadata_cache::ManagedCluster
         &cluster) {  // throws metadata_cache::metadata_error
 
   log_debug("Updating cluster status from GR for '%s'", cluster.name.c_str());
 
+  // filter only GR nodes from all the cluster nodes
+  // we copy the pointers as we want to operate directly on the original objects
+  // which simplifies the implementations
+  std::vector<metadata_cache::ManagedInstance *> gr_members;
+  for (auto &member : cluster.members) {
+    if (member.type == metadata_cache::InstanceType::GroupMember) {
+      gr_members.push_back(&member);
+    }
+  }
+
   // iterate over all candidate nodes until we find the node that is part of
   // quorum
   bool found_quorum = false;
   std::shared_ptr<MySQLSession> gr_member_connection;
-  for (const metadata_cache::ManagedInstance &mi : cluster.members) {
-    const std::string mi_addr = mi.host + ":" + std::to_string(mi.port);
+  for (const metadata_cache::ManagedInstance *mi : gr_members) {
+    const std::string mi_addr = mi->host + ":" + std::to_string(mi->port);
 
     auto connection = get_connection();
 
     // connect to node
-    if (mi_addr == connection->get_address()) {  // optimisation: if node is the
-                                                 // same as metadata server,
-      gr_member_connection = connection;  //               share the established
-                                          //               connection
+    if (mi_addr == connection->get_address()) {
+      // optimisation: if node is the same as metadata server, share the
+      // established connection
+      gr_member_connection = connection;
     } else {
       try {
         gr_member_connection =
@@ -365,7 +375,7 @@ void GRClusterMetadata::update_cluster_status(
         throw metadata_cache::metadata_error(e.what());
       }
 
-      const bool connect_res = do_connect(*gr_member_connection, mi);
+      const bool connect_res = do_connect(*gr_member_connection, *mi);
       const bool connect_res_changed =
           EventStateTracker::instance().state_changed(
               connect_res, EventStateTracker::EventId::GRMemberConnectedOk,
@@ -394,14 +404,13 @@ void GRClusterMetadata::update_cluster_status(
               *gr_member_connection,
               single_primary_mode);  // throws metadata_cache::metadata_error
       log_debug("Cluster '%s' has %zu members in metadata, %zu in status table",
-                cluster.name.c_str(), cluster.members.size(),
-                member_status.size());
+                cluster.name.c_str(), gr_members.size(), member_status.size());
 
       // check status of all nodes; updates instances
       // ------------------vvvvvvvvvvvvvvvvvv
       bool metadata_gr_discrepancy{false};
-      const auto status = check_cluster_status(cluster.members, member_status,
-                                               metadata_gr_discrepancy);
+      const auto status = check_cluster_status_in_gr(gr_members, member_status,
+                                                     metadata_gr_discrepancy);
       switch (status) {
         case GRClusterStatus::AvailableWritable:  // we have
                                                   // quorum,
@@ -465,8 +474,8 @@ void GRClusterMetadata::update_cluster_status(
   }
 }
 
-GRClusterStatus GRClusterMetadata::check_cluster_status(
-    std::vector<metadata_cache::ManagedInstance> &instances,
+GRClusterStatus GRClusterMetadata::check_cluster_status_in_gr(
+    std::vector<metadata_cache::ManagedInstance *> &instances,
     const std::map<std::string, GroupReplicationMember> &member_status,
     bool &metadata_gr_discrepancy) const noexcept {
   // In ideal world, the best way to write this function would be to completely
@@ -495,9 +504,9 @@ GRClusterStatus GRClusterMetadata::check_cluster_status(
   for (const auto &status_node : member_status) {
     using MI = metadata_cache::ManagedInstance;
     auto found = std::find_if(instances.begin(), instances.end(),
-                              [&status_node](const MI &metadata_node) {
+                              [&status_node](const MI *metadata_node) {
                                 return status_node.first ==
-                                       metadata_node.mysql_server_uuid;
+                                       metadata_node->mysql_server_uuid;
                               });
     const bool node_in_metadata = found != instances.end();
     const bool node_in_metadata_changed =
@@ -542,11 +551,11 @@ GRClusterStatus GRClusterMetadata::check_cluster_status(
   bool have_primary_instance = false;
   bool have_secondary_instance = false;
   for (auto &member : instances) {
-    auto status = member_status.find(member.mysql_server_uuid);
+    auto status = member_status.find(member->mysql_server_uuid);
     const bool node_in_gr = status != member_status.end();
     const bool node_in_gr_changed = EventStateTracker::instance().state_changed(
         node_in_gr, EventStateTracker::EventId::MetadataNodeInGR,
-        member.mysql_server_uuid);
+        member->mysql_server_uuid);
 
     if (node_in_gr) {
       switch (status->second.state) {
@@ -554,14 +563,14 @@ GRClusterStatus GRClusterMetadata::check_cluster_status(
           switch (status->second.role) {
             case GR_Role::Primary:
               have_primary_instance = true;
-              member.role = ServerRole::Primary;
-              member.mode = ServerMode::ReadWrite;
+              member->role = ServerRole::Primary;
+              member->mode = ServerMode::ReadWrite;
               quorum_count++;
               break;
             case GR_Role::Secondary:
               have_secondary_instance = true;
-              member.role = ServerRole::Secondary;
-              member.mode = ServerMode::ReadOnly;
+              member->role = ServerRole::Secondary;
+              member->mode = ServerMode::ReadOnly;
               quorum_count++;
               break;
           }
@@ -575,21 +584,21 @@ GRClusterStatus GRClusterMetadata::check_cluster_status(
           // generates a warning for that and there is no sane and portable way
           // to suppress it.
           if (GR_State::Recovering == status->second.state) quorum_count++;
-          member.role = ServerRole::Unavailable;
-          member.mode = ServerMode::Unavailable;
+          member->role = ServerRole::Unavailable;
+          member->mode = ServerMode::Unavailable;
           break;
       }
     } else {
-      member.role = ServerRole::Unavailable;
-      member.mode = ServerMode::Unavailable;
+      member->role = ServerRole::Unavailable;
+      member->mode = ServerMode::Unavailable;
       metadata_gr_discrepancy = true;
       const auto log_level =
           node_in_gr_changed ? LogLevel::kWarning : LogLevel::kDebug;
       log_custom(log_level,
                  "Member %s:%d (%s) defined in metadata not found in actual "
                  "Group Replication",
-                 member.host.c_str(), member.port,
-                 member.mysql_server_uuid.c_str());
+                 member->host.c_str(), member->port,
+                 member->mysql_server_uuid.c_str());
     }
   }
 
@@ -772,7 +781,7 @@ GRMetadataBackend::fetch_cluster_topology(
   // now connect to the cluster and query it for the list and status of its
   // members. (more precisely: search and connect to a
   // member which is part of quorum to retrieve this data)
-  metadata_->update_cluster_status(
+  metadata_->update_cluster_status_from_gr(
       cluster);  // throws metadata_cache::metadata_error
 
   // once we know the current status (PRIMARY, SECONDARY) of the nodes, we can
@@ -1352,7 +1361,7 @@ GRClusterSetMetadataBackend::find_rw_server() {
 
     // we need to connect to the Primary Cluster and query its GR status to
     // figure out the current Primary node
-    metadata_->update_cluster_status(cluster);
+    metadata_->update_cluster_status_from_gr(cluster);
 
     return metadata_->find_rw_server(cluster.members);
   }
@@ -1536,7 +1545,7 @@ void GRClusterSetMetadataBackend::update_clusterset_status_from_gr(
     // connect to the cluster and query for the list and status of its
     // members. (more precisely: search and connect to a
     // member which is part of quorum to retrieve this data)
-    metadata_->update_cluster_status(
+    metadata_->update_cluster_status_from_gr(
         cluster);  // throws metadata_cache::metadata_error
 
     // change the mode of RW node(s) reported by the GR to RO if the

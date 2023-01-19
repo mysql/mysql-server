@@ -146,18 +146,18 @@ class METADATA_CACHE_EXPORT GRClusterMetadata : public ClusterMetadata {
   /** Query the GR performance_schema tables for live information about a
    * cluster.
    *
-   * update_cluster_status() calls check_cluster_status() for some of its
-   * processing. Together, they:
+   * update_cluster_status_from_gr() calls check_cluster_status_in_gr() for some
+   * of its processing. Together, they:
    * - check current topology (status) returned from a cluster node
    * - update 'instances' with this state
    * - get other metadata about the cluster
    *
    * The information is pulled from GR maintained performance_schema tables.
    */
-  void update_cluster_status(metadata_cache::ManagedCluster &cluster);
+  void update_cluster_status_from_gr(metadata_cache::ManagedCluster &cluster);
 
-  GRClusterStatus check_cluster_status(
-      std::vector<metadata_cache::ManagedInstance> &instances,
+  GRClusterStatus check_cluster_status_in_gr(
+      std::vector<metadata_cache::ManagedInstance *> &instances,
       const std::map<std::string, GroupReplicationMember> &member_status,
       bool &metadata_gr_discrepancy) const noexcept;
 
