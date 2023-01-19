@@ -5003,6 +5003,10 @@ longlong Item_ntile::val_int() {
     }
 
     longlong buckets = args[0]->val_int();
+    if (buckets == 0) {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+      return error_int();
+    }
 
     /*
       Should not be evaluated until we have read all rows in partition
