@@ -81,9 +81,10 @@ class Oauth2Handler : public interface::AuthorizeHandler {
   const AuthApp &get_entry() const override;
   UniversalId get_service_id() const override;
   UniversalId get_id() const override;
+
+  bool redirects() const override;
   bool is_authorized(Session *session, AuthUser *user) override;
-  bool authorize(Session *session, http::Url *url,
-                 SqlSessionCached *sql_session, HttpHeaders &input_headers,
+  bool authorize(RequestContext &ctxt, Session *session,
                  AuthUser *out_user) override;
 
   class RequestHandlerJsonSimpleObject : public RequestHandler {

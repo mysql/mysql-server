@@ -33,7 +33,16 @@
 namespace helper {
 namespace json {
 
-std::string to_string(const std::map<std::string, std::string> &map);
+/**
+ * std::map that represents simple JSON object.
+ *
+ * This type can hold only JSON Objects that consist only
+ * from string values, other types are going to be ignored
+ * or converted.
+ */
+using MapObject = std::map<std::string, std::string>;
+
+std::string to_string(const MapObject &map);
 
 template <typename RapidJson>
 std::string to_string(const RapidJson &v) {

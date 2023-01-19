@@ -60,9 +60,9 @@ class WwwAuthenticationHandler : public interface::AuthorizeHandler {
 
   void add_www_authenticate(const char *schema);
 
+  bool redirects() const override;
   bool is_authorized(Session *session, AuthUser *user) override;
-  bool authorize(Session *session, http::Url *url,
-                 SqlSessionCached *sql_session, HttpHeaders &input_headers,
+  bool authorize(RequestContext &ctxt, Session *session,
                  AuthUser *out_user) override;
   const AuthApp &get_entry() const override;
 

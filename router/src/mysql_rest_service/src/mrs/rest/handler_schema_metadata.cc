@@ -36,7 +36,7 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace rest {
 
-using Result = Handler::Result;
+using HttpResult = Handler::HttpResult;
 using Route = mrs::interface::Object;
 
 HandlerSchemaMetadata::HandlerSchemaMetadata(
@@ -49,7 +49,7 @@ void HandlerSchemaMetadata::authorization(rest::RequestContext *ctxt) {
   throw_unauthorize_when_check_auth_fails(ctxt);
 }
 
-Result HandlerSchemaMetadata::handle_get(rest::RequestContext *ctxt) {
+HttpResult HandlerSchemaMetadata::handle_get(rest::RequestContext *ctxt) {
   auto &requests_uri = ctxt->request->get_uri();
   log_debug("Schema::handle_get '%s'", requests_uri.get_path().c_str());
   const uint32_t k_default_limit = 25;
@@ -76,17 +76,17 @@ Result HandlerSchemaMetadata::handle_get(rest::RequestContext *ctxt) {
   return response_template.get_result();
 }
 
-Result HandlerSchemaMetadata::handle_post(
+HttpResult HandlerSchemaMetadata::handle_post(
     [[maybe_unused]] rest::RequestContext *ctxt,
     [[maybe_unused]] const std::vector<uint8_t> &document) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-Result HandlerSchemaMetadata::handle_delete(rest::RequestContext *) {
+HttpResult HandlerSchemaMetadata::handle_delete(rest::RequestContext *) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-Result HandlerSchemaMetadata::handle_put(rest::RequestContext *) {
+HttpResult HandlerSchemaMetadata::handle_put(rest::RequestContext *) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 

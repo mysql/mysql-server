@@ -31,8 +31,8 @@
 #include <utility>
 #include <vector>
 
-#include "helper/media_type.h"
 #include "mrs/http/error.h"
+#include "mrs/interface/http_result.h"
 #include "mrs/interface/universal_id.h"
 
 class HttpRequest;
@@ -54,8 +54,8 @@ using Parameters = std::map<std::string, std::string>;
 
 class ReqRes {
  public:
-  const bool header_;
-  const bool body_;
+  bool header_{false};
+  bool body_{false};
 };
 
 class Request : public ReqRes {
@@ -64,25 +64,34 @@ class Request : public ReqRes {
 
 class Response : public ReqRes {
  public:
-  const bool detailed_errors_{false};
+  bool detailed_errors_{false};
 };
 
 class Options {
  public:
-  const Parameters parameters_;
+  Options() {}
+
+  Parameters parameters_;
+
+  class AllowedOrigins {
+   public:
+    enum AllowedOriginsType { AllowNone, AllowAll, AllowSpecified };
+
+    AllowedOriginsType type{AllowNone};
+    std::vector<std::string> allowed_origins;
+  } allowed_origins;
 
   class Debug {
    public:
+    Debug() {}
+
     class Http {
      public:
-      Http(const Request &req, const Response &res)
-          : request{req}, response{res} {}
+      Http() {}
       Request request;
       Response response;
     } http;
     bool log_exceptions{false};
-
-    Debug(const Http &http, bool le) : http{http}, log_exceptions{le} {}
   } debug;
 };
 
@@ -91,28 +100,7 @@ class RestHandler {
   using SqlSession = mysqlrouter::MySQLSession;
   using RequestContext = mrs::rest::RequestContext;
   using Parameters = mrs::interface::Parameters;
-
-  struct Result {
-    using Type = helper::MediaType;
-
-    Result() {}
-    Result(std::string &&r) : response{r} {}
-    Result(std::string &&r, Type t, std::string e = {})
-        : response{r}, type{t}, etag{std::move(e)} {}
-    Result(HttpStatusCode::key_type s, std::string &&r, Type t,
-           std::string e = {})
-        : response{r}, status{s}, type{t}, etag{std::move(e)} {}
-    Result(const std::string &r, Type t, std::string e = {})
-        : response{r}, type{t}, etag{std::move(e)} {}
-    Result(std::string &&r, std::string t, std::string e = {})
-        : response{r}, type_text{t}, etag{std::move(e)} {}
-
-    std::string response;
-    HttpStatusCode::key_type status{HttpStatusCode::Ok};
-    Type type{Type::typeDefault};
-    std::optional<std::string> type_text;
-    std::string etag;
-  };
+  using HttpResult = mrs::interface::HttpResult;
 
   enum class Authorization { kNotNeeded, kRequires, kCheck };
 
@@ -133,14 +121,14 @@ class RestHandler {
   virtual bool request_begin(RequestContext *ctxt) = 0;
   virtual void request_end(RequestContext *ctxt) = 0;
   virtual bool request_error(RequestContext *ctxt, const http::Error &e) = 0;
-  virtual Result handle_get(RequestContext *ctxt) = 0;
-  virtual Result handle_post(RequestContext *ctxt,
-                             const std::vector<uint8_t> &document) = 0;
-  virtual Result handle_delete(RequestContext *ctxt) = 0;
-  virtual Result handle_put(RequestContext *ctxt) = 0;
+  virtual HttpResult handle_get(RequestContext *ctxt) = 0;
+  virtual HttpResult handle_post(RequestContext *ctxt,
+                                 const std::vector<uint8_t> &document) = 0;
+  virtual HttpResult handle_delete(RequestContext *ctxt) = 0;
+  virtual HttpResult handle_put(RequestContext *ctxt) = 0;
 };
-}  // namespace interface
 
+}  // namespace interface
 }  // namespace mrs
 
 #endif  // ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_REST_HANDLER_H_

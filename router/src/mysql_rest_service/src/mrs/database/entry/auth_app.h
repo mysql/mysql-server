@@ -40,8 +40,9 @@ class AuthApp {
  public:
   UniversalId id;
   UniversalId service_id;
+  UniversalId vendor_id;
   std::string service_name;
-  std::string name;
+  std::string vendor_name;
   std::string app_name;
   bool active;
   bool deleted;
@@ -74,7 +75,7 @@ inline std::string to_string(const AuthApp &entry) {
     auto obj = stt.add_object();
     stt.member_add_value("id", entry.id);
     stt.member_add_value("service_id", entry.service_id);
-    stt.member_add_value("name", entry.name);
+    stt.member_add_value("name", entry.vendor_name);
     stt.member_add_value("limit_to_registered_users",
                          entry.limit_to_registered_users);
     if (!entry.url.empty()) {

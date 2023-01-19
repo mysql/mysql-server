@@ -155,8 +155,7 @@ TEST_F(HandlerAuthorizeTests, do_the_authentication) {
 
   EXPECT_CALL(mock_uri_, get_query())
       .WillOnce(Return("mrs_redirect=localhost"));
-  EXPECT_CALL(*mock_auth_handler_, authorize(_, _, _, _, _))
-      .WillOnce(Return(true));
+  EXPECT_CALL(*mock_auth_handler_, authorize(_, _, _)).WillOnce(Return(true));
 
   EXPECT_CALL(mock_output_headers_,
               add(StrEq("Set-Cookie"), StrEq("localhost; Max-Age=900")));
@@ -179,8 +178,7 @@ TEST_F(HandlerAuthorizeTests, do_the_authentication_fails) {
 
   EXPECT_CALL(mock_uri_, get_query())
       .WillOnce(Return("mrs_redirect=localhost"));
-  EXPECT_CALL(*mock_auth_handler_, authorize(_, _, _, _, _))
-      .WillOnce(Return(false));
+  EXPECT_CALL(*mock_auth_handler_, authorize(_, _, _)).WillOnce(Return(false));
 
   EXPECT_CALL(mock_output_headers_,
               add(StrEq("Set-Cookie"), StrEq("localhost; Max-Age=900")));

@@ -25,6 +25,7 @@
 #include "mrs/authentication/www_authentication_handler.h"
 
 #include "mrs/http/error.h"
+#include "mrs/rest/request_context.h"
 
 #include "mysql/harness/logging/logging.h"
 
@@ -40,6 +41,11 @@ using AuthUser = mrs::database::entry::AuthUser;
 using Session = mrs::http::SessionManager::Session;
 
 struct WwwAuthSessionData : mrs::http::SessionManager::Session::SessionData {};
+
+bool WwwAuthenticationHandler::redirects() const {
+  log_debug("WwwAuthenticationHandler::redirects");
+  return true;
+}
 
 bool WwwAuthenticationHandler::is_authorized(Session *session, AuthUser *user) {
   log_debug("WwwAuthenticationHandler::is_authorized");
@@ -58,9 +64,7 @@ bool WwwAuthenticationHandler::is_authorized(Session *session, AuthUser *user) {
   return true;
 }
 
-bool WwwAuthenticationHandler::authorize(Session *session, http::Url *url,
-                                         SqlSessionCached *sql_session,
-                                         HttpHeaders &input_headers,
+bool WwwAuthenticationHandler::authorize(RequestContext &ctxt, Session *session,
                                          AuthUser *out_user) {
   log_debug("WwwAuth: Authorize user");
   if (session->state == Session::kUserVerified) {
@@ -68,13 +72,14 @@ bool WwwAuthenticationHandler::authorize(Session *session, http::Url *url,
     *out_user = session->user;
     return true;
   }
+  auto url = ctxt.get_http_url();
 
-  url->get_if_query_parameter("onCompletionRedirect",
-                              &session->users_on_complete_url_redirection);
-  url->get_if_query_parameter("onCompletionClose",
-                              &session->users_on_complete_timeout);
+  url.get_if_query_parameter("onCompletionRedirect",
+                             &session->users_on_complete_url_redirection);
+  url.get_if_query_parameter("onCompletionClose",
+                             &session->users_on_complete_timeout);
 
-  auto authorization_cstr = input_headers.get(kAuthorization);
+  auto authorization_cstr = ctxt.get_in_headers().get(kAuthorization);
   if (nullptr == authorization_cstr) {
     log_debug("WwwAuth: no authorization selected, retry?");
     add_www_authenticate(kBasicSchema);
@@ -83,7 +88,7 @@ bool WwwAuthenticationHandler::authorize(Session *session, http::Url *url,
   auto args = mysql_harness::split_string(authorization, ' ', false);
   std::string value = args.size() > 1 ? args[1] : "";
   log_debug("WwwAuth: execute");
-  auto result = www_authorize(value, sql_session, out_user);
+  auto result = www_authorize(value, &ctxt.sql_session_cache, out_user);
 
   if (result) {
     session->user = *out_user;

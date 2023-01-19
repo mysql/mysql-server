@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,33 +22,28 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_USER_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_USER_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_HELPER_HTTP_RESULT_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_HELPER_HTTP_RESULT_H_
 
-#include <optional>
+#include <map>
 #include <string>
-#include <vector>
 
-#include "mrs/rest/handler_is_authorized.h"
+#include "mrs/interface/http_result.h"
+#include "mysqlrouter/http_request.h"
 
 namespace mrs {
-namespace rest {
+namespace authentication {
 
-class HandlerUser : public HandlerIsAuthorized {
- public:
-  using HandlerIsAuthorized::HandlerIsAuthorized;
+using MapObject = std::map<std::string, std::string>;
 
-  HttpResult handle_put(RequestContext *ctxt) override;
-  void authorization(RequestContext *ctxt) override;
+mrs::interface::HttpResult get_problem_description(
+    HttpStatusCode::key_type status, const std::string &msg,
+    MapObject o = MapObject());
 
-  uint32_t get_access_rights() const override;
+mrs::interface::HttpResult get_problem_description(
+    HttpStatusCode::key_type status);
 
- private:
-  void fill_authorization(Object &ojson, const AuthUser &user,
-                          const std::vector<AuthRole> &roles) override;
-};
-
-}  // namespace rest
+}  // namespace authentication
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_USER_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_AUTHENTICATION_HELPER_HTTP_RESULT_H_

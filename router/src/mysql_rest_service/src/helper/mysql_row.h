@@ -44,7 +44,7 @@ class MySQLRow {
  public:
   MySQLRow(const Row &row) : row_{row} {}
 
-  void skip(uint32_t to_skip) { field_index_ += to_skip; }
+  void skip(uint32_t to_skip = 1) { field_index_ += to_skip; }
 
   template <typename FieldType>
   void unserialize(FieldType *out_field) {

@@ -54,6 +54,7 @@ class Cookie {
            bool http_only = false, const std::string &domain = {});
   std::string get(const std::string &key);
   void clear(const char *cookie_name);
+  std::map<std::string, std::string> &direct();
 
  private:
   static const char *kHttpParameterNameCookie;

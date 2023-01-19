@@ -42,10 +42,12 @@
 #include "mrs/rest/handler_is_authorized.h"
 #include "mrs/rest/handler_unauthorize.h"
 #include "mrs/rest/handler_user.h"
+#include "mrs/rest/request_context.h"
 
 #include "helper/container/generic.h"
 #include "helper/container/map.h"
 #include "helper/make_shared_ptr.h"
+#include "helper/string/random.h"
 #include "helper/string/replace.h"
 #include "helper/token/jwt.h"
 
@@ -61,6 +63,12 @@ using JwtHolder = helper::JwtHolder;
 using Jwt = helper::Jwt;
 using Handlers = AuthorizeManager::AuthHandlers;
 using AuthorizeHandlerPtr = AuthorizeManager::AuthorizeHandlerPtr;
+
+const UniversalId k_vendor_mrs{{0x30, 0}};
+const UniversalId k_vendor_mysql{{0x31, 0}};
+const UniversalId k_vendor_facebook{{0x32, 0}};
+const UniversalId k_vendor_twitter{{0x33, 0}};
+const UniversalId k_vendor_google{{0x34, 0}};
 
 class UserIdContainer {
  public:
@@ -105,7 +113,9 @@ AuthorizeManager::AuthorizeManager(collector::MysqlCacheManager *cache_manager,
                                    AuthHandlerFactoryPtr factory)
     : cache_manager_{cache_manager},
       jwt_secret_{jwt_secret},
-      factory_{factory} {
+      factory_{factory},
+      random_data_{
+          helper::generate_string<64, helper::Generator8bitsValues>()} {
   log_info("JWT bearer authorization disabled, the signing secret is empty.");
 }
 
@@ -181,14 +191,16 @@ AuthorizeHandlerPtr AuthorizeManager::make_auth(const AuthApp &entry) {
 
   if (!entry.active) return {};
 
-  if (entry.name == "MySQL Basic")
+  if (entry.vendor_id == k_vendor_mysql)
     result = factory_->create_basic_auth_handler(entry, cache_manager_);
-  else if (entry.name == "Facebook")
+  else if (entry.vendor_id == k_vendor_facebook)
     result = factory_->create_facebook_auth_handler(entry);
-  else if (entry.name == "Twitter")
+  else if (entry.vendor_id == k_vendor_twitter)
     result = factory_->create_twitter_auth_handler(entry);
-  else if (entry.name == "Google")
+  else if (entry.vendor_id == k_vendor_google)
     result = factory_->create_google_auth_handler(entry);
+  else if (entry.vendor_id == k_vendor_mrs)
+    result = factory_->create_scram_auth_handler(entry, random_data_);
 
   if (result) {
     helper::AuthorizeHandlerCallbakcs *callbacks = this;
@@ -357,18 +369,10 @@ AuthorizeManager::Session *AuthorizeManager::get_current_session(
   log_debug("Current session state:%i", session ? session->state : -1);
   return session;
 }
-std::vector<std::string>
+
+AuthorizeManager::Container
 AuthorizeManager::get_supported_authentication_applications(ServiceId id) {
-  std::vector<std::string> result;
-  auto handlers = get_handlers_by_service_id(id);
-
-  result.reserve(handlers.size());
-
-  for (const auto &h : handlers) {
-    result.push_back(h->get_entry().app_name);
-  }
-
-  return result;
+  return get_handlers_by_service_id(id);
 }
 
 std::string AuthorizeManager::authorize(const UniversalId service_id,
@@ -439,12 +443,12 @@ std::string AuthorizeManager::authorize(const UniversalId service_id,
   return {};
 }
 
-bool AuthorizeManager::authorize(ServiceId service_id, http::Cookie *cookies,
-                                 http::Url *url, SqlSessionCached *sql_session,
-                                 HttpHeaders &input_headers,
+bool AuthorizeManager::authorize(ServiceId service_id,
+                                 rest::RequestContext &ctxt,
                                  AuthUser *out_user) {
   auto session_cookie_key = get_session_cookie_key_name(service_id);
-  auto session_identifier = cookies->get(session_cookie_key);
+  auto session_identifier = ctxt.cookies.get(session_cookie_key);
+  auto url = ctxt.get_http_url();
   log_debug(
       "AuthorizeManager::authorize(service_id:%s, session_id:%s, "
       "can_use_jwt:%s)",
@@ -453,8 +457,17 @@ bool AuthorizeManager::authorize(ServiceId service_id, http::Cookie *cookies,
 
   AuthorizeHandlerPtr selected_handler;
 
-  bool generate_jwt_token = url->get_query_parameter("sessionType") == "bearer";
-  if (generate_jwt_token) url->remove_query_parameter("sessionType");
+  bool generate_jwt_token = url.get_query_parameter("sessionType") == "bearer";
+  if (generate_jwt_token) url.remove_query_parameter("sessionType");
+
+  // TODO(lkotula): Change this hack (Shouldn't be in review)
+  if (ctxt.request->get_method() == HttpMethod::Post &&
+      session_identifier.empty()) {
+    auto url_session_id = url.get_query_parameter("session");
+    if (!url_session_id.empty()) {
+      session_identifier = url_session_id;
+    }
+  }
 
   if (generate_jwt_token && jwt_secret_.empty()) {
     throw http::Error{HttpStatusCode::BadRequest,
@@ -468,7 +481,7 @@ bool AuthorizeManager::authorize(ServiceId service_id, http::Cookie *cookies,
           HttpStatusCode::BadRequest,
           "Bad request - there is no authorization application available"};
 
-    auto selected_app = url->get_query_parameter("app");
+    auto selected_app = url.get_query_parameter("app");
 
     if (selected_app.empty() && handlers.size() == 1) {
       selected_handler = handlers[0];
@@ -488,6 +501,7 @@ bool AuthorizeManager::authorize(ServiceId service_id, http::Cookie *cookies,
   // Ensure that all code paths, had selected the handlers.
   assert(nullptr != selected_handler.get());
 
+  ctxt.selected_handler = selected_handler;
   if (!session_identifier.empty()) {
     auto session = session_manager_.get_session(session_identifier);
     if (session) {
@@ -508,8 +522,9 @@ bool AuthorizeManager::authorize(ServiceId service_id, http::Cookie *cookies,
     session = session_manager_.new_session(selected_handler->get_id());
     session->generate_token = generate_jwt_token;
     http::Cookie::SameSite same_site = http::Cookie::None;
-    cookies->set(session_cookie_key, session->get_session_id(),
-                 http::Cookie::duration{0}, "/", &same_site, true, true, {});
+    ctxt.cookies.set(session_cookie_key, session->get_session_id(),
+                     http::Cookie::duration{0}, "/", &same_site, true, true,
+                     {});
     log_debug("new session id=%s", session->get_session_id().c_str());
   } else {
     session = session_manager_.get_session(session_identifier);
@@ -520,8 +535,10 @@ bool AuthorizeManager::authorize(ServiceId service_id, http::Cookie *cookies,
   assert(nullptr != session);
   session->handler_name = selected_handler->get_entry().app_name;
 
-  if (selected_handler->authorize(session, url, sql_session, input_headers,
-                                  out_user)) {
+  log_debug("selected_handler::redirects(%s)",
+            (selected_handler->redirects() ? "yes" : "no"));
+
+  if (selected_handler->authorize(ctxt, session, out_user)) {
     return true;
   }
 
@@ -533,11 +550,10 @@ users::UserManager *AuthorizeManager::get_user_manager() {
 }
 
 bool AuthorizeManager::is_authorized(ServiceId service_id,
-                                     http::Cookie *cookies,
-                                     HttpHeaders &input_headers,
+                                     rest::RequestContext &ctxt,
                                      AuthUser *user) {
   auto session_cookie_key = get_session_cookie_key_name(service_id);
-  auto session_identifier = cookies->get(session_cookie_key);
+  auto session_identifier = ctxt.cookies.get(session_cookie_key);
 
   log_debug(
       "AuthorizeManager::is_authorized(service_id:%s, session_id:%s, "
@@ -547,7 +563,7 @@ bool AuthorizeManager::is_authorized(ServiceId service_id,
 
   if (session_identifier.empty()) {
     if (!jwt_secret_.empty()) {
-      auto jwt = get_bearer_token_jwt(input_headers);
+      auto jwt = get_bearer_token_jwt(ctxt.get_in_headers());
 
       session_identifier = authorize(service_id, jwt);
     }

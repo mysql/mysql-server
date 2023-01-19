@@ -58,11 +58,11 @@ class HandlerIsAuthorized : public Handler {
   void request_end(RequestContext *ctxt) override;
   bool request_error(RequestContext *ctxt, const http::Error &e) override;
 
-  Result handle_get(RequestContext *ctxt) override;
-  Result handle_post(RequestContext *ctxt,
-                     const std::vector<uint8_t> &document) override;
-  Result handle_delete(RequestContext *ctxt) override;
-  Result handle_put(RequestContext *ctxt) override;
+  HttpResult handle_get(RequestContext *ctxt) override;
+  HttpResult handle_post(RequestContext *ctxt,
+                         const std::vector<uint8_t> &document) override;
+  HttpResult handle_delete(RequestContext *ctxt) override;
+  HttpResult handle_put(RequestContext *ctxt) override;
 
  protected:
   using Object = helper::json::SerializerToText::Object;

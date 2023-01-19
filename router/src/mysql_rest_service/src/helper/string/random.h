@@ -27,7 +27,26 @@
 
 namespace helper {
 
-struct GeneratorSmallAlpha {
+/**
+ * Base class for generators.
+ *
+ * Generator must provide only following function:
+ *
+ *     static char generate()
+ *
+ *  and doesn't need to inherit from `GeneratorBase`.
+ */
+struct GeneratorBase {
+  /**
+   * Static method that generates random number.
+   *
+   * The methods was mainly introduced for easier changing the randomize
+   * algorithm in future.
+   */
+  static int randomize() { return rand(); }
+};
+
+struct GeneratorSmallAlpha : public GeneratorBase {
  protected:
   const static char smallEnd = 'z';
   const static char smallBegin = 'a';
@@ -40,7 +59,7 @@ struct GeneratorSmallAlpha {
  public:
   const static int kNumberOfCharacters = smallRange;
   static char generate() {
-    auto result = rand() % kNumberOfCharacters;
+    auto result = randomize() % kNumberOfCharacters;
     return smallBegin + result;
   }
 };
@@ -50,7 +69,7 @@ struct GeneratorAlpha : public GeneratorSmallAlpha {
   const static int kNumberOfCharacters = smallRange + bigRange;
 
   static char generate() {
-    auto result = rand() % kNumberOfCharacters;
+    auto result = randomize() % kNumberOfCharacters;
     if (result < smallRange) return smallBegin + result;
     result -= smallRange;
     return bigBegin + result;
@@ -66,7 +85,7 @@ struct GeneratorAlphaNumeric : public GeneratorSmallAlpha {
   const static int kNumberOfCharacters = smallRange + bigRange + numericRange;
 
   static char generate() {
-    auto result = rand() % kNumberOfCharacters;
+    auto result = randomize() % kNumberOfCharacters;
     if (result < smallRange) return smallBegin + result;
     result -= smallRange;
 
@@ -74,6 +93,15 @@ struct GeneratorAlphaNumeric : public GeneratorSmallAlpha {
     result -= bigRange;
 
     return numericBegin + result;
+  }
+};
+
+struct Generator8bitsValues : public GeneratorSmallAlpha {
+ public:
+  static char generate() {
+    auto result = randomize() % 255;
+
+    return static_cast<char>(result);
   }
 };
 

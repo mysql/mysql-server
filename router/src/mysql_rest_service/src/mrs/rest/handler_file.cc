@@ -39,7 +39,8 @@
 IMPORT_LOG_FUNCTIONS()
 
 using CachedObject = collector::MysqlCacheManager::CachedObject;
-using Type = mrs::interface::RestHandler::Result::Type;
+using Type = mrs::interface::RestHandler::HttpResult::Type;
+using HttpResult = mrs::rest::HandlerFile::HttpResult;
 
 static CachedObject get_session(::mysqlrouter::MySQLSession *session,
                                 collector::MysqlCacheManager *cache_manager) {
@@ -110,7 +111,7 @@ void HandlerFile::authorization(rest::RequestContext *ctxt) {
   throw_unauthorize_when_check_auth_fails(ctxt);
 }
 
-Handler::Result HandlerFile::handle_get(rest::RequestContext *ctxt) {
+HttpResult HandlerFile::handle_get(rest::RequestContext *ctxt) {
   auto file = factory_->create_query_content_file();
   mysql_harness::Path path{route_->get_object_path()};
   auto if_not_matched = ctxt->request->get_input_headers().get("If-None-Match");
@@ -132,16 +133,16 @@ Handler::Result HandlerFile::handle_get(rest::RequestContext *ctxt) {
   return {std::move(file->result), result_type, route_->get_version()};
 }
 
-Handler::Result HandlerFile::handle_delete(rest::RequestContext *) {
+HttpResult HandlerFile::handle_delete(rest::RequestContext *) {
   throw http::Error(HttpStatusCode::NotImplemented);
 }
 
-Handler::Result HandlerFile::handle_post(rest::RequestContext *,
-                                         const std::vector<uint8_t> &) {
+HttpResult HandlerFile::handle_post(rest::RequestContext *,
+                                    const std::vector<uint8_t> &) {
   throw http::Error(HttpStatusCode::NotImplemented);
 }
 
-Handler::Result HandlerFile::handle_put(rest::RequestContext *) {
+HttpResult HandlerFile::handle_put(rest::RequestContext *) {
   throw http::Error(HttpStatusCode::NotImplemented);
 }
 

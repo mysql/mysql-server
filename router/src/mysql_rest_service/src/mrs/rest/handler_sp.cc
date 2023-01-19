@@ -44,7 +44,7 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace rest {
 
-using Result = mrs::rest::Handler::Result;
+using HttpResult = mrs::rest::Handler::HttpResult;
 using CachedObject = collector::MysqlCacheManager::CachedObject;
 
 // static std::string to_string(
@@ -82,7 +82,8 @@ static CachedObject get_session(::mysqlrouter::MySQLSession *,
   return cache_manager->get_instance(collector::kMySQLConnectionUserdata);
 }
 
-Result HandlerSP::handle_delete([[maybe_unused]] rest::RequestContext *ctxt) {
+HttpResult HandlerSP::handle_delete([
+    [maybe_unused]] rest::RequestContext *ctxt) {
   throw http::Error(HttpStatusCode::NotImplemented);
 }
 
@@ -114,7 +115,8 @@ std::string to_string(rapidjson::Value *v) {
 
   return helper::json::to_string(v);
 }
-Result HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
+
+HttpResult HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
   using namespace std::string_literals;
 
   auto session =
@@ -169,7 +171,7 @@ Result HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
   return {std::move(db.response)};
 }
 
-Result HandlerSP::handle_post(
+HttpResult HandlerSP::handle_post(
     [[maybe_unused]] rest::RequestContext *ctxt,
     [[maybe_unused]] const std::vector<uint8_t> &document) {
   throw http::Error(HttpStatusCode::NotImplemented);
@@ -179,7 +181,7 @@ void HandlerSP::authorization(rest::RequestContext *ctxt) {
   throw_unauthorize_when_check_auth_fails(ctxt);
 }
 
-Result HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
+HttpResult HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
   using namespace std::string_literals;
 
   http::Url::Keys keys;

@@ -216,7 +216,7 @@ static CachedObject get_session(::mysqlrouter::MySQLSession *,
   return cache_manager->get_instance(collector::kMySQLConnectionUserdata);
 }
 
-using Result = Handler::Result;
+using HttpResult = Handler::HttpResult;
 
 // TODO(lkotula): We should remove AuthManager from here, and Route should
 // return supported Authentication methods for given service (Shouldn't be in
@@ -245,7 +245,7 @@ static void fix_and_filter(std::vector<std::string> &filter) {
   }
 }
 
-Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
+HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
   auto &requests_uri = ctxt->request->get_uri();
   mysqlrouter::sqlstring pk_value =
       rest_param_to_sql_value(get_path_after_object_name(requests_uri));
@@ -356,8 +356,9 @@ Result HandlerObject::handle_get(rest::RequestContext *ctxt) {
 }  // namespace rest
 
 /// Post is insert
-Result HandlerObject::handle_post([[maybe_unused]] rest::RequestContext *ctxt,
-                                  const std::vector<uint8_t> &document) {
+HttpResult HandlerObject::handle_post(
+    [[maybe_unused]] rest::RequestContext *ctxt,
+    const std::vector<uint8_t> &document) {
   using namespace helper::json::sql;
   rapidjson::Document json_doc;
   database::QueryRestObjectInsert insert;
@@ -463,7 +464,7 @@ std::string HandlerObject::get_rest_query_parameter(HttpUri &requests_uri) {
   return query;
 }
 
-Result HandlerObject::handle_delete(rest::RequestContext *ctxt) {
+HttpResult HandlerObject::handle_delete(rest::RequestContext *ctxt) {
   auto &requests_uri = ctxt->request->get_uri();
   auto query = get_rest_query_parameter(requests_uri);
   auto last_path = get_path_after_object_name(requests_uri);
@@ -488,7 +489,8 @@ Result HandlerObject::handle_delete(rest::RequestContext *ctxt) {
 }
 
 // Update, with insert possibility
-Result HandlerObject::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
+HttpResult HandlerObject::handle_put([
+    [maybe_unused]] rest::RequestContext *ctxt) {
   auto &pk = route_->get_cached_primary().name;
   auto pk_value = rest_param_to_sql_value(
       get_path_after_object_name(ctxt->request->get_uri()));

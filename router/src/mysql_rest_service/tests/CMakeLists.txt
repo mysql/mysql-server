@@ -22,6 +22,7 @@
 
 INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(../src ${PROJECT_SOURCE_DIR}/tests/ ./)
+ADD_COMPILE_OPTIONS("-Wno-deprecated-declarations")
 
 add_test_file(test_rest_mrs_plugin.cc
   MODULE mrs

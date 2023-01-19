@@ -26,6 +26,7 @@
 
 #include <cassert>
 
+#include "helper/json/to_string.h"
 #include "mrs/http/cookie.h"
 #include "mrs/http/url.h"
 #include "mrs/http/utilities.h"
@@ -39,7 +40,7 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace rest {
 
-using Result = HandlerAuthorize::Result;
+using HttpResult = HandlerAuthorize::HttpResult;
 using Route = mrs::interface::Object;
 
 HandlerAuthorize::HandlerAuthorize(const UniversalId service_id,
@@ -68,29 +69,51 @@ UniversalId HandlerAuthorize::get_schema_id() const {
   return {};
 }
 
-uint32_t HandlerAuthorize::get_access_rights() const { return Route::kRead; }
+uint32_t HandlerAuthorize::get_access_rights() const {
+  return Route::kRead | Route::kCreate;
+}
 
-Result HandlerAuthorize::handle_get(
+HttpResult HandlerAuthorize::handle_get(
     RequestContext *ctxt) {  // TODO(lkotula): Add status to redirection URL:
                              // (Shouldn't be in review)
   // ?status=ok|failure
   // &status=ok|failure
   auto uri = append_status_parameters(ctxt, {HttpStatusCode::Ok});
   // Generate the response by the default handler.
-  http::redirect_and_throw(ctxt->request, uri);
+
+  log_debug("HandlerAuthorize::handle_get - before redirects");
+  if (ctxt->selected_handler->redirects())
+    http::redirect_and_throw(ctxt->request, uri);
+  log_debug("HandlerAuthorize::handle_get - no redirects");
+
+  auto session = authorization_manager_->get_current_session(
+      get_service_id(), ctxt->request->get_input_headers(), &ctxt->cookies);
+
+  if (session && session->generate_token) {
+    log_debug("HandlerAuthorize::handle_get - post");
+    auto jwt_token =
+        authorization_manager_->get_jwt_token(get_service_id(), session);
+    session->generate_token = false;
+    return HttpResult(HttpStatusCode::Ok,
+                      helper::json::to_string({{"accessToken", jwt_token}}),
+                      helper::MediaType::typeJson);
+  }
+
   return {};
 }
 
-Result HandlerAuthorize::handle_post(RequestContext *,
-                                     const std::vector<uint8_t> &) {
+HttpResult HandlerAuthorize::handle_post(RequestContext *ctxt,
+                                         const std::vector<uint8_t> &) {
+  if (!ctxt->post_authentication) throw http::Error(HttpStatusCode::Forbidden);
+
+  return handle_get(ctxt);
+}
+
+HttpResult HandlerAuthorize::handle_delete(RequestContext *) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-Result HandlerAuthorize::handle_delete(RequestContext *) {
-  throw http::Error(HttpStatusCode::Forbidden);
-}
-
-Result HandlerAuthorize::handle_put(RequestContext *) {
+HttpResult HandlerAuthorize::handle_put(RequestContext *) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
@@ -115,7 +138,6 @@ std::string HandlerAuthorize::append_status_parameters(
       error.status == HttpStatusCode::Ok) {
     jwt_token =
         authorization_manager_->get_jwt_token(get_service_id(), session);
-    session->generate_token = false;
   }
   http::SessionManager::Session dummy{"", UniversalId{}};
   session = session ? session : &dummy;
@@ -147,6 +169,7 @@ std::string HandlerAuthorize::append_status_parameters(
 
 bool HandlerAuthorize::request_error(RequestContext *ctxt,
                                      const http::Error &error) {
+  if (HttpMethod::Options == ctxt->request->get_method()) return false;
   // Oauth2 authentication may redirect, allow it.
   http::Url url(ctxt->request->get_uri());
 

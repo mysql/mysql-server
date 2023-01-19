@@ -30,6 +30,7 @@
 #include "collector/mysql_cache_manager.h"
 #include "mrs/database/entry/auth_user.h"
 #include "mrs/http/cookie.h"
+#include "mrs/interface/authorize_handler.h"
 #include "mrs/interface/authorize_manager.h"
 
 namespace mrs {
@@ -37,16 +38,24 @@ namespace rest {
 
 struct RequestContext {
   using SqlSessionCached = collector::MysqlCacheManager::CachedObject;
-  using AuthHandlerPtr = mrs::interface::AuthorizeManager::AuthorizeHandlerPtr;
-  using AuthUser = database::entry::AuthUser;
-  RequestContext() {}
-  RequestContext(HttpRequest *r) : request{r} {}
+  using AuthUser = mrs::database::entry::AuthUser;
+
+  RequestContext(interface::AuthorizeManager *auth_manager = nullptr)
+      : auth_manager_{auth_manager} {}
+  RequestContext(HttpRequest *r,
+                 interface::AuthorizeManager *auth_manager = nullptr)
+      : request{r}, auth_manager_{auth_manager} {}
 
   HttpRequest *request{nullptr};
   http::Cookie cookies{request};
   SqlSessionCached sql_session_cache;
+  interface::AuthorizeManager *auth_manager_;
+  std::shared_ptr<interface::AuthorizeHandler> selected_handler;
   AuthUser user;
-  AuthHandlerPtr selected_handler;
+  bool post_authentication{false};
+
+  http::Url get_http_url() { return request->get_uri(); }
+  HttpHeaders &get_in_headers() { return request->get_input_headers(); }
 };
 
 }  // namespace rest

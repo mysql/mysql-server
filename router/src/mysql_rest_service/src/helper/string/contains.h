@@ -34,12 +34,18 @@ bool contains(const std::string &value, SubStrType &&sst) {
   return value.npos != value.find(sst);
 }
 
-inline bool ends_with(const std::string &value, const std::string &&sst) {
+inline bool ends_with(const std::string &value, const std::string &sst) {
   if (sst.empty()) return false;
 
   auto pos = value.rfind(sst);
   if (value.npos == pos) return false;
   return value.length() - pos == sst.length();
+}
+
+inline bool starts_with(const std::string &value, const std::string &sst) {
+  if (sst.empty()) return false;
+
+  return 0 == value.find(sst);
 }
 
 }  // namespace helper

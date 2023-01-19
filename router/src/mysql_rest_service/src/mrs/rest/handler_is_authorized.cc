@@ -39,7 +39,7 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace rest {
 
-using Result = HandlerIsAuthorized::Result;
+using HttpResult = HandlerIsAuthorized::HttpResult;
 using Route = mrs::interface::Object;
 
 HandlerIsAuthorized::HandlerIsAuthorized(
@@ -92,7 +92,7 @@ void HandlerIsAuthorized::fill_authorization(
   }
 }
 
-Result HandlerIsAuthorized::handle_get(RequestContext *ctxt) {
+HttpResult HandlerIsAuthorized::handle_get(RequestContext *ctxt) {
   log_debug("HandlerIsAuthorized::handle_get");
   helper::json::SerializerToText serializer;
   {
@@ -106,19 +106,19 @@ Result HandlerIsAuthorized::handle_get(RequestContext *ctxt) {
     fill_authorization(obj, ctxt->user, roles.result);
   }
 
-  return Result(serializer.get_result(), helper::typeJson);
+  return HttpResult(serializer.get_result(), helper::typeJson);
 }
 
-Result HandlerIsAuthorized::handle_post(RequestContext *,
-                                        const std::vector<uint8_t> &) {
+HttpResult HandlerIsAuthorized::handle_post(RequestContext *,
+                                            const std::vector<uint8_t> &) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-Result HandlerIsAuthorized::handle_delete(RequestContext *) {
+HttpResult HandlerIsAuthorized::handle_delete(RequestContext *) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-Result HandlerIsAuthorized::handle_put(RequestContext *) {
+HttpResult HandlerIsAuthorized::handle_put(RequestContext *) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 

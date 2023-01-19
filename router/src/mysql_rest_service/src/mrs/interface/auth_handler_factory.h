@@ -51,6 +51,8 @@ class AuthHandlerFactory {
       const AuthApp &entry) const = 0;
   virtual AuthHandlerPtr create_google_auth_handler(
       const AuthApp &entry) const = 0;
+  virtual AuthHandlerPtr create_scram_auth_handler(
+      const AuthApp &entry, const std::string &rd) const = 0;
 };
 
 }  // namespace interface

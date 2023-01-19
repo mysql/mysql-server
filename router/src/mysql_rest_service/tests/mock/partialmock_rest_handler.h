@@ -41,15 +41,15 @@ class PartialMockRestHandler : public mrs::rest::Handler {
   MOCK_METHOD(mrs::UniversalId, get_schema_id, (), (const, override));
   MOCK_METHOD(uint32_t, get_access_rights, (), (const, override));
 
-  MOCK_METHOD(Result, handle_get, (mrs::rest::RequestContext * ctxt),
+  MOCK_METHOD(HttpResult, handle_get, (mrs::rest::RequestContext * ctxt),
               (override));
-  MOCK_METHOD(Result, handle_post,
+  MOCK_METHOD(HttpResult, handle_post,
               (mrs::rest::RequestContext * ctxt,
                const std::vector<uint8_t> &document),
               (override));
-  MOCK_METHOD(Result, handle_delete, (mrs::rest::RequestContext * ctxt),
+  MOCK_METHOD(HttpResult, handle_delete, (mrs::rest::RequestContext * ctxt),
               (override));
-  MOCK_METHOD(Result, handle_put, (mrs::rest::RequestContext * ctxt),
+  MOCK_METHOD(HttpResult, handle_put, (mrs::rest::RequestContext * ctxt),
               (override));
 };
 

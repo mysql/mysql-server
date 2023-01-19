@@ -35,7 +35,7 @@
 namespace mrs {
 namespace rest {
 
-using Result = HandlerAuthorizeCommon::Result;
+using HttpResult = HandlerAuthorizeCommon::HttpResult;
 using Route = mrs::interface::Object;
 
 HandlerAuthorizeCommon::HandlerAuthorizeCommon(
@@ -80,7 +80,7 @@ void HandlerAuthorizeCommon::authorization(RequestContext *) {
   //  }
 }
 
-Result HandlerAuthorizeCommon::handle_get(
+HttpResult HandlerAuthorizeCommon::handle_get(
     RequestContext *ctxt) {  // TODO(lkotula): Add status to redirection URL:
                              // (Shouldn't be in review)
   // ?status=ok|failure
@@ -91,16 +91,16 @@ Result HandlerAuthorizeCommon::handle_get(
   return {};
 }
 
-Result HandlerAuthorizeCommon::handle_post(RequestContext *,
-                                           const std::vector<uint8_t> &) {
+HttpResult HandlerAuthorizeCommon::handle_post(RequestContext *,
+                                               const std::vector<uint8_t> &) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-Result HandlerAuthorizeCommon::handle_delete(RequestContext *) {
+HttpResult HandlerAuthorizeCommon::handle_delete(RequestContext *) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
-Result HandlerAuthorizeCommon::handle_put(RequestContext *) {
+HttpResult HandlerAuthorizeCommon::handle_put(RequestContext *) {
   throw http::Error(HttpStatusCode::Forbidden);
 }
 
