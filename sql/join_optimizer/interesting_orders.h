@@ -509,6 +509,7 @@ class LogicalOrderings {
                           Ordering::Elements tmp) const;
 
  private:
+  struct NFSMState;
   class OrderWithElementInserted;
 
   bool m_built = false;
@@ -557,9 +558,31 @@ class LogicalOrderings {
   // SetRollup().
   bool m_rollup = false;
 
+  struct NFSMEdge {
+    // Which FD is required to follow this edge. Index into m_fd, with one
+    // exception; from the initial state (0), we have constructor edges for
+    // setting a specific order without following an FD. Such edges have
+    // required_fd_idx = INT_MIN + order_idx, ie., they are negative.
+    int required_fd_idx;
+
+    // Destination state (index into m_states).
+    int state_idx;
+
+    const FunctionalDependency *required_fd(
+        const LogicalOrderings *orderings) const {
+      return &orderings->m_fds[required_fd_idx];
+    }
+    const NFSMState *state(const LogicalOrderings *orderings) const {
+      return &orderings->m_states[state_idx];
+    }
+  };
+
+  friend bool operator==(const NFSMEdge &a, const NFSMEdge &b);
+  friend bool operator!=(const NFSMEdge &a, const NFSMEdge &b);
+
   struct NFSMState {
     enum { INTERESTING, ARTIFICIAL, DELETED } type;
-    Mem_root_array<int> outgoing_edges;
+    Mem_root_array<NFSMEdge> outgoing_edges;
     Ordering satisfied_ordering;
     int satisfied_ordering_idx;  // Only for type == INTERESTING.
 
@@ -597,28 +620,6 @@ class LogicalOrderings {
     // available FDs to find out what we can apply.
     FunctionalDependencySet can_use_fd{0};
   };
-
-  struct NFSMEdge {
-    // Which FD is required to follow this edge. Index into m_fd, with one
-    // exception; from the initial state (0), we have constructor edges for
-    // setting a specific order without following an FD. Such edges have
-    // required_fd_idx = INT_MIN + order_idx, ie., they are negative.
-    int required_fd_idx;
-
-    // Destination state (index into m_states).
-    int state_idx;
-
-    const FunctionalDependency *required_fd(
-        const LogicalOrderings *orderings) const {
-      return &orderings->m_fds[required_fd_idx];
-    }
-    const NFSMState *state(const LogicalOrderings *orderings) const {
-      return &orderings->m_states[state_idx];
-    }
-  };
-
-  friend bool operator==(const NFSMEdge &a, const NFSMEdge &b);
-  friend bool operator!=(const NFSMEdge &a, const NFSMEdge &b);
 
   struct DFSMEdge {
     int required_fd_idx;
@@ -685,7 +686,6 @@ class LogicalOrderings {
 
   // NFSM. 0 is the initial state, all others are found by following edges.
   Mem_root_array<NFSMState> m_states;
-  Mem_root_array<NFSMEdge> m_edges;
 
   // DFSM. 0 is the initial state, all others are found by following edges.
   Mem_root_array<DFSMState> m_dfsm_states;

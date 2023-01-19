@@ -191,7 +191,6 @@ LogicalOrderings::LogicalOrderings(THD *thd)
       m_orderings(thd->mem_root),
       m_fds(thd->mem_root),
       m_states(thd->mem_root),
-      m_edges(thd->mem_root),
       m_dfsm_states(thd->mem_root),
       m_dfsm_edges(thd->mem_root),
       m_elements_pool(thd->mem_root) {
@@ -1308,11 +1307,10 @@ void LogicalOrderings::AddEdge(THD *thd, int state_idx, int required_fd_idx,
   }
 
   assert(std::find(m_states[state_idx].outgoing_edges.cbegin(),
-                   m_states[state_idx].outgoing_edges.cend(), m_edges.size()) ==
-         m_states[state_idx].outgoing_edges.cend());
+                   m_states[state_idx].outgoing_edges.cend(),
+                   edge) == m_states[state_idx].outgoing_edges.cend());
 
-  m_edges.push_back(edge);
-  m_states[state_idx].outgoing_edges.push_back(m_edges.size() - 1);
+  m_states[state_idx].outgoing_edges.push_back(edge);
 }
 
 bool LogicalOrderings::FunctionalDependencyApplies(
@@ -1496,8 +1494,7 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
     NFSMEdge edge;
     edge.required_fd_idx = INT_MIN + i;
     edge.state_idx = i;
-    m_edges.push_back(edge);
-    m_states[0].outgoing_edges.push_back(m_edges.size() - 1);
+    m_states[0].outgoing_edges.push_back(edge);
   }
 
   // Add edges from functional dependencies, in a breadth-first search
@@ -1799,8 +1796,8 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
       // There's always an implicit self-edge.
       reachable[i][i] = true;
 
-      for (size_t edge_idx : m_states[i].outgoing_edges) {
-        reachable[i][m_edges[edge_idx].state_idx] = true;
+      for (const NFSMEdge &edge : m_states[i].outgoing_edges) {
+        reachable[i][edge.state_idx] = true;
       }
     }
 
@@ -1841,7 +1838,7 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
     for (size_t i = 1; i < m_orderings.size(); ++i) {
       NFSMState &state = m_states[i];
       for (size_t j = 0; j < state.outgoing_edges.size(); ++j) {
-        const int next_state_idx = m_edges[state.outgoing_edges[j]].state_idx;
+        const int next_state_idx = state.outgoing_edges[j].state_idx;
         bool can_reach_other_interesting = false;
         for (size_t k = 1; k < m_orderings.size(); ++k) {
           if (k != i && m_states[k].type == NFSMState::INTERESTING &&
@@ -1867,10 +1864,9 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
         continue;
       }
       int num_kept = 0;
-      for (size_t j = 0; j < state.outgoing_edges.size(); ++j) {
-        const NFSMEdge &edge = m_edges[state.outgoing_edges[j]];
+      for (const NFSMEdge &edge : state.outgoing_edges) {
         if (edge.state(this)->type != NFSMState::DELETED) {
-          state.outgoing_edges[num_kept++] = state.outgoing_edges[j];
+          state.outgoing_edges[num_kept++] = edge;
         }
       }
       state.outgoing_edges.resize(num_kept);
@@ -1922,8 +1918,7 @@ void LogicalOrderings::ExpandThroughAlwaysActiveFDs(
   ++*generation;  // Effectively clear the “seen” flag in all NFSM states.
   for (size_t i = 0; i < nfsm_states->size(); ++i) {
     const NFSMState &state = m_states[(*nfsm_states)[i]];
-    for (int outgoing_edge_idx : state.outgoing_edges) {
-      const NFSMEdge &edge = m_edges[outgoing_edge_idx];
+    for (const NFSMEdge &edge : state.outgoing_edges) {
       if ((AlwaysActiveFD(edge.required_fd_idx) ||
            edge.required_fd_idx == extra_allowed_fd_idx) &&
           m_states[edge.state_idx].seen != *generation) {
@@ -2005,8 +2000,7 @@ void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
                  Ordering::Kind::kRollup ||
              m_rollup);
 
-      for (const int edge_idx : m_states[nfsm_state_idx].outgoing_edges) {
-        const NFSMEdge &edge = m_edges[edge_idx];
+      for (const NFSMEdge &edge : m_states[nfsm_state_idx].outgoing_edges) {
         if (!AlwaysActiveFD(edge.required_fd_idx)) {
           nfsm_edges.push_back(edge);
         }
@@ -2259,8 +2253,7 @@ void LogicalOrderings::PrintNFSMDottyGraph(string *trace) const {
     }
     *trace += "]\n";
 
-    for (size_t edge_idx : state.outgoing_edges) {
-      const NFSMEdge &edge = m_edges[edge_idx];
+    for (const NFSMEdge &edge : state.outgoing_edges) {
       if (edge.required_fd_idx < 0) {
         // Pseudo-edge without a FD (from initial state only).
         *trace +=
