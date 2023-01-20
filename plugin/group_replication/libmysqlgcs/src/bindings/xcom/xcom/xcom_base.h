@@ -150,12 +150,6 @@ int pre_process_incoming_ping(site_def const *site, pax_msg const *pm,
 
 #define FIND_MAX (MIN_LENGTH / 10)
 
-/* Set type and object pointer */
-#define PLP msg->payload.manager_message_payload_u
-#define SET_REP_TYPE(quark, ptr) \
-  q = (quark);                   \
-  object = PLP.ptr
-
 #define x_actions                                                              \
   X(x_fsm_wait)                                                                \
   , X(x_fsm_poll), X(x_fsm_init), X(x_fsm_u_boot), X(x_fsm_add),               \
