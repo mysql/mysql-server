@@ -3870,6 +3870,10 @@ class Item_func_uuid_short final : public Item_int_func {
     return ((func_arg->source == VGS_GENERATED_COLUMN) ||
             (func_arg->source == VGS_CHECK_CONSTRAINT));
   }
+  // This function is random, see uuid_short_init().
+  table_map get_initial_pseudo_tables() const override {
+    return RAND_TABLE_BIT;
+  }
 };
 
 class Item_func_version final : public Item_static_string_func {

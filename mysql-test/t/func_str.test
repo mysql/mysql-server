@@ -2507,3 +2507,12 @@ SELECT _utf8mb4 'ss' = _latin1 'ß' AS c;
 SELECT _utf8mb4 'ss' = _utf8mb3 'ß' AS c;
 
 SELECT _utf8mb3 'ß' = _utf8mb4 'ss' AS c;
+
+--echo # Bug#34962821 space():
+--echo #              Item_str_func::push_packet_overflow_warning:
+--echo #              Assertion `is_nullable()' failed.
+SET @@sql_mode='';
+--disable_warnings
+DO SPACE(SHA(UUID_SHORT()));
+--enable_warnings
+SET @@sql_mode = default;
