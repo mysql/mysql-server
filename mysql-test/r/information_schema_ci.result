@@ -1482,7 +1482,7 @@ MyISAM	YES	MyISAM storage engine	NO	NO	NO
 explain format=tree select * from information_schema.engines WHERE ENGINE="MyISAM";
 EXPLAIN
 -> Filter: (information_schema.`engines`.`ENGINE` = 'MyISAM')
-    -> Table scan on engines  (...)
+    -> Table scan on engines
         -> Fill information schema table engines
 
 create user user3148@localhost;
