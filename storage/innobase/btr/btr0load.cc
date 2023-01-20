@@ -899,19 +899,8 @@ dberr_t Level_ctx::init() {
   btr_page_set_next(new_page, page_zip, FIL_NULL, nullptr);
   btr_page_set_prev(new_page, page_zip, FIL_NULL, nullptr);
   btr_page_set_index_id(new_page, page_zip, m_index->id, nullptr);
-
-#ifdef UNIV_DEBUG
-  {
-    /* Ensure that this page_id is not there in the buffer pool. */
-    mtr_t local_mtr;
-    local_mtr.start();
-    buf_block_t *blk = buf_page_get_gen(page_id, page_size, RW_S_LATCH, nullptr,
-                                        Page_fetch::IF_IN_POOL_POSSIBLY_FREED,
-                                        UT_LOCATION_HERE, &local_mtr);
-    ut_ad(blk == nullptr || blk->was_freed());
-    local_mtr.commit();
-  }
-#endif /* UNIV_DEBUG */
+  /* Ensure that this page_id is not there in the buffer pool. */
+  buf_page_force_evict(page_id, page_size);
   return block;
 }
 
