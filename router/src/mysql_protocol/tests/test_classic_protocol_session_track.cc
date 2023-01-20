@@ -26,12 +26,39 @@
 
 #include <gtest/gtest.h>
 
+#include "mysqlrouter/classic_protocol_session_track.h"
 #include "test_classic_protocol_codec.h"
 
 // string_literals are supposed to solve the same problem, but they are broken
 // on dev-studio 12.6
 
 #define S(x) std::string((x), sizeof(x) - 1)
+
+namespace cl = classic_protocol;
+
+static_assert(cl::Codec<cl::borrowed::session_track::Field>({1, "abc"}, {})
+                  .size() == 1 + 4);
+
+static_assert(
+    cl::Codec<cl::borrowed::session_track::SystemVariable>({"key", "var"}, {})
+        .size() == 1 + 3 + 1 + 3);
+
+static_assert(cl::Codec<cl::borrowed::session_track::Schema>({"var"}, {})
+                  .size() == 1 + 3);
+
+static_assert(cl::Codec<cl::session_track::State>({1}, {}).size() == 1);
+
+static_assert(cl::Codec<cl::borrowed::session_track::Gtid>({1, "gtid"}, {})
+                  .size() == 1 + 1 + 4);
+
+static_assert(
+    cl::Codec<cl::session_track::TransactionState>({1, 1, 1, 1, 1, 1, 1, 1}, {})
+        .size() == 1 + 8);
+
+static_assert(
+    cl::Codec<cl::borrowed::session_track::TransactionCharacteristics>(
+        {"SET foo"}, {})
+        .size() == 1 + 7);
 
 // session_track::Schema
 

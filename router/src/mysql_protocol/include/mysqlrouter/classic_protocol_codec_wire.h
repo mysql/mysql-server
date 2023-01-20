@@ -48,19 +48,18 @@ namespace classic_protocol {
  * classic proto uses 1, 2, 3, 4, 8 for IntSize
  */
 template <int IntSize>
-class Codec<wire::FixedInt<IntSize>> {
+class Codec<borrowable::wire::FixedInt<IntSize>> {
  public:
   static constexpr size_t int_size{IntSize};
 
-  using value_type = wire::FixedInt<int_size>;
+  using value_type = borrowable::wire::FixedInt<int_size>;
 
-  constexpr Codec(value_type v, capabilities::value_type /* unused */)
-      : v_{v} {}
+  constexpr Codec(value_type v, capabilities::value_type /* caps */) : v_{v} {}
 
   /**
    * size of the encoded object.
    */
-  constexpr size_t size() const noexcept { return int_size; }
+  static constexpr size_t size() noexcept { return int_size; }
 
   /**
    * encode value_type into buffer.
@@ -133,22 +132,23 @@ class Codec<wire::FixedInt<IntSize>> {
  *     [1 + 8 bytes read, only 4 bytes used]
  */
 template <>
-class Codec<wire::VarInt> : public impl::EncodeBase<Codec<wire::VarInt>> {
+class Codec<borrowable::wire::VarInt>
+    : public impl::EncodeBase<Codec<borrowable::wire::VarInt>> {
   template <class Accumulator>
   constexpr auto accumulate_fields(Accumulator &&accu) const {
     if (v_.value() < 251) {
-      return accu.step(wire::FixedInt<1>(v_.value())).result();
+      return accu.step(borrowable::wire::FixedInt<1>(v_.value())).result();
     } else if (v_.value() < 1 << 16) {
-      return accu.step(wire::FixedInt<1>(varint_16))
-          .step(wire::FixedInt<2>(v_.value()))
+      return accu.step(borrowable::wire::FixedInt<1>(varint_16))
+          .step(borrowable::wire::FixedInt<2>(v_.value()))
           .result();
     } else if (v_.value() < (1 << 24)) {
-      return accu.step(wire::FixedInt<1>(varint_24))
-          .step(wire::FixedInt<3>(v_.value()))
+      return accu.step(borrowable::wire::FixedInt<1>(varint_24))
+          .step(borrowable::wire::FixedInt<3>(v_.value()))
           .result();
     } else {
-      return accu.step(wire::FixedInt<1>(varint_64))
-          .step(wire::FixedInt<8>(v_.value()))
+      return accu.step(borrowable::wire::FixedInt<1>(varint_64))
+          .step(borrowable::wire::FixedInt<8>(v_.value()))
           .result();
     }
   }
@@ -157,7 +157,7 @@ class Codec<wire::VarInt> : public impl::EncodeBase<Codec<wire::VarInt>> {
   static constexpr uint8_t varint_16{0xfc};
   static constexpr uint8_t varint_24{0xfd};
   static constexpr uint8_t varint_64{0xfe};
-  using value_type = wire::VarInt;
+  using value_type = borrowable::wire::VarInt;
   using __base = impl::EncodeBase<Codec<value_type>>;
 
   friend __base;
@@ -172,7 +172,7 @@ class Codec<wire::VarInt> : public impl::EncodeBase<Codec<wire::VarInt>> {
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     // length
-    auto first_byte_res = accu.template step<wire::FixedInt<1>>();
+    auto first_byte_res = accu.template step<borrowable::wire::FixedInt<1>>();
     if (!first_byte_res) return stdx::make_unexpected(first_byte_res.error());
 
     auto first_byte = first_byte_res->value();
@@ -180,17 +180,17 @@ class Codec<wire::VarInt> : public impl::EncodeBase<Codec<wire::VarInt>> {
     if (first_byte < 251) {
       return std::make_pair(accu.result().value(), value_type(first_byte));
     } else if (first_byte == varint_16) {
-      auto value_res = accu.template step<wire::FixedInt<2>>();
+      auto value_res = accu.template step<borrowable::wire::FixedInt<2>>();
       if (!value_res) return stdx::make_unexpected(value_res.error());
       return std::make_pair(accu.result().value(),
                             value_type(value_res->value()));
     } else if (first_byte == varint_24) {
-      auto value_res = accu.template step<wire::FixedInt<3>>();
+      auto value_res = accu.template step<borrowable::wire::FixedInt<3>>();
       if (!value_res) return stdx::make_unexpected(value_res.error());
       return std::make_pair(accu.result().value(),
                             value_type(value_res->value()));
     } else if (first_byte == varint_64) {
-      auto value_res = accu.template step<wire::FixedInt<8>>();
+      auto value_res = accu.template step<borrowable::wire::FixedInt<8>>();
       if (!value_res) return stdx::make_unexpected(value_res.error());
       return std::make_pair(accu.result().value(),
                             value_type(value_res->value()));
@@ -207,14 +207,15 @@ class Codec<wire::VarInt> : public impl::EncodeBase<Codec<wire::VarInt>> {
  * codec for a NULL value in the Resultset.
  */
 template <>
-class Codec<wire::Null> : public Codec<wire::FixedInt<1>> {
+class Codec<borrowable::wire::Null>
+    : public Codec<borrowable::wire::FixedInt<1>> {
  public:
-  using value_type = wire::Null;
+  using value_type = borrowable::wire::Null;
 
   static constexpr uint8_t nul_byte{0xfb};
 
   Codec(value_type, capabilities::value_type caps)
-      : Codec<wire::FixedInt<1>>(nul_byte, caps) {}
+      : Codec<borrowable::wire::FixedInt<1>>(nul_byte, caps) {}
 
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
       const net::const_buffer &buffer, capabilities::value_type /* caps */) {
@@ -283,15 +284,15 @@ class Codec<void> {
  *
  * limited by length or buffer.size()
  */
-template <>
-class Codec<wire::String> {
+template <bool Borrowed>
+class Codec<borrowable::wire::String<Borrowed>> {
  public:
-  using value_type = wire::String;
+  using value_type = borrowable::wire::String<Borrowed>;
 
-  Codec(value_type v, capabilities::value_type caps)
+  constexpr Codec(value_type v, capabilities::value_type caps)
       : v_{std::move(v)}, caps_{caps} {}
 
-  size_t size() const noexcept { return v_.value().size(); }
+  constexpr size_t size() const noexcept { return v_.value().size(); }
 
   static size_t max_size() noexcept {
     // we actually don't know what the size of the null-term string is ... until
@@ -334,22 +335,23 @@ class Codec<wire::String> {
  * - varint of string length
  * - string of length
  */
-template <>
-class Codec<wire::VarString> : public impl::EncodeBase<Codec<wire::VarString>> {
+template <bool Borrowed>
+class Codec<borrowable::wire::VarString<Borrowed>>
+    : public impl::EncodeBase<Codec<borrowable::wire::VarString<Borrowed>>> {
   template <class Accumulator>
-  auto accumulate_fields(Accumulator &&accu) const {
-    return accu.step(wire::VarInt(v_.value().size()))
-        .step(wire::String(v_.value()))
+  constexpr auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(borrowable::wire::VarInt(v_.value().size()))
+        .step(borrowable::wire::String<Borrowed>(v_.value()))
         .result();
   }
 
  public:
-  using value_type = wire::VarString;
+  using value_type = borrowable::wire::VarString<Borrowed>;
   using base_type = impl::EncodeBase<Codec<value_type>>;
 
   friend base_type;
 
-  Codec(value_type val, capabilities::value_type caps)
+  constexpr Codec(value_type val, capabilities::value_type caps)
       : base_type(caps), v_{std::move(val)} {}
 
   static size_t max_size() noexcept {
@@ -362,12 +364,13 @@ class Codec<wire::VarString> : public impl::EncodeBase<Codec<wire::VarString>> {
       const net::const_buffer &buffer, capabilities::value_type caps) {
     impl::DecodeBufferAccumulator accu(buffer, caps);
     // decode the length
-    auto var_string_len_res = accu.template step<wire::VarInt>();
+    auto var_string_len_res = accu.template step<borrowable::wire::VarInt>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
     // decode string of length
     auto var_string_res =
-        accu.template step<wire::String>(var_string_len_res->value());
+        accu.template step<borrowable::wire::String<Borrowed>>(
+            var_string_len_res->value());
 
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
@@ -382,23 +385,24 @@ class Codec<wire::VarString> : public impl::EncodeBase<Codec<wire::VarString>> {
 /**
  * codec for 0-terminated string.
  */
-template <>
-class Codec<wire::NulTermString>
-    : public impl::EncodeBase<Codec<wire::NulTermString>> {
+template <bool Borrowed>
+class Codec<borrowable::wire::NulTermString<Borrowed>>
+    : public impl::EncodeBase<
+          Codec<borrowable::wire::NulTermString<Borrowed>>> {
   template <class Accumulator>
-  auto accumulate_fields(Accumulator &&accu) const {
-    return accu.template step<wire::String>(v_)
-        .template step<wire::FixedInt<1>>(0)
+  constexpr auto accumulate_fields(Accumulator &&accu) const {
+    return accu.template step<borrowable::wire::String<Borrowed>>(v_)
+        .template step<borrowable::wire::FixedInt<1>>(0)
         .result();
   }
 
  public:
-  using value_type = wire::NulTermString;
+  using value_type = borrowable::wire::NulTermString<Borrowed>;
   using base_type = impl::EncodeBase<Codec<value_type>>;
 
   friend base_type;
 
-  Codec(value_type val, capabilities::value_type caps)
+  constexpr Codec(value_type val, capabilities::value_type caps)
       : base_type(caps), v_{std::move(val)} {}
 
   static size_t max_size() noexcept {
@@ -435,6 +439,7 @@ class Codec<wire::NulTermString>
  private:
   const value_type v_;
 };
+
 }  // namespace classic_protocol
 
 #endif
