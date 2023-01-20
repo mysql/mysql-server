@@ -178,16 +178,13 @@ class HashJoinRowBuffer {
   /// @param thd the thread handler
   /// @param reject_duplicate_keys If true, reject rows with duplicate keys.
   ///        If a row is rejected, the function will still return ROW_STORED.
-  /// @param store_rows_with_null_in_condition Whether to store rows where the
-  ///        join conditions contains SQL NULL.
   ///
   /// @retval ROW_STORED the row was stored.
   /// @retval BUFFER_FULL the row was stored, and the buffer is full.
   /// @retval FATAL_ERROR an unrecoverable error occurred (most likely,
   ///         malloc failed). It is the caller's responsibility to call
   ///         my_error().
-  StoreRowResult StoreRow(THD *thd, bool reject_duplicate_keys,
-                          bool store_rows_with_null_in_condition);
+  StoreRowResult StoreRow(THD *thd, bool reject_duplicate_keys);
 
   size_t size() const { return m_hash_map->size(); }
 
