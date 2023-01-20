@@ -5525,7 +5525,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
 
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
-      if (grouping.empty()) {
+      if (grouping.GetElements().empty()) {
         // Only const fields.
         AccessPath *limit_path = NewLimitOffsetAccessPath(
             thd, root_path, /*limit=*/1, /*offset=*/0, join->calc_found_rows,
@@ -5542,12 +5542,13 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         // TODO(sgunders): In some cases, we could apply LIMIT 1,
         // which would be slightly more efficient; see e.g. the test for
         // bug #33148369.
-        Item **group_items = thd->mem_root->ArrayAlloc<Item *>(grouping.size());
-        for (size_t i = 0; i < grouping.size(); ++i) {
-          group_items[i] = orderings.item(grouping[i].item);
+        Item **group_items =
+            thd->mem_root->ArrayAlloc<Item *>(grouping.GetElements().size());
+        for (size_t i = 0; i < grouping.GetElements().size(); ++i) {
+          group_items[i] = orderings.item(grouping.GetElements()[i].item);
         }
         AccessPath *dedup_path = NewRemoveDuplicatesAccessPath(
-            thd, root_path, group_items, grouping.size());
+            thd, root_path, group_items, grouping.GetElements().size());
         CopyBasicProperties(*root_path, dedup_path);
         // TODO(sgunders): Model the actual reduction in rows somehow.
         dedup_path->cost += kAggregateOneRowCost * root_path->num_output_rows();
@@ -5573,8 +5574,9 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         if (sort_ahead_ordering.ordering_idx == distinct_ordering_idx) {
           // The ordering derived from DISTINCT. Always propose this one,
           // regardless of whether it also satisfies the ORDER BY ordering.
-        } else if (grouping.size() <
+        } else if (grouping.GetElements().size() <
                    orderings.ordering(sort_ahead_ordering.ordering_idx)
+                       .GetElements()
                        .size()) {
           // This sort-ahead ordering is too wide and may cause duplicates to be
           // returned. Don't propose it.
@@ -5789,7 +5791,7 @@ static int FindBestOrderingForWindow(
     }
     Ordering ordering = orderings.ordering(ordering_idx);
     bool any_wf = false;
-    for (OrderElement elem : ordering) {
+    for (OrderElement elem : ordering.GetElements()) {
       WalkItem(orderings.item(elem.item), enum_walk::PREFIX,
                [&any_wf](Item *item) {
                  if (item->m_is_window_function) {
@@ -5840,10 +5842,11 @@ static int FindBestOrderingForWindow(
       is_best = false;
     } else if (num_matching_windows > best_num_matching_windows) {
       is_best = true;
-    } else if (orderings.ordering(ordering_idx).size() <
+    } else if (orderings.ordering(ordering_idx).GetElements().size() <
                orderings
                    .ordering(
                        sort_ahead_orderings[best_ordering_idx].ordering_idx)
+                   .GetElements()
                    .size()) {
       is_best = true;
     } else {
