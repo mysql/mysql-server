@@ -1,0 +1,48 @@
+# Bug#34750489 : applying a updated online log may access out-of-bounds memory
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+show global variables like "innodb_sort_buffer_size";
+
+connect(conn1,localhost,root,,);
+connect(conn2,localhost,root,,);
+
+connection default;
+--disable_query_log
+CREATE TABLE t1(
+  id INT,
+  name VARCHAR(1000),
+  g_col VARCHAR(20) GENERATED ALWAYS AS (concat(id, substr(`name`, 0, 10))) VIRTUAL,
+  KEY idx_id_g_col(id, g_col));
+
+let $i= 0;
+while ($i < 80)
+{
+  eval INSERT INTO `t1`(id, name) VALUES($i, repeat("a",1000));
+  inc $i;
+}
+--enable_query_log
+
+# main operation
+connection conn1;
+SET debug_sync = 'alter_table_update_log signal send_concurrent WAIT_FOR concurrent_done';
+--send OPTIMIZE TABLE t1;
+
+# concurrent operations
+connection conn2;
+SET debug_sync = 'now wait_for send_concurrent';
+UPDATE t1 SET id = id + 1;
+SET debug_sync = 'now signal concurrent_done';
+disconnect conn2;
+
+connection conn1;
+reap;
+disconnect conn1;
+
+# teardown
+connection default;
+
+DROP TABLE t1;
+--source include/wait_until_count_sessions.inc
