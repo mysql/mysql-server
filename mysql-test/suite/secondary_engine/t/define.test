@@ -12,7 +12,7 @@ DROP TABLE t1;
 --echo # Attempt to load table into an unknown storage engine.
 --echo #
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
---error ER_UNKNOWN_STORAGE_ENGINE
+# expect warning
 ALTER TABLE t1 SECONDARY_LOAD;
 DROP TABLE t1;
 

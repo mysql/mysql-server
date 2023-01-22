@@ -47,18 +47,6 @@ include/sync_slave_sql_with_master.inc
 FLUSH STATUS;
 SELECT * FROM t1;
 pk	vc	j	b	vb
-1	Poodle	{"key": "value"}	Pug	4
-2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
-3	Beagle	[1, 2, 3]	Pitbull	«Í4
-4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
-5	Shiba	{"1": "one"}	Mastiff	ÿÿ
-SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
-Variable_name	Value
-Secondary_engine_execution_count	0
-ALTER TABLE t1 SECONDARY_LOAD;
-FLUSH STATUS;
-SELECT * FROM t1;
-pk	vc	j	b	vb
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	1
@@ -172,18 +160,6 @@ t3	CREATE TABLE `t3` (
 FLUSH STATUS;
 SELECT * FROM t2;
 pk	vc	j	b	vb
-1	Poodle	{"key": "value"}	Pug	4
-2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
-3	Beagle	[1, 2, 3]	Pitbull	«Í4
-4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
-5	Shiba	{"1": "one"}	Mastiff	ÿÿ
-SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
-Variable_name	Value
-Secondary_engine_execution_count	0
-ALTER TABLE t2 SECONDARY_LOAD;
-FLUSH STATUS;
-SELECT * FROM t2;
-pk	vc	j	b	vb
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	1
@@ -198,13 +174,6 @@ ALTER TABLE t1 SECONDARY_UNLOAD;
 DROP TABLE t3;
 include/sync_slave_sql_with_master.inc
 [ Connection Slave ]
-FLUSH STATUS;
-SELECT * FROM t1;
-pk	vc	j	b	vb
-SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
-Variable_name	Value
-Secondary_engine_execution_count	1
-ALTER TABLE t1 SECONDARY_UNLOAD;
 FLUSH STATUS;
 SELECT * FROM t1;
 pk	vc	j	b	vb
@@ -243,14 +212,9 @@ include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 FLUSH STATUS;
 SELECT * FROM t2;
 pk	vc	j	b	vb
-1	Poodle	{"key": "value"}	Pug	4
-2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
-3	Beagle	[1, 2, 3]	Pitbull	«Í4
-4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
-5	Shiba	{"1": "one"}	Mastiff	ÿÿ
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	0
+Secondary_engine_execution_count	1
 [ Connection Master ]
 ALTER TABLE t1 SECONDARY_ENGINE=NULL;
 include/sync_slave_sql_with_master.inc
@@ -351,14 +315,9 @@ include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 FLUSH STATUS;
 SELECT * FROM t1;
 pk	vc	j	b	vb
-1	Poodle	{"key": "value"}	Pug	4
-2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
-3	Beagle	[1, 2, 3]	Pitbull	«Í4
-4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
-5	Shiba	{"1": "one"}	Mastiff	ÿÿ
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	0
+Secondary_engine_execution_count	1
 [ Connection Master ]
 DROP TABLE t1;
 DROP TABLE t2;

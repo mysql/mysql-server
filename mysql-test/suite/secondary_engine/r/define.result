@@ -10,7 +10,8 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
 ALTER TABLE t1 SECONDARY_LOAD;
-ERROR 42000: Unknown storage engine 'NONEXISTENT'
+Warnings:
+Warning	1286	Unknown storage engine 'NONEXISTENT'
 DROP TABLE t1;
 #
 # Attempt to load table into an unsupported secondary storage engine.

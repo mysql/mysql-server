@@ -68,14 +68,6 @@ ALTER TABLE t1 SECONDARY_LOAD;
 --source include/sync_slave_sql_with_master.inc
 --echo [ Connection Slave ]
 
-# Check that SECONDARY_LOAD was not propagated and that the table has not been
-# loaded into its secondary engine.
-FLUSH STATUS;
-SELECT * FROM t1;
-SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
-
-# Load table also on slave.
-ALTER TABLE t1 SECONDARY_LOAD;
 
 # Check that the query is offloaded.
 FLUSH STATUS;
@@ -150,12 +142,6 @@ ALTER TABLE t2 SECONDARY_LOAD;
 SHOW CREATE TABLE t2;
 SHOW CREATE TABLE t3;
 
-FLUSH STATUS;
-SELECT * FROM t2;
-SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
-
-# Load the table on slave.
-ALTER TABLE t2 SECONDARY_LOAD;
 
 FLUSH STATUS;
 SELECT * FROM t2;
@@ -176,14 +162,6 @@ DROP TABLE t3;
 --source include/sync_slave_sql_with_master.inc
 --echo [ Connection Slave ]
 
-# Check that SECONDARY_UNLOAD was not propagated and that the table is
-# still loaded into its secondary engine.
-FLUSH STATUS;
-SELECT * FROM t1;
-SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
-
-# Unload table also on slave.
-ALTER TABLE t1 SECONDARY_UNLOAD;
 
 # Check that the table is unloaded.
 FLUSH STATUS;
