@@ -67,7 +67,6 @@ ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/plugin/test_plugin.cc
   LIB_DEPENDS
     routing_export_all
     test-helpers
-    extra::rapidjson
   INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/../src
     ${PROJECT_SOURCE_DIR}/tests/helpers

@@ -134,7 +134,6 @@ ADD_LIBRARY(ndbblocks STATIC
   tsman.cpp
   ${EXTRA_SRC}
   )
-TARGET_LINK_LIBRARIES(ndbblocks extra::rapidjson)
 
 MYSQL_ADD_EXECUTABLE(ndb_print_file
   print_file.cpp

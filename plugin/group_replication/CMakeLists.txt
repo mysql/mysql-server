@@ -165,7 +165,6 @@ IF ((NOT (DEFINED WITHOUT_GROUP_REPLICATION AND WITHOUT_GROUP_REPLICATION)) AND
     SET_TARGET_PROPERTIES(gr_unit_test_resource
       PROPERTIES COMPILE_DEFINITIONS "DISABLE_PSI_MUTEX"
       )
-    TARGET_LINK_LIBRARIES(gr_unit_test_resource extra::rapidjson)
     ADD_DEPENDENCIES(gr_unit_test_resource GenError)
   ENDIF()
 
@@ -181,7 +180,6 @@ IF ((NOT (DEFINED WITHOUT_GROUP_REPLICATION AND WITHOUT_GROUP_REPLICATION)) AND
 ENDIF()
 
 
-ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="group_replication")
 
 # declare the plugin itself
 MYSQL_ADD_PLUGIN(group_replication
@@ -193,7 +191,6 @@ MYSQL_ADD_PLUGIN(group_replication
   ${PROTOBUF_LITE_LIBRARY}
   ${GR_PROTOBUF_LITE_LIB}
   mysqlgcs
-  extra::rapidjson
   MODULE_ONLY
   MODULE_OUTPUT_NAME "group_replication"
   )

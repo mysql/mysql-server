@@ -24,7 +24,6 @@ DISABLE_MISSING_PROFILE_WARNING()
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
 ADD_LIBRARY(pfs_server_stubs STATIC pfs_server_stubs.cc)
-TARGET_LINK_LIBRARIES(pfs_server_stubs extra::rapidjson)
 
 ADD_DEPENDENCIES(pfs_server_stubs GenError)
 

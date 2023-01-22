@@ -65,7 +65,6 @@ TARGET_LINK_LIBRARIES(router_lib
   mysqlclient
   ${SSL_LIBRARIES}
   io_component
-  extra::rapidjson
   )
 TARGET_INCLUDE_DIRECTORIES(router_lib
   PUBLIC

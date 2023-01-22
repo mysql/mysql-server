@@ -56,7 +56,7 @@ TARGET_LINK_LIBRARIES(heap_library mysys)
 
 MYSQL_ADD_PLUGIN(heap ha_heap.cc
   STORAGE_ENGINE MANDATORY
-  LINK_LIBRARIES heap_library extra::rapidjson
+  LINK_LIBRARIES heap_library
   )
 
 IF(WITH_UNIT_TESTS)

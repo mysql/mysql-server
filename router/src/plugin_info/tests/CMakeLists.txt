@@ -37,8 +37,7 @@ ELSE()
   ADD_LIBRARY(plugin_info_tests SHARED ${PLUGIN_INFO_SOURCES})
 ENDIF()
 
-TARGET_LINK_LIBRARIES(plugin_info_tests PRIVATE
-  harness-library router_lib extra::rapidjson)
+TARGET_LINK_LIBRARIES(plugin_info_tests harness-library router_lib)
 
 SET_TARGET_PROPERTIES(plugin_info_tests PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
