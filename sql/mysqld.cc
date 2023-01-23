@@ -2452,6 +2452,10 @@ static void unireg_abort(int exit_code) {
   // Just flush what we have and write directly to stderr.
   flush_error_log_messages();
 
+  // set server state to SHUTTING DOWN as we may exit from BOOTING state
+  // it helps other modules waiting for server bootup to complete, exit early
+  server_operational_state = SERVER_SHUTTING_DOWN;
+
   if (opt_help) usage();
 
   bool daemon_launcher_quiet =

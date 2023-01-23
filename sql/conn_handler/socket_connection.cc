@@ -661,7 +661,9 @@ class Unix_socket {
       return MYSQL_INVALID_SOCKET;
     }
 
-    if (create_lockfile()) {
+    if (create_lockfile() ||
+        DBUG_EVALUATE_IF("simulate_create_socket_lockfile_error", true,
+                         false)) {
       LogErr(ERROR_LEVEL, ER_CONN_UNIX_LOCK_FILE_FAIL);
       return MYSQL_INVALID_SOCKET;
     }
