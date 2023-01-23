@@ -1180,6 +1180,11 @@ IF(WITH_ASAN AND WITH_MSAN)
           "Cannot use AddressSanitizer and MemorySanitizer together")
 ENDIF()
 
+IF((WITH_ASAN OR WITH_LSAN) AND (WITH_TCMALLOC OR WITH_JEMALLOC))
+  MESSAGE(FATAL_ERROR
+    "Cannot use tcmalloc/jemalloc with leak sanitizer")
+ENDIF()
+
 IF(WITH_ASAN OR WITH_LSAN OR WITH_UBSAN)
   SET(HANDLE_FATAL_SIGNALS_DEFAULT 0)
 ELSE()

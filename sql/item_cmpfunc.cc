@@ -1696,7 +1696,10 @@ int Arg_comparator::compare_json() {
 
   // Get the JSON value in the left Item.
   Json_wrapper aw;
-  if (get_json_arg(*left, &value1, &tmp, &aw, &json_scalar)) return 1;
+  if (get_json_arg(*left, &value1, &tmp, &aw, &json_scalar)) {
+    if (set_null) owner->null_value = true;
+    return 1;
+  }
 
   bool a_is_null = (*left)->null_value;
   if (a_is_null) {
@@ -1706,7 +1709,10 @@ int Arg_comparator::compare_json() {
 
   // Get the JSON value in the right Item.
   Json_wrapper bw;
-  if (get_json_arg(*right, &value1, &tmp, &bw, &json_scalar)) return 1;
+  if (get_json_arg(*right, &value1, &tmp, &bw, &json_scalar)) {
+    if (set_null) owner->null_value = true;
+    return 1;
+  }
 
   bool b_is_null = (*right)->null_value;
   if (b_is_null) {
@@ -1824,10 +1830,16 @@ int Arg_comparator::compare_real_fixed() {
 
 int Arg_comparator::compare_int_signed() {
   longlong val1 = (*left)->val_int();
-  if (current_thd->is_error()) return 0;
+  if (current_thd->is_error()) {
+    if (set_null) owner->null_value = true;
+    return 0;
+  }
   if (!(*left)->null_value) {
     longlong val2 = (*right)->val_int();
-    if (current_thd->is_error()) return 0;
+    if (current_thd->is_error()) {
+      if (set_null) owner->null_value = true;
+      return 0;
+    }
     if (!(*right)->null_value) {
       if (set_null) owner->null_value = false;
       if (val1 < val2) return -1;
@@ -1880,10 +1892,16 @@ int Arg_comparator::compare_time_packed() {
 
 int Arg_comparator::compare_int_unsigned() {
   ulonglong val1 = (*left)->val_int();
-  if (current_thd->is_error()) return 0;
+  if (current_thd->is_error()) {
+    if (set_null) owner->null_value = true;
+    return 0;
+  }
   if (!(*left)->null_value) {
     ulonglong val2 = (*right)->val_int();
-    if (current_thd->is_error()) return 0;
+    if (current_thd->is_error()) {
+      if (set_null) owner->null_value = true;
+      return 0;
+    }
     if (!(*right)->null_value) {
       if (set_null) owner->null_value = false;
       if (val1 < val2) return -1;
