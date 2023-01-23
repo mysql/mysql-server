@@ -12220,7 +12220,7 @@ ER_WARN_CANT_OPEN_CERTIFICATE
   eng "Cannot open certificate %s. Please check the cerificate"
 
 ER_FAILED_TO_VALIDATE_CERTIFICATES_SERVER_EXIT
-  eng "Certificate validation has failed. Stopping the server as --enforce-certificate-validation is enabled"
+  eng "Certificate validation has failed. Stopping the server as tls-certificates-enforced-validation is enabled"
 
 ER_WARN_CA_CERT_VERIFY_FAILED
   eng "CA certificate/certficates is invalid. Please check logs for more details."

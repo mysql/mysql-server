@@ -210,7 +210,7 @@ static const char *ssl_error_string[] = {
     "FIPS mode failed",
     "Failed to set ecdh information",
     "Failed to set X509 verification parameter",
-    "Invalid CA certificate"};
+    "Invalid certificates"};
 
 const char *sslGetErrString(enum enum_ssl_init_error e) {
   assert(SSL_INITERR_NOERROR < e && e < SSL_INITERR_LASTERR);

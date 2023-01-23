@@ -84,9 +84,11 @@ static bool verify_individual_certificate(const char *ssl_cert,
 
   raii_bio bio(BIO_new(BIO_s_file()), &BIO_free);
   if (!bio) {
+    /* purecov: begin inspected */
     LogErr(ERROR_LEVEL, ER_TLS_LIBRARY_ERROR_INTERNAL);
     report_errors();
     return true;
+    /* purecov: end */
   }
 
   BIO_set_fp(bio.get(), fp.get(), BIO_NOCLOSE);
@@ -99,9 +101,11 @@ static bool verify_individual_certificate(const char *ssl_cert,
 
   raii_store store(X509_STORE_new(), &X509_STORE_free);
   if (!store) {
+    /* purecov: begin inspected */
     LogErr(ERROR_LEVEL, ER_TLS_LIBRARY_ERROR_INTERNAL);
     report_errors();
     return true;
+    /* purecov: end */
   }
 
   if (ssl_ca || ssl_capath) {
@@ -124,22 +128,28 @@ static bool verify_individual_certificate(const char *ssl_cert,
 
   raii_store_ctx store_ctx(X509_STORE_CTX_new(), &X509_STORE_CTX_free);
   if (!store_ctx) {
+    /* purecov: begin inspected */
     LogErr(ERROR_LEVEL, ER_TLS_LIBRARY_ERROR_INTERNAL);
     report_errors();
     return true;
+    /* purecov: end */
   }
 
   if (!X509_STORE_CTX_init(store_ctx.get(), store.get(), server_cert.get(),
                            NULL)) {
+    /* purecov: begin inspected */
     LogErr(ERROR_LEVEL, ER_TLS_LIBRARY_ERROR_INTERNAL);
     report_errors();
     return true;
+    /* purecov: end */
   }
 
   if (X509_STORE_add_cert(store.get(), server_cert.get()) <= 0) {
+    /* purecov: begin inspected */
     LogErr(WARNING_LEVEL, ER_TLS_LIBRARY_ERROR_INTERNAL);
     report_errors();
     return true;
+    /* purecov: end */
   }
   if (!X509_verify_cert(store_ctx.get())) {
     const char *result = X509_verify_cert_error_string(
@@ -161,7 +171,7 @@ static bool verify_ca_certificates(const char *ssl_ca, const char *ssl_capath,
   if (ssl_ca && ssl_ca[0]) {
     if (verify_individual_certificate(ssl_ca, NULL, NULL, ssl_crl,
                                       ssl_crl_path))
-      return true;
+      r_value = true;
   }
   if (ssl_capath && ssl_capath[0]) {
     /* We have ssl-capath. So search all files in the dir */
@@ -188,7 +198,7 @@ static bool verify_ca_certificates(const char *ssl_ca, const char *ssl_capath,
         dynstr_append(&file_path, ca_dir->dir_entry[file_count].name);
         if ((r_value = verify_individual_certificate(file_path.str, NULL, NULL,
                                                      ssl_crl, ssl_crl_path)))
-          break;
+          r_value = true;
       }
     }
     my_dirend(ca_dir);
@@ -271,8 +281,7 @@ Ssl_acceptor_context_property_type &operator++(
 
 Ssl_acceptor_context_data::Ssl_acceptor_context_data(
     std::string channel, bool use_ssl_arg, Ssl_init_callback *callbacks,
-    bool report_ssl_error /* = true */,
-    enum enum_ssl_init_error *out_error /* = nullptr */)
+    bool report_ssl_error /* = true */, enum enum_ssl_init_error *out_error)
     : channel_(channel), ssl_acceptor_fd_(nullptr), acceptor_(nullptr) {
   enum enum_ssl_init_error error_num = SSL_INITERR_NOERROR;
   {
@@ -284,17 +293,21 @@ Ssl_acceptor_context_data::Ssl_acceptor_context_data(
   }
 
   if (use_ssl_arg) {
-    if (verify_ca_certificates(current_ca_.c_str(), current_capath_.c_str(),
-                               current_crl_.c_str(), current_crlpath_.c_str()))
-      LogErr(WARNING_LEVEL, ER_WARN_CA_CERT_VERIFY_FAILED);
     /* Verify server certificate */
     if (verify_individual_certificate(
             current_cert_.c_str(), current_ca_.c_str(), current_capath_.c_str(),
             current_crl_.c_str(), current_crlpath_.c_str())) {
       LogErr(WARNING_LEVEL, ER_SERVER_CERT_VERIFY_FAILED,
              current_cert_.c_str());
+      /* Verify possible issues in CA certificates*/
+      if (verify_ca_certificates(current_ca_.c_str(), current_capath_.c_str(),
+                                 current_crl_.c_str(),
+                                 current_crlpath_.c_str())) {
+        LogErr(WARNING_LEVEL, ER_WARN_CA_CERT_VERIFY_FAILED);
+      }
+      error_num = SSL_INITERR_INVALID_CERTIFICATES;
       if (opt_tls_certificates_enforced_validation) {
-        LogErr(ERROR_LEVEL, ER_FAILED_TO_VALIDATE_CERTIFICATES_SERVER_EXIT);
+        if (out_error) *out_error = error_num;
         assert(ssl_acceptor_fd_ == nullptr);
         return;
       }

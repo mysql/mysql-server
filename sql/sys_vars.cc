@@ -7703,11 +7703,11 @@ static Sys_var_enum Sys_explain_format(
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
 static Sys_var_bool Sys_tls_certificates_enforced_validation(
-    "tls-certificates-enforced-validation",
+    "tls_certificates_enforced_validation",
     "If set to TRUE, server stops execution at the start up in case of invalid "
     "certificates "
     "When ALTER INSTANCE RELOAD TLS executed, new certficates will not be used "
     "if validation fails. ",
-    READ_ONLY GLOBAL_VAR(opt_tls_certificates_enforced_validation),
+    READ_ONLY NON_PERSIST GLOBAL_VAR(opt_tls_certificates_enforced_validation),
     CMD_LINE(OPT_ARG), DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(nullptr), ON_UPDATE(nullptr));
