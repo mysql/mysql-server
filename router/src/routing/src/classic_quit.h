@@ -49,4 +49,26 @@ class QuitProcessor : public Processor {
   Stage stage_{Stage::Command};
 };
 
+class QuitSender : public Processor {
+ public:
+  using Processor::Processor;
+
+  enum class Stage {
+    Command,
+    CloseSocket,
+    Done,
+  };
+
+  stdx::expected<Result, std::error_code> process() override;
+
+  void stage(Stage stage) { stage_ = stage; }
+  Stage stage() const { return stage_; }
+
+ private:
+  stdx::expected<Result, std::error_code> command();
+  stdx::expected<Result, std::error_code> close_socket();
+
+  Stage stage_{Stage::Command};
+};
+
 #endif

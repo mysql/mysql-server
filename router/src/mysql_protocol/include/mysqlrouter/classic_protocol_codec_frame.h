@@ -156,8 +156,8 @@ class Codec<frame::Frame<PayloadType>>
       : __base(caps), v_{std::move(v)} {}
 
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const net::const_buffer &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator accu(buffers, caps);
+      net::const_buffer buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto header_res = accu.template step<frame::Header>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -165,7 +165,7 @@ class Codec<frame::Frame<PayloadType>>
     constexpr const size_t header_size{Codec<frame::Header>::max_size()};
 
     // check the payload is at least what we expect.
-    if (net::buffer_size(buffers) < header_size + header_res->payload_size()) {
+    if (buffer.size() < header_size + header_res->payload_size()) {
       return stdx::make_unexpected(
           make_error_code(classic_protocol::codec_errc::not_enough_input));
     }

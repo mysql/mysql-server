@@ -105,26 +105,23 @@ stdx::expected<size_t, std::error_code> encode(const T &v,
 }
 
 /**
- * decode a message from a buffer sequence.
+ * decode a message from a buffer.
  *
- * @param buffers buffer sequence to read from
+ * @param buffer buffer to read from
  * @param caps protocol capabilities
  * @returns number of bytes read from 'buffers' and a T on success, or
  * std::error_code on error
  */
-template <class T, class ConstBufferSequence>
+template <class T>
 stdx::expected<std::pair<size_t, T>, std::error_code> decode(
-    const ConstBufferSequence &buffers, capabilities::value_type caps) {
-  static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value,
-                "buffers MUST be a const buffer sequence");
-
-  return Codec<T>::decode(buffers, caps);
+    const net::const_buffer &buffer, capabilities::value_type caps) {
+  return Codec<T>::decode(buffer, caps);
 }
 
 namespace impl {
 
 /**
- * Generator of decoded Types of a buffer-sequence.
+ * Generator of decoded Types of a buffer.
  *
  * - .step<wire::VarInt>()
  */
@@ -234,7 +231,6 @@ class DecodeBufferAccumulator {
  */
 class EncodeBufferAccumulator {
  public:
-  using buffer_type = net::mutable_buffer;
   using result_type = stdx::expected<size_t, std::error_code>;
 
   /**
@@ -244,9 +240,9 @@ class EncodeBufferAccumulator {
    * @param caps protocol capabilities
    * @param consumed bytes already used in the in buffer
    */
-  EncodeBufferAccumulator(buffer_type buffer, capabilities::value_type caps,
-                          size_t consumed = 0)
-      : buffer_{std::move(buffer)}, caps_{caps}, consumed_{consumed} {}
+  EncodeBufferAccumulator(net::mutable_buffer buffer,
+                          capabilities::value_type caps, size_t consumed = 0)
+      : buffer_{buffer}, caps_{caps}, consumed_{consumed} {}
 
   /**
    * encode a T into the buffer and move position forward.
@@ -257,9 +253,11 @@ class EncodeBufferAccumulator {
   EncodeBufferAccumulator &step(const T &v) {
     if (!res_) return *this;
 
-    res_ = Codec<T>(v, caps_).encode(buffer_ + consumed_);
-    if (res_) {
-      consumed_ += res_.value();
+    auto res = Codec<T>(v, caps_).encode(buffer_ + consumed_);
+    if (!res) {  // it failed.
+      res_ = res;
+    } else {
+      consumed_ += *res;
     }
 
     return *this;
@@ -272,15 +270,13 @@ class EncodeBufferAccumulator {
    * failed.
    */
   result_type result() const {
-    if (!res_) {
-      return res_;
-    } else {
-      return {consumed_};
-    }
+    if (!res_) return res_;
+
+    return {consumed_};
   }
 
  private:
-  const buffer_type buffer_;
+  const net::mutable_buffer buffer_;
   const capabilities::value_type caps_;
   size_t consumed_{};
 
@@ -352,7 +348,7 @@ class EncodeBase {
   }
 
   stdx::expected<size_t, std::error_code> encode(
-      const net::mutable_buffer &buffer) const {
+      net::mutable_buffer buffer) const {
     return static_cast<const T *>(this)->accumulate_fields(
         EncodeBufferAccumulator(buffer, caps_));
   }
