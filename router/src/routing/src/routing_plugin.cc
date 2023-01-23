@@ -284,8 +284,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
                                                         config.source_ssl_cert);
       if (!res) {
         throw std::system_error(
-            res.error(), "loading client_ssl_cert '" + config.source_ssl_key +
-                             "' and client_ssl_key '" + config.source_ssl_cert +
+            res.error(), "loading client_ssl_cert '" + config.source_ssl_cert +
+                             "' and client_ssl_key '" + config.source_ssl_key +
                              "' failed");
       }
 
