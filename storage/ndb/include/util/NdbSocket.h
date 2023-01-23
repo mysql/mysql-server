@@ -41,9 +41,19 @@ public:
     ssl = socket_table_get_ssl(ndbsocket.s, (fromType == From::Existing));
     init_from_native(ndbsocket.s);
   }
-  /* NdbSockets cannot be copied, except using NdbSocket::transfer() */
-  NdbSocket(const NdbSocket &) = delete;              // do not copy
   ~NdbSocket()                       { disable_locking(); }
+
+ /* The standard copy constructor and copy operator are private.
+  * NdbSockets should be copied using NdbSocket::transfer(), which
+  * invalidates the original, and transfers ownership of its ssl and
+  * mutex.
+  *
+  * NdbSocket::copy() should only be used when the original is going
+  * out of scope.
+  */
+  static void transfer(NdbSocket & newSocket, NdbSocket & original);
+  static NdbSocket transfer(NdbSocket & original);
+  static NdbSocket copy(const NdbSocket &s) { return s; }
 
   void init_from_new(ndb_socket_t);
   void init_from_native(socket_t fd) { ndb_socket_init_from_native(s, fd); }
@@ -54,23 +64,18 @@ public:
   socket_t native_socket() const     { return ndb_socket_get_native(s); }
   std::string to_string() const;
 
- /* Copy all properties of the original socket to the new one,
-  * then invalidate the original.
-  */
-  static void transfer(NdbSocket & newSocket, NdbSocket & original);
-
- /* Get an SSL for client-side TLS.
-  * Returns pointer to SSL. Returns null if CTX is null, or SSL_new() fails,
-  * or if the OpenSSL version is not supported for NDB TLS.
-  * When ready to switch over, call associate().
-  */
+  /* Get an SSL for client-side TLS.
+   * Returns pointer to SSL. Returns null if CTX is null, or SSL_new() fails,
+   * or if the OpenSSL version is not supported for NDB TLS.
+   * When ready to switch over, call associate().
+   */
   static struct ssl_st * get_client_ssl(struct ssl_ctx_st *);
 
- /* Get an SSL for for server-side TLS.
-  * Returns pointer to SSL. Returns null if CTX is null, or SSL_new() fails,
-  * or if the OpenSSL version is not supported for NDB TLS.
-  * When ready to switch over, call associate().
-  */
+  /* Get an SSL for for server-side TLS.
+   * Returns pointer to SSL. Returns null if CTX is null, or SSL_new() fails,
+   * or if the OpenSSL version is not supported for NDB TLS.
+   * When ready to switch over, call associate().
+   */
   static struct ssl_st * get_server_ssl(struct ssl_ctx_st *);
 
   /* Free an SSL returned by get_client_ssl() or get_server_ssl(), in the case
@@ -89,7 +94,7 @@ public:
 
   /* Enable or disable mutex locking around SSL read and write calls.
    * Return true on success.
-  */
+   */
   bool enable_locking();
   bool disable_locking();
 
@@ -128,7 +133,7 @@ public:
    *
    * Returns nullptr if socket does not have TLS enabled.
    */
-   struct x509_st * peer_certificate() const;
+  struct x509_st * peer_certificate() const;
 
   /* Set socket behavior to blocking or non-blocking.
      For SSL sockets, this should be done after associate().
@@ -138,7 +143,7 @@ public:
       * non-blocking SSL sockets have mode flags SSL_MODE_ENABLE_PARTIAL_WRITE
         and SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER.
      See SSL_set_mode(3) for reference on flags.
-   */
+  */
   int set_nonblocking(int on);
 
   /* ndb_socket.h */
@@ -174,10 +179,11 @@ public:
 
 private:
   NdbSocket & operator= (const NdbSocket &) = default;
+  NdbSocket(const NdbSocket &) = default;
+
   ssize_t ssl_recv(char * buf, size_t len) const;
   ssize_t ssl_peek(char * buf, size_t len) const;
   ssize_t ssl_send(const char * buf, size_t len) const;
-  bool ssl_send(const char * buf, size_t len, size_t * written) const;
   ssize_t ssl_writev(const struct iovec *vec, int nvec) const;
 
   int ssl_read(int timeout, char *buf, int len) const;
@@ -187,9 +193,8 @@ private:
   bool ssl_handshake();
   void ssl_close();
 
-  int send_several_iov(const struct iovec *, const int, int) const;
-  int send_one_iov(const char * base, size_t len) const;
-  int consolidate(const struct iovec *, const int, const int) const;
+  int consolidate(const struct iovec *, const int) const;
+  int send_several_iov(const struct iovec *, int) const;
 
   friend class TlsLineReader;
 
@@ -209,13 +214,22 @@ inline
 void NdbSocket::transfer(NdbSocket & newSocket, NdbSocket & original) {
   assert(! newSocket.is_valid());
   newSocket = original;           // invokes the private copy operator
+  original.ssl = nullptr;         // transfer ownership
+  original.mutex = nullptr;       // transfer ownership
   original.invalidate();
 }
 
 inline
+NdbSocket NdbSocket::transfer(NdbSocket & original) {
+  NdbSocket newSocket;
+  transfer(newSocket, original);
+  return newSocket;               // invokes the private copy constructor
+}
+
+inline
 void NdbSocket::invalidate() {
-  ssl = nullptr;
-  mutex = nullptr;
+  assert(ssl == nullptr);         // call close() before invalidate()
+  assert(mutex == nullptr);       // call close() before invalidate()
   ndb_socket_invalidate(&s);
 }
 
