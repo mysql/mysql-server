@@ -571,6 +571,10 @@ bool Util_table_creator::create_or_upgrade_in_NDB(bool upgrade_allowed,
 }
 
 bool Util_table_creator::install_in_DD(bool reinstall) {
+  DBUG_TRACE;
+
+  ndb_log_verbose(50, "Checking '%s' table in Data Dictionary", m_name.c_str());
+
   Ndb_dd_client dd_client(m_thd);
 
   if (!dd_client.mdl_locks_acquire_exclusive(db_name(), table_name())) {
@@ -578,15 +582,27 @@ bool Util_table_creator::install_in_DD(bool reinstall) {
     return false;
   }
 
+  // There may exist a stale DD definition, occupying the NDB table id
+  // or the pair schema.table. Check these and remove.
+  const NdbDictionary::Table *ndbtab = m_util_table.get_table();
   const dd::Table *existing;
+
+  const Ndb_dd_handle ndb_handle{ndbtab->getObjectId(),
+                                 ndbtab->getObjectVersion()};
+  if (!ndb_handle.valid()) {
+    ndb_log_error("Invalid id from '%s' table", m_name.c_str());
+    assert(false);
+  }
+  ndb_log_verbose(50, "Handle NDB %s", ndb_handle.to_string().c_str());
+
   if (!dd_client.get_table(db_name(), table_name(), &existing)) {
     ndb_log_error("Failed to get '%s' table from DD", m_name.c_str());
     return false;
   }
 
-  // Table definition exists
   if (existing) {
-    Ndb_dd_handle dd_handle = ndb_dd_table_get_spi_and_version(existing);
+    const Ndb_dd_handle dd_handle = ndb_dd_table_get_spi_and_version(existing);
+    ndb_log_verbose(50, "Handle DD %s", dd_handle.to_string().c_str());
     if (!dd_handle.valid()) {
       ndb_log_error("Failed to extract id and version from '%s' table",
                     m_name.c_str());
@@ -602,10 +618,7 @@ bool Util_table_creator::install_in_DD(bool reinstall) {
     }
 
     // Check if table definition in DD is outdated
-    const NdbDictionary::Table *ndbtab = m_util_table.get_table();
-    Ndb_dd_handle curr_handle{ndbtab->getObjectId(),
-                              ndbtab->getObjectVersion()};
-    if (!reinstall && curr_handle == dd_handle) {
+    if (!reinstall && ndb_handle == dd_handle) {
       // Existed, didn't need reinstall and version matched
       return true;
     }
@@ -615,11 +628,18 @@ bool Util_table_creator::install_in_DD(bool reinstall) {
       ndb_log_info("Failed to remove '%s' from DD", m_name.c_str());
       return false;
     }
+    // Pointer to table not valid after remove
+    existing = nullptr;
 
-    dd_client.commit();
+    // Check if DD table is to be installed with a different id than
+    // previously, removing the stale definition if necessary.
+    if (dd_handle.spi != ndb_handle.spi &&
+        !dd_client.remove_table(ndb_handle.spi)) {
+      ndb_log_info("Failed to remove ndbcluster-%llu from DD", ndb_handle.spi);
+    }
 
     /*
-      The table existed in and was deleted from DD. It's possible
+      The table existed and was deleted from DD. It's possible
       that someone has tried to use it and thus it might have been
       inserted in the table definition cache. Close the table
       in the table definition cache(tdc).
@@ -627,7 +647,15 @@ bool Util_table_creator::install_in_DD(bool reinstall) {
     ndb_log_verbose(1, "Removing '%s' from table definition cache",
                     m_name.c_str());
     ndb_tdc_close_cached_table(m_thd, db_name(), table_name());
+  } else {
+    // Remove any stale DD table that may be occupying this
+    // ndbcluster-<id> place
+    if (!dd_client.remove_table(ndb_handle.spi)) {
+      ndb_log_info("Failed to remove ndbcluster-%llu from DD", ndb_handle.spi);
+    }
   }
+
+  dd_client.commit();
 
   // Create DD table definition
   Thd_ndb::Options_guard thd_ndb_options(m_thd_ndb);

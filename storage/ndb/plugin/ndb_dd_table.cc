@@ -77,7 +77,7 @@ Ndb_dd_handle ndb_dd_table_get_spi_and_version(const dd::Table *table_def) {
   }
 
   Ndb_dd_handle handle(spi, version);
-  DBUG_PRINT("info", ("%s", handle.c_str()));
+  DBUG_PRINT("info", ("%s", handle.to_string().c_str()));
 
   return handle;
 }

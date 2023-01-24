@@ -663,3 +663,44 @@ bool ndb_get_parent_table_ids_in_dictionary(
   }
   return true;
 }
+
+#ifndef NDEBUG
+#include "storage/ndb/plugin/ndb_table_guard.h"
+
+bool ndb_dump_NDB_tables(Ndb *ndb) {
+  // Get list of tables from NDB and read database names
+
+  NdbDictionary::Dictionary::List list;
+  if (ndb->getDictionary()->listObjects(list,
+                                        NdbDictionary::Object::UserTable) != 0)
+    return true;
+
+  fprintf(stderr, "ndb_dump_NDB_tables\n");
+  fprintf(stderr, "| table_id | db_name | table_name | object_version |\n");
+
+  for (uint i = 0; i < list.count; i++) {
+    NdbDictionary::Dictionary::List::Element &elmt = list.elements[i];
+    DBUG_PRINT("info", ("elmt[%d]: %d '%s'", i, elmt.id, elmt.name));
+
+    const int table_id = elmt.id;
+    const char *table_database = elmt.database;
+    assert(elmt.schema == std::string("def"));  // always "<db>/def/<name>"
+    const char *table_name = elmt.name;
+
+    Ndb_table_guard ndbtab_g(ndb, table_database, table_name);
+    const NdbDictionary::Table *ndbtab = ndbtab_g.get_table();
+    if (!ndbtab) {
+      DBUG_PRINT("info",
+                 ("failed to open table %s.%s", table_database, table_name));
+      // skip tables that cannot be opened with Ndb_table_guard from server
+      continue;
+    }
+    assert(table_id == ndbtab->getObjectId());  // same as listed
+    const unsigned table_version = ndbtab->getObjectVersion();
+
+    fprintf(stderr, "| %d | %s | %s | %u |\n", table_id, table_database,
+            table_name, table_version);
+  }
+  return false;
+}
+#endif
