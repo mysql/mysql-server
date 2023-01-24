@@ -5706,3 +5706,14 @@ Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Pl
 SET @@sql_mode='';
 DO SPACE(SHA(UUID_SHORT()));
 SET @@sql_mode = default;
+#
+# Bug#34961236 [rl]pad() + row_count():
+# Item::null_return_str(): Assertion `m_nullable' failed.
+#
+SET @@sql_mode='';
+DO LPAD(BIT_XOR(1), ROW_COUNT(), JSON_PRETTY('-$ *?(8}'));
+ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "Invalid value." at position 1.
+SET @@sql_mode='';
+DO RPAD(BIT_XOR(1), ROW_COUNT(), JSON_PRETTY('-$ *?(8}'));
+ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "Invalid value." at position 1.
+SET @@sql_mode = default;

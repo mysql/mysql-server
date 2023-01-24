@@ -2516,3 +2516,16 @@ SET @@sql_mode='';
 DO SPACE(SHA(UUID_SHORT()));
 --enable_warnings
 SET @@sql_mode = default;
+
+--echo #
+--echo # Bug#34961236 [rl]pad() + row_count():
+--echo # Item::null_return_str(): Assertion `m_nullable' failed.
+--echo #
+
+SET @@sql_mode='';
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+DO LPAD(BIT_XOR(1), ROW_COUNT(), JSON_PRETTY('-$ *?(8}'));
+SET @@sql_mode='';
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+DO RPAD(BIT_XOR(1), ROW_COUNT(), JSON_PRETTY('-$ *?(8}'));
+SET @@sql_mode = default;

@@ -2726,7 +2726,7 @@ String *Item_func_rpad::val_str(String *str) {
 
   /* must be longlong to avoid truncation */
   longlong count = args[1]->val_int();
-  if (args[1]->null_value) return error_str();
+  if (args[1]->null_value || current_thd->is_error()) return error_str();
 
   if ((count < 0) && !args[1]->unsigned_flag) {
     return null_return_str();
@@ -2933,7 +2933,7 @@ String *Item_func_lpad::val_str(String *str) {
 
   /* must be longlong to avoid truncation */
   longlong count = args[1]->val_int();
-  if (args[1]->null_value) return error_str();
+  if (args[1]->null_value || current_thd->is_error()) return error_str();
 
   if (count < 0 && !args[1]->unsigned_flag) {
     return null_return_str();
