@@ -74,7 +74,7 @@ GENERATE_EXPORT_HEADER(http_auth_backend_lib
   EXPORT_FILE_NAME
   ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/http_auth_backend_lib_export.h
   )
-TARGET_LINK_LIBRARIES(http_auth_backend_lib http_common)
+TARGET_LINK_LIBRARIES(http_auth_backend_lib http_common extra::rapidjson)
 SET_TARGET_PROPERTIES(http_auth_backend_lib PROPERTIES
   OUTPUT_NAME "mysqlrouter_http_auth_backend"
   SOVERSION 1

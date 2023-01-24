@@ -103,6 +103,7 @@ IF(WITH_MYSQLX)
     ${LZ4_LIBRARY}
     ${MYSQLX_PROTOCOL_LIB}
     ${MYSQLX_PROTOBUF_LIB}
+    extra::rapidjson
     )
 ENDIF()
 

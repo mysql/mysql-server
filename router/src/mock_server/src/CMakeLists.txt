@@ -198,7 +198,7 @@ TARGET_INCLUDE_DIRECTORIES(mock_server_rest_client PUBLIC
   ${PROJECT_SOURCE_DIR}/src/mock_server/include/
   ${PROJECT_SOURCE_DIR}/src/http/include/
   )
-TARGET_LINK_LIBRARIES(mock_server_rest_client http_client)
+TARGET_LINK_LIBRARIES(mock_server_rest_client http_client extra::rapidjson)
 ADD_DEPENDENCIES(mysqlrouter_all mock_server_rest_client)
 
 TARGET_COMPILE_DEFINITIONS(mysql_server_mock

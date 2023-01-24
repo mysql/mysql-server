@@ -27,6 +27,7 @@ MYSQL_ADD_COMPONENT(log_sink_syseventlog
 MYSQL_ADD_COMPONENT(log_sink_json
   log_sink_json.cc
   MODULE_ONLY
+  LINK_LIBRARIES extra::rapidjson
   )
 MYSQL_ADD_COMPONENT(log_filter_dragnet
   log_filter_dragnet.cc

@@ -158,7 +158,7 @@ ADD_LIBRARY(harness-archive STATIC
   ${harness_source} ${GENERATED_SOURCES_STATIC})
 ADD_DEPENDENCIES(mysqlrouter_all harness-archive)
 
-TARGET_LINK_LIBRARIES(harness-archive ${common_libraries})
+TARGET_LINK_LIBRARIES(harness-archive {common_libraries} extra::rapidjson)
 TARGET_INCLUDE_DIRECTORIES(harness-archive PUBLIC
   ../include ${CMAKE_CURRENT_BINARY_DIR}/src_STATIC)
 IF(WIN32)
@@ -172,7 +172,8 @@ ADD_LIBRARY(harness-library SHARED
 ADD_DEPENDENCIES(mysqlrouter_all harness-library)
 
 # mysys is need for my_print_stacktrace
-TARGET_LINK_LIBRARIES(harness-library ${common_libraries} mysys)
+TARGET_LINK_LIBRARIES(harness-library
+  ${common_libraries} mysys extra::rapidjson)
 TARGET_INCLUDE_DIRECTORIES(harness-library PUBLIC
   ../include ${CMAKE_CURRENT_BINARY_DIR}/src_SHARED)
 

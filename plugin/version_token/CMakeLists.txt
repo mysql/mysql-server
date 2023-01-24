@@ -23,6 +23,7 @@
 MYSQL_ADD_PLUGIN(version_token
   version_token.cc
   MODULE_ONLY
+  LINK_LIBRARIES extra::rapidjson
   )
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)

@@ -102,9 +102,9 @@ ENDIF()
 ADD_DEPENDENCIES(gunit_small GenError)
 ADD_DEPENDENCIES(gunit_large GenError)
 TARGET_LINK_LIBRARIES(gunit_small
-  mysys strings ${GTEST_LIBRARIES} ${UNITTEST_JEMALLOC_LIB})
+  mysys strings ${GTEST_LIBRARIES} ${UNITTEST_JEMALLOC_LIB} extra::rapidjson)
 TARGET_LINK_LIBRARIES(gunit_large
-  mysys strings ${GTEST_LIBRARIES} ${UNITTEST_JEMALLOC_LIB})
+  mysys strings ${GTEST_LIBRARIES} ${UNITTEST_JEMALLOC_LIB} extra::rapidjson)
 
 IF(WIN32)
   ## Create an object library of nt_servc.cc, so we don't have to
@@ -355,7 +355,7 @@ MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
   ADD_TEST merge_small_tests
   COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS}
   ENABLE_EXPORTS
-  LINK_LIBRARIES sqlgunitlib gunit_small
+  LINK_LIBRARIES sqlgunitlib gunit_small extra::rapidjson
   )
 
 IF(WIN32)

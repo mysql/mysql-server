@@ -149,6 +149,7 @@ add_harness_plugin(routing_plugin
  REQUIRES routing
  DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
  )
+TARGET_LINK_LIBRARIES(routing_plugin PRIVATE extra::rapidjson)
 
 GENERATE_EXPORT_HEADER(routing_plugin
   EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/routing_plugin_export.h)
