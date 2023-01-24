@@ -2663,3 +2663,34 @@ SELECT 1
  JOIN (t1 AS t4 JOIN t1 AS t5 ON t4.f2 = t5.f1) ON t2.f2 = t5.f1)
  ON t1.f2 = t5.f2;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#34837464: Incorrect Left Outer Join Execution
+--echo #
+
+CREATE TABLE t1(varchar_col VARCHAR(10), decimal_col DECIMAL(10, 0));
+INSERT INTO t1 VALUES ('', 0), ('', 0), ('', 0), ('', 0);
+
+CREATE TABLE t2(id INT, varchar_col VARCHAR(10), decimal_col DECIMAL(10, 0));
+INSERT INTO t2 VALUES (1, NULL, NULL), (2, NULL, NULL), (3, NULL, NULL);
+
+ANALYZE TABLE t1, t2;
+
+# These two hash joins used to compare decimal zero or the empty
+# string in t1 as equal to NULL in t2, and return wrong results.
+
+--let $query = SELECT id FROM t1 LEFT JOIN t2 USING (varchar_col)
+# Filter out minor plan differences between old optimizer and hypergraph.
+--let $patterns = $elide_metrics /t2\.varchar_col = t1\.varchar_col/t1.varchar_col = t2.varchar_col/
+--replace_regex $patterns
+--eval EXPLAIN FORMAT=TREE $query
+--eval $query
+
+--let $query = SELECT id FROM t1 LEFT JOIN t2 USING (decimal_col)
+# Filter out minor plan differences between old optimizer and hypergraph.
+--let $patterns = $elide_metrics /t2\.decimal_col = t1\.decimal_col/t1.decimal_col = t2.decimal_col/
+--replace_regex $patterns
+--eval EXPLAIN FORMAT=TREE $query
+--eval $query
+
+DROP TABLE t1, t2;
