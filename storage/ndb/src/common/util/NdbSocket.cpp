@@ -65,29 +65,6 @@ static void log_ssl_error(const char * fn_name)
   }
 }
 
-/* This is only used by read & write routines */
-static ssize_t handle_ssl_error(int err, const char * fn) {
-  switch(err) {
-    case SSL_ERROR_NONE:
-      assert(false);      // we should not be here on success
-      return 0;
-    case SSL_ERROR_SSL:
-      log_ssl_error(fn); // OpenSSL knows more about the error
-      return 0;           // caller should close the socket
-    case SSL_ERROR_WANT_READ:
-    case SSL_ERROR_WANT_WRITE:
-      return TLS_BUSY_TRY_AGAIN;
-    case SSL_ERROR_SYSCALL:
-      return -1;          // caller should check errno and close the socket
-    case SSL_ERROR_ZERO_RETURN:
-      return 0;           // the peer has closed the SSL transport
-    default:              // unexpected code
-      log_ssl_error(fn);
-      assert(false);
-      return -1;
-  }
-}
-
 /* Class Methods */
 
 SSL * NdbSocket::get_client_ssl(SSL_CTX *ctx) {
@@ -200,6 +177,29 @@ void NdbSocket::ssl_close() {
 }
 
 #if OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL
+
+/* This is only used by read & write routines */
+static ssize_t handle_ssl_error(int err, const char * fn) {
+  switch(err) {
+    case SSL_ERROR_NONE:
+      assert(false);      // we should not be here on success
+      return 0;
+    case SSL_ERROR_SSL:
+      log_ssl_error(fn); // OpenSSL knows more about the error
+      return 0;           // caller should close the socket
+    case SSL_ERROR_WANT_READ:
+    case SSL_ERROR_WANT_WRITE:
+      return TLS_BUSY_TRY_AGAIN;
+    case SSL_ERROR_SYSCALL:
+      return -1;          // caller should check errno and close the socket
+    case SSL_ERROR_ZERO_RETURN:
+      return 0;           // the peer has closed the SSL transport
+    default:              // unexpected code
+      log_ssl_error(fn);
+      assert(false);
+      return -1;
+  }
+}
 
 bool NdbSocket::update_keys(bool req_peer) const {
   if(ssl && (SSL_version(ssl) == TLS1_3_VERSION)) {
