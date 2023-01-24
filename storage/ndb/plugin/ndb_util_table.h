@@ -118,10 +118,10 @@ class Ndb_util_table {
 
     @return true on success.
    */
-  virtual bool pre_upgrade() const { return true; }
+  virtual bool pre_upgrade() { return true; }
 
   /**
-    @brief Code to be executed after installing the table.
+    @brief Code to be executed after installing the table in NDB.
 
     @note  The derived class has to override this method if it wants to
            execute code after installing the table.
@@ -129,6 +129,17 @@ class Ndb_util_table {
     @return true on success.
    */
   virtual bool post_install() const { return true; }
+
+  /**
+    @brief Code to be executed after installing the table in the data
+    dictionary.
+
+    @note The derived class has to override this method to execute additional
+    code.
+
+    @return true on success, false otherwise
+  */
+  virtual bool post_install_in_DD() const { return true; }
 
   /**
      @brief Drop the events related to this table from NDB
@@ -255,6 +266,12 @@ class Ndb_util_table {
      @return true if table was created successfully
    */
   bool create(bool is_upgrade = false);
+
+  /**
+     @brief Create table in DD and finalize it
+     @return true if successful, false otherwise
+  */
+  bool create_in_DD();
 
   /**
      @brief Check if table need to be upgraded

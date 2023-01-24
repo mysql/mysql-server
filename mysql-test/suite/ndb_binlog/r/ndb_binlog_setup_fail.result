@@ -14,4 +14,14 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
+
+Testing for Bug#34876468: Missing ndb_schema UUID
+=============================================================================
+# Delete all rows from ndb_schema
+# restart: --debug=d,ndb_schema_no_uuid
+include/assert_grep.inc [Empty ndb_schema table]
+include/assert_grep.inc [Generated new UUID]
+# Check everything works
+CREATE TABLE t1 (a int primary key, b blob) ENGINE = NDB;
+DROP TABLE t1;
 # restart

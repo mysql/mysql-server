@@ -387,6 +387,21 @@ bool Ndb_util_table::create(bool is_upgrade) {
   return true;
 }
 
+bool Ndb_util_table::create_in_DD() {
+  Ndb_local_connection mysqld(const_cast<THD *>(get_thd()));
+  if (mysqld.create_util_table(define_table_dd())) {
+    return false;
+  }
+
+  if (!post_install_in_DD()) {
+    ndb_log_verbose(1, "Failed to finalize table definition for '%s.%s' in DD",
+                    m_db_name.c_str(), m_table_name.c_str());
+    return false;
+  }
+
+  return true;
+}
+
 // Upgrade table
 bool Ndb_util_table::upgrade() {
   const NdbDictionary::Table *old_table = get_table();
@@ -665,8 +680,7 @@ bool Util_table_creator::install_in_DD(bool reinstall) {
   if (m_util_table.is_hidden())
     thd_ndb_options.set(Thd_ndb::CREATE_UTIL_TABLE_HIDDEN);
 
-  Ndb_local_connection mysqld(m_thd);
-  if (mysqld.create_util_table(m_util_table.define_table_dd())) {
+  if (!m_util_table.create_in_DD()) {
     ndb_log_error("Failed to create table definition for '%s' in DD",
                   m_name.c_str());
     return false;

@@ -65,5 +65,57 @@ DROP TABLE t3;
 DROP TABLE t4;
 -- save_master_pos
 
--- let $restart_parameters= 
+#############################################################
+# Bug#34876468
+#  Missing ndb_schema UUID
+#
+# If a mysqld node is started after a NDB node start initial from
+# which a backup was restored, the ndb_schema table will be empty.
+# Since mysqld NDB plugin code uses the UUID stored in the data
+# dictionary side of the mysqld table definition to compare with the
+# UUID stored in the query column of `ndb_schema`, if the NDB table
+# is empty then mysqld should view this as an initial system restart.
+# This includes recreating the NDB table definition and synchronize
+# it with the data dictionary private fields (more specifically,
+# `se_private_data`).
+#
+#############################################################
+
+--echo
+--echo Testing for Bug#34876468: Missing ndb_schema UUID
+--echo =============================================================================
+
+-- disable_query_log
+call mtr.add_suppression("Detected an empty ndb_schema table in NDB");
+call mtr.add_suppression("mysqld startup An incident event has been written");
+-- enable_query_log
+
+-- echo # Delete all rows from ndb_schema
+# start mysqld to drop all ndb_schema data
+-- let $mysqld_name=mysqld.1.1
+-- let $do_not_echo_parameters= 0
+-- let $restart_parameters= restart: --debug=d,ndb_schema_no_uuid
 -- source include/restart_mysqld.inc
+
+# find empty ndb_schema table in NDB message
+-- let $assert_text= Empty ndb_schema table
+-- let $assert_select= Detected an empty ndb_schema table in NDB
+-- let $assert_match= Detected an empty ndb_schema table in NDB
+-- let $assert_count=
+-- let $assert_only_after= NDB Binlog: Detected server start
+-- let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.1.err
+-- source include/assert_grep.inc
+
+-- let $assert_text= Generated new UUID
+-- let $assert_select= Generated new schema UUID .*
+-- let $assert_match= Generated new schema UUID .*
+-- let $assert_only_after= .*Detected an empty ndb_schema table in NDB.*
+-- source include/assert_grep.inc
+
+-- echo # Check everything works
+CREATE TABLE t1 (a int primary key, b blob) ENGINE = NDB;
+-- save_master_pos
+DROP TABLE t1;
+
+-- let $restart_parameters= 
+--source include/restart_mysqld.inc
