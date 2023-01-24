@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,6 @@
 #include "mysqlrouter/mysql_session.h"
 
 #include "bootstrap_credentials.h"
-#include "bootstrap_mode.h"
 #include "bootstrap_mysql_account.h"
 
 using UniqueStrings = std::set<std::string>;
@@ -72,26 +71,24 @@ class BootstrapArguments {
 
     if (arguments.size() == 0) {
       throw std::runtime_error(
-          "Bootstrap requires at lest one parameter with URI that points "
+          "Bootstrap requires at least one parameter with URI that points "
           "MySQL-Server.");
     }
 
-    auto buri = arguments.back();
-    if (arguments.back()[0] != '-') {
-      arguments = Strings(arguments.begin(), arguments.end() - 1);
+    auto buri = arguments.front();
+    if (arguments.front()[0] != '-') {
+      arguments = Strings(arguments.begin() + 1, arguments.end());
     }
     router_parameters_.process(arguments);
 
-    if (bootstrap_mode.get() == BoostrapMode::k_bootstrap) {
-      is_mrs_bootstrap = false;
-    }
+    if (bootstrap_mrs && bootstrap_disable_rest)
+      throw std::runtime_error(
+          "invalid configuration, disabled REST still MRS plugin was "
+          "selected for configuration.");
 
-    if (is_mrs_bootstrap) {
-      if (bootstrap_disable_rest)
-        throw std::runtime_error(
-            "invalid configuration, disabled REST still MRS plugin was "
-            "selected for configuration.");
-    }
+    if (standalone && !bootstrap_mrs)
+      throw std::runtime_error(
+          "Option --standalone only allowed when used together with --mrs");
 
     bool skip_next = false;
     for (const auto &a : arguments) {
@@ -115,20 +112,18 @@ class BootstrapArguments {
     }
   }
 
-  bool should_start_router() {
-    return bootstrap_mode.should_start_router() && (!help && !version);
-  }
-
  private:
+  const std::string k_mrs_param_mrs{"--mrs"};
   const std::string k_mrs_param_disable_mrs{"--disable-mrs"};
-  const std::string k_mrs_param_mrs_jwt_secret{"--mrs-jwt-secret"};
+  const std::string k_mrs_param_standalone{"--standalone"};
+  const std::string k_mrs_param_mrs_jwt_secret{"--mrs-global-secret"};
   const std::string k_mrs_param_mrs_data_account{"--mrs-data-account"};
   const std::string k_mrs_param_mrs_metadata_account{"--mrs-metadata-account"};
 
   bool mrs_parameter_needs_second_argument(std::string parameter) {
     const static std::set<std::string> mrs_parameters{
         k_mrs_param_mrs_jwt_secret, k_mrs_param_mrs_data_account,
-        k_mrs_param_mrs_metadata_account, "--mode"};
+        k_mrs_param_mrs_metadata_account};
 
     auto equal_index = parameter.find("=");
     if (equal_index != parameter.npos) return false;
@@ -138,9 +133,12 @@ class BootstrapArguments {
 
   bool is_mrs_parameter(std::string parameter) {
     const static std::set<std::string> mrs_parameters{
-        k_mrs_param_disable_mrs, k_mrs_param_mrs_jwt_secret,
-        k_mrs_param_mrs_data_account, k_mrs_param_mrs_metadata_account,
-        "--mode"};
+        k_mrs_param_mrs,
+        k_mrs_param_disable_mrs,
+        k_mrs_param_mrs_jwt_secret,
+        k_mrs_param_mrs_data_account,
+        k_mrs_param_mrs_metadata_account,
+        k_mrs_param_standalone};
 
     parameter = parameter.substr(0, parameter.find("="));
     return mrs_parameters.count(parameter);
@@ -172,6 +170,11 @@ class BootstrapArguments {
               mysql_harness::option_as_uint<unsigned long>(
                   retries, "--password-retries", 1, kMaxPasswordRetries);
         }},
+       {{"--name"},
+        "",
+        CmdOptionValueReq::optional,
+        "name",
+        [this](const std::string &name) { router_name = name; }},
        {{"--account-create"},
         "",
         CmdOptionValueReq::required,
@@ -206,25 +209,12 @@ class BootstrapArguments {
         CmdOptionValueReq::none,
         "help",
         [this](const std::string &) { help = true; }},
-       {{"--mode"},
-        " ",
-        CmdOptionValueReq::required,
-        "mode",
-        [this](const std::string &mode) { bootstrap_mode.set(mode); }},
        {{"--account-host"},
         "",
         CmdOptionValueReq::required,
         "account-host",
         [this](const std::string &account_host) {
           bootstrap_account_hosts.insert(account_host);
-        }},
-       {{"-B", "--bootstrap"},
-        "Bootstrap and configure Router for operation with a MySQL InnoDB "
-        "cluster.",
-        CmdOptionValueReq::optional,
-        "server_url",
-        [this](const std::string &) {
-          throw std::runtime_error("Option --bootstrap/-B is not supported");
         }},
        {{"--bootstrap-socket"},
         "Bootstrap and configure Router via a Unix socket",
@@ -296,6 +286,12 @@ class BootstrapArguments {
         "ssl-mode",
         [this](const std::string &key) { ssl_mode = key; }},
 
+       {{k_mrs_param_standalone},
+        "Bootstrap Router in standalone server mode (no InnoDB Cluster). Only "
+        "for use with MRS.",
+        CmdOptionValueReq::none,
+        "standalone",
+        [this](const std::string &) { standalone = true; }},
        {{k_mrs_param_mrs_metadata_account},
         " ",
         CmdOptionValueReq::required,
@@ -313,14 +309,20 @@ class BootstrapArguments {
        {{k_mrs_param_mrs_jwt_secret},
         " ",
         CmdOptionValueReq::required,
-        "mrs-secret",
+        "mrs-global-secret",
         [this](const std::string &secret) { mrs_secret = secret; }},
+       {{k_mrs_param_mrs},
+        "Enable MRS plugin. Write configurations and setup MySQL accounts for "
+        "MRS.",
+        CmdOptionValueReq::none,
+        "mrs",
+        [this](const std::string &) { bootstrap_mrs = true; }},
        {{k_mrs_param_disable_mrs},
         "Disable MRS plugin. Do not write configuration and skip "
         "initialization of MySQL account for MRS.",
         CmdOptionValueReq::none,
         "disable-mrs",
-        [this](const std::string &) { is_mrs_bootstrap = false; }}},
+        [this](const std::string &) { bootstrap_mrs = false; }}},
       true};
 
  public:
@@ -337,20 +339,21 @@ class BootstrapArguments {
   std::string ssl_crlpath;
   std::string ssl_cert;
   std::string ssl_key;
+  std::string router_name = "system";
   bool version{false};
   bool help{false};
 
   UserOptions user_options;
 
   CmdArguments router_arguments;
-  BootstrapMode bootstrap_mode{k_all};
+  bool standalone{false};  // standalone vs innodb cluster
   std::string bootstrap_uri;
   std::string bootstrap_socket;
   std::string bootstrap_directory;
   std::string bootstrap_user;
   UniqueStrings bootstrap_account_hosts;
   bool bootstrap_disable_rest{false};
-  bool is_mrs_bootstrap{true};
+  bool bootstrap_mrs{false};
   BootstrapCredentials mrs_metadata_account{};
   BootstrapCredentials mrs_data_account{};
   std::string mrs_secret{};

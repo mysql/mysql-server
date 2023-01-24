@@ -565,16 +565,23 @@ static auto get_env_vars(const std::vector<std::string> &env_vars) {
 }
 
 void ProcessLauncher::start(bool use_std_io_handlers) {
-  if (!use_std_io_handlers) {
+  start(use_std_io_handlers, use_std_io_handlers);
+}
+
+void ProcessLauncher::start(bool use_stdout_handler, bool use_stdin_handler) {
+  if (!use_stdin_handler) {
     if (pipe(fd_in) < 0) {
       throw std::system_error(last_error_code(),
                               "ProcessLauncher::start() pipe(fd_in)");
     }
+  }
+  if (!use_stdout_handler) {
     if (pipe(fd_out) < 0) {
       throw std::system_error(last_error_code(),
                               "ProcessLauncher::start() pipe(fd_out)");
     }
-
+  }
+  if (!use_stdout_handler && !use_stdin_handler) {
     // Ignore broken pipe signal
     signal(SIGPIPE, SIG_IGN);
   }
@@ -590,9 +597,8 @@ void ProcessLauncher::start(bool use_std_io_handlers) {
     prctl(PR_SET_PDEATHSIG, SIGHUP);
 #endif
 
-    if (!use_std_io_handlers) {
+    if (!use_stdout_handler) {
       ::close(fd_out[0]);
-      ::close(fd_in[1]);
 
       while (dup2(fd_out[1], STDOUT_FILENO) == -1) {
         auto ec = last_error_code();
@@ -613,6 +619,11 @@ void ProcessLauncher::start(bool use_std_io_handlers) {
           }
         }
       }
+      fcntl(fd_out[1], F_SETFD, FD_CLOEXEC);
+    }
+
+    if (!use_stdin_handler) {
+      ::close(fd_in[1]);
       while (dup2(fd_in[0], STDIN_FILENO) == -1) {
         auto ec = last_error_code();
         if (ec == std::errc::interrupted) {
@@ -621,8 +632,6 @@ void ProcessLauncher::start(bool use_std_io_handlers) {
           throw std::system_error(ec, "ProcessLauncher::start() dup2()");
         }
       }
-
-      fcntl(fd_out[1], F_SETFD, FD_CLOEXEC);
       fcntl(fd_in[0], F_SETFD, FD_CLOEXEC);
     }
 
@@ -658,10 +667,8 @@ void ProcessLauncher::start(bool use_std_io_handlers) {
       exit(ec.value());
     }
   } else {
-    if (!use_std_io_handlers) {
-      ::close(fd_out[1]);
-      ::close(fd_in[0]);
-    }
+    if (!use_stdout_handler) ::close(fd_out[1]);
+    if (!use_stdin_handler) ::close(fd_in[0]);
 
     fd_out[1] = -1;
     fd_in[0] = -1;
