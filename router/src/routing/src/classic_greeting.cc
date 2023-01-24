@@ -43,6 +43,7 @@
 #include "classic_lazy_connect.h"
 #include "harness_assert.h"
 #include "hexify.h"
+#include "mysql/harness/logging/logger.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"
@@ -52,6 +53,7 @@
 #include "mysqlrouter/connection_base.h"
 #include "openssl_version.h"
 #include "processor.h"
+#include "sql/server_component/mysql_command_services_imp.h"
 #include "tracer.h"
 
 using namespace std::string_literals;
@@ -362,9 +364,9 @@ static bool client_compress_is_satisfied(
 static stdx::expected<size_t, std::error_code> send_ssl_connection_error_msg(
     Channel *dst_channel, ClassicProtocolState *dst_protocol,
     const std::string &msg) {
-  return ClassicFrame::send_msg(
-      dst_channel, dst_protocol,
-      classic_protocol::message::server::Error{CR_SSL_CONNECTION_ERROR, msg});
+  return ClassicFrame::send_msg<
+      classic_protocol::borrowed::message::server::Error>(
+      dst_channel, dst_protocol, {CR_SSL_CONNECTION_ERROR, msg});
 }
 
 /**
@@ -416,11 +418,11 @@ ClientGreetor::client_greeting() {
   // checking the server's capabilities.
   if (!client_compress_is_satisfied(src_protocol->client_capabilities(),
                                     src_protocol->shared_capabilities())) {
-    const auto send_res =
-        ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-            src_channel, src_protocol,
-            {ER_WRONG_COMPRESSION_ALGORITHM_CLIENT,
-             "Compression not supported by router."});
+    const auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Error>(
+        src_channel, src_protocol,
+        {ER_WRONG_COMPRESSION_ALGORITHM_CLIENT,
+         "Compression not supported by router."});
     if (!send_res) return send_client_failed(send_res.error());
 
     stage(Stage::Error);
@@ -549,7 +551,7 @@ ClientGreetor::client_greeting_after_tls() {
           src_channel, src_protocol, src_protocol->server_capabilities());
   if (!msg_res) return recv_client_failed(msg_res.error());
 
-  auto msg = std::move(*msg_res);
+  auto msg = *msg_res;
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("client::greeting"));
@@ -569,13 +571,13 @@ ClientGreetor::client_greeting_after_tls() {
       tr.trace(Tracer::Event().stage("client::greeting::error"));
     }
 
-    const auto send_res =
-        ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-            src_channel, src_protocol,
-            {CR_AUTH_PLUGIN_CANNOT_LOAD,
-             "Authentication method " + msg.auth_method_name() +
-                 " is not supported",
-             "HY000"});
+    const auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Error>(
+        src_channel, src_protocol,
+        {CR_AUTH_PLUGIN_CANNOT_LOAD,
+         "Authentication method " + msg.auth_method_name() +
+             " is not supported",
+         "HY000"});
     if (!send_res) return send_client_failed(send_res.error());
 
     stage(Stage::Error);
@@ -589,11 +591,11 @@ ClientGreetor::client_greeting_after_tls() {
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("client::greeting::error"));
     }
-    const auto send_res =
-        ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-            src_channel, src_protocol,
-            {ER_WRONG_COMPRESSION_ALGORITHM_CLIENT,
-             "Compression not supported by router."});
+    const auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Error>(
+        src_channel, src_protocol,
+        {ER_WRONG_COMPRESSION_ALGORITHM_CLIENT,
+         "Compression not supported by router."});
     if (!send_res) return send_client_failed(send_res.error());
 
     stage(Stage::Error);
@@ -939,19 +941,21 @@ ServerGreetor::server_greeting_error() {
   auto src_channel = socket_splicer->server_channel();
   auto src_protocol = connection()->server_protocol();
 
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::server::Error>(
-          src_channel, src_protocol);
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::server::Error>(src_channel,
+                                                          src_protocol);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
-  auto msg = *msg_res;
+  if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
+    auto msg = *msg_res;
 
-  // RouterRoutingTest.RoutingTooManyServerConnections expects this
-  // message.
-  log_debug(
-      "Error from the server while waiting for greetings message: "
-      "%u, '%s'",
-      msg.error_code(), msg.message().c_str());
+    // RouterRoutingTest.RoutingTooManyServerConnections expects this
+    // message.
+    log_debug(
+        "Error from the server while waiting for greetings message: "
+        "%u, '%s'",
+        msg.error_code(), std::string(msg.message()).c_str());
+  }
 
   // close the server-socket as no futher communication is expected.
   (void)socket_splicer->server_conn().close();
@@ -1225,19 +1229,19 @@ ServerGreetor::client_greeting_start_tls() {
 
   // setting username == "" leads to a short, switch-to-ssl
   // client::Greeting.
-  auto send_res =
-      ClassicFrame::send_msg<classic_protocol::message::client::Greeting>(
-          dst_channel, dst_protocol,
-          {
-              dst_protocol->client_capabilities(),
-              initial_client_greeting_msg.max_packet_size(),
-              initial_client_greeting_msg.collation(),
-              "",  // username
-              "",  // auth_method_data
-              "",  // schema
-              "",  // auth_method_name
-              ""   // attributes
-          });
+  auto send_res = ClassicFrame::send_msg<
+      classic_protocol::borrowed::message::client::Greeting>(
+      dst_channel, dst_protocol,
+      {
+          dst_protocol->client_capabilities(),
+          initial_client_greeting_msg.max_packet_size(),
+          initial_client_greeting_msg.collation(),
+          "",  // username
+          "",  // auth_method_data
+          "",  // schema
+          "",  // auth_method_name
+          ""   // attributes
+      });
   if (!send_res) return send_server_failed(send_res.error());
 
   if (auto &tr = tracer()) {
@@ -1622,15 +1626,16 @@ stdx::expected<Processor::Result, std::error_code> ServerGreetor::auth_ok() {
   auto *src_protocol = connection()->server_protocol();
   auto *dst_protocol = connection()->client_protocol();
 
-  auto msg_res = ClassicFrame::recv_msg<classic_protocol::message::server::Ok>(
-      src_channel, src_protocol);
+  auto msg_res =
+      ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Ok>(
+          src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("server::ok"));
   }
 
-  auto msg = std::move(*msg_res);
+  auto msg = *msg_res;
 
   if (!msg.session_changes().empty()) {
     (void)connection()->track_session_changes(
@@ -1938,18 +1943,18 @@ ServerFirstAuthenticator::client_greeting_start_tls() {
 
   // setting username == "" leads to a short, switch-to-ssl
   // client::Greeting.
-  auto send_res =
-      ClassicFrame::send_msg<classic_protocol::message::client::Greeting>(
-          dst_channel, dst_protocol,
-          {
-              client_caps, initial_client_greeting_msg.max_packet_size(),
-              initial_client_greeting_msg.collation(),
-              "",  // username
-              "",  // auth_method_data
-              "",  // schema
-              "",  // auth_method_name
-              ""   // attributes
-          });
+  auto send_res = ClassicFrame::send_msg<
+      classic_protocol::borrowed::message::client::Greeting>(
+      dst_channel, dst_protocol,
+      {
+          client_caps, initial_client_greeting_msg.max_packet_size(),
+          initial_client_greeting_msg.collation(),
+          "",  // username
+          "",  // auth_method_data
+          "",  // schema
+          "",  // auth_method_name
+          ""   // attributes
+      });
   if (!send_res) return send_server_failed(send_res.error());
 
   if (connection()->source_ssl_mode() == SslMode::kPassthrough) {
@@ -2409,15 +2414,16 @@ ServerFirstAuthenticator::auth_ok() {
   auto *src_channel = socket_splicer->server_channel();
   auto *src_protocol = connection()->server_protocol();
 
-  auto msg_res = ClassicFrame::recv_msg<classic_protocol::message::server::Ok>(
-      src_channel, src_protocol);
+  auto msg_res =
+      ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Ok>(
+          src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("server::ok"));
   }
 
-  auto msg = std::move(*msg_res);
+  auto msg = *msg_res;
 
   if (!msg.session_changes().empty()) {
     (void)connection()->track_session_changes(

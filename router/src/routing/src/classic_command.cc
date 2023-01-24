@@ -547,11 +547,11 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
   // after sending the error-message.
   const auto discard_res = discard_current_msg(src_channel, src_protocol);
 
-  const auto send_res =
-      ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-          src_channel, src_protocol,
-          {ER_UNKNOWN_COM_ERROR, "Unknown command " + std::to_string(msg_type),
-           "HY000"});
+  const auto send_res = ClassicFrame::send_msg<
+      classic_protocol::borrowed::message::server::Error>(
+      src_channel, src_protocol,
+      {ER_UNKNOWN_COM_ERROR, "Unknown command " + std::to_string(msg_type),
+       "HY000"});
   if (!discard_res || !send_res) {
     stage(Stage::Done);  // closes the connection after the error-msg was sent.
 

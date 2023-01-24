@@ -131,7 +131,7 @@ AuthGenericForwarder::init() {
   }
 
   auto send_res = ClassicFrame::send_msg<
-      classic_protocol::message::server::AuthMethodSwitch>(
+      classic_protocol::borrowed::message::server::AuthMethodSwitch>(
       dst_channel, dst_protocol,
       {auth_method_name_, initial_server_auth_data_});
   if (!send_res) return send_client_failed(send_res.error());
@@ -146,9 +146,9 @@ AuthGenericForwarder::client_data() {
   auto src_channel = socket_splicer->client_channel();
   auto src_protocol = connection()->client_protocol();
 
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::client::AuthMethodData>(
-          src_channel, src_protocol);
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::client::AuthMethodData>(
+      src_channel, src_protocol);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
@@ -214,9 +214,9 @@ AuthGenericForwarder::auth_data() {
   auto dst_channel = socket_splicer->server_channel();
   auto dst_protocol = connection()->server_protocol();
 
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::server::AuthMethodData>(
-          dst_channel, dst_protocol);
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::server::AuthMethodData>(
+      dst_channel, dst_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
@@ -335,64 +335,64 @@ AuthForwarder::auth_method_switch() {
   auto *src_protocol = connection()->server_protocol();
   auto *dst_protocol = connection()->client_protocol();
 
-  auto msg_res = ClassicFrame::recv_msg<
-      classic_protocol::message::server::AuthMethodSwitch>(src_channel,
-                                                           src_protocol);
+  const auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::server::AuthMethodSwitch>(
+      src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  auto msg = std::move(*msg_res);
+  const auto msg = *msg_res;
 
-  src_protocol->auth_method_name(msg.auth_method());
-  src_protocol->auth_method_data(msg.auth_method_data());
-  dst_protocol->auth_method_name(msg.auth_method());
-  dst_protocol->auth_method_data(msg.auth_method_data());
+  const auto auth_method_name = std::string(msg.auth_method());
+  const auto auth_method_data = std::string(msg.auth_method_data());
+
+  src_protocol->auth_method_name(auth_method_name);
+  src_protocol->auth_method_data(auth_method_data);
+  dst_protocol->auth_method_name(auth_method_name);
+  dst_protocol->auth_method_data(auth_method_data);
 
   if (auto &tr = tracer()) {
     tr.trace(
-        Tracer::Event().stage("auth::forwarder::switch: " + msg.auth_method()));
+        Tracer::Event().stage("auth::forwarder::switch: " + auth_method_name));
   }
 
+  // invalidates 'msg'
   discard_current_msg(src_channel, src_protocol);
 
-  if (msg.auth_method() == AuthSha256Password::kName) {
+  if (auth_method_name == AuthSha256Password::kName) {
     if (dst_protocol->password().has_value()) {
       connection()->push_processor(std::make_unique<AuthSha256Sender>(
-          connection(), msg.auth_method_data(),
-          dst_protocol->password().value()));
+          connection(), auth_method_data, dst_protocol->password().value()));
     } else {
       connection()->push_processor(std::make_unique<AuthSha256Forwarder>(
-          connection(), msg.auth_method_data()));
+          connection(), auth_method_data));
     }
-  } else if (msg.auth_method() == AuthCachingSha2Password::kName) {
+  } else if (auth_method_name == AuthCachingSha2Password::kName) {
     if (dst_protocol->password().has_value()) {
       connection()->push_processor(std::make_unique<AuthCachingSha2Sender>(
-          connection(), msg.auth_method_data(),
-          dst_protocol->password().value()));
+          connection(), auth_method_data, dst_protocol->password().value()));
     } else {
       connection()->push_processor(std::make_unique<AuthCachingSha2Forwarder>(
-          connection(), msg.auth_method_data()));
+          connection(), auth_method_data));
     }
-  } else if (msg.auth_method() == AuthNativePassword::kName) {
+  } else if (auth_method_name == AuthNativePassword::kName) {
     if (dst_protocol->password().has_value()) {
       connection()->push_processor(std::make_unique<AuthNativeSender>(
-          connection(), msg.auth_method_data(),
-          dst_protocol->password().value()));
+          connection(), auth_method_data, dst_protocol->password().value()));
     } else {
       connection()->push_processor(std::make_unique<AuthNativeForwarder>(
-          connection(), msg.auth_method_data()));
+          connection(), auth_method_data));
     }
-  } else if (msg.auth_method() == AuthCleartextPassword::kName) {
+  } else if (auth_method_name == AuthCleartextPassword::kName) {
     if (dst_protocol->password().has_value()) {
       connection()->push_processor(std::make_unique<AuthCleartextSender>(
-          connection(), msg.auth_method_data(),
-          dst_protocol->password().value()));
+          connection(), auth_method_data, dst_protocol->password().value()));
     } else {
       connection()->push_processor(std::make_unique<AuthCleartextForwarder>(
-          connection(), msg.auth_method_data()));
+          connection(), auth_method_data));
     }
   } else {
     connection()->push_processor(std::make_unique<AuthGenericForwarder>(
-        connection(), msg.auth_method(), msg.auth_method_data()));
+        connection(), auth_method_name, auth_method_data));
   }
 
   stage(Stage::Response);

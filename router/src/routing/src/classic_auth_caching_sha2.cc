@@ -47,44 +47,47 @@ std::optional<std::string> AuthCachingSha2Password::scramble(
 stdx::expected<size_t, std::error_code>
 AuthCachingSha2Password::send_public_key_request(
     Channel *dst_channel, ClassicProtocolState *dst_protocol) {
-  return ClassicFrame::send_msg<
-      classic_protocol::message::client::AuthMethodData>(
-      dst_channel, dst_protocol, {std::string(kPublicKeyRequest)});
+  return ClassicFrame::send_msg(
+      dst_channel, dst_protocol,
+      classic_protocol::borrowed::message::client::AuthMethodData{
+          kPublicKeyRequest});
 }
 
 stdx::expected<size_t, std::error_code>
 AuthCachingSha2Password::send_public_key(Channel *dst_channel,
                                          ClassicProtocolState *dst_protocol,
                                          const std::string &public_key) {
-  return ClassicFrame::send_msg<
-      classic_protocol::message::server::AuthMethodData>(
-      dst_channel, dst_protocol, {public_key});
+  return ClassicFrame::send_msg(
+      dst_channel, dst_protocol,
+      classic_protocol::borrowed::message::server::AuthMethodData{public_key});
 }
 
 stdx::expected<size_t, std::error_code>
 AuthCachingSha2Password::send_plaintext_password_request(
     Channel *dst_channel, ClassicProtocolState *dst_protocol) {
-  return ClassicFrame::send_msg<
-      classic_protocol::message::server::AuthMethodData>(
-      dst_channel, dst_protocol, {std::string(1, kPerformFullAuth)});
+  return ClassicFrame::send_msg(
+      dst_channel, dst_protocol,
+      classic_protocol::borrowed::message::server::AuthMethodData{
+          std::string(1, kPerformFullAuth)});
 }
 
 stdx::expected<size_t, std::error_code>
 AuthCachingSha2Password::send_plaintext_password(
     Channel *dst_channel, ClassicProtocolState *dst_protocol,
     const std::string &password) {
-  return ClassicFrame::send_msg<
-      classic_protocol::message::client::AuthMethodData>(
-      dst_channel, dst_protocol, {password + '\0'});
+  return ClassicFrame::send_msg(
+      dst_channel, dst_protocol,
+      classic_protocol::borrowed::message::client::AuthMethodData{password +
+                                                                  '\0'});
 }
 
 stdx::expected<size_t, std::error_code>
 AuthCachingSha2Password::send_encrypted_password(
     Channel *dst_channel, ClassicProtocolState *dst_protocol,
     const std::string &encrypted) {
-  return ClassicFrame::send_msg<
-      classic_protocol::message::client::AuthMethodData>(
-      dst_channel, dst_protocol, {encrypted});
+  return ClassicFrame::send_msg(
+      dst_channel, dst_protocol,
+      classic_protocol::borrowed::message::client::AuthMethodData{encrypted});
 }
 
 bool AuthCachingSha2Password::is_public_key_request(
@@ -132,9 +135,10 @@ AuthCachingSha2Sender::init() {
     return send_server_failed(make_error_code(std::errc::invalid_argument));
   }
 
-  auto send_res =
-      ClassicFrame::send_msg<classic_protocol::message::client::AuthMethodData>(
-          dst_channel, dst_protocol, {*scramble_res});
+  auto send_res = ClassicFrame::send_msg(
+      dst_channel, dst_protocol,
+      classic_protocol::borrowed::message::client::AuthMethodData{
+          *scramble_res});
   if (!send_res) return send_server_failed(send_res.error());
 
   stage(Stage::Response);
@@ -153,9 +157,10 @@ AuthCachingSha2Sender::send_password() {
       tr.trace(
           Tracer::Event().stage("caching_sha2::sender::plaintext_password"));
     }
-    auto send_res = ClassicFrame::send_msg<
-        classic_protocol::message::client::AuthMethodData>(
-        dst_channel, dst_protocol, {password_ + '\0'});
+    auto send_res = ClassicFrame::send_msg(
+        dst_channel, dst_protocol,
+        classic_protocol::borrowed::message::client::AuthMethodData{password_ +
+                                                                    '\0'});
     if (!send_res) return send_server_failed(send_res.error());
 
     stage(Stage::Response);
@@ -224,17 +229,19 @@ AuthCachingSha2Sender::public_key() {
   auto dst_channel = socket_splicer->server_channel();
   auto dst_protocol = connection()->server_protocol();
 
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::server::AuthMethodData>(
-          dst_channel, dst_protocol);
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::server::AuthMethodData>(
+      dst_channel, dst_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  auto msg = std::move(*msg_res);
-
-  discard_current_msg(dst_channel, dst_protocol);
+  auto msg = *msg_res;
 
   auto pubkey_res = Auth::public_key_from_pem(msg.auth_method_data());
   if (!pubkey_res) return recv_server_failed(pubkey_res.error());
+
+  // discard _after_ msg. is used as msg borrows from the dst_channel's
+  // recv_buffer.
+  discard_current_msg(dst_channel, dst_protocol);
 
   auto encrypted_res = Auth::rsa_encrypt_password(*pubkey_res, password_,
                                                   initial_server_auth_data_);
@@ -255,9 +262,9 @@ AuthCachingSha2Sender::auth_data() {
   auto dst_channel = socket_splicer->server_channel();
   auto dst_protocol = connection()->server_protocol();
 
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::server::AuthMethodData>(
-          dst_channel, dst_protocol);
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::server::AuthMethodData>(
+      dst_channel, dst_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (msg_res->auth_method_data() == std::string_view("\x04")) {
@@ -350,9 +357,8 @@ AuthCachingSha2Forwarder::init() {
   }
 
   auto send_res = ClassicFrame::send_msg<
-      classic_protocol::message::server::AuthMethodSwitch>(
-      dst_channel, dst_protocol,
-      {std::string(Auth::kName), initial_server_auth_data_});
+      classic_protocol::borrowed::message::server::AuthMethodSwitch>(
+      dst_channel, dst_protocol, {Auth::kName, initial_server_auth_data_});
   if (!send_res) return send_client_failed(send_res.error());
 
   stage(Stage::ClientData);
@@ -365,9 +371,9 @@ AuthCachingSha2Forwarder::client_data() {
   auto src_channel = socket_splicer->client_channel();
   auto src_protocol = connection()->client_protocol();
 
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::client::AuthMethodData>(
-          src_channel, src_protocol);
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::client::AuthMethodData>(
+      src_channel, src_protocol);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
   if (Auth::is_public_key_request(msg_res->auth_method_data())) {
@@ -397,10 +403,10 @@ AuthCachingSha2Forwarder::client_data() {
         stage(Stage::Done);
 
         // couldn't get the public key, fail the auth.
-        auto send_res =
-            ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-                src_channel, src_protocol,
-                {ER_ACCESS_DENIED_ERROR, "Access denied", "HY000"});
+        auto send_res = ClassicFrame::send_msg<
+            classic_protocol::borrowed::message::server::Error>(
+            src_channel, src_protocol,
+            {ER_ACCESS_DENIED_ERROR, "Access denied", "HY000"});
         if (!send_res) return send_client_failed(send_res.error());
       } else {
         // send the router's public key to the client.
@@ -443,9 +449,9 @@ AuthCachingSha2Forwarder::encrypted_password() {
   auto src_channel = socket_splicer->client_channel();
   auto src_protocol = connection()->client_protocol();
 
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::client::AuthMethodData>(
-          src_channel, src_protocol);
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::client::AuthMethodData>(
+      src_channel, src_protocol);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
@@ -481,9 +487,9 @@ AuthCachingSha2Forwarder::plaintext_password() {
   auto src_channel = socket_splicer->client_channel();
   auto src_protocol = connection()->client_protocol();
 
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::client::AuthMethodData>(
-          src_channel, src_protocol);
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::client::AuthMethodData>(
+      src_channel, src_protocol);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
   if (socket_splicer->client_conn().is_secure_transport()) {
@@ -526,10 +532,10 @@ AuthCachingSha2Forwarder::plaintext_password() {
         stage(Stage::Done);
 
         // couldn't get the public key, fail the auth.
-        auto send_res =
-            ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-                src_channel, src_protocol,
-                {ER_ACCESS_DENIED_ERROR, "Access denied", "HY000"});
+        auto send_res = ClassicFrame::send_msg<
+            classic_protocol::borrowed::message::server::Error>(
+            src_channel, src_protocol,
+            {ER_ACCESS_DENIED_ERROR, "Access denied", "HY000"});
         if (!send_res) return send_client_failed(send_res.error());
       } else {
         // send the router's public key to the client.
@@ -700,9 +706,9 @@ AuthCachingSha2Forwarder::public_key() {
   auto dst_protocol = connection()->server_protocol();
   auto src_protocol = connection()->client_protocol();
 
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::server::AuthMethodData>(
-          dst_channel, dst_protocol);
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::server::AuthMethodData>(
+      dst_channel, dst_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
@@ -747,9 +753,9 @@ AuthCachingSha2Forwarder::auth_data() {
   auto dst_protocol = connection()->server_protocol();
   auto src_protocol = connection()->client_protocol();
 
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::server::AuthMethodData>(
-          dst_channel, dst_protocol);
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::server::AuthMethodData>(
+      dst_channel, dst_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (msg_res->auth_method_data() == std::string_view("\x04")) {

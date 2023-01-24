@@ -87,11 +87,10 @@ StmtExecuteProcessor::command() {
       tr.trace(Tracer::Event().stage("stmt_execute::error"));
     }
 
-    auto send_res =
-        ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-            src_channel, src_protocol,
-            {ER_UNKNOWN_STMT_HANDLER, "Unknown prepared statement id",
-             "HY000"});
+    auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Error>(
+        src_channel, src_protocol,
+        {ER_UNKNOWN_STMT_HANDLER, "Unknown prepared statement id", "HY000"});
     if (!send_res) return send_client_failed(send_res.error());
 
     stage(Stage::Done);
@@ -139,16 +138,16 @@ StmtExecuteProcessor::column_count() {
   auto src_channel = socket_splicer->server_channel();
   auto src_protocol = connection()->server_protocol();
 
-  auto column_count_res =
-      ClassicFrame::recv_msg<classic_protocol::wire::VarInt>(src_channel,
-                                                             src_protocol);
+  auto column_count_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::server::ColumnCount>(src_channel,
+                                                                src_protocol);
   if (!column_count_res) return recv_server_failed(column_count_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_execute::column_count"));
   }
 
-  src_protocol->columns_left = column_count_res->value();
+  src_protocol->columns_left = column_count_res->count();
 
   stage(Stage::Column);
 
@@ -224,15 +223,16 @@ StmtExecuteProcessor::end_of_rows() {
   auto src_channel = socket_splicer->server_channel();
   auto src_protocol = connection()->server_protocol();
 
-  auto msg_res = ClassicFrame::recv_msg<classic_protocol::message::server::Eof>(
-      src_channel, src_protocol);
+  auto msg_res =
+      ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Eof>(
+          src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_execute::end_of_rows"));
   }
 
-  auto msg = std::move(*msg_res);
+  auto msg = *msg_res;
 
   if (msg.status_flags().test(
           classic_protocol::status::pos::more_results_exist)) {

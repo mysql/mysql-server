@@ -113,9 +113,9 @@ ChangeUserForwarder::command() {
   auto *src_channel = socket_splicer->client_channel();
   auto *src_protocol = connection()->client_protocol();
 
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::client::ChangeUser>(
-          src_channel, src_protocol, src_protocol->server_capabilities());
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::client::ChangeUser>(
+      src_channel, src_protocol, src_protocol->server_capabilities());
   if (!msg_res) {
     if (msg_res.error().category() ==
         make_error_code(classic_protocol::codec_errc::invalid_input)
@@ -124,9 +124,9 @@ ChangeUserForwarder::command() {
 
       discard_current_msg(src_channel, src_protocol);
 
-      auto send_res =
-          ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-              src_channel, src_protocol, {1047, "Unknown command", "08S01"});
+      auto send_res = ClassicFrame::send_msg<
+          classic_protocol::borrowed::message::server::Error>(
+          src_channel, src_protocol, {1047, "Unknown command", "08S01"});
       if (!send_res) return send_client_failed(send_res.error());
 
       stage(Stage::Done);
@@ -135,11 +135,11 @@ ChangeUserForwarder::command() {
     return recv_client_failed(msg_res.error());
   }
 
-  src_protocol->username(msg_res->username());
-  src_protocol->schema(msg_res->schema());
-  src_protocol->attributes(msg_res->attributes());
+  src_protocol->username(std::string(msg_res->username()));
+  src_protocol->schema(std::string(msg_res->schema()));
+  src_protocol->attributes(std::string(msg_res->attributes()));
   src_protocol->password(std::nullopt);
-  src_protocol->auth_method_name(msg_res->auth_method_name());
+  src_protocol->auth_method_name(std::string(msg_res->auth_method_name()));
 
   discard_current_msg(src_channel, src_protocol);
 
@@ -575,15 +575,16 @@ stdx::expected<Processor::Result, std::error_code> ChangeUserSender::ok() {
   auto src_protocol = connection()->server_protocol();
   auto dst_protocol = connection()->client_protocol();
 
-  auto msg_res = ClassicFrame::recv_msg<classic_protocol::message::server::Ok>(
-      src_channel, src_protocol);
+  auto msg_res =
+      ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Ok>(
+          src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("change_user::ok"));
   }
 
-  auto msg = std::move(*msg_res);
+  auto msg = *msg_res;
 
   if (!msg.session_changes().empty()) {
     auto track_res = connection()->track_session_changes(
@@ -614,14 +615,14 @@ stdx::expected<Processor::Result, std::error_code> ChangeUserSender::error() {
   auto src_channel = socket_splicer->server_channel();
   auto src_protocol = connection()->server_protocol();
 
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::server::Error>(
-          src_channel, src_protocol);
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::server::Error>(src_channel,
+                                                          src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
-    tr.trace(
-        Tracer::Event().stage("change_user::error: " + msg_res->message()));
+    tr.trace(Tracer::Event().stage("change_user::error: " +
+                                   std::string(msg_res->message())));
   }
 
   connection()->authenticated(false);

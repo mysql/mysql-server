@@ -96,7 +96,7 @@ stdx::expected<Processor::Result, std::error_code> QuitProcessor::command() {
   auto src_channel = socket_splicer->client_channel();
 
   auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::client::Quit>(
+      ClassicFrame::recv_msg<classic_protocol::borrowed::message::client::Quit>(
           src_channel, src_protocol);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
@@ -208,7 +208,7 @@ stdx::expected<Processor::Result, std::error_code> QuitSender::command() {
   dst_protocol->seq_id(0xff);
 
   auto msg_res =
-      ClassicFrame::send_msg<classic_protocol::message::client::Quit>(
+      ClassicFrame::send_msg<classic_protocol::borrowed::message::client::Quit>(
           dst_channel, dst_protocol, {});
   if (!msg_res) return send_server_failed(msg_res.error());
 
