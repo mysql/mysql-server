@@ -291,3 +291,11 @@ SET @t_date = NOW();
 EXECUTE ps USING @t_date;
 DEALLOCATE PREPARE ps;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#34941663 casting unix_timestamp: \
+--echo #              Assertion `!null_value || is_nullable()' failed.
+--echo #
+
+DO CAST(UNIX_TIMESTAMP(IF('',3,13339)) AS UNSIGNED);
+DO CAST(UNIX_TIMESTAMP(CASE 1 WHEN 1 THEN 42 ELSE 42 END) AS UNSIGNED);

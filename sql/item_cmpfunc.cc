@@ -3497,13 +3497,17 @@ bool Item_func_if::val_json(Json_wrapper *wr) {
 bool Item_func_if::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
   assert(fixed == 1);
   Item *arg = args[0]->val_bool() ? args[1] : args[2];
-  return (null_value = arg->get_date(ltime, fuzzydate));
+  if (arg->get_date(ltime, fuzzydate)) return error_date();
+  null_value = arg->null_value;
+  return false;
 }
 
 bool Item_func_if::get_time(MYSQL_TIME *ltime) {
   assert(fixed == 1);
   Item *arg = args[0]->val_bool() ? args[1] : args[2];
-  return (null_value = arg->get_time(ltime));
+  if (arg->get_time(ltime)) return error_time();
+  null_value = arg->null_value;
+  return false;
 }
 
 bool Item_func_nullif::resolve_type(THD *thd) {
@@ -3772,7 +3776,9 @@ bool Item_func_case::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
   String dummy_str(buff, sizeof(buff), default_charset());
   Item *item = find_item(&dummy_str);
   if (!item) return (null_value = true);
-  return (null_value = item->get_date(ltime, fuzzydate));
+  if (item->get_date(ltime, fuzzydate)) return error_date();
+  null_value = item->null_value;
+  return false;
 }
 
 bool Item_func_case::get_time(MYSQL_TIME *ltime) {
@@ -3781,7 +3787,9 @@ bool Item_func_case::get_time(MYSQL_TIME *ltime) {
   String dummy_str(buff, sizeof(buff), default_charset());
   Item *item = find_item(&dummy_str);
   if (!item) return (null_value = true);
-  return (null_value = item->get_time(ltime));
+  if (item->get_time(ltime)) return error_time();
+  null_value = item->null_value;
+  return false;
 }
 
 bool Item_func_case::fix_fields(THD *thd, Item **ref) {
