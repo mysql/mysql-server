@@ -3010,10 +3010,11 @@ dberr_t Btree_load::Merger::add_root_for_subtrees(const size_t highest_level) {
   mtr.start();
   mtr.x_lock(dict_index_get_lock(m_index), UT_LOCATION_HERE);
 
+  auto guard = create_scope_guard([&mtr]() { mtr.commit(); });
+
   if (!level_incr) {
     err = root_load.init();
     if (err != DB_SUCCESS) {
-      mtr.commit();
       return err;
     }
   }
@@ -3092,6 +3093,7 @@ dberr_t Btree_load::Merger::add_root_for_subtrees(const size_t highest_level) {
     err = root_page_commit(&root_load);
   }
   mtr.commit();
+  guard.commit();
   root_load.commit();
   return err;
 }
