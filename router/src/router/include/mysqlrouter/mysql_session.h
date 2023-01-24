@@ -37,9 +37,6 @@
 
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/log_filter.h"
-#ifdef FRIEND_TEST
-class MockMySQLSession;
-#endif
 
 namespace mysqlrouter {
 
@@ -492,10 +489,6 @@ class ROUTER_LIB_EXPORT MySQLSession {
   SQLLogFilter log_filter_;
 
   virtual MYSQL *raw_mysql() noexcept { return connection_; }
-
-#ifdef FRIEND_TEST
-  friend class ::MockMySQLSession;
-#endif
 
   class MYSQL_RES_Deleter {
    public:

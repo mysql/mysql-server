@@ -50,10 +50,6 @@ namespace mysql_harness {
 class Path;
 }
 
-#ifdef FRIEND_TEST
-class TestConfigGenerator;
-#endif
-
 namespace mysqlrouter {
 class ClusterMetadata;
 class MySQLSession;
@@ -505,7 +501,7 @@ class ConfigGenerator {
       const mysql_harness::Directory &dir) const;
 
  private:
-  mysql_harness::UniquePtr<MySQLSession> mysql_;
+  std::unique_ptr<MySQLSession> mysql_;
   std::unique_ptr<ClusterMetadata> metadata_;
   int connect_timeout_;
   int read_timeout_;
@@ -546,10 +542,6 @@ class ConfigGenerator {
 #endif
 
   mysqlrouter::MetadataSchemaVersion schema_version_;
-
-#ifdef FRIEND_TEST
-  friend class ::TestConfigGenerator;
-#endif
 };
 }  // namespace mysqlrouter
 #endif  // ROUTER_CONFIG_GENERATOR_INCLUDED

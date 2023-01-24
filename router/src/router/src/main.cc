@@ -111,15 +111,6 @@ static void init_DIM() {
       [](mysql_harness::RandomGeneratorInterface *) {}
       // don't delete our static!
   );
-
-  // MySQLSession
-  dim.set_MySQLSession(
-      []() {
-        return new mysqlrouter::MySQLSession(
-            std::make_unique<
-                mysqlrouter::MySQLSession::LoggingStrategyDebugLogger>());
-      },
-      std::default_delete<mysqlrouter::MySQLSession>());
 }
 
 static void preconfig_log_init(bool use_os_logger_initially) noexcept {

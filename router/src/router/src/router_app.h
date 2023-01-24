@@ -575,9 +575,6 @@ class MySQLRouter {
 #ifdef FRIEND_TEST
   FRIEND_TEST(Bug24909259, PasswordPrompt_plain);
   FRIEND_TEST(Bug24909259, PasswordPrompt_keyed);
-  FRIEND_TEST(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse);
-  FRIEND_TEST(ConfigGeneratorTest, ssl_stage2_bootstrap_connection);
-  FRIEND_TEST(ConfigGeneratorTest, ssl_stage3_create_config);
 #endif
 };
 

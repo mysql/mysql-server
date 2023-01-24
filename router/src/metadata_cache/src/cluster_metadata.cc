@@ -123,7 +123,8 @@ bool ClusterMetadata::connect_and_setup_session(
   // Get a clean metadata server connection object
   // (RAII will close the old one if needed).
   try {
-    metadata_connection_ = mysql_harness::DIM::instance().new_MySQLSession();
+    metadata_connection_ = std::make_shared<MySQLSession>(
+        std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
   } catch (const std::logic_error &e) {
     // defensive programming, shouldn't really happen
     log_error("Failed connecting with Metadata Server: %s", e.what());
@@ -239,7 +240,8 @@ bool ClusterMetadata::update_router_attributes(
     const metadata_cache::metadata_server_t &rw_server,
     const unsigned router_id,
     const metadata_cache::RouterAttributes &router_attributes) {
-  auto connection = mysql_harness::DIM::instance().new_MySQLSession();
+  auto connection = std::make_unique<MySQLSession>(
+      std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
   if (!do_connect(*connection, rw_server)) {
     log_warning(
         "Updating the router attributes in metadata failed: Could not connect "
@@ -309,7 +311,8 @@ bool ClusterMetadata::update_router_last_check_in(
   // only relevant to for metadata V2
   if (get_cluster_type() == ClusterType::GR_V1) return true;
 
-  auto connection = mysql_harness::DIM::instance().new_MySQLSession();
+  auto connection = std::make_unique<MySQLSession>(
+      std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
   if (!do_connect(*connection, rw_server)) {
     log_warning(
         "Updating the router last_check_in in metadata failed: Could not "

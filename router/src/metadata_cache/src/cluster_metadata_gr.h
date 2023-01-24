@@ -172,31 +172,6 @@ class METADATA_CACHE_EXPORT GRClusterMetadata : public ClusterMetadata {
 
   friend class GRMetadataBackend;
   friend class GRClusterSetMetadataBackend;
-
-#ifdef FRIEND_TEST
-  FRIEND_TEST(MetadataTest, FetchInstancesFromMetadataServer);
-  FRIEND_TEST(MetadataTest,
-              UpdateClusterStatus_PrimaryMember_FailConnectOnNode2);
-  FRIEND_TEST(MetadataTest,
-              UpdateClusterStatus_PrimaryMember_FailConnectOnAllNodes);
-  FRIEND_TEST(MetadataTest, UpdateClusterStatus_PrimaryMember_FailQueryOnNode1);
-  FRIEND_TEST(MetadataTest,
-              UpdateClusterStatus_PrimaryMember_FailQueryOnAllNodes);
-  FRIEND_TEST(MetadataTest, UpdateClusterStatus_Status_FailQueryOnNode1);
-  FRIEND_TEST(MetadataTest, UpdateClusterStatus_Status_FailQueryOnAllNodes);
-  FRIEND_TEST(MetadataTest, UpdateClusterStatus_SimpleSunnyDayScenario);
-  FRIEND_TEST(MetadataTest, CheckClusterStatus_1Online1RecoveringNotInMetadata);
-  FRIEND_TEST(MetadataTest, CheckClusterStatus_3NodeSetup);
-  FRIEND_TEST(MetadataTest, CheckClusterStatus_VariableNodeSetup);
-  FRIEND_TEST(MetadataTest, CheckClusterStatus_VariousStatuses);
-  FRIEND_TEST(MetadataTest, UpdateClusterStatus_PrimaryMember_EmptyOnNode1);
-  FRIEND_TEST(MetadataTest, UpdateClusterStatus_PrimaryMember_EmptyOnAllNodes);
-  FRIEND_TEST(MetadataTest, CheckClusterStatus_Recovering);
-  FRIEND_TEST(MetadataTest, CheckClusterStatus_ErrorAndOther);
-  FRIEND_TEST(MetadataTest, CheckClusterStatus_Cornercase2of5Alive);
-  FRIEND_TEST(MetadataTest, CheckClusterStatus_Cornercase3of5Alive);
-  FRIEND_TEST(MetadataTest, CheckClusterStatus_Cornercase1Common);
-#endif
 };
 
 #endif  // METADATA_CACHE_CLUSTER_METADATA_GR_INCLUDED

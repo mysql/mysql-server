@@ -244,7 +244,7 @@ bool ConfigGenerator::warn_on_no_ssl(
   try {
     // example response
     //
-    // > show status like "ssl_cipher"'
+    // > show status like 'ssl_cipher'
     // +---------------+--------------------+
     // | Variable_name | Value              |
     // +---------------+--------------------+
@@ -295,7 +295,8 @@ void ConfigGenerator::parse_bootstrap_options(
     if (it != bootstrap_options.end()) {
       const auto address = it->second;
       if (!mysql_harness::is_valid_domainname(address)) {
-        throw std::runtime_error("Invalid --bind-address value " + address);
+        throw std::runtime_error("Invalid --conf-bind-address value '" +
+                                 address + "'");
       }
     }
   }
@@ -380,7 +381,8 @@ void ConfigGenerator::connect_to_metadata_server(
     const URI &u, const std::string &bootstrap_socket,
     const std::map<std::string, std::string> &bootstrap_options) {
   // connect to (what should be a) metadata server
-  mysql_ = DIM::instance().new_MySQLSession();
+  mysql_ = std::make_unique<MySQLSession>(
+      std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
   try {
     // throws std::logic_error, std::runtime_error, Error(runtime_error)
     set_ssl_options(mysql_.get(), bootstrap_options);
@@ -470,8 +472,7 @@ void ConfigGenerator::init(
         bootstrap_options.end()) {
       throw std::runtime_error(
           "The parameter 'target-cluster-by-name' is valid only for Cluster "
-          "that is "
-          "part of the ClusterSet.");
+          "that is part of the ClusterSet.");
     }
   }
 
@@ -875,13 +876,8 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
   }
   ConfigGenerator::Options options;
   if (user_options.find("bind-address") != user_options.end()) {
-    auto address = user_options.at("bind-address");
-
-    if (!mysql_harness::is_valid_domainname(address)) {
-      throw std::runtime_error("Invalid bind-address value " + address);
-    }
-
-    options.bind_address = address;
+    // the address was already validated in parse_bootstrap_options()
+    options.bind_address = user_options.at("bind-address");
   }
 
   // if not given as a parameter we want consecutive numbers starting with 6446
