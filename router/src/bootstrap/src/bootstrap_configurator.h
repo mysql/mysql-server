@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,14 +25,18 @@
 #ifndef ROUTER_SRC_BOOTSTRAP_SRC_BOOTSTRAP_CONFIGURATOR_H_
 #define ROUTER_SRC_BOOTSTRAP_SRC_BOOTSTRAP_CONFIGURATOR_H_
 
+#include <memory>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
-
-#include "mysql/harness/config_parser.h"
 
 #include "bootstrap_credentials.h"
 #include "keyring_handler.h"
+#include "mysql/harness/config_parser.h"
+#include "mysql/harness/vt100.h"
+#include "mysqlrouter/mysql_session.h"
+#include "mysqlrouter/uri.h"
 
 using String = std::string;
 using Strings = std::vector<std::string>;
@@ -42,24 +46,34 @@ class BootstrapArguments;
 
 class BootstrapConfigurator {
  public:
-  BootstrapConfigurator(BootstrapArguments *arguments);
+  explicit BootstrapConfigurator(BootstrapArguments *arguments);
 
-  bool can_configure();
+  void connect(std::string *out_password);
+
+  void configure_mrs(bool accounts_if_not_exists);
+
+  bool has_innodb_cluster_metadata() const;
+  void check_mrs_metadata() const;
+
+  void load_configuration();
+  bool needs_configure_routing() const;
+  bool can_configure_mrs() const;
 
   void create_mrs_users();
   void store_mrs_data_in_keyring();
-  void store_configuration();
+  void store_mrs_configuration();
+  void register_mrs_router_instance();
 
-  String get_generated_configuration_file() const;
+  String get_generated_configuration_file(bool *file_exists = nullptr) const;
 
  private:
-  void load_configuration();
+  std::unique_ptr<mysqlrouter::MySQLSession> session_;
 
   struct RoutingConfig {
     std::string key;
     bool is_metadata_cache;
   };
-  RoutingConfig get_config_classic_rw_section();
+  std::pair<RoutingConfig, RoutingConfig> get_config_classic_sections();
   BootstrapCredentials get_config_mrs_metadata_user();
   BootstrapCredentials get_config_mrs_data_user();
   std::string get_config_master_key_path();

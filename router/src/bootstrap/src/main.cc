@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2022, Oracle and/or its affiliates.
+ Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,6 @@
 
 #include "bootstrap_arguments.h"
 #include "bootstrap_configurator.h"
-#include "bootstrap_mode.h"
 #include "process_launcher_ex.h"
 
 void print_version(BootstrapArguments &b) {
@@ -55,15 +54,6 @@ int main(int argc, char **argv) {
 
     application_arguments.analyze(arguments);
 
-    if (application_arguments.should_start_router()) {
-      ProcessLauncher pl{application_arguments.path_router_application_.str(),
-                         application_arguments.router_arguments,
-                         {}};
-      pl.start(true);
-      auto status = pl.wait_until_end();
-      if (EXIT_SUCCESS != status) return status;
-    }
-
     if (application_arguments.version) {
       print_version(application_arguments);
       return 0;
@@ -79,7 +69,8 @@ int main(int argc, char **argv) {
       std::cout << "      " << app << " --version|-V" << std::endl << std::endl;
       std::cout << "      " << app << " --help" << std::endl << std::endl;
       std::cout
-          << "      " << app << " [--account-host=<account-host>]" << std::endl
+          << "      " << app << " <server_url> "
+          << " [--account-host=<account-host>]" << std::endl
           << "                  [--bootstrap-socket=<socket_name>]" << std::endl
           << "                  [--client-ssl-cert=<path>]" << std::endl
           << "                  [--client-ssl-cipher=<VALUE>]" << std::endl
@@ -122,20 +113,16 @@ int main(int argc, char **argv) {
           << std::endl
           << "                  [-u|--user=<username>]" << std::endl
           << "                  [--conf-set-option=<conf-set-option>]"
-          << std::endl
-          << "                  <server_url>" << std::endl;
+          << std::endl;
 
       std::cout << std::endl
                 << Vt100::render(Vt100::Render::Bold)
                 << "# MySQL REST Service options"
                 << Vt100::render(Vt100::Render::Normal) << std::endl
                 << std::endl;
-      std::cout << "  --mode <all|bootstrap|mrs>" << std::endl;
-      std::cout
-          << "        Select the configuration mode, either if router should"
-          << std::endl;
-      std::cout << "        `bootstrap` or configure `mrs` (default: all)."
-                << std::endl;
+      std::cout << "  --standalone" << std::endl;
+      std::cout << "  --innodb-cluster" << std::endl;
+      std::cout << "  --mrs" << std::endl;
 
       std::cout << "  --mrs-metadata-account <USER_NAME>" << std::endl;
       std::cout << "        Select MySQL Server account, which MRS should use "
@@ -163,40 +150,66 @@ int main(int argc, char **argv) {
       std::cout << "Bootstrap for use with InnoDB cluster into system-wide "
                    "installation\n\n"
                 << "    " << kStartWithSudo << "mysqlrouter_bootstrap "
-                << kStartWithUser << " root@clusterinstance01"
-                << "\n\n"
+                << "root@clusterinstance01 " << kStartWithUser << "\n\n"
                 << "Bootstrap for use with InnoDb cluster in a self-contained "
                    "directory\n\n"
                 << "    "
-                << "mysqlrouter_bootstrap -d myrouter root@clusterinstance01"
+                << "mysqlrouter_bootstrap root@clusterinstance01 -d myrouter"
                 << "\n\n";
       return 0;
     }
 
-    if (application_arguments.bootstrap_mode.should_configure_mrs()) {
-      std::cout << Vt100::foreground(Vt100::Color::Yellow)
-                << "# Configuring `MRS` plugin..."
-                << Vt100::render(Vt100::Render::ForegroundDefault) << std::endl;
-      BootstrapConfigurator configurator{&application_arguments};
+    BootstrapConfigurator configurator{&application_arguments};
+    std::string mysql_password;
 
-      bool if_not_exists =
-          (application_arguments.user_options.account_create ==
-           "if-not-exists") ||
-          application_arguments.mrs_metadata_account.user.empty();
+    // Connect to DB, prompt DB password if needed, check for metadata
+    configurator.connect(&mysql_password);
 
-      if (configurator.can_configure()) {
-        std::cout << "- Creating account(s) "
-                  << (if_not_exists ? "(only those that are needed, if any)"
-                                    : "")
-                  << "\n";
-        configurator.create_mrs_users();
+    if (configurator.has_innodb_cluster_metadata()) {
+      if (application_arguments.standalone) {
+        throw std::invalid_argument(
+            "Option --standalone not allowed when bootstrapping with InnoDB "
+            "Cluster");
+      }
+    } else {
+      if (!application_arguments.standalone) {
+        if (application_arguments.bootstrap_mrs)
+          throw std::invalid_argument(
+              "InnoDB Cluster metadata not found. To use MySQL REST Service in "
+              "standalone server mode, use the --standalone option");
+        else
+          throw std::invalid_argument("InnoDB Cluster metadata not found.");
+      }
+    }
 
-        std::cout << "- Storing account in keyring\n";
-        configurator.store_mrs_data_in_keyring();
+    if (configurator.can_configure_mrs()) {
+      configurator.check_mrs_metadata();
+    }
 
-        std::cout << "- Adjusting configuration file "
-                  << configurator.get_generated_configuration_file() << "\n";
-        configurator.store_configuration();
+    if (configurator.needs_configure_routing()) {
+      ProcessLauncher pl{application_arguments.path_router_application_.str(),
+                         application_arguments.router_arguments,
+                         {}};
+      pl.start(true, false);
+
+      // feed password
+      pl.write(&mysql_password[0], mysql_password.size());
+      pl.write("\n", 1);
+
+      auto status = pl.wait_until_end();
+      if (EXIT_SUCCESS != status) return status;
+    }
+
+    if (application_arguments.bootstrap_mrs) {
+      configurator.load_configuration();
+
+      if (configurator.can_configure_mrs()) {
+        bool if_not_exists =
+            (application_arguments.user_options.account_create ==
+             "if-not-exists") ||
+            application_arguments.mrs_metadata_account.user.empty();
+
+        configurator.configure_mrs(if_not_exists);
       }
     }
   } catch (const std::exception &e) {

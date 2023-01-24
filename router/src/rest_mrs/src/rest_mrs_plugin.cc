@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -181,7 +181,8 @@ static std::array<const char *, 3> required = {
     {"logger", "http_server", "rest_api"}};
 
 static const std::array<const char *, 4> supported_options{
-    "mysql_user", "mysql_user_data_access", "routing", "through_router"};
+    "mysql_user", "mysql_user_data_access", "mysql_read_write_route",
+    "mysql_read_only_route"};
 
 // TODO(lkotula): Consider renaming the plugin from rest_mrds to mrds or
 // something other if it already changed in DB schema, consult with router

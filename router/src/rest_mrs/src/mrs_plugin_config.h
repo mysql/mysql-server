@@ -1,5 +1,5 @@
 /*
-  Copyright (c)froM 2021, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -69,8 +69,10 @@ class PluginConfig : public ::mysql_harness::BasePluginConfig,
     mysql_user_data_access_ =
         get_option(section, "mysql_user_data_access", StringOption{});
 
-    auto routing = get_option(section, "routing",
-                              mysql_harness::ArrayOption<StringOption>{});
+    auto rw_route =
+        get_option(section, "mysql_read_write_route", StringOption{});
+    auto ro_route =
+        get_option(section, "mysql_read_only_route", StringOption{});
 
     if (mysql_user_data_access_.empty()) {
       mysql_user_data_access_ = mysql_user_;
@@ -90,13 +92,17 @@ class PluginConfig : public ::mysql_harness::BasePluginConfig,
       metada_names_.insert(el);
     }
 
-    if (!std::all_of(
-            routing.begin(), routing.end(), [&routing_sections](const auto &v) {
-              return std::find(routing_sections.begin(), routing_sections.end(),
-                               v) != routing_sections.end();
-            }))
+    if (std::find(routing_sections.begin(), routing_sections.end(), rw_route) ==
+        routing_sections.end())
       throw std::logic_error(
-          "Routing name specified for `routing` option, doesn't exists.");
+          "Route name '" + rw_route +
+          "' specified for `mysql_read_write_route` option, doesn't exist.");
+    if (!ro_route.empty() &&
+        std::find(routing_sections.begin(), routing_sections.end(), ro_route) ==
+            routing_sections.end())
+      throw std::logic_error(
+          "Route name '" + ro_route +
+          "' specified for `mysql_read_only_route` option, doesn't exist.");
   }
 
   void init_runtime_configuration() {
@@ -129,7 +135,7 @@ class PluginConfig : public ::mysql_harness::BasePluginConfig,
 
   bool is_required(const std::string &option) const override {
     if (option == "mysql_user") return true;
-    if (option == "routing") return true;
+    if (option == "mysql_read_write_route") return true;
     if (option == "authentication") return true;
 
     return false;

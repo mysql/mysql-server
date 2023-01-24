@@ -178,6 +178,8 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
    */
   void start(bool use_std_io_handlers = false);
 
+  void start(bool use_stdout_handler, bool use_stdin_handler);
+
   /**
    * Read up to a 'count' bytes from the stdout of the child process.
    * This method blocks until the amount of bytes is read or specified
