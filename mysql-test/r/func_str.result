@@ -5717,3 +5717,11 @@ SET @@sql_mode='';
 DO RPAD(BIT_XOR(1), ROW_COUNT(), JSON_PRETTY('-$ *?(8}'));
 ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "Invalid value." at position 1.
 SET @@sql_mode = default;
+#
+# Bug#34781507 random_bytes(): Assertion `is_nullable()' failed.
+# and Assertion `!null_value || is_nullable()' failed
+#
+SET @@sql_mode='';
+DO RANDOM_BYTES(CAST((RANDOM_BYTES('?+,$ F5')) as unsigned));
+ERROR 22003: length value is out of range in 'random_bytes'
+SET @@sql_mode = default;

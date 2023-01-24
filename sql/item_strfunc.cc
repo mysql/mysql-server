@@ -732,19 +732,17 @@ String *Item_func_random_bytes::val_str(String *) {
   null_value = args[0]->null_value;
 
   if (null_value) return nullptr;
+  if (current_thd->is_error()) return error_str();
 
   str_value.set_charset(&my_charset_bin);
 
   if (n_bytes == 0 || n_bytes > MAX_RANDOM_BYTES_BUFFER) {
     my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "length", func_name());
-    null_value = true;
-    return nullptr;
+    return error_str();
   }
 
   if (str_value.alloc(n_bytes)) {
-    my_error(ER_OUTOFMEMORY, n_bytes);
-    null_value = true;
-    return nullptr;
+    return error_str();
   }
 
   str_value.set_charset(&my_charset_bin);
@@ -752,8 +750,7 @@ String *Item_func_random_bytes::val_str(String *) {
   if (my_rand_buffer((unsigned char *)str_value.ptr(), n_bytes)) {
     my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0), func_name(),
              "SSL library can't generate random bytes");
-    null_value = true;
-    return nullptr;
+    return error_str();
   }
 
   str_value.length(n_bytes);

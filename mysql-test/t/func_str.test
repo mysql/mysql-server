@@ -2529,3 +2529,13 @@ SET @@sql_mode='';
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 DO RPAD(BIT_XOR(1), ROW_COUNT(), JSON_PRETTY('-$ *?(8}'));
 SET @@sql_mode = default;
+
+--echo #
+--echo # Bug#34781507 random_bytes(): Assertion `is_nullable()' failed.
+--echo # and Assertion `!null_value || is_nullable()' failed
+--echo #
+
+SET @@sql_mode='';
+--error ER_DATA_OUT_OF_RANGE
+DO RANDOM_BYTES(CAST((RANDOM_BYTES('?+,$ F5')) as unsigned));
+SET @@sql_mode = default;
