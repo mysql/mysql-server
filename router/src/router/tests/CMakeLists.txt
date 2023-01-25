@@ -148,13 +148,6 @@ FOREACH(test_file
     MODULE ${TEST_MODULE}
     LIB_DEPENDS
       test-helpers mysqlclient router_lib
-    EXTRA_SOURCES
-      ../src/common/mysql_session.cc
-      ../src/common/log_filter.cc
-      ../src/common/utils_sqlstring.cc
-      ../src/cluster_metadata.cc
-      ../src/uri.cc
-      ../src/utils.cc
     INCLUDE_DIRS
       $<TARGET_PROPERTY:router_lib,INCLUDE_DIRECTORIES>
       ../src/
