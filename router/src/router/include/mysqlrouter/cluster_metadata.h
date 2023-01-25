@@ -94,8 +94,8 @@ constexpr MetadataSchemaVersion kClusterSetsMetadataVersion{2, 1, 0};
 // Version that will be is set while the metadata is being updated
 constexpr MetadataSchemaVersion kUpgradeInProgressMetadataVersion{0, 0, 0};
 
-MetadataSchemaVersion ROUTER_LIB_EXPORT
-get_metadata_schema_version(MySQLSession *mysql);
+MetadataSchemaVersion ROUTER_LIB_EXPORT get_metadata_schema_version(
+    MySQLSession *mysql, bool allow_no_metadata = false);
 
 bool ROUTER_LIB_EXPORT metadata_schema_version_is_compatible(
     const mysqlrouter::MetadataSchemaVersion &required,

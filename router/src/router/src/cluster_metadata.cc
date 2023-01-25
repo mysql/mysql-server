@@ -448,7 +448,8 @@ std::string to_string(const MetadataSchemaVersion &version) {
          "." + std::to_string(version.patch);
 }
 
-MetadataSchemaVersion get_metadata_schema_version(MySQLSession *mysql) {
+MetadataSchemaVersion get_metadata_schema_version(MySQLSession *mysql,
+                                                  bool allow_no_metadata) {
   std::unique_ptr<MySQLSession::ResultRow> result;
 
   try {
@@ -467,6 +468,7 @@ MetadataSchemaVersion get_metadata_schema_version(MySQLSession *mysql) {
      * here.
      */
     if (e.code() == ER_NO_SUCH_TABLE || e.code() == ER_BAD_DB_ERROR) {
+      if (allow_no_metadata) return {0, 0, 0};
       // unknown database mysql_innodb_cluster_metata
       throw std::runtime_error(
           std::string("Expected MySQL Server '") + mysql->get_address() +

@@ -24,218 +24,462 @@
 
 #include "bootstrap_configurator.h"
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <map>
 
-#include "bootstrap_arguments.h"
 #include "bootstrap_mysql_account.h"
-#include "mysqld_error.h"
-#include "router_config.h"
-
 #include "config_builder.h"
-#include "keyring/keyring_manager.h"
+#include "dim.h"
+#include "harness_assert.h"
+#include "keyring_handler.h"
+#include "my_macros.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/logging/logging.h"
+#include "mysql/harness/logging/registry.h"
+#include "mysqld_error.h"
 #include "mysqlrouter/default_paths.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
+#include "print_version.h"
 #include "random_generator.h"
+#include "router_config.h"
 #include "socket_operations.h"
 
+IMPORT_LOG_FUNCTIONS()
 using namespace mysqlrouter;
 using namespace std::string_literals;
 
-const std::string kConfigMrsSection = "rest_mrs";
+using mysql_harness::DIM;
+
+constexpr const char kConfigMrsSection[] = "mysql_rest_service";
+
+constexpr const char kProgramName[] = "mysqlrouter_bootstrap";
+constexpr const char kRouterProgramName[] = "mysqlrouter";
+
+static const size_t kHelpScreenWidth = 72;
+static const size_t kHelpScreenIndent = 8;
 
 static std::string generate_username(
     const std::string &prefix, uint32_t router_id,
     const mysql_harness::RandomGeneratorInterface &rg =
         mysql_harness::RandomGenerator()) {
-  const unsigned kNumRandomChars = 12;
+  constexpr const unsigned kNumRandomChars = 12;
+  constexpr const unsigned kMaxUsernameChars = 32;
 
   using RandomGen = mysql_harness::RandomGeneratorInterface;
-  return prefix + std::to_string(router_id) + "_" +
+  std::string username_prefix = prefix + std::to_string(router_id) + "_";
+
+  return username_prefix +
          rg.generate_identifier(
-             kNumRandomChars,
+             std::min<unsigned>(kMaxUsernameChars - username_prefix.length(),
+                                kNumRandomChars),
              RandomGen::AlphabetDigits | RandomGen::AlphabetLowercase);
 }
 
-URI parse_server_uri(const std::string &server_uri,
-                     const std::string &bootstrap_socket) {
-  // Extract connection information from the bootstrap server URI.
-  std::string uri;
-  const std::string default_schema = "mysql://";
-  if (server_uri.compare(0, default_schema.size(), default_schema) != 0) {
-    uri = default_schema + server_uri;
+static std::string string_after(std::string s, char c) {
+  return s.substr(s.find(c) + 1);
+}
+
+BootstrapConfigurator::BootstrapConfigurator()
+    : bootstrapper_(keyring_.get_ki(), false) {}
+
+void BootstrapConfigurator::init_main_logger(
+    mysql_harness::LoaderConfig &config, bool raw_mode /*= false*/) {
+  if (!config.has_default("logging_folder"))
+    config.set_default("logging_folder", "");
+
+  const std::string logging_folder = config.get_default("logging_folder");
+
+  // setup logging
+  {
+    // REMINDER: If something threw beyond this point, but before we managed to
+    //           re-initialize the logger (registry), we would be in a world of
+    //           pain: throwing with a non-functioning logger may cascade to a
+    //           place where the error is logged and... BOOM!) So we deal with
+    //           the above problem by working on a new logger registry object,
+    //           and only if nothing throws, we replace the current registry
+    //           with the new one at the very end.
+
+    // our new logger registry, it will replace the current one if all goes well
+    std::unique_ptr<mysql_harness::logging::Registry> registry(
+        new mysql_harness::logging::Registry());
+
+    const auto level = mysql_harness::logging::get_default_log_level(
+        config, raw_mode);  // throws std::invalid_argument
+
+    // register loggers for all modules + main exec (throws std::logic_error,
+    // std::invalid_argument)
+    mysql_harness::logging::create_module_loggers(
+        *registry, level, {MYSQL_ROUTER_LOG_DOMAIN}, MYSQL_ROUTER_LOG_DOMAIN);
+
+    // register logger for sql domain
+    mysql_harness::logging::create_logger(*registry, level, "sql");
+
+    // attach all loggers to main handler (throws std::runtime_error)
+    mysql_harness::logging::create_main_log_handler(
+        *registry, kProgramName, logging_folder, !raw_mode, false);
+
+    // nothing threw - we're good. Now let's replace the new registry with the
+    // old one
+    DIM::instance().set_LoggingRegistry(
+        [&registry]() { return registry.release(); },
+        std::default_delete<mysql_harness::logging::Registry>());
+    DIM::instance().reset_LoggingRegistry();
+
+    // flag that the new loggers are ready for use
+    DIM::instance().get_LoggingRegistry().set_ready();
+  }
+
+  // and give it a first spin
+  if (config.logging_to_file())
+    log_debug("Main logger initialized, logging to '%s'",
+              config.get_log_file().c_str());
+  else
+    log_debug("Main logger initialized, logging to STDERR");
+}
+
+void BootstrapConfigurator::init(int argc, char **argv) {
+  router_program_name_ =
+      mysql_harness::Path(argv[0]).dirname().join(kRouterProgramName).str();
+
+  origin_ = mysql_harness::Path(
+                mysqlrouter::find_full_executable_path(router_program_name_))
+                .dirname();
+
+  parse_command_options(std::vector<std::string>({argv + 1, argv + argc}));
+
+  if (bootstrap_mrs_ && bootstrapper_.bootstrap_options().count("disable-rest"))
+    throw std::runtime_error(
+        "invalid configuration, --mrs cannot be used with --disable-rest");
+}
+
+void BootstrapConfigurator::run() {
+  if (showing_info_) return;
+
+  bootstrapper_.connect();
+
+  // TODO add check for target here
+
+  std::string config_path =
+      bootstrapper_.bootstrap(router_program_name_, origin_, bootstrap_mrs_);
+
+  load_configuration(config_path);
+  if (bootstrapper_.skipped()) keyring_.init(config_, false);
+
+  if (bootstrap_mrs_) {
+    configure_mrs(bootstrapper_.session(), config_path);
+  }
+}
+
+void BootstrapConfigurator::configure_mrs(mysqlrouter::MySQLSession *session,
+                                          const std::string &config_path) {
+  if (can_configure_mrs(config_path)) {
+    // XXX move this check to before regular bootstap is done
+    check_mrs_metadata(session);
+
+    bool accounts_if_not_exists = mrs_metadata_account_.user.empty();
+
+    const auto &opts = bootstrapper_.bootstrap_options();
+    if (auto account_create = opts.find("account-create");
+        account_create != opts.end()) {
+      accounts_if_not_exists = account_create->second == "if-not-exists";
+    }
+
+    std::cout << Vt100::foreground(Vt100::Color::Yellow)
+              << "# Configuring `MRS` plugin..."
+              << Vt100::render(Vt100::Render::ForegroundDefault) << std::endl
+              << std::endl;
+
+    std::cout << "- Registering metadata\n";
+    auto mrs_router_id = register_mrs_router_instance(session);
+
+    std::cout << "- Creating account(s) "
+              << (accounts_if_not_exists
+                      ? "(only those that are needed, if any)"
+                      : "")
+              << "\n";
+    create_mrs_users(session, mrs_router_id);
+
+    std::cout << "- Storing account in keyring\n";
+    store_mrs_data_in_keyring();
+
+    std::cout << "- Adjusting configuration file " << config_path << "\n";
+    store_mrs_configuration(config_path, mrs_router_id);
+
+    std::cout << "\n"
+              << "Once the MySQL Router is started, the MySQL REST Service can "
+                 "be reached at\n    "
+              << get_configured_rest_endpoint() << "\n";
+  }
+}
+
+void BootstrapConfigurator::parse_command_options(
+    std::vector<std::string> arguments) {
+  if (arguments.empty()) {
+    throw std::runtime_error(
+        "Bootstrap requires at least one parameter with URI that points "
+        "to the target MySQL Server.");
+  }
+  if (!arguments[0].empty() && arguments[0][0] != '-') {
+    prepare_command_options(arguments[0]);
+    arguments.erase(arguments.begin());
   } else {
-    uri = server_uri;
+    prepare_command_options("");
   }
 
-  URI u;
   try {
-    // don't allow rootless URIs (mailto:foo@...) which would collide with the
-    // schema-less URIs are allow too: root:pw@host
-    u = URIParser::parse(uri, false);
-  } catch (const mysqlrouter::URIError &e) {
-    throw std::runtime_error(e.what());
+    arg_handler_.process(arguments);
+  } catch (const std::invalid_argument &exc) {
+    throw std::runtime_error(exc.what());
   }
+}
 
-  // query, fragment and path should all be empty
-  if (!u.fragment.empty()) {
-    throw std::runtime_error(
-        "the bootstrap URI contains a #fragement, but shouldn't");
-  }
-  if (!u.query.empty()) {
-    throw std::runtime_error(
-        "the bootstrap URI contains a ?query, but shouldn't");
-  }
-  if (!u.path.empty()) {
-    throw std::runtime_error(
-        "the bootstrap URI contains a /path, but shouldn't");
-  }
+void BootstrapConfigurator::prepare_command_options(
+    const std::string &bootstrap_uri) {
+  using OptionNames = CmdOption::OptionNames;
 
-  if (u.username.empty()) {
-    u.username = "root";
-  }
-  // we need to prompt for the password
-  if (u.password.empty()) {
-    u.password =
-        prompt_password("Please enter MySQL password for " + u.username);
-  }
+  // General guidelines for naming command line options:
+  //
+  // Option names that start with --conf are meant to affect
+  // configuration only and used during bootstrap.
+  // If an option affects the bootstrap process itself, it should
+  // omit the --conf prefix, even if it affects both the bootstrap
+  // and the configuration.
 
-  if (bootstrap_socket.size() > 0) {
-    // enforce host == "localhost" if a socket is used to avoid ambiguity with
-    // the possible hostname
-    if (u.host != "localhost") {
-      throw std::runtime_error(
-          "--bootstrap-socket given, but --bootstrap option contains a "
-          "non-'localhost' hostname: " +
-          u.host);
+  arg_handler_.clear_options();
+  bootstrapper_.prepare_command_options(arg_handler_, bootstrap_uri);
+
+  arg_handler_.add_option(
+      OptionNames({"--mrs"}),
+      "Enable MRS plugin. Write configurations and setup MySQL accounts for "
+      "MRS.",
+      CmdOptionValueReq::none, "",
+      [this](const std::string &) { bootstrap_mrs_ = true; });
+  arg_handler_.add_option(
+      OptionNames({"--mrs-mysql-metadata-account"}),
+      "MySQL account (username) to be used by MRS to access MRS metadata.",
+      CmdOptionValueReq::required, "username",
+      [this](const std::string &account) {
+        mrs_metadata_account_.user = account;
+      });
+  arg_handler_.add_option(
+      OptionNames({"--mrs-mysql-data-account"}),
+      "MySQL account (username) to be used by MRS to access data to be served.",
+      CmdOptionValueReq::required, "username",
+      [this](const std::string &account) { mrs_data_account_.user = account; });
+  arg_handler_.add_option(
+      OptionNames({"--mrs-global-secret"}),
+      "Common secret string to be used for JSON Web Token encryption. Must be "
+      "common to all MRS Router instances.",
+      CmdOptionValueReq::required, "global-secret",
+      [this](const std::string &secret) { mrs_secret_ = secret; });
+
+  arg_handler_.add_option(
+      OptionNames({"-V", "--version"}), "Display version information and exit.",
+      CmdOptionValueReq::none, "", [this](const std::string &) {
+        std::cout << this->get_version_line() << std::endl;
+        this->showing_info_ = true;
+      });
+  arg_handler_.add_option(
+      OptionNames({"-?", "--help"}), "Display this help and exit.",
+      CmdOptionValueReq::none, "", [this](const std::string &) {
+        this->showing_info_ = true;
+        this->show_help();
+      });
+}
+
+std::string BootstrapConfigurator::get_version_line() noexcept {
+  std::string version_string;
+  build_version(kProgramName, &version_string);
+
+  return version_string;
+}
+
+/**
+ * filter CmdOption by section.
+ *
+ * makes options "required" if needed for the usage output
+ */
+static std::pair<bool, CmdOption> cmd_option_acceptor(
+    const std::string &section, const std::set<std::string> &accepted_opts,
+    const CmdOption &opt) {
+  for (const auto &name : opt.names) {
+    if (accepted_opts.find(name) != accepted_opts.end()) {
+      if ((section == "help" && name == "--help") ||
+          (section == "version" && name == "--version")) {
+        CmdOption req_opt(opt);
+        req_opt.required = true;
+        return {true, req_opt};
+      } else {
+        return {true, opt};
+      }
     }
   }
 
-  return u;
+  return {false, opt};
 }
 
-BootstrapConfigurator::BootstrapConfigurator(BootstrapArguments *arguments)
-    : arguments_{arguments} {}
+void BootstrapConfigurator::show_usage() noexcept {
+  std::cout << Vt100::render(Vt100::Render::Bold) << "# Usage"
+            << Vt100::render(Vt100::Render::Normal) << "\n\n";
 
-void BootstrapConfigurator::load_configuration() {
-  auto cnf_file_name = get_generated_configuration_file();
-  config_.read(cnf_file_name);
+  std::vector<std::pair<std::string, std::set<std::string>>> usage_sections{
+      {"help", {"--help"}},
+      {"version", {"--version"}},
+      {"bootstrap",
+       {"--account-host",
+        "--bootstrap",
+        "--bootstrap-socket",
+        "--conf-use-sockets",
+        "--conf-set-option",
+        "--conf-skip-tcp",
+        "--conf-base-port",
+        "--conf-use-gr-notifications",
+        "--connect-timeout",
+        "--client-ssl-cert",
+        "--client-ssl-cipher",
+        "--client-ssl-curves",
+        "--client-ssl-key",
+        "--client-ssl-mode",
+        "--core-file",
+        "--directory",
+        "--force",
+        "--force-password-validation",
+        "--name",
+        "--master-key-reader",
+        "--master-key-writer",
+        "--password-retries",
+        "--read-timeout",
+        "--report-host",
+        "--server-ssl-ca",
+        "--server-ssl-capath",
+        "--server-ssl-cipher",
+        "--server-ssl-crl",
+        "--server-ssl-crlpath",
+        "--server-ssl-curves",
+        "--server-ssl-mode",
+        "--server-ssl-verify",
+        "--ssl-ca",
+        "--ssl-cert",
+        "--ssl-cipher",
+        "--ssl-crl",
+        "--ssl-crlpath",
+        "--ssl-key",
+        "--ssl-mode",
+        "--tls-version",
+        "--user"}},
+      {"mrs",
+       {"--mrs", "--mrs-mysql-metadata-account", "--mrs-mysql-data-account",
+        "--mrs-global-secret"}}};
 
-  ki_handler_.init(config_, false);
-}
-
-void BootstrapConfigurator::connect(std::string *out_password) {
-  // parse ssl_mode option (already validated in cmdline option handling)
-  auto ssl_enum = MySQLSession::parse_ssl_mode(
-      arguments_->ssl_mode);  // throws std::logic_error
-
-  auto u =
-      parse_server_uri(arguments_->bootstrap_uri, arguments_->bootstrap_socket);
-
-  *out_password = u.password;
-
-  session_ = std::make_unique<mysqlrouter::MySQLSession>();
-
-  // set ssl mode + server authentication options
-  session_->set_ssl_options(
-      ssl_enum, arguments_->tls_version, arguments_->ssl_cipher,
-      arguments_->ssl_ca, arguments_->ssl_capath, arguments_->ssl_crl,
-      arguments_
-          ->ssl_crlpath);  // throws Error, std::invalid_argument(logic_error)
-
-  // set client authentication options
-  if (!arguments_->ssl_cert.empty() || !arguments_->ssl_key.empty()) {
-    session_->set_ssl_cert(arguments_->ssl_cert,
-                           arguments_->ssl_key);  // throws Error(runtime_error)
+  for (const auto &section : usage_sections) {
+    for (auto line : arg_handler_.usage_lines_if(
+             kProgramName, "", kHelpScreenWidth,
+             [&section](const CmdOption &opt) {
+               return cmd_option_acceptor(section.first, section.second, opt);
+             })) {
+      std::cout << line << "\n";
+    }
+    std::cout << "\n";
   }
 
-  session_->connect(u.host, u.port, u.username, u.password,
-                    arguments_->bootstrap_socket, "",
-                    arguments_->connect_timeout, arguments_->read_timeout);
+  std::cout << Vt100::render(Vt100::Render::Bold) << "# Options"
+            << Vt100::render(Vt100::Render::Normal) << "\n\n";
+  for (auto line :
+       arg_handler_.option_descriptions(kHelpScreenWidth, kHelpScreenIndent)) {
+    std::cout << line << std::endl;
+  }
 }
 
-void BootstrapConfigurator::configure_mrs(bool accounts_if_not_exists) {
-  std::cout << Vt100::foreground(Vt100::Color::Yellow)
-            << "# Configuring `MRS` plugin..."
-            << Vt100::render(Vt100::Render::ForegroundDefault) << std::endl;
+void BootstrapConfigurator::show_help() {
+  std::cout << Vt100::render(Vt100::Render::Bold) << "# Usage"
+            << Vt100::render(Vt100::Render::Normal) << "\n\n";
 
-  std::cout << "- Creating account(s) "
-            << (accounts_if_not_exists ? "(only those that are needed, if any)"
-                                       : "")
-            << "\n";
-  create_mrs_users();
+  std::cout << kProgramName << " <server URI> [options]\n";
 
-  std::cout << "- Storing account in keyring\n";
-  store_mrs_data_in_keyring();
+  show_usage();
 
-  std::cout << "- Adjusting configuration file "
-            << get_generated_configuration_file() << "\n";
-  store_mrs_configuration();
+  std::cout << std::endl
+            << Vt100::render(Vt100::Render::Bold) << "# Examples"
+            << Vt100::render(Vt100::Render::Normal) << std::endl
+            << std::endl;
 
-  std::cout << "- Registering metadata\n";
-  register_mrs_router_instance();
+  constexpr const char kStartWithSudo[]{IF_WIN("", "sudo ")};
+  constexpr const char kStartWithUser[]{IF_WIN("", " --user=mysqlrouter")};
+
+  std::cout << "Bootstrap for use with InnoDB cluster into system-wide "
+               "installation\n\n"
+            << "    " << kStartWithSudo << "mysqlrouter_bootstrap "
+            << "root@clusterinstance01 " << kStartWithUser << "\n\n"
+            << "Bootstrap for use with InnoDb cluster in a self-contained "
+               "directory\n\n"
+            << "    "
+            << "mysqlrouter_bootstrap root@clusterinstance01 -d myrouter"
+            << "\n\n";
 }
 
-void BootstrapConfigurator::create_mrs_users() {
+void BootstrapConfigurator::load_configuration(
+    const std::string &cnf_file_name) {
+  config_.read(cnf_file_name);
+}
+
+void BootstrapConfigurator::create_mrs_users(mysqlrouter::MySQLSession *session,
+                                             uint64_t mrs_router_id) {
   try {
     bool autogenerated_meta{false};
-    bool autogenerated_data{false};
 
     bool is_change_password_ok_metadata = false;
-    if (arguments_->mrs_metadata_account.user.empty()) {
+    if (mrs_metadata_account_.user.empty()) {
       is_change_password_ok_metadata = true;
-      arguments_->mrs_metadata_account.user =
-          generate_username("mrs", get_config_router_id());
+      mrs_metadata_account_.user =
+          generate_username("mysql_router_mrs", mrs_router_id);
       autogenerated_meta = true;
     } else {
-      arguments_->mrs_metadata_account.pass =
+      mrs_metadata_account_.pass =
           prompt_password("Please enter MySQL password for MRS metadata-user:" +
-                          arguments_->mrs_metadata_account.user);
+                          mrs_metadata_account_.user);
     }
 
-    bool is_change_password_ok_data = false;
     bool create_data_user = false;
-    if (arguments_->mrs_data_account.user !=
-        arguments_->mrs_metadata_account.user) {
-      create_data_user = true;
-      if (arguments_->mrs_data_account.user.empty()) {
-        do {
-          is_change_password_ok_data = true;
-          arguments_->mrs_data_account.user =
-              generate_username("mrs", get_config_router_id());
-          autogenerated_data = true;
-        } while (arguments_->mrs_metadata_account.user ==
-                 arguments_->mrs_data_account.user);
+    if (mrs_data_account_.user != mrs_metadata_account_.user) {
+      if (mrs_data_account_.user.empty()) {
       } else {
-        arguments_->mrs_data_account.pass =
+        create_data_user = true;
+        mrs_data_account_.pass =
             prompt_password("Please enter MySQL password for MRS data-user:" +
-                            arguments_->mrs_data_account.user);
+                            mrs_data_account_.user);
       }
     }
 
-    BootstrapMySQLAccount buser{session_.get()};
+    BootstrapMySQLAccount buser{session};
 
-    arguments_->user_options.grant_role = {"mrs_provider_metadata"};
+    UserOptions user_options;
+
+    user_options.account_create = "if-not-exists";
+    user_options.grant_role = {"mrs_provider_metadata"};
 
     if (!create_data_user) {
-      arguments_->user_options.grant_role.push_back("mrs_provider_data_access");
+      user_options.grant_role.push_back("mrs_provider_data_access");
     }
 
-    arguments_->user_options.autogenerated = autogenerated_meta;
+    std::string account_metadata;
+
+    user_options.autogenerated = autogenerated_meta;
     buser.create_router_accounts(
-        arguments_->user_options, get_account_host_args(),
-        arguments_->mrs_metadata_account.user,
-        arguments_->mrs_metadata_account.pass, is_change_password_ok_data);
+        user_options, {"%"}, mrs_metadata_account_.user,
+        mrs_metadata_account_.pass, is_change_password_ok_metadata);
+    store_mrs_account_metadata(session, mrs_router_id, "mrs_metadata_accounts",
+                               mrs_metadata_account_.user, {"%"});
 
     if (create_data_user) {
-      arguments_->user_options.autogenerated = autogenerated_data;
-      arguments_->user_options.grant_role = {"mrs_provider_data_access"};
-      buser.create_router_accounts(
-          arguments_->user_options, get_account_host_args(),
-          arguments_->mrs_data_account.user, arguments_->mrs_data_account.pass,
-          is_change_password_ok_metadata);
+      user_options.grant_role = {"mrs_provider_data_access"};
+      buser.create_router_accounts(user_options, {"%"}, mrs_data_account_.user,
+                                   mrs_data_account_.pass, false);
+
+      store_mrs_account_metadata(session, mrs_router_id, "mrs_data_accounts",
+                                 mrs_data_account_.user, {"%"});
     }
 
   } catch (const MySQLSession::Error &e) {
@@ -247,11 +491,13 @@ void BootstrapConfigurator::store_mrs_data_in_keyring() {
   static const char *kKeyringAttributePassword = "password";
   mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
 
-  auto secret = arguments_->mrs_secret;
+  auto secret = mrs_secret_;
   if (secret.empty()) {
-    std::cout << "Please enter a secret string to be used as a JWT secret. If "
-                 "this is the first MRS Router instance being deployed, you "
-                 "may enter a new random string. Future deployments targeting "
+    std::cout << "\n";
+    std::cout << "Please enter a secret string to be used as a JSON Web Token "
+                 "(JWT) secret.\n"
+                 "If this is the first MRS Router instance being deployed, you "
+                 "may enter a new random string.\nFuture deployments targeting "
                  "the same MySQL server or InnoDB Cluster must use the same "
                  "secret.\n";
 
@@ -262,14 +508,12 @@ void BootstrapConfigurator::store_mrs_data_in_keyring() {
     keyring->store("rest-user", "jwt_secret", secret);
   }
 
-  keyring->store(arguments_->mrs_metadata_account.user,
-                 kKeyringAttributePassword,
-                 arguments_->mrs_metadata_account.pass);
+  keyring->store(mrs_metadata_account_.user, kKeyringAttributePassword,
+                 mrs_metadata_account_.pass);
 
-  if (arguments_->mrs_metadata_account.user !=
-      arguments_->mrs_data_account.user)
-    keyring->store(arguments_->mrs_data_account.user, kKeyringAttributePassword,
-                   arguments_->mrs_data_account.pass);
+  if (mrs_metadata_account_.user != mrs_data_account_.user)
+    keyring->store(mrs_data_account_.user, kKeyringAttributePassword,
+                   mrs_data_account_.pass);
 
   try {
     mysql_harness::flush_keyring();
@@ -279,26 +523,10 @@ void BootstrapConfigurator::store_mrs_data_in_keyring() {
   }
 }
 
-bool BootstrapConfigurator::has_innodb_cluster_metadata() const {
+void BootstrapConfigurator::check_mrs_metadata(
+    mysqlrouter::MySQLSession *session) const {
   try {
-    auto row = session_->query_one(
-        "SELECT major, minor, patch FROM "
-        "mysql_innodb_cluster_metadata.schema_version");
-    return true;
-  } catch (const mysqlrouter::MySQLSession::Error &e) {
-    if (e.code() == ER_BAD_DB_ERROR) {
-      return false;
-    } else {
-      std::cout << "InnoDB Cluster metadata query returned error: " << e.code()
-                << " " << e.what() << "\n";
-      throw std::runtime_error("Invalid InnoDB Cluster metadata");
-    }
-  }
-}
-
-void BootstrapConfigurator::check_mrs_metadata() const {
-  try {
-    auto row = session_->query_one(
+    auto row = session->query_one(
         "SELECT major, minor, patch FROM "
         "mysql_rest_service_metadata.schema_version");
 
@@ -313,6 +541,8 @@ void BootstrapConfigurator::check_mrs_metadata() const {
     }
   } catch (const mysqlrouter::MySQLSession::Error &e) {
     if (e.code() == ER_BAD_DB_ERROR) {
+      std::cout << "MySQL REST Service metadata was not found at the target "
+                   "MySQL server. Please deploy it before bootstrapping MRS.\n";
       throw std::runtime_error("MRS metadata not found");
     } else {
       std::cout << "MRS metadata query returned error: " << e.code() << " "
@@ -322,31 +552,47 @@ void BootstrapConfigurator::check_mrs_metadata() const {
   }
 }
 
-bool BootstrapConfigurator::needs_configure_routing() const {
-  bool exists;
-  get_generated_configuration_file(&exists);
-
-  if (exists) {
-    std::cout << "Skipping Core MySQL Router configuration, the "
-                 "'mysqlrouter.conf' file already exists.\n";
-  }
-
-  return !exists;
-}
-
-bool BootstrapConfigurator::can_configure_mrs() const {
+bool BootstrapConfigurator::can_configure_mrs(
+    const std::string &config_path) const {
   if (config_.has_any(kConfigMrsSection)) {
-    mysql_harness::Path path = get_generated_configuration_file();
-
-    std::cout << "Skipping MySQL REST Service configuration, the '"
-              << path.basename().str()
-              << "' file already has the 'rest_mrs' section.\n";
+    mysql_harness::Path path = config_path;
+    std::cout << Vt100::foreground(Vt100::Color::Yellow)
+              << "# Skipping MySQL REST Service bootstrap"
+              << Vt100::render(Vt100::Render::ForegroundDefault)
+              << "\n\nSkipping MySQL REST Service configuration, the '"
+              << path.basename().str() << "' file already has the '"
+              << kConfigMrsSection << "' section.\n\n";
     return false;
   }
   return true;
 }
 
-void BootstrapConfigurator::store_mrs_configuration() {
+std::string BootstrapConfigurator::get_configured_router_name() const {
+  auto section = config_.get_default_section();
+  if (section.has("name")) {
+    return section.get("name");
+  }
+  return "";
+}
+
+std::string BootstrapConfigurator::get_configured_rest_endpoint() const {
+  auto sections = config_.get("http_server");
+  for (auto s : sections) {
+    if (s->has("port")) {
+      std::string url;
+      if (s->has("ssl") && s->get("ssl") == "1")
+        url = "https://";
+      else
+        url = "http://";
+      url += "localhost:" + s->get("port") + "/<service-name>";
+      return url;
+    }
+  }
+  return "";
+}
+
+void BootstrapConfigurator::store_mrs_configuration(
+    const std::string &config_path, uint64_t mrs_router_id) {
   auto [rw_section, ro_section] = get_config_classic_sections();
 
   if (rw_section.key.empty()) {
@@ -357,16 +603,18 @@ void BootstrapConfigurator::store_mrs_configuration() {
 
   std::map<std::string, std::string> kv;
 
-  kv.insert_or_assign("mysql_user", arguments_->mrs_metadata_account.user);
-  if (arguments_->mrs_metadata_account.user !=
-      arguments_->mrs_data_account.user)
-    kv.insert_or_assign("mysql_user_data_access",
-                        arguments_->mrs_data_account.user);
-  kv.insert_or_assign("mysql_read_write_route", rw_section.key);
-  kv.insert_or_assign("mysql_read_only_route", ro_section.key);
+  kv.insert_or_assign("router_id", std::to_string(mrs_router_id));
+
+  kv.insert_or_assign("mysql_user", mrs_metadata_account_.user);
+  if (mrs_metadata_account_.user != mrs_data_account_.user)
+    kv.insert_or_assign("mysql_user_data_access", mrs_data_account_.user);
+  kv.insert_or_assign("mysql_read_write_route",
+                      string_after(rw_section.key, ':'));
+  kv.insert_or_assign("mysql_read_only_route",
+                      string_after(ro_section.key, ':'));
 
   mysql_harness::ConfigBuilder builder;
-  mysql_harness::Path path = get_generated_configuration_file();
+  mysql_harness::Path path = config_path;
   std::ofstream os;
   os.exceptions(std::ofstream::failbit | std::ofstream::badbit);
   os.open(path.c_str(), std::ofstream::out | std::ofstream::app);
@@ -424,87 +672,47 @@ BootstrapConfigurator::get_config_classic_sections() {
   return {};
 }
 
-BootstrapCredentials BootstrapConfigurator::get_config_mrs_metadata_user() {
-  auto sections = config_.get("rest_mrs");
-  for (auto s : sections) {
-    if (s->has("mysql_user")) return s->get("mysql_user");
-  }
-
-  return {};
-}
-
-BootstrapCredentials BootstrapConfigurator::get_config_mrs_data_user() {
-  auto sections = config_.get("rest_mrs");
-  for (auto s : sections) {
-    if (s->has("mysql_user")) return s->get("mysql_user");
-  }
-
-  return {};
-}
-
-uint64_t BootstrapConfigurator::get_config_router_id() {
-  const static std::string kRouterId = "router_id";
-  auto sections = config_.get("metadata_cache");
-  char *end_ptr;
-
-  for (auto s : sections) {
-    if (s->has(kRouterId))
-      return strtoull(s->get(kRouterId).c_str(), &end_ptr, 0);
-  }
-  return 0;
-}
-
-String BootstrapConfigurator::get_generated_configuration_file(
-    bool *file_exists) const {
-  auto default_paths = mysqlrouter::get_default_paths(
-      arguments_->path_this_application_.dirname());
-  auto directory = arguments_->bootstrap_directory;
-  if (directory.empty()) {
-    directory = default_paths.at("config_folder"s);
-  }
-  mysql_harness::Path config_file_path(directory);
-
-  if (!config_file_path.exists()) {
-    if (!file_exists)
-      throw std::runtime_error("Deployment directory doesn't exist");
-  } else {
-    config_file_path = config_file_path.real_path();
-  }
-  config_file_path =
-      config_file_path.join(mysql_harness::Path("mysqlrouter.conf"));
-
-  if (!config_file_path.exists()) {
-    if (file_exists)
-      *file_exists = false;
-    else
-      throw std::runtime_error(
-          "Configuration file is missing in deployment directory");
-  } else {
-    if (file_exists) *file_exists = true;
-  }
-
-  return config_file_path.str();
-}
-
-UniqueStrings BootstrapConfigurator::get_account_host_args() {
-  auto result = arguments_->bootstrap_account_hosts;
-
-  if (result.empty()) result.insert("%");
-
-  return result;
-}
-
-void BootstrapConfigurator::register_mrs_router_instance() {
+uint64_t BootstrapConfigurator::register_mrs_router_instance(
+    mysqlrouter::MySQLSession *session) {
   auto socket_ops = mysql_harness::SocketOperations::instance();
 
-  // TODO handle --report-host
-  session_->execute(
+  std::string router_name = get_configured_router_name();
+  std::string report_host = socket_ops->get_local_hostname();
+
+  if (auto rh = bootstrapper_.bootstrap_options().find("report-host");
+      rh != bootstrapper_.bootstrap_options().end())
+    report_host = rh->second;
+
+  session->execute(
       "INSERT INTO mysql_rest_service_metadata.router"
-      " (id, router_name, address, product_name, version, attributes, options)"
-      " VALUES ((SELECT coalesce(max(id),0)+1 from "
-      "mysql_rest_service_metadata.router)," +
-      session_->quote(arguments_->router_name) + ", " +
-      session_->quote(socket_ops->get_local_hostname()) + ", " +
-      session_->quote(MYSQL_ROUTER_PACKAGE_NAME) + ", " +
-      session_->quote(MYSQL_ROUTER_VERSION) + ", '{}', '{}')");
+      " (router_name, address, product_name, version, attributes, options)"
+      " VALUES (" +
+      session->quote(router_name) + ", " + session->quote(report_host) + ", " +
+      session->quote(MYSQL_ROUTER_PACKAGE_NAME) + ", " +
+      session->quote(MYSQL_ROUTER_VERSION) +
+      ", '{}', '{}') ON DUPLICATE KEY UPDATE version=" +
+      session->quote(MYSQL_ROUTER_VERSION) + ", last_check_in=NOW()");
+
+  return session->last_insert_id();
+}
+
+void BootstrapConfigurator::store_mrs_account_metadata(
+    mysqlrouter::MySQLSession *session, uint64_t mrs_router_id,
+    const std::string &key, const std::string &user,
+    const std::vector<std::string> &hosts) {
+  std::string sql = "UPDATE mysql_rest_service_metadata.router";
+  sql += " SET attributes = JSON_MERGE_PRESERVE(attributes, JSON_OBJECT('" +
+         key + "', JSON_ARRAY(";
+  bool first = true;
+  for (const auto &h : hosts) {
+    sql += session->quote(user + "@" + h);
+    if (!first) {
+      sql += ", ";
+      first = false;
+    }
+  }
+  sql += ")))";
+  sql += " WHERE id = " + std::to_string(mrs_router_id);
+
+  session->execute(sql);
 }

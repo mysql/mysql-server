@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-
 MYSQL_ADD_EXECUTABLE(mysqlrouter_bootstrap
   bootstrap_configurator.cc
   bootstrap_mysql_account.cc
@@ -29,7 +28,15 @@ MYSQL_ADD_EXECUTABLE(mysqlrouter_bootstrap
   LINK_LIBRARIES
   harness-library
   router_lib
+  router_frontend_lib
   ${CMAKE_DL_LIBS}
+  )
+TARGET_INCLUDE_DIRECTORIES(mysqlrouter_bootstrap
+  PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../router/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../http/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../metadata_cache/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../router/src
   )
 
 ADD_INSTALL_RPATH(mysqlrouter_bootstrap "${ROUTER_INSTALL_RPATH}")

@@ -22,144 +22,85 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#define MYSQL_ROUTER_LOG_DOMAIN \
+  ::mysql_harness::logging::kMainLogger  // must precede #include "logging.h"
+
 #include <iostream>
 #include <stdexcept>
 #include <vector>
 
+#include "bootstrap_configurator.h"
+#include "mysql/harness/logging/registry.h"
 #include "mysql/harness/vt100.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"
 
-#include "bootstrap_arguments.h"
-#include "bootstrap_configurator.h"
-#include "process_launcher_ex.h"
+IMPORT_LOG_FUNCTIONS()
 
-void print_version(BootstrapArguments &b) {
-  std::string output;
-  build_version(b.path_this_application_.basename().str(), &output);
-  std::cout << output << std::endl;
+static void init_DIM() {
+  mysql_harness::DIM &dim = mysql_harness::DIM::instance();
+
+  // RandomGenerator
+  dim.set_RandomGenerator(
+      []() {
+        static mysql_harness::RandomGenerator rg;
+        return &rg;
+      },
+      [](mysql_harness::RandomGeneratorInterface *) {}
+      // don't delete our static!
+  );
+
+  //  // MySQLSession
+  //  dim.set_MySQLSession(
+  //      []() {
+  //        return new mysqlrouter::MySQLSession(
+  //            std::make_unique<
+  //                mysqlrouter::MySQLSession::LoggingStrategyDebugLogger>());
+  //      },
+  //      std::default_delete<mysqlrouter::MySQLSession>());
 }
 
-void print_copyrights() {
-  std::cout << ORACLE_WELCOME_COPYRIGHT_NOTICE("2015") << std::endl;
+static void preconfig_log_init() noexcept {
+  // setup registry object in DIM
+  {
+    mysql_harness::DIM &dim = mysql_harness::DIM::instance();
+    dim.set_LoggingRegistry(
+        []() {
+          static mysql_harness::logging::Registry registry;
+          return &registry;
+        },
+        [](mysql_harness::logging::Registry *) {}  // don't delete our static!
+    );
+  }
+
+  // initialize logger to log to stderr or OS logger. After reading
+  // configuration inside of MySQLRouter::start(), it will be re-initialized
+  // according to information in the configuration file
+  {
+    mysql_harness::LoaderConfig config(mysql_harness::Config::allow_keys);
+    try {
+      BootstrapConfigurator::init_main_logger(config,
+                                              true);  // true = raw logging mode
+    } catch (const std::runtime_error &) {
+      // If log init fails, there's not much we can do here (no way to log the
+      // error) except to catch this exception to prevent it from bubbling up
+      // to std::terminate()
+    }
+  }
 }
 
 int main(int argc, char **argv) {
-  if (argc < 1) return -1;
+  preconfig_log_init();
+
+  init_DIM();
 
   try {
-    CmdArguments arguments;
-    BootstrapArguments application_arguments;
-    for (int arg = 0; arg < argc; ++arg) arguments.emplace_back(argv[arg]);
+    BootstrapConfigurator configurator;
+    configurator.init(argc, argv);
 
-    application_arguments.analyze(arguments);
+    configurator.run();
 
-    if (application_arguments.version) {
-      print_version(application_arguments);
-      return 0;
-    }
-
-    if (application_arguments.help) {
-      print_version(application_arguments);
-      print_copyrights();
-
-      std::cout << Vt100::render(Vt100::Render::Bold) << "# Usage"
-                << Vt100::render(Vt100::Render::Normal) << "\n\n";
-      auto app = application_arguments.path_this_application_.basename().str();
-      std::cout << "      " << app << " --version|-V" << std::endl << std::endl;
-      std::cout << "      " << app << " --help" << std::endl << std::endl;
-      std::cout
-          << "      " << app << " <server_url> "
-          << " [--account-host=<account-host>]" << std::endl
-          << "                  [--bootstrap-socket=<socket_name>]" << std::endl
-          << "                  [--client-ssl-cert=<path>]" << std::endl
-          << "                  [--client-ssl-cipher=<VALUE>]" << std::endl
-          << "                  [--client-ssl-curves=<VALUE>]" << std::endl
-          << "                  [--client-ssl-key=<path>]" << std::endl
-          << "                  [--client-ssl-mode=<mode>]" << std::endl
-          << "                  [--conf-base-port=<port>] [--conf-skip-tcp]"
-          << std::endl
-          << "                  [--conf-use-sockets] [--core-file=[<VALUE>]]"
-          << std::endl
-          << "                  [--connect-timeout=[<VALUE>]]" << std::endl
-          << "                  [--conf-use-gr-notifications=[<VALUE>]]"
-          << std::endl
-          << "                  [-d|--directory=<directory>] [--force]"
-          << std::endl
-          << "                  [--force-password-validation]" << std::endl
-          << "                  [--master-key-reader=<VALUE>]" << std::endl
-          << "                  [--master-key-writer=<VALUE>] [--name=[<name>]]"
-          << std::endl
-          << "                  [--password-retries=[<password-retries>]]"
-          << std::endl
-          << "                  [--read-timeout=[<VALUE>]]" << std::endl
-          << "                  [--report-host=<report-host>]" << std::endl
-          << "                  [--server-ssl-ca=<path>]" << std::endl
-          << "                  [--server-ssl-capath=<directory>]" << std::endl
-          << "                  [--server-ssl-cipher=<VALUE>]" << std::endl
-          << "                  [--server-ssl-crl=<path>]" << std::endl
-          << "                  [--server-ssl-crlpath=<directory>]" << std::endl
-          << "                  [--server-ssl-curves=<VALUE>]" << std::endl
-          << "                  [--server-ssl-mode=<ssl-mode>]" << std::endl
-          << "                  [--server-ssl-verify=<verify-mode>]"
-          << std::endl
-          << "                  [--ssl-ca=<path>] [--ssl-cert=<path>]"
-          << std::endl
-          << "                  [--ssl-cipher=<ciphers>] [--ssl-crl=<path>]"
-          << std::endl
-          << "                  [--ssl-crlpath=<directory>] [--ssl-key=<path>]"
-          << std::endl
-          << "                  [--ssl-mode=<mode>] [--tls-version=<versions>]"
-          << std::endl
-          << "                  [-u|--user=<username>]" << std::endl
-          << "                  [--conf-set-option=<conf-set-option>]"
-          << std::endl;
-
-      std::cout << std::endl
-                << Vt100::render(Vt100::Render::Bold)
-                << "# MySQL REST Service options"
-                << Vt100::render(Vt100::Render::Normal) << std::endl
-                << std::endl;
-      std::cout << "  --standalone" << std::endl;
-      std::cout << "  --innodb-cluster" << std::endl;
-      std::cout << "  --mrs" << std::endl;
-
-      std::cout << "  --mrs-metadata-account <USER_NAME>" << std::endl;
-      std::cout << "        Select MySQL Server account, which MRS should use "
-                << std::endl
-                << "        for meta-data-schema access." << std::endl;
-      std::cout << "  --mrs-data-account <USER_NAME>" << std::endl;
-      std::cout << "        Select MySQL Server account, which MRS should use "
-                   "for accessing "
-                << std::endl
-                << "        the user tables." << std::endl;
-      std::cout << "  --mrs-secret <SECRET>" << std::endl;
-      std::cout << "        Enables JWT token, by configuring SECRET which "
-                << std::endl;
-      std::cout << "        is going to use as SEED for token encryption."
-                << std::endl;
-
-      std::cout << std::endl
-                << Vt100::render(Vt100::Render::Bold) << "# Examples"
-                << Vt100::render(Vt100::Render::Normal) << std::endl
-                << std::endl;
-
-      constexpr const char kStartWithSudo[]{IF_WIN("", "sudo ")};
-      constexpr const char kStartWithUser[]{IF_WIN("", " --user=mysqlrouter")};
-
-      std::cout << "Bootstrap for use with InnoDB cluster into system-wide "
-                   "installation\n\n"
-                << "    " << kStartWithSudo << "mysqlrouter_bootstrap "
-                << "root@clusterinstance01 " << kStartWithUser << "\n\n"
-                << "Bootstrap for use with InnoDb cluster in a self-contained "
-                   "directory\n\n"
-                << "    "
-                << "mysqlrouter_bootstrap root@clusterinstance01 -d myrouter"
-                << "\n\n";
-      return 0;
-    }
-
-    BootstrapConfigurator configurator{&application_arguments};
+#if 0
     std::string mysql_password;
 
     // Connect to DB, prompt DB password if needed, check for metadata
@@ -212,6 +153,7 @@ int main(int argc, char **argv) {
         configurator.configure_mrs(if_not_exists);
       }
     }
+#endif
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";
   }

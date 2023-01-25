@@ -425,7 +425,7 @@ class ROUTER_LIB_EXPORT MySQLSession {
   virtual void prepare_execute(
       uint64_t ps_id, std::vector<enum_field_types> pt,
       const RowProcessor &processor,
-      const FieldValidator &validator = null_field_validator);
+      const FieldValidator &validator /*= null_field_validator*/);
   virtual void prepare_remove(uint64_t ps_id);
   virtual void execute(
       const std::string &query);  // throws Error, std::logic_error
