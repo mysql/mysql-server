@@ -26,9 +26,6 @@ SET(XCOM_BASEDIR
 SET(XCOM_INCLUDE_DIR
   ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/)
 
-SET (XCOM_INCLUDE_DIR
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/)
-
 ### DEFINITIONS ###
 
 INCLUDE(cmake/configure.cmake)
