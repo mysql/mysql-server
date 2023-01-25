@@ -43,6 +43,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_start_transaction",
       "router_commit",
       "router_clusterset_present",
+      "router_select_current_instance_attributes",
 
       // account verification
       "router_select_metadata_v2_gr_account_verification",
