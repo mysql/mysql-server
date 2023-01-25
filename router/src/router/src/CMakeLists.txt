@@ -98,6 +98,7 @@ GENERATE_EXPORT_HEADER(router_lib
 
 SET(frontend_lib_source_files
   router_app.cc
+  router_conf.cc
   config_generator.cc
   )
 

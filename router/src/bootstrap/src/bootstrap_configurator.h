@@ -35,55 +35,78 @@
 #include "keyring_handler.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/vt100.h"
-#include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
+#include "router/src/router/src/config_generator.h"
+#include "router/src/router/src/router_conf.h"
 
 using String = std::string;
 using Strings = std::vector<std::string>;
 using UniqueStrings = std::set<std::string>;
 
-class BootstrapArguments;
-
 class BootstrapConfigurator {
  public:
-  explicit BootstrapConfigurator(BootstrapArguments *arguments);
+  BootstrapConfigurator();
 
-  void connect(std::string *out_password);
+  void init(int argc, char **argv);
+  void run();
 
-  void configure_mrs(bool accounts_if_not_exists);
-
-  bool has_innodb_cluster_metadata() const;
-  void check_mrs_metadata() const;
-
-  void load_configuration();
-  bool needs_configure_routing() const;
-  bool can_configure_mrs() const;
-
-  void create_mrs_users();
-  void store_mrs_data_in_keyring();
-  void store_mrs_configuration();
-  void register_mrs_router_instance();
-
-  String get_generated_configuration_file(bool *file_exists = nullptr) const;
+  static void init_main_logger(mysql_harness::LoaderConfig &config,
+                               bool raw_mode = false);
 
  private:
-  std::unique_ptr<mysqlrouter::MySQLSession> session_;
+  std::string router_program_name_;
+  mysql_harness::Path origin_;
+  CmdArgHandler arg_handler_;
+
+  KeyringHandler keyring_;
+  MySQLRouterConf bootstrapper_;
+
+  bool bootstrap_mrs_ = false;
+  BootstrapCredentials mrs_metadata_account_;
+  BootstrapCredentials mrs_data_account_;
+  std::string mrs_secret_;
+
+  bool showing_info_ = false;
 
   struct RoutingConfig {
     std::string key;
     bool is_metadata_cache;
   };
   std::pair<RoutingConfig, RoutingConfig> get_config_classic_sections();
-  BootstrapCredentials get_config_mrs_metadata_user();
-  BootstrapCredentials get_config_mrs_data_user();
-  std::string get_config_master_key_path();
 
-  uint64_t get_config_router_id();
-  UniqueStrings get_account_host_args();
-
-  BootstrapArguments *arguments_;
-  KeyringHandler ki_handler_;
   mysql_harness::Config config_{mysql_harness::Config::allow_keys};
+
+  void parse_command_options(std::vector<std::string> arguments);
+  void prepare_command_options(const std::string &bootstrap_uri);
+
+  std::string get_version_line() noexcept;
+  void show_help();
+  void show_usage() noexcept;
+
+  void configure_mrs(mysqlrouter::MySQLSession *session,
+                     const std::string &config_path);
+
+  void check_mrs_metadata(mysqlrouter::MySQLSession *session) const;
+
+  void load_configuration(const std::string &path);
+
+  bool can_configure_mrs(const std::string &config_path) const;
+
+  void create_mrs_users(mysqlrouter::MySQLSession *session,
+                        uint64_t mrs_router_id);
+  void store_mrs_data_in_keyring();
+  void store_mrs_configuration(const std::string &config_path,
+                               uint64_t mrs_router_id);
+  uint64_t register_mrs_router_instance(mysqlrouter::MySQLSession *session);
+
+  std::string get_configured_router_name() const;
+  std::string get_configured_rest_endpoint() const;
+
+  void store_mrs_account_metadata(mysqlrouter::MySQLSession *session,
+                                  uint64_t mrs_router_id,
+                                  const std::string &key,
+                                  const std::string &user,
+                                  const std::vector<std::string> &hosts);
 };
 
 #endif  // ROUTER_SRC_BOOTSTRAP_SRC_BOOTSTRAP_CONFIGURATOR_H_
