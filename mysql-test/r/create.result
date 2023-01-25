@@ -3149,3 +3149,17 @@ t2	CREATE TABLE `t2` (
   `@max_error_count` longtext
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
+#
+# Bug#34861841: Assertion: `false' in CostingReceiver::ProposeAccessPath
+#
+CREATE TABLE t1 (x INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TABLE t2 (pk INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1), (2), (3);
+CREATE TABLE t3 AS
+SELECT 1 FROM t1 LEFT JOIN t2
+ON t1.x IN (SELECT it1.pk FROM t2 AS it1, t2 AS it2);
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+9
+DROP TABLE t1, t2, t3;

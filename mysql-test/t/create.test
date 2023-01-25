@@ -2376,3 +2376,17 @@ SHOW CREATE TABLE t1;
 CREATE TABLE t2 AS SELECT @max_error_count UNION SELECT 'a';
 SHOW CREATE TABLE t2;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#34861841: Assertion: `false' in CostingReceiver::ProposeAccessPath
+--echo #
+
+CREATE TABLE t1 (x INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TABLE t2 (pk INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1), (2), (3);
+CREATE TABLE t3 AS
+  SELECT 1 FROM t1 LEFT JOIN t2
+  ON t1.x IN (SELECT it1.pk FROM t2 AS it1, t2 AS it2);
+SELECT COUNT(*) FROM t3;
+DROP TABLE t1, t2, t3;

@@ -101,10 +101,6 @@ static bool populate_table(THD *thd, LEX *lex) {
   if (lex->set_var_list.elements && resolve_var_assignments(thd, lex))
     return true;
 
-  // Use the hypergraph optimizer for the SELECT statement, if enabled.
-  lex->using_hypergraph_optimizer =
-      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
-
   lex->set_exec_started();
 
   /*
@@ -368,6 +364,11 @@ bool Sql_cmd_create_table::execute(THD *thd) {
         lex->link_first_table_back(create_table, link_to_local);
         return true;
       }
+
+      // Use the hypergraph optimizer for the SELECT statement, if enabled.
+      lex->using_hypergraph_optimizer =
+          thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
+
       if (query_expression->prepare(thd, result, nullptr, SELECT_NO_UNLOCK,
                                     0)) {
         lex->link_first_table_back(create_table, link_to_local);
