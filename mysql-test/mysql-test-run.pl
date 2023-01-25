@@ -5902,13 +5902,19 @@ sub check_expected_crash_and_restart($$) {
         # Ignore any partial or unknown command
         next unless $last_line =~ /^restart/;
 
-        # If last line begins "restart:", the rest of the line is read as
-        # extra command line options to add to the restarted mysqld.
-        # Anything other than 'wait' or 'restart:' (with a colon) will
-        # result in a restart with original mysqld options.
+        # If the last line begins with 'restart:' or 'restart_abort:' (with
+        # a colon), rest of the line is read as additional command line options
+        # to be provided to the mysql server during restart.
+        # Anything other than 'wait', 'restart:' or'restart_abort:' will result
+        # in a restart with the original mysqld options.
+        my $follow_up_wait = 0;
         if ($last_line =~ /restart:(.+)/) {
           my @rest_opt = split(' ', $1);
           $mysqld->{'restart_opts'} = \@rest_opt;
+        } elsif ($last_line =~ /restart_abort:(.+)/) {
+          my @rest_opt = split(' ', $1);
+          $mysqld->{'restart_opts'} = \@rest_opt;
+          $follow_up_wait = 1;
         } else {
           delete $mysqld->{'restart_opts'};
         }
@@ -5924,6 +5930,15 @@ sub check_expected_crash_and_restart($$) {
           # Permission denied to unlink.
           # Race condition seen on windows. Wait and retry.
           mtr_milli_sleep(1000);
+        }
+
+        # Instruct an implicit wait in case the restart is intended
+        # to cause the mysql server to go down.
+        if ($follow_up_wait) {
+          my $efh = IO::File->new($expect_file, "w");
+          print $efh "wait";
+          $efh->close();
+          mtr_verbose("Test says wait after unsuccessful restart");
         }
 
         # Start server with same settings as last time
