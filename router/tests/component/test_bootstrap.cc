@@ -39,6 +39,7 @@
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 
+#include "common.h"  // truncate_string
 #include "dim.h"
 #include "harness_assert.h"
 #include "keyring/keyring_manager.h"
@@ -2272,7 +2273,12 @@ INSTANTIATE_TEST_SUITE_P(
         ConfSetOptionErrorTestParam{
             {"--conf-set-option=DEFAULT:aa.option=xx"},
             "Error: conf-set-option: DEFAULT section is not allowed to have a "
-            "key: 'DEFAULT:aa'"}));
+            "key: 'DEFAULT:aa'"},
+
+        ConfSetOptionErrorTestParam{
+            {"--conf-set-option=abc"},
+            "Error: conf-set-option: invalid option 'abc', should be "
+            "section.option_name=value"}));
 
 struct ConfSetOptionTestParam {
   std::vector<std::string> bootstrap_params;
@@ -2569,6 +2575,176 @@ TEST_F(RouterComponentBootstrapTest, RouterReBootstrapClusetNameChange) {
   auto &router_bs2 = launch_router_for_bootstrap(cmdline_bs);
   check_exit_code(router_bs2, EXIT_SUCCESS);
 }
+
+/**
+ * @test
+ *       verify that using --force-password-validation when bootstrapping works
+ * ok
+ */
+TEST_F(RouterComponentBootstrapTest, ForcePasswordValidation) {
+  const std::string tracefile = "bootstrap_gr_unhashed_passwd.js";
+
+  const auto classic_port = port_pool_.get_next_available();
+  const auto http_port = port_pool_.get_next_available();
+  const std::string json_stmts = get_data_dir().join(tracefile).str();
+  launch_mysql_server_mock(json_stmts, classic_port, EXIT_SUCCESS, false,
+                           http_port);
+
+  set_mock_bootstrap_data(http_port, "cluster-name",
+                          {{"localhost", classic_port}}, {2, 1, 0}, "gr-uuid");
+
+  // do the first bootstrap
+  std::vector<std::string> cmdline_bs = {
+      "--bootstrap=root:"s + kRootPassword + "@localhost:"s +
+          std::to_string(classic_port),
+      "--force-password-validation", "-d", bootstrap_dir.name()};
+
+  auto &router_bs = launch_router_for_bootstrap(cmdline_bs);
+  check_exit_code(router_bs, EXIT_SUCCESS);
+}
+
+TEST_F(RouterComponentBootstrapTest, ShowCipherInvalidResult) {
+  const std::string tracefile =
+      get_data_dir()
+          .join("bootstrap_show_cipher_status_invalid_result.js")
+          .str();
+  const auto mock_server_port = port_pool_.get_next_available();
+  const auto mock_http_port = port_pool_.get_next_available();
+
+  launch_mysql_server_mock(tracefile, mock_server_port, EXIT_SUCCESS, false,
+                           mock_http_port);
+  set_mock_bootstrap_data(mock_http_port, "cluster-name",
+                          {{"localhost", mock_server_port}}, {2, 1, 0},
+                          "gr-uuid");
+
+  std::vector<std::string> cmdline = {
+      "--bootstrap=127.0.0.1:" + std::to_string(mock_server_port), "-d",
+      bootstrap_dir.name()};
+
+  auto &router = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
+
+  // let's check if the expected error was reported:
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::HasSubstr(
+                  "Failed determining if metadata connection uses SSL: Error "
+                  "reading 'ssl_cipher' status variable"));
+}
+
+struct BootstrapErrorTestParam {
+  std::vector<std::string> bs_params;
+  std::string expected_error;
+};
+
+class BootstrapErrorTest
+    : public RouterComponentBootstrapTest,
+      public ::testing::WithParamInterface<BootstrapErrorTestParam> {};
+
+TEST_P(BootstrapErrorTest, Spec) {
+  std::vector<std::string> cmdline = {"-d", bootstrap_dir.name()};
+
+  for (const auto &param : GetParam().bs_params) {
+    cmdline.push_back(param);
+  }
+
+  auto &router = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
+
+  // let's check if the expected error was reported:
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::HasSubstr(GetParam().expected_error));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, BootstrapErrorTest,
+    ::testing::Values(
+        BootstrapErrorTestParam{
+            {"-B=["},
+            "Error: invalid URI: expected to find IPv6 address, but failed at "
+            "position 9 for: mysql://[\n"},
+
+        BootstrapErrorTestParam{
+            {"-B=abc.nodomain.com#fragment"},
+            "Error: the bootstrap URI contains a #fragement, but shouldn't"},
+
+        BootstrapErrorTestParam{
+            {"-B=abc.nodomain.com?query=q"},
+            "Error: the bootstrap URI contains a ?query, but shouldn't"},
+
+        BootstrapErrorTestParam{
+            {"-B=abc.nodomain.com/path"},
+            "Error: the bootstrap URI contains a /path, but shouldn't"},
+
+        BootstrapErrorTestParam{
+            {"--bootstrap-socket=/mysock", "-B=abc.nodomain.com"},
+            "Error: --bootstrap-socket given, but --bootstrap option contains "
+            "a non-'localhost' hostname: abc.nodomain.com"}));
+
+class BootstrapErrorTestWithMock
+    : public RouterComponentBootstrapTest,
+      public ::testing::WithParamInterface<BootstrapErrorTestParam> {};
+
+TEST_P(BootstrapErrorTestWithMock, Spec) {
+  const std::string tracefile = get_data_dir().join("bootstrap_gr.js").str();
+  const auto mock_server_port = port_pool_.get_next_available();
+
+  launch_mysql_server_mock(tracefile, mock_server_port, EXIT_SUCCESS, false);
+
+  std::vector<std::string> cmdline = {"--bootstrap=root:"s + kRootPassword +
+                                          "@localhost:"s +
+                                          std::to_string(mock_server_port),
+                                      "-d", bootstrap_dir.name()};
+
+  for (const auto &param : GetParam().bs_params) {
+    cmdline.push_back(param);
+  }
+
+  auto &router = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
+  check_exit_code(router, EXIT_FAILURE);
+
+  // let's check if the expected error was reported:
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::HasSubstr(GetParam().expected_error));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, BootstrapErrorTestWithMock,
+    ::testing::Values(
+        BootstrapErrorTestParam{
+            {"--conf-target-cluster=primary"},
+            "The parameter 'target-cluster' is valid only for Cluster that "
+            "is part of the ClusterSet."},
+
+        BootstrapErrorTestParam{{"--conf-target-cluster-by-name=name"},
+                                "The parameter 'target-cluster-by-name' is "
+                                "valid only for Cluster that "
+                                "is part of the ClusterSet."},
+
+        BootstrapErrorTestParam{{"--conf-bind-address=.foo"},
+                                "Invalid --conf-bind-address value '.foo'"},
+
+        BootstrapErrorTestParam{
+            {"--name=name\n"},
+            "Router name 'name\n' contains invalid characters."},
+
+        BootstrapErrorTestParam{{"--name=system"},
+                                "Router name 'system' is reserved"},
+
+        BootstrapErrorTestParam{
+            {"--name=" + std::string(256, 'a')},
+            "Router name '" +
+                mysql_harness::truncate_string(std::string(256, 'a')) +
+                "' too long (max 255)."},
+
+        BootstrapErrorTestParam{
+            {"--password-retries=abc"},
+            "Configuration error: --password-retries needs value between 1 and "
+            "10000 inclusive, was 'abc'"},
+
+        BootstrapErrorTestParam{
+            {"--password-retries="},
+            "Configuration error: --password-retries needs value between 1 and "
+            "10000 inclusive, was ''"}));
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

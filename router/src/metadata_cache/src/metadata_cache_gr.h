@@ -72,13 +72,6 @@ class METADATA_CACHE_EXPORT GRMetadataCache : public MetadataCache {
 
  private:
   void log_cluster_details() const;
-#ifdef FRIEND_TEST
-  FRIEND_TEST(FailoverTest, basics);
-  FRIEND_TEST(FailoverTest, primary_failover);
-  FRIEND_TEST(MetadataCacheTest2, basic_test);
-  FRIEND_TEST(MetadataCacheTest2, metadata_server_connection_failures);
-  friend class MetadataCacheTest;
-#endif
 };
 
 #endif  // METADATA_CACHE_METADATA_CACHE_GR_INCLUDED

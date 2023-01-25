@@ -2408,6 +2408,54 @@ INSTANTIATE_TEST_SUITE_P(
                                             "GR_V1", ClusterType::GR_V1)),
     get_test_description);
 
+class MetadataServerGRErrorStates
+    : public MetadataChacheTTLTest,
+      public ::testing::WithParamInterface<std::string> {};
+
+/**
+ * @test Checks that the Router correctly handles non-ONLINE GR nodes
+ */
+TEST_P(MetadataServerGRErrorStates, GRErrorStates) {
+  const std::string tracefile =
+      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();
+
+  // launch the server mock
+  const auto md_servers_classic_port = port_pool_.get_next_available();
+  const auto md_servers_http_port = port_pool_.get_next_available();
+  launch_mysql_server_mock(tracefile, md_servers_classic_port, EXIT_SUCCESS,
+                           false, md_servers_http_port);
+
+  std::vector<GRNode> gr_nodes{{md_servers_classic_port, GetParam()}};
+  set_mock_metadata(md_servers_http_port, "uuid", gr_nodes, 0,
+                    classic_ports_to_cluster_nodes({md_servers_classic_port}),
+                    /*primary_id=*/0);
+
+  // launch the router with metadata-cache configuration
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(ClusterType::GR_V2, "0.1");
+  const auto router_rw_port = port_pool_.get_next_available();
+  const std::string routing_rw_section = get_metadata_cache_routing_section(
+      router_rw_port, "PRIMARY", "first-available", "", "rw");
+  auto &router = launch_router(metadata_cache_section, routing_rw_section,
+                               {md_servers_classic_port}, EXIT_SUCCESS,
+                               /*wait_for_notify_ready=*/-1s);
+
+  EXPECT_TRUE(wait_for_transaction_count_increase(md_servers_http_port, 2, 5s));
+
+  const std::string expected_string =
+      "Metadata server 127.0.0.1:" + std::to_string(md_servers_classic_port) +
+      " is not an online GR member - skipping.";
+
+  const std::string log_content = router.get_logfile_content();
+  EXPECT_GE(count_str_occurences(log_content, expected_string), 1)
+      << log_content;
+}
+
+INSTANTIATE_TEST_SUITE_P(GRErrorStates, MetadataServerGRErrorStates,
+                         ::testing::Values("OFFLINE", "UNREACHABLE",
+                                           "RECOVERING", "ERROR", "UNKNOWN", "",
+                                           ".."));
+
 class MetadataCacheChangeClusterName
     : public MetadataChacheTTLTest,
       public ::testing::WithParamInterface<MetadataTTLTestParams> {};

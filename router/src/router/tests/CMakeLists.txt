@@ -141,31 +141,7 @@ SET_TARGET_PROPERTIES(
   PROPERTIES
   COMPILE_DEFINITIONS ROUTER_LIB_STATIC_DEFINE=1)
 
-ADD_HARNESS_TEST_FILE(test_metadata_check.cc
-  MODULE ${TEST_MODULE}
-  LIB_DEPENDS
-    test-helpers mysqlclient
-  EXTRA_SOURCES
-    ../src/common/mysql_session.cc
-    ../src/common/log_filter.cc
-    ../src/common/utils_sqlstring.cc
-    ../src/cluster_metadata.cc
-    ../src/cluster_metadata_instance_attributes.cc
-    ../src/uri.cc
-    ../src/utils.cc
-    ../../../tests/helpers/mysql_session_replayer.cc
-  INCLUDE_DIRS
-    $<TARGET_PROPERTY:router_lib,INCLUDE_DIRECTORIES>
-    ../src/
-    ../../../tests/helpers/
-  SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
-SET_TARGET_PROPERTIES(
-  routertest_${TEST_MODULE}_metadata_check
-  PROPERTIES
-  COMPILE_DEFINITIONS ROUTER_LIB_STATIC_DEFINE=1)
-
 FOREACH(test_file
-    test_cluster_metadata.cc
     test_instance_attributes.cc
     )
   ADD_HARNESS_TEST_FILE(${test_file}
@@ -179,22 +155,12 @@ FOREACH(test_file
       ../src/cluster_metadata.cc
       ../src/uri.cc
       ../src/utils.cc
-      ../../../tests/helpers/mysql_session_replayer.cc
     INCLUDE_DIRS
       $<TARGET_PROPERTY:router_lib,INCLUDE_DIRECTORIES>
       ../src/
       ../../../tests/helpers/
     SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
 ENDFOREACH()
-
-SET_TARGET_PROPERTIES(
-  routertest_${TEST_MODULE}_cluster_metadata
-  PROPERTIES
-  COMPILE_DEFINITIONS ROUTER_LIB_STATIC_DEFINE=1)
-SET_TARGET_PROPERTIES(
-  routertest_${TEST_MODULE}_instance_attributes
-  PROPERTIES
-  COMPILE_DEFINITIONS ROUTER_LIB_STATIC_DEFINE=1)
 
 ADD_HARNESS_TEST_FILE(test_windows_service.cc
   MODULE ${TEST_MODULE}
@@ -217,19 +183,6 @@ SET_TARGET_PROPERTIES(
   PROPERTIES
   COMPILE_DEFINITIONS ROUTER_LIB_STATIC_DEFINE=1)
 
-ADD_HARNESS_TEST_FILE(test_config_generator.cc
-  MODULE ${TEST_MODULE}
-  LIB_DEPENDS
-    test-helpers
-    router_lib
-    router_frontend_lib
-  EXTRA_SOURCES
-    ../../../tests/helpers/filesystem_utils.cc
-    ../../../tests/helpers/mysql_session_replayer.cc
-  INCLUDE_DIRS
-    ../../../tests/helpers/
-    ../src/
-  SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
 
 ADD_HARNESS_TEST_FILE(test_mysqlrouter_app.cc
   MODULE ${TEST_MODULE}
@@ -239,7 +192,6 @@ ADD_HARNESS_TEST_FILE(test_mysqlrouter_app.cc
     router_frontend_lib
   EXTRA_SOURCES
     ../../../tests/helpers/filesystem_utils.cc
-    ../../../tests/helpers/mysql_session_replayer.cc
   INCLUDE_DIRS
     ../../../tests/helpers/
     ../src/
