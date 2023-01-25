@@ -228,8 +228,8 @@ ClientGreetor::server_greeting() {
   auto random_auth_method_data = []() {
     std::random_device rd;
     std::mt19937 gen(rd());
-    // 1..255 ... no \0 chars
-    std::uniform_int_distribution<> distrib(1, 255);
+    // Scrambles defined as 7-bit: 1..127 ... no \0 chars
+    std::uniform_int_distribution<> distrib(1, 127);
 
     std::string scramble;
     scramble.resize(20 + 1);  // 20 random data + [trailing, explicit \0]
