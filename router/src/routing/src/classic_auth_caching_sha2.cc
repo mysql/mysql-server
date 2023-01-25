@@ -57,7 +57,7 @@ AuthCachingSha2Password::send_public_key(Channel *dst_channel,
                                          ClassicProtocolState *dst_protocol,
                                          const std::string &public_key) {
   return ClassicFrame::send_msg<
-      classic_protocol::message::client::AuthMethodData>(
+      classic_protocol::message::server::AuthMethodData>(
       dst_channel, dst_protocol, {public_key});
 }
 
