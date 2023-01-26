@@ -2959,7 +2959,7 @@ bool Query_result_update::send_eof(THD *thd) {
 bool Sql_cmd_update::accept(THD *thd, Select_lex_visitor *visitor) {
   Query_block *const select = thd->lex->query_block;
   // Update tables
-  if (select->m_table_list.elements != 0 &&
+  if (select->has_tables() &&
       accept_for_join(select->m_current_table_nest, visitor))
     return true;
 
