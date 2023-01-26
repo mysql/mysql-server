@@ -35,6 +35,7 @@ IF(WITH_INNODB_MEMCACHED AND UNIX)
   STRING_APPEND(CMAKE_C_FLAGS " -Wno-unused-parameter")
   STRING_APPEND(CMAKE_C_FLAGS " -Wno-unused-variable")
   STRING_APPEND(CMAKE_C_FLAGS " -Wno-vla")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-deprecated-declarations")
 
   MY_CHECK_C_COMPILER_FLAG("-Wduplicate-decl-specifier"
     HAVE_DUPLICATE_DECL_SPECIFIER)

@@ -86,7 +86,7 @@ ENDIF()
 
 MYSQL_ADD_PLUGIN(libmemcached ${MEMCACHED_SOURCES}
   LINK_LIBRARIES
-  ${LIBEVENT_LIBRARIES}
+  ext::libevent
   memcached_utilities
   ${MEMCACHED_SASL_LIBRARY}
   MODULE_ONLY MODULE_OUTPUT_NAME "libmemcached")
