@@ -5565,6 +5565,9 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
       // is broader than the ORDER BY clause.
       for (const SortAheadOrdering &sort_ahead_ordering :
            sort_ahead_orderings) {
+        if (sort_ahead_ordering.sort_ahead_only) {
+          continue;
+        }
         LogicalOrderings::StateIndex ordering_state = orderings.ApplyFDs(
             orderings.SetOrder(sort_ahead_ordering.ordering_idx), fd_set);
         // A broader DISTINCT could help elide ORDER BY. Not vice versa. Note
@@ -5574,9 +5577,8 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         if (sort_ahead_ordering.ordering_idx == distinct_ordering_idx) {
           // The ordering derived from DISTINCT. Always propose this one,
           // regardless of whether it also satisfies the ORDER BY ordering.
-        } else if (grouping.GetElements().size() <
+        } else if (grouping.size() <
                    orderings.ordering(sort_ahead_ordering.ordering_idx)
-                       .GetElements()
                        .size()) {
           // This sort-ahead ordering is too wide and may cause duplicates to be
           // returned. Don't propose it.
@@ -5759,6 +5761,9 @@ static int FindBestOrderingForWindow(
   bool best_following_both_orders = false;
   int best_num_matching_windows = 0;
   for (size_t i = 0; i < sort_ahead_orderings.size(); ++i) {
+    if (sort_ahead_orderings[i].sort_ahead_only) {
+      continue;
+    }
     const int ordering_idx = sort_ahead_orderings[i].ordering_idx;
     LogicalOrderings::StateIndex ordering_state =
         orderings.ApplyFDs(orderings.SetOrder(ordering_idx), fd_set);
