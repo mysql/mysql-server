@@ -35,8 +35,8 @@ ADD_LIBRARY(http_common
 TARGET_LINK_LIBRARIES(http_common
   PUBLIC
   harness_tls
+  ext::libevent
   PRIVATE
-  ${LIBEVENT_LIBRARIES}
   ${SSL_LIBRARIES}
   )
 TARGET_INCLUDE_DIRECTORIES(http_common
@@ -183,7 +183,6 @@ ADD_LIBRARY(http_client
   rest_client.cc
   )
 TARGET_LINK_LIBRARIES(http_client
-  ${LIBEVENT_LIBRARIES}
   ${LIBRT}
   http_common)
 
@@ -225,7 +224,6 @@ MYSQL_ADD_EXECUTABLE(mysqlrouter_passwd
   )
 ADD_INSTALL_RPATH(mysqlrouter_passwd "${ROUTER_INSTALL_RPATH}")
 
-MY_INCLUDE_SYSTEM_DIRECTORIES(LIBEVENT)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/harness/include/)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/router/include/)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/metadata_cache/include/)
