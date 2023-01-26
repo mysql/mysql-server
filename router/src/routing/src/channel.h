@@ -165,25 +165,15 @@ class Channel {
   stdx::expected<size_t, std::error_code> read_to_plain(size_t sz);
 
   /**
-   * write raw data from a net::const_buffer to the channel.
-   */
-  stdx::expected<size_t, std::error_code> write_encrypted(
-      const net::const_buffer &b);
-
-  /**
    * write unencrypted data from a net::const_buffer to the channel.
    *
-   * if the channel has an ssl session it transparently encrypts before
-   * the data is appended to the send_buf()
+   * call flush_to_send_buf() ensure data is written to the
+   * send-buffers for the socket.
+   *
+   * @see flush_to_send_buf()
    */
   stdx::expected<size_t, std::error_code> write_plain(
       const net::const_buffer &b);
-
-  /**
-   * read raw data from recv_buffer() into b.
-   */
-  stdx::expected<size_t, std::error_code> read_encrypted(
-      const net::mutable_buffer &b);
 
   /**
    * read plaintext data from recv_plain_buffer() into b.
@@ -229,22 +219,24 @@ class Channel {
 
   /**
    * buffer of data that was received from the socket.
-   *
-   * written into by write(), write_plain(), write_encrypted().
    */
   recv_buffer_type &recv_buffer() { return recv_buffer_; }
 
   /**
    * buffer of data to be sent to the socket.
    *
-   * written into by write(), write_plain(), write_encrypted().
+   * written into by write(), write_plain(), flush_to_send_buf().
    */
   recv_buffer_type &send_buffer() { return send_buffer_; }
 
   /**
+   * unencrypted data to be sent to the socket.
+   */
+  recv_buffer_type &send_plain_buffer();
+
+  /**
    * buffer of data that was received from the socket.
    *
-   * written into by write(), write_plain(), write_encrypted().
    */
   const recv_buffer_type &recv_buffer() const { return recv_buffer_; }
 
@@ -255,8 +247,6 @@ class Channel {
 
   /**
    * buffer of data to be sent to the socket.
-   *
-   * written into by write(), write_plain(), write_encrypted().
    */
   const recv_buffer_type &send_buffer() const { return send_buffer_; }
 
@@ -321,6 +311,8 @@ class Channel {
   recv_view_type recv_view_;
   recv_buffer_type recv_plain_buffer_;
   recv_view_type recv_plain_view_;
+
+  recv_buffer_type send_plain_buffer_;
   recv_buffer_type send_buffer_;
 
   bool is_tls_{false};

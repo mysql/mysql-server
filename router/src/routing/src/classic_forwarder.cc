@@ -184,8 +184,6 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
 #endif
   }
 
-  dst_channel->flush_to_send_buf();
-
   return src_side_is_done;
 }
 
@@ -209,19 +207,16 @@ forward_frame_sequence(Channel *src_channel, ClassicProtocolState *src_protocol,
     return forward_res.get_unexpected();
   }
 
-  // if forward-frame succeeded, then the send-buffer should be all sent.
-  if (dst_channel->send_buffer().empty()) {
+  // if forward-frame succeeded, the send-plain-buffer should contain some data
+  if (dst_channel->send_plain_buffer().empty()) {
     log_debug("%d: %s", __LINE__, "send-buffer is empty.");
 
     return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   const auto src_is_done = forward_res.value();
-  if (src_is_done) {
-    return Forwarder::ForwardResult::kFinished;
-  } else {
-    return Forwarder::ForwardResult::kWantSendDestination;
-  }
+  return src_is_done ? Forwarder::ForwardResult::kFinished
+                     : Forwarder::ForwardResult::kWantSendDestination;
 }
 
 stdx::expected<Processor::Result, std::error_code>
@@ -254,7 +249,7 @@ ServerToClientForwarder::forward() {
       stage(Stage::Done);
 
       auto *socket_splicer = connection()->socket_splicer();
-      auto dst_channel = socket_splicer->client_channel();
+      auto *dst_channel = socket_splicer->client_channel();
 
       // if flush is optional and send-buffer is not too full, skip the flush.
       //
@@ -265,16 +260,20 @@ ServerToClientForwarder::forward() {
       // resultset.
       // - buffering less: faster forwarding of smaller packets if the server
       // is send to generate packets.
+      //
+      // 64k is 4 TLS frames.
       constexpr const size_t kForceFlushAfterBytes{64UL * 1024};
 
       if (flush_before_next_func_optional_ &&
-          dst_channel->send_buffer().size() < kForceFlushAfterBytes) {
+          dst_channel->send_plain_buffer().size() < kForceFlushAfterBytes) {
         return Result::Again;
-      } else if (dst_channel->send_buffer().empty()) {
-        return Result::Again;
-      } else {
-        return Result::SendToClient;
       }
+
+      // encrypt if there is something to encrypt.
+      dst_channel->flush_to_send_buf();
+
+      return dst_channel->send_buffer().empty() ? Result::Again
+                                                : Result::SendToClient;
     }
   }
 
@@ -308,12 +307,10 @@ ClientToServerForwarder::process() {
 stdx::expected<Processor::Result, std::error_code>
 ClientToServerForwarder::forward() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto dst_channel = socket_splicer->server_channel();
+  auto *dst_channel = socket_splicer->server_channel();
 
   auto forward_res = forward_frame_sequence();
-  if (!forward_res) {
-    return recv_client_failed(forward_res.error());
-  }
+  if (!forward_res) return recv_client_failed(forward_res.error());
 
   switch (forward_res.value()) {
     case ForwardResult::kWantRecvSource:
@@ -327,11 +324,11 @@ ClientToServerForwarder::forward() {
     case ForwardResult::kFinished:
       stage(Stage::Done);
 
-      if (dst_channel->send_buffer().empty()) {
-        return Result::Again;
-      } else {
-        return Result::SendToServer;
-      }
+      // encrypt the plaintext data if needed.
+      dst_channel->flush_to_send_buf();
+
+      return dst_channel->send_buffer().empty() ? Result::Again
+                                                : Result::SendToServer;
   }
 
   harness_assert_this_should_not_execute();

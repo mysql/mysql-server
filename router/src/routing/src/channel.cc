@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <cassert>
 
+#include <openssl/bio.h>
 #include <openssl/ssl.h>
 
 #include "mysql/harness/net_ts/buffer.h"
@@ -71,75 +72,13 @@ stdx::expected<bool, std::error_code> Channel::tls_shutdown() {
 
 stdx::expected<size_t, std::error_code> Channel::write_plain(
     const net::const_buffer &b) {
-  if (ssl_) {
-    const auto res = SSL_write(ssl_.get(), b.data(), b.size());
-    if (res <= 0) {
-      return stdx::make_unexpected(make_tls_ssl_error(ssl_.get(), res));
-    }
+  // append to write_buffer
+  auto dyn_buf = net::dynamic_buffer(send_plain_buffer());
 
-    return res;
-  } else {
-    // append to write_buffer
-    auto dyn_buf = net::dynamic_buffer(this->send_buffer());
+  auto orig_size = dyn_buf.size();
+  dyn_buf.grow(b.size());
 
-    auto orig_size = dyn_buf.size();
-    dyn_buf.grow(b.size());
-
-    return net::buffer_copy(dyn_buf.data(orig_size, b.size()), b);
-  }
-}
-
-stdx::expected<size_t, std::error_code> Channel::read_encrypted(
-    const net::mutable_buffer &b) {
-  if (ssl_) {
-    auto wbio = SSL_get_wbio(ssl_.get());
-
-    const auto res = BIO_read(wbio, b.data(), b.size());
-    if (res < 0) {
-      if (BIO_should_retry(wbio)) {
-        return stdx::make_unexpected(
-            make_error_code(std::errc::operation_would_block));
-      } else {
-        return stdx::make_unexpected(
-            make_error_code(std::errc::invalid_argument));
-      }
-    }
-
-    return res;
-  } else {
-    // read from send_buffer
-    auto dyn_buf = net::dynamic_buffer(this->send_buffer());
-
-    auto orig_size = dyn_buf.size();
-    dyn_buf.grow(b.size());
-
-    net::buffer_copy(dyn_buf.data(orig_size, b.size()), b);
-
-    return b.size();
-  }
-}
-
-stdx::expected<size_t, std::error_code> Channel::write_encrypted(
-    const net::const_buffer &b) {
-  if (ssl_) {
-    auto rbio = SSL_get_rbio(ssl_.get());
-
-    const auto res = BIO_write(rbio, b.data(), b.size());
-    if (res < 0) {
-      return stdx::make_unexpected(
-          make_error_code(std::errc::operation_would_block));
-    }
-
-    return res;
-  } else {
-    // append to recv-buffer
-    auto dyn_buf = net::dynamic_buffer(this->recv_buffer());
-
-    auto orig_size = dyn_buf.size();
-    dyn_buf.grow(b.size());
-
-    return net::buffer_copy(dyn_buf.data(orig_size, b.size()), b);
-  }
+  return net::buffer_copy(dyn_buf.data(orig_size, b.size()), b);
 }
 
 stdx::expected<size_t, std::error_code> Channel::read_plain(
@@ -172,23 +111,27 @@ stdx::expected<size_t, std::error_code> Channel::flush_from_recv_buf() {
 
     view_discard_raw();
 
+    auto rbio = SSL_get_rbio(ssl_.get());
+
     size_t transferred{};
 
     auto dyn_buf = net::dynamic_buffer(recv_buf);
     while (dyn_buf.size() != 0) {
       const auto orig_size = dyn_buf.size();
-      const auto res = write_encrypted(dyn_buf.data(0, orig_size));
 
-      if (!res) {
-        if (res.error() == std::errc::operation_would_block &&
-            transferred != 0) {
-          return transferred;
-        }
-        return res;
+      auto buf = dyn_buf.data(0, orig_size);
+
+      const auto bio_res = BIO_write(rbio, buf.data(), buf.size());
+      if (bio_res < 0) {
+        if (transferred != 0) return transferred;
+
+        return stdx::make_unexpected(
+            make_error_code(std::errc::operation_would_block));
       }
-      dyn_buf.consume(res.value());
 
-      transferred += res.value();
+      dyn_buf.consume(bio_res);
+
+      transferred += bio_res;
 
       // recv-buffer changed, update the view.
       view_sync_raw();
@@ -201,34 +144,70 @@ stdx::expected<size_t, std::error_code> Channel::flush_from_recv_buf() {
 }
 
 stdx::expected<size_t, std::error_code> Channel::flush_to_send_buf() {
-  if (ssl_) {
-    auto dyn_buf = net::dynamic_buffer(this->send_buffer());
+  // if this is non-ssl channel, no bytes get copied from send_plain_buffer() to
+  // send_buffer()
+  if (!ssl_) return 0;
 
-    size_t transferred{};
+  //
+  // if there is plaintext data, encrypt it ...
+  //
 
-    while (true) {
-      const auto orig_size = dyn_buf.size();
-      const auto grow_size = 16 * 1024;  // a TLS frame
+  if (!this->send_plain_buffer_.empty()) {
+    // encode the plaintext data
+    auto &buf = this->send_plain_buffer_;
 
-      dyn_buf.grow(grow_size);
+    const auto spn = net::buffer(buf);
 
-      const auto res = read_encrypted(dyn_buf.data(orig_size, grow_size));
-      if (!res) {
-        dyn_buf.shrink(grow_size);
-        if ((res.error() ==
-             make_error_condition(std::errc::operation_would_block)) &&
-            transferred != 0) {
-          return transferred;
-        }
-        return res;
-      }
-      dyn_buf.shrink(grow_size - res.value());
-
-      transferred += res.value();
+    const auto res = SSL_write(ssl_.get(), spn.data(), spn.size());
+    if (res <= 0) {
+      return stdx::make_unexpected(make_tls_ssl_error(ssl_.get(), res));
     }
-  } else {
-    return this->send_buffer().size();
+
+    // remove the data that has been sent.
+    net::dynamic_buffer(buf).consume(res);
   }
+
+  //
+  // ... and if there is encrypted data, move it to the socket's send-buffer.
+  //
+
+  auto *wbio = SSL_get_wbio(ssl_.get());
+
+  size_t transferred{};
+
+  // check if there is encrypted data waiting.
+  while (const auto pending = BIO_pending(wbio)) {
+    auto dyn_buf = net::dynamic_buffer(this->send_buffer());
+    const auto orig_size = dyn_buf.size();
+    const auto grow_size = pending;
+
+    // append encrypted data to the send-buffer.
+    dyn_buf.grow(grow_size);
+    auto buf = dyn_buf.data(orig_size, grow_size);
+
+    const auto bio_res = BIO_read(wbio, buf.data(), buf.size());
+    if (bio_res < 0) {
+      dyn_buf.shrink(grow_size);
+
+      if (!BIO_should_retry(wbio)) {
+        return stdx::make_unexpected(
+            make_error_code(std::errc::invalid_argument));
+      }
+
+      if (transferred != 0) return transferred;
+
+      return stdx::make_unexpected(
+          make_error_code(std::errc::operation_would_block));
+    }
+
+    assert(bio_res != 0);
+
+    dyn_buf.shrink(grow_size - bio_res);
+
+    transferred += bio_res;
+  }
+
+  return transferred;
 }
 
 stdx::expected<size_t, std::error_code> Channel::read_to_plain(size_t sz) {
@@ -278,6 +257,10 @@ stdx::expected<size_t, std::error_code> Channel::read_to_plain(size_t sz) {
   flush_to_send_buf();
 
   return bytes_read;
+}
+
+Channel::recv_buffer_type &Channel::send_plain_buffer() {
+  return ssl_ ? send_plain_buffer_ : send_buffer_;
 }
 
 const Channel::recv_view_type &Channel::recv_view() const { return recv_view_; }
