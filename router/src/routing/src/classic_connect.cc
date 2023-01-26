@@ -689,10 +689,10 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::error() {
   connection()->client_greeting_sent(true);
   connection()->authenticated(false);
 
-  const auto send_res =
-      ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-          dst_channel, dst_protocol,
-          {2003, "Can't connect to remote MySQL server"});
+  const auto send_res = ClassicFrame::send_msg<
+      classic_protocol::borrowed::message::server::Error>(
+      dst_channel, dst_protocol,
+      {2003, "Can't connect to remote MySQL server"});
   if (!send_res) return send_client_failed(send_res.error());
 
   stage(Stage::Done);

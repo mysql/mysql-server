@@ -73,9 +73,10 @@ stdx::expected<Processor::Result, std::error_code> AuthNativeSender::init() {
     tr.trace(Tracer::Event().stage("native::sender::scrambled_password"));
   }
 
-  auto send_res =
-      ClassicFrame::send_msg<classic_protocol::message::client::AuthMethodData>(
-          dst_channel, dst_protocol, {*scramble_res});
+  auto send_res = ClassicFrame::send_msg(
+      dst_channel, dst_protocol,
+      classic_protocol::borrowed::message::client::AuthMethodData{
+          *scramble_res});
   if (!send_res) return send_server_failed(send_res.error());
 
   stage(Stage::Response);
@@ -178,9 +179,8 @@ stdx::expected<Processor::Result, std::error_code> AuthNativeForwarder::init() {
   }
 
   auto send_res = ClassicFrame::send_msg<
-      classic_protocol::message::server::AuthMethodSwitch>(
-      dst_channel, dst_protocol,
-      {std::string(Auth::kName), initial_server_auth_data_});
+      classic_protocol::borrowed::message::server::AuthMethodSwitch>(
+      dst_channel, dst_protocol, {Auth::kName, initial_server_auth_data_});
   if (!send_res) return send_client_failed(send_res.error());
 
   stage(Stage::ClientData);

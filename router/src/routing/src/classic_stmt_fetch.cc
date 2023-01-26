@@ -74,10 +74,10 @@ StmtFetchProcessor::command() {
     //   server.
     discard_current_msg(src_channel, src_protocol);
 
-    auto send_res = ClassicFrame::send_msg(
+    auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Error>(
         src_channel, src_protocol,
-        classic_protocol::message::server::Error{
-            ER_UNKNOWN_STMT_HANDLER, "Unknown prepared statement id", "HY000"},
+        {ER_UNKNOWN_STMT_HANDLER, "Unknown prepared statement id", "HY000"},
         src_protocol->shared_capabilities());
     if (!send_res) return send_client_failed(send_res.error());
 

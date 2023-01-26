@@ -72,10 +72,10 @@ StmtResetProcessor::command() {
       tr.trace(Tracer::Event().stage("stmt_reset::error"));
     }
 
-    auto send_res =
-        ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-            src_channel, src_protocol,
-            {1243, "Unknown prepared statement handler", "HY000"});
+    auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Error>(
+        src_channel, src_protocol,
+        {1243, "Unknown prepared statement handler", "HY000"});
     if (!send_res) return send_client_failed(send_res.error());
 
     stage(Stage::Done);

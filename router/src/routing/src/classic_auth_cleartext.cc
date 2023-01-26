@@ -80,9 +80,9 @@ stdx::expected<Processor::Result, std::error_code> AuthCleartextSender::init() {
   auto dst_channel = socket_splicer->server_channel();
   auto dst_protocol = connection()->server_protocol();
 
-  auto send_res =
-      ClassicFrame::send_msg<classic_protocol::message::client::AuthMethodData>(
-          dst_channel, dst_protocol, {password_});
+  auto send_res = ClassicFrame::send_msg(
+      dst_channel, dst_protocol,
+      classic_protocol::borrowed::message::client::AuthMethodData{password_});
   if (!send_res) return send_server_failed(send_res.error());
 
   if (auto &tr = tracer()) {
@@ -186,9 +186,8 @@ AuthCleartextForwarder::init() {
   }
 
   auto send_res = ClassicFrame::send_msg<
-      classic_protocol::message::server::AuthMethodSwitch>(
-      dst_channel, dst_protocol,
-      {std::string(Auth::kName), initial_server_auth_data_});
+      classic_protocol::borrowed::message::server::AuthMethodSwitch>(
+      dst_channel, dst_protocol, {Auth::kName, initial_server_auth_data_});
   if (!send_res) return send_client_failed(send_res.error());
 
   stage(Stage::ClientData);
@@ -202,9 +201,9 @@ AuthCleartextForwarder::client_data() {
   auto src_channel = socket_splicer->client_channel();
   auto src_protocol = connection()->client_protocol();
 
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::client::AuthMethodData>(
-          src_channel, src_protocol);
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::client::AuthMethodData>(
+      src_channel, src_protocol);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
   if (auto &tr = tracer()) {

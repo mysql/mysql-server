@@ -30,7 +30,42 @@
 
 namespace classic_protocol {
 
+namespace borrowable {
 namespace wire {
+
+template <bool Borrowed>
+class String {
+ public:
+  using value_type =
+      std::conditional_t<Borrowed, std::string_view, std::string>;
+
+  constexpr String() = default;
+  constexpr String(value_type str) : str_{std::move(str)} {}
+
+  constexpr value_type value() const { return str_; }
+
+ private:
+  value_type str_;
+};
+
+template <bool Borrowed>
+inline bool operator==(const String<Borrowed> &lhs,
+                       const String<Borrowed> &rhs) {
+  return lhs.value() == rhs.value();
+}
+
+template <bool Borrowed>
+class NulTermString : public String<Borrowed> {
+ public:
+  using String<Borrowed>::String;
+};
+
+template <bool Borrowed>
+class VarString : public String<Borrowed> {
+ public:
+  using String<Borrowed>::String;
+};
+
 // basic POD types of the mysql classic-protocol's wire encoding:
 //
 // - fixed size integers
@@ -96,34 +131,36 @@ class FixedInt<8> : public BasicInt<uint64_t> {
   using BasicInt::BasicInt;
 };
 
-class String {
- public:
-  String() = default;
-  String(std::string str) : str_{std::move(str)} {}
-
-  std::string value() const { return str_; }
-
- private:
-  std::string str_;
-};
-
-inline bool operator==(const String &lhs, const String &rhs) {
-  return lhs.value() == rhs.value();
-}
-
-class NulTermString : public String {
- public:
-  using String::String;
-};
-
-class VarString : public String {
- public:
-  using String::String;
-};
-
 class Null {};
-
 }  // namespace wire
+}  // namespace borrowable
+
+namespace borrowed {
+namespace wire {
+
+using String = borrowable::wire::String<true>;
+using NulTermString = borrowable::wire::NulTermString<true>;
+using VarString = borrowable::wire::VarString<true>;
+using Null = borrowable::wire::Null;
+template <int Size>
+using FixedInt = borrowable::wire::FixedInt<Size>;
+using VarInt = borrowable::wire::VarInt;
+}  // namespace wire
+}  // namespace borrowed
+
+namespace wire {
+
+using String = borrowable::wire::String<false>;
+using NulTermString = borrowable::wire::NulTermString<false>;
+using VarString = borrowable::wire::VarString<false>;
+using Null = borrowable::wire::Null;
+
+template <int Size>
+using FixedInt = borrowable::wire::FixedInt<Size>;
+
+using VarInt = borrowable::wire::VarInt;
+}  // namespace wire
+
 }  // namespace classic_protocol
 
 #endif

@@ -33,6 +33,56 @@
 
 namespace cl = classic_protocol;
 
+void Query_Decode_Borrowed(size_t iter) {
+  using Msg = cl::borrowed::message::client::Query;
+  using Frm = cl::frame::Frame<Msg>;
+
+  Frm frm{static_cast<uint8_t>(iter), {"foo"}};
+
+  constexpr auto ar_size =
+#if 0
+      cl::Codec<Frm>({0, {"foo"}}, {}).size()
+#else
+      4 + 1 + 3
+#endif
+      ;
+  static_assert(ar_size == 4 + 1 + 3);
+  std::array<std::byte, 4 + 1 + 3> enc_buf{};
+
+  // encode once, decode often.
+  auto enc_res = cl::Codec<Frm>(frm, {}).encode(net::buffer(enc_buf));
+  if (!enc_res) abort();
+  if (*enc_res != 4 + 1 + 3) abort();
+
+  while ((iter--) != 0) {
+    auto dec_res = cl::Codec<Frm>::decode(net::buffer(enc_buf), {});
+    if (!dec_res) abort();
+  }
+}
+
+void Query_Encode_Borrowed(size_t iter) {
+  using Msg = cl::borrowed::message::client::Query;
+  using Frm = cl::frame::Frame<Msg>;
+
+  while ((iter--) != 0) {
+    Frm frm{static_cast<uint8_t>(iter), {"foo"}};
+    constexpr auto ar_size =
+#if 0
+        cl::Codec<Frm>({0, {"foo"}}, {}).size()
+#else
+        4 + 1 + 3
+#endif
+        ;
+    static_assert(ar_size == 4 + 1 + 3);
+
+    std::array<std::byte, 4 + 1 + 3> enc_buf{};
+
+    auto res = cl::Codec<Frm>(frm, {}).encode(net::buffer(enc_buf));
+    if (!res) abort();
+    if (*res != 4 + 1 + 3) abort();
+  }
+}
+
 void Query_Decode(size_t iter) {
   using Msg = cl::message::client::Query;
   using Frm = cl::frame::Frame<Msg>;
@@ -112,6 +162,8 @@ BENCHMARK(Quit_Encode)
 BENCHMARK(Ping_Encode)
 BENCHMARK(Query_Encode)
 BENCHMARK(Query_Decode)
+BENCHMARK(Query_Encode_Borrowed)
+BENCHMARK(Query_Decode_Borrowed)
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);

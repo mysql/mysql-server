@@ -58,7 +58,8 @@ MysqlRoutingClassicConnectionBase::encode_error_packet(
     const uint16_t error_code, const std::string &msg,
     const std::string &sql_state) {
   return classic_protocol::encode(
-      classic_protocol::frame::Frame<classic_protocol::message::server::Error>(
+      classic_protocol::frame::Frame<
+          classic_protocol::borrowed::message::server::Error>(
           seq_id, {error_code, msg, sql_state}),
       caps, net::dynamic_buffer(error_frame));
 }
@@ -69,7 +70,7 @@ encode_server_side_client_greeting(
     const classic_protocol::capabilities::value_type &shared_capabilities) {
   return classic_protocol::encode(
       classic_protocol::frame::Frame<
-          classic_protocol::message::client::Greeting>(
+          classic_protocol::borrowed::message::client::Greeting>(
           seq_id,
           {
               {},                                            // caps
@@ -447,9 +448,9 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
     classic_protocol::capabilities::value_type caps,
     bool ignore_some_state_changed) {
   do {
-    auto decode_session_res =
-        classic_protocol::decode<classic_protocol::session_track::Field>(
-            session_trackers, caps);
+    auto decode_session_res = classic_protocol::decode<
+        classic_protocol::borrowed::session_track::Field>(session_trackers,
+                                                          caps);
     if (!decode_session_res) {
       return decode_session_res.get_unexpected();
     }
@@ -475,7 +476,7 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
     switch (Type{decode_session_res->second.type()}) {
       case Type::SystemVariable: {
         auto decode_value_res = classic_protocol::decode<
-            classic_protocol::session_track::SystemVariable>(
+            classic_protocol::borrowed::session_track::SystemVariable>(
             net::buffer(decode_session_res->second.data()), caps);
         if (!decode_value_res) {
           // ignore errors?
@@ -488,19 +489,20 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
               << "SET @@SESSION." << kv.key() << " = " << quoted(kv.value())
               << ";";
 
-          exec_ctx_.system_variables().set(kv.key(), Value(kv.value()));
+          exec_ctx_.system_variables().set(std::string(kv.key()),
+                                           Value(std::string(kv.value())));
 
           trace(Tracer::Event().stage(oss.str()));
         }
       } break;
       case Type::Schema: {
-        auto decode_value_res =
-            classic_protocol::decode<classic_protocol::session_track::Schema>(
-                net::buffer(decode_session_res->second.data()), caps);
+        auto decode_value_res = classic_protocol::decode<
+            classic_protocol::borrowed::session_track::Schema>(
+            net::buffer(decode_session_res->second.data()), caps);
         if (!decode_value_res) {
           // ignore errors?
         } else {
-          std::string schema = decode_value_res->second.schema();
+          auto schema = std::string(decode_value_res->second.schema());
 
           std::ostringstream oss;
 
@@ -513,9 +515,9 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
         }
       } break;
       case Type::State: {
-        auto decode_value_res =
-            classic_protocol::decode<classic_protocol::session_track::State>(
-                net::buffer(decode_session_res->second.data()), caps);
+        auto decode_value_res = classic_protocol::decode<
+            classic_protocol::borrowed::session_track::State>(
+            net::buffer(decode_session_res->second.data()), caps);
         if (!decode_value_res) {
           // ignore errors?
         } else {
@@ -534,9 +536,9 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
         }
       } break;
       case Type::Gtid: {
-        auto decode_value_res =
-            classic_protocol::decode<classic_protocol::session_track::Gtid>(
-                net::buffer(decode_session_res->second.data()), caps);
+        auto decode_value_res = classic_protocol::decode<
+            classic_protocol::borrowed::session_track::Gtid>(
+            net::buffer(decode_session_res->second.data()), caps);
         if (!decode_value_res) {
           // ignore errors?
         } else {
@@ -553,7 +555,7 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
       } break;
       case Type::TransactionState: {
         auto decode_value_res = classic_protocol::decode<
-            classic_protocol::session_track::TransactionState>(
+            classic_protocol::borrowed::session_track::TransactionState>(
             net::buffer(decode_session_res->second.data()), caps);
         if (!decode_value_res) {
           // ignore errors?
@@ -664,15 +666,17 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
         }
       } break;
       case Type::TransactionCharacteristics: {
-        auto decode_value_res = classic_protocol::decode<
-            classic_protocol::session_track::TransactionCharacteristics>(
-            net::buffer(decode_session_res->second.data()), caps);
+        auto decode_value_res =
+            classic_protocol::decode<classic_protocol::borrowed::session_track::
+                                         TransactionCharacteristics>(
+                net::buffer(decode_session_res->second.data()), caps);
         if (!decode_value_res) {
           // ignore errors?
         } else {
           auto trx_characteristics = decode_value_res->second;
 
-          trx_characteristics_ = trx_characteristics;
+          trx_characteristics_ = {
+              std::string(trx_characteristics.characteristics())};
 
           std::ostringstream oss;
 
