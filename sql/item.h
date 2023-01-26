@@ -5745,7 +5745,7 @@ class Item_ref : public Item_ident {
     return 0;
   }
   void update_used_tables() override {
-    if (depended_from != nullptr) ref_item()->update_used_tables();
+    if (depended_from == nullptr) ref_item()->update_used_tables();
     /*
       Reset all flags except rollup, since we do not mark the rollup expression
       itself.
