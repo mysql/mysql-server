@@ -319,6 +319,12 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
       update_cluster_metadata();
     }
 
+    if (id < gr_nodes_count_) {
+      gr_nodes_count_--;
+    } else {
+      read_replica_nodes_count_--;
+    }
+
     return result;
   }
 
@@ -354,6 +360,7 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
       cluster_nodes_.insert(cluster_nodes_.begin() + *position, node);
     }
 
+    read_replica_nodes_count_++;
     if (update_metadata) update_cluster_metadata();
   }
 
@@ -381,6 +388,42 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
       if (node.instance_type != "read-replica") {
         result.emplace_back(node.classic_port);
       }
+    }
+
+    return result;
+  }
+
+  std::vector<std::uint16_t> get_gr_rw_classic_ports() const {
+    if (gr_nodes_count_ == 0) {
+      return {};
+    }
+    return {cluster_nodes_[0].classic_port};
+  }
+
+  std::vector<std::uint16_t> get_gr_ro_classic_ports() const {
+    std::vector<std::uint16_t> result;
+    for (size_t i = 1; i < gr_nodes_count_; ++i) {
+      result.push_back(cluster_nodes_[i].classic_port);
+    }
+
+    return result;
+  }
+
+  std::vector<std::uint16_t> get_read_replicas_classic_ports() const {
+    std::vector<std::uint16_t> result;
+    for (size_t i = gr_nodes_count_;
+         i < gr_nodes_count_ + read_replica_nodes_count_; ++i) {
+      result.push_back(cluster_nodes_[i].classic_port);
+    }
+
+    return result;
+  }
+
+  // both GR RO and read replicas
+  std::vector<std::uint16_t> get_all_ro_classic_ports() const {
+    std::vector<std::uint16_t> result;
+    for (size_t i = 1; i < gr_nodes_count_ + read_replica_nodes_count_; ++i) {
+      result.push_back(cluster_nodes_[i].classic_port);
     }
 
     return result;
@@ -525,7 +568,7 @@ TEST_F(ReadReplicaTest, ReadReplicaModeChanges) {
 
   change_read_replicas_mode("replace");
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // replace
   for (size_t i = 0; i <= 2 * replica_nodes_count; i++) {
@@ -536,7 +579,7 @@ TEST_F(ReadReplicaTest, ReadReplicaModeChanges) {
 
   change_read_replicas_mode("ignore");
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // ignore
   for (size_t i = 0; i <= gr_nodes_count; i++) {
@@ -547,7 +590,7 @@ TEST_F(ReadReplicaTest, ReadReplicaModeChanges) {
 
   change_read_replicas_mode(std::nullopt);
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // unset defaults to "ignore"
   for (size_t i = 0; i <= gr_nodes_count; i++) {
@@ -558,7 +601,7 @@ TEST_F(ReadReplicaTest, ReadReplicaModeChanges) {
 
   change_read_replicas_mode("");
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // empty defaults to "ignore"
   for (size_t i = 0; i <= gr_nodes_count; i++) {
@@ -575,7 +618,7 @@ TEST_F(ReadReplicaTest, ReadReplicaModeChanges) {
 
   change_read_replicas_mode("foo");
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // unrecognised defaults to "ignore"
   for (size_t i = 0; i <= gr_nodes_count; i++) {
@@ -593,7 +636,7 @@ TEST_F(ReadReplicaTest, ReadReplicaModeChanges) {
   // set back valid mode
   change_read_replicas_mode("append");
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
   check_log_contains(&router, "Using read_replicas_mode='append'", 2);
 
   // make sure Read Replicas were NOT added to the state file as a metadata
@@ -608,10 +651,11 @@ TEST_F(ReadReplicaTest, ReadReplicaModeChanges) {
  * are handled properly when there is only single GR node (RW).
  */
 TEST_F(ReadReplicaTest, ReadReplicaModeChangesGRWithOnlyRWNode) {
-  const unsigned gr_nodes_count = 1;
-  unsigned read_replica_nodes_count = 0;
+  const unsigned initial_gr_nodes_count = 1;
+  const unsigned initial_read_replica_nodes_count = 0;
 
-  create_gr_cluster(gr_nodes_count, read_replica_nodes_count, "append");
+  create_gr_cluster(initial_gr_nodes_count, initial_read_replica_nodes_count,
+                    "append");
   launch_router();
 
   make_new_connection_ok(router_port_rw, cluster_nodes_[0].classic_port);
@@ -619,19 +663,18 @@ TEST_F(ReadReplicaTest, ReadReplicaModeChangesGRWithOnlyRWNode) {
 
   // add Read Replica node to the Cluster
   add_read_replica_node();
-  read_replica_nodes_count++;
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // check it is used for RO connections
   make_new_connection_ok(router_port_rw);
-  for (size_t i = 0; i < read_replica_nodes_count; i++) {
+  for (size_t i = 0; i < read_replica_nodes_count_; i++) {
     make_new_connection_ok(router_port_ro, cluster_nodes_[1].classic_port);
   }
 
   change_read_replicas_mode("ignore");
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   make_new_connection_ok(router_port_rw, cluster_nodes_[0].classic_port);
   // no RO connection should be possible now
@@ -639,11 +682,11 @@ TEST_F(ReadReplicaTest, ReadReplicaModeChangesGRWithOnlyRWNode) {
 
   change_read_replicas_mode("replace");
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   make_new_connection_ok(router_port_rw, cluster_nodes_[0].classic_port);
   // RO connections should be possible again
-  for (size_t i = 0; i < 2 * read_replica_nodes_count; i++) {
+  for (size_t i = 0; i < 2 * read_replica_nodes_count_; i++) {
     make_new_connection_ok(router_port_ro, cluster_nodes_[1].classic_port);
   }
 }
@@ -669,21 +712,21 @@ TEST_F(ReadReplicaTest, ReadReplicaInstanceType) {
 
   set_instance_type(read_replica_node_id, "group-member");
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
   // no read-replica and the mode is "replace" so the RO connection should not
   // be possible
   verify_new_connection_fails(router_port_ro);
 
   set_instance_type(read_replica_node_id, std::nullopt);
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
   // no read-replica and the mode is "replace" so the RO connection should not
   // be possible
   verify_new_connection_fails(router_port_ro);
 
   set_instance_type(read_replica_node_id, "");
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
   // no read-replica and the mode is "replace" so the RO connection should not
   // be possible
   verify_new_connection_fails(router_port_ro);
@@ -695,7 +738,7 @@ TEST_F(ReadReplicaTest, ReadReplicaInstanceType) {
 
   set_instance_type(read_replica_node_id, "foo");
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
   // no read-replica and the mode is "replace" so the RO connection should not
   // be possible
   verify_new_connection_fails(router_port_ro);
@@ -711,111 +754,83 @@ TEST_F(ReadReplicaTest, ReadReplicaInstanceType) {
  * once the Router is running.
  */
 TEST_F(ReadReplicaTest, ReadReplicaAddRemove) {
-  const unsigned gr_rw_nodes_count = 1;
-  const unsigned gr_ro_nodes_count = 2;
-  const unsigned gr_nodes_count = gr_rw_nodes_count + gr_ro_nodes_count;
-  unsigned read_replica_nodes_count = 1;
+  const unsigned initial_gr_nodes_count = 3;
+  const unsigned initial_read_replica_nodes_count = 1;
 
-  create_gr_cluster(gr_nodes_count, read_replica_nodes_count, "append");
+  create_gr_cluster(initial_gr_nodes_count, initial_read_replica_nodes_count,
+                    "append");
   launch_router();
 
+  EXPECT_TRUE(
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
   // the read_replicas_mode is append so the Router should use both GR
   // secondaries and RR nodes for RO connections
-  for (size_t i = 0; i < gr_ro_nodes_count + read_replica_nodes_count; i++) {
-    make_new_connection_ok(
-        router_port_ro, cluster_nodes_[gr_rw_nodes_count +
-                                       i % (gr_nodes_count - gr_rw_nodes_count +
-                                            read_replica_nodes_count)]
-                            .classic_port);
+  for (size_t i = 0; i < gr_nodes_count_ + read_replica_nodes_count_; i++) {
+    make_new_connection_ok(router_port_ro, get_all_ro_classic_ports());
   }
 
   // add new RR to the Cluster, check that it is used for RO connections
   add_read_replica_node();
-  read_replica_nodes_count++;
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
-  for (size_t i = 0; i < gr_ro_nodes_count + read_replica_nodes_count; i++) {
-    make_new_connection_ok(
-        router_port_ro, cluster_nodes_[gr_rw_nodes_count +
-                                       i % (gr_nodes_count - gr_rw_nodes_count +
-                                            read_replica_nodes_count)]
-                            .classic_port);
+  for (size_t i = 0; i < gr_nodes_count_ + read_replica_nodes_count_; i++) {
+    make_new_connection_ok(router_port_ro, get_all_ro_classic_ports());
   }
 
-  for (size_t i = 0; i < 2 * gr_rw_nodes_count; i++) {
-    make_new_connection_ok(router_port_rw, cluster_nodes_[0].classic_port);
+  for (size_t i = 0; i < 2; i++) {
+    make_new_connection_ok(router_port_rw, get_gr_rw_classic_ports());
   }
 
   change_read_replicas_mode("ignore");
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
-  for (size_t i = 0; i < 2 * gr_ro_nodes_count; i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        cluster_nodes_[gr_rw_nodes_count + i % gr_ro_nodes_count].classic_port);
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
+  for (size_t i = 0; i < 2 * gr_nodes_count_; i++) {
+    make_new_connection_ok(router_port_ro, get_gr_ro_classic_ports());
   }
 
   change_read_replicas_mode("replace");
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
-  for (size_t i = 0; i < 2 * read_replica_nodes_count; i++) {
-    make_new_connection_ok(
-        router_port_ro, cluster_nodes_[gr_rw_nodes_count + gr_ro_nodes_count +
-                                       i % read_replica_nodes_count]
-                            .classic_port);
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
+  for (size_t i = 0; i < 2 * read_replica_nodes_count_; i++) {
+    make_new_connection_ok(router_port_ro, get_read_replicas_classic_ports());
   }
 
   change_read_replicas_mode("append");
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
-  for (size_t i = 0; i < gr_ro_nodes_count + read_replica_nodes_count; i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        cluster_nodes_[gr_rw_nodes_count +
-                       i % (gr_ro_nodes_count + read_replica_nodes_count)]
-            .classic_port);
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
+  for (size_t i = 0; i < gr_nodes_count_ + read_replica_nodes_count_; i++) {
+    make_new_connection_ok(router_port_ro, get_all_ro_classic_ports());
   }
 
   // remove first RR
-  remove_node(/*id=*/gr_nodes_count);
-  read_replica_nodes_count--;
+  remove_node(/*id=*/gr_nodes_count_);
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
-  for (size_t i = 0; i < 2 * (gr_ro_nodes_count + read_replica_nodes_count);
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
+  for (size_t i = 0; i < 2 * (gr_nodes_count_ + read_replica_nodes_count_);
        i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        cluster_nodes_[gr_rw_nodes_count +
-                       i % (gr_ro_nodes_count + read_replica_nodes_count)]
-            .classic_port);
+    make_new_connection_ok(router_port_ro, get_all_ro_classic_ports());
   }
 
   change_read_replicas_mode("replace");
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
-  for (size_t i = 0; i < 2 * read_replica_nodes_count; i++) {
-    make_new_connection_ok(
-        router_port_ro, cluster_nodes_[gr_rw_nodes_count + gr_ro_nodes_count +
-                                       i % read_replica_nodes_count]
-                            .classic_port);
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
+  for (size_t i = 0; i < 2 * read_replica_nodes_count_; i++) {
+    make_new_connection_ok(router_port_ro, get_read_replicas_classic_ports());
   }
 
   // remove last remaining RR
-  remove_node(/*id=*/gr_nodes_count);
-  read_replica_nodes_count--;
+  remove_node(/*id=*/gr_nodes_count_);
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   verify_new_connection_fails(router_port_ro);
 
   change_read_replicas_mode("ignore");
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
-  for (size_t i = 0; i < 2 * gr_ro_nodes_count; i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        cluster_nodes_[gr_rw_nodes_count + i % gr_ro_nodes_count].classic_port);
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
+  for (size_t i = 0; i < 2 * gr_nodes_count_; i++) {
+    make_new_connection_ok(router_port_ro, get_gr_ro_classic_ports());
   }
 }
 
@@ -843,7 +858,7 @@ TEST_P(ReadReplicaQuarantinedTest, ReadReplicaQuarantined) {
   // remove first read replica [D]
   const auto classic_port_D = remove_node(gr_nodes_count, false);
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   for (size_t i = 0; i < 2 * quarantine_threshold + quarantine_threshold % 2;
        i++) {
@@ -874,7 +889,7 @@ TEST_P(ReadReplicaQuarantinedTest, ReadReplicaQuarantined) {
   // remove second read replica [E] now
   const auto classic_port_E = remove_node(gr_nodes_count + 1, false);
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   for (size_t i = 0; i < 2 * quarantine_threshold + 1; i++) {
     make_new_connection_ok(router_port_ro, classic_port_D);
@@ -921,27 +936,21 @@ TEST_F(ReadReplicaTest, ReadReplicaQuarantinedModeAppend) {
   // [ A ] - GR RW node
   // [ B, C ] - GR RO nodes
   // [ D, E ] - read replicas
-  unsigned gr_rw_nodes_count = 1;
-  unsigned gr_ro_nodes_count = 2;
-  unsigned gr_nodes_count = gr_rw_nodes_count + gr_ro_nodes_count;
-  unsigned read_replica_nodes_count = 2;
+  const unsigned initial_gr_nodes_count = 3;
+  const unsigned initial_read_replica_nodes_count = 2;
 
-  create_gr_cluster(gr_nodes_count, read_replica_nodes_count, "append");
+  create_gr_cluster(initial_gr_nodes_count, initial_read_replica_nodes_count,
+                    "append");
   const unsigned quarantine_threshold = 1;
   const auto &router = launch_router(quarantine_threshold);
 
   // remove first read replica [D]
-  const auto classic_port_D = remove_node(gr_nodes_count, false);
-  read_replica_nodes_count--;
+  const auto classic_port_D = remove_node(gr_nodes_count_, false);
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
-  for (size_t i = 0; i < gr_ro_nodes_count + read_replica_nodes_count; i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        cluster_nodes_[gr_rw_nodes_count +
-                       i % (gr_ro_nodes_count + read_replica_nodes_count)]
-            .classic_port);
+  for (size_t i = 0; i < gr_nodes_count_ + read_replica_nodes_count_; i++) {
+    make_new_connection_ok(router_port_ro, get_all_ro_classic_ports());
   }
 
   check_log_contains(&router,
@@ -950,8 +959,7 @@ TEST_F(ReadReplicaTest, ReadReplicaQuarantinedModeAppend) {
                      1);
 
   // bring back read replica [D]
-  add_read_replica_node(classic_port_D, false, /*position=*/gr_nodes_count);
-  read_replica_nodes_count++;
+  add_read_replica_node(classic_port_D, false, /*position=*/gr_nodes_count_);
 
   EXPECT_TRUE(wait_log_contains(
       router,
@@ -960,27 +968,18 @@ TEST_F(ReadReplicaTest, ReadReplicaQuarantinedModeAppend) {
       10s));
 
   // check RR [D] is back in the rotation
-  for (size_t i = 0; i < gr_ro_nodes_count + read_replica_nodes_count; i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        cluster_nodes_[gr_rw_nodes_count +
-                       i % (gr_ro_nodes_count + read_replica_nodes_count)]
-            .classic_port);
+  for (size_t i = 0; i < gr_nodes_count_ + read_replica_nodes_count_; i++) {
+    make_new_connection_ok(router_port_ro, get_all_ro_classic_ports());
   }
 
   // remove second read replica [E] now
-  const auto classic_port_E = remove_node(gr_nodes_count + 1, false);
-  read_replica_nodes_count--;
+  const auto classic_port_E = remove_node(gr_nodes_count_ + 1, false);
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
-  for (size_t i = 0; i <= gr_ro_nodes_count + read_replica_nodes_count + 1;
+  for (size_t i = 0; i <= gr_nodes_count_ + read_replica_nodes_count_ + 1;
        i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        cluster_nodes_[gr_rw_nodes_count +
-                       i % (gr_ro_nodes_count + read_replica_nodes_count)]
-            .classic_port);
+    make_new_connection_ok(router_port_ro, get_all_ro_classic_ports());
   }
 
   check_log_contains(&router,
@@ -989,11 +988,10 @@ TEST_F(ReadReplicaTest, ReadReplicaQuarantinedModeAppend) {
                      1);
 
   // remove the first RR [D] again
-  remove_node(gr_nodes_count, false);
-  read_replica_nodes_count--;
+  remove_node(gr_nodes_count_, false);
   const auto classic_port_B = cluster_nodes_[1].classic_port;
   const auto classic_port_C = cluster_nodes_[2].classic_port;
-  for (size_t i = 0; i < 2 * (gr_ro_nodes_count + read_replica_nodes_count);
+  for (size_t i = 0; i < 2 * (gr_nodes_count_ + read_replica_nodes_count_);
        i++) {
     make_new_connection_ok(router_port_ro, {classic_port_B, classic_port_C});
   }
@@ -1004,8 +1002,7 @@ TEST_F(ReadReplicaTest, ReadReplicaQuarantinedModeAppend) {
                      2);
 
   // bring back second RR [E]
-  add_read_replica_node(classic_port_E, false, /*position=*/gr_nodes_count);
-  read_replica_nodes_count++;
+  add_read_replica_node(classic_port_E, false, /*position=*/gr_nodes_count_);
 
   EXPECT_TRUE(wait_log_contains(
       router,
@@ -1014,11 +1011,7 @@ TEST_F(ReadReplicaTest, ReadReplicaQuarantinedModeAppend) {
       10s));
 
   for (size_t i = 2; i < 2 * quarantine_threshold + 2; i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        cluster_nodes_[gr_rw_nodes_count +
-                       i % (gr_ro_nodes_count + read_replica_nodes_count)]
-            .classic_port);
+    make_new_connection_ok(router_port_ro, get_all_ro_classic_ports());
   }
 }
 
@@ -1079,7 +1072,7 @@ TEST_F(ReadReplicaTest, ReadReplicaGRPlusStaticRouting) {
                 /*add_static_route*/ true);
 
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   for (size_t i = 0; i < 2; i++) {
     make_new_connection_ok(router_port_rw, cluster_nodes_[0].classic_port);
@@ -1116,7 +1109,7 @@ TEST_F(ReadReplicaTest, ReadReplicaReplicaSetPlusStaticRouting) {
                 /*add_static_route*/ true);
 
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   for (size_t i = 0; i < ar_rw_nodes_count + 1; i++) {
     make_new_connection_ok(router_port_rw, cluster_nodes_[0].classic_port);
@@ -1350,21 +1343,21 @@ TEST_P(ReadReplicaNoQuorumTest, ReadReplicaGRNoQuorum) {
   cluster_nodes_[2].gr_node_status = GetParam();
   update_cluster_metadata();
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   verify_new_connection_fails(router_port_rw);
   verify_new_connection_fails(router_port_ro);
 
   change_read_replicas_mode("replace");
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   verify_new_connection_fails(router_port_rw);
   verify_new_connection_fails(router_port_ro);
 
   change_read_replicas_mode("ignore");
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   verify_new_connection_fails(router_port_rw);
   verify_new_connection_fails(router_port_ro);
@@ -1401,7 +1394,7 @@ TEST_F(ReadReplicaTest, HidingNodesAppendMode) {
   cluster_nodes_[3].hidden = true;
   update_cluster_metadata();
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // existing connection to D should be dropped, all the rest should be ok
   for (size_t i = 1; i <= gr_ro_nodes_count + read_replica_nodes_count; i++) {
@@ -1428,7 +1421,7 @@ TEST_F(ReadReplicaTest, HidingNodesAppendMode) {
   cluster_nodes_[4].disconnect_existing_sessions_when_hidden = false;
   update_cluster_metadata();
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // connection to D should be dropped but to E should be kept
   for (size_t i = 1; i <= gr_ro_nodes_count + read_replica_nodes_count; i++) {
@@ -1453,7 +1446,7 @@ TEST_F(ReadReplicaTest, HidingNodesAppendMode) {
   cluster_nodes_[3].hidden = false;
   update_cluster_metadata();
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // it should be in the rotation for new connections again
   {
@@ -1491,7 +1484,7 @@ TEST_F(ReadReplicaTest, HidingNodesReplaceMode) {
   cluster_nodes_[3].hidden = true;
   update_cluster_metadata();
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // existing connection to D should be dropped, the one to E should be kept
   for (size_t i = 0; i < ro_cons.size(); i++) {
@@ -1515,7 +1508,7 @@ TEST_F(ReadReplicaTest, HidingNodesReplaceMode) {
   cluster_nodes_[4].disconnect_existing_sessions_when_hidden = false;
   update_cluster_metadata();
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // connection to D should be dropped but to E should be kept
   for (size_t i = 0; i < 2; i++) {
@@ -1534,7 +1527,7 @@ TEST_F(ReadReplicaTest, HidingNodesReplaceMode) {
   cluster_nodes_[4].hidden = false;
   update_cluster_metadata();
   EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 2));
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // both D and E should be in the rotation for new connections again
   {
@@ -1585,9 +1578,14 @@ TEST_P(MetadataUnavailableTest, MetadataUnavailable) {
 
   // the Router should complain about no metadata server available and shut
   // down the accepting ports
+  const std::string rw = std::to_string(router_port_rw);
+  const std::string ro = std::to_string(router_port_ro);
   const std::vector<std::string> expected_log_lines{
       "ERROR .* Failed fetching metadata from any of the 3 metadata servers",
-      "INFO .* ... cleared current routing table as a precaution"};
+      "INFO .* Stop accepting connections for routing routing:test_default" +
+          rw + " listening on " + rw,
+      "INFO .* Stop accepting connections for routing routing:test_default" +
+          ro + " listening on " + ro};
   for (const auto &expected_line : expected_log_lines) {
     EXPECT_TRUE(wait_log_contains(router, expected_line, 5s));
   }
