@@ -91,15 +91,12 @@ class ClassicFrame {
   static inline stdx::expected<size_t, std::error_code> send_msg(
       Channel *dst_channel, ClassicProtocolState *dst_protocol, Msg msg,
       classic_protocol::capabilities::value_type caps) {
-    std::vector<uint8_t> frame_buf;
     auto encode_res = classic_protocol::encode(
         classic_protocol::frame::Frame<Msg>(++dst_protocol->seq_id(),
                                             std::forward<Msg>(msg)),
-        caps, net::dynamic_buffer(frame_buf));
+        caps, net::dynamic_buffer(dst_channel->send_plain_buffer()));
     if (!encode_res) return encode_res;
 
-    auto write_res = dst_channel->write_plain(net::buffer(frame_buf));
-    if (!write_res) return write_res;
     return dst_channel->flush_to_send_buf();
   }
 
