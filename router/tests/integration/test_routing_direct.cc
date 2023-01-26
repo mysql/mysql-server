@@ -79,15 +79,11 @@ using namespace std::string_literals;
 using namespace std::chrono_literals;
 using namespace std::string_view_literals;
 
-using ::testing::AllOf;
 using ::testing::AnyOf;
-using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
-using ::testing::IsSupersetOf;
 using ::testing::Not;
 using ::testing::Pair;
-using ::testing::SizeIs;
 using ::testing::StartsWith;
 
 static constexpr const auto kIdleServerConnectionsSleepTime{10ms};
@@ -3579,6 +3575,298 @@ INSTANTIATE_TEST_SUITE_P(Spec, ConnectionTest,
                          [](auto &info) {
                            return "ssl_modes_" + info.param.testname;
                          });
+
+struct BenchmarkParam {
+  std::string testname;
+
+  std::string stmt;
+};
+
+class Benchmark : public RouterComponentTest,
+                  public ::testing::WithParamInterface<BenchmarkParam> {
+ public:
+  static constexpr const size_t kNumServers = 1;
+
+  static void SetUpTestSuite() {
+    for (const auto &svr : shared_servers()) {
+      if (svr->mysqld_failed_to_start()) GTEST_SKIP();
+    }
+
+    TestWithSharedRouter::SetUpTestSuite(test_env->port_pool(),
+                                         shared_servers());
+  }
+
+  static void TearDownTestSuite() { TestWithSharedRouter::TearDownTestSuite(); }
+
+  static std::array<SharedServer *, kNumServers> shared_servers() {
+    return test_env->servers();
+  }
+
+  static SharedRouter *shared_router() {
+    return TestWithSharedRouter::router();
+  }
+
+  void SetUp() override {
+    for (auto &s : shared_servers()) {
+      // shared_server_ may be null if TestWithSharedServer::SetUpTestSuite
+      // threw?
+      if (s == nullptr || s->mysqld_failed_to_start()) {
+        GTEST_SKIP() << "failed to start mysqld";
+      } else {
+        s->flush_privileges();  // reset the auth-cache
+      }
+    }
+  }
+
+  ~Benchmark() override {
+    if (::testing::Test::HasFailure()) {
+      shared_router()->process_manager().dump_logs();
+    }
+  }
+};
+
+namespace std {
+template <class Rep, class Period>
+std::ostream &operator<<(std::ostream &os,
+                         std::chrono::duration<Rep, Period> dur) {
+  std::ostringstream oss;
+  oss.flags(os.flags());
+  oss.imbue(os.getloc());
+  oss.precision(os.precision());
+
+  if (dur < 1us) {
+    oss << std::chrono::duration_cast<std::chrono::duration<double, std::nano>>(
+               dur)
+               .count()
+        << " ns";
+  } else if (dur < 1ms) {
+    oss << std::chrono::duration_cast<
+               std::chrono::duration<double, std::micro>>(dur)
+               .count()
+        << " us";
+  } else if (dur < 1s) {
+    oss << std::chrono::duration_cast<
+               std::chrono::duration<double, std::milli>>(dur)
+               .count()
+        << " ms";
+  } else {
+    oss << std::chrono::duration_cast<
+               std::chrono::duration<double, std::ratio<1>>>(dur)
+               .count()
+        << "  s";
+  }
+
+  os << oss.str();
+
+  return os;
+}
+}  // namespace std
+
+template <class Dur>
+struct Throughput {
+  uint64_t count;
+
+  Dur duration;
+};
+
+template <class Dur>
+Throughput(uint64_t count, Dur duration) -> Throughput<Dur>;
+
+template <class Dur>
+std::ostream &operator<<(std::ostream &os, Throughput<Dur> throughput) {
+  std::ostringstream oss;
+  oss.flags(os.flags());
+  oss.imbue(os.getloc());
+  oss.precision(os.precision());
+
+  // normalize to per-second
+
+  double bytes_per_second =
+      throughput.count /
+      std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(
+          throughput.duration)
+          .count();
+  if (bytes_per_second < 1024) {
+    oss << bytes_per_second << "  B/s";
+  } else if (bytes_per_second < 1024 * 1024) {
+    oss << (bytes_per_second / 1024) << " kB/s";
+  } else if (bytes_per_second < 1024 * 1024 * 1024) {
+    oss << (bytes_per_second / (1024 * 1024)) << " MB/s";
+  } else {
+    oss << (bytes_per_second / (1024 * 1024 * 1024)) << " GB/s";
+  }
+
+  os << oss.str();
+
+  return os;
+}
+
+static void bench_stmt(MysqlClient &cli, std::string_view prefix,
+                       std::string_view stmt) {
+  using clock_type = std::chrono::steady_clock;
+
+  constexpr const auto kMaxRuntime = 100ms;
+  auto end_time = clock_type::now() + kMaxRuntime;
+
+  size_t rounds{};
+  uint64_t recved{};
+
+  clock_type::duration query_duration{};
+  clock_type::duration fetch_duration{};
+
+  do {
+    auto query_start = clock_type::now();
+    auto send_query_res = cli.send_query(stmt);
+    query_duration += clock_type::now() - query_start;
+    ASSERT_NO_ERROR(send_query_res);
+
+    recved += 4 + 10;  // Ok or Eof.
+
+    auto fetch_start = clock_type::now();
+
+    auto query_res = cli.read_query_result();
+    ASSERT_NO_ERROR(query_res);
+
+    for (const auto &result : *query_res) {
+      auto field_count = result.field_count();
+      for (const auto &row : result.rows()) {
+        for (size_t ndx = 0; ndx < field_count; ++ndx) {
+          recved += strlen(row[ndx]);
+        }
+      }
+    }
+    fetch_duration += clock_type::now() - fetch_start;
+
+    ++rounds;
+  } while (clock_type::now() < end_time);
+
+  std::ostringstream oss;
+  oss.precision(2);
+  oss << std::left << std::setw(25) << prefix << " | "  //
+      << std::right << std::setw(10) << std::fixed << (query_duration / rounds)
+      << " | "  //
+      << std::right << std::setw(10) << std::fixed << (fetch_duration / rounds)
+      << " | "  //
+      << std::right << std::setw(11) << Throughput{recved, fetch_duration}
+      << "\n";
+  std::cout << oss.str();
+}
+
+TEST_P(Benchmark, classic_protocol) {
+  {
+    std::ostringstream oss;
+    oss << std::left << std::setw(25) << "name"
+        << " | " << std::left << std::setw(7 + 3) << "query"
+        << " | " << std::left << std::setw(7 + 3) << "fetch"
+        << " | " << std::left << std::setw(7 + 4) << "throughput"
+        << "\n";
+    std::cout << oss.str();
+  }
+  {
+    std::ostringstream oss;
+    oss << std::right << std::setw(25) << std::setfill('-') << " no-ssl"
+        << " | " << std::right << std::setw(7 + 3) << std::setfill('-') << ""
+        << " | " << std::right << std::setw(7 + 3) << std::setfill('-') << ""
+        << " | " << std::right << std::setw(7 + 4) << std::setfill('-') << ""
+        << "\n";
+    std::cout << oss.str();
+  }
+
+  SCOPED_TRACE("// connecting to server directly");
+  {
+    MysqlClient cli;
+
+    auto *srv = shared_servers()[0];
+
+    auto account = srv->admin_account();
+
+    cli.username(account.username);
+    cli.password(account.password);
+    cli.set_option(MysqlClient::SslMode(SSL_MODE_DISABLED));
+
+    auto connect_res = cli.connect(srv->server_host(), srv->server_port());
+    ASSERT_NO_ERROR(connect_res);
+
+    bench_stmt(cli, "DIRECT_DISABLED", GetParam().stmt);
+  }
+
+  SCOPED_TRACE("// connecting to server through router");
+  for (const auto &router_endpoint : connection_params) {
+    if ((router_endpoint.client_ssl_mode != kDisabled &&
+         router_endpoint.client_ssl_mode != kPassthrough) ||
+        router_endpoint.redundant_combination()) {
+      continue;
+    }
+    MysqlClient cli;
+
+    cli.username("root");
+    cli.password("");
+    cli.set_option(MysqlClient::SslMode(SSL_MODE_DISABLED));
+
+    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                                shared_router()->port(router_endpoint)));
+
+    bench_stmt(cli, router_endpoint.testname, GetParam().stmt);
+  }
+
+  {
+    std::ostringstream oss;
+    oss << std::right << std::setw(25) << std::setfill('-') << " ssl"
+        << " | " << std::right << std::setw(7 + 3) << std::setfill('-') << ""
+        << " | " << std::right << std::setw(7 + 3) << std::setfill('-') << ""
+        << " | " << std::right << std::setw(7 + 4) << std::setfill('-') << ""
+        << "\n";
+    std::cout << oss.str();
+  }
+
+  {
+    MysqlClient cli;
+
+    auto *srv = shared_servers()[0];
+
+    auto account = srv->admin_account();
+
+    cli.username(account.username);
+    cli.password(account.password);
+
+    auto connect_res = cli.connect(srv->server_host(), srv->server_port());
+    ASSERT_NO_ERROR(connect_res);
+
+    bench_stmt(cli, "DIRECT_PREFERRED", GetParam().stmt);
+  }
+
+  SCOPED_TRACE("// connecting to server through router");
+  for (const auto &router_endpoint : connection_params) {
+    if (router_endpoint.client_ssl_mode == kDisabled ||
+        router_endpoint.redundant_combination() ||
+        router_endpoint.client_ssl_mode == kRequired) {
+      // Required is the same as Preferred
+      continue;
+    }
+    MysqlClient cli;
+
+    cli.username("root");
+    cli.password("");
+
+    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                                shared_router()->port(router_endpoint)));
+
+    bench_stmt(cli, router_endpoint.testname, GetParam().stmt);
+  }
+}
+
+const BenchmarkParam benchmark_params[] = {
+    {"tiny", "DO 1"},
+    {"one_long_row", "SELECT REPEAT('*', 1024 * 1024)"},
+    {"many_short_rows",
+     "WITH RECURSIVE cte (n) AS ("
+     "  SELECT 1 UNION ALL "
+     "  SELECT n + 1 FROM cte LIMIT 100000) "
+     "SELECT /*+ SET_VAR(cte_max_recursion_depth = 1M) */ * FROM cte;"},
+};
+
+INSTANTIATE_TEST_SUITE_P(Spec, Benchmark, ::testing::ValuesIn(benchmark_params),
+                         [](auto &info) { return info.param.testname; });
 
 int main(int argc, char *argv[]) {
   net::impl::socket::init();
