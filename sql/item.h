@@ -5865,7 +5865,9 @@ class Item_ref : public Item_ident {
   }
   bool get_time(MYSQL_TIME *ltime) override {
     assert(fixed);
-    return ref_item()->get_time(ltime);
+    bool result = ref_item()->get_time(ltime);
+    null_value = ref_item()->null_value;
+    return result;
   }
 
   bool basic_const_item() const override { return false; }
