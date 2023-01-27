@@ -2922,101 +2922,6 @@ static bool binlog_savepoint_rollback_can_release_mdl(handlerton *, THD *thd) {
   return !trans_cannot_safely_rollback(thd);
 }
 
-/**
-  Adjust log offset in the binary log file for all running slaves
-  This class implements call back function for do_for_all_thd().
-  It is called for each thd in thd list to adjust offset.
-*/
-class Adjust_offset : public Do_THD_Impl {
- public:
-  Adjust_offset(my_off_t value) : m_purge_offset(value) {}
-  void operator()(THD *thd) override {
-    LOG_INFO *linfo;
-    mysql_mutex_lock(&thd->LOCK_thd_data);
-    if ((linfo = thd->current_linfo)) {
-      /*
-        Index file offset can be less that purge offset only if
-        we just started reading the index file. In that case
-        we have nothing to adjust.
-      */
-      if (linfo->index_file_offset < m_purge_offset)
-        linfo->fatal = (linfo->index_file_offset != 0);
-      else
-        linfo->index_file_offset -= m_purge_offset;
-    }
-    mysql_mutex_unlock(&thd->LOCK_thd_data);
-  }
-
- private:
-  my_off_t m_purge_offset;
-};
-
-/*
-  Adjust the position pointer in the binary log file for all running slaves.
-
-  SYNOPSIS
-    adjust_linfo_offsets()
-    purge_offset	Number of bytes removed from start of log index file
-
-  NOTES
-    - This is called when doing a PURGE when we delete lines from the
-      index log file.
-
-  REQUIREMENTS
-    - Before calling this function, we have to ensure that no threads are
-      using any binary log file before purge_offset.
-
-  TODO
-    - Inform the slave threads that they should sync the position
-      in the binary log file with flush_relay_log_info.
-      Now they sync is done for next read.
-*/
-static void adjust_linfo_offsets(my_off_t purge_offset) {
-  Adjust_offset adjust_offset(purge_offset);
-  Global_THD_manager::get_instance()->do_for_all_thd(&adjust_offset);
-}
-
-/**
-  This class implements Call back function for do_for_all_thd().
-  It is called for each thd in thd list to count
-  threads using bin log file
-*/
-
-class Log_in_use : public Do_THD_Impl {
- public:
-  Log_in_use(const char *value) : m_log_name(value), m_count(0) {
-    m_log_name_len = strlen(m_log_name) + 1;
-  }
-  void operator()(THD *thd) override {
-    LOG_INFO *linfo;
-    mysql_mutex_lock(&thd->LOCK_thd_data);
-    if ((linfo = thd->current_linfo)) {
-      if (!strncmp(m_log_name, linfo->log_file_name, m_log_name_len)) {
-        LogErr(WARNING_LEVEL, ER_BINLOG_FILE_BEING_READ_NOT_PURGED, m_log_name,
-               thd->thread_id());
-        m_count++;
-      }
-    }
-    mysql_mutex_unlock(&thd->LOCK_thd_data);
-  }
-  int get_count() { return m_count; }
-
- private:
-  const char *m_log_name;
-  size_t m_log_name_len;
-  int m_count;
-};
-
-static int log_in_use(const char *log_name) {
-  Log_in_use log_in_use(log_name);
-#ifndef NDEBUG
-  if (current_thd)
-    DEBUG_SYNC(current_thd, "purge_logs_after_lock_index_before_thread_count");
-#endif
-  Global_THD_manager::get_instance()->do_for_all_thd(&log_in_use);
-  return log_in_use.get_count();
-}
-
 static bool purge_error_message(THD *thd, int res) {
   uint errcode;
 
@@ -3361,9 +3266,8 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
       goto err;
     }
 
-    mysql_mutex_lock(&thd->LOCK_thd_data);
-    thd->current_linfo = &linfo;
-    mysql_mutex_unlock(&thd->LOCK_thd_data);
+    linfo.thread_id = thd->thread_id();
+    binary_log->register_log_info(&linfo);
 
     BINLOG_FILE_READER binlog_file_reader(
         opt_source_verify_checksum,
@@ -3470,9 +3374,8 @@ err:
   } else
     my_eof(thd);
 
-  mysql_mutex_lock(&thd->LOCK_thd_data);
-  thd->current_linfo = nullptr;
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
+  binary_log->unregister_log_info(&linfo);
+
   return !errmsg.empty();
 }
 
@@ -3553,6 +3456,7 @@ void MYSQL_BIN_LOG::cleanup() {
     mysql_mutex_destroy(&LOCK_sync);
     mysql_mutex_destroy(&LOCK_binlog_end_pos);
     mysql_mutex_destroy(&LOCK_xids);
+    mysql_mutex_destroy(&LOCK_log_info);
     mysql_cond_destroy(&update_cond);
     mysql_cond_destroy(&m_prep_xids_cond);
     if (!is_relay_log) {
@@ -3577,6 +3481,7 @@ void MYSQL_BIN_LOG::init_pthread_objects() {
   mysql_mutex_init(m_key_LOCK_binlog_end_pos, &LOCK_binlog_end_pos,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(m_key_LOCK_xids, &LOCK_xids, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(m_key_LOCK_log_info, &LOCK_log_info, MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_key_update_cond, &update_cond);
   mysql_cond_init(m_key_prep_xids_cond, &m_prep_xids_cond);
   if (!is_relay_log) {
@@ -7314,6 +7219,64 @@ end:
   mysql_mutex_unlock(&mysql_bin_log.LOCK_commit);
 
   return error;
+}
+
+void MYSQL_BIN_LOG::register_log_info(LOG_INFO *log_info) {
+  DBUG_TRACE;
+  MUTEX_LOCK(lock, &LOCK_log_info);
+  log_info_set.insert(log_info);
+}
+
+void MYSQL_BIN_LOG::unregister_log_info(LOG_INFO *log_info) {
+  DBUG_TRACE;
+  MUTEX_LOCK(lock, &LOCK_log_info);
+  log_info_set.erase(log_info);
+}
+
+int MYSQL_BIN_LOG::log_in_use(const char *log_name) {
+  DBUG_TRACE;
+#ifndef NDEBUG
+  if (current_thd)
+    DEBUG_SYNC(current_thd, "purge_logs_after_lock_index_before_thread_count");
+#endif
+
+  mysql_mutex_assert_owner(&LOCK_index);
+  MUTEX_LOCK(lock_log_info, &LOCK_log_info);
+
+  int count = 0;
+  int log_name_len = strlen(log_name) + 1;
+
+  std::for_each(
+      log_info_set.cbegin(), log_info_set.cend(),
+      [log_name, log_name_len, &count](LOG_INFO *log_info) {
+        if (!strncmp(log_name, log_info->log_file_name, log_name_len)) {
+          LogErr(WARNING_LEVEL, ER_BINLOG_FILE_BEING_READ_NOT_PURGED, log_name,
+                 log_info->thread_id);
+          count++;
+        }
+      });
+
+  return count;
+}
+
+void MYSQL_BIN_LOG::adjust_linfo_offsets(my_off_t purge_offset) {
+  DBUG_TRACE;
+
+  mysql_mutex_assert_owner(&LOCK_index);
+  MUTEX_LOCK(lock_log_info, &LOCK_log_info);
+
+  std::for_each(log_info_set.cbegin(), log_info_set.cend(),
+                [purge_offset](LOG_INFO *log_info) {
+                  /*
+                    Index file offset can be less that purge offset only if
+                    we just started reading the index file. In that case
+                    we have nothing to adjust.
+                  */
+                  if (log_info->index_file_offset < purge_offset)
+                    log_info->fatal = (log_info->index_file_offset != 0);
+                  else
+                    log_info->index_file_offset -= purge_offset;
+                });
 }
 
 /**

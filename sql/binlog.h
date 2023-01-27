@@ -111,11 +111,6 @@ struct Binlog_user_var_event {
 #define LOG_CLOSE_TO_BE_OPENED 2
 #define LOG_CLOSE_STOP_EVENT 4
 
-/*
-  Note that we destroy the lock mutex in the destructor here.
-  This means that object instances cannot be destroyed/go out of scope
-  until we have reset thd->current_linfo to NULL;
- */
 struct LOG_INFO {
   char log_file_name[FN_REFLEN] = {0};
   my_off_t index_file_offset, index_file_start_offset;
@@ -123,13 +118,15 @@ struct LOG_INFO {
   bool fatal;       // if the purge happens to give us a negative offset
   int entry_index;  // used in purge_logs(), calculatd in find_log_pos().
   int encrypted_header_size;
+  my_thread_id thread_id;
   LOG_INFO()
       : index_file_offset(0),
         index_file_start_offset(0),
         pos(0),
         fatal(false),
         entry_index(0),
-        encrypted_header_size(0) {
+        encrypted_header_size(0),
+        thread_id(0) {
     memset(log_file_name, 0, FN_REFLEN);
   }
 };
@@ -185,6 +182,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
   PSI_mutex_key m_key_LOCK_sync;
   /** The instrumentation key to use for @ LOCK_xids. */
   PSI_mutex_key m_key_LOCK_xids;
+  /** The instrumentation key to use for @ m_key_LOCK_log_info. */
+  PSI_mutex_key m_key_LOCK_log_info;
   /** The instrumentation key to use for @ update_cond. */
   PSI_cond_key m_key_update_cond;
   /** The instrumentation key to use for @ prep_xids_cond. */
@@ -368,6 +367,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
       PSI_mutex_key key_LOCK_flush_queue, PSI_mutex_key key_LOCK_log,
       PSI_mutex_key key_LOCK_binlog_end_pos, PSI_mutex_key key_LOCK_sync,
       PSI_mutex_key key_LOCK_sync_queue, PSI_mutex_key key_LOCK_xids,
+      PSI_mutex_key key_LOCK_log_info,
       PSI_mutex_key key_LOCK_wait_for_group_turn, PSI_cond_key key_COND_done,
       PSI_cond_key key_COND_flush_queue, PSI_cond_key key_update_cond,
       PSI_cond_key key_prep_xids_cond,
@@ -390,6 +390,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     m_key_LOCK_after_commit = key_LOCK_after_commit;
     m_key_LOCK_sync = key_LOCK_sync;
     m_key_LOCK_xids = key_LOCK_xids;
+    m_key_LOCK_log_info = key_LOCK_log_info;
     m_key_update_cond = key_update_cond;
     m_key_prep_xids_cond = key_prep_xids_cond;
     m_key_file_log = key_file_log;
@@ -1023,6 +1024,51 @@ class MYSQL_BIN_LOG : public TC_LOG {
     True while rotating binlog, which is caused by logging Incident_log_event.
   */
   bool is_rotating_caused_by_incident;
+
+ public:
+  /**
+    Register LOG_INFO so that log_in_use and adjust_linfo_offsets can
+    operate on all logs. Note that register_log_info, unregister_log_info,
+    log_in_use, adjust_linfo_offsets are is used on global mysql_bin_log object.
+    @param log_info pointer to LOG_INFO which is registred
+  */
+  void register_log_info(LOG_INFO *log_info);
+  /**
+    Unregister LOG_INFO when it is no longer needed.
+    @param log_info pointer to LOG_INFO which is registred
+  */
+  void unregister_log_info(LOG_INFO *log_info);
+  /**
+    Check if any threads use log name.
+    @note This method expects the LOCK_index to be taken so there are no
+    concurrent edits against linfo objects being iterated
+    @param log_name name of a log which is checked for usage
+
+  */
+  int log_in_use(const char *log_name);
+  /**
+    Adjust the position pointer in the binary log file for all running replicas.
+    SYNOPSIS
+      adjust_linfo_offsets()
+      purge_offset Number of bytes removed from start of log index file
+    NOTES
+      - This is called when doing a PURGE when we delete lines from the
+        index log file. This method expects the LOCK_index to be taken so there
+    are no concurrent edits against linfo objects being iterated. REQUIREMENTS
+      - Before calling this function, we have to ensure that no threads are
+        using any binary log file before purge_offset.
+    TODO
+      - Inform the replica threads that they should sync the position
+        in the binary log file with flush_relay_log_info.
+        Now they sync is done for next read.
+  */
+  void adjust_linfo_offsets(my_off_t purge_offset);
+
+ private:
+  mysql_mutex_t LOCK_log_info;
+  // Set of log info objects that are in usage and might prevent some other
+  // operations from executing.
+  std::set<LOG_INFO *> log_info_set;
 };
 
 struct LOAD_FILE_INFO {
