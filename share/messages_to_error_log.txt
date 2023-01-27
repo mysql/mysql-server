@@ -12052,7 +12052,7 @@ ER_IB_WRN_IGNORE_REDO_LOG_CAPACITY
   eng "Ignored the innodb-redo-log-capacity option in the Innodb read-only mode. Server is using active redo log files."
 
 ER_IB_PRIMARY_KEY_IS_INSTANT
-  eng "Unexpected INSTANLY Added / Dropped column: '%s' at position %lu for Table '%s', Index '%s' while getting Primary Key for row logging"
+  eng "Unexpected INSTANTLY Added / Dropped column: '%s' at position %lu for Table '%s', Index '%s' while getting Primary Key for row logging"
 
 ER_THREAD_POOL_IDLE_CONNECTION_CLOSED
    eng "%s"
