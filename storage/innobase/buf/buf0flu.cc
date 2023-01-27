@@ -3852,7 +3852,7 @@ bool Flush_observer::check_interrupted() {
   return false;
 }
 
-void Flush_observer::notify_flush(buf_pool_t *buf_pool, buf_page_t *) {
+void Flush_observer::notify_flush(buf_pool_t *buf_pool, buf_page_t *bpage) {
   const auto buf_pool_idx = buf_pool->instance_no;
   ut_ad(m_flushed[buf_pool_idx].load() >= 0);
   m_flushed.at(buf_pool_idx).fetch_add(1);
@@ -3860,6 +3860,9 @@ void Flush_observer::notify_flush(buf_pool_t *buf_pool, buf_page_t *) {
   if (m_stage != nullptr) {
     m_stage->inc(1);
   }
+#ifdef UNIV_DEBUG
+  m_flushed_page_ids.push_back(bpage->id);
+#endif /* UNIV_DEBUG */
 }
 
 void Flush_observer::notify_remove(buf_pool_t *buf_pool, buf_page_t *) {

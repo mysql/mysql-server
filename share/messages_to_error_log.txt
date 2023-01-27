@@ -12222,6 +12222,9 @@ ER_REDUCED_DBLWR_FILE_CORRUPTED
 ER_REDUCED_DBLWR_PAGE_FOUND
   eng "Database page corruption of tablespace %s space_id: %u page_num: %u. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode."
 
+ER_IB_BULK_FLUSHER_PUNCH_HOLE
+  eng "bulkflusher: Failed to punch hole: table=%s, index=%s, space_id=%zu, page_no=%zu, disk_page_size=%zu, hole_size=%zu, file=%s, err=%zu"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

@@ -357,6 +357,11 @@ struct Level_ctx {
 
   /** True if the current extent is full. */
   bool m_extent_full{true};
+
+#ifdef UNIV_DEBUG
+  bool is_page_tracked(const page_no_t &page_no) const;
+  std::vector<page_no_t> m_pages_allocated;
+#endif /* UNIV_DEBUG */
 };
 
 inline Page_load *Level_ctx::get_page_load() const { return m_page_load; }
@@ -523,6 +528,12 @@ class Bulk_flusher {
 
   /** Number of pages flushed. */
   size_t m_pages_flushed{};
+
+#ifdef UNIV_DEBUG
+ public:
+  /** Vector of page numbers that are flushed by this Bulk_flusher object. */
+  std::vector<page_no_t> m_flushed_page_nos;
+#endif /* UNIV_DEBUG */
 };
 
 /** @note We should call commit(false) for a Page_load object, which is not in
@@ -571,6 +582,14 @@ class Btree_load : private ut::Non_copyable {
   /** Initialize.  Allocates the m_heap_order memory heap.
   @return DB_SUCCESS on success or an error code on failure. */
   dberr_t init();
+
+#ifdef UNIV_DEBUG
+  /** Save flushed page numbers for debugging purposes.
+  @param[in]  page_no  page number of the page that is flushed. */
+  void track_page_flush(page_no_t page_no) {
+    m_bulk_flusher.m_flushed_page_nos.push_back(page_no);
+  }
+#endif /* UNIV_DEBUG */
 
   /** Check if the index build operation has been interrupted.
   @return true if the index build operation is interrupted, false otherwise.*/
@@ -731,8 +750,9 @@ class Btree_load : private ut::Non_copyable {
   [[nodiscard]] inline buf_block_t *block_get(page_no_t page_no) const noexcept;
 
   /** Evict all the pages in the given range from the buffer pool.
-  @param[in]  range  range of page numbers. */
-  void force_evict(const Page_range_t &range);
+  @param[in]  range  range of page numbers.
+  @param[in]  dirty_is_ok  it is OK for a page to be dirty. */
+  void force_evict(const Page_range_t &range, const bool dirty_is_ok = true);
 
   /** Free the pages in the page range.
   @param[in]  range  page numbers to be freed [range.first, range.second).
@@ -880,6 +900,8 @@ class Btree_load : private ut::Non_copyable {
 
   /** B-tree index */
   dict_index_t *m_index{};
+
+  fil_space_t *m_space{};
 
   /** Transaction id */
   trx_t *m_trx{};
@@ -1249,6 +1271,13 @@ class Page_load : private ut::Non_copyable {
   /** Get the table space ID.
   @return the table space ID. */
   space_id_t space() const noexcept;
+
+#ifdef UNIV_DEBUG
+  /** Obtain tablespace id from the frame and the buffer block and ensure that
+  they are the same.
+  @return true if space id is same in both places. */
+  bool verify_space_id() const;
+#endif /* UNIV_DEBUG */
 
   /** Get page level */
   [[nodiscard]] size_t get_level() const noexcept { return m_level; }

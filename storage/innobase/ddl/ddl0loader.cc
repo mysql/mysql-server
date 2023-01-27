@@ -34,6 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ddl0impl-loader.h"
 #include "handler0alter.h"
 #include "os0thread-create.h"
+#include "scope_guard.h"
 #include "ut0stage.h"
 
 #include "sql/table.h"
@@ -478,6 +479,10 @@ dberr_t Loader::scan_and_build_indexes() noexcept {
 }
 
 dberr_t Loader::build_all() noexcept {
+  const space_id_t space_id = m_ctx.new_table()->space;
+  fil_space_t *space = fil_space_acquire(space_id);
+
+  auto guard = create_scope_guard([&space]() { fil_space_release(space); });
   auto err = prepare();
 
   if (err == DB_SUCCESS) {

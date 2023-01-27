@@ -4112,14 +4112,13 @@ void Buf_fetch<T>::mtr_add_page(buf_block_t *block) {
 template <typename T>
 bool Buf_fetch<T>::is_optimistic() const {
   return (m_mode == Page_fetch::IF_IN_POOL ||
-          m_mode == Page_fetch::IF_IN_POOL_POSSIBLY_FREED ||
           m_mode == Page_fetch::PEEK_IF_IN_POOL);
 }
 
 template <typename T>
 [[nodiscard]] bool Buf_fetch<T>::is_possibly_freed() const noexcept {
-  return (m_mode == Page_fetch::IF_IN_POOL_POSSIBLY_FREED ||
-          m_mode == Page_fetch::POSSIBLY_FREED);
+  return (m_mode == Page_fetch::POSSIBLY_FREED ||
+          m_mode == Page_fetch::POSSIBLY_FREED_NO_READ_AHEAD);
 }
 
 template <typename T>
@@ -4355,7 +4354,9 @@ buf_block_t *Buf_fetch<T>::single_page() {
 
   mtr_add_page(block);
 
-  if (m_mode != Page_fetch::PEEK_IF_IN_POOL && m_mode != Page_fetch::SCAN &&
+  if (m_mode != Page_fetch::PEEK_IF_IN_POOL &&
+      m_mode != Page_fetch::POSSIBLY_FREED_NO_READ_AHEAD &&
+      m_mode != Page_fetch::SCAN &&
       access_time == std::chrono::steady_clock::time_point{}) {
     /* In the case of a first access, try to apply linear read-ahead */
 
@@ -4395,10 +4396,10 @@ buf_block_t *buf_page_get_gen(const page_id_t &page_id,
     case Page_fetch::NORMAL:
     case Page_fetch::SCAN:
     case Page_fetch::IF_IN_POOL:
-    case Page_fetch::IF_IN_POOL_POSSIBLY_FREED:
     case Page_fetch::PEEK_IF_IN_POOL:
     case Page_fetch::IF_IN_POOL_OR_WATCH:
     case Page_fetch::POSSIBLY_FREED:
+    case Page_fetch::POSSIBLY_FREED_NO_READ_AHEAD:
       break;
     default:
       ib::fatal(UT_LOCATION_HERE, ER_IB_ERR_UNKNOWN_PAGE_FETCH_MODE)
@@ -5376,7 +5377,8 @@ bool buf_page_free_stale(buf_pool_t *buf_pool, buf_page_t *bpage) noexcept {
 }
 
 void buf_page_force_evict(const page_id_t &page_id,
-                          const page_size_t &page_size) noexcept {
+                          const page_size_t &page_size,
+                          const bool dirty_is_ok) noexcept {
   auto buf_pool = buf_pool_get(page_id);
   while (true) {
     if (!buf_page_peek(page_id)) {
@@ -5384,12 +5386,11 @@ void buf_page_force_evict(const page_id_t &page_id,
     }
     mtr_t mtr;
     mtr.start();
-    buf_block_t *block = buf_page_get_gen(
-        page_id, page_size, RW_X_LATCH, nullptr,
-        Page_fetch::IF_IN_POOL_POSSIBLY_FREED, UT_LOCATION_HERE, &mtr, false);
-    if (block == nullptr) {
-      break;
-    }
+    buf_block_t *guess = nullptr;
+    buf_block_t *block =
+        buf_page_get_gen(page_id, page_size, RW_S_LATCH, guess,
+                         Page_fetch::POSSIBLY_FREED_NO_READ_AHEAD,
+                         UT_LOCATION_HERE, &mtr, false);
     buf_page_t *bpage = reinterpret_cast<buf_page_t *>(block);
     if (bpage->was_stale()) {
       mutex_enter(&buf_pool->LRU_list_mutex);
@@ -5413,6 +5414,7 @@ void buf_page_force_evict(const page_id_t &page_id,
       mutex_exit(&buf_pool->LRU_list_mutex);
       mutex_exit(&block->mutex);
     } else {
+      ut_a(dirty_is_ok);
       /* The buffer page is not stale and it is dirty. */
       mutex_enter(&buf_pool->LRU_list_mutex);
       mtr.commit();

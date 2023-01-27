@@ -82,8 +82,8 @@ enum class Page_fetch {
   freed. */
   POSSIBLY_FREED,
 
-  /** Get if in pool, but do not mind if the file page has been freed. */
-  IF_IN_POOL_POSSIBLY_FREED
+  /** Like Page_fetch::POSSIBLY_FREED, but do not initiate read ahead. */
+  POSSIBLY_FREED_NO_READ_AHEAD,
 };
 /** @} */
 
@@ -907,9 +907,11 @@ bool buf_page_free_stale(buf_pool_t *buf_pool, buf_page_t *bpage) noexcept;
 
 /** Evict a page from the buffer pool.
 @param[in]  page_id    page to be evicted.
-@param[in]  page_size  page size of the tablespace. */
+@param[in]  page_size  page size of the tablespace.
+@param[in]  dirty_is_ok if true, it is OK for the page to be dirty. */
 void buf_page_force_evict(const page_id_t &page_id,
-                          const page_size_t &page_size) noexcept;
+                          const page_size_t &page_size,
+                          const bool dirty_is_ok = true) noexcept;
 
 /** Free a stale page. Caller must be holding the hash_lock in S mode if
 hash_lock parameter is not nullptr. The hash lock will be released upon return

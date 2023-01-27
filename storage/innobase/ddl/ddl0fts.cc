@@ -40,6 +40,7 @@ Created 10/13/2010 Jimmy Yang */
 #include "fts0plugin.h"
 #include "lob0lob.h"
 #include "os0thread-create.h"
+#include "scope_guard.h"
 #include "sql/sql_class.h"
 
 #include <current_thd.h>
@@ -1348,6 +1349,7 @@ dberr_t FTS::Inserter::insert(Builder *builder,
   if (ins_ctx.m_btr_bulk == nullptr) {
     return func_exit(DB_OUT_OF_MEMORY);
   }
+
   dberr_t err = ins_ctx.m_btr_bulk->init();
   if (err != DB_SUCCESS) {
     return func_exit(err);

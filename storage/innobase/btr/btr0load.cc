@@ -69,6 +69,11 @@ Bulk_flusher::~Bulk_flusher() {
   if (m_flush_thread.joinable()) {
     wait_to_stop();
   }
+  ut_ad(m_priv_queue.empty());
+  {
+    std::lock_guard<std::mutex> guard(m_mutex);
+    ut_ad(m_queue.empty());
+  }
 }
 
 void Bulk_flusher::wait_to_stop() {
@@ -149,9 +154,10 @@ void Bulk_flusher::run() {
       sleep();
     }
   }
-  while (is_work_available()) {
+  while (is_work_available() || !m_priv_queue.empty()) {
     do_work();
   }
+  ut_ad(m_priv_queue.empty());
   info();
 }
 
@@ -159,7 +165,8 @@ void Bulk_flusher::run() {
 static void check_page(dict_index_t *index, const page_no_t page_no) {
   const page_id_t page_id(index->space, page_no);
   const page_size_t page_size = dict_table_page_size(index->table);
-  buf_page_force_evict(page_id, page_size);
+  const bool is_dirty_ok = false;
+  buf_page_force_evict(page_id, page_size, is_dirty_ok);
   mtr_t mtr;
   mtr.start();
   mtr.x_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
@@ -178,7 +185,7 @@ static void check_page(dict_index_t *index, const page_no_t page_no) {
   ut_ad(!is_corrupted);
 
   mtr.commit();
-  buf_page_force_evict(page_id, page_size);
+  buf_page_force_evict(page_id, page_size, is_dirty_ok);
 }
 #endif /* UNIV_DEBUG */
 
@@ -246,21 +253,34 @@ dberr_t Page_extent::bulk_flush_win() { return flush_one_by_one(); }
 dberr_t Page_extent::bulk_flush_linux() {
   dberr_t err{DB_SUCCESS};
   const page_no_t n_pages = m_page_loads.size();
+  ut_ad(n_pages > 0);
+  const space_id_t space_id = m_page_loads[0]->space();
+
+#ifdef UNIV_DEBUG
+  const bool is_tpc = m_btree_load->is_tpc_enabled();
+  ut_ad(!is_tpc);
+#endif /* UNIV_DEBUG */
+
   struct iovec *iov = static_cast<struct iovec *>(ut::malloc_withkey(
       UT_NEW_THIS_FILE_PSI_KEY, sizeof(struct iovec) * n_pages));
   const size_t page_size = m_page_loads[0]->get_page_size();
-  const space_id_t space_id = m_page_loads[0]->space();
 
   size_t i = 0;
   for (auto &page_load : m_page_loads) {
+    ut_ad(page_load->is_memory());
     page_load->init_for_writing();
     page_zip_des_t *page_zip = page_load->get_page_zip();
-    iov[i].iov_base =
-        (page_zip == nullptr) ? page_load->get_page() : page_zip->data;
+    auto buf = (page_zip == nullptr) ? page_load->get_page() : page_zip->data;
+    iov[i].iov_base = buf;
     ut_ad(iov[i].iov_base != nullptr);
     iov[i].iov_len = page_size; /* Physical page size */
     ut_ad(!buf_page_t::is_zeroes(static_cast<byte *>(iov[i].iov_base),
                                  iov[i].iov_len));
+#ifdef UNIV_DEBUG
+    const page_no_t disk_page_no = mach_read_from_4(buf + FIL_PAGE_OFFSET);
+    ut_ad(disk_page_no == page_load->get_page_no());
+    m_btree_load->track_page_flush(disk_page_no);
+#endif /* UNIV_DEBUG */
     i++;
   }
   fil_node_t *node;
@@ -287,29 +307,34 @@ dberr_t Page_extent::bulk_flush_linux() {
 dberr_t Page_extent::flush_one_by_one() {
   dberr_t err{DB_SUCCESS};
   const space_id_t space_id = m_page_loads[0]->space();
+  const dict_index_t *index = m_btree_load->index();
   fil_space_t *space = fil_space_acquire(space_id);
+  const bool is_space_encrypted = space->is_encrypted();
   page_no_t page_no = m_range.first;
   fil_node_t *node = space->get_file_node(&page_no);
   ut_ad(node != nullptr);
+  const std::string file_name = node->name;
   IORequest request(IORequest::WRITE);
   request.block_size(node->block_size);
+  const size_t physical_page_size = m_page_loads[0]->get_page_size();
   for (auto &page_load : m_page_loads) {
+    ut_ad(page_load->is_memory());
     file::Block *compressed_block = nullptr;
     file::Block *e_block = nullptr;
-    size_t page_size = m_page_loads[0]->get_page_size();
-    const size_t physical_page_size = m_page_loads[0]->get_page_size();
+    size_t page_size = physical_page_size;
     page_load->init_for_writing();
+    ut_ad(page_load->get_page_no() == page_no);
     err = fil_prepare_file_for_io(space_id, page_no, &node);
     if (err != DB_SUCCESS) {
       break;
     }
     page_zip_des_t *page_zip = page_load->get_page_zip();
-    const os_offset_t offset = page_no * page_size;
+    const os_offset_t offset = page_no * physical_page_size;
     void *buf = (page_zip == nullptr) ? page_load->get_page() : page_zip->data;
     ut_ad(buf != nullptr);
-    ut_ad(!buf_page_t::is_zeroes(static_cast<byte *>(buf), page_size));
+    ut_ad(!buf_page_t::is_zeroes(static_cast<byte *>(buf), physical_page_size));
     {
-      ulint buflen = page_size;
+      ulint buflen = physical_page_size;
       /* Transparent page compression (TPC) is disabled if punch hole is not
       supported. A similar check is done in Fil_shard::do_io(). */
       const bool do_compression =
@@ -323,13 +348,15 @@ dberr_t Page_extent::flush_one_by_one() {
         request.compression_algorithm(space->compression_type);
         compressed_block = os_file_compress_page(request, buf, &buflen);
         page_size = buflen;
+        ut_ad(page_size <= physical_page_size);
       }
-      if (space->is_encrypted()) {
+      if (is_space_encrypted) {
         request.get_encryption_info().set(space->m_encryption_metadata);
         e_block = os_file_encrypt_page(request, buf, buflen);
       }
     }
 
+    ut_ad(!buf_page_t::is_zeroes(static_cast<byte *>(buf), page_size));
     ut_a(node->is_open);
     ut_a(node->size >= page_no);
     SyncFileIO sync_file_io(node->handle.m_file, buf, page_size, offset);
@@ -339,17 +366,32 @@ dberr_t Page_extent::flush_one_by_one() {
       fil_complete_write(space_id, node);
       break;
     }
-    page_no++;
+#ifdef UNIV_DEBUG
+    if (err == DB_SUCCESS) {
+      const page_no_t disk_page_no =
+          mach_read_from_4(static_cast<byte *>(buf) + FIL_PAGE_OFFSET);
+      ut_ad(disk_page_no == page_load->get_page_no());
+      m_btree_load->track_page_flush(disk_page_no);
+    }
+#endif /* UNIV_DEBUG */
     if (compressed_block != nullptr) {
       file::Block::free(compressed_block);
       const size_t hole_offset = offset + page_size;
       const size_t hole_size = physical_page_size - page_size;
-      (void)os_file_punch_hole(node->handle.m_file, hole_offset, hole_size);
+      ut_ad(hole_size < physical_page_size);
+      dberr_t err =
+          os_file_punch_hole(node->handle.m_file, hole_offset, hole_size);
+      if (err != DB_SUCCESS) {
+        LogErr(WARNING_LEVEL, ER_IB_BULK_FLUSHER_PUNCH_HOLE, index->table_name,
+               index->name(), (size_t)space_id, (size_t)page_no,
+               physical_page_size, hole_size, file_name.c_str(), (size_t)err);
+      }
     }
     if (e_block != nullptr) {
       file::Block::free(e_block);
     }
     fil_complete_write(space_id, node);
+    page_no++;
   }
   fil_space_release(space);
   return err;
@@ -373,13 +415,13 @@ struct Page_load_compare {
 
 dberr_t Page_extent::flush() {
   dberr_t err{DB_SUCCESS};
-  const page_no_t n_pages = m_page_loads.size();
 
   /* No need to flush any pages if index build has been interrupted. */
   if (m_btree_load->is_interrupted()) {
     return err;
   }
 
+  const page_no_t n_pages = m_page_loads.size();
   if (n_pages == 0) {
     /* Nothing to do. */
     return err;
@@ -401,6 +443,7 @@ dberr_t Page_extent::flush() {
 #endif /* UNIV_DEBUG */
 
   for (auto &page_load : m_page_loads) {
+    ut_ad(page_load->verify_space_id());
     const page_no_t page_no = page_load->get_page_no();
     /* In the debug build we assert, but in the release build we report a
     internal failure. */
@@ -410,28 +453,10 @@ dberr_t Page_extent::flush() {
       /* The page_no is out of range for the given extent. Report error. */
       return DB_FAIL;
     }
-#ifdef UNIV_DEBUG
-    {
-      const page_id_t page_id = page_load->get_page_id();
-      const page_size_t page_size =
-          dict_table_page_size(page_load->index()->table);
-
-      /* It would be incorrect to have a dirty version of page_id in the buffer
-      pool. Verify this with a debug assert. */
-      mtr_t local_mtr;
-      local_mtr.start();
-      buf_block_t *blk = buf_page_get_gen(
-          page_id, page_size, RW_S_LATCH, nullptr,
-          Page_fetch::IF_IN_POOL_POSSIBLY_FREED, UT_LOCATION_HERE, &local_mtr);
-
-      /* A clean copy of the page can be there in buffer pool (read ahead
-      brings the page to buffer pool). This is OK.  This old copy will be
-      evicted after flushing. */
-      ut_ad(blk == nullptr || blk->was_freed() || !blk->page.is_dirty());
-      local_mtr.commit();
-    }
-#endif /* UNIV_DEBUG */
   }
+
+  /* Remove any old copies in the buffer pool. */
+  m_btree_load->force_evict(m_range);
 
   if (m_btree_load->is_tpc_enabled() || m_btree_load->is_tpe_enabled()) {
     err = flush_one_by_one();
@@ -439,8 +464,9 @@ dberr_t Page_extent::flush() {
     err = bulk_flush();
   }
 
-  /* Remove any old copies in the buffer pool. */
-  m_btree_load->force_evict(m_range);
+  /* Remove any old copies in the buffer pool. Should not be dirty. */
+  const bool is_dirty_ok = false;
+  m_btree_load->force_evict(m_range, is_dirty_ok);
 
 #ifdef UNIV_DEBUG
   if (err == DB_SUCCESS) {
@@ -495,8 +521,18 @@ page_no_t Level_ctx::alloc_page_num() {
   m_btree_load->m_stat_n_pages++;
   ut_ad(page_no != 0);
   ut_ad(page_no != FIL_NULL);
+#ifdef UNIV_DEBUG
+  m_pages_allocated.push_back(page_no);
+#endif /* UNIV_DEBUG */
   return page_no;
 }
+
+#ifdef UNIV_DEBUG
+bool Level_ctx::is_page_tracked(const page_no_t &page_no) const {
+  return std::find(m_pages_allocated.begin(), m_pages_allocated.end(),
+                   page_no) != m_pages_allocated.end();
+}
+#endif /* UNIV_DEBUG */
 
 dberr_t Level_ctx::alloc_extent() {
   ut_ad(m_extent_full);
@@ -709,10 +745,6 @@ dberr_t Btree_load::alloc_extent(Page_range_t &page_range, size_t level) {
     ++m_stat_n_extents;
   }
   mtr.commit();
-  if (err == DB_SUCCESS) {
-    force_evict(page_range);
-  }
-
   if (n_reserved > 0) {
     fil_space_release_free_extents(space_id, n_reserved);
   }
@@ -855,6 +887,10 @@ dberr_t Level_ctx::init() {
 
   page_no_t new_page_no = m_page_extent->alloc();
 
+#ifdef UNIV_DEBUG
+  m_pages_allocated.push_back(new_page_no);
+#endif /* UNIV_DEBUG */
+
   if (m_page_extent->is_fully_used()) {
     m_extent_full = true;
   }
@@ -899,8 +935,6 @@ dberr_t Level_ctx::init() {
   btr_page_set_next(new_page, page_zip, FIL_NULL, nullptr);
   btr_page_set_prev(new_page, page_zip, FIL_NULL, nullptr);
   btr_page_set_index_id(new_page, page_zip, m_index->id, nullptr);
-  /* Ensure that this page_id is not there in the buffer pool. */
-  buf_page_force_evict(page_id, page_size);
   return block;
 }
 
@@ -940,19 +974,6 @@ dberr_t Page_load::init_blob(const page_no_t new_page_no) noexcept {
   fsp_init_file_page_low(m_block);
   btr_page_set_next(new_page, nullptr, FIL_NULL, nullptr);
   btr_page_set_prev(new_page, nullptr, FIL_NULL, nullptr);
-
-#ifdef UNIV_DEBUG
-  {
-    /* Ensure that this page_id is not there in the buffer pool. */
-    mtr_t local_mtr;
-    local_mtr.start();
-    buf_block_t *blk =
-        buf_page_get_gen(new_page_id, page_size, RW_S_LATCH, nullptr,
-                         Page_fetch::IF_IN_POOL, UT_LOCATION_HERE, &local_mtr);
-    ut_ad(blk == nullptr);
-    local_mtr.commit();
-  }
-#endif /* UNIV_DEBUG */
   return DB_SUCCESS;
 }
 
@@ -1024,6 +1045,9 @@ dberr_t Page_load::init_mem(const page_no_t page_no,
   m_modified = true;
 
   ut_d(m_total_data = 0);
+
+  ut_ad(is_memory());
+  ut_ad(m_level_ctx->is_page_tracked(m_page_no));
 
   return DB_SUCCESS;
 }
@@ -1211,6 +1235,7 @@ dberr_t Page_load::init() noexcept {
 
 dberr_t Page_load::insert(const rec_t *rec, Rec_offsets offsets) noexcept {
   ut_ad(m_heap != nullptr);
+  ut_ad(verify_space_id());
 
   const auto rec_size = rec_offs_size(offsets);
   const auto slot_size = page_dir_calc_reserved_space(m_rec_no + 1) -
@@ -1230,11 +1255,12 @@ dberr_t Page_load::insert(const rec_t *rec, Rec_offsets offsets) noexcept {
     auto old_offsets = rec_get_offsets(
         old_rec, m_index, nullptr, ULINT_UNDEFINED, UT_LOCATION_HERE, &m_heap);
 
-    ut_ad(cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index,
-                      page_is_spatial_non_leaf(old_rec, m_index)) > 0 ||
-          (m_index->is_multi_value() &&
-           cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index,
-                       page_is_spatial_non_leaf(old_rec, m_index)) >= 0));
+    ulint n_fields;
+    const bool is_spatial = page_is_spatial_non_leaf(old_rec, m_index);
+    const bool is_mvi = m_index->is_multi_value();
+    const int cmp = cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index,
+                                is_spatial, &n_fields);
+    ut_ad(cmp > 0 || (is_mvi && cmp >= 0));
   }
 
   m_total_data += rec_size;
@@ -1374,6 +1400,7 @@ dberr_t Page_load::commit() noexcept {
   ut_a(!m_modified);
   ut_ad(page_validate(m_page, m_index));
   ut_a(m_rec_no > 0);
+  ut_ad(!is_memory() || m_level_ctx->is_page_tracked(m_page_no));
 
   /* Set no free space left and no buffered changes in ibuf. */
   if (!m_index->is_clustered() && !m_index->table->is_temporary() &&
@@ -1747,8 +1774,10 @@ dberr_t Btree_load::page_commit(Page_load *page_loader,
   /* Set page links */
   if (next_page_loader != nullptr) {
     ut_ad(page_loader->get_level() == next_page_loader->get_level());
-    page_loader->set_next(next_page_loader->get_page_no());
-    next_page_loader->set_prev(page_loader->get_page_no());
+    const page_no_t cur_page_no = page_loader->get_page_no();
+    const page_no_t next_page_no = next_page_loader->get_page_no();
+    page_loader->set_next(next_page_no);
+    next_page_loader->set_prev(cur_page_no);
   } else {
     /* Suppose a page is released and latched again, we need to
     mark it modified in mini-transaction.  */
@@ -2063,7 +2092,6 @@ dberr_t Btree_load::load_root_page(page_no_t last_page_no) noexcept {
   /* Load the correct root page. */
   Page_load page_loader(m_index, get_trx_id(), page_no, m_root_level,
                         m_flush_observer, this);
-
   mtr_t mtr;
   mtr.start();
   mtr.x_lock(dict_index_get_lock(m_index), UT_LOCATION_HERE);
@@ -2072,6 +2100,17 @@ dberr_t Btree_load::load_root_page(page_no_t last_page_no) noexcept {
                                   UT_LOCATION_HERE, m_index, &mtr);
 
   auto last_page = buf_block_get_frame(last_block);
+
+#ifdef UNIV_DEBUG
+  {
+    void *zip = last_block->get_page_zip();
+    auto buf = (zip != nullptr) ? last_block->page.zip.data
+                                : buf_block_get_frame(last_block);
+    const bool is_zero =
+        buf_page_t::is_zeroes(static_cast<byte *>(buf), page_size.physical());
+    ut_ad(!is_zero);
+  }
+#endif /* UNIV_DEBUG */
 
   /* Copy last page to root page. */
   auto err = page_loader.init();
@@ -2089,6 +2128,10 @@ dberr_t Btree_load::load_root_page(page_no_t last_page_no) noexcept {
     ut_a(err == DB_SUCCESS);
   } else {
     mtr.commit();
+  }
+
+  if (m_flush_observer != nullptr) {
+    m_flush_observer->flush();
   }
   return err;
 }
@@ -2162,6 +2205,7 @@ dberr_t Btree_load::finish(dberr_t err, const bool subtree) noexcept {
   if (err == DB_SUCCESS) {
     if (subtree == false) {
       err = load_root_page(last_page_no);
+      ut_ad(btr_validate_index(m_index, nullptr, true));
     }
   }
 
@@ -2277,7 +2321,6 @@ void Page_load::set_min_rec_flag(mtr_t *mtr) {
     if (err != DB_SUCCESS) {
       page_no = FIL_NULL;
     } else {
-      force_evict(m_page_range_top);
       page_no = m_page_range_top.first++;
     }
     mtr.commit();
@@ -2297,7 +2340,6 @@ void Page_load::set_min_rec_flag(mtr_t *mtr) {
     if (err != DB_SUCCESS) {
       page_no = FIL_NULL;
     } else {
-      force_evict(m_page_range_leaf);
       page_no = m_page_range_leaf.first++;
     }
     mtr.commit();
@@ -2305,13 +2347,14 @@ void Page_load::set_min_rec_flag(mtr_t *mtr) {
   return page_no;
 }
 
-void Btree_load::force_evict(const Page_range_t &range) {
+void Btree_load::force_evict(const Page_range_t &range,
+                             const bool dirty_is_ok) {
   const space_id_t space_id = dict_index_get_space(m_index);
   const page_size_t page_size(dict_table_page_size(m_index->table));
 
   for (page_no_t p_no = range.first; p_no < range.second; ++p_no) {
     const page_id_t page_id(space_id, p_no);
-    buf_page_force_evict(page_id, page_size);
+    buf_page_force_evict(page_id, page_size, dirty_is_ok);
   }
 }
 
@@ -2605,6 +2648,7 @@ dberr_t Btree_load::init() {
   if (m_heap_order == nullptr) {
     return DB_OUT_OF_MEMORY;
   }
+
   return DB_SUCCESS;
 }
 
@@ -2668,6 +2712,8 @@ dberr_t Btree_load::Merger::merge(bool sort) {
   if (err == DB_SUCCESS) {
     err = add_root_for_subtrees(highest_level);
   }
+
+  ut_ad(btr_validate_index(m_index, nullptr, true));
   return err;
 }
 
@@ -2806,6 +2852,13 @@ dberr_t Btree_load::Merger::subtree_link_levels(size_t &highest_level) {
 
         page_zip_des_t *l_zip = buf_block_get_page_zip(l_block);
         page_zip_des_t *r_zip = buf_block_get_page_zip(r_block);
+
+#ifdef UNIV_DEBUG
+        /* Siblings need to be at the same level. */
+        ulint l_level = btr_page_get_level(l_frame);
+        ulint r_level = btr_page_get_level(r_frame);
+        ut_ad(l_level == r_level);
+#endif /* UNIV_DEBUG */
 
         btr_page_set_next(l_frame, l_zip, r_page_no, mtr);
         btr_page_set_prev(r_frame, r_zip, l_page_no, mtr);
@@ -3507,3 +3560,16 @@ dberr_t Btree_load::Merger::root_page_commit(Page_load *root_load) {
 bool Btree_load::is_interrupted() const {
   return (m_trx != nullptr && trx_is_interrupted(m_trx));
 }
+
+#ifdef UNIV_DEBUG
+bool Page_load::verify_space_id() const {
+  const space_id_t space_id_1 = m_index->space;
+  const space_id_t space_id_2 = m_block->page.id.space();
+  const auto page = buf_block_get_frame(m_block);
+  const space_id_t space_id_3 = page_get_space_id(page);
+  ut_ad(space_id_1 == space_id_2);
+  ut_ad(space_id_2 == space_id_3);
+  ut_ad(space_id_1 == space_id_3);
+  return true;
+}
+#endif /* UNIV_DEBUG */
