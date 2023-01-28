@@ -2345,12 +2345,14 @@ void ConfigGenerator::create_config(
     ADD_CONFIG_LINE_CHECKED(default_section, "master_key_writer",
                             keyring_info_.get_master_key_writer(),
                             router_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "connect_timeout",
-                            std::to_string(connect_timeout_),
-                            metadata_cache_supported_options);
-    ADD_CONFIG_LINE_CHECKED(default_section, "read_timeout",
-                            std::to_string(read_timeout_),
-                            metadata_cache_supported_options);
+    if (!standalone_target_) {
+      ADD_CONFIG_LINE_CHECKED(default_section, "connect_timeout",
+                              std::to_string(connect_timeout_),
+                              metadata_cache_supported_options);
+      ADD_CONFIG_LINE_CHECKED(default_section, "read_timeout",
+                              std::to_string(read_timeout_),
+                              metadata_cache_supported_options);
+    }
     ADD_CONFIG_LINE_CHECKED(default_section, "dynamic_state", state_file_name,
                             router_supported_options);
     ADD_CONFIG_LINE_CHECKED(default_section, "client_ssl_cert",

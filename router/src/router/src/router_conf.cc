@@ -280,7 +280,7 @@ void MySQLRouterConf::prepare_command_options(
               "'--account-host <host>'");
       });
 
-  if (bootstrap_uri.empty())
+  if (bootstrap_uri.empty()) {
     arg_handler.add_option(
         OptionNames({"-B", "--bootstrap"}),
         "Bootstrap and configure Router for operation with a MySQL InnoDB "
@@ -293,22 +293,23 @@ void MySQLRouterConf::prepare_command_options(
           this->bootstrap_uri_ = server_url;
         });
 
-  arg_handler.add_option(
-      OptionNames({"--bootstrap-socket"}),
-      "Bootstrap and configure Router via a Unix socket",
-      CmdOptionValueReq::required, "socket_name",
-      [this](const std::string &socket_name) {
-        if (socket_name.empty()) {
-          throw std::runtime_error(
-              "Invalid value for --bootstrap-socket option");
-        }
+    arg_handler.add_option(
+        OptionNames({"--bootstrap-socket"}),
+        "Bootstrap and configure Router via a Unix socket",
+        CmdOptionValueReq::required, "socket_name",
+        [this](const std::string &socket_name) {
+          if (socket_name.empty()) {
+            throw std::runtime_error(
+                "Invalid value for --bootstrap-socket option");
+          }
 
-        this->save_bootstrap_option_not_empty("--bootstrap-socket",
-                                              "bootstrap_socket", socket_name);
-      },
-      [this](const std::string &) {
-        this->assert_bootstrap_mode("--bootstrap-socket");
-      });
+          this->save_bootstrap_option_not_empty(
+              "--bootstrap-socket", "bootstrap_socket", socket_name);
+        },
+        [this](const std::string &) {
+          this->assert_bootstrap_mode("--bootstrap-socket");
+        });
+  }
 
   arg_handler.add_option(
       OptionNames({"--client-ssl-cert"}),
