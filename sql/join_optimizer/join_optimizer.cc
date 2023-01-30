@@ -3435,12 +3435,19 @@ void CostingReceiver::ProposeHashJoin(
         FindOutputRowsForJoin(outer_input_rows, inner_input_rows, edge);
   }
 
+  // left_path and join_path.hash_join().outer are intentionally different if
+  // rewrite_semi_to_inner is true. See comment where DeduplicateForSemijoin()
+  // is called above. We want to calculate join cost based on the actual left
+  // child, so use join_path.hash_join().outer in cost calculations for
+  // join_path.
+  const AccessPath *outer = join_path.hash_join().outer;
+
   // TODO(sgunders): Add estimates for spill-to-disk costs.
   // NOTE: Keep this in sync with SimulateJoin().
   const double build_cost =
       right_path->cost + right_path->num_output_rows() * kHashBuildOneRowCost;
-  double cost = left_path->cost + build_cost +
-                left_path->num_output_rows() * kHashProbeOneRowCost +
+  double cost = outer->cost + build_cost +
+                outer->num_output_rows() * kHashProbeOneRowCost +
                 num_output_rows * kHashReturnOneRowCost;
 
   // Note: This isn't strictly correct if the non-equijoin conditions
@@ -3453,7 +3460,7 @@ void CostingReceiver::ProposeHashJoin(
   join_path.num_output_rows_before_filter = num_output_rows;
   join_path.cost_before_filter = cost;
   join_path.set_num_output_rows(num_output_rows);
-  join_path.init_cost = build_cost + left_path->init_cost;
+  join_path.init_cost = build_cost + outer->init_cost;
 
   double estimated_bytes_per_row = edge->estimated_bytes_per_row;
 
@@ -3491,10 +3498,10 @@ void CostingReceiver::ProposeHashJoin(
       right_path->parameter_tables == 0) {
     // Fits in memory (with 10% estimation margin), and has
     // no external dependencies, so the hash table can be reused.
-    join_path.init_once_cost = build_cost + left_path->init_once_cost;
+    join_path.init_once_cost = build_cost + outer->init_once_cost;
   } else {
     join_path.init_once_cost =
-        left_path->init_once_cost + right_path->init_once_cost;
+        outer->init_once_cost + right_path->init_once_cost;
   }
   join_path.cost = cost;
 
@@ -3984,7 +3991,15 @@ void CostingReceiver::ProposeNestedLoopJoin(
         FindOutputRowsForJoin(outer_input_rows, inner_input_rows, edge);
     join_path.set_num_output_rows(join_path.num_output_rows_before_filter);
   }
-  join_path.init_cost = left_path->init_cost;
+
+  // left_path and join_path.nested_loop_join().outer are intentionally
+  // different if rewrite_semi_to_inner is true. See comment where
+  // DeduplicateForSemijoin() is called above. We want to calculate join cost
+  // based on the actual left child, so use join_path.nested_loop_join().outer
+  // in cost calculations for join_path.
+  const AccessPath *outer = join_path.nested_loop_join().outer;
+
+  join_path.init_cost = outer->init_cost;
 
   // NOTE: The ceil() around the number of rows on the left side is a workaround
   // for an issue where we think the left side has a very low cardinality,
@@ -3993,8 +4008,8 @@ void CostingReceiver::ProposeNestedLoopJoin(
   // band-aid (we should “just” have better row estimation and/or braking
   // factors), but it should be fairly benign in general.
   join_path.cost_before_filter = join_path.cost =
-      left_path->cost + inner->init_cost +
-      inner_rescan_cost * ceil(left_path->num_output_rows());
+      outer->cost + inner->init_cost +
+      inner_rescan_cost * ceil(outer->num_output_rows());
 
   // Nested-loop preserves any ordering from the outer side. Note that actually,
   // the two orders are _concatenated_ (if you nested-loop join something

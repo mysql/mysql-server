@@ -3224,6 +3224,45 @@ TEST_F(HypergraphOptimizerTest, SemijoinToInnerWithSargable) {
   EXPECT_STREQ("t3", root->hash_join().inner->table_scan().table->alias);
 }
 
+TEST_F(HypergraphOptimizerTest, SemijoinToInnerWithDegenerateJoinCondition) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT 1 FROM t1 WHERE 1 IN (SELECT t2.x FROM t2)",
+                      /*nullable=*/false);
+
+  // Make the tables big so that building a hash table of one of them looks
+  // expensive.
+  m_fake_tables["t1"]->file->stats.records = 1000000;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e8;
+  m_fake_tables["t2"]->file->stats.records = 1000000;
+  m_fake_tables["t2"]->file->stats.data_file_length = 1e8;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Expect a nested-loop inner join using a limit on t2 to be preferred to a
+  // hash semijoin.
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
+
+  const AccessPath *outer = root->nested_loop_join().outer;
+  ASSERT_EQ(AccessPath::LIMIT_OFFSET, outer->type);
+  EXPECT_EQ(0, outer->limit_offset().offset);
+  EXPECT_EQ(1, outer->limit_offset().limit);
+  ASSERT_EQ(AccessPath::FILTER, outer->limit_offset().child->type);
+  ASSERT_EQ(AccessPath::TABLE_SCAN,
+            outer->limit_offset().child->filter().child->type);
+  EXPECT_STREQ(
+      "t2",
+      outer->limit_offset().child->filter().child->table_scan().table->alias);
+
+  const AccessPath *inner = root->nested_loop_join().inner;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, inner->type);
+  EXPECT_STREQ("t1", inner->table_scan().table->alias);
+}
+
 /*
   Test a query with two multiple equalities on overlapping, but not identical,
   sets of tables, and where there is a hyperpredicate that references all of the
