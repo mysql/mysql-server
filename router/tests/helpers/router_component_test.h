@@ -84,7 +84,7 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
     return session;
   }
 
-  std::unique_ptr<MySQLSession> make_new_connection_ok(
+  std::pair<uint16_t, std::unique_ptr<MySQLSession>> make_new_connection_ok(
       uint16_t router_port, std::vector<uint16_t> expected_node_ports) {
     std::unique_ptr<MySQLSession> session{std::make_unique<MySQLSession>()};
     EXPECT_NO_THROW(session->connect("127.0.0.1", router_port, "username",
@@ -95,7 +95,7 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
         static_cast<uint16_t>(std::strtoul((*result)[0], nullptr, 10));
     EXPECT_THAT(expected_node_ports, ::testing::Contains(port));
 
-    return session;
+    return std::make_pair(port, std::move(session));
   }
 
   uint16_t make_new_connection_ok(uint16_t router_port) {

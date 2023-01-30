@@ -33,6 +33,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
+#include "mysql/harness/stdx/ranges.h"  // enumerate
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "router_component_clusterset.h"
@@ -284,6 +285,9 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
     const auto ar_trace_file =
         get_data_dir().join("metadata_dynamic_nodes_v2_ar.js").str();
 
+    gr_nodes_count_ = ar_nodes_number;
+    read_replica_nodes_count_ = rr_number;
+
     for (size_t i = 0; i < ar_nodes_number + rr_number; ++i) {
       NodeData node;
       node.classic_port = port_pool_.get_next_available();
@@ -308,7 +312,7 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
   }
 
   // returns classic port of the removed node
-  size_t remove_node(size_t id, bool remove_from_md = true) {
+  uint16_t remove_node(size_t id, bool remove_from_md = true) {
     assert(id < cluster_nodes_.size());
     const auto result = cluster_nodes_[id].classic_port;
     const auto node = cluster_nodes_[id];
@@ -378,6 +382,21 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
     update_cluster_metadata();
   }
 
+  void check_all_ports_used(
+      const std::vector<uint16_t> &expected_ports,
+      const std::vector<std::pair<uint16_t, std::unique_ptr<MySQLSession>>>
+          &created_connections) {
+    std::set<uint16_t> used_ports, expected_ports_set;
+    for (const auto &con : created_connections) {
+      used_ports.insert(con.first);
+    }
+    for (const auto &port : expected_ports) {
+      expected_ports_set.insert(port);
+    }
+
+    EXPECT_THAT(expected_ports_set, ::testing::ContainerEq(used_ports));
+  }
+
   std::vector<std::uint16_t> get_md_servers_classic_ports() const {
     if (is_target_clusterset_) {
       return clusterset_data_.get_md_servers_classic_ports();
@@ -424,6 +443,18 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
     std::vector<std::uint16_t> result;
     for (size_t i = 1; i < gr_nodes_count_ + read_replica_nodes_count_; ++i) {
       result.push_back(cluster_nodes_[i].classic_port);
+    }
+
+    return result;
+  }
+
+  std::vector<uint16_t> get_all_cs_ro_classic_ports(const size_t cluster_id) {
+    std::vector<std::uint16_t> result;
+    const auto &cluster = clusterset_data_.clusters[cluster_id];
+    for (const auto [i, node] : stdx::views::enumerate(cluster.nodes)) {
+      if (i > 0 || cluster.role == "SECONDARY" || cluster.invalid) {
+        result.push_back(node.classic_port);
+      }
     }
 
     return result;
@@ -547,23 +578,16 @@ const std::chrono::seconds ReadReplicaTest::kReadyNotifyTimeout = 30s;
  * are handled properly.
  */
 TEST_F(ReadReplicaTest, ReadReplicaModeChanges) {
-  const unsigned gr_nodes_count = 3;
-  const unsigned replica_nodes_count = 1;
+  const unsigned initial_gr_nodes_count = 3;
+  const unsigned initial_replica_nodes_count = 1;
 
-  const unsigned gr_rw_nodes_count = 1;
-  const unsigned gr_ro_nodes_count = gr_nodes_count - gr_rw_nodes_count;
-  const size_t gr_ro_and_rr_nodes_count =
-      gr_nodes_count + replica_nodes_count - gr_rw_nodes_count;
-
-  create_gr_cluster(gr_nodes_count, replica_nodes_count, "append");
+  create_gr_cluster(initial_gr_nodes_count, initial_replica_nodes_count,
+                    "append");
   const auto &router = launch_router();
 
   // append
-  for (size_t i = 0; i <= gr_nodes_count + 1; i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        cluster_nodes_[gr_rw_nodes_count + i % gr_ro_and_rr_nodes_count]
-            .classic_port);
+  for (size_t i = 0; i <= gr_nodes_count_ + 1; i++) {
+    make_new_connection_ok(router_port_ro, get_all_ro_classic_ports());
   }
 
   change_read_replicas_mode("replace");
@@ -571,10 +595,8 @@ TEST_F(ReadReplicaTest, ReadReplicaModeChanges) {
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // replace
-  for (size_t i = 0; i <= 2 * replica_nodes_count; i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        cluster_nodes_[gr_nodes_count + i % replica_nodes_count].classic_port);
+  for (size_t i = 0; i <= 2 * read_replica_nodes_count_; i++) {
+    make_new_connection_ok(router_port_ro, get_read_replicas_classic_ports());
   }
 
   change_read_replicas_mode("ignore");
@@ -582,10 +604,8 @@ TEST_F(ReadReplicaTest, ReadReplicaModeChanges) {
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // ignore
-  for (size_t i = 0; i <= gr_nodes_count; i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        cluster_nodes_[gr_rw_nodes_count + i % gr_ro_nodes_count].classic_port);
+  for (size_t i = 0; i <= gr_nodes_count_; i++) {
+    make_new_connection_ok(router_port_ro, get_gr_ro_classic_ports());
   }
 
   change_read_replicas_mode(std::nullopt);
@@ -593,10 +613,8 @@ TEST_F(ReadReplicaTest, ReadReplicaModeChanges) {
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // unset defaults to "ignore"
-  for (size_t i = 0; i <= gr_nodes_count; i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        cluster_nodes_[gr_rw_nodes_count + i % gr_ro_nodes_count].classic_port);
+  for (size_t i = 0; i <= gr_nodes_count_; i++) {
+    make_new_connection_ok(router_port_ro, get_gr_ro_classic_ports());
   }
 
   change_read_replicas_mode("");
@@ -604,10 +622,8 @@ TEST_F(ReadReplicaTest, ReadReplicaModeChanges) {
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // empty defaults to "ignore"
-  for (size_t i = 0; i <= gr_nodes_count; i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        cluster_nodes_[gr_rw_nodes_count + i % gr_ro_nodes_count].classic_port);
+  for (size_t i = 0; i <= gr_nodes_count_; i++) {
+    make_new_connection_ok(router_port_ro, get_gr_ro_classic_ports());
   }
   check_log_contains(
       &router,
@@ -621,10 +637,8 @@ TEST_F(ReadReplicaTest, ReadReplicaModeChanges) {
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // unrecognised defaults to "ignore"
-  for (size_t i = 0; i <= gr_nodes_count; i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        cluster_nodes_[gr_rw_nodes_count + i % gr_ro_nodes_count].classic_port);
+  for (size_t i = 0; i <= gr_nodes_count_; i++) {
+    make_new_connection_ok(router_port_ro, get_gr_ro_classic_ports());
   }
   check_log_contains(
       &router,
@@ -856,6 +870,7 @@ TEST_P(ReadReplicaQuarantinedTest, ReadReplicaQuarantined) {
   const auto &router = launch_router(quarantine_threshold);
 
   // remove first read replica [D]
+  const auto classic_port_E = cluster_nodes_[4].classic_port;
   const auto classic_port_D = remove_node(gr_nodes_count, false);
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
@@ -881,13 +896,17 @@ TEST_P(ReadReplicaQuarantinedTest, ReadReplicaQuarantined) {
       10s));
 
   // check RR [D] is back in the rotation
+  const auto expected_ports =
+      std::vector<uint16_t>{classic_port_D, classic_port_E};
+  std::vector<std::pair<uint16_t, std::unique_ptr<MySQLSession>>> ro_cons;
   for (size_t i = 0; i < 2 * quarantine_threshold + 1; i++) {
-    make_new_connection_ok(router_port_ro,
-                           cluster_nodes_[gr_nodes_count + i % 2].classic_port);
+    ro_cons.emplace_back(
+        make_new_connection_ok(router_port_ro, expected_ports));
   }
+  check_all_ports_used(expected_ports, ro_cons);
 
   // remove second read replica [E] now
-  const auto classic_port_E = remove_node(gr_nodes_count + 1, false);
+  remove_node(gr_nodes_count + 1, false);
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
@@ -1038,9 +1057,7 @@ TEST_F(ReadReplicaTest, ReadReplicaInAsyncReplicaCluster) {
 
   // only ReplicaSet secondaries should be used for RO connections
   for (size_t i = 0; i < 2 * ar_ro_nodes_count; i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        cluster_nodes_[ar_rw_nodes_count + i % ar_ro_nodes_count].classic_port);
+    make_new_connection_ok(router_port_ro, get_gr_ro_classic_ports());
   }
 
   const auto classic_port_D = cluster_nodes_[3].classic_port;
@@ -1079,14 +1096,12 @@ TEST_F(ReadReplicaTest, ReadReplicaGRPlusStaticRouting) {
   }
 
   for (size_t i = 0; i < read_replica_nodes_count + 1; i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        cluster_nodes_[1 + i % read_replica_nodes_count].classic_port);
+    make_new_connection_ok(router_port_ro, get_read_replicas_classic_ports());
   }
 
   for (size_t i = 0; i < static_dest_count + 1; i++) {
-    make_new_connection_ok(router_port_static,
-                           router_static_dest_ports[i % static_dest_count]);
+    make_new_connection_ok(router_port_static, {router_static_dest_ports[0],
+                                                router_static_dest_ports[1]});
   }
 }
 
@@ -1118,8 +1133,7 @@ TEST_F(ReadReplicaTest, ReadReplicaReplicaSetPlusStaticRouting) {
   verify_new_connection_fails(router_port_ro);
 
   for (size_t i = 0; i < static_dest_count + 1; i++) {
-    make_new_connection_ok(router_port_static,
-                           router_static_dest_ports[i % static_dest_count]);
+    make_new_connection_ok(router_port_static, router_static_dest_ports);
   }
 }
 
@@ -1147,13 +1161,15 @@ TEST_F(ReadReplicaTest, ReadReplicaClusterSet) {
 
   // read_replicas_mode is 'append' so both 2 RO nodes of the Primary Cluster
   // and 2 RRs should be used
+  const auto expected_ports = get_all_cs_ro_classic_ports(0);
+  std::vector<std::pair<uint16_t, std::unique_ptr<MySQLSession>>> ro_cons;
   for (size_t i = 0;
        i < 2 * (primary_gr_ro_nodes_count + primary_read_replicas_nodes_count);
        i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        clusterset_data_.clusters[0].nodes[1 + i % 4].classic_port);
+    ro_cons.emplace_back(
+        make_new_connection_ok(router_port_ro, expected_ports));
   }
+  check_all_ports_used(expected_ports, ro_cons);
 
   // change the target cluster to secondary cluster
   router_cs_options =
@@ -1165,14 +1181,17 @@ TEST_F(ReadReplicaTest, ReadReplicaClusterSet) {
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
 
+  ro_cons.clear();
   // read_replicas_mode is 'append' so all 3 RO nodes of the second Cluster and
   // 1 RR should be used
+  const auto expected_ports_2 = get_all_cs_ro_classic_ports(1);
   for (size_t i = 0;
        i < 2 * (replica1_gr_nodes_count + replica1_read_replicas_nodes_count);
        i++) {
-    make_new_connection_ok(
-        router_port_ro, clusterset_data_.clusters[1].nodes[i % 4].classic_port);
+    ro_cons.emplace_back(
+        make_new_connection_ok(router_port_ro, expected_ports_2));
   }
+  check_all_ports_used(expected_ports_2, ro_cons);
 
   // change the target cluster back to primary cluster
   router_cs_options = R"({"target_cluster" : "primary"})";
@@ -1183,15 +1202,16 @@ TEST_F(ReadReplicaTest, ReadReplicaClusterSet) {
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
 
+  ro_cons.clear();
   // read_replicas_mode is 'append' so both 2 RO nodes of the Primary Cluster
   // and 2 RRs should be used
   for (size_t i = 0;
        i < 2 * (primary_gr_ro_nodes_count + primary_read_replicas_nodes_count);
        i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        clusterset_data_.clusters[0].nodes[1 + i % 4].classic_port);
+    ro_cons.emplace_back(
+        make_new_connection_ok(router_port_ro, expected_ports));
   }
+  check_all_ports_used(expected_ports, ro_cons);
 }
 
 struct ReadReplicaInvalidatedClusterTestParam {
@@ -1253,16 +1273,17 @@ TEST_P(ReadReplicaInvalidatedClusterTest,
   const auto &rw_con = make_new_connection_ok(
       router_port_rw, clusterset_data_.clusters[0].nodes[0].classic_port);
 
-  std::vector<std::unique_ptr<MySQLSession>> ro_cons;
+  const auto expected_ports = get_all_cs_ro_classic_ports(0);
+  std::vector<std::pair<uint16_t, std::unique_ptr<MySQLSession>>> ro_cons;
   // read_replicas_mode is 'append' so both 2 RO nodes of the Primary Cluster
   // and 2 RRs should be used
   for (size_t i = 0;
        i < 2 * (primary_gr_ro_nodes_count + primary_read_replicas_nodes_count);
        i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        clusterset_data_.clusters[0].nodes[1 + i % 4].classic_port);
+    ro_cons.emplace_back(
+        make_new_connection_ok(router_port_ro, expected_ports));
   }
+  check_all_ports_used(expected_ports, ro_cons);
 
   // mark the target_cluster as invalid
   clusterset_data_.clusters[0].invalid = true;
@@ -1281,22 +1302,24 @@ TEST_P(ReadReplicaInvalidatedClusterTest,
     // allows RO connections so the RO connections should still be possible and
     // RRs should also be used for them
     for (const auto &ro_con : ro_cons) {
-      verify_existing_connection_ok(ro_con.get());
+      verify_existing_connection_ok(ro_con.second.get());
     }
 
+    ro_cons.clear();
+    const auto expected_ports_2 = get_all_cs_ro_classic_ports(0);
     for (size_t i = 0; i < 2 * (primary_gr_ro_nodes_count +
                                 primary_read_replicas_nodes_count);
          i++) {
-      make_new_connection_ok(
-          router_port_ro,
-          clusterset_data_.clusters[0].nodes[i % 5].classic_port);
+      ro_cons.emplace_back(
+          make_new_connection_ok(router_port_ro, expected_ports_2));
     }
+    check_all_ports_used(expected_ports_2, ro_cons);
   } else {
     // cluster is invalidated in the metadata and the invalidated_cluster_policy
     // does not allow RO connections so no new RO connections should be
     // possible and old ones should be dropped
     for (const auto &ro_con : ro_cons) {
-      verify_existing_connection_dropped(ro_con.get());
+      verify_existing_connection_dropped(ro_con.second.get());
     }
 
     verify_new_connection_fails(router_port_ro);
@@ -1321,21 +1344,17 @@ class ReadReplicaNoQuorumTest
  * (Router does not accept any connections).
  */
 TEST_P(ReadReplicaNoQuorumTest, ReadReplicaGRNoQuorum) {
-  const unsigned gr_nodes_count = 3;
-  const unsigned replica_nodes_count = 2;
-  const unsigned gr_rw_nodes_count = 1;
-  const size_t gr_ro_and_rr_nodes_count =
-      gr_nodes_count + replica_nodes_count - gr_rw_nodes_count;
+  const unsigned initial_gr_nodes_count = 3;
+  const unsigned initial_replica_nodes_count = 2;
 
-  create_gr_cluster(gr_nodes_count, replica_nodes_count, "append");
+  create_gr_cluster(initial_gr_nodes_count, initial_replica_nodes_count,
+                    "append");
   /*const auto &router =*/launch_router();
 
   // append
-  for (size_t i = 0; i <= gr_ro_and_rr_nodes_count; i++) {
-    make_new_connection_ok(
-        router_port_ro,
-        cluster_nodes_[gr_rw_nodes_count + i % gr_ro_and_rr_nodes_count]
-            .classic_port);
+  for (size_t i = 0; i <= initial_gr_nodes_count + initial_replica_nodes_count;
+       i++) {
+    make_new_connection_ok(router_port_ro, get_all_ro_classic_ports());
   }
 
   // set secondary GR nodes of the cluster to the selected state
@@ -1376,18 +1395,14 @@ TEST_F(ReadReplicaTest, HidingNodesAppendMode) {
   // [ D, E ] - RR nodes
   const unsigned gr_nodes_count = 3;
   const unsigned read_replica_nodes_count = 2;
-  const unsigned gr_rw_nodes_count = 1;
-  const unsigned gr_ro_nodes_count = gr_nodes_count - gr_rw_nodes_count;
-
   create_gr_cluster(gr_nodes_count, read_replica_nodes_count, "append");
   launch_router();
 
-  std::vector<std::unique_ptr<MySQLSession>> ro_cons;
+  std::vector<std::pair<uint16_t, std::unique_ptr<MySQLSession>>> ro_cons;
 
-  for (size_t i = 0; i < gr_ro_nodes_count + read_replica_nodes_count; i++) {
-    ro_cons.emplace_back(make_new_connection_ok(
-        router_port_ro,
-        cluster_nodes_[gr_rw_nodes_count + i % 4].classic_port));
+  for (size_t i = 0; i < gr_nodes_count + read_replica_nodes_count; i++) {
+    ro_cons.emplace_back(
+        make_new_connection_ok(router_port_ro, get_all_ro_classic_ports()));
   }
 
   // hide first RR (D)
@@ -1397,22 +1412,21 @@ TEST_F(ReadReplicaTest, HidingNodesAppendMode) {
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // existing connection to D should be dropped, all the rest should be ok
-  for (size_t i = 1; i <= gr_ro_nodes_count + read_replica_nodes_count; i++) {
-    if (i == 3) {
-      verify_existing_connection_dropped(ro_cons[i - 1].get());
+  for (const auto &con : ro_cons) {
+    if (con.first == cluster_nodes_[3].classic_port) {
+      verify_existing_connection_dropped(con.second.get());
     } else {
-      verify_existing_connection_ok(ro_cons[i - 1].get());
+      verify_existing_connection_ok(con.second.get());
     }
   }
 
   // new connections should not reach D
   {
-    std::vector<NodeData *> ro_dest_nodes{
-        &cluster_nodes_[1], &cluster_nodes_[2], &cluster_nodes_[4]};
-    for (size_t i = 0;
-         i < 2 * (gr_ro_nodes_count + read_replica_nodes_count - 1); i++) {
-      make_new_connection_ok(router_port_ro,
-                             ro_dest_nodes[i % 3]->classic_port);
+    std::vector<uint16_t> ro_dest_nodes{cluster_nodes_[1].classic_port,
+                                        cluster_nodes_[2].classic_port,
+                                        cluster_nodes_[4].classic_port};
+    for (size_t i = 0; i < gr_nodes_count + read_replica_nodes_count; i++) {
+      make_new_connection_ok(router_port_ro, ro_dest_nodes);
     }
   }
 
@@ -1424,21 +1438,18 @@ TEST_F(ReadReplicaTest, HidingNodesAppendMode) {
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // connection to D should be dropped but to E should be kept
-  for (size_t i = 1; i <= gr_ro_nodes_count + read_replica_nodes_count; i++) {
-    if (i == 3) {
-      verify_existing_connection_dropped(ro_cons[i - 1].get());
+  for (const auto &con : ro_cons) {
+    if (con.first == cluster_nodes_[3].classic_port) {
+      verify_existing_connection_dropped(con.second.get());
     } else {
-      verify_existing_connection_ok(ro_cons[i - 1].get());
+      verify_existing_connection_ok(con.second.get());
     }
   }
 
   // new connections should not reach D nor E
   {
-    std::vector<NodeData *> ro_dest_nodes{&cluster_nodes_[1],
-                                          &cluster_nodes_[2]};
-    for (size_t i = 0; i < 2 * gr_ro_nodes_count; i++) {
-      make_new_connection_ok(router_port_ro,
-                             ro_dest_nodes[i % 2]->classic_port);
+    for (size_t i = 0; i < gr_nodes_count + read_replica_nodes_count; i++) {
+      make_new_connection_ok(router_port_ro, get_gr_ro_classic_ports());
     }
   }
 
@@ -1450,11 +1461,11 @@ TEST_F(ReadReplicaTest, HidingNodesAppendMode) {
 
   // it should be in the rotation for new connections again
   {
-    std::vector<NodeData *> ro_dest_nodes{
-        &cluster_nodes_[1], &cluster_nodes_[2], &cluster_nodes_[3]};
-    for (size_t i = 0; i < gr_ro_nodes_count + read_replica_nodes_count; i++) {
-      make_new_connection_ok(router_port_ro,
-                             ro_dest_nodes[i % 3]->classic_port);
+    std::vector<uint16_t> ro_dest_nodes{cluster_nodes_[1].classic_port,
+                                        cluster_nodes_[2].classic_port,
+                                        cluster_nodes_[3].classic_port};
+    for (size_t i = 0; i < gr_nodes_count + read_replica_nodes_count; i++) {
+      make_new_connection_ok(router_port_ro, ro_dest_nodes);
     }
   }
 }
@@ -1473,11 +1484,11 @@ TEST_F(ReadReplicaTest, HidingNodesReplaceMode) {
   create_gr_cluster(gr_nodes_count, replica_nodes_count, "replace");
   launch_router();
 
-  std::vector<std::unique_ptr<MySQLSession>> ro_cons;
+  std::vector<std::pair<uint16_t, std::unique_ptr<MySQLSession>>> ro_cons;
 
-  for (size_t i = 2; i < 4; i++) {
+  for (size_t i = 0; i < replica_nodes_count; i++) {
     ro_cons.emplace_back(make_new_connection_ok(
-        router_port_ro, cluster_nodes_[3 + i % 2].classic_port));
+        router_port_ro, get_read_replicas_classic_ports()));
   }
 
   // hide first RR (D)
@@ -1487,20 +1498,17 @@ TEST_F(ReadReplicaTest, HidingNodesReplaceMode) {
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // existing connection to D should be dropped, the one to E should be kept
-  for (size_t i = 0; i < ro_cons.size(); i++) {
-    if (i == 0) {
-      verify_existing_connection_dropped(ro_cons[i].get());
+  for (const auto &con : ro_cons) {
+    if (con.first == cluster_nodes_[3].classic_port) {
+      verify_existing_connection_dropped(con.second.get());
     } else {
-      verify_existing_connection_ok(ro_cons[i].get());
+      verify_existing_connection_ok(con.second.get());
     }
   }
 
-  // new connections should not reach D
-  {
-    std::vector<NodeData *> ro_dest_nodes{&cluster_nodes_[4]};
-    for (size_t i = 0; i < 2 * ro_dest_nodes.size(); i++) {
-      make_new_connection_ok(router_port_ro, ro_dest_nodes[0]->classic_port);
-    }
+  // new connections should not reach D, all should go to E
+  for (size_t i = 0; i < replica_nodes_count; i++) {
+    make_new_connection_ok(router_port_ro, cluster_nodes_[4].classic_port);
   }
 
   // hide second RR (E) but make it keep existing connections
@@ -1511,11 +1519,11 @@ TEST_F(ReadReplicaTest, HidingNodesReplaceMode) {
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // connection to D should be dropped but to E should be kept
-  for (size_t i = 0; i < 2; i++) {
-    if (i == 0) {
-      verify_existing_connection_dropped(ro_cons[i].get());
+  for (const auto &con : ro_cons) {
+    if (con.first == cluster_nodes_[3].classic_port) {
+      verify_existing_connection_dropped(con.second.get());
     } else {
-      verify_existing_connection_ok(ro_cons[i].get());
+      verify_existing_connection_ok(con.second.get());
     }
   }
 
@@ -1530,13 +1538,8 @@ TEST_F(ReadReplicaTest, HidingNodesReplaceMode) {
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   // both D and E should be in the rotation for new connections again
-  {
-    std::vector<NodeData *> ro_dest_nodes{&cluster_nodes_[3],
-                                          &cluster_nodes_[4]};
-    for (size_t i = 0; i < 4; i++) {
-      make_new_connection_ok(router_port_ro,
-                             ro_dest_nodes[i % 2]->classic_port);
-    }
+  for (size_t i = 0; i < 4; i++) {
+    make_new_connection_ok(router_port_ro, get_read_replicas_classic_ports());
   }
 }
 
