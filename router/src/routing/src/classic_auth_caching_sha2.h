@@ -38,6 +38,8 @@
 // low-level routings for caching_sha2_password
 class AuthCachingSha2Password : public AuthBase {
  public:
+  static constexpr const size_t kNonceLength{20};
+
   static constexpr const std::string_view kName{"caching_sha2_password"};
 
   static constexpr const std::string_view kPublicKeyRequest{"\x02"};

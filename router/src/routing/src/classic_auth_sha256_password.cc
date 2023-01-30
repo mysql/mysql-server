@@ -201,8 +201,16 @@ AuthSha256Sender::public_key() {
   // recv_buffer.
   discard_current_msg(dst_channel, dst_protocol);
 
-  auto encrypted_res = Auth::rsa_encrypt_password(*pubkey_res, password_,
-                                                  initial_server_auth_data_);
+  auto nonce = initial_server_auth_data_;
+
+  // if there is a trailing zero, strip it.
+  if (nonce.size() == Auth::kNonceLength + 1 &&
+      nonce[Auth::kNonceLength] == 0x00) {
+    nonce = nonce.substr(0, Auth::kNonceLength);
+  }
+
+  auto encrypted_res =
+      Auth::rsa_encrypt_password(*pubkey_res, password_, nonce);
   if (!encrypted_res) return send_server_failed(encrypted_res.error());
 
   auto send_res =
@@ -385,9 +393,17 @@ AuthSha256Forwarder::encrypted_password() {
   if (!msg_res) return recv_client_failed(msg_res.error());
 
   if (AuthBase::connection_has_public_key(connection())) {
+    auto nonce = src_protocol->auth_method_data();
+
+    // if there is a trailing zero, strip it.
+    if (nonce.size() == Auth::kNonceLength + 1 &&
+        nonce[Auth::kNonceLength] == 0x00) {
+      nonce = nonce.substr(0, Auth::kNonceLength);
+    }
+
     auto recv_res = Auth::rsa_decrypt_password(
         connection()->context().source_ssl_ctx()->get(),
-        msg_res->auth_method_data(), src_protocol->auth_method_data());
+        msg_res->auth_method_data(), nonce);
     if (!recv_res) {
       if (auto &tr = tracer()) {
         tr.trace(Tracer::Event().stage("sha256_password::forward::decrypt:\n" +
@@ -581,8 +597,16 @@ AuthSha256Forwarder::public_key() {
   // invalidates 'msg'
   discard_current_msg(dst_channel, dst_protocol);
 
-  const auto encrypted_res = Auth::rsa_encrypt_password(
-      *pubkey_res, *src_protocol->password(), initial_server_auth_data_);
+  auto nonce = initial_server_auth_data_;
+
+  // if there is a trailing zero, strip it.
+  if (nonce.size() == Auth::kNonceLength + 1 &&
+      nonce[Auth::kNonceLength] == 0x00) {
+    nonce = nonce.substr(0, Auth::kNonceLength);
+  }
+
+  const auto encrypted_res =
+      Auth::rsa_encrypt_password(*pubkey_res, *src_protocol->password(), nonce);
   if (!encrypted_res) return send_server_failed(encrypted_res.error());
 
   if (auto &tr = tracer()) {

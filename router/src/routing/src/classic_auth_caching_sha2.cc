@@ -243,8 +243,16 @@ AuthCachingSha2Sender::public_key() {
   // recv_buffer.
   discard_current_msg(dst_channel, dst_protocol);
 
-  auto encrypted_res = Auth::rsa_encrypt_password(*pubkey_res, password_,
-                                                  initial_server_auth_data_);
+  auto nonce = initial_server_auth_data_;
+
+  // if there is a trailing zero, strip it.
+  if (nonce.size() == Auth::kNonceLength + 1 &&
+      nonce[Auth::kNonceLength] == 0x00) {
+    nonce = nonce.substr(0, Auth::kNonceLength);
+  }
+
+  auto encrypted_res =
+      Auth::rsa_encrypt_password(*pubkey_res, password_, nonce);
   if (!encrypted_res) return send_server_failed(encrypted_res.error());
 
   auto send_res =
@@ -459,9 +467,17 @@ AuthCachingSha2Forwarder::encrypted_password() {
   }
 
   if (AuthBase::connection_has_public_key(connection())) {
+    auto nonce = initial_server_auth_data_;
+
+    // if there is a trailing zero, strip it.
+    if (nonce.size() == Auth::kNonceLength + 1 &&
+        nonce[Auth::kNonceLength] == 0x00) {
+      nonce = nonce.substr(0, Auth::kNonceLength);
+    }
+
     auto recv_res = Auth::rsa_decrypt_password(
         connection()->context().source_ssl_ctx()->get(),
-        msg_res->auth_method_data(), initial_server_auth_data_);
+        msg_res->auth_method_data(), nonce);
     if (!recv_res) return recv_client_failed(recv_res.error());
 
     src_protocol->password(*recv_res);
@@ -733,8 +749,15 @@ AuthCachingSha2Forwarder::public_key() {
 
   auto password = *src_protocol->password();
 
-  auto encrypted_res = Auth::rsa_encrypt_password(*pubkey_res, password,
-                                                  initial_server_auth_data_);
+  auto nonce = initial_server_auth_data_;
+
+  // if there is a trailing zero, strip it.
+  if (nonce.size() == Auth::kNonceLength + 1 &&
+      nonce[Auth::kNonceLength] == 0x00) {
+    nonce = nonce.substr(0, Auth::kNonceLength);
+  }
+
+  auto encrypted_res = Auth::rsa_encrypt_password(*pubkey_res, password, nonce);
   if (!encrypted_res) return send_server_failed(encrypted_res.error());
 
   auto send_res =

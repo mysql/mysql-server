@@ -122,7 +122,11 @@ class SharedServer {
   [[nodiscard]] std::string server_host() const { return server_host_; }
 
   static Account caching_sha2_password_account() {
-    return {"caching_sha2", "somepass", "caching_sha2_password"};
+    constexpr const std::string_view pass("cachingpasswordlongerthan20chars");
+
+    static_assert(pass.size() > 20);
+
+    return {"caching_sha2", std::string(pass), "caching_sha2_password"};
   }
 
   static Account caching_sha2_empty_password_account() {
@@ -134,7 +138,11 @@ class SharedServer {
   }
 
   static Account native_password_account() {
-    return {"native", "somepass", "mysql_native_password"};
+    constexpr const std::string_view pass("nativepasswordlongerthan20chars");
+
+    static_assert(pass.size() > 20);
+
+    return {"native", std::string(pass), "mysql_native_password"};
   }
 
   static Account native_empty_password_account() {
@@ -142,7 +150,11 @@ class SharedServer {
   }
 
   static Account sha256_password_account() {
-    return {"sha256_pass", "sha256pass", "sha256_password"};
+    constexpr const std::string_view pass("sha256passwordlongerthan20chars");
+
+    static_assert(pass.size() > 20);
+
+    return {"sha256_pass", std::string(pass), "sha256_password"};
   }
 
   static Account sha256_empty_password_account() {
