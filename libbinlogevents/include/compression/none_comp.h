@@ -20,64 +20,55 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef LIBBINLOGEVENTS_COMPRESSION_NONE_COMP_H_INCLUDED
-#define LIBBINLOGEVENTS_COMPRESSION_NONE_COMP_H_INCLUDED
+#ifndef LIBBINLOGEVENTS_COMPRESSION_NONE_COMP_H_
+#define LIBBINLOGEVENTS_COMPRESSION_NONE_COMP_H_
 
 #include "compressor.h"
+#include "libbinlogevents/include/nodiscard.h"
 
-namespace binary_log {
-namespace transaction {
-namespace compression {
+namespace binary_log::transaction::compression {
 
-/**
-  This compressor does not compress. The only thing that it does
-  is to copy the data from the input to the output buffer.
- */
+/// Compressor subclass that only copies input to output without
+/// compressing it.
 class None_comp : public Compressor {
  public:
-  None_comp() = default;
+  using typename Compressor::Char_t;
+  using typename Compressor::Managed_buffer_sequence_t;
+  using typename Compressor::Size_t;
+  static constexpr type type_code = NONE;
 
-  /**
-    No op member function.
-   */
-  void set_compression_level(unsigned int compression_level) override;
+ private:
+  /// @return NONE
+  type do_get_type_code() const override;
 
-  /**
-    Shall get the compressor type code.
+  /// @copydoc Compressor::do_reset
+  ///
+  /// No-op for this class.
+  void do_reset() override;
 
-    @return the compressor type code.
-   */
-  type compression_type_code() override;
+  /// @copydoc Compressor::do_feed
+  void do_feed(const Char_t *input_data, Size_t input_size) override;
 
-  /**
-    No op member function.
+  /// @copydoc Compressor::do_compress
+  ///
+  /// For None_comp, this is guaranteed to produce all output on
+  /// success.
+  [[NODISCARD]] Compress_status do_compress(
+      Managed_buffer_sequence_t &out) override;
 
-    @return false on success, true otherwise.
-   */
-  bool open() override;
+  /// @copydoc Compressor::do_finish
+  ///
+  /// For None_comp, this is equivalent to @c compress.
+  [[NODISCARD]] Compress_status do_finish(
+      Managed_buffer_sequence_t &out) override;
 
-  /**
-    This member function shall simply copy the input buffer to the
-    output buffer. It shall grow the output buffer if needed.
+  /// Data previously provided to @c do_feed.
+  const Char_t *m_input_data{nullptr};
 
-    @param data a pointer to the buffer holding the data to compress
-    @param length the size of the data to compress.
-
-    @return false on success, true otherwise.
-   */
-  std::tuple<std::size_t, bool> compress(const unsigned char *data,
-                                         size_t length) override;
-
-  /**
-    No op member function.
-
-    @return false on success, true otherwise.
-   */
-  bool close() override;
+  /// Size data previously provided to @c do_feed.
+  Size_t m_input_size{0};
 };
 
-}  // namespace compression
-}  // namespace transaction
-}  // namespace binary_log
+}  // namespace binary_log::transaction::compression
 
-#endif  // ifndef LIBBINLOGEVENTS_COMPRESSION_NONE_COMP_H_INCLUDED
+#endif  // ifndef LIBBINLOGEVENTS_COMPRESSION_NONE_COMP_H_

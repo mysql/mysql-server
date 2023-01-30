@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,37 +20,32 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <compression/none_comp.h>
+#include <buffer/grow_status.h>
 
-#include <cstring>  // std::memcpy
+#include <cassert>
 
-namespace binary_log::transaction::compression {
+namespace mysqlns::buffer {
 
-type None_comp::do_get_type_code() const { return type_code; }
+const std::string invalid_grow_status_string = "invalid";
 
-void None_comp::do_reset() {
-  m_input_data = nullptr;
-  m_input_size = 0;
+std::string debug_string(Grow_status status) {
+  switch (status) {
+    case Grow_status::success:
+      return "success";
+    case Grow_status::out_of_memory:
+      return "out_of_memory";
+    case Grow_status::exceeds_max_size:
+      return "exceeds_max_size";
+    default:
+      break;
+  }
+  assert(0);
+  return invalid_grow_status_string;
 }
 
-void None_comp::do_feed(const Char_t *input_data, Size_t input_size) {
-  assert(!m_input_data);
-  m_input_data = input_data;
-  m_input_size = input_size;
+std::ostream &operator<<(std::ostream &stream, Grow_status status) {
+  stream << debug_string(status);
+  return stream;
 }
 
-Compress_status None_comp::do_compress(Managed_buffer_sequence_t &out) {
-  auto grow_status = out.write(m_input_data, m_input_size);
-  if (grow_status != Compress_status::success) return grow_status;
-  reset();
-  return Compress_status::success;
-}
-
-Compress_status None_comp::do_finish([
-    [maybe_unused]] Managed_buffer_sequence_t &out) {
-  // This will only be called after a successful call to @c compress,
-  // so there is nothing to do.
-  return Compress_status::success;
-}
-
-}  // namespace binary_log::transaction::compression
+}  // namespace mysqlns::buffer

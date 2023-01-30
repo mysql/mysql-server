@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,37 +20,40 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <compression/none_comp.h>
+#include <buffer/grow_constraint.h>
 
-#include <cstring>  // std::memcpy
+#include <cassert>
 
-namespace binary_log::transaction::compression {
+namespace mysqlns::buffer {
 
-type None_comp::do_get_type_code() const { return type_code; }
+void Grow_constraint::set_max_size(Size_t max_size) { m_max_size = max_size; }
 
-void None_comp::do_reset() {
-  m_input_data = nullptr;
-  m_input_size = 0;
+Grow_constraint::Size_t Grow_constraint::get_max_size() const {
+  return m_max_size;
 }
 
-void None_comp::do_feed(const Char_t *input_data, Size_t input_size) {
-  assert(!m_input_data);
-  m_input_data = input_data;
-  m_input_size = input_size;
+void Grow_constraint::set_grow_factor(double grow_factor) {
+  assert(grow_factor >= 1.0);
+  m_grow_factor = grow_factor;
 }
 
-Compress_status None_comp::do_compress(Managed_buffer_sequence_t &out) {
-  auto grow_status = out.write(m_input_data, m_input_size);
-  if (grow_status != Compress_status::success) return grow_status;
-  reset();
-  return Compress_status::success;
+double Grow_constraint::get_grow_factor() const { return m_grow_factor; }
+
+void Grow_constraint::set_grow_increment(Size_t grow_increment) {
+  assert(grow_increment > 0);
+  m_grow_increment = grow_increment;
 }
 
-Compress_status None_comp::do_finish([
-    [maybe_unused]] Managed_buffer_sequence_t &out) {
-  // This will only be called after a successful call to @c compress,
-  // so there is nothing to do.
-  return Compress_status::success;
+Grow_constraint::Size_t Grow_constraint::get_grow_increment() const {
+  return m_grow_increment;
 }
 
-}  // namespace binary_log::transaction::compression
+void Grow_constraint::set_block_size(Size_t block_size) {
+  m_block_size = block_size;
+}
+
+Grow_constraint::Size_t Grow_constraint::get_block_size() const {
+  return m_block_size;
+}
+
+}  // namespace mysqlns::buffer

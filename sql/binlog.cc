@@ -40,6 +40,7 @@
 #include "my_thread.h"
 #include "sql/check_stack.h"
 #include "sql/clone_handler.h"
+#include "sql/raii/thread_stage_guard.h"
 #include "sql_string.h"
 #include "template_utils.h"
 #ifdef HAVE_UNISTD_H
@@ -55,6 +56,7 @@
 #include <string>
 
 #include "dur_prop.h"
+#include "libbinlogevents/include/buffer/grow_calculator.h"
 #include "libbinlogevents/include/compression/compressor.h"
 #include "libbinlogevents/include/compression/iterator.h"
 #include "libbinlogevents/include/control_events.h"
@@ -716,10 +718,13 @@ class binlog_cache_data {
   int finalize(THD *thd, Log_event *end_event, XID_STATE *xs);
   int flush(THD *thd, my_off_t *bytes, bool *wrote_xid);
   int write_event(Log_event *event);
-  size_t get_event_counter() { return event_counter; }
-  size_t get_compressed_size() { return m_compressed_size; }
-  size_t get_decompressed_size() { return m_decompressed_size; }
-  binary_log::transaction::compression::type get_compression_type() {
+  void set_event_counter(size_t event_counter) {
+    m_event_counter = event_counter;
+  }
+  size_t get_event_counter() const { return m_event_counter; }
+  size_t get_compressed_size() const { return m_compressed_size; }
+  size_t get_decompressed_size() const { return m_decompressed_size; }
+  binary_log::transaction::compression::type get_compression_type() const {
     return m_compression_type;
   }
 
@@ -770,7 +775,7 @@ class binlog_cache_data {
       state.with_start = flags.with_start;
       state.with_end = flags.with_end;
       state.with_content = flags.with_content;
-      state.event_counter = event_counter;
+      state.event_counter = m_event_counter;
       cache_state_map[pos_to_checkpoint] = state;
     }
   }
@@ -785,7 +790,7 @@ class binlog_cache_data {
         flags.with_start = it->second.with_start;
         flags.with_end = it->second.with_end;
         flags.with_content = it->second.with_content;
-        event_counter = it->second.event_counter;
+        m_event_counter = it->second.event_counter;
       } else
         assert(it == cache_state_map.end());
     }
@@ -796,7 +801,7 @@ class binlog_cache_data {
       flags.with_start = false;
       flags.with_end = false;
       flags.with_content = false;
-      event_counter = 0;
+      m_event_counter = 0;
     }
   }
 
@@ -830,7 +835,7 @@ class binlog_cache_data {
       variable after truncating the cache.
     */
     cache_state_map.clear();
-    event_counter = 0;
+    m_event_counter = 0;
     m_compressed_size = 0;
     m_decompressed_size = 0;
     m_compression_type = binary_log::transaction::compression::NONE;
@@ -876,11 +881,11 @@ class binlog_cache_data {
         flags.with_end &&     // Has transaction end statement
         !flags.with_content)  // Has no other content than START/END
     {
-      assert(event_counter == 2);  // Two events in the cache only
-      assert(!flags.with_sbr);     // No statements changing content
-      assert(!flags.with_rbr);     // No rows changing content
-      assert(!flags.immediate);    // Not a DDL
-      assert(!flags.with_xid);     // Not a XID trx and not an atomic DDL Query
+      assert(m_event_counter == 2);  // Two events in the cache only
+      assert(!flags.with_sbr);       // No statements changing content
+      assert(!flags.with_rbr);       // No rows changing content
+      assert(!flags.immediate);      // Not a DDL
+      assert(!flags.with_xid);  // Not a XID trx and not an atomic DDL Query
       return true;
     }
     return false;
@@ -920,7 +925,7 @@ class binlog_cache_data {
     In order to compute the transaction size (because of possible extra checksum
     bytes), we need to keep track of how many events are in the binlog cache.
   */
-  size_t event_counter = 0;
+  size_t m_event_counter = 0;
 
   size_t m_compressed_size = 0;
   size_t m_decompressed_size = 0;
@@ -1022,7 +1027,18 @@ class binlog_cache_data {
     bool with_content : 1;
   } flags;
 
-  virtual bool compress(THD *);
+  /// Compress the current transaction "in-place", if possible
+  ///
+  /// This attempts to compress the transaction if it satisfies the
+  /// necessary pre-conditions. Otherwise it does nothing.
+  ///
+  /// @retval true Error: the cache has been corrupted and the
+  /// transaction must be aborted.
+  ///
+  /// @retval false Success: the transaction was either compressed
+  /// successfully, or compression was not attempted, or compression
+  /// failed and left the uncompressed transaction intact.
+  [[NODISCARD]] bool compress(THD *thd);
 
  private:
   /*
@@ -1542,9 +1558,9 @@ int binlog_cache_data::write_event(Log_event *ev) {
     if (ev->starts_group()) flags.with_start = true;
     if (ev->ends_group()) flags.with_end = true;
     if (!ev->starts_group() && !ev->ends_group()) flags.with_content = true;
-    event_counter++;
+    m_event_counter++;
     DBUG_PRINT("debug",
-               ("event_counter= %lu", static_cast<ulong>(event_counter)));
+               ("event_counter= %lu", static_cast<ulong>(m_event_counter)));
   }
   return 0;
 }
@@ -1979,117 +1995,237 @@ err:
   return true;
 }
 
-bool binlog_cache_data::compress(THD *thd) {
-  DBUG_TRACE;
-  auto error{false};
-  auto ctype{binary_log::transaction::compression::type::NONE};
-  auto uncompressed_size{m_cache.length()};
-  auto size{uncompressed_size};
-  auto &cctx{thd->rpl_thd_ctx.transaction_compression_ctx()};
-  binary_log::transaction::compression::Compressor *compressor{nullptr};
+/// Controls the execution flow when we compress the transaction cache
+/// into memory and write back the compressed data to the transaction
+/// cache.
+///
+/// This is meant to be constructed once per transaction, and used
+/// once to compress an existing transaction cache.  It relies on RAII
+/// to perform final actions in the destructor, so it should normally
+/// be constructed on the stack.
+///
+/// @todo move this to an own file. We need to declare
+/// binlog_cache_data in a header file first.
+class Binlog_cache_compressor {
+ public:
+  /// Construct a new Binlog_cache_compressor capable of compressing
+  /// the given `binlog_cache_data` object.
+  Binlog_cache_compressor(THD &thd, binlog_cache_data &cache)
+      : m_thd(thd),
+        m_cache(cache),
+        m_cache_storage(*cache.get_cache()),
+        m_context(thd.rpl_thd_ctx.transaction_compression_ctx()),
+        m_managed_buffer_sequence(m_context.managed_buffer_sequence()),
+        m_uncompressed_size(m_cache_storage.length()),
+        m_compressed_size(m_uncompressed_size),
+        m_compression_type(binary_log::transaction::compression::type::NONE) {}
 
-  // no compression enabled (ctype == NONE at this point)
-  if (thd->variables.binlog_trx_compression == false) goto end;
+  Binlog_cache_compressor(const Binlog_cache_compressor &) = delete;
+  Binlog_cache_compressor(Binlog_cache_compressor &&) = delete;
+  Binlog_cache_compressor &operator=(const Binlog_cache_compressor &) = delete;
+  Binlog_cache_compressor &operator=(Binlog_cache_compressor &&) = delete;
+  ~Binlog_cache_compressor() {
+    m_managed_buffer_sequence.reset();
+    // Save statistics for
+    // performance_schema.binary_log_transaction_compression_stats.
+    m_cache.set_compression_type(m_compression_type);
+    m_cache.set_compressed_size(m_compressed_size);
+    m_cache.set_decompressed_size(m_uncompressed_size);
+  }
 
-  // do not compress if there are incident events
-  DBUG_EXECUTE_IF("binlog_compression_inject_incident", set_incident(););
-  if (has_incident()) goto end;
+  /// Attempt to compress the transaction cache.
+  ///
+  /// @retval false The transaction cache is either unchanged, or has
+  /// been successfully replaced by the compressed transaction.
+  ///
+  /// @retval true The transaction cache has been corrupted,
+  /// e.g. because an IO error occurred while replacing it, so the
+  /// transaction has to abort.
+  [[NODISCARD]] bool compress() {
+    if (!shall_compress()) return false;
+    if (setup_compressor()) return false;
+    if (setup_buffer_sequence()) return false;
+    if (compress_to_buffer_sequence()) return false;
+    Transaction_payload_log_event tple{&m_thd};
+    if (get_payload_event_from_buffer_sequence(tple)) return false;
+    // Errors occurring above this point prevent us from compressing
+    // the transaction, but allow us to fallback to
+    // uncompressed. Hence we return false.  After this point, we
+    // truncate the uncompressed cache.  Therefore, we can no longer
+    // fallback to uncompressed. So we return true in the error case
+    // below.
+    if (overwrite_cache_with_payload_event(tple)) return true;
+    return false;
+  }
 
-  // do not compress if there are non-transactional changes
-  if (thd->get_transaction()->has_modified_non_trans_table(
-          Transaction_ctx::STMT) ||
-      thd->get_transaction()->has_modified_non_trans_table(
-          Transaction_ctx::SESSION))
-    goto end;
+ private:
+  /// Determine if compression should be attempted for the current
+  /// transaction.
+  ///
+  /// @retval true compression should be attempted
+  /// @retval false compression should not be attempted
+  [[NODISCARD]] bool shall_compress() {
+    DBUG_TRACE;
+    // no compression enabled (ctype == NONE at this point)
+    if (!m_thd.variables.binlog_trx_compression) {
+      DBUG_PRINT("info", ("fallback to uncompressed: "
+                          "binlog_transaction_compression disabled"));
+      return false;
+    }
+    // do not compress if there are incident events
+    DBUG_EXECUTE_IF("binlog_compression_inject_incident",
+                    m_cache.set_incident(););
+    if (m_cache.has_incident()) {
+      DBUG_PRINT("info", ("fallback to uncompressed: has incident"));
+      return false;
+    }
+    // do not compress if there are non-transactional changes
+    if (m_thd.get_transaction()->has_modified_non_trans_table(
+            Transaction_ctx::STMT) ||
+        m_thd.get_transaction()->has_modified_non_trans_table(
+            Transaction_ctx::SESSION)) {
+      DBUG_PRINT("info",
+                 ("fallback to uncompressed: has modified trans table"));
+      return false;
+    }
+    // do not compress if has SBR
+    if (m_cache.may_have_sbr_stmts()) {
+      DBUG_PRINT("info", ("fallback to uncompressed: may have SBR events"));
+      return false;
+    }
+    // nothing can stop us now!
+    return true;
+  }
 
-  // do not compress if has SBR
-  if (may_have_sbr_stmts()) goto end;
+  /// Get and configure the compressor; update m_compressor.
+  ///
+  /// @return true on error, false on success.
+  [[NODISCARD]] bool setup_compressor() {
+    m_compressor = m_context.get_compressor(&m_thd);
+    if (m_compressor == nullptr) {
+      DBUG_PRINT("info", ("fallback to uncompressed: compressor==nullptr"));
+      return true;
+    }
+    // Allow compressor to optimize space usage based on uncompressed
+    // size.
+    m_compressor->set_pledged_input_size(m_uncompressed_size);
+    return false;
+  }
 
-  // Unable to get a reference to a compressor, fallback to
-  // non compressed
-  if ((compressor = cctx.get_compressor(thd)) == nullptr) goto end;
+  /// Get and configure the Managed_buffer_sequence; update
+  /// m_managed_buffer_sequence.
+  ///
+  /// @return true on error, false on success.
+  [[NODISCARD]] bool setup_buffer_sequence() {
+    mysqlns::buffer::Grow_calculator grow_calculator;
+    grow_calculator.set_max_size(
+        binary_log::Transaction_payload_event::max_payload_length);
+    DBUG_EXECUTE_IF("binlog_transaction_compression_max_size_800",
+                    { grow_calculator.set_max_size(800); });
+    grow_calculator.set_grow_factor(2);
+    grow_calculator.set_grow_increment(8192);
+    auto compressor_grow_constraint = m_compressor->get_grow_constraint_hint();
+    grow_calculator = compressor_grow_constraint.combine_with(grow_calculator);
+    m_managed_buffer_sequence.set_grow_calculator(grow_calculator);
+    return false;
+  }
 
-  // compression is enabled and all pre-conditions checked.
-  // now compress
-  else {
-    std::size_t old_capacity{0};
-    unsigned char *buffer{nullptr};
-    unsigned char *old_buffer{nullptr};
-    Transaction_payload_log_event tple{thd};
-    Compressed_ostream stream;
-    PSI_stage_info old_stage;
+  /// Compress the transaction cache using the compressor, and and
+  /// store the output in the Managed_buffer_sequence.
+  ///
+  /// @return true on error, false on success.
+  [[NODISCARD]] bool compress_to_buffer_sequence() {
+    Compressed_ostream stream{m_compressor, m_managed_buffer_sequence};
 
-    // set the thread stage to compressing transaction
-    thd->enter_stage(&stage_binlog_transaction_compress, &old_stage, __func__,
-                     __FILE__, __LINE__);
-    // do we have enough compression buffer ? If not swap with a larger one
-    std::tie(buffer, std::ignore, old_capacity) = compressor->get_buffer();
-    if (old_capacity < size) {
-      old_buffer = buffer;
-      auto new_buffer = (unsigned char *)malloc(size);
-      if (new_buffer)
-        compressor->set_buffer(new_buffer, size);
-      else {
-        /* purecov: begin inspected */
-        // OOM
-        error = true;
-        goto compression_end;
-        /* purecov: end */
-      }
+    THD_STAGE_GUARD(&m_thd, stage_binlog_transaction_compress);
+
+    if (m_cache_storage.copy_to(&stream)) {
+      DBUG_PRINT("info", ("fallback to uncompressed: compression failed during "
+                          "Compressor::compress"));
+      m_compressor->reset();
+      return true;
+    }
+    if (m_compressor->finish(m_managed_buffer_sequence) !=
+        binary_log::transaction::compression::Compress_status::success) {
+      m_compressor->reset();
+      DBUG_PRINT("info", ("fallback to uncompressed: compression failed during "
+                          "Compressor::finish"));
+      return true;
     }
 
-    ctype = compressor->compression_type_code();
+    m_compressed_size = m_managed_buffer_sequence.read_part().size();
+    m_compression_type = m_compressor->get_type_code();
 
-    compressor->open();
+    return false;
+  }
 
-    // inject the compressor in the output stream
-    stream.set_compressor(compressor);
+  /// Populate the given Transaction_payload_log_event with compressed
+  /// data.
+  ///
+  /// @return true on error, false on success.
+  [[NODISCARD]] bool get_payload_event_from_buffer_sequence(
+      Transaction_payload_log_event &tple) {
+    tple.set_payload(&m_managed_buffer_sequence.read_part());
+    tple.set_compression_type(m_compression_type);
+    tple.set_uncompressed_size(m_uncompressed_size);
+    tple.set_payload_size(m_compressed_size);
+    return false;
+  }
 
-    // FIXME: innefficient, we should not copy caches around
-    //        This should be fixed when we revamp the capture
-    //        cache handling (and make this more geared towards
-    //        possible enhancements, such as streaming the changes)
-    //        Also, if the cache actually spills to disk, this may
-    //        the impact may be amplified, since reiniting the
-    //        causes a flush to disk
-    if ((error = m_cache.copy_to(&stream))) goto compression_end;
-
-    compressor->close();
-
-    if ((error = m_cache.truncate(0))) goto compression_end;
+  /// Truncate the transaction cache and write the
+  /// Transaction_payload_log_event there instead.
+  ///
+  /// @todo the argument should be const, and then all the functions
+  /// down the stack should use const Log_event too (including
+  /// Log_event::write)
+  ///
+  /// @return true on error, false on success.
+  [[NODISCARD]] bool overwrite_cache_with_payload_event(
+      Transaction_payload_log_event &tple) {
+    // Truncate cache file
+    if (m_cache_storage.truncate(0)) {
+      DBUG_PRINT("info", ("fail: m_cache_storage.truncate failed"));
+      return true;
+    }
     // Since we deleted all events from the cache, we also need to
     // reset event_counter.
-    event_counter = 0;
-
-    // fill in the new transport event
-    std::tie(buffer, size, std::ignore) = compressor->get_buffer();
-    tple.set_payload((const char *)buffer);
-    tple.set_payload_size(size);
-    tple.set_compression_type(ctype);
-    tple.set_uncompressed_size(uncompressed_size);
+    m_cache.set_event_counter(0);
 
     // write back the new cache contents
-    error = write_event(&tple);
-
-  compression_end:
-    // revert back to the default buffer, so that we don't overuse memory
-    if (old_buffer) {
-      std::tie(buffer, std::ignore, std::ignore) = compressor->get_buffer();
-      compressor->set_buffer(old_buffer, old_capacity);
-      free(buffer);
+    if (m_cache.write_event(&tple) != 0) {
+      DBUG_PRINT("info", ("fail: write_event failed"));
+      return true;
     }
-
-    // revert the stage if needed
-    if (old_stage.m_key != 0) THD_STAGE_INFO(thd, old_stage);
+    return false;
   }
 
-end:
-  if (!error) {
-    set_compression_type(ctype);
-    set_compressed_size(m_cache.length());
-    set_decompressed_size(uncompressed_size);
-  }
-  return error;
+  /// Session context.
+  THD &m_thd;
+  /// Transaction cache.
+  binlog_cache_data &m_cache;
+  /// Storage for the transaction cache.
+  Binlog_cache_storage &m_cache_storage;
+  /// Session compression context.
+  Transaction_compression_ctx &m_context;
+
+  /// Compressor.
+  Transaction_compression_ctx::Compressor_ptr_t m_compressor;
+  /// Output buffer.
+  Transaction_compression_ctx::Managed_buffer_sequence_t
+      &m_managed_buffer_sequence;
+
+  /// Size before compression.
+  size_t m_uncompressed_size;
+  /// Size after compression, if compression succeeded. Otherwise,
+  /// size before compression.
+  size_t m_compressed_size;
+  /// Compression algorithm, if compression succeded; otherwise NONE.
+  binary_log::transaction::compression::type m_compression_type;
+};
+
+bool binlog_cache_data::compress(THD *thd) {
+  Binlog_cache_compressor binlog_cache_compressor(*thd, *this);
+  return binlog_cache_compressor.compress();
 }
 
 /**

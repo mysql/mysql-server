@@ -14135,20 +14135,32 @@ Log_event::enum_skip_reason Transaction_payload_log_event::do_shall_skip(
 bool Transaction_payload_log_event::write(Basic_ostream *ostream) {
   DBUG_TRACE;
   auto codec = binary_log::codecs::Factory::build_codec(header()->type_code);
-  unsigned char buffer[max_length_of_all_headers];
-  auto result = codec->encode(*this, buffer, max_length_of_all_headers);
+  unsigned char all_headers_buffer[max_length_of_all_headers];
+  auto result =
+      codec->encode(*this, all_headers_buffer, max_length_of_all_headers);
+  if (result.second) return true;
   size_t data_size = result.first + m_payload_size;
 
-  if (result.second == true) goto end;
+  // header + post-header
+  if (write_header(ostream, data_size) ||
+      wrapper_my_b_safe_write(ostream, (uchar *)all_headers_buffer,
+                              result.first))
+    return true;
 
-  return write_header(ostream, data_size) ||
-         wrapper_my_b_safe_write(ostream, (uchar *)buffer, result.first) ||
-         wrapper_my_b_safe_write(ostream,
-                                 reinterpret_cast<const uchar *>(m_payload),
-                                 m_payload_size) ||
-         write_footer(ostream);
-end:
-  return true;
+  // data
+  if (m_payload == nullptr) {
+    for (auto &buffer_view : *m_buffer_sequence_view) {
+      if (wrapper_my_b_safe_write(ostream, buffer_view.data(),
+                                  buffer_view.size()))
+        return true;
+    }
+  } else if (wrapper_my_b_safe_write(ostream,
+                                     reinterpret_cast<const uchar *>(m_payload),
+                                     m_payload_size))
+    return true;
+
+  // footer
+  return write_footer(ostream);
 }
 
 int Transaction_payload_log_event::pack_info(Protocol *protocol) {

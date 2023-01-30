@@ -20,114 +20,132 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef LIBBINLOGEVENTS_COMPRESSION_ZSTD_COMP_H_INCLUDED
-#define LIBBINLOGEVENTS_COMPRESSION_ZSTD_COMP_H_INCLUDED
+#ifndef LIBBINLOGEVENTS_COMPRESSION_ZSTD_COMP_H_
+#define LIBBINLOGEVENTS_COMPRESSION_ZSTD_COMP_H_
 
 #include <zstd.h>
-#include <cstddef>
-#include <vector>
 
 #include "compressor.h"
+#include "libbinlogevents/include/buffer/buffer_sequence_view.h"
+#include "libbinlogevents/include/nodiscard.h"
 
-namespace binary_log {
-namespace transaction {
-namespace compression {
+struct ZSTD_outBuffer_s;
 
-/**
-  This class implements a ZSTD compressor.
- */
+namespace binary_log::transaction::compression {
+
+/// Compressor class that uses the ZSTD library.
 class Zstd_comp : public Compressor {
- private:
-  Zstd_comp &operator=(const Zstd_comp &rhs) = delete;
-  Zstd_comp(const Zstd_comp &) = delete;
-
  public:
-  /**
-    The default compression level for this compressor.
-   */
-  const static unsigned int DEFAULT_COMPRESSION_LEVEL = 3;
+  using typename Compressor::Char_t;
+  using typename Compressor::Managed_buffer_sequence_t;
+  using typename Compressor::Size_t;
+  using Compression_level_t = int;
+  static constexpr type type_code = ZSTD;
 
- protected:
-  /**
-    The ZSTD compression stream context.
-   */
+  /// The default compression level for this compressor.
+  static constexpr Compression_level_t default_compression_level = 3;
+
+  Zstd_comp() = default;
+
+  ~Zstd_comp() override;
+
+  Zstd_comp(const Zstd_comp &) = delete;
+  Zstd_comp(const Zstd_comp &&) = delete;
+  Zstd_comp &operator=(const Zstd_comp &rhs) = delete;
+  Zstd_comp &operator=(const Zstd_comp &&rhs) = delete;
+
+  /// Set the compression level for this compressor.
+  ///
+  /// This function may be invoked at any time, but will only take
+  /// effect the next time a new frame starts, i.e., at the first call
+  /// to @c feed after the frame has been reset.
+  ///
+  /// @param compression_level the new compression level.
+  void set_compression_level(Compression_level_t compression_level);
+
+ private:
+  /// @return ZSTD
+  type do_get_type_code() const override;
+
+  /// @copydoc Compressor::do_reset
+  void do_reset() override;
+
+  /// @copydoc Compressor::do_feed
+  void do_feed(const Char_t *input_data, Size_t input_size) override;
+
+  /// @copydoc Compressor::do_compress
+  [[NODISCARD]] Compress_status do_compress(
+      Managed_buffer_sequence_t &out) override;
+
+  /// @copydoc Compressor::do_finish
+  [[NODISCARD]] Compress_status do_finish(
+      Managed_buffer_sequence_t &out) override;
+
+  /// @copydoc Compressor::do_get_grow_constraint_hint
+  [[NODISCARD]] Grow_constraint_t do_get_grow_constraint_hint() const override;
+
+  /// Deallocate the ZSTD compression context.
+  void destroy();
+
+  /// Reset just the ZSTD compressor state, not other state.
+  void reset_compressor();
+
+  /// Make the ZSTD buffer point to the next available buffer;
+  /// allocate one if necessary.
+  ///
+  /// @param[in,out] managed_buffer_sequence owns the data and
+  /// manages the growth.
+  ///
+  /// @param[out] obuf ZSTD buffer that will be altered to point to
+  /// the next available byte in buffer_sequence.
+  ///
+  /// @retval success managed_buffer_sequence was not full, or its
+  /// capacity has been incremented successfully.  obuf has been set
+  /// to point to next available byte.
+  ///
+  /// @retval out_of_memory buffer_sequence was full and an out of
+  /// memory error occurred.  buffer_sequence has not been modified.
+  ///
+  /// @retval exceeds_max_size buffer_sequence was full and at its max
+  /// capacity.  buffer_sequence has not been modified.
+  [[NODISCARD]] Compress_status get_obuf(
+      Managed_buffer_sequence_t &managed_buffer_sequence,
+      ZSTD_outBuffer_s &obuf);
+
+  /// Account for having written to the output buffer.
+  ///
+  /// This moves the read/write boundary in the
+  /// Managed_buffer_sequence, and also increments
+  /// m_total_output_size.
+  ///
+  /// @param managed_buffer_sequence The buffer sequence that has
+  /// been written to.
+  ///
+  /// @param delta The number of bytes that have been written.
+  void move_position(Managed_buffer_sequence_t &managed_buffer_sequence,
+                     Size_t delta);
+
+  /// The ZSTD compression context.
   ZSTD_CStream *m_ctx{nullptr};
 
-  /**
-    The output buffer.
-   */
-  ZSTD_outBuffer m_obuf;
+  /// The input buffer.
+  ZSTD_inBuffer m_ibuf{nullptr, 0, 0};
 
-  /**
-    Variable that holds the current compression level used.
-   */
-  unsigned int m_compression_level_current{DEFAULT_COMPRESSION_LEVEL};
+  /// Value used to indicate that no compression level has been specified.
+  static constexpr Compression_level_t uninitialized_compression_level{0};
 
-  /**
-    If we change the compression level while we are doing compression,
-    this establishes the next compression level value that one should
-    use.
-   */
-  unsigned int m_compression_level_next{DEFAULT_COMPRESSION_LEVEL};
+  /// True when @c compress has been called and neither @c finish nor
+  /// @c reset has yet been called.
+  bool m_started{false};
 
- public:
-  Zstd_comp();
-  ~Zstd_comp() override;
-  /**
-    Shall set the compression level to be used.
-   */
-  void set_compression_level(unsigned int compression_level) override;
+  /// Compression level that was set in the @c m_ctx object.
+  Compression_level_t m_current_compression_level{
+      uninitialized_compression_level};
 
-  /**
-    Shall get the compressor type code.
-
-    @return the compressor type code.
-   */
-  type compression_type_code() override;
-
-  /**
-    Shall open the compressor. This member function must be called before
-    compressing data.
-
-    @return false on success, true otherwise.
-   */
-  bool open() override;
-
-  /**
-    This member function shall compress the buffer provided and put the
-    compressed payload into the output buffer.
-
-    @param data a pointer to the buffer holding the data to compress
-    @param length the size of the data to compress.
-
-    @return false on success, true otherwise.
-   */
-  std::tuple<std::size_t, bool> compress(const unsigned char *data,
-                                         size_t length) override;
-
-  /**
-    This member function shall close the compressor. It must be called
-    after this compressor is not needed anymore. It shall free the
-    resources it has used for the compression activities.
-
-    @return false on success, true otherwise.
-   */
-  bool close() override;
-
- private:
-  /**
-    Expands the size of `m_buffer` by `extra_bytes` (if needed) and updates
-    the size and pointer of `m_obuf`.
-
-    @param extra_bytes The amount of extra bytes to expand the buffer with
-
-    @return false on success, true otherwise.
-   */
-  bool expand_buffer(size_t const &extra_bytes);
+  /// Compression level that was given in @c set_compression_level
+  Compression_level_t m_next_compression_level{default_compression_level};
 };
 
-}  // namespace compression
-}  // end of namespace transaction
-}  // end of namespace binary_log
+}  // namespace binary_log::transaction::compression
 
-#endif  // ifndef LIBBINLOGEVENTS_COMPRESSION_ZSTD_COMP_H_INCLUDED
+#endif  // ifndef LIBBINLOGEVENTS_COMPRESSION_ZSTD_COMP_H_

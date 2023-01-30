@@ -143,9 +143,6 @@ class Database_rewrite {
       auto error_val = Rewrite_payload_result{nullptr, 0, 0, 0, true};
 
       // output variables
-      unsigned char *obuffer{nullptr};
-      std::size_t obuffer_size{0};
-      std::size_t obuffer_capacity{0};
       std::size_t obuffer_size_uncompressed{0};
 
       // temporary buffer for holding uncompressed and rewritten events
@@ -153,22 +150,21 @@ class Database_rewrite {
       std::size_t ibuffer_capacity{0};
 
       // RAII objects
-      Buffer_realloc_manager obuffer_dealloc_guard(&obuffer);
       Buffer_realloc_manager ibuffer_dealloc_guard(&ibuffer);
 
       // iterator to decompress events
       binary_log::transaction::compression::Iterable_buffer it(
           orig_payload, orig_payload_size, orig_payload_uncompressed_size,
           compression_type);
-
-      // compressor to compress this again
+      using Compress_status_t =
+          binary_log::transaction::compression::Compress_status;
+      using Managed_buffer_sequence_t =
+          mysqlns::buffer::Managed_buffer_sequence<>;
+      using Char_t = Managed_buffer_sequence_t::Char_t;
+      Managed_buffer_sequence_t managed_buffer_sequence;
       auto compressor =
           binary_log::transaction::compression::Factory::build_compressor(
               compression_type);
-
-      compressor->set_buffer(obuffer, obuffer_size);
-      compressor->reserve(orig_payload_uncompressed_size);
-      compressor->open();
 
       // rewrite and compress
       for (auto ptr : it) {
@@ -187,25 +183,27 @@ class Database_rewrite {
                                            fde);
         if (err) return error_val;
 
-        auto left{ev_len};
-        while (left > 0 && !err) {
-          auto pos{ibuffer + (ev_len - left)};
-          std::tie(left, err) = compressor->compress(pos, left);
-        }
-
-        if (err) return error_val;
+        compressor->feed(ibuffer, ev_len);
+        if (compressor->compress(managed_buffer_sequence) !=
+            Compress_status_t::success)
+          return error_val;
         obuffer_size_uncompressed += ev_len;
       }
 
-      compressor->close();
-      std::tie(obuffer, obuffer_size, obuffer_capacity) =
-          compressor->get_buffer();
+      if (compressor->finish(managed_buffer_sequence) !=
+          Compress_status_t::success)
+        return error_val;
 
-      // do not dispose of the obuffer (disable RAII for obuffer)
-      obuffer_dealloc_guard.release();
+      // Get contiguous output buffer from managed_buffer_sequence
+      auto *obuffer = static_cast<Char_t *>(
+          malloc(managed_buffer_sequence.read_part().size()));
+      if (obuffer == nullptr) return error_val;
+      managed_buffer_sequence.read_part().copy(obuffer);
 
       // set the new one and adjust event settings
-      return Rewrite_payload_result{obuffer, obuffer_capacity, obuffer_size,
+      return Rewrite_payload_result{obuffer,
+                                    managed_buffer_sequence.read_part().size(),
+                                    managed_buffer_sequence.read_part().size(),
                                     obuffer_size_uncompressed, false};
     }
 

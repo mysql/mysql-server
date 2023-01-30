@@ -1,0 +1,125 @@
+# ==== Purpose ====
+#
+# Verify that binlog compression does not break for transactions that
+# would exceed 1 GiB compressed.
+#
+# ==== Requirements ====
+#
+# R1. If the compressed size of a transaction exceeds 1 GiB,
+#     replication should fall back to uncompressed.
+#
+# ==== Implementation ====
+#
+# - To add a little more than 64 MiB compressed data to a transaction,
+#   generate a file with a little more than 64 MiB and insert the
+#   contents into a table.  Use 'dd' reading from '/dev/random', since
+#   it is faster than any builtin random SQL functions.
+# - Repeat the above 16 times to produce a transaction that will be
+#   slightly bigger than 1 GiB compressed, even if every event is only
+#   a little more than 64 MiB.
+#
+# ==== References ====
+#
+# BUG#33588473: Binlog compression breaks when compressed size exceeds 1 GiB
+
+--source include/big_test.inc
+# Needs dd and /dev/random
+--source include/linux.inc
+--source include/have_grep.inc
+--source include/have_binlog_format_row.inc
+
+let $sysvars_to_save = [ "GLOBAL.max_allowed_packet" ];
+--source include/save_sysvars.inc
+
+# The session value is read-only. So we set the global value here,
+# before master-slave.inc creates the sessions.
+SET @@global.max_allowed_packet = 1024*1024*1024;#1073741824;
+
+--source include/master-slave.inc
+
+--echo
+--echo ==== Setup variables ====
+
+# Generate $file_count files of random data,
+# each one by writing $block_count blocks of $block_size bytes.
+# The total size is $file_count*$block_size*$block_count>4 GiB.
+# (We add the term 1<<10 to $block_size to ensure it is a little bigger.)
+# The size of each file is $block_size*$block_count=512 MiB.
+# The division into block_size/block_count is chosen to make dd as
+# fast as possible.
+--let $file_count = `SELECT 1<<3`
+--let $block_size = `SELECT (1<<24) + (1<<10)`
+--let $block_count = `SELECT 1<<3`
+--expr $file_size = $block_size * $block_count
+--expr $total_size = $file_size * $file_count
+
+--let $datadir = `SELECT @@datadir`
+--let $file = $datadir/bigfile
+
+--let $c = 0
+while ($c < 2) {
+  --echo
+  --echo ==== Scenario: compression=$c ====
+
+  --source include/rpl_connection_master.inc
+
+  --echo * Writing $block_count * $block_size random bytes to file, $file_count times
+
+  FLUSH BINARY LOGS;
+
+  eval SET @@session.binlog_transaction_compression = $c;
+  --source include/save_binlog_position.inc
+
+  CREATE TABLE t1 (x LONGBLOB);
+
+  BEGIN;
+  --let $i = 1
+  while ($i <= $file_count) {
+    --echo # Iteration $i/$file_count
+    # Write random data to file.
+    --exec dd if=/dev/urandom of=$file bs=$block_size count=$block_count 2> /dev/null
+    # Read data into table.
+    --replace_result $file FILE
+    eval INSERT INTO t1 VALUES (LOAD_FILE('$file'));
+    --inc $i
+  }
+  COMMIT;
+
+  --echo
+  --echo ==== Verify result on source ====
+
+  --echo # There should be no payload event.
+  --let $keep_transaction_payload_events = 1
+  --source include/show_binlog_events.inc
+
+  --let $measured_size = `SELECT SUM(LENGTH(x)) FROM t1`
+  --let $assert_cond = $measured_size = $total_size
+  --let $assert_text = The source's table size should equal the size of inserted data
+  --source include/assert.inc
+
+  --source include/sync_slave_sql_with_master.inc
+
+  --echo ==== Verify result on replica ====
+
+  --let $measured_size = `SELECT SUM(LENGTH(x)) FROM t1`
+  --let $assert_cond = $measured_size = $total_size
+  --let $assert_text = The replica's table size should equal the size of inserted data
+  --source include/assert.inc
+
+  --echo
+  --echo ==== Clean up scenario ====
+
+  --source include/rpl_connection_master.inc
+  DROP TABLE t1;
+  --source include/sync_slave_sql_with_master.inc
+
+  --inc $c
+}
+
+--echo
+--echo ==== Clean up test case ====
+
+--source include/rpl_connection_master.inc
+--source include/restore_sysvars.inc
+
+--source include/rpl_end.inc

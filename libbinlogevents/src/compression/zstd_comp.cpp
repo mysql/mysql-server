@@ -21,147 +21,189 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <compression/zstd_comp.h>
-#include <my_byteorder.h>  // TODO: fix this include
-#include <algorithm>
-#include "wrapper_functions.h"
+//#include <my_byteorder.h>  // TODO: fix this include
+#include <algorithm>            // std::min
+#include "scope_guard.h"        // Scope_guard
+#include "wrapper_functions.h"  // BAPI_TRACE
 
-namespace binary_log {
-namespace transaction {
-namespace compression {
+namespace binary_log::transaction::compression {
 
-Zstd_comp::Zstd_comp()
-    : m_ctx(nullptr),
-      m_compression_level_current(DEFAULT_COMPRESSION_LEVEL),
-      m_compression_level_next(DEFAULT_COMPRESSION_LEVEL) {
-  // create the stream context
-  if (m_ctx == nullptr) m_ctx = ZSTD_createCStream();
+Zstd_comp::~Zstd_comp() { destroy(); }
 
-  // initialize the stream
+void Zstd_comp::destroy() {
+  BAPI_TRACE;
+
+  ZSTD_freeCStream(m_ctx);  // Can't fail
+  m_ctx = nullptr;
+  m_current_compression_level = uninitialized_compression_level;
+}
+
+type Zstd_comp::do_get_type_code() const { return type_code; }
+
+void Zstd_comp::set_compression_level(Compression_level_t compression_level) {
+  m_next_compression_level = compression_level;
+}
+
+void Zstd_comp::do_reset() {
+  BAPI_TRACE;
+
+  reset_compressor();
+
+  // Clear pointer to input data.
+  m_ibuf.src = nullptr;
+  m_ibuf.size = 0;
+  m_ibuf.pos = 0;
+
+  // Allow next call to do_compress to change compression level
+  m_started = false;
+}
+
+void Zstd_comp::reset_compressor() {
+  // If context is not allocated, defer initialization until do_compress.
   if (m_ctx != nullptr) {
-    if (ZSTD_isError(ZSTD_initCStream(m_ctx, m_compression_level_current))) {
-      /* purecov: begin inspected */
-      // Abnormal error when initializing the context
-      ZSTD_freeCStream(m_ctx);
-      m_ctx = nullptr;
-      /* purecov: end */
+    // Try to initialize compression context; if it fails, free and
+    // set it to nullptr.
+    auto init_status = ZSTD_initCStream(m_ctx, m_next_compression_level);
+    if (ZSTD_isError(init_status) != 0) {
+      BAPI_LOG("info", BAPI_VAR(ZSTD_getErrorName(init_status)));
+      destroy();
+    } else
+      m_current_compression_level = m_next_compression_level;
+  }
+}
+
+void Zstd_comp::do_feed(const Char_t *input_data, size_t input_size) {
+  BAPI_TRACE;
+
+  // Protect against two successive calls to `feed` without a call to
+  // `decompress` between them.
+  assert(m_ibuf.pos == m_ibuf.size);
+
+  // Store pointer to input data.
+  m_ibuf.src = static_cast<const void *>(input_data);
+  m_ibuf.size = input_size;
+  m_ibuf.pos = 0;
+}
+
+Compress_status Zstd_comp::do_compress(Managed_buffer_sequence_t &out) {
+  BAPI_TRACE;
+
+  // Create ZSTD compression context if not already created.
+  if (m_ctx == nullptr) {
+    m_ctx = ZSTD_createCStream();
+    if (m_ctx == nullptr) return Compress_status::out_of_memory;
+  }
+
+  // First invocation of this function for this frame.
+  if (!m_started) {
+    // Update the compression level if needed.
+    if (m_next_compression_level != m_current_compression_level) {
+      BAPI_LOG("info", "reset compressor to update compression level from "
+                           << m_current_compression_level << " to "
+                           << m_next_compression_level);
+      reset_compressor();
+
+      // reset_compressor may get OOM error, in which case m_ctx is
+      // nullptr and we have to return out_of_memory.
+      if (m_ctx == nullptr) return Compress_status::out_of_memory;
     }
-  }
-}
-
-void Zstd_comp::set_compression_level(unsigned int clevel) {
-  if (clevel != m_compression_level_current) {
-    m_compression_level_next = clevel;
-  }
-}
-
-Zstd_comp::~Zstd_comp() {
-  if (m_ctx != nullptr) {
-    ZSTD_freeCStream(m_ctx);
-    m_ctx = nullptr;
-  }
-
-  m_buffer_cursor = m_buffer;
-}
-
-type Zstd_comp::compression_type_code() { return ZSTD; }
-
-bool Zstd_comp::open() {
-  size_t ret{0};
-  if (m_ctx == nullptr) goto err;
-
-    /*
-     The advanced compression API used below as declared stable in
-     1.4.0 .
-
-     The advanced API allows reusing the same context instead of
-     creating a new one every time we open the compressor. This
-     is useful within the binary log compression.
-    */
 #if ZSTD_VERSION_NUMBER >= 10400
-  if (m_compression_level_current == m_compression_level_next) {
-    ret = ZSTD_CCtx_reset(m_ctx, ZSTD_reset_session_only);
-    if (ZSTD_isError(ret)) goto err;
-
-    ret = ZSTD_CCtx_setPledgedSrcSize(m_ctx, ZSTD_CONTENTSIZE_UNKNOWN);
-    if (ZSTD_isError(ret)) goto err;
-  } else {
-    ret = ZSTD_initCStream(m_ctx, m_compression_level_next);
-    if (ZSTD_isError(ret)) goto err;
-    m_compression_level_current = m_compression_level_next;
-  }
-#else
-  ret = ZSTD_initCStream(m_ctx, m_compression_level_next);
-  if (ZSTD_isError(ret)) goto err;
-  m_compression_level_current = m_compression_level_next;
+    // If user has set a "pledged input size", pass that to Zstd,
+    // allowing it to optimize memory usage.  The API is only
+    // available in ZSTD version 1.4.0 and higher.
+    auto pledged_input_size = get_pledged_input_size();
+    if (pledged_input_size != pledged_input_size_unset)
+      ZSTD_CCtx_setPledgedSrcSize(m_ctx, pledged_input_size);
 #endif
+  }
+  m_started = true;
 
-  m_buffer_cursor = m_buffer;
+  // Consume all input.
+  while (m_ibuf.pos < m_ibuf.size) {
+    // Make place for more output.
+    ZSTD_outBuffer obuf;
+    auto grow_status = get_obuf(out, obuf);
+    if (grow_status != Compress_status::success) return grow_status;
 
-  return false;
-err:
-  return true;
+    // Consume more input and possibly output some more output.
+    auto zstd_status = ZSTD_compressStream(m_ctx, &obuf, &m_ibuf);
+    BAPI_LOG("info", BAPI_VAR(zstd_status) << " " << BAPI_VAR(obuf.pos));
+    if (ZSTD_isError(zstd_status) != 0) {
+      BAPI_LOG("info", BAPI_VAR(ZSTD_getErrorName(zstd_status)));
+      return Compress_status::out_of_memory;
+    }
+
+    // Move the position in the Managed_buffer_sequence.
+    move_position(out, obuf.pos);
+  }
+
+  BAPI_LOG("info", BAPI_VAR(m_ibuf.pos) << " " << BAPI_VAR(m_ibuf.size));
+
+  return Compress_status::success;
 }
 
-bool Zstd_comp::close() {
-  size_t ret{0};
-  if (m_ctx == nullptr) goto err;
+Compress_status Zstd_comp::do_finish(Managed_buffer_sequence_t &out) {
+  BAPI_TRACE;
 
+  size_t zstd_status{0};
+  // Produce all output
   do {
-    ret = ZSTD_flushStream(m_ctx, &m_obuf);
-    if (ZSTD_isError(ret)) goto err;
-    m_buffer_cursor = static_cast<unsigned char *>(m_obuf.dst) + m_obuf.pos;
+    // Make place for more output.
+    ZSTD_outBuffer obuf;
+    auto grow_status = get_obuf(out, obuf);
+    if (grow_status != Compress_status::success) return grow_status;
 
-    // end the stream
-    ret = ZSTD_endStream(m_ctx, &m_obuf);
-    if (ZSTD_isError(ret)) goto err;
+    // Request ZSTD to end the stream after the current input, and to
+    // flush as much as possible of internal buffers to the output.
+    zstd_status = ZSTD_endStream(m_ctx, &obuf);
 
-    if (ret > 0 && expand_buffer(ret)) goto err;
+    BAPI_LOG("info", BAPI_VAR(zstd_status) << " " << BAPI_VAR(obuf.pos));
+    if (ZSTD_isError(zstd_status) != 0) {
+      BAPI_LOG("info", BAPI_VAR(ZSTD_getErrorName(zstd_status)));
+      return Compress_status::out_of_memory;
+    }
+    // Move the position mark in the Managed_buffer_sequence.
+    move_position(out, obuf.pos);
+  } while (zstd_status > 0);
+  BAPI_LOG("info", BAPI_VAR(m_ibuf.pos) << " " << BAPI_VAR(m_ibuf.size));
 
-    m_buffer_cursor = static_cast<unsigned char *>(m_obuf.dst) + m_obuf.pos;
-  } while (ret > 0);
-
-  return false;
-err:
-  return true;
+  return Compress_status::success;
 }
 
-std::tuple<std::size_t, bool> Zstd_comp::compress(const unsigned char *buffer,
-                                                  size_t length) {
-  m_obuf = {m_buffer, capacity(), size()};
-  ZSTD_inBuffer ibuf{static_cast<const void *>(buffer), length, 0};
-  std::size_t ret{0};
-  auto err{false};
+void Zstd_comp::move_position(
+    Managed_buffer_sequence_t &managed_buffer_sequence, Size_t delta) {
+  managed_buffer_sequence.increase_position(delta);
+}
 
-  while (ibuf.pos < ibuf.size) {
-    std::size_t min_capacity{ZSTD_CStreamOutSize()};
-
-    // always have at least one block available
-    if ((err = expand_buffer(min_capacity))) break;
-
-      // compress now
-#if ZSTD_VERSION_NUMBER >= 10400
-    ret = ZSTD_compressStream2(m_ctx, &m_obuf, &ibuf, ZSTD_e_continue);
-#else
-    ret = ZSTD_compressStream(m_ctx, &m_obuf, &ibuf);
-#endif
-
-    // adjust the cursor
-    m_buffer_cursor = m_buffer + m_obuf.pos;
-
-    if ((err = ZSTD_isError(ret))) break;
+[[NODISCARD]] Compress_status Zstd_comp::get_obuf(
+    Managed_buffer_sequence_t &managed_buffer_sequence, ZSTD_outBuffer &obuf) {
+  BAPI_TRACE;
+  auto &write_part = managed_buffer_sequence.write_part();
+  if (write_part.size() == 0) {
+    // Reserve at least one byte.  Why one?  Because the only strict
+    // requirement on this function is to get more space, i.e., at
+    // least one byte.  Then there is logic encoded in the
+    // Grow_calculator and in the parameters for the Grow_calculator
+    // which typically make it allocate more.  Those are
+    // performance-improving heuristics and not strict requirements.
+    auto grow_status = managed_buffer_sequence.reserve_write_size(1);
+    if (grow_status != Compress_status::success) return grow_status;
   }
-
-  return std::make_tuple(ibuf.size - ibuf.pos, err);
+  // Write output
+  auto buffer_it = write_part.begin();
+  assert(buffer_it != write_part.end());
+  obuf.dst = buffer_it->data();
+  obuf.size = buffer_it->size();
+  obuf.pos = 0;
+  return Compress_status::success;
 }
 
-bool Zstd_comp::expand_buffer(size_t const &extra_bytes) {
-  if (reserve(extra_bytes)) return true;
-  // adjust the obuf
-  m_obuf.dst = m_buffer;
-  m_obuf.size = capacity();
-  return false;
+Compressor::Grow_constraint_t Zstd_comp::do_get_grow_constraint_hint() const {
+  Grow_constraint_t ret;
+  ret.set_grow_increment(ZSTD_CStreamOutSize());
+  if (get_pledged_input_size() != pledged_input_size_unset)
+    ret.set_max_size(ZSTD_compressBound(get_pledged_input_size()));
+  return ret;
 }
 
-}  // namespace compression
-}  // namespace transaction
-}  // namespace binary_log
+}  // namespace binary_log::transaction::compression

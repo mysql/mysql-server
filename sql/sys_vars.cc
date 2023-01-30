@@ -1504,7 +1504,7 @@ static Sys_var_uint Sys_binlog_transaction_compression_level_zstd(
     SESSION_VAR(binlog_trx_compression_level_zstd), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(1, 22),
     DEFAULT(binary_log::transaction::compression::Zstd_comp::
-                DEFAULT_COMPRESSION_LEVEL),
+                default_compression_level),
     BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_binlog_trx_compression), ON_UPDATE(nullptr));
 
