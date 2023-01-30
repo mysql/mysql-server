@@ -169,15 +169,16 @@ WHERE EXISTS (
 SELECT * FROM d
 );
 EXPLAIN
--> Hash semijoin (no condition)
+-> Nested loop inner join
+    -> Limit: 1 row(s)
+        -> Table scan on d
     -> Nested loop inner join
         -> Table scan on table2, activating pushed join of 2 tables
         -> Index lookup on table1 using PRIMARY (col_int=table2.col_int_key), child of table2 in pushed join
-    -> Hash
-        -> Table scan on d
 
 Warnings:
-Note	1003	Can't push table 'd' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table1' as child of 'd', column 'table2.col_int_key' refers a table which was not pushed
 SELECT
 table1.pk, table2.pk
 FROM c AS table1

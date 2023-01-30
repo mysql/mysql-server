@@ -514,8 +514,7 @@ void BuildInterestingOrders(
     if (pred.expr->type != RelationalExpression::SEMIJOIN) {
       continue;
     }
-    if (!pred.expr->join_conditions.empty() ||
-        pred.expr->equijoin_conditions.empty()) {
+    if (!pred.expr->join_conditions.empty()) {
       // Most semijoins (e.g. from IN) are pure equijoins, but due to
       // outer references, there may also be non-equijoin conditions
       // involved. If so, we can no longer rewrite to a regular inner
@@ -554,7 +553,9 @@ void BuildInterestingOrders(
     CanonicalizeGrouping(&elements);
 
     pred.ordering_idx_needed_for_semijoin_rewrite = AddOrdering(
-        thd, Ordering(elements, Ordering::Kind::kGroup),
+        thd,
+        Ordering(elements, elements.empty() ? Ordering::Kind::kEmpty
+                                            : Ordering::Kind::kGroup),
         /*used_at_end=*/false, /*homogenize_tables=*/inner_tables, orderings);
   }
 
