@@ -22,8 +22,6 @@
 
 INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
-MY_INCLUDE_SYSTEM_DIRECTORIES(ICU)
-
 ADD_WSHADOW_WARNING()
 
 # Lots of warnings about -Walloc-size-larger-than= from my_malloc.cc
@@ -91,7 +89,7 @@ ADD_CUSTOM_COMMAND(
 MYSQL_ADD_EXECUTABLE(gen_keyword_list
   gen_keyword_list.cc
   DEPENDENCIES GenServerSource
-  LINK_LIBRARIES ${ICU_LIBRARIES} ${CMAKE_DL_LIBS}
+  LINK_LIBRARIES ext::icu
   SKIP_INSTALL
   )
 
@@ -928,7 +926,7 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
 ENDIF()
 
 
-ADD_LIBRARY(sql_main STATIC ${SQL_SOURCE})
+ADD_STATIC_LIBRARY(sql_main ${SQL_SOURCE} LINK_LIBRARIES ext::icu)
 ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
@@ -1106,9 +1104,6 @@ ENDIF()
 
 # All these libraries depend on each other.
 TARGET_LINK_LIBRARIES(sql_main rpl rpl_source rpl_replica binlog)
-IF(WITH_ICU STREQUAL "bundled")
-  TARGET_LINK_LIBRARIES(sql_main ${ICU_LIBRARIES})
-ENDIF()
 
 IF(WIN32)
   SET(MYSQLD_SOURCE
@@ -1243,7 +1238,7 @@ ENDIF()
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
 TARGET_LINK_LIBRARIES(mysqld
   sql_main sql_gis binlog rpl rpl_source rpl_replica sql_dd mysys
-  minchassis binlogevents_static ${ICU_LIBRARIES})
+  minchassis binlogevents_static ext::icu)
 
 # Add dependency on ldap library, to ensure it is not unloaded
 # when we shutdown the authentication plugin.

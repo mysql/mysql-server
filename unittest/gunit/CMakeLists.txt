@@ -68,8 +68,6 @@ IF(LINUX OR FREEBSD)
     CACHE INTERNAL "")
 ENDIF()
 
-MY_INCLUDE_SYSTEM_DIRECTORIES(ICU)
-
 # main-wrapper libraries (with tap-compatible option).
 ADD_LIBRARY(gunit_small STATIC
   benchmark.cc
@@ -84,11 +82,12 @@ SET_TARGET_PROPERTIES(gunit_small
   PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
 )
 
-ADD_LIBRARY(gunit_large STATIC
+ADD_STATIC_LIBRARY(gunit_large
   benchmark.cc
   gunit_test_main_server.cc
   test_utils.cc
   thread_utils.cc
+  LINK_LIBRARIES ext::icu
 )
 
 # Add a library for enable_win_jemalloc.cc

@@ -31,7 +31,7 @@ ADD_DEPENDENCIES(pfs_server_stubs GenError)
 MACRO (PFS_ADD_TEST name)
   MYSQL_ADD_EXECUTABLE(${name}-t ${name}-t.cc ADD_TEST ${name})
   TARGET_LINK_LIBRARIES(${name}-t
-    mytap perfschema mysys pfs_server_stubs strings ${ICU_LIBRARIES})
+    mytap perfschema mysys pfs_server_stubs strings ext::icu)
 ENDMACRO()
 
 SET(tests
