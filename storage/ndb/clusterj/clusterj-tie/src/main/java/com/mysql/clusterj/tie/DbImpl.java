@@ -257,20 +257,6 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         TableConst table = ndbDictionary.getTable(tableName);
         handleError(table, ndbDictionary);
         Key_part_ptrArray key_part_ptrArray = null;
-        if (keyPartsSize == 1) {
-            // extract the ByteBuffer and length from the keyPart
-            KeyPart keyPart = keyParts.get(0);
-            ByteBuffer buffer = keyPart.buffer;
-            int length = keyPart.length;
-            ndbTransaction = ndb.startTransaction(table, buffer, length);
-            if (ndbTransaction == null) {
-                logger.warn(local.message("ERR_Transaction_Start_Failed",
-                        tableName, buffer.position(), buffer.limit(), buffer.capacity(), length));
-            }
-            bufferManager.returnPartitionKeyPartBuffer(length, buffer);
-            handleError (ndbTransaction, ndb);
-            return ndbTransaction;
-        }
         key_part_ptrArray = Key_part_ptrArray.create(keyPartsSize + 1);
         try {
             // the key part pointer array has one entry for each key part
