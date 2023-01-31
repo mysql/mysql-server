@@ -19,12 +19,16 @@
 # some SET variable commands.
 CREATE TABLE timings(id INT AUTO_INCREMENT PRIMARY KEY, t FLOAT);
 
---echo # This will spill to disk with default TempTable size while
---echo # reading right table. 3rd fastest.
+--echo # This will spill to disk while reading right table. 3rd fastest.
+set max_heap_table_size=11*1024*1024;
+set tmp_table_size = @@max_heap_table_size;
 eval $query;
+
 --replace_regex $elide_costs_and_rows
 eval EXPLAIN FORMAT=tree $query;
-exec echo "EXPLAIN ANALYZE $query" > $COMMANDS;
+exec echo "set max_heap_table_size=11*1024*1024;
+set tmp_table_size = @@max_heap_table_size;
+EXPLAIN ANALYZE $query" > $COMMANDS;
 --source include/query_expression_record_elapsed.inc
 
 --echo # Should not spill to disk. Fastest or 2nd fastest.
@@ -36,7 +40,6 @@ exec echo "SET internal_tmp_mem_storage_engine = MEMORY;
            EXPLAIN ANALYZE $query" > $COMMANDS;
 --source include/query_expression_record_elapsed.inc
 
-#
 --echo # This will spill to disk while reading left table. Slowest.
 set internal_tmp_mem_storage_engine = default;
 set max_heap_table_size=1024*2014;

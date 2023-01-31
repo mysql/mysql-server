@@ -11,13 +11,13 @@
 --echo # spill to disk actually happened.
 --echo #
 --echo # We have four scenarios we exercise:
---echo # 1. internal_tmp_mem_storage_engine == TempTable with default settings
---echo #    Here we see spill to disk when doing the updating.
+--echo # 1. internal_tmp_mem_storage_engine == TempTable with tmp_table_size set  
+--echo #    to 11MB. Here we see spill to disk when doing the updating.
 --echo # 2. internal_tmp_mem_storage_engine == HEAP
 --echo #    Here there is no spill to disk so quite fast.
 --echo # 3. internal_tmp_mem_storage_engine == TempTable with a small setting
 --echo #    Here we see spill to disk when writing the initial tmp table. This case
---echo #    is expected to be slower than case 1, since more less work is
+--echo #    is expected to be slower than case 1, since less work is done
 --echo #    before we need to move to the slower disk based storage (well, InnoDB,
 --echo #    what actually goes to disk is another matter...)
 --echo # 4. internal_tmp_mem_storage_engine == TempTable with a large setting
