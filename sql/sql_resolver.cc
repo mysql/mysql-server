@@ -724,6 +724,8 @@ bool Query_block::prepare_values(THD *thd) {
   if (query_result() && query_result()->prepare(thd, fields, unit))
     return true; /* purecov: inspected */
 
+  if (resolve_limits(thd)) return true;
+
   return false;
 }
 
@@ -5454,6 +5456,17 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
   } else {
     assert(subq->substype() == Item_subselect::EXISTS_SUBS);
 
+    if (subs_query_block->is_table_value_constructor) {
+      if ((subs_query_block->select_limit != nullptr &&
+           !subs_query_block->select_limit->const_item()) ||
+          (subs_query_block->offset_limit != nullptr &&
+           !subs_query_block->offset_limit->const_item())) {
+        subq->strategy = Subquery_strategy::SUBQ_MATERIALIZATION;
+        // We can't determine until materialization time whether we have
+        // an empty or non-empty result set, skip transform
+        return false;
+      }
+    }
     // We must replace of all EXISTS' initial SELECT list with
     // constants, otherwise they will interfere in DISTINCT, indeed if we didn't
     // replace,
@@ -5473,6 +5486,28 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
     // And as 'x' points to 1, HAVING is "always false".
     // resolve_subquery() ensures that this assertion holds.
     assert(no_aggregates);
+
+    if (subs_query_block->is_table_value_constructor) {
+      // This transformation effectively converts a table value constructor
+      // query block to a scalar subquery with zero or one constant rows.
+      subs_query_block->is_table_value_constructor = false;
+      // We checked above that we can evaluate LIMIT/OFFSET, so use that to
+      // compute here whether result set is empty or not
+      const ulonglong limit = (subs_query_block->select_limit != nullptr)
+                                  ? subs_query_block->select_limit->val_uint()
+                                  : std::numeric_limits<ulonglong>::max();
+      const ulonglong offset = (subs_query_block->offset_limit != nullptr)
+                                   ? subs_query_block->offset_limit->val_uint()
+                                   : 0;
+      const ulonglong actual_rows = subs_query_block->row_value_list->size();
+      const bool empty_rs = limit == 0 || offset >= actual_rows;
+      auto limes = new (thd->mem_root) Item_int(empty_rs ? 0 : 1);
+      if (limes == nullptr) return true;
+
+      subs_query_block->select_limit = limes;
+      subs_query_block->offset_limit = nullptr;
+    }
+
     Item::Cleanup_after_removal_context ctx(this);
     int i = 0;
     for (auto it = subs_query_block->visible_fields().begin();
