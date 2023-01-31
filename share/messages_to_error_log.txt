@@ -12216,6 +12216,12 @@ ER_COMPONENT_MASKING_RANDOM_CREATE_REASON
 ER_COMPONENT_MASKING_CANNOT_ACCESS_TABLE
   eng "Cannot access %s.%s table."
 
+ER_REDUCED_DBLWR_FILE_CORRUPTED
+  eng "Cannot recover from detect_only doublewrite buffer as page %u from batch doublewrite file is corrupted."
+
+ER_REDUCED_DBLWR_PAGE_FOUND
+  eng "Database page corruption of tablespace %s space_id: %u page_num: %u. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
