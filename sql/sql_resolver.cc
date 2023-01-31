@@ -4624,8 +4624,7 @@ bool Query_block::setup_order_final(THD *thd) {
         (item->type() == Item::SUM_FUNC_ITEM && !item->m_is_window_function);
     if (is_grouped_aggregate) continue;
 
-    if (item->has_aggregation() ||
-        (!item->m_is_window_function && item->has_wf())) {
+    if (item->has_aggregation() || item->has_wf()) {
       item->split_sum_func(thd, base_ref_items, &fields);
       if (thd->is_error()) return true; /* purecov: inspected */
     }
