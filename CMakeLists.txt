@@ -1915,7 +1915,7 @@ ENDIF()
 
 # Try and set CURL_LIBRARY
 MYSQL_CHECK_CURL()
-MYSQL_CHECK_CURL_DLLS()
+
 SET(CURL_WARN_GIVEN)
 WARN_MISSING_SYSTEM_CURL(CURL_WARN_GIVEN)
 IF(CURL_WARN_GIVEN)
@@ -1979,11 +1979,6 @@ MACRO(MY_INCLUDE_SYSTEM_DIRECTORIES LIBRARY)
     SET(BEFORE_OR_AFTER "BEFORE")
   ELSE()
     SET(BEFORE_OR_AFTER "AFTER")
-  ENDIF()
-
-  # ICU headers for WIN32 need extra info about their libs state
-  IF(WIN32 AND ${LIBRARY} STREQUAL "ICU")
-    ADD_DEFINITIONS(-DU_STATIC_IMPLEMENTATION)
   ENDIF()
 
   IF(DEFINED ${LIBRARY}_INCLUDE_DIRS)
@@ -2231,7 +2226,7 @@ IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
       sql_main
       ${MYSQLD_STATIC_PLUGIN_LIBS}
       minchassis
-      ${ICU_LIBRARIES}
+      ext::icu
       # Import some core symbols. Other symbols needed by the unit test
       # executables are pulled in transitively by symbol dependencies.
       #
@@ -2272,7 +2267,7 @@ IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
     TARGET_LINK_LIBRARIES(server_unittest_library perfschema)
     TARGET_LINK_LIBRARIES(server_unittest_library sql_main)
     TARGET_LINK_LIBRARIES(server_unittest_library minchassis)
-    TARGET_LINK_LIBRARIES(server_unittest_library ${ICU_LIBRARIES})
+    TARGET_LINK_LIBRARIES(server_unittest_library ext::icu)
   ENDIF()
 ENDIF()
 
