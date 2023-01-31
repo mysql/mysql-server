@@ -38,6 +38,7 @@
 // low-level routings for sha256_password
 class AuthSha256Password : public AuthBase {
  public:
+  static constexpr const size_t kNonceLength{20};
   static constexpr const std::string_view kName{"sha256_password"};
 
   static constexpr const std::string_view kEmptyPassword{"\x00", 1};
