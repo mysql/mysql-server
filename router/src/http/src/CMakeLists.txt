@@ -214,6 +214,7 @@ MYSQL_ADD_EXECUTABLE(rest_cli
   LINK_LIBRARIES
   harness-library
   http_client
+  http_common
   SKIP_INSTALL
   )
 MYSQL_ADD_EXECUTABLE(mysqlrouter_passwd
