@@ -675,9 +675,8 @@ public:
     void state_send();
     void str_state(char* str) const override;
     RelayState::State m_relaystate;
-    uchar* m_xfrmalloc;
-    uchar* m_xfrmbuf;
-    uint m_xfrmbuflen;
+    std::unique_ptr<uint64[]> m_xfrmbuf;
+    uint m_xfrmbuflen = 0;
     RowList m_rows;     // rows received
     RowList* m_rows_exec[g_max_ndb_nodes];      // sorted to per-node
   };

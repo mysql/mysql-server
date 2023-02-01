@@ -595,6 +595,8 @@ emalformedkey:
   return 4280;
 }
 
+static inline Uint32 pad4(Uint32 len) { return (len + 3)/4*4; }
+
 int
 Ndb::computeHash(Uint32 *retval,
                  const NdbRecord *keyRec,
@@ -691,13 +693,21 @@ Ndb::computeHash(Uint32 *retval,
                                          pos, bufEnd-pos,
                                          src, len, maxlen);
       if (unlikely(n == -1))
+      {
+        if (NdbSqlUtil::strnxfrm_hash_len(cs, maxlen) > bufEnd - pos)
+          goto ebuftosmall;
         goto emalformedstring;
+      }
       len = n;
+      if (unlikely(pad4(len) > bufEnd - pos))
+        goto ebuftosmall;
     }
     else
     {
       if (keyAttr.flags & NdbRecord::IsVar1ByteLen)
       {
+        if (unlikely(pad4(len + 1) > bufEnd - pos))
+          goto ebuftosmall;
         *pos= (unsigned char)len;
         memcpy(pos+1, src, len);
         len += 1;
@@ -705,10 +715,16 @@ Ndb::computeHash(Uint32 *retval,
       else if (keyAttr.flags & NdbRecord::IsVar2ByteLen)
       {
         len += 2;
+        if (unlikely(pad4(len) > bufEnd - pos))
+          goto ebuftosmall;
         memcpy(pos, src-2, len);
       }
       else
+      {
+        if (unlikely(pad4(len) > bufEnd - pos))
+          goto ebuftosmall;
         memcpy(pos, src, len);
+      }
     }
     while (len & 3)
     {
@@ -736,7 +752,9 @@ Ndb::computeHash(Uint32 *retval,
 euserdeftable:
   return 4544;
 
-  
+ebuftosmall:
+  return 4278;
+
 emalformedstring:
   if (malloced_buf)
     free(malloced_buf);

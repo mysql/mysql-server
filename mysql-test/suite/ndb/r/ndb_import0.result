@@ -217,12 +217,14 @@ a varchar(127) collate utf8mb4_unicode_ci,
 b binary(255),
 primary key(a,b)
 ) engine=ndb;
+# errins-type=bug34917498, use small computeHash scratch buffer
 create table t14 (
 a varchar(767) collate utf8mb4_unicode_ci primary key,
 b int not null
 ) engine=ndb;
 Warnings:
 Warning	1296	Specified key 'PRIMARY' was too long (max = 3056 bytes); statistics will not be generated
+# errins-type=bug34917498, use small computeHash scratch buffer
 include/assert_grep.inc [Found expected error ndb-4278]
 drop table tpersons;
 drop table t1, t1ver, t2, t2ver, t4, t5a, t5b, t5c,

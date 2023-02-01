@@ -838,9 +838,10 @@ create table t13 (
   primary key(a,b)
 ) engine=ndb;
 
+--echo # errins-type=bug34917498, use small computeHash scratch buffer
 error 1;
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
-     --input-type=csv --output-type=ndb
+     --input-type=csv --output-type=ndb --errins-type=bug34917498
      test $MYSQLTEST_VARDIR/tmp/t1.csv -t t13 >> $NDB_TOOLS_OUTPUT 2>&1;
 
 create table t14 (
@@ -848,9 +849,10 @@ create table t14 (
   b int not null
 ) engine=ndb;
 
+--echo # errins-type=bug34917498, use small computeHash scratch buffer
 error 1;
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
-     --input-type=csv --output-type=ndb
+     --input-type=csv --output-type=ndb --errins-type=bug34917498
      test $MYSQLTEST_VARDIR/tmp/t1.csv -t t14 >> $NDB_TOOLS_OUTPUT 2>&1;
 --let $assert_text= Found expected error ndb-4278
 --let $assert_select= error.ndb
