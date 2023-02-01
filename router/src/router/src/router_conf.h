@@ -151,4 +151,9 @@ class MySQLRouterConf {
   std::string get_bootstrap_socket() const;
 };
 
+class silent_exception : public std::exception {
+ public:
+  silent_exception() : std::exception() {}
+};
+
 #endif  // ROUTER_MYSQL_ROUTER_CONF_INCLUDED
