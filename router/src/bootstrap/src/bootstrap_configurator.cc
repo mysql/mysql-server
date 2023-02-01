@@ -548,6 +548,23 @@ void BootstrapConfigurator::check_mrs_metadata(
       throw std::runtime_error("Invalid MRS metadata");
     }
   }
+
+  auto row = session->query_one(
+      "SELECT substring_index(@@version, '.', 1), concat(@@version_comment, "
+      "@@version)");
+  if (std::stoi((*row)[0]) != 8) {
+    std::cout << "Unsupported MySQL server version: " << (*row)[1] << "\n";
+    throw std::runtime_error("Unsupported MySQL server version");
+  }
+  row = session->query_one("SELECT @@basedir");
+  if (strstr((*row)[0], "rds")) {
+    throw std::runtime_error("Unsupported MySQL server");
+  }
+  try {
+    session->query_one("SELECT aurora_version()");
+    throw std::runtime_error("Unsupported MySQL server");
+  } catch (...) {
+  }
 }
 
 bool BootstrapConfigurator::can_configure_mrs(
