@@ -259,6 +259,12 @@ stdx::expected<size_t, std::error_code> Channel::read_to_plain(size_t sz) {
   return bytes_read;
 }
 
+Channel::Ssl Channel::release_ssl() {
+  if (ssl_) SSL_set_info_callback(ssl_.get(), nullptr);
+
+  return std::exchange(ssl_, {});
+}
+
 Channel::recv_buffer_type &Channel::send_plain_buffer() {
   return ssl_ ? send_plain_buffer_ : send_buffer_;
 }
