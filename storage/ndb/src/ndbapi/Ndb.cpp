@@ -718,6 +718,7 @@ Ndb::computeHash(Uint32 *retval,
   }
   len = Uint32(UintPtr(pos) - UintPtr(buf));
   assert((len & 3) == 0);
+  require(len <= bufLen);
 
   Uint32 values[4];
   md5_hash(values, (const Uint64*)buf, len >> 2);
