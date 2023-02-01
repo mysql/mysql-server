@@ -261,7 +261,7 @@ class RestRequestHandler : public BaseRequestHandler {
 
     for (auto &kv : rest_handler_->get_options().parameters_) {
       if (mysql_harness::make_lower(kv.first) ==
-          "Access-Control-Allow-Origin") {
+          "access-control-allow-origin") {
         if (rest_handler_->get_options().allowed_origins.type !=
             mrs::interface::Options::AllowedOrigins::AllowNone) {
           continue;
@@ -274,7 +274,9 @@ class RestRequestHandler : public BaseRequestHandler {
 
     if (!origin.empty()) {
       using AO = mrs::interface::Options::AllowedOrigins;
+
       auto &ao = rest_handler_->get_options().allowed_origins;
+
       switch (ao.type) {
         case AO::AllowAll:
           oh.add("Access-Control-Allow-Origin", origin.c_str());
