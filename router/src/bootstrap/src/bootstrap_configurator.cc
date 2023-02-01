@@ -141,12 +141,10 @@ void BootstrapConfigurator::init_main_logger(
 }
 
 void BootstrapConfigurator::init(int argc, char **argv) {
-  router_program_name_ =
-      mysql_harness::Path(argv[0]).dirname().join(kRouterProgramName).str();
-
-  origin_ = mysql_harness::Path(
-                mysqlrouter::find_full_executable_path(router_program_name_))
+  origin_ = mysql_harness::Path(mysqlrouter::find_full_executable_path(argv[0]))
                 .dirname();
+
+  router_program_name_ = origin_.join(kRouterProgramName).str();
 
   parse_command_options(std::vector<std::string>({argv + 1, argv + argc}));
 
