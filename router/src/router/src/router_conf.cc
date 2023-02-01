@@ -44,6 +44,15 @@
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/utils.h"
 
+#ifdef _WIN32
+#include <io.h>
+#include <process.h>
+#include <string.h>
+#include <windows.h>
+#include "mysqlrouter/windows/password_vault.h"
+#include "mysqlrouter/windows/service_operations.h"
+#endif
+
 IMPORT_LOG_FUNCTIONS()
 using namespace std::string_literals;
 

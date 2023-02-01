@@ -292,7 +292,7 @@ void MySQLRouter::init(const std::string &program_name,
     // here we re-configure it with settings from config file)
     init_main_logger(config, true);  // true = raw logging mode
 
-    bootstrapper_.bootstrap(program_name, origin_
+    bootstrapper_.bootstrap(program_name, origin_, false
 #ifndef _WIN32
                             ,
                             sys_user_operations_

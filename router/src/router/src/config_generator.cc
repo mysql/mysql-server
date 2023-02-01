@@ -2524,8 +2524,8 @@ std::string ConfigGenerator::get_bootstrap_report_text(
     ss << cluster_type_name << " '" << metadata_cluster.c_str() << "'";
   ss << Vt100::render(Vt100::Render::ForegroundDefault) << "\n" << std::endl;
 
-  ss << "After this MySQL Router has been started with the generated "
-        "configuration"
+  ss << "After this, MySQL Router can be started with the generated "
+        "configuration with:"
      << "\n"
      << std::endl;
 #ifdef _WIN32
