@@ -2210,3 +2210,16 @@ SELECT f1 FROM (SELECT f1 FROM t1 UNION SELECT f1 FROM t1 ) AS dt
 WHERE f1 > -32768 OR f1 = 1;
 f1
 DROP TABLE t1;
+#
+# Bug#34996488: utf8mb4 identifiers stopped working since
+#               8.0.32 release
+#
+SELECT * FROM (SELECT 'å' AS x) AS dt WHERE x = 'å';
+x
+å
+CREATE TABLE t1 (f1 VARCHAR(10));
+INSERT INTO t1 VALUES('å');
+SELECT * FROM (SELECT f1 FROM t1 UNION SELECT f1 FROM t1) AS dt WHERE f1 = 'å';
+f1
+å
+DROP TABLE t1;
