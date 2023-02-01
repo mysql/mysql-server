@@ -112,26 +112,6 @@ bool NdbSocket::associate(SSL * new_ssl)
   return true;
 }
 
-bool NdbSocket::ssl_handshake() {
-  /* Check for non-blocking socket (see set_nonblocking): */
-  if(SSL_get_mode(ssl) & SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER) return false;
-  assert(SSL_get_mode(ssl) & SSL_MODE_AUTO_RETRY);
-
-  int r = SSL_do_handshake(ssl);
-  if(r == 1) return true;
-
-  int err = SSL_get_error(ssl, r);
-  require(err != SSL_ERROR_WANT_READ); // always use blocking I/O for handshake
-  require(err != SSL_ERROR_WANT_WRITE);
-  const char * desc = SSL_is_server(ssl) ?
-    "handshake failed in server" : "handshake failed in client";
-
-  log_ssl_error(desc);
-  close();
-  invalidate();
-  return false;
-}
-
 X509 * NdbSocket::peer_certificate() const {
   if(! ssl) return nullptr;
   return SSL_get_peer_certificate(ssl);
@@ -177,6 +157,26 @@ void NdbSocket::ssl_close() {
 }
 
 #if OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL
+
+bool NdbSocket::ssl_handshake() {
+  /* Check for non-blocking socket (see set_nonblocking): */
+  if(SSL_get_mode(ssl) & SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER) return false;
+  assert(SSL_get_mode(ssl) & SSL_MODE_AUTO_RETRY);
+
+  int r = SSL_do_handshake(ssl);
+  if(r == 1) return true;
+
+  int err = SSL_get_error(ssl, r);
+  require(err != SSL_ERROR_WANT_READ); // always use blocking I/O for handshake
+  require(err != SSL_ERROR_WANT_WRITE);
+  const char * desc = SSL_is_server(ssl) ?
+    "handshake failed in server" : "handshake failed in client";
+
+  log_ssl_error(desc);
+  close();
+  invalidate();
+  return false;
+}
 
 /* This is only used by read & write routines */
 static ssize_t handle_ssl_error(int err, const char * fn) {
@@ -275,6 +275,7 @@ ssize_t NdbSocket::ssl_send(const char * buf, size_t len) const
 
 #else
 static constexpr ssize_t too_old = NDB_OPENSSL_TOO_OLD;
+bool NdbSocket::ssl_handshake() { return false; }
 bool NdbSocket::update_keys(bool) const { return false; }
 bool NdbSocket::renegotiate() { return false; }
 bool NdbSocket::key_update_pending() const { return false; }
