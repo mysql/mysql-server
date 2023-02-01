@@ -342,7 +342,7 @@ std::string AuthorizeManager::get_jwt_token(UniversalId service_id,
 
   std::string session_id =
       service_id.to_string() + "." + s->user.user_id.to_string() + "." + exp;
-  if (session_manager_.get_session(session_id)) return session_id;
+  if (session_manager_.get_session(session_id)) return token;
 
   auto session = session_manager_.new_session(session_id);
   session->user = s->user;

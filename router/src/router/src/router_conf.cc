@@ -37,7 +37,6 @@
 #include "mysql/harness/logging/logger_plugin.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/string_utils.h"
-#include "mysql/harness/utility/string.h"
 #include "mysql/harness/utility/string.h"  // string_format
 #include "mysql/harness/vt100.h"
 #include "mysqlrouter/config_files.h"
