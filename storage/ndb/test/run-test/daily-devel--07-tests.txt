@@ -275,3 +275,7 @@ max-time: 120
 cmd: testIndex
 args: -n ScanOrderedIndexWithChurn T1
 max-time: 120
+
+cmd: testScan
+args: -n ScanOnDMLLateUnlock T1
+max-time : 120

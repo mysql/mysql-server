@@ -24,3 +24,38 @@ insert into t select 1000+x, 1000+y from t;
 commit;
 
 drop table t;
+
+# Check that, if the operation that crosses the MaxDMLOperationsPerTransaction
+# threshold is a delete the transaction should softly fail with error 261
+# See Bug#32491105 DATA NODE CRASH WHEN MAXDMLOPERATIONSPERTRANSACTION VIOLATED
+# BY DELETE STMT 
+create table t2 (
+  x int not null,
+  y int not null,
+  primary key (x),
+  unique key (y)
+) engine=ndb;
+
+start transaction;
+insert into t2 values (1001, 1001);
+insert into t2 values (1002, 1002);
+insert into t2 values (1003, 1003);
+insert into t2 values (1004, 1004);
+insert into t2 values (1005, 1005);
+insert into t2 values (1006, 1006);
+insert into t2 values (1007, 1007);
+insert into t2 values (1008, 1008);
+insert into t2 values (1009, 1009);
+insert into t2 values (1010, 1010);
+insert into t2 values (1011, 1011);
+insert into t2 values (1012, 1012);
+insert into t2 values (1013, 1013);
+insert into t2 values (1014, 1014);
+insert into t2 values (1015, 1015);
+insert into t2 values (1016, 1016);
+--error 0,1296
+delete from t2 order by x limit 5;
+show warnings;
+rollback;
+show warnings;
+drop table t2;
