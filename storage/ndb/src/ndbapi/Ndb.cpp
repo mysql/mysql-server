@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -500,18 +500,19 @@ Ndb::computeHash(Uint32 *retval,
 
   }
 
-  if (!buf)
+  while (true)
   {
-    bufLen = sumlen;
-    bufLen += sizeof(Uint64); /* add space for potential alignment */
-    buf = malloc(bufLen);
-    if (unlikely(buf == 0))
-      return 4000;
-    malloced_buf = buf; /* Remember to free */
-    assert(bufLen > sumlen);
-  }
+    if (buf == NULL)
+    {
+      bufLen = sumlen;
+      bufLen += sizeof(Uint64); /* add space for potential alignment */
+      buf = malloc(bufLen);
+      if (unlikely(buf == NULL))
+        return 4000;
+      malloced_buf = buf; /* Remember to free */
+      assert(bufLen > sumlen);
+    }
 
-  {
     /* Get 64-bit aligned ptr required for hashing */
     assert(bufLen != 0);
     UintPtr org = UintPtr(buf);
@@ -520,8 +521,10 @@ Ndb::computeHash(Uint32 *retval,
     buf = (void*)use;
     bufLen -= Uint32(use - org);
 
-    if (unlikely(sumlen > bufLen))
-      goto ebuftosmall;
+    if (likely(sumlen <= bufLen))
+      break;
+    require(malloced_buf == NULL);
+    buf = NULL;
   }
 
   pos = (char*)buf;
@@ -595,9 +598,6 @@ emissingnullptr:
 
 elentosmall:
   return 4277;
-
-ebuftosmall:
-  return 4278;
 
 emalformedstring:
   if (malloced_buf)
