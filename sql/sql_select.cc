@@ -3705,9 +3705,7 @@ bool check_field_is_const(Item *cond, const Item *order_item,
   This function counts the number of fields, functions and sum
   functions (items with type SUM_FUNC_ITEM) for use by
   create_tmp_table() and stores it in the Temp_table_param object. It
-  also resets and calculates the allow_group_via_temp_table property, which may
-  have to be reverted if this function is called after deciding to use ROLLUP
-  (see JOIN::optimize_rollup()).
+  also updates the allow_group_via_temp_table property if needed.
 
   @param query_block           Query_block of query
   @param param                Description of temp table
@@ -3726,7 +3724,6 @@ void count_field_types(const Query_block *query_block, Temp_table_param *param,
   param->func_count = fields.size();
   param->hidden_field_count = 0;
   param->outer_sum_func_count = 0;
-  param->allow_group_via_temp_table = true;
   /*
     Loose index scan guarantees that all grouping is done and MIN/MAX
     functions are computed, so create_tmp_table() treats this as if

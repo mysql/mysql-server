@@ -855,22 +855,6 @@ bool JOIN::optimize(bool finalize_access_paths) {
         ->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
   }
 
-  if (rollup_state != RollupState::NONE) {
-    /*
-      Fields may have been replaced by Item_rollup_group_item, so
-      recalculate the number of fields and functions for this query block.
-    */
-
-    // JOIN::optimize_rollup() may set allow_group_via_temp_table = false,
-    // and we must not undo that.
-    const bool save_allow_group_via_temp_table =
-        tmp_table_param.allow_group_via_temp_table;
-
-    count_field_types(query_block, &tmp_table_param, *fields, false, false);
-    tmp_table_param.allow_group_via_temp_table =
-        save_allow_group_via_temp_table;
-  }
-
   // See if this subquery can be evaluated with subselect_indexsubquery_engine
   if (const int ret = replace_index_subquery()) {
     if (ret == -1) {
