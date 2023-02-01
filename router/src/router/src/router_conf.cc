@@ -38,6 +38,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/string_utils.h"
 #include "mysql/harness/utility/string.h"
+#include "mysql/harness/utility/string.h"  // string_format
 #include "mysql/harness/vt100.h"
 #include "mysqlrouter/config_files.h"
 #include "mysqlrouter/default_paths.h"
@@ -59,6 +60,7 @@ using namespace std::string_literals;
 using mysql_harness::DIM;
 using mysql_harness::make_upper;
 using mysql_harness::truncate_string;
+using mysql_harness::utility::string_format;
 using mysqlrouter::MySQLSession;
 
 static const char *kDefaultKeyringFileName = "keyring";
@@ -1000,7 +1002,7 @@ void MySQLRouterConf::prepare_command_options(
   // in this context we only want the service-related options to be known and
   // displayed with --help; they are handled elsewhere (main-windows.cc)
   ServiceConfOptions unused;
-  add_service_options(arg_handler_, unused);
+  add_service_options(arg_handler, unused);
 
   arg_handler.add_option(
       CmdOption::OptionNames({"--remove-credentials-section"}),
