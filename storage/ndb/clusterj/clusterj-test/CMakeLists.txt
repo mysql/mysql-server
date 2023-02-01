@@ -65,6 +65,7 @@ SET(JAVA_SOURCES
   ${CLUSTERJ_TESTSUITE_PREFIX}/DynamicBytePKTest.java
   ${CLUSTERJ_TESTSUITE_PREFIX}/DynamicObjectTest.java
   ${CLUSTERJ_TESTSUITE_PREFIX}/DynamicShortPKTest.java
+  ${CLUSTERJ_TESTSUITE_PREFIX}/DynamicStringPKTest.java
   ${CLUSTERJ_TESTSUITE_PREFIX}/FindByPrimaryKey2Test.java
   ${CLUSTERJ_TESTSUITE_PREFIX}/FindByPrimaryKeyErrorHandlingTest.java
   ${CLUSTERJ_TESTSUITE_PREFIX}/FindByPrimaryKeyTest.java
@@ -182,6 +183,7 @@ SET(JAVA_SOURCES
   ${CLUSTERJ_TESTSUITE_PREFIX}/model/Dn2id.java
   ${CLUSTERJ_TESTSUITE_PREFIX}/model/DoubleTypes.java
   ${CLUSTERJ_TESTSUITE_PREFIX}/model/DynamicPK.java
+  ${CLUSTERJ_TESTSUITE_PREFIX}/model/DynamicStringPKs.java
   ${CLUSTERJ_TESTSUITE_PREFIX}/model/Employee.java
   ${CLUSTERJ_TESTSUITE_PREFIX}/model/Employee2.java
   ${CLUSTERJ_TESTSUITE_PREFIX}/model/FloatTypes.java

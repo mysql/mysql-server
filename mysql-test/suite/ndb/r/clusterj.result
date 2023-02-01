@@ -36,6 +36,7 @@ DROP TABLE datetypes;
 DROP TABLE decimaltypes;
 DROP TABLE dn2id;
 DROP TABLE doubletypes;
+DROP TABLE dynamicstringpks;
 DROP TABLE floattypes;
 DROP TABLE hashpk;
 DROP TABLE hope;
