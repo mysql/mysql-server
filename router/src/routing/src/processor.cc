@@ -138,9 +138,9 @@ Processor::forward_server_to_client(bool noflush) {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-Processor::forward_client_to_server() {
+Processor::forward_client_to_server(bool noflush) {
   connection()->push_processor(
-      std::make_unique<ClientToServerForwarder>(connection()));
+      std::make_unique<ClientToServerForwarder>(connection(), noflush));
 
   return Result::Again;
 }

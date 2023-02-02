@@ -67,6 +67,11 @@ stdx::expected<bool, std::error_code> Channel::tls_shutdown() {
     return stdx::make_unexpected(make_tls_ssl_error(ssl, res));
   }
 
+  if (res == 0) {
+    // shutdown not finished yet, flush the alert to the send-buffer.
+    flush_to_send_buf();
+  }
+
   return {res == 1};
 }
 
@@ -257,6 +262,12 @@ stdx::expected<size_t, std::error_code> Channel::read_to_plain(size_t sz) {
   flush_to_send_buf();
 
   return bytes_read;
+}
+
+Channel::Ssl Channel::release_ssl() {
+  if (ssl_) SSL_set_info_callback(ssl_.get(), nullptr);
+
+  return std::exchange(ssl_, {});
 }
 
 Channel::recv_buffer_type &Channel::send_plain_buffer() {

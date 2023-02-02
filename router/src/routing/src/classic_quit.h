@@ -33,7 +33,12 @@ class QuitProcessor : public Processor {
 
   enum class Stage {
     Command,
-    ClientShutdown,
+    ServerTlsShutdownFirst,
+    ServerShutdownSend,
+    ServerTlsShutdownResponse,
+    ClientTlsShutdownFirst,
+    ClientShutdownSend,
+    ClientTlsShutdownResponse,
     Done,
   };
 
@@ -44,7 +49,12 @@ class QuitProcessor : public Processor {
 
  private:
   stdx::expected<Result, std::error_code> command();
-  stdx::expected<Result, std::error_code> client_shutdown();
+  stdx::expected<Result, std::error_code> server_tls_shutdown_first();
+  stdx::expected<Result, std::error_code> server_shutdown_send();
+  stdx::expected<Result, std::error_code> server_tls_shutdown_response();
+  stdx::expected<Result, std::error_code> client_tls_shutdown_first();
+  stdx::expected<Result, std::error_code> client_shutdown_send();
+  stdx::expected<Result, std::error_code> client_tls_shutdown_response();
 
   Stage stage_{Stage::Command};
 };

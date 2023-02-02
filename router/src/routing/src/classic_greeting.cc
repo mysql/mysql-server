@@ -27,7 +27,11 @@
 #include <cctype>
 #include <iostream>
 #include <random>  // uniform_int_distribution
+#include <sstream>
 #include <system_error>
+
+#include <openssl/err.h>
+#include <openssl/ssl.h>
 
 #include "classic_auth.h"
 #include "classic_auth_caching_sha2.h"
@@ -111,6 +115,37 @@ static std::optional<std::string> scramble_them_all(
     return AuthCleartextPassword::scramble(nonce, pwd);
   } else {
     return std::nullopt;
+  }
+}
+
+static void ssl_info_cb(const SSL *ssl, int where, int ret) {
+  auto *conn = reinterpret_cast<MysqlRoutingClassicConnectionBase *>(
+      SSL_get_app_data(ssl));
+
+  auto &tr = conn->tracer();
+  if (!tr) return;
+
+  if ((where & SSL_CB_LOOP) != 0) {
+    tr.trace(
+        Tracer::Event().stage("tls::state: "s + SSL_state_string_long(ssl)));
+  } else if ((where & SSL_CB_ALERT) != 0) {
+    tr.trace(Tracer::Event().stage("tls::alert: "s +
+                                   SSL_alert_type_string_long(ret) + "::"s +
+                                   SSL_alert_desc_string_long(ret)));
+  } else if ((where & SSL_CB_EXIT) != 0) {
+    if (ret == 0) {
+      tr.trace(Tracer::Event().stage(
+          "tls::state: "s + SSL_state_string_long(ssl) + " <failed>"s));
+    } else if (ret < 0) {
+      switch (SSL_get_error(ssl, ret)) {
+        case SSL_ERROR_WANT_READ:
+        case SSL_ERROR_WANT_WRITE:
+          break;
+        default:
+          tr.trace(Tracer::Event().stage("tls"s + SSL_state_string_long(ssl) +
+                                         " <error>"s));
+      }
+    }
   }
 }
 
@@ -477,6 +512,9 @@ ClientGreetor::tls_accept_init() {
   }
   src_channel->init_ssl(ssl_ctx);
 
+  SSL_set_app_data(src_channel->ssl(), connection());
+  SSL_set_info_callback(src_channel->ssl(), ssl_info_cb);
+
   stage(Stage::TlsAccept);
   return Result::Again;
 }
@@ -511,6 +549,19 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::tls_accept() {
 
       return recv_client_failed(ec);
     }
+  }
+
+  if (auto &tr = tracer()) {
+    auto *ssl = client_channel->ssl();
+    std::ostringstream oss;
+    oss << "tls::accept::ok: " << SSL_get_version(ssl);
+    oss << " using " << SSL_get_cipher_name(ssl);
+
+    if (SSL_session_reused(ssl) != 0) {
+      oss << ", session_reused";
+    }
+
+    tr.trace(Tracer::Event().stage(oss.str()));
   }
 
   stage(Stage::ClientGreetingAfterTls);
@@ -1378,6 +1429,9 @@ ServerGreetor::tls_connect_init() {
   }
   dst_channel->init_ssl(*ssl_ctx_res);
 
+  SSL_set_app_data(dst_channel->ssl(), connection());
+  SSL_set_info_callback(dst_channel->ssl(), ssl_info_cb);
+
   // when a connection is taken from the pool for this client-connection, make
   // sure it is TLS again.
   connection()->requires_tls(true);
@@ -1405,12 +1459,11 @@ ServerGreetor::tls_connect() {
   }
 
   if (!dst_channel->tls_init_is_finished()) {
-    const auto res = dst_channel->tls_connect();
-
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("tls::connect"));
     }
 
+    const auto res = dst_channel->tls_connect();
     if (!res) {
       if (res.error() == TlsErrc::kWantRead) {
         {
@@ -1458,6 +1511,18 @@ ServerGreetor::tls_connect() {
         return Result::SendToClient;
       }
     }
+  }
+
+  if (auto &tr = tracer()) {
+    auto *ssl = dst_channel->ssl();
+    std::ostringstream oss;
+    oss << "tls::connect::ok: " << SSL_get_version(ssl);
+    oss << " using " << SSL_get_cipher_name(ssl);
+
+    if (SSL_session_reused(ssl) != 0) {
+      oss << ", session_reused";
+    }
+    tr.trace(Tracer::Event().stage(oss.str()));
   }
 
   stage(Stage::ClientGreetingAfterTls);
@@ -2188,6 +2253,9 @@ ServerFirstAuthenticator::tls_connect_init() {
   }
   dst_channel->init_ssl(*ssl_ctx_res);
 
+  SSL_set_app_data(dst_channel->ssl(), connection());
+  SSL_set_info_callback(dst_channel->ssl(), ssl_info_cb);
+
   connection()->requires_tls(true);
 
   stage(Stage::TlsConnect);
@@ -2213,11 +2281,11 @@ ServerFirstAuthenticator::tls_connect() {
   }
 
   if (!dst_channel->tls_init_is_finished()) {
-    const auto res = dst_channel->tls_connect();
-
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("tls::connect"));
     }
+
+    const auto res = dst_channel->tls_connect();
 
     if (!res) {
       if (res.error() == TlsErrc::kWantRead) {
@@ -2265,6 +2333,19 @@ ServerFirstAuthenticator::tls_connect() {
         return Result::SendToClient;
       }
     }
+  }
+
+  if (auto &tr = tracer()) {
+    auto *ssl = dst_channel->ssl();
+    std::ostringstream oss;
+    oss << "tls::connect::ok: " << SSL_get_version(ssl);
+    oss << " using " << SSL_get_cipher_name(ssl);
+
+    if (SSL_session_reused(ssl) != 0) {
+      oss << ", session_reused";
+    }
+
+    tr.trace(Tracer::Event().stage(oss.str()));
   }
 
   stage(Stage::ClientGreetingAfterTls);

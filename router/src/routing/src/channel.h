@@ -300,9 +300,9 @@ class Channel {
   SSL *ssl() const { return ssl_.get(); }
 
   /**
-   *
+   * release the internal Ssl structure.
    */
-  Ssl release_ssl() { return std::exchange(ssl_, {}); }
+  Ssl release_ssl();
 
  private:
   size_t want_recv_{};
