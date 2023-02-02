@@ -1,0 +1,14 @@
+drop table if exists t1, t2;
+#
+# Bug#29368199: SIG 11 IN LOCKED_TABLES_LIST::UNLOCK_LOCKED_TABLES
+# Need debug binary
+# Adding debug point 'simulate_error_in_truncate_ddl' to @@GLOBAL.debug
+CREATE TABLE t1(a INT, b TEXT, KEY (a)) SECONDARY_ENGINE=MOCK;
+LOCK TABLES t1 WRITE;
+TRUNCATE TABLE t1;
+ERROR HY000: Secondary engine operation failed. Simulated truncate ddl error.
+# Removing debug point 'simulate_error_in_truncate_ddl' from @@GLOBAL.debug
+SELECT * FROM t1;
+a	b
+UNLOCK TABLES;
+DROP TABLE t1;

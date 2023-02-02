@@ -516,6 +516,10 @@ void Sql_cmd_truncate_table::truncate_base(THD *thd, Table_ref *table_ref) {
     table_def->options().get("secondary_engine", &secondary_engine,
                              thd->mem_root);
 
+    DBUG_EXECUTE_IF("simulate_error_in_truncate_ddl", {
+      my_error(ER_SECONDARY_ENGINE, MYF(0), "Simulated truncate ddl error");
+      return;
+    });
     if (!ha_secondary_engine_supports_ddl(thd, secondary_engine)) {
       my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
       return;
