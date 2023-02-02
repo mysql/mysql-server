@@ -4710,18 +4710,6 @@ bool Table_ref::prepare_replace_filter(THD *thd) {
 }
 
 /**
-  Cleanup items belonged to view fields translation table
-*/
-
-void Table_ref::cleanup_items() {
-  if (!field_translation) return;
-
-  for (Field_translator *transl = field_translation;
-       transl < field_translation_end; transl++)
-    transl->item->walk(&Item::cleanup_processor, enum_walk::POSTFIX, nullptr);
-}
-
-/**
   Check CHECK OPTION condition
 
   @param thd       thread handler
