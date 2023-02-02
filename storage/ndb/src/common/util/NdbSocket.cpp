@@ -55,16 +55,6 @@ SSL * new_ssl(SSL_CTX * ctx) {
   return SSL_new(ctx);
 }
 
-static void log_ssl_error(const char * fn_name)
-{
-  char buffer[512];
-  int code;
-  while((code = ERR_get_error()) != 0) {
-    ERR_error_string_n(code, buffer, sizeof(buffer));
-    g_eventLogger->error("NDB TLS %s: %s", fn_name, buffer);
-  }
-}
-
 /* Class Methods */
 
 SSL * NdbSocket::get_client_ssl(SSL_CTX *ctx) {
@@ -157,6 +147,16 @@ void NdbSocket::ssl_close() {
 }
 
 #if OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL
+
+static void log_ssl_error(const char * fn_name)
+{
+  char buffer[512];
+  int code;
+  while((code = ERR_get_error()) != 0) {
+    ERR_error_string_n(code, buffer, sizeof(buffer));
+    g_eventLogger->error("NDB TLS %s: %s", fn_name, buffer);
+  }
+}
 
 bool NdbSocket::ssl_handshake() {
   /* Check for non-blocking socket (see set_nonblocking): */
