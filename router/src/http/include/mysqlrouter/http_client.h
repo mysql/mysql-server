@@ -31,9 +31,6 @@
 #include "mysqlrouter/http_client_export.h"
 #include "mysqlrouter/http_request.h"
 
-#undef HTTP_CLIENT_EXPORT
-#define HTTP_CLIENT_EXPORT
-
 struct evhttp_connection;
 struct event_base;
 
