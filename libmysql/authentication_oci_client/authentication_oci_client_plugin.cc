@@ -23,12 +23,12 @@
 #include "my_config.h"
 
 #include <my_compiler.h>
+#include <my_dir.h>
 #include <mysql.h>
 #include <mysql/client_plugin.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <ostream>
@@ -117,13 +117,14 @@ static int oci_authenticate_client_plugin(MYSQL_PLUGIN_VIO *vio,
   // Read the security token
   std::string token;
   if (!s_oci_config_file->security_token_file.empty()) {
-    if (!std::filesystem::exists(s_oci_config_file->security_token_file)) {
+    MY_STAT file_stat;
+    if (my_stat(s_oci_config_file->security_token_file.c_str(), &file_stat,
+                MYF(0)) == nullptr) {
       log_error("The security token file: " +
                 s_oci_config_file->security_token_file + " does not exists.");
       return CR_AUTH_USER_CREDENTIALS;
     }
-    if (std::filesystem::file_size(s_oci_config_file->security_token_file) >
-        s_max_token_size) {
+    if (file_stat.st_size > s_max_token_size) {
       log_error(
           "The security token file: " + s_oci_config_file->security_token_file +
           " is not acceptable, file size should be less than 10k.");
