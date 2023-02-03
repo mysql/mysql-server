@@ -55,7 +55,7 @@ IMPORT_LOG_FUNCTIONS()
  *
  * It is no error, if there is no server-connection.
  */
-stdx::expected<Processor::Result, std::error_code> QuitProcessor::process() {
+stdx::expected<Processor::Result, std::error_code> QuitForwarder::process() {
   switch (stage()) {
     case Stage::Command:
       return command();
@@ -104,7 +104,7 @@ static TlsSwitchableConnection make_connection_from_pooled(
               other.attributes())};
 }
 
-stdx::expected<Processor::Result, std::error_code> QuitProcessor::command() {
+stdx::expected<Processor::Result, std::error_code> QuitForwarder::command() {
   auto socket_splicer = connection()->socket_splicer();
   auto src_protocol = connection()->client_protocol();
   auto src_channel = socket_splicer->client_channel();
@@ -169,7 +169,7 @@ stdx::expected<Processor::Result, std::error_code> QuitProcessor::command() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-QuitProcessor::server_tls_shutdown_first() {
+QuitForwarder::server_tls_shutdown_first() {
   auto *socket_splicer = connection()->socket_splicer();
   auto *dst_channel = socket_splicer->server_channel();
 
@@ -222,7 +222,7 @@ QuitProcessor::server_tls_shutdown_first() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-QuitProcessor::server_shutdown_send() {
+QuitForwarder::server_shutdown_send() {
   auto *socket_splicer = connection()->socket_splicer();
 
   auto &conn = socket_splicer->server_conn();
@@ -264,7 +264,7 @@ QuitProcessor::server_shutdown_send() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-QuitProcessor::client_tls_shutdown_first() {
+QuitForwarder::client_tls_shutdown_first() {
   auto *socket_splicer = connection()->socket_splicer();
   auto *src_channel = socket_splicer->client_channel();
 
@@ -314,7 +314,7 @@ QuitProcessor::client_tls_shutdown_first() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-QuitProcessor::client_shutdown_send() {
+QuitForwarder::client_shutdown_send() {
   auto *socket_splicer = connection()->socket_splicer();
 
   auto &conn = socket_splicer->client_conn();
@@ -351,7 +351,7 @@ QuitProcessor::client_shutdown_send() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-QuitProcessor::server_tls_shutdown_response() {
+QuitForwarder::server_tls_shutdown_response() {
   auto *socket_splicer = connection()->socket_splicer();
   auto &conn = socket_splicer->server_conn();
   // SSL_shutdown() could be called a 2nd time, but the server won't send a TLS
@@ -371,7 +371,7 @@ QuitProcessor::server_tls_shutdown_response() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-QuitProcessor::client_tls_shutdown_response() {
+QuitForwarder::client_tls_shutdown_response() {
   auto *socket_splicer = connection()->socket_splicer();
   auto &conn = socket_splicer->client_conn();
 

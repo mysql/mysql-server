@@ -27,7 +27,7 @@
 
 #include "processor.h"
 
-class QuitProcessor : public Processor {
+class QuitForwarder : public Processor {
  public:
   using Processor::Processor;
 

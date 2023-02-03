@@ -33,7 +33,7 @@
 #include "tracer.h"
 
 stdx::expected<Processor::Result, std::error_code>
-StmtFetchProcessor::process() {
+StmtFetchForwarder::process() {
   switch (stage()) {
     case Stage::Command:
       return command();
@@ -53,7 +53,7 @@ StmtFetchProcessor::process() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-StmtFetchProcessor::command() {
+StmtFetchForwarder::command() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_fetch::command"));
   }
@@ -91,7 +91,7 @@ StmtFetchProcessor::command() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-StmtFetchProcessor::response() {
+StmtFetchForwarder::response() {
   auto *socket_splicer = connection()->socket_splicer();
   auto src_channel = socket_splicer->server_channel();
   auto src_protocol = connection()->server_protocol();
@@ -128,7 +128,7 @@ StmtFetchProcessor::response() {
   return stdx::make_unexpected(make_error_code(std::errc::bad_message));
 }
 
-stdx::expected<Processor::Result, std::error_code> StmtFetchProcessor::row() {
+stdx::expected<Processor::Result, std::error_code> StmtFetchForwarder::row() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_fetch::row"));
   }
@@ -139,7 +139,7 @@ stdx::expected<Processor::Result, std::error_code> StmtFetchProcessor::row() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-StmtFetchProcessor::end_of_rows() {
+StmtFetchForwarder::end_of_rows() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_fetch::end_of_rows"));
   }
@@ -149,7 +149,7 @@ StmtFetchProcessor::end_of_rows() {
   return forward_server_to_client();
 }
 
-stdx::expected<Processor::Result, std::error_code> StmtFetchProcessor::error() {
+stdx::expected<Processor::Result, std::error_code> StmtFetchForwarder::error() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_fetch::error"));
   }

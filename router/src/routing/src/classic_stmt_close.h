@@ -27,7 +27,7 @@
 
 #include "processor.h"
 
-class StmtCloseProcessor : public Processor {
+class StmtCloseForwarder : public Processor {
  public:
   using Processor::Processor;
 

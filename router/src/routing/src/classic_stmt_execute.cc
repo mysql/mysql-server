@@ -33,7 +33,7 @@
 #include "tracer.h"
 
 stdx::expected<Processor::Result, std::error_code>
-StmtExecuteProcessor::process() {
+StmtExecuteForwarder::process() {
   switch (stage()) {
     case Stage::Command:
       return command();
@@ -61,7 +61,7 @@ StmtExecuteProcessor::process() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-StmtExecuteProcessor::command() {
+StmtExecuteForwarder::command() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_execute::command"));
   }
@@ -103,7 +103,7 @@ StmtExecuteProcessor::command() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-StmtExecuteProcessor::response() {
+StmtExecuteForwarder::response() {
   auto *socket_splicer = connection()->socket_splicer();
   auto src_channel = socket_splicer->server_channel();
   auto src_protocol = connection()->server_protocol();
@@ -133,7 +133,7 @@ StmtExecuteProcessor::response() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-StmtExecuteProcessor::column_count() {
+StmtExecuteForwarder::column_count() {
   auto *socket_splicer = connection()->socket_splicer();
   auto src_channel = socket_splicer->server_channel();
   auto src_protocol = connection()->server_protocol();
@@ -155,7 +155,7 @@ StmtExecuteProcessor::column_count() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-StmtExecuteProcessor::column() {
+StmtExecuteForwarder::column() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_execute::column"));
   }
@@ -177,7 +177,7 @@ StmtExecuteProcessor::column() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-StmtExecuteProcessor::end_of_columns() {
+StmtExecuteForwarder::end_of_columns() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_execute::end_of_columns"));
   }
@@ -187,7 +187,7 @@ StmtExecuteProcessor::end_of_columns() {
   return forward_server_to_client(true);
 }
 
-stdx::expected<Processor::Result, std::error_code> StmtExecuteProcessor::row() {
+stdx::expected<Processor::Result, std::error_code> StmtExecuteForwarder::row() {
   auto *socket_splicer = connection()->socket_splicer();
   auto src_channel = socket_splicer->server_channel();
   auto src_protocol = connection()->server_protocol();
@@ -218,7 +218,7 @@ stdx::expected<Processor::Result, std::error_code> StmtExecuteProcessor::row() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-StmtExecuteProcessor::end_of_rows() {
+StmtExecuteForwarder::end_of_rows() {
   auto *socket_splicer = connection()->socket_splicer();
   auto src_channel = socket_splicer->server_channel();
   auto src_protocol = connection()->server_protocol();
@@ -244,7 +244,7 @@ StmtExecuteProcessor::end_of_rows() {
   return forward_server_to_client();
 }
 
-stdx::expected<Processor::Result, std::error_code> StmtExecuteProcessor::ok() {
+stdx::expected<Processor::Result, std::error_code> StmtExecuteForwarder::ok() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_execute::ok"));
   }
@@ -255,7 +255,7 @@ stdx::expected<Processor::Result, std::error_code> StmtExecuteProcessor::ok() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-StmtExecuteProcessor::error() {
+StmtExecuteForwarder::error() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_execute::error"));
   }

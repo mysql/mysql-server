@@ -32,7 +32,7 @@
 #include "tracer.h"
 
 stdx::expected<Processor::Result, std::error_code>
-StmtParamAppendDataProcessor::process() {
+StmtParamAppendDataForwarder::process() {
   switch (stage()) {
     case Stage::Command:
       return command();
@@ -44,7 +44,7 @@ StmtParamAppendDataProcessor::process() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-StmtParamAppendDataProcessor::command() {
+StmtParamAppendDataForwarder::command() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_param_append_data::command"));
   }

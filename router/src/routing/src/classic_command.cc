@@ -488,7 +488,7 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
   switch (Msg{msg_type}) {
     case Msg::Quit:
       stage(Stage::Done);  // after Quit is done, leave.
-      return push_processor<QuitProcessor>(connection());
+      return push_processor<QuitForwarder>(connection());
     case Msg::InitSchema:
       return push_processor<InitSchemaForwarder>(connection());
     case Msg::Query:
@@ -510,17 +510,17 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
     case Msg::StmtPrepare:
       return push_processor<StmtPrepareForwarder>(connection());
     case Msg::StmtExecute:
-      return push_processor<StmtExecuteProcessor>(connection());
+      return push_processor<StmtExecuteForwarder>(connection());
     case Msg::StmtClose:
-      return push_processor<StmtCloseProcessor>(connection());
+      return push_processor<StmtCloseForwarder>(connection());
     case Msg::StmtFetch:
-      return push_processor<StmtFetchProcessor>(connection());
+      return push_processor<StmtFetchForwarder>(connection());
     case Msg::SetOption:
       return push_processor<SetOptionForwarder>(connection());
     case Msg::StmtReset:
-      return push_processor<StmtResetProcessor>(connection());
+      return push_processor<StmtResetForwarder>(connection());
     case Msg::StmtParamAppendData:
-      return push_processor<StmtParamAppendDataProcessor>(connection());
+      return push_processor<StmtParamAppendDataForwarder>(connection());
     case Msg::Clone:
       return push_processor<CloneForwarder>(connection());
     case Msg::BinlogDump:

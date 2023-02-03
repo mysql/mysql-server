@@ -27,7 +27,7 @@
 
 #include "processor.h"
 
-class StmtFetchProcessor : public Processor {
+class StmtFetchForwarder : public Processor {
  public:
   using Processor::Processor;
 

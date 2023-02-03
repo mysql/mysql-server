@@ -27,7 +27,7 @@
 
 #include "processor.h"
 
-class StmtResetProcessor : public Processor {
+class StmtResetForwarder : public Processor {
  public:
   using Processor::Processor;
 

@@ -27,7 +27,7 @@
 
 #include "processor.h"
 
-class StmtParamAppendDataProcessor : public Processor {
+class StmtParamAppendDataForwarder : public Processor {
  public:
   using Processor::Processor;
 

@@ -27,7 +27,7 @@
 
 #include "processor.h"
 
-class StmtExecuteProcessor : public Processor {
+class StmtExecuteForwarder : public Processor {
  public:
   using Processor::Processor;
 

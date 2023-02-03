@@ -33,7 +33,7 @@
 #include "tracer.h"
 
 stdx::expected<Processor::Result, std::error_code>
-StmtResetProcessor::process() {
+StmtResetForwarder::process() {
   switch (stage()) {
     case Stage::Command:
       return command();
@@ -51,7 +51,7 @@ StmtResetProcessor::process() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-StmtResetProcessor::command() {
+StmtResetForwarder::command() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_reset::command"));
   }
@@ -88,7 +88,7 @@ StmtResetProcessor::command() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-StmtResetProcessor::response() {
+StmtResetForwarder::response() {
   auto *socket_splicer = connection()->socket_splicer();
   auto src_channel = socket_splicer->server_channel();
   auto src_protocol = connection()->server_protocol();
@@ -120,7 +120,7 @@ StmtResetProcessor::response() {
   return stdx::make_unexpected(make_error_code(std::errc::bad_message));
 }
 
-stdx::expected<Processor::Result, std::error_code> StmtResetProcessor::ok() {
+stdx::expected<Processor::Result, std::error_code> StmtResetForwarder::ok() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_reset::ok"));
   }
@@ -130,7 +130,7 @@ stdx::expected<Processor::Result, std::error_code> StmtResetProcessor::ok() {
   return forward_server_to_client();
 }
 
-stdx::expected<Processor::Result, std::error_code> StmtResetProcessor::error() {
+stdx::expected<Processor::Result, std::error_code> StmtResetForwarder::error() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_reset::error"));
   }
