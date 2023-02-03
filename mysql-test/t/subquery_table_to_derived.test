@@ -307,3 +307,56 @@ SELECT *
   );
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#35014318 Exists query assertion error
+--echo # Bug#34746261 Forced secondary engine execution assertion error
+--echo #
+--echo # This issue showed deficiencies with table value constructor
+--echo # when used in a [NOT] EXISTS subquery
+CREATE TABLE t1 (c0 INT);
+INSERT INTO t1 VALUES (1), (2);
+ANALYZE TABLE t1;
+
+SELECT 1 FROM t1 WHERE NOT EXISTS (VALUES ROW(1),ROW(2));
+SELECT c0 FROM t1 WHERE NOT EXISTS (VALUES ROW(1),ROW(2));
+
+SELECT 1 FROM t1 WHERE EXISTS (VALUES ROW(1),ROW(2));
+SELECT c0 FROM t1 WHERE EXISTS (VALUES ROW(1),ROW(2));
+
+SELECT 1 FROM (SELECT 5) t1(c0) WHERE EXISTS (VALUES ROW(1),ROW(2));
+
+--echo # This will do the transform in spite of the presence of
+--echo # LIMIT/OFFSET since we can compute at prepare time whether the
+--echo # result set will be empty or not
+SELECT c0 FROM t1 WHERE EXISTS (VALUES ROW(1),ROW(2) LIMIT 1 OFFSET 0);
+SELECT c0 FROM t1 WHERE EXISTS (VALUES ROW(1),ROW(2) LIMIT 1 OFFSET 1);
+SELECT c0 FROM t1 WHERE EXISTS (VALUES ROW(1),ROW(2) LIMIT 1 OFFSET 2);
+SELECT c0 FROM t1 WHERE EXISTS (VALUES ROW(1),ROW(2) LIMIT 0);
+SELECT c0 FROM t1 WHERE EXISTS (VALUES ROW(1),ROW(2) LIMIT 1);
+
+--echo # This does not use semi-join since we can't short-circuit due
+--echo # to dynamic parameter. Also fixed assert error due to missing
+--echo # type for ? (not transform dependent).
+PREPARE p FROM 'SELECT c0 FROM t1
+                WHERE EXISTS (VALUES ROW(1),ROW(2) LIMIT 1 OFFSET ?)';
+
+SET @n=0;
+EXECUTE p USING @n;
+
+SET @n=1;
+EXECUTE p USING @n;
+
+SET @n=2;
+EXECUTE p USING @n;
+
+PREPARE p FROM 'SELECT c0 FROM t1 WHERE EXISTS (VALUES ROW(1),ROW(2) LIMIT ?)';
+SET @n=0;
+EXECUTE p USING @n;
+
+SET @n=1;
+EXECUTE p USING @n;
+
+DROP PREPARE p;
+
+DROP TABLE t1;
