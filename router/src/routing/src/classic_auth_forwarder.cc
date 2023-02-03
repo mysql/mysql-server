@@ -49,13 +49,13 @@ IMPORT_LOG_FUNCTIONS()
 
 using mysql_harness::hexify;
 
-class AuthGenericForwarder : public Processor {
+class AuthGenericForwarder : public ForwardingProcessor {
  public:
   AuthGenericForwarder(MysqlRoutingClassicConnectionBase *conn,
                        std::string auth_method_name,
                        std::string initial_server_auth_data,
                        bool in_handshake = false)
-      : Processor(conn),
+      : ForwardingProcessor(conn),
         auth_method_name_{std::move(auth_method_name)},
         initial_server_auth_data_{std::move(initial_server_auth_data)},
         stage_{in_handshake ? Stage::Response : Stage::Init} {}

@@ -25,7 +25,7 @@
 #ifndef ROUTING_CLASSIC_AUTH_SHA256_PASSWORD_INCLUDED
 #define ROUTING_CLASSIC_AUTH_SHA256_PASSWORD_INCLUDED
 
-#include <memory>  // unique_ptr
+#include <string>
 #include <string_view>
 #include <system_error>
 
@@ -33,6 +33,7 @@
 
 #include "classic_auth.h"
 #include "classic_connection_base.h"
+#include "forwarding_processor.h"
 #include "mysql/harness/stdx/expected.h"
 
 // low-level routings for sha256_password
@@ -109,12 +110,12 @@ class AuthSha256Sender : public Processor {
 
 // forwarder
 
-class AuthSha256Forwarder : public Processor {
+class AuthSha256Forwarder : public ForwardingProcessor {
  public:
   AuthSha256Forwarder(MysqlRoutingClassicConnectionBase *conn,
                       std::string initial_server_auth_data,
                       bool in_handshake = false)
-      : Processor(conn),
+      : ForwardingProcessor(conn),
         initial_server_auth_data_{std::move(initial_server_auth_data)},
         stage_{in_handshake ? Stage::Response : Stage::Init} {}
 

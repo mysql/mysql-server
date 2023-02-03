@@ -25,11 +25,11 @@
 #ifndef ROUTING_CLASSIC_LIST_FIELDS_INCLUDED
 #define ROUTING_CLASSIC_LIST_FIELDS_INCLUDED
 
-#include "processor.h"
+#include "forwarding_processor.h"
 
-class ListFieldsForwarder : public Processor {
+class ListFieldsForwarder : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   enum class Stage {
     Command,

@@ -25,11 +25,11 @@
 #ifndef ROUTING_CLASSIC_STMT_SET_OPTION_INCLUDED
 #define ROUTING_CLASSIC_STMT_SET_OPTION_INCLUDED
 
-#include "processor.h"
+#include "forwarding_processor.h"
 
-class SetOptionForwarder : public Processor {
+class SetOptionForwarder : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   enum class Stage {
     Command,

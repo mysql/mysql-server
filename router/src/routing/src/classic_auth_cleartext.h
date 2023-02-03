@@ -34,6 +34,7 @@
 
 #include "classic_auth.h"
 #include "classic_connection_base.h"
+#include "forwarding_processor.h"
 #include "mysql/harness/stdx/expected.h"
 
 class AuthCleartextPassword {
@@ -81,12 +82,12 @@ class AuthCleartextSender : public Processor {
   std::string password_;
 };
 
-class AuthCleartextForwarder : public Processor {
+class AuthCleartextForwarder : public ForwardingProcessor {
  public:
   AuthCleartextForwarder(MysqlRoutingClassicConnectionBase *conn,
                          std::string initial_server_auth_data,
                          bool in_handshake = false)
-      : Processor(conn),
+      : ForwardingProcessor(conn),
         initial_server_auth_data_{std::move(initial_server_auth_data)},
         stage_{in_handshake ? Stage::Response : Stage::Init} {}
 

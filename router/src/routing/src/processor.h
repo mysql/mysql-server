@@ -127,33 +127,6 @@ class Processor : public BasicProcessor {
   trace(Tracer::Event e);
 
   Tracer &tracer();
-
-  /**
-   * forward the current packet from the server-side to the client-side.
-   *
-   * use 'noflush' if the next message is from the server side too to allow
-   * merging of multiple server-side packets into one "send-to-client".
-   *
-   * Useful for resultsets which is split into multiple packets.
-   *
-   * Pushes a ServerToClientForwarder to the processor-stack.
-   *
-   * @param noflush if true, it isn't required to wait until the packet is sent
-   * to the client.
-   */
-  stdx::expected<Result, std::error_code> forward_server_to_client(
-      bool noflush = false);
-
-  /**
-   * forward the current packet from the client-side to the server-side.
-   *
-   * Pushes a ClientToServerForwarder to the processor-stack.
-   *
-   * @param noflush if true, it isn't required to wait until the packet is sent
-   * to the server.
-   */
-  stdx::expected<Result, std::error_code> forward_client_to_server(
-      bool noflush = false);
 };
 
 #endif

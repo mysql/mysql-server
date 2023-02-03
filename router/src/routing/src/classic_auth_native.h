@@ -25,16 +25,14 @@
 #ifndef ROUTING_CLASSIC_AUTH_NATIVE_INCLUDED
 #define ROUTING_CLASSIC_AUTH_NATIVE_INCLUDED
 
-#include <memory>  // unique_ptr
 #include <optional>
+#include <string>
 #include <string_view>
 #include <system_error>
 
-#include <openssl/ssl.h>
-
 #include "classic_connection_base.h"
+#include "forwarding_processor.h"
 #include "mysql/harness/stdx/expected.h"
-#include "processor.h"
 
 class AuthNativePassword {
  public:
@@ -82,12 +80,12 @@ class AuthNativeSender : public Processor {
   std::string password_;
 };
 
-class AuthNativeForwarder : public Processor {
+class AuthNativeForwarder : public ForwardingProcessor {
  public:
   AuthNativeForwarder(MysqlRoutingClassicConnectionBase *conn,
                       std::string initial_server_auth_data,
                       bool in_handshake = false)
-      : Processor(conn),
+      : ForwardingProcessor(conn),
         initial_server_auth_data_{std::move(initial_server_auth_data)},
         stage_{in_handshake ? Stage::Response : Stage::Init} {}
 

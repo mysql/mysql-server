@@ -25,11 +25,11 @@
 #ifndef ROUTING_CLASSIC_PING_INCLUDED
 #define ROUTING_CLASSIC_PING_INCLUDED
 
-#include "processor.h"
+#include "forwarding_processor.h"
 
-class PingForwarder : public Processor {
+class PingForwarder : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   enum class Stage {
     Command,

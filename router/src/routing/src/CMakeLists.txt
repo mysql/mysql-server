@@ -56,6 +56,8 @@ ADD_LIBRARY(routing SHARED
   blocked_endpoints.cc
 
   processor.cc
+  forwarding_processor.cc
+
   classic_auth.cc
   classic_auth_cleartext.cc
   classic_auth_caching_sha2.cc

@@ -31,7 +31,7 @@
 #include "tracer.h"
 
 stdx::expected<Processor::Result, std::error_code>
-StmtCloseProcessor::process() {
+StmtCloseForwarder::process() {
   switch (stage()) {
     case Stage::Command:
       return command();
@@ -43,7 +43,7 @@ StmtCloseProcessor::process() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-StmtCloseProcessor::command() {
+StmtCloseForwarder::command() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_close::command"));
   }
