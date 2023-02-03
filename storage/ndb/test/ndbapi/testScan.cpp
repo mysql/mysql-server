@@ -2759,6 +2759,73 @@ runScanUsingMultipleNdbObjects(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int
+runScanApiDisconnect(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * Setup a new cluster connection, use it to scan
+   * with an error insert causing disconnection,
+   * check cluster does not fail
+   */
+  Ndb_cluster_connection* pCC = &ctx->m_cluster_connection;
+  int cases[] = {8120,  // TC ZSTART_FRAG_SCANS
+                 8121,  // TC ZSEND_FRAG_SCANS Early
+                 8122,  // TC ZSEND_FRAG_SCANS Later
+                 0};
+  int c = 0;
+
+  while (cases[c])
+  {
+    g_err << "Testing case " << cases[c] << endl;
+
+    char connectString[200];
+    Ndb_cluster_connection conn2 (pCC->get_connectstring(connectString,
+                                                         NDB_ARRAY_SIZE(connectString)));
+    if(conn2.connect() != 0)
+    {
+      g_err << "Failed to connect to cluster : "
+            << conn2.get_latest_error_msg()
+            << endl;
+      return NDBT_FAILED;
+    }
+
+    if (conn2.wait_until_ready(30,30) != 0)
+    {
+      g_err << "Failed to wait until ready : "
+            << conn2.get_latest_error_msg()
+            << endl;
+      return NDBT_FAILED;
+    }
+
+    Ndb ndb2(&conn2);
+    ndb2.init();
+    ndb2.setDatabaseAndSchemaName(ctx->getTab());
+
+    NdbRestarter restarter;
+    HugoTransactions hugoTrans(*ctx->getTab());
+
+    restarter.insertErrorInAllNodes(cases[c]);
+
+    /* Now scan, expect disconnection from cluster, but
+     * nothing worse
+     */
+    int rc = hugoTrans.scanReadRecords(&ndb2,
+                                       ctx->getNumRecords());
+
+    restarter.insertErrorInAllNodes(0);
+
+    if (rc == NDBT_OK)
+    {
+      g_err << "Scan did not fail - unexpected" << endl;
+      return NDBT_FAILED;
+    }
+
+    c++;
+  }
+
+  return NDBT_OK;
+}
+
 
 NDBT_TESTSUITE(testScan);
 TESTCASE("ScanRead", 
@@ -3452,6 +3519,13 @@ TESTCASE("ScanUsingMultipleNdbObjects",
   FINALIZER(runClearTable);
 }
 
+TESTCASE("ScanApiDisconnect",
+         "Run scan operations with API disconnecting at inappropriate times")
+{
+  INITIALIZER(runLoadTable);
+  STEP(runScanApiDisconnect);
+  FINALIZER(runClearTable);
+}
 
 NDBT_TESTSUITE_END(testScan)
 
