@@ -1617,9 +1617,8 @@ class ConfUseGrNotificationParamTest
  * file entry.
  */
 TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
-  TempDirectory bootstrap_directory;
   const auto server_port = port_pool_.get_next_available();
-  const auto server_port2 = port_pool_.get_next_available();
+  const auto server_x_port = port_pool_.get_next_available();
   const auto http_port = port_pool_.get_next_available();
   const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
 
@@ -1627,10 +1626,9 @@ TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
   auto &server_mock = launch_mysql_server_mock(json_stmts, server_port,
                                                EXIT_SUCCESS, false, http_port);
 
-  set_mock_bootstrap_data(
-      http_port, "test",
-      {{"localhost", server_port}, {"localhost", server_port2}},
-      GetParam().metadata_schema_version, "cluster-specific-id");
+  set_mock_bootstrap_data(http_port, "test", {{"localhost", server_port}},
+                          GetParam().metadata_schema_version,
+                          "cluster-specific-id");
 
   const auto router_port_rw = port_pool_.get_next_available();
   const auto router_port_ro = port_pool_.get_next_available();
@@ -1639,7 +1637,7 @@ TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
   std::vector<std::string> bootsrtap_params{
       "--bootstrap=127.0.0.1:" + std::to_string(server_port),
       "-d",
-      bootstrap_directory.name(),
+      bootstrap_dir.name(),
       "--conf-set-option=routing:bootstrap_rw.bind_port=" +
           std::to_string(router_port_rw),
       "--conf-set-option=routing:bootstrap_ro.bind_port=" +
@@ -1658,8 +1656,7 @@ TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
 
   check_exit_code(router, EXIT_SUCCESS);
 
-  const std::string conf_file =
-      bootstrap_directory.name() + "/mysqlrouter.conf";
+  const std::string conf_file = bootstrap_dir.name() + "/mysqlrouter.conf";
 
   // check if valid config option was added to the file
   auto conf_file_content = get_file_output(conf_file);
@@ -1679,10 +1676,12 @@ TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
   // launch mock server that is our metadata server
   launch_mysql_server_mock(runtime_json_stmts, server_port, EXIT_SUCCESS, false,
                            http_port);
-  set_mock_metadata(http_port, "cluster-specific-id", {server_port}, 0,
-                    {server_port});
+  set_mock_metadata(http_port, "cluster-specific-id", {GRNode{server_port}}, 0,
+                    {ClusterNode{server_port, server_x_port}});
 
-  ASSERT_NO_FATAL_FAILURE(launch_router({"-c", conf_file}));
+  // check that the Router accepts the config file
+  auto &router2 = launch_router({"-c", conf_file});
+  router2.set_logging_path(bootstrap_dir.name() + "/log", "mysqlrouter.log");
 }
 
 INSTANTIATE_TEST_SUITE_P(
