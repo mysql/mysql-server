@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -404,22 +404,42 @@ void Dbtc::execCONTINUEB(Signal* signal)
   case TcContinueB::ZSTART_FRAG_SCANS:
   {
     jam();
-    ScanRecordPtr scanptr;
-    scanptr.i = signal->theData[1];
-    ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
-    apiConnectptr.i = scanptr.p->scanApiRec;
+    apiConnectptr.i = Tdata0;
     ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+
+    /* Check state is valid for continuation */
+    if (unlikely(! (apiConnectptr.p->transid[0] == Tdata1 &&
+                    apiConnectptr.p->transid[1] == Tdata2 &&
+                    apiConnectptr.p->apiConnectstate == CS_START_SCAN)))
+    {
+      jam();
+      return;
+    }
+
+    ScanRecordPtr scanptr;
+    scanptr.i = apiConnectptr.p->apiScanRec;
+    ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
     sendDihGetNodesLab(signal, scanptr);
     return;
   }
   case TcContinueB::ZSEND_FRAG_SCANS:
   {
     jam();
-    ScanRecordPtr scanptr;
-    scanptr.i = signal->theData[1];
-    ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
-    apiConnectptr.i = scanptr.p->scanApiRec;
+    apiConnectptr.i = Tdata0;
     ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+
+    /* Check state is valid for continuation */
+    if (unlikely(! (apiConnectptr.p->transid[0] == Tdata1 &&
+                    apiConnectptr.p->transid[1] == Tdata2 &&
+                    apiConnectptr.p->apiConnectstate == CS_START_SCAN)))
+    {
+      jam();
+      return;
+    }
+
+    ScanRecordPtr scanptr;
+    scanptr.i = apiConnectptr.p->apiScanRec;
+    ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
     sendFragScansLab(signal, scanptr);
     return;
   }
@@ -13453,12 +13473,27 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr)
      * one signal to ensure we keep the rules of not executing
      * for more than 5-10 microseconds per signal.
      */
-    if (fragCnt >= DiGetNodesReq::MAX_DIGETNODESREQS)
+    if (fragCnt >= DiGetNodesReq::MAX_DIGETNODESREQS ||
+        ERROR_INSERTED(8120))
     {
       jam();
       signal->theData[0] = TcContinueB::ZSTART_FRAG_SCANS;
-      signal->theData[1] = scanptr.i;
-      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+      signal->theData[1] = apiConnectptr.i;
+      signal->theData[2] = apiConnectptr.p->transid[0];
+      signal->theData[3] = apiConnectptr.p->transid[1];
+      if (ERROR_INSERTED(8120))
+      {
+        jam();
+        // Delay CONTINUEB
+        sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 4);
+
+        // Disconnect API
+        signal->theData[0] = 900;
+        signal->theData[1] = refToNode(apiConnectptr.p->ndbapiBlockref);
+        sendSignal(CMVMI_REF, GSN_DUMP_STATE_ORD, signal, 2, JBA);
+        return;
+      }
+      sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
       return;
     }
 
@@ -13922,12 +13957,30 @@ void Dbtc::sendFragScansLab(Signal* signal,
            * A max fanout of 1::4 of consumed::produced signals are allowed.
            * If we are about to produce more, we have to contine later.
            */
-	  if (cntLocSignals > 4)
+	  if ((cntLocSignals > 4) ||
+              (ERROR_INSERTED(8121)) ||
+              (ERROR_INSERTED(8122) && fragCnt >= 2))
           {
             jam();
             signal->theData[0] = TcContinueB::ZSEND_FRAG_SCANS;
-            signal->theData[1] = scanptr.i;
-            sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+            signal->theData[1] = apiConnectptr.i;
+            signal->theData[2] = apiConnectptr.p->transid[0];
+            signal->theData[3] = apiConnectptr.p->transid[1];
+
+            if (ERROR_INSERTED(8121) ||
+                ERROR_INSERTED(8122))
+            {
+              jam();
+              /* Delay CONTINUEB */
+              sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 4);
+
+              // Disconnect API
+              signal->theData[0] = 900;
+              signal->theData[1] = refToNode(apiConnectptr.p->ndbapiBlockref);
+              sendSignal(CMVMI_REF, GSN_DUMP_STATE_ORD, signal, 2, JBA);
+              return;
+            }
+            sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
             return;
           }
           if (fragCnt > 0 &&
@@ -13936,8 +13989,10 @@ void Dbtc::sendFragScansLab(Signal* signal,
           {
             jam();
             signal->theData[0] = TcContinueB::ZSEND_FRAG_SCANS;
-            signal->theData[1] = scanptr.i;
-            sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2, 10);
+            signal->theData[1] = apiConnectptr.i;
+            signal->theData[2] = apiConnectptr.p->transid[0];
+            signal->theData[3] = apiConnectptr.p->transid[1];
+            sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 4);
             return;
           }
 
