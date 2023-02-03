@@ -2674,3 +2674,22 @@
    ...
 }
 
+# Suppress LDAP lib not calling ldap_pvt_tls_destroy
+
+{
+   supress_openldap_tls_leaks
+   Memcheck:Leak
+   match-leak-kinds: possible,reachable
+   ...
+   fun:ldap_start_tls_s
+   ...
+}
+
+{
+   suppress_openldap_tls_leaks_dl_catch
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_dl_catch_exception
+   ...
+}
