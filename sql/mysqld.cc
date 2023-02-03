@@ -2126,7 +2126,6 @@ static bool mysql_component_infrastructure_init() {
   @retval true failure
 */
 static bool component_infrastructure_deinit() {
-  server_component_deinit();
   persistent_dynamic_loader_deinit();
   bool retval = false;
 
@@ -2145,6 +2144,15 @@ static bool component_infrastructure_deinit() {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN);
     retval = true;
   }
+  /*
+    It's the deinitialize_minimal_chassis() that actually unloads all
+    components. Services provided by mysql_server component may still
+    be required at that time. E.g. mysql_thd_store::unregister_slot()
+    can be used by a component as a part of deinitialization.
+    Hence, deinitialize internal data structures used by mysql_server
+    component's services here.
+  */
+  server_component_deinit();
   return retval;
 }
 
