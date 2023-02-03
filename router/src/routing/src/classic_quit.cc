@@ -78,37 +78,10 @@ stdx::expected<Processor::Result, std::error_code> QuitForwarder::process() {
   harness_assert_this_should_not_execute();
 }
 
-static PooledClassicConnection make_pooled_connection(
-    TlsSwitchableConnection &&other) {
-  auto *classic_protocol_state =
-      dynamic_cast<ClassicProtocolState *>(other.protocol());
-  return {std::move(other.connection()),
-          other.channel()->release_ssl(),
-          classic_protocol_state->server_capabilities(),
-          classic_protocol_state->client_capabilities(),
-          classic_protocol_state->server_greeting(),
-          other.ssl_mode(),
-          classic_protocol_state->username(),
-          classic_protocol_state->schema(),
-          classic_protocol_state->attributes()};
-}
-
-static TlsSwitchableConnection make_connection_from_pooled(
-    PooledClassicConnection &&other) {
-  return {std::move(other.connection()),
-          nullptr,  // routing_conn
-          other.ssl_mode(), std::make_unique<Channel>(std::move(other.ssl())),
-          std::make_unique<ClassicProtocolState>(
-              other.server_capabilities(), other.client_capabilities(),
-              other.server_greeting(), other.username(), other.schema(),
-              other.attributes())};
-}
-
 stdx::expected<Processor::Result, std::error_code> QuitForwarder::command() {
-  auto socket_splicer = connection()->socket_splicer();
-  auto src_protocol = connection()->client_protocol();
-  auto src_channel = socket_splicer->client_channel();
-  auto dst_channel = socket_splicer->server_channel();
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_protocol = connection()->client_protocol();
+  auto *src_channel = socket_splicer->client_channel();
 
   auto msg_res =
       ClassicFrame::recv_msg<classic_protocol::borrowed::message::client::Quit>(
@@ -130,40 +103,29 @@ stdx::expected<Processor::Result, std::error_code> QuitForwarder::command() {
   // move the connection to the pool.
   //
   // the pool will either close it or keep it alive.
-  auto &pools = ConnectionPoolComponent::get_instance();
+  auto pooled_res = pool_server_connection();
+  if (!pooled_res) return recv_client_failed(pooled_res.error());
 
-  if (auto pool = pools.get(ConnectionPoolComponent::default_pool_name())) {
-    auto is_full_res =
-        pool->add_if_not_full(make_pooled_connection(std::exchange(
-            socket_splicer->server_conn(),
-            TlsSwitchableConnection{
-                nullptr, nullptr, socket_splicer->server_conn().ssl_mode(),
-                std::make_unique<ClassicProtocolState>()})));
-
-    if (!is_full_res) {
-      if (auto &tr = tracer()) {
-        tr.trace(Tracer::Event().stage("quit::pooled"));
-      }
-
-      // the connect was pooled, discard the Quit message.
-      discard_current_msg(src_channel, src_protocol);
-
-      stage(Stage::ServerTlsShutdownFirst);
-
-      return Result::Again;
+  const bool connection_was_pooled = *pooled_res;
+  if (connection_was_pooled) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("quit::pooled"));
     }
 
-    socket_splicer->server_conn() =
-        make_connection_from_pooled(std::move(*is_full_res));
+    // the connect was pooled, discard the Quit message.
+    discard_current_msg(src_channel, src_protocol);
 
-    dst_channel = socket_splicer->server_channel();
+    stage(Stage::ServerTlsShutdownFirst);
+
+    return Result::Again;
   }
 
   stage(Stage::ServerTlsShutdownFirst);
 
   // Merge the COM_QUIT and the TLS shutdown into one write() by not flushing
   // to the socket yet.
-  const bool delay_com_quit_for_tls_shutdown = dst_channel->ssl() != nullptr;
+  const bool delay_com_quit_for_tls_shutdown{
+      socket_splicer->server_channel()->ssl() != nullptr};
 
   return forward_client_to_server(delay_com_quit_for_tls_shutdown);
 }

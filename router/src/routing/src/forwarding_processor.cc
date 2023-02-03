@@ -45,3 +45,62 @@ ForwardingProcessor::forward_client_to_server(bool noflush) {
 
   return Result::Again;
 }
+
+static PooledClassicConnection make_pooled_connection(
+    TlsSwitchableConnection &&other) {
+  auto *classic_protocol_state =
+      dynamic_cast<ClassicProtocolState *>(other.protocol());
+  return {std::move(other.connection()),
+          other.channel()->release_ssl(),
+          classic_protocol_state->server_capabilities(),
+          classic_protocol_state->client_capabilities(),
+          classic_protocol_state->server_greeting(),
+          other.ssl_mode(),
+          classic_protocol_state->username(),
+          classic_protocol_state->schema(),
+          classic_protocol_state->sent_attributes()};
+}
+
+static TlsSwitchableConnection make_connection_from_pooled(
+    PooledClassicConnection &&other) {
+  return {std::move(other.connection()),
+          nullptr,  // routing_conn
+          other.ssl_mode(), std::make_unique<Channel>(std::move(other.ssl())),
+          std::make_unique<ClassicProtocolState>(
+              other.server_capabilities(), other.client_capabilities(),
+              other.server_greeting(), other.username(), other.schema(),
+              other.attributes())};
+}
+
+stdx::expected<bool, std::error_code>
+ForwardingProcessor::pool_server_connection() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto &server_conn = socket_splicer->server_conn();
+
+  if (server_conn.is_open()) {
+    // move the connection to the pool.
+    //
+    // the pool will either close it or keep it alive.
+    auto &pools = ConnectionPoolComponent::get_instance();
+
+    if (auto pool = pools.get(ConnectionPoolComponent::default_pool_name())) {
+      auto ssl_mode = server_conn.ssl_mode();
+
+      auto is_full_res = pool->add_if_not_full(make_pooled_connection(
+          std::exchange(socket_splicer->server_conn(),
+                        TlsSwitchableConnection{
+                            nullptr,   // connection
+                            nullptr,   // routing-connection
+                            ssl_mode,  //
+                            std::make_unique<ClassicProtocolState>()})));
+
+      if (is_full_res) {
+        // pool is full, restore the connection.
+        server_conn = make_connection_from_pooled(std::move(*is_full_res));
+        return {false};
+      }
+    }
+  }
+
+  return {true};
+}

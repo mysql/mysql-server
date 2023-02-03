@@ -61,6 +61,11 @@ class ForwardingProcessor : public Processor {
    */
   stdx::expected<Result, std::error_code> forward_client_to_server(
       bool noflush = false);
+
+  /**
+   * move the server connection to the pool.
+   */
+  stdx::expected<bool, std::error_code> pool_server_connection();
 };
 
 #endif

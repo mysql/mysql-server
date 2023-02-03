@@ -98,71 +98,20 @@ stdx::expected<Processor::Result, std::error_code> push_processor(
   return Processor::Result::Again;
 }
 
-static PooledClassicConnection make_pooled_connection(
-    TlsSwitchableConnection &&other) {
-  auto *classic_protocol_state =
-      dynamic_cast<ClassicProtocolState *>(other.protocol());
-  return {std::move(other.connection()),
-          other.channel()->release_ssl(),
-          classic_protocol_state->server_capabilities(),
-          classic_protocol_state->client_capabilities(),
-          classic_protocol_state->server_greeting(),
-          other.ssl_mode(),
-          classic_protocol_state->username(),
-          classic_protocol_state->schema(),
-          classic_protocol_state->sent_attributes()};
-}
-
-static TlsSwitchableConnection make_connection_from_pooled(
-    PooledClassicConnection &&other) {
-  return {std::move(other.connection()),
-          nullptr,  // routing_conn
-          other.ssl_mode(), std::make_unique<Channel>(std::move(other.ssl())),
-          std::make_unique<ClassicProtocolState>(
-              other.server_capabilities(), other.client_capabilities(),
-              other.server_greeting(), other.username(), other.schema(),
-              other.attributes())};
-}
-
 void CommandProcessor::client_idle_timeout() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto &server_conn = socket_splicer->server_conn();
-
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("client::idle::timeout"));
   }
 
-  // if we still have a server connection, move it to the pool
-  if (server_conn.is_open()) {
-    // move the connection to the pool.
-    //
-    // the pool will either close it or keep it alive.
-    auto &pools = ConnectionPoolComponent::get_instance();
+  auto pool_res = pool_server_connection();
+  if (!pool_res) return;
 
-    if (auto pool = pools.get(ConnectionPoolComponent::default_pool_name())) {
-      auto ssl_mode = server_conn.ssl_mode();
+  if (auto &tr = tracer()) {
+    bool connection_was_pooled = *pool_res;
 
-      auto is_full_res = pool->add_if_not_full(make_pooled_connection(
-          std::exchange(server_conn,
-                        TlsSwitchableConnection{
-                            nullptr,   // connection
-                            nullptr,   // routing-connection
-                            ssl_mode,  //
-                            std::make_unique<ClassicProtocolState>()})));
-
-      if (is_full_res) {
-        if (auto &tr = tracer()) {
-          tr.trace(Tracer::Event().stage("client::idle::pool_full"));
-        }
-        // not pooled, restore.
-        server_conn = make_connection_from_pooled(std::move(*is_full_res));
-
-      } else {
-        if (auto &tr = tracer()) {
-          tr.trace(Tracer::Event().stage("server::pooled"));
-        }
-      }
-    }
+    tr.trace(Tracer::Event().stage(connection_was_pooled
+                                       ? "client::idle::pooled"
+                                       : "client::idle::pool_full"));
   }
 }
 
