@@ -466,6 +466,7 @@ bool AuthorizeManager::authorize(ServiceId service_id,
     auto url_session_id = url.get_query_parameter("session");
     if (!url_session_id.empty()) {
       session_identifier = url_session_id;
+      ctxt.cookies.direct()[session_cookie_key] = session_identifier;
     }
   }
 
