@@ -25,11 +25,11 @@
 #ifndef ROUTING_CLASSIC_CLONE_INCLUDED
 #define ROUTING_CLASSIC_CLONE_INCLUDED
 
-#include "processor.h"
+#include "forwarding_processor.h"
 
-class CloneForwarder : public Processor {
+class CloneForwarder : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   enum class Stage {
     Command,

@@ -25,12 +25,12 @@
 #ifndef ROUTING_CLASSIC_RELOAD_INCLUDED
 #define ROUTING_CLASSIC_RELOAD_INCLUDED
 
+#include "forwarding_processor.h"
 #include "mysqlrouter/classic_protocol_constants.h"
-#include "processor.h"
 
-class ReloadForwarder : public Processor {
+class ReloadForwarder : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   enum class Stage {
     Command,

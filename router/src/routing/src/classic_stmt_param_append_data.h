@@ -25,11 +25,11 @@
 #ifndef ROUTING_CLASSIC_STMT_PARAM_APPEND_DATA_INCLUDED
 #define ROUTING_CLASSIC_STMT_PARAM_APPEND_DATA_INCLUDED
 
-#include "processor.h"
+#include "forwarding_processor.h"
 
-class StmtParamAppendDataForwarder : public Processor {
+class StmtParamAppendDataForwarder : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   enum class Stage {
     Command,

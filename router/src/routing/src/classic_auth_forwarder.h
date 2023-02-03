@@ -25,23 +25,16 @@
 #ifndef ROUTING_CLASSIC_AUTH_FORWARDER_INCLUDED
 #define ROUTING_CLASSIC_AUTH_FORWARDER_INCLUDED
 
-#include <memory>  // unique_ptr
-#include <string_view>
-#include <system_error>
-
-#include <openssl/ssl.h>
-
-#include "classic_connection_base.h"
-#include "mysql/harness/stdx/expected.h"
+#include "forwarding_processor.h"
 
 /**
  * forward authentication between a client and server.
  *
  * started from the server after AuthSwitch
  */
-class AuthForwarder : public Processor {
+class AuthForwarder : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   enum class Stage {
     Init,

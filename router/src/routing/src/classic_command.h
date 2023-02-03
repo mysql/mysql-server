@@ -25,11 +25,11 @@
 #ifndef ROUTING_CLASSIC_COMMAND_INCLUDED
 #define ROUTING_CLASSIC_COMMAND_INCLUDED
 
-#include "processor.h"
+#include "forwarding_processor.h"
 
-class CommandProcessor : public Processor {
+class CommandProcessor : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   enum class Stage {
     IsAuthed,

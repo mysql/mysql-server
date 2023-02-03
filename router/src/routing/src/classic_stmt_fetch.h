@@ -25,11 +25,11 @@
 #ifndef ROUTING_CLASSIC_STMT_FETCH_INCLUDED
 #define ROUTING_CLASSIC_STMT_FETCH_INCLUDED
 
-#include "processor.h"
+#include "forwarding_processor.h"
 
-class StmtFetchForwarder : public Processor {
+class StmtFetchForwarder : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   enum class Stage {
     Command,

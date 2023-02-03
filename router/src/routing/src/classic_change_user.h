@@ -25,14 +25,14 @@
 #ifndef ROUTING_CLASSIC_CHANGE_USER_INCLUDED
 #define ROUTING_CLASSIC_CHANGE_USER_INCLUDED
 
-#include "processor.h"
+#include "forwarding_processor.h"
 
 /**
  * forwards COM_CHANGE_USER from client to the server.
  */
-class ChangeUserForwarder : public Processor {
+class ChangeUserForwarder : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   enum class Stage {
     Command,
@@ -63,12 +63,12 @@ class ChangeUserForwarder : public Processor {
 /**
  * sends COM_CHANGE_USER from router to the server.
  */
-class ChangeUserSender : public Processor {
+class ChangeUserSender : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   ChangeUserSender(MysqlRoutingClassicConnectionBase *conn, bool in_handshake)
-      : Processor(conn), in_handshake_{in_handshake} {}
+      : ForwardingProcessor(conn), in_handshake_{in_handshake} {}
 
   enum class Stage {
     Command,

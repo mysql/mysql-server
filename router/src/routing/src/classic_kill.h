@@ -25,11 +25,11 @@
 #ifndef ROUTING_CLASSIC_KILL_INCLUDED
 #define ROUTING_CLASSIC_KILL_INCLUDED
 
-#include "processor.h"
+#include "forwarding_processor.h"
 
-class KillForwarder : public Processor {
+class KillForwarder : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   enum class Stage {
     Command,

@@ -25,11 +25,11 @@
 #ifndef ROUTING_CLASSIC_REGISTER_REPLICA_INCLUDED
 #define ROUTING_CLASSIC_REGISTER_REPLICA_INCLUDED
 
-#include "processor.h"
+#include "forwarding_processor.h"
 
-class RegisterReplicaForwarder : public Processor {
+class RegisterReplicaForwarder : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   enum class Stage {
     Command,

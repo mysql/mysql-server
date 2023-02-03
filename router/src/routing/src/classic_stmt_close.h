@@ -25,11 +25,11 @@
 #ifndef ROUTING_CLASSIC_STMT_CLOSE_INCLUDED
 #define ROUTING_CLASSIC_STMT_CLOSE_INCLUDED
 
-#include "processor.h"
+#include "forwarding_processor.h"
 
-class StmtCloseForwarder : public Processor {
+class StmtCloseForwarder : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   enum class Stage {
     Command,

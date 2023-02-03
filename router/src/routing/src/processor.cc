@@ -22,14 +22,12 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <memory>  // make_unique
+#include "processor.h"
 
 #include "classic_connection_base.h"
-#include "classic_forwarder.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
-#include "processor.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -128,19 +126,3 @@ void Processor::trace(Tracer::Event event) {
 }
 
 Tracer &Processor::tracer() { return connection()->tracer(); }
-
-stdx::expected<Processor::Result, std::error_code>
-Processor::forward_server_to_client(bool noflush) {
-  connection()->push_processor(
-      std::make_unique<ServerToClientForwarder>(connection(), noflush));
-
-  return Result::Again;
-}
-
-stdx::expected<Processor::Result, std::error_code>
-Processor::forward_client_to_server(bool noflush) {
-  connection()->push_processor(
-      std::make_unique<ClientToServerForwarder>(connection(), noflush));
-
-  return Result::Again;
-}

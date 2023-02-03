@@ -25,11 +25,11 @@
 #ifndef ROUTING_CLASSIC_QUIT_INCLUDED
 #define ROUTING_CLASSIC_QUIT_INCLUDED
 
-#include "processor.h"
+#include "forwarding_processor.h"
 
-class QuitForwarder : public Processor {
+class QuitForwarder : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   enum class Stage {
     Command,

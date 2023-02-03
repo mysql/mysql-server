@@ -25,11 +25,11 @@
 #ifndef ROUTING_CLASSIC_RESET_CONNECTION_INCLUDED
 #define ROUTING_CLASSIC_RESET_CONNECTION_INCLUDED
 
-#include "processor.h"
+#include "forwarding_processor.h"
 
-class ResetConnectionForwarder : public Processor {
+class ResetConnectionForwarder : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   enum class Stage {
     Command,

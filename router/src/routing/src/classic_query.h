@@ -27,8 +27,8 @@
 
 #include <system_error>
 
+#include "forwarding_processor.h"
 #include "mysql/harness/stdx/flags.h"
-#include "processor.h"
 
 enum class StmtClassifier {
   StateChangeOnSuccess = 1 << 0,              // even if tracker doesn't say so.
@@ -44,9 +44,9 @@ template <>
 struct is_flags<StmtClassifier> : std::true_type {};
 }  // namespace stdx
 
-class QueryForwarder : public Processor {
+class QueryForwarder : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   enum class Stage {
     Command,

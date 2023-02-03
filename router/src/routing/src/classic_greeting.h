@@ -25,16 +25,16 @@
 #ifndef ROUTING_CLASSIC_GREETING_INCLUDED
 #define ROUTING_CLASSIC_GREETING_INCLUDED
 
-#include "processor.h"
+#include "forwarding_processor.h"
 
 /**
  * classic protocol handshake between client<->router (and router<->server).
  *
  *
  */
-class ClientGreetor : public Processor {
+class ClientGreetor : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   /**
    * stages of the handshake flow.
@@ -81,7 +81,7 @@ class ClientGreetor : public Processor {
 /**
  * classic protocol handshake between client<->router and router<->server.
  */
-class ServerGreetor : public Processor {
+class ServerGreetor : public ForwardingProcessor {
  public:
   /**
    * construct a server::greeting processor.
@@ -109,7 +109,7 @@ class ServerGreetor : public Processor {
    * handshake.
    */
   ServerGreetor(MysqlRoutingClassicConnectionBase *conn, bool in_handshake)
-      : Processor(conn), in_handshake_{in_handshake} {}
+      : ForwardingProcessor(conn), in_handshake_{in_handshake} {}
 
   /**
    * stages of the handshake flow.
@@ -168,22 +168,19 @@ class ServerGreetor : public Processor {
 
 /**
  * classic protocol handshake between router<->server and client<->router.
+ *
+ * a server::greeting processor which fetches a server::greeting
+ * to send it to the client.
+ *
+ *     c->r   : accept()
+ *        r->s: connect()
+ *        r<-s: server::greeting
+ *     c<-r   : ...
+ *
  */
-class ServerFirstConnector : public Processor {
+class ServerFirstConnector : public ForwardingProcessor {
  public:
-  /**
-   * construct a server::greeting processor fetches a server::greeting
-   * to send it to the client.
-   *
-   *     c->r   : accept()
-   *        r->s: connect()
-   *        r<-s: server::greeting
-   *     c<-r   : ...
-   *
-   * @param conn the connection the greeting will be transferred on.
-   */
-  ServerFirstConnector(MysqlRoutingClassicConnectionBase *conn)
-      : Processor(conn) {}
+  using ForwardingProcessor::ForwardingProcessor;
 
   /**
    * stages of the handshake flow.
@@ -218,10 +215,9 @@ class ServerFirstConnector : public Processor {
  * 1. sent a server::greeting already
  * 2. expects to receive a client::greeting
  */
-class ServerFirstAuthenticator : public Processor {
+class ServerFirstAuthenticator : public ForwardingProcessor {
  public:
-  ServerFirstAuthenticator(MysqlRoutingClassicConnectionBase *conn)
-      : Processor(conn) {}
+  using ForwardingProcessor::ForwardingProcessor;
 
   /**
    * stages of the handshake flow.

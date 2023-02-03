@@ -25,7 +25,6 @@
 #ifndef ROUTING_CLASSIC_AUTH_CACHING_SHA2_INCLUDED
 #define ROUTING_CLASSIC_AUTH_CACHING_SHA2_INCLUDED
 
-#include <memory>  // unique_ptr
 #include <string_view>
 #include <system_error>
 
@@ -33,6 +32,7 @@
 
 #include "classic_auth.h"
 #include "classic_connection_base.h"
+#include "forwarding_processor.h"
 #include "mysql/harness/stdx/expected.h"
 
 // low-level routings for caching_sha2_password
@@ -118,12 +118,12 @@ class AuthCachingSha2Sender : public Processor {
   std::string password_;
 };
 
-class AuthCachingSha2Forwarder : public Processor {
+class AuthCachingSha2Forwarder : public ForwardingProcessor {
  public:
   AuthCachingSha2Forwarder(MysqlRoutingClassicConnectionBase *conn,
                            std::string initial_server_auth_data,
                            bool in_handshake = false)
-      : Processor(conn),
+      : ForwardingProcessor(conn),
         initial_server_auth_data_{std::move(initial_server_auth_data)},
         in_handshake_{in_handshake},
         stage_{in_handshake ? Stage::Response : Stage::Init} {}

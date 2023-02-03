@@ -25,11 +25,11 @@
 #ifndef ROUTING_CLASSIC_INIT_SCHEMA_INCLUDED
 #define ROUTING_CLASSIC_INIT_SCHEMA_INCLUDED
 
-#include "processor.h"
+#include "forwarding_processor.h"
 
-class InitSchemaForwarder : public Processor {
+class InitSchemaForwarder : public ForwardingProcessor {
  public:
-  using Processor::Processor;
+  using ForwardingProcessor::ForwardingProcessor;
 
   enum class Stage {
     Command,

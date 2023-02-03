@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,41 +22,26 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_CLASSIC_BINLOG_DUMP_INCLUDED
-#define ROUTING_CLASSIC_BINLOG_DUMP_INCLUDED
-
 #include "forwarding_processor.h"
 
-class BinlogDumpForwarder : public ForwardingProcessor {
- public:
-  using ForwardingProcessor::ForwardingProcessor;
+#include <memory>  // make_unique
 
-  enum class Stage {
-    Command,
-    Connect,
-    Connected,
-    Response,
-    EndOfStream,
-    Event,
-    Error,
-    Done,
-  };
+#include "classic_connection_base.h"
+#include "classic_forwarder.h"
+#include "mysqlrouter/connection_pool_component.h"
 
-  stdx::expected<Result, std::error_code> process() override;
+stdx::expected<Processor::Result, std::error_code>
+ForwardingProcessor::forward_server_to_client(bool noflush) {
+  connection()->push_processor(
+      std::make_unique<ServerToClientForwarder>(connection(), noflush));
 
-  void stage(Stage stage) { stage_ = stage; }
-  Stage stage() const { return stage_; }
+  return Result::Again;
+}
 
- private:
-  stdx::expected<Result, std::error_code> command();
-  stdx::expected<Result, std::error_code> connect();
-  stdx::expected<Result, std::error_code> connected();
-  stdx::expected<Result, std::error_code> response();
-  stdx::expected<Result, std::error_code> event();
-  stdx::expected<Result, std::error_code> end_of_stream();
-  stdx::expected<Result, std::error_code> error();
+stdx::expected<Processor::Result, std::error_code>
+ForwardingProcessor::forward_client_to_server(bool noflush) {
+  connection()->push_processor(
+      std::make_unique<ClientToServerForwarder>(connection(), noflush));
 
-  Stage stage_{Stage::Command};
-};
-
-#endif
+  return Result::Again;
+}
