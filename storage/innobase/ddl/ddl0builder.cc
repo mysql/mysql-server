@@ -2874,25 +2874,28 @@ dberr_t Builder::finish() noexcept {
   }
   m_build_threads.clear();
 
-  if (m_is_subtree) {
-    err = merge_subtrees();
-    if (err != DB_SUCCESS) {
-      set_error(err);
+  {
+    auto guard = create_scope_guard([this]() {
+      for (auto thread_ctx : m_thread_ctxs) {
+        thread_ctx->m_file.close();
+      }
+    });
+
+    if (get_error() != DB_SUCCESS) {
+      set_next_state();
       return get_error();
     }
-  }
 
-  if (get_error() != DB_SUCCESS) {
-    set_next_state();
-    return get_error();
+    if (m_is_subtree) {
+      err = merge_subtrees();
+      if (err != DB_SUCCESS) {
+        set_error(err);
+        return get_error();
+      }
+    }
   }
-
   ut_a(m_n_sort_tasks == 0);
   ut_a(get_state() == State::FINISH);
-
-  for (auto thread_ctx : m_thread_ctxs) {
-    thread_ctx->m_file.close();
-  }
 
   if (get_error() != DB_SUCCESS || !m_ctx.m_online) {
     /* Do not apply any online log. */

@@ -2929,7 +2929,7 @@ dberr_t Btree_load::Merger::subtree_link_levels(size_t &highest_level) {
         mem_heap_t *heap = local_heap.get();
         rec_t *insert_rec = page_cur_tuple_insert(&page_cur, node_ptr, m_index,
                                                   &offsets, &heap, mtr);
-        ut_ad(insert_rec != nullptr);
+        ut_a(insert_rec != nullptr);
 #ifdef UNIV_DEBUG
         {
           rec_t *next_rec = page_rec_get_next(insert_rec);
