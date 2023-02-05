@@ -2594,8 +2594,9 @@ int warp_push_to_engine(THD * thd , AccessPath * root_path, JOIN * join) {
     ha->push_where_clause += save_where;
     
     assert(root_path->filter().condition != nullptr);
-    if(remainder) 
-	    root_path->filter().condition = const_cast<Item *>(remainder);
+    //if(remainder) 
+    //  root_path->filter().condition = const_cast<Item *>(remainder);
+    
     // To get correct explain output: (Does NOT affect what is executed)
     // Need to set the QEP_TAB condition as well. Note that QEP_TABs
     //are not 'executed' any longer -> affects only explain output.
