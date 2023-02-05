@@ -817,7 +817,7 @@ bool show_replicas(THD *thd) {
 
 
 /**
-  @page page_protocol_com_binlog_dump COM_BINLOG_DUMP
+  @page page_protocol_com_binlog_dump Binlog Dump Commands
 
   @brief Request a @ref sect_protocol_replication_binlog_stream from the server
 
@@ -825,7 +825,7 @@ bool show_replicas(THD *thd) {
     @ref page_protocol_basic_err_packet on error
 
   <table>
-  <caption>Payload</caption>
+  <caption>COM_BINLOG_DUMP Payload</caption>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>status</td>
@@ -846,6 +846,37 @@ bool show_replicas(THD *thd) {
   </table>
 
   @sa com_binlog_dump
+
+  <table>
+  <caption>COM_BINLOG_DUMP_GTID Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>status</td>
+      <td>[0x30] COM_BINLOG_DUMP</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>flags</td>
+      <td></td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>server-id</td>
+      <td>Server id of this slave</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>filename length</td>
+      <td>Length of the binlog filename/td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "string&lt;var&gt;"</td>
+      <td>binlog-filename</td>
+      <td>filename of the binlog on the master</td></tr>
+  <tr><td>@ref a_protocol_type_int8 "int&lt;8&gt;"</td>
+      <td>binlog-pos</td>
+      <td>position in the binlog-file to start the stream with</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>gtid-data-length</td>
+      <td>Length of encoded GTID data</td></tr>
+  <tr><td>binary data</td>
+      <td>gtid-data</td>
+      <td>Encoded GTID sets</td></tr>
+  </table>
+
+  @sa com_binlog_dump_gtid
 */
 /* clang-format on */
 
