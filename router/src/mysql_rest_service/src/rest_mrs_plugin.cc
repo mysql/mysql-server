@@ -63,7 +63,7 @@ struct MrdsModule {
         log_error(
             "MySQL Server account, set in 'mysql_user' (MRS/metadata access), "
             "must be granted "
-            "with 'mrs_provider_metadata' role.");
+            "with 'mysql_rest_service_meta_provider' role.");
         log_info(
             "Please consult the MRS documentation on: how to configure MySQL "
             "Server accounts for MRS");
@@ -79,7 +79,7 @@ struct MrdsModule {
         log_error(
             "MySQL Server account, set in 'mysql_user_data_access' "
             "(MRS/user-data access), must be "
-            "granted with 'mrs_provider_data_access' role.");
+            "granted with 'mysql_rest_service_data_provider' role.");
         log_info(
             "Please consult the MRS documentation on: how to configure MySQL "
             "Server accounts for MRS");

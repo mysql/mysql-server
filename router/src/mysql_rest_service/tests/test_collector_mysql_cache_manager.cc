@@ -48,29 +48,29 @@ class MysqlCacheManagerTest : public Test {
 
 TEST_F(MysqlCacheManagerTest, sut_constructor_does_nothing) {}
 
-TEST_F(MysqlCacheManagerTest, empty_objects_doesnt_deallocate_themself) {
-  MockMySQLSession session;
+TEST_F(MysqlCacheManagerTest, multiple_objects_deallocate_themself) {
+  MockMySQLSession session[4];
   EXPECT_CALL(mock_callbacks_, object_allocate())
       .Times(4)
-      .WillOnce(Return(&session))
-      .WillOnce(Return(&session))
-      .WillOnce(Return(&session))
-      .WillOnce(Return(&session));
-  EXPECT_CALL(mock_callbacks_, object_retrived_from_cache(_)).Times(4);
+      .WillOnce(Return(&session[0]))
+      .WillOnce(Return(&session[1]))
+      .WillOnce(Return(&session[2]))
+      .WillOnce(Return(&session[3]));
   {
     auto obj1 = sut_.get_instance(collector::kMySQLConnectionMetadata);
     auto obj2 = sut_.get_instance(collector::kMySQLConnectionMetadata);
     auto obj3 = sut_.get_instance(collector::kMySQLConnectionMetadata);
     auto obj4 = sut_.get_instance(collector::kMySQLConnectionMetadata);
+
+    EXPECT_CALL(mock_callbacks_, object_before_cache(_)).Times(4);
+    EXPECT_CALL(mock_callbacks_, object_remove(_)).Times(4);
   }
+  Mock::VerifyAndClearExpectations(&mock_callbacks_);
 }
 
-TEST_F(MysqlCacheManagerTest, not_empty_object_deallocates_itself) {
+TEST_F(MysqlCacheManagerTest, object_deallocates_itself) {
   EXPECT_CALL(mock_callbacks_, object_allocate())
       .WillOnce(Return(&mock_session_));
-  EXPECT_CALL(mock_callbacks_,
-              object_retrived_from_cache((MySQLSession *)&mock_session_))
-      .Times(1);
   {
     auto obj1 = sut_.get_instance(collector::kMySQLConnectionMetadata);
     Mock::VerifyAndClearExpectations(&mock_callbacks_);
@@ -85,9 +85,6 @@ TEST_F(MysqlCacheManagerTest,
        not_empty_object_deallocates_at_sut_destructor_when_its_cached) {
   EXPECT_CALL(mock_callbacks_, object_allocate())
       .WillOnce(Return(&mock_session_));
-  EXPECT_CALL(mock_callbacks_,
-              object_retrived_from_cache((MySQLSession *)&mock_session_))
-      .Times(1);
   {
     auto obj1 = sut_.get_instance(collector::kMySQLConnectionMetadata);
     Mock::VerifyAndClearExpectations(&mock_callbacks_);
@@ -105,9 +102,6 @@ TEST_F(MysqlCacheManagerTest, cache_may_only_keep_three_objects) {
   EXPECT_CALL(mock_callbacks_, object_allocate())
       .Times(k_number_of_allocated_objects_at_once)
       .WillRepeatedly(Return(&mock_session_));
-  EXPECT_CALL(mock_callbacks_,
-              object_retrived_from_cache((MySQLSession *)&mock_session_))
-      .Times(k_number_of_allocated_objects_at_once);
   {
     MysqlCacheManager::CachedObject obj[k_number_of_allocated_objects_at_once];
     for (uint32_t i = 0; i < k_number_of_allocated_objects_at_once; ++i)
@@ -130,9 +124,6 @@ TEST_F(MysqlCacheManagerTest, cache_may_only_keep_one_object_and_reuseit) {
   EXPECT_CALL(mock_callbacks_, object_allocate())
       .Times(k_number_of_allocated_objects_at_once)
       .WillRepeatedly(Return(&mock_session_));
-  EXPECT_CALL(mock_callbacks_,
-              object_retrived_from_cache((MySQLSession *)&mock_session_))
-      .Times(k_number_of_allocated_objects_at_once);
   {
     MysqlCacheManager::CachedObject obj[k_number_of_allocated_objects_at_once];
     for (uint32_t i = 0; i < k_number_of_allocated_objects_at_once; ++i)

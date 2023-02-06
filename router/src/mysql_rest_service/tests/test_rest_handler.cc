@@ -80,17 +80,31 @@ class RestHandlerTests : public Test {
 TEST_F(RestHandlerTests, handle_request) {
   make_sut(k_url, k_path);
   StrictMock<MockHttpRequest> mock_request;
-  StrictMock<MockHttpHeaders> mock_headers;
-  StrictMock<MockHttpBuffer> mock_buffer;
+  StrictMock<MockHttpHeaders> mock_oheaders;
+  StrictMock<MockHttpHeaders> mock_iheaders;
+  StrictMock<MockHttpBuffer> mock_obuffer;
+  StrictMock<MockHttpBuffer> mock_ibuffer;
+  StrictMock<MockHttpUri> mock_uri;
 
   EXPECT_CALL(*sut_, get_access_rights())
       .WillRepeatedly(Return(mrs::interface::Object::kRead));
   EXPECT_CALL(mock_request, get_method())
       .WillRepeatedly(Return(HttpMethod::Get));
+  EXPECT_CALL(mock_request, get_uri()).WillRepeatedly(ReturnRef(mock_uri));
   EXPECT_CALL(mock_request, get_output_headers())
-      .WillRepeatedly(ReturnRef(mock_headers));
+      .WillRepeatedly(ReturnRef(mock_oheaders));
+  EXPECT_CALL(mock_request, get_input_headers())
+      .WillRepeatedly(ReturnRef(mock_iheaders));
+  EXPECT_CALL(mock_iheaders, get(StrEq("Cookie"))).WillRepeatedly(Return(""));
+  EXPECT_CALL(mock_iheaders, get(StrEq("Origin"))).WillRepeatedly(Return(""));
+  EXPECT_CALL(mock_uri, join()).WillRepeatedly(Return(""));
+  EXPECT_CALL(mock_uri, get_path()).WillRepeatedly(Return("/"));
   EXPECT_CALL(mock_request, get_output_buffer())
-      .WillRepeatedly(ReturnRef(mock_buffer));
+      .WillRepeatedly(ReturnRef(mock_obuffer));
+  EXPECT_CALL(mock_request, get_input_buffer())
+      .WillRepeatedly(ReturnRef(mock_ibuffer));
+  EXPECT_CALL(mock_ibuffer, length()).WillRepeatedly(Return(0));
+  EXPECT_CALL(mock_obuffer, length()).WillRepeatedly(Return(0));
   EXPECT_CALL(mock_auth_manager_, get_cache())
       .WillRepeatedly(Return(&mock_cache_manager_));
   EXPECT_CALL(mock_cache_manager_,
@@ -100,9 +114,9 @@ TEST_F(RestHandlerTests, handle_request) {
   EXPECT_CALL(*sut_, requires_authentication())
       .WillRepeatedly(
           Return(mrs::interface::RestHandler::Authorization::kNotNeeded));
-  EXPECT_CALL(mock_headers,
+  EXPECT_CALL(mock_oheaders,
               add(StrEq("Content-Type"), StrEq("application/json")));
-  EXPECT_CALL(mock_buffer, add(_, _));
+  EXPECT_CALL(mock_obuffer, add(_, _));
   EXPECT_CALL(mock_request, send_reply(HttpStatusCode::Ok, _, _));
 
   EXPECT_CALL(*sut_, handle_get(_));

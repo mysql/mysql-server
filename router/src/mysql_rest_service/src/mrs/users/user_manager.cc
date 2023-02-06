@@ -163,10 +163,9 @@ bool UserManager::user_get(AuthUser *out_user, SqlSessionCache *out_cache,
   if (!found_user) {
     log_debug("Looking inside DB");
     found_user = query_user(out_cache, out_user, needs_update_ptr);
-    if (update_changed && needs_update) needs_update = false;
     if (found_user) {
+      log_debug("found in DB");
       if (!needs_update && found_user->login_permitted) {
-        log_debug("found in DB");
         *out_user = *found_user;
         return true;
       }
