@@ -39,10 +39,12 @@
 #include "mysqld_error.h"  // mysql errors
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/utils.h"  // to_string
+#include "show_warnings_parser.h"
 #include "sql/lex.h"
 #include "sql_exec_context.h"
 #include "sql_lexer.h"
 #include "sql_lexer_thd.h"
+#include "sql_parser.h"
 
 #undef DEBUG_DUMP_TOKENS
 
@@ -388,15 +390,15 @@ static stdx::expected<void, std::error_code> send_resultset(
 }
 
 std::vector<classic_protocol::message::server::Row> rows_from_warnings(
-    MysqlRoutingClassicConnectionBase *connection, bool only_errors,
-    uint64_t row_count, uint64_t offset) {
+    MysqlRoutingClassicConnectionBase *connection,
+    ShowWarnings::Verbosity verbosity, uint64_t row_count, uint64_t offset) {
   std::vector<classic_protocol::message::server::Row> rows;
 
   uint64_t r{};
 
   for (auto const &w :
        connection->execution_context().diagnostics_area().warnings()) {
-    if (!only_errors || w.level() == "Error") {
+    if (verbosity != ShowWarnings::Verbosity::Error || w.level() == "Error") {
       if (r++ < offset) continue;
 
       if (row_count == rows.size()) break;
@@ -408,39 +410,6 @@ std::vector<classic_protocol::message::server::Row> rows_from_warnings(
 
   return rows;
 }
-
-class ShowWarnings {
- public:
-  ShowWarnings(bool only_errors,
-               uint64_t row_count = std::numeric_limits<uint64_t>().max(),
-               uint64_t offset = 0)
-      : only_errors_(only_errors), row_count_{row_count}, offset_{offset} {}
-
-  bool only_errors() const { return only_errors_; }
-  uint64_t row_count() const { return row_count_; }
-  uint64_t offset() const { return offset_; }
-
- private:
-  bool only_errors_;
-
-  uint64_t row_count_;
-  uint64_t offset_;
-};
-
-class ShowWarningCount {
- public:
-  enum class Scope { Local, Session, None };
-
-  ShowWarningCount(bool only_errors, Scope scope)
-      : only_errors_(only_errors), scope_{scope} {}
-
-  bool only_errors() const { return only_errors_; }
-  Scope scope() const { return scope_; }
-
- private:
-  bool only_errors_;
-  Scope scope_;
-};
 
 static stdx::expected<void, std::error_code> show_count(
     MysqlRoutingClassicConnectionBase *connection, const char *name,
@@ -473,9 +442,9 @@ static stdx::expected<void, std::error_code> show_count(
   return {};
 }
 
-static const char *show_warning_count_name(bool only_errors,
-                                           ShowWarningCount::Scope scope) {
-  if (only_errors) {
+static const char *show_warning_count_name(
+    ShowWarningCount::Verbosity verbosity, ShowWarningCount::Scope scope) {
+  if (verbosity == ShowWarningCount::Verbosity::Error) {
     switch (scope) {
       case ShowWarningCount::Scope::Local:
         return "@@local.error_count";
@@ -499,20 +468,20 @@ static const char *show_warning_count_name(bool only_errors,
 }
 
 static stdx::expected<void, std::error_code> show_warning_count(
-    MysqlRoutingClassicConnectionBase *connection, bool only_errors,
-    ShowWarningCount::Scope scope) {
-  if (only_errors) {
-    return show_count(connection, show_warning_count_name(only_errors, scope),
+    MysqlRoutingClassicConnectionBase *connection,
+    ShowWarningCount::Verbosity verbosity, ShowWarningCount::Scope scope) {
+  if (verbosity == ShowWarningCount::Verbosity::Error) {
+    return show_count(connection, show_warning_count_name(verbosity, scope),
                       get_error_count(connection));
   } else {
-    return show_count(connection, show_warning_count_name(only_errors, scope),
+    return show_count(connection, show_warning_count_name(verbosity, scope),
                       get_warning_count(connection));
   }
 }
 
 static stdx::expected<void, std::error_code> show_warnings(
-    MysqlRoutingClassicConnectionBase *connection, bool only_errors,
-    uint64_t row_count, uint64_t offset) {
+    MysqlRoutingClassicConnectionBase *connection,
+    ShowWarnings::Verbosity verbosity, uint64_t row_count, uint64_t offset) {
   auto *socket_splicer = connection->socket_splicer();
   auto src_channel = socket_splicer->client_channel();
   auto src_protocol = connection->client_protocol();
@@ -563,218 +532,14 @@ static stdx::expected<void, std::error_code> show_warnings(
               31,                     // decimals
           },
       },
-      rows_from_warnings(connection, only_errors, row_count, offset));
+      rows_from_warnings(connection, verbosity, row_count, offset));
   if (!send_res) return stdx::make_unexpected(send_res.error());
 
   return {};
 }
 
-struct Limit {
-  uint64_t row_count{std::numeric_limits<uint64_t>::max()};
-  uint64_t offset{};
-};
-
-class Parser {
- public:
-  Parser(SqlLexer::iterator first, SqlLexer::iterator last)
-      : cur_{first}, end_{last} {}
-
-  stdx::expected<std::variant<std::monostate, ShowWarningCount, ShowWarnings>,
-                 std::string>
-  parse() {
-    if (accept(SHOW)) {
-      if (accept(WARNINGS)) {
-        stdx::expected<Limit, std::string> limit_res;
-
-        if (accept(LIMIT)) {  // optional limit
-          limit_res = limit();
-        }
-
-        if (expect(END_OF_INPUT)) {
-          return {std::in_place,
-                  ShowWarnings{false, limit_res->row_count, limit_res->offset}};
-        }
-      } else if (accept(ERRORS)) {
-        stdx::expected<Limit, std::string> limit_res;
-
-        if (accept(LIMIT)) {
-          limit_res = limit();
-        }
-
-        if (expect(END_OF_INPUT)) {
-          return {std::in_place,
-                  ShowWarnings{true, limit_res->row_count, limit_res->offset}};
-        }
-      } else if (accept(COUNT_SYM)) {
-        expect('(');
-        expect('*');
-        expect(')');
-
-        if (accept(WARNINGS)) {
-          if (expect(END_OF_INPUT)) {
-            return {std::in_place,
-                    ShowWarningCount{false, ShowWarningCount::Scope::Session}};
-          }
-        } else if (accept(ERRORS)) {
-          if (expect(END_OF_INPUT)) {
-            return {std::in_place,
-                    ShowWarningCount{true, ShowWarningCount::Scope::Session}};
-          }
-        } else {
-          error_ = "expected WARNINGS|ERRORS.";
-        }
-      } else {
-        error_ = "expected WARNINGS|ERRORS|COUNT";
-      }
-    } else if (accept(SELECT_SYM)) {
-      // match
-      //
-      // SELECT @@((LOCAL|SESSION).)?warning_count|error_count;
-      //
-      if (accept('@')) {
-        if (accept('@')) {
-          if (accept(SESSION_SYM)) {
-            if (accept('.')) {
-              auto ident_res = warning_count_ident();
-              if (ident_res && expect(END_OF_INPUT)) {
-                return {std::in_place,
-                        ShowWarningCount(*ident_res,
-                                         ShowWarningCount::Scope::Session)};
-              }
-            }
-          } else if (accept(LOCAL_SYM)) {
-            if (accept('.')) {
-              auto ident_res = warning_count_ident();
-              if (ident_res && expect(END_OF_INPUT)) {
-                return {std::in_place,
-                        ShowWarningCount(*ident_res,
-                                         ShowWarningCount::Scope::Local)};
-              }
-            }
-          } else {
-            auto ident_res = warning_count_ident();
-            if (ident_res && expect(END_OF_INPUT)) {
-              return {
-                  std::in_place,
-                  ShowWarningCount(*ident_res, ShowWarningCount::Scope::None)};
-            }
-          }
-        }
-      }
-    }
-
-    return stdx::make_unexpected(error_);
-  }
-
- private:
-  // convert a NUM to a number
-  //
-  // NUM is a bare number.
-  //
-  // no leading minus or plus [both independent symbols '-' and '+']
-  // no 0x... [HEX_NUM],
-  // no 0b... [BIN_NUM],
-  // no (1.0) [DECIMAL_NUM]
-  static uint64_t sv_to_num(std::string_view s) {
-    uint64_t v{};
-
-    auto conv_res = std::from_chars(s.data(), s.data() + s.size(), v);
-    if (conv_res.ec == std::errc{}) {
-      return v;
-    } else {
-      // NUM is a number without, it should always convert.
-      harness_assert_this_should_not_execute();
-    }
-  }
-
-  // accept: NUM [, NUM]
-  stdx::expected<Limit, std::string> limit() {
-    if (auto num1_tkn = expect(NUM)) {
-      auto num1 = sv_to_num(num1_tkn.text());  // offset_or_row_count
-      if (accept(',')) {
-        if (auto num2_tkn = expect(NUM)) {
-          auto num2 = sv_to_num(num2_tkn.text());  // row_count
-
-          return Limit{num2, num1};
-        }
-      } else {
-        return Limit{num1, 0};
-      }
-    }
-
-    return stdx::make_unexpected(error_);
-  }
-
-  stdx::expected<bool, std::string> warning_count_ident() {
-    if (auto sess_var_tkn = ident()) {
-      if (sess_var_tkn.text() == "warning_count") {
-        return false;
-      } else if (sess_var_tkn.text() == "error_count") {
-        return true;
-      }
-    }
-
-    return stdx::make_unexpected(error_);
-  }
-
-  class TokenText {
-   public:
-    TokenText() = default;
-    TokenText(std::string_view txt) : txt_{txt} {}
-
-    operator bool() const { return !txt_.empty(); }
-
-    [[nodiscard]] std::string_view text() const { return txt_; }
-
-   private:
-    std::string_view txt_{};
-  };
-
-  TokenText ident() {
-    if (auto ident_tkn = accept(IDENT)) {
-      return ident_tkn;
-    } else if (auto ident_tkn = accept(IDENT_QUOTED)) {
-      return ident_tkn;
-    } else {
-      return {};
-    }
-  }
-
-  TokenText accept(int sym) {
-    if (has_error()) return {};
-
-    if (cur_->id == sym) {
-      auto txt = cur_->text;
-      ++cur_;
-      return txt;
-    }
-
-    return {};
-  }
-
-  TokenText expect(int sym) {
-    if (has_error()) return {};
-
-    if (auto txt = accept(sym)) {
-      return txt;
-    }
-
-    error_ = "expected sym, got ...";
-
-    return {};
-  }
-
-  bool has_error() const { return !error_.empty(); }
-
-  SqlLexer::iterator cur_;
-  SqlLexer::iterator end_;
-
-  std::string error_{};
-};
-
 static stdx::expected<
-    std::variant<std::monostate, ShowWarningCount, ShowWarnings>,
-    std::error_code>
+    std::variant<std::monostate, ShowWarningCount, ShowWarnings>, std::string>
 intercept_diagnostics_area_queries(std::string_view stmt) {
   MEM_ROOT mem_root;
   THD session;
@@ -786,12 +551,7 @@ intercept_diagnostics_area_queries(std::string_view stmt) {
     session.m_parser_state = &parser_state;
     SqlLexer lexer{&session};
 
-    auto parse_res = Parser(lexer.begin(), lexer.end()).parse();
-    if (!parse_res) {
-      return {std::in_place, std::monostate{}};
-    } else {
-      return parse_res.value();
-    }
+    return ShowWarningsParser(lexer.begin(), lexer.end()).parse();
   }
 }
 
@@ -827,7 +587,7 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
 
           auto cmd = std::get<ShowWarnings>(*intercept_res);
 
-          auto send_res = show_warnings(connection(), cmd.only_errors(),
+          auto send_res = show_warnings(connection(), cmd.verbosity(),
                                         cmd.row_count(), cmd.offset());
           if (!send_res) return send_client_failed(send_res.error());
 
@@ -839,12 +599,23 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
           auto cmd = std::get<ShowWarningCount>(*intercept_res);
 
           auto send_res =
-              show_warning_count(connection(), cmd.only_errors(), cmd.scope());
+              show_warning_count(connection(), cmd.verbosity(), cmd.scope());
           if (!send_res) return send_client_failed(send_res.error());
 
           stage(Stage::Done);
           return Result::SendToClient;
         }
+      } else {
+        discard_current_msg(src_channel, src_protocol);
+
+        auto send_res =
+            ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+                src_channel, src_protocol,
+                {1064, intercept_res.error(), "42000"});
+        if (!send_res) return send_client_failed(send_res.error());
+
+        stage(Stage::Done);
+        return Result::SendToClient;
       }
     }
 

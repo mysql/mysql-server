@@ -112,3 +112,17 @@ TARGET_INCLUDE_DIRECTORIES(${T}
   PRIVATE $<TARGET_PROPERTY:routing,INCLUDE_DIRECTORIES>)
 TARGET_COMPILE_DEFINITIONS(${T}
   PRIVATE ROUTING_STATIC_DEFINE=1)
+
+IF(LIBFUZZER_COMPILE_FLAGS)
+  MYSQL_ADD_EXECUTABLE(routertest_fuzz_parser_show_warnings
+    fuzz_show_warnings.cc
+    ../src/show_warnings_parser.cc
+    ../src/sql_lexer.cc
+    ${CMAKE_SOURCE_DIR}/sql/sql_lex_hash.cc
+    COMPONENT Router
+    LINK_LIBRARIES harness_stdx;mysys
+    SKIP_INSTALL
+    )
+  LIBFUZZER_ADD_TEST(routertest_fuzz_parser_show_warnings
+    INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus/show_warnings)
+ENDIF()
