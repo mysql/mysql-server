@@ -456,10 +456,10 @@ void BootstrapConfigurator::create_mrs_users(mysqlrouter::MySQLSession *session,
     UserOptions user_options;
 
     user_options.account_create = "if-not-exists";
-    user_options.grant_role = {"mrs_provider_metadata"};
+    user_options.grant_role = {"mysql_rest_service_meta_provider"};
 
     if (!create_data_user) {
-      user_options.grant_role.push_back("mrs_provider_data_access");
+      user_options.grant_role.push_back("mysql_rest_service_data_provider");
     }
 
     std::string account_metadata;
@@ -472,7 +472,7 @@ void BootstrapConfigurator::create_mrs_users(mysqlrouter::MySQLSession *session,
                                mrs_metadata_account_.user, {"%"});
 
     if (create_data_user) {
-      user_options.grant_role = {"mrs_provider_data_access"};
+      user_options.grant_role = {"mysql_rest_service_data_provider"};
       buser.create_router_accounts(user_options, {"%"}, mrs_data_account_.user,
                                    mrs_data_account_.pass, false);
 

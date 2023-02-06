@@ -92,6 +92,8 @@ class HandlerAuthorizeTests : public Test {
     EXPECT_CALL(mock_request_, get_method()).WillOnce(Return(type));
     EXPECT_CALL(mock_input_headers_, get(StrEq("Cookie")))
         .WillRepeatedly(Return(cookie));
+    EXPECT_CALL(mock_input_headers_, get(StrEq("Origin")))
+        .WillRepeatedly(Return(nullptr));
     EXPECT_CALL(mock_request_, get_uri()).WillRepeatedly(ReturnRef(mock_uri_));
     EXPECT_CALL(mock_uri_, get_query()).WillRepeatedly(Return(""));
   }

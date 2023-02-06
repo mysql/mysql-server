@@ -238,8 +238,8 @@ TEST_F(UserManagerFixture, fetch_user_from_db_and_update) {
                           "auth_app_id=X'02000000000000000000000000000000',"
                           "name='John Doe', "
                           "email='new_john_doe@doe.com', "
-                          "vendor_user_id='4000040400004', "
-                          "login_permitted=1 WHERE id="s +
+                          "vendor_user_id='4000040400004' "
+                          "WHERE id="s +
                           k_user_4000040400004_id_sql_str),
                     _, _));
 
