@@ -206,6 +206,14 @@ class ClassicProtocolState : public ProtocolStateBase {
     wait_for_my_writes_timeout_ = timeout;
   }
 
+  enum class AccessMode {
+    ReadWrite,
+    ReadOnly,
+  };
+
+  std::optional<AccessMode> access_mode() const { return access_mode_; }
+  void access_mode(std::optional<AccessMode> v) { access_mode_ = v; }
+
  private:
   classic_protocol::capabilities::value_type server_caps_{};
   classic_protocol::capabilities::value_type client_caps_{};
@@ -240,6 +248,8 @@ class ClassicProtocolState : public ProtocolStateBase {
   bool wait_for_my_writes_{routing::kDefaultWaitForMyWrites};
   std::chrono::seconds wait_for_my_writes_timeout_{
       routing::kDefaultWaitForMyWritesTimeout};
+
+  std::optional<AccessMode> access_mode_{};
 };
 
 class MysqlRoutingClassicConnectionBase

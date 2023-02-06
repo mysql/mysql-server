@@ -870,6 +870,204 @@ stdx::expected<void, std::error_code> execute_command_router_set_trace(
   return {};
 }
 
+stdx::expected<void, std::error_code> execute_command_router_set_access_mode(
+    MysqlRoutingClassicConnectionBase *connection,
+    const CommandRouterSet &cmd) {
+  auto *socket_splicer = connection->socket_splicer();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection->client_protocol();
+
+  if (std::holds_alternative<std::string>(cmd.value())) {
+    auto v = std::get<std::string>(cmd.value());
+
+    auto from_string = [](const std::string_view &v)
+        -> stdx::expected<std::optional<ClassicProtocolState::AccessMode>,
+                          std::string> {
+      if (ieq(v, "read_write")) {
+        return ClassicProtocolState::AccessMode::ReadWrite;
+      } else if (ieq(v, "read_only")) {
+        return ClassicProtocolState::AccessMode::ReadOnly;
+      } else if (ieq(v, "auto")) {
+        return std::nullopt;
+      } else {
+        return stdx::make_unexpected(
+            "Expected 'read_write', 'read_only' or 'auto'");
+      }
+    };
+
+    const auto access_mode_res = from_string(v);
+    if (!access_mode_res) {
+      auto send_res =
+          ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+              src_channel, src_protocol,
+              {1064,
+               "parse error in 'ROUTER SET access_mode = <...>'. " +
+                   access_mode_res.error(),
+               "42000"});
+      if (!send_res) return stdx::make_unexpected(send_res.error());
+
+      return {};
+    }
+
+    // transaction.
+    if (connection->trx_characteristics() &&
+        !connection->trx_characteristics()->characteristics().empty()) {
+      auto send_res =
+          ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+              src_channel, src_protocol,
+              {1064,
+               "'ROUTER SET access_mode = <...>' not allowed while "
+               "transaction is active.",
+               "42000"});
+      if (!send_res) return stdx::make_unexpected(send_res.error());
+
+      return {};
+    }
+
+    // prepared statements, locked tables, ...
+    if (!connection->connection_sharing_allowed()) {
+      auto send_res =
+          ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+              src_channel, src_protocol,
+              {1064,
+               "ROUTER SET access_mode = <...> not allowed while "
+               "connection-sharing is not possible.",
+               "42000"});
+      if (!send_res) return stdx::make_unexpected(send_res.error());
+
+      return {};
+    }
+
+    // config's access_mode MUST be 'auto'
+    if (connection->context().access_mode() != routing::AccessMode::kAuto) {
+      auto send_res =
+          ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+              src_channel, src_protocol,
+              {1064,
+               "ROUTER SET access_mode = <...> not allowed if the "
+               "configuration variable 'access_mode' is not 'auto'",
+               "42000"});
+      if (!send_res) return stdx::make_unexpected(send_res.error());
+
+      return {};
+    }
+
+    src_protocol->access_mode(*access_mode_res);
+
+    auto send_res =
+        ClassicFrame::send_msg<classic_protocol::message::server::Ok>(
+            src_channel, src_protocol, {});
+    if (!send_res) return stdx::make_unexpected(send_res.error());
+
+    return {};
+  }
+
+  auto send_res =
+      ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+          src_channel, src_protocol,
+          {1064,
+           "parse error in 'ROUTER SET access_mode = <...>'. Expected a string",
+           "42000"});
+  if (!send_res) return stdx::make_unexpected(send_res.error());
+
+  return {};
+}
+
+stdx::expected<void, std::error_code>
+execute_command_router_set_wait_for_my_writes(
+    MysqlRoutingClassicConnectionBase *connection,
+    const CommandRouterSet &cmd) {
+  auto *socket_splicer = connection->socket_splicer();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection->client_protocol();
+
+  if (std::holds_alternative<int64_t>(cmd.value())) {
+    switch (auto val = std::get<int64_t>(cmd.value())) {
+      case 0:
+      case 1: {
+        connection->client_protocol()->wait_for_my_writes(val != 0);
+
+        auto send_res =
+            ClassicFrame::send_msg<classic_protocol::message::server::Ok>(
+                src_channel, src_protocol, {});
+        if (!send_res) return stdx::make_unexpected(send_res.error());
+
+        return {};
+      }
+      default: {
+        auto send_res =
+            ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+                src_channel, src_protocol,
+                {1064,
+                 "parse error in 'ROUTER SET wait_for_my_writes = <...>'. "
+                 "Expected a number in the range 0..1 inclusive",
+                 "42000"});
+        if (!send_res) return stdx::make_unexpected(send_res.error());
+
+        return {};
+      }
+    }
+  }
+
+  auto send_res =
+      ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+          src_channel, src_protocol,
+          {1064,
+           "parse error in 'ROUTER SET wait_for_my_writes = <...>'. "
+           "Expected a number",
+           "42000"});
+  if (!send_res) return stdx::make_unexpected(send_res.error());
+
+  return {};
+}
+
+stdx::expected<void, std::error_code>
+execute_command_router_set_wait_for_my_writes_timeout(
+    MysqlRoutingClassicConnectionBase *connection,
+    const CommandRouterSet &cmd) {
+  auto *socket_splicer = connection->socket_splicer();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection->client_protocol();
+
+  if (std::holds_alternative<int64_t>(cmd.value())) {
+    auto val = std::get<int64_t>(cmd.value());
+
+    if (val < 0 || val > 3600) {
+      auto send_res = ClassicFrame::send_msg<
+          classic_protocol::message::server::Error>(
+          src_channel, src_protocol,
+          {1064,
+           "parse error in 'ROUTER SET wait_for_my_writes_timeout = <...>'. "
+           "Expected a number between 0 and 3600 inclusive",
+           "42000"});
+      if (!send_res) return stdx::make_unexpected(send_res.error());
+
+      return {};
+    }
+
+    connection->client_protocol()->wait_for_my_writes_timeout(
+        std::chrono::seconds(val));
+
+    auto send_res =
+        ClassicFrame::send_msg<classic_protocol::message::server::Ok>(
+            src_channel, src_protocol, {});
+    if (!send_res) return stdx::make_unexpected(send_res.error());
+
+    return {};
+  }
+
+  auto send_res =
+      ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+          src_channel, src_protocol,
+          {1064,
+           "parse error in 'ROUTER SET wait_for_my_writes_timeout = <...>'. "
+           "Expected a number",
+           "42000"});
+  if (!send_res) return stdx::make_unexpected(send_res.error());
+
+  return {};
+}
+
 /*
  * ROUTER SET <key> = <value>
  *
@@ -885,6 +1083,19 @@ stdx::expected<void, std::error_code> execute_command_router_set(
 
   if (Name_string(cmd.name().c_str()).eq("trace")) {
     return execute_command_router_set_trace(connection, cmd);
+  }
+
+  if (Name_string(cmd.name().c_str()).eq("access_mode")) {
+    return execute_command_router_set_access_mode(connection, cmd);
+  }
+
+  if (Name_string(cmd.name().c_str()).eq("wait_for_my_writes")) {
+    return execute_command_router_set_wait_for_my_writes(connection, cmd);
+  }
+
+  if (Name_string(cmd.name().c_str()).eq("wait_for_my_writes_timeout")) {
+    return execute_command_router_set_wait_for_my_writes_timeout(connection,
+                                                                 cmd);
   }
 
   auto send_res =
@@ -1690,12 +1901,15 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
         connection()->context().access_mode() == routing::AccessMode::kAuto);
 
     enum class ReadOnlyDecider {
+      Session,
       TrxState,
       Statement,
     } read_only_decider{ReadOnlyDecider::TrxState};
 
     auto read_only_decider_to_string = [](ReadOnlyDecider v) -> std::string {
       switch (v) {
+        case ReadOnlyDecider::Session:
+          return "session";
         case ReadOnlyDecider::TrxState:
           return "trx-state";
         case ReadOnlyDecider::Statement:
@@ -1705,7 +1919,12 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
       harness_assert_this_should_not_execute();
     };
 
-    {
+    if (src_protocol->access_mode()) {
+      // access-mode set explicitly via ROUTER SET ...
+      want_read_only_connection = (src_protocol->access_mode() ==
+                                   ClassicProtocolState::AccessMode::ReadOnly);
+      read_only_decider = ReadOnlyDecider::Session;
+    } else {
       bool some_trx_state{false};
       bool in_read_only_trx{false};
 
@@ -1835,8 +2054,10 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
     }
 
     if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("query::classified: " +
-                                     mysqlrouter::to_string(stmt_classified_)));
+      tr.trace(Tracer::Event().stage(
+          "query::classified: " + to_string(stmt_classified_) +
+          ", use-read-only-decided-by=" +
+          read_only_decider_to_string(read_only_decider)));
     }
 
     if (auto *ev = trace_span(trace_event_command_, "mysql/query_classify")) {
