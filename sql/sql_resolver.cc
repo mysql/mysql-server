@@ -5979,6 +5979,33 @@ static bool baptize_item(THD *thd, Item *item, int *field_no) {
 }
 
 /**
+  Minion of \c transform_grouped_to_derived.  Do a replacement in \c expr
+  using \c Item::transform as specified in \c info using \c transformer.
+ */
+bool Query_block::replace_item_in_expression(Item **expr, bool was_hidden,
+                                             Item::Item_replacement *info,
+                                             Item_transformer transformer) {
+  Item *new_item = (*expr)->transform(transformer, pointer_cast<uchar *>(info));
+  if (new_item == nullptr) return true;
+  new_item->update_used_tables();
+  if (new_item != *expr) {
+    // Replace in base_ref_items
+    for (size_t i = 0; i < fields.size(); i++) {
+      if (base_ref_items[i] == *expr) {
+        base_ref_items[i] = new_item;
+        break;
+      }
+    }
+    // Replace in fields
+    *expr = new_item;
+    // Mark this expression as hidden if it was hidden in this query
+    // block.
+    (*expr)->hidden = was_hidden;
+  }
+  return false;
+}
+
+/**
   Minion of transform_scalar_subqueries_to_join_with_derived. Moves implicit
   grouping down into a derived table to prepare for
   transform_scalar_subqueries_to_join_with_derived.
@@ -6242,7 +6269,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     // of the expression's hidden status to mark the expression as hidden
     // when it is replaced with derived table expression later.
     for (Item *&item : fields) {
-      contrib_exprs.emplace(std::pair<Item **, bool>(&item, item->hidden));
+      contrib_exprs.emplace(&item, item->hidden);
     }
 
     // Collect fields in expr, but not from inside grouped aggregates.
@@ -6414,26 +6441,11 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     // for this block which will point to the corresponding item in the derived
     // table and then we substitute the new fields for the view refs.
     for (auto vr : unique_view_refs) {
-      for (auto expr : contrib_exprs) {
+      for (const auto [expr, was_hidden] : contrib_exprs) {
         Item::Item_view_ref_replacement info(vr->real_item(), *field_ptr, this);
-        Item *new_item = (*expr.first)
-                             ->transform(&Item::replace_item_view_ref,
-                                         pointer_cast<uchar *>(&info));
-        if (new_item == nullptr) return true;
-        if (new_item != *expr.first) {
-          // Replace in base_ref_items
-          for (size_t i = 0; i < fields.size(); i++) {
-            if (base_ref_items[i] == *expr.first) {
-              base_ref_items[i] = new_item;
-              break;
-            }
-          }
-          // Replace in fields
-          *expr.first = new_item;
-          // Mark this expression as hidden if it was hidden in this query
-          // block.
-          (*expr.first)->hidden = expr.second;
-        }
+        if (replace_item_in_expression(expr, was_hidden, &info,
+                                       &Item::replace_item_view_ref))
+          return true;
       }
       ++field_ptr;
     }
@@ -6453,13 +6465,13 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
       // now that replaces_field has inherited the upper context
       pair.second->context = &new_derived->context;
 
-      for (auto expr : contrib_exprs) {
+      for (const auto [expr, was_hidden] : contrib_exprs) {
         Item_field *replacement = replaces_field;
         // If this expression was hidden, we need to make a copy of the derived
         // table field. The same derived table field cannot be marked both
         // hidden and visible if the field replaces two different expressions
         // in the transforming query block.
-        if (expr.second == true) {
+        if (was_hidden) {
           auto hidden_field = new (thd->mem_root) Item_field(*field_ptr);
           if (hidden_field == nullptr) return true;
           hidden_field->item_name.set(pair.second->orig_name.ptr());
@@ -6468,22 +6480,9 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
           replacement = hidden_field;
         }
         Item::Item_field_replacement info(pair.first, replacement, this);
-        Item *new_item = (*expr.first)
-                             ->transform(&Item::replace_item_field,
-                                         pointer_cast<uchar *>(&info));
-        if (new_item == nullptr) return true;
-        if (new_item != *expr.first) {
-          // Replace in base_ref_items
-          for (size_t i = 0; i < fields.size(); i++) {
-            if (base_ref_items[i] == *expr.first) {
-              base_ref_items[i] = new_item;
-              break;
-            }
-          }
-          // Replace in fields
-          (*expr.first) = new_item;
-          (*expr.first)->hidden = expr.second;
-        }
+        if (replace_item_in_expression(expr, was_hidden, &info,
+                                       &Item::replace_item_field))
+          return true;
       }
       ++field_ptr;
     }
