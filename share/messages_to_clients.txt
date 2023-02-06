@@ -9993,6 +9993,13 @@ ER_EXPLAIN_INTO_FORMAT_NOT_SUPPORTED 0A000
 
 reserved-error-section 5000 5999
 
+################################################################################
+# Error numbers 6000 to 6999 are reserved for Router. Please do not use
+# them for other error messages.
+################################################################################
+
+
+reserved-error-section 6000 6999
 
 ################################################################################
 # DO NOT add messages for the error-log to this file;

@@ -791,13 +791,45 @@ bool MysqlRoutingClassicConnectionBase::connection_sharing_possible() const {
 
 bool MysqlRoutingClassicConnectionBase::connection_sharing_allowed() const {
   return connection_sharing_possible() &&
-         (!trx_state_.has_value() ||  // at the start trx_state is not set.c
+         (!trx_state_.has_value() ||  // at the start trx_state is not set
           *trx_state_ ==
               classic_protocol::session_track::TransactionState{
                   '_', '_', '_', '_', '_', '_', '_', '_'}) &&
          (trx_characteristics_.has_value() &&
-          trx_characteristics_->characteristics() == "") &&
+          trx_characteristics_->characteristics().empty()) &&
          !some_state_changed_;
+}
+
+std::string MysqlRoutingClassicConnectionBase::connection_sharing_blocked_by()
+    const {
+  const auto &sysvars = exec_ctx_.system_variables();
+
+  // "possible"
+  if (!context_.connection_sharing()) return "config";
+  if (!client_protocol()->password().has_value()) return "no-password";
+  if (sysvars.get("session_track_gtids") != Value("OWN_GTID"))
+    return "session-track-gtids";
+  if (sysvars.get("session_track_state_change") != Value("ON"))
+    return "session-track-state-change";
+  if (sysvars.get("session_track_system_variables") != Value("*"))
+    return "session-track-system-variables";
+  if (sysvars.get("session_track_transaction_info") != Value("CHARACTERISTICS"))
+    return "session-track-transaction-info";
+
+  // "allowed"
+  if (!(!trx_state_.has_value() ||
+        (*trx_state_ == classic_protocol::session_track::TransactionState{
+                            '_', '_', '_', '_', '_', '_', '_', '_'}))) {
+    return "trx-state";
+  }
+
+  if (!(trx_characteristics_.has_value() &&
+        trx_characteristics_->characteristics().empty())) {
+    return "trx-characteristics";
+  }
+  if (some_state_changed_) return "some-state-changed";
+
+  return "";  // not blocked.
 }
 
 void MysqlRoutingClassicConnectionBase::connection_sharing_allowed_reset() {

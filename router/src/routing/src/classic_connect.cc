@@ -140,6 +140,13 @@ ConnectProcessor::init_destination() {
                                    mysql_harness::join(dests, ",")));
   }
 
+  trace_event_connect_ =
+      trace_span(parent_event_, "mysql/from_pool_or_connect");
+  if (auto *ev = trace_event_connect_) {
+    ev->attrs.emplace_back("mysql.remote.candidates",
+                           mysql_harness::join(dests, ","));
+  }
+
   destinations_it_ = destinations_.begin();
 
   if (destinations_it_ != destinations_.end()) {
@@ -250,7 +257,7 @@ ConnectProcessor::init_connect() {
 stdx::expected<Processor::Result, std::error_code>
 ConnectProcessor::from_pool() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto client_protocol = connection()->client_protocol();
+  auto *client_protocol = connection()->client_protocol();
 
   if (!client_protocol->client_greeting()) {
     // taking a connection from the pool requires that the client's greeting
@@ -258,6 +265,9 @@ ConnectProcessor::from_pool() {
     stage(Stage::Connect);
     return Result::Again;
   }
+
+  trace_event_socket_from_pool_ =
+      trace_span(trace_event_connect_, "mysql/from_pool");
 
   auto &pools = ConnectionPoolComponent::get_instance();
 
@@ -318,12 +328,28 @@ ConnectProcessor::from_pool() {
         (void)socket_splicer->server_conn().connection()->set_io_context(
             socket_splicer->client_conn().connection()->io_ctx());
 
+        if (auto *ev = trace_event_socket_from_pool_) {
+          trace_set_connection_attributes(ev);
+          trace_span_end(ev);
+        }
+
         stage(Stage::Connected);
         return Result::Again;
       }
 
       // socket is dead. try the next one.
       return Result::Again;
+    }
+
+    if (auto *ev = trace_event_socket_from_pool_) {
+      ev->attrs.emplace_back("mysql.error_message", "no match");
+      trace_span_end(ev, TraceEvent::StatusCode::kError);
+    }
+
+  } else {
+    if (auto *ev = trace_event_socket_from_pool_) {
+      ev->attrs.emplace_back("mysql.error_message", "no pool");
+      trace_span_end(ev, TraceEvent::StatusCode::kError);
     }
   }
 
@@ -336,6 +362,15 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::connect() {
     tr.trace(Tracer::Event().stage("connect::connect: " +
                                    mysqlrouter::to_string(server_endpoint_)));
   }
+
+  trace_event_socket_connect_ =
+      trace_span(trace_event_connect_, "mysql/connect");
+
+  if (auto *ev = trace_event_socket_connect_) {
+    ev->attrs.emplace_back("net.peer.name", endpoints_it_->host_name());
+    ev->attrs.emplace_back("net.peer.port", endpoints_it_->service_name());
+  }
+
 #if 0
   if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
     log_debug("trying %s", mysqlrouter::to_string(server_endpoint_).c_str());
@@ -540,6 +575,10 @@ ConnectProcessor::connect_finish() {
     return Result::Again;
   }
 
+  if (auto *ev = trace_event_socket_connect_) {
+    trace_span_end(ev);
+  }
+
   stage(Stage::Connected);
   return Result::Again;
 }
@@ -549,6 +588,12 @@ ConnectProcessor::next_endpoint() {
   if (auto &tr = tracer()) {
     tr.trace(
         Tracer::Event().stage("connect::next_endpoint: " + last_ec_.message()));
+  }
+
+  if (auto *ev = trace_event_socket_connect_) {
+    ev->attrs.emplace_back("mysql.error_message", last_ec_.message());
+
+    trace_span_end(ev);
   }
 
   std::advance(endpoints_it_, 1);
@@ -637,6 +682,10 @@ ConnectProcessor::connected() {
     tr.trace(Tracer::Event().stage("connect::connected"));
   }
 
+  if (auto *ev = trace_event_connect_) {
+    trace_span_end(ev);
+  }
+
   // remember the destination we connected too for connection-sharing.
   connection()->destination_id(destination_id_from_endpoint(*endpoints_it_));
 
@@ -674,6 +723,13 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::error() {
     log_error("no backend available to connect to");
   } else {
     log_fatal_error_code("connecting to backend failed", ec);
+  }
+
+  if (auto *ev = trace_event_connect_) {
+    ev->attrs.emplace_back(
+        "mysql.error_message",
+        ec == DestinationsErrc::kNoDestinations ? "no backend" : ec.message());
+    trace_span_end(ev);
   }
 
   if (ec == make_error_condition(std::errc::too_many_files_open) ||

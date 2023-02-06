@@ -106,6 +106,27 @@ class ClassicFrame {
     return send_msg<Msg>(dst_channel, dst_protocol, std::forward<Msg>(msg),
                          dst_protocol->shared_capabilities());
   }
+
+  /**
+   * set attributes from the Ok message in the TraceEvent.
+   */
+  static void trace_set_attributes(
+      TraceEvent *ev, ClassicProtocolState *src_protocol,
+      const classic_protocol::borrowed::message::server::Ok &msg);
+
+  /**
+   * set attributes from the Eof message in the TraceEvent.
+   */
+  static void trace_set_attributes(
+      TraceEvent *ev, ClassicProtocolState *src_protocol,
+      const classic_protocol::borrowed::message::server::Eof &msg);
+
+  /**
+   * set attributes from the Eof message in the TraceEvent.
+   */
+  static void trace_set_attributes(
+      TraceEvent *ev, ClassicProtocolState *src_protocol,
+      const classic_protocol::borrowed::message::server::Error &msg);
 };
 
 /**

@@ -57,7 +57,7 @@ TEST(ResetConnectionSenderTest, sender) {
   // taint the seq-id
   conn->server_protocol()->seq_id(42);
 
-  ResetConnectionSender sender(conn.get());
+  ResetConnectionSender sender(conn.get(), nullptr);
 
   // first
   EXPECT_EQ(sender.stage(), ResetConnectionSender::Stage::Command);

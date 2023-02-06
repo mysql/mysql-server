@@ -4813,8 +4813,9 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_fail) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Prepare", 1),
                               Pair("statement/com/Reset Connection", 2),
-                              Pair("statement/sql/select", 1),     //
-                              Pair("statement/sql/set_option", 3)  //
+                              Pair("statement/sql/select", 1),        //
+                              Pair("statement/sql/set_option", 3),    //
+                              Pair("statement/sql/show_warnings", 1)  //
                               ));
     } else {
       EXPECT_THAT(*events_res, ElementsAre(Pair("statement/com/Prepare", 1)));

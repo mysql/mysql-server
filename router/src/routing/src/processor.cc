@@ -126,3 +126,85 @@ void Processor::trace(Tracer::Event event) {
 }
 
 Tracer &Processor::tracer() { return connection()->tracer(); }
+
+TraceEvent *Processor::trace_span(TraceEvent *parent_span,
+                                  const std::string_view &prefix) {
+  if (parent_span == nullptr) return nullptr;
+
+  return std::addressof(parent_span->events.emplace_back(std::string(prefix)));
+}
+
+void Processor::trace_span_end(TraceEvent *event,
+                               TraceEvent::StatusCode status_code) {
+  if (event == nullptr) return;
+
+  event->status_code = status_code;
+  event->end_time = std::chrono::steady_clock::now();
+}
+
+TraceEvent *Processor::trace_command(const std::string_view &prefix) {
+  if (!connection()->events().active()) return nullptr;
+
+  auto *parent_span = std::addressof(connection()->events());
+
+  if (parent_span == nullptr) return nullptr;
+
+  return std::addressof(
+      parent_span->events().emplace_back(std::string(prefix)));
+}
+
+TraceEvent *Processor::trace_connect_and_forward_command(
+    TraceEvent *parent_span) {
+  auto *ev = trace_span(parent_span, "mysql/connect_and_forward");
+  if (ev == nullptr) return nullptr;
+
+  trace_set_connection_attributes(ev);
+
+  return ev;
+}
+
+TraceEvent *Processor::trace_connect(TraceEvent *parent_span) {
+  return trace_span(parent_span, "mysql/connect");
+}
+
+void Processor::trace_set_connection_attributes(TraceEvent *ev) {
+  auto &server_conn = connection()->socket_splicer()->server_conn();
+  ev->attrs.emplace_back("mysql.remote.is_connected", server_conn.is_open());
+
+  if (server_conn.is_open()) {
+    ev->attrs.emplace_back("mysql.remote.endpoint",
+                           connection()->get_destination_id());
+    ev->attrs.emplace_back("mysql.remote.connection_id",
+                           static_cast<int64_t>(connection()
+                                                    ->server_protocol()
+                                                    ->server_greeting()
+                                                    ->connection_id()));
+    ev->attrs.emplace_back("db.name",
+                           connection()->server_protocol()->schema());
+  }
+}
+
+TraceEvent *Processor::trace_forward_command(TraceEvent *parent_span) {
+  return trace_span(parent_span, "mysql/forward");
+}
+
+void Processor::trace_command_end(TraceEvent *event,
+                                  TraceEvent::StatusCode status_code) {
+  if (event == nullptr) return;
+
+  const auto allowed_after = connection()->connection_sharing_allowed();
+
+  event->end_time = std::chrono::steady_clock::now();
+  auto &attrs = event->attrs;
+
+  attrs.emplace_back("mysql.sharing_blocked", !allowed_after);
+
+  if (!allowed_after) {
+    // stringify why sharing is blocked.
+
+    attrs.emplace_back("mysql.sharing_blocked_by",
+                       connection()->connection_sharing_blocked_by());
+  }
+
+  trace_span_end(event, status_code);
+}

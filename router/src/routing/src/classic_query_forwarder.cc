@@ -25,23 +25,35 @@
 #include "classic_query_forwarder.h"
 
 #include <charconv>
+#include <chrono>
 #include <limits>
 #include <memory>
 #include <sstream>
 #include <system_error>
 #include <variant>
 
+#define RAPIDJSON_HAS_STDSTRING 1
+
+#include "my_rapidjson_size_t.h"
+
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+
 #include "classic_connection_base.h"
 #include "classic_frame.h"
 #include "classic_lazy_connect.h"
+#include "classic_query_sender.h"
+#include "classic_session_tracker.h"
 #include "harness_assert.h"
 #include "hexify.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
+#include "mysql/harness/utility/string.h"
 #include "mysqld_error.h"  // mysql errors
 #include "mysqlrouter/classic_protocol_codec_binary.h"
 #include "mysqlrouter/classic_protocol_codec_error.h"
 #include "mysqlrouter/classic_protocol_message.h"
+#include "mysqlrouter/client_error_code.h"
 #include "mysqlrouter/utils.h"  // to_string
 #include "show_warnings_parser.h"
 #include "sql/lex.h"
@@ -52,6 +64,30 @@
 
 #undef DEBUG_DUMP_TOKENS
 
+/**
+ * format a timepoint as json-value (date-time format).
+ */
+static std::string string_from_timepoint(
+    std::chrono::time_point<std::chrono::system_clock> tp) {
+  time_t cur = decltype(tp)::clock::to_time_t(tp);
+  struct tm cur_gmtime;
+#ifdef _WIN32
+  gmtime_s(&cur_gmtime, &cur);
+#else
+  gmtime_r(&cur, &cur_gmtime);
+#endif
+  auto usec = std::chrono::duration_cast<std::chrono::microseconds>(
+      tp - std::chrono::system_clock::from_time_t(cur));
+
+  return mysql_harness::utility::string_format(
+      "%04d-%02d-%02dT%02d:%02d:%02d.%06ldZ", cur_gmtime.tm_year + 1900,
+      cur_gmtime.tm_mon + 1, cur_gmtime.tm_mday, cur_gmtime.tm_hour,
+      cur_gmtime.tm_min, cur_gmtime.tm_sec,
+      // cast to long int as it is "longlong" on 32bit, and "long" on
+      // 64bit platforms, but we only have a range of 0-999
+      static_cast<long int>(usec.count()));
+}
+
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::process() {
   switch (stage()) {
     case Stage::Command:
@@ -60,12 +96,10 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::process() {
       return connect();
     case Stage::Connected:
       return connected();
-
     case Stage::Forward:
       return forward();
     case Stage::ForwardDone:
       return forward_done();
-
     case Stage::Response:
       return response();
     case Stage::ColumnCount:
@@ -88,6 +122,10 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::process() {
       return ok();
     case Stage::Error:
       return error();
+    case Stage::ResponseDone:
+      return response_done();
+    case Stage::SendQueued:
+      return send_queued();
     case Stage::Done:
       return Result::Done;
   }
@@ -138,22 +176,22 @@ static std::ostream &operator<<(std::ostream &os,
   if (flags & StmtClassifier::NoStateChangeIgnoreTracker) {
     if (one) os << ",";
     one = true;
-    os << "ignore_tracker";
+    os << "ignore_session_tracker_some_state_changed";
   }
   if (flags & StmtClassifier::StateChangeOnError) {
     if (one) os << ",";
     one = true;
-    os << "change-on-error";
+    os << "session_not_sharable_on_error";
   }
   if (flags & StmtClassifier::StateChangeOnSuccess) {
     if (one) os << ",";
     one = true;
-    os << "change-on-success";
+    os << "session_not_sharable_on_success";
   }
   if (flags & StmtClassifier::StateChangeOnTracker) {
     if (one) os << ",";
     one = true;
-    os << "change-on-tracker";
+    os << "accept_session_state_from_session_tracker";
   }
 
   return os;
@@ -363,7 +401,8 @@ static uint64_t get_error_count(MysqlRoutingClassicConnectionBase *connection) {
 
 static uint64_t get_warning_count(
     MysqlRoutingClassicConnectionBase *connection) {
-  return connection->execution_context().diagnostics_area().warnings().size();
+  return connection->execution_context().diagnostics_area().warnings().size() +
+         (connection->events().events().empty() ? 0 : 1);
 }
 
 static stdx::expected<void, std::error_code> send_resultset(
@@ -405,6 +444,100 @@ static stdx::expected<void, std::error_code> send_resultset(
   return {};
 }
 
+stdx::expected<void, std::error_code> trace_as_json(
+    const TraceSpan &event_time_series,
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> &writer,
+    const TraceEvent &event) {
+  // build a Span.
+  writer.StartObject();
+
+  if (event.start_time == event.end_time) {
+    writer.Key("timestamp");
+    writer.String(string_from_timepoint(event.start_time_system));
+  } else {
+    writer.Key("start_time");
+    writer.String(string_from_timepoint(event.start_time_system));
+
+    writer.Key("end_time");
+    writer.String(string_from_timepoint(
+        event.start_time_system +
+        std::chrono::duration_cast<std::chrono::system_clock::duration>(
+            event.end_time - event.start_time)));
+
+    // for easier readability by a human.
+    writer.Key("elapsed_in_span_us");
+    writer.Uint(std::chrono::duration_cast<std::chrono::microseconds>(
+                    event.end_time - event.start_time)
+                    .count());
+  }
+
+  if (event.status_code != TraceEvent::StatusCode::kUnset) {
+    writer.Key("status_code");
+    switch (event.status_code) {
+      case TraceEvent::StatusCode::kOk:
+        writer.String("OK");
+        break;
+      case TraceEvent::StatusCode::kError:
+        writer.String("ERROR");
+        break;
+      default:
+        writer.String("UNSET");
+        break;
+    }
+  }
+
+  writer.Key("name");
+  writer.String(event.name);
+
+  if (!event.attrs.empty()) {
+    writer.Key("attributes");
+    writer.StartObject();
+    for (const auto &attr : event.attrs) {
+      writer.Key(attr.first);
+
+      if (std::holds_alternative<std::monostate>(attr.second)) {
+        writer.Null();
+      } else if (std::holds_alternative<int64_t>(attr.second)) {
+        writer.Int64(std::get<int64_t>(attr.second));
+      } else if (std::holds_alternative<std::string>(attr.second)) {
+        writer.String(std::get<std::string>(attr.second));
+      } else if (std::holds_alternative<bool>(attr.second)) {
+        writer.Bool(std::get<bool>(attr.second));
+      } else {
+        assert(false || "unexpected type");
+      }
+    }
+    writer.EndObject();
+  }
+
+  if (!event.events.empty()) {
+    writer.Key("events");
+    writer.StartArray();
+    for (const auto &evs : event.events) {
+      trace_as_json(event_time_series, writer, evs);
+    }
+    writer.EndArray();
+  }
+  writer.EndObject();
+
+  return {};
+}
+
+stdx::expected<std::string, std::error_code> trace_as_json(
+    const TraceSpan &event_time_series) {
+  rapidjson::StringBuffer buf;
+  rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buf);
+  writer.SetIndent(' ', 2);
+  writer.SetFormatOptions(
+      rapidjson::PrettyFormatOptions::kFormatSingleLineArray);
+
+  for (const auto &event : event_time_series.events()) {
+    trace_as_json(event_time_series, writer, event);
+  }
+
+  return buf.GetString();
+}
+
 std::vector<classic_protocol::message::server::Row> rows_from_warnings(
     MysqlRoutingClassicConnectionBase *connection,
     ShowWarnings::Verbosity verbosity, uint64_t row_count, uint64_t offset) {
@@ -421,6 +554,16 @@ std::vector<classic_protocol::message::server::Row> rows_from_warnings(
 
       rows.emplace_back(std::vector<std::optional<std::string>>{
           w.level(), std::to_string(w.code()), w.message()});
+    }
+  }
+
+  const auto &event_time_series = connection->events();
+  if (verbosity != ShowWarnings::Verbosity::Error &&
+      !event_time_series.events().empty()) {
+    auto trace_res = trace_as_json(event_time_series);
+    if (trace_res) {
+      rows.emplace_back(std::vector<std::optional<std::string>>{
+          "Note", std::to_string(ER_ROUTER_TRACE), *trace_res});
     }
   }
 
@@ -1069,11 +1212,22 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
       }
     }
 
+    // not a SHOW WARNINGS or so, reset the warnings.
+    connection()->execution_context().diagnostics_area().warnings().clear();
+    connection()->events().clear();
+
+    trace_event_command_ = trace_command(prefix());
+
     stmt_classified_ = classify(msg_res->statement(), true);
 
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("query::classified: " +
                                      mysqlrouter::to_string(stmt_classified_)));
+    }
+
+    if (auto *ev = trace_span(trace_event_command_, "mysql/query_classify")) {
+      ev->attrs.emplace_back("mysql.query.classification",
+                             mysqlrouter::to_string(stmt_classified_));
     }
 
     // SET session_track... is forbidden if router sets session-trackers on the
@@ -1122,10 +1276,15 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
     }
   }
 
+  trace_event_connect_and_forward_command_ =
+      trace_connect_and_forward_command(trace_event_command_);
+
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
     stage(Stage::Connect);
   } else {
+    trace_event_forward_command_ =
+        trace_forward_command(trace_event_connect_and_forward_command_);
     stage(Stage::Forward);
   }
   return Result::Again;
@@ -1137,7 +1296,7 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::connect() {
   }
 
   stage(Stage::Connected);
-  return mysql_reconnect_start();
+  return mysql_reconnect_start(trace_event_connect_and_forward_command_);
 }
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::connected() {
@@ -1159,6 +1318,9 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::connected() {
       tr.trace(Tracer::Event().stage("query::connect::error"));
     }
 
+    trace_span_end(trace_event_connect_and_forward_command_);
+    trace_command_end(trace_event_command_);
+
     stage(Stage::Done);
     return reconnect_send_error_msg(src_channel, src_protocol);
   }
@@ -1167,8 +1329,10 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::connected() {
     tr.trace(Tracer::Event().stage("query::connected"));
   }
 
-  stage(Stage::Forward);
+  trace_event_forward_command_ =
+      trace_forward_command(trace_event_connect_and_forward_command_);
 
+  stage(Stage::Forward);
   return Result::Again;
 }
 
@@ -1220,6 +1384,8 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::forward() {
             {ER_MALFORMED_PACKET, "Malformed communication packet", "HY000"});
     if (!send_msg) send_client_failed(send_msg.error());
 
+    trace_span_end(trace_event_connect_and_forward_command_);
+
     stage(Stage::Done);
 
     return Result::SendToClient;
@@ -1256,6 +1422,9 @@ QueryForwarder::forward_done() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("query::forward::done"));
   }
+
+  trace_span_end(trace_event_forward_command_);
+  trace_span_end(trace_event_connect_and_forward_command_);
 
   stage(Stage::Response);
 
@@ -1338,6 +1507,9 @@ QueryForwarder::column_count() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("query::column_count"));
   }
+
+  trace_event_query_result_ =
+      trace_span(trace_event_command_, "mysql/query_result");
 
   columns_left_ = msg_res->count();
 
@@ -1468,6 +1640,7 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::row_end() {
   auto *socket_splicer = connection()->socket_splicer();
   auto *src_channel = socket_splicer->server_channel();
   auto *src_protocol = connection()->server_protocol();
+  auto *dst_channel = socket_splicer->client_channel();
   auto *dst_protocol = connection()->client_protocol();
 
   auto msg_res =
@@ -1496,25 +1669,47 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::row_end() {
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("query::more_resultsets"));
     }
+
     return forward_server_to_client(true);
-  } else {
-    if (stmt_classified_ & StmtClassifier::StateChangeOnSuccess) {
-      connection()->some_state_changed(true);
-    }
-
-    if (msg.warning_count() > 0) {
-      connection()->diagnostic_area_changed(true);
-    }
-
-    stage(Stage::Done);  // once the message is forwarded, we are done.
-    return forward_server_to_client();
   }
+
+  if (auto *ev = trace_event_query_result_) {
+    ClassicFrame::trace_set_attributes(ev, src_protocol, msg);
+
+    trace_span_end(ev);
+  }
+
+  if (stmt_classified_ & StmtClassifier::StateChangeOnSuccess) {
+    connection()->some_state_changed(true);
+  }
+
+  if (msg.warning_count() > 0) {
+    connection()->diagnostic_area_changed(true);
+  }
+
+  stage(Stage::ResponseDone);  // once the message is forwarded, we are done.
+  if (!connection()->events().empty()) {
+    msg.warning_count(msg.warning_count() + 1);
+
+    auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Eof>(dst_channel,
+                                                          dst_protocol, msg);
+    if (!send_res) return stdx::make_unexpected(send_res.error());
+
+    // msg refers to src-channel's recv-buf. discard after send.
+    discard_current_msg(src_channel, src_protocol);
+
+    return Result::SendToClient;
+  }
+
+  return forward_server_to_client();
 }
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::ok() {
   auto *socket_splicer = connection()->socket_splicer();
   auto *src_channel = socket_splicer->server_channel();
   auto *src_protocol = connection()->server_protocol();
+  auto *dst_channel = socket_splicer->client_channel();
   auto *dst_protocol = connection()->client_protocol();
 
   auto msg_res =
@@ -1546,24 +1741,62 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::ok() {
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("query::more_resultsets"));
     }
-    return forward_server_to_client(true);
-  } else {
-    if (msg.warning_count() > 0) {
-      connection()->diagnostic_area_changed(true);
-    } else {
-      // there are no warnings on the server side.
-      connection()->diagnostic_area_changed(false);
-    }
 
-    stage(Stage::Done);  // once the message is forwarded, we are done.
-    return forward_server_to_client();
+    return forward_server_to_client(true);
   }
+
+  if (auto *ev = trace_span(trace_event_command_, "mysql/response")) {
+    ClassicFrame::trace_set_attributes(ev, src_protocol, msg);
+
+    trace_span_end(ev);
+  }
+
+  if (msg.warning_count() > 0) {
+    connection()->diagnostic_area_changed(true);
+  } else {
+    // there are no warnings on the server side.
+    connection()->diagnostic_area_changed(false);
+  }
+
+  stage(Stage::ResponseDone);  // once the message is forwarded, we are done.
+  if (!connection()->events().empty()) {
+    msg.warning_count(msg.warning_count() + 1);
+
+    auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
+    if (!send_res) return stdx::make_unexpected(send_res.error());
+
+    discard_current_msg(src_channel, src_protocol);
+
+    return Result::SendToClient;
+  }
+
+  // forward the message AS IS.
+  return forward_server_to_client();
 }
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::error() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
+
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::server::Error>(src_channel,
+                                                          src_protocol);
+  if (!msg_res) return recv_server_failed(msg_res.error());
+
+  auto msg = *msg_res;
+
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("query::error"));
   }
+
+  if (auto *ev = trace_span(trace_event_command_, "mysql/response")) {
+    ClassicFrame::trace_set_attributes(ev, src_protocol, msg);
+
+    trace_span_end(ev);
+  }
+
+  trace_command_end(trace_event_command_, TraceEvent::StatusCode::kError);
 
   if (stmt_classified_ & StmtClassifier::StateChangeOnError) {
     connection()->some_state_changed(true);
@@ -1574,4 +1807,18 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::error() {
 
   stage(Stage::Done);
   return forward_server_to_client();
+}
+
+stdx::expected<Processor::Result, std::error_code>
+QueryForwarder::response_done() {
+  trace_command_end(trace_event_command_);
+
+  stage(Stage::Done);
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+QueryForwarder::send_queued() {
+  stage(Stage::Done);
+  return Result::SendToClient;
 }

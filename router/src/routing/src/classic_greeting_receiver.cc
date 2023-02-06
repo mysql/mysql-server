@@ -708,7 +708,8 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::accepted() {
         connection(), true /* in handshake */,
         [this](const classic_protocol::message::server::Error &err) {
           connect_err_ = err;
-        }));
+        },
+        nullptr));
   }
 
   return Result::Again;

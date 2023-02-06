@@ -37,12 +37,14 @@ class ConnectProcessor : public Processor {
   ConnectProcessor(
       MysqlRoutingClassicConnectionBase *conn,
       std::function<void(const classic_protocol::message::server::Error &err)>
-          on_error)
+          on_error,
+      TraceEvent *parent_event)
       : Processor(conn),
         io_ctx_{conn->socket_splicer()->client_conn().connection()->io_ctx()},
         destinations_{conn->current_destinations()},
         destinations_it_{destinations_.begin()},
-        on_error_(std::move(on_error)) {
+        on_error_(std::move(on_error)),
+        parent_event_(parent_event) {
     // this is needed to shut down accepting port with next-available strategy
     // despite there are destinations available
     if (conn->destinations()->get_strategy() ==
@@ -105,6 +107,11 @@ class ConnectProcessor : public Processor {
 
   std::function<void(const classic_protocol::message::server::Error &err)>
       on_error_;
+
+  TraceEvent *parent_event_;
+  TraceEvent *trace_event_connect_{nullptr};
+  TraceEvent *trace_event_socket_connect_{nullptr};
+  TraceEvent *trace_event_socket_from_pool_{nullptr};
 };
 
 #endif

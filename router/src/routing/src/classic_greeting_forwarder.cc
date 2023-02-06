@@ -54,6 +54,7 @@
 #include "mysqld_error.h"  // mysql-server error-codes
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/connection_base.h"
+#include "processor.h"
 #include "sql/server_component/mysql_command_services_imp.h"
 #include "tracer.h"
 
@@ -330,6 +331,8 @@ stdx::expected<Processor::Result, std::error_code> ServerGreetor::process() {
     case Stage::ServerGreetingSent:
       return Result::Done;
     case Stage::Ok:
+      trace_span_end(trace_event_greeting_);
+
       connection()->authenticated(true);
       return Result::Done;
   }
@@ -343,6 +346,8 @@ stdx::expected<Processor::Result, std::error_code> ServerGreetor::error() {
                  .stage("close::server")
                  .direction(Tracer::Event::Direction::kServerClose));
   }
+
+  trace_span_end(trace_event_greeting_, TraceEvent::StatusCode::kError);
 
   // reset the server connection.
   //
@@ -365,6 +370,13 @@ ServerGreetor::server_greeting() {
   auto *socket_splicer = connection()->socket_splicer();
   auto src_channel = socket_splicer->server_channel();
   auto src_protocol = connection()->server_protocol();
+
+  if (trace_event_greeting_ == nullptr) {
+    trace_event_greeting_ = trace_span(parent_event_, "mysql/greeting");
+
+    trace_event_server_greeting_ =
+        trace_span(trace_event_greeting_, "mysql/server_greeting");
+  }
 
   auto read_res =
       ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
@@ -406,6 +418,12 @@ ServerGreetor::server_greeting_error() {
   if (!msg_res) return recv_client_failed(msg_res.error());
 
   auto msg = *msg_res;
+
+  if (auto *ev = trace_event_server_greeting_) {
+    trace_span_end(ev, TraceEvent::StatusCode::kError);
+  }
+
+  trace_span_end(trace_event_greeting_, TraceEvent::StatusCode::kError);
 
   stage(Stage::Error);
 
@@ -508,8 +526,13 @@ ServerGreetor::server_greeting_greeting() {
     tr.trace(Tracer::Event().stage("server::greeting::greeting"));
   }
 
-  auto msg = src_protocol->server_greeting().value();
+  if (auto *ev = trace_event_server_greeting_) {
+    ev->attrs.emplace_back(
+        "mysql.remote.connection_id",
+        static_cast<int64_t>(server_greeting_msg.connection_id()));
+  }
 
+  auto msg = src_protocol->server_greeting().value();
 #if 0
   std::cerr << __LINE__ << ": proto-version: " << (int)msg.protocol_version()
             << "\n";
@@ -578,6 +601,8 @@ ServerGreetor::server_greeting_greeting() {
     if (!send_res) return send_client_failed(send_res.error());
 
     dst_protocol->server_greeting(msg);
+
+    trace_span_end(trace_event_greeting_, TraceEvent::StatusCode::kOk);
 
     stage(Stage::ServerGreetingSent);  // hand over to the ServerFirstConnector
     return Result::SendToClient;
@@ -678,6 +703,9 @@ ServerGreetor::client_greeting() {
   // soon.
   connection()->client_greeting_sent(true);
   connection()->on_handshake_received();
+
+  trace_event_client_greeting_ =
+      trace_span(trace_event_greeting_, "mysql/client_greeting");
 
   if (dst_protocol->shared_capabilities().test(
           classic_protocol::capabilities::pos::ssl)) {
@@ -861,6 +889,9 @@ ServerGreetor::tls_connect_init() {
   // sure it is TLS again.
   connection()->requires_tls(true);
 
+  trace_event_tls_connect_ =
+      trace_span(trace_event_client_greeting_, "mysql/tls_connect");
+
   stage(Stage::TlsConnect);
   return Result::Again;
 }
@@ -957,6 +988,14 @@ ServerGreetor::tls_connect() {
     tr.trace(Tracer::Event().stage(oss.str()));
   }
 
+  if (auto *ev = trace_event_tls_connect_) {
+    auto *ssl = dst_channel->ssl();
+    ev->attrs.emplace_back("tls.version", SSL_get_version(ssl));
+    ev->attrs.emplace_back("tls.cipher", SSL_get_cipher_name(ssl));
+    ev->attrs.emplace_back("tls.session_reused", SSL_session_reused(ssl) != 0);
+    trace_span_end(trace_event_tls_connect_);
+  }
+
   stage(Stage::ClientGreetingAfterTls);
   // tls is established to the server, send the client::greeting
   return Result::Again;
@@ -1008,6 +1047,10 @@ ServerGreetor::client_greeting_after_tls() {
     tr.trace(Tracer::Event().stage("client::greeting (tls)"));
   }
 
+  if (auto *ev = trace_event_client_greeting_) {
+    ev->attrs.emplace_back("db.name", client_greeting_msg.schema());
+  }
+
   if (src_protocol->password().has_value()) {
     // scramble with the server's auth-data to trigger a fast-auth.
 
@@ -1050,6 +1093,8 @@ ServerGreetor::client_greeting_after_tls() {
 
 stdx::expected<Processor::Result, std::error_code>
 ServerGreetor::initial_response() {
+  trace_span_end(trace_event_client_greeting_);
+
   connection()->push_processor(std::make_unique<AuthForwarder>(connection()));
 
   stage(Stage::FinalResponse);
@@ -1116,6 +1161,8 @@ stdx::expected<Processor::Result, std::error_code> ServerGreetor::auth_error() {
     tr.trace(Tracer::Event().stage("server::auth::error"));
   }
 
+  trace_span_end(trace_event_greeting_, TraceEvent::StatusCode::kError);
+
   stage(Stage::Error);
 
   on_error_({msg.error_code(), std::string(msg.message()),
@@ -1164,6 +1211,8 @@ stdx::expected<Processor::Result, std::error_code> ServerGreetor::auth_ok() {
 
   stage(Stage::Ok);
 
+  trace_span_end(trace_event_greeting_, TraceEvent::StatusCode::kOk);
+
   if (in_handshake_) {
     return forward_server_to_client();
   }
@@ -1197,7 +1246,7 @@ stdx::expected<Processor::Result, std::error_code>
 ServerFirstConnector::connect() {
   stage(Stage::ServerGreeting);
 
-  return socket_reconnect_start();
+  return socket_reconnect_start(nullptr);
 }
 
 stdx::expected<Processor::Result, std::error_code>
@@ -1235,7 +1284,8 @@ ServerFirstConnector::server_greeting() {
       connection(), false,
       [this](const classic_protocol::message::server::Error &err) {
         this->reconnect_error(err);
-      }));
+      },
+      nullptr));
 
   return Result::Again;
 }

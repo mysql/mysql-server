@@ -154,6 +154,8 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::process() {
     case Stage::FetchSysVarsDone:
       return fetch_sys_vars_done();
     case Stage::Done:
+      trace_span_end(trace_event_connect_);
+
       return Result::Done;
   }
 
@@ -164,6 +166,9 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::connect() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("connect::connect"));
   }
+
+  trace_event_connect_ =
+      trace_span(parent_event_, "mysql/prepare_server_connection");
 
   auto *socket_splicer = connection()->socket_splicer();
   auto &server_conn = socket_splicer->server_conn();
@@ -176,7 +181,8 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::connect() {
         connection(),
         [this](const classic_protocol::message::server::Error &err) {
           on_error_(err);
-        }));
+        },
+        trace_event_connect_));
   } else {
     stage(Stage::Done);  // there still is a connection open, nothing to do.
   }
@@ -203,6 +209,9 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::connected() {
     return Result::Again;
   }
 
+  trace_event_authenticate_ =
+      trace_span(trace_event_connect_, "mysql/authenticate");
+
   /*
    * if the connection is from the pool, we need a change user.
    */
@@ -214,21 +223,42 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::connected() {
          (client_protocol->sent_attributes() ==
           server_protocol->sent_attributes()))) {
       // it is ok if the schema differs, it will be handled later set_schema()
-      connection()->push_processor(
-          std::make_unique<ResetConnectionSender>(connection()));
+
+      if (auto *ev = trace_event_authenticate_) {
+        ev->attrs.emplace_back("mysql.remote.needs_full_handshake", false);
+      }
+
+      connection()->push_processor(std::make_unique<ResetConnectionSender>(
+          connection(), trace_event_authenticate_));
     } else {
+      if (auto *ev = trace_event_authenticate_) {
+        ev->attrs.emplace_back("mysql.remote.needs_full_handshake", true);
+        ev->attrs.emplace_back(
+            "mysql.remote.username_differs",
+            client_protocol->username() == server_protocol->username());
+        ev->attrs.emplace_back("mysql.remote.connection_attributes_differ",
+                               client_protocol->sent_attributes() ==
+                                   server_protocol->sent_attributes());
+      }
+
       connection()->push_processor(std::make_unique<ChangeUserSender>(
           connection(), in_handshake_,
           [this](const classic_protocol::message::server::Error &err) {
             on_error_(err);
-          }));
+          },
+          trace_event_authenticate_));
     }
   } else {
+    if (auto *ev = trace_event_authenticate_) {
+      ev->attrs.emplace_back("mysql.remote.needs_full_handshake", true);
+    }
+
     connection()->push_processor(std::make_unique<ServerGreetor>(
         connection(), in_handshake_,
         [this](const classic_protocol::message::server::Error &err) {
           on_error_(err);
-        }));
+        },
+        trace_event_authenticate_));
   }
 
   stage(Stage::Authenticated);
@@ -243,10 +273,18 @@ LazyConnector::authenticated() {
       tr.trace(Tracer::Event().stage("connect::authenticate::error"));
     }
 
+    if (auto *ev = trace_event_authenticate_) {
+      trace_span_end(ev, TraceEvent::StatusCode::kError);
+    }
+
     stage(Stage::Done);
   } else {
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("connect::authenticate::ok"));
+    }
+
+    if (auto *ev = trace_event_authenticate_) {
+      trace_span_end(ev);
     }
 
     stage(Stage::SetVars);
@@ -254,6 +292,7 @@ LazyConnector::authenticated() {
   return Result::Again;
 }
 
+namespace {
 void set_session_var(std::string &q, const std::string &key, const Value &val) {
   if (q.empty()) {
     q = "SET ";
@@ -283,6 +322,7 @@ void set_session_var_or_value(std::string &q,
     set_session_var(q, key, value);
   }
 }
+}  // namespace
 
 stdx::expected<Processor::Result, std::error_code> LazyConnector::set_vars() {
   auto &sysvars = connection()->execution_context().system_variables();
@@ -326,6 +366,27 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::set_vars() {
   if (!stmt.empty()) {
     stage(Stage::SetVarsDone);
 
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::set_var"));
+    }
+
+    trace_event_set_vars_ = trace_span(trace_event_connect_, "mysql/set_var");
+    if (auto *ev = trace_event_set_vars_) {
+      for (const auto &var : sysvars) {
+        if (var.first == "statement_id") continue;
+
+        if (var.second.value()) {
+          ev->attrs.emplace_back(
+              "mysql.session.@@SESSION." + var.first,
+              TraceEvent::element_type::second_type{*var.second.value()});
+        } else {
+          // NULL
+          ev->attrs.emplace_back(var.first,
+                                 TraceEvent::element_type::second_type{});
+        }
+      }
+    }
+
     connection()->push_processor(
         std::make_unique<QuerySender>(connection(), stmt));
   } else {
@@ -336,6 +397,10 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::set_vars() {
 
 stdx::expected<Processor::Result, std::error_code>
 LazyConnector::set_vars_done() {
+  if (auto *ev = trace_event_set_vars_) {
+    trace_span_end(ev);
+  }
+
   stage(Stage::SetServerOption);
   return Result::Again;
 }
@@ -392,6 +457,9 @@ LazyConnector::fetch_sys_vars() {
   }
 
   if (oss.tellp() != 0) {
+    trace_event_fetch_sys_vars_ =
+        trace_span(trace_event_connect_, "mysql/fetch_sys_vars");
+
     stage(Stage::FetchSysVarsDone);
 
     connection()->push_processor(std::make_unique<QuerySender>(
@@ -406,6 +474,8 @@ LazyConnector::fetch_sys_vars() {
 
 stdx::expected<Processor::Result, std::error_code>
 LazyConnector::fetch_sys_vars_done() {
+  trace_span_end(trace_event_fetch_sys_vars_);
+
   stage(Stage::SetSchema);
   return Result::Again;
 }
@@ -415,6 +485,8 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::set_schema() {
   auto server_schema = connection()->server_protocol()->schema();
 
   if (!client_schema.empty() && (client_schema != server_schema)) {
+    trace_event_set_schema_ =
+        trace_span(trace_event_connect_, "mysql/set_schema");
     stage(Stage::SetSchemaDone);
 
     connection()->push_processor(
@@ -428,6 +500,10 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::set_schema() {
 
 stdx::expected<Processor::Result, std::error_code>
 LazyConnector::set_schema_done() {
+  if (auto *ev = trace_event_set_schema_) {
+    trace_span_end(ev);
+  }
+
   stage(Stage::Done);
   return Result::Again;
 }

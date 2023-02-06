@@ -26,6 +26,8 @@
 #define ROUTING_CLASSIC_PROCESSOR_INCLUDED
 
 #include "basic_protocol_splicer.h"
+
+#include "trace_span.h"
 #include "tracer.h"
 
 class MysqlRoutingClassicConnectionBase;
@@ -127,6 +129,54 @@ class Processor : public BasicProcessor {
   trace(Tracer::Event e);
 
   Tracer &tracer();
+
+  /**
+   * start a span.
+   *
+   * @param parent_span parent span to nest this trace span in.
+   * @param prefix name of the span.
+   */
+  TraceEvent *trace_span(TraceEvent *parent_span,
+                         const std::string_view &prefix);
+
+  /**
+   * end a span and set a status-code.
+   */
+  void trace_span_end(TraceEvent *event, TraceEvent::StatusCode status_code =
+                                             TraceEvent::StatusCode::kUnset);
+
+  /**
+   * start a command span.
+   *
+   * @param prefix name of the command span.
+   */
+  TraceEvent *trace_command(const std::string_view &prefix);
+
+  /**
+   * start a connect-and-forward span.
+   */
+  TraceEvent *trace_connect_and_forward_command(TraceEvent *parent_span);
+
+  /**
+   * start a connect span.
+   */
+  TraceEvent *trace_connect(TraceEvent *parent_span);
+
+  /**
+   * start a connect span.
+   */
+  void trace_set_connection_attributes(TraceEvent *ev);
+
+  /**
+   * start a forward span.
+   */
+  TraceEvent *trace_forward_command(TraceEvent *parent_span);
+
+  /**
+   * end a command span and set a status-code.
+   */
+  void trace_command_end(TraceEvent *event, TraceEvent::StatusCode status_code =
+                                                TraceEvent::StatusCode::kUnset);
 };
 
 #endif

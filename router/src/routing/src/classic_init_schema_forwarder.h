@@ -35,11 +35,17 @@ class InitSchemaForwarder : public ForwardingProcessor {
     Command,
     Connect,
     Connected,
+
+    Forward,
+    ForwardDone,
+
     Response,
     Ok,
     Error,
     Done,
   };
+
+  static std::string_view prefix() { return "mysql/init_schema"; }
 
   stdx::expected<Result, std::error_code> process() override;
 
@@ -50,11 +56,17 @@ class InitSchemaForwarder : public ForwardingProcessor {
   stdx::expected<Result, std::error_code> command();
   stdx::expected<Result, std::error_code> connect();
   stdx::expected<Result, std::error_code> connected();
+  stdx::expected<Result, std::error_code> forward();
+  stdx::expected<Result, std::error_code> forward_done();
   stdx::expected<Result, std::error_code> response();
   stdx::expected<Result, std::error_code> ok();
   stdx::expected<Result, std::error_code> error();
 
   Stage stage_{Stage::Command};
+
+  TraceEvent *trace_event_command_{};
+  TraceEvent *trace_event_connect_and_forward_command_{};
+  TraceEvent *trace_event_forward_command_{};
 };
 
 #endif

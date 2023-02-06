@@ -26,6 +26,7 @@
 
 #include "classic_connection_base.h"
 #include "classic_frame.h"
+#include "hexify.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
@@ -58,6 +59,8 @@ ResetConnectionSender::command() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("reset_connection::command"));
   }
+
+  trace_event_command_ = trace_span(parent_event_, "mysql/reset_connection");
 
   dst_protocol->seq_id(0xff);  // reset seq-id
 
@@ -93,6 +96,14 @@ ResetConnectionSender::response() {
       return Result::Again;
   }
 
+  (void)ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage(
+        "reset_connection::response\n" +
+        mysql_harness::hexify(src_channel->recv_plain_view())));
+  }
+
   log_debug("reset_connection::response: unexpected msg-type '%02x'", msg_type);
 
   return recv_server_failed(make_error_code(std::errc::bad_message));
@@ -111,6 +122,8 @@ stdx::expected<Processor::Result, std::error_code> ResetConnectionSender::ok() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("reset_connection::ok"));
   }
+
+  trace_span_end(trace_event_command_);
 
   auto msg = *msg_res;
 

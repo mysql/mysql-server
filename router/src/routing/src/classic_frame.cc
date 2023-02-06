@@ -25,6 +25,7 @@
 #include "classic_frame.h"
 
 #include "classic_connection_base.h"
+#include "classic_session_tracker.h"
 #include "mysql/harness/tls_error.h"
 
 static bool has_frame_header(ClassicProtocolState *src_protocol) {
@@ -228,4 +229,64 @@ ClassicFrame::recv_frame_sequence(Channel *src_channel,
       }
     }
   }
+}
+
+template <class Msg>
+inline void trace_set_attributes_impl(TraceEvent *ev,
+                                      ClassicProtocolState *src_protocol,
+                                      const Msg &msg) {
+  if (ev == nullptr) return;
+
+  if (msg.last_insert_id() != 0) {
+    ev->attrs.emplace_back("mysql.response.last_insert_id",
+                           static_cast<int64_t>(msg.last_insert_id()));
+  }
+  if (msg.warning_count() != 0) {
+    ev->attrs.emplace_back("mysql.response.warning_count",
+                           static_cast<int64_t>(msg.warning_count()));
+  }
+  if (msg.affected_rows() != 0) {
+    ev->attrs.emplace_back("mysql.response.affected_rows",
+                           static_cast<int64_t>(msg.affected_rows()));
+  }
+
+  if (!msg.session_changes().empty()) {
+    auto sess_tracker_res =
+        session_trackers_to_string(net::buffer(msg.session_changes()),
+                                   src_protocol->shared_capabilities());
+
+    if (sess_tracker_res) {
+      for (auto kv : *sess_tracker_res) {
+        if (kv.first == "schema") {
+          // use a common name of schema from OTEL.
+          ev->attrs.emplace_back("db.name", kv.second);
+        } else {
+          ev->attrs.emplace_back("mysql.session." + kv.first, kv.second);
+        }
+      }
+    }
+  }
+}
+
+void ClassicFrame::trace_set_attributes(
+    TraceEvent *ev, ClassicProtocolState *src_protocol,
+    const classic_protocol::borrowed::message::server::Ok &msg) {
+  trace_set_attributes_impl(ev, src_protocol, msg);
+}
+
+void ClassicFrame::trace_set_attributes(
+    TraceEvent *ev, ClassicProtocolState *src_protocol,
+    const classic_protocol::borrowed::message::server::Eof &msg) {
+  trace_set_attributes_impl(ev, src_protocol, msg);
+}
+
+void ClassicFrame::trace_set_attributes(
+    TraceEvent *ev, ClassicProtocolState * /* src_protocol */,
+    const classic_protocol::borrowed::message::server::Error &msg) {
+  if (ev == nullptr) return;
+
+  ev->attrs.emplace_back("mysql.error_code",
+                         static_cast<int64_t>(msg.error_code()));
+
+  ev->attrs.emplace_back("mysql.error_message", std::string(msg.message()));
 }

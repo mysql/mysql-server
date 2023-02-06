@@ -40,6 +40,10 @@ stdx::expected<Processor::Result, std::error_code> ReloadForwarder::process() {
       return connect();
     case Stage::Connected:
       return connected();
+    case Stage::Forward:
+      return forward();
+    case Stage::ForwardDone:
+      return forward_done();
     case Stage::Response:
       return response();
     case Stage::Ok:
@@ -58,14 +62,24 @@ stdx::expected<Processor::Result, std::error_code> ReloadForwarder::command() {
     tr.trace(Tracer::Event().stage("reload::command"));
   }
 
+  trace_event_command_ = trace_command(prefix());
+
+  trace_event_connect_and_forward_command_ =
+      trace_connect_and_forward_command(trace_event_command_);
+
+  // reset the warnings from the previous statements.
+  connection()->execution_context().diagnostics_area().warnings().clear();
+
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
     stage(Stage::Connect);
-    return Result::Again;
   } else {
-    stage(Stage::Response);
-    return forward_client_to_server();
+    trace_event_forward_command_ =
+        trace_forward_command(trace_event_connect_and_forward_command_);
+
+    stage(Stage::Forward);
   }
+  return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code> ReloadForwarder::connect() {
@@ -74,7 +88,7 @@ stdx::expected<Processor::Result, std::error_code> ReloadForwarder::connect() {
   }
 
   stage(Stage::Connected);
-  return mysql_reconnect_start();
+  return mysql_reconnect_start(trace_event_connect_and_forward_command_);
 }
 
 stdx::expected<Processor::Result, std::error_code>
@@ -96,6 +110,9 @@ ReloadForwarder::connected() {
       tr.trace(Tracer::Event().stage("reload::connect::error"));
     }
 
+    trace_span_end(trace_event_connect_and_forward_command_);
+    trace_command_end(trace_event_command_);
+
     stage(Stage::Done);
     return reconnect_send_error_msg(src_channel, src_protocol);
   }
@@ -104,8 +121,26 @@ ReloadForwarder::connected() {
     tr.trace(Tracer::Event().stage("reload::connected"));
   }
 
-  stage(Stage::Response);
+  trace_event_forward_command_ =
+      trace_forward_command(trace_event_connect_and_forward_command_);
+
+  stage(Stage::Forward);
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code> ReloadForwarder::forward() {
+  stage(Stage::ForwardDone);
   return forward_client_to_server();
+}
+
+stdx::expected<Processor::Result, std::error_code>
+ReloadForwarder::forward_done() {
+  stage(Stage::Response);
+
+  trace_span_end(trace_event_forward_command_);
+  trace_span_end(trace_event_connect_and_forward_command_);
+
+  return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code> ReloadForwarder::response() {
@@ -144,6 +179,7 @@ stdx::expected<Processor::Result, std::error_code> ReloadForwarder::ok() {
   auto *socket_splicer = connection()->socket_splicer();
   auto *src_channel = socket_splicer->server_channel();
   auto *src_protocol = connection()->server_protocol();
+  auto *dst_channel = socket_splicer->client_channel();
   auto *dst_protocol = connection()->client_protocol();
 
   auto msg_res =
@@ -159,15 +195,63 @@ stdx::expected<Processor::Result, std::error_code> ReloadForwarder::ok() {
 
   dst_protocol->status_flags(msg.status_flags());
 
+  if (auto *ev = trace_span(trace_event_command_, "mysql/response")) {
+    ClassicFrame::trace_set_attributes(ev, src_protocol, msg);
+
+    trace_span_end(ev);
+  }
+
+  trace_command_end(trace_event_command_);
+
+  if (msg.warning_count() > 0) {
+    connection()->diagnostic_area_changed(true);
+  } else {
+    // there are no warnings on the server side.
+    connection()->diagnostic_area_changed(false);
+  }
+
   stage(Stage::Done);
+
+  if (!connection()->events().empty()) {
+    msg.warning_count(msg.warning_count() + 1);
+
+    auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
+    if (!send_res) return stdx::make_unexpected(send_res.error());
+
+    discard_current_msg(src_channel, src_protocol);
+
+    return Result::SendToClient;
+  }
 
   return forward_server_to_client();
 }
 
 stdx::expected<Processor::Result, std::error_code> ReloadForwarder::error() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
+
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::server::Error>(src_channel,
+                                                          src_protocol);
+  if (!msg_res) return recv_server_failed(msg_res.error());
+
+  auto msg = *msg_res;
+
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("reload::error"));
   }
+
+  if (auto *ev = trace_span(trace_event_command_, "mysql/response")) {
+    ClassicFrame::trace_set_attributes(ev, src_protocol, msg);
+
+    trace_span_end(ev);
+  }
+
+  trace_command_end(trace_event_command_, TraceEvent::StatusCode::kError);
+
+  // at least one warning/error.
+  connection()->diagnostic_area_changed(true);
 
   stage(Stage::Done);
 

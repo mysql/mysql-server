@@ -37,6 +37,8 @@ class StmtPrepareForwarder : public ForwardingProcessor {
     Command,
     Connect,
     Connected,
+    Forward,
+    ForwardDone,
     Response,
     Column,
     EndOfColumns,
@@ -48,6 +50,8 @@ class StmtPrepareForwarder : public ForwardingProcessor {
     Done,
   };
 
+  static std::string_view prefix() { return "mysql/stmt_prepare"; }
+
   stdx::expected<Result, std::error_code> process() override;
 
   void stage(Stage stage) { stage_ = stage; }
@@ -57,6 +61,8 @@ class StmtPrepareForwarder : public ForwardingProcessor {
   stdx::expected<Result, std::error_code> command();
   stdx::expected<Result, std::error_code> connect();
   stdx::expected<Result, std::error_code> connected();
+  stdx::expected<Result, std::error_code> forward();
+  stdx::expected<Result, std::error_code> forward_done();
   stdx::expected<Result, std::error_code> response();
   stdx::expected<Result, std::error_code> ok();
   stdx::expected<Result, std::error_code> column();
@@ -75,6 +81,10 @@ class StmtPrepareForwarder : public ForwardingProcessor {
 
   uint16_t stmt_id_{};
   PreparedStatement prep_stmt_{};
+
+  TraceEvent *trace_event_command_{nullptr};
+  TraceEvent *trace_event_connect_and_forward_command_{nullptr};
+  TraceEvent *trace_event_forward_command_{nullptr};
 };
 
 #endif

@@ -54,14 +54,17 @@ class ServerGreetor : public ForwardingProcessor {
    * @param in_handshake true if the greeting is part of the initial
    * handshake.
    * @param on_error callback called on failure.
+   * @param parent_event parent span for the TraceEvents
    */
   ServerGreetor(
       MysqlRoutingClassicConnectionBase *conn, bool in_handshake,
       std::function<void(const classic_protocol::message::server::Error &)>
-          on_error)
+          on_error,
+      TraceEvent *parent_event)
       : ForwardingProcessor(conn),
         in_handshake_{in_handshake},
-        on_error_(std::move(on_error)) {}
+        on_error_(std::move(on_error)),
+        parent_event_(parent_event) {}
 
   /**
    * stages of the handshake flow.
@@ -119,6 +122,12 @@ class ServerGreetor : public ForwardingProcessor {
 
   std::function<void(const classic_protocol::message::server::Error &err)>
       on_error_;
+
+  TraceEvent *parent_event_{nullptr};
+  TraceEvent *trace_event_greeting_{nullptr};
+  TraceEvent *trace_event_server_greeting_{nullptr};
+  TraceEvent *trace_event_client_greeting_{nullptr};
+  TraceEvent *trace_event_tls_connect_{nullptr};
 };
 
 /**

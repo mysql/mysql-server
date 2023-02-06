@@ -76,7 +76,8 @@ class ForwardingProcessor : public Processor {
    *
    * @retval Result::Again on success.
    */
-  stdx::expected<Processor::Result, std::error_code> socket_reconnect_start();
+  stdx::expected<Processor::Result, std::error_code> socket_reconnect_start(
+      TraceEvent *parent_event);
 
   /**
    * reconnect a mysql classic connection.
@@ -85,7 +86,8 @@ class ForwardingProcessor : public Processor {
    *
    * when finished, a mysql connection is authenticated.
    */
-  stdx::expected<Processor::Result, std::error_code> mysql_reconnect_start();
+  stdx::expected<Processor::Result, std::error_code> mysql_reconnect_start(
+      TraceEvent *parent_event);
 
   /**
    * send a Error msg based on the reconnect_error().

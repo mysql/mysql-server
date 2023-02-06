@@ -39,6 +39,10 @@ StatisticsForwarder::process() {
       return connect();
     case Stage::Connected:
       return connected();
+    case Stage::Forward:
+      return forward();
+    case Stage::ForwardDone:
+      return forward_done();
     case Stage::Response:
       return response();
     case Stage::Done:
@@ -54,14 +58,24 @@ StatisticsForwarder::command() {
     tr.trace(Tracer::Event().stage("statistics::command"));
   }
 
+  // reset the warnings from the previous statements.
+  connection()->execution_context().diagnostics_area().warnings().clear();
+
+  trace_event_command_ = trace_command(prefix());
+
+  trace_event_connect_and_forward_command_ =
+      trace_connect_and_forward_command(trace_event_command_);
+
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
     stage(Stage::Connect);
-    return Result::Again;
   } else {
-    stage(Stage::Response);
-    return forward_client_to_server();
+    trace_event_forward_command_ =
+        trace_forward_command(trace_event_connect_and_forward_command_);
+
+    stage(Stage::Forward);
   }
+  return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code>
@@ -71,7 +85,7 @@ StatisticsForwarder::connect() {
   }
 
   stage(Stage::Connected);
-  return mysql_reconnect_start();
+  return mysql_reconnect_start(trace_event_connect_and_forward_command_);
 }
 
 stdx::expected<Processor::Result, std::error_code>
@@ -93,6 +107,9 @@ StatisticsForwarder::connected() {
       tr.trace(Tracer::Event().stage("statistics::connect::error"));
     }
 
+    trace_span_end(trace_event_connect_and_forward_command_);
+    trace_command_end(trace_event_command_);
+
     stage(Stage::Done);
     return reconnect_send_error_msg(src_channel, src_protocol);
   }
@@ -101,8 +118,27 @@ StatisticsForwarder::connected() {
     tr.trace(Tracer::Event().stage("statistics::connected"));
   }
 
-  stage(Stage::Response);
+  trace_event_forward_command_ =
+      trace_forward_command(trace_event_connect_and_forward_command_);
+
+  stage(Stage::Forward);
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+StatisticsForwarder::forward() {
+  stage(Stage::ForwardDone);
   return forward_client_to_server();
+}
+
+stdx::expected<Processor::Result, std::error_code>
+StatisticsForwarder::forward_done() {
+  stage(Stage::Response);
+
+  trace_span_end(trace_event_forward_command_);
+  trace_span_end(trace_event_connect_and_forward_command_);
+
+  return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code>
@@ -110,6 +146,8 @@ StatisticsForwarder::response() {
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("statistics::response"));
   }
+
+  trace_command_end(trace_event_command_);
 
   stage(Stage::Done);
 

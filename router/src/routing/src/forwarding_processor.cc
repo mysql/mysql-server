@@ -109,22 +109,25 @@ ForwardingProcessor::pool_server_connection() {
 }
 
 stdx::expected<Processor::Result, std::error_code>
-ForwardingProcessor::socket_reconnect_start() {
+ForwardingProcessor::socket_reconnect_start(TraceEvent *parent_event) {
   connection()->push_processor(std::make_unique<ConnectProcessor>(
-      connection(), [this](classic_protocol::message::server::Error err) {
+      connection(),
+      [this](classic_protocol::message::server::Error err) {
         reconnect_error_ = std::move(err);
-      }));
+      },
+      parent_event));
 
   return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code>
-ForwardingProcessor::mysql_reconnect_start() {
+ForwardingProcessor::mysql_reconnect_start(TraceEvent *parent_event) {
   connection()->push_processor(std::make_unique<LazyConnector>(
       connection(), false /* not in handshake */,
       [this](classic_protocol::message::server::Error err) {
         reconnect_error_ = std::move(err);
-      }));
+      },
+      parent_event));
 
   return Result::Again;
 }

@@ -79,7 +79,7 @@ RegisterReplicaForwarder::connect() {
   }
 
   stage(Stage::Connected);
-  return mysql_reconnect_start();
+  return mysql_reconnect_start(nullptr);
 }
 
 stdx::expected<Processor::Result, std::error_code>

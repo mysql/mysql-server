@@ -30,6 +30,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <variant>
 #include <vector>
 
 #include "channel.h"
@@ -43,6 +44,7 @@
 #include "mysqlrouter/connection_pool.h"
 #include "processor.h"
 #include "sql_exec_context.h"
+#include "trace_span.h"
 #include "tracer.h"
 
 /**
@@ -175,6 +177,18 @@ class ClassicProtocolState : public ProtocolStateBase {
     status_flags_ = val;
   }
 
+  /**
+   * trace the events of the commands.
+   *
+   * - enabled by ROUTER SET trace = 1
+   * - disabled by ROUTER SET trace = 0, change-user or reset-connection.
+   *
+   * @retval true if 'ROUTER SET trace' is '1'
+   * @retval false if 'ROUTER SET trace' is '0'
+   */
+  bool trace_commands() const { return trace_commands_; }
+  void trace_commands(bool val) { trace_commands_ = val; }
+
  private:
   classic_protocol::capabilities::value_type server_caps_{};
   classic_protocol::capabilities::value_type client_caps_{};
@@ -200,6 +214,9 @@ class ClassicProtocolState : public ProtocolStateBase {
 
   // status flags of the last statement.
   classic_protocol::status::value_type status_flags_{};
+
+  // if commands shall be traced.
+  bool trace_commands_{false};
 };
 
 class MysqlRoutingClassicConnectionBase
@@ -456,6 +473,11 @@ class MysqlRoutingClassicConnectionBase
    */
   void connection_sharing_allowed_reset();
 
+  /**
+   * @return a string representing the reason why sharing is blocked.
+   */
+  std::string connection_sharing_blocked_by() const;
+
  private:
   int active_work_{0};
 
@@ -546,6 +568,9 @@ class MysqlRoutingClassicConnectionBase
   }
   bool diagnostic_area_changed() const { return diagnostic_area_changed_; }
 
+  const TraceSpan &events() const { return events_; }
+  TraceSpan &events() { return events_; }
+
   enum class FromEither {
     None,
     Started,
@@ -566,6 +591,9 @@ class MysqlRoutingClassicConnectionBase
   bool diagnostic_area_changed_{};
 
   FromEither recv_from_either_{FromEither::None};
+
+  // events for router.trace.
+  TraceSpan events_;
 };
 
 #endif

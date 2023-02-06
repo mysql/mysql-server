@@ -22,38 +22,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_CLASSIC_RESET_CONNECTION_SENDER_INCLUDED
-#define ROUTING_CLASSIC_RESET_CONNECTION_SENDER_INCLUDED
+#ifndef MYSQLROUTER_CLIENT_ERROR_CODE_INCLUDED
+#define MYSQLROUTER_CLIENT_ERROR_CODE_INCLUDED
 
-#include "processor.h"
+#define ER_ROUTER_BAD_MESSAGE 6000
 
-class ResetConnectionSender : public Processor {
- public:
-  ResetConnectionSender(MysqlRoutingClassicConnectionBase *conn,
-                        TraceEvent *parent_event)
-      : Processor(conn), parent_event_(parent_event) {}
-
-  enum class Stage {
-    Command,
-    Response,
-    Ok,
-    Done,
-  };
-
-  stdx::expected<Result, std::error_code> process() override;
-
-  void stage(Stage stage) { stage_ = stage; }
-  Stage stage() const { return stage_; }
-
- private:
-  stdx::expected<Result, std::error_code> command();
-  stdx::expected<Result, std::error_code> response();
-  stdx::expected<Result, std::error_code> ok();
-
-  Stage stage_{Stage::Command};
-
-  TraceEvent *parent_event_{};
-  TraceEvent *trace_event_command_{};
-};
+#define ER_ROUTER_TRACE 6100
 
 #endif
