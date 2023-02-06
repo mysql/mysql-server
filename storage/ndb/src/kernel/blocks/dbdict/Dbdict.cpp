@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27495,6 +27495,7 @@ Dbdict::createFK_abortParse(Signal* signal, SchemaOpPtr op_ptr)
     ndbrequire(find_object(fk_ptr, impl_req->fkId));
 
     release_object(fk_ptr.p->m_obj_ptr_i);
+    c_fk_pool.release(fk_ptr);
   }
 
   sendTransConf(signal, op_ptr);
@@ -28796,6 +28797,7 @@ Dbdict::dropFK_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
     ndbrequire(find_object(fk_ptr, impl_req->fkId));
 
     release_object(fk_ptr.p->m_obj_ptr_i);
+    c_fk_pool.release(fk_ptr);
 
     sendTransConf(signal, op_ptr);
   } else {
