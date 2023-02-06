@@ -88,7 +88,7 @@ ndb$membership	2	88
 ndb$nodes	2	24
 ndb$operations	10	48
 ndb$pgman_time_track_stats	200	48
-ndb$pools	376	84
+ndb$pools	384	84
 ndb$processes	34	68
 ndb$resources	18	28
 ndb$restart_info	2	100

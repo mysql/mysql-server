@@ -29,6 +29,7 @@
 #include <ndb_limits.h>
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
+#include "CountingPool.hpp"
 #include <RWPool.hpp>
 #include <DLHashTable.hpp>
 #include <IntrusiveList.hpp>
@@ -752,7 +753,7 @@ public:
     }
   };
 
-  typedef RecordPool<RWPool<TcFKData> > FK_pool;
+  typedef CountingPool<RecordPool<RWPool<TcFKData>>> FK_pool;
   typedef KeyTable<FK_pool> FK_hash;
 
   FK_pool c_fk_pool;

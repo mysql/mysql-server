@@ -1,4 +1,8 @@
 drop table if exists t2, t1;
+select SUM(used) INTO @used_dr from ndbinfo.resources
+where resource_name='DISK_RECORDS';
+select SUM(used) INTO @used_fk from ndbinfo.ndb$pools
+where (pool_name like '%foreign%' or pool_name like '%trigger%');
 # bug#14095785
 create table t1 (
 a int not null,
@@ -912,3 +916,10 @@ insert into t1 values (3,2,2,2,2);
 insert into t1 values (4,3,3,3,3);
 delete from t1;
 drop table t1;
+select SUM(used) - @used_dr <= 8 from ndbinfo.resources where resource_name='DISK_RECORDS';
+SUM(used) - @used_dr <= 8
+1
+select ROUND(SUM(used) - @used_fk) from ndbinfo.ndb$pools
+where (pool_name like '%foreign%' or pool_name like '%trigger%');
+ROUND(SUM(used) - @used_fk)
+0
