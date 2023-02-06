@@ -35,7 +35,6 @@
 #include "classic_connect.h"
 #include "classic_connection_base.h"
 #include "classic_frame.h"
-#include "classic_query_sender.h"
 #include "hexify.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"

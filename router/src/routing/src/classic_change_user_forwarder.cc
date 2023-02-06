@@ -252,18 +252,7 @@ stdx::expected<Processor::Result, std::error_code> ChangeUserForwarder::ok() {
     tr.trace(Tracer::Event().stage("change_user::ok"));
   }
 
-  // allow connection sharing again.
-  connection()->connection_sharing_allowed_reset();
-
-  // clear the warnings
-  connection()->execution_context().diagnostics_area().warnings().clear();
-
-  // clear the prepared statements.
-  connection()->client_protocol()->prepared_statements().clear();
-
-  // disable tracer
-  connection()->client_protocol()->trace_commands(false);
-  connection()->events().active(false);
+  connection()->reset_to_initial();
 
   if (connection()->context().connection_sharing() &&
       connection()->greeting_from_router()) {

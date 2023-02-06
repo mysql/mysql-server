@@ -404,6 +404,11 @@ class MysqlRoutingClassicConnectionBase
       classic_protocol::capabilities::value_type caps,
       bool ignore_some_state_changed = false);
 
+  /**
+   * reset the connection's settings to the initial-values.
+   */
+  void reset_to_initial();
+
  private:
   void trace_and_call_function(Tracer::Event::Direction dir,
                                std::string_view stage, Function func);

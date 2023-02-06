@@ -940,3 +940,33 @@ void MysqlRoutingClassicConnectionBase::connection_sharing_allowed_reset() {
   trx_characteristics_.reset();
   some_state_changed_ = false;
 }
+
+void MysqlRoutingClassicConnectionBase::reset_to_initial() {
+  auto *src_protocol = client_protocol();
+
+  // allow connection sharing again.
+  connection_sharing_allowed_reset();
+
+  // clear the warnings
+  execution_context().diagnostics_area().warnings().clear();
+
+  // clear the prepared statements.
+  src_protocol->prepared_statements().clear();
+
+  // back to 'auto'
+  src_protocol->access_mode({});
+
+  // disable the tracer.
+  src_protocol->trace_commands(false);
+  events().active(false);
+
+  // reset the sticky read-only backend.
+  read_only_destination_id({});
+
+  // reset to initial values.
+  src_protocol->gtid_executed({});
+
+  src_protocol->wait_for_my_writes(context().wait_for_my_writes());
+  src_protocol->wait_for_my_writes_timeout(
+      context().wait_for_my_writes_timeout());
+}

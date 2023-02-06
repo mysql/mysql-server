@@ -182,29 +182,18 @@ ResetConnectionForwarder::ok() {
 
   dst_protocol->status_flags(msg.status_flags());
 
-  // allow connection sharing again.
-  connection()->connection_sharing_allowed_reset();
-
-  // clear the warnings
-  connection()->execution_context().diagnostics_area().warnings().clear();
-
-  // clear the prepared statements.
-  connection()->client_protocol()->prepared_statements().clear();
-
-  // disable the tracer.
-  connection()->client_protocol()->trace_commands(false);
-  connection()->events().active(false);
+  connection()->reset_to_initial();
 
   if (connection()->context().connection_sharing() &&
       connection()->greeting_from_router()) {
     // if connection sharing is enabled in the config, enable the
     // session-tracker.
     connection()->push_processor(std::make_unique<QuerySender>(connection(), R"(
-SET @@SESSION.session_track_schema           = 'ON',
-    @@SESSION.session_track_system_variables = '*',
-    @@SESSION.session_track_transaction_info = 'CHARACTERISTICS',
-    @@SESSION.session_track_gtids            = 'OWN_GTID',
-    @@SESSION.session_track_state_change     = 'ON')"));
+SET @@SESSION.session_track_system_variables = "*",
+    @@SESSION.session_track_schema           = "ON",
+    @@SESSION.session_track_transaction_info = "CHARACTERISTICS",
+    @@SESSION.session_track_gtids            = "OWN_GTID",
+    @@SESSION.session_track_state_change     = "ON")"));
 
     stage(Stage::Done);
   } else {
@@ -212,12 +201,12 @@ SET @@SESSION.session_track_schema           = 'ON',
   }
 
   if (!connection()->events().empty()) {
-    discard_current_msg(src_channel, src_protocol);
-
     msg.warning_count(msg.warning_count() + 1);
 
     auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
     if (!send_res) return stdx::make_unexpected(send_res.error());
+
+    discard_current_msg(src_channel, src_protocol);
 
     return Result::SendToClient;
   }

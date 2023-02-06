@@ -26,18 +26,12 @@
 
 #include <memory>
 
-#include "mysql/harness/logging/logging.h"
-#include "processor.h"
-#include "tracer.h"
-
 #include "classic_flow.h"
-
-IMPORT_LOG_FUNCTIONS()
-
-#undef DEBUG_IO
 
 void MysqlRoutingClassicConnection::async_run() {
   this->accepted();
+
+  reset_to_initial();
 
   push_processor(std::make_unique<FlowProcessor>(this));
 
