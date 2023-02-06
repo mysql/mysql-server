@@ -515,6 +515,13 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
   // - a reconnect may have failed.
   stage(Stage::IsAuthed);
 
+  // init the command tracer.
+  connection()->events().active(
+      connection()->client_protocol()->trace_commands());
+
+  // The query processor handles SHOW WARNINGS which fetches the events.
+  if (Msg{msg_type} != Msg::Query) connection()->events().clear();
+
   switch (Msg{msg_type}) {
     case Msg::Quit:
       stage(Stage::Done);  // after Quit is done, leave.

@@ -22,12 +22,26 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLROUTER_CLIENT_ERROR_CODE_INCLUDED
-#define MYSQLROUTER_CLIENT_ERROR_CODE_INCLUDED
+#ifndef ROUTING_COMMAND_ROUTER_SET_INCLUDED
+#define ROUTING_COMMAND_ROUTER_SET_INCLUDED
 
-#define ER_ROUTER_BAD_MESSAGE 6000
-#define ER_ROUTER_NOT_ALLOWED_WITH_CONNECTION_SHARING 6001
+#include <string>
+#include <string_view>
+#include <variant>
 
-#define ER_ROUTER_TRACE 6100
+class CommandRouterSet {
+ public:
+  using Value = std::variant<std::monostate, std::string, int64_t, bool>;
+
+  CommandRouterSet(std::string_view name, Value value)
+      : name_(name), value_(std::move(value)) {}
+
+  std::string name() const { return name_; }
+  Value value() const { return value_; }
+
+ private:
+  std::string name_;
+  Value value_;
+};
 
 #endif

@@ -44,12 +44,15 @@
 #include "classic_lazy_connect.h"
 #include "classic_query_sender.h"
 #include "classic_session_tracker.h"
+#include "command_router_set.h"
 #include "harness_assert.h"
 #include "hexify.h"
+#include "my_sys.h"  // get_charset_by_name
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 #include "mysql/harness/utility/string.h"
 #include "mysqld_error.h"  // mysql errors
+#include "mysqlrouter/classic_protocol_binary.h"
 #include "mysqlrouter/classic_protocol_codec_binary.h"
 #include "mysqlrouter/classic_protocol_codec_error.h"
 #include "mysqlrouter/classic_protocol_message.h"
@@ -63,6 +66,11 @@
 #include "sql_parser.h"
 
 #undef DEBUG_DUMP_TOKENS
+
+static const auto forwarded_status_flags =
+    classic_protocol::status::in_transaction |
+    classic_protocol::status::in_transaction_readonly |
+    classic_protocol::status::autocommit;
 
 /**
  * format a timepoint as json-value (date-time format).
@@ -86,6 +94,16 @@ static std::string string_from_timepoint(
       // cast to long int as it is "longlong" on 32bit, and "long" on
       // 64bit platforms, but we only have a range of 0-999
       static_cast<long int>(usec.count()));
+}
+
+static bool ieq(const std::string_view &a, const std::string_view &b) {
+  return std::equal(a.begin(), a.end(), b.begin(), b.end(),
+                    [](char lhs, char rhs) {
+                      auto ascii_tolower = [](char c) {
+                        return c >= 'A' && c <= 'Z' ? c | 0x20 : c;
+                      };
+                      return ascii_tolower(lhs) == ascii_tolower(rhs);
+                    });
 }
 
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::process() {
@@ -195,6 +213,25 @@ static std::ostream &operator<<(std::ostream &os,
   }
 
   return os;
+}
+
+static bool contains_multiple_statements(const std::string &stmt) {
+  MEM_ROOT mem_root;
+  THD session;
+  session.mem_root = &mem_root;
+
+  {
+    Parser_state parser_state;
+    parser_state.init(&session, stmt.data(), stmt.size());
+    session.m_parser_state = &parser_state;
+    SqlLexer lexer(&session);
+
+    for (auto tkn : lexer) {
+      if (tkn.id == ';') return true;
+    }
+  }
+
+  return false;
 }
 
 /*
@@ -429,11 +466,6 @@ static stdx::expected<void, std::error_code> send_resultset(
   }
 
   {
-    const auto forwarded_status_flags =
-        classic_protocol::status::in_transaction |
-        classic_protocol::status::in_transaction_readonly |
-        classic_protocol::status::autocommit;
-
     const auto send_res = ClassicFrame::send_msg<
         classic_protocol::borrowed::message::server::Eof>(
         src_channel, src_protocol,
@@ -528,8 +560,11 @@ stdx::expected<std::string, std::error_code> trace_as_json(
   rapidjson::StringBuffer buf;
   rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buf);
   writer.SetIndent(' ', 2);
+#if 0
+  // enabling it makes the trace more compact, but is also a bit less readable.
   writer.SetFormatOptions(
       rapidjson::PrettyFormatOptions::kFormatSingleLineArray);
+#endif
 
   for (const auto &event : event_time_series.events()) {
     trace_as_json(event_time_series, writer, event);
@@ -697,8 +732,297 @@ static stdx::expected<void, std::error_code> show_warnings(
   return {};
 }
 
-static stdx::expected<
-    std::variant<std::monostate, ShowWarningCount, ShowWarnings>, std::string>
+class Name_string {
+ public:
+  explicit Name_string(const char *name) : name_(name) {}
+  Name_string(std::string name) : name_(name.c_str()) {}
+
+  bool eq(const char *rhs) {
+    /*
+     * charset of system-variables
+     */
+    static const CHARSET_INFO *system_charset_info =
+        &my_charset_utf8mb3_general_ci;
+
+    return 0 == my_strcasecmp(system_charset_info, name_, rhs);
+  }
+
+ private:
+  const char *name_;
+};
+
+static stdx::expected<void, std::error_code> execute_command_router_set_trace(
+    MysqlRoutingClassicConnectionBase *connection,
+    const CommandRouterSet &cmd) {
+  auto *socket_splicer = connection->socket_splicer();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection->client_protocol();
+
+  if (std::holds_alternative<int64_t>(cmd.value())) {
+    auto val = std::get<int64_t>(cmd.value());
+
+    switch (val) {
+      case 0:
+      case 1: {
+        connection->client_protocol()->trace_commands(val != 0);
+
+        auto send_res =
+            ClassicFrame::send_msg<classic_protocol::message::server::Ok>(
+                src_channel, src_protocol,
+                {0, 0, src_protocol->status_flags() & forwarded_status_flags,
+                 0});
+        if (!send_res) return stdx::make_unexpected(send_res.error());
+
+        return {};
+      }
+
+      default: {
+        auto send_res =
+            ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+                src_channel, src_protocol,
+                {ER_WRONG_VALUE_FOR_VAR,
+                 "Variable '" + cmd.name() +
+                     "' can't be set to the value of '" + std::to_string(val) +
+                     "'",
+                 "42000"});
+        if (!send_res) return stdx::make_unexpected(send_res.error());
+
+        return {};
+      }
+    };
+  }
+
+  auto send_res =
+      ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+          src_channel, src_protocol,
+          {ER_WRONG_VALUE_FOR_VAR,
+           "Variable '" + cmd.name() + "' can't be set. Expected an integer.",
+           "42000"});
+  if (!send_res) return stdx::make_unexpected(send_res.error());
+
+  return {};
+}
+
+/*
+ * ROUTER SET <key> = <value>
+ *
+ * @retval expected        done
+ * @retval unexpected      fatal-error
+ */
+static stdx::expected<void, std::error_code> execute_command_router_set(
+    MysqlRoutingClassicConnectionBase *connection,
+    const CommandRouterSet &cmd) {
+  auto *socket_splicer = connection->socket_splicer();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection->client_protocol();
+
+  if (Name_string(cmd.name()).eq("trace")) {
+    return execute_command_router_set_trace(connection, cmd);
+  } else {
+    auto send_res =
+        ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+            src_channel, src_protocol,
+            {ER_UNKNOWN_SYSTEM_VARIABLE,
+             "Unknown Router system variable '" + cmd.name() + "'", "HY000"});
+    if (!send_res) return stdx::make_unexpected(send_res.error());
+
+    return {};
+  }
+
+  return {};
+}
+
+class InterceptedStatementsParser : public ShowWarningsParser {
+ public:
+  using ShowWarningsParser::ShowWarningsParser;
+
+  stdx::expected<std::variant<std::monostate, ShowWarningCount, ShowWarnings,
+                              CommandRouterSet>,
+                 std::string>
+  parse() {
+    if (accept(SHOW)) {
+      if (accept(WARNINGS)) {
+        stdx::expected<Limit, std::string> limit_res;
+
+        if (accept(LIMIT)) {  // optional limit
+          limit_res = limit();
+        }
+
+        if (accept(END_OF_INPUT)) {
+          if (limit_res) {
+            return {std::in_place,
+                    ShowWarnings{ShowWarnings::Verbosity::Warning,
+                                 limit_res->row_count, limit_res->offset}};
+          }
+
+          return {std::in_place,
+                  ShowWarnings{ShowWarnings::Verbosity::Warning}};
+        }
+
+        // unexpected input after SHOW WARNINGS [LIMIT ...]
+        return {};
+      } else if (accept(ERRORS)) {
+        stdx::expected<Limit, std::string> limit_res;
+
+        if (accept(LIMIT)) {
+          limit_res = limit();
+        }
+
+        if (accept(END_OF_INPUT)) {
+          if (limit_res) {
+            return {std::in_place,
+                    ShowWarnings{ShowWarnings::Verbosity::Error,
+                                 limit_res->row_count, limit_res->offset}};
+          }
+
+          return {std::in_place, ShowWarnings{ShowWarnings::Verbosity::Error}};
+        }
+
+        // unexpected input after SHOW ERRORS [LIMIT ...]
+        return {};
+      } else if (accept(COUNT_SYM) && accept('(') && accept('*') &&
+                 accept(')')) {
+        if (accept(WARNINGS)) {
+          if (accept(END_OF_INPUT)) {
+            return {std::in_place,
+                    ShowWarningCount{ShowWarnings::Verbosity::Warning,
+                                     ShowWarningCount::Scope::Session}};
+          }
+
+          // unexpected input after SHOW COUNT(*) WARNINGS
+          return {};
+        } else if (accept(ERRORS)) {
+          if (accept(END_OF_INPUT)) {
+            return {std::in_place,
+                    ShowWarningCount{ShowWarnings::Verbosity::Error,
+                                     ShowWarningCount::Scope::Session}};
+          }
+
+          // unexpected input after SHOW COUNT(*) ERRORS
+          return {};
+        }
+
+        // unexpected input after SHOW COUNT(*), expected WARNINGS|ERRORS.
+        return {};
+      } else {
+        // unexpected input after SHOW, expected WARNINGS|ERRORS|COUNT
+        return {};
+      }
+    } else if (accept(SELECT_SYM)) {
+      // match
+      //
+      // SELECT @@((LOCAL|SESSION).)?warning_count|error_count;
+      //
+      if (accept('@')) {
+        if (accept('@')) {
+          if (accept(SESSION_SYM)) {
+            if (accept('.')) {
+              auto ident_res = warning_count_ident();
+              if (ident_res && accept(END_OF_INPUT)) {
+                return {std::in_place,
+                        ShowWarningCount(*ident_res,
+                                         ShowWarningCount::Scope::Session)};
+              }
+            }
+          } else if (accept(LOCAL_SYM)) {
+            if (accept('.')) {
+              auto ident_res = warning_count_ident();
+              if (ident_res && accept(END_OF_INPUT)) {
+                return {std::in_place,
+                        ShowWarningCount(*ident_res,
+                                         ShowWarningCount::Scope::Local)};
+              }
+            }
+          } else {
+            auto ident_res = warning_count_ident();
+            if (ident_res && accept(END_OF_INPUT)) {
+              return {
+                  std::in_place,
+                  ShowWarningCount(*ident_res, ShowWarningCount::Scope::None)};
+            }
+          }
+        }
+      }
+    } else if (auto tkn = accept(IDENT)) {
+      if (ieq(tkn.text(), "router")) {       // ROUTER
+        if (accept(SET_SYM)) {               // SET
+          if (auto name_tkn = ident()) {     // <name>
+            if (accept(EQ)) {                // =
+              if (auto val = value()) {      // <value>
+                if (accept(END_OF_INPUT)) {  // $
+                  return {std::in_place,
+                          CommandRouterSet(name_tkn.text(), *val)};
+                } else {
+                  return stdx::make_unexpected(
+                      "ROUTER SET <name> = <value>. Extra data.");
+                }
+              } else {
+                return stdx::make_unexpected(
+                    "ROUTER SET <name> = expected <value>. " + error_);
+              }
+            } else {
+              return stdx::make_unexpected("ROUTER SET <name> expects =");
+            }
+          } else {
+            return stdx::make_unexpected("ROUTER SET expects <name>.");
+          }
+        } else {
+          return stdx::make_unexpected("ROUTER expects SET.");
+        }
+      }
+    }
+
+    // not matched.
+    return {};
+  }
+
+ private:
+  // convert a NUM to a number
+  //
+  // NUM is a bare number.
+  //
+  // no leading minus or plus [both independent symbols '-' and '+']
+  // no 0x... [HEX_NUM],
+  // no 0b... [BIN_NUM],
+  // no (1.0) [DECIMAL_NUM]
+  template <class R>
+  static R sv_to_num(std::string_view s) {
+    R v{};
+
+    const auto conv_res = std::from_chars(s.data(), s.data() + s.size(), v);
+    if (conv_res.ec == std::errc{}) {
+      return v;
+    } else {
+      // NUM is a number, it should always convert.
+      harness_assert_this_should_not_execute();
+    }
+  }
+
+  stdx::expected<CommandRouterSet::Value, std::string> value() {
+    if (accept(TRUE_SYM)) return {std::in_place, true};
+    if (accept(FALSE_SYM)) return {std::in_place, false};
+
+    if (accept('-')) {
+      if (auto num_tkn = expect(NUM)) {
+        auto num = sv_to_num<int64_t>(num_tkn.text());
+        return {std::in_place, -num};
+      }
+    } else if (auto tkn = accept(NUM)) {
+      auto num = sv_to_num<uint64_t>(tkn.text());
+      return {std::in_place, static_cast<int64_t>(num)};
+    } else if (auto tkn = accept(TEXT_STRING)) {
+      return {std::in_place, std::string(tkn.text())};
+    } else {
+      return stdx::make_unexpected("Expected <BOOL>, <NUM> or <STRING>");
+    }
+
+    return stdx::make_unexpected(error_);
+  }
+};
+
+static stdx::expected<std::variant<std::monostate, ShowWarningCount,
+                                   ShowWarnings, CommandRouterSet>,
+                      std::string>
 intercept_diagnostics_area_queries(std::string_view stmt) {
   MEM_ROOT mem_root;
   THD session;
@@ -710,7 +1034,7 @@ intercept_diagnostics_area_queries(std::string_view stmt) {
     session.m_parser_state = &parser_state;
     SqlLexer lexer{&session};
 
-    return ShowWarningsParser(lexer.begin(), lexer.end()).parse();
+    return InterceptedStatementsParser(lexer.begin(), lexer.end()).parse();
   }
 }
 
@@ -1111,6 +1435,315 @@ static stdx::expected<std::string, std::error_code> param_to_string(
   return oss.str();
 }
 
+stdx::expected<uint64_t, std::error_code> param_to_number(
+    classic_protocol::message::client::Query::Param param) {
+  switch (param.type_and_flags & 0xff) {
+    case binary_type<classic_protocol::binary::Blob>():
+    case binary_type<classic_protocol::binary::TinyBlob>():
+    case binary_type<classic_protocol::binary::MediumBlob>():
+    case binary_type<classic_protocol::binary::LongBlob>():
+    case binary_type<classic_protocol::binary::Varchar>():
+    case binary_type<classic_protocol::binary::VarString>():
+    case binary_type<classic_protocol::binary::String>(): {
+      uint64_t val{};
+
+      auto str = *param.value;
+
+      auto conv_res = std::from_chars(str.data(), str.data() + str.size(), val);
+      if (conv_res.ec == std::errc{}) return val;
+
+      return stdx::make_unexpected(make_error_code(conv_res.ec));
+    }
+    case binary_type<classic_protocol::binary::Tiny>(): {
+      auto decode_res =
+          classic_protocol::Codec<classic_protocol::binary::Tiny>::decode(
+              net::buffer(*param.value), {});
+
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      return decode_res->second.value();
+    }
+    case binary_type<classic_protocol::binary::Short>(): {
+      auto decode_res =
+          classic_protocol::Codec<classic_protocol::binary::Short>::decode(
+              net::buffer(*param.value), {});
+
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      return decode_res->second.value();
+    }
+    case binary_type<classic_protocol::binary::Int24>(): {
+      auto decode_res =
+          classic_protocol::Codec<classic_protocol::binary::Int24>::decode(
+              net::buffer(*param.value), {});
+
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      return decode_res->second.value();
+    }
+    case binary_type<classic_protocol::binary::Long>(): {
+      auto decode_res =
+          classic_protocol::Codec<classic_protocol::binary::Long>::decode(
+              net::buffer(*param.value), {});
+
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      return decode_res->second.value();
+    }
+    case binary_type<classic_protocol::binary::LongLong>(): {
+      auto decode_res =
+          classic_protocol::Codec<classic_protocol::binary::LongLong>::decode(
+              net::buffer(*param.value), {});
+
+      if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+      return decode_res->second.value();
+    }
+  }
+
+  // all other types: fail.
+  return stdx::make_unexpected(make_error_code(std::errc::bad_message));
+}
+
+/*
+ * fetch the warnings from the server and inject the trace.
+ */
+class ForwardedShowWarningsHandler : public QuerySender::Handler {
+ public:
+  explicit ForwardedShowWarningsHandler(
+      MysqlRoutingClassicConnectionBase *connection,
+      ShowWarnings::Verbosity verbosity)
+      : connection_(connection), verbosity_(verbosity) {}
+
+  void on_column_count(uint64_t count) override {
+    auto *socket_splicer = connection_->socket_splicer();
+    auto *dst_channel = socket_splicer->client_channel();
+    auto *dst_protocol = connection_->client_protocol();
+
+    // forward the message.
+    auto send_res =
+        ClassicFrame::send_msg<classic_protocol::message::server::ColumnCount>(
+            dst_channel, dst_protocol, {count});
+    if (!send_res) something_failed_ = true;
+
+    col_count_ = count;
+
+    if (col_count_ != 3) something_failed_ = true;
+  }
+
+  void on_column(
+      const classic_protocol::message::server::ColumnMeta &col) override {
+    auto *socket_splicer = connection_->socket_splicer();
+    auto *dst_channel = socket_splicer->client_channel();
+    auto *dst_protocol = connection_->client_protocol();
+
+    auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, col);
+    if (!send_res) {
+      something_failed_ = true;
+    }
+
+    switch (col_cur_) {
+      case 0:
+        if (col.name() != "Level") {
+          something_failed_ = true;
+        }
+        break;
+      case 1:
+        if (col.name() != "Code") {
+          something_failed_ = true;
+        }
+        break;
+      case 2:
+        if (col.name() != "Message") {
+          something_failed_ = true;
+        }
+        break;
+      default:
+        something_failed_ = true;
+        break;
+    }
+
+    ++col_cur_;
+  }
+
+  void on_row(const classic_protocol::message::server::Row &msg) override {
+    auto *socket_splicer = connection_->socket_splicer();
+    auto *dst_channel = socket_splicer->client_channel();
+    auto *dst_protocol = connection_->client_protocol();
+
+    auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
+    if (!send_res) something_failed_ = true;
+  }
+
+  // end of rows.
+  void on_row_end(const classic_protocol::message::server::Eof &msg) override {
+    auto *socket_splicer = connection_->socket_splicer();
+    auto *dst_channel = socket_splicer->client_channel();
+    auto *dst_protocol = connection_->client_protocol();
+
+    // inject the trace, if there are events and the user asked for WARNINGS.
+    if (!something_failed_ && !connection_->events().empty() &&
+        verbosity_ == ShowWarnings::Verbosity::Warning) {
+      const auto trace_res = trace_as_json(connection_->events());
+      if (trace_res) {
+        using msg_type = classic_protocol::message::server::Row;
+        const auto send_res = ClassicFrame::send_msg<msg_type>(
+            dst_channel, dst_protocol,
+            std::vector<msg_type::value_type>{
+                {"Note"}, {std::to_string(ER_ROUTER_TRACE)}, {*trace_res}});
+        if (!send_res) something_failed_ = true;
+      }
+    }
+
+    const auto send_res =
+        ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
+    if (!send_res) something_failed_ = true;
+  }
+
+  void on_ok(const classic_protocol::message::server::Ok &msg) override {
+    auto *socket_splicer = connection_->socket_splicer();
+    auto *dst_channel = socket_splicer->client_channel();
+    auto *dst_protocol = connection_->client_protocol();
+
+    const auto send_res =
+        ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
+    if (!send_res) something_failed_ = true;
+  }
+
+  void on_error(const classic_protocol::message::server::Error &msg) override {
+    auto *socket_splicer = connection_->socket_splicer();
+    auto *dst_channel = socket_splicer->client_channel();
+    auto *dst_protocol = connection_->client_protocol();
+
+    const auto send_res =
+        ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
+    if (!send_res) something_failed_ = true;
+  }
+
+ private:
+  uint64_t col_count_{};
+  uint64_t col_cur_{};
+  MysqlRoutingClassicConnectionBase *connection_;
+
+  bool something_failed_{false};
+
+  ShowWarnings::Verbosity verbosity_;
+};
+
+/*
+ * fetch the warning count from the server and increment the warning-count.
+ */
+class ForwardedShowWarningCountHandler : public QuerySender::Handler {
+ public:
+  explicit ForwardedShowWarningCountHandler(
+      MysqlRoutingClassicConnectionBase *connection,
+      ShowWarnings::Verbosity verbosity)
+      : connection_(connection), verbosity_(verbosity) {}
+
+  void on_column_count(uint64_t count) override {
+    auto *socket_splicer = connection_->socket_splicer();
+    auto *dst_channel = socket_splicer->client_channel();
+    auto *dst_protocol = connection_->client_protocol();
+
+    // forward the message.
+    auto send_res =
+        ClassicFrame::send_msg<classic_protocol::message::server::ColumnCount>(
+            dst_channel, dst_protocol, {count});
+    if (!send_res) something_failed_ = true;
+
+    col_count_ = count;
+
+    if (col_count_ != 1) something_failed_ = true;
+  }
+
+  void on_column(
+      const classic_protocol::message::server::ColumnMeta &col) override {
+    auto *socket_splicer = connection_->socket_splicer();
+    auto *dst_channel = socket_splicer->client_channel();
+    auto *dst_protocol = connection_->client_protocol();
+
+    auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, col);
+    if (!send_res) {
+      something_failed_ = true;
+    }
+  }
+
+  void on_row(const classic_protocol::message::server::Row &msg) override {
+    auto *socket_splicer = connection_->socket_splicer();
+    auto *dst_channel = socket_splicer->client_channel();
+    auto *dst_protocol = connection_->client_protocol();
+
+    // increment the warning count, if there are events and the user asked for
+    // WARNINGS.
+    if (!something_failed_ && !connection_->events().empty() &&
+        verbosity_ == ShowWarnings::Verbosity::Warning &&
+        msg.begin() != msg.end()) {
+      auto fld = *msg.begin();
+
+      if (fld.has_value()) {
+        // fld is a numeric string
+        //
+        // convert it to a number, increment it and convert it back to a string.
+        uint64_t warning_count;
+        const auto conv_res = std::from_chars(
+            fld->data(), fld->data() + fld->size(), warning_count);
+        if (conv_res.ec == std::errc{}) {
+          auto send_res =
+              ClassicFrame::send_msg<classic_protocol::message::server::Row>(
+                  dst_channel, dst_protocol,
+                  {{std::to_string(warning_count + 1)}});
+          if (!send_res) something_failed_ = true;
+
+          return;
+        }
+      }
+    }
+
+    auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
+    if (!send_res) something_failed_ = true;
+  }
+
+  // end of rows.
+  void on_row_end(const classic_protocol::message::server::Eof &msg) override {
+    auto *socket_splicer = connection_->socket_splicer();
+    auto *dst_channel = socket_splicer->client_channel();
+    auto *dst_protocol = connection_->client_protocol();
+
+    const auto send_res =
+        ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
+    if (!send_res) something_failed_ = true;
+  }
+
+  void on_ok(const classic_protocol::message::server::Ok &msg) override {
+    auto *socket_splicer = connection_->socket_splicer();
+    auto *dst_channel = socket_splicer->client_channel();
+    auto *dst_protocol = connection_->client_protocol();
+
+    const auto send_res =
+        ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
+    if (!send_res) something_failed_ = true;
+  }
+
+  void on_error(const classic_protocol::message::server::Error &msg) override {
+    auto *socket_splicer = connection_->socket_splicer();
+    auto *dst_channel = socket_splicer->client_channel();
+    auto *dst_protocol = connection_->client_protocol();
+
+    const auto send_res =
+        ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
+    if (!send_res) something_failed_ = true;
+  }
+
+ private:
+  uint64_t col_count_{};
+  uint64_t col_cur_{};
+  MysqlRoutingClassicConnectionBase *connection_;
+
+  bool something_failed_{false};
+
+  ShowWarnings::Verbosity verbosity_;
+};
+
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
   auto *socket_splicer = connection()->socket_splicer();
   auto *src_channel = socket_splicer->client_channel();
@@ -1164,57 +1797,190 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
           oss.str()));
     }
 
-    if (connection()->connection_sharing_allowed()) {
-      // the diagnostics-area is only maintained, if connection-sharing is
-      // allowed.
-      //
-      // Otherwise, all queries for the to the diagnostics area MUST go to the
-      // server.
-      auto intercept_res =
-          intercept_diagnostics_area_queries(msg_res->statement());
-      if (intercept_res) {
-        if (std::holds_alternative<std::monostate>(*intercept_res)) {
-          // no match
-        } else if (std::holds_alternative<ShowWarnings>(*intercept_res)) {
-          discard_current_msg(src_channel, src_protocol);
+    if (src_protocol->shared_capabilities().test(
+            classic_protocol::capabilities::pos::multi_statements) &&
+        contains_multiple_statements(msg_res->statement())) {
+      auto send_res = ClassicFrame::send_msg<
+          classic_protocol::message::server::Error>(
+          src_channel, src_protocol,
+          {ER_ROUTER_NOT_ALLOWED_WITH_CONNECTION_SHARING,
+           "Multi-Statements are forbidden if connection-sharing is enabled.",
+           "HY000"});
+      if (!send_res) return send_client_failed(send_res.error());
 
-          auto cmd = std::get<ShowWarnings>(*intercept_res);
+      discard_current_msg(src_channel, src_protocol);
 
+      stage(Stage::Done);
+      return Result::SendToClient;
+    }
+
+    // the diagnostics-area is only maintained, if connection-sharing is
+    // allowed.
+    //
+    // Otherwise, all queries for the diagnostics area MUST go to the
+    // server.
+    const auto intercept_res =
+        intercept_diagnostics_area_queries(msg_res->statement());
+    if (intercept_res) {
+      if (std::holds_alternative<std::monostate>(*intercept_res)) {
+        // no match
+      } else if (std::holds_alternative<ShowWarnings>(*intercept_res)) {
+        auto cmd = std::get<ShowWarnings>(*intercept_res);
+
+        discard_current_msg(src_channel, src_protocol);
+
+        if (connection()->connection_sharing_allowed()) {
           auto send_res = show_warnings(connection(), cmd.verbosity(),
                                         cmd.row_count(), cmd.offset());
           if (!send_res) return send_client_failed(send_res.error());
 
           stage(Stage::Done);
           return Result::SendToClient;
-        } else if (std::holds_alternative<ShowWarningCount>(*intercept_res)) {
-          discard_current_msg(src_channel, src_protocol);
+        } else {
+          // send the message to the backend, and inject the trace if there is
+          // one.
+          stage(Stage::SendQueued);
 
-          auto cmd = std::get<ShowWarningCount>(*intercept_res);
+          connection()->push_processor(std::make_unique<QuerySender>(
+              connection(), msg_res->statement(),
+              std::make_unique<ForwardedShowWarningsHandler>(connection(),
+                                                             cmd.verbosity())));
 
+          return Result::Again;
+        }
+      } else if (std::holds_alternative<ShowWarningCount>(*intercept_res)) {
+        auto cmd = std::get<ShowWarningCount>(*intercept_res);
+
+        discard_current_msg(src_channel, src_protocol);
+
+        if (connection()->connection_sharing_allowed()) {
           auto send_res =
               show_warning_count(connection(), cmd.verbosity(), cmd.scope());
           if (!send_res) return send_client_failed(send_res.error());
 
           stage(Stage::Done);
           return Result::SendToClient;
+        } else {
+          // send the message to the backend, and increment the warning count
+          // if there is a trace.
+          stage(Stage::SendQueued);
+
+          connection()->push_processor(std::make_unique<QuerySender>(
+              connection(), msg_res->statement(),
+              std::make_unique<ForwardedShowWarningCountHandler>(
+                  connection(), cmd.verbosity())));
+
+          return Result::Again;
         }
-      } else {
+      } else if (std::holds_alternative<CommandRouterSet>(*intercept_res)) {
         discard_current_msg(src_channel, src_protocol);
 
-        auto send_res =
-            ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-                src_channel, src_protocol,
-                {1064, intercept_res.error(), "42000"});
-        if (!send_res) return send_client_failed(send_res.error());
+        connection()->execution_context().diagnostics_area().warnings().clear();
+        connection()->events().clear();
+
+        auto cmd = std::get<CommandRouterSet>(*intercept_res);
+
+        auto set_res = execute_command_router_set(connection(), cmd);
+        if (!set_res) return send_client_failed(set_res.error());
 
         stage(Stage::Done);
         return Result::SendToClient;
       }
+    } else {
+      discard_current_msg(src_channel, src_protocol);
+
+      auto send_res =
+          ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+              src_channel, src_protocol,
+              {1064, intercept_res.error(), "42000"});
+      if (!send_res) return send_client_failed(send_res.error());
+
+      stage(Stage::Done);
+      return Result::SendToClient;
     }
 
     // not a SHOW WARNINGS or so, reset the warnings.
     connection()->execution_context().diagnostics_area().warnings().clear();
     connection()->events().clear();
+
+    auto collation_connection = connection()
+                                    ->execution_context()
+                                    .system_variables()
+                                    .get("collation_connection")
+                                    .value()
+                                    .value_or("utf8mb4");
+
+    const CHARSET_INFO *cs_collation_connection =
+        get_charset_by_name(collation_connection.c_str(), 0);
+
+    for (const auto &param : msg_res->values()) {
+      if (0 == my_strcasecmp(cs_collation_connection, param.name.c_str(),
+                             "router.trace")) {
+        if (param.value) {
+          auto val_res = param_to_number(param);
+          if (val_res) {
+            switch (*val_res) {
+              case 0:
+              case 1:
+                connection()->events().active(*val_res != 0);
+                break;
+              default:
+                discard_current_msg(src_channel, src_protocol);
+
+                auto send_res = ClassicFrame::send_msg<
+                    classic_protocol::message::server::Error>(
+                    src_channel, src_protocol,
+                    {1064, "Query attribute 'router.trace' requires 0 or 1",
+                     "42000"});
+                if (!send_res) return send_client_failed(send_res.error());
+
+                stage(Stage::Done);
+                return Result::SendToClient;
+            }
+          } else {
+            discard_current_msg(src_channel, src_protocol);
+
+            auto send_res = ClassicFrame::send_msg<
+                classic_protocol::message::server::Error>(
+                src_channel, src_protocol,
+                {1064, "Query attribute 'router.trace' requires a number",
+                 "42000"});
+            if (!send_res) return send_client_failed(send_res.error());
+
+            stage(Stage::Done);
+            return Result::SendToClient;
+          }
+        } else {
+          discard_current_msg(src_channel, src_protocol);
+
+          auto send_res =
+              ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+                  src_channel, src_protocol,
+                  {1064, "router.trace requires a value", "42000"});
+          if (!send_res) return send_client_failed(send_res.error());
+
+          stage(Stage::Done);
+          return Result::SendToClient;
+        }
+      } else {
+        std::string param_prefix = param.name.substr(0, 7);
+        if (0 == my_strcasecmp(cs_collation_connection, param_prefix.c_str(),
+                               "router.")) {
+          // unknown router. query-attribute.
+          discard_current_msg(src_channel, src_protocol);
+
+          auto send_res =
+              ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+                  src_channel, src_protocol,
+                  {1064, "Query attribute " + param.name + " is unknown",
+                   "42000"});
+          if (!send_res) return send_client_failed(send_res.error());
+
+          stage(Stage::Done);
+          return Result::SendToClient;
+        }
+      }
+    }
 
     trace_event_command_ = trace_command(prefix());
 
