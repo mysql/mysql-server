@@ -66,6 +66,56 @@ class ForwardingProcessor : public Processor {
    * move the server connection to the pool.
    */
   stdx::expected<bool, std::error_code> pool_server_connection();
+
+  /**
+   * reconnect a socket.
+   *
+   * pushes a ConnectProcessor on the processor stack.
+   *
+   * when finished, a socket is established.
+   *
+   * @retval Result::Again on success.
+   */
+  stdx::expected<Processor::Result, std::error_code> socket_reconnect_start();
+
+  /**
+   * reconnect a mysql classic connection.
+   *
+   * pushes a LazyConnector on the processor stack.
+   *
+   * when finished, a mysql connection is authenticated.
+   */
+  stdx::expected<Processor::Result, std::error_code> mysql_reconnect_start();
+
+  /**
+   * send a Error msg based on the reconnect_error().
+   *
+   * @retval Result::SendToClient on success.
+   */
+  stdx::expected<Processor::Result, std::error_code> reconnect_send_error_msg(
+      Channel *src_channel, ClassicProtocolState *src_protocol);
+
+  /**
+   * set the reconnect error.
+   *
+   * may be called from handlers.
+   */
+  void reconnect_error(classic_protocol::message::server::Error err) {
+    reconnect_error_ = std::move(err);
+  }
+
+  /**
+   * get the reconnect error.
+   */
+  classic_protocol::message::server::Error reconnect_error() const {
+    return reconnect_error_;
+  }
+
+ private:
+  /**
+   * reconnect error set by lazy_reconnect_start().
+   */
+  classic_protocol::message::server::Error reconnect_error_{};
 };
 
 #endif

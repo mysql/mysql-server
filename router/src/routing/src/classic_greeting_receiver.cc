@@ -667,8 +667,11 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::accepted() {
 
   if (dst_protocol->server_greeting().has_value()) {
     // server-greeting is already present.
-    connection()->push_processor(
-        std::make_unique<ServerFirstAuthenticator>(connection()));
+    connection()->push_processor(std::make_unique<ServerFirstAuthenticator>(
+        connection(),
+        [this](const classic_protocol::message::server::Error &err) {
+          connect_err_ = err;
+        }));
   } else {
     // server side requires TLS?
 
@@ -683,8 +686,11 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::accepted() {
                                 (source_ssl_mode == SslMode::kPreferred ||
                                  source_ssl_mode == SslMode::kRequired)));
 
-    connection()->push_processor(
-        std::make_unique<LazyConnector>(connection(), true /* in handshake */));
+    connection()->push_processor(std::make_unique<LazyConnector>(
+        connection(), true /* in handshake */,
+        [this](const classic_protocol::message::server::Error &err) {
+          connect_err_ = err;
+        }));
   }
 
   return Result::Again;
@@ -692,16 +698,27 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::accepted() {
 
 stdx::expected<Processor::Result, std::error_code>
 ClientGreetor::authenticated() {
-  if (connection()->authenticated()) {
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("greeting::auth::done"));
-    }
-    stage(Stage::Ok);
-  } else {
+  if (!connection()->authenticated()) {
+    auto *src_channel = connection()->socket_splicer()->client_channel();
+    auto *src_protocol = connection()->client_protocol();
+
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("greeting::error"));
     }
+
     stage(Stage::Error);
+
+    auto send_res =
+        ClassicFrame::send_msg(src_channel, src_protocol, connect_err_);
+    if (!send_res) return send_client_failed(send_res.error());
+
+    return Result::SendToClient;
   }
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("greeting::auth::done"));
+  }
+
+  stage(Stage::Ok);
   return Result::Again;
 }

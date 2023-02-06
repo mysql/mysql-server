@@ -637,15 +637,11 @@ ConnectProcessor::connected() {
 }
 
 stdx::expected<Processor::Result, std::error_code> ConnectProcessor::error() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto dst_channel = socket_splicer->client_channel();
-  auto dst_protocol = connection()->client_protocol();
-
-  auto tcp_conn = dynamic_cast<TcpConnection *>(
+  auto *tcp_conn = dynamic_cast<TcpConnection *>(
       connection()->socket_splicer()->server_conn().connection().get());
 
   // close socket if it is already open
-  if (tcp_conn) (void)tcp_conn->close();
+  if (tcp_conn != nullptr) (void)tcp_conn->close();
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("connect::error"));
@@ -686,13 +682,9 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::error() {
   connection()->client_greeting_sent(true);
   connection()->authenticated(false);
 
-  const auto send_res = ClassicFrame::send_msg<
-      classic_protocol::borrowed::message::server::Error>(
-      dst_channel, dst_protocol,
-      {2003, "Can't connect to remote MySQL server"});
-  if (!send_res) return send_client_failed(send_res.error());
-
   stage(Stage::Done);
 
-  return Result::SendToClient;
+  on_error_({2003, "Can't connect to remote MySQL server", "HY000"});
+
+  return Result::Again;
 }

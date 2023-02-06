@@ -43,22 +43,25 @@ class ServerGreetor : public ForwardingProcessor {
    * setup between client<->router<->server (in_handshake=true) or
    * when router starts a connection on its own.
    *
-   * If `in_handshake` is true, a auth-method switch request by the
-   * server can be sent to the client.
+   * If `in_handshake` is true, the ServerGreetor expects it can send:
    *
-   * The ServerGreetor expects it can send
-   *
-   * - server::Error
-   * - server::AuthMethodSwitch and server::Ok (if in_handshake==true)
+   * - server::AuthMethodSwitch and
+   * - server::Ok
    *
    * to the client connection.
    *
    * @param conn the connection the greeting will be transferred on.
    * @param in_handshake true if the greeting is part of the initial
    * handshake.
+   * @param on_error callback called on failure.
    */
-  ServerGreetor(MysqlRoutingClassicConnectionBase *conn, bool in_handshake)
-      : ForwardingProcessor(conn), in_handshake_{in_handshake} {}
+  ServerGreetor(
+      MysqlRoutingClassicConnectionBase *conn, bool in_handshake,
+      std::function<void(const classic_protocol::message::server::Error &)>
+          on_error)
+      : ForwardingProcessor(conn),
+        in_handshake_{in_handshake},
+        on_error_(std::move(on_error)) {}
 
   /**
    * stages of the handshake flow.
@@ -113,6 +116,9 @@ class ServerGreetor : public ForwardingProcessor {
   bool in_handshake_;
 
   Stage stage_{Stage::ServerGreeting};
+
+  std::function<void(const classic_protocol::message::server::Error &err)>
+      on_error_;
 };
 
 /**
@@ -166,7 +172,11 @@ class ServerFirstConnector : public ForwardingProcessor {
  */
 class ServerFirstAuthenticator : public ForwardingProcessor {
  public:
-  using ForwardingProcessor::ForwardingProcessor;
+  ServerFirstAuthenticator(
+      MysqlRoutingClassicConnectionBase *conn,
+      std::function<void(const classic_protocol::message::server::Error &)>
+          on_error)
+      : ForwardingProcessor(conn), on_error_(std::move(on_error)) {}
 
   /**
    * stages of the handshake flow.
@@ -217,6 +227,9 @@ class ServerFirstAuthenticator : public ForwardingProcessor {
   size_t server_last_send_buf_size_{};
 
   Stage stage_{Stage::ClientGreeting};
+
+  std::function<void(const classic_protocol::message::server::Error &err)>
+      on_error_;
 };
 
 #endif

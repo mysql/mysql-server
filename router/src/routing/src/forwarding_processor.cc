@@ -26,8 +26,11 @@
 
 #include <memory>  // make_unique
 
+#include "classic_connect.h"
 #include "classic_connection_base.h"
 #include "classic_forwarder.h"
+#include "classic_frame.h"
+#include "classic_lazy_connect.h"
 #include "mysqlrouter/connection_pool_component.h"
 
 stdx::expected<Processor::Result, std::error_code>
@@ -103,4 +106,46 @@ ForwardingProcessor::pool_server_connection() {
   }
 
   return {true};
+}
+
+stdx::expected<Processor::Result, std::error_code>
+ForwardingProcessor::socket_reconnect_start() {
+  connection()->push_processor(std::make_unique<ConnectProcessor>(
+      connection(), [this](classic_protocol::message::server::Error err) {
+        reconnect_error_ = std::move(err);
+      }));
+
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+ForwardingProcessor::mysql_reconnect_start() {
+  connection()->push_processor(std::make_unique<LazyConnector>(
+      connection(), false /* not in handshake */,
+      [this](classic_protocol::message::server::Error err) {
+        reconnect_error_ = std::move(err);
+      }));
+
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+ForwardingProcessor::reconnect_send_error_msg(
+    Channel *src_channel, ClassicProtocolState *src_protocol) {
+  auto err = reconnect_error_.error_code() != 0
+                 ? reconnect_error_
+                 : classic_protocol::message::server::Error{
+                       2003, "Connect to backend failed.", "HY000"};
+
+  if (err.error_code() == 1045) {
+    // rewrite the auth-fail error.
+    err.message("Access denied for user '" +
+                connection()->client_protocol()->username() +
+                "' for router while reauthenticating");
+  }
+
+  auto send_res = ClassicFrame::send_msg(src_channel, src_protocol, err);
+  if (!send_res) return send_client_failed(send_res.error());
+
+  return Result::SendToClient;
 }

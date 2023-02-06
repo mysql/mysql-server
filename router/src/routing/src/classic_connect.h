@@ -34,11 +34,15 @@
 
 class ConnectProcessor : public Processor {
  public:
-  ConnectProcessor(MysqlRoutingClassicConnectionBase *conn)
+  ConnectProcessor(
+      MysqlRoutingClassicConnectionBase *conn,
+      std::function<void(const classic_protocol::message::server::Error &err)>
+          on_error)
       : Processor(conn),
         io_ctx_{conn->socket_splicer()->client_conn().connection()->io_ctx()},
         destinations_{conn->current_destinations()},
-        destinations_it_{destinations_.begin()} {}
+        destinations_it_{destinations_.begin()},
+        on_error_(std::move(on_error)) {}
 
   using server_protocol_type = net::ip::tcp;
 
@@ -92,6 +96,9 @@ class ConnectProcessor : public Processor {
 
   std::error_code last_ec_{
       make_error_code(std::errc::no_such_file_or_directory)};
+
+  std::function<void(const classic_protocol::message::server::Error &err)>
+      on_error_;
 };
 
 #endif

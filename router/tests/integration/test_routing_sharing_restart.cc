@@ -963,7 +963,8 @@ TEST_P(ShareConnectionTestWithRestartedServer,
 
         if (*recv_res == 0) {
           // connection closed.
-          ASSERT_TRUE(!can_share);
+          ASSERT_TRUE(!can_share)
+              << "Connection was closed. Expected error-msg. ";
         } else {
           ASSERT_GT(*recv_res, 5) << mysql_harness::hexify(buf);
           ASSERT_EQ(buf[4], 0xff) << mysql_harness::hexify(buf);

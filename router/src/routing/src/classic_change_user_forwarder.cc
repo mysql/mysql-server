@@ -149,7 +149,10 @@ ChangeUserForwarder::command() {
     // connection to the server exists, create a new ChangeUser command (don't
     // forward the client's as is) as the attributes need to be modified.
     connection()->push_processor(std::make_unique<ChangeUserSender>(
-        connection(), true /* in-handshake */));
+        connection(), true /* in-handshake */,
+        [this](const classic_protocol::message::server::Error &err) {
+          reconnect_error(err);
+        }));
 
     stage(Stage::Response);
   }
@@ -169,22 +172,18 @@ ChangeUserForwarder::connect() {
   //
   // don't use LazyConnector here as it would call authenticate with the old
   // user and then switch to the new one in a 2nd ChangeUser.
-  connection()->push_processor(
-      std::make_unique<ConnectProcessor>(connection()));
-
-  return Result::Again;
+  return socket_reconnect_start();
 }
 
 stdx::expected<Processor::Result, std::error_code>
 ChangeUserForwarder::connected() {
   auto &server_conn = connection()->socket_splicer()->server_conn();
-  auto server_protocol = connection()->server_protocol();
+  auto *server_protocol = connection()->server_protocol();
 
   if (!server_conn.is_open()) {
-    // Connector sent an server::Error already.
     auto *socket_splicer = connection()->socket_splicer();
-    auto src_channel = socket_splicer->client_channel();
-    auto src_protocol = connection()->client_protocol();
+    auto *src_channel = socket_splicer->client_channel();
+    auto *src_protocol = connection()->client_protocol();
 
     // take the client::command from the connection.
     auto recv_res =
@@ -198,7 +197,7 @@ ChangeUserForwarder::connected() {
     }
 
     stage(Stage::Done);
-    return Result::Again;
+    return reconnect_send_error_msg(src_channel, src_protocol);
   }
 
   if (auto &tr = tracer()) {
@@ -207,12 +206,18 @@ ChangeUserForwarder::connected() {
 
   if (server_protocol->server_greeting()) {
     // from pool.
-    connection()->push_processor(
-        std::make_unique<ChangeUserSender>(connection(), true));
+    connection()->push_processor(std::make_unique<ChangeUserSender>(
+        connection(), true,
+        [this](const classic_protocol::message::server::Error &err) {
+          reconnect_error(err);
+        }));
   } else {
     // connector, but not greeted yet.
-    connection()->push_processor(
-        std::make_unique<ServerGreetor>(connection(), true));
+    connection()->push_processor(std::make_unique<ServerGreetor>(
+        connection(), true,
+        [this](const classic_protocol::message::server::Error &err) {
+          reconnect_error(err);
+        }));
   }
 
   stage(Stage::Response);
@@ -221,13 +226,17 @@ ChangeUserForwarder::connected() {
 
 stdx::expected<Processor::Result, std::error_code>
 ChangeUserForwarder::response() {
-  // ChangeUserSender will set ->authenticated if it succeed.
   if (!connection()->authenticated()) {
+    auto *socket_splicer = connection()->socket_splicer();
+    auto *src_channel = socket_splicer->client_channel();
+    auto *src_protocol = connection()->client_protocol();
+
     stage(Stage::Error);
-  } else {
-    stage(Stage::Ok);
+
+    return reconnect_send_error_msg(src_channel, src_protocol);
   }
 
+  stage(Stage::Ok);
   return Result::Again;
 }
 

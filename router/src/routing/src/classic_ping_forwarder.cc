@@ -70,20 +70,15 @@ stdx::expected<Processor::Result, std::error_code> PingForwarder::connect() {
   }
 
   stage(Stage::Connected);
-
-  connection()->push_processor(std::make_unique<LazyConnector>(
-      connection(), false /* not in handshake */));
-
-  return Result::Again;
+  return mysql_reconnect_start();
 }
 
 stdx::expected<Processor::Result, std::error_code> PingForwarder::connected() {
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
-    // Connector sent an server::Error already.
     auto *socket_splicer = connection()->socket_splicer();
-    auto src_channel = socket_splicer->client_channel();
-    auto src_protocol = connection()->client_protocol();
+    auto *src_channel = socket_splicer->client_channel();
+    auto *src_protocol = connection()->client_protocol();
 
     // take the client::command from the connection.
     auto recv_res =
@@ -93,11 +88,11 @@ stdx::expected<Processor::Result, std::error_code> PingForwarder::connected() {
     discard_current_msg(src_channel, src_protocol);
 
     if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("ping::error"));
+      tr.trace(Tracer::Event().stage("ping::connect::error"));
     }
 
     stage(Stage::Done);
-    return Result::Again;
+    return reconnect_send_error_msg(src_channel, src_protocol);
   }
 
   if (auto &tr = tracer()) {
