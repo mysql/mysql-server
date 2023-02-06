@@ -101,12 +101,12 @@ class MysqlCacheManager {
   MysqlCacheManager(const mrs::Configuration &configuration)
       : callbacks_metadata_{{collector::kMySQLConnectionMetadata,
                              configuration},
-                            "mrs_provider_metadata"},
+                            "mysql_rest_service_meta_provider"},
         callbacks_userdata_{{
                                 collector::kMySQLConnectionUserdata,
                                 configuration,
                             },
-                            "mrs_provider_data_access"} {}
+                            "mysql_rest_service_data_provider"} {}
   MysqlCacheManager(Callbacks *callbacks_meta, Callbacks *callbacks_user)
       : cache_manager_metadata_{callbacks_meta},
         cache_manager_userdata_{callbacks_user} {}

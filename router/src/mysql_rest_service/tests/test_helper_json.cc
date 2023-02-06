@@ -41,12 +41,11 @@ using MapJsonObj = std::map<std::string, std::string>;
 TEST(Json, to_string_empty_obj) { ASSERT_EQ("{}", to_string(MapJsonObj{})); }
 
 TEST(Json, to_string_one_item) {
-  ASSERT_EQ("{\"key1\": \"value1\"}",
-            to_string(MapJsonObj{{"key1", "value1"}}));
+  ASSERT_EQ("{\"key1\":\"value1\"}", to_string(MapJsonObj{{"key1", "value1"}}));
 }
 
 TEST(Json, to_string_two_items) {
-  ASSERT_EQ("{\"key1\": \"value1\", \"key2\": \"value2\"}",
+  ASSERT_EQ("{\"key1\":\"value1\",\"key2\":\"value2\"}",
             to_string(MapJsonObj{{"key1", "value1"}, {"key2", "value2"}}));
 }
 

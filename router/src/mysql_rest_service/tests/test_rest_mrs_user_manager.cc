@@ -77,7 +77,8 @@ class UserManagerFixture : public Test {
     InSequence sequence;
     std::string query_user{
         "SELECT id, auth_app_id, name, email, vendor_user_id, "
-        "login_permitted FROM mysql_rest_service_metadata.mrs_user "
+        "login_permitted, app_options, auth_string FROM "
+        "mysql_rest_service_metadata.mrs_user "
         "WHERE `auth_app_id`=X'02000000000000000000000000000000' and "
         "vendor_user_id='"};
     query_user.append(u.user[4]).append("' ");
@@ -119,10 +120,14 @@ class UserManagerFixture : public Test {
                                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                     0x00, 0x00, 0x00, 0x00};
   const mrs::UniversalId k_user_4000040400004_app_id{2};
-  const Row k_row_for_user_4000040400004{
-      k_id_4000040400004, k_user_4000040400004_app_id.to_raw(),
-      "John Doe",         "john_doe@doe.com",
-      "4000040400004",    "1"};
+  const Row k_row_for_user_4000040400004{k_id_4000040400004,
+                                         k_user_4000040400004_app_id.to_raw(),
+                                         "John Doe",
+                                         "john_doe@doe.com",
+                                         "4000040400004",
+                                         "1",
+                                         "{}",
+                                         nullptr};
   const mrs::UniversalId k_user_4000040400004_priv_service_id{1};
   const std::vector<Row> k_row_for_user_4000040400004_privs{Row{
       k_user_4000040400004_priv_service_id.to_raw(), nullptr, nullptr, "2"}};
