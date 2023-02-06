@@ -395,8 +395,11 @@ HttpResult HandlerObject::handle_post(
   mysqlrouter::sqlstring pk_value{"?"};
   auto it = json_doc.FindMember(route_->get_cached_primary().name.c_str());
   if (it != json_doc.MemberEnd()) {
-    // expected_pk_value = to_string(&(*it).value);
-    pk_value << (*it).value;
+    if (route_->get_user_row_ownership().user_ownership_column ==
+        route_->get_cached_primary().name)
+      pk_value << ctxt->user.user_id;
+    else
+      pk_value << (*it).value;
   } else {
     if (!route_->get_cached_primary().is_auto_increment)
       throw http::Error(
@@ -416,7 +419,7 @@ HttpResult HandlerObject::handle_post(
       route_->get_user_row_ownership().user_ownership_column;
   for (auto &member : json_obj) {
     if (ownership_enforce && ownership_column == member.name.GetString()) {
-      log_debug("pushing user_ud as sqlstirng");
+      log_debug("Pushing user_id into the SQL.");
       values.emplace_back("?") << ctxt->user.user_id;
     } else {
       values.emplace_back("?") << member.value;

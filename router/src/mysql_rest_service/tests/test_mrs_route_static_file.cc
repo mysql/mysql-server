@@ -118,7 +118,7 @@ TEST_F(RouteStaticFileTests, validate_route_generic_parameters) {
   EXPECT_EQ("", sut_->get_rest_canonical_path());
   EXPECT_EQ("http://mysql.com/ser/sch/obj", sut_->get_rest_url());
   ASSERT_EQ(1, sut_->get_rest_path().size());
-  EXPECT_EQ("^/ser/sch/obj(/[0-9]*/?)?$", sut_->get_rest_path()[0]);
+  EXPECT_EQ("^/ser/sch/obj$", sut_->get_rest_path()[0]);
   EXPECT_EQ("/ser/sch/obj", sut_->get_rest_path_raw());
   EXPECT_EQ("/obj", sut_->get_object_path());
   EXPECT_EQ("", sut_->get_object_name());
@@ -162,7 +162,7 @@ TEST_F(RouteStaticFileTests, validate_route_parameters_after_update) {
   EXPECT_EQ("", sut_->get_rest_canonical_path());
   EXPECT_EQ("http://abc.de/mrs/sakila/city", sut_->get_rest_url());
   ASSERT_EQ(1, sut_->get_rest_path().size());
-  EXPECT_EQ("^/mrs/sakila/city(/[0-9]*/?)?$", sut_->get_rest_path()[0]);
+  EXPECT_EQ("^/mrs/sakila/city$", sut_->get_rest_path()[0]);
   EXPECT_EQ("/mrs/sakila/city", sut_->get_rest_path_raw());
   EXPECT_EQ(kNewObjectPath, sut_->get_object_path());
   EXPECT_EQ("", sut_->get_object_name());
