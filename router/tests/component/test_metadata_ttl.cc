@@ -56,8 +56,8 @@ class MetadataChacheTTLTest : public RouterComponentTest {
  protected:
   std::string get_metadata_cache_section(
       ClusterType cluster_type = ClusterType::GR_V2,
-      const std::string &ttl = "0.5",
-      const std::string &cluster_name = "test") {
+      const std::string &ttl = "0.5", const std::string &cluster_name = "test",
+      const std::string &ssl_mode = "") {
     const std::string cluster_type_str =
         (cluster_type == ClusterType::RS_V2) ? "rs" : "gr";
 
@@ -70,6 +70,10 @@ class MetadataChacheTTLTest : public RouterComponentTest {
 
     if (!ttl.empty()) {
       options["ttl"] = ttl;
+    }
+
+    if (!ssl_mode.empty()) {
+      options["ssl_mode"] = ssl_mode;
     }
 
     return mysql_harness::ConfigBuilder::build_section(
@@ -2557,6 +2561,101 @@ INSTANTIATE_TEST_SUITE_P(
                       MetadataTTLTestParams("metadata_dynamic_nodes.js",
                                             "GR_V1", ClusterType::GR_V1)),
     get_test_description);
+
+struct SessionReuseTestParams {
+  std::string router_ssl_mode;
+  bool server_ssl_enabled;
+  bool expected_session_reuse;
+};
+
+class SessionReuseTest
+    : public MetadataChacheTTLTest,
+      public ::testing::WithParamInterface<SessionReuseTestParams> {};
+
+/**
+ * @test Checks that the SSL sessions to the server, that metadata cache is
+ * creating to refresh metadata, are reused if SSL is used
+ */
+TEST_P(SessionReuseTest, SessionReuse) {
+  std::vector<uint16_t> classic_ports, http_ports;
+  std::vector<ProcessWrapper *> cluster_nodes;
+  const auto test_params = GetParam();
+
+  const size_t kClusterNodes = 2;
+  for (size_t i = 0; i < kClusterNodes; ++i) {
+    classic_ports.push_back(port_pool_.get_next_available());
+    http_ports.push_back(port_pool_.get_next_available());
+  }
+  const std::string json_metadata =
+      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();
+
+  for (size_t i = 0; i < kClusterNodes; ++i) {
+    cluster_nodes.push_back(&launch_mysql_server_mock(
+        json_metadata, classic_ports[i], EXIT_SUCCESS, false, http_ports[i], 0,
+        "", "0.0.0.0", 30s, /*enable_ssl*/ test_params.server_ssl_enabled));
+    set_mock_metadata(http_ports[i], "uuid",
+                      classic_ports_to_gr_nodes(classic_ports), 0,
+                      classic_ports_to_cluster_nodes(classic_ports));
+  }
+
+  const auto router_rw_port = port_pool_.get_next_available();
+  const std::string metadata_cache_section = get_metadata_cache_section(
+      ClusterType::GR_V2, "0.2", "test", test_params.router_ssl_mode);
+  const std::string routing_rw = get_metadata_cache_routing_section(
+      router_rw_port, "PRIMARY", "first-available", "", "rw");
+
+  launch_router(metadata_cache_section, routing_rw, classic_ports, EXIT_SUCCESS,
+                /*wait_for_notify_ready=*/30s);
+
+  // wait for several metadata cache refresh cycles
+  EXPECT_TRUE(wait_for_transaction_count_increase(http_ports[0], 4));
+
+  MySQLSession client;
+  ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", classic_ports[0],
+                                         "username", "password", "", ""));
+
+  // check how many sessions were reused on the metadata server side
+  std::unique_ptr<mysqlrouter::MySQLSession::ResultRow> result{
+      client.query_one("SHOW STATUS LIKE 'Ssl_session_cache_hits'")};
+  ASSERT_NE(nullptr, result.get());
+  ASSERT_EQ(1u, result->size());
+  const auto cache_hits = std::atoi((*result)[0]);
+  if (test_params.expected_session_reuse) {
+    EXPECT_GT(cache_hits, 0);
+  } else {
+    EXPECT_EQ(0, cache_hits);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    SessionReuse, SessionReuseTest,
+
+    ::testing::Values(
+        /* default ssl_mode in the Router ("PREFERRED"), ssl enabled on the
+           server side so we expect session reuse */
+        SessionReuseTestParams{
+            /*router_ssl_mode*/ "",
+            /*server_ssl_enabled*/ true,
+            /*expected_session_reuse*/ true,
+        },
+
+        /* ssl_mode in the Router "REQUIRED", ssl enabled on the server side so
+           we expect session reuse */
+        SessionReuseTestParams{/*router_ssl_mode*/ "REQUIRED",
+                               /*server_ssl_enabled*/ true,
+                               /*expected_session_reuse*/ true},
+
+        /* ssl_mode in the Router "PREFERRED", ssl disabled on the server side
+         so we DON'T expect session reuse */
+        SessionReuseTestParams{/*router_ssl_mode*/ "PREFERRED",
+                               /*server_ssl_enabled*/ false,
+                               /*expected_session_reuse*/ false},
+
+        /* ssl_mode in the Router "DISABLED", ssl enabled on the server side
+           so we DON'T expect session reuse */
+        SessionReuseTestParams{/*router_ssl_mode*/ "DISABLED",
+                               /*server_ssl_enabled*/ true,
+                               /*expected_session_reuse*/ false}));
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

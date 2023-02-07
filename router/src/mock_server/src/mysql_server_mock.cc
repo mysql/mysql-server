@@ -273,19 +273,24 @@ class Acceptor {
 };
 
 void MySQLServerMock::run(mysql_harness::PluginFuncEnv *env) {
-  Acceptor acceptor{io_ctx_,
-                    protocol_name_,
-                    client_sessions_,
-                    DuktapeStatementReaderFactory{
-                        expected_queries_file_,
-                        module_prefixes_,
-                        // expose session data as json-encoded string
-                        {{"port", std::to_string(bind_port_)},
-                         {"ssl_cipher", "\"\""},
-                         {"mysqlx_ssl_cipher", "\"\""}},
-                        MockServerComponent::get_instance().get_global_scope()},
-                    tls_server_ctx_,
-                    ssl_mode_ != SSL_MODE_DISABLED};
+  Acceptor acceptor{
+      io_ctx_,
+      protocol_name_,
+      client_sessions_,
+      DuktapeStatementReaderFactory{
+          expected_queries_file_,
+          module_prefixes_,
+          // expose session data as json-encoded string
+          {{"port", [this]() { return std::to_string(bind_port_); }},
+           {"ssl_cipher", []() { return "\"\""s; }},
+           {"mysqlx_ssl_cipher", []() { return "\"\""s; }},
+           {"ssl_session_cache_hits",
+            [this]() {
+              return std::to_string(tls_server_ctx_.session_cache_hits());
+            }}},
+          MockServerComponent::get_instance().get_global_scope()},
+      tls_server_ctx_,
+      ssl_mode_ != SSL_MODE_DISABLED};
 
   auto res = acceptor.init(bind_address_, bind_port_);
   if (!res) {

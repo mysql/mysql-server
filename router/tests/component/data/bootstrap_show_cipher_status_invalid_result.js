@@ -38,7 +38,7 @@ var router_show_cipher_status = common_stmts.prepare_statement_responses(
       return common_responses[stmt];
     } else if (stmt.match(router_show_cipher_status.stmt)) {
       return {
-        // return one column when 2 are expexted
+        // return one column when 2 are expected
         result: {
           columns:
               [

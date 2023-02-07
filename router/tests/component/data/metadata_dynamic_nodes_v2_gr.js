@@ -171,6 +171,13 @@ var router_start_transaction =
                 "Invalid notice name group_replication/membership/quorum_loss"
           }
         }
+    } else if (stmt === "SHOW STATUS LIKE 'Ssl_session_cache_hits'") {
+      return {
+        result: {
+          columns: [{name: "Ssl_session_cache_hits", type: "LONG"}],
+          rows: [[mysqld.session.ssl_session_cache_hits]]
+        }
+      }
     } else {
       return common_stmts.unknown_statement_response(stmt);
     }

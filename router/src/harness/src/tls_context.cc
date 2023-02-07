@@ -388,3 +388,7 @@ int TlsContext::security_level() const {
   return 0;
 #endif
 }
+
+long TlsContext::session_cache_hits() const {
+  return SSL_CTX_sess_hits(ssl_ctx_.get());
+}

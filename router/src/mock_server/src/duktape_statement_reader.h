@@ -40,7 +40,7 @@ class DuktapeStatementReaderFactory {
  public:
   DuktapeStatementReaderFactory(
       std::string filename, std::vector<std::string> module_prefixes,
-      std::map<std::string, std::string> session,
+      std::map<std::string, std::function<std::string()>> session,
       std::shared_ptr<MockServerGlobalScope> global_scope)
       : filename_{std::move(filename)},
         module_prefixes_{std::move(module_prefixes)},
@@ -85,7 +85,7 @@ class DuktapeStatementReaderFactory {
  private:
   std::string filename_;
   std::vector<std::string> module_prefixes_;
-  std::map<std::string, std::string> session_;
+  std::map<std::string, std::function<std::string()>> session_;
   std::shared_ptr<MockServerGlobalScope> global_scope_;
 };
 
@@ -93,10 +93,10 @@ class DuktapeStatementReader : public StatementReaderBase {
  public:
   enum class HandshakeState { INIT, GREETED, AUTH_SWITCHED, DONE };
 
-  DuktapeStatementReader(std::string filename,
-                         std::vector<std::string> module_prefixes,
-                         std::map<std::string, std::string> session_data,
-                         std::shared_ptr<MockServerGlobalScope> shared_globals);
+  DuktapeStatementReader(
+      std::string filename, std::vector<std::string> module_prefixes,
+      std::map<std::string, std::function<std::string()>> session_data,
+      std::shared_ptr<MockServerGlobalScope> shared_globals);
 
   DuktapeStatementReader(const DuktapeStatementReader &) = delete;
   DuktapeStatementReader(DuktapeStatementReader &&);
