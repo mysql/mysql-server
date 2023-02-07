@@ -25,6 +25,8 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_CONFIG_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_CONFIG_H_
 
+#include <chrono>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -65,6 +67,11 @@ class Configuration {
 
   std::set<std::string> routing_names_;
   std::set<std::string> metada_names_;
+
+  std::chrono::seconds metadata_refresh_interval_;
+
+  std::optional<uint64_t> router_id_;
+  std::string router_name_;
 
  public:  // Options fetched from other plugins
   bool is_https_;

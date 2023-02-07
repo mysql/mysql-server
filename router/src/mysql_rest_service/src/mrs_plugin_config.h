@@ -57,26 +57,40 @@ class PluginConfig : public ::mysql_harness::BasePluginConfig,
                      public ::mrs::Configuration {
  public:
   using ConfigSection = mysql_harness::ConfigSection;
+  using SecondsOption = mysql_harness::SecondsOption;
+  using StringOption = mysql_harness::StringOption;
+  template <typename T>
+  using IntOption = mysql_harness::IntOption<T>;
+
+  const std::string k_option_metadata_refresh = "metadata_refresh_interval";
 
  public:
   explicit PluginConfig(const ConfigSection *section,
                         const std::vector<std::string> &routing_sections,
-                        const std::vector<std::string> &metadatacaches_sections)
+                        const std::vector<std::string> &metadatacaches_sections,
+                        const std::string &router_name)
       : mysql_harness::BasePluginConfig(section) {
     static const char *kKeyringAttributePassword = "password";
-    using StringOption = mysql_harness::StringOption;
     mysql_user_ = get_option(section, "mysql_user", StringOption{});
     mysql_user_data_access_ =
         get_option(section, "mysql_user_data_access", StringOption{});
-
     auto rw_route =
         get_option(section, "mysql_read_write_route", StringOption{});
     auto ro_route =
         get_option(section, "mysql_read_only_route", StringOption{});
+    router_id_ =
+        get_option_no_default(section, "router_id", IntOption<uint64_t>{});
+    metadata_refresh_interval_ =
+        get_option(section, k_option_metadata_refresh, SecondsOption{});
+    router_name_ = router_name;
 
     if (mysql_user_data_access_.empty()) {
       mysql_user_data_access_ = mysql_user_;
     }
+
+    if (metadata_refresh_interval_.count() == 0)
+      throw std::logic_error(
+          "`metadata_refresh_interval` option, must be greater than zero.");
 
     mysql_user_password_ = get_keyring_value<UserConfigurationInfo>(
         mysql_user_, kKeyringAttributePassword);
@@ -141,8 +155,10 @@ class PluginConfig : public ::mysql_harness::BasePluginConfig,
     return false;
   }
 
-  std::string get_default(const std::string & /*option*/) const override {
-    return "";
+  std::string get_default(const std::string &option) const override {
+    if (option == k_option_metadata_refresh) return "4";
+
+    return {};
   }
 
  private:
