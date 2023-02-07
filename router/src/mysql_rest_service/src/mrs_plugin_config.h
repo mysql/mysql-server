@@ -156,7 +156,7 @@ class PluginConfig : public ::mysql_harness::BasePluginConfig,
   }
 
   std::string get_default(const std::string &option) const override {
-    if (option == k_option_metadata_refresh) return "4";
+    if (option == k_option_metadata_refresh) return "5";
 
     return {};
   }

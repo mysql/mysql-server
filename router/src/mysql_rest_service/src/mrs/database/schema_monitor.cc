@@ -114,7 +114,6 @@ void SchemaMonitor::run() {
 
       if (turn_state.get_state() == mrs::stateOn &&
           configuration_.router_id_.has_value()) {
-        log_debug("Router online, setting router.");
         auto socket_ops = mysql_harness::SocketOperations::instance();
 
         mysqlrouter::sqlstring update{
@@ -129,7 +128,6 @@ void SchemaMonitor::run() {
                << socket_ops->get_local_hostname() << MYSQL_ROUTER_PACKAGE_NAME
                << MYSQL_ROUTER_VERSION << MYSQL_ROUTER_VERSION;
         session->execute(update.str());
-        log_debug("Router online, setting router ok.");
       }
       // TODO(lkotula): Set dirty/clean should be used before START_TRANSACTION
       // and COMMIT (Shouldn't be in review)
