@@ -26,8 +26,7 @@
 
 #include "classic_command.h"
 #include "classic_connection_base.h"
-#include "classic_greeting.h"
-#include "classic_query.h"
+#include "classic_greeting_receiver.h"
 
 stdx::expected<Processor::Result, std::error_code> FlowProcessor::process() {
   switch (stage()) {

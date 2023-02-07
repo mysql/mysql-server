@@ -24,16 +24,13 @@
 
 #include "classic_lazy_connect.h"
 
-#include "classic_change_user.h"
+#include "classic_change_user_sender.h"
 #include "classic_connect.h"
 #include "classic_connection_base.h"
-#include "classic_greeting.h"
-#include "classic_init_schema.h"
-#include "classic_query.h"
-#include "classic_reset_connection.h"
-#include "hexify.h"
-
-using mysql_harness::hexify;
+#include "classic_greeting_forwarder.h"  // ServerGreetor
+#include "classic_init_schema_sender.h"
+#include "classic_query_sender.h"
+#include "classic_reset_connection_sender.h"
 
 stdx::expected<Processor::Result, std::error_code> LazyConnector::process() {
   switch (stage()) {
