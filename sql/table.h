@@ -2969,9 +2969,6 @@ class Table_ref {
   /// Evaluate the check option of a view
   int view_check_option(THD *thd) const;
 
-  /// Cleanup field translations for a view
-  void cleanup_items();
-
   /// Produce a textual identification of this object
   void print(const THD *thd, String *str, enum_query_type query_type) const;
 
