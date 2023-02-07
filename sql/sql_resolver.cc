@@ -1933,7 +1933,6 @@ bool Query_block::simplify_joins(THD *thd,
   if (changelog == nullptr)  // This is the top call.
     changelog = &changes;
 
-  NESTED_JOIN *nested_join;
   Table_ref *prev_table = nullptr;
   const bool straight_join = active_options() & SELECT_STRAIGHT_JOIN;
   DBUG_TRACE;
@@ -1960,20 +1959,20 @@ bool Query_block::simplify_joins(THD *thd,
     Another example:
     (A LEFT JOIN (B SEMI JOIN C ON JC2) ON JC1) WHERE W ,
     while confronting W with (B SEMI JOIN C), if W is known false we will
-
   */
   for (Table_ref *table : *join_list) {
     table_map used_tables;
-    table_map not_null_tables = (table_map)0;
+    table_map not_null_tables = table_map(0);
 
-    if ((nested_join = table->nested_join)) {
+    NESTED_JOIN *nested_join = table->nested_join;
+    if (nested_join != nullptr) {
       /*
          If the element of join_list is a nested join apply
          the procedure to its nested join list first.
          This confronts the join nest's condition with each member of the
          nest.
       */
-      if (table->join_cond()) {
+      if (table->join_cond() != nullptr) {
         Item *join_cond = table->join_cond();
         /*
            If a join condition JC is attached to the table,
@@ -1991,12 +1990,20 @@ bool Query_block::simplify_joins(THD *thd,
           return true;
 
         if (join_cond != table->join_cond()) {
-          assert(join_cond);
+          assert(join_cond != nullptr);
           table->set_join_cond(join_cond);
+          /*
+            For a semi-join or anti-join table nest, if the join condition
+            has been reduced to a constant value, it means that factored out
+            join condition operands can be removed.
+          */
+          if (table->is_sj_or_aj_nest() && join_cond->const_item()) {
+            clear_sj_expressions(nested_join);
+          }
         }
       }
-      nested_join->used_tables = (table_map)0;
-      nested_join->not_null_tables = (table_map)0;
+      nested_join->used_tables = table_map(0);
+      nested_join->not_null_tables = table_map(0);
       // This recursively confronts "cond" with each member of the nest
       if (simplify_joins(thd, &nested_join->m_tables,
                          top,  // if it was WHERE it still is
@@ -2006,10 +2013,10 @@ bool Query_block::simplify_joins(THD *thd,
       not_null_tables = nested_join->not_null_tables;
     } else {
       used_tables = table->map();
-      if (*cond) not_null_tables = (*cond)->not_null_tables();
+      if (*cond != nullptr) not_null_tables = (*cond)->not_null_tables();
     }
 
-    if (table->embedding) {
+    if (table->embedding != nullptr) {
       table->embedding->nested_join->used_tables |= used_tables;
       table->embedding->nested_join->not_null_tables |= not_null_tables;
     }
@@ -2023,11 +2030,12 @@ bool Query_block::simplify_joins(THD *thd,
         *changelog |= OUTER_JOIN_TO_INNER;
         table->outer_join = false;
       }
-      if (table->join_cond()) {
+      if (table->join_cond() != nullptr) {
         *changelog |= JOIN_COND_TO_WHERE;
         /* Add join condition to the WHERE or upper-level join condition. */
-        if (*cond) {
-          Item *i1 = *cond, *i2 = table->join_cond();
+        if (*cond != nullptr) {
+          Item *i1 = *cond;
+          Item *i2 = table->join_cond();
           /*
             User supplied stored procedures in the query can violate row-level
             filter enforced by a view. So make sure view's filter conditions
@@ -2039,7 +2047,7 @@ bool Query_block::simplify_joins(THD *thd,
 
           Item_cond_and *new_cond =
               down_cast<Item_cond_and *>(and_conds(i1, i2));
-          if (!new_cond) return true;
+          if (new_cond == nullptr) return true;
           new_cond->apply_is_true();
           /*
             It is always a new item as both the upper-level condition and a
@@ -2068,10 +2076,10 @@ bool Query_block::simplify_joins(THD *thd,
       Only inner tables of non-convertible outer joins remain with
       the join condition.
     */
-    if (table->join_cond()) {
+    if (table->join_cond() != nullptr) {
       table->dep_tables |= table->join_cond()->used_tables();
       // At this point the joined tables always have an embedding join nest:
-      assert(table->embedding);
+      assert(table->embedding != nullptr);
       table->dep_tables &= ~table->embedding->nested_join->used_tables;
 
       // Embedding table depends on tables used in embedded join conditions.
@@ -2079,13 +2087,13 @@ bool Query_block::simplify_joins(THD *thd,
           table->join_cond()->used_tables();
     }
 
-    if (prev_table) {
+    if (prev_table != nullptr) {
       /* The order of tables is reverse: prev_table follows table */
       if (prev_table->straight || straight_join)
         prev_table->dep_tables |= used_tables;
-      if (prev_table->join_cond()) {
+      if (prev_table->join_cond() != nullptr) {
         prev_table->dep_tables |= table->join_cond_dep_tables;
-        table_map prev_used_tables = prev_table->nested_join
+        table_map prev_used_tables = prev_table->nested_join != nullptr
                                          ? prev_table->nested_join->used_tables
                                          : prev_table->map();
         /*
@@ -2117,22 +2125,7 @@ bool Query_block::simplify_joins(THD *thd,
   */
   for (auto li = join_list->begin(); li != join_list->end();) {
     Table_ref *table = *li;
-    nested_join = table->nested_join;
-    if (table->is_sj_or_aj_nest()) {
-      // See other uses of clear_sj_expressions().
-      // 'cond' is a post-filter after the semi/antijoin, so if it's
-      // always false the semi/antijoin can be partially simplified
-      // (note that the semi/antijoin nest will still be created and used in
-      // optimization and execution).
-      if (*cond && (*cond)->const_item() &&
-          !(*cond)->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
-                         nullptr)) {
-        bool cond_value = true;
-        if (simplify_const_condition(thd, cond, false, &cond_value))
-          return true;
-        if (!cond_value) clear_sj_expressions(nested_join);
-      }
-    }
+    NESTED_JOIN *nested_join = table->nested_join;
     if (table->is_sj_nest() && !in_sj) {
       /*
         If this is a semi-join that is not contained within another semi-join,
@@ -2151,7 +2144,7 @@ bool Query_block::simplify_joins(THD *thd,
         convert_subquery_to_semijoin().
       */
       *changelog |= SEMIJOIN;
-    } else if (nested_join && !table->join_cond()) {
+    } else if (nested_join != nullptr && table->join_cond() == nullptr) {
       *changelog |= PAREN_REMOVAL;
       for (Table_ref *tbl : nested_join->m_tables) {
         tbl->embedding = table->embedding;
