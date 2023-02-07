@@ -30,7 +30,6 @@
 #include "basic_protocol_splicer.h"
 #include "classic_connection_base.h"
 #include "classic_frame.h"
-#include "hexify.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/impl/poll.h"
 #include "mysql/harness/net_ts/internet.h"
@@ -42,8 +41,6 @@
 #include "processor.h"
 
 IMPORT_LOG_FUNCTIONS()
-
-using mysql_harness::hexify;
 
 // create a destination id that's understood by make_tcp_address()
 static std::string destination_id_from_endpoint(

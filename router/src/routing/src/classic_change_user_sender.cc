@@ -41,7 +41,6 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqld_error.h"  // mysql-server error-codes
-#include "openssl_version.h"
 #include "tracer.h"
 
 IMPORT_LOG_FUNCTIONS()

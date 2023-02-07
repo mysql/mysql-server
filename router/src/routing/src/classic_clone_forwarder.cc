@@ -25,7 +25,6 @@
 #include "classic_clone_forwarder.h"
 
 #include "classic_connection_base.h"
-#include "classic_forwarder.h"
 #include "classic_frame.h"
 #include "classic_lazy_connect.h"
 #include "harness_assert.h"
@@ -33,7 +32,6 @@
 #include "mysql/harness/tls_error.h"
 #include "mysqlrouter/classic_protocol_clone.h"
 #include "mysqlrouter/classic_protocol_codec_clone.h"
-#include "tracer.h"
 
 stdx::expected<Processor::Result, std::error_code> CloneForwarder::process() {
   switch (stage()) {

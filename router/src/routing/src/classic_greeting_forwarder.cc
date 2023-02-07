@@ -42,7 +42,6 @@
 #include "classic_change_user_forwarder.h"
 #include "classic_connect.h"
 #include "classic_connection_base.h"
-#include "classic_forwarder.h"
 #include "classic_frame.h"
 #include "classic_lazy_connect.h"
 #include "harness_assert.h"

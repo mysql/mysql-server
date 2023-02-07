@@ -35,7 +35,6 @@
 #include "classic_change_user_sender.h"
 #include "classic_connect.h"
 #include "classic_connection_base.h"
-#include "classic_forwarder.h"
 #include "classic_frame.h"
 #include "classic_greeting_forwarder.h"  // ServerGreetor
 #include "classic_query_sender.h"
@@ -43,8 +42,6 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqld_error.h"  // mysql-server error-codes
-#include "openssl_version.h"
-#include "tracer.h"
 
 IMPORT_LOG_FUNCTIONS()
 

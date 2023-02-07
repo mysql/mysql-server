@@ -25,12 +25,10 @@
 #include "classic_init_schema_forwarder.h"
 
 #include "classic_connection_base.h"
-#include "classic_forwarder.h"
 #include "classic_frame.h"
 #include "classic_lazy_connect.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
-#include "tracer.h"
 
 // init-schema
 
