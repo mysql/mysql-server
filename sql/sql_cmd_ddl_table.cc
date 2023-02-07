@@ -460,7 +460,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
 }
 
 const MYSQL_LEX_CSTRING *
-Sql_cmd_create_table::eligible_secondary_storage_engine() const {
+Sql_cmd_create_table::eligible_secondary_storage_engine() {
   // Now check if the opened tables are available in a secondary
   // storage engine. Only use the secondary tables if all the tables
   // have a secondary tables, and they are all in the same secondary
@@ -489,6 +489,11 @@ Sql_cmd_create_table::eligible_secondary_storage_engine() const {
     if (secondary_engine == nullptr) {
       // First base table. Save its secondary engine name for later.
       secondary_engine = &tl->table->s->secondary_engine;
+      const bool is_external_source =
+          (tl->table->file->ht->flags & HTON_SUPPORTS_EXTERNAL_SOURCE) != 0 &&
+          tl->table->s->has_secondary_engine();
+
+      set_secondary_storage_stmt_external_tbl(is_external_source);
     } else if (!equal(*secondary_engine, tl->table->s->secondary_engine)) {
       // In a different secondary engine than the previous base tables.
       return nullptr;

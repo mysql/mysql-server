@@ -421,9 +421,13 @@ bool Sql_cmd_select::accept(THD *thd, Select_lex_visitor *visitor) {
   return thd->lex->unit->accept(visitor);
 }
 
-const MYSQL_LEX_CSTRING *Sql_cmd_select::eligible_secondary_storage_engine()
-    const {
-  return get_eligible_secondary_engine();
+const MYSQL_LEX_CSTRING *Sql_cmd_select::eligible_secondary_storage_engine() {
+  bool is_external_source = false;
+  const MYSQL_LEX_CSTRING *ret =
+      get_eligible_secondary_engine(&is_external_source);
+  set_secondary_storage_stmt_external_tbl(is_external_source);
+
+  return ret;
 }
 
 /**
@@ -685,10 +689,6 @@ static bool retry_with_secondary_engine(THD *thd) {
   Sql_cmd *const sql_cmd = thd->lex->m_sql_cmd;
   assert(!sql_cmd->using_secondary_storage_engine());
 
-  // Don't retry if it's already determined that the statement should not be
-  // executed by a secondary engine.
-  if (sql_cmd->secondary_storage_engine_disabled()) return false;
-
   // Don't retry if there is a property of the statement that prevents use of
   // secondary engines.
   if (sql_cmd->eligible_secondary_storage_engine() == nullptr) {
@@ -696,14 +696,25 @@ static bool retry_with_secondary_engine(THD *thd) {
     return false;
   }
 
+  // Don't retry if it's already determined that the statement should not be
+  // executed by a secondary engine.
+  if (sql_cmd->secondary_storage_engine_disabled()) {
+    return false;
+  }
+
   // Don't retry if there is a property of the environment that prevents use of
   // secondary engines.
-  if (!thd->is_secondary_storage_engine_eligible()) return false;
+  if (!thd->is_secondary_storage_engine_eligible()) {
+    return false;
+  }
 
   // Only attempt to use the secondary engine if the estimated cost of the query
   // is higher than the specified cost threshold.
-  if (thd->m_current_query_cost <=
-      thd->variables.secondary_engine_cost_threshold) {
+  // We allow any query to be executed in the secondary_engine when it involves
+  // external tables.
+  if (!sql_cmd->has_secondary_storage_stmt_external_tbl() &&
+      (thd->m_current_query_cost <=
+       thd->variables.secondary_engine_cost_threshold)) {
     Opt_trace_context *const trace = &thd->opt_trace;
     if (trace->is_started()) {
       Opt_trace_object wrapper(trace);
@@ -743,6 +754,9 @@ bool optimize_secondary_engine(THD *thd) {
   }
 
   const handlerton *secondary_engine = thd->lex->m_sql_cmd->secondary_engine();
+
+  /* When there is a secondary engine hook, return its return value,
+   * otherwise return false (success). */
   return secondary_engine != nullptr &&
          secondary_engine->optimize_secondary_engine != nullptr &&
          secondary_engine->optimize_secondary_engine(thd, thd->lex);
@@ -959,7 +973,8 @@ bool Sql_cmd_dml::check_all_table_privileges(THD *thd) {
   }
   return false;
 }
-const MYSQL_LEX_CSTRING *Sql_cmd_dml::get_eligible_secondary_engine() const {
+const MYSQL_LEX_CSTRING *Sql_cmd_dml::get_eligible_secondary_engine(
+    bool *is_external_source) const {
   // Don't use secondary storage engines for statements that call stored
   // routines.
   if (lex->uses_stored_routines()) return nullptr;
@@ -998,9 +1013,15 @@ const MYSQL_LEX_CSTRING *Sql_cmd_dml::get_eligible_secondary_engine() const {
 
     if (secondary_engine == nullptr) {
       // First base table. Save its secondary engine name for later.
+      // mark if it is an external source
+      *is_external_source =
+          (tl->table->file->ht->flags & HTON_SUPPORTS_EXTERNAL_SOURCE) != 0 &&
+          tl->table->s->has_secondary_engine();
+
       secondary_engine = &tl->table->s->secondary_engine;
     } else if (!equal(*secondary_engine, tl->table->s->secondary_engine)) {
       // In a different secondary engine than the previous base tables.
+      *is_external_source = false;
       return nullptr;
     }
   }

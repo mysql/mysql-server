@@ -202,11 +202,15 @@ class Sql_cmd_dml : public Sql_cmd {
   /**
     Helper function that checks if the command is eligible for secondary engine
     and if that's true returns the name of that eligible secondary storage
-    engine.
+    engine. In addition, if one of the tables is an external table, it sets the
+    \p is_external_source parameter to true.
+
+    @param[out] is_external_source whether the stmt refers to an external table
 
     @return nullptr if not eligible or the name of the engine otherwise
   */
-  const MYSQL_LEX_CSTRING *get_eligible_secondary_engine() const;
+  const MYSQL_LEX_CSTRING *get_eligible_secondary_engine(
+      bool *is_external_source) const;
 
  protected:
   LEX *lex;              ///< Pointer to LEX for this statement

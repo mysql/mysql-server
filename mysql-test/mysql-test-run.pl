@@ -77,6 +77,8 @@ require "lib/mtr_misc.pl";
 require "lib/mtr_process.pl";
 
 our $secondary_engine_support = eval 'use mtr_secondary_engine; 1';
+our $primary_engine_support = eval 'use mtr_external_engine; 1';
+
 # Global variable to keep track of completed test cases
 my $completed = [];
 
@@ -3275,6 +3277,8 @@ sub environment_setup {
                                  \&report_failure_and_restart,
                                  \&run_query,
                                  \&valgrind_arguments);
+    initialize_external_function_pointers(\&mysqlds,
+                                 \&run_query);
   }
 
   # mysql_fix_privilege_tables.sql
@@ -7012,8 +7016,9 @@ sub start_servers($) {
     # secondary engine.
     $ENV{'SECONDARY_ENGINE_TEST'} = 1;
 
-    # Install secondary engine plugin on all running mysqld servers.
+    # Install external primary and secondary engine plugin on all running mysqld servers.
     foreach my $mysqld (mysqlds()) {
+      install_external_engine_plugin($mysqld);
       install_secondary_engine_plugin($mysqld);
     }
   }
