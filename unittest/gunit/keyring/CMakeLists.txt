@@ -59,7 +59,7 @@ IF(WIN32)
   LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
 ENDIF()
 
-ADD_LIBRARY(keyring_test STATIC ${SRC_FILES})
+ADD_STATIC_LIBRARY(keyring_test ${SRC_FILES} LINK_LIBRARIES ext::zlib)
 ADD_DEPENDENCIES(keyring_test GenError)
 
 MYSQL_ADD_EXECUTABLE(merge_keyring_file_tests-t

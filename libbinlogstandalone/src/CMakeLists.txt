@@ -45,7 +45,7 @@ SET(REPLICATION_SOURCES
 # Configure for building static library
 ADD_LIBRARY(binlogstandalone_static STATIC ${REPLICATION_SOURCES})
 
-TARGET_LINK_LIBRARIES(binlogstandalone_static ${ZSTD_LIBRARY})
+TARGET_LINK_LIBRARIES(binlogstandalone_static ext::zstd ext::zlib)
 
 SET_TARGET_PROPERTIES(binlogstandalone_static
   PROPERTIES OUTPUT_NAME "binlogstandalone"

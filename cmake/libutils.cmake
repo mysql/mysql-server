@@ -231,6 +231,13 @@ MACRO(ADD_CONVENIENCE_LIBRARY TARGET_ARG)
   # Add LINK_LIBRARIES to static lib
   IF(ARG_LINK_LIBRARIES)
     TARGET_LINK_LIBRARIES(${TARGET} ${ARG_LINK_LIBRARIES})
+    FOREACH(lib ${ARG_LINK_LIBRARIES})
+      IF(lib MATCHES "ext::")
+        MESSAGE(STATUS "${TARGET_LIB} depends on ${lib}")
+        TARGET_INCLUDE_DIRECTORIES(${TARGET_LIB} SYSTEM PRIVATE
+          $<TARGET_PROPERTY:${lib},INTERFACE_INCLUDE_DIRECTORIES>)
+      ENDIF()
+    ENDFOREACH()
   ENDIF()
 
   # Keep track of known convenience libraries, in a global scope.

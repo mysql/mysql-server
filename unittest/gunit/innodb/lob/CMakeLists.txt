@@ -49,7 +49,7 @@ SET(PLOB_SRC_FILES
 MYSQL_ADD_EXECUTABLE(lot0lot-t ${PLOB_SRC_FILES}
   SKIP_INSTALL
   ENABLE_EXPORTS
-  LINK_LIBRARIES ${ZLIB_LIBRARY} ${GTEST_LIBRARIES} gunit_small
+  LINK_LIBRARIES ext::zlib ${GTEST_LIBRARIES} gunit_small
   )
 MYSQL_ADD_EXECUTABLE(ut0plist-t
   lot0buf.cc
@@ -67,12 +67,12 @@ MYSQL_ADD_EXECUTABLE(ut0frags-t
   ut0frags.cc
   zlob0int.cc
   SKIP_INSTALL
-  LINK_LIBRARIES ${ZLIB_LIBRARY}
+  LINK_LIBRARIES ext::zlib
   )
 MYSQL_ADD_EXECUTABLE(zlob0int-t ${ZLOB_SRC_FILES}
   SKIP_INSTALL
   ENABLE_EXPORTS
-  LINK_LIBRARIES ${ZLIB_LIBRARY} ${GTEST_LIBRARIES} gunit_small
+  LINK_LIBRARIES ext::zlib ${GTEST_LIBRARIES} gunit_small
   )
 
 # Don't run these by default, run manually

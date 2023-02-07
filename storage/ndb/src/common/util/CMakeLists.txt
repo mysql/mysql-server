@@ -73,9 +73,9 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   ssl_socket_table.cpp
   socket_io.cpp
   version.cpp
+  LINK_LIBRARIES ndbtrace ndbportlib ext::zlib mysys
 )
-SET(NDBGENERAL_LIBS ndbtrace ndbportlib ${ZLIB_LIBRARY} mysys)
-TARGET_LINK_LIBRARIES(ndbgeneral ${NDBGENERAL_LIBS})
+
 # Cyclic dependencies for ndbgeneral.
 SET_TARGET_PROPERTIES(ndbgeneral PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 

@@ -21,5 +21,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 MYSQL_ADD_PLUGIN(federated ha_federated.cc
-    STORAGE_ENGINE DEFAULT_LEGACY_ENGINE
-    LINK_LIBRARIES extra::rapidjson)
+  STORAGE_ENGINE DEFAULT_LEGACY_ENGINE
+  LINK_LIBRARIES extra::rapidjson
+  )

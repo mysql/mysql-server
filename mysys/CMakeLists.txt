@@ -185,8 +185,8 @@ ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES}
   LINK_LIBRARIES
   mytime
   strings
-  ${ZLIB_LIBRARY}
-  ${ZSTD_LIBRARY}
+  ext::zlib
+  ext::zstd
   ${LIBNSL}
   ${LIBM}
   ${LIBRT}

@@ -51,7 +51,7 @@ ENDIF()
 
 ADD_STATIC_LIBRARY(xpl_test_src ${XPL_TEST_SRC}
   DEPENDENCIES mysqlx
-  LINK_LIBRARIES extra::rapidjson ext::icu)
+  LINK_LIBRARIES ext::zlib ext::lz4 ext::zstd extra::rapidjson ext::icu)
 
 MYSQL_ADD_EXECUTABLE(${XPL_UNIT_TESTS}
   ../test_main.cc

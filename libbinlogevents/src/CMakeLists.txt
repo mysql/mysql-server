@@ -60,9 +60,9 @@ ENDIF()
 ADD_LIBRARY(binlogevents_static STATIC ${REPLICATION_SOURCES})
 
 IF(STANDALONE_BINLOG)
-  TARGET_LINK_LIBRARIES(binlogevents_static ${ZSTD_LIBRARY})
+  TARGET_LINK_LIBRARIES(binlogevents_static ext::zstd)
 ELSE()
-  TARGET_LINK_LIBRARIES(binlogevents_static ${ZSTD_LIBRARY} mysys)
+  TARGET_LINK_LIBRARIES(binlogevents_static ext::zstd mysys)
   ADD_DEPENDENCIES(binlogevents_static GenError)
 ENDIF()
 
