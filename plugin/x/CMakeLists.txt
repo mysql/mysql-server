@@ -97,10 +97,12 @@ IF(WITH_MYSQLX)
     ${MYSQLX_PROTBUF_AND_PROTOCOL_LIB}
     ext::libevent
     ext::icu
-    ${LZ4_LIBRARY}
     ${MYSQLX_PROTOCOL_LIB}
     ${MYSQLX_PROTOBUF_LIB}
     extra::rapidjson
+    ext::lz4
+    ext::zstd
+    ext::zlib
     )
 ENDIF()
 

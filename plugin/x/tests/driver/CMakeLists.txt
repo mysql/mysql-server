@@ -45,7 +45,7 @@ MYSQL_ADD_EXECUTABLE(mysqlxtest
   ${MYSQLX_CLIENT_FULL_LIB}
   ${MYSQLX_PROTOCOL_FULL_LIB}
   ${PROTOBUF_LIBRARY}
-  ${LZ4_LIBRARY}
+  ext::lz4
   extra::rapidjson
 )
 

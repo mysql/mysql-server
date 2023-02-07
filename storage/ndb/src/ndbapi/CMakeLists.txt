@@ -74,4 +74,5 @@ ADD_CONVENIENCE_LIBRARY(ndbapi
   trp_buffer.cpp
   trp_client.cpp
   trp_node.cpp
+  LINK_LIBRARIES ext::zlib
   )

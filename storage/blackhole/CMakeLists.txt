@@ -22,4 +22,5 @@
 
 MYSQL_ADD_PLUGIN(blackhole ha_blackhole.cc
   DEFAULT_LEGACY_ENGINE STORAGE_ENGINE
-  LINK_LIBRARIES extra::rapidjson)
+  LINK_LIBRARIES extra::rapidjson ext::zlib
+  )

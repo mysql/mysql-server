@@ -39,7 +39,7 @@ ELSE()
   SET(EXTRA_SRC ndbfs/PosixAsyncFile.cpp)
 ENDIF()
 
-ADD_LIBRARY(ndbblocks STATIC
+ADD_STATIC_LIBRARY(ndbblocks
   LocalProxy.cpp
   PgmanProxy.cpp
   RestoreProxy.cpp
@@ -133,6 +133,7 @@ ADD_LIBRARY(ndbblocks STATIC
   trpman.cpp
   tsman.cpp
   ${EXTRA_SRC}
+  LINK_LIBRARIES ext::zlib
   )
 
 MYSQL_ADD_EXECUTABLE(ndb_print_file
@@ -141,5 +142,5 @@ MYSQL_ADD_EXECUTABLE(ndb_print_file
   dbtup/tuppage.cpp
   COMPONENT ClusterTools
   ENABLE_EXPORTS
-  LINK_LIBRARIES ndbclient_static
+  LINK_LIBRARIES ndbclient_static ext::zlib
   )

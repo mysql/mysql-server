@@ -109,7 +109,7 @@ FOREACH(tpath ${GCS_INTERFACE_TESTS} ${GCS_XCOM_TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${tpath}-t.cc
     ADD_TEST ${test}
     ENABLE_EXPORTS
-    LINK_LIBRARIES gunit_small mysqlgcs ${LZ4_LIBRARY}
+    LINK_LIBRARIES gunit_small mysqlgcs ext::lz4
     )
   SET(GCS_UNIT_TESTS "${GCS_UNIT_TESTS}" "${test}-t")
   IF(WIN32)
@@ -128,5 +128,5 @@ ADD_CUSTOM_TARGET(
   libmysqlgcs-tests
   DEPENDS
   mysqlgcs
-  ${LZ4_LIBRARY}
+  ext::lz4
   ${GCS_UNIT_TESTS})

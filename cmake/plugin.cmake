@@ -284,6 +284,12 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
     MESSAGE(STATUS "Skipping the ${plugin} plugin.")
   ENDIF()
 
+  IF(BUILD_PLUGIN)
+    # Most plugins seem to #include my_checksum.h in some way.
+    # Link explicitly here, to avoid build breaks on e.g. Windows.
+    TARGET_LINK_LIBRARIES(${target} ext::zlib)
+  ENDIF()
+
   IF(BUILD_PLUGIN AND ARG_LINK_LIBRARIES)
     TARGET_LINK_LIBRARIES (${target} ${ARG_LINK_LIBRARIES})
   ENDIF()
