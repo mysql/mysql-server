@@ -28,6 +28,7 @@
 #include <charconv>  // from_chars
 #include <chrono>
 #include <limits>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -117,6 +118,14 @@ class IntOption {
 
   T operator()(const std::string &value, const std::string &option_desc) {
     return mysql_harness::option_as_int(value, option_desc, min_value_,
+                                        max_value_);
+  }
+
+  std::optional<T> operator()(const std::optional<std::string> &value,
+                              const std::string &option_desc) {
+    if (!value.has_value()) return {};
+
+    return mysql_harness::option_as_int(value.value(), option_desc, min_value_,
                                         max_value_);
   }
 
@@ -214,6 +223,7 @@ class DurationOption : public DoubleOption {
  * output is a std::chrono::millisecond
  */
 using MilliSecondsOption = DurationOption<std::chrono::milliseconds>;
+using SecondsOption = DurationOption<std::chrono::seconds>;
 
 }  // namespace mysql_harness
 #endif

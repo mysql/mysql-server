@@ -102,6 +102,14 @@ struct MrdsModule {
       &authentication};
 };
 
+static std::string get_router_name(const mysql_harness::Config *config) {
+  auto section = config->get_default_section();
+  if (section.has("name")) {
+    return section.get("name");
+  }
+  return "";
+}
+
 static std::unique_ptr<mrs::PluginConfig> g_mrs_configuration;
 static std::unique_ptr<MrdsModule> g_mrds_module;
 
@@ -136,8 +144,9 @@ static void init(mysql_harness::PluginFuncEnv *env) {
           std::string("Found another config-section '") + kSectionName +
           "', only one allowed");
 
-    g_mrs_configuration.reset(new mrs::PluginConfig(
-        sections.front(), routing_instances, meta_instances));
+    g_mrs_configuration.reset(
+        new mrs::PluginConfig(sections.front(), routing_instances,
+                              meta_instances, get_router_name(info->config)));
 
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
@@ -180,9 +189,13 @@ static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
 static std::array<const char *, 3> required = {
     {"logger", "http_server", "rest_api"}};
 
-static const std::array<const char *, 5> supported_options{
-    "mysql_user", "mysql_user_data_access", "mysql_read_write_route",
-    "mysql_read_only_route", "router_id"};
+static const std::array<const char *, 7> supported_options{
+    "mysql_user",
+    "mysql_user_data_access",
+    "mysql_read_write_route",
+    "mysql_read_only_route",
+    "router_id",
+    "metadata_refresh_interval"};
 
 // TODO(lkotula): Consider renaming the plugin from rest_mrds to mrds or
 // something other if it already changed in DB schema, consult with router

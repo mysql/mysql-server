@@ -34,6 +34,9 @@
 #include "mrs/database/query_entries_content_file.h"
 #include "mrs/database/query_entries_db_object.h"
 
+#include "router_config.h"
+#include "socket_operations.h"
+
 IMPORT_LOG_FUNCTIONS()
 
 namespace mrs {
@@ -108,6 +111,26 @@ void SchemaMonitor::run() {
         content_file_fetcher.reset(new database::QueryChangesContentFile(
             content_file_fetcher->get_last_update()));
       }
+
+      if (turn_state.get_state() == mrs::stateOn &&
+          configuration_.router_id_.has_value()) {
+        log_debug("Router online, setting router.");
+        auto socket_ops = mysql_harness::SocketOperations::instance();
+
+        mysqlrouter::sqlstring update{
+            "INSERT INTO mysql_rest_service_metadata.router"
+            " (id, router_name, address, product_name, version, attributes, "
+            "options)"
+            " VALUES (?,?,?,?,?,'{}','{}') ON DUPLICATE KEY UPDATE "
+            "version=?, last_check_in=NOW()"};
+
+        update << configuration_.router_id_.value()
+               << configuration_.router_name_
+               << socket_ops->get_local_hostname() << MYSQL_ROUTER_PACKAGE_NAME
+               << MYSQL_ROUTER_VERSION << MYSQL_ROUTER_VERSION;
+        session->execute(update.str());
+        log_debug("Router online, setting router ok.");
+      }
       // TODO(lkotula): Set dirty/clean should be used before START_TRANSACTION
       // and COMMIT (Shouldn't be in review)
       session.set_clean();
@@ -122,8 +145,9 @@ void SchemaMonitor::run() {
 }
 
 bool SchemaMonitor::wait_until_next_refresh() {
-  waitable_.wait_for(std::chrono::seconds(4),
-                     [this](void *) { return !running_; });
+  waitable_.wait_for(
+      std::chrono::seconds(configuration_.metadata_refresh_interval_),
+      [this](void *) { return !running_; });
   return running_;
 }
 
