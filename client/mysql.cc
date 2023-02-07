@@ -537,6 +537,7 @@ static COMMANDS commands[] = {
     {"DIV", 0, nullptr, false, ""},
     {"DO", 0, nullptr, false, ""},
     {"DOUBLE", 0, nullptr, false, ""},
+    {"DPT", 0, nullptr, false, ""},
     {"DROP", 0, nullptr, false, ""},
     {"DUAL", 0, nullptr, false, ""},
     {"DUMPFILE", 0, nullptr, false, ""},

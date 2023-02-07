@@ -63,6 +63,7 @@ class Files : public System_view_impl<System_view_select_definition_impl> {
     FIELD_ROW_FORMAT, /* ndb */
     FIELD_TABLE_ROWS,
     FIELD_AVG_ROW_LENGTH,
+    FIELD_DPT,
     FIELD_DATA_LENGTH,
     FIELD_MAX_DATA_LENGTH,
     FIELD_INDEX_LENGTH,

@@ -1710,6 +1710,8 @@ static const std::pair<const char *, Create_func *> func_array[] = {
      SQL_FN_LIST_INTERNAL_V(Item_func_internal_table_rows, 8, 9)},
     {"INTERNAL_AVG_ROW_LENGTH",
      SQL_FN_LIST_INTERNAL_V(Item_func_internal_avg_row_length, 8, 9)},
+    {"INTERNAL_DPT",
+     SQL_FN_LIST_INTERNAL_V(Item_func_internal_dpt, 8, 9)},
     {"INTERNAL_DATA_LENGTH",
      SQL_FN_LIST_INTERNAL_V(Item_func_internal_data_length, 8, 9)},
     {"INTERNAL_MAX_DATA_LENGTH",

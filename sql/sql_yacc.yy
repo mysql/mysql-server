@@ -6855,7 +6855,7 @@ create_table_option:
         | START_SYM TRANSACTION_SYM
           {
             $$= NEW_PTN PT_create_start_transaction_option(true);
-	  }
+          }
         | ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
           {
             $$ = make_table_engine_attribute(YYMEM_ROOT, $3);

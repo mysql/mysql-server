@@ -52,6 +52,7 @@ class Table_stats : virtual public Entity_object_table_impl {
     FIELD_TABLE_NAME,
     FIELD_TABLE_ROWS,
     FIELD_AVG_ROW_LENGTH,
+    FIELD_DPT,
     FIELD_DATA_LENGTH,
     FIELD_MAX_DATA_LENGTH,
     FIELD_INDEX_LENGTH,

@@ -62,6 +62,7 @@ bool Table_stat_impl::restore_attributes(const Raw_record &r) {
 
   m_table_rows = r.read_int(Table_stats::FIELD_TABLE_ROWS);
   m_avg_row_length = r.read_int(Table_stats::FIELD_AVG_ROW_LENGTH);
+  m_dpt = r.read_int(Table_stats::FIELD_DPT);
   m_data_length = r.read_int(Table_stats::FIELD_DATA_LENGTH);
   m_max_data_length = r.read_int(Table_stats::FIELD_MAX_DATA_LENGTH);
   m_index_length = r.read_int(Table_stats::FIELD_INDEX_LENGTH);
@@ -82,6 +83,7 @@ bool Table_stat_impl::store_attributes(Raw_record *r) {
          r->store(Table_stats::FIELD_TABLE_NAME, m_table_name) ||
          r->store(Table_stats::FIELD_TABLE_ROWS, m_table_rows) ||
          r->store(Table_stats::FIELD_AVG_ROW_LENGTH, m_avg_row_length) ||
+         r->store(Table_stats::FIELD_DPT, m_dpt) ||
          r->store(Table_stats::FIELD_DATA_LENGTH, m_data_length) ||
          r->store(Table_stats::FIELD_MAX_DATA_LENGTH, m_max_data_length) ||
          r->store(Table_stats::FIELD_INDEX_LENGTH, m_index_length) ||
@@ -105,6 +107,7 @@ void Table_stat_impl::debug_print(String_type &outb) const {
      << "m_table_name: " << m_table_name << "; "
      << "m_table_rows: " << m_table_rows << "; "
      << "m_avg_row_length: " << m_avg_row_length << "; "
+     << "m_dpt: " << m_dpt << "; "
      << "m_data_length: " << m_data_length << "; "
      << "m_max_data_length: " << m_max_data_length << "; "
      << "m_index_length: " << m_index_length << "; "

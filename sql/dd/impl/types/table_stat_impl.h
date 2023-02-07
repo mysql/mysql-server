@@ -55,6 +55,7 @@ class Table_stat_impl : public Entity_object_impl, public Table_stat {
   Table_stat_impl()
       : m_table_rows(0),
         m_avg_row_length(0),
+        m_dpt(0),
         m_data_length(0),
         m_max_data_length(0),
         m_index_length(0),
@@ -116,6 +117,16 @@ class Table_stat_impl : public Entity_object_impl, public Table_stat {
 
   void set_avg_row_length(ulonglong avg_row_length) override {
     m_avg_row_length = avg_row_length;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // dpt.
+  /////////////////////////////////////////////////////////////////////////
+
+  ulonglong dpt() const override { return m_dpt; }
+
+  void set_dpt(ulonglong dpt) override {
+    m_dpt = dpt;
   }
 
   /////////////////////////////////////////////////////////////////////////
@@ -231,6 +242,7 @@ class Table_stat_impl : public Entity_object_impl, public Table_stat {
 
   ulonglong m_table_rows;
   ulonglong m_avg_row_length;
+  ulonglong m_dpt;
   ulonglong m_data_length;
   ulonglong m_max_data_length;
   ulonglong m_index_length;

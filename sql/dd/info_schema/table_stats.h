@@ -78,6 +78,7 @@ bool convert_table_name_case(char *db, char *table_name);
 enum class enum_table_stats_type {
   TABLE_ROWS,
   TABLE_AVG_ROW_LENGTH,
+  DPT,
   DATA_LENGTH,
   MAX_DATA_LENGTH,
   INDEX_LENGTH,

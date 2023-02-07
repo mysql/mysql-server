@@ -2573,6 +2573,21 @@ class Item_func_internal_avg_row_length : public Item_int_func {
   }
 };
 
+class Item_func_internal_dpt : public Item_int_func {
+ public:
+  Item_func_internal_dpt(const POS &pos, PT_item_list *list)
+      : Item_int_func(pos, list) {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  longlong val_int() override;
+  const char *func_name() const override { return "internal_dpt"; }
+  bool resolve_type(THD *) override {
+    set_nullable(true);
+    unsigned_flag = true;
+    null_on_null = false;
+    return false;
+  }
+};
+
 class Item_func_internal_data_length : public Item_int_func {
  public:
   Item_func_internal_data_length(const POS &pos, PT_item_list *list)

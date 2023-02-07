@@ -103,6 +103,14 @@ Tables::Tables() {
                          "  ts.se_private_data,"
                          "  COALESCE(stat.avg_row_length, 0),"
                          "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0)))");
+  m_target_def.add_field(FIELD_DPT, "DPT",
+                         "IF (tbl.type = 'VIEW', NULL,"
+                         "INTERNAL_DPT(sch.name, tbl.name,"
+                         "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
+                         "  tbl.se_private_id, tbl.hidden != 'Visible', "
+                         "  ts.se_private_data,"
+                         "  COALESCE(stat.dpt, 0),"
+                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0)))");
   m_target_def.add_field(FIELD_DATA_LENGTH, "DATA_LENGTH",
                          "IF (tbl.type = 'VIEW', NULL,"
                          "INTERNAL_DATA_LENGTH(sch.name, tbl.name,"

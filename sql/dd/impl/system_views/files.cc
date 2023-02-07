@@ -103,6 +103,7 @@ Files::Files() {
                          "tsf.file_name, ts.engine, ts.se_private_data)");
   m_target_def.add_field(FIELD_TABLE_ROWS, "TABLE_ROWS", "NULL");
   m_target_def.add_field(FIELD_AVG_ROW_LENGTH, "AVG_ROW_LENGTH", "NULL");
+  m_target_def.add_field(FIELD_DPT, "DPT", "NULL");
   m_target_def.add_field(FIELD_DATA_LENGTH, "DATA_LENGTH", "NULL");
   m_target_def.add_field(FIELD_MAX_DATA_LENGTH, "MAX_DATA_LENGTH", "NULL");
   m_target_def.add_field(FIELD_INDEX_LENGTH, "INDEX_LENGTH", "NULL");

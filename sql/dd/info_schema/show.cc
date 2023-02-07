@@ -403,6 +403,9 @@ static bool add_table_status_fields(Select_lex_builder *query,
   static const LEX_CSTRING alias_avg_row_length = {
       STRING_WITH_LEN("Avg_row_length")};
 
+  static const LEX_CSTRING field_dpt = {STRING_WITH_LEN("DPT")};
+  static const LEX_CSTRING alias_dpt = {STRING_WITH_LEN("Data_persistence_threshold")};
+
   static const LEX_CSTRING field_data_length = {STRING_WITH_LEN("DATA_LENGTH")};
   static const LEX_CSTRING alias_data_length = {STRING_WITH_LEN("Data_length")};
 
@@ -454,6 +457,7 @@ static bool add_table_status_fields(Select_lex_builder *query,
         query->add_select_item(field_row_format, alias_row_format) ||
         query->add_select_item(field_rows, alias_rows) ||
         query->add_select_item(field_avg_row_length, alias_avg_row_length) ||
+        query->add_select_item(field_dpt, alias_dpt) ||
         query->add_select_item(field_data_length, alias_data_length) ||
         query->add_select_item(field_max_data_length, alias_max_data_length) ||
         query->add_select_item(field_index_length, alias_index_length) ||
@@ -473,6 +477,7 @@ static bool add_table_status_fields(Select_lex_builder *query,
         query->add_select_item(alias_row_format, alias_row_format) ||
         query->add_select_item(alias_rows, alias_rows) ||
         query->add_select_item(alias_avg_row_length, alias_avg_row_length) ||
+        query->add_select_item(alias_dpt, alias_dpt) ||
         query->add_select_item(alias_data_length, alias_data_length) ||
         query->add_select_item(alias_max_data_length, alias_max_data_length) ||
         query->add_select_item(alias_index_length, alias_index_length) ||

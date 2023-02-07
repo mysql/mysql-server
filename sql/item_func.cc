@@ -9299,6 +9299,15 @@ longlong Item_func_internal_avg_row_length::val_int() {
   return result;
 }
 
+longlong Item_func_internal_dpt::val_int() {
+  DBUG_TRACE;
+
+  ulonglong result = get_table_statistics(
+      args, arg_count, dd::info_schema::enum_table_stats_type::DPT,
+      &null_value);
+  return result;
+}
+
 longlong Item_func_internal_data_length::val_int() {
   DBUG_TRACE;
 
