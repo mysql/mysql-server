@@ -29,6 +29,7 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
     DEFAULT_LEGACY_ENGINE
     MANDATORY       # not actually a plugin, always builtin
     MODULE_ONLY     # build only as shared library
+    NO_UNDEFINED    # add -Wl,--no-undefined on Linux, relevant for MODULE_ONLY
     SKIP_INSTALL
     STATIC_ONLY
     STORAGE_ENGINE
@@ -190,13 +191,24 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
       MY_TARGET_LINK_OPTIONS(${target}
         "LINKER:--compress-debug-sections=zlib")
     ENDIF()
-    SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX ""
-      COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
+    SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX "")
+
+    # CLIENT_ONLY plugins should have no undefined symbols.
+    IF(ARG_CLIENT_ONLY)
+      SET(ARG_NO_UNDEFINED ON)
+    ENDIF()
+
+    IF(ARG_NO_UNDEFINED AND LINK_FLAG_NO_UNDEFINED)
+      MY_TARGET_LINK_OPTIONS(${target} "${LINK_FLAG_NO_UNDEFINED}")
+    ENDIF()
+
     IF(WIN32_CLANG AND WITH_ASAN)
       TARGET_LINK_LIBRARIES(${target}
         "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
     ENDIF()
     IF(NOT ARG_CLIENT_ONLY)
+      SET_TARGET_PROPERTIES (${target} PROPERTIES
+        COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
       TARGET_LINK_LIBRARIES (${target} mysqlservices)
     ENDIF()
 
