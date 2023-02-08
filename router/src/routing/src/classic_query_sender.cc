@@ -31,7 +31,6 @@
 #include <variant>
 
 #include "classic_connection_base.h"
-#include "classic_forwarder.h"
 #include "classic_frame.h"
 #include "classic_lazy_connect.h"
 #include "harness_assert.h"
@@ -40,7 +39,6 @@
 #include "mysqld_error.h"  // mysql errors
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/utils.h"  // to_string
-#include "processor.h"
 #include "sql/lex.h"
 #include "sql_exec_context.h"
 #include "sql_lexer.h"

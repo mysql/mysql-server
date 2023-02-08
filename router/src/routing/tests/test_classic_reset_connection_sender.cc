@@ -24,14 +24,14 @@
 
 #include "classic_reset_connection_sender.h"
 
+#include <initializer_list>
+
+#include <gmock/gmock.h>
+
 #include "classic_connection_base.h"
-#include "hexify.h"
 #include "mysql/harness/net_ts/buffer.h"
 #include "protocol/base_protocol.h"
 #include "stdx_expected_no_error.h"
-
-#include <gmock/gmock.h>
-#include <initializer_list>
 
 using namespace std::chrono_literals;
 

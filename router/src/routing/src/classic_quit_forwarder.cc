@@ -25,7 +25,6 @@
 #include "classic_quit_forwarder.h"
 
 #include "classic_connection_base.h"
-#include "classic_forwarder.h"
 #include "classic_frame.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/impl/socket.h"
@@ -34,7 +33,6 @@
 #include "mysql/harness/tls_error.h"
 #include "mysqlrouter/connection_pool.h"
 #include "mysqlrouter/connection_pool_component.h"
-#include "tracer.h"
 
 IMPORT_LOG_FUNCTIONS()
 

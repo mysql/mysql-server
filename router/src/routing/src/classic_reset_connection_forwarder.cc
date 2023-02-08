@@ -25,14 +25,12 @@
 #include "classic_reset_connection_forwarder.h"
 
 #include "classic_connection_base.h"
-#include "classic_forwarder.h"
 #include "classic_frame.h"
 #include "classic_lazy_connect.h"
 #include "classic_query_sender.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
-#include "tracer.h"
 
 IMPORT_LOG_FUNCTIONS()
 

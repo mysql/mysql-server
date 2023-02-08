@@ -25,12 +25,10 @@
 #include "classic_stmt_execute_forwarder.h"
 
 #include "classic_connection_base.h"
-#include "classic_forwarder.h"
 #include "classic_frame.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqld_error.h"  // mysql-server error-codes
-#include "tracer.h"
 
 stdx::expected<Processor::Result, std::error_code>
 StmtExecuteForwarder::process() {

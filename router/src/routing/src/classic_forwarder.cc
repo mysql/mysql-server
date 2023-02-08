@@ -28,7 +28,6 @@
 #include "classic_frame.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/tls_error.h"
-#include "tracer.h"
 
 IMPORT_LOG_FUNCTIONS()
 
