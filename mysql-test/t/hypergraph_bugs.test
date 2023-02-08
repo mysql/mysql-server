@@ -410,3 +410,60 @@ EXPLAIN FORMAT=TREE SELECT x1.a+0 k, COUNT(x1.b) FROM t1 x1
   LEFT JOIN t1 x3 ON x2.b=x3.a GROUP BY k;
 
 DROP TABLE t1,t2,num;
+
+
+--echo #
+--echo # Bug#35000554: assertion error in EstimateAggregateNoRollupRows()
+--echo #
+
+CREATE TABLE num10 (n INT);
+INSERT INTO num10 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t1(a INT, b INT, c INT);
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a, b, c;
+
+INSERT INTO t1 SELECT NULL, x1.n+x2.n*10, NULL FROM num10 x1, num10 x2;
+INSERT INTO t1 VALUES (NULL, 0, 0);
+
+ANALYZE TABLE t1;
+
+# Row estimate should not be zero, even if histogram was built on empty table.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT b FROM t1 GROUP BY b;
+
+# Row estimate should not be zero, even if histogram was built on empty table.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT b FROM t1 WHERE b=c;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a, b, c;
+
+# Prior to the fix, this would trigger the assert, as we would estimate
+# zero distinct values for 'a'.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT a,b FROM t1 GROUP BY a,b;
+
+# Now there is an updated histogram (built on a non-empty table),
+# and thus a better estimate.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT b FROM t1 WHERE b=c;
+
+# Estimate should be two rows (NULL and 0).
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT c FROM t1 GROUP BY c;
+
+DROP TABLE num10, t1;
+
+CREATE TABLE t2(a INT, b INT);
+
+INSERT INTO t2 VALUES (0, 0), (0, 1), (1, 2), (NULL, 3), (NULL, 4), (NULL, 5);
+
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON a, b;
+ANALYZE TABLE t2;
+
+# Estimate should be 1.5 rows (i.e. 25% of the table), as there are two distinct
+# values, and 'a' is NULL for 50% of the rows.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t2 WHERE a=b;
+
+DROP TABLE t2;

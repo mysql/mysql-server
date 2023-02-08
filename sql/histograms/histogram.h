@@ -647,6 +647,12 @@ class Histogram {
   }
 };
 
+/** Return true if 'histogram' was built on an empty table.*/
+inline bool empty(const Histogram &histogram) {
+  return histogram.get_num_distinct_values() == 0 &&
+         histogram.get_null_values_fraction() == 0.0;
+}
+
 /**
   Create a histogram from a value map.
 
