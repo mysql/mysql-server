@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
-    All rights reserved. Use is subject to license terms.
+   Copyright (C) 2016, 2023 Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,8 +28,8 @@ bool
 printPROCESSINFO_REP(FILE * out, const Uint32 * data, Uint32 len, Uint16 bno) {
   ProcessInfoRep * sig = (ProcessInfoRep *) data;
 
-  fprintf(out, " process_name: %s", (char *) sig->process_name);
-  fprintf(out, " process_id: %d  angel_process_id: %d  application_port: %d",
+  fprintf(out, " process_name: %s\n", (char *) sig->process_name);
+  fprintf(out, " process_id: %d  angel_process_id: %d  application_port: %d\n",
           sig->process_id, sig->angel_process_id, sig->application_port);
 
   return true;
