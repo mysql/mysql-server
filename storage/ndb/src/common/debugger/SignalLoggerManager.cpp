@@ -587,7 +587,7 @@ SignalLoggerManager::printSignalHeader(FILE * output,
 
   if (printReceiversSignalId)
     fprintf(output, 
-	    "r.bn: %d%s \"%s\", r.proc: %d, r.sigId: %d gsn: %d \"%s\" prio: %d\n"
+	    "r.bn: %d%s \"%s\", r.proc: %d, r.sigId: %u gsn: %d \"%s\" prio: %d\n"
 	    ,receiverBlockNo, rInstanceText, rBlockName, receiverProcessor,
             rSigId, gsn, signalName, prio);
   else 
@@ -597,7 +597,7 @@ SignalLoggerManager::printSignalHeader(FILE * output,
             gsn, signalName, prio);
   
   fprintf(output, 
-	  "s.bn: %d%s \"%s\", s.proc: %d, s.sigId: %d length: %d trace: %d "
+	  "s.bn: %d%s \"%s\", s.proc: %d, s.sigId: %u length: %d trace: %d "
 	  "#sec: %d fragInf: %d\n",
 	  senderBlockNo, sInstanceText, sBlockName, senderProcessor,
           sSigId, length, trace, sh.m_noOfSections, sh.m_fragmentInfo);
