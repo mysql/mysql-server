@@ -51,8 +51,8 @@ IF((KERBEROS_INCLUDE_DIR AND GSSAPI_INCLUDE_DIR))
   SET(AUTH_CLIENT "gssapi_authentication_client.cc")
   SET(UTILITY "gssapi_utility.cc")
   SET(CORE "kerberos_core.cc")
-  SET(KERBEROS_LIB "${GSSAPI_LIBRARIES}")
-  LIST(APPEND KERBEROS_LIB "${KERBEROS_LIBRARIES}")
+  SET(KERBEROS_LIB ${GSSAPI_LIBRARIES})
+  LIST(APPEND KERBEROS_LIB ${KERBEROS_LIBRARIES})
   MESSAGE(STATUS "Using Kerberos libraries: ${KERBEROS_LIB}")
 ELSE()
   MESSAGE(WARNING
@@ -78,8 +78,6 @@ MYSQL_ADD_PLUGIN(authentication_kerberos_client
   ${CORE}
   ${UTILITY}
   LINK_LIBRARIES
-  # Uncomment to verify that all symbols are found.
-  # ${LINK_FLAG_NO_UNDEFINED}
   ${KERBEROS_LIB}
   ${SSL_LIBRARIES}
   ${LIBDL}
