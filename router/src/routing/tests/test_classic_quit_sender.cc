@@ -22,7 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "classic_quit.h"
+#include "classic_quit_sender.h"
 
 #include <array>
 

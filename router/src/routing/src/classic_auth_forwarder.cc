@@ -32,10 +32,14 @@
 #include <openssl/x509.h>
 
 #include "auth_digest.h"
-#include "classic_auth_caching_sha2.h"
-#include "classic_auth_cleartext.h"
-#include "classic_auth_native.h"
-#include "classic_auth_sha256_password.h"
+#include "classic_auth_caching_sha2_forwarder.h"
+#include "classic_auth_caching_sha2_sender.h"
+#include "classic_auth_cleartext_forwarder.h"
+#include "classic_auth_cleartext_sender.h"
+#include "classic_auth_native_forwarder.h"
+#include "classic_auth_native_sender.h"
+#include "classic_auth_sha256_password_forwarder.h"
+#include "classic_auth_sha256_password_sender.h"
 #include "classic_frame.h"
 #include "harness_assert.h"
 #include "hexify.h"

@@ -25,17 +25,12 @@
 #ifndef ROUTING_CLASSIC_AUTH_CLEARTEXT_INCLUDED
 #define ROUTING_CLASSIC_AUTH_CLEARTEXT_INCLUDED
 
-#include <memory>  // unique_ptr
 #include <optional>
+#include <string>
 #include <string_view>
 #include <system_error>
 
-#include <openssl/ssl.h>
-
-#include "classic_auth.h"
 #include "classic_connection_base.h"
-#include "forwarding_processor.h"
-#include "mysql/harness/stdx/expected.h"
 
 class AuthCleartextPassword {
  public:
@@ -43,83 +38,6 @@ class AuthCleartextPassword {
 
   static std::optional<std::string> scramble(std::string_view nonce,
                                              std::string_view pwd);
-};
-
-class AuthCleartextSender : public Processor {
- public:
-  AuthCleartextSender(MysqlRoutingClassicConnectionBase *conn,
-                      std::string initial_server_auth_data,
-                      std::string password)
-      : Processor(conn),
-        initial_server_auth_data_{std::move(initial_server_auth_data)},
-        password_{std::move(password)} {}
-
-  enum class Stage {
-    Init,
-
-    Response,
-
-    Error,
-    Ok,
-
-    Done,
-  };
-
-  stdx::expected<Result, std::error_code> process() override;
-
-  void stage(Stage stage) { stage_ = stage; }
-  [[nodiscard]] Stage stage() const { return stage_; }
-
- private:
-  stdx::expected<Result, std::error_code> init();
-  stdx::expected<Result, std::error_code> response();
-  stdx::expected<Result, std::error_code> error();
-  stdx::expected<Result, std::error_code> ok();
-
-  Stage stage_{Stage::Init};
-
-  std::string initial_server_auth_data_;
-  std::string password_;
-};
-
-class AuthCleartextForwarder : public ForwardingProcessor {
- public:
-  AuthCleartextForwarder(MysqlRoutingClassicConnectionBase *conn,
-                         std::string initial_server_auth_data,
-                         bool in_handshake = false)
-      : ForwardingProcessor(conn),
-        initial_server_auth_data_{std::move(initial_server_auth_data)},
-        stage_{in_handshake ? Stage::Response : Stage::Init} {}
-
-  enum class Stage {
-    Init,
-
-    ClientData,
-    Response,
-
-    Error,
-    Ok,
-
-    Done,
-  };
-
-  stdx::expected<Result, std::error_code> process() override;
-
-  void stage(Stage stage) { stage_ = stage; }
-  [[nodiscard]] Stage stage() const { return stage_; }
-
- private:
-  using Auth = AuthCleartextPassword;
-
-  stdx::expected<Result, std::error_code> init();
-  stdx::expected<Result, std::error_code> client_data();
-  stdx::expected<Result, std::error_code> response();
-  stdx::expected<Result, std::error_code> error();
-  stdx::expected<Result, std::error_code> ok();
-
-  std::string initial_server_auth_data_;
-
-  Stage stage_{Stage::Init};
 };
 
 #endif

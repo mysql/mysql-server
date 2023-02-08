@@ -32,7 +32,6 @@
 
 #include "classic_auth.h"
 #include "classic_connection_base.h"
-#include "forwarding_processor.h"
 #include "mysql/harness/stdx/expected.h"
 
 // low-level routings for caching_sha2_password
@@ -70,108 +69,6 @@ class AuthCachingSha2Password : public AuthBase {
 
   static bool is_public_key_request(const std::string_view &data);
   static bool is_public_key(const std::string_view &data);
-};
-
-class AuthCachingSha2Sender : public Processor {
- public:
-  AuthCachingSha2Sender(MysqlRoutingClassicConnectionBase *conn,
-                        std::string initial_server_auth_data,
-                        std::string password)
-      : Processor(conn),
-        initial_server_auth_data_{std::move(initial_server_auth_data)},
-        password_{std::move(password)} {}
-
-  enum class Stage {
-    Init,
-
-    PublicKey,
-
-    Response,
-
-    AuthData,
-    Error,
-    Ok,
-
-    Done,
-  };
-
-  stdx::expected<Result, std::error_code> process() override;
-
-  void stage(Stage stage) { stage_ = stage; }
-  [[nodiscard]] Stage stage() const { return stage_; }
-
- private:
-  using Auth = AuthCachingSha2Password;
-
-  stdx::expected<Result, std::error_code> init();
-  stdx::expected<Result, std::error_code> public_key();
-  stdx::expected<Result, std::error_code> response();
-  stdx::expected<Result, std::error_code> auth_data();
-  stdx::expected<Result, std::error_code> error();
-  stdx::expected<Result, std::error_code> ok();
-
-  stdx::expected<Result, std::error_code> send_password();
-
-  Stage stage_{Stage::Init};
-
-  std::string initial_server_auth_data_;
-  std::string password_;
-};
-
-class AuthCachingSha2Forwarder : public ForwardingProcessor {
- public:
-  AuthCachingSha2Forwarder(MysqlRoutingClassicConnectionBase *conn,
-                           std::string initial_server_auth_data,
-                           bool in_handshake = false)
-      : ForwardingProcessor(conn),
-        initial_server_auth_data_{std::move(initial_server_auth_data)},
-        in_handshake_{in_handshake},
-        stage_{in_handshake ? Stage::Response : Stage::Init} {}
-
-  enum class Stage {
-    Init,
-
-    ClientData,
-    EncryptedPassword,
-    PlaintextPassword,
-
-    PublicKeyResponse,
-    PublicKey,
-    AuthData,
-
-    Response,
-
-    Error,
-    Ok,
-
-    Done,
-  };
-
-  stdx::expected<Result, std::error_code> process() override;
-
-  void stage(Stage stage) { stage_ = stage; }
-  [[nodiscard]] Stage stage() const { return stage_; }
-
- private:
-  using Auth = AuthCachingSha2Password;
-
-  stdx::expected<Result, std::error_code> init();
-  stdx::expected<Result, std::error_code> client_data();
-  stdx::expected<Result, std::error_code> encrypted_password();
-  stdx::expected<Result, std::error_code> plaintext_password();
-  stdx::expected<Result, std::error_code> auth_data();
-  stdx::expected<Result, std::error_code> public_key_response();
-  stdx::expected<Result, std::error_code> public_key();
-  stdx::expected<Result, std::error_code> response();
-  stdx::expected<Result, std::error_code> error();
-  stdx::expected<Result, std::error_code> ok();
-
-  stdx::expected<Result, std::error_code> send_password();
-
-  std::string initial_server_auth_data_;
-
-  bool in_handshake_;
-  Stage stage_;
 };
 
 #endif
