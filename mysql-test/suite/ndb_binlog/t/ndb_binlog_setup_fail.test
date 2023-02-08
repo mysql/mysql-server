@@ -27,7 +27,6 @@
 
 -- disable_query_log
 call mtr.add_suppression("mysqld startup An incident event has been written");
-call mtr.add_suppression("Got error '1062: Duplicate entry 'ndbcluster.*'");
 -- enable_query_log
 
 # Create tables to help shuffle the data dictionary

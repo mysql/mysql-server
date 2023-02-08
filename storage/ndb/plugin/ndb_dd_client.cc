@@ -572,7 +572,8 @@ bool Ndb_dd_client::remove_table(
 
   if (table == nullptr) {
     // Table does not exist or was inadvertently cached. Nothing to do.
-    ndb_log_info("Table definition with %s-%llu does not exist", engine, spi);
+    ndb_log_verbose(50, "Table definition with %s-%llu does not exist", engine,
+                    spi);
     return true;
   }
 
@@ -782,6 +783,12 @@ bool Ndb_dd_client::install_table(
             "Failed to remove table definition from DD for spi=%llu. ",
             dd_handle.spi);
       }
+    }
+  } else {
+    // Remove any stale DD table that may be occupying this
+    // ndbcluster-<id> place
+    if (!remove_table(dd_handle.spi)) {
+      ndb_log_info("Failed to remove ndbcluster-%llu from DD", dd_handle.spi);
     }
   }
 
