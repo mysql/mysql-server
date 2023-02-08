@@ -565,9 +565,8 @@ double EstimateAggregateNoRollupRows(const TermArray &terms, double child_rows,
           field->table->s->find_histogram(field->field_index());
 
       double distinct_values;
-      if (histogram == nullptr) {
-        // We do not have a histogram for 'field', so we make an estimate
-        // from the table row count instead.
+      if (histogram == nullptr || empty(*histogram)) {
+        // Make an estimate from the table row count.
         distinct_values = std::sqrt(field->table->file->stats.records);
 
         if (trace != nullptr) {
@@ -578,10 +577,15 @@ double EstimateAggregateNoRollupRows(const TermArray &terms, double child_rows,
         }
 
       } else {
-        // If term is a field with a histogram, use that to get a row
+        // If 'term' is a field with a histogram, use that to get a row
         // estimate.
-        assert(histogram->get_num_distinct_values() >= 1);
         distinct_values = histogram->get_num_distinct_values();
+
+        if (histogram->get_null_values_fraction() > 0.0) {
+          // If there are NULL values, those will form a separate row in the
+          // aggregate.
+          ++distinct_values;
+        }
 
         if (trace != nullptr) {
           *trace += StringPrintf(

@@ -488,3 +488,68 @@ EXPLAIN
                         -> Table scan on x3  (rows=20)
 
 DROP TABLE t1,t2,num;
+#
+# Bug#35000554: assertion error in EstimateAggregateNoRollupRows()
+#
+CREATE TABLE num10 (n INT);
+INSERT INTO num10 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t1(a INT, b INT, c INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a, b, c;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'a'.
+test.t1	histogram	status	Histogram statistics created for column 'b'.
+test.t1	histogram	status	Histogram statistics created for column 'c'.
+INSERT INTO t1 SELECT NULL, x1.n+x2.n*10, NULL FROM num10 x1, num10 x2;
+INSERT INTO t1 VALUES (NULL, 0, 0);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN ANALYZE SELECT b FROM t1 GROUP BY b;
+EXPLAIN
+-> Group (no aggregates)  (rows=10) (actual rows=100 loops=1)
+    -> Sort: t1.b  (rows=101) (actual rows=101 loops=1)
+        -> Table scan on t1  (rows=101) (actual rows=101 loops=1)
+
+EXPLAIN ANALYZE SELECT b FROM t1 WHERE b=c;
+EXPLAIN
+-> Filter: (t1.b = t1.c)  (rows=101) (actual rows=1 loops=1)
+    -> Table scan on t1  (rows=101) (actual rows=101 loops=1)
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a, b, c;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'a'.
+test.t1	histogram	status	Histogram statistics created for column 'b'.
+test.t1	histogram	status	Histogram statistics created for column 'c'.
+EXPLAIN FORMAT=TREE SELECT a,b FROM t1 GROUP BY a,b;
+EXPLAIN
+-> Group (no aggregates)  (rows=63.7)
+    -> Sort: t1.a, t1.b  (rows=101)
+        -> Table scan on t1  (rows=101)
+
+EXPLAIN ANALYZE SELECT b FROM t1 WHERE b=c;
+EXPLAIN
+-> Filter: (t1.b = t1.c)  (rows=1.01) (actual rows=1 loops=1)
+    -> Table scan on t1  (rows=101) (actual rows=101 loops=1)
+
+EXPLAIN ANALYZE SELECT c FROM t1 GROUP BY c;
+EXPLAIN
+-> Group (no aggregates)  (rows=2) (actual rows=2 loops=1)
+    -> Sort: t1.c  (rows=101) (actual rows=101 loops=1)
+        -> Table scan on t1  (rows=101) (actual rows=101 loops=1)
+
+DROP TABLE num10, t1;
+CREATE TABLE t2(a INT, b INT);
+INSERT INTO t2 VALUES (0, 0), (0, 1), (1, 2), (NULL, 3), (NULL, 4), (NULL, 5);
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON a, b;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'a'.
+test.t2	histogram	status	Histogram statistics created for column 'b'.
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+EXPLAIN ANALYZE SELECT 1 FROM t2 WHERE a=b;
+EXPLAIN
+-> Filter: (t2.a = t2.b)  (rows=1.5) (actual rows=1 loops=1)
+    -> Table scan on t2  (rows=6) (actual rows=6 loops=1)
+
+DROP TABLE t2;
