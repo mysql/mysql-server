@@ -12225,6 +12225,8 @@ ER_REDUCED_DBLWR_PAGE_FOUND
 ER_CONN_INIT_CONNECT_IGNORED_MFA
   eng "init_connect variable is ignored for user: %s host: %s due to multi-factor registration required sandboxing"
 
+ER_SECONDARY_ENGINE_DDL_FAILED
+  eng "Execution of alter table %s %s failed because %s."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
