@@ -1632,6 +1632,10 @@ class Item_rollup_group_item final : public Item_func {
                ? (args[0]->used_tables() | RAND_TABLE_BIT)
                : args[0]->used_tables();
   }
+  void update_used_tables() override {
+    Item_func::update_used_tables();
+    set_rollup_expr();
+  }
   Item_result result_type() const override { return args[0]->result_type(); }
   bool resolve_type(THD *) override {
     // needn't handle dynamic parameter as its const_item() is false.

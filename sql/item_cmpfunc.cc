@@ -5955,12 +5955,11 @@ longlong Item_cond_or::val_int() {
 }
 
 void Item_func_isnull::update_used_tables() {
+  args[0]->update_used_tables();
+  set_accum_properties(args[0]);
   if (!args[0]->is_nullable()) {
     used_tables_cache = 0;
   } else {
-    args[0]->update_used_tables();
-    set_accum_properties(args[0]);
-
     used_tables_cache = args[0]->used_tables();
     if (!const_item()) cache_used = false;
   }
