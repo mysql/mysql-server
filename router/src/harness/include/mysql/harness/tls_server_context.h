@@ -120,6 +120,16 @@ class HARNESS_TLS_EXPORT TlsServerContext : public TlsContext {
    * default ciphers.
    */
   static std::vector<std::string> default_ciphers();
+
+  /**
+   * set context within which session can be reused.
+   *
+   * @param ctx context data
+   * @param ctx_len context data length
+   *
+   * @returns 1 on success, 0 on error
+   */
+  int set_session_id_context(const unsigned char *ctx, unsigned int ctx_len);
 };
 
 #endif

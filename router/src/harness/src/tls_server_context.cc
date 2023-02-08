@@ -527,3 +527,8 @@ int TlsServerContext::security_level() const {
   return 2;
 #endif
 }
+
+int TlsServerContext::set_session_id_context(const unsigned char *ctx,
+                                             unsigned int ctx_len) {
+  return SSL_CTX_set_session_id_context(get(), ctx, ctx_len);
+}
