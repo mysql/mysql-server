@@ -122,14 +122,15 @@ class HARNESS_TLS_EXPORT TlsServerContext : public TlsContext {
   static std::vector<std::string> default_ciphers();
 
   /**
-   * set context within which session can be reused.
+   * set the session-id context for ssl-context reuse.
    *
-   * @param ctx context data
-   * @param ctx_len context data length
+   * unique identifier of the ssl-ctx.
    *
-   * @returns 1 on success, 0 on error
+   * @param sid_ctx opaque string of size sid_ctx_len
+   * @param sid_ctx_len length of sid_ctx_len
    */
-  int set_session_id_context(const unsigned char *ctx, unsigned int ctx_len);
+  stdx::expected<void, std::error_code> session_id_context(
+      const unsigned char *sid_ctx, unsigned int sid_ctx_len);
 };
 
 #endif
