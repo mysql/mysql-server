@@ -2116,14 +2116,18 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
 
     // Storage engine specific json attributes
     if (field->m_engine_attribute.length) {
-      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE '"));
-      packet->append(field->m_engine_attribute);
-      packet->append(STRING_WITH_LEN("' */"));
+      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE "));
+      // append escaped JSON
+      append_unescaped(packet, field->m_engine_attribute.str,
+                       field->m_engine_attribute.length);
+      packet->append(STRING_WITH_LEN(" */"));
     }
     if (field->m_secondary_engine_attribute.length) {
-      packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE '"));
-      packet->append(field->m_secondary_engine_attribute);
-      packet->append(STRING_WITH_LEN("' */"));
+      packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE "));
+      // escape JSON
+      append_unescaped(packet, field->m_secondary_engine_attribute.str,
+                       field->m_secondary_engine_attribute.length);
+      packet->append(STRING_WITH_LEN(" */"));
     }
   }
 
@@ -2479,14 +2483,17 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
     }
 
     if (share->engine_attribute.length) {
-      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE='"));
-      packet->append(share->engine_attribute);
-      packet->append(STRING_WITH_LEN("' */"));
+      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE="));
+      append_unescaped(packet, share->engine_attribute.str,
+                       share->engine_attribute.length);
+      packet->append(STRING_WITH_LEN(" */"));
     }
     if (share->secondary_engine_attribute.length) {
-      packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE='"));
-      packet->append(share->secondary_engine_attribute);
-      packet->append(STRING_WITH_LEN("' */"));
+      packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE="));
+      // escape JSON
+      append_unescaped(packet, share->secondary_engine_attribute.str,
+                       share->secondary_engine_attribute.length);
+      packet->append(STRING_WITH_LEN(" */"));
     }
     append_directory(thd, packet, "DATA", create_info.data_file_name);
     append_directory(thd, packet, "INDEX", create_info.index_file_name);
@@ -2559,15 +2566,19 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
       packet->append(STRING_WITH_LEN(" /*!80000 INVISIBLE */"));
 
     if (key_info->engine_attribute.length > 0) {
-      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE '"));
-      packet->append(key_info->engine_attribute);
-      packet->append(STRING_WITH_LEN("' */"));
+      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE "));
+      // escape JSON
+      append_unescaped(packet, key_info->engine_attribute.str,
+                       key_info->engine_attribute.length);
+      packet->append(STRING_WITH_LEN(" */"));
     }
 
     if (key_info->secondary_engine_attribute.length > 0) {
-      packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE '"));
-      packet->append(key_info->secondary_engine_attribute);
-      packet->append(STRING_WITH_LEN("' */"));
+      packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE "));
+      // escape JSON
+      append_unescaped(packet, key_info->secondary_engine_attribute.str,
+                       key_info->secondary_engine_attribute.length);
+      packet->append(STRING_WITH_LEN(" */"));
     }
   }
 }

@@ -420,6 +420,15 @@ bool Sql_cmd_create_trigger::execute(THD *thd) {
   TABLE *table = open_and_lock_subj_table(thd, m_trigger_table, &mdl_ticket);
   if (table == nullptr) return true;
 
+  /* We don't allow creating triggers on external tables */
+  if ((table->file->ht->flags & HTON_NO_TRIGGER_SUPPORT) != 0U) {
+    std::string errorMsg =
+        "by " + std::string(ha_resolve_storage_engine_name(table->file->ht));
+    my_error(ER_FEATURE_UNSUPPORTED, MYF(0), "TRIGGER", errorMsg.c_str());
+    restore_original_mdl_state(thd, mdl_ticket);
+    return true;
+  }
+
   if (acquire_exclusive_mdl_for_trigger(thd, thd->lex->spname->m_db.str,
                                         thd->lex->spname->m_name.str)) {
     restore_original_mdl_state(thd, mdl_ticket);

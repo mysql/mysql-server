@@ -51,6 +51,9 @@ MACRO (FIND_SYSTEM_LZ4)
     SET(SYSTEM_LZ4_FOUND 1)
     SET(LZ4_LIBRARY ${LZ4_SYSTEM_LIBRARY})
   ENDIF()
+  ADD_LIBRARY(LZ4::lz4 UNKNOWN IMPORTED)
+  SET_PROPERTY(TARGET LZ4::lz4 APPEND PROPERTY
+    IMPORTED_LOCATION ${LZ4_SYSTEM_LIBRARY})
 ENDMACRO()
 
 SET(LZ4_VERSION "lz4-1.9.4")
@@ -68,6 +71,18 @@ MACRO (MYSQL_USE_BUNDLED_LZ4)
     ${BUNDLED_LZ4_PATH}/lz4hc.c
     ${BUNDLED_LZ4_PATH}/xxhash.c
     )
+  # building lz4 in archive dir so that can be imported by other shared library
+  SET_TARGET_PROPERTIES(lz4_lib PROPERTIES
+    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/archive_output_directory)
+  # create LZ4::lz4 target to cover arrow dependency. This make arrow to bundle
+  # with previously installed lz4 in mysql (removing lz4 from arrow third-party
+  # source dir)
+  ADD_LIBRARY(LZ4::lz4 UNKNOWN IMPORTED)
+  SET_TARGET_PROPERTIES(LZ4::lz4 PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${LZ4_INCLUDE_DIR}")
+  SET_PROPERTY(TARGET LZ4::lz4 APPEND PROPERTY
+    IMPORTED_LOCATION
+    "${CMAKE_BINARY_DIR}/archive_output_directory/liblz4_lib.a")
 ENDMACRO()
 
 MACRO (MYSQL_CHECK_LZ4)

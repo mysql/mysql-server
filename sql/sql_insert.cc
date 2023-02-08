@@ -3337,12 +3337,17 @@ bool Sql_cmd_insert_base::accept(THD *thd, Select_lex_visitor *visitor) {
 }
 
 const MYSQL_LEX_CSTRING *
-Sql_cmd_insert_select::eligible_secondary_storage_engine() const {
+Sql_cmd_insert_select::eligible_secondary_storage_engine() {
   // ON DUPLICATE KEY UPDATE cannot be offloaded
   if (!update_field_list.empty()) return nullptr;
 
   // Don't use secondary storage engines for REPLACE INTO SELECT statements
   if (is_replace) return nullptr;
 
-  return get_eligible_secondary_engine();
+  bool is_external_source = false;
+  const MYSQL_LEX_CSTRING *ret =
+      get_eligible_secondary_engine(&is_external_source);
+  set_secondary_storage_stmt_external_tbl(is_external_source);
+
+  return ret;
 }

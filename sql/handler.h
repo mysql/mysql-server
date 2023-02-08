@@ -2891,6 +2891,17 @@ constexpr const decltype(
  * secondary. */
 #define HTON_SECONDARY_ENGINE_SUPPORTS_DDL (1 << 19)
 
+/** Whether the engine does not support triggers. */
+#define HTON_NO_TRIGGER_SUPPORT (1 << 20)
+
+/** Whether the primary engine supports external data sources. This case refers
+   to having tables with data in object store and the engine does not store any
+   of those data, only metadata. Table contents can be accessed only after
+   loading the table in the secondary storage engine. The flag is used for
+   a primary engine only.
+ */
+#define HTON_SUPPORTS_EXTERNAL_SOURCE (1 << 21)
+
 inline bool secondary_engine_supports_ddl(const handlerton *hton) {
   assert(hton->flags & HTON_IS_SECONDARY_ENGINE);
 

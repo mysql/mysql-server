@@ -2744,6 +2744,7 @@ class Field_temporal : public Field {
   {
     return (double)val_int();
   }
+  [[nodiscard]] uint8 get_dec() const { return dec; }
   my_decimal *val_decimal(
       my_decimal *decimal_value) const override;  // FSP types redefine it
 
