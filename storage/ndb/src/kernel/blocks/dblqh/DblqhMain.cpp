@@ -22928,11 +22928,19 @@ void Dblqh::execBACKUP_FRAGMENT_CONF(Signal* signal)
 {
   jamEntry();
 
-  if (ERROR_INSERTED(5073))
+  if (ERROR_INSERTED(5073) || ERROR_INSERTED(5109))
   {
     g_eventLogger->info("Delaying BACKUP_FRAGMENT_CONF");
     sendSignalWithDelay(reference(), GSN_BACKUP_FRAGMENT_CONF, signal, 500,
                         signal->getLength());
+    /**
+     * If an ALTER table is ongoing the error 5109 is removed to makes tup to
+     * commit the alter table
+     */
+    if(ERROR_INSERTED(5109) && handleLCPSurfacing(signal))
+    {
+      CLEAR_ERROR_INSERT_VALUE;
+    }
     return;
   }
 

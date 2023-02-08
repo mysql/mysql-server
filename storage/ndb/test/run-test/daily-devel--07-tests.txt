@@ -296,3 +296,6 @@ cmd: testNdbApi
 args: -n TestSlowConnectEnable T1
 max-time: 600
 
+cmd: testDict
+args : -r 2500 -l 200 -n TableAddAttrsUpdateMaxRecSzForLCP T1
+max-time: 600
