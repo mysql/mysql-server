@@ -134,14 +134,15 @@ static double EstimateFieldSelectivity(Field *field, double *selectivity_cap,
                     std::max<double>(1.0, histogram->get_num_distinct_values());
 
       if (trace != nullptr) {
-        *trace += (std::stringstream()
-                   << " - estimating selectivity " << selectivity
-                   << " for field " << field->table->alias << "."
-                   << field->field_name << " from histogram showing "
-                   << histogram->get_num_distinct_values()
-                   << " distinct values and non-null fraction "
-                   << histogram->get_non_null_values_fraction() << ".\n")
-                      .str();
+        std::ostringstream stream;
+        stream << " - estimating selectivity " << selectivity << " for field "
+               << field->table->alias << "." << field->field_name
+               << " from histogram showing "
+               << histogram->get_num_distinct_values()
+               << " distinct values and non-null fraction "
+               << histogram->get_non_null_values_fraction() << ".\n";
+
+        *trace += stream.str();
       }
     }
   }
