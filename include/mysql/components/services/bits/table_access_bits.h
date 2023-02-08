@@ -121,6 +121,13 @@ DEFINE_SERVICE_HANDLE(TA_key);
   - @c log_bin
   - @c transaction_isolation
   - @c skip_readonly_check
+
+  @warning The table access service will set the current THD thread attribute
+  to the temporary child THD it creates. The current THD will be reset back by
+  @ref destroy_table_access_v1_t. This means that the whole table access
+  routine should happen as fast as possible and without thread switching until
+  its completion and disposal of the thread access attribute.
+  The @ref Table_access handle should not be cached and reused.
 */
 typedef Table_access (*create_table_access_v1_t)(MYSQL_THD thd, size_t count);
 
