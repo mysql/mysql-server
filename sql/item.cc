@@ -834,14 +834,33 @@ bool Item_field::collect_item_field_processor(uchar *arg) {
   return false;
 }
 
+/**
+   When collecting information about columns when transforming correlated
+   scalar subqueries using derived tables, we need to decide which duplicates,
+   if any, to retain:
+   - Local columns are collected once, duplicates are ignored.
+   - All columns that are outer references are included, regardless of being
+     duplicates. This is so we can properly reset outer status for all
+     occurences, cf. Query_block::decorrelate_derived_scalar_subquery_post
+     where we reset Item::depended_from.
+
+   @param arg A pointer to an object of type Collect_item_fields_or_refs,
+              a subclass of Item_tree_walker, which holds the already
+              collected columns.
+   @returns true on error
+*/
 bool Item_field::collect_item_field_or_ref_processor(uchar *arg) {
   auto *info = pointer_cast<Collect_item_fields_or_refs *>(arg);
   if (info->is_stopped(this)) return false;
 
-  List_iterator<Item> item_list_it(*info->m_items);
-  Item *curr_item;
-  while ((curr_item = item_list_it++)) {
-    if (curr_item->eq(this, true)) return false; /* Already in the set. */
+  List_iterator<Item> it(*info->m_items);
+  Item *already_collected;
+  while ((already_collected = it++)) {
+    if (is_outer_reference()) {
+      if (already_collected == this) return false;
+    } else {
+      if (already_collected->eq(this, true)) return false;
+    }
   }
   info->m_items->push_back(this);
   return false;
