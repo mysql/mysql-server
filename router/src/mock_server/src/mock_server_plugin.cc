@@ -298,7 +298,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
       // set the context object's address as a session id context to enable TLS
       // sessions reuse
-      tls_server_ctx.set_session_id_context(
+      tls_server_ctx.session_id_context(
           (const unsigned char *)tls_server_ctx.get(),
           sizeof(tls_server_ctx.get()));
     }

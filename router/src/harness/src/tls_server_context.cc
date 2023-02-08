@@ -528,7 +528,12 @@ int TlsServerContext::security_level() const {
 #endif
 }
 
-int TlsServerContext::set_session_id_context(const unsigned char *ctx,
-                                             unsigned int ctx_len) {
-  return SSL_CTX_set_session_id_context(get(), ctx, ctx_len);
+stdx::expected<void, std::error_code> TlsServerContext::session_id_context(
+    const unsigned char *sid_ctx, unsigned int sid_ctx_len) {
+  if (0 ==
+      SSL_CTX_set_session_id_context(ssl_ctx_.get(), sid_ctx, sid_ctx_len)) {
+    return stdx::make_unexpected(make_tls_error());
+  }
+
+  return {};
 }
