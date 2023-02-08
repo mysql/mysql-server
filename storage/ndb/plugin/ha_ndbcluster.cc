@@ -226,6 +226,26 @@ static MYSQL_THDVAR_BOOL(
     1        /* default */
 );
 
+/**
+   @brief Determine if copying alter table is allowed for current query
+
+   @param thd Pointer to current THD
+   @return true if allowed
+ */
+static bool is_copying_alter_table_allowed(THD *thd) {
+  if (THDVAR(thd, allow_copying_alter_table)) {
+    //  Copying alter table is allowed
+    return true;
+  }
+  if (thd->lex->alter_info->requested_algorithm ==
+      Alter_info::ALTER_TABLE_ALGORITHM_COPY) {
+    // User have specified ALGORITHM=COPY, thus overriding the fact that
+    // --ndb-allow-copying-alter-table is OFF
+    return true;
+  }
+  return false;
+}
+
 static MYSQL_THDVAR_UINT(optimized_node_selection, /* name */
                          PLUGIN_VAR_OPCMDARG,
                          "Select nodes for transactions in a more optimal way.",
@@ -9336,12 +9356,7 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
     // Check that the table name is a temporary name
     assert(ndb_name_is_temp(tabname));
 
-    if (!THDVAR(thd, allow_copying_alter_table) &&
-        (thd->lex->alter_info->requested_algorithm ==
-         Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT)) {
-      // Copying alter table is not allowed and user
-      // have not specified ALGORITHM=COPY
-
+    if (!is_copying_alter_table_allowed(thd)) {
       DBUG_PRINT("info", ("Refusing implicit copying alter table"));
       my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
                "Implicit copying alter", "ndb_allow_copying_alter_table=0",
@@ -15007,6 +15022,16 @@ static inline enum_alter_inplace_result inplace_unsupported(
   DBUG_TRACE;
   DBUG_PRINT("info", ("%s", reason));
   alter_info->unsupported_reason = reason;
+
+  THD *const thd = current_thd;
+  if (!is_copying_alter_table_allowed(thd)) {
+    // Query will return an error since copying alter table is not allowed, push
+    // the reason as warning in order to allow user to see it with SHOW WARNINGS
+    Thd_ndb *const thd_ndb = get_thd_ndb(thd);
+    thd_ndb->push_warning(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON,
+                          "Reason: '%s'", reason);
+  }
+
   return HA_ALTER_INPLACE_NOT_SUPPORTED;
 }
 
