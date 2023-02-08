@@ -7980,6 +7980,16 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
   {
     jam();
     start_execute_lcp(signal, ptr, tabPtr, tableId);
+    Dbtup* tup =
+        (Dbtup*)globalData.getBlock(DBTUP, instance());
+
+    /**
+     * Always update maxRecordSize, tabPtr.p->maxRecordSize may have changed
+     * since last TABINFO_CONF received
+     */
+    tabPtr.p->maxRecordSize =
+        1 + tup->get_max_lcp_record_size(tabPtr.p->tableId);
+
     if (ptr.p->m_empty_lcp)
     {
       /**

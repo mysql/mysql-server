@@ -288,3 +288,6 @@ cmd: testDict
 args: -n ManyNdbObjectsGetTable T1
 max-time: 60
 
+cmd: testDict
+args : -r 2500 -l 200 -n TableAddAttrsUpdateMaxRecSzForLCP T1
+max-time: 600
