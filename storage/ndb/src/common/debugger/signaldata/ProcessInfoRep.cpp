@@ -37,8 +37,8 @@ bool printPROCESSINFO_REP(FILE *out,
 
   const ProcessInfoRep *sig = (const ProcessInfoRep *)data;
 
-  fprintf(out, " process_name: %s", (const char *)sig->process_name);
-  fprintf(out, " process_id: %d  angel_process_id: %d  application_port: %d",
+  fprintf(out, " process_name: %s\n", (const char *)sig->process_name);
+  fprintf(out, " process_id: %d  angel_process_id: %d  application_port: %d\n",
           sig->process_id, sig->angel_process_id, sig->application_port);
 
   return true;
