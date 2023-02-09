@@ -464,16 +464,13 @@ struct JoinStatus {
  */
 JoinStatus SimulateJoin(JoinStatus left, JoinStatus right,
                         const JoinPredicate &pred) {
-  static_assert(
-      kHashBuildOneRowCost == kHashBuildOneRowCost,
-      "If build and probe cost factors are different, we'll need to add "
-      "swapping to get the smallest table on the right-hand side here "
-      "(for inner joins)");  // Remove the if (false) below.
-  if (false) {
-    if (pred.expr->type == RelationalExpression::INNER_JOIN &&
-        left.cost < right.cost) {
-      swap(left, right);
-    }
+  // If the build cost per row is higher than the probe cost per row, it is
+  // beneficial to use the smaller table as build table. Reorder to get the
+  // lower cost if the join is commutative and allows reordering.
+  static_assert(kHashBuildOneRowCost >= kHashProbeOneRowCost);
+  if (OperatorIsCommutative(*pred.expr) &&
+      left.num_output_rows < right.num_output_rows) {
+    swap(left, right);
   }
 
   double num_output_rows =
