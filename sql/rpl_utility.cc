@@ -490,7 +490,7 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
   if (compute_source_table_gipk_info(*thd, table)) {
     rli->report(ERROR_LEVEL, ER_REPLICATION_INCOMPATIBLE_TABLE_WITH_GIPK,
                 ER_THD(thd, ER_REPLICATION_INCOMPATIBLE_TABLE_WITH_GIPK),
-                size(),
+                static_cast<int>(size()),
                 decimal_numeric_version_to_string(
                     thd->variables.immediate_server_version)
                     .c_str(),
@@ -603,9 +603,9 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
 
       if (report_level != INFORMATION_LEVEL)
         rli->report(report_level, ER_SERVER_REPLICA_CONVERSION_FAILED,
-                    ER_THD(thd, ER_SERVER_REPLICA_CONVERSION_FAILED), col,
-                    db_name, tbl_name, source_type.c_ptr_safe(),
-                    target_type.c_ptr_safe());
+                    ER_THD(thd, ER_SERVER_REPLICA_CONVERSION_FAILED),
+                    static_cast<int>(col), db_name, tbl_name,
+                    source_type.c_ptr_safe(), target_type.c_ptr_safe());
       return false;
     }
   }

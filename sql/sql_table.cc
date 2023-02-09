@@ -2734,7 +2734,7 @@ static bool secondary_engine_unload_table(THD *thd, const char *db_name,
     if (error_if_not_loaded) {
       push_warning_printf(
           thd, Sql_condition::SL_WARNING, ER_UNKNOWN_STORAGE_ENGINE,
-          ER_THD(thd, ER_UNKNOWN_STORAGE_ENGINE), secondary_engine);
+          ER_THD(thd, ER_UNKNOWN_STORAGE_ENGINE), secondary_engine.str);
     }
     return false;
   }

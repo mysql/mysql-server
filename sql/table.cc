@@ -7336,8 +7336,8 @@ LEX_USER *LEX_USER::alloc(THD *thd, LEX_STRING *user_arg,
   return LEX_USER::init(ret, thd, user_arg, host_arg);
 }
 
-LEX_USER *LEX_USER::init(LEX_USER *ret, THD *thd, LEX_STRING *user_arg,
-                         LEX_STRING *host_arg) {
+LEX_USER *LEX_USER::init(LEX_USER *ret, THD *thd [[maybe_unused]],
+                         LEX_STRING *user_arg, LEX_STRING *host_arg) {
   ret->init();
   /*
     Trim whitespace as the values will go to a CHAR field

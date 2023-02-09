@@ -2583,7 +2583,8 @@ bool report_missing_user_grant_message(THD *thd, bool user_exists,
   }
   if (user_exists && thd->lex->grant_if_exists) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, err_code,
-                        ER_THD(thd, err_code), user, host, object_name);
+                        ER_THD_NONCONST(thd, err_code), user, host,
+                        object_name);
     return false;
   }
   if (object_name)
