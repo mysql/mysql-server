@@ -7060,10 +7060,10 @@ Audit_global_variable_get_event::~Audit_global_variable_get_event() {
                      m_item->collation.collation);
     }
 
-    mysql_audit_notify(m_thd, AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
-                       m_item->var_tracker.get_var_name(),
-                       outStr ? outStr->ptr() : nullptr,
-                       outStr ? outStr->length() : 0);
+    mysql_event_tracking_global_variable_notify(
+        m_thd, AUDIT_EVENT(EVENT_TRACKING_GLOBAL_VARIABLE_GET),
+        m_item->var_tracker.get_var_name(), outStr ? outStr->ptr() : nullptr,
+        outStr ? outStr->length() : 0);
   }
 }
 

@@ -56,6 +56,8 @@
 #include "mysys_err.h"  // EE_OUTOFMEMORY
 #include "pfs_statement_provider.h"
 #include "rpl_source.h"  // unregister_slave
+#include "scope_guard.h"
+#include "server_component/mysql_server_event_tracking_bridge_imp.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"
 #include "sql/check_stack.h"
@@ -84,6 +86,7 @@
 #include "sql/query_result.h"
 #include "sql/rpl_rli.h"  // Relay_log_info
 #include "sql/rpl_transaction_write_set_ctx.h"
+#include "sql/server_component/mysql_server_event_tracking_bridge_imp.h"
 #include "sql/server_component/mysql_thd_store_imp.h"
 #include "sql/sp_cache.h"         // sp_cache_clear
 #include "sql/sp_head.h"          // sp_head
@@ -713,7 +716,9 @@ THD::THD(bool enable_plugins)
       m_inside_system_variable_global_update(false),
       bind_parameter_values(nullptr),
       bind_parameter_values_count(0),
-      external_store_() {
+      external_store_(),
+      events_cache_(nullptr),
+      audit_plugins_present(false) {
   main_lex->reset();
   set_psi(nullptr);
   mdl_context.init(this);
@@ -843,6 +848,11 @@ THD::THD(bool enable_plugins)
   set_system_user(false);
   set_connection_admin(false);
   m_mem_cnt.set_thd(this);
+
+  events_cache_ = new (std::nothrow) Event_reference_caching_cache();
+  if (events_cache_ == nullptr || !events_cache_->valid()) {
+    /*ToDo: Raise warning */
+  }
 }
 
 void THD::copy_table_access_properties(THD *thd) {
@@ -1015,10 +1025,12 @@ Sql_condition *THD::raise_condition(uint sql_errno, const char *sqlstate,
       (condition handler) that prevents entering infinite recursion, when
       a plugin signals error, when already handling the error.
 
-      mysql_audit_notify() must therefore be called after handle_condition().
+      mysql_event_tracking_general_notify() must therefore be called after
+      handle_condition().
     */
-    mysql_audit_notify(this, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_ERROR), sql_errno,
-                       msg, strlen(msg));
+    mysql_event_tracking_general_notify(
+        this, AUDIT_EVENT(EVENT_TRACKING_GENERAL_ERROR), sql_errno, msg,
+        strlen(msg));
 
     is_slave_error = true;  // needed to catch query errors during replication
 
@@ -1386,6 +1398,9 @@ void THD::release_resources() {
     delete rli_fake;
     rli_fake = nullptr;
   }
+
+  delete events_cache_;
+  events_cache_ = nullptr;
 
   /* See if any component stored data. If so, try to free it */
   if (!external_store_.empty())
@@ -3217,6 +3232,374 @@ bool THD::add_external(unsigned int slot, void *data) {
 
 void *THD::fetch_external(unsigned int slot) {
   return external_store_.at(slot) ? external_store_.at(slot) : nullptr;
+}
+
+bool THD::check_event_subscribers(Event_tracking_class event,
+                                  unsigned long subevent, bool check_audited) {
+  audit_plugins_present = false;
+  if (check_audited && this->m_audited == false) return true;
+
+  auto mapping =
+      Singleton_event_tracking_service_to_plugin_mapping::create_instance();
+  assert(mapping != nullptr);
+
+  mysql_event_class_t plugin_event = mapping->plugin_event_class(event);
+  unsigned long plugin_subevent = mapping->plugin_sub_event(subevent);
+
+  if (mysql_audit_acquire_plugins(this, plugin_event, plugin_subevent,
+                                  check_audited)) {
+    if (events_cache_ == nullptr || !events_cache_->valid()) return true;
+    const my_h_service *refs{nullptr};
+
+    if (events_cache_->get(event, &refs)) return true;
+
+    return !(refs != nullptr && *refs);
+  }
+  audit_plugins_present = true;
+  return false;
+}
+
+bool THD::push_event_tracking_data(
+    Event_tracking_class event,
+    const Event_tracking_information *event_tracking_information) {
+  Event_tracking_information *data = nullptr;
+  if (event_tracking_information) {
+    switch (event) {
+      case Event_tracking_class::AUTHENTICATION:
+        data = new (std::nothrow) Event_tracking_authentication_information(*(
+            reinterpret_cast<const Event_tracking_authentication_information *>(
+                event_tracking_information)));
+        break;
+      case Event_tracking_class::GENERAL:
+        data = new (std::nothrow) Event_tracking_general_information(
+            *(reinterpret_cast<const Event_tracking_general_information *>(
+                event_tracking_information)));
+        break;
+      case Event_tracking_class::COMMAND:
+        [[fallthrough]];
+      case Event_tracking_class::CONNECTION:
+        [[fallthrough]];
+      case Event_tracking_class::GLOBAL_VARIABLE:
+        [[fallthrough]];
+      case Event_tracking_class::MESSAGE:
+        [[fallthrough]];
+      case Event_tracking_class::PARSE:
+        [[fallthrough]];
+      case Event_tracking_class::SHUTDOWN:
+        [[fallthrough]];
+      case Event_tracking_class::STARTUP:
+        [[fallthrough]];
+      case Event_tracking_class::QUERY:
+        [[fallthrough]];
+      case Event_tracking_class::STORED_PROGRAM:
+        [[fallthrough]];
+      case Event_tracking_class::TABLE_ACCESS:
+        break;
+      default:
+        assert(false);
+        return true;
+    };
+  }
+  event_tracking_data_.push(std::make_pair(event, data));
+  return false;
+}
+
+void THD::pop_event_tracking_data() {
+  if (!event_tracking_data_.empty()) {
+    auto information = event_tracking_data_.top();
+    if (information.second) delete information.second;
+    event_tracking_data_.pop();
+  }
+}
+
+bool THD::event_notify(struct st_mysql_event_generic *event_data) {
+  if (event_data == nullptr) return true;
+
+  if (push_event_tracking_data(event_data->event_class,
+                               event_data->event_information))
+    return true;
+
+  auto cleanup_guard =
+      create_scope_guard([&] { this->pop_event_tracking_data(); });
+
+  bool retval = false;
+
+  if (audit_plugins_present) {
+    /* Notify all plugins first */
+    switch (event_data->event_class) {
+      case Event_tracking_class::AUTHENTICATION:
+        retval |= (srv_event_tracking_authentication->notify(
+                      reinterpret_cast<
+                          const mysql_event_tracking_authentication_data *>(
+                          event_data->event)))
+                      ? true
+                      : false;
+        break;
+      case Event_tracking_class::COMMAND:
+        retval |=
+            (srv_event_tracking_command->notify(
+                reinterpret_cast<const mysql_event_tracking_command_data *>(
+                    event_data->event)))
+                ? true
+                : false;
+        break;
+      case Event_tracking_class::CONNECTION:
+        retval |=
+            (srv_event_tracking_connection->notify(
+                reinterpret_cast<const mysql_event_tracking_connection_data *>(
+                    event_data->event)))
+                ? true
+                : false;
+        break;
+      case Event_tracking_class::GENERAL:
+        retval |=
+            (srv_event_tracking_general->notify(
+                reinterpret_cast<const mysql_event_tracking_general_data *>(
+                    event_data->event)))
+                ? true
+                : false;
+        break;
+      case Event_tracking_class::GLOBAL_VARIABLE:
+        retval |= (srv_event_tracking_global_variable->notify(
+                      reinterpret_cast<
+                          const mysql_event_tracking_global_variable_data *>(
+                          event_data->event)))
+                      ? true
+                      : false;
+        break;
+      case Event_tracking_class::MESSAGE:
+        retval |=
+            (srv_event_tracking_message->notify(
+                reinterpret_cast<const mysql_event_tracking_message_data *>(
+                    event_data->event)))
+                ? true
+                : false;
+        break;
+      case Event_tracking_class::PARSE:
+        retval |= (srv_event_tracking_parse->notify(
+                      reinterpret_cast<mysql_event_tracking_parse_data *>(
+                          const_cast<void *>(event_data->event))))
+                      ? true
+                      : false;
+        break;
+      case Event_tracking_class::QUERY:
+        retval |= (srv_event_tracking_query->notify(
+                      reinterpret_cast<const mysql_event_tracking_query_data *>(
+                          event_data->event)))
+                      ? true
+                      : false;
+        break;
+      case Event_tracking_class::SHUTDOWN:
+        retval |=
+            (srv_event_tracking_lifecycle->notify_shutdown(
+                reinterpret_cast<const mysql_event_tracking_shutdown_data *>(
+                    event_data->event)))
+                ? true
+                : false;
+        break;
+      case Event_tracking_class::STARTUP:
+        retval |=
+            (srv_event_tracking_lifecycle->notify_startup(
+                reinterpret_cast<const mysql_event_tracking_startup_data *>(
+                    event_data->event)))
+                ? true
+                : false;
+        break;
+      case Event_tracking_class::STORED_PROGRAM:
+        retval |= (srv_event_tracking_stored_program->notify(
+                      reinterpret_cast<
+                          const mysql_event_tracking_stored_program_data *>(
+                          event_data->event)))
+                      ? true
+                      : false;
+        break;
+      case Event_tracking_class::TABLE_ACCESS:
+        retval |= (srv_event_tracking_table_access->notify(
+                      reinterpret_cast<
+                          const mysql_event_tracking_table_access_data *>(
+                          event_data->event)))
+                      ? true
+                      : false;
+        break;
+      default:
+        assert(false);
+        break;
+    };
+  }
+
+  if (events_cache_ == nullptr || !events_cache_->valid()) return retval;
+
+  const my_h_service *refs{nullptr};
+
+  if (events_cache_->get(event_data->event_class, &refs)) return retval;
+
+  switch (event_data->event_class) {
+    case Event_tracking_class::AUTHENTICATION: {
+      for (const my_h_service *one = refs; *one; ++one) {
+        auto handle =
+            reinterpret_cast<SERVICE_TYPE(event_tracking_authentication) *>(
+                *one);
+        retval |=
+            (handle->notify(reinterpret_cast<
+                            const mysql_event_tracking_authentication_data *>(
+                event_data->event)))
+                ? true
+                : false;
+      }
+      break;
+    }
+    case Event_tracking_class::COMMAND: {
+      for (const my_h_service *one = refs; *one; ++one) {
+        auto handle =
+            reinterpret_cast<SERVICE_TYPE(event_tracking_command) *>(*one);
+        retval |=
+            (handle->notify(
+                reinterpret_cast<const mysql_event_tracking_command_data *>(
+                    event_data->event)))
+                ? true
+                : false;
+      }
+      break;
+    }
+
+    case Event_tracking_class::CONNECTION: {
+      for (const my_h_service *one = refs; *one; ++one) {
+        auto *handle =
+            reinterpret_cast<SERVICE_TYPE(event_tracking_connection) *>(*one);
+        retval |=
+            (handle->notify(
+                 reinterpret_cast<const mysql_event_tracking_connection_data *>(
+                     event_data->event))
+                 ? true
+                 : false);
+      }
+      break;
+    }
+    case Event_tracking_class::GENERAL: {
+      for (const my_h_service *one = refs; *one; ++one) {
+        auto handle =
+            reinterpret_cast<SERVICE_TYPE(event_tracking_general) *>(*one);
+        retval |=
+            (handle->notify(
+                 reinterpret_cast<const mysql_event_tracking_general_data *>(
+                     event_data->event))
+                 ? true
+                 : false);
+      }
+      break;
+    }
+    case Event_tracking_class::GLOBAL_VARIABLE: {
+      for (const my_h_service *one = refs; *one; ++one) {
+        auto handle =
+            reinterpret_cast<SERVICE_TYPE(event_tracking_global_variable) *>(
+                *one);
+        retval |=
+            (handle->notify(reinterpret_cast<
+                            const mysql_event_tracking_global_variable_data *>(
+                event_data->event)))
+                ? true
+                : false;
+      }
+      break;
+    }
+    case Event_tracking_class::MESSAGE: {
+      for (const my_h_service *one = refs; *one; ++one) {
+        auto handle =
+            reinterpret_cast<SERVICE_TYPE(event_tracking_message) *>(*one);
+        retval |=
+            (handle->notify(
+                reinterpret_cast<const mysql_event_tracking_message_data *>(
+                    event_data->event)))
+                ? true
+                : false;
+      }
+      break;
+    }
+    case Event_tracking_class::PARSE: {
+      for (const my_h_service *one = refs; *one; one++) {
+        auto handle =
+            reinterpret_cast<SERVICE_TYPE(event_tracking_parse) *>(*one);
+        retval |=
+            (handle->notify(reinterpret_cast<mysql_event_tracking_parse_data *>(
+                const_cast<void *>(event_data->event))))
+                ? true
+                : false;
+      }
+      break;
+    }
+    case Event_tracking_class::QUERY: {
+      for (const my_h_service *one = refs; *one; ++one) {
+        auto handle =
+            reinterpret_cast<SERVICE_TYPE(event_tracking_query) *>(*one);
+        retval |= (handle->notify(
+                      reinterpret_cast<const mysql_event_tracking_query_data *>(
+                          event_data->event)))
+                      ? true
+                      : false;
+      }
+      break;
+    }
+    case Event_tracking_class::SHUTDOWN: {
+      for (const my_h_service *one = refs; *one; ++one) {
+        auto handle =
+            reinterpret_cast<SERVICE_TYPE(event_tracking_lifecycle) *>(*one);
+        retval |=
+            (handle->notify_shutdown(
+                reinterpret_cast<const mysql_event_tracking_shutdown_data *>(
+                    event_data->event)))
+                ? true
+                : false;
+      }
+      break;
+    }
+    case Event_tracking_class::STARTUP: {
+      for (const my_h_service *one = refs; *one; ++one) {
+        auto handle =
+            reinterpret_cast<SERVICE_TYPE(event_tracking_lifecycle) *>(*one);
+        retval |=
+            (handle->notify_startup(
+                reinterpret_cast<const mysql_event_tracking_startup_data *>(
+                    event_data->event)))
+                ? true
+                : false;
+      }
+      break;
+    }
+    case Event_tracking_class::STORED_PROGRAM: {
+      for (const my_h_service *one = refs; *one; ++one) {
+        auto handle =
+            reinterpret_cast<SERVICE_TYPE(event_tracking_stored_program) *>(
+                *one);
+        retval |=
+            (handle->notify(reinterpret_cast<
+                            const mysql_event_tracking_stored_program_data *>(
+                event_data->event)))
+                ? true
+                : false;
+      }
+      break;
+    }
+    case Event_tracking_class::TABLE_ACCESS: {
+      for (const my_h_service *one = refs; *one; ++one) {
+        auto handle =
+            reinterpret_cast<SERVICE_TYPE(event_tracking_table_access) *>(*one);
+        retval |=
+            (handle->notify(reinterpret_cast<
+                            const mysql_event_tracking_table_access_data *>(
+                event_data->event)))
+                ? true
+                : false;
+      }
+      break;
+    }
+    default: {
+      assert(false);
+      retval = false;
+      break;
+    }
+  };
+
+  return retval;
 }
 
 /**

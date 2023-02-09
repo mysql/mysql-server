@@ -248,7 +248,8 @@ for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack \
          my_safe_process %{!?cluster:mysqlbinlog} mysqlcheck mysql_client_test \
          mysql_config_editor mysqld_multi mysqld_safe mysqldumpslow mysqlimport \
          mysql_secure_installation mysqlshow mysqlslap mysqltest mysqltest_safe_process mysqlxtest \
-         comp_err perror lz4_decompress zlib_decompress mysql_keyring_encryption_test; do
+         comp_err perror lz4_decompress zlib_decompress mysql_keyring_encryption_test \
+         mysql_test_event_tracking; do
     rm -f %{buildroot}%{_bindir}/$f
 done
 
@@ -330,6 +331,12 @@ for p in \
          test_services_plugin_registry.so \
          test_udf_services.so \
          udf_example.so \
+         component_test_event_tracking_consumer.so \
+         component_test_event_tracking_producer_a.so \
+         component_test_event_tracking_producer_b.so \
+         component_test_event_tracking_consumer_a.so \
+         component_test_event_tracking_consumer_b.so \
+         component_test_event_tracking_consumer_c.so \
          ; do
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p
 done
@@ -545,6 +552,9 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Mon Nov 28 2022 Harin Nalin Vadodaria <harin.vadodaria@oracle.com> - 8.0.33-1
+- Added components, libraries and binaries related to event tracking
+
 * Thu Oct 13 2022 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 8.0.33-1
 - Added component_test_server_telemetry_traces, component_test_mysql_thd_store_service test components
 

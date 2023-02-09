@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef REFERENCE_CACHE_COMMON_H
 #define REFERENCE_CACHE_COMMON_H
 
+#include <atomic>
 #include <set>
 #include <string>
 
@@ -31,7 +32,29 @@ namespace reference_caching {
 extern PSI_memory_key KEY_mem_reference_cache;
 #define PSI_category "refcache"
 
-template <class Key = std::string, class Less = std::less<>>
+struct Service_name_entry {
+  explicit Service_name_entry(const char *name, unsigned int count)
+      : name_{name}, count_{count} {}
+  Service_name_entry(const Service_name_entry &src)
+      : Service_name_entry(src.name_.c_str(), src.count_.load()) {}
+  Service_name_entry &operator=(const Service_name_entry &rhs) {
+    name_ = rhs.name_;
+    count_ = rhs.count_.load();
+    return *this;
+  }
+  std::string name_;
+  mutable std::atomic<unsigned int> count_{0};
+};
+
+struct Compare_service_name_entry {
+  bool operator()(const Service_name_entry &lhs,
+                  const Service_name_entry &rhs) const {
+    return lhs.name_ < rhs.name_;
+  }
+};
+
+template <class Key = Service_name_entry,
+          class Less = Compare_service_name_entry>
 class service_names_set
     : public std::set<Key, Less, Component_malloc_allocator<Key>> {
  public:

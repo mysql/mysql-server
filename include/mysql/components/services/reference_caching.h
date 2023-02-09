@@ -191,39 +191,6 @@ DECLARE_BOOL_METHOD(destroy, (reference_caching_channel channel));
 */
 DECLARE_BOOL_METHOD(invalidate, (reference_caching_channel channel));
 
-/**
-  Validate a channel
-
-  This is thread safe to call without synchronization
-  and relatively fast.
-
-  This function is used to validate the channel. Which helps in
-  getting the cached service references on that channel when they're
-  next accessed.
-
-  @param channel the handle to destroy
-  @retval false success
-  @retval true failure
-*/
-DECLARE_BOOL_METHOD(validate, (reference_caching_channel channel));
-
-/**
-  Fetches a reference caching channel by name.
-
-  Usually consumers wishing to force reference cache flush would
-  fetch the channel handle so they can then call invalidate on it.
-
-  This is a relatively expensive operation as it might involve some
-  synchronization.
-
-  @param service_name a service name that this channel will operate on.
-  @param[out] out_channel placeholder or NULL if not found.
-  @retval false success
-  @retval true failure
-*/
-DECLARE_BOOL_METHOD(fetch, (const char *service_name,
-                            reference_caching_channel *out_channel));
-
 END_SERVICE_DEFINITION(reference_caching_channel)
 
 /**

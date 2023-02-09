@@ -643,14 +643,15 @@ static int check_connection(THD *thd) {
     return 1; /* The error is set by alloc(). */
   }
 
-  if (mysql_audit_notify(
-          thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE))) {
+  if (mysql_event_tracking_connection_notify(
+          thd, AUDIT_EVENT(EVENT_TRACKING_CONNECTION_PRE_AUTHENTICATE))) {
     return 1;
   }
 
   auth_rc = acl_authenticate(thd, COM_CONNECT);
 
-  if (mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CONNECT))) {
+  if (mysql_event_tracking_connection_notify(
+          thd, AUDIT_EVENT(EVENT_TRACKING_CONNECTION_CONNECT))) {
     return 1;
   }
 
@@ -730,7 +731,8 @@ static bool login_connection(THD *thd) {
 void end_connection(THD *thd) {
   NET *net = thd->get_protocol_classic()->get_net();
 
-  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT), 0);
+  mysql_event_tracking_connection_notify(
+      thd, AUDIT_EVENT(EVENT_TRACKING_CONNECTION_DISCONNECT), 0);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(notify_session_disconnect)(thd->get_psi());
@@ -917,8 +919,8 @@ void close_connection(THD *thd, uint sql_errno, bool server_shutdown,
   thd->disconnect(server_shutdown);
 
   if (generate_event) {
-    mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT),
-                       sql_errno);
+    mysql_event_tracking_connection_notify(
+        thd, AUDIT_EVENT(EVENT_TRACKING_CONNECTION_DISCONNECT), sql_errno);
 #ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(notify_session_disconnect)(thd->get_psi());
 #endif /* HAVE_PSI_THREAD_INTERFACE */

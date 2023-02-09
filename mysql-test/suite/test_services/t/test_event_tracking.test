@@ -1,0 +1,3 @@
+--echo # Event tracking test
+--let COMPONENT_DIR = $COMPONENT_TEST_EVENT_TRACKING_PRODUCER_A_DIR
+--exec $MYSQL_TEST_EVENT_TRACKING --component-dir=$COMPONENT_DIR

@@ -23,16 +23,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_thd_attributes_imp.h"
 
 #include <mysql/components/minimal_chassis.h>
+#include <mysql/components/services/defs/event_tracking_common_defs.h>
 #include <mysql/components/services/mysql_string.h>
+#include <sql_string.h>
+#include "sql/command_mapping.h"
 #include "sql/current_thd.h"
 #include "sql/sql_class.h"
 #include "sql/sql_digest.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_rewrite.h"
 
 DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
                    (MYSQL_THD thd, const char *name, void *inout_pvalue)) {
   try {
     if (inout_pvalue) {
       THD *t = static_cast<THD *>(thd);
+      if (t == nullptr) t = current_thd;
       if (t == nullptr) return true;
 
       if (!strcmp(name, "query_digest")) {
@@ -51,8 +57,25 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
       } else if (!strcmp(name, "is_init_file_thread")) {
         *((bool *)inout_pvalue) = t->is_init_file_system_thread();
       } else if (!strcmp(name, "sql_text")) {
+        /*
+          If we haven't tried to rewrite the query
+          to obfuscate passwords etc. yet, do so now.
+        */
+
+        if (t->rewritten_query().length() == 0) mysql_rewrite_query(t);
+
         String *res = new String[1];
-        res->append(t->query().str, t->query().length);
+        /*
+          If there was something to rewrite, use the rewritten query;
+          otherwise, just use the original as submitted by the client.
+        */
+
+        if (t->rewritten_query().length() > 0) {
+          res->append(t->rewritten_query().ptr(), t->rewritten_query().length(),
+                      t->rewritten_query().charset());
+        } else if (t->query().length > 0) {
+          res->append(t->query().str, t->query().length, t->charset());
+        }
         *((my_h_string *)inout_pvalue) = (my_h_string)res;
       } else if (!strcmp(name, "host_or_ip")) {
         Security_context *ctx = t->security_context();
@@ -66,6 +89,24 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
         String *res = new String[1];
         res->append(t->db().str, t->db().length);
         *((my_h_string *)inout_pvalue) = (my_h_string)res;
+      } else if (!strcmp(name, "query_charset")) {
+        mysql_cstring_with_length val;
+        if (t->rewritten_query().length()) {
+          val.str = t->rewritten_query().charset()->csname;
+          val.length = strlen(t->rewritten_query().charset()->csname);
+        } else {
+          val.str = t->charset()->csname;
+          val.length = strlen(t->charset()->csname);
+        }
+        *((mysql_cstring_with_length *)inout_pvalue) = val;
+      } else if (!strcmp(name, "sql_command")) {
+        const char *sql_command = get_sql_command_string(t->lex->sql_command);
+        *((mysql_cstring_with_length *)inout_pvalue) = {sql_command,
+                                                        strlen(sql_command)};
+      } else if (!strcmp(name, "command")) {
+        const char *command = get_server_command_string(t->get_command());
+        *((mysql_cstring_with_length *)inout_pvalue) = {command,
+                                                        strlen(command)};
       } else
         return true; /* invalid option */
     }
@@ -82,3 +123,34 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::set,
                     void *inout_pvalue [[maybe_unused]])) {
   return true;
 }
+
+/*
+DEFINE_BOOL_METHOD(mysql_thd_const_attributes_imp::get,
+                   (MYSQL_THD o_thd, const char *name,
+                    const void *inout_pvalue)) {
+  try {
+    if (name && inout_pvalue) {
+      THD *thd = static_cast<THD *>(o_thd);
+      if (!thd) thd = current_thd;
+      if (thd == nullptr) return true;
+
+      if (!strcmp(name, "query_charset")) {
+        *((char **)inout_pvalue) =
+            thd->rewritten_query().length()
+                ? thd->rewritten_query().charset()->csname
+                : thd->charset()->csname;
+      } else if (!strcmp(name, "sql_command")) {
+        *((const char **)inout_pvalue) =
+            get_sql_command_string(thd->lex->sql_command);
+      } else if (!strcmp(name, "command")) {
+        *((const char **)inout_pvalue) =
+            get_server_command_string(thd->get_command());
+      } else
+        return true;
+    }
+  } catch (...) {
+    mysql_components_handle_std_exception(__func__);
+  }
+  return true;
+}
+*/

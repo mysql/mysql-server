@@ -25,8 +25,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <unordered_map>
 
-#include <mysql/components/service_implementation.h>
-#include <mysql/components/services/mysql_thd_store_service.h>
+#include "mysql/components/service_implementation.h"
+#include "mysql/components/services/mysql_thd_store_service.h"
 
 void init_thd_store_service();
 void deinit_thd_store_service();

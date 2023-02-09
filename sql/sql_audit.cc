@@ -45,6 +45,7 @@
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "sql/auto_thd.h"  // Auto_THD
+#include "sql/command_mapping.h"
 #include "sql/current_thd.h"
 #include "sql/error_handler.h"  // Internal_error_handler
 #include "sql/log.h"
@@ -59,17 +60,19 @@
 #include "sql_string.h"
 #include "thr_mutex.h"
 
+namespace {
 /**
-  @class Audit_error_handler
+  @class Event_tracking_error_handler
 
   Error handler that controls error reporting by plugin.
 */
-class Audit_error_handler : public Internal_error_handler {
+class Event_tracking_error_handler : public Internal_error_handler {
  private:
   /**
     @brief Blocked copy constructor (private).
   */
-  Audit_error_handler(const Audit_error_handler &obj [[maybe_unused]])
+  Event_tracking_error_handler(const Event_tracking_error_handler &obj
+                               [[maybe_unused]])
       : m_thd(nullptr),
         m_warning_message(nullptr),
         m_error_reported(false),
@@ -85,7 +88,8 @@ class Audit_error_handler : public Internal_error_handler {
     @param active              Specifies whether the handler is active or not.
                                Optional parameter (default is true).
   */
-  Audit_error_handler(THD *thd, const char *warning_message, bool active = true)
+  Event_tracking_error_handler(THD *thd, const char *warning_message,
+                               bool active = true)
       : m_thd(thd),
         m_warning_message(warning_message),
         m_error_reported(false),
@@ -99,7 +103,7 @@ class Audit_error_handler : public Internal_error_handler {
   /**
     @brief Destruction.
   */
-  ~Audit_error_handler() override {
+  ~Event_tracking_error_handler() override {
     if (m_active) {
       /* Deactivate this handler. */
       m_thd->pop_internal_handler();
@@ -174,152 +178,13 @@ class Audit_error_handler : public Internal_error_handler {
   const bool m_active;
 };
 
-struct st_mysql_event_generic {
-  mysql_event_class_t event_class;
-  const void *event;
-};
-
 /**
-  @struct st_mysql_subscribe_event
-
-  Plugin event subscription structure. Used during acquisition of the plugins
-  into user session.
-*/
-struct st_mysql_subscribe_event {
-  /*
-    Event class.
-  */
-  mysql_event_class_t event_class;
-  /*
-    Event subclass.
-  */
-  unsigned long event_subclass;
-  /*
-    The array that keeps sum (OR) mask of all plugins that subscribe
-    to the event specified by the event_class and event_subclass.
-
-    lookup_mask is acquired during build_lookup_mask call.
-  */
-  unsigned long lookup_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
-  /*
-    The array that keeps sum (OR) mask of all plugins that are acquired
-    to the current session as a result of acquire_plugins call.
-
-    subscribed_mask is acquired during acquisition of the plugins
-    (acquire_plugins call).
-  */
-  unsigned long subscribed_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
-  /*
-    The array that keeps sum (OR) mask of all plugins that were not acquired
-    to the current session as a result of acquire_plugins call.
-  */
-  unsigned long not_subscribed_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
-};
-
-unsigned long mysql_global_audit_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
-
-static mysql_mutex_t LOCK_audit_mask;
-
-static int event_class_dispatch(THD *thd, mysql_event_class_t event_class,
-                                const void *event);
-
-static int event_class_dispatch_error(THD *thd, mysql_event_class_t event_class,
-                                      const char *event_name,
-                                      const void *event);
-
-/**
-  Add mask specified by the rhs parameter to the mask parameter.
-
-  @param mask Mask, to which rhs mask is to be added.
-  @param rhs  Mask to be added to mask parameter.
-*/
-static inline void add_audit_mask(unsigned long *mask, unsigned long rhs) {
-  *mask |= rhs;
-}
-
-/**
-  Add entire audit mask specified by the src to dst.
-
-  @param dst Destination mask array pointer.
-  @param src Source mask array pointer.
-*/
-static inline void add_audit_mask(unsigned long *dst,
-                                  const unsigned long *src) {
-  int i;
-  for (i = MYSQL_AUDIT_GENERAL_CLASS; i < MYSQL_AUDIT_CLASS_MASK_SIZE; i++)
-    add_audit_mask(dst++, *src++);
-}
-
-/**
-  Check, whether masks specified by lhs parameter and rhs parameters overlap.
-
-  @param lhs First mask to check.
-  @param rhs Second mask to check.
-
-  @return false, when masks overlap, otherwise true.
-*/
-static inline bool check_audit_mask(const unsigned long lhs,
-                                    const unsigned long rhs) {
-  return !(lhs & rhs);
-}
-
-/**
-  Check, whether mask arrays specified by the lhs parameter and rhs parameter
-  overlap.
-
-  @param lhs First mask array to check.
-  @param rhs Second mask array to check.
-
-  @return false, when mask array overlap, otherwise true.
-*/
-static inline bool check_audit_mask(const unsigned long *lhs,
-                                    const unsigned long *rhs) {
-  int i;
-  for (i = MYSQL_AUDIT_GENERAL_CLASS; i < MYSQL_AUDIT_CLASS_MASK_SIZE; i++)
-    if (!check_audit_mask(*lhs++, *rhs++)) return false;
-
-  return true;
-}
-
-/**
-  Fill query info extracted from the thread object and return
-  the thread object charset info.
-
-  @param[in]  thd     Thread data.
-  @param[out] query   SQL query text.
-
-  @return SQL query charset.
-*/
-inline const CHARSET_INFO *thd_get_audit_query(THD *thd,
-                                               MYSQL_LEX_CSTRING *query) {
-  /*
-    If we haven't tried to rewrite the query to obfuscate passwords
-    etc. yet, do so now.
-  */
-  if (thd->rewritten_query().length() == 0) mysql_rewrite_query(thd);
-
-  /*
-    If there was something to rewrite, use the rewritten query;
-    otherwise, just use the original as submitted by the client.
-  */
-  if (thd->rewritten_query().length() > 0) {
-    query->str = thd->rewritten_query().ptr();
-    query->length = thd->rewritten_query().length();
-    return thd->rewritten_query().charset();
-  } else {
-    query->str = thd->query().str;
-    query->length = thd->query().length;
-    DBUG_PRINT("print_query", ("%.*s\n", (int)query->length, query->str));
-    return thd->charset();
-  }
-}
-
-/**
-  @class Ignore_event_error_handler
+  @class Ignore_event_tracking_error_handler
 
   Ignore all errors notified from within plugin.
 */
-class Ignore_event_error_handler : public Audit_error_handler {
+class Ignore_event_tracking_error_handler
+    : public Event_tracking_error_handler {
  public:
   /**
     @brief Construction.
@@ -327,8 +192,8 @@ class Ignore_event_error_handler : public Audit_error_handler {
     @param thd             Current thread data.
     @param event_name      Textual form of the audit event enum.
   */
-  Ignore_event_error_handler(THD *thd, const char *event_name)
-      : Audit_error_handler(thd, ""), m_event_name(event_name) {}
+  Ignore_event_tracking_error_handler(THD *thd, const char *event_name)
+      : Event_tracking_error_handler(thd, ""), m_event_name(event_name) {}
 
   /**
     @brief Ignore all errors.
@@ -360,427 +225,12 @@ class Ignore_event_error_handler : public Audit_error_handler {
   const char *m_event_name;
 };
 
-int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
-                       const char *subclass_name, int error_code,
-                       const char *msg, size_t msg_len) {
-  mysql_event_general event;
-  char user_buff[MAX_USER_HOST_SIZE];
-
-  assert(thd);
-
-  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS,
-                                  static_cast<unsigned long>(subclass)))
-    return 0;
-
-  event.event_subclass = subclass;
-  event.general_error_code = error_code;
-  event.general_thread_id = thd->thread_id();
-
-  Security_context *sctx = thd->security_context();
-
-  event.general_user.str = user_buff;
-  event.general_user.length = make_user_name(sctx, user_buff);
-  event.general_ip = sctx->ip();
-  event.general_host = sctx->host();
-  event.general_external_user = sctx->external_user();
-  event.general_rows = thd->get_stmt_da()->current_row_for_condition();
-  event.general_sql_command = sql_statement_names[thd->lex->sql_command];
-
-  event.general_charset = const_cast<CHARSET_INFO *>(
-      thd_get_audit_query(thd, &event.general_query));
-
-  event.general_time = thd->query_start_in_secs();
-
-  DBUG_EXECUTE_IF("audit_log_negative_general_error_code",
-                  event.general_error_code *= -1;);
-
-  event.general_command.str = msg;
-  event.general_command.length = msg_len;
-
-  if (subclass == MYSQL_AUDIT_GENERAL_ERROR ||
-      subclass == MYSQL_AUDIT_GENERAL_STATUS ||
-      subclass == MYSQL_AUDIT_GENERAL_RESULT) {
-    Ignore_event_error_handler handler(thd, subclass_name);
-
-    return handler.get_result(
-        event_class_dispatch(thd, MYSQL_AUDIT_GENERAL_CLASS, &event));
-  }
-
-  return event_class_dispatch_error(thd, MYSQL_AUDIT_GENERAL_CLASS,
-                                    subclass_name, &event);
-}
-
-int mysql_audit_notify(THD *thd, mysql_event_connection_subclass_t subclass,
-                       const char *subclass_name, int errcode) {
-  mysql_event_connection event;
-
-  /*
-    Do not take into account m_auditing_activated flag. Always generate
-    events of the MYSQL_AUDIT_CONNECTION_CLASS class.
-  */
-  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_CONNECTION_CLASS,
-                                  static_cast<unsigned long>(subclass),
-                                  false)) {
-    return 0;
-  }
-
-  event.event_subclass = subclass;
-  event.status = errcode;
-  event.connection_id = thd->thread_id();
-  event.user.str = thd->security_context()->user().str;
-  event.user.length = thd->security_context()->user().length;
-  event.priv_user.str = thd->security_context()->priv_user().str;
-  event.priv_user.length = thd->security_context()->priv_user().length;
-  event.external_user.str = thd->security_context()->external_user().str;
-  event.external_user.length = thd->security_context()->external_user().length;
-  event.proxy_user.str = thd->security_context()->proxy_user().str;
-  event.proxy_user.length = thd->security_context()->proxy_user().length;
-  event.host.str = thd->security_context()->host().str;
-  event.host.length = thd->security_context()->host().length;
-  event.ip.str = thd->security_context()->ip().str;
-  event.ip.length = thd->security_context()->ip().length;
-  event.database.str = thd->db().str;
-  event.database.length = thd->db().length;
-  event.connection_type = thd->get_vio_type();
-
-  if (subclass == MYSQL_AUDIT_CONNECTION_DISCONNECT) {
-    Ignore_event_error_handler handler(thd, subclass_name);
-
-    return handler.get_result(event_class_dispatch_error(
-        thd, MYSQL_AUDIT_CONNECTION_CLASS, subclass_name, &event));
-  }
-
-  return event_class_dispatch_error(thd, MYSQL_AUDIT_CONNECTION_CLASS,
-                                    subclass_name, &event);
-}
-
-int mysql_audit_notify(THD *thd, mysql_event_connection_subclass_t subclass,
-                       const char *subclass_name) {
-  return mysql_audit_notify(
-      thd, subclass, subclass_name,
-      thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno() : 0);
-}
-
-int mysql_audit_notify(THD *thd, mysql_event_parse_subclass_t subclass,
-                       const char *subclass_name,
-                       mysql_event_parse_rewrite_plugin_flag *flags,
-                       LEX_CSTRING *rewritten_query) {
-  mysql_event_parse event;
-
-  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_PARSE_CLASS, subclass))
-    return 0;
-
-  event.event_subclass = subclass;
-  event.flags = flags;
-  event.query.str = thd->query().str;
-  event.query.length = thd->query().length;
-  event.rewritten_query = rewritten_query;
-
-  return event_class_dispatch_error(thd, MYSQL_AUDIT_PARSE_CLASS, subclass_name,
-                                    &event);
-}
-
-/**
-  Check whether the table access event for a specified table will
-  be generated.
-
-  Events for Views, table catogories other than 'SYSTEM' or 'USER' and
-  temporary tables are not generated.
-
-  @param thd   Thread handler
-  @param table Table that is to be check.
-
-  @retval true - generate event, otherwise not.
-*/
-inline bool generate_table_access_event(THD *thd, Table_ref *table) {
-  /* Discard views or derived tables. */
-  if (table->is_view_or_derived()) return false;
-
-  /* TRUNCATE query on Storage Engine supporting HTON_CAN_RECREATE flag. */
-  if (!table->table) return true;
-
-  /* Do not generate events, which come from PS preparation. */
-  if (thd->lex->is_ps_or_view_context_analysis()) return false;
-
-  /* Generate event for SYSTEM and USER tables, which are not temp tables. */
-  if ((table->table->s->table_category == TABLE_CATEGORY_SYSTEM ||
-       table->table->s->table_category == TABLE_CATEGORY_USER ||
-       table->table->s->table_category == TABLE_CATEGORY_ACL_TABLE) &&
-      table->table->s->tmp_table == NO_TMP_TABLE)
-    return true;
-
-  return false;
-}
-
-/**
-  Function that allows to use AUDIT_EVENT macro for setting subclass
-  and subclass name values.
-
-  @param [out] out_subclass      Subclass value pointer to be set.
-  @param [out] out_subclass_name Subclass name pointer to be set.
-  @param subclass                Subclass that sets out_subclass value.
-  @param subclass_name           Subclass name that sets out_subclass_name.
-*/
-inline static void set_table_access_subclass(
-    mysql_event_table_access_subclass_t *out_subclass,
-    const char **out_subclass_name,
-    mysql_event_table_access_subclass_t subclass, const char *subclass_name) {
-  *out_subclass = subclass;
-  *out_subclass_name = subclass_name;
-}
-
-/**
-  Generate table access event for a specified table. Table is being
-  verified, whether the event for this table is to be generated.
-
-  @see generate_event
-
-  @param thd           Current thread data.
-  @param subclass      Subclass value.
-  @param subclass_name Subclass name.
-  @param table         Table, for which table access event is to be generated.
-
-  @return Abort execution on 'true', otherwise continue execution.
-*/
-static int mysql_audit_notify(THD *thd,
-                              mysql_event_table_access_subclass_t subclass,
-                              const char *subclass_name, Table_ref *table) {
-  LEX_CSTRING str;
-  mysql_event_table_access event;
-
-  if (!generate_table_access_event(thd, table) ||
-      mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_TABLE_ACCESS_CLASS,
-                                  static_cast<unsigned long>(subclass)))
-    return 0;
-
-  event.event_subclass = subclass;
-  event.connection_id = thd->thread_id();
-  event.sql_command_id = thd->lex->sql_command;
-
-  event.query_charset = thd_get_audit_query(thd, &event.query);
-
-  lex_cstring_set(&str, table->db);
-  event.table_database.str = str.str;
-  event.table_database.length = str.length;
-
-  lex_cstring_set(&str, table->table_name);
-  event.table_name.str = str.str;
-  event.table_name.length = str.length;
-
-  return event_class_dispatch_error(thd, MYSQL_AUDIT_TABLE_ACCESS_CLASS,
-                                    subclass_name, &event);
-}
-
-int mysql_audit_table_access_notify(THD *thd, Table_ref *table) {
-  mysql_event_table_access_subclass_t subclass;
-  const char *subclass_name;
-  int ret;
-
-  /* Do not generate events for non query table access. */
-  if (!thd->lex->query_tables) return 0;
-
-  switch (thd->lex->sql_command) {
-    case SQLCOM_REPLACE_SELECT:
-    case SQLCOM_INSERT_SELECT: {
-      /*
-        INSERT/REPLACE SELECT generates Insert event for the first table in the
-        list and Read for remaining tables.
-      */
-      set_table_access_subclass(&subclass, &subclass_name,
-                                AUDIT_EVENT(MYSQL_AUDIT_TABLE_ACCESS_INSERT));
-
-      if ((ret = mysql_audit_notify(thd, subclass, subclass_name, table)))
-        return ret;
-
-      /* Skip this table (event already generated). */
-      table = table->next_global;
-
-      set_table_access_subclass(&subclass, &subclass_name,
-                                AUDIT_EVENT(MYSQL_AUDIT_TABLE_ACCESS_READ));
-      break;
-    }
-    case SQLCOM_INSERT:
-    case SQLCOM_REPLACE:
-    case SQLCOM_LOAD:
-      set_table_access_subclass(&subclass, &subclass_name,
-                                AUDIT_EVENT(MYSQL_AUDIT_TABLE_ACCESS_INSERT));
-      break;
-    case SQLCOM_DELETE:
-    case SQLCOM_DELETE_MULTI:
-    case SQLCOM_TRUNCATE:
-      set_table_access_subclass(&subclass, &subclass_name,
-                                AUDIT_EVENT(MYSQL_AUDIT_TABLE_ACCESS_DELETE));
-      break;
-    case SQLCOM_UPDATE:
-    case SQLCOM_UPDATE_MULTI:
-      /* Update state is taken from the table instance in the
-         mysql_audit_notify function. */
-      set_table_access_subclass(&subclass, &subclass_name,
-                                AUDIT_EVENT(MYSQL_AUDIT_TABLE_ACCESS_UPDATE));
-      break;
-    case SQLCOM_SELECT:
-    case SQLCOM_HA_READ:
-    case SQLCOM_ANALYZE:
-      set_table_access_subclass(&subclass, &subclass_name,
-                                AUDIT_EVENT(MYSQL_AUDIT_TABLE_ACCESS_READ));
-      break;
-    default:
-      /* Do not generate event for not supported command. */
-      return 0;
-  }
-
-  for (; table; table = table->next_global) {
-    /*
-      Do not generate audit logs for opening DD tables when processing I_S
-      queries.
-    */
-    if (table->referencing_view && table->referencing_view->is_system_view)
-      continue;
-
-    /*
-      Update-Multi query can have several updatable tables as well as readable
-      tables. This is taken from table->updating field, which holds info,
-      whether table is being updated or not. table->updating holds invalid
-      info, when the updatable table is referenced by a view. View status is
-      taken into account in that case.
-    */
-    if (subclass == MYSQL_AUDIT_TABLE_ACCESS_UPDATE &&
-        !table->referencing_view && !table->updating)
-      set_table_access_subclass(&subclass, &subclass_name,
-                                AUDIT_EVENT(MYSQL_AUDIT_TABLE_ACCESS_READ));
-
-    if ((ret = mysql_audit_notify(thd, subclass, subclass_name, table)))
-      return ret;
-  }
-
-  return 0;
-}
-
-int mysql_audit_notify(THD *thd,
-                       mysql_event_global_variable_subclass_t subclass,
-                       const char *subclass_name, const char *name,
-                       const char *value, const unsigned int value_length) {
-  mysql_event_global_variable event;
-
-  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS,
-                                  static_cast<unsigned long>(subclass)))
-    return 0;
-
-  event.event_subclass = subclass;
-  event.connection_id = thd->thread_id();
-  event.sql_command_id = thd->lex->sql_command;
-
-  LEX_CSTRING name_str;
-  lex_cstring_set(&name_str, name);
-  event.variable_name.str = name_str.str;
-  event.variable_name.length = name_str.length;
-
-  event.variable_value.str = value;
-  event.variable_value.length = value_length;
-
-  return event_class_dispatch_error(thd, MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS,
-                                    subclass_name, &event);
-}
-
-int mysql_audit_notify(mysql_event_server_startup_subclass_t subclass,
-                       const char *subclass_name, const char **argv,
-                       unsigned int argc) {
-  mysql_event_server_startup event;
-  Auto_THD thd;
-
-  if (mysql_audit_acquire_plugins(thd.thd, MYSQL_AUDIT_SERVER_STARTUP_CLASS,
-                                  static_cast<unsigned long>(subclass)))
-    return 0;
-
-  event.event_subclass = subclass;
-  event.argv = argv;
-  event.argc = argc;
-
-  return event_class_dispatch_error(thd.thd, MYSQL_AUDIT_SERVER_STARTUP_CLASS,
-                                    subclass_name, &event);
-}
-
-/**
-  Call audit plugins of SERVER SHUTDOWN audit class.
-
-  @param[in] thd       Client thread info or NULL.
-  @param[in] subclass  Type of the server abort audit event.
-  @param[in] reason    Reason code of the shutdown.
-  @param[in] exit_code Abort exit code.
-
-  @result Value returned is not taken into consideration by the server.
-*/
-int mysql_audit_notify(THD *thd,
-                       mysql_event_server_shutdown_subclass_t subclass,
-                       mysql_server_shutdown_reason_t reason, int exit_code) {
-  mysql_event_server_shutdown event;
-
-  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS,
-                                  static_cast<unsigned long>(subclass)))
-    return 0;
-
-  event.event_subclass = subclass;
-  event.exit_code = exit_code;
-  event.reason = reason;
-
-  return event_class_dispatch(thd, MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS, &event);
-}
-
-int mysql_audit_notify(mysql_event_server_shutdown_subclass_t subclass,
-                       mysql_server_shutdown_reason_t reason, int exit_code) {
-  if (error_handler_hook == my_message_sql) {
-    Auto_THD thd;
-
-    return mysql_audit_notify(thd.thd, subclass, reason, exit_code);
-  }
-
-  return mysql_audit_notify(nullptr, subclass, reason, exit_code);
-}
-
-/*
-Function commented out. No Audit API calls yet.
-
-int mysql_audit_notify(THD *thd, mysql_event_authorization_subclass_t subclass,
-                       const char* subclass_name,
-                       const char *database, const char *table,
-                       const char *object)
-{
-  mysql_event_authorization event;
-
-  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_AUTHORIZATION_CLASS,
-                              static_cast<unsigned long>(subclass));
-
-  event.event_subclass= subclass;
-  event.connection_id= thd->thread_id();
-  event.sql_command_id= thd->lex->sql_command;
-
-  event.query_charset = thd_get_audit_query(thd, &event.query);
-
-  LEX_CSTRING obj_str;
-
-  lex_cstring_set(&obj_str, database ? database : "");
-  event.database.str= database;
-  event.database.length= obj_str.length;
-
-  lex_cstring_set(&obj_str, table ? table : "");
-  event.table.str= table;
-  event.table.length = obj_str.length;
-
-  lex_cstring_set(&obj_str, object ? object : "");
-  event.object.str= object;
-  event.object.length= obj_str.length;
-
-  return event_class_dispatch_error(thd, MYSQL_AUDIT_AUTHORIZATION_CLASS,
-                                    subclass_name, &event);
-}
-*/
-
 /**
   @class Ignore_command_start_error_handler
 
   Ignore error for specified commands.
 */
-class Ignore_command_start_error_handler : public Audit_error_handler {
+class Ignore_command_start_error_handler : public Event_tracking_error_handler {
  public:
   /**
     @brief Construction.
@@ -791,7 +241,7 @@ class Ignore_command_start_error_handler : public Audit_error_handler {
   */
   Ignore_command_start_error_handler(THD *thd, enum_server_command command,
                                      const char *command_text)
-      : Audit_error_handler(thd, "", ignore_command(command)),
+      : Event_tracking_error_handler(thd, "", ignore_command(command)),
         m_command(command),
         m_command_text(command_text) {}
 
@@ -844,160 +294,175 @@ class Ignore_command_start_error_handler : public Audit_error_handler {
   const char *m_command_text;
 };
 
-int mysql_audit_notify(THD *thd, mysql_event_command_subclass_t subclass,
-                       const char *subclass_name, enum_server_command command,
-                       const char *command_text) {
-  mysql_event_command event;
+/**
+  Check, whether masks specified by lhs parameter and rhs parameters overlap.
 
-  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_COMMAND_CLASS,
-                                  static_cast<unsigned long>(subclass)))
-    return 0;
+  @param lhs First mask to check.
+  @param rhs Second mask to check.
 
-  event.event_subclass = subclass;
-  event.status =
-      thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno() : 0;
-  event.connection_id = thd && thd->thread_id();
-  event.command_id = command;
+  @return false, when masks overlap, otherwise true.
+*/
+static inline bool check_audit_mask(const unsigned long lhs,
+                                    const unsigned long rhs) {
+  return !(lhs & rhs);
+}
 
-  if (subclass == MYSQL_AUDIT_COMMAND_START) {
-    Ignore_command_start_error_handler handler(thd, command, command_text);
+/**
+  Check, whether mask arrays specified by the lhs parameter and rhs parameter
+  overlap.
 
-    return handler.get_result(event_class_dispatch_error(
-        thd, MYSQL_AUDIT_COMMAND_CLASS, subclass_name, &event));
+  @param lhs First mask array to check.
+  @param rhs Second mask array to check.
+
+  @return false, when mask array overlap, otherwise true.
+*/
+static inline bool check_audit_mask(const unsigned long *lhs,
+                                    const unsigned long *rhs) {
+  int i;
+  for (i = MYSQL_AUDIT_GENERAL_CLASS; i < MYSQL_AUDIT_CLASS_MASK_SIZE; i++)
+    if (!check_audit_mask(*lhs++, *rhs++)) return false;
+
+  return true;
+}
+
+/**
+  Distributes an audit event to components
+
+  @param [in]     thd           THD that generated the event.
+  @param [in,out] generic_event Event to be audited
+*/
+
+int event_tracking_dispatch(THD *thd, st_mysql_event_generic *generic_event) {
+  int result = 0;
+  result = thd->event_notify(generic_event);
+  return result;
+}
+
+int event_tracking_dispatch_error(THD *thd, const char *event_name,
+                                  st_mysql_event_generic *generic_event) {
+  int result = 0;
+  bool err = thd ? thd->get_stmt_da()->is_error() : true;
+
+  if (err) /* Audit API cannot modify the already set DA's error state. */
+    event_tracking_dispatch(thd, generic_event);
+  else {
+    /* We are not is the error state, we can modify the existing one. */
+    thd->get_stmt_da()->set_overwrite_status(true);
+
+    result = event_tracking_dispatch(thd, generic_event);
+
+    if (result) {
+      if (!thd->get_stmt_da()->is_error()) {
+        my_error(ER_AUDIT_API_ABORT, MYF(0), event_name, result);
+      }
+    }
+
+    thd->get_stmt_da()->set_overwrite_status(false);
+
+    /* Because we rely on the error state, we have to notify our
+    caller that the Audit API returned with error state. */
+    if (thd->get_stmt_da()->is_error()) result = result != 0 ? result : 1;
   }
 
-  /* MYSQL_AUDIT_COMMAND_END event handling. */
-  Ignore_event_error_handler handler(thd, subclass_name);
-
-  return handler.get_result(event_class_dispatch_error(
-      thd, MYSQL_AUDIT_COMMAND_CLASS, subclass_name, &event));
+  return result;
 }
 
-int mysql_audit_notify(THD *thd, mysql_event_query_subclass_t subclass,
-                       const char *subclass_name) {
-  mysql_event_query event;
+}  // namespace
 
-  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_QUERY_CLASS,
-                                  static_cast<unsigned long>(subclass)))
-    return 0;
+/**
+  @struct st_mysql_subscribe_event
 
-  event.event_subclass = subclass;
-  event.status =
-      thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno() : 0;
-  event.connection_id = thd->thread_id();
+  Plugin event subscription structure. Used during acquisition of the plugins
+  into user session.
+*/
+struct st_mysql_subscribe_event {
+  /*
+    Event class.
+  */
+  mysql_event_class_t event_class;
+  /*
+    Event subclass.
+  */
+  unsigned long event_subclass;
+  /*
+    The array that keeps sum (OR) mask of all plugins that subscribe
+    to the event specified by the event_class and event_subclass.
 
-  event.sql_command_id = thd->lex->sql_command;
+    lookup_mask is acquired during build_lookup_mask call.
+  */
+  unsigned long lookup_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
+  /*
+    The array that keeps sum (OR) mask of all plugins that are acquired
+    to the current session as a result of acquire_plugins call.
 
-  event.query_charset = thd_get_audit_query(thd, &event.query);
+    subscribed_mask is acquired during acquisition of the plugins
+    (acquire_plugins call).
+  */
+  unsigned long subscribed_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
+  /*
+    The array that keeps sum (OR) mask of all plugins that were not acquired
+    to the current session as a result of acquire_plugins call.
+  */
+  unsigned long not_subscribed_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
+};
 
-  return event_class_dispatch_error(thd, MYSQL_AUDIT_QUERY_CLASS, subclass_name,
-                                    &event);
+unsigned long mysql_global_audit_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
+
+static mysql_mutex_t LOCK_audit_mask;
+
+/**
+  Add mask specified by the rhs parameter to the mask parameter.
+
+  @param mask Mask, to which rhs mask is to be added.
+  @param rhs  Mask to be added to mask parameter.
+*/
+static inline void add_audit_mask(unsigned long *mask, unsigned long rhs) {
+  *mask |= rhs;
 }
 
-int mysql_audit_notify(THD *thd, mysql_event_stored_program_subclass_t subclass,
-                       const char *subclass_name, const char *database,
-                       const char *name, void *parameters) {
-  mysql_event_stored_program event;
+/**
+  Add entire audit mask specified by the src to dst.
 
-  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_STORED_PROGRAM_CLASS,
-                                  static_cast<unsigned long>(subclass)))
-    return 0;
-
-  event.event_subclass = subclass;
-  event.connection_id = thd->thread_id();
-  event.sql_command_id = thd->lex->sql_command;
-
-  event.query_charset = thd_get_audit_query(thd, &event.query);
-
-  LEX_CSTRING obj_str;
-
-  lex_cstring_set(&obj_str, database ? database : "");
-  event.database.str = obj_str.str;
-  event.database.length = obj_str.length;
-
-  lex_cstring_set(&obj_str, name ? name : "");
-  event.name.str = obj_str.str;
-  event.name.length = obj_str.length;
-
-  event.parameters = parameters;
-
-  return event_class_dispatch_error(thd, MYSQL_AUDIT_STORED_PROGRAM_CLASS,
-                                    subclass_name, &event);
+  @param dst Destination mask array pointer.
+  @param src Source mask array pointer.
+*/
+static inline void add_audit_mask(unsigned long *dst,
+                                  const unsigned long *src) {
+  int i;
+  for (i = MYSQL_AUDIT_GENERAL_CLASS; i < MYSQL_AUDIT_CLASS_MASK_SIZE; i++)
+    add_audit_mask(dst++, *src++);
 }
 
-int mysql_audit_notify(THD *thd, mysql_event_authentication_subclass_t subclass,
-                       const char *subclass_name, int status, const char *user,
-                       const char *host, const char *authentication_plugin,
-                       bool is_role, const char *new_user,
-                       const char *new_host) {
-  mysql_event_authentication event;
+/**
+  Fill query info extracted from the thread object and return
+  the thread object charset info.
 
-  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_AUTHENTICATION_CLASS,
-                                  static_cast<unsigned long>(subclass)))
-    return 0;
+  @param[in]  thd     Thread data.
+  @param[out] query   SQL query text.
 
-  event.event_subclass = subclass;
-  event.status = status;
-  event.connection_id = thd->thread_id();
-  event.sql_command_id = thd->lex->sql_command;
+  @return SQL query charset.
+*/
+inline const char *thd_get_audit_query(THD *thd,
+                                       mysql_cstring_with_length *query) {
+  /*
+    If we haven't tried to rewrite the query to obfuscate passwords
+    etc. yet, do so now.
+  */
+  if (thd->rewritten_query().length() == 0) mysql_rewrite_query(thd);
 
-  event.query_charset = thd_get_audit_query(thd, &event.query);
-
-  LEX_CSTRING obj_str;
-
-  lex_cstring_set(&obj_str, user ? user : "");
-  event.user.str = obj_str.str;
-  event.user.length = obj_str.length;
-
-  lex_cstring_set(&obj_str, host ? host : "");
-  event.host.str = obj_str.str;
-  event.host.length = obj_str.length;
-
-  lex_cstring_set(&obj_str, authentication_plugin ? authentication_plugin : "");
-  event.authentication_plugin.str = obj_str.str;
-  event.authentication_plugin.length = obj_str.length;
-
-  event.is_role = is_role;
-
-  lex_cstring_set(&obj_str, new_user ? new_user : "");
-  event.new_user.str = obj_str.str;
-  event.new_user.length = obj_str.length;
-
-  lex_cstring_set(&obj_str, new_host ? new_host : "");
-  event.new_host.str = obj_str.str;
-  event.new_host.length = obj_str.length;
-
-  Ignore_event_error_handler handler(thd, subclass_name);
-
-  return handler.get_result(event_class_dispatch_error(
-      thd, MYSQL_AUDIT_AUTHENTICATION_CLASS, subclass_name, &event));
-}
-
-int mysql_audit_notify(THD *thd, mysql_event_message_subclass_t subclass,
-                       const char *subclass_name, const char *component,
-                       size_t component_length, const char *producer,
-                       size_t producer_length, const char *message,
-                       size_t message_length,
-                       mysql_event_message_key_value_t *key_value_map,
-                       size_t key_value_map_length) {
-  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_MESSAGE_CLASS,
-                                  static_cast<unsigned long>(subclass)))
-    return 0;
-
-  mysql_event_message event;
-
-  event.event_subclass = subclass;
-  event.component.str = component;
-  event.component.length = component_length;
-  event.producer.str = producer;
-  event.producer.length = producer_length;
-  event.message.str = message;
-  event.message.length = message_length;
-  event.key_value_map = key_value_map;
-  event.key_value_map_length = key_value_map_length;
-
-  return event_class_dispatch_error(thd, MYSQL_AUDIT_MESSAGE_CLASS,
-                                    subclass_name, &event);
+  /*
+    If there was something to rewrite, use the rewritten query;
+    otherwise, just use the original as submitted by the client.
+  */
+  if (thd->rewritten_query().length() > 0) {
+    query->str = thd->rewritten_query().ptr();
+    query->length = thd->rewritten_query().length();
+    return thd->rewritten_query().charset()->csname;
+  } else {
+    query->str = thd->query().str;
+    query->length = thd->query().length;
+    return thd->charset()->csname;
+  }
 }
 
 /**
@@ -1324,103 +789,6 @@ int finalize_audit_plugin(st_plugin_int *plugin) {
   return 0;
 }
 
-/**
-  Dispatches an event by invoking the plugin's event_notify method.
-
-  @param[in] thd    Session THD containing references to the audit plugins.
-  @param[in] plugin Plugin used for dispatching the event.
-  @param[in] arg    Opaque event data structure.
-
-  @retval false  always
-*/
-
-static int plugins_dispatch(THD *thd, plugin_ref plugin, void *arg) {
-  const struct st_mysql_event_generic *event_generic =
-      (const struct st_mysql_event_generic *)arg;
-  unsigned long subclass = static_cast<unsigned long>(
-      *static_cast<const int *>(event_generic->event));
-  st_mysql_audit *data = plugin_data<st_mysql_audit *>(plugin);
-
-  /* Check to see if the plugin is interested in this event */
-  if (check_audit_mask(data->class_mask[event_generic->event_class], subclass))
-    return 0;
-
-  /* Actually notify the plugin */
-  return data->event_notify(thd, event_generic->event_class,
-                            event_generic->event);
-}
-
-static bool plugins_dispatch_bool(THD *thd, plugin_ref plugin, void *arg) {
-  return plugins_dispatch(thd, plugin, arg) ? true : false;
-}
-
-/**
-  Distributes an audit event to plug-ins
-
-  @param[in] thd          THD that generated the event.
-  @param     event_class  Audit event class.
-  @param[in] event        Opaque pointer to the event data.
-*/
-
-static int event_class_dispatch(THD *thd, mysql_event_class_t event_class,
-                                const void *event) {
-  int result = 0;
-  struct st_mysql_event_generic event_generic;
-  event_generic.event_class = event_class;
-  event_generic.event = event;
-  /*
-    Check if we are doing a slow global dispatch. This event occurs when
-    thd == NULL as it is not associated with any particular thread.
-  */
-  if (unlikely(!thd)) {
-    return plugin_foreach(thd, plugins_dispatch_bool, MYSQL_AUDIT_PLUGIN,
-                          &event_generic)
-               ? 1
-               : 0;
-  } else {
-    plugin_ref *plugins, *plugins_last;
-
-    /* Use the cached set of audit plugins */
-    plugins = thd->audit_class_plugins.begin();
-    plugins_last = thd->audit_class_plugins.end();
-
-    for (; plugins != plugins_last; plugins++)
-      result |= plugins_dispatch(thd, *plugins, &event_generic);
-  }
-
-  return result;
-}
-
-static int event_class_dispatch_error(THD *thd, mysql_event_class_t event_class,
-                                      const char *event_name,
-                                      const void *event) {
-  int result = 0;
-  bool err = thd ? thd->get_stmt_da()->is_error() : true;
-
-  if (err) /* Audit API cannot modify the already set DA's error state. */
-    event_class_dispatch(thd, event_class, event);
-  else {
-    /* We are not is the error state, we can modify the existing one. */
-    thd->get_stmt_da()->set_overwrite_status(true);
-
-    result = event_class_dispatch(thd, event_class, event);
-
-    if (result) {
-      if (!thd->get_stmt_da()->is_error()) {
-        my_error(ER_AUDIT_API_ABORT, MYF(0), event_name, result);
-      }
-    }
-
-    thd->get_stmt_da()->set_overwrite_status(false);
-
-    /* Because we rely on the error state, we have to notify our
-    caller that the Audit API returned with error state. */
-    if (thd->get_stmt_da()->is_error()) result = result != 0 ? result : 1;
-  }
-
-  return result;
-}
-
 /**  There's at least one active audit plugin tracking a specified class */
 bool is_audit_plugin_class_active(THD *thd [[maybe_unused]],
                                   unsigned long event_class) {
@@ -1454,3 +822,601 @@ size_t make_user_name(Security_context *sctx, char *buf) {
                sctx_ip.length ? sctx_ip.str : "", "]", NullS) -
       buf);
 }
+
+inline void set_cstring_with_length(mysql_cstring_with_length &cstr,
+                                    const char *str) {
+  cstr.str = str;
+  cstr.length = str ? strlen(str) : 0;
+}
+
+int mysql_event_tracking_authentication_notify(
+    THD *thd, mysql_event_tracking_authentication_subclass_t subclass,
+    const char *subclass_name, int status, const char *user, const char *host,
+    const char *authentication_plugin, bool is_role, const char *new_user,
+    const char *new_host) {
+  mysql_event_tracking_authentication_data event;
+
+  if (thd->check_event_subscribers(Event_tracking_class::AUTHENTICATION,
+                                   subclass, true))
+    return 0;
+
+  event.event_subclass = subclass;
+  event.status = status;
+  event.connection_id = static_cast<mysql_connection_id>(thd->thread_id());
+  set_cstring_with_length(event.user, user ? user : "");
+  set_cstring_with_length(event.host, host ? host : "");
+
+  std::vector<const char *> auth_methods;
+  if (authentication_plugin) auth_methods.push_back(authentication_plugin);
+  Event_tracking_authentication_information authentication_information(
+      subclass, auth_methods, is_role, new_user ? new_user : nullptr,
+      new_host ? new_host : nullptr);
+
+  struct st_mysql_event_generic event_generic;
+  event_generic.event = &event;
+  event_generic.event_information = &authentication_information;
+  event_generic.event_class = Event_tracking_class::AUTHENTICATION;
+
+  Ignore_event_tracking_error_handler handler(thd, subclass_name);
+  return handler.get_result(
+      event_tracking_dispatch_error(thd, subclass_name, &event_generic));
+}
+
+int mysql_event_tracking_command_notify(
+    THD *thd, mysql_event_tracking_command_subclass_t subclass,
+    const char *subclass_name, enum_server_command command,
+    const char *command_text) {
+  mysql_event_tracking_command_data event;
+
+  if (thd->check_event_subscribers(Event_tracking_class::COMMAND, subclass,
+                                   true))
+    return 0;
+
+  event.event_subclass = subclass;
+  event.status =
+      thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno() : 0;
+  event.connection_id =
+      thd ? static_cast<mysql_connection_id>(thd->thread_id()) : 0;
+
+  set_cstring_with_length(event.command, command_text ? command_text : "");
+
+  struct st_mysql_event_generic event_generic;
+  event_generic.event = &event;
+  event_generic.event_information = nullptr;
+  event_generic.event_class = Event_tracking_class::COMMAND;
+
+  if (event.event_subclass & EVENT_TRACKING_COMMAND_START) {
+    Ignore_command_start_error_handler handler(thd, command, event.command.str);
+
+    return handler.get_result(
+        event_tracking_dispatch_error(thd, subclass_name, &event_generic));
+  }
+
+  Ignore_event_tracking_error_handler handler(thd, subclass_name);
+
+  return handler.get_result(
+      event_tracking_dispatch_error(thd, subclass_name, &event_generic));
+}
+
+int mysql_event_tracking_connection_notify(
+    THD *thd, mysql_event_tracking_connection_subclass_t subclass,
+    const char *subclass_name, int errcode) {
+  mysql_event_tracking_connection_data event;
+
+  /*
+    Do not take into account m_auditing_activated flag. Always generate
+    events of the MYSQL_AUDIT_CONNECTION_CLASS class.
+  */
+  if (thd->check_event_subscribers(Event_tracking_class::CONNECTION, subclass,
+                                   false))
+    return 0;
+
+  event.event_subclass = subclass;
+  event.status = errcode;
+  event.connection_id = static_cast<mysql_connection_id>(thd->thread_id());
+
+  auto user = thd->security_context()->user();
+  auto priv_user = thd->security_context()->priv_user();
+  auto external_user = thd->security_context()->external_user();
+  auto proxy_user = thd->security_context()->proxy_user();
+  auto host = thd->security_context()->host();
+  auto ip = thd->security_context()->ip();
+  auto db = thd->db();
+
+  event.user = {user.str, user.length};
+  event.priv_user = {priv_user.str, priv_user.length};
+  event.external_user = {external_user.str, external_user.length};
+  event.proxy_user = {proxy_user.str, proxy_user.length};
+  event.host = {host.str, host.length};
+  event.ip = {ip.str, ip.length};
+  event.database = {db.str, db.length};
+  event.connection_type = thd->get_vio_type();
+
+  struct st_mysql_event_generic event_generic;
+  event_generic.event = &event;
+  event_generic.event_information = nullptr;
+  event_generic.event_class = Event_tracking_class::CONNECTION;
+
+  if (event.event_subclass & EVENT_TRACKING_CONNECTION_DISCONNECT) {
+    Ignore_event_tracking_error_handler handler(thd, subclass_name);
+    return handler.get_result(
+        event_tracking_dispatch_error(thd, subclass_name, &event_generic));
+  }
+
+  return event_tracking_dispatch_error(thd, subclass_name, &event_generic);
+}
+
+int mysql_event_tracking_connection_notify(
+    THD *thd, mysql_event_tracking_connection_subclass_t subclass,
+    const char *subclass_name) {
+  return mysql_event_tracking_connection_notify(
+      thd, subclass, subclass_name,
+      thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno() : 0);
+}
+
+int mysql_event_tracking_general_notify(
+    THD *thd, mysql_event_tracking_general_subclass_t subclass,
+    const char *subclass_name, int error_code, const char *msg,
+    size_t msg_len) {
+  mysql_event_tracking_general_data event;
+  char user_buff[MAX_USER_HOST_SIZE];
+
+  assert(thd);
+
+  if (thd->check_event_subscribers(Event_tracking_class::GENERAL, subclass,
+                                   true))
+    return 0;
+
+  event.event_subclass = subclass;
+  event.error_code = error_code;
+  event.connection_id = static_cast<mysql_connection_id>(thd->thread_id());
+
+  Security_context *sctx = thd->security_context();
+
+  auto ip = sctx->ip();
+  auto host = sctx->host();
+
+  event.user.str = user_buff;
+  event.user.length = make_user_name(sctx, user_buff);
+  event.ip = {ip.str, ip.length};
+  event.host = {host.str, host.length};
+
+  Event_tracking_general_information general_information(
+      subclass,
+      static_cast<uint64_t>(thd->get_stmt_da()->current_row_for_condition()),
+      static_cast<uint64_t>(thd->query_start_in_secs()), sctx->external_user(),
+      msg, msg_len);
+
+  DBUG_EXECUTE_IF("audit_log_negative_general_error_code",
+                  event.error_code *= -1;);
+
+  struct st_mysql_event_generic event_generic;
+  event_generic.event = &event;
+  event_generic.event_information = &general_information;
+  event_generic.event_class = Event_tracking_class::GENERAL;
+
+  if (event.event_subclass &
+      (EVENT_TRACKING_GENERAL_ERROR | EVENT_TRACKING_GENERAL_STATUS |
+       EVENT_TRACKING_GENERAL_RESULT)) {
+    Ignore_event_tracking_error_handler handler(thd, subclass_name);
+    return handler.get_result(event_tracking_dispatch(thd, &event_generic));
+  }
+
+  return event_tracking_dispatch_error(thd, subclass_name, &event_generic);
+}
+
+int mysql_event_tracking_global_variable_notify(
+    THD *thd, mysql_event_tracking_global_variable_subclass_t subclass,
+    const char *subclass_name, const char *name, const char *value,
+    const unsigned int value_length) {
+  if (thd->check_event_subscribers(Event_tracking_class::GLOBAL_VARIABLE,
+                                   subclass, true))
+    return 0;
+
+  mysql_event_tracking_global_variable_data event;
+
+  event.event_subclass = subclass;
+  event.connection_id = static_cast<mysql_connection_id>(thd->thread_id());
+  event.sql_command = get_sql_command_string(thd->lex->sql_command);
+
+  set_cstring_with_length(event.variable_name, name ? name : "");
+  event.variable_value = {value, value_length};
+
+  struct st_mysql_event_generic event_generic;
+  event_generic.event = &event;
+  event_generic.event_information = nullptr;
+  event_generic.event_class = Event_tracking_class::GLOBAL_VARIABLE;
+
+  return event_tracking_dispatch_error(thd, subclass_name, &event_generic);
+}
+
+int mysql_event_tracking_message_notify(
+    THD *thd, mysql_event_tracking_message_subclass_t subclass,
+    const char *subclass_name, const char *component, size_t component_length,
+    const char *producer, size_t producer_length, const char *message,
+    size_t message_length,
+    mysql_event_tracking_message_key_value_t *key_value_map,
+    size_t key_value_map_length) {
+  if (thd->check_event_subscribers(Event_tracking_class::MESSAGE, subclass,
+                                   true))
+    return 0;
+
+  mysql_event_tracking_message_data event;
+
+  event.connection_id = static_cast<mysql_connection_id>(thd->thread_id());
+  event.event_subclass = subclass;
+  event.component = {component, component_length};
+  event.producer = {producer, producer_length};
+  event.message = {message, message_length};
+  event.key_value_map = key_value_map;
+  event.key_value_map_length = key_value_map_length;
+
+  struct st_mysql_event_generic event_generic;
+  event_generic.event = &event;
+  event_generic.event_information = nullptr;
+  event_generic.event_class = Event_tracking_class::MESSAGE;
+
+  return event_tracking_dispatch_error(thd, subclass_name, &event_generic);
+}
+
+int mysql_event_tracking_parse_notify(
+    THD *thd, mysql_event_tracking_parse_subclass_t subclass,
+    const char *subclass_name,
+    mysql_event_tracking_parse_rewrite_plugin_flag *flags,
+    mysql_cstring_with_length *rewritten_query) {
+  if (thd->check_event_subscribers(Event_tracking_class::PARSE, subclass, true))
+    return 0;
+
+  mysql_event_tracking_parse_data event;
+
+  auto query = thd->query();
+
+  event.connection_id = static_cast<mysql_connection_id>(thd->thread_id());
+  event.event_subclass = subclass;
+  event.flags = flags;
+  event.query = {query.str, query.length};
+  event.rewritten_query = rewritten_query;
+
+  struct st_mysql_event_generic event_generic;
+  event_generic.event = &event;
+  event_generic.event_information = nullptr;
+  event_generic.event_class = Event_tracking_class::PARSE;
+
+  return event_tracking_dispatch_error(thd, subclass_name, &event_generic);
+}
+
+int mysql_event_tracking_query_notify(
+    THD *thd, mysql_event_tracking_query_subclass_t subclass,
+    const char *subclass_name) {
+  mysql_event_tracking_query_data event;
+
+  if (thd->check_event_subscribers(Event_tracking_class::QUERY, subclass, true))
+    return 0;
+
+  event.event_subclass = subclass;
+  event.status =
+      thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno() : 0;
+  event.connection_id = static_cast<mysql_connection_id>(thd->thread_id());
+
+  event.sql_command = get_sql_command_string(thd->lex->sql_command);
+
+  event.query_charset = thd_get_audit_query(thd, &event.query);
+  struct st_mysql_event_generic event_generic;
+  event_generic.event = &event;
+  event_generic.event_information = nullptr;
+  event_generic.event_class = Event_tracking_class::QUERY;
+
+  return event_tracking_dispatch_error(thd, subclass_name, &event_generic);
+}
+
+/**
+  Call audit plugins of SERVER SHUTDOWN audit class.
+
+  @param[in] thd           Client thread info or NULL.
+  @param[in] subclass      Type of the server abort audit event.
+  @param[in] subclass_name Name of the subclass
+  @param[in] reason        Reason code of the shutdown.
+  @param[in] exit_code     Abort exit code.
+
+  @result Value returned is not taken into consideration by the server.
+*/
+int mysql_event_tracking_shutdown_notify(
+    THD *thd, mysql_event_tracking_shutdown_subclass_t subclass,
+    const char *subclass_name [[maybe_unused]],
+    mysql_event_tracking_shutdown_reason_t reason, int exit_code) {
+  mysql_event_tracking_shutdown_data event;
+
+  if (!thd || thd->check_event_subscribers(Event_tracking_class::SHUTDOWN,
+                                           subclass, true))
+    return 0;
+
+  event.event_subclass = subclass;
+  event.exit_code = exit_code;
+  event.reason = reason;
+
+  struct st_mysql_event_generic event_generic;
+  event_generic.event = &event;
+  event_generic.event_information = nullptr;
+  event_generic.event_class = Event_tracking_class::SHUTDOWN;
+
+  return event_tracking_dispatch(thd, &event_generic);
+}
+
+int mysql_event_tracking_shutdown_notify(
+    mysql_event_tracking_shutdown_subclass_t subclass,
+    const char *subclass_name, mysql_event_tracking_shutdown_reason_t reason,
+    int exit_code) {
+  if (error_handler_hook == my_message_sql) {
+    Auto_THD thd;
+
+    return mysql_event_tracking_shutdown_notify(
+        thd.thd, subclass, subclass_name, reason, exit_code);
+  }
+
+  return mysql_event_tracking_shutdown_notify(nullptr, subclass, subclass_name,
+                                              reason, exit_code);
+}
+
+int mysql_event_tracking_startup_notify(
+    mysql_event_tracking_startup_subclass_t subclass, const char *subclass_name,
+    const char **argv, unsigned int argc) {
+  mysql_event_tracking_startup_data event;
+  Auto_THD thd;
+
+  if (thd.thd->check_event_subscribers(Event_tracking_class::STARTUP, subclass,
+                                       true))
+    return 0;
+
+  event.event_subclass = subclass;
+  event.argv = argv;
+  event.argc = argc;
+
+  struct st_mysql_event_generic event_generic;
+  event_generic.event = &event;
+  event_generic.event_information = nullptr;
+  event_generic.event_class = Event_tracking_class::STARTUP;
+
+  return event_tracking_dispatch_error(thd.thd, subclass_name, &event_generic);
+}
+
+int mysql_event_tracking_stored_program_notify(
+    THD *thd, mysql_event_tracking_stored_program_subclass_t subclass,
+    const char *subclass_name, const char *database, const char *name,
+    void *parameters) {
+  mysql_event_tracking_stored_program_data event;
+
+  if (thd->check_event_subscribers(Event_tracking_class::STORED_PROGRAM,
+                                   subclass, true))
+    return 0;
+
+  event.event_subclass = subclass;
+  event.connection_id = static_cast<mysql_connection_id>(thd->thread_id());
+
+  set_cstring_with_length(event.database, database ? database : "");
+  set_cstring_with_length(event.name, name ? name : "");
+
+  event.parameters = parameters;
+
+  struct st_mysql_event_generic event_generic;
+  event_generic.event = &event;
+  event_generic.event_information = nullptr;
+  event_generic.event_class = Event_tracking_class::STORED_PROGRAM;
+
+  return event_tracking_dispatch_error(thd, subclass_name, &event_generic);
+}
+
+/**
+  Check whether the table access event for a specified table will
+  be generated.
+
+  Events for Views, table catogories other than 'SYSTEM' or 'USER' and
+  temporary tables are not generated.
+
+  @param thd   Thread handler
+  @param table Table that is to be check.
+
+  @retval true - generate event, otherwise not.
+*/
+inline bool generate_table_access_event(THD *thd, Table_ref *table) {
+  /* Discard views or derived tables. */
+  if (table->is_view_or_derived()) return false;
+
+  /* TRUNCATE query on Storage Engine supporting HTON_CAN_RECREATE flag. */
+  if (!table->table) return true;
+
+  /* Do not generate events, which come from PS preparation. */
+  if (thd->lex->is_ps_or_view_context_analysis()) return false;
+
+  /* Generate event for SYSTEM and USER tables, which are not temp tables. */
+  if ((table->table->s->table_category == TABLE_CATEGORY_SYSTEM ||
+       table->table->s->table_category == TABLE_CATEGORY_USER ||
+       table->table->s->table_category == TABLE_CATEGORY_ACL_TABLE) &&
+      table->table->s->tmp_table == NO_TMP_TABLE)
+    return true;
+
+  return false;
+}
+
+/**
+  Function that allows to use AUDIT_EVENT macro for setting subclass
+  and subclass name values.
+
+  @param [out] out_subclass      Subclass value pointer to be set.
+  @param [out] out_subclass_name Subclass name pointer to be set.
+  @param subclass                Subclass that sets out_subclass value.
+  @param subclass_name           Subclass name that sets out_subclass_name.
+*/
+inline static void set_table_access_subclass(
+    mysql_event_tracking_table_access_subclass_t *out_subclass,
+    const char **out_subclass_name,
+    mysql_event_tracking_table_access_subclass_t subclass,
+    const char *subclass_name) {
+  *out_subclass = subclass;
+  *out_subclass_name = subclass_name;
+}
+
+/**
+  Generate table access event for a specified table. Table is being
+  verified, whether the event for this table is to be generated.
+
+  @see generate_event
+
+  @param thd           Current thread data.
+  @param subclass      Subclass value.
+  @param subclass_name Subclass name.
+  @param table         Table, for which table access event is to be generated.
+
+  @return Abort execution on 'true', otherwise continue execution.
+*/
+static int mysql_event_tracking_table_access_notify(
+    THD *thd, mysql_event_tracking_table_access_subclass_t subclass,
+    const char *subclass_name, Table_ref *table) {
+  if (!generate_table_access_event(thd, table) ||
+      thd->check_event_subscribers(Event_tracking_class::TABLE_ACCESS, subclass,
+                                   true))
+    return 0;
+
+  mysql_event_tracking_table_access_data event;
+
+  event.event_subclass = subclass;
+  event.connection_id = static_cast<mysql_connection_id>(thd->thread_id());
+
+  event.table_database = {table->db, table->db_length};
+  event.table_name = {table->table_name, table->table_name_length};
+
+  struct st_mysql_event_generic event_generic;
+  event_generic.event = &event;
+  event_generic.event_information = nullptr;
+  event_generic.event_class = Event_tracking_class::TABLE_ACCESS;
+
+  return event_tracking_dispatch_error(thd, subclass_name, &event_generic);
+}
+
+int mysql_event_tracking_table_access_notify(THD *thd, Table_ref *table) {
+  mysql_event_tracking_table_access_subclass_t subclass;
+  const char *subclass_name;
+  int ret;
+
+  /* Do not generate events for non query table access. */
+  if (!thd->lex->query_tables) return 0;
+
+  switch (thd->lex->sql_command) {
+    case SQLCOM_REPLACE_SELECT:
+    case SQLCOM_INSERT_SELECT: {
+      /*
+        INSERT/REPLACE SELECT generates Insert event for the first table in the
+        list and Read for remaining tables.
+      */
+      set_table_access_subclass(
+          &subclass, &subclass_name,
+          AUDIT_EVENT(EVENT_TRACKING_TABLE_ACCESS_INSERT));
+
+      if ((ret = mysql_event_tracking_table_access_notify(
+               thd, subclass, subclass_name, table)))
+        return ret;
+
+      /* Skip this table (event already generated). */
+      table = table->next_global;
+
+      set_table_access_subclass(&subclass, &subclass_name,
+                                AUDIT_EVENT(EVENT_TRACKING_TABLE_ACCESS_READ));
+      break;
+    }
+    case SQLCOM_INSERT:
+    case SQLCOM_REPLACE:
+    case SQLCOM_LOAD:
+      set_table_access_subclass(
+          &subclass, &subclass_name,
+          AUDIT_EVENT(EVENT_TRACKING_TABLE_ACCESS_INSERT));
+      break;
+    case SQLCOM_DELETE:
+    case SQLCOM_DELETE_MULTI:
+    case SQLCOM_TRUNCATE:
+      set_table_access_subclass(
+          &subclass, &subclass_name,
+          AUDIT_EVENT(EVENT_TRACKING_TABLE_ACCESS_DELETE));
+      break;
+    case SQLCOM_UPDATE:
+    case SQLCOM_UPDATE_MULTI:
+      /* Update state is taken from the table instance in the
+         mysql_audit_notify function. */
+      set_table_access_subclass(
+          &subclass, &subclass_name,
+          AUDIT_EVENT(EVENT_TRACKING_TABLE_ACCESS_UPDATE));
+      break;
+    case SQLCOM_SELECT:
+    case SQLCOM_HA_READ:
+    case SQLCOM_ANALYZE:
+      set_table_access_subclass(&subclass, &subclass_name,
+                                AUDIT_EVENT(EVENT_TRACKING_TABLE_ACCESS_READ));
+      break;
+    default:
+      /* Do not generate event for not supported command. */
+      return 0;
+  }
+
+  for (; table; table = table->next_global) {
+    /*
+      Do not generate audit logs for opening DD tables when processing I_S
+      queries.
+    */
+    if (table->referencing_view && table->referencing_view->is_system_view)
+      continue;
+
+    /*
+      Update-Multi query can have several updatable tables as well as readable
+      tables. This is taken from table->updating field, which holds info,
+      whether table is being updated or not. table->updating holds invalid
+      info, when the updatable table is referenced by a view. View status is
+      taken into account in that case.
+    */
+    if (subclass == EVENT_TRACKING_TABLE_ACCESS_UPDATE &&
+        !table->referencing_view && !table->updating)
+      set_table_access_subclass(&subclass, &subclass_name,
+                                AUDIT_EVENT(EVENT_TRACKING_TABLE_ACCESS_READ));
+
+    if ((ret = mysql_event_tracking_table_access_notify(thd, subclass,
+                                                        subclass_name, table)))
+      return ret;
+  }
+
+  return 0;
+}
+
+/*
+Function commented out. No Audit API calls yet.
+
+int mysql_audit_notify(THD *thd, mysql_event_authorization_subclass_t subclass,
+                       const char *subclass_name,
+                       const char *database, const char *table,
+                       const char *object)
+{
+  mysql_event_authorization event;
+
+  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_AUTHORIZATION_CLASS,
+                              static_cast<unsigned long>(subclass));
+
+  event.event_subclass= subclass;
+  event.connection_id= thd->thread_id();
+  event.sql_command_id= thd->lex->sql_command;
+
+  event.query_charset = thd_get_audit_query(thd, &event.query);
+
+  LEX_CSTRING obj_str;
+
+  lex_cstring_set(&obj_str, database ? database : "");
+  event.database.str= database;
+  event.database.length= obj_str.length;
+
+  lex_cstring_set(&obj_str, table ? table : "");
+  event.table.str= table;
+  event.table.length = obj_str.length;
+
+  lex_cstring_set(&obj_str, object ? object : "");
+  event.object.str= object;
+  event.object.length= obj_str.length;
+
+  return event_class_dispatch_error(thd, MYSQL_AUDIT_AUTHORIZATION_CLASS,
+                                    subclass_name, &event);
+}
+*/

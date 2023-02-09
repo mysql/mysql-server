@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/registry.h>
+
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -39,10 +40,10 @@ class cache_imp : public Cache_malloced {
   static bool destroy(cache_imp *cache);
   bool get(unsigned service_name_index, const my_h_service **ref);
   bool flush();
-
- public: /* utility */
-  cache_imp(channel_imp *channel, SERVICE_TYPE(registry) * registry);
   ~cache_imp();
+
+ protected:
+  explicit cache_imp(channel_imp *channel, SERVICE_TYPE(registry) * registry);
 
  private:
   // disable copy constructors
@@ -57,7 +58,9 @@ class cache_imp : public Cache_malloced {
   my_h_service **m_cache;
   SERVICE_TYPE(registry) * m_registry;
   service_names_set<> m_service_names;
-  service_names_set<> m_ignore_list;
+  service_names_set<std::string, std::less<std::string>> m_ignore_list;
+  unsigned int m_cache_version;
+  bool m_populated;
 };
 
 }  // namespace reference_caching

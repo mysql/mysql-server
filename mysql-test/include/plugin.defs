@@ -181,3 +181,9 @@ component_test_server_telemetry_traces       plugin_output_directory no TEST_SER
 
 # component_test_mysql_thd_store_service
 component_test_mysql_thd_store_service 	        plugin_output_directory no COMPONENT_TEST_MYSQL_THD_STORE_SERVICE
+
+# component_test_event_tracking_consumer
+component_test_event_tracking_consumer  	        plugin_output_directory no COMPONENT_TEST_EVENT_TRACKING_CONSUMER
+
+# component_test_event_tracking_producer_a
+component_test_event_tracking_producer_a  	        plugin_output_directory no COMPONENT_TEST_EVENT_TRACKING_PRODUCER_A

@@ -1167,6 +1167,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/mysqltest_safe_process
 %attr(755, root, root) %{_bindir}/mysqlxtest
 %attr(755, root, root) %{_bindir}/mysql_keyring_encryption_test
+%attr(755, root, root) %{_bindir}/mysql_test_event_tracking
 %attr(644, root, root) %{_mandir}/man1/comp_err.1*
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
@@ -1260,6 +1261,12 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_reader.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_traces.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_thd_store_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_consumer.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_producer_a.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_producer_b.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_consumer_a.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_consumer_b.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_consumer_c.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
@@ -1354,6 +1361,12 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_reader.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_traces.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_thd_store_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_producer_a.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_producer_b.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer_a.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer_b.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer_c.so
 
 %if 0%{?cluster}
 %files management-server
@@ -1445,6 +1458,9 @@ rm -r $(readlink var) var
 %endif # with_router
 
 %changelog
+* Mon Nov 28 2022 Harin Nalin Vadodaria <harin.vadodaria@oracle.com> - 8.0.33-1
+- Added components, libraries and binaries related to event tracking
+
 * Thu Oct 13 2022 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 8.0.33-1
 - Added component_test_server_telemetry_traces, component_test_mysql_thd_store_service
 

@@ -56,15 +56,16 @@ void invoke_pre_parse_rewrite_plugins(THD *thd) {
 
   Diagnostics_area *da = thd->get_parser_da();
   thd->push_diagnostics_area(plugin_da, false);
-  mysql_event_parse_rewrite_plugin_flag flags =
-      MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_NONE;
-  LEX_CSTRING rewritten_query = {nullptr, 0};
-  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_PARSE_PREPARSE), &flags,
-                     &rewritten_query);
+  mysql_event_tracking_parse_rewrite_plugin_flag flags =
+      EVENT_TRACKING_PARSE_REWRITE_NONE;
+  mysql_cstring_with_length rewritten_query = {nullptr, 0};
+  mysql_event_tracking_parse_notify(thd,
+                                    AUDIT_EVENT(EVENT_TRACKING_PARSE_PREPARSE),
+                                    &flags, &rewritten_query);
 
   /* Do not continue when the plugin set the error state. */
   if (!plugin_da->is_error() &&
-      flags & MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_QUERY_REWRITTEN) {
+      flags & EVENT_TRACKING_PARSE_REWRITE_QUERY_REWRITTEN) {
     // It is a rewrite fulltext plugin and we need a rewrite we must have
     // generated a new query then.
     assert(rewritten_query.str != nullptr && rewritten_query.length > 0);
@@ -120,15 +121,15 @@ bool invoke_post_parse_rewrite_plugins(THD *thd, bool is_prepared) {
     assert(dummy == 1);
   }
 
-  mysql_event_parse_rewrite_plugin_flag flags =
-      is_prepared ? MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_IS_PREPARED_STATEMENT
-                  : MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_NONE;
+  mysql_event_tracking_parse_rewrite_plugin_flag flags =
+      is_prepared ? EVENT_TRACKING_PARSE_REWRITE_IS_PREPARED_STATEMENT
+                  : EVENT_TRACKING_PARSE_REWRITE_NONE;
   bool err = false;
   const char *original_query = thd->query().str;
-  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_PARSE_POSTPARSE), &flags,
-                     nullptr);
+  mysql_event_tracking_parse_notify(
+      thd, AUDIT_EVENT(EVENT_TRACKING_PARSE_POSTPARSE), &flags, nullptr);
 
-  if (flags & MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_QUERY_REWRITTEN) {
+  if (flags & EVENT_TRACKING_PARSE_REWRITE_QUERY_REWRITTEN) {
     raise_query_rewritten_note(thd, original_query, thd->query().str);
     thd->lex->safe_to_cache_query = false;
   }

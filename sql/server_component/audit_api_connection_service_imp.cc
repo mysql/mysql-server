@@ -31,19 +31,20 @@ DEFINE_METHOD(int, mysql_audit_api_connection_imp::emit,
   switch (type) {
     case MYSQL_AUDIT_CONNECTION_CONNECT:
       mysql_audit_enable_auditing(t);
-      return mysql_audit_notify(t, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CONNECT));
+      return mysql_event_tracking_connection_notify(
+          t, AUDIT_EVENT(EVENT_TRACKING_CONNECTION_CONNECT));
       break;
     case MYSQL_AUDIT_CONNECTION_DISCONNECT:
-      return mysql_audit_notify(t,
-                                AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT));
+      return mysql_event_tracking_connection_notify(
+          t, AUDIT_EVENT(EVENT_TRACKING_CONNECTION_DISCONNECT));
       break;
     case MYSQL_AUDIT_CONNECTION_CHANGE_USER:
-      return mysql_audit_notify(
-          t, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CHANGE_USER));
+      return mysql_event_tracking_connection_notify(
+          t, AUDIT_EVENT(EVENT_TRACKING_CONNECTION_CHANGE_USER));
       break;
     case MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE:
-      return mysql_audit_notify(
-          t, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE));
+      return mysql_event_tracking_connection_notify(
+          t, AUDIT_EVENT(EVENT_TRACKING_CONNECTION_PRE_AUTHENTICATE));
       break;
     default:
       break;
@@ -59,20 +60,20 @@ DEFINE_METHOD(int, mysql_audit_api_connection_with_error_imp::emit,
   switch (type) {
     case MYSQL_AUDIT_CONNECTION_CONNECT:
       mysql_audit_enable_auditing(t);
-      return mysql_audit_notify(t, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CONNECT),
-                                errcode);
+      return mysql_event_tracking_connection_notify(
+          t, AUDIT_EVENT(EVENT_TRACKING_CONNECTION_CONNECT), errcode);
       break;
     case MYSQL_AUDIT_CONNECTION_DISCONNECT:
-      return mysql_audit_notify(
-          t, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT), errcode);
+      return mysql_event_tracking_connection_notify(
+          t, AUDIT_EVENT(EVENT_TRACKING_CONNECTION_DISCONNECT), errcode);
       break;
     case MYSQL_AUDIT_CONNECTION_CHANGE_USER:
-      return mysql_audit_notify(
-          t, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CHANGE_USER), errcode);
+      return mysql_event_tracking_connection_notify(
+          t, AUDIT_EVENT(EVENT_TRACKING_CONNECTION_CHANGE_USER), errcode);
       break;
     case MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE:
-      return mysql_audit_notify(
-          t, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE), errcode);
+      return mysql_event_tracking_connection_notify(
+          t, AUDIT_EVENT(EVENT_TRACKING_CONNECTION_PRE_AUTHENTICATE), errcode);
       break;
     default:
       break;

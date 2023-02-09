@@ -192,6 +192,12 @@ usr/lib/mysql/plugin/debug/component_test_sensitive_system_variables.so
 usr/lib/mysql/plugin/debug/component_test_status_var_reader.so
 usr/lib/mysql/plugin/debug/component_test_server_telemetry_traces.so
 usr/lib/mysql/plugin/debug/component_test_mysql_thd_store_service.so
+usr/lib/mysql/plugin/debug/component_test_event_tracking_consumer_c.so
+usr/lib/mysql/plugin/debug/component_test_event_tracking_consumer_b.so
+usr/lib/mysql/plugin/debug/component_test_event_tracking_consumer_a.so
+usr/lib/mysql/plugin/debug/component_test_event_tracking_producer_a.so
+usr/lib/mysql/plugin/debug/component_test_event_tracking_consumer.so
+usr/lib/mysql/plugin/debug/component_test_event_tracking_producer_b.so
 ")
 
 IF (DEB_PRODUCT STREQUAL "commercial")

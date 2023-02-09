@@ -19,13 +19,22 @@ GNU General Public License, version 2.0, for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-#include <mysql/components/component_implementation.h>
-#include <mysql/components/services/mysql_mutex.h>
+
+#include "component.h"
+
+#include <mysql/components/services/dynamic_loader_service_notification.h>
+#include <mysql/components/services/mysql_rwlock.h>
 #include <mysql/components/services/psi_memory.h>
-#include <mysql/components/services/psi_mutex.h>
+#include <mysql/components/services/psi_rwlock.h>
 #include <mysql/components/services/reference_caching.h>
+#include <mysql/components/services/registry.h>
+
 #include "cache.h"
 #include "channel.h"
+
+REQUIRES_SERVICE_PLACEHOLDER_AS(registry_registration,
+                                current_registry_registration);
+REQUIRES_SERVICE_PLACEHOLDER_AS(registry_query, current_registry_query);
 
 namespace reference_caching {
 
@@ -35,8 +44,10 @@ static DEFINE_BOOL_METHOD(create, (const char *service_names[],
                                    reference_caching_channel *out_channel)) {
   try {
     service_names_set<> refs;
-    for (unsigned idx = 0; service_names[idx]; idx++)
-      refs.insert(service_names[idx]);
+    for (unsigned idx = 0; service_names[idx]; idx++) {
+      Service_name_entry entry{service_names[idx], 0};
+      refs.insert(entry);
+    }
 
     *out_channel =
         reinterpret_cast<reference_caching_channel>(channel_imp::create(refs));
@@ -56,28 +67,8 @@ static DEFINE_BOOL_METHOD(destroy, (reference_caching_channel channel)) {
 
 static DEFINE_BOOL_METHOD(invalidate, (reference_caching_channel channel)) {
   try {
-    reinterpret_cast<channel_imp *>(channel)->set_valid(false);
+    channel_imp::increment_version(reinterpret_cast<channel_imp *>(channel));
     return false;
-  } catch (...) {
-    return true;
-  }
-}
-
-static DEFINE_BOOL_METHOD(validate, (reference_caching_channel channel)) {
-  try {
-    reinterpret_cast<channel_imp *>(channel)->set_valid(true);
-    return false;
-  } catch (...) {
-    return true;
-  }
-}
-
-static DEFINE_BOOL_METHOD(fetch, (const char *service_name,
-                                  reference_caching_channel *out_channel)) {
-  try {
-    *out_channel = reinterpret_cast<reference_caching_channel>(
-        channel_imp::channel_by_name(service_name));
-    return *out_channel ? false : true;
   } catch (...) {
     return true;
   }
@@ -93,6 +84,7 @@ static DEFINE_BOOL_METHOD(create, (reference_caching_channel channel,
   try {
     cache_imp *ptr =
         cache_imp::create(reinterpret_cast<channel_imp *>(channel), registry);
+    if (!ptr) return true;
     *out_cache = reinterpret_cast<reference_caching_cache>(ptr);
     return false;
   } catch (...) {
@@ -133,8 +125,8 @@ namespace channel_ignore_list {
 static DEFINE_BOOL_METHOD(add, (reference_caching_channel channel,
                                 const char *implementation_name)) {
   try {
-    return reinterpret_cast<channel_imp *>(channel)->ignore_list_add(
-        implementation_name);
+    return channel_imp::ignore_list_add(
+        reinterpret_cast<channel_imp *>(channel), implementation_name);
   } catch (...) {
     return true;
   }
@@ -143,8 +135,8 @@ static DEFINE_BOOL_METHOD(add, (reference_caching_channel channel,
 static DEFINE_BOOL_METHOD(remove, (reference_caching_channel channel,
                                    const char *implementation_name)) {
   try {
-    return reinterpret_cast<channel_imp *>(channel)->ignore_list_remove(
-        implementation_name);
+    return channel_imp::ignore_list_remove(
+        reinterpret_cast<channel_imp *>(channel), implementation_name);
   } catch (...) {
     return true;
   }
@@ -152,13 +144,34 @@ static DEFINE_BOOL_METHOD(remove, (reference_caching_channel channel,
 
 static DEFINE_BOOL_METHOD(clear, (reference_caching_channel channel)) {
   try {
-    return reinterpret_cast<channel_imp *>(channel)->ignore_list_clear();
+    return channel_imp::ignore_list_clear(
+        reinterpret_cast<channel_imp *>(channel));
   } catch (...) {
     return true;
   }
 }
 
 }  // namespace channel_ignore_list
+
+namespace service_notification {
+static DEFINE_BOOL_METHOD(notify_before_unload,
+                          (const char **services, unsigned int count)) {
+  try {
+    return channel_imp::service_notification(services, count, true);
+  } catch (...) {
+    return true;
+  }
+}
+
+static DEFINE_BOOL_METHOD(notify_after_load,
+                          (const char **services, unsigned int count)) {
+  try {
+    return channel_imp::service_notification(services, count, false);
+  } catch (...) {
+    return true;
+  }
+}
+}  // namespace service_notification
 
 PSI_memory_key KEY_mem_reference_cache;
 
@@ -181,7 +194,15 @@ static void register_instruments() {
 static mysql_service_status_t init() {
   register_instruments();
   try {
-    return channel_imp::factory_init() ? 1 : 0;
+    if (channel_imp::factory_init()) return 1;
+    if (current_registry_registration->set_default(
+            "dynamic_loader_services_loaded_notification.reference_caching") ||
+        current_registry_registration->set_default(
+            "dynamic_loader_services_unload_notification.reference_caching")) {
+      channel_imp::factory_deinit();
+      return 1;
+    }
+    return 0;
   } catch (...) {
     return 1;
   }
@@ -189,7 +210,12 @@ static mysql_service_status_t init() {
 
 static mysql_service_status_t deinit() {
   try {
-    return channel_imp::factory_deinit() ? 1 : 0;
+    if (channel_imp::factory_deinit()) return 1;
+    /*
+      No need to change dynamic_loader default.
+      Registry will take care of choose new default.
+    */
+    return 0;
   } catch (...) {
     return 1;
   }
@@ -201,9 +227,7 @@ static mysql_service_status_t deinit() {
 
 BEGIN_SERVICE_IMPLEMENTATION(reference_caching, reference_caching_channel)
 reference_caching::channel::create, reference_caching::channel::destroy,
-    reference_caching::channel::invalidate,
-    reference_caching::channel::validate,
-    reference_caching::channel::fetch END_SERVICE_IMPLEMENTATION();
+    reference_caching::channel::invalidate, END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(reference_caching, reference_caching_cache)
 reference_caching::cache::create, reference_caching::cache::destroy,
@@ -216,20 +240,37 @@ reference_caching::channel_ignore_list::add,
     reference_caching::channel_ignore_list::remove,
     reference_caching::channel_ignore_list::clear END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(reference_caching,
+                             dynamic_loader_services_loaded_notification)
+reference_caching::service_notification::notify_after_load
+END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(reference_caching,
+                             dynamic_loader_services_unload_notification)
+reference_caching::service_notification::notify_before_unload
+END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(reference_caching)
 PROVIDES_SERVICE(reference_caching, reference_caching_channel),
     PROVIDES_SERVICE(reference_caching, reference_caching_cache),
     PROVIDES_SERVICE(reference_caching, reference_caching_channel_ignore_list),
+    PROVIDES_SERVICE(reference_caching,
+                     dynamic_loader_services_loaded_notification),
+    PROVIDES_SERVICE(reference_caching,
+                     dynamic_loader_services_unload_notification),
     END_COMPONENT_PROVIDES();
 
-REQUIRES_MYSQL_MUTEX_SERVICE_PLACEHOLDER;
-REQUIRES_PSI_MUTEX_SERVICE_PLACEHOLDER;
+REQUIRES_MYSQL_RWLOCK_SERVICE_PLACEHOLDER;
+REQUIRES_PSI_RWLOCK_SERVICE_PLACEHOLDER;
 REQUIRES_PSI_MEMORY_SERVICE_PLACEHOLDER;
 
 /* A list of required services. */
 BEGIN_COMPONENT_REQUIRES(reference_caching)
-REQUIRES_MYSQL_MUTEX_SERVICE, REQUIRES_PSI_MUTEX_SERVICE,
-    REQUIRES_PSI_MEMORY_SERVICE, END_COMPONENT_REQUIRES();
+REQUIRES_MYSQL_RWLOCK_SERVICE, REQUIRES_PSI_RWLOCK_SERVICE,
+    REQUIRES_PSI_MEMORY_SERVICE,
+    REQUIRES_SERVICE_AS(registry_registration, current_registry_registration),
+    REQUIRES_SERVICE_AS(registry_query, current_registry_query),
+    END_COMPONENT_REQUIRES();
 
 /* A list of metadata to describe the Component. */
 BEGIN_COMPONENT_METADATA(reference_caching)

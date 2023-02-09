@@ -1,0 +1,4450 @@
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Setup
+# Save the initial number of concurrent sessions
+# Save original value of default_password_lifetime
+SELECT @@global.default_password_lifetime INTO @original_default_password_lifetime;
+# Set value of default_password_lifetime for tests
+SET GLOBAL default_password_lifetime = 100;
+# Create objects
+CREATE DATABASE event_tracking_db;
+CREATE TABLE event_tracking_db.event_tracking_table(c1 INT);
+INSERT INTO event_tracking_db.event_tracking_table VALUES (1), (2), (3);
+CREATE PROCEDURE event_tracking_db.event_tracking_procedure()
+SELECT 1;
+# Create user
+CREATE USER event_tracking_user IDENTIFIED BY 'abcd';
+CREATE USER other_event_tracking_user IDENTIFIED BY 'efgh';
+# Install test component
+INSTALL COMPONENT 'file://component_test_event_tracking_consumer';
+# Disable everything
+SELECT (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4) INTO @event_tracking_authentication_all;
+SELECT (1 << 0) | (1 << 1) INTO @event_tracking_command_all;
+SELECT (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) INTO @event_tracking_connection_all;
+SELECT (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) INTO @event_tracking_general_all;
+SELECT (1 << 0) | (1 << 1) INTO @event_tracking_global_variable_all;
+SELECT (1 << 0) | (1 << 1) INTO @event_tracking_message_all;
+SELECT (1 << 0) | (1 << 1) INTO @event_tracking_parse_all;
+SELECT (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) INTO @event_tracking_query_all;
+SELECT (1 << 0) INTO @event_tracking_shutdown_all;
+SELECT (1 << 0) INTO @event_tracking_stored_program_all;
+SELECT (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) INTO @event_tracking_table_access_all;
+SELECT configure_event_tracking_filter("event_tracking_parse", @event_tracking_parse_all);
+configure_event_tracking_filter("event_tracking_parse", @event_tracking_parse_all)
+1
+SELECT configure_event_tracking_filter("event_tracking_authentication", @event_tracking_authentication_all);
+configure_event_tracking_filter("event_tracking_authentication", @event_tracking_authentication_all)
+1
+SELECT configure_event_tracking_filter("event_tracking_connection", @event_tracking_connection_all);
+configure_event_tracking_filter("event_tracking_connection", @event_tracking_connection_all)
+1
+SELECT configure_event_tracking_filter("event_tracking_global_variable", @event_tracking_global_variable_all);
+configure_event_tracking_filter("event_tracking_global_variable", @event_tracking_global_variable_all)
+1
+SELECT configure_event_tracking_filter("event_tracking_lifecycle", @event_tracking_shutdown_all);
+configure_event_tracking_filter("event_tracking_lifecycle", @event_tracking_shutdown_all)
+1
+SELECT configure_event_tracking_filter("event_tracking_table_access", @event_tracking_table_access_all);
+configure_event_tracking_filter("event_tracking_table_access", @event_tracking_table_access_all)
+1
+SELECT configure_event_tracking_filter("event_tracking_message", @event_tracking_message_all);
+configure_event_tracking_filter("event_tracking_message", @event_tracking_message_all)
+1
+SELECT configure_event_tracking_filter("event_tracking_stored_program", @event_tracking_stored_program_all);
+configure_event_tracking_filter("event_tracking_stored_program", @event_tracking_stored_program_all)
+1
+SELECT configure_event_tracking_filter("event_tracking_query", @event_tracking_query_all);
+configure_event_tracking_filter("event_tracking_query", @event_tracking_query_all)
+1
+SELECT configure_event_tracking_filter("event_tracking_general", @event_tracking_general_all);
+configure_event_tracking_filter("event_tracking_general", @event_tracking_general_all)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Tests for COMMAND events
+# All status variables except
+# test_event_tracking_consumer.counter_command
+# Should be 0
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	2
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# 
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# 
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# 
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# 
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# 
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# 
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+CALL event_tracking_db.event_tracking_procedure();
+1
+1
+# Should only show event markers for following events:
+# command events
+# 
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# 
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	6
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT @@global.default_password_lifetime;
+@@global.default_password_lifetime
+100
+# Should only show event markers for following events:
+# command events
+# 
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SET GLOBAL default_password_lifetime=100;
+# Should only show event markers for following events:
+# command events
+# 
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# 
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	10
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# 
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# 
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# 
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# 
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# 
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# 
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Tests for PARSE events
+# ---------------------------------------------------------------------
+# Enable all PARSE subevents
+SELECT configure_event_tracking_filter("event_tracking_parse", 0);
+configure_event_tracking_filter("event_tracking_parse", 0)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# parse events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: SELECT * FROM event_tracking_db.event_tracking_table)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# parse events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: INSERT INTO event_tracking_db.event_tracking_table VALUES (4))
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# parse events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# parse events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# parse events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: SELECT * FROM event_tracking_db.non_existing_table)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_parse
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_parse	22
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+CALL event_tracking_db.event_tracking_procedure();
+1
+1
+# Should only show event markers for following events:
+# command events
+# parse events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: CALL event_tracking_db.event_tracking_procedure())
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_parse
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	6
+test_event_tracking_consumer.counter_parse	6
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT @@global.default_password_lifetime;
+@@global.default_password_lifetime
+100
+# Should only show event markers for following events:
+# command events
+# parse events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: SELECT @@global.default_password_lifetime)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SET GLOBAL default_password_lifetime=100;
+# Should only show event markers for following events:
+# command events
+# parse events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: SET GLOBAL default_password_lifetime=100)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_parse
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	10
+test_event_tracking_consumer.counter_parse	10
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# parse events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: FLUSH PRIVILEGES)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# parse events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: CREATE USER test_wl12652 IDENTIFIED BY 'abcd')
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# parse events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: ALTER USER test_wl12652 IDENTIFIED BY 'efgh')
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# parse events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: RENAME USER test_wl12652 TO test_wl12652_2)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# parse events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: DROP USER test_wl12652_2)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_parse
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_parse	22
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_PARSE_PREPARSE
+SELECT configure_event_tracking_filter("event_tracking_parse", 2);
+configure_event_tracking_filter("event_tracking_parse", 2)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_PREPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: SELECT * FROM event_tracking_db.event_tracking_table)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_PREPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: INSERT INTO event_tracking_db.event_tracking_table VALUES (4))
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_PREPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_PREPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_PREPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: SELECT * FROM event_tracking_db.non_existing_table)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_parse
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_parse	11
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+CALL event_tracking_db.event_tracking_procedure();
+1
+1
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_PREPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: CALL event_tracking_db.event_tracking_procedure())
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_parse
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	6
+test_event_tracking_consumer.counter_parse	3
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT @@global.default_password_lifetime;
+@@global.default_password_lifetime
+100
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_PREPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: SELECT @@global.default_password_lifetime)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SET GLOBAL default_password_lifetime=100;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_PREPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: SET GLOBAL default_password_lifetime=100)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_parse
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	10
+test_event_tracking_consumer.counter_parse	5
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_PREPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: FLUSH PRIVILEGES)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_PREPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: CREATE USER test_wl12652 IDENTIFIED BY 'abcd')
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_PREPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: ALTER USER test_wl12652 IDENTIFIED BY 'efgh')
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_PREPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: RENAME USER test_wl12652 TO test_wl12652_2)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_PREPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_PREPARSE(Query: DROP USER test_wl12652_2)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_parse
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_parse	11
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_PARSE_POSTPARSE
+SELECT configure_event_tracking_filter("event_tracking_parse", 1);
+configure_event_tracking_filter("event_tracking_parse", 1)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_POSTPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_POSTPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_POSTPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_POSTPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_POSTPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_parse
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_parse	11
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+CALL event_tracking_db.event_tracking_procedure();
+1
+1
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_POSTPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_parse
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	6
+test_event_tracking_consumer.counter_parse	3
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT @@global.default_password_lifetime;
+@@global.default_password_lifetime
+100
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_POSTPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SET GLOBAL default_password_lifetime=100;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_POSTPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_parse
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	10
+test_event_tracking_consumer.counter_parse	5
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_POSTPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_POSTPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_POSTPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_POSTPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_PARSE_POSTPARSE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_PARSE_POSTPARSE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_parse
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_parse	11
+SELECT configure_event_tracking_filter("event_tracking_parse", @event_tracking_parse_all);
+configure_event_tracking_filter("event_tracking_parse", @event_tracking_parse_all)
+1
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Tests for GLOBAL_VARIABLE events
+# ---------------------------------------------------------------------
+# Enable all global variable events
+SELECT configure_event_tracking_filter("event_tracking_global_variable", 0);
+configure_event_tracking_filter("event_tracking_global_variable", 0)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT @@global.default_password_lifetime;
+@@global.default_password_lifetime
+100
+# Should only show event markers for following events:
+# command events
+# global variable events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GLOBAL_VARIABLE_GET
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SET GLOBAL default_password_lifetime=100;
+# Should only show event markers for following events:
+# command events
+# global variable events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GLOBAL_VARIABLE_SET
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_global_variable
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	10
+test_event_tracking_consumer.counter_global_variable	2
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_GLOBAL_VARIABLE_GET
+SELECT configure_event_tracking_filter("event_tracking_global_variable", 2);
+configure_event_tracking_filter("event_tracking_global_variable", 2)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT @@global.default_password_lifetime;
+@@global.default_password_lifetime
+100
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GLOBAL_VARIABLE_GET
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GLOBAL_VARIABLE_GET
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SET GLOBAL default_password_lifetime=100;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GLOBAL_VARIABLE_GET
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_global_variable
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	10
+test_event_tracking_consumer.counter_global_variable	1
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_GLOBAL_VARIABLE_SET
+SELECT configure_event_tracking_filter("event_tracking_global_variable", 1);
+configure_event_tracking_filter("event_tracking_global_variable", 1)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT @@global.default_password_lifetime;
+@@global.default_password_lifetime
+100
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GLOBAL_VARIABLE_SET
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SET GLOBAL default_password_lifetime=100;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GLOBAL_VARIABLE_SET
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GLOBAL_VARIABLE_SET
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_global_variable
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	10
+test_event_tracking_consumer.counter_global_variable	1
+SELECT configure_event_tracking_filter("event_tracking_global_variable", @event_tracking_global_variable_all);
+configure_event_tracking_filter("event_tracking_global_variable", @event_tracking_global_variable_all)
+1
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Tests for STORED_PROCEDURE events
+# ---------------------------------------------------------------------
+# Enable all stored program events
+SELECT configure_event_tracking_filter("event_tracking_stored_program", 0);
+configure_event_tracking_filter("event_tracking_stored_program", 0)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+CALL event_tracking_db.event_tracking_procedure();
+1
+1
+# Should only show event markers for following events:
+# command events
+# stored program events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_STORED_PROGRAM_EXECUTE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_stored_program
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	6
+test_event_tracking_consumer.counter_stored_program	1
+SELECT configure_event_tracking_filter("event_tracking_stored_program", @event_tracking_stored_program_all);
+configure_event_tracking_filter("event_tracking_stored_program", @event_tracking_stored_program_all)
+1
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Tests for QUERY events
+# ---------------------------------------------------------------------
+# Enable all query events
+SELECT configure_event_tracking_filter("event_tracking_query", 0);
+configure_event_tracking_filter("event_tracking_query", 0)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# query events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: SELECT * FROM event_tracking_db.event_tracking_table)
+--EVENT_TRACKING_QUERY_STATUS_END(Query: SELECT * FROM event_tracking_db.event_tracking_table)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# query events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: INSERT INTO event_tracking_db.event_tracking_table VALUES (4))
+--EVENT_TRACKING_QUERY_STATUS_END(Query: INSERT INTO event_tracking_db.event_tracking_table VALUES (4))
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# query events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4)
+--EVENT_TRACKING_QUERY_STATUS_END(Query: UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# query events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5)
+--EVENT_TRACKING_QUERY_STATUS_END(Query: DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# query events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: SELECT * FROM event_tracking_db.non_existing_table)
+--EVENT_TRACKING_QUERY_STATUS_END(Query: SELECT * FROM event_tracking_db.non_existing_table)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_query	22
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+CALL event_tracking_db.event_tracking_procedure();
+1
+1
+# Should only show event markers for following events:
+# command events
+# query events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: CALL event_tracking_db.event_tracking_procedure())
+----EVENT_TRACKING_QUERY_NESTED_START(Query: SELECT 1)
+----EVENT_TRACKING_QUERY_NESTED_STATUS_END(Query: SELECT 1)
+--EVENT_TRACKING_QUERY_STATUS_END(Query: CALL event_tracking_db.event_tracking_procedure())
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	6
+test_event_tracking_consumer.counter_query	8
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT @@global.default_password_lifetime;
+@@global.default_password_lifetime
+100
+# Should only show event markers for following events:
+# command events
+# query events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: SELECT @@global.default_password_lifetime)
+--EVENT_TRACKING_QUERY_STATUS_END(Query: SELECT @@global.default_password_lifetime)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SET GLOBAL default_password_lifetime=100;
+# Should only show event markers for following events:
+# command events
+# query events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: SET GLOBAL default_password_lifetime=100)
+--EVENT_TRACKING_QUERY_STATUS_END(Query: SET GLOBAL default_password_lifetime=100)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	10
+test_event_tracking_consumer.counter_query	10
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# query events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: FLUSH PRIVILEGES)
+--EVENT_TRACKING_QUERY_STATUS_END(Query: FLUSH PRIVILEGES)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# query events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: CREATE USER 'test_wl12652'@'%' IDENTIFIED BY <secret>)
+--EVENT_TRACKING_QUERY_STATUS_END(Query: CREATE USER 'test_wl12652'@'%' IDENTIFIED BY <secret>)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# query events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: ALTER USER 'test_wl12652'@'%' IDENTIFIED BY <secret>)
+--EVENT_TRACKING_QUERY_STATUS_END(Query: ALTER USER 'test_wl12652'@'%' IDENTIFIED BY <secret>)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# query events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: RENAME USER test_wl12652 TO test_wl12652_2)
+--EVENT_TRACKING_QUERY_STATUS_END(Query: RENAME USER test_wl12652 TO test_wl12652_2)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# query events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: DROP USER test_wl12652_2)
+--EVENT_TRACKING_QUERY_STATUS_END(Query: DROP USER test_wl12652_2)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_query	22
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_QUERY_START events
+SELECT configure_event_tracking_filter("event_tracking_query", 14);
+configure_event_tracking_filter("event_tracking_query", 14)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: SELECT * FROM event_tracking_db.event_tracking_table)
+--EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: INSERT INTO event_tracking_db.event_tracking_table VALUES (4))
+--EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4)
+--EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5)
+--EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: SELECT * FROM event_tracking_db.non_existing_table)
+--EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_query	11
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+CALL event_tracking_db.event_tracking_procedure();
+1
+1
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: CALL event_tracking_db.event_tracking_procedure())
+--EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	6
+test_event_tracking_consumer.counter_query	3
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT @@global.default_password_lifetime;
+@@global.default_password_lifetime
+100
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: SELECT @@global.default_password_lifetime)
+--EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SET GLOBAL default_password_lifetime=100;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: SET GLOBAL default_password_lifetime=100)
+--EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	10
+test_event_tracking_consumer.counter_query	5
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: FLUSH PRIVILEGES)
+--EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: CREATE USER 'test_wl12652'@'%' IDENTIFIED BY <secret>)
+--EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: ALTER USER 'test_wl12652'@'%' IDENTIFIED BY <secret>)
+--EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: RENAME USER test_wl12652 TO test_wl12652_2)
+--EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_START(Query: DROP USER test_wl12652_2)
+--EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_query	11
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_QUERY_NESTED_START events
+SELECT configure_event_tracking_filter("event_tracking_query", 13);
+configure_event_tracking_filter("event_tracking_query", 13)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+CALL event_tracking_db.event_tracking_procedure();
+1
+1
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_QUERY_NESTED_START(Query: SELECT 1)
+--EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	6
+test_event_tracking_consumer.counter_query	1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT @@global.default_password_lifetime;
+@@global.default_password_lifetime
+100
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SET GLOBAL default_password_lifetime=100;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	10
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_START
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_QUERY_END events
+SELECT configure_event_tracking_filter("event_tracking_query", 11);
+configure_event_tracking_filter("event_tracking_query", 11)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_QUERY_STATUS_END(Query: SELECT * FROM event_tracking_db.event_tracking_table)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_QUERY_STATUS_END(Query: INSERT INTO event_tracking_db.event_tracking_table VALUES (4))
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_QUERY_STATUS_END(Query: UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_QUERY_STATUS_END(Query: DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_QUERY_STATUS_END(Query: SELECT * FROM event_tracking_db.non_existing_table)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_query	11
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+CALL event_tracking_db.event_tracking_procedure();
+1
+1
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_QUERY_STATUS_END(Query: CALL event_tracking_db.event_tracking_procedure())
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	6
+test_event_tracking_consumer.counter_query	3
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT @@global.default_password_lifetime;
+@@global.default_password_lifetime
+100
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_QUERY_STATUS_END(Query: SELECT @@global.default_password_lifetime)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SET GLOBAL default_password_lifetime=100;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_QUERY_STATUS_END(Query: SET GLOBAL default_password_lifetime=100)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	10
+test_event_tracking_consumer.counter_query	5
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_QUERY_STATUS_END(Query: FLUSH PRIVILEGES)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_QUERY_STATUS_END(Query: CREATE USER 'test_wl12652'@'%' IDENTIFIED BY <secret>)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_QUERY_STATUS_END(Query: ALTER USER 'test_wl12652'@'%' IDENTIFIED BY <secret>)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_QUERY_STATUS_END(Query: RENAME USER test_wl12652 TO test_wl12652_2)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_QUERY_STATUS_END(Query: DROP USER test_wl12652_2)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_query	11
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_QUERY_NESTED_END events
+SELECT configure_event_tracking_filter("event_tracking_query", 7);
+configure_event_tracking_filter("event_tracking_query", 7)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+CALL event_tracking_db.event_tracking_procedure();
+1
+1
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_QUERY_NESTED_STATUS_END(Query: SELECT 1)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	6
+test_event_tracking_consumer.counter_query	1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT @@global.default_password_lifetime;
+@@global.default_password_lifetime
+100
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SET GLOBAL default_password_lifetime=100;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	10
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_QUERY_NESTED_END
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_query
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+SELECT configure_event_tracking_filter("event_tracking_query", @event_tracking_query_all);
+configure_event_tracking_filter("event_tracking_query", @event_tracking_query_all)
+1
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Test for GENERAL events
+# ---------------------------------------------------------------------
+# Enable all general events
+SELECT configure_event_tracking_filter("event_tracking_general", 0);
+configure_event_tracking_filter("event_tracking_general", 0)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# general events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+--EVENT_TRACKING_GENERAL_RESULT
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# general events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+--EVENT_TRACKING_GENERAL_RESULT
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# general events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+--EVENT_TRACKING_GENERAL_RESULT
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# general events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+--EVENT_TRACKING_GENERAL_RESULT
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# general events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+--EVENT_TRACKING_GENERAL_ERROR
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_general	33
+test_event_tracking_consumer.counter_general_information	33
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+CALL event_tracking_db.event_tracking_procedure();
+1
+1
+# Should only show event markers for following events:
+# command events
+# general events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+--EVENT_TRACKING_GENERAL_RESULT
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	6
+test_event_tracking_consumer.counter_general	9
+test_event_tracking_consumer.counter_general_information	9
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT @@global.default_password_lifetime;
+@@global.default_password_lifetime
+100
+# Should only show event markers for following events:
+# command events
+# general events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+--EVENT_TRACKING_GENERAL_RESULT
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SET GLOBAL default_password_lifetime=100;
+# Should only show event markers for following events:
+# command events
+# general events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+--EVENT_TRACKING_GENERAL_RESULT
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	10
+test_event_tracking_consumer.counter_general	15
+test_event_tracking_consumer.counter_general_information	15
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# general events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+--EVENT_TRACKING_GENERAL_RESULT
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# general events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+--EVENT_TRACKING_GENERAL_RESULT
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# general events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+--EVENT_TRACKING_GENERAL_RESULT
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# general events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+--EVENT_TRACKING_GENERAL_RESULT
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# general events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+--EVENT_TRACKING_GENERAL_RESULT
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_general	33
+test_event_tracking_consumer.counter_general_information	33
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_GENERAL_LOG event
+SELECT configure_event_tracking_filter("event_tracking_general", 14);
+configure_event_tracking_filter("event_tracking_general", 14)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_LOG
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_LOG
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_LOG
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_LOG
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_LOG
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_general	11
+test_event_tracking_consumer.counter_general_information	11
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+CALL event_tracking_db.event_tracking_procedure();
+1
+1
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_LOG
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	6
+test_event_tracking_consumer.counter_general	3
+test_event_tracking_consumer.counter_general_information	3
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT @@global.default_password_lifetime;
+@@global.default_password_lifetime
+100
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_LOG
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SET GLOBAL default_password_lifetime=100;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_LOG
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	10
+test_event_tracking_consumer.counter_general	5
+test_event_tracking_consumer.counter_general_information	5
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_LOG
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_LOG
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_LOG
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_LOG
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_LOG
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_LOG
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_general	11
+test_event_tracking_consumer.counter_general_information	11
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_GENERAL_ERROR event
+SELECT configure_event_tracking_filter("event_tracking_general", 13);
+configure_event_tracking_filter("event_tracking_general", 13)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_ERROR
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_ERROR
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_ERROR
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_ERROR
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_ERROR
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_ERROR
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_general	1
+test_event_tracking_consumer.counter_general_information	1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+CALL event_tracking_db.event_tracking_procedure();
+1
+1
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_ERROR
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	6
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT @@global.default_password_lifetime;
+@@global.default_password_lifetime
+100
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_ERROR
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SET GLOBAL default_password_lifetime=100;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_ERROR
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	10
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_ERROR
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_ERROR
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_ERROR
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_ERROR
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_ERROR
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_GENERAL_RESULT event
+SELECT configure_event_tracking_filter("event_tracking_general", 11);
+configure_event_tracking_filter("event_tracking_general", 11)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_RESULT
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_RESULT
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_RESULT
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_RESULT
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_RESULT
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_RESULT
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_RESULT
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_RESULT
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_RESULT
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_general	10
+test_event_tracking_consumer.counter_general_information	10
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+CALL event_tracking_db.event_tracking_procedure();
+1
+1
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_RESULT
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_RESULT
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	6
+test_event_tracking_consumer.counter_general	3
+test_event_tracking_consumer.counter_general_information	3
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT @@global.default_password_lifetime;
+@@global.default_password_lifetime
+100
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_RESULT
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_RESULT
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SET GLOBAL default_password_lifetime=100;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_RESULT
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_RESULT
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	10
+test_event_tracking_consumer.counter_general	5
+test_event_tracking_consumer.counter_general_information	5
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_RESULT
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_RESULT
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_RESULT
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_RESULT
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_RESULT
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_RESULT
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_RESULT
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_RESULT
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_RESULT
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_RESULT
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_general	11
+test_event_tracking_consumer.counter_general_information	11
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_GENERAL_STATUS event
+SELECT configure_event_tracking_filter("event_tracking_general", 7);
+configure_event_tracking_filter("event_tracking_general", 7)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_STATUS
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_STATUS
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_STATUS
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_STATUS
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_STATUS
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_general	11
+test_event_tracking_consumer.counter_general_information	11
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+CALL event_tracking_db.event_tracking_procedure();
+1
+1
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_STATUS
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	6
+test_event_tracking_consumer.counter_general	3
+test_event_tracking_consumer.counter_general_information	3
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT @@global.default_password_lifetime;
+@@global.default_password_lifetime
+100
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_STATUS
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SET GLOBAL default_password_lifetime=100;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_STATUS
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	10
+test_event_tracking_consumer.counter_general	5
+test_event_tracking_consumer.counter_general_information	5
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_STATUS
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_STATUS
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_STATUS
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_STATUS
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_GENERAL_STATUS
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_GENERAL_STATUS
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_general
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_general	11
+test_event_tracking_consumer.counter_general_information	11
+SELECT configure_event_tracking_filter("event_tracking_general", @event_tracking_general_all);
+configure_event_tracking_filter("event_tracking_general", @event_tracking_general_all)
+1
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Tests TABLE_ACCESS events
+# ---------------------------------------------------------------------
+# Enable all table_access events
+SELECT configure_event_tracking_filter("event_tracking_table_access", 0);
+configure_event_tracking_filter("event_tracking_table_access", 0)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# table access events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_TABLE_ACCESS_READ
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# table access events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_TABLE_ACCESS_INSERT
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# table access events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_TABLE_ACCESS_UPDATE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# table access events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_TABLE_ACCESS_DELETE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# table access events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_table_access
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_table_access	4
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_TABLE_ACCESS_READ events
+SELECT configure_event_tracking_filter("event_tracking_table_access", 14);
+configure_event_tracking_filter("event_tracking_table_access", 14)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_READ
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_TABLE_ACCESS_READ
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_READ
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_READ
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_READ
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_READ
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_table_access
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_table_access	1
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_TABLE_ACCESS_INSERT events
+SELECT configure_event_tracking_filter("event_tracking_table_access", 13);
+configure_event_tracking_filter("event_tracking_table_access", 13)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_INSERT
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_INSERT
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_TABLE_ACCESS_INSERT
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_INSERT
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_INSERT
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_INSERT
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_table_access
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_table_access	1
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_TABLE_ACCESS_UPDATE events
+SELECT configure_event_tracking_filter("event_tracking_table_access", 11);
+configure_event_tracking_filter("event_tracking_table_access", 11)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_UPDATE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_UPDATE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_UPDATE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_TABLE_ACCESS_UPDATE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_UPDATE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_UPDATE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_table_access
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_table_access	1
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_TABLE_ACCESS_DELETE events
+SELECT configure_event_tracking_filter("event_tracking_table_access", 7);
+configure_event_tracking_filter("event_tracking_table_access", 7)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.event_tracking_table;
+c1
+1
+2
+3
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_DELETE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+INSERT INTO event_tracking_db.event_tracking_table VALUES (4);
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_DELETE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+UPDATE event_tracking_db.event_tracking_table SET c1 = 5 WHERE c1 = 4;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_DELETE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DELETE FROM event_tracking_db.event_tracking_table WHERE c1 = 5;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_DELETE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_TABLE_ACCESS_DELETE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+SELECT * FROM event_tracking_db.non_existing_table;
+ERROR 42S02: Table 'event_tracking_db.non_existing_table' doesn't exist
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_TABLE_ACCESS_DELETE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_table_access
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+test_event_tracking_consumer.counter_table_access	1
+SELECT configure_event_tracking_filter("event_tracking_table_access", @event_tracking_table_access_all);
+configure_event_tracking_filter("event_tracking_table_access", @event_tracking_table_access_all)
+1
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Tests for AUTHENTICATION events
+# ---------------------------------------------------------------------
+# Enable all authentication events
+SELECT configure_event_tracking_filter("event_tracking_authentication", 0);
+configure_event_tracking_filter("event_tracking_authentication", 0)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# authentication events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_AUTHENTICATION_FLUSH
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# authentication events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# authentication events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# authentication events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_AUTHENTICATION_AUTHID_RENAME
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# authentication events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_AUTHENTICATION_AUTHID_DROP
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_authentication
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_authentication	4
+test_event_tracking_consumer.counter_authentication_information	4
+test_event_tracking_consumer.counter_command	22
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_AUTHENTICATION_FLUSH events
+SELECT configure_event_tracking_filter("event_tracking_authentication", 30);
+configure_event_tracking_filter("event_tracking_authentication", 30)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_FLUSH
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_AUTHENTICATION_FLUSH
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_FLUSH
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_FLUSH
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_FLUSH
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_FLUSH
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_authentication
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_authentication	1
+test_event_tracking_consumer.counter_authentication_information	1
+test_event_tracking_consumer.counter_command	22
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_AUTHENTICATION_AUTHID_CREATE events - currently none
+SELECT configure_event_tracking_filter("event_tracking_authentication", 29);
+configure_event_tracking_filter("event_tracking_authentication", 29)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_AUTHID_CREATE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_AUTHID_CREATE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_AUTHID_CREATE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_AUTHID_CREATE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_AUTHID_CREATE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_authentication
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	22
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE events
+SELECT configure_event_tracking_filter("event_tracking_authentication", 27);
+configure_event_tracking_filter("event_tracking_authentication", 27)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_authentication
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_authentication	1
+test_event_tracking_consumer.counter_authentication_information	1
+test_event_tracking_consumer.counter_command	22
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_AUTHENTICATION_AUTHID_RENAME events
+SELECT configure_event_tracking_filter("event_tracking_authentication", 23);
+configure_event_tracking_filter("event_tracking_authentication", 23)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_AUTHID_RENAME
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_AUTHID_RENAME
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_AUTHID_RENAME
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_AUTHID_RENAME
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_AUTHENTICATION_AUTHID_RENAME
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_AUTHID_RENAME
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_authentication
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_authentication	1
+test_event_tracking_consumer.counter_authentication_information	1
+test_event_tracking_consumer.counter_command	22
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_AUTHENTICATION_AUTHID_DROP events
+SELECT configure_event_tracking_filter("event_tracking_authentication", 15);
+configure_event_tracking_filter("event_tracking_authentication", 15)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Execute query to populate event tracker
+FLUSH PRIVILEGES;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_AUTHID_DROP
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+CREATE USER test_wl12652 IDENTIFIED BY 'abcd';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_AUTHID_DROP
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+ALTER USER test_wl12652 IDENTIFIED BY 'efgh';
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_AUTHID_DROP
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+RENAME USER test_wl12652 TO test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_AUTHID_DROP
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Execute query to populate event tracker
+DROP USER test_wl12652_2;
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_AUTHENTICATION_AUTHID_DROP
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_AUTHENTICATION_AUTHID_DROP
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_authentication
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_authentication	1
+test_event_tracking_consumer.counter_authentication_information	1
+test_event_tracking_consumer.counter_command	22
+SELECT configure_event_tracking_filter("event_tracking_authentication", @event_tracking_authentication_all);
+configure_event_tracking_filter("event_tracking_authentication", @event_tracking_authentication_all)
+1
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Tests for CONNECTION events
+# ---------------------------------------------------------------------
+# Enable all connection events
+SELECT configure_event_tracking_filter("event_tracking_connection", 0);
+configure_event_tracking_filter("event_tracking_connection", 0)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Connect with test_user_connection
+SELECT current_user();
+current_user()
+event_tracking_user@%
+# Execute COM_CHANGE_USER
+SELECT current_user();
+current_user()
+other_event_tracking_user@%
+# Disconnect test_user_connection
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_connection
+SELECT VARIABLE_NAME FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME
+test_event_tracking_consumer.counter_command
+test_event_tracking_consumer.counter_connection
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_CONNECTION_CONNECT events
+SELECT configure_event_tracking_filter("event_tracking_connection", 14);
+configure_event_tracking_filter("event_tracking_connection", 14)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Connect with test_user_connection
+SELECT current_user();
+current_user()
+event_tracking_user@%
+# Execute COM_CHANGE_USER
+SELECT current_user();
+current_user()
+other_event_tracking_user@%
+# Disconnect test_user_connection
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_connection
+SELECT VARIABLE_NAME FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME
+test_event_tracking_consumer.counter_command
+test_event_tracking_consumer.counter_connection
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_CONNECTION_DISCONNECT events
+SELECT configure_event_tracking_filter("event_tracking_connection", 13);
+configure_event_tracking_filter("event_tracking_connection", 13)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Connect with test_user_connection
+SELECT current_user();
+current_user()
+event_tracking_user@%
+# Execute COM_CHANGE_USER
+SELECT current_user();
+current_user()
+other_event_tracking_user@%
+# Disconnect test_user_connection
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_connection
+SELECT VARIABLE_NAME FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME
+test_event_tracking_consumer.counter_command
+test_event_tracking_consumer.counter_connection
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_CONNECTION_CHANGE_USER events
+SELECT configure_event_tracking_filter("event_tracking_connection", 11);
+configure_event_tracking_filter("event_tracking_connection", 11)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Connect with test_user_connection
+SELECT current_user();
+current_user()
+event_tracking_user@%
+# Execute COM_CHANGE_USER
+SELECT current_user();
+current_user()
+other_event_tracking_user@%
+# Disconnect test_user_connection
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_connection
+SELECT VARIABLE_NAME FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME
+test_event_tracking_consumer.counter_command
+test_event_tracking_consumer.counter_connection
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_CONNECTION_PRE_AUTHENTICATE events
+SELECT configure_event_tracking_filter("event_tracking_connection", 7);
+configure_event_tracking_filter("event_tracking_connection", 7)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Connect with test_user_connection
+SELECT current_user();
+current_user()
+event_tracking_user@%
+# Execute COM_CHANGE_USER
+SELECT current_user();
+current_user()
+other_event_tracking_user@%
+# Disconnect test_user_connection
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_connection
+SELECT VARIABLE_NAME FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME
+test_event_tracking_consumer.counter_command
+test_event_tracking_consumer.counter_connection
+SELECT configure_event_tracking_filter("event_tracking_connection", @event_tracking_connection_all);
+configure_event_tracking_filter("event_tracking_connection", @event_tracking_connection_all)
+1
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Tests for MESSAGE events
+# ---------------------------------------------------------------------
+# Enable all message events
+SELECT configure_event_tracking_filter("event_tracking_message", 0);
+configure_event_tracking_filter("event_tracking_message", 0)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Install audit api message emit component
+INSTALL COMPONENT "file://component_audit_api_message_emit";
+SELECT audit_api_message_emit_udf('component_text', 'producer_text',
+'message_text',
+'key1', 'value1',
+'key2', 123,
+'key3', NULL);
+audit_api_message_emit_udf('component_text', 'producer_text',
+'message_text',
+'key1', 'value1',
+'key2', 123,
+'key3', NULL)
+OK
+# Should only show event markers for following events:
+# command events
+# Message events
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_MESSAGE_USER
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_message
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	8
+test_event_tracking_consumer.counter_message	1
+# Uninstall audit api message emit component
+UNINSTALL COMPONENT "file://component_audit_api_message_emit";
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_MESSAGE_INTERNAL events
+SELECT configure_event_tracking_filter("event_tracking_message", 2);
+configure_event_tracking_filter("event_tracking_message", 2)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Install audit api message emit component
+INSTALL COMPONENT "file://component_audit_api_message_emit";
+SELECT audit_api_message_emit_udf('component_text', 'producer_text',
+'message_text',
+'key1', 'value1',
+'key2', 123,
+'key3', NULL);
+audit_api_message_emit_udf('component_text', 'producer_text',
+'message_text',
+'key1', 'value1',
+'key2', 123,
+'key3', NULL)
+OK
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_MESSAGE_INTERNAL
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_message
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	8
+# Uninstall audit api message emit component
+UNINSTALL COMPONENT "file://component_audit_api_message_emit";
+# ---------------------------------------------------------------------
+# Enable EVENT_TRACKING_MESSAGE_USER events
+SELECT configure_event_tracking_filter("event_tracking_message", 1);
+configure_event_tracking_filter("event_tracking_message", 1)
+1
+SELECT reset_event_tracking_counter("all");
+reset_event_tracking_counter("all")
+1
+# Install audit api message emit component
+INSTALL COMPONENT "file://component_audit_api_message_emit";
+SELECT audit_api_message_emit_udf('component_text', 'producer_text',
+'message_text',
+'key1', 'value1',
+'key2', 123,
+'key3', NULL);
+audit_api_message_emit_udf('component_text', 'producer_text',
+'message_text',
+'key1', 'value1',
+'key2', 123,
+'key3', NULL)
+OK
+# Should only show event markers for following events:
+# command events
+# EVENT_TRACKING_MESSAGE_USER
+SELECT display_session_data();
+display_session_data()
+===============================================
+EVENT_TRACKING_COMMAND_START(Command: Query)
+--EVENT_TRACKING_MESSAGE_USER
+EVENT_TRACKING_COMMAND_END(Command: Query)
+===============================================
+# Should show following counters:
+# test_event_tracking_consumer.counter_command
+# test_event_tracking_consumer.counter_message
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+test_event_tracking_consumer.counter_command	8
+test_event_tracking_consumer.counter_message	1
+# Uninstall audit api message emit component
+UNINSTALL COMPONENT "file://component_audit_api_message_emit";
+SELECT configure_event_tracking_filter("event_tracking_message", @event_tracking_message_all);
+configure_event_tracking_filter("event_tracking_message", @event_tracking_message_all)
+1
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Teardown
+# Uninstall test component
+UNINSTALL COMPONENT 'file://component_test_event_tracking_consumer';
+# Drop user
+DROP USER event_tracking_user;
+DROP USER other_event_tracking_user;
+# Drop objects
+DROP PROCEDURE event_tracking_db.event_tracking_procedure;
+DROP TABLE event_tracking_db.event_tracking_table;
+DROP DATABASE event_tracking_db;
+# Restore value of default_password_lifetime
+SET GLOBAL default_password_lifetime=@original_default_password_lifetime;
+# Wait till all disconnects are completed
+# Restore default values
+# restart:

@@ -25,12 +25,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <scope_guard.h> /* create_scope_guard */
 
-#include <mysql/components/component_implementation.h>
-#include <mysql/components/service_implementation.h>
-#include <mysql/components/services/mysql_current_thread_reader.h>
-#include <mysql/components/services/mysql_thd_store_service.h>
-#include <mysql/components/services/udf_registration.h>
-#include <scope_guard.h>
+#include "mysql/components/component_implementation.h"
+#include "mysql/components/service_implementation.h"
+#include "mysql/components/services/mysql_current_thread_reader.h"
+#include "mysql/components/services/mysql_thd_store_service.h"
+#include "mysql/components/services/udf_registration.h"
+#include "scope_guard.h"
 
 REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_current_thread_reader, thread_service);
 REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_thd_store, mysql_thd_store_service);

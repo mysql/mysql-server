@@ -2072,8 +2072,8 @@ bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
     commit_result = log_and_commit_acl_ddl(thd, transactional_tables, &users,
                                            &user_params, false, !result);
 
-    mysql_audit_notify(
-        thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+    mysql_event_tracking_authentication_notify(
+        thd, AUDIT_EVENT(EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE),
         thd->is_error() || result, lex_user->user.str, lex_user->host.str,
         authentication_plugin.c_str(), is_role, nullptr, nullptr);
   } /* Critical section */
@@ -3055,8 +3055,8 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
       LEX_USER *audit_user;
       for (LEX_USER *one_user : audit_users) {
         if ((audit_user = get_current_user(thd, one_user)))
-          mysql_audit_notify(
-              thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP),
+          mysql_event_tracking_authentication_notify(
+              thd, AUDIT_EVENT(EVENT_TRACKING_AUTHENTICATION_AUTHID_DROP),
               thd->is_error(), audit_user->user.str, audit_user->host.str,
               audit_user->first_factor_auth_info.plugin.str,
               is_role_id(audit_user), nullptr, nullptr);
@@ -3252,8 +3252,8 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
 
       if ((((user_from = get_current_user(thd, audit_user_from)) &&
             ((user_to = get_current_user(thd, audit_user_to))))))
-        mysql_audit_notify(
-            thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME),
+        mysql_event_tracking_authentication_notify(
+            thd, AUDIT_EVENT(EVENT_TRACKING_AUTHENTICATION_AUTHID_RENAME),
             thd->is_error(), user_from->user.str, user_from->host.str,
             user_from->first_factor_auth_info.plugin.str, is_role_id(user_from),
             user_to->user.str, user_to->user.str);
@@ -3504,8 +3504,8 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
     LEX_USER *audit_user;
     for (LEX_USER *one_user : audit_users) {
       if ((audit_user = get_current_user(thd, one_user)))
-        mysql_audit_notify(
-            thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+        mysql_event_tracking_authentication_notify(
+            thd, AUDIT_EVENT(EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE),
             thd->is_error(), audit_user->user.str, audit_user->host.str,
             audit_user->first_factor_auth_info.plugin.str,
             is_role_id(audit_user), nullptr, nullptr);

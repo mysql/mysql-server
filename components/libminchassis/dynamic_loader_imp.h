@@ -223,12 +223,15 @@ class mysql_dynamic_loader_imp {
     other Components dependencies.
 
     @param loaded_components List of Components to continue load of.
+    @param services_loaded   List of services loaded
+
     @return Status of performed operation
     @retval false success
     @retval true failure
   */
   static bool load_do_collect_services_provided(
-      std::vector<std::unique_ptr<mysql_component>> &loaded_components);
+      std::vector<std::unique_ptr<mysql_component>> &loaded_components,
+      std::vector<const char *> &services_loaded);
 
   /**
     Checks if all dependencies can be satisfied with existing or to be added

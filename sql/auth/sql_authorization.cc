@@ -2861,8 +2861,8 @@ int mysql_table_grant(THD *thd, Table_ref *table_list,
       LEX_USER *existing_user;
       for (LEX_USER *one_user : existing_users) {
         if ((existing_user = get_current_user(thd, one_user)))
-          mysql_audit_notify(
-              thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+          mysql_event_tracking_authentication_notify(
+              thd, AUDIT_EVENT(EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE),
               thd->is_error(), existing_user->user.str, existing_user->host.str,
               existing_user->first_factor_auth_info.plugin.str,
               is_role_id(existing_user), nullptr, nullptr);
@@ -3044,8 +3044,8 @@ bool mysql_routine_grant(THD *thd, Table_ref *table_list, bool is_proc,
       for (LEX_USER *one_user : existing_users) {
         LEX_USER *existing_user;
         if ((existing_user = get_current_user(thd, one_user)))
-          mysql_audit_notify(
-              thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+          mysql_event_tracking_authentication_notify(
+              thd, AUDIT_EVENT(EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE),
               thd->is_error(), existing_user->user.str, existing_user->host.str,
               existing_user->first_factor_auth_info.plugin.str,
               is_role_id(existing_user), nullptr, nullptr);
@@ -3690,8 +3690,8 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
       LEX_USER *existing_user;
       for (LEX_USER *one_user : existing_users) {
         if ((existing_user = get_current_user(thd, one_user)))
-          mysql_audit_notify(
-              thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+          mysql_event_tracking_authentication_notify(
+              thd, AUDIT_EVENT(EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE),
               thd->is_error(), existing_user->user.str, existing_user->host.str,
               existing_user->first_factor_auth_info.plugin.str,
               is_role_id(existing_user), nullptr, nullptr);

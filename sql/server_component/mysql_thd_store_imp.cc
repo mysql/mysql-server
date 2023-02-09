@@ -23,11 +23,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_thd_store_imp.h"
 #include "mysql_current_thread_reader_imp.h"
 
-#include <include/mysql/components/services/log_builtins.h> /* LogErr */
-#include <include/mysqld_error.h>
-#include <rwlock_scoped_lock.h>
-#include <sql/mysqld.h>
-#include <sql/sql_class.h>
+#include "mysql/components/services/log_builtins.h" /* LogErr */
+#include "mysqld_error.h"
+#include "rwlock_scoped_lock.h"
+#include "sql/mysqld.h"
+#include "sql/sql_class.h"
 
 #include <string>
 #include <vector>

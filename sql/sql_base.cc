@@ -121,7 +121,7 @@
 #include "sql/sp.h"               // Sroutine_hash_entry
 #include "sql/sp_cache.h"         // sp_cache_version
 #include "sql/sp_head.h"          // sp_head
-#include "sql/sql_audit.h"        // mysql_audit_table_access_notify
+#include "sql/sql_audit.h"        // mysql_event_tracking_table_access_notify
 #include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
 #include "sql/sql_class.h"        // THD
 #include "sql/sql_const.h"
@@ -5895,7 +5895,8 @@ restart:
     /*
       Iterate through set of tables and generate table access audit events.
     */
-    if (!audit_notified && mysql_audit_table_access_notify(thd, *start)) {
+    if (!audit_notified &&
+        mysql_event_tracking_table_access_notify(thd, *start)) {
       error = true;
       goto err;
     }

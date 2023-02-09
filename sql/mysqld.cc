@@ -395,6 +395,7 @@ MySQL clients support the protocol:
 
   @subpage PAGE_TABLE_ACCESS_SERVICE
   @subpage PAGE_MYSQL_SERVER_TELEMETRY_TRACES_SERVICE
+  @subpage page_event_tracking_services
 */
 
 
@@ -715,6 +716,7 @@ MySQL clients support the protocol:
 #include "my_time.h"
 #include "my_timer.h"  // my_timer_initialize
 #include "myisam.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/mysql_runtime_error_service.h"
@@ -729,7 +731,6 @@ MySQL clients support the protocol:
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_data_lock.h"
 #include "mysql/psi/psi_error.h"
@@ -753,8 +754,8 @@ MySQL clients support the protocol:
 #include "mysql_time.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
-#include "mysys_err.h"  // EXIT_OUT_OF_MEMORY
 #include "mysys/build_id.h"
+#include "mysys_err.h"  // EXIT_OUT_OF_MEMORY
 #include "pfs_thread_provider.h"
 #include "print_version.h"
 #include "scope_guard.h"                            // create_scope_guard()
@@ -762,6 +763,7 @@ MySQL clients support the protocol:
 #include "server_component/log_sink_perfschema.h"   // log_error_read_log()
 #include "server_component/log_sink_trad.h"         // log_sink_trad()
 #include "server_component/log_source_backtrace.h"  // log_error_read_backtrace()
+#include "server_component/mysql_server_event_tracking_bridge_imp.h"  // init_srv_event_tracking_handles()
 #ifdef _WIN32
 #include <shellapi.h>
 #endif
@@ -798,21 +800,23 @@ MySQL clients support the protocol:
 #include "sql/mdl_context_backup.h"  // mdl_context_backup_manager
 #include "sql/my_decimal.h"
 #include "sql/mysqld_daemon.h"
-#include "sql/mysqld_thd_manager.h"     // Global_THD_manager
-#include "sql/opt_costconstantcache.h"  // delete_optimizer_cost_module
-#include "sql/range_optimizer/range_optimizer.h"  // range_optimizer_init
-#include "sql/options_mysqld.h"                   // OPT_THREAD_CACHE_SIZE
-#include "sql/partitioning/partition_handler.h"   // partitioning_init
-#include "sql/persisted_variable.h"               // Persisted_variables_cache
+#include "sql/mysqld_thd_manager.h"              // Global_THD_manager
+#include "sql/opt_costconstantcache.h"           // delete_optimizer_cost_module
+#include "sql/options_mysqld.h"                  // OPT_THREAD_CACHE_SIZE
+#include "sql/partitioning/partition_handler.h"  // partitioning_init
+#include "sql/persisted_variable.h"              // Persisted_variables_cache
 #include "sql/plugin_table.h"
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"  // key_memory_MYSQL_RELAY_LOG_index
 #include "sql/query_options.h"
-#include "sql/replication.h"                        // thd_enter_cond
+#include "sql/range_optimizer/range_optimizer.h"  // range_optimizer_init
+#include "sql/reference_caching_setup.h"  // Event_reference_caching_channels
+#include "sql/replication.h"              // thd_enter_cond
 #include "sql/resourcegroups/resource_group_mgr.h"  // init, post_init
 #ifdef _WIN32
 #include "sql/restart_monitor_win.h"
 #endif
+#include "my_openssl_fips.h"  // OPENSSL_ERROR_LENGTH, set_fips_mode
 #include "sql/rpl_async_conn_failover_configuration_propagation.h"
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
@@ -823,11 +827,11 @@ MySQL clients support the protocol:
 #include "sql/rpl_injector.h"  // injector
 #include "sql/rpl_io_monitor.h"
 #include "sql/rpl_log_encryption.h"
-#include "sql/rpl_source.h"  // max_binlog_dump_events
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h"      // Multisource_info
-#include "sql/rpl_rli.h"      // Relay_log_info
 #include "sql/rpl_replica.h"  // replica_load_tmpdir
+#include "sql/rpl_rli.h"      // Relay_log_info
+#include "sql/rpl_source.h"   // max_binlog_dump_events
 #include "sql/rpl_trx_tracking.h"
 #include "sql/sd_notify.h"  // sd_notify_connect
 #include "sql/session_tracker.h"
@@ -840,6 +844,7 @@ MySQL clients support the protocol:
 #include "sql/sql_component.h"
 #include "sql/sql_connect.h"
 #include "sql/sql_error.h"
+#include "sql/sql_event_tracking_to_audit_event_mapping.h"
 #include "sql/sql_initialize.h"  // opt_initialize_insecure
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -877,7 +882,6 @@ MySQL clients support the protocol:
 #include "thr_mutex.h"
 #include "typelib.h"
 #include "violite.h"
-#include "my_openssl_fips.h"  // OPENSSL_ERROR_LENGTH, set_fips_mode
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "storage/perfschema/pfs_server.h"
@@ -953,6 +957,7 @@ MySQL clients support the protocol:
 #include <mysql/components/services/mysql_rwlock_service.h>
 #include <mysql/components/services/ongoing_transaction_query_service.h>
 #include "sql/auth/dynamic_privileges_impl.h"
+#include "sql/command_mapping.h"
 #include "sql/dd/dd.h"                   // dd::shutdown
 #include "sql/dd/dd_kill_immunizer.h"    // dd::DD_kill_immunizer
 #include "sql/dd/dictionary.h"           // dd::get_dictionary
@@ -2093,6 +2098,7 @@ static void server_component_deinit() { deinit_thd_store_service(); }
 */
 
 static bool mysql_component_infrastructure_init() {
+  server_component_init();
   /* We need a temporary THD during boot */
   Auto_THD thd;
   Disable_autocommit_guard autocommit_guard(thd.thd);
@@ -2122,6 +2128,7 @@ static bool mysql_component_infrastructure_init() {
 */
 static bool component_infrastructure_deinit() {
   persistent_dynamic_loader_deinit();
+  server_component_deinit();
   bool retval = false;
 
   srv_registry->release(reinterpret_cast<my_h_service>(
@@ -2279,7 +2286,7 @@ class Call_close_conn : public Do_THD_Impl {
              (long)closing_thd->thread_id(),
              (main_sctx_user.length ? main_sctx_user.str : ""));
       /*
-        Do not generate MYSQL_AUDIT_CONNECTION_DISCONNECT event, when closing
+        Do not generate EVENT_TRACKING_CONNECTION_DISCONNECT event, when closing
         thread close sessions. Each session will generate DISCONNECT event by
         itself.
       */
@@ -2459,8 +2466,10 @@ static void unireg_abort(int exit_code) {
 
   if (!daemon_launcher_quiet && exit_code) LogErr(ERROR_LEVEL, ER_ABORTING);
 
-  mysql_audit_notify(MYSQL_AUDIT_SERVER_SHUTDOWN_SHUTDOWN,
-                     MYSQL_AUDIT_SERVER_SHUTDOWN_REASON_ABORT, exit_code);
+  mysql_event_tracking_shutdown_notify(
+      AUDIT_EVENT(EVENT_TRACKING_SHUTDOWN_SHUTDOWN),
+      EVENT_TRACKING_SHUTDOWN_REASON_ABORT, exit_code);
+
 #ifndef _WIN32
   if (signal_thread_id.thread != 0) {
     // Make sure the signal thread isn't blocked when we are trying to exit.
@@ -2572,6 +2581,8 @@ static void free_connection_acceptors() {
 static void clean_up(bool print_message) {
   DBUG_PRINT("exit", ("clean_up"));
   if (cleanup_done++) return; /* purecov: inspected */
+
+  denit_command_maps();
 
   ha_pre_dd_shutdown();
   dd::shutdown();
@@ -2687,6 +2698,10 @@ static void clean_up(bool print_message) {
 #endif
   deinit_tls_psi_keys();
   deinitialize_manifest_file_components();
+  if (g_event_channels != nullptr) delete g_event_channels;
+  g_event_channels = nullptr;
+  deinit_srv_event_tracking_handles();
+  Singleton_event_tracking_service_to_plugin_mapping::remove_instance();
   component_infrastructure_deinit();
   /*
     component unregister_variable() api depends on system_variable_hash.
@@ -6146,8 +6161,15 @@ static int init_server_components() {
     error check of the service availability has to be done by those
     plugins/components.
   */
-  if (!is_help_or_validate_option() && !opt_initialize)
+  if (!is_help_or_validate_option() && !opt_initialize) {
     dynamic_loader_srv->load(component_urns, NUMBER_OF_COMPONENTS);
+    g_event_channels = Event_reference_caching_channels::create();
+  }
+  init_srv_event_tracking_handles();
+
+  auto instance =
+      Singleton_event_tracking_service_to_plugin_mapping::create_instance();
+  if (!instance) unireg_abort(MYSQLD_ABORT_EXIT);
 
   /*
     Timers not needed if only starting with --help.
@@ -8137,13 +8159,17 @@ int mysqld_main(int argc, char **argv)
   */
   process_bootstrap();
 
+  /* Initialize command maps */
+  init_command_maps();
+
   /*
     Event must be invoked after error_handler_hook is assigned to
     my_message_sql, otherwise my_message will not cause the event to abort.
   */
   void *argv_p = argv;
-  if (mysql_audit_notify(AUDIT_EVENT(MYSQL_AUDIT_SERVER_STARTUP_STARTUP),
-                         static_cast<const char **>(argv_p), argc))
+  if (mysql_event_tracking_startup_notify(
+          AUDIT_EVENT(EVENT_TRACKING_STARTUP_STARTUP),
+          static_cast<const char **>(argv_p), argc))
     unireg_abort(MYSQLD_ABORT_EXIT);
 
 #ifdef _WIN32
@@ -8234,9 +8260,9 @@ int mysqld_main(int argc, char **argv)
 
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
 
-  mysql_audit_notify(MYSQL_AUDIT_SERVER_SHUTDOWN_SHUTDOWN,
-                     MYSQL_AUDIT_SERVER_SHUTDOWN_REASON_SHUTDOWN,
-                     MYSQLD_SUCCESS_EXIT);
+  mysql_event_tracking_shutdown_notify(
+      AUDIT_EVENT(EVENT_TRACKING_SHUTDOWN_SHUTDOWN),
+      EVENT_TRACKING_SHUTDOWN_REASON_SHUTDOWN, MYSQLD_SUCCESS_EXIT);
 
   terminate_compress_gtid_table_thread();
   /*

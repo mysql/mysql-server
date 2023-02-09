@@ -632,6 +632,9 @@ SET(SQL_SHARED_SOURCES
   xa/transaction_cache.cc
   xa/xid_extract.cc
   daemon_proxy_keyring/daemon_proxy_keyring.cc
+  reference_caching_setup.cc
+  sql_event_tracking_to_audit_event_mapping.cc
+  command_mapping.cc
   )
 
 IF(BUILD_IS_SINGLE_CONFIG)

@@ -1679,9 +1679,10 @@ int set_var::check(THD *thd) {
           .value_or(-1);
 
   if (!ret && (is_global_persist())) {
-    ret = mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_SET),
-                             m_var_tracker.get_var_name(),
-                             value->item_name.ptr(), value->item_name.length());
+    ret = mysql_event_tracking_global_variable_notify(
+        thd, AUDIT_EVENT(EVENT_TRACKING_GLOBAL_VARIABLE_SET),
+        m_var_tracker.get_var_name(), value->item_name.ptr(),
+        value->item_name.length());
   }
 
   return ret;

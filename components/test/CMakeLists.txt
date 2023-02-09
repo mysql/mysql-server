@@ -175,3 +175,8 @@ MYSQL_ADD_COMPONENT(test_mysql_thd_store_service
   MODULE_ONLY
   TEST_ONLY
   )
+MYSQL_ADD_COMPONENT(test_event_tracking_consumer
+  test_event_tracking_consumer.cc
+  MODULE_ONLY
+  TEST_ONLY
+  )

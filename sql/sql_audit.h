@@ -29,12 +29,40 @@
 #include "m_string.h"
 #include "my_command.h"
 #include "mysql/plugin_audit.h"
+#include "sql/error_handler.h"
+
+#include "mysql/components/services/defs/event_tracking_authentication_defs.h"
+#include "mysql/components/services/defs/event_tracking_command_defs.h"
+#include "mysql/components/services/defs/event_tracking_common_defs.h"
+#include "mysql/components/services/defs/event_tracking_connection_defs.h"
+#include "mysql/components/services/defs/event_tracking_general_defs.h"
+#include "mysql/components/services/defs/event_tracking_global_variable_defs.h"
+#include "mysql/components/services/defs/event_tracking_lifecycle_defs.h"
+#include "mysql/components/services/defs/event_tracking_message_defs.h"
+#include "mysql/components/services/defs/event_tracking_parse_defs.h"
+#include "mysql/components/services/defs/event_tracking_query_defs.h"
+#include "mysql/components/services/defs/event_tracking_stored_program_defs.h"
+#include "mysql/components/services/defs/event_tracking_table_access_defs.h"
+
+#include "sql/sql_event_tracking_to_audit_event_mapping.h"
 
 class THD;
 class Security_context;
 class Table_ref;
 
 static const size_t MAX_USER_HOST_SIZE = 512;
+
+class Event_tracking_information;
+struct st_mysql_event_generic {
+  Event_tracking_class event_class;
+  const void *event;
+  const Event_tracking_information *event_information;
+};
+
+struct st_mysql_event_plugin_generic {
+  mysql_event_class_t event_class;
+  const void *event;
+};
 
 /**
   Audit API event to string expanding macro.
@@ -69,7 +97,77 @@ void mysql_audit_release(THD *thd);
 void mysql_audit_enable_auditing(THD *thd);
 
 /**
-  Call audit plugins of GENERAL audit class.
+  Notify consumers of AUTHENTICATION event tracking events.
+
+  @param[in] thd                    Current thread data.
+  @param[in] subclass               Type of the authentication audit event.
+  @param[in] subclass_name          Name of the subclass.
+  @param[in] status                 Status of the event.
+  @param[in] user                   Name of the user.
+  @param[in] host                   Name of the host.
+  @param[in] authentication_plugin  Current authentication plugin for user.
+  @param[in] is_role                Whether given AuthID is a role or not
+  @param[in] new_user               Name of the new user - In case of rename
+  @param[in] new_host               Name of the new host - In case of rename
+
+  @return 0 continue server flow, otherwise abort.
+*/
+int mysql_event_tracking_authentication_notify(
+    THD *thd, mysql_event_tracking_authentication_subclass_t subclass,
+    const char *subclass_name, int status, const char *user, const char *host,
+    const char *authentication_plugin, bool is_role, const char *new_user,
+    const char *new_host);
+
+/**
+  Notify consumers of COMMAND event tracking events.
+
+  Internal connection info is extracted from the thd object.
+
+  @param[in] thd           Current thread data.
+  @param[in] subclass      Type of the command audit event.
+  @param[in] subclass_name Name of the subclass.
+  @param[in] command       Command id value.
+  @param[in] command_text  Command string value.
+
+  @return 0 continue server flow, otherwise abort.
+*/
+
+int mysql_event_tracking_command_notify(
+    THD *thd, mysql_event_tracking_command_subclass_t subclass,
+    const char *subclass_name, enum_server_command command,
+    const char *command_text);
+
+/**
+  Notify consumers of CONNECTION event tracking events.
+
+  @param[in] thd              Current thread context.
+  @param[in] subclass         Type of the connection audit event.
+  @param[in] subclass_name    Name of the subclass.
+  @param[in] errcode          Error code.
+
+  @return 0 continue server flow, otherwise abort.
+*/
+int mysql_event_tracking_connection_notify(
+    THD *thd, mysql_event_tracking_connection_subclass_t subclass,
+    const char *subclass_name, int errcode);
+
+/**
+  Notify consumers of CONNECTION event tracking events.
+
+  Internal connection info is extracted from the thd object.
+
+  @param[in] thd           Current thread data.
+  @param[in] subclass      Type of the connection audit event.
+  @param[in] subclass_name Name of the subclass.
+
+  @return 0 continue server flow, otherwise abort.
+*/
+int mysql_event_tracking_connection_notify(
+    THD *thd, mysql_event_tracking_connection_subclass_t subclass,
+    const char *subclass_name);
+
+/**
+  Notify consumers of GENERAL event tracking events.
 
   @param[in] thd              Current thread data.
   @param[in] subclass         Type of general audit event.
@@ -80,11 +178,12 @@ void mysql_audit_enable_auditing(THD *thd);
 
   @return Value returned is not taken into consideration by the server.
 */
-int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
-                       const char *subclass_name, int error_code,
-                       const char *msg, size_t msg_len);
+int mysql_event_tracking_general_notify(
+    THD *thd, mysql_event_tracking_general_subclass_t subclass,
+    const char *subclass_name, int error_code, const char *msg, size_t msg_len);
+
 /**
-  Call audit plugins of GENERAL LOG audit class.
+  Notify consumers of GENERAL event tracking events.
 
   @param[in] thd    Current thread data.
   @param[in] cmd    Command text.
@@ -92,27 +191,56 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
 
   @return Value returned is not taken into consideration by the server.
 */
-inline static int mysql_audit_general_log(THD *thd, const char *cmd,
-                                          size_t cmdlen) {
-  return mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_LOG), 0, cmd,
-                            cmdlen);
+inline static int mysql_event_tracking_general_notify(THD *thd, const char *cmd,
+                                                      size_t cmdlen) {
+  return mysql_event_tracking_general_notify(
+      thd, AUDIT_EVENT(EVENT_TRACKING_GENERAL_LOG), 0, cmd, cmdlen);
 }
 
 /**
-  Call audit plugins of CONNECTION audit class.
+  Notify consumers of GLOBAL VARIABLE event tracking events.
 
-  @param[in] thd              Current thread context.
-  @param[in] subclass         Type of the connection audit event.
-  @param[in] subclass_name    Name of the subclass.
-  @param[in] errcode          Error code.
+  @param[in] thd           Current thread data.
+  @param[in] subclass      Type of the global variable audit event.
+  @param[in] subclass_name Name of the subclass.
+  @param[in] name          Name of the variable.
+  @param[in] value         Textual value of the variable.
+  @param[in] value_length  Textual value length.
 
   @return 0 continue server flow, otherwise abort.
 */
-int mysql_audit_notify(THD *thd, mysql_event_connection_subclass_t subclass,
-                       const char *subclass_name, int errcode);
+int mysql_event_tracking_global_variable_notify(
+    THD *thd, mysql_event_tracking_global_variable_subclass_t subclass,
+    const char *subclass_name, const char *name, const char *value,
+    const unsigned int value_length);
 
 /**
-  Call audit plugins of PARSE audit class.
+  Notify consumers of MESSAGE event tracking events.
+
+  @param[in] thd                  Current thread data.
+  @param[in] subclass             Message class subclass name.
+  @param[in] subclass_name        Subclass name length.
+  @param[in] component            Component name.
+  @param[in] component_length     Component name length.
+  @param[in] producer             Producer name.
+  @param[in] producer_length      Producer name length.
+  @param[in] message              Message text.
+  @param[in] message_length       Message text length.
+  @param[in] key_value_map        Key value map pointer.
+  @param[in] key_value_map_length Key value map length.
+
+  @return 0 continue server flow.
+*/
+int mysql_event_tracking_message_notify(
+    THD *thd, mysql_event_tracking_message_subclass_t subclass,
+    const char *subclass_name, const char *component, size_t component_length,
+    const char *producer, size_t producer_length, const char *message,
+    size_t message_length,
+    mysql_event_tracking_message_key_value_t *key_value_map,
+    size_t key_value_map_length);
+
+/**
+  Notify consumers of PARSE event tracking events.
 
   @param[in]  thd             Current thread context.
   @param[in]  subclass        Type of the parse audit event.
@@ -122,11 +250,89 @@ int mysql_audit_notify(THD *thd, mysql_event_connection_subclass_t subclass,
 
   @return 0 continue server flow, otherwise abort.
 */
-int mysql_audit_notify(THD *thd, mysql_event_parse_subclass_t subclass,
-                       const char *subclass_name,
-                       mysql_event_parse_rewrite_plugin_flag *flags,
-                       LEX_CSTRING *rewritten_query);
+int mysql_event_tracking_parse_notify(
+    THD *thd, mysql_event_tracking_parse_subclass_t subclass,
+    const char *subclass_name,
+    mysql_event_tracking_parse_rewrite_plugin_flag *flags,
+    mysql_cstring_with_length *rewritten_query);
 
+/**
+  Notify consumers of QUERY event tracking events.
+
+  Internal query info is extracted from the thd object.
+
+  @param[in] thd           Current thread data.
+  @param[in] subclass      Type of the query audit event.
+  @param[in] subclass_name Name of the subclass.
+
+  @return 0 continue server flow, otherwise abort.
+*/
+int mysql_event_tracking_query_notify(
+    THD *thd, mysql_event_tracking_query_subclass_t subclass,
+    const char *subclass_name);
+
+/**
+  Notify consumers of LIFECYCLE (Shutdown) event tracking events.
+
+  @param[in] subclass  Type of the server abort audit event.
+  @param[in] subclass_name Name of the subclass
+  @param[in] reason    Reason code of the shutdown.
+  @param[in] exit_code Abort exit code.
+
+  @return Value returned is not taken into consideration by the server.
+*/
+int mysql_event_tracking_shutdown_notify(
+    mysql_event_tracking_shutdown_subclass_t subclass,
+    const char *subclass_name, mysql_event_tracking_shutdown_reason_t reason,
+    int exit_code);
+
+/**
+  Notify consumers of LIFECYCLE (Starup) event tracking events.
+
+  @param[in] subclass Type of the server startup audit event.
+  @param[in] subclass_name Name of the subclass.
+  @param[in] argv     Array of program arguments.
+  @param[in] argc     Program arguments array length.
+
+  @return 0 continue server start, otherwise abort.
+*/
+int mysql_event_tracking_startup_notify(
+    mysql_event_tracking_startup_subclass_t subclass, const char *subclass_name,
+    const char **argv, unsigned int argc);
+
+/**
+  Notify consumers of STORED PROGRAM event tracking events.
+
+  @param[in] thd           Current thread data.
+  @param[in] subclass      Type of the stored program audit event.
+  @param[in] subclass_name Name of the subclass.
+  @param[in] database      Stored program database name.
+  @param[in] name          Name of the stored program.
+  @param[in] parameters    Parameters of the stored program execution.
+
+  @return 0 continue server flow, otherwise abort.
+*/
+int mysql_event_tracking_stored_program_notify(
+    THD *thd, mysql_event_tracking_stored_program_subclass_t subclass,
+    const char *subclass_name, const char *database, const char *name,
+    void *parameters);
+
+/**
+  Notify consumers of TABLE ACCESS event tracking events for all tables
+  available in the list.
+
+  Event subclass value depends on the thd->lex->sql_command value.
+
+  The event is generated for 'USER' and 'SYS' tables only.
+
+  @param[in] thd    Current thread data.
+  @param[in] table  Connected list of tables, for which event is generated.
+
+  @return 0 - continue server flow, otherwise abort.
+*/
+int mysql_event_tracking_table_access_notify(THD *thd, Table_ref *table);
+
+#if 0  /* Function commented out. No Audit API calls yet. */
 /**
   Call audit plugins of AUTHORIZATION audit class.
 
@@ -144,64 +350,7 @@ int mysql_audit_notify(THD *thd, mysql_event_authorization_subclass_t subclass,
                        const char *subclass_name, const char *database,
                        unsigned int database_length, const char *name,
                        unsigned int name_length);
-/**
-  Call audit plugins of TABLE ACCESS audit class events for all tables
-  available in the list.
 
-  Event subclass value depends on the thd->lex->sql_command value.
-
-  The event is generated for 'USER' and 'SYS' tables only.
-
-  @param[in] thd    Current thread data.
-  @param[in] table  Connected list of tables, for which event is generated.
-
-  @return 0 - continue server flow, otherwise abort.
-*/
-int mysql_audit_table_access_notify(THD *thd, Table_ref *table);
-
-/**
-  Call audit plugins of GLOBAL VARIABLE audit class.
-
-  @param[in] thd           Current thread data.
-  @param[in] subclass      Type of the global variable audit event.
-  @param[in] subclass_name Name of the subclass.
-  @param[in] name          Name of the variable.
-  @param[in] value         Textual value of the variable.
-  @param[in] value_length  Textual value length.
-
-  @return 0 continue server flow, otherwise abort.
-*/
-int mysql_audit_notify(THD *thd,
-                       mysql_event_global_variable_subclass_t subclass,
-                       const char *subclass_name, const char *name,
-                       const char *value, const unsigned int value_length);
-/**
-  Call audit plugins of SERVER STARTUP audit class.
-
-  @param[in] subclass Type of the server startup audit event.
-  @param[in] subclass_name Name of the subclass.
-  @param[in] argv     Array of program arguments.
-  @param[in] argc     Program arguments array length.
-
-  @return 0 continue server start, otherwise abort.
-*/
-int mysql_audit_notify(mysql_event_server_startup_subclass_t subclass,
-                       const char *subclass_name, const char **argv,
-                       unsigned int argc);
-
-/**
-  Call audit plugins of SERVER SHUTDOWN audit class.
-
-  @param[in] subclass  Type of the server abort audit event.
-  @param[in] reason    Reason code of the shutdown.
-  @param[in] exit_code Abort exit code.
-
-  @return Value returned is not taken into consideration by the server.
-*/
-int mysql_audit_notify(mysql_event_server_shutdown_subclass_t subclass,
-                       mysql_server_shutdown_reason_t reason, int exit_code);
-
-#if 0 /* Function commented out. No Audit API calls yet. */
 /**
   Call audit plugins of AUTHORIZATION audit class.
 
@@ -221,113 +370,56 @@ int mysql_audit_notify(THD *thd,
                        const char *database,
                        const char *table,
                        const char *object);
-#endif
+#endif /* 0 */
 
-/**
-  Call audit plugins of CONNECTION audit class.
+class Event_tracking_information {
+ public:
+  mysql_cstring_with_length command_;
+  Event_tracking_information() : command_{nullptr, 0} {}
+  Event_tracking_information(const char *command_name, size_t command_length)
+      : command_{command_name, command_length} {}
+  Event_tracking_information(const Event_tracking_information &src) = default;
+  virtual ~Event_tracking_information() {}
+};
 
-  Internal connection info is extracted from the thd object.
+class Event_tracking_authentication_information final
+    : public Event_tracking_information {
+ public:
+  mysql_event_tracking_authentication_subclass_t subclass_;
+  std::vector<const char *> authentication_methods_;
+  bool is_role_;
+  mysql_cstring_with_length new_user_;
+  mysql_cstring_with_length new_host_;
 
-  @param[in] thd           Current thread data.
-  @param[in] subclass      Type of the connection audit event.
-  @param[in] subclass_name Name of the subclass.
+  explicit Event_tracking_authentication_information(
+      mysql_event_tracking_authentication_subclass_t subclass,
+      std::vector<const char *> &auth_methods, bool is_role,
+      const char *new_user, const char *new_host)
+      : Event_tracking_information(),
+        subclass_(subclass),
+        authentication_methods_{auth_methods},
+        is_role_{is_role},
+        new_user_{new_user, new_user ? strlen(new_user) : 0},
+        new_host_{new_host, new_host ? strlen(new_host) : 0} {}
+};
 
-  @return 0 continue server flow, otherwise abort.
-*/
-int mysql_audit_notify(THD *thd, mysql_event_connection_subclass_t subclass,
-                       const char *subclass_name);
+class Event_tracking_general_information final
+    : public Event_tracking_information {
+ public:
+  mysql_event_tracking_general_subclass_t subclass_;
+  uint64_t rows_;
+  uint64_t time_;
+  mysql_cstring_with_length external_user_;
 
-/**
-  Call audit plugins of COMMAND audit class.
-
-  Internal connection info is extracted from the thd object.
-
-  @param[in] thd           Current thread data.
-  @param[in] subclass      Type of the command audit event.
-  @param[in] subclass_name Name of the subclass.
-  @param[in] command       Command id value.
-  @param[in] command_text  Command string value.
-
-  @return 0 continue server flow, otherwise abort.
-*/
-int mysql_audit_notify(THD *thd, mysql_event_command_subclass_t subclass,
-                       const char *subclass_name, enum_server_command command,
-                       const char *command_text);
-/**
-  Call audit plugins of QUERY audit class.
-
-  Internal query info is extracted from the thd object.
-
-  @param[in] thd           Current thread data.
-  @param[in] subclass      Type of the query audit event.
-  @param[in] subclass_name Name of the subclass.
-
-  @return 0 continue server flow, otherwise abort.
-*/
-int mysql_audit_notify(THD *thd, mysql_event_query_subclass_t subclass,
-                       const char *subclass_name);
-
-/**
-  Call audit plugins of STORED PROGRAM audit class.
-
-  @param[in] thd           Current thread data.
-  @param[in] subclass      Type of the stored program audit event.
-  @param[in] subclass_name Name of the subclass.
-  @param[in] database      Stored program database name.
-  @param[in] name          Name of the stored program.
-  @param[in] parameters    Parameters of the stored program execution.
-
-  @return 0 continue server flow, otherwise abort.
-*/
-int mysql_audit_notify(THD *thd, mysql_event_stored_program_subclass_t subclass,
-                       const char *subclass_name, const char *database,
-                       const char *name, void *parameters);
-
-/**
-  Call audit plugins of AUTHENTICATION audit class
-
-  @param[in] thd                    Current thread data.
-  @param[in] subclass               Type of the authentication audit event.
-  @param[in] subclass_name          Name of the subclass.
-  @param[in] status                 Status of the event.
-  @param[in] user                   Name of the user.
-  @param[in] host                   Name of the host.
-  @param[in] authentication_plugin  Current authentication plugin for user.
-  @param[in] is_role                Whether given AuthID is a role or not
-  @param[in] new_user               Name of the new user - In case of rename
-  @param[in] new_host               Name of the new host - In case of rename
-
-  @return 0 continue server flow, otherwise abort.
-*/
-int mysql_audit_notify(THD *thd, mysql_event_authentication_subclass_t subclass,
-                       const char *subclass_name, int status, const char *user,
-                       const char *host, const char *authentication_plugin,
-                       bool is_role, const char *new_user,
-                       const char *new_host);
-
-/**
-  Call audit plugins of MESSAGE audit class.
-
-  @param[in] thd                  Current thread data.
-  @param[in] subclass             Message class subclass name.
-  @param[in] subclass_name        Subclass name length.
-  @param[in] component            Component name.
-  @param[in] component_length     Component name length.
-  @param[in] producer             Producer name.
-  @param[in] producer_length      Producer name length.
-  @param[in] message              Message text.
-  @param[in] message_length       Message text length.
-  @param[in] key_value_map        Key value map pointer.
-  @param[in] key_value_map_length Key value map length.
-
-  @return 0 continue server flow.
-*/
-int mysql_audit_notify(THD *thd, mysql_event_message_subclass_t subclass,
-                       const char *subclass_name, const char *component,
-                       size_t component_length, const char *producer,
-                       size_t producer_length, const char *message,
-                       size_t message_length,
-                       mysql_event_message_key_value_t *key_value_map,
-                       size_t key_value_map_length);
+  explicit Event_tracking_general_information(
+      mysql_event_tracking_general_subclass_t subclass, uint64_t rows,
+      uint64_t time, LEX_CSTRING external_user, const char *command_name,
+      size_t command_length)
+      : Event_tracking_information{command_name, command_length},
+        subclass_{subclass},
+        rows_{rows},
+        time_{time},
+        external_user_{external_user.str, external_user.length} {}
+};
 
 #endif /* SQL_AUDIT_INCLUDED */

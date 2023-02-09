@@ -1,0 +1,341 @@
+# Test event tracking services
+--source include/no_ps_protocol.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # ---------------------------------------------------------------------
+--echo # Setup
+
+--echo # Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--connection default
+
+--source ../include/test_event_tracking_consumer_setup.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # ---------------------------------------------------------------------
+--echo # Tests for COMMAND events
+
+--echo # All status variables except
+--echo # test_event_tracking_consumer.counter_command
+--echo # Should be 0
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
+  WHERE VARIABLE_NAME like 'test_event_tracking_consumer%' AND
+        VARIABLE_VALUE > 0;
+
+--source ../include/test_event_tracking_consumer.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # ---------------------------------------------------------------------
+--echo # Tests for PARSE events
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable all PARSE subevents
+SELECT configure_event_tracking_filter("event_tracking_parse", 0);
+--let $EVENT_TYPE=parse events
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_parse
+--source ../include/test_event_tracking_consumer.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_PARSE_PREPARSE
+SELECT configure_event_tracking_filter("event_tracking_parse", 2);
+--let $EVENT_TYPE=EVENT_TRACKING_PARSE_PREPARSE
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_parse
+--source ../include/test_event_tracking_consumer.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_PARSE_POSTPARSE
+SELECT configure_event_tracking_filter("event_tracking_parse", 1);
+--let $EVENT_TYPE=EVENT_TRACKING_PARSE_POSTPARSE
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_parse
+--source ../include/test_event_tracking_consumer.inc
+
+SELECT configure_event_tracking_filter("event_tracking_parse", @event_tracking_parse_all);
+
+--echo # ---------------------------------------------------------------------
+--echo # ---------------------------------------------------------------------
+--echo # Tests for GLOBAL_VARIABLE events
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable all global variable events
+SELECT configure_event_tracking_filter("event_tracking_global_variable", 0);
+--let $EVENT_TYPE=global variable events
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_global_variable
+--source ../include/test_event_tracking_consumer_variable.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_GLOBAL_VARIABLE_GET
+SELECT configure_event_tracking_filter("event_tracking_global_variable", 2);
+--let $EVENT_TYPE=EVENT_TRACKING_GLOBAL_VARIABLE_GET
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_global_variable
+--source ../include/test_event_tracking_consumer_variable.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_GLOBAL_VARIABLE_SET
+SELECT configure_event_tracking_filter("event_tracking_global_variable", 1);
+--let $EVENT_TYPE=EVENT_TRACKING_GLOBAL_VARIABLE_SET
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_global_variable
+--source ../include/test_event_tracking_consumer_variable.inc
+
+SELECT configure_event_tracking_filter("event_tracking_global_variable", @event_tracking_global_variable_all);
+
+--echo # ---------------------------------------------------------------------
+--echo # ---------------------------------------------------------------------
+--echo # Tests for STORED_PROCEDURE events
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable all stored program events
+SELECT configure_event_tracking_filter("event_tracking_stored_program", 0);
+--let $EVENT_TYPE=stored program events
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_stored_program
+--source ../include/test_event_tracking_consumer_procedure.inc
+SELECT configure_event_tracking_filter("event_tracking_stored_program", @event_tracking_stored_program_all);
+
+--echo # ---------------------------------------------------------------------
+--echo # ---------------------------------------------------------------------
+--echo # Tests for QUERY events
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable all query events
+SELECT configure_event_tracking_filter("event_tracking_query", 0);
+--let $EVENT_TYPE=query events
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_query
+--source ../include/test_event_tracking_consumer.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_QUERY_START events
+SELECT configure_event_tracking_filter("event_tracking_query", 14);
+--let $EVENT_TYPE=EVENT_TRACKING_QUERY_START
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_query
+--source ../include/test_event_tracking_consumer.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_QUERY_NESTED_START events
+SELECT configure_event_tracking_filter("event_tracking_query", 13);
+--let $EVENT_TYPE=EVENT_TRACKING_QUERY_NESTED_START
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_query
+--source ../include/test_event_tracking_consumer.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_QUERY_END events
+SELECT configure_event_tracking_filter("event_tracking_query", 11);
+--let $EVENT_TYPE=EVENT_TRACKING_QUERY_END
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_query
+--source ../include/test_event_tracking_consumer.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_QUERY_NESTED_END events
+SELECT configure_event_tracking_filter("event_tracking_query", 7);
+--let $EVENT_TYPE=EVENT_TRACKING_QUERY_NESTED_END
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_query
+--source ../include/test_event_tracking_consumer.inc
+
+SELECT configure_event_tracking_filter("event_tracking_query", @event_tracking_query_all);
+
+--echo # ---------------------------------------------------------------------
+--echo # ---------------------------------------------------------------------
+--echo # Test for GENERAL events
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable all general events
+SELECT configure_event_tracking_filter("event_tracking_general", 0);
+--let $EVENT_TYPE=general events
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_general
+--source ../include/test_event_tracking_consumer.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_GENERAL_LOG event
+SELECT configure_event_tracking_filter("event_tracking_general", 14);
+--let $EVENT_TYPE=EVENT_TRACKING_GENERAL_LOG
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_general
+--source ../include/test_event_tracking_consumer.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_GENERAL_ERROR event
+SELECT configure_event_tracking_filter("event_tracking_general", 13);
+--let $EVENT_TYPE=EVENT_TRACKING_GENERAL_ERROR
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_general
+--source ../include/test_event_tracking_consumer.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_GENERAL_RESULT event
+SELECT configure_event_tracking_filter("event_tracking_general", 11);
+--let $EVENT_TYPE=EVENT_TRACKING_GENERAL_RESULT
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_general
+--source ../include/test_event_tracking_consumer.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_GENERAL_STATUS event
+SELECT configure_event_tracking_filter("event_tracking_general", 7);
+--let $EVENT_TYPE=EVENT_TRACKING_GENERAL_STATUS
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_general
+--source ../include/test_event_tracking_consumer.inc
+
+SELECT configure_event_tracking_filter("event_tracking_general", @event_tracking_general_all);
+
+--echo # ---------------------------------------------------------------------
+--echo # ---------------------------------------------------------------------
+--echo # Tests TABLE_ACCESS events
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable all table_access events
+SELECT configure_event_tracking_filter("event_tracking_table_access", 0);
+--let $EVENT_TYPE=table access events
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_table_access
+--source ../include/test_event_tracking_consumer_tables.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_TABLE_ACCESS_READ events
+SELECT configure_event_tracking_filter("event_tracking_table_access", 14);
+--let $EVENT_TYPE=EVENT_TRACKING_TABLE_ACCESS_READ
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_table_access
+--source ../include/test_event_tracking_consumer_tables.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_TABLE_ACCESS_INSERT events
+SELECT configure_event_tracking_filter("event_tracking_table_access", 13);
+--let $EVENT_TYPE=EVENT_TRACKING_TABLE_ACCESS_INSERT
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_table_access
+--source ../include/test_event_tracking_consumer_tables.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_TABLE_ACCESS_UPDATE events
+SELECT configure_event_tracking_filter("event_tracking_table_access", 11);
+--let $EVENT_TYPE=EVENT_TRACKING_TABLE_ACCESS_UPDATE
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_table_access
+--source ../include/test_event_tracking_consumer_tables.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_TABLE_ACCESS_DELETE events
+SELECT configure_event_tracking_filter("event_tracking_table_access", 7);
+--let $EVENT_TYPE=EVENT_TRACKING_TABLE_ACCESS_DELETE
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_table_access
+--source ../include/test_event_tracking_consumer_tables.inc
+
+SELECT configure_event_tracking_filter("event_tracking_table_access", @event_tracking_table_access_all);
+
+--echo # ---------------------------------------------------------------------
+--echo # ---------------------------------------------------------------------
+--echo # Tests for AUTHENTICATION events
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable all authentication events
+SELECT configure_event_tracking_filter("event_tracking_authentication", 0);
+--let $EVENT_TYPE=authentication events
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_authentication
+--source ../include/test_event_tracking_consumer_authentication.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_AUTHENTICATION_FLUSH events
+SELECT configure_event_tracking_filter("event_tracking_authentication", 30);
+--let $EVENT_TYPE=EVENT_TRACKING_AUTHENTICATION_FLUSH
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_authentication
+--source ../include/test_event_tracking_consumer_authentication.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_AUTHENTICATION_AUTHID_CREATE events - currently none
+SELECT configure_event_tracking_filter("event_tracking_authentication", 29);
+--let $EVENT_TYPE=EVENT_TRACKING_AUTHENTICATION_AUTHID_CREATE
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_authentication
+--source ../include/test_event_tracking_consumer_authentication.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE events
+SELECT configure_event_tracking_filter("event_tracking_authentication", 27);
+--let $EVENT_TYPE=EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_authentication
+--source ../include/test_event_tracking_consumer_authentication.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_AUTHENTICATION_AUTHID_RENAME events
+SELECT configure_event_tracking_filter("event_tracking_authentication", 23);
+--let $EVENT_TYPE=EVENT_TRACKING_AUTHENTICATION_AUTHID_RENAME
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_authentication
+--source ../include/test_event_tracking_consumer_authentication.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_AUTHENTICATION_AUTHID_DROP events
+SELECT configure_event_tracking_filter("event_tracking_authentication", 15);
+--let $EVENT_TYPE=EVENT_TRACKING_AUTHENTICATION_AUTHID_DROP
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_authentication
+--source ../include/test_event_tracking_consumer_authentication.inc
+
+SELECT configure_event_tracking_filter("event_tracking_authentication", @event_tracking_authentication_all);
+
+--echo # ---------------------------------------------------------------------
+--echo # ---------------------------------------------------------------------
+--echo # Tests for CONNECTION events
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable all connection events
+SELECT configure_event_tracking_filter("event_tracking_connection", 0);
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_connection
+--source ../include/test_event_tracking_consumer_connection_events.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_CONNECTION_CONNECT events
+SELECT configure_event_tracking_filter("event_tracking_connection", 14);
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_connection
+--source ../include/test_event_tracking_consumer_connection_events.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_CONNECTION_DISCONNECT events
+SELECT configure_event_tracking_filter("event_tracking_connection", 13);
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_connection
+--source ../include/test_event_tracking_consumer_connection_events.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_CONNECTION_CHANGE_USER events
+SELECT configure_event_tracking_filter("event_tracking_connection", 11);
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_connection
+--source ../include/test_event_tracking_consumer_connection_events.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_CONNECTION_PRE_AUTHENTICATE events
+SELECT configure_event_tracking_filter("event_tracking_connection", 7);
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_connection
+--source ../include/test_event_tracking_consumer_connection_events.inc
+
+SELECT configure_event_tracking_filter("event_tracking_connection", @event_tracking_connection_all);
+
+--echo # ---------------------------------------------------------------------
+--echo # ---------------------------------------------------------------------
+--echo # Tests for MESSAGE events
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable all message events
+SELECT configure_event_tracking_filter("event_tracking_message", 0);
+--let $EVENT_TYPE=Message events
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_message
+--source ../include/test_event_tracking_consumer_message_events.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_MESSAGE_INTERNAL events
+SELECT configure_event_tracking_filter("event_tracking_message", 2);
+--let $EVENT_TYPE=EVENT_TRACKING_MESSAGE_INTERNAL
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_message
+--source ../include/test_event_tracking_consumer_message_events.inc
+
+--echo # ---------------------------------------------------------------------
+--echo # Enable EVENT_TRACKING_MESSAGE_USER events
+SELECT configure_event_tracking_filter("event_tracking_message", 1);
+--let $EVENT_TYPE=EVENT_TRACKING_MESSAGE_USER
+--let $COUNTER_NAME=test_event_tracking_consumer.counter_message
+--source ../include/test_event_tracking_consumer_message_events.inc
+
+SELECT configure_event_tracking_filter("event_tracking_message", @event_tracking_message_all);
+
+--echo # ---------------------------------------------------------------------
+--echo # ---------------------------------------------------------------------
+--echo # Teardown
+
+--connection default
+
+--source ../include/test_event_tracking_consumer_teardown.inc
+
+--echo # Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
+--echo # Restore default values
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

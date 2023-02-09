@@ -86,7 +86,7 @@
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"  // key_memory_File_query_log_name
 #include "sql/query_options.h"
-#include "sql/sql_audit.h"  // mysql_audit_general_log
+#include "sql/sql_audit.h"  // mysql_event_tracking_general_notify
 #include "sql/sql_base.h"   // close_log_table
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_error.h"
@@ -1373,7 +1373,7 @@ bool Query_logger::general_log_write(THD *thd, enum_server_command command,
                                      const char *query, size_t query_length) {
   /* Send a general log message to the audit API. */
   const std::string &cn = Command_names::str_global(command);
-  mysql_audit_general_log(thd, cn.c_str(), cn.length());
+  mysql_event_tracking_general_notify(thd, cn.c_str(), cn.length());
 
   /*
     Do we want to log this kind of command?
@@ -1416,7 +1416,7 @@ bool Query_logger::general_log_print(THD *thd, enum_server_command command,
       !(*general_log_handler_list)) {
     /* Send a general log message to the audit API. */
     const std::string &cn = Command_names::str_global(command);
-    mysql_audit_general_log(thd, cn.c_str(), cn.length());
+    mysql_event_tracking_general_notify(thd, cn.c_str(), cn.length());
     return false;
   }
 

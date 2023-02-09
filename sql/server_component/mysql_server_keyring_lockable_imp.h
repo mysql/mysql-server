@@ -50,6 +50,9 @@ extern SERVICE_TYPE(keyring_reader_with_status) * srv_keyring_reader;
 extern SERVICE_TYPE(keyring_load) * srv_keyring_load;
 extern SERVICE_TYPE(keyring_writer) * srv_keyring_writer;
 
+void init_srv_event_tracking_handles();
+void deinit_srv_event_tracking_handles();
+
 namespace keyring_lockable {
 
 /* Keyring_encryption_service_impl */

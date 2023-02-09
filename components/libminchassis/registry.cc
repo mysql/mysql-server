@@ -548,6 +548,19 @@ DEFINE_BOOL_METHOD(mysql_registry_imp::iterator_create,
       return true;
     }
 
+    if (service_name_pattern && *service_name_pattern) {
+      /*
+        If the query was of the format <service_name> or
+        <service_name>.<implementation_name> then make sure that there exists at
+        least one service matching the criteria. If not, there is no point
+        returning the iterator because it would invariably point to a service
+        other than what's caller is looking for.
+      */
+      if (strncmp(r->first, service_name_pattern,
+                  std::min(strlen(r->first), strlen(service_name_pattern))))
+        return true;
+    }
+
     *out_iterator = new my_h_service_iterator_imp{r, std::move(lock)};
     return false;
   } catch (...) {

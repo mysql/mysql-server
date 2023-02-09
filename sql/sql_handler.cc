@@ -75,7 +75,7 @@
 #include "sql/mdl.h"
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
-#include "sql/sql_audit.h"  // mysql_audit_table_access_notify
+#include "sql/sql_audit.h"  // mysql_event_tracking_table_access_notify
 #include "sql/sql_base.h"   // close_thread_tables
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -598,7 +598,7 @@ retry:
                   DBUG_SET("-d,simulate_net_write_failure"););
   if (res) goto err;
 
-  if (mysql_audit_table_access_notify(thd, hash_tables)) goto err;
+  if (mysql_event_tracking_table_access_notify(thd, hash_tables)) goto err;
 
   /*
     In ::external_lock InnoDB resets the fields which tell it that

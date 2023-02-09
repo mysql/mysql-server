@@ -187,10 +187,10 @@ int table_global_variables::make_row(const System_variable *system_var) {
     We are about to return a row to the SQL layer.
     Notify the audit plugins that a global variable is read.
   */
-  mysql_audit_notify(current_thd, AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
-                     m_row.m_variable_name.m_str,
-                     m_row.m_variable_value.get_str(),
-                     m_row.m_variable_value.get_length());
+  mysql_event_tracking_global_variable_notify(
+      current_thd, AUDIT_EVENT(EVENT_TRACKING_GLOBAL_VARIABLE_GET),
+      m_row.m_variable_name.m_str, m_row.m_variable_value.get_str(),
+      m_row.m_variable_value.get_length());
 
   return 0;
 }

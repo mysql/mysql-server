@@ -23,8 +23,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef COMPONENTS_SERVICES_MYSQL_THD_STORE_SERVICE_H
 #define COMPONENTS_SERVICES_MYSQL_THD_STORE_SERVICE_H
 
-#include <mysql/components/service.h>
-#include <mysql/components/services/mysql_current_thread_reader.h>  // MYSQL_THD
+#include "mysql/components/service.h"
+#include "mysql/components/services/mysql_current_thread_reader.h"  // MYSQL_THD
 
 DEFINE_SERVICE_HANDLE(mysql_thd_store_slot);
 

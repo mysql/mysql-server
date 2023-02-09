@@ -25,6 +25,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/current_thd.h"
 #include "sql/sql_audit.h"
 
+#include <memory>
+
 DEFINE_BOOL_METHOD(mysql_audit_api_message_imp::emit,
                    (mysql_event_message_subclass_t type, const char *component,
                     size_t component_length, const char *producer,
@@ -32,16 +34,43 @@ DEFINE_BOOL_METHOD(mysql_audit_api_message_imp::emit,
                     size_t message_length,
                     mysql_event_message_key_value_t *key_value_map,
                     size_t key_value_map_length)) {
+  std::unique_ptr<mysql_event_tracking_message_key_value_t[]>
+      local_key_value_map(key_value_map_length > 0
+                              ? new mysql_event_tracking_message_key_value_t
+                                    [key_value_map_length]
+                              : nullptr);
+
+  mysql_event_tracking_message_key_value_t *local_kv =
+      local_key_value_map.get();
+  mysql_event_message_key_value_t *kv = key_value_map;
+
+  for (size_t i = 0; i < key_value_map_length; ++i, ++local_kv, ++kv) {
+    local_kv->key = {kv->key.str, kv->key.length};
+    switch (key_value_map->value_type) {
+      case MYSQL_AUDIT_MESSAGE_VALUE_TYPE_STR:
+        local_kv->value_type = EVENT_TRACKING_MESSAGE_VALUE_TYPE_STR;
+        local_kv->value.str = {kv->value.str.str, kv->value.str.length};
+        break;
+      case MYSQL_AUDIT_MESSAGE_VALUE_TYPE_NUM:
+        local_kv->value_type = EVENT_TRACKING_MESSAGE_VALUE_TYPE_NUM;
+        local_kv->value.num = kv->value.num;
+        break;
+      default:
+        assert(false);
+        break;
+    }
+  }
+
   if (type == MYSQL_AUDIT_MESSAGE_INTERNAL)
-    mysql_audit_notify(current_thd, AUDIT_EVENT(MYSQL_AUDIT_MESSAGE_INTERNAL),
-                       component, component_length, producer, producer_length,
-                       message, message_length, key_value_map,
-                       key_value_map_length);
+    mysql_event_tracking_message_notify(
+        current_thd, AUDIT_EVENT(EVENT_TRACKING_MESSAGE_INTERNAL), component,
+        component_length, producer, producer_length, message, message_length,
+        local_key_value_map.get(), key_value_map_length);
   else
-    mysql_audit_notify(current_thd, AUDIT_EVENT(MYSQL_AUDIT_MESSAGE_USER),
-                       component, component_length, producer, producer_length,
-                       message, message_length, key_value_map,
-                       key_value_map_length);
+    mysql_event_tracking_message_notify(
+        current_thd, AUDIT_EVENT(EVENT_TRACKING_MESSAGE_USER), component,
+        component_length, producer, producer_length, message, message_length,
+        local_key_value_map.get(), key_value_map_length);
 
   return false;
 }

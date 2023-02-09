@@ -58,6 +58,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "component_status_var_service_imp.h"
 #include "component_sys_var_service_imp.h"
 #include "dynamic_loader_path_filter_imp.h"
+#include "dynamic_loader_service_notification_imp.h"
+#include "event_tracking_information_imp.h"
 #include "host_application_signal_imp.h"
 #include "keyring_iterator_service_imp.h"
 #include "log_builtins_filter_imp.h"
@@ -75,6 +77,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_ongoing_transaction_query_imp.h"
 #include "mysql_page_track_imp.h"
 #include "mysql_runtime_error_imp.h"
+#include "mysql_server_event_tracking_bridge_imp.h"
 #include "mysql_server_keyring_lockable_imp.h"
 #include "mysql_server_runnable_imp.h"
 #include "mysql_status_variable_reader_imp.h"
@@ -554,10 +557,85 @@ Mysql_thd_store_service_imp::register_slot,
     Mysql_thd_store_service_imp::set, Mysql_thd_store_service_imp::get,
     END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, event_tracking_general)
+Event_general_bridge_implementation::notify END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, event_tracking_connection)
+Event_connection_bridge_implementation::notify END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, event_tracking_parse)
+Event_parse_bridge_implementation::notify END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, event_tracking_table_access)
+Event_table_access_bridge_implementation::notify END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, event_tracking_global_variable)
+Event_global_variable_bridge_implementation::notify
+END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, event_tracking_lifecycle)
+Event_lifecycle_bridge_implementation::notify_startup,
+    Event_lifecycle_bridge_implementation::notify_shutdown
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, event_tracking_command)
+Event_command_bridge_implementation::notify END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, event_tracking_query)
+Event_query_bridge_implementation::notify END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, event_tracking_stored_program)
+Event_stored_program_bridge_implementation::notify END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, event_tracking_authentication)
+Event_authentication_bridge_implementation::notify END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, event_tracking_message)
+Event_message_bridge_implementation::notify END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             dynamic_loader_services_loaded_notification)
+Dynamic_loader_services_loaded_notification_imp::notify
+END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             dynamic_loader_services_unload_notification)
+Dynamic_loader_services_unload_notification_imp::notify
+END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             event_tracking_authentication_information)
+Event_tracking_authentication_information_imp::init,
+    Event_tracking_authentication_information_imp::deinit,
+    Event_tracking_authentication_information_imp::get
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, event_tracking_authentication_method)
+Event_tracking_authentication_method_imp::get END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, event_tracking_general_information)
+Event_tracking_general_information_imp::init,
+    Event_tracking_general_information_imp::deinit,
+    Event_tracking_general_information_imp::get END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, persistent_dynamic_loader),
     PROVIDES_SERVICE(mysql_server, dynamic_privilege_register),
+    PROVIDES_SERVICE(mysql_server, event_tracking_authentication),
+    PROVIDES_SERVICE(mysql_server, event_tracking_authentication_information),
+    PROVIDES_SERVICE(mysql_server, event_tracking_authentication_method),
+    PROVIDES_SERVICE(mysql_server, event_tracking_command),
+    PROVIDES_SERVICE(mysql_server, event_tracking_connection),
+    PROVIDES_SERVICE(mysql_server, event_tracking_general),
+    PROVIDES_SERVICE(mysql_server, event_tracking_general_information),
+    PROVIDES_SERVICE(mysql_server, event_tracking_global_variable),
+    PROVIDES_SERVICE(mysql_server, event_tracking_lifecycle),
+    PROVIDES_SERVICE(mysql_server, event_tracking_message),
+    PROVIDES_SERVICE(mysql_server, event_tracking_parse),
+    PROVIDES_SERVICE(mysql_server, event_tracking_query),
+    PROVIDES_SERVICE(mysql_server, event_tracking_stored_program),
+    PROVIDES_SERVICE(mysql_server, event_tracking_table_access),
     PROVIDES_SERVICE(mysql_server, global_grants_check),
     PROVIDES_SERVICE(mysql_server, mysql_charset),
     PROVIDES_SERVICE(mysql_server, mysql_string_factory),
@@ -716,6 +794,8 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_status_variable_string),
     PROVIDES_SERVICE(mysql_server, mysql_thd_store),
     PROVIDES_SERVICE(mysql_server, mysql_command_field_metadata),
+    PROVIDES_SERVICE(mysql_server, dynamic_loader_services_loaded_notification),
+    PROVIDES_SERVICE(mysql_server, dynamic_loader_services_unload_notification),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();

@@ -328,6 +328,7 @@ our $exe_mysql_migrate_keyring;
 our $exe_mysql_keyring_encryption_test;
 our $exe_mysqladmin;
 our $exe_mysqltest;
+our $exe_mysql_test_event_tracking;
 our $exe_openssl;
 our $glob_mysql_test_dir;
 our $mysql_version_extra;
@@ -2691,6 +2692,11 @@ sub executable_setup () {
   $exe_mysql_keyring_encryption_test =
     mtr_exe_exists("$path_client_bindir/mysql_keyring_encryption_test");
 
+  # Look for mysql_test_event_tracking binary
+  $exe_mysql_test_event_tracking = my_find_bin($bindir,
+                [ "runtime_output_directory", "bin" ],
+                "mysql_test_event_tracking", NOT_REQUIRED);
+
   # For custom OpenSSL builds, look for the my_openssl executable.
   $exe_openssl =
     my_find_bin($bindir,
@@ -3242,6 +3248,7 @@ sub environment_setup {
   $ENV{'MYSQLXTEST'}          = mysqlxtest_arguments();
   $ENV{'MYSQL_MIGRATE_KEYRING'} = $exe_mysql_migrate_keyring;
   $ENV{'MYSQL_KEYRING_ENCRYPTION_TEST'} = $exe_mysql_keyring_encryption_test;
+  $ENV{'MYSQL_TEST_EVENT_TRACKING'} = $exe_mysql_test_event_tracking;
   $ENV{'PATH_CONFIG_FILE'}    = $path_config_file;
   $ENV{'MYSQL_CLIENT_BIN_PATH'}    = $path_client_bindir;
   $ENV{'MYSQLBACKUP_PLUGIN_DIR'} = mysqlbackup_plugin_dir()

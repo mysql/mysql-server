@@ -1,0 +1,205 @@
+# Event tracking test
+Loaded consumer: component_test_event_tracking_consumer_a
+Loading producer: component_test_event_tracking_producer_a
+component_test_event_tracking_producer_a's init method will emit various events
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_CONNECTION_PRE_AUTHENTICATE.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_CONNECTION_PRE_AUTHENTICATE. Data : [ User: user, Host: example.com ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_CONNECTION_PRE_AUTHENTICATE. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_CONNECTION_CONNECT.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_CONNECTION_CONNECT. Data : [ User: user, Host: example.com ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_CONNECTION_CONNECT. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_CONNECTION_CHANGE_USER.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_CONNECTION_CHANGE_USER. Data : [ User: user, Host: example.com ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_CONNECTION_CHANGE_USER. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_CONNECTION_DISCONNECT.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_CONNECTION_CONNECT. Data : [ User: user, Host: example.com ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_CONNECTION_DISCONNECT. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_COMMAND_START.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_COMMAND_START. Data : [ Command: COM_QUERY ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_COMMAND_START. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_COMMAND_END.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_COMMAND_END. Data : [ Command: COM_QUERY ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_COMMAND_END. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_GENERAL_ERROR.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_GENERAL_ERROR. Data : [ User: user, Host: example.com ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_GENERAL_ERROR. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_GENERAL_LOG.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_GENERAL_LOG. Data : [ User: user, Host: example.com ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_GENERAL_LOG. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_GENERAL_RESULT.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_GENERAL_RESULT. Data : [ User: user, Host: example.com ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_GENERAL_RESULT. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_GENERAL_STATUS.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_GENERAL_STATUS. Data : [ User: user, Host: example.com ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_GENERAL_STATUS. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_QUERY_START.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_QUERY_START. Data : [ SQL Command: SQLCOM_SELECT, Query: SELECT * FROM demodb.demo_table; ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_QUERY_START. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_QUERY_NESTED_START.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_QUERY_NESTED_START. Data : [ SQL Command: SQLCOM_SELECT, Query: SELECT * FROM demodb.demo_table; ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_QUERY_NESTED_START. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_QUERY_NESTED_STATUS_END.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_QUERY_NESTED_STATUS_END. Data : [ SQL Command: SQLCOM_SELECT, Query: SELECT * FROM demodb.demo_table; ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_QUERY_NESTED_STATUS_END. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_QUERY_STATUS_END.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_QUERY_STATUS_END. Data : [ SQL Command: SQLCOM_SELECT, Query: SELECT * FROM demodb.demo_table; ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_QUERY_STATUS_END. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_TABLE_ACCESS_DELETE.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_TABLE_ACCESS_DELETE. Data : [ Schema: demodb, Table: demo_table ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_TABLE_ACCESS_DELETE. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_TABLE_ACCESS_INSERT.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_TABLE_ACCESS_INSERT. Data : [ Schema: demodb, Table: demo_table ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_TABLE_ACCESS_INSERT. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_TABLE_ACCESS_READ.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_TABLE_ACCESS_READ. Data : [ Schema: demodb, Table: demo_table ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_TABLE_ACCESS_READ. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_TABLE_ACCESS_UPDATE.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_TABLE_ACCESS_UPDATE. Data : [ Schema: demodb, Table: demo_table ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_TABLE_ACCESS_UPDATE. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_AUTHENTICATION_AUTHID_CREATE.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_AUTHENTICATION_AUTHID_CREATE. Data : [ User: user, Host: example.com ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_AUTHENTICATION_AUTHID_CREATE. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_AUTHENTICATION_AUTHID_DROP.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_AUTHENTICATION_AUTHID_DROP. Data : [ User: user, Host: example.com ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_AUTHENTICATION_AUTHID_DROP. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_AUTHENTICATION_AUTHID_RENAME.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_AUTHENTICATION_AUTHID_RENAME. Data : [ User: user, Host: example.com ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_AUTHENTICATION_AUTHID_RENAME. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE. Data : [ User: user, Host: example.com ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_AUTHENTICATION_FLUSH.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_AUTHENTICATION_FLUSH. Data : [ User: user, Host: example.com ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_AUTHENTICATION_FLUSH. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_STARTUP_STARTUP.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_STARTUP_STARTUP. Data : [Number of arguments: 1 ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_STARTUP_STARTUP. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_SHUTDOWN_SHUTDOWN.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_SHUTDOWN_SHUTDOWN. Data : [ Reason: EVENT_TRACKING_SHUTDOWN_REASON_SHUTDOWN ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_SHUTDOWN_SHUTDOWN. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_SHUTDOWN_SHUTDOWN.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_SHUTDOWN_SHUTDOWN. Data : [ Reason: EVENT_TRACKING_SHUTDOWN_REASON_ABORT ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_SHUTDOWN_SHUTDOWN. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_MESSAGE_INTERNAL.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_MESSAGE_INTERNAL. Data : [ Component: component_test_event_tracking_producer_a, Producer: event_tracking_producer_a, Message: test_message ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_MESSAGE_INTERNAL. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_MESSAGE_INTERNAL.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_MESSAGE_USER. Data : [ Component: component_test_event_tracking_producer_a, Producer: event_tracking_producer_a, Message: test_message ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_MESSAGE_INTERNAL. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_PARSE_PREPARSE.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_PARSE_PREPARSE. Data : [ Query: SELECT * FROM demodb.demo_table ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_PARSE_PREPARSE. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_PARSE_POSTPARSE.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_PARSE_POSTPARSE. Data : [ Query: SELECT * FROM demodb.demo_table ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_PARSE_POSTPARSE. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_STORED_PROGRAM_EXECUTE.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_STORED_PROGRAM_EXECUTE. Data : [ Schema: demodb, Program: demo_program ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_STORED_PROGRAM_EXECUTE. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_GLOBAL_VARIABLE_GET.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_GLOBAL_VARIABLE_GET. Data : [Name: demo_variable, Value: demo_value ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_GLOBAL_VARIABLE_GET. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_a. Event : EVENT_TRACKING_GLOBAL_VARIABLE_SET.
+Component: event_tracking_consumer_a. Event : EVENT_TRACKING_GLOBAL_VARIABLE_SET. Data : [Name: demo_variable, Value: demo_value ].
+Component: event_tracking_producer_a. Event: EVENT_TRACKING_GLOBAL_VARIABLE_SET. Consumer returned: Success.
+-------------------------------------------------------------
+Successfully completed all tests.
+Loaded consumer: component_test_event_tracking_consumer_b
+Loaded consumer: component_test_event_tracking_consumer_c
+Loading producer: component_test_event_tracking_producer_b
+component_test_event_tracking_producer_b's init method will emit various events
+-------------------------------------------------------------
+Component: event_tracking_producer_b. Event : EVENT_TRACKING_EXAMPLE_FIRST.
+Component: event_tracking_consumer_b. Event : EVENT_TRACKING_EXAMPLE_FIRST. Data : [ID: 1, Name: Example event ].
+Component: event_tracking_producer_b. Event: EVENT_TRACKING_EXAMPLE_FIRST. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_b. Event : EVENT_TRACKING_EXAMPLE_SECOND.
+Component: event_tracking_consumer_b. Event : EVENT_TRACKING_EXAMPLE_SECOND. Data : [ID: 1, Name: Example event ].
+Component: event_tracking_producer_b. Event: EVENT_TRACKING_EXAMPLE_SECOND. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_b. Event : EVENT_TRACKING_EXAMPLE_THIRD.
+Component: event_tracking_consumer_b. Event : EVENT_TRACKING_EXAMPLE_THIRD. Data : [ID: 1, Name: Example event ].
+Component: event_tracking_producer_b. Event: EVENT_TRACKING_EXAMPLE_THIRD. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_b. Event : EVENT_TRACKING_EXAMPLE_FIRST.
+Component: event_tracking_consumer_c. Event : EVENT_TRACKING_EXAMPLE_FIRST. Data : [ID: 1, Name: Example event ].
+Component: event_tracking_producer_b. Event: EVENT_TRACKING_EXAMPLE_FIRST. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_b. Event : EVENT_TRACKING_EXAMPLE_SECOND.
+Component: event_tracking_consumer_c. Event : EVENT_TRACKING_EXAMPLE_SECOND. Data : [ID: 1, Name: Example event ].
+Component: event_tracking_producer_b. Event: EVENT_TRACKING_EXAMPLE_SECOND. Consumer returned: Success.
+-------------------------------------------------------------
+-------------------------------------------------------------
+Component: event_tracking_producer_b. Event : EVENT_TRACKING_EXAMPLE_THIRD.
+Component: event_tracking_consumer_c. Event : EVENT_TRACKING_EXAMPLE_THIRD. Data : [ID: 1, Name: Example event ].
+Component: event_tracking_producer_b. Event: EVENT_TRACKING_EXAMPLE_THIRD. Consumer returned: Success.
+-------------------------------------------------------------
+Successfully completed all tests.

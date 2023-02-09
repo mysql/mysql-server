@@ -3297,7 +3297,7 @@ class Item_user_var_as_out_param : public Item {
 
 class Item_func_get_system_var;
 
-/** Class to log audit event MYSQL_AUDIT_GLOBAL_VARIABLE_GET. */
+/** Class to log audit event EVENT_TRACKING_GLOBAL_VARIABLE_GET. */
 class Audit_global_variable_get_event {
  public:
   Audit_global_variable_get_event(THD *thd, Item_func_get_system_var *item,

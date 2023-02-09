@@ -1678,8 +1678,9 @@ static void validate_user_plugin_records() {
 */
 
 void notify_flush_event(THD *thd) {
-  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_FLUSH), 0,
-                     nullptr, nullptr, nullptr, false, nullptr, nullptr);
+  mysql_event_tracking_authentication_notify(
+      thd, AUDIT_EVENT(EVENT_TRACKING_AUTHENTICATION_FLUSH), 0, nullptr,
+      nullptr, nullptr, false, nullptr, nullptr);
 }
 
 /**

@@ -62,7 +62,7 @@
 #include "my_thread_local.h"
 #include "my_time.h"
 #include "mysql/com_data.h"
-#include "mysql/components/services/bits/plugin_audit_connection_types.h"  // MYSQL_AUDIT_CONNECTION_CHANGE_USER
+#include "mysql/components/services/bits/plugin_audit_connection_types.h"  // EVENT_TRACKING_CONNECTION_CHANGE_USER
 #include "mysql/components/services/bits/psi_statement_bits.h"  // PSI_statement_info
 #include "mysql/components/services/log_builtins.h"             // LogErr
 #include "mysql/plugin_audit.h"
@@ -268,6 +268,8 @@ const std::string &Command_names::str_session(enum_server_command cmd) {
 }
 
 const std::string &Command_names::str_global(enum_server_command cmd) {
+  static_assert(((size_t)(COM_END - COM_SLEEP + 1)) ==
+                (sizeof(m_names) / sizeof(std::string)));
   if (cmd != m_replace_com) return m_names[cmd];
   return translate(global_system_variables);
 }
@@ -1805,8 +1807,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     goto done;
   }
 
-  if (mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_START), command,
-                         Command_names::str_global(command).c_str())) {
+  if (mysql_event_tracking_command_notify(
+          thd, AUDIT_EVENT(EVENT_TRACKING_COMMAND_START), command,
+          Command_names::str_global(command).c_str())) {
     goto done;
   }
 
@@ -1897,8 +1900,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       Security_context save_security_ctx(*(thd->security_context()));
 
       auth_rc = acl_authenticate(thd, COM_CHANGE_USER);
-      auth_rc |= mysql_audit_notify(
-          thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CHANGE_USER));
+      auth_rc |= mysql_event_tracking_connection_notify(
+          thd, AUDIT_EVENT(EVENT_TRACKING_CONNECTION_CHANGE_USER));
       if (auth_rc) {
         *thd->security_context() = save_security_ctx;
         thd->set_user_connect(save_user_connect);
@@ -2075,11 +2078,11 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         thd->send_statement_status();
 
         const std::string &cn = Command_names::str_global(command);
-        mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
-                           thd->get_stmt_da()->is_error()
-                               ? thd->get_stmt_da()->mysql_errno()
-                               : 0,
-                           cn.c_str(), cn.length());
+        mysql_event_tracking_general_notify(
+            thd, AUDIT_EVENT(EVENT_TRACKING_GENERAL_STATUS),
+            thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno()
+                                           : 0,
+            cn.c_str(), cn.length());
 
         size_t length =
             static_cast<size_t>(packet_end - beginning_of_next_stmt);
@@ -2465,19 +2468,19 @@ done:
   thd->rpl_thd_ctx.session_gtids_ctx().notify_after_response_packet(thd);
 
   if (!thd->is_error() && !thd->killed)
-    mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_RESULT), 0, nullptr,
-                       0);
+    mysql_event_tracking_general_notify(
+        thd, AUDIT_EVENT(EVENT_TRACKING_GENERAL_RESULT), 0, nullptr, 0);
 
   const std::string &cn = Command_names::str_global(command);
-  mysql_audit_notify(
-      thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
+  mysql_event_tracking_general_notify(
+      thd, AUDIT_EVENT(EVENT_TRACKING_GENERAL_STATUS),
       thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno() : 0,
       cn.c_str(), cn.length());
 
   /* command_end is informational only. The plugin cannot abort
      execution of the command at this point. */
-  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_END), command,
-                     cn.c_str());
+  mysql_event_tracking_command_notify(
+      thd, AUDIT_EVENT(EVENT_TRACKING_COMMAND_END), command, cn.c_str());
 
   log_slow_statement(thd);
 
@@ -3259,11 +3262,12 @@ int mysql_execute_command(THD *thd, bool first_level) {
 
   if (gtid_pre_statement_post_implicit_commit_checks(thd)) return -1;
 
-  if (mysql_audit_notify(thd,
-                         first_level ? MYSQL_AUDIT_QUERY_START
-                                     : MYSQL_AUDIT_QUERY_NESTED_START,
-                         first_level ? "MYSQL_AUDIT_QUERY_START"
-                                     : "MYSQL_AUDIT_QUERY_NESTED_START")) {
+  if (mysql_event_tracking_query_notify(
+          thd,
+          first_level ? EVENT_TRACKING_QUERY_START
+                      : EVENT_TRACKING_QUERY_NESTED_START,
+          first_level ? "EVENT_TRACKING_QUERY_START"
+                      : "EVENT_TRACKING_QUERY_NESTED_START")) {
     return 1;
   }
 
@@ -4910,11 +4914,12 @@ finish:
          thd->in_multi_stmt_transaction_mode());
 
   if (!thd->in_sub_stmt) {
-    mysql_audit_notify(thd,
-                       first_level ? MYSQL_AUDIT_QUERY_STATUS_END
-                                   : MYSQL_AUDIT_QUERY_NESTED_STATUS_END,
-                       first_level ? "MYSQL_AUDIT_QUERY_STATUS_END"
-                                   : "MYSQL_AUDIT_QUERY_NESTED_STATUS_END");
+    mysql_event_tracking_query_notify(
+        thd,
+        first_level ? EVENT_TRACKING_QUERY_STATUS_END
+                    : EVENT_TRACKING_QUERY_NESTED_STATUS_END,
+        first_level ? "EVENT_TRACKING_QUERY_STATUS_END"
+                    : "EVENT_TRACKING_QUERY_NESTED_STATUS_END");
 
     /* report error issued during command execution */
     if ((thd->is_error() && !early_error_on_rep_command) ||

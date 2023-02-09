@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/dynamic_loader.h>
 #include <mysql/components/services/dynamic_loader_scheme_file.h>
+#include <mysql/components/services/dynamic_loader_service_notification.h>
 #include <mysql/components/services/mysql_runtime_error_service.h>
 #include <mysql/components/services/registry.h>
 #include <mysqld_error.h>
@@ -694,8 +695,42 @@ bool mysql_dynamic_loader_imp::load_do_load_component_by_scheme(
         new mysql_component(loaded_component_raw, urn)));
   }
 
+  /*
+    Collect service names before actually loading components.
+
+    This is required because as a part of load_do_commit(),
+    mysql_component objects will be moved from loaded_component
+    to mysql_dynamic_loader_imp::components_list.
+
+    Thus, if load_do_collect_services_provided() returns success,
+    information about components would no longer be available in
+    loaded_components.
+
+    Note that it is safe access services vector *after*
+    load_do_collect_services_provided() because we use std::move
+    to move already created mysql_component object from
+    loaded_components to mysql_dynamic_loader_imp::components_list.
+    Thus, pointers stored in services vector will still be valid
+    after returning from load_do_collect_services_provided.
+  */
+  std::vector<const char *> services;
+
   bool res = mysql_dynamic_loader_imp::load_do_collect_services_provided(
-      loaded_components);
+      loaded_components, services);
+
+  if (!res) {
+    /* Notify implementer of post_service_load_notification if any */
+    my_service<SERVICE_TYPE(dynamic_loader_services_loaded_notification)>
+        post_load_notification("dynamic_loader_services_loaded_notification",
+                               &imp_mysql_minimal_chassis_registry);
+    if (post_load_notification.is_valid()) {
+      /*
+        At this point we cannot abort the operation
+      */
+      (void)post_load_notification->notify(services.data(), services.size());
+    }
+  }
+
   if (!res) {
     guard.commit();
   }
@@ -708,12 +743,15 @@ bool mysql_dynamic_loader_imp::load_do_load_component_by_scheme(
   other Components dependencies.
 
   @param loaded_components List of Components to continue load of.
+  @param services_loaded   List of services loaded
+
   @return Status of performed operation
   @retval false success
   @retval true failure
 */
 bool mysql_dynamic_loader_imp::load_do_collect_services_provided(
-    std::vector<std::unique_ptr<mysql_component>> &loaded_components) {
+    std::vector<std::unique_ptr<mysql_component>> &loaded_components,
+    std::vector<const char *> &services_loaded) {
   /* Set of names of services without implementation names that
     specified components provide. */
   std::set<my_string> services_provided;
@@ -723,6 +761,7 @@ bool mysql_dynamic_loader_imp::load_do_collect_services_provided(
        loaded_components) {
     for (const mysql_service_ref_t *service_provided :
          loaded_component->get_provided_services()) {
+      services_loaded.push_back(service_provided->name);
       const char *dot_position = strchr(service_provided->name, '.');
       if (dot_position == nullptr) {
         services_provided.insert(my_string(service_provided->name));
@@ -1122,8 +1161,33 @@ bool mysql_dynamic_loader_imp::unload_do_lock_provided_services(
     const std::map<const void *, std::vector<mysql_component *>>
         &dependency_graph,
     scheme_service_map &scheme_services) {
-  /* We do lock the whole registry, as we don't have yet any better granulation.
-   */
+  {
+    /*
+      We do this within a scope to make sure that service is released
+      before unload continues. Otherwise, a component that provides
+      dynamic_loader_services_unload_notification can never be unloaded.
+    */
+    my_service<SERVICE_TYPE(dynamic_loader_services_unload_notification)>
+        pre_unload_notification("dynamic_loader_services_unload_notification",
+                                &imp_mysql_minimal_chassis_registry);
+
+    if (pre_unload_notification.is_valid()) {
+      std::vector<const char *> services;
+      for (auto &one : components_to_unload) {
+        for (const mysql_service_ref_t *service :
+             one->get_provided_services()) {
+          services.push_back(service->name);
+        }
+      }
+
+      if (pre_unload_notification->notify(services.data(), services.size()))
+        return true;
+    }
+  }
+
+  /*
+    We do lock the whole registry, as we don't have yet any better granulation.
+  */
   minimal_chassis::rwlock_scoped_lock lock =
       mysql_registry_imp::lock_registry_for_write();
   return mysql_dynamic_loader_imp::

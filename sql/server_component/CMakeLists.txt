@@ -69,6 +69,10 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   storing_auto_thd.cc
   mysql_thd_store_imp.cc
   set_variables_helper.cc
+  mysql_thd_store_imp.cc
+  mysql_server_event_tracking_bridge_imp.cc
+  dynamic_loader_service_notification_imp.cc
+  event_tracking_information.cc
   )
 
 # This static library is used to build mysqld binary and in some unit test cases
