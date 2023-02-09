@@ -662,7 +662,7 @@ NdbRestarter::connect(){
     g_err << "handle == NULL" << endl;
     return -1;
   }
-  g_info << "Connecting to mgmsrv at " << addr.c_str() << endl;
+  g_info << "Connecting to management server at " << addr.c_str() << endl;
   if (ndb_mgm_set_connectstring(handle,addr.c_str()))
   {
     MGMERR(handle);
