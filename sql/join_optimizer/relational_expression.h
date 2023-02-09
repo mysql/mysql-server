@@ -186,9 +186,8 @@ inline bool PassesConflictRules(hypergraph::NodeMap joined_tables,
   return true;
 }
 
-// Whether (a <expr> b) === (b <expr> a). See also OperatorIsAssociative(),
-// OperatorsAreAssociative() // and OperatorsAre{Left,Right}Asscom()
-// in make_join_hypergraph.cc.
+// Whether (a <expr> b) === (b <expr> a). See also OperatorsAreAssociative() and
+// OperatorsAre{Left,Right}Asscom() in make_join_hypergraph.cc.
 inline bool OperatorIsCommutative(const RelationalExpression &expr) {
   return expr.type == RelationalExpression::INNER_JOIN ||
          expr.type == RelationalExpression::FULL_OUTER_JOIN;
