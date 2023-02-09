@@ -76,7 +76,6 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_commit",
       "router_select_rest_accounts_credentials_gr_by_uuid",
       "router_clusterset_present",
-      "router_select_router_options",
 
       // to fail account verification in some tests this is not added on
       // purpose

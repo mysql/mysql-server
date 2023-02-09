@@ -241,29 +241,26 @@ bool RouterClusterSetOptions::get_use_replica_primary_as_rw() const {
 
 bool RouterOptions::read_from_metadata(mysqlrouter::MySQLSession &session,
                                        const unsigned router_id) {
-  std::string query;
-  const bool use_options_view =
+  const bool options_view_exists =
       schema_version_ >= mysqlrouter::MetadataSchemaVersion{2, 2, 0};
 
-  if (use_options_view) {
-    query =
-        "SELECT router_options FROM "
-        "mysql_innodb_cluster_metadata.v2_router_options WHERE "
-        "router_id = " +
-        std::to_string(router_id);
-  } else {
-    query =
-        "SELECT options FROM mysql_innodb_cluster_metadata.v2_routers WHERE "
-        "router_id = " +
-        std::to_string(router_id);
+  if (!options_view_exists) {
+    options_str_ = "";
+    return true;
   }
+
+  const std::string query =
+      "SELECT router_options FROM "
+      "mysql_innodb_cluster_metadata.v2_router_options WHERE "
+      "router_id = " +
+      std::to_string(router_id);
 
   std::unique_ptr<MySQLSession::ResultRow> row(session.query_one(query));
   if (!row) {
     log_error(
-        "Error reading options from %s: did not "
+        "Error reading options from v2_router_options: did not "
         "find router entry for router_id '%u'",
-        use_options_view ? "v2_router_options" : "v2_routers", router_id);
+        router_id);
     return false;
   }
 

@@ -1375,16 +1375,6 @@ function get_response(stmt_key, options) {
                     }),
         }
       };
-    case "router_select_router_options":
-      return {
-        stmt:
-            "SELECT options FROM mysql_innodb_cluster_metadata.v2_routers WHERE router_id = " +
-            options.router_id,
-        result: {
-          columns: [{"type": "STRING", "name": "options"}],
-          rows: [[options.router_options]]
-        }
-      };
     case "router_select_router_options_view":
       return {
         stmt:

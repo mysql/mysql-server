@@ -70,7 +70,6 @@ if (mysqld.global.use_new_metadata === 1) {
         "router_select_group_membership_with_primary_mode",
         "router_check_member_state",
         "router_select_members_count",
-        "router_select_router_options",
       ],
       options);
 
@@ -93,7 +92,6 @@ if (mysqld.global.use_new_metadata === 1) {
         "router_select_group_membership_with_primary_mode",
         "router_check_member_state",
         "router_select_members_count",
-        "router_select_router_options",
       ],
       options);
 

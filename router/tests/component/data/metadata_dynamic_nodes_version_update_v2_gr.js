@@ -142,7 +142,6 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_clusterset_present",
       "router_bootstrap_target_type",
       "router_router_select_cs_options",
-      "router_select_router_options",
     ],
     options);
 
