@@ -2264,6 +2264,9 @@ class Query_block : public Query_term {
   bool transform_scalar_subqueries_to_join_with_derived(THD *thd);
   bool supported_correlated_scalar_subquery(THD *thd, Item::Css_info *subquery,
                                             Item **lifted_where);
+  bool replace_item_in_expression(Item **expr, bool was_hidden,
+                                  Item::Item_replacement *info,
+                                  Item_transformer transformer);
   bool transform_grouped_to_derived(THD *thd, bool *break_off);
   bool replace_subquery_in_expr(THD *thd, Item::Css_info *subquery,
                                 Table_ref *tr, Item **expr);

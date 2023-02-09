@@ -2369,4 +2369,20 @@ eval $query;
 eval EXPLAIN FORMAT=tree $query;
 DROP TABLE t;
 
+--echo #
+--echo # Bug#34998721 Mysqld crash - Assertion `table_num_to_node_num[table_num] != -1' failed.
+--echo #              Only seen with hypergraph optimizer enabled.
+--echo #
+CREATE TABLE t(x INT);
+SET SQL_MODE='';
+
+SELECT COUNT(*), (SELECT 1 FROM t)
+FROM t AS t1,
+     (SELECT 1 FROM t) AS t2,
+     t AS t3
+ORDER BY ROW_NUMBER() OVER (ORDER BY -t3.x);
+
+SET SQL_MODE=default;
+DROP TABLE t;
+
 SET optimizer_switch='subquery_to_derived=default';
