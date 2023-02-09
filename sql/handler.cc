@@ -1475,6 +1475,44 @@ bool is_ha_commit_low_invoking_commit_order(THD *thd, bool all) {
 }
 
 /**
+  Check if error came from SE that defers processing to commit time.
+
+  Deferred transaction processing is common in distributed SE where row changes
+  are processed in parallel during commit, this is essential for performance but
+  results in less localised error handling due to 'lazy evaluation'. Thus
+  errors will potentially show up as part of COMMIT processing (where all
+  pending work must be finalised). This is a major difference compared to local
+  SE that process row changes serially, in that scenario defined operations are
+  processed as they are defined and errors can be handled directly.
+
+  @note Deferred processing SE is detected by looking for the original NDB error
+  code which is pushed as warning before returning the MySQL error code.
+
+  @param[in]  thd The THD pointer
+
+  @retval true Error came from SE that uses deferred processing
+
+*/
+static bool error_from_deferred_processing_se(const THD *thd) {
+  Diagnostics_area::Sql_condition_iterator it =
+      thd->get_stmt_da()->sql_conditions();
+  const Sql_condition *err;
+  while ((err = it++)) {
+    const uint error = err->mysql_errno();
+    if (err->severity() == Sql_condition::SL_WARNING &&
+        (error == ER_GET_ERRMSG || error == ER_GET_TEMPORARY_ERRMSG)) {
+      // Warning indicates deferred processing engine (i.e NDB) as:
+      // 1. No other SE returns warnings using these error codes
+      // 2. NDB will always return a warning using these error codes.
+      // For a more long term solution a new ER_ code could be added similar
+      // to ER_REPLICA_SILENT_RETRY_TRANSACTION and used only for this use case.
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
   The function computes condition to call gtid persistor wrapper,
   and executes it.
   It is invoked at committing a statement or transaction, including XA,
@@ -1904,7 +1942,12 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
             no-op for threads other than replication applier threads.
     */
     if (is_applier_wait_enabled) {
-      Commit_order_manager::wait_and_finish(thd, error);
+      if (error != 0 && error_from_deferred_processing_se(thd)) {
+        // Don't schedule next applier thread directly, the error need to be
+        // compared against expected result first.
+      } else {
+        Commit_order_manager::wait_and_finish(thd, error);
+      }
     }
   }
 

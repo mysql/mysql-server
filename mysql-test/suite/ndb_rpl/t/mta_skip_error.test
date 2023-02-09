@@ -1,0 +1,63 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+create table t1 (
+  a int not null,
+  b int,
+  c int,
+  unique(c)
+) engine=NDB;
+
+insert into t1 values(1000, 1000, 1000);
+insert into t1 values(999, 999, 999);
+insert into t1 values(998, 998, 998);
+insert into t1 values(997, 997, 997);
+
+--source include/sync_slave_sql_with_master.inc
+select count(*) from t1;
+
+# Supress warnings from ndbcluster epoch sequence checking
+call mtr.add_suppression(".*NDB Replica: SQL thread attempting to apply new epoch.*while lower received epoch.*has not been committed.*");
+
+--echo # Add rows on replica, used for causing uniqueness violation
+insert into t1 values (2001,2001,1001);
+insert into t1 values (2002,2002,1002);
+insert into t1 values (2003,2003,1003);
+
+--echo # Replica is configured to skip unique key violation error
+SELECT @@GLOBAL.replica_skip_errors;
+
+--echo # Configure the ndbcluster plugin to not verify epoch sequence
+set global ndb_applier_allow_skip_epoch = 1;
+
+--source include/rpl_connection_master.inc
+--echo # Cause a conflict
+insert into t1 values (1002,1002,1002); # Will conflict on c=1002
+
+--echo # Show the binlog events that will cause error. All the Write_rows events
+--echo # will be batched and not send to NDB until the final Query_log_event
+--echo # containing the COMMIT, that's when the error should be skipped
+--let $binlog_limit= 10, 7
+--source include/show_binlog_events.inc
+
+--echo # Sync with master, will succeed
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Show that row change was skipped on replica
+select * from t1 where a=1002;
+
+--echo # Show that subsequent changes are replicated
+--source include/rpl_connection_master.inc
+insert into t1 values (3001,3001,3001);
+
+--source include/sync_slave_sql_with_master.inc
+select * from t1 where a=3001;
+
+set global ndb_applier_allow_skip_epoch=0;
+
+--source include/rpl_connection_master.inc
+drop table t1;
+
+# Cleanup Replication
+--source include/rpl_end.inc
