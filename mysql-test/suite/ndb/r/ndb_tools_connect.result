@@ -76,7 +76,10 @@ Unable to connect to management server.
  - Error: '1011: Could not connect to socket: Unable to connect with connect string: nodeid=0,no_such_host:1186'
 
 Testing ndb_waiter
-Connecting to mgmsrv at no_such_host
+Connecting to management server at nodeid=0,localhost:<MGMD-PORT>
+Node 1: STARTED
+Node 2: STARTED
+Connecting to management server at nodeid=0,no_such_host:1186
 Unable to connect with connect string: nodeid=0,no_such_host:1186
 Retrying every 1 seconds. Attempts left: 2 1, failed.
 latest_error=1011, line=no_such_host
