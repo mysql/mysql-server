@@ -708,6 +708,7 @@ void Item_func::split_sum_func(THD *thd, Ref_item_array ref_item_array,
 void Item_func::update_used_tables() {
   used_tables_cache = get_initial_pseudo_tables();
   not_null_tables_cache = 0;
+  m_accum_properties = 0;
 
   for (uint i = 0; i < arg_count; i++) {
     args[i]->update_used_tables();
