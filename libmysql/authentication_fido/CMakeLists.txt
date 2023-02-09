@@ -39,8 +39,6 @@ ENDIF()
 
 INCLUDE(CheckIncludeFiles)
 
-MY_INCLUDE_SYSTEM_DIRECTORIES(FIDO)
-
 DISABLE_MISSING_PROFILE_WARNING()
 
 MYSQL_ADD_PLUGIN(authentication_fido_client
@@ -48,7 +46,7 @@ MYSQL_ADD_PLUGIN(authentication_fido_client
   fido_assertion.cc
   fido_client_plugin.cc
   LINK_LIBRARIES
-  ${FIDO_LIBRARY}
+  ext::fido
   CLIENT_ONLY
   MODULE_ONLY
   MODULE_OUTPUT_NAME "authentication_fido_client")
