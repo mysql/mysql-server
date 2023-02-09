@@ -975,4 +975,21 @@ Note	1276	Field or reference 'test.alias1.b' of SELECT #3 was resolved in SELECT
 Note	1276	Field or reference 'test.alias1.b' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`alias1`.`b` AS `b` from `test`.`t1` `alias1` where (0 <> (/* select#2 */ select count(`test`.`t1`.`b`) from `test`.`t1` where (exists(/* select#3 */ select sum(`test`.`t1`.`b`) from `test`.`t1` where (0 <> `test`.`alias1`.`b`)) and (0 <> `test`.`alias1`.`b`))))
 DROP TABLE t1;
+#
+# Bug#34973220 Correlated scalar subquery transf. to derived table: wrong
+#              result dup predicate
+#
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+INSERT INTO t1 VALUES(1), (2), (3), (4);
+INSERT INTO t2 VALUES(1), (2);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT * FROM t1 WHERE (SELECT t2.a FROM t2 WHERE t2.a = t1.a AND t2.a = t1.a);
+a
+1
+2
+DROP TABLE t1, t2;
 SET optimizer_switch = 'subquery_to_derived=default';
