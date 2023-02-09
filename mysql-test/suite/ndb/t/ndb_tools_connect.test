@@ -63,6 +63,8 @@ drop table t1;
 --exec $NDB_SHOW_TABLES --ndb-connectstring=no_such_host --connect-retry-delay=1 --connect-retries=3
 --echo
 --echo Testing ndb_waiter
+--replace_regex /localhost:[0-9]*/localhost:<MGMD-PORT>/
+--exec $NDB_WAITER
 --replace_regex /line.*/line=no_such_host/
 --error 1
 --exec $NDB_WAITER --ndb-connectstring=no_such_host --connect-retry-delay=1 --connect-retries=3
