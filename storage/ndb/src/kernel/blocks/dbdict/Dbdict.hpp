@@ -33,6 +33,7 @@
 #include <trigger_definitions.h>
 #include <pc.hpp>
 #include <ArenaPool.hpp>
+#include "CountingPool.hpp"
 #include <DataBuffer.hpp>
 #include <DLHashTable.hpp>
 #include <IntrusiveList.hpp>
@@ -4358,7 +4359,7 @@ private:
   };
 
   typedef Ptr<ForeignKeyRec> ForeignKeyRecPtr;
-  typedef RecordPool<RWPool<ForeignKeyRec> > ForeignKeyRec_pool;
+  typedef CountingPool<RecordPool<RWPool<ForeignKeyRec>>> ForeignKeyRec_pool;
 
   ForeignKeyRec_pool c_fk_pool;
 

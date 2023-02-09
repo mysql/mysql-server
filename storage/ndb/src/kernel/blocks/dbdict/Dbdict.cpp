@@ -408,6 +408,13 @@ void Dbdict::execDBINFO_SCANREQ(Signal *signal)
         c_attributeRecordPool.getUsedHi(),
         { CFG_DB_NO_ATTRIBUTES,0,0,0 },
         0},
+      { "Foreign Key Record",
+        c_fk_pool.getUsed(),
+        c_fk_pool.getSize(),
+        c_fk_pool.getEntrySize(),
+        c_fk_pool.getUsedHi(),
+        { 0,0,0,0 },
+        RT_DBDICT_FILE},
       { "Table Record",
         c_tableRecordPool_.getUsed(),
         c_noOfMetaTables,
@@ -27568,6 +27575,7 @@ Dbdict::createFK_abortParse(Signal* signal, SchemaOpPtr op_ptr)
     ndbrequire(find_object(fk_ptr, impl_req->fkId));
 
     release_object(fk_ptr.p->m_obj_ptr_i);
+    c_fk_pool.release(fk_ptr);
   }
 
   sendTransConf(signal, op_ptr);
@@ -28860,6 +28868,7 @@ Dbdict::dropFK_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
     ndbrequire(find_object(fk_ptr, impl_req->fkId));
 
     release_object(fk_ptr.p->m_obj_ptr_i);
+    c_fk_pool.release(fk_ptr);
 
     sendTransConf(signal, op_ptr);
   } else {
