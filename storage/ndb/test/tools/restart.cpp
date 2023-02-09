@@ -51,8 +51,8 @@ int main(int argc, const char** argv){
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
   char desc[] = 
-    "hostname:port\n"\
-    "This program will connect to the mgmsrv of a NDB cluster\n"\
+    "hostname:port\n"
+    "This program will connect to the management server of an NDB cluster\n"
     " and restart the cluster. \n";
 
   if(getarg(args, num_args, argc, argv, &optind) || _help) {
