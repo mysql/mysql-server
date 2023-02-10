@@ -50,6 +50,7 @@ class QueryRestSPMedia : private QueryLog {
                              const uint32_t offset);
 
   std::string response;
+  uint64_t items;
 
  private:
   void on_row(const Query::Row &r) override;

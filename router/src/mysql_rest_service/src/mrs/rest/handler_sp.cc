@@ -38,6 +38,7 @@
 #include "mrs/database/query_rest_sp_media.h"
 #include "mrs/http/url.h"
 #include "mrs/rest/request_context.h"
+#include "mrs/router_observation_entities.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -168,6 +169,8 @@ HttpResult HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
                    route_->get_user_row_ownership().user_ownership_column,
                    result.c_str(), variables);
 
+  Counter<kEntityCounterRestReturnedItems>::increment(db.items);
+  Counter<kEntityCounterRestAffectedItems>::increment(session->affected_rows());
   return {std::move(db.response)};
 }
 
@@ -243,6 +246,10 @@ HttpResult HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
                      route_->get_user_row_ownership().user_ownership_column,
                      result.c_str(), variables);
 
+    Counter<kEntityCounterRestReturnedItems>::increment(db.items);
+    Counter<kEntityCounterRestAffectedItems>::increment(
+        session->affected_rows());
+
     return {std::move(db.response)};
   }
 
@@ -250,6 +257,9 @@ HttpResult HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
 
   db.query_entries(session.get(), route_->get_schema_name(),
                    route_->get_object_name(), result.c_str());
+
+  Counter<kEntityCounterRestReturnedItems>::increment(db.items);
+  Counter<kEntityCounterRestAffectedItems>::increment(session->affected_rows());
 
   auto media_type = route_->get_media_type();
 

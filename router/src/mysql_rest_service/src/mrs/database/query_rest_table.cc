@@ -67,6 +67,7 @@ void QueryRestTable::query_entries(
     const std::vector<RowGroupOwnership> &row_groups,
     const std::set<UniversalId> &user_groups, const std::string &q) {
   if (columns.empty()) throw std::invalid_argument("Empty column list.");
+  items = 0;
   build_query(columns, schema, object, offset, limit + 1, url_route, primary,
               row_user, user_id, row_groups, user_groups, q);
 
@@ -83,6 +84,7 @@ void QueryRestTable::on_metadata(unsigned number, MYSQL_FIELD *fields) {
 
 void QueryRestTable::on_row(const Row &r) {
   serializer_.push_json_document(r[0]);
+  ++items;
 }
 
 const mysqlrouter::sqlstring &QueryRestTable::build_where(

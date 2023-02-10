@@ -37,6 +37,7 @@
 #include "mrs/http/error.h"
 #include "mrs/interface/object.h"
 #include "mrs/rest/request_context.h"
+#include "mrs/router_observation_entities.h"
 
 #include "collector/mysql_cache_manager.h"
 #include "helper/container/generic.h"
@@ -255,6 +256,26 @@ class RestRequestHandler : public BaseRequestHandler {
     auto options = rest_handler_->get_options();
     auto &ih = ctxt.request->get_input_headers();
     auto &oh = ctxt.request->get_output_headers();
+
+    switch (ctxt.request->get_method()) {
+      case HttpMethod::Options:
+        Counter<kEntityCounterHttpRequestOptions>::increment();
+        break;
+      case HttpMethod::Get:
+        Counter<kEntityCounterHttpRequestGet>::increment();
+        break;
+      case HttpMethod::Post:
+        Counter<kEntityCounterHttpRequestPost>::increment();
+        break;
+      case HttpMethod::Put:
+        Counter<kEntityCounterHttpRequestPut>::increment();
+        break;
+      case HttpMethod::Delete:
+        Counter<kEntityCounterHttpRequestDelete>::increment();
+        break;
+      default:
+        break;
+    }
 
     trace_http("Request", options.debug.http.request, method, ih,
                ctxt.request->get_input_buffer());
@@ -608,9 +629,11 @@ class ParseOptions
       result_.debug.http.response.body_ = to_bool(vt);
     } else if (key == "returnInternalErrorDetails") {
       result_.debug.http.response.detailed_errors_ = to_bool(vt);
-    } else if (key == "http.allowedOrigin" &&
-               mysql_harness::make_lower(cvt::to_string(vt)) == "auto") {
-      result_.allowed_origins.type = Result::AllowedOrigins::AllowAll;
+    } else if (key == "http.allowedOrigin") {
+      if (mysql_harness::make_lower(cvt::to_string(vt)) == "auto")
+        result_.allowed_origins.type = Result::AllowedOrigins::AllowAll;
+      else
+        result_.allowed_origins.allowed_origins.push_back(cvt::to_string(vt));
     }
   }
 

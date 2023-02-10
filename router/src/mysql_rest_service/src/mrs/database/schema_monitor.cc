@@ -33,6 +33,7 @@
 #include "mrs/database/query_entries_auth_app.h"
 #include "mrs/database/query_entries_content_file.h"
 #include "mrs/database/query_entries_db_object.h"
+#include "mrs/database/query_statistics.h"
 
 #include "router_config.h"
 #include "socket_operations.h"
@@ -42,14 +43,16 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace database {
 
-SchemaMonitor::SchemaMonitor(const mrs::Configuration &configuration,
-                             collector::MysqlCacheManager *cache,
-                             mrs::ObjectManager *dbobject_manager,
-                             authentication::AuthorizeManager *auth_manager)
+SchemaMonitor::SchemaMonitor(
+    const mrs::Configuration &configuration,
+    collector::MysqlCacheManager *cache, mrs::ObjectManager *dbobject_manager,
+    authentication::AuthorizeManager *auth_manager,
+    mrs::observability::EntitiesManager *entities_manager)
     : configuration_{configuration},
       cache_{cache},
       dbobject_manager_{dbobject_manager},
-      auth_manager_{auth_manager} {}
+      auth_manager_{auth_manager},
+      entities_manager_{entities_manager} {}
 
 SchemaMonitor::~SchemaMonitor() { stop(); }
 
@@ -129,6 +132,15 @@ void SchemaMonitor::run() {
                << MYSQL_ROUTER_VERSION << MYSQL_ROUTER_VERSION;
         session->execute(update.str());
       }
+
+      if (configuration_.router_id_.has_value()) {
+        QueryStatistics store_stats;
+        store_stats.update_statistics(
+            session.get(), configuration_.router_id_.value(),
+            configuration_.metadata_refresh_interval_.count(),
+            entities_manager_->fetch_counters());
+      }
+
       // TODO(lkotula): Set dirty/clean should be used before START_TRANSACTION
       // and COMMIT (Shouldn't be in review)
       session.set_clean();

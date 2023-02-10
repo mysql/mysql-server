@@ -100,6 +100,7 @@ class CacheManager {
 
   class Callbacks {
    public:
+    using Object = CacheManager::Object;
     virtual ~Callbacks() = default;
 
     virtual bool object_before_cache(Object) = 0;

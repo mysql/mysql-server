@@ -43,6 +43,7 @@
 #include "mrs/database/query_rest_table_single_row.h"
 #include "mrs/http/url.h"
 #include "mrs/rest/request_context.h"
+#include "mrs/router_observation_entities.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -309,6 +310,8 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
           route_->get_group_row_ownership(), ctxt->user.groups,
           uri_param.get_query_parameter("q"));
 
+      Counter<kEntityCounterRestReturnedItems>::increment(rest.items);
+
       return std::move(rest.response);
     }
 
@@ -322,6 +325,7 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
 
     helper::MediaDetector md;
     auto detected_type = md.detect(rest.response);
+    Counter<kEntityCounterRestReturnedItems>::increment(rest.items);
 
     return {std::move(rest.response), detected_type};
   }
@@ -335,6 +339,7 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
                          route_->get_rest_url());
 
       if (rest.response.empty()) throw http::Error(HttpStatusCode::NotFound);
+      Counter<kEntityCounterRestReturnedItems>::increment(rest.items);
 
       return std::move(rest.response);
     }
@@ -438,6 +443,7 @@ HttpResult HandlerObject::handle_post(
   insert.execute_insert(session.get(), route_->get_schema_name(),
                         route_->get_object_name(), keys_iterators,
                         values_iterators);
+  Counter<kEntityCounterRestAffectedItems>::increment();
 
   if (!route_->get_cached_primary().name.empty()) {
     database::QueryRestTableSingleRow fetch_one;
@@ -446,6 +452,7 @@ HttpResult HandlerObject::handle_post(
                             route_->get_object_name(),
                             route_->get_cached_primary().name, pk_value,
                             route_->get_rest_url());
+    Counter<kEntityCounterRestReturnedItems>::increment(fetch_one.items);
 
     return std::move(fetch_one.response);
   }
@@ -571,6 +578,7 @@ HttpResult HandlerObject::handle_put([
                           route_->get_object_name(), keys_iterators,
                           values_iterators);
   }
+  Counter<kEntityCounterRestAffectedItems>::increment(insert.affected);
 
   // The ID of the JSON object was modified, fetch by new ID.
   if (json_obj.HasMember(pk.c_str())) {
@@ -591,6 +599,7 @@ HttpResult HandlerObject::handle_put([
                             route_->get_object_name(), pk, pk_value,
                             route_->get_rest_url());
 
+    Counter<kEntityCounterRestAffectedItems>::increment(fetch_one.items);
     return std::move(fetch_one.response);
   }
 

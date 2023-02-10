@@ -31,6 +31,7 @@ void QueryRestSP::query_entries(
     MySQLSession *session, const std::string &schema, const std::string &object,
     const std::string &url, const std::string &ignore_column,
     const mysqlrouter::sqlstring &values, std::vector<enum_field_types> pt) {
+  items = 0;
   ignore_column_ = ignore_column.c_str();
   query_ = {"CALL !.!(!)"};
   query_ << schema << object << values;
@@ -47,6 +48,7 @@ void QueryRestSP::query_entries(
 
 void QueryRestSP::on_row(const mrs::database::Query::Row &r) {
   response_template.push_json_document(r, columns_, ignore_column_);
+  ++items;
 }
 
 void QueryRestSP::on_metadata(unsigned int number, MYSQL_FIELD *fields) {

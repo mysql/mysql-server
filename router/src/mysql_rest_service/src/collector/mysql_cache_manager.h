@@ -30,7 +30,7 @@
 #include "collector/cache_manager.h"
 #include "mrs/configuration.h"
 
-#include "mysqlrouter/mysql_session.h"
+#include "collector/counted_mysql_session.h"
 
 namespace collector {
 
@@ -64,8 +64,8 @@ class ConnectionConfiguration {
 class MysqlCacheManager {
  public:
   using ConnectionParameters = mysqlrouter::MySQLSession::ConnectionParameters;
-  using MySQLSession = mysqlrouter::MySQLSession;
-  using MySqlCacheManager = CacheManager<::mysqlrouter::MySQLSession *>;
+  using MySQLSession = CountedMySQLSession;
+  using MySqlCacheManager = CacheManager<CountedMySQLSession *>;
   using CachedObject = MySqlCacheManager::CachedObject;
   using Callbacks = MySqlCacheManager::Callbacks;
   using Object = MySqlCacheManager::Object;
