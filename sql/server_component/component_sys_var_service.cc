@@ -123,7 +123,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
   try {
     struct sys_var_chain chain = {nullptr, nullptr};
     sys_var *sysvar [[maybe_unused]];
-    char *com_sys_var_name, *optname;
+    char *com_sys_var_name, *optname, *com_sys_var_name_copy;
     int com_sys_var_len;
     SYS_VAR *opt = nullptr;
     my_option *opts = nullptr;
@@ -163,6 +163,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     opts->arg_source = opts_arg_source;
     opts->arg_source->m_path_name[0] = 0;
     opts->arg_source->m_source = enum_variable_source::COMPILED;
+    std::unique_ptr<SYS_VAR, decltype(&my_free)> unique_opt(nullptr, &my_free);
 
     switch (flags & PLUGIN_VAR_WITH_SIGN_TYPEMASK) {
       case PLUGIN_VAR_BOOL:
@@ -298,6 +299,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
                component_name);
         goto end;
     }
+    unique_opt.reset(opt);
 
     plugin_opt_set_limits(opts, opt);
     opts->value = opts->u_max_value = *(uchar ***)(opt + 1);
@@ -379,14 +381,20 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
       }
     }
 
-    sysvar = reinterpret_cast<sys_var *>(new sys_var_pluginvar(
-        &chain, my_strdup(key_memory_comp_sys_var, com_sys_var_name, MYF(0)),
-        opt));
+    com_sys_var_name_copy =
+        my_strdup(key_memory_comp_sys_var, com_sys_var_name, MYF(0));
+    if (com_sys_var_name_copy == nullptr) {
+      LogErr(ERROR_LEVEL, ER_SYS_VAR_COMPONENT_OOM, var_name);
+      goto end;
+    }
+    sysvar = reinterpret_cast<sys_var *>(
+        new sys_var_pluginvar(&chain, com_sys_var_name_copy, opt));
 
     if (sysvar == nullptr) {
       LogErr(ERROR_LEVEL, ER_SYS_VAR_COMPONENT_OOM, var_name);
       goto end;
-    }
+    } else
+      unique_opt.release();
 
     sysvar->set_arg_source(opts->arg_source);
     sysvar->set_is_plugin(false);

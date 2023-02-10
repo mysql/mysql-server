@@ -846,10 +846,8 @@ bool mysql_dynamic_loader_imp::load_do_resolve_dependencies(
   /* List of services acquired for component dependencies. */
   std::vector<my_h_service *> acquired_services;
   auto guard = create_scope_guard([&acquired_services]() {
-    for (my_h_service *service_storage : acquired_services) {
+    for (my_h_service *service_storage : acquired_services)
       mysql_registry_imp::release(*service_storage);
-      *service_storage = nullptr;
-    }
   });
 
   /* Acquire services to meet component dependencies. */
