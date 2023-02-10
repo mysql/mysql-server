@@ -259,13 +259,6 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   try {
     RoutingPluginConfig config(section);
 
-    // connect_timeout is in seconds, we want milli's
-    //
-    std::chrono::milliseconds destination_connect_timeout(
-        config.connect_timeout * 1000);
-    std::chrono::milliseconds client_connect_timeout(
-        config.client_connect_timeout * 1000);
-
     // client side TlsContext.
     TlsServerContext source_tls_ctx;
 
@@ -437,17 +430,10 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
     net::io_context &io_ctx = IoComponent::get_instance().io_context();
     auto r = std::make_shared<MySQLRouting>(
-        io_ctx, config.routing_strategy, config.bind_address.port(),
-        config.protocol, config.mode, config.bind_address.address(),
-        config.named_socket, name, config.max_connections,
-        destination_connect_timeout, config.max_connect_errors,
-        client_connect_timeout, config.net_buffer_length,
-        config.source_ssl_mode,
+        config, io_ctx, name,
         config.source_ssl_mode != SslMode::kDisabled ? &source_tls_ctx
                                                      : nullptr,
-        config.dest_ssl_mode,
-        config.dest_ssl_mode != SslMode::kDisabled ? &dest_tls_ctx : nullptr,
-        config.connection_sharing, config.connection_sharing_delay);
+        config.dest_ssl_mode != SslMode::kDisabled ? &dest_tls_ctx : nullptr);
 
     try {
       // don't allow rootless URIs as we did already in the
