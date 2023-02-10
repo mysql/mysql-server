@@ -3959,6 +3959,17 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
         cond_equal->current_level.push_back(item_equal);
       }
       if (item_equal) {
+        if (const_item && item_equal->const_arg()) {
+          /* Make sure that the existing const and new one are of comparable
+          collation*/
+          DTCollation cmp_collation;
+          if (cmp_collation.set(const_item->collation,
+                                item_equal->const_arg()->collation,
+                                MY_COLL_CMP_CONV) ||
+              cmp_collation.derivation == DERIVATION_NONE) {
+            return false;
+          }
+        }
         /*
           The flag cond_false will be set to 1 after this, if item_equal
           already contains a constant and its value is  not equal to
