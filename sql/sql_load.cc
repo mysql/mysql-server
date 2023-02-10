@@ -285,9 +285,10 @@ bool Sql_cmd_load_table::execute_bulk(THD *thd) {
   }
 
   char ok_message[512];
-  snprintf(ok_message, sizeof(ok_message), ER_THD(thd, ER_LOAD_INFO),
-           (long long)affected_rows, 0LL, 0LL,
-           (long)thd->get_stmt_da()->current_statement_cond_count());
+  snprintf(
+      ok_message, sizeof(ok_message), ER_THD(thd, ER_LOAD_INFO),
+      static_cast<long>(affected_rows), 0L, 0L,
+      static_cast<long>(thd->get_stmt_da()->current_statement_cond_count()));
 
   my_ok(thd, affected_rows, 0LL, ok_message);
   return false;

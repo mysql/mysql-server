@@ -683,7 +683,7 @@ void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
   DBUG_PRINT("enter", ("warning: %u", code));
 
   assert(code != 0);
-  if (format == nullptr) format = ER_THD(thd, code);
+  if (format == nullptr) format = ER_THD_NONCONST(thd, code);
 
   va_start(args, format);
   vsnprintf(warning, sizeof(warning), format, args);
@@ -1091,7 +1091,7 @@ void check_deprecated_datetime_format(THD *thd, const CHARSET_INFO *cs,
           sys_cs, warn_buff, sizeof(warn_buff),
           ER_THD(thd, ER_WARN_DEPRECATED_DATETIME_DELIMITER), delim,
           status.m_deprecation.m_position, argument.ptr(),
-          thd->get_stmt_da()->current_row_for_condition(),
+          static_cast<int>(thd->get_stmt_da()->current_row_for_condition()),
           status.m_deprecation.m_kind ==
                   MYSQL_TIME_STATUS::DEPRECATION::DP_WRONG_SPACE
               ? ' '
@@ -1104,7 +1104,7 @@ void check_deprecated_datetime_format(THD *thd, const CHARSET_INFO *cs,
           sys_cs, warn_buff, sizeof(warn_buff),
           ER_THD(thd, ER_WARN_DEPRECATED_SUPERFLUOUS_DELIMITER), delim,
           status.m_deprecation.m_position, argument.ptr(),
-          thd->get_stmt_da()->current_row_for_condition());
+          static_cast<int>(thd->get_stmt_da()->current_row_for_condition()));
       push_warning(thd, Sql_condition::SL_WARNING,
                    ER_WARN_DEPRECATED_SUPERFLUOUS_DELIMITER, warn_buff);
       break;

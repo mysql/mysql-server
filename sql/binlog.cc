@@ -9155,12 +9155,12 @@ void MYSQL_BIN_LOG::report_missing_purged_gtids(
   String tmp_uuid;
 
   /* Protects thd->user_vars. */
-  mysql_mutex_lock(&current_thd->LOCK_thd_data);
-  const auto it = current_thd->user_vars.find("replica_uuid");
-  if (it != current_thd->user_vars.end() && it->second->length() > 0) {
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  const auto it = thd->user_vars.find("replica_uuid");
+  if (it != thd->user_vars.end() && it->second->length() > 0) {
     tmp_uuid.copy(it->second->ptr(), it->second->length(), nullptr);
   }
-  mysql_mutex_unlock(&current_thd->LOCK_thd_data);
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   char *missing_gtids = nullptr;
   char *slave_executed_gtids = nullptr;
@@ -9224,12 +9224,12 @@ void MYSQL_BIN_LOG::report_missing_gtids(
   String tmp_uuid;
 
   /* Protects thd->user_vars. */
-  mysql_mutex_lock(&current_thd->LOCK_thd_data);
-  const auto it = current_thd->user_vars.find("replica_uuid");
-  if (it != current_thd->user_vars.end() && it->second->length() > 0) {
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  const auto it = thd->user_vars.find("replica_uuid");
+  if (it != thd->user_vars.end() && it->second->length() > 0) {
     tmp_uuid.copy(it->second->ptr(), it->second->length(), nullptr);
   }
-  mysql_mutex_unlock(&current_thd->LOCK_thd_data);
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   /*
      Log the information about the missing purged GTIDs to the error log.
