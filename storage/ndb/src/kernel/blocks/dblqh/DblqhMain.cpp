@@ -19792,6 +19792,14 @@ void Dblqh::nextScanConfCopyLab(Signal* signal,
     // If accOperationPtr == RNIL no record was returned by ACC
     if (nextScanConf->accOperationPtr == RNIL) {
       jam();
+      if (unlikely(scanptr.p->scanCompletedStatus == ZTRUE))
+      {
+        jam();
+        /* Copy is being abandoned, shut it down */
+        closeCopyLab(signal, tcConnectptr.p);
+        return;
+      }
+
       scanptr.p->scan_lastSeen = __LINE__;
       signal->theData[0] = scanptr.i;
       signal->theData[1] = GSN_ACC_CHECK_SCAN;
