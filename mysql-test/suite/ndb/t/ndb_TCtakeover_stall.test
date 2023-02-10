@@ -1,0 +1,144 @@
+--source include/have_ndb.inc
+--source include/have_ndb_debug.inc
+
+--echo A client holding a row lock can cause node restart
+--echo (CopyFrag) to stall until the row lock is released.
+--echo
+--echo Check that a stalled CopyFrag does not lead to
+--echo TC takeover stall by :
+--echo   - Restarting a node
+--echo   - Stalling CopyFrag due to a rowlock
+--echo   - Causing starting node failure
+--echo   - Checking that TC takeover completes
+--echo     (As transactions can be committed in
+--echo      different epochs)
+
+create table t1(id int primary key, val int) engine=ndb;
+
+--disable_query_log
+let $i = 0;
+while($i < 10)
+{
+  eval insert into t1 values ($i, $i);
+  inc $i;
+}
+--enable_query_log
+
+select count(*) from t1;
+
+# Restart one data node with -n (nowait)
+# and ensure it stopped
+--exec $NDB_MGM -e "2 restart -n" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --nowait-nodes=1 --not-started > $NDB_TOOLS_OUTPUT
+
+connect (conn1,localhost,root,,);
+--connection conn1
+
+# Begin a transaction, and let it take an exclusive lock on a row
+begin;
+  select * from t1 where id = 1 for update;
+
+--connection default
+
+# See TC node. For a 2 data node cluster, it will be on the alive node
+select tc_node_id from ndbinfo.cluster_operations;
+
+# See the transaction state and the lock
+select ndbinfo.cluster_transactions.state,
+  ndbinfo.cluster_operations.operation_type, ndbinfo.cluster_operations.state,
+  ndbinfo.cluster_locks.mode
+from ndbinfo.cluster_transactions, ndbinfo.cluster_operations,
+  ndbinfo.cluster_locks
+where
+  ndbinfo.cluster_transactions.transid = ndbinfo.cluster_locks.transid and
+  ndbinfo.cluster_locks.transid = ndbinfo.cluster_operations.transid;
+
+--echo Starting the nowait node
+--echo Eventually it will be waiting for the lock above
+--exec $NDB_MGM -e "2 start" >> $NDB_TOOLS_OUTPUT
+
+let $wait=30;
+while ($wait)
+{
+  # TODO : Could theoretically wait for 2 row locks claims on
+  # the same rowid to wait for 'stalled CopyFrag'
+  --sleep 1
+  #select * from ndbinfo.cluster_locks;
+  dec $wait;
+}
+
+--echo Kill the starting node
+--echo This will result in TC takeover
+--exec $NDB_MGM -e "2 ERROR 9999" >> $NDB_TOOLS_OUTPUT
+
+--echo Sleeping 10 s for node failure to be detected
+--echo and handling to start [and finish]
+let $wait=10;
+while ($wait)
+{
+  --sleep 1
+  # select * from ndbinfo.cluster_locks;
+  dec $wait;
+}
+
+# Check that we can commit changes into different epochs
+# - implies no GCP stall
+# If TC takeover were stalled then GCP would stall and
+# commits would all have the same epoch.
+#
+
+--disable_query_log
+--disable_result_log
+
+let $first_epoch = 0;
+let $i = 0;
+while($i < 10)
+{
+  eval insert into t1 values ($i+10, $i+10);
+  inc $i;
+
+  select Variable_value into @epoch
+    from performance_schema.global_status
+   where Variable_name like 'Ndb_last_commit_epoch_session';
+
+  if ($first_epoch != 0)
+  {
+    let $latest_epoch=query_get_value(select @epoch as e, e, 1);
+    if ($latest_epoch != $first_epoch)
+    {
+      # Break out
+      let $i = 10;
+    }
+  }
+  if ($first_epoch == 0)
+  {
+    # Initial value
+    let $first_epoch=query_get_value(select @epoch as e, e, 1);
+  }
+
+  --sleep 1
+}
+
+--enable_result_log
+--enable_query_log
+
+if ($first_epoch != $latest_epoch)
+{
+  --echo Test succeeded, no GCP stall
+}
+
+--echo Release lock to allow data node start to succeed
+--connection conn1
+rollback;
+
+--connection default
+
+--echo Wait for all data nodes to start
+--exec $NDB_WAITER > $NDB_TOOLS_OUTPUT
+
+--echo Started ok
+
+drop table t1;
+
+--remove_file $NDB_TOOLS_OUTPUT
+

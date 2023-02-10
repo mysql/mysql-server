@@ -1,0 +1,44 @@
+A client holding a row lock can cause node restart
+(CopyFrag) to stall until the row lock is released.
+
+Check that a stalled CopyFrag does not lead to
+TC takeover stall by :
+- Restarting a node
+- Stalling CopyFrag due to a rowlock
+- Causing starting node failure
+- Checking that TC takeover completes
+(As transactions can be committed in
+different epochs)
+create table t1(id int primary key, val int) engine=ndb;
+select count(*) from t1;
+count(*)
+10
+begin;
+select * from t1 where id = 1 for update;
+id	val
+1	1
+select tc_node_id from ndbinfo.cluster_operations;
+tc_node_id
+1
+select ndbinfo.cluster_transactions.state,
+ndbinfo.cluster_operations.operation_type, ndbinfo.cluster_operations.state,
+ndbinfo.cluster_locks.mode
+from ndbinfo.cluster_transactions, ndbinfo.cluster_operations,
+ndbinfo.cluster_locks
+where
+ndbinfo.cluster_transactions.transid = ndbinfo.cluster_locks.transid and
+ndbinfo.cluster_locks.transid = ndbinfo.cluster_operations.transid;
+state	operation_type	state	mode
+Started	READ-EX	Prepared	X
+Starting the nowait node
+Eventually it will be waiting for the lock above
+Kill the starting node
+This will result in TC takeover
+Sleeping 10 s for node failure to be detected
+and handling to start [and finish]
+Test succeeded, no GCP stall
+Release lock to allow data node start to succeed
+rollback;
+Wait for all data nodes to start
+Started ok
+drop table t1;
