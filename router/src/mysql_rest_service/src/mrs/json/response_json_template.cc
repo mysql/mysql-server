@@ -29,6 +29,20 @@
 namespace mrs {
 namespace json {
 
+namespace {
+std::string fix_href(std::string url) {
+  // quick hack to ensure that if the URL host is not in the URL, then the
+  // href includes the path suffix only instead of an invalid URL with no
+  // address
+  if (url.compare(0, strlen("https:///"), "https:///") == 0) {
+    url = url.substr(strlen("https://"));
+  } else if (url.compare(0, strlen("http:///"), "http:///") == 0) {
+    url = url.substr(strlen("http://"));
+  }
+  return url;
+}
+}  // namespace
+
 std::string ResponseJsonTemplate::get_result() {
   return serializer_.get_result();
 }
@@ -39,7 +53,7 @@ void ResponseJsonTemplate::begin(const std::string &url) {
   offset_ = 0;
   limit_ = std::numeric_limits<decltype(limit_)>::max();
   is_default_limit_ = true;
-  url_ = url;
+  url_ = fix_href(url);
 
   // Start serialization, initialize internal state
   began_ = true;
@@ -57,7 +71,7 @@ void ResponseJsonTemplate::begin(uint32_t offset, uint32_t limit,
   offset_ = offset;
   limit_ = limit;
   is_default_limit_ = is_default_limit;
-  url_ = url;
+  url_ = fix_href(url);
 
   // Start serialization, initialize internal state
   began_ = true;
