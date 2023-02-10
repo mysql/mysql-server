@@ -3349,9 +3349,9 @@ void ConfigGenerator::create_start_script(
       mysql_harness::Path(mysqlrouter::find_full_executable_path(program_name))
           .dirname()
           .str();
-  program_path += mysql_harness::Path::directory_separator + "mysqlrouter.exe"
+  program_path += mysql_harness::Path::directory_separator + "mysqlrouter.exe";
 
-                  UNREFERENCED_PARAMETER(interactive_master_key);
+  UNREFERENCED_PARAMETER(interactive_master_key);
   UNREFERENCED_PARAMETER(options);
 
   std::ofstream script;
