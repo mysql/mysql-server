@@ -41,6 +41,8 @@ SHOW WARNINGS;
 # Validate temporary table exists
 SELECT COUNT(*) FROM t1;
 
+DROP TABLE t1;
+
 --echo # Try to create a table name that has the form of an FTS auxilliary table name.
 --error ER_WRONG_TABLE_NAME
 CREATE TABLE fts_0000000000000424_config (id int);
@@ -48,3 +50,24 @@ SHOW WARNINGS;
 
 # Reset STRICT mode to default
 SET innodb_strict_mode = default;
+
+--echo #
+--echo # Bug#27724600 CONTRIBUTION BY FACEBOOK: PERIODIC FSYNC OF NEW INNODB
+--echo # FILES
+--echo #
+
+SET @orig_fsync_threshold = @@global.innodb_fsync_threshold;
+
+set debug = '+d,flush_after_reaching_threshold';
+SET GLOBAL innodb_fsync_threshold = 16*1024;
+
+CREATE TABLE t1(a INT);
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN= bytes being flushed at once;
+--source include/search_pattern.inc
+
+DROP TABLE t1;
+
+set debug = '-d,flush_after_reaching_threshold';
+SET GLOBAL innodb_fsync_threshold = @orig_fsync_threshold;

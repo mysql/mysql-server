@@ -38,6 +38,7 @@ Warning	1478	InnoDB: TABLESPACE=innodb_file_per_table option is ignored. All tem
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
+DROP TABLE t1;
 # Try to create a table name that has the form of an FTS auxilliary table name.
 CREATE TABLE fts_0000000000000424_config (id int);
 ERROR 42000: Incorrect table name 'fts_0000000000000424_config'
@@ -46,3 +47,15 @@ Level	Code	Message
 Warning	1103	Invalid table name. `test/fts_0000000000000424_config` has the form of an FTS auxiliary table name
 Error	1103	Incorrect table name 'fts_0000000000000424_config'
 SET innodb_strict_mode = default;
+#
+# Bug#27724600 CONTRIBUTION BY FACEBOOK: PERIODIC FSYNC OF NEW INNODB
+# FILES
+#
+SET @orig_fsync_threshold = @@global.innodb_fsync_threshold;
+set debug = '+d,flush_after_reaching_threshold';
+SET GLOBAL innodb_fsync_threshold = 16*1024;
+CREATE TABLE t1(a INT);
+Pattern "bytes being flushed at once" found
+DROP TABLE t1;
+set debug = '-d,flush_after_reaching_threshold';
+SET GLOBAL innodb_fsync_threshold = @orig_fsync_threshold;

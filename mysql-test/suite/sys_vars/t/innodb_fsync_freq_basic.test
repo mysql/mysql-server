@@ -1,0 +1,24 @@
+--echo #
+--echo # Checking min, max and incorrect values of innodb_fsync_threshold status variable
+--echo #
+
+SET @orig_fsync_threshold = @@global.innodb_fsync_threshold;
+
+SELECT @orig_fsync_threshold;
+
+SET GLOBAL innodb_fsync_threshold = 1024*1024*1024;
+SELECT @@global.innodb_fsync_threshold;
+
+--echo # min value
+SET GLOBAL innodb_fsync_threshold = 0;
+SELECT @@global.innodb_fsync_threshold;
+
+--echo # invalid value - too small
+SET GLOBAL innodb_fsync_threshold = -1;
+SELECT @@global.innodb_fsync_threshold;
+
+--echo # invalid value - not bound to page size
+SET GLOBAL innodb_fsync_threshold = 12345;
+SELECT @@global.innodb_fsync_threshold;
+
+SET GLOBAL innodb_fsync_threshold = @orig_fsync_threshold;
