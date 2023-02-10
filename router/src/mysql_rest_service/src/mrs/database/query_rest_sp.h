@@ -44,6 +44,7 @@ class QueryRestSP : private QueryLog {
                              std::vector<enum_field_types> pt = {});
 
   std::string response;
+  uint64_t items;
 
  private:
   json::ResponseJsonTemplate response_template;

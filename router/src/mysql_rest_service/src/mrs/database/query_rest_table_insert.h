@@ -76,6 +76,7 @@ class QueryRestObjectInsert : private QueryLog {
     query_ = {"INSERT INTO !.!(!) VALUES(?)"};
     query_ << schema << object << kit << vit;
     execute(session);
+    affected = 1;
   }
 
   template <typename KeysIt, typename ValuesIt>
@@ -84,6 +85,7 @@ class QueryRestObjectInsert : private QueryLog {
               const std::string &pk, const mysqlrouter::sqlstring &pk_value,
               const std::string &user_key,
               const mysqlrouter::sqlstring &user_value) {
+    affected = 0;
     using ItTypes =
         It<typename KeysIt::first_type, typename ValuesIt::first_type>;
 
@@ -95,8 +97,11 @@ class QueryRestObjectInsert : private QueryLog {
                                                ItTypes(kit.second, vit.second))
            << pk << pk_value << additional_where(user_key, user_value);
     execute(session);
-    return 0 != session->affected_rows();
+    affected = session->affected_rows();
+    return 0 != affected;
   }
+
+  uint64_t affected;
 };
 
 }  // namespace database

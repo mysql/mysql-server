@@ -63,6 +63,7 @@ class QueryRestTable : private QueryLog {
       const std::string &query = {});
 
   std::string response;
+  uint64_t items;
 
  private:
   json::ResponseJsonTemplate serializer_;

@@ -55,6 +55,7 @@ void QueryRestTableSingleRow::query_entries(
     const std::string &primary_key, const mysqlrouter::sqlstring &pri_value,
     const std::string &url_route) {
   response = "";
+  items = 0;
   build_query(columns, schema, object, primary_key, pri_value, url_route);
 
   execute(session);
@@ -65,6 +66,7 @@ void QueryRestTableSingleRow::query_last_inserted(
     const std::string &schema, const std::string &object,
     const std::string &primary_key, const std::string &url_route) {
   response = "";
+  items = 0;
   build_query_last_inserted(columns, schema, object, primary_key, url_route);
 
   execute(session);
@@ -75,6 +77,7 @@ void QueryRestTableSingleRow::on_row(const Row &r) {
     throw std::runtime_error(
         "Querying single row, from a table. Received multiple.");
   response.append(r[0]);
+  ++items;
 }
 
 void QueryRestTableSingleRow::build_query(

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,19 +22,29 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_MYSQL_CACHE_CALLBACKS_H_
-#define ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_MYSQL_CACHE_CALLBACKS_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_STATISTICS_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_STATISTICS_H_
 
-#include <gmock/gmock.h>
+#include <memory>
+#include <set>
+#include <string>
+#include <vector>
 
-#include "collector/mysql_cache_manager.h"
+#include "mrs/database/helper/query.h"
+#include "mrs/observability/entities_manager.h"
 
-class MockMySqlCacheCallbacks : public collector::MysqlCacheManager::Callbacks {
+namespace mrs {
+namespace database {
+
+class QueryStatistics : private QueryLog {
  public:
-  MOCK_METHOD(bool, object_before_cache, (Object), (override));
-  MOCK_METHOD(bool, object_retrived_from_cache, (Object), (override));
-  MOCK_METHOD(void, object_remove, (Object), (override));
-  MOCK_METHOD(Object, object_allocate, (), (override));
+  using Snapshot = observability::EntitiesManager::Snapshot;
+
+  virtual void update_statistics(MySQLSession *session, uint64_t router_id,
+                                 uint64_t timespan, const Snapshot &snap);
 };
 
-#endif  // ROUTER_SRC_REST_MRS_TESTS_MOCK_MOCK_MYSQL_CACHE_CALLBACKS_H_
+}  // namespace database
+}  // namespace mrs
+
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_STATISTICS_H_

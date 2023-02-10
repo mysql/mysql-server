@@ -68,6 +68,8 @@ HttpResult HandlerSchemaMetadata::handle_get(rest::RequestContext *ctxt) {
   uint32_t noOfRoute = 0;
   for (auto it = routes.begin() + offset;
        it < routes.end() && noOfRoute < limit; ++noOfRoute, ++it) {
+    //    bool mayShow!(*it)->requires_authentication()
+    //    ctxt->user.has_user_id
     response_template.push_json_document((*it)->get_json_description().c_str());
   }
 

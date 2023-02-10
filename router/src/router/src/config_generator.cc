@@ -3345,7 +3345,13 @@ void ConfigGenerator::create_start_script(
     bool interactive_master_key,
     const std::map<std::string, std::string> &options) {
 #ifdef _WIN32
-  UNREFERENCED_PARAMETER(interactive_master_key);
+  std::string program_path =
+      mysql_harness::Path(mysqlrouter::find_full_executable_path(program_name))
+          .dirname()
+          .str();
+  program_path += mysql_harness::Path::directory_separator + "mysqlrouter.exe"
+
+                  UNREFERENCED_PARAMETER(interactive_master_key);
   UNREFERENCED_PARAMETER(options);
 
   std::ofstream script;
@@ -3361,10 +3367,9 @@ void ConfigGenerator::create_start_script(
   script << "[Environment]::SetEnvironmentVariable(\"ROUTER_PID\","
          << "\"" << directory << "\\"
          << "mysqlrouter.pid\", \"Process\")" << std::endl;
-  script << "Start-Process \""
-         << mysqlrouter::find_full_executable_path(program_name) << "\" \" -c "
-         << directory << "/mysqlrouter.conf\""
-         << " -WindowStyle Hidden" << std::endl;
+  script << "Start-Process \"" << program_path << "\" \" -c " << directory
+         << "/mysqlrouter.conf\""
+         << " -NoNewWindow" << std::endl;
   script.close();
 
 #else

@@ -24,12 +24,14 @@ INCLUDE(GenerateExportHeader)
 
 ADD_HARNESS_PLUGIN(mysql_rest_service
   SOURCES
+  collector/counted_mysql_session.cc
   collector/mysql_cache_manager.cc
   helper/media_detector.cc
   helper/json/to_string.cc
   helper/json/to_sqlstring.cc
   helper/token/jwt.cc
   helper/mysql_column_types.cc
+  mrs/database/query_statistics.cc
   mrs/authentication/helper/crypto.cc
   mrs/authentication/helper/http_result.cc
   mrs/authentication/helper/scram.cc
@@ -79,6 +81,7 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   mrs/object.cc
   mrs/object_schema.cc
   mrs/object_static_file.cc
+  mrs/router_observation_entities.cc
   mrs/rest/handler.cc
   mrs/rest/handler_authorize.cc
   mrs/rest/handler_authorize_apps.cc

@@ -45,6 +45,8 @@
 #include "collector/mysql_cache_manager.h"
 #include "mrs/database/schema_monitor.h"
 #include "mrs/object_manager.h"
+#include "mrs/observability/entities_manager.h"
+#include "mrs/router_observation_entities.h"
 #include "mrs_plugin_config.h"
 #include "mysqld_error.h"
 
@@ -87,6 +89,7 @@ struct MrdsModule {
       throw std::invalid_argument("mysql_user_data_access");
     }
 
+    mrs::initialize_entities(&entities_manager);
     mrds_monitor.start();
   }
 
@@ -97,9 +100,10 @@ struct MrdsModule {
       &mysql_connection_cache, configuration.jwt_secret_};
   mrs::ObjectManager mrds_object_manager{
       &mysql_connection_cache, configuration.is_https_, &authentication};
+  mrs::observability::EntitiesManager entities_manager;
   mrs::database::SchemaMonitor mrds_monitor{
       configuration, &mysql_connection_cache, &mrds_object_manager,
-      &authentication};
+      &authentication, &entities_manager};
 };
 
 static std::string get_router_name(const mysql_harness::Config *config) {

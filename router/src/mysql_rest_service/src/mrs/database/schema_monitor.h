@@ -35,6 +35,7 @@
 #include "mrs/configuration.h"
 #include "mrs/database/entry/db_object.h"
 #include "mrs/object_manager.h"
+#include "mrs/observability/entities_manager.h"
 
 namespace mrs {
 namespace database {
@@ -44,7 +45,8 @@ class SchemaMonitor {
   SchemaMonitor(const mrs::Configuration &configuration,
                 collector::MysqlCacheManager *cache,
                 mrs::ObjectManager *dbobject_manager,
-                authentication::AuthorizeManager *auth_manager);
+                authentication::AuthorizeManager *auth_manager,
+                mrs::observability::EntitiesManager *entities_manager);
   ~SchemaMonitor();
 
   void start();
@@ -61,6 +63,7 @@ class SchemaMonitor {
   collector::MysqlCacheManager *cache_;
   mrs::ObjectManager *dbobject_manager_;
   mrs::authentication::AuthorizeManager *auth_manager_;
+  mrs::observability::EntitiesManager *entities_manager_;
   bool running_{false};
   Waitable waitable_{this};
 };

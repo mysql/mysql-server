@@ -38,6 +38,7 @@ void QueryRestSPMedia::query_entries(MySQLSession *session,
                                      const std::string &schema,
                                      const std::string &object,
                                      const mysqlrouter::sqlstring &values) {
+  items = 0;
   query_ = {"CALL !.!(!)"};
   query_ << schema << object << values;
 
@@ -46,6 +47,7 @@ void QueryRestSPMedia::query_entries(MySQLSession *session,
   if (result->size() < 1)
     throw std::logic_error("Query returned an empty resultset.");
 
+  items = 1;
   response.assign((*result.get())[0], result->get_data_size(0));
 }
 
@@ -55,6 +57,7 @@ void QueryRestSPMedia::query_entries(MySQLSession *session,
                                      const std::string &object,
                                      const std::string &primary,
                                      const std::string &primary_value) {
+  items = 0;
   query_ = {"SELECT ! FROM !.! WHERE !=?"};
   query_ << column << schema << object << primary << primary_value;
   auto result = session->query_one(
@@ -63,12 +66,14 @@ void QueryRestSPMedia::query_entries(MySQLSession *session,
   if (result->size() < 1)
     throw std::logic_error("Query returned an empty resultset.");
 
+  items = 1;
   response.assign((*result.get())[0], result->get_data_size(0));
 }
 
 void QueryRestSPMedia::query_entries(
     MySQLSession *session, const std::string &column, const std::string &schema,
     const std::string &object, const uint32_t limit, const uint32_t offset) {
+  items = 0;
   query_ = {"SELECT ! FROM !.! LIMIT ?,?"};
   query_ << column << schema << object << offset << limit;
 
@@ -78,6 +83,7 @@ void QueryRestSPMedia::query_entries(
   if (result->size() < 1)
     throw std::logic_error("Query returned an empty resultset.");
 
+  items = 1;
   response.assign((*result.get())[0], result->get_data_size(0));
 }
 

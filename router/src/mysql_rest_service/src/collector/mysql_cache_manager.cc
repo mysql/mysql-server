@@ -24,6 +24,8 @@
 
 #include "collector/mysql_cache_manager.h"
 
+#include "mrs/router_observation_entities.h"
+
 #include "mysqlrouter/mysql_session.h"
 
 namespace collector {
@@ -32,10 +34,10 @@ using Object = MysqlCacheManager::Object;
 
 Object MysqlCacheManager::MysqlCacheCallbacks::object_allocate() {
   using namespace std::literals::string_literals;
-  std::unique_ptr<::mysqlrouter::MySQLSession> obj{
-      new ::mysqlrouter::MySQLSession()};
+  std::unique_ptr<CountedMySQLSession> obj{new CountedMySQLSession()};
 
   obj->connect_and_set_opts(new_connection_params());
+  mrs::Counter<kEntityCounterMySQLConnectionsCreated>::increment();
 
   if (!role_.empty()) {
     obj->execute("SET ROLE "s + role_);
@@ -44,6 +46,7 @@ Object MysqlCacheManager::MysqlCacheCallbacks::object_allocate() {
 }
 
 void MysqlCacheManager::MysqlCacheCallbacks::object_remove(Object obj) {
+  mrs::Counter<kEntityCounterMySQLConnectionsClosed>::increment();
   delete obj;
 }
 
@@ -63,7 +66,12 @@ bool MysqlCacheManager::MysqlCacheCallbacks::object_before_cache(Object obj) {
 
 bool MysqlCacheManager::MysqlCacheCallbacks::object_retrived_from_cache(
     Object connection) {
-  return connection->ping();
+  auto can_be_used = connection->ping();
+
+  if (can_be_used)
+    mrs::Counter<kEntityCounterMySQLConnectionsReused>::increment();
+
+  return can_be_used;
 }
 
 void MysqlCacheManager::MysqlCacheCallbacks::object_restore_defaults(

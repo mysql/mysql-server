@@ -55,6 +55,7 @@ class QueryRestTableSingleRow : private QueryLog {
                                    const std::string &url_route);
 
   std::string response;
+  uint64_t items;
 
  private:
   void on_row(const Row &r) override;

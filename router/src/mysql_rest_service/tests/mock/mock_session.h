@@ -27,9 +27,9 @@
 
 #include <gmock/gmock.h>
 
-#include "mysqlrouter/mysql_session.h"
+#include "collector/counted_mysql_session.h"
 
-class MockMySQLSession : public mysqlrouter::MySQLSession {
+class MockMySQLSession : public collector::CountedMySQLSession {
  public:
   MOCK_METHOD(void, connect,
               (const std::string &, unsigned int, const std::string &,

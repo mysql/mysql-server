@@ -38,11 +38,12 @@
 
 IMPORT_LOG_FUNCTIONS()
 
+using MySQLSession = collector::MysqlCacheManager::Object;
 using CachedObject = collector::MysqlCacheManager::CachedObject;
 using Type = mrs::interface::RestHandler::HttpResult::Type;
 using HttpResult = mrs::rest::HandlerFile::HttpResult;
 
-static CachedObject get_session(::mysqlrouter::MySQLSession *session,
+static CachedObject get_session(MySQLSession session,
                                 collector::MysqlCacheManager *cache_manager) {
   if (session) return CachedObject(nullptr, session);
 
