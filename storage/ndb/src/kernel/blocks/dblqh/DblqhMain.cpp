@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -16638,6 +16638,14 @@ void Dblqh::nextScanConfCopyLab(Signal* signal,
     // If accOperationPtr == RNIL no record was returned by ACC
     if (nextScanConf->accOperationPtr == RNIL) {
       jam();
+      if (unlikely(scanptr.p->scanCompletedStatus == ZTRUE))
+      {
+        jam();
+        /* Copy is being abandoned, shut it down */
+        closeCopyLab(signal, tcConnectptr.p);
+        return;
+      }
+
       scanptr.p->scan_lastSeen = __LINE__;
       signal->theData[0] = scanptr.i;
       signal->theData[1] = GSN_ACC_CHECK_SCAN;
