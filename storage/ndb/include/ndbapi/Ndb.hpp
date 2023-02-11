@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1542,7 +1542,12 @@ public:
    *       The transaction must be closed independent of its outcome, i.e.
    *       even if there is an error.
    *
-   * @param  table    Pointer to table object used for deciding 
+   * @note Hinting TC-selection by passing key data only works if key only
+   *       consists of 4-byte aligned values and not using character columns.
+   *       No failure will be returned if that is not the case, rather use the
+   *       startTransaction function that takes Key_part_ptr.
+   *
+   * @param  table    Pointer to table object used for deciding
    *                  which node to run the Transaction Coordinator on
    * @param  keyData  Pointer to partition key corresponding to
    *                  <var>table</var>
