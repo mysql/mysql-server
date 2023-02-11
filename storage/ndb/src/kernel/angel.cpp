@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -418,7 +418,7 @@ spawn_process(const char* progname,
 #ifdef _WIN32
   // Get full path name of this executeble
   char path[MAX_PATH];
-  DWORD len = GetModuleFileName(nullptr, path, sizeof(path));
+  DWORD len = GetModuleFileName(NULL, path, sizeof(path));
   if (len == 0 || len == sizeof(path))
   {
     g_eventLogger->warning("spawn_process: Could not extract full path, "
