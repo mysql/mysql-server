@@ -54,8 +54,8 @@ ObjectSchema::ObjectSchema(
       auth_manager_{auth_manager},
       handler_factory_{handler_factory} {
   url_path_ = "^" + service_ + name_ + "/metadata-catalog/?$";
-  url_ = (is_ssl ? "https://" : "http://") + host + service_ + name_ +
-         "/metadata-catalog";
+  url_ = service_ + name_ + "/metadata-catalog";
+  if (!host.empty()) url_ = (is_ssl ? "https://" : "http://") + host + url_;
 }
 
 void ObjectSchema::turn(const State state) {

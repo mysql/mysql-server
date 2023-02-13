@@ -142,10 +142,15 @@ void Object::update_variables() {
   schema_name_ = extract_first_slash(pe_.db_schema);
   object_name_ = extract_first_slash(pe_.db_table);
 
-  url_route_ = (is_ssl_ ? "https://" : "http://") + pe_.host + rest_path_raw_;
-  url_rest_canonical_ = (is_ssl_ ? "https://" : "http://") + pe_.host +
-                        pe_.service_path + pe_.schema_path + k_metadata +
-                        pe_.object_path;
+  if (pe_.host.empty())
+    url_route_ = rest_path_raw_;
+  else
+    url_route_ = (is_ssl_ ? "https://" : "http://") + pe_.host + rest_path_raw_;
+  url_rest_canonical_ =
+      pe_.service_path + pe_.schema_path + k_metadata + pe_.object_path;
+  if (!pe_.host.empty())
+    url_rest_canonical_ =
+        (is_ssl_ ? "https://" : "http://") + pe_.host + url_rest_canonical_;
   json_description_ = "{\"name\":\"" + pe_.object_path +
                       "\", \"links\":[{\"rel\":\"describes\", \"href\": \"" +
                       get_rest_url() +

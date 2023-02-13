@@ -54,6 +54,30 @@ IMPORT_LOG_FUNCTIONS()
 
 static constexpr const char kSectionName[]{"mysql_rest_service"};
 
+namespace {
+
+void trace_error(const char *variable_user, const char *access,
+                 const char *role, const mysqlrouter::MySQLSession::Error &e) {
+  if (e.code() == ER_ROLE_NOT_GRANTED) {
+    log_error(
+        "MySQL Server account, set in '%s' (MRS/%s access), "
+        "must be granted "
+        "with '%s' role.",
+        variable_user, access, role);
+    log_info(
+        "Please consult the MRS documentation on: how to configure MySQL "
+        "Server accounts for MRS");
+    return;
+  }
+
+  log_error(
+      "User configured in '%s' variable, couldn't connect to MySQL Server. "
+      "The process failed with %u error: %s",
+      variable_user, e.code(), e.message().c_str());
+}
+
+}  // namespace
+
 struct MrdsModule {
   MrdsModule(const ::mrs::Configuration &c) : configuration{c} {
     using namespace mysqlrouter;
@@ -61,32 +85,22 @@ struct MrdsModule {
       auto conn1 = mysql_connection_cache.get_instance(
           collector::kMySQLConnectionMetadata);
     } catch (const MySQLSession::Error &e) {
-      if (e.code() == ER_ROLE_NOT_GRANTED) {
-        log_error(
-            "MySQL Server account, set in 'mysql_user' (MRS/metadata access), "
-            "must be granted "
-            "with 'mysql_rest_service_meta_provider' role.");
-        log_info(
-            "Please consult the MRS documentation on: how to configure MySQL "
-            "Server accounts for MRS");
-      }
-      throw std::invalid_argument("mysql_user");
+      trace_error("mysql_user", "metadata", "mysql_rest_service_meta_provider",
+                  e);
+      throw std::runtime_error(
+          "Can't start MySQL REST Service, because connection to MySQL server "
+          "failed. For more informations look at previous error messages.");
     }
 
     try {
       auto conn2 = mysql_connection_cache.get_instance(
           collector::kMySQLConnectionUserdata);
     } catch (const MySQLSession::Error &e) {
-      if (e.code() == ER_ROLE_NOT_GRANTED) {
-        log_error(
-            "MySQL Server account, set in 'mysql_user_data_access' "
-            "(MRS/user-data access), must be "
-            "granted with 'mysql_rest_service_data_provider' role.");
-        log_info(
-            "Please consult the MRS documentation on: how to configure MySQL "
-            "Server accounts for MRS");
-      }
-      throw std::invalid_argument("mysql_user_data_access");
+      trace_error("mysql_user_data_access", "user-data",
+                  "mysql_rest_service_data_provider", e);
+      throw std::runtime_error(
+          "Can't start MySQL REST Service, because connection to MySQL server "
+          "failed. For more informations look at previous error messages.");
     }
 
     mrs::initialize_entities(&entities_manager);
