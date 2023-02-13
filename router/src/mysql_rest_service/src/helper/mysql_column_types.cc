@@ -28,6 +28,10 @@
 #include <map>
 #include <string_view>
 
+#include "mysql/harness/logging/logging.h"
+
+IMPORT_LOG_FUNCTIONS()
+
 namespace helper {
 
 ColumnJsonTypes from_mysql_column_type(enum_field_types type) {
@@ -86,7 +90,7 @@ ColumnJsonTypes from_mysql_column_type(enum_field_types type) {
 
 void remove_suffix_after(std::string_view &v, char c) {
   auto position = v.find(c);
-  if (position != v.npos) v.remove_suffix(position);
+  if (position != v.npos) v.remove_suffix(v.size() - position);
 }
 
 ColumnJsonTypes from_mysql_column_string_type(const char *t) {
@@ -133,9 +137,11 @@ ColumnJsonTypes from_mysql_column_string_type(const char *t) {
   remove_suffix_after(type, ' ');
   remove_suffix_after(type, '(');
 
-  auto it = map.find(std::string{type.begin(), type.end()});
+  std::string type_string{type.begin(), type.end()};
+  auto it = map.find(type_string);
   if (it != map.end()) return it->second;
 
+  log_debug("Unsupported type: %s, returning null", type_string.c_str());
   return helper::ColumnJsonTypes::kNull;
 }
 

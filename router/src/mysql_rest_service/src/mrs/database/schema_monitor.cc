@@ -134,11 +134,16 @@ void SchemaMonitor::run() {
       }
 
       if (configuration_.router_id_.has_value()) {
-        QueryStatistics store_stats;
-        store_stats.update_statistics(
-            session.get(), configuration_.router_id_.value(),
-            configuration_.metadata_refresh_interval_.count(),
-            entities_manager_->fetch_counters());
+        try {
+          QueryStatistics store_stats;
+          store_stats.update_statistics(
+              session.get(), configuration_.router_id_.value(),
+              configuration_.metadata_refresh_interval_.count(),
+              entities_manager_->fetch_counters());
+        } catch (const std::exception &exc) {
+          log_error("Storing statistics failed, because of following error:%s.",
+                    exc.what());
+        }
       }
 
       // TODO(lkotula): Set dirty/clean should be used before START_TRANSACTION

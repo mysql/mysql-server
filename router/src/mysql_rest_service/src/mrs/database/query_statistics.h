@@ -36,7 +36,7 @@
 namespace mrs {
 namespace database {
 
-class QueryStatistics : private QueryLog {
+class QueryStatistics : private Query {
  public:
   using Snapshot = observability::EntitiesManager::Snapshot;
 
