@@ -35,6 +35,7 @@
 #include "my_table_map.h"
 #include "mysql/udf_registration_types.h"
 #include "sql/field.h"
+#include "sql/gis/mbr_utils.h"
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
@@ -390,12 +391,72 @@ Ordering ReduceFinalOrdering(THD *thd, const LogicalOrderings &orderings,
       Ordering::Elements::Alloc(thd->mem_root, full_ordering.size()));
 }
 
+static void CollectOrderingsFromSpatialIndex(
+    THD *thd, TABLE *table, int key_idx, LogicalOrderings *orderings,
+    Mem_root_array<SpatialDistanceScanInfo> *spatial_indexes) {
+  const KEY_PART_INFO &key_part = table->key_info[key_idx].key_part[0];
+  // The debug_hton_distance_scan check can be removed after the
+  // implementation of WL9440.
+  bool debug_hton_distance_scan = false;
+  DBUG_EXECUTE_IF("handlerton_supports_distance_scan",
+                  debug_hton_distance_scan = true;);
+  if ((debug_hton_distance_scan ||
+       ha_check_storage_engine_flag(table->file->ht,
+                                    HTON_SUPPORTS_DISTANCE_SCAN))) {
+    Item *item = new Item_field(key_part.field);
+
+    for (int i = 1; i < orderings->num_items(); ++i) {
+      // We match a distance item with a spatial key.
+      Item *const current_item = orderings->item(i);
+      if (current_item->type() == Item::FUNC_ITEM) {
+        Item_func *const item_func = down_cast<Item_func *>(current_item);
+        // If we find an distance item in m_items then we check the item
+        // against both arguments of the distance item.
+        if (item_func->functype() == Item_func::SP_DISTANCE_FUNC &&
+            item_func->arg_count == 2) {
+          Item *const item_func_arg1 = item_func->arguments()[0];
+          Item *const item_func_arg2 = item_func->arguments()[1];
+          if (item->eq(item_func_arg1, /*binary_cmp=*/true) ||
+              item->eq(item_func_arg2, /*binary_cmp=*/true)) {
+            SpatialDistanceScanInfo index_info;
+            index_info.table = table;
+            index_info.key_idx = key_idx;
+            bool parse_correct = false;
+            if (item_func_arg1->type() == Item::FUNC_ITEM &&
+                !gis::knn_query_to_mbr(thd, item_func_arg1,
+                                       index_info.coordinates)) {
+              parse_correct = true;
+            } else if (item_func_arg2->type() == Item::FUNC_ITEM &&
+                       !gis::knn_query_to_mbr(thd, item_func_arg2,
+                                              index_info.coordinates)) {
+              parse_correct = true;
+            }
+            if (!parse_correct) return;
+
+            OrderElement order_element{i, ORDER_ASC};
+            Ordering::Elements elements{&order_element, 1};
+
+            index_info.forward_order = orderings->AddOrdering(
+                thd, Ordering(elements, Ordering::Kind::kOrder),
+                /*interesting=*/false,
+                /*used_at_end=*/true, /*homogenize_tables=*/0);
+            spatial_indexes->push_back(index_info);
+          }
+        }
+      }
+    }
+  }
+  // There is the case of ORDER BY p, where p is a spatial type.
+  // The use of index is currently not supported for this case.
+}
+
 void BuildInterestingOrders(
     THD *thd, JoinHypergraph *graph, Query_block *query_block,
     LogicalOrderings *orderings,
     Mem_root_array<SortAheadOrdering> *sort_ahead_orderings,
     int *order_by_ordering_idx, int *group_by_ordering_idx,
     int *distinct_ordering_idx, Mem_root_array<ActiveIndexInfo> *active_indexes,
+    Mem_root_array<SpatialDistanceScanInfo> *spatial_indexes,
     Mem_root_array<FullTextIndexInfo> *fulltext_searches, string *trace) {
   // Collect ordering from ORDER BY.
   if (query_block->is_ordered()) {
@@ -570,6 +631,10 @@ void BuildInterestingOrders(
       // but we still need to check keys_in_use to ignore disabled indexes.
       if (!table->keys_in_use_for_query.is_set(key_idx)) {
         continue;
+      }
+      if (Overlaps(table->key_info[key_idx].flags, HA_SPATIAL)) {
+        CollectOrderingsFromSpatialIndex(thd, table, key_idx, orderings,
+                                         spatial_indexes);
       }
       ActiveIndexInfo index_info;
       index_info.table = table;

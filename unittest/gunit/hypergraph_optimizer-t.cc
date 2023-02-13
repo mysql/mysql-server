@@ -4674,6 +4674,75 @@ TEST_F(HypergraphOptimizerTest, ElideSortDueToIndex) {
   query_block->cleanup(/*full=*/true);
 }
 
+TEST_F(HypergraphOptimizerTest, ElideSortDueToSpatialIndex) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.x from t1 ORDER by ST_Distance(t1.x, POINT(0, 0))",
+      /*nullable=*/true);
+
+  CreateOrderedIndex({m_fake_tables["t1"]->field[0]}, HA_SPATIAL);
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+
+  auto hton = new (m_thd->mem_root) Fake_handlerton;
+  hton->flags = HTON_SUPPORTS_DISTANCE_SCAN;
+  m_fake_tables["t1"]->file->ht = hton;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              true));  //=is_root_of_join
+
+  // The sort should be elided entirely due to index.
+  ASSERT_EQ(AccessPath::INDEX_DISTANCE_SCAN, root->type);
+  EXPECT_STREQ("t1", root->index_distance_scan().table->alias);
+  EXPECT_EQ(0, root->index_distance_scan().idx);
+
+  query_block->cleanup(/*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, IndexDistanceScanMulti) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT RANK() OVER (ORDER by ST_Distance(t1.x, POINT(0, 0))),\
+              RANK() OVER (ORDER by ST_Distance(t1.x, POINT(5, 5))),\
+              ROW_NUMBER() OVER (ORDER BY ST_DISTANCE(t1.x, POINT(5, 5)))\
+              FROM t1",
+      /*nullable=*/true);
+
+  CreateOrderedIndex({m_fake_tables["t1"]->field[0]}, HA_SPATIAL);
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+
+  auto hton = new (m_thd->mem_root) Fake_handlerton;
+  hton->flags = HTON_SUPPORTS_DISTANCE_SCAN;
+  m_fake_tables["t1"]->file->ht = hton;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              true));  //=is_root_of_join
+  // Check that the optimizer considers both orders
+  std::smatch matches1;
+  std::regex_search(
+      trace, matches1,
+      std::regex(
+          "INDEX_DISTANCE_SCAN, cost=([0-9]+).([0-9]+), "
+          "init_cost=([0-9]+).([0-9]+), rows=([0-9]+).([0-9]+), order=1"));
+  EXPECT_GT(matches1.size(), 0);
+  std::smatch matches2;
+  std::regex_search(
+      trace, matches2,
+      std::regex(
+          "INDEX_DISTANCE_SCAN, cost=([0-9]+).([0-9]+), "
+          "init_cost=([0-9]+).([0-9]+), rows=([0-9]+).([0-9]+), order=2"));
+  EXPECT_GT(matches2.size(), 0);
+
+  query_block->cleanup(/*full=*/true);
+}
+
 TEST_F(HypergraphOptimizerTest, ElideConstSort) {
   Query_block *query_block =
       ParseAndResolve("SELECT t1.x FROM t1 ORDER BY 'a', 'b', CONCAT('c')",

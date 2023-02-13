@@ -1,0 +1,67 @@
+# ================================================================
+# Test the distance scan functionality to R-tree index of Innodb,
+# using the KNN (K-nearest neighbor search) query
+# Currently WL#9440: innodb changes Distance scan of R-tree is not
+# yet ready.Hence empty result is expected for KNN query.
+# Test partition tables are not supported in GIS
+# ================================================================
+--source include/have_debug.inc
+--source include/have_hypergraph.inc
+
+--echo ## create a table with spatial index
+CREATE TABLE cafe(
+     location point NOT NULL srid 4326, SPATIAL INDEX(location),
+     id int PRIMARY KEY AUTO_INCREMENT
+     ) ENGINE=InnoDB;
+
+--echo ## insert some data
+insert into cafe (location) values (ST_GeomFromText('POINT(50 35)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(50 34)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(50 33)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(50 32)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(50 31)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(50 30)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(50 29)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(50 28)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(50 27)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(49 27)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(48 27)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(47 27)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(46 27)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(45 27)',4326));
+
+ANALYZE TABLE cafe;
+
+--echo ## create a procedure
+
+delimiter |;
+CREATE PROCEDURE proc_gis()
+BEGIN
+
+EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('POINT(0 0)', 4326)) as d FROM cafe ORDER BY d ASC;
+
+END|
+delimiter ;|
+
+--echo ## the hypergraph optimizer must use the spatial index for knn search if the below debug flag is enabled
+--echo ## Empty result set must be expected since innodb changes Distance scan of R-tree is not yet ready
+SET debug = '+d,handlerton_supports_distance_scan';
+call proc_gis();
+
+--echo ## the hypergraph optimizer must use the spatial index for knn search if the below debug flag is disabled
+--echo ## Always return result set because below query chooses full table scan
+SET debug = '-d,handlerton_supports_distance_scan';
+call proc_gis();
+
+--echo ## Test partition tables are not supported in GIS
+--error ER_CHECK_NOT_IMPLEMENTED
+CREATE TABLE tab(
+location point NOT NULL srid 4326, SPATIAL INDEX(location),
+id int PRIMARY KEY AUTO_INCREMENT
+) ENGINE=InnoDB
+PARTITION BY HASH(id)
+PARTITIONS 2;
+
+--echo ## Cleanup
+drop procedure proc_gis;
+drop table cafe;

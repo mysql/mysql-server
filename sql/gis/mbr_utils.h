@@ -34,6 +34,9 @@
 #include "sql/gis/geometries.h"
 #include "sql/gis/geometries_cs.h"
 
+class Item;
+class THD;
+
 namespace dd {
 class Spatial_reference_system;
 }  // namespace dd
@@ -88,6 +91,15 @@ bool mbr_is_line(Box const &mbr);
 /// @param[out] mbr The envelope.
 void box_envelope(const Geometry *g, const dd::Spatial_reference_system *srs,
                   Box *mbr);
+
+/// Parse the input geometry, computes and returns the MBR
+///
+/// @param[in] thd The thread
+/// @param[in] knn_query_item The input geometry
+/// @param[out] coordinates The coordinates of the MBR
+///
+/// @return false if succeed, true in case of an error
+bool knn_query_to_mbr(THD *thd, Item *knn_query_item, double (&coordinates)[5]);
 
 }  // namespace gis
 

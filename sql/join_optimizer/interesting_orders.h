@@ -321,6 +321,7 @@ class LogicalOrderings {
   ItemHandle GetHandle(Item *item);
 
   Item *item(ItemHandle item) const { return m_items[item].item; }
+  int num_items() const { return m_items.size(); }
 
   // These are only available before Build() has been called.
 

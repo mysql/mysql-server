@@ -192,7 +192,8 @@ enum page_cur_mode_t {
   PAGE_CUR_MBR_EQUAL = 11,
   PAGE_CUR_RTREE_INSERT = 12,
   PAGE_CUR_RTREE_LOCATE = 13,
-  PAGE_CUR_RTREE_GET_FATHER = 14
+  PAGE_CUR_RTREE_GET_FATHER = 14,
+  PAGE_CUR_NN = 15
 };
 
 /** Compressed page descriptor */

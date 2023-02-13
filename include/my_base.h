@@ -88,6 +88,7 @@ enum ha_rkey_function {
   HA_READ_MBR_WITHIN,          /* Minimum Bounding Rectangle within */
   HA_READ_MBR_DISJOINT,        /* Minimum Bounding Rectangle disjoint */
   HA_READ_MBR_EQUAL,           /* Minimum Bounding Rectangle equal */
+  HA_READ_NEAREST_NEIGHBOR,    /* Nearest Neighbor search */
   HA_READ_INVALID = -1         /* Invalid enumeration value, always last. */
 };
 

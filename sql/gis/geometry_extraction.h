@@ -26,6 +26,7 @@
 #include "my_sys.h"  // my_error
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/gis/geometries.h"
+#include "sql/gis/wkb.h"
 #include "sql/sql_class.h"  // THD
 
 #include <algorithm>
@@ -45,13 +46,13 @@ class GeometryExtractionResult {
  private:
   const ResultType m_resultType;
   std::unique_ptr<gis::Geometry> m_value;
-  gis::srid_t srid = 0;
+  const dd::Spatial_reference_system *m_srs = nullptr;
 
  public:
   ResultType GetResultType() const { return m_resultType; }
-  gis::srid_t GetSrid() const {
+  const dd::Spatial_reference_system *GetSrs() const {
     assert(m_resultType == ResultType::Value);
-    return srid;
+    return m_srs;
   }
   std::unique_ptr<gis::Geometry> GetValue() {
     assert(m_resultType == ResultType::Value);
@@ -64,10 +65,10 @@ class GeometryExtractionResult {
     }
   }
   explicit GeometryExtractionResult(std::unique_ptr<gis::Geometry> geometry,
-                                    gis::srid_t srid)
+                                    const dd::Spatial_reference_system *srs)
       : m_resultType(ResultType::Value),
         m_value(std::move(geometry)),
-        srid(srid) {}
+        m_srs(srs) {}
 };
 
 /// ExtractGeometry takes an Item or a Field, attempts to parse a geometry out
@@ -110,7 +111,7 @@ GeometryExtractionResult ExtractGeometry(FieldOrItem *fieldOrItem, THD *thd,
   if (result == true) {
     return GeometryExtractionResult(ResultType::Error);
   } else {
-    return GeometryExtractionResult(std::move(geo), srs ? srs->id() : 0);
+    return GeometryExtractionResult(std::move(geo), srs);
   }
 }
 

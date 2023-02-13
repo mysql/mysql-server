@@ -457,6 +457,7 @@ int Handler::index_read(uchar *mysql_row, const uchar *mysql_search_cells,
       case HA_READ_MBR_WITHIN:
       case HA_READ_MBR_DISJOINT:
       case HA_READ_MBR_EQUAL:
+      case HA_READ_NEAREST_NEIGHBOR:
       case HA_READ_INVALID:
         ret = Result::UNSUPPORTED;
         break;

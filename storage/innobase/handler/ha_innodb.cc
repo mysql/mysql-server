@@ -5496,6 +5496,8 @@ static int innodb_init(void *p) {
       HTON_SUPPORTS_ATOMIC_DDL | HTON_CAN_RECREATE |
       HTON_SUPPORTS_SECONDARY_ENGINE | HTON_SUPPORTS_TABLE_ENCRYPTION |
       HTON_SUPPORTS_GENERATED_INVISIBLE_PK | HTON_SUPPORTS_BULK_LOAD;
+  // TODO(WL9440): to be enabled when distance scan is implemented in innodb.
+  //| HTON_SUPPORTS_DISTANCE_SCAN;
 
   innobase_hton->replace_native_transaction_in_thd = innodb_replace_trx_in_thd;
   innobase_hton->file_extensions = ha_innobase_exts;
@@ -10424,6 +10426,8 @@ page_cur_mode_t convert_search_mode_to_innobase(ha_rkey_function find_flag) {
       return (PAGE_CUR_DISJOINT);
     case HA_READ_MBR_EQUAL:
       return (PAGE_CUR_MBR_EQUAL);
+    case HA_READ_NEAREST_NEIGHBOR:
+      return (PAGE_CUR_NN);
     case HA_READ_PREFIX:
       return (PAGE_CUR_UNSUPP);
     case HA_READ_INVALID:

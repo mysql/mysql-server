@@ -1051,6 +1051,19 @@ static unique_ptr<Json_object> SetObjectMembers(
       error |= AddChildrenFromPushedCondition(table, children);
       break;
     }
+    case AccessPath::INDEX_DISTANCE_SCAN: {
+      const TABLE &table = *path->index_distance_scan().table;
+      assert(table.file->pushed_idx_cond == nullptr);
+
+      const KEY &key = table.key_info[path->index_distance_scan().idx];
+      error |= SetIndexInfoInObject(&description, "index_distance_scan",
+                                    nullptr, table, key, "distance scan",
+                                    /*lookup condition*/ "", /*range*/ nullptr,
+                                    nullptr, false,
+                                    /*push_condition*/ nullptr, obj);
+      error |= AddChildrenFromPushedCondition(table, children);
+      break;
+    }
     case AccessPath::REF: {
       const TABLE &table = *path->ref().table;
       const KEY &key = table.key_info[path->ref().ref->key];

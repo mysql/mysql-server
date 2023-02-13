@@ -43,6 +43,7 @@
 #include "sql/handler.h"
 #include "sql/iterators/row_iterator.h"
 #include "sql/mem_root_array.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_executor.h"
@@ -131,6 +132,79 @@ int IndexScanIterator<true>::Read() {  // Backward read.
 
 template class IndexScanIterator<true>;
 template class IndexScanIterator<false>;
+
+IndexDistanceScanIterator::IndexDistanceScanIterator(THD *thd, TABLE *table,
+                                                     int idx,
+                                                     QUICK_RANGE *query_mbr,
+                                                     double expected_rows,
+                                                     ha_rows *examined_rows)
+    : TableRowIterator(thd, table),
+      m_record(table->record[0]),
+      m_idx(idx),
+      m_query_mbr(query_mbr),
+      m_expected_rows(expected_rows),
+      m_examined_rows(examined_rows) {}
+
+// WL9440: purecov should be removed from below functions
+// i.e. IndexDistanceScanIterator destructor, IndexDistanceScanIterator::Init(),
+// IndexDistanceScanIterator::Read() when innodb implements index distance scan.
+
+IndexDistanceScanIterator::~IndexDistanceScanIterator() {
+  if (table() && table()->key_read) {
+    /* purecov: begin deadcode */
+    table()->set_keyread(false);
+    /* purecov: end */
+  }
+}
+
+bool IndexDistanceScanIterator::Init() {
+  if (!table()->file->inited) {
+    // TODO(WL9440): Check if spatial index scans can be covering. If not,
+    // replace this by an assert.
+    if (table()->covering_keys.is_set(m_idx) && !table()->no_keyread) {
+      /* purecov: begin deadcode */
+      table()->set_keyread(true);
+      /* purecov: end */
+    }
+
+    int error = table()->file->ha_index_init(m_idx, true);
+    if (error) {
+      /* purecov: begin deadcode */
+      PrintError(error);
+      return true;
+      /* purecov: end */
+    }
+
+    if (set_record_buffer(table(), m_expected_rows)) {
+      return true;
+    }
+  }
+  m_first = true;
+  return false;
+}
+
+int IndexDistanceScanIterator::Read() {  // Forward read.
+  int error;
+  if (m_first) {
+    error = table()->file->ha_index_read_map(m_record, m_query_mbr->min_key,
+                                             m_query_mbr->min_keypart_map,
+                                             m_query_mbr->rkey_func_flag);
+    m_first = false;
+  } else {
+    /* purecov: begin deadcode */
+    error = table()->file->ha_index_next_same(m_record, m_query_mbr->min_key,
+                                              m_query_mbr->min_length);
+    /* purecov: end */
+  }
+
+  if (error) return HandleError(error);
+  /* purecov: begin deadcode */
+  if (m_examined_rows != nullptr) {
+    ++*m_examined_rows;
+  }
+  /* purecov: end */
+  return 0;
+}
 
 /**
   The default implementation of unlock-row method of RowIterator,

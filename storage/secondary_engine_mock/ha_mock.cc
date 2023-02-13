@@ -255,6 +255,7 @@ static void AssertSupportedPath(const AccessPath *path) {
     // Index access is disabled in ha_mock::table_flags(), so we should see none
     // of these access types.
     case AccessPath::INDEX_SCAN:
+    case AccessPath::INDEX_DISTANCE_SCAN: /* purecov: deadcode */
     case AccessPath::REF:
     case AccessPath::REF_OR_NULL:
     case AccessPath::EQ_REF:

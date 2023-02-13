@@ -1,0 +1,114 @@
+create user insertsqluser@localhost identified by 'insertsqluser';
+grant all on *.* to insertsqluser@localhost;
+RUN DROP SCHEMA if EXISTS mysqlxplugin
+
+0 rows affected
+RUN CREATE SCHEMA mysqlxplugin
+
+1 rows affected
+RUN USE mysqlxplugin
+
+0 rows affected
+RUN CREATE TABLE cafe(
+     location point NOT NULL srid 0, SPATIAL INDEX(location),
+     id int PRIMARY KEY AUTO_INCREMENT
+     )
+
+0 rows affected
+RUN insert into cafe (location) values (point(50,35))
+
+1 rows affected
+last insert id: 1
+RUN insert into cafe (location) values (point(50,34))
+
+1 rows affected
+last insert id: 2
+RUN insert into cafe (location) values (point(50,33))
+
+1 rows affected
+last insert id: 3
+RUN insert into cafe (location) values (point(50,32))
+
+1 rows affected
+last insert id: 4
+RUN insert into cafe (location) values (point(50,31))
+
+1 rows affected
+last insert id: 5
+RUN insert into cafe (location) values (point(50,30))
+
+1 rows affected
+last insert id: 6
+RUN insert into cafe (location) values (point(50,29))
+
+1 rows affected
+last insert id: 7
+RUN insert into cafe (location) values (point(50,28))
+
+1 rows affected
+last insert id: 8
+RUN insert into cafe (location) values (point(50,27))
+
+1 rows affected
+last insert id: 9
+RUN insert into cafe (location) values (point(49,27))
+
+1 rows affected
+last insert id: 10
+RUN insert into cafe (location) values (point(48,27))
+
+1 rows affected
+last insert id: 11
+RUN insert into cafe (location) values (point(47,27))
+
+1 rows affected
+last insert id: 12
+RUN insert into cafe (location) values (point(46,27))
+
+1 rows affected
+last insert id: 13
+RUN insert into cafe (location) values (point(45,27))
+
+1 rows affected
+last insert id: 14
+RUN set optimizer_switch = 'hypergraph_optimizer=on'
+
+0 rows affected
+RUN SET debug = '+d,handlerton_supports_distance_scan'
+
+0 rows affected
+RUN ANALYZE TABLE cafe
+Table	Op	Msg_type	Msg_text
+mysqlxplugin.cafe	analyze	status	OK
+0 rows affected
+RUN EXPLAIN FORMAT=TREE SELECT ST_Distance(location, POINT(0,0)) as d FROM cafe ORDER BY d ASC
+EXPLAIN
+-> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+
+0 rows affected
+RUN SELECT ST_Distance(location, POINT(0,0)) as d FROM cafe ORDER BY d ASC
+d
+0 rows affected
+RUN SELECT ST_Distance(POINT(0,0), location) as d FROM cafe ORDER BY d ASC
+d
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+RUN USE  mysqlxplugin
+
+0 rows affected
+RUN DROP TABLE cafe
+
+0 rows affected
+RUN DROP SCHEMA if EXISTS mysqlxplugin
+
+0 rows affected
+RUN DROP USER insertsqluser@localhost
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

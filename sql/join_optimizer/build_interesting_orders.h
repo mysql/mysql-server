@@ -95,6 +95,17 @@ struct ActiveIndexInfo {
                                reverse_order_without_extended_key_parts = 0;
 };
 
+// A spatial index that we can use in a knn query to get an interesting
+// ordering.
+struct SpatialDistanceScanInfo {
+  TABLE *table;
+  int key_idx;
+  LogicalOrderings::StateIndex forward_order = 0;
+  // MBR coordinates to be passed to QUICK_RANGE.
+  // QUICK_RANGE needs at least one extra byte at the end (TODO:fix that).
+  double coordinates[5];
+};
+
 // A full-text index that we can use in the query, either for index lookup or
 // for scanning along to get an interesting order.
 struct FullTextIndexInfo {
@@ -117,6 +128,7 @@ void BuildInterestingOrders(
     Mem_root_array<SortAheadOrdering> *sort_ahead_orderings,
     int *order_by_ordering_idx, int *group_by_ordering_idx,
     int *distinct_ordering_idx, Mem_root_array<ActiveIndexInfo> *active_indexes,
+    Mem_root_array<SpatialDistanceScanInfo> *spatial_indexes,
     Mem_root_array<FullTextIndexInfo> *fulltext_searches, std::string *trace);
 
 // Build an ORDER * that we can give to Filesort. It is only suitable for

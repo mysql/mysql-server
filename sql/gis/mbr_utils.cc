@@ -37,6 +37,8 @@
 #include "sql/gis/geometries.h"
 #include "sql/gis/geometries_cs.h"
 #include "sql/gis/geometries_traits.h"
+#include "sql/gis/geometry_extraction.h"
+#include "sql/item.h"
 #include "template_utils.h"  // down_cast
 
 namespace bg = boost::geometry;
@@ -276,6 +278,48 @@ void box_envelope(const Geometry *g, const dd::Spatial_reference_system *srs,
                           down_cast<Geographic_box *>(mbr));
       break;
   }
+}
+
+bool knn_query_to_mbr(THD *thd, Item *knn_query_item,
+                      double (&coordinates)[5]) {
+  auto geometryExtractionResult = ExtractGeometry(knn_query_item, thd, nullptr);
+
+  std::unique_ptr<gis::Geometry> g;
+  const dd::Spatial_reference_system *srs = nullptr;
+
+  switch (geometryExtractionResult.GetResultType()) {
+    case ResultType::Error:
+      return true;
+    case ResultType::NullValue:
+      return true;
+    case ResultType::Value:
+      g = geometryExtractionResult.GetValue();
+      srs = geometryExtractionResult.GetSrs();
+      break;
+  }
+
+  switch (g->coordinate_system()) {
+    case gis::Coordinate_system::kCartesian: {
+      gis::Cartesian_box mbr;
+      gis::box_envelope(g.get(), srs, &mbr);
+      coordinates[0] = mbr.min_corner().x();
+      coordinates[1] = mbr.max_corner().x();
+      coordinates[2] = mbr.min_corner().y();
+      coordinates[3] = mbr.max_corner().y();
+      break;
+    }
+    case gis::Coordinate_system::kGeographic: {
+      gis::Geographic_box mbr;
+      assert(srs != nullptr);
+      gis::box_envelope(g.get(), srs, &mbr);
+      coordinates[0] = mbr.min_corner().x();
+      coordinates[1] = mbr.max_corner().x();
+      coordinates[2] = mbr.min_corner().y();
+      coordinates[3] = mbr.max_corner().y();
+      break;
+    }
+  }
+  return false;
 }
 
 }  // namespace gis

@@ -217,6 +217,7 @@ struct AccessPath {
     // to handle them.
     TABLE_SCAN,
     INDEX_SCAN,
+    INDEX_DISTANCE_SCAN,
     REF,
     REF_OR_NULL,
     EQ_REF,
@@ -514,6 +515,14 @@ struct AccessPath {
   const auto &index_scan() const {
     assert(type == INDEX_SCAN);
     return u.index_scan;
+  }
+  auto &index_distance_scan() {
+    assert(type == INDEX_DISTANCE_SCAN);
+    return u.index_distance_scan;
+  }
+  const auto &index_distance_scan() const {
+    assert(type == INDEX_DISTANCE_SCAN);
+    return u.index_distance_scan;
   }
   auto &ref() {
     assert(type == REF);
@@ -904,6 +913,12 @@ struct AccessPath {
       bool use_order;
       bool reverse;
     } index_scan;
+    struct {
+      TABLE *table;
+      int idx;
+      QUICK_RANGE *range;
+      bool reverse;
+    } index_distance_scan;
     struct {
       TABLE *table;
       Index_lookup *ref;

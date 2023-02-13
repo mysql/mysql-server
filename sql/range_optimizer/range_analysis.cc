@@ -1050,6 +1050,7 @@ static bool is_spatial_operator(Item_func::Functype op_type) {
   switch (op_type) {
     case Item_func::SP_EQUALS_FUNC:
     case Item_func::SP_DISJOINT_FUNC:
+    case Item_func::SP_DISTANCE_FUNC:
     case Item_func::SP_INTERSECTS_FUNC:
     case Item_func::SP_TOUCHES_FUNC:
     case Item_func::SP_CROSSES_FUNC:

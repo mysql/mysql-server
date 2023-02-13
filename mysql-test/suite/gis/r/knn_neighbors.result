@@ -1,0 +1,292 @@
+CREATE TABLE cafe(
+location point NOT NULL srid 0, SPATIAL INDEX(location),
+id int PRIMARY KEY AUTO_INCREMENT
+);
+insert into cafe (location) values (point(50,35));
+insert into cafe (location) values (point(50,34));
+insert into cafe (location) values (point(50,33));
+insert into cafe (location) values (point(50,32));
+insert into cafe (location) values (point(50,31));
+insert into cafe (location) values (point(50,30));
+insert into cafe (location) values (point(50,29));
+insert into cafe (location) values (point(50,28));
+insert into cafe (location) values (point(50,27));
+insert into cafe (location) values (point(49,27));
+insert into cafe (location) values (point(48,27));
+insert into cafe (location) values (point(47,27));
+insert into cafe (location) values (point(46,27));
+insert into cafe (location) values (point(45,27));
+SET debug = '+d,handlerton_supports_distance_scan';
+ANALYZE TABLE cafe;
+Table	Op	Msg_type	Msg_text
+test.cafe	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT ST_Distance(location, POINT(0,0)) as d FROM cafe ORDER BY d ASC;
+EXPLAIN
+-> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+
+SELECT ST_Distance(location, POINT(0,0)) as d FROM cafe ORDER BY d ASC;
+d
+SELECT ST_Distance(POINT(0,0), location) as d FROM cafe ORDER BY d ASC;
+d
+SET debug = '-d,handlerton_supports_distance_scan';
+EXPLAIN FORMAT=TREE SELECT ST_Distance(location, POINT(0,0)) as d FROM cafe ORDER BY d ASC;
+EXPLAIN
+-> Sort: d  (cost=6.98..6.98 rows=14)
+    -> Table scan on cafe  (cost=0.0179..0.25 rows=14)
+
+SET debug = '+d,handlerton_supports_distance_scan';
+SELECT ST_Distance(location, ST_GEOMFROMTEXT('Point(0 0)', 4326)) as d FROM cafe ORDER BY d ASC;
+d
+SELECT ST_Distance(location, ST_GEOMFROMTEXT('Point(0,0)')) as d FROM cafe ORDER BY d ASC;
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT ST_Distance(location, ST_GEOMFROMTEXT('POINT(0 0)',1)) as d FROM cafe ORDER BY d ASC;
+ERROR SR001: There's no spatial reference system with SRID 1.
+SELECT ST_Distance(ST_GEOMFROMTEXT('POINT(0 0)',1), location) as d FROM cafe ORDER BY d ASC;
+ERROR SR001: There's no spatial reference system with SRID 1.
+SELECT RANK() OVER (ORDER BY ST_DISTANCE(location, POINT(0, 0)))
+AS nearness_to_home,
+RANK() OVER (ORDER BY ST_DISTANCE(location, POINT(5, 5)))
+AS nearness_to_work,
+ROW_NUMBER() OVER (ORDER BY ST_DISTANCE(location, POINT(5, 5)))
+AS num_in_sequence
+FROM cafe;
+nearness_to_home	nearness_to_work	num_in_sequence
+CREATE TABLE cafe2(
+location1 point NOT NULL srid 0, SPATIAL INDEX(location1),
+location2 point NOT NULL srid 0, SPATIAL INDEX(location2),
+id int PRIMARY KEY AUTO_INCREMENT
+);
+insert into cafe2 (location1, location2) values (point(50,35), point(50,0));
+insert into cafe2 (location1, location2) values (point(50,34), point(50,1));
+insert into cafe2 (location1, location2) values (point(50,33), point(50,2));
+insert into cafe2 (location1, location2) values (point(50,32), point(50,3));
+insert into cafe2 (location1, location2) values (point(50,31), point(50,4));
+insert into cafe2 (location1, location2) values (point(50,30), point(50,5));
+insert into cafe2 (location1, location2) values (point(50,29), point(50,6));
+insert into cafe2 (location1, location2) values (point(50,28), point(50,7));
+insert into cafe2 (location1, location2) values (point(50,27), point(50,8));
+insert into cafe2 (location1, location2) values (point(49,27), point(50,9));
+insert into cafe2 (location1, location2) values (point(48,27), point(50,10));
+insert into cafe2 (location1, location2) values (point(47,27), point(50,11));
+insert into cafe2 (location1, location2) values (point(46,27), point(50,12));
+insert into cafe2 (location1, location2) values (point(45,27), point(50,13));
+SET debug = '+d,handlerton_supports_distance_scan';
+ANALYZE TABLE cafe2;
+Table	Op	Msg_type	Msg_text
+test.cafe2	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT ST_AsText(location1), ST_AsText(location2), ST_Distance(location1, location2) as d FROM cafe2 ORDER BY d ASC LIMIT 5;
+EXPLAIN
+-> Sort: d, limit input to 5 row(s) per chunk  (cost=2.81..2.81 rows=5)
+    -> Table scan on cafe2  (cost=0.0179..0.25 rows=14)
+
+EXPLAIN FORMAT=TREE SELECT ST_AsText(location1), ST_AsText(location2), ST_Distance(location1, POINT(0,0)) as d1,
+ST_Distance(location2, POINT(0,0)) as d2 FROM cafe2 ORDER BY d1, d2 ASC;
+EXPLAIN
+-> Sort: d1, d2  (cost=6.98..6.98 rows=14)
+    -> Table scan on cafe2  (cost=0.0179..0.25 rows=14)
+
+SET optimizer_trace="enabled=on";
+EXPLAIN FORMAT=TREE SELECT cafe.id, ST_Distance(location, POINT(0,0)) as d FROM cafe JOIN cafe2 ON cafe2.id=cafe.id ORDER BY d;
+EXPLAIN
+-> Nested loop inner join  (cost=0.518..7.25 rows=14)
+    -> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+    -> Single-row covering index lookup on cafe2 using PRIMARY (id=cafe.id)  (cost=0.25..0.25 rows=1)
+
+DROP TABLE cafe;
+DROP TABLE cafe2;
+CREATE TABLE cafe(
+location point NOT NULL srid 4326, SPATIAL INDEX(location),
+id int PRIMARY KEY AUTO_INCREMENT
+);
+insert into cafe (location) values (ST_GeomFromText('POINT(50 35)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(50 34)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(50 33)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(50 32)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(50 31)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(50 30)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(50 29)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(50 28)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(50 27)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(49 27)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(48 27)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(47 27)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(46 27)',4326));
+insert into cafe (location) values (ST_GeomFromText('POINT(45 27)',4326));
+SET debug = '+d,handlerton_supports_distance_scan';
+ANALYZE TABLE cafe;
+Table	Op	Msg_type	Msg_text
+test.cafe	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('POINT(0 0)', 4326)) as d FROM cafe ORDER BY d ASC;
+EXPLAIN
+-> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+
+DROP TABLE cafe;
+CREATE TABLE cafe(
+location linestring NOT NULL srid 0, SPATIAL INDEX(location),
+id int PRIMARY KEY AUTO_INCREMENT
+);
+insert into cafe (location) values (ST_GeomFromText('LINESTRING(50 35,40 12)'));
+insert into cafe (location) values (ST_GeomFromText('LINESTRING(50 34,40 12)'));
+insert into cafe (location) values (ST_GeomFromText('LINESTRING(50 33,40 12)'));
+insert into cafe (location) values (ST_GeomFromText('LINESTRING(50 32,40 12)'));
+insert into cafe (location) values (ST_GeomFromText('LINESTRING(50 31,40 12)'));
+insert into cafe (location) values (ST_GeomFromText('LINESTRING(50 30,40 12)'));
+insert into cafe (location) values (ST_GeomFromText('LINESTRING(50 29,40 12)'));
+insert into cafe (location) values (ST_GeomFromText('LINESTRING(50 28,40 12)'));
+insert into cafe (location) values (ST_GeomFromText('LINESTRING(50 27,40 12)'));
+insert into cafe (location) values (ST_GeomFromText('LINESTRING(49 27,40 12)'));
+insert into cafe (location) values (ST_GeomFromText('LINESTRING(48 27,40 12)'));
+insert into cafe (location) values (ST_GeomFromText('LINESTRING(47 27,40 12)'));
+insert into cafe (location) values (ST_GeomFromText('LINESTRING(46 27,40 12)'));
+insert into cafe (location) values (ST_GeomFromText('LINESTRING(45 27,40 12)'));
+SET debug = '+d,handlerton_supports_distance_scan';
+ANALYZE TABLE cafe;
+Table	Op	Msg_type	Msg_text
+test.cafe	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('LINESTRING(0 0,40 15)')) as d FROM cafe ORDER BY d ASC;
+EXPLAIN
+-> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+
+DROP TABLE cafe;
+CREATE TABLE cafe(
+location polygon NOT NULL srid 0, SPATIAL INDEX(location),
+id int PRIMARY KEY AUTO_INCREMENT
+);
+insert into cafe (location) values (ST_GeomFromText('POLYGON((0 10,50 35,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('POLYGON((0 10,50 34,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('POLYGON((0 10,50 33,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('POLYGON((0 10,50 32,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('POLYGON((0 10,50 31,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('POLYGON((0 10,50 30,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('POLYGON((0 10,50 29,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('POLYGON((0 10,50 28,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('POLYGON((0 10,50 27,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('POLYGON((0 10,49 27,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('POLYGON((0 10,48 27,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('POLYGON((0 10,47 27,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('POLYGON((0 10,46 27,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('POLYGON((0 10,45 27,40 12,0 10))'));
+SET debug = '+d,handlerton_supports_distance_scan';
+ANALYZE TABLE cafe;
+Table	Op	Msg_type	Msg_text
+test.cafe	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('POLYGON((0 10,50 27,40 12,0 10))')) as d FROM cafe ORDER BY d ASC;
+EXPLAIN
+-> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+
+DROP TABLE cafe;
+CREATE TABLE cafe(
+location multipoint NOT NULL srid 0, SPATIAL INDEX(location),
+id int PRIMARY KEY AUTO_INCREMENT
+);
+insert into cafe (location) values (ST_GeomFromText('MULTIPOINT(0 10,50 35,40 12,0 10)'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOINT(0 10,50 34,40 12,0 10)'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOINT(0 10,50 33,40 12,0 10)'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOINT(0 10,50 32,40 12,0 10)'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOINT(0 10,50 31,40 12,0 10)'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOINT(0 10,50 30,40 12,0 10)'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOINT(0 10,50 29,40 12,0 10)'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOINT(0 10,50 28,40 12,0 10)'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOINT(0 10,50 27,40 12,0 10)'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOINT(0 10,49 27,40 12,0 10)'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOINT(0 10,48 27,40 12,0 10)'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOINT(0 10,47 27,40 12,0 10)'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOINT(0 10,46 27,40 12,0 10)'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOINT(0 10,45 27,40 12,0 10)'));
+SET debug = '+d,handlerton_supports_distance_scan';
+ANALYZE TABLE cafe;
+Table	Op	Msg_type	Msg_text
+test.cafe	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('MULTIPOINT(0 10,50 27,40 12,0 10)')) as d FROM cafe ORDER BY d ASC;
+EXPLAIN
+-> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+
+DROP TABLE cafe;
+CREATE TABLE cafe(
+location multilinestring NOT NULL srid 0, SPATIAL INDEX(location),
+id int PRIMARY KEY AUTO_INCREMENT
+);
+insert into cafe (location) values (ST_GeomFromText('MULTILINESTRING((0 10,50 35,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('MULTILINESTRING((0 10,50 34,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('MULTILINESTRING((0 10,50 33,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('MULTILINESTRING((0 10,50 32,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('MULTILINESTRING((0 10,50 31,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('MULTILINESTRING((0 10,50 30,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('MULTILINESTRING((0 10,50 29,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('MULTILINESTRING((0 10,50 28,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('MULTILINESTRING((0 10,50 27,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('MULTILINESTRING((0 10,49 27,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('MULTILINESTRING((0 10,48 27,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('MULTILINESTRING((0 10,47 27,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('MULTILINESTRING((0 10,46 27,40 12,0 10))'));
+insert into cafe (location) values (ST_GeomFromText('MULTILINESTRING((0 10,45 27,40 12,0 10))'));
+SET debug = '+d,handlerton_supports_distance_scan';
+ANALYZE TABLE cafe;
+Table	Op	Msg_type	Msg_text
+test.cafe	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('MULTILINESTRING((0 10,50 27,40 12,0 10))')) as d FROM cafe ORDER BY d ASC;
+EXPLAIN
+-> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+
+DROP TABLE cafe;
+CREATE TABLE cafe(
+location multipolygon NOT NULL srid 0, SPATIAL INDEX(location),
+id int PRIMARY KEY AUTO_INCREMENT
+);
+insert into cafe (location) values (ST_GeomFromText('MULTIPOLYGON(((0 10,50 35,40 12,0 10)))'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOLYGON(((0 10,50 34,40 12,0 10)))'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOLYGON(((0 10,50 33,40 12,0 10)))'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOLYGON(((0 10,50 32,40 12,0 10)))'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOLYGON(((0 10,50 31,40 12,0 10)))'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOLYGON(((0 10,50 30,40 12,0 10)))'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOLYGON(((0 10,50 29,40 12,0 10)))'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOLYGON(((0 10,50 28,40 12,0 10)))'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOLYGON(((0 10,50 27,40 12,0 10)))'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOLYGON(((0 10,49 27,40 12,0 10)))'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOLYGON(((0 10,48 27,40 12,0 10)))'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOLYGON(((0 10,47 27,40 12,0 10)))'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOLYGON(((0 10,46 27,40 12,0 10)))'));
+insert into cafe (location) values (ST_GeomFromText('MULTIPOLYGON(((0 10,45 27,40 12,0 10)))'));
+SET debug = '+d,handlerton_supports_distance_scan';
+ANALYZE TABLE cafe;
+Table	Op	Msg_type	Msg_text
+test.cafe	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,50 27,40 12,0 10)))')) as d FROM cafe ORDER BY d ASC;
+EXPLAIN
+-> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+
+DROP TABLE cafe;
+CREATE TABLE cafe(
+location geometrycollection NOT NULL srid 0, SPATIAL INDEX(location),
+id int PRIMARY KEY AUTO_INCREMENT
+);
+insert into cafe (location) values (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(40 10),MULTIPOLYGON(((0 10,50 35,40 12,0 10))))'));
+insert into cafe (location) values (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(40 10),MULTIPOLYGON(((0 10,50 34,40 12,0 10))))'));
+insert into cafe (location) values (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(40 10),MULTIPOLYGON(((0 10,50 33,40 12,0 10))))'));
+insert into cafe (location) values (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(40 10),MULTIPOLYGON(((0 10,50 32,40 12,0 10))))'));
+insert into cafe (location) values (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(40 10),MULTIPOLYGON(((0 10,50 31,40 12,0 10))))'));
+insert into cafe (location) values (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(40 10),MULTIPOLYGON(((0 10,50 30,40 12,0 10))))'));
+insert into cafe (location) values (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(40 10),MULTIPOLYGON(((0 10,50 29,40 12,0 10))))'));
+insert into cafe (location) values (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(40 10),MULTIPOLYGON(((0 10,50 28,40 12,0 10))))'));
+insert into cafe (location) values (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(40 10),MULTIPOLYGON(((0 10,50 27,40 12,0 10))))'));
+insert into cafe (location) values (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(40 10),MULTIPOLYGON(((0 10,49 27,40 12,0 10))))'));
+insert into cafe (location) values (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(40 10),MULTIPOLYGON(((0 10,48 27,40 12,0 10))))'));
+insert into cafe (location) values (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(40 10),MULTIPOLYGON(((0 10,47 27,40 12,0 10))))'));
+insert into cafe (location) values (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(40 10),MULTIPOLYGON(((0 10,46 27,40 12,0 10))))'));
+insert into cafe (location) values (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(40 10),MULTIPOLYGON(((0 10,45 27,40 12,0 10))))'));
+SET debug = '+d,handlerton_supports_distance_scan';
+ANALYZE TABLE cafe;
+Table	Op	Msg_type	Msg_text
+test.cafe	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(40 10))')) as d FROM cafe ORDER BY d ASC;
+EXPLAIN
+-> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+
+EXPLAIN FORMAT=TREE SELECT ST_Distance(location, ST_GEOMFROMTEXT('POINT(40 10)')) as d FROM cafe ORDER BY d ASC;
+EXPLAIN
+-> Index distance scan on cafe using location  (cost=0.268..3.75 rows=14)
+
+DROP TABLE cafe;
+SELECT HOST FROM performance_schema.setup_actors WHERE HOST = '%' AND USER = '%';
+HOST
+%

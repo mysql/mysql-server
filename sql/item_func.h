@@ -205,6 +205,7 @@ class Item_func : public Item_result_field {
     ISNOTNULLTEST_FUNC,
     SP_EQUALS_FUNC,
     SP_DISJOINT_FUNC,
+    SP_DISTANCE_FUNC,
     SP_INTERSECTS_FUNC,
     SP_TOUCHES_FUNC,
     SP_CROSSES_FUNC,

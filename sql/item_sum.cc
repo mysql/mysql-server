@@ -6529,7 +6529,10 @@ bool Item_sum_collect::add() {
       return false;
     case ResultType::Value:
       currentGeometry = geometryExtractionResult.GetValue();
-      currentSrid = geometryExtractionResult.GetSrid();
+      auto srs = geometryExtractionResult.GetSrs();
+      if (srs != nullptr) {
+        currentSrid = srs->id();
+      }
       break;
   }
 
@@ -6573,7 +6576,7 @@ void Item_sum_collect::read_result_field() {
       return;
     case ResultType::Value:
       std::unique_ptr<gis::Geometry> geo = geometryExtractionResult.GetValue();
-      srid = geometryExtractionResult.GetSrid();
+      srid = geometryExtractionResult.GetSrs()->id();
       switch (geo->type()) {
         case gis::Geometry_type::kGeometrycollection:
           m_geometrycollection = std::unique_ptr<gis::Geometrycollection>(

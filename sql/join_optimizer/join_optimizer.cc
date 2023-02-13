@@ -181,6 +181,7 @@ class CostingReceiver {
       const LogicalOrderings *orderings,
       const Mem_root_array<SortAheadOrdering> *sort_ahead_orderings,
       const Mem_root_array<ActiveIndexInfo> *active_indexes,
+      const Mem_root_array<SpatialDistanceScanInfo> *spatial_indexes,
       const Mem_root_array<FullTextIndexInfo> *fulltext_searches,
       NodeMap fulltext_tables, uint64_t sargable_fulltext_predicates,
       table_map update_delete_target_tables,
@@ -197,6 +198,7 @@ class CostingReceiver {
         m_orderings(orderings),
         m_sort_ahead_orderings(sort_ahead_orderings),
         m_active_indexes(active_indexes),
+        m_spatial_indexes(spatial_indexes),
         m_fulltext_searches(fulltext_searches),
         m_fulltext_tables(fulltext_tables),
         m_sargable_fulltext_predicates(sargable_fulltext_predicates),
@@ -383,6 +385,9 @@ class CostingReceiver {
   /// for index-only scans, or to get interesting orderings.
   const Mem_root_array<ActiveIndexInfo> *m_active_indexes;
 
+  /// List of all active spatial indexes that we can apply in this query.
+  const Mem_root_array<SpatialDistanceScanInfo> *m_spatial_indexes;
+
   /// List of all active full-text indexes that we can apply in this query.
   const Mem_root_array<FullTextIndexInfo> *m_fulltext_searches;
 
@@ -555,6 +560,10 @@ class CostingReceiver {
   bool ProposeIndexScan(TABLE *table, int node_idx,
                         double force_num_output_rows_after_filter,
                         unsigned key_idx, bool reverse, int ordering_idx);
+  bool ProposeDistanceIndexScan(TABLE *table, int node_idx,
+                                double force_num_output_rows_after_filter,
+                                const SpatialDistanceScanInfo &order_info,
+                                int ordering_idx);
   bool ProposeRefAccess(TABLE *table, int node_idx, unsigned key_idx,
                         double force_num_output_rows_after_filter, bool reverse,
                         table_map allowed_parameter_tables, int ordering_idx);
@@ -910,6 +919,22 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
                              allowed_parameter_tables, order)) {
           return true;
         }
+      }
+    }
+  }
+
+  for (const SpatialDistanceScanInfo &order_info : *m_spatial_indexes) {
+    if (order_info.table != table) {
+      continue;
+    }
+
+    const int order = m_orderings->RemapOrderingIndex(order_info.forward_order);
+
+    if (order != 0) {
+      if (ProposeDistanceIndexScan(table, node_idx,
+                                   range_optimizer_row_estimate, order_info,
+                                   order)) {
+        return true;
       }
     }
   }
@@ -3075,6 +3100,67 @@ bool CostingReceiver::ProposeIndexScan(
   return false;
 }
 
+bool CostingReceiver::ProposeDistanceIndexScan(
+    TABLE *table, int node_idx, double force_num_output_rows_after_filter,
+    const SpatialDistanceScanInfo &order_info, int ordering_idx) {
+  AccessPath path;
+  unsigned int key_idx = order_info.key_idx;
+
+  path.type = AccessPath::INDEX_DISTANCE_SCAN;
+  path.index_distance_scan().table = table;
+  path.index_distance_scan().idx = key_idx;
+
+  // TODO: Examine using a different structure with less elements
+  // since max_key parameters are unused.
+  // TODO (Farthest Neighbor): if Overlaps(key_part.key_part_flag,
+  // HA_REVERSE_SORT) is true then create and pass a new flag e.g.
+  // HA_READ_FARTHEST_NEIGHBOR.
+  QUICK_RANGE *range = new (m_thd->mem_root) QUICK_RANGE(
+      m_thd->mem_root, reinterpret_cast<const uchar *>(order_info.coordinates),
+      sizeof(double) * 4, make_keypart_map(0),
+      reinterpret_cast<const uchar *>(order_info.coordinates), 0,
+      0,  // max_key unused
+      0 /*flag*/, HA_READ_NEAREST_NEIGHBOR);
+  path.index_distance_scan().range = range;
+
+  path.count_examined_rows = true;
+  path.ordering_state = m_orderings->SetOrder(ordering_idx);
+
+  double num_output_rows = table->file->stats.records;
+  double cost;
+
+  // Same cost estimation as for index scan.
+  if (table->covering_keys.is_set(key_idx)) {
+    // The index is covering, so we can do an index-only scan.
+    cost =
+        table->file->index_scan_cost(key_idx, /*ranges=*/1.0, num_output_rows)
+            .total_cost();
+  } else {
+    // This is the case of distance index scan.
+    // For now we use the same cost as in the index scan case.
+    cost = table->file->read_cost(key_idx, /*ranges=*/1.0, num_output_rows)
+               .total_cost();
+  }
+
+  path.num_output_rows_before_filter = num_output_rows;
+  path.set_init_cost(0.0);
+  path.set_init_once_cost(0.0);
+  path.set_cost(cost);
+  path.set_cost_before_filter(cost);
+  if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
+    path.immediate_update_delete_table = node_idx;
+    // Don't allow immediate update of the key that is being scanned.
+    if (IsUpdateStatement(m_thd) &&
+        is_key_used(table, key_idx, table->write_set)) {
+      path.immediate_update_delete_table = -1;
+    }
+  }
+
+  ProposeAccessPathForBaseTable(node_idx, force_num_output_rows_after_filter,
+                                table->key_info[key_idx].name, &path);
+  return false;
+}
+
 // Checks if a given predicate can be subsumed by a full-text index. It can
 // be subsumed if it returns TRUE for all documents returned by the full-text
 // index, and FALSE for all other documents. Since a full-text index scan
@@ -4988,6 +5074,9 @@ string PrintAccessPath(const AccessPath &path, const JoinHypergraph &graph,
       break;
     case AccessPath::INDEX_SCAN:
       str += "INDEX_SCAN";
+      break;
+    case AccessPath::INDEX_DISTANCE_SCAN:
+      str += "INDEX_DISTANCE_SCAN";
       break;
     case AccessPath::REF:
       str += "REF";
@@ -7257,14 +7346,15 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   LogicalOrderings orderings(thd);
   Mem_root_array<SortAheadOrdering> sort_ahead_orderings(thd->mem_root);
   Mem_root_array<ActiveIndexInfo> active_indexes(thd->mem_root);
+  Mem_root_array<SpatialDistanceScanInfo> spatial_indexes(thd->mem_root);
   Mem_root_array<FullTextIndexInfo> fulltext_searches(thd->mem_root);
   int order_by_ordering_idx = -1;
   int group_by_ordering_idx = -1;
   int distinct_ordering_idx = -1;
-  BuildInterestingOrders(thd, &graph, query_block, &orderings,
-                         &sort_ahead_orderings, &order_by_ordering_idx,
-                         &group_by_ordering_idx, &distinct_ordering_idx,
-                         &active_indexes, &fulltext_searches, trace);
+  BuildInterestingOrders(
+      thd, &graph, query_block, &orderings, &sort_ahead_orderings,
+      &order_by_ordering_idx, &group_by_ordering_idx, &distinct_ordering_idx,
+      &active_indexes, &spatial_indexes, &fulltext_searches, trace);
 
   if (InjectCastNodes(&graph)) return nullptr;
 
@@ -7284,7 +7374,7 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
           SecondaryEngineStateCheckHook(thd);
   CostingReceiver receiver(
       thd, query_block, graph, &orderings, &sort_ahead_orderings,
-      &active_indexes, &fulltext_searches, fulltext_tables,
+      &active_indexes, &spatial_indexes, &fulltext_searches, fulltext_tables,
       sargable_fulltext_predicates, update_delete_target_tables,
       immediate_update_delete_candidates, need_rowid, EngineFlags(thd),
       *subgraph_pair_limit, secondary_engine_cost_hook,
@@ -7327,9 +7417,10 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
       // effect as well and do a full reset.
       receiver = CostingReceiver(
           thd, query_block, graph, &orderings, &sort_ahead_orderings,
-          &active_indexes, &fulltext_searches, fulltext_tables,
-          sargable_fulltext_predicates, update_delete_target_tables,
-          immediate_update_delete_candidates, need_rowid, EngineFlags(thd),
+          &active_indexes, &spatial_indexes, &fulltext_searches,
+          fulltext_tables, sargable_fulltext_predicates,
+          update_delete_target_tables, immediate_update_delete_candidates,
+          need_rowid, EngineFlags(thd),
           /*subgraph_pair_limit=*/*subgraph_pair_limit,
           secondary_engine_cost_hook,
           secondary_engine_optimizer_request_state_hook, trace);

@@ -1665,6 +1665,7 @@ class Item_func_distance : public Item_real_func {
   }
 
   double val_real() override;
+  enum Functype functype() const override { return SP_DISTANCE_FUNC; }
   const char *func_name() const override { return "st_distance"; }
 };
 

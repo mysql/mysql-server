@@ -218,6 +218,8 @@ TABLE *GetBasicTable(const AccessPath *path) {
       return path->table_scan().table;
     case AccessPath::INDEX_SCAN:
       return path->index_scan().table;
+    case AccessPath::INDEX_DISTANCE_SCAN:
+      return path->index_distance_scan().table;
     case AccessPath::REF:
       return path->ref().table;
     case AccessPath::REF_OR_NULL:
@@ -335,6 +337,7 @@ bool ShouldEnableBatchMode(AccessPath *path) {
   switch (path->type) {
     case AccessPath::TABLE_SCAN:
     case AccessPath::INDEX_SCAN:
+    case AccessPath::INDEX_DISTANCE_SCAN:
     case AccessPath::REF:
     case AccessPath::REF_OR_NULL:
     case AccessPath::PUSHED_JOIN_REF:
@@ -540,6 +543,13 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
               thd, mem_root, param.table, param.idx, param.use_order,
               path->num_output_rows(), examined_rows);
         }
+        break;
+      }
+      case AccessPath::INDEX_DISTANCE_SCAN: {
+        const auto &param = path->index_distance_scan();
+        iterator = NewIterator<IndexDistanceScanIterator>(
+            thd, mem_root, param.table, param.idx, param.range,
+            path->num_output_rows(), examined_rows);
         break;
       }
       case AccessPath::REF: {

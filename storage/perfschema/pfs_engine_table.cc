@@ -843,6 +843,7 @@ int PFS_engine_table::index_read(KEY *key_infos, uint index, const uchar *key,
   assert(find_flag != HA_READ_MBR_WITHIN);
   assert(find_flag != HA_READ_MBR_DISJOINT);
   assert(find_flag != HA_READ_MBR_EQUAL);
+  assert(find_flag != HA_READ_NEAREST_NEIGHBOR);
 
   KEY *key_info = key_infos + index;
   m_index->set_key_info(key_info);
