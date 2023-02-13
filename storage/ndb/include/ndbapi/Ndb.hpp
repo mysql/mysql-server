@@ -1681,8 +1681,11 @@ public:
    *                  to calculate hashvalue
    * @param  xfrmbuflen Lengh of buffer
    *
-   * @note if xfrmbuf is null (default) malloc/free will be made
-   *       if xfrmbuf is not null but length is too short, method will fail
+   * @note if xfrmbuf is null (default) a big enough temporary buffer will be
+   *       allocated using malloc and free.
+   *       Since 7.6.26 if passed buffer is too small a temporay buffer will
+   *       be allocated as if no buffer was passed.  For older releases
+   *       function failed if buffer was to small.
    *
    * @return NdbTransaction object, or NULL on failure.
    */
@@ -1690,6 +1693,10 @@ public:
 				   const struct Key_part_ptr * keyData,
 				   void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  /**
+   * Unlike startTransaction function above, this function will not try to
+   * allocate a bigger buffer using malloc/free if provided buffer is too small.
+   */
   NdbTransaction* startTransaction(const NdbRecord *keyRec, const char *keyData,
 				   void* xfrmbuf, Uint32 xfrmbuflen);
 #endif
@@ -1724,8 +1731,11 @@ public:
    *                  to calculate hashvalue
    * @param  xfrmbuflen Lengh of buffer
    *
-   * @note if xfrmbuf is null (default) malloc/free will be made
-   *       if xfrmbuf is not null but length is too short, method will fail
+   * @note if xfrmbuf is null (default) a big enough temporary buffer will be
+   *       allocated using malloc and free.
+   *       Since 7.6.26 if passed buffer is too small a temporay buffer will
+   *       be allocated as if no buffer was passed.  For older releases
+   *       function failed if buffer was to small.
    *       Only for use with natively partitioned tables.
    *
    * @return 0 - ok - hashvalueptr is set
@@ -1736,6 +1746,10 @@ public:
                          const struct Key_part_ptr * keyData,
                          void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  /**
+   * Unlike computeHash function above, this function will not try to allocate
+   * a bigger buffer using malloc/free if provided buffer is too small.
+   */
   static int computeHash(Uint32* hashvalueptr,
                          const NdbRecord *keyRec, const char *keyData,
                          void* xfrmbuf, Uint32 xfrmbuflen);
