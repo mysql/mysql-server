@@ -143,7 +143,7 @@ bool RouterClusterSetOptions::read_from_metadata(
     return false;
   }
 
-  options_str_ = ::get_string((*row)[0]);
+  options_str_ = as_string((*row)[0]);
 
   return true;
 }
@@ -264,7 +264,7 @@ bool RouterOptions::read_from_metadata(mysqlrouter::MySQLSession &session,
     return false;
   }
 
-  options_str_ = ::get_string((*row)[0]);
+  options_str_ = as_string((*row)[0]);
 
   return true;
 }

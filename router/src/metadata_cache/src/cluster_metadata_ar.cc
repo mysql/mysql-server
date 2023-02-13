@@ -188,17 +188,17 @@ metadata_cache::ClusterTopology ARClusterMetadata::fetch_topology_from_member(
           std::to_string(row.size()));
     }
 
-    cluster.id = get_string(row[0]);
-    cluster.name = get_string(row[1]);
+    cluster.id = as_string(row[0]);
+    cluster.name = as_string(row[1]);
     metadata_cache::ManagedInstance instance{
         mysqlrouter::InstanceType::AsyncMember};
-    instance.mysql_server_uuid = get_string(row[2]);
+    instance.mysql_server_uuid = as_string(row[2]);
 
     if (!set_instance_ports(instance, row, 3, 4)) {
       return true;  // next row
     }
 
-    if (get_string(row[5]) == "PRIMARY") {
+    if (as_string(row[5]) == "PRIMARY") {
       instance.mode = metadata_cache::ServerMode::ReadWrite;
       instance.role = metadata_cache::ServerRole::Primary;
     } else {
@@ -206,7 +206,7 @@ metadata_cache::ClusterTopology ARClusterMetadata::fetch_topology_from_member(
       instance.role = metadata_cache::ServerRole::Secondary;
     }
 
-    set_instance_attributes(instance, get_string(row[6]));
+    set_instance_attributes(instance, as_string(row[6]));
 
     std::string warning;
     if (instance.type == mysqlrouter::InstanceType::AsyncMember) {

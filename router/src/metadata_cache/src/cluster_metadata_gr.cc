@@ -1038,7 +1038,7 @@ GRMetadataBackendV1::fetch_instances_from_metadata_server(
     }
 
     metadata_cache::ManagedInstance s{mysqlrouter::InstanceType::GroupMember};
-    s.mysql_server_uuid = get_string(row[3]);
+    s.mysql_server_uuid = as_string(row[3]);
     if (!set_instance_ports(s, row, 4, 5)) {
       return true;  // next row
     }
@@ -1046,8 +1046,8 @@ GRMetadataBackendV1::fetch_instances_from_metadata_server(
     cluster.members.push_back(s);
     cluster.single_primary_mode =
         true;  // actual value set elsewhere from GR metadata
-    cluster.id = get_string(row[0]);
-    cluster.name = get_string(row[1]);
+    cluster.id = as_string(row[0]);
+    cluster.name = as_string(row[1]);
 
     return true;  // false = I don't want more rows
   };
@@ -1118,14 +1118,14 @@ GRMetadataBackendV2::fetch_instances_from_metadata_server(
 
     metadata_cache::ManagedInstance instance{
         mysqlrouter::InstanceType::GroupMember};
-    instance.mysql_server_uuid = get_string(row[2]);
+    instance.mysql_server_uuid = as_string(row[2]);
     if (!set_instance_ports(instance, row, 3, 4)) {
       return true;  // next row
     }
-    set_instance_attributes(instance, get_string(row[5]));
+    set_instance_attributes(instance, as_string(row[5]));
 
-    cluster.id = get_string(row[0]);
-    cluster.name = get_string(row[1]);
+    cluster.id = as_string(row[0]);
+    cluster.name = as_string(row[1]);
     cluster.single_primary_mode =
         true;  // actual value set elsewhere from GR metadata
 
@@ -1237,7 +1237,7 @@ static stdx::expected<std::string, std::error_code> get_clusterset_id(
         make_error_code(metadata_cache::metadata_errc::cluster_not_found));
   }
 
-  return get_string((*row)[0]);
+  return as_string((*row)[0]);
 }
 
 std::tuple<std::string, std::string, mysqlrouter::TargetCluster>
@@ -1273,12 +1273,12 @@ GRClusterSetMetadataBackend::get_target_cluster_info_from_metadata_server(
           std::to_string(row.size()));
     }
 
-    std::get<0>(result) = get_string(row[0]);
-    std::get<1>(result) = get_string(row[1]);
+    std::get<0>(result) = as_string(row[0]);
+    std::get<1>(result) = as_string(row[1]);
     std::get<2>(result) = target_cluster;
     std::get<2>(result).target_type(
         mysqlrouter::TargetCluster::TargetType::ByUUID);
-    std::get<2>(result).target_value(get_string(row[2]));
+    std::get<2>(result).target_value(as_string(row[2]));
 
     return false;
   };
@@ -1319,13 +1319,13 @@ GRClusterSetMetadataBackend::update_clusterset_topology_from_metadata_server(
   try {
     session.query(
         query, [&result](const std::vector<const char *> &row) -> bool {
-          const std::string node_uuid = get_string(row[0]);
-          const std::string node_addr_classic = get_string(row[1]);
-          const std::string node_addr_x = get_string(row[2]);
-          const std::string node_attributes = get_string(row[3]);
-          const std::string cluster_id = get_string(row[4]);
-          const std::string cluster_name = get_string(row[5]);
-          const bool cluster_is_primary = get_string(row[6]) == "PRIMARY";
+          const std::string node_uuid = as_string(row[0]);
+          const std::string node_addr_classic = as_string(row[1]);
+          const std::string node_addr_x = as_string(row[2]);
+          const std::string node_attributes = as_string(row[3]);
+          const std::string cluster_id = as_string(row[4]);
+          const std::string cluster_name = as_string(row[5]);
+          const bool cluster_is_primary = as_string(row[6]) == "PRIMARY";
           const bool cluster_is_invalidated = strtoui_checked(row[7]) == 1;
 
           if (result.clusters_data.empty() ||
@@ -1356,7 +1356,7 @@ GRClusterSetMetadataBackend::update_clusterset_topology_from_metadata_server(
               instance.type == mysqlrouter::InstanceType::ReadReplica) {
             result.clusters_data.back().members.push_back(instance);
             if (result.name.empty()) {
-              result.name = get_string(row[8]);
+              result.name = as_string(row[8]);
             }
           } else {
             log_warning("Ignoring unsupported instance %s:%d, type: %s",

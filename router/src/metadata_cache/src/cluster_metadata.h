@@ -159,7 +159,7 @@ class METADATA_CACHE_EXPORT ClusterMetadata : public MetaData {
   std::shared_ptr<mysqlrouter::MySQLSession> metadata_connection_;
 };
 
-std::string get_string(const char *input_str);
+std::string as_string(const char *input_str);
 
 bool set_instance_ports(metadata_cache::ManagedInstance &instance,
                         const mysqlrouter::MySQLSession::Row &row,
