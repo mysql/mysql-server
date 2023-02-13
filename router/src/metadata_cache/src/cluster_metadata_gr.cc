@@ -290,7 +290,7 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
    * filters or policies (like target_cluster etc.)
    * @param router_cs_options ClusterSet related options configured for this
    * Router in the metadata
-   * @param metadata_servers
+   * @param metadata_servers the list of ClusterSet metadata servers
    */
   void update_clusterset_status_from_gr(
       metadata_cache::ClusterTopology &cs_topology, bool needs_writable_node,
