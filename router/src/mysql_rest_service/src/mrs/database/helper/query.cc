@@ -34,13 +34,13 @@ namespace database {
 using MySQLSession = Query::MySQLSession;
 
 void QueryLog::query(MySQLSession *session, const std::string &q) {
-  // log_debug("query: %s", q.c_str());
+  log_debug("query: %s", q.c_str());
   Query::query(session, q);
 }
 
 void QueryLog::prepare_and_execute(MySQLSession *session, const std::string &q,
                                    std::vector<enum_field_types> pt) {
-  // log_debug("Prepare: %s", q.c_str());
+  log_debug("Prepare: %s", q.c_str());
   Query::prepare_and_execute(session, q, pt);
 }
 
