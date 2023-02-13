@@ -65,11 +65,8 @@ IMPORT_LOG_FUNCTIONS()
  * @return A string object encapsulation of the input character string. An empty
  *         string if input string is nullptr.
  */
-std::string get_string(const char *input_str) {
-  if (input_str == nullptr) {
-    return "";
-  }
-  return std::string(input_str);
+std::string as_string(const char *input_str) {
+  return {input_str == nullptr ? "" : input_str};
 }
 
 ClusterMetadata::ClusterMetadata(
@@ -195,7 +192,7 @@ bool set_instance_ports(metadata_cache::ManagedInstance &instance,
                         const size_t classic_port_column,
                         const size_t x_port_column) {
   {
-    const std::string classic_port = get_string(row[classic_port_column]);
+    const std::string classic_port = as_string(row[classic_port_column]);
 
     auto make_res = mysql_harness::make_tcp_address(classic_port);
     if (!make_res) {
@@ -212,7 +209,7 @@ bool set_instance_ports(metadata_cache::ManagedInstance &instance,
 
   // X protocol support is not mandatory
   if (row[x_port_column] && *row[x_port_column]) {
-    const std::string x_port = get_string(row[x_port_column]);
+    const std::string x_port = as_string(row[x_port_column]);
     auto make_res = mysql_harness::make_tcp_address(x_port);
     if (!make_res) {
       // There is a Shell bug (#27677227) that can cause the mysqlx port be
@@ -400,22 +397,22 @@ ClusterMetadata::auth_credentials_t ClusterMetadata::fetch_auth_credentials(
   auto result_processor =
       [&auth_credentials](const MySQLSession::Row &row) -> bool {
     JsonDocument privileges;
-    if (row[2] != nullptr) privileges.Parse<0>(get_string(row[2]).c_str());
+    if (row[2] != nullptr) privileges.Parse<0>(as_string(row[2]).c_str());
 
-    const auto username = get_string(row[0]);
+    const auto username = as_string(row[0]);
     if (privileges.HasParseError()) {
       log_warning(
           "Skipping user '%s': invalid privilege format '%s', authentication "
           "will not be possible",
-          username.c_str(), get_string(row[2]).c_str());
-    } else if (get_string(row[3]) != "modular_crypt_format") {
+          username.c_str(), as_string(row[2]).c_str());
+    } else if (as_string(row[3]) != "modular_crypt_format") {
       log_warning(
           "Skipping user '%s': authentication method '%s' is not supported for "
           "metadata_cache authentication",
-          username.c_str(), get_string(row[3]).c_str());
+          username.c_str(), as_string(row[3]).c_str());
     } else {
       auth_credentials[username] =
-          std::make_pair(get_string(row[1]), std::move(privileges));
+          std::make_pair(as_string(row[1]), std::move(privileges));
     }
     return true;
   };

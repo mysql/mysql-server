@@ -62,7 +62,7 @@ namespace mysqlrouter {
  * @return A string object encapsulation of the input character string. An empty
  *         string if input string is nullptr.
  */
-static std::string get_string(const char *input_str) {
+static std::string as_string(const char *input_str) {
   return input_str == nullptr ? "" : input_str;
 }
 
@@ -740,15 +740,15 @@ static ClusterInfo query_metadata_servers(
     mysql->query(
         query, [&result](const std::vector<const char *> &row) -> bool {
           if (result.cluster_id == "") {
-            result.cluster_id = get_string(row[0]);
-            result.cluster_type_specific_id = get_string(row[1]);
-            result.name = get_string(row[2]);
-          } else if (result.cluster_id != get_string(row[0])) {
+            result.cluster_id = as_string(row[0]);
+            result.cluster_type_specific_id = as_string(row[1]);
+            result.name = as_string(row[2]);
+          } else if (result.cluster_id != as_string(row[0])) {
             // metadata with more than 1 cluster not currently supported
             throw std::runtime_error("Metadata contains more than one cluster");
           }
 
-          result.metadata_servers.push_back("mysql://" + get_string(row[3]));
+          result.metadata_servers.push_back("mysql://" + as_string(row[3]));
           return true;
         });
   } catch (const MySQLSession::Error &e) {
@@ -838,10 +838,10 @@ ClusterInfo ClusterMetadataGRInClusterSet::fetch_metadata_servers() {
         "expected 4 got " +
         std::to_string(result_cluster_info->size()));
   }
-  result.cluster_id = get_string((*result_cluster_info)[0]);
-  result.cluster_type_specific_id = get_string((*result_cluster_info)[1]);
-  result.name = get_string((*result_cluster_info)[2]);
-  result.is_primary = get_string((*result_cluster_info)[3]) == "PRIMARY";
+  result.cluster_id = as_string((*result_cluster_info)[0]);
+  result.cluster_type_specific_id = as_string((*result_cluster_info)[1]);
+  result.name = as_string((*result_cluster_info)[2]);
+  result.is_primary = as_string((*result_cluster_info)[3]) == "PRIMARY";
 
   // get all the nodes of all the Clusters that belong to the ClusterSet;
   // we want those that belong to the PRIMARY cluster to be first in the
@@ -869,10 +869,10 @@ ClusterInfo ClusterMetadataGRInClusterSet::fetch_metadata_servers() {
                     // we want PRIMARY cluster nodes first, so we put them
                     // directly in the result list, the non-PRIMARY ones we
                     // buffer and append to the result at the end
-                    auto &servers = (get_string(row[1]) == "PRIMARY")
+                    auto &servers = (as_string(row[1]) == "PRIMARY")
                                         ? result.metadata_servers
                                         : replica_clusters_nodes;
-                    servers.push_back("mysql://" + get_string(row[0]));
+                    servers.push_back("mysql://" + as_string(row[0]));
                     return true;
                   });
   } catch (const MySQLSession::Error &e) {
@@ -1140,7 +1140,7 @@ static bool was_bootstrapped_as_clusterset(MySQLSession *mysql,
     return false;
   }
 
-  return get_string((*row)[0]) == kClusterSet;
+  return as_string((*row)[0]) == kClusterSet;
 }
 
 ClusterType get_cluster_type(const MetadataSchemaVersion &schema_version,
