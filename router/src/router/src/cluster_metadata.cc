@@ -348,7 +348,7 @@ uint32_t register_router_v1(
           " WHERE host_id = ? AND router_name = ?");
       query << host_id << router_name << sqlstring::end;
       if (auto row = mysql->query_one(query)) {
-        const std::string router_id_str{(*row)[0]};
+        const std::string router_id_str{get_string((*row)[0])};
 
         size_t end_pos;
         const auto router_id =
@@ -800,7 +800,7 @@ InstanceType ClusterMetadataGRV2::fetch_current_instance_type() {
       return InstanceType::Unsupported;
     }
 
-    return get_instance_type((*row)[0]);
+    return get_instance_type(get_string((*row)[0]));
   } catch (const std::exception &e) {
     throw std::runtime_error("Failed identifying instance type: "s + e.what());
   }

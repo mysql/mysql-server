@@ -114,7 +114,7 @@ var defaults = {
   gr_member_state: "ONLINE",
   gr_members_all: 3,
   gr_members_online: 3,
-  current_instance_attributes: "",
+  current_instance_attributes: null,
 };
 
 function ensure_type(options, field, expected_type) {
