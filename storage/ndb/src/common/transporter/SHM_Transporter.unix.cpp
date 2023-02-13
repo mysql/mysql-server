@@ -46,7 +46,7 @@
 void SHM_Transporter::make_error_info(char info[], int sz)
 {
   snprintf(info,sz,"Shm key=%d sz=%d id=%d",
-	   shmKey, shmSize, shmId);
+           static_cast<int>(shmKey), shmSize, shmId);
 }
 
 bool
