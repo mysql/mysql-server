@@ -421,13 +421,9 @@ bool Sql_cmd_select::accept(THD *thd, Select_lex_visitor *visitor) {
   return thd->lex->unit->accept(visitor);
 }
 
-const MYSQL_LEX_CSTRING *Sql_cmd_select::eligible_secondary_storage_engine() {
-  bool is_external_source = false;
-  const MYSQL_LEX_CSTRING *ret =
-      get_eligible_secondary_engine(&is_external_source);
-  set_secondary_storage_stmt_external_tbl(is_external_source);
-
-  return ret;
+const MYSQL_LEX_CSTRING *Sql_cmd_select::eligible_secondary_storage_engine()
+    const {
+  return get_eligible_secondary_engine();
 }
 
 /**
@@ -671,6 +667,17 @@ void accumulate_statement_cost(const LEX *lex) {
   lex->thd->m_current_query_cost = total_cost;
 }
 
+static bool has_external_table(Table_ref *query_tables) {
+  for (Table_ref *ref = query_tables; ref != nullptr; ref = ref->next_global) {
+    if (ref->table != nullptr &&
+        (ref->table->file->ht->flags & HTON_SUPPORTS_EXTERNAL_SOURCE) != 0 &&
+        ref->table->s->has_secondary_engine()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
   Checks if a query should be retried using a secondary storage engine.
 
@@ -712,7 +719,7 @@ static bool retry_with_secondary_engine(THD *thd) {
   // is higher than the specified cost threshold.
   // We allow any query to be executed in the secondary_engine when it involves
   // external tables.
-  if (!sql_cmd->has_secondary_storage_stmt_external_tbl() &&
+  if (!has_external_table(thd->lex->query_tables) &&
       (thd->m_current_query_cost <=
        thd->variables.secondary_engine_cost_threshold)) {
     Opt_trace_context *const trace = &thd->opt_trace;
@@ -973,8 +980,7 @@ bool Sql_cmd_dml::check_all_table_privileges(THD *thd) {
   }
   return false;
 }
-const MYSQL_LEX_CSTRING *Sql_cmd_dml::get_eligible_secondary_engine(
-    bool *is_external_source) const {
+const MYSQL_LEX_CSTRING *Sql_cmd_dml::get_eligible_secondary_engine() const {
   // Don't use secondary storage engines for statements that call stored
   // routines.
   if (lex->uses_stored_routines()) return nullptr;
@@ -1013,15 +1019,9 @@ const MYSQL_LEX_CSTRING *Sql_cmd_dml::get_eligible_secondary_engine(
 
     if (secondary_engine == nullptr) {
       // First base table. Save its secondary engine name for later.
-      // mark if it is an external source
-      *is_external_source =
-          (tl->table->file->ht->flags & HTON_SUPPORTS_EXTERNAL_SOURCE) != 0 &&
-          tl->table->s->has_secondary_engine();
-
       secondary_engine = &tl->table->s->secondary_engine;
     } else if (!equal(*secondary_engine, tl->table->s->secondary_engine)) {
       // In a different secondary engine than the previous base tables.
-      *is_external_source = false;
       return nullptr;
     }
   }

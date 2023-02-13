@@ -156,16 +156,13 @@ class Sql_cmd {
 
   /**
     Is this statement of a type and on a form that makes it eligible
-    for execution in a secondary storage engine? In addition, if one of the
-    tables referred in the statement is an external table, it sets the internal
-    field m_secondary_engine_stmt_with_extern_tbl to true.
+    for execution in a secondary storage engine?
 
     @return the name of the secondary storage engine, or nullptr if
     the statement is not eligible for execution in a secondary storage
     engine
   */
-  virtual const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine() {
-    m_secondary_engine_stmt_with_extern_tbl = false;
+  virtual const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine() const {
     return nullptr;
   }
 
@@ -184,22 +181,6 @@ class Sql_cmd {
   */
   bool secondary_storage_engine_disabled() const {
     return !m_secondary_engine_enabled;
-  }
-
-  /**
-    Does this statement belonging to a secondary engine refer to an
-    external table?
-  */
-  bool has_secondary_storage_stmt_external_tbl() const {
-    return m_secondary_engine_enabled &&
-           m_secondary_engine_stmt_with_extern_tbl;
-  }
-
-  /**
-    Set has external table for this statement belonging to a secondary engine.
-  */
-  void set_secondary_storage_stmt_external_tbl(bool has_external_tbl) {
-    m_secondary_engine_stmt_with_extern_tbl = has_external_tbl;
   }
 
   /**
@@ -266,15 +247,6 @@ class Sql_cmd {
     not be considered for executing this statement.
   */
   bool m_secondary_engine_enabled{true};
-
-  /**
-    Tells if this statement belongs to a secondary engine that refers to
-    an external table. An external table corresponds to a table with data
-    in object store whose primary engine does not store any of its data,
-    only metadata. The table contents can be accessed after loading the
-    table in the secondary storage engine.
-  */
-  bool m_secondary_engine_stmt_with_extern_tbl{false};
 
   /**
     Keeps track of whether the statement was prepared optional
