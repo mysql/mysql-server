@@ -373,8 +373,11 @@ class Error {
         sql_state_{std::move(sql_state)} {}
 
   constexpr uint16_t error_code() const noexcept { return error_code_; }
+  constexpr void error_code(uint16_t code) { error_code_ = code; }
   constexpr string_type sql_state() const { return sql_state_; }
+  constexpr void sql_state(const string_type &state) { sql_state_ = state; }
   constexpr string_type message() const { return message_; }
+  constexpr void message(const string_type &msg) { message_ = msg; }
 
  private:
   uint16_t error_code_{0};

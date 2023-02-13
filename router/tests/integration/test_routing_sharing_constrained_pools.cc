@@ -1670,6 +1670,67 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
 }
 
 /*
+ * test the cmd_kill -> Ok path
+ *
+ * using one-server to ensure both connections end up on the same backend.
+ */
+TEST_P(ShareConnectionTinyPoolOneServerTest,
+       classic_protocol_set_password_reconnect) {
+  const bool can_share = GetParam().can_share();
+  const bool can_fetch_password = !(GetParam().client_ssl_mode == kDisabled);
+
+  SCOPED_TRACE("// connecting to server");
+
+  auto admin_cli_res = shared_servers()[0]->admin_cli();
+  ASSERT_NO_ERROR(admin_cli_res);
+
+  auto admin_cli = std::move(*admin_cli_res);
+  ASSERT_NO_ERROR(admin_cli.query("DROP USER IF EXISTS changeme"));
+  ASSERT_NO_ERROR(
+      admin_cli.query("CREATE USER changeme IDENTIFIED WITH "
+                      "mysql_native_password BY 'changeme'"));
+
+  MysqlClient cli;
+
+  cli.username("changeme");
+  cli.password("changeme");
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  auto conn_id_res = query_one<1>(cli, "SELECT CONNECTION_ID()");
+  ASSERT_NO_ERROR(conn_id_res);
+
+  auto conn_num_res = from_string((*conn_id_res)[0]);
+  ASSERT_NO_ERROR(conn_num_res);
+
+  ASSERT_NO_ERROR(admin_cli.kill(*conn_num_res));
+
+  ASSERT_NO_ERROR(admin_cli.query("SET PASSWORD FOR changeme='changeme2'"));
+
+  // should fail as connection is killed.
+  {
+    auto query_res = cli.query("DO 1");
+    ASSERT_ERROR(query_res);
+
+    if (can_share && can_fetch_password) {
+      // reauth failed.
+      EXPECT_EQ(query_res.error().value(), 1045) << query_res.error();
+    } else {
+      EXPECT_EQ(query_res.error().value(), 2013) << query_res.error();
+    }
+  }
+
+  {
+    auto query_res = cli.query("DO 1");
+    ASSERT_ERROR(query_res);
+
+    // connection is closed.
+    EXPECT_EQ(query_res.error().value(), 2013) << query_res.error();
+  }
+}
+
+/*
  * run a binlog stream through the router.
  *
  * - register-replica

@@ -34,8 +34,13 @@ class ChangeUserSender : public ForwardingProcessor {
  public:
   using ForwardingProcessor::ForwardingProcessor;
 
-  ChangeUserSender(MysqlRoutingClassicConnectionBase *conn, bool in_handshake)
-      : ForwardingProcessor(conn), in_handshake_{in_handshake} {}
+  ChangeUserSender(
+      MysqlRoutingClassicConnectionBase *conn, bool in_handshake,
+      std::function<void(const classic_protocol::message::server::Error &)>
+          on_error)
+      : ForwardingProcessor(conn),
+        in_handshake_{in_handshake},
+        on_error_(std::move(on_error)) {}
 
   enum class Stage {
     Command,
@@ -63,6 +68,9 @@ class ChangeUserSender : public ForwardingProcessor {
   bool in_handshake_{false};
 
   std::optional<classic_protocol::message::client::ChangeUser> change_user_msg_;
+
+  std::function<void(const classic_protocol::message::server::Error &err)>
+      on_error_;
 };
 
 #endif

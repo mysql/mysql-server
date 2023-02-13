@@ -337,9 +337,9 @@ ChangeUserSender::final_response() {
 
 stdx::expected<Processor::Result, std::error_code> ChangeUserSender::ok() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
-  auto dst_protocol = connection()->client_protocol();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
+  auto *dst_protocol = connection()->client_protocol();
 
   auto msg_res =
       ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Ok>(
@@ -368,37 +368,39 @@ stdx::expected<Processor::Result, std::error_code> ChangeUserSender::ok() {
   dst_protocol->sent_attributes(change_user_msg_->attributes());
 
   stage(Stage::Done);
-  if (in_handshake_) {
-    return forward_server_to_client();
-  } else {
+
+  if (!in_handshake_) {
     discard_current_msg(src_channel, src_protocol);
     return Result::Again;
   }
+
+  return forward_server_to_client();
 }
 
 stdx::expected<Processor::Result, std::error_code> ChangeUserSender::error() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
 
   auto msg_res = ClassicFrame::recv_msg<
       classic_protocol::borrowed::message::server::Error>(src_channel,
                                                           src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
+  auto msg = *msg_res;
+
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("change_user::error: " +
-                                   std::string(msg_res->message())));
+                                   std::string(msg.message())));
   }
 
   connection()->authenticated(false);
 
   stage(Stage::Done);
-  if (in_handshake_) {
-    // forward the error to the client.
-    return forward_server_to_client();
-  } else {
-    discard_current_msg(src_channel, src_protocol);
-    return Result::Again;
-  }
+
+  on_error_({msg.error_code(), std::string(msg.message()),
+             std::string(msg.sql_state())});
+
+  discard_current_msg(src_channel, src_protocol);
+  return Result::Again;
 }

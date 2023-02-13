@@ -76,6 +76,8 @@ class ClientGreetor : public Processor {
   stdx::expected<Result, std::error_code> error();
 
   Stage stage_{Stage::Init};
+
+  classic_protocol::message::server::Error connect_err_{};
 };
 
 #endif

@@ -382,6 +382,43 @@ INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageServerErrorTest,
                            return test_param_info.param.test_name;
                          });
 
+TEST(MessageServerError, default_constructed) {
+  classic_protocol::message::server::Error msg;
+
+  EXPECT_EQ(msg.error_code(), 0);
+  EXPECT_EQ(msg.message(), "");
+  EXPECT_EQ(msg.sql_state(), "");
+}
+
+TEST(MessageServerError, default_args_constructed) {
+  classic_protocol::message::server::Error msg(1234, "foo");
+
+  EXPECT_EQ(msg.error_code(), 1234);
+  EXPECT_EQ(msg.message(), "foo");
+  EXPECT_EQ(msg.sql_state(), "HY000");
+}
+
+TEST(MessageServerError, warning_count) {
+  classic_protocol::message::server::Error msg;
+
+  msg.error_code(123);
+  EXPECT_EQ(msg.error_code(), 123);
+}
+
+TEST(MessageServerError, message) {
+  classic_protocol::message::server::Error msg;
+
+  msg.message("foo");
+  EXPECT_EQ(msg.message(), "foo");
+}
+
+TEST(MessageServerError, sql_state) {
+  classic_protocol::message::server::Error msg;
+
+  msg.sql_state("HY000");
+  EXPECT_EQ(msg.sql_state(), "HY000");
+}
+
 // server::Greeting
 
 using CodecMessageServerGreetingTest =

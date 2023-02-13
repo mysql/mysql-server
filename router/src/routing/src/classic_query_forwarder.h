@@ -28,6 +28,7 @@
 #include <system_error>
 
 #include "forwarding_processor.h"
+#include "mysqlrouter/classic_protocol_message.h"
 #include "stmt_classifier.h"
 
 class QueryForwarder : public ForwardingProcessor {

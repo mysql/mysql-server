@@ -177,7 +177,7 @@ static void adjust_supported_capabilities(
 
 static stdx::expected<size_t, std::error_code> send_ssl_connection_error_msg(
     Channel *dst_channel, ClassicProtocolState *dst_protocol,
-    const std::string &msg) {
+    std::string_view msg) {
   return ClassicFrame::send_msg<
       classic_protocol::borrowed::message::server::Error>(
       dst_channel, dst_protocol, {CR_SSL_CONNECTION_ERROR, msg});
@@ -337,17 +337,25 @@ stdx::expected<Processor::Result, std::error_code> ServerGreetor::process() {
   harness_assert_this_should_not_execute();
 }
 
-// error has been sent to the client.
 stdx::expected<Processor::Result, std::error_code> ServerGreetor::error() {
-  auto *socket_splicer = connection()->socket_splicer();
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event()
+                 .stage("close::server")
+                 .direction(Tracer::Event::Direction::kServerClose));
+  }
 
-  // ConnectProcessor either:
+  // reset the server connection.
   //
-  // - closes the connection and sends an error to the client, or
-  // - keeps the connection open.
-  auto &server_conn = socket_splicer->server_conn();
+  // - close the connection
+  // - reset all protocol state.
+  // - reset all channel state
 
-  (void)server_conn.close();
+  connection()->socket_splicer()->server_conn() = {
+      nullptr, nullptr, connection()->context().dest_ssl_mode(),
+      std::make_unique<ClassicProtocolState>()};
+
+  // force a connection close after the error-msg was sent.
+  connection()->authenticated(false);
 
   return Result::Done;
 }
@@ -389,17 +397,17 @@ ServerGreetor::server_greeting_error() {
   connection()->client_greeting_sent(true);
 
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
 
   auto msg_res = ClassicFrame::recv_msg<
       classic_protocol::borrowed::message::server::Error>(src_channel,
                                                           src_protocol);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
-  if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
-    auto msg = *msg_res;
+  auto msg = *msg_res;
 
+  if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
     // RouterRoutingTest.RoutingTooManyServerConnections expects this
     // message.
     log_debug(
@@ -408,11 +416,17 @@ ServerGreetor::server_greeting_error() {
         msg.error_code(), std::string(msg.message()).c_str());
   }
 
-  // close the server-socket as no futher communication is expected.
-  (void)socket_splicer->server_conn().close();
+  stage(Stage::Error);
+  if (!in_handshake_) {
+    on_error_({msg.error_code(), std::string(msg.message()),
+               std::string(msg.sql_state())});
 
-  stage(Stage::Error);  // forward the packet and close the connection.
+    discard_current_msg(src_channel, src_protocol);
 
+    return Result::Again;
+  }
+
+  // forward the packet and close the connection.
   return forward_server_to_client();
 }
 
@@ -524,6 +538,16 @@ ServerGreetor::server_greeting_greeting() {
     log_debug(
         "server_ssl_mode=REQUIRED, but destination doesn't support "
         "encryption.");
+
+    stage(Stage::Error);
+    if (!in_handshake_) {
+      on_error_({CR_SSL_CONNECTION_ERROR,
+                 "SSL connection error: SSL is required by router, but the "
+                 "server doesn't support it"});
+
+      return Result::Again;
+    }
+
     auto send_res = send_ssl_connection_error_msg(
         dst_channel, dst_protocol,
         "SSL connection error: SSL is required by router, but the "
@@ -535,7 +559,6 @@ ServerGreetor::server_greeting_greeting() {
       return send_client_failed(ec);
     }
 
-    stage(Stage::Error);
     return Result::SendToClient;
   }
 
@@ -576,7 +599,7 @@ ServerGreetor::server_greeting_greeting() {
 stdx::expected<Processor::Result, std::error_code>
 ServerGreetor::client_greeting() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->client_channel();
+  auto *src_channel = socket_splicer->client_channel();
   auto *src_protocol = connection()->client_protocol();
   auto *dst_protocol = connection()->server_protocol();
 
@@ -590,13 +613,21 @@ ServerGreetor::client_greeting() {
     // config says: do as the client did, and the client did SSL and server
     // doesn't support it -> error
 
+    stage(Stage::Error);
+
+    if (!in_handshake_) {
+      on_error_({CR_SSL_CONNECTION_ERROR,
+                 "SSL connection error: Requirements can not be satisfied"});
+
+      return Result::Again;
+    }
+
     // send back to the client
     const auto send_res = send_ssl_connection_error_msg(
         src_channel, src_protocol,
         "SSL connection error: Requirements can not be satisfied");
     if (!send_res) return send_client_failed(send_res.error());
 
-    stage(Stage::Error);
     return Result::SendToClient;
   }
 
@@ -888,6 +919,15 @@ ServerGreetor::tls_connect() {
         //
         // - cert-verification failed.
         // - no shared cipher
+        stage(Stage::Error);
+
+        if (!in_handshake_) {
+          on_error_({CR_SSL_CONNECTION_ERROR,
+                     "connecting to destination failed with TLS error: " +
+                         res.error().message()});
+
+          return Result::Again;
+        }
 
         const auto send_res = send_ssl_connection_error_msg(
             src_channel, src_protocol,
@@ -905,9 +945,7 @@ ServerGreetor::tls_connect() {
         }
 
         // close the server-socket as no futher communication is expected.
-        (void)socket_splicer->server_conn().close();
 
-        stage(Stage::Error);
         return Result::SendToClient;
       }
     }
@@ -1069,6 +1107,17 @@ ServerGreetor::final_response() {
  * router<-server: auth error.
  */
 stdx::expected<Processor::Result, std::error_code> ServerGreetor::auth_error() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
+
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::server::Error>(src_channel,
+                                                          src_protocol);
+  if (!msg_res) return recv_client_failed(msg_res.error());
+
+  auto msg = *msg_res;
+
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("server::auth::error"));
   }
@@ -1078,6 +1127,11 @@ stdx::expected<Processor::Result, std::error_code> ServerGreetor::auth_error() {
   if (in_handshake_) {
     return forward_server_to_client();
   }
+
+  on_error_({msg.error_code(), std::string(msg.message()),
+             std::string(msg.sql_state())});
+
+  discard_current_msg(src_channel, src_protocol);
 
   return Result::Again;
 }
@@ -1151,10 +1205,7 @@ stdx::expected<Processor::Result, std::error_code>
 ServerFirstConnector::connect() {
   stage(Stage::ServerGreeting);
 
-  connection()->push_processor(
-      std::make_unique<ConnectProcessor>(connection()));
-
-  return Result::Again;
+  return socket_reconnect_start();
 }
 
 stdx::expected<Processor::Result, std::error_code>
@@ -1168,13 +1219,16 @@ ServerFirstConnector::server_greeting() {
   auto &server_conn = socket_splicer->server_conn();
 
   if (!server_conn.is_open()) {
+    auto *src_channel = socket_splicer->client_channel();
+    auto *src_protocol = connection()->client_protocol();
+
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("connect::error"));
     }
 
     stage(Stage::Error);
 
-    return Result::Again;
+    return reconnect_send_error_msg(src_channel, src_protocol);
   }
 
   if (auto &tr = tracer()) {
@@ -1183,8 +1237,13 @@ ServerFirstConnector::server_greeting() {
 
   stage(Stage::ServerGreeted);
 
-  connection()->push_processor(
-      std::make_unique<ServerGreetor>(connection(), false));
+  // the client hasn't started the handshake yet, therefore it isn't
+  // "in_handshake"
+  connection()->push_processor(std::make_unique<ServerGreetor>(
+      connection(), false,
+      [this](const classic_protocol::message::server::Error &err) {
+        this->reconnect_error(err);
+      }));
 
   return Result::Again;
 }
@@ -1199,11 +1258,15 @@ ServerFirstConnector::server_greeted() {
   auto &server_conn = socket_splicer->server_conn();
 
   if (!server_conn.is_open()) {
+    auto *src_channel = socket_splicer->client_channel();
+    auto *src_protocol = connection()->client_protocol();
+
     stage(Stage::Error);
-  } else {
-    stage(Stage::Ok);
+
+    return reconnect_send_error_msg(src_channel, src_protocol);
   }
 
+  stage(Stage::Ok);
   return Result::Again;
 }
 
@@ -1876,6 +1939,17 @@ ServerFirstAuthenticator::final_response() {
  */
 stdx::expected<Processor::Result, std::error_code>
 ServerFirstAuthenticator::auth_error() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
+
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::server::Error>(src_channel,
+                                                          src_protocol);
+  if (!msg_res) return recv_server_failed(msg_res.error());
+
+  auto msg = *msg_res;
+
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("server::auth::error"));
   }
@@ -1883,7 +1957,10 @@ ServerFirstAuthenticator::auth_error() {
   stage(Stage::Error);  // close the server connection after the Error msg was
                         // sent.
 
-  return forward_server_to_client();
+  on_error_({msg.error_code(), std::string(msg.message()),
+             std::string(msg.sql_state())});
+
+  return Result::Again;
 }
 
 /**
