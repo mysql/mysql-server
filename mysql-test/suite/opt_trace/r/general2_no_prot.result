@@ -2583,7 +2583,7 @@ table3.col_varchar_10_utf8_key	{
                   "impossible_range": true
                 } /* range_analysis */,
                 "returning_empty_null_row": true,
-                "cause": "impossible_on_condition"
+                "cause": "always_false_outer_join_condition"
               }
             ] /* rows_estimation */
           },
