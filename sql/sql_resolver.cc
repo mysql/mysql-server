@@ -6441,7 +6441,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     // for this block which will point to the corresponding item in the derived
     // table and then we substitute the new fields for the view refs.
     for (auto vr : unique_view_refs) {
-      for (const auto [expr, was_hidden] : contrib_exprs) {
+      for (const auto &[expr, was_hidden] : contrib_exprs) {
         Item::Item_view_ref_replacement info(vr->real_item(), *field_ptr, this);
         if (replace_item_in_expression(expr, was_hidden, &info,
                                        &Item::replace_item_view_ref))
@@ -6465,7 +6465,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
       // now that replaces_field has inherited the upper context
       pair.second->context = &new_derived->context;
 
-      for (const auto [expr, was_hidden] : contrib_exprs) {
+      for (const auto &[expr, was_hidden] : contrib_exprs) {
         Item_field *replacement = replaces_field;
         // If this expression was hidden, we need to make a copy of the derived
         // table field. The same derived table field cannot be marked both
