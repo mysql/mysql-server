@@ -1851,7 +1851,15 @@ static struct my_option my_long_options[] = {
      "already have. NOTE: you will need a SUPER privilege to use this option.",
      &disable_log_bin, &disable_log_bin, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
-    {"force-if-open", 'F', "Force if binlog was not closed properly.",
+    {"force-if-open", 'F',
+     "If the IN_USE flag is set in the first event, run "
+     "anyways, and do not fail in case the file ends with a truncated event. "
+     "The IN_USE flag is set only for the binary log that is currently "
+     "written by the server; in case the server has crashed, the flag remains "
+     "set until the server is started up again and recovers the binary log. "
+     "Without -F, mysqlbinlog refuses to process file with the flag set. "
+     "Since the server may be writing the file, it is considered normal that "
+     "the last event is truncated.",
      &force_if_open_opt, &force_if_open_opt, nullptr, GET_BOOL, NO_ARG, 1, 0, 0,
      nullptr, 0, nullptr},
     {"force-read", 'f', "Force reading unknown binlog events.", &force_opt,
@@ -3025,8 +3033,6 @@ typedef Basic_binlog_file_reader<
 */
 static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
                                           const char *logname) {
-  Exit_status retval = OK_CONTINUE;
-
   ulong max_event_size = 0;
   mysql_get_option(nullptr, MYSQL_OPT_MAX_ALLOWED_PACKET, &max_event_size);
   Mysqlbinlog_file_reader mysqlbinlog_file_reader(opt_verify_binlog_checksum,
@@ -3043,8 +3049,9 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
   transaction_parser.reset();
 
   if (fdle != nullptr) {
-    retval = process_event(print_event_info, fdle,
-                           mysqlbinlog_file_reader.event_start_pos(), logname);
+    auto retval =
+        process_event(print_event_info, fdle,
+                      mysqlbinlog_file_reader.event_start_pos(), logname);
     if (retval != OK_CONTINUE) return retval;
   }
 
@@ -3057,15 +3064,19 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
 
     Log_event *ev = mysqlbinlog_file_reader.read_event_object();
     if (ev == nullptr) {
-      /*
-        if binlog wasn't closed properly ("in use" flag is set) don't complain
-        about a corruption, but treat it as EOF and move to the next binlog.
-      */
-      if ((mysqlbinlog_file_reader.format_description_event()->header()->flags &
-           LOG_EVENT_BINLOG_IN_USE_F) ||
-          mysqlbinlog_file_reader.get_error_type() ==
-              Binlog_read_error::READ_EOF)
-        return retval;
+      // Return success at end-of-file.
+      auto error_type = mysqlbinlog_file_reader.get_error_type();
+      if (error_type == Binlog_read_error::READ_EOF) return OK_CONTINUE;
+      // Also return success if the file is "in use" and the event is
+      // truncated: this may occur when the file is concurrently
+      // written by mysqld.
+      auto fde_flags =
+          mysqlbinlog_file_reader.format_description_event()->header()->flags;
+      auto in_use_flag = fde_flags & LOG_EVENT_BINLOG_IN_USE_F;
+      if (in_use_flag != 0 && error_type == Binlog_read_error::TRUNC_EVENT) {
+        fprintf(result_file, "# File ends with a truncated event.\n");
+        return OK_CONTINUE;
+      }
 
       error(
           "Could not read entry at offset %s: "
@@ -3096,14 +3107,13 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       }
     }
 
-    if ((retval = process_event(print_event_info, ev, old_off, logname)) !=
-        OK_CONTINUE)
-      return retval;
+    auto retval = process_event(print_event_info, ev, old_off, logname);
+    if (retval != OK_CONTINUE) return retval;
   }
 
   /* NOTREACHED */
 
-  return retval;
+  return OK_CONTINUE;
 }
 
 /* Post processing of arguments to check for conflicts and other setups */

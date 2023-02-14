@@ -1274,8 +1274,11 @@ uint32 Log_event::write_header_to_memory(uchar *buf) {
   int4store(buf, timestamp);
   buf[EVENT_TYPE_OFFSET] = get_type_code();
   int4store(buf + SERVER_ID_OFFSET, server_id);
-  int4store(buf + EVENT_LEN_OFFSET,
-            static_cast<uint32>(common_header->data_written));
+  uint32 event_size = static_cast<uint32>(common_header->data_written);
+  DBUG_EXECUTE_IF("set_query_log_event_size_to_5", {
+    if (get_type_code() == binary_log::QUERY_EVENT) event_size = 5;
+  });
+  int4store(buf + EVENT_LEN_OFFSET, event_size);
   int4store(buf + LOG_POS_OFFSET, static_cast<uint32>(common_header->log_pos));
   int2store(buf + FLAGS_OFFSET, common_header->flags);
 
