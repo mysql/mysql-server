@@ -4660,14 +4660,15 @@ type_conversion_status store_internal_with_error_check(Field_new_decimal *field,
     indexed expression.
 
   @param thd       Thread handler
-  @param item      The item to generate a Create_field from
+  @param source_item      The item to generate a Create_field from
   @param tmp_table A table object which is used to generate a temporary table
                    field, as described above. This doesn't need to be an
                    existing table.
   @return          A Create_field generated from the input item, or nullptr
                    in case of errors.
 */
-Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table);
+Create_field *generate_create_field(THD *thd, Item *source_item,
+                                    TABLE *tmp_table);
 
 inline bool is_blob(enum_field_types sql_type) {
   return (sql_type == MYSQL_TYPE_BLOB || sql_type == MYSQL_TYPE_MEDIUM_BLOB ||

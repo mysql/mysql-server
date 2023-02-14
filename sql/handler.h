@@ -3037,7 +3037,9 @@ enum enum_stats_auto_recalc : int {
   HA_STATS_AUTO_RECALC_OFF
 };
 
-/* struct to hold information about the table that should be created */
+/**
+  Struct to hold information about the table that should be created.
+ */
 struct HA_CREATE_INFO {
   const CHARSET_INFO *table_charset{nullptr};
   const CHARSET_INFO *default_table_charset{nullptr};
