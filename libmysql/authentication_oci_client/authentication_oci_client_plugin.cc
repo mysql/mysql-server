@@ -22,8 +22,15 @@
 
 #include "my_config.h"
 
+/*
+  This is a CLIENT_ONLY plugin, so allocation functions are my_malloc,
+  my_free etc.
+*/
+#include <mysql/service_mysql_alloc.h>
+
 #include <my_compiler.h>
 #include <my_dir.h>
+#include <my_sys.h>
 #include <mysql.h>
 #include <mysql/client_plugin.h>
 #include <stdio.h>
@@ -37,8 +44,8 @@
 #include "sql-common/oci/ssl.h"
 #include "sql-common/oci/utilities.h"
 
-static const char *s_oci_config_location = nullptr;
-static const char *s_authentication_oci_client_config_profile = nullptr;
+static char *s_oci_config_location = nullptr;
+static char *s_authentication_oci_client_config_profile = nullptr;
 static oci::OCI_config_file *s_oci_config_file = nullptr;
 static std::string s_expanded_path{};
 static const int s_max_token_size = 10000;
@@ -50,6 +57,17 @@ static const int s_max_token_size = 10000;
   @param [in]  message  Message to be displayed
 */
 void log_error(const std::string &message) { std::cerr << message << "\n"; }
+
+/**
+  Free plugin option
+
+  @param [in] option  Plugin option to be freed
+*/
+inline void free_plugin_option(char *&option) {
+  if (option == nullptr) return;
+  my_free(option);
+  option = nullptr;
+}
 
 /**
  * Parse the system variables for the location of the ~/.oci/config file.
@@ -184,6 +202,8 @@ static int initialize_plugin(char *, size_t, int, va_list) {
 
 static int deinitialize_plugin() {
   if (s_oci_config_file != nullptr) delete s_oci_config_file;
+  free_plugin_option(s_oci_config_location);
+  free_plugin_option(s_authentication_oci_client_config_profile);
   return 0;
 }
 
@@ -192,14 +212,22 @@ static int deinitialize_plugin() {
   data for plugin to process
 */
 static int oci_authenticate_client_option(const char *option, const void *val) {
-  if (strcmp(option, "oci-config-file") == 0 && val != nullptr) {
-    s_oci_config_location = static_cast<const char *>(val);
-    std::ifstream file(s_oci_config_location);
-    if (file.good()) return 0;
+  const char *value = static_cast<const char *>(val);
+  if (strcmp(option, "oci-config-file") == 0) {
+    free_plugin_option(s_oci_config_location);
+    if (value == nullptr) return 0;
+    std::ifstream file(value);
+    if (file.good()) {
+      s_oci_config_location =
+          my_strdup(PSI_NOT_INSTRUMENTED, value, MYF(MY_WME));
+      return 0;
+    }
   }
-  if (strcmp(option, "authentication-oci-client-config-profile") == 0 &&
-      val != nullptr) {
-    s_authentication_oci_client_config_profile = static_cast<const char *>(val);
+  if (strcmp(option, "authentication-oci-client-config-profile") == 0) {
+    free_plugin_option(s_authentication_oci_client_config_profile);
+    if (value == nullptr) return 0;
+    s_authentication_oci_client_config_profile =
+        my_strdup(PSI_NOT_INSTRUMENTED, value, MYF(MY_WME));
     return 0;
   }
   return 1;
