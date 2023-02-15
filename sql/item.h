@@ -2043,6 +2043,30 @@ class Item : public Parse_tree_node {
     return 0.0;
   }
 
+  /**
+    Get the value to return from get_date() in case of errors.
+
+    @see Item::error_bool
+
+    @return The true: the function failed.
+  */
+  bool error_date() {
+    null_value = m_nullable;
+    return true;
+  }
+
+  /**
+    Get the value to return from get_time() in case of errors.
+
+    @see Item::error_bool
+
+    @return The true: the function failed.
+  */
+  bool error_time() {
+    null_value = m_nullable;
+    return true;
+  }
+
  public:
   /**
     Get the value to return from val_decimal() in case of errors.
