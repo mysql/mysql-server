@@ -628,7 +628,8 @@ int Binlog_sender::send_events(File_reader &reader, my_off_t end_pos) {
       assert(now >= m_last_event_sent_ts);
 
       // if enough time has elapsed so that we should send another heartbeat
-      if ((now - m_last_event_sent_ts) >= m_heartbeat_period) {
+      if (m_heartbeat_period > std::chrono::nanoseconds(0) &&
+          (now - m_last_event_sent_ts) >= m_heartbeat_period) {
         if (send_heartbeat_event(log_pos)) return 1;
         exclude_group_end_pos = 0;
       } else {
@@ -1282,6 +1283,8 @@ int Binlog_sender::send_heartbeat_event_v1(my_off_t log_pos) {
 }
 int Binlog_sender::send_heartbeat_event_v2(my_off_t log_pos) {
   DBUG_TRACE;
+  DBUG_EXECUTE_IF("heartbeat_event_with_position_greater_than_4_gb",
+                  { assert(log_pos > 4294967296); };);
   auto codec = binary_log::codecs::Factory::build_codec(
       binary_log::HEARTBEAT_LOG_EVENT_V2);
   const char *filename = m_linfo.log_file_name;
