@@ -72,21 +72,14 @@ TEST(QuitMessage, encode) {
 
 TEST(QuitSenderTest, sender) {
   net::io_context io_ctx;
+  RoutingConfig conf;
+  conf.protocol = Protocol::Type::kClassicProtocol;
+  conf.net_buffer_length = 16 * 1024;
+  conf.connect_timeout = 10;
+  conf.client_connect_timeout = 10;
+  conf.bind_address = mysql_harness::TCPAddress{"", 3306};
 
-  MySQLRoutingContext ctx{BaseProtocol::Type::kClassicProtocol,
-                          "name",
-                          16 * 1024,
-                          10s,
-                          10s,
-                          {"", 3306},
-                          "/some/path",
-                          100,
-                          SslMode::kPreferred,
-                          {},
-                          SslMode::kPreferred,
-                          {},
-                          false,
-                          1s};
+  MySQLRoutingContext ctx{conf, "name", {}, {}};
 
   auto conn = MysqlRoutingClassicConnectionBase::create(
       ctx,      // ctx
