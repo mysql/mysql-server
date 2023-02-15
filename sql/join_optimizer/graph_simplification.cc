@@ -67,7 +67,7 @@ namespace {
 
 /**
   Returns whether A is already a part of B, ie., whether it is impossible to
-  execute A before B. E.g., for t1 LEFT JOIN (t2 JOIN t3), the t2-t3 join
+  execute B before A. E.g., for t1 LEFT JOIN (t2 JOIN t3), the t2-t3 join
   will be part of the t1-{t2,t3} hyperedge, and this will return true.
 
   Note that this definition is much more lenient than the one in the paper
@@ -855,15 +855,18 @@ GraphSimplifier::SimplificationResult GraphSimplifier::DoSimplificationStep() {
 
   SimplificationStep full_step = ConcretizeSimplificationStep(best_step);
 
-  m_cycles.AddEdge(best_step.before_edge_idx, best_step.after_edge_idx);
+  bool added_cycle [[maybe_unused]] =
+      m_cycles.AddEdge(best_step.before_edge_idx, best_step.after_edge_idx);
+  assert(!added_cycle);
   m_graph->graph.ModifyEdge(best_step.after_edge_idx * 2,
                             full_step.new_edge.left, full_step.new_edge.right);
-  if (!forced && !GraphIsJoinable(*m_graph, m_cycles)) {
+
+  if (!GraphIsJoinable(*m_graph, m_cycles)) {
     // The change we did introduced an impossibility; we made the graph
     // unjoinable. This happens very rarely, but it does, since our
     // happens-before join detection is incomplete (see GraphIsJoinable()
-    // comments for more details). When this happens, we need to first
-    // undo what we just did:
+    // and FindJoinDependencies() comments for more details). When this
+    // happens, we need to first undo what we just did:
     m_cycles.DeleteEdge(best_step.before_edge_idx, best_step.after_edge_idx);
     m_graph->graph.ModifyEdge(best_step.after_edge_idx * 2,
                               full_step.old_edge.left,
