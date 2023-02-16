@@ -94,9 +94,11 @@ class ROUTING_EXPORT DestinationTlsContext {
    * If a TlsClientContext for the destination exists, a pointer to it is
    * returned.
    *
-   * @param dest_id identified of a destination
+   * @param dest_id  unique identifier of a destination
+   * @param hostname name of the destination host
    */
-  TlsClientContext *get(const std::string &dest_id);
+  TlsClientContext *get(const std::string &dest_id,
+                        const std::string &hostname);
 
  private:
   SslVerify ssl_verify_{SslVerify::kDisabled};

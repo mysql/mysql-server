@@ -134,15 +134,17 @@ class MySQLRoutingContext {
   /**
    * get the SSL context for the server side of the route.
    *
-   * @param dest_id id of the destination
+   * @param dest_id  unique id of the destination
+   * @param hostname name of the destination host
    *
    * @returns a TlsClientContext for the destination.
    * @retval nullptr if creating tls-context failed.
    */
-  TlsClientContext *dest_ssl_ctx(const std::string &dest_id) {
+  TlsClientContext *dest_ssl_ctx(const std::string &dest_id,
+                                 const std::string &hostname) {
     if (destination_tls_context_ == nullptr) return nullptr;
 
-    return destination_tls_context_->get(dest_id);
+    return destination_tls_context_->get(dest_id, hostname);
   }
 
   SharedQuarantineHandler &shared_quarantine() {
