@@ -2106,7 +2106,7 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
     std::vector<classic_protocol::field_type::value_type> types;
-    std::vector<std::optional<std::string>> values;
+    std::vector<std::optional<typename value_type::string_type>> values;
 
     if (new_params_bound_res->value()) {
       const auto nullbits = nullbits_res->value();
