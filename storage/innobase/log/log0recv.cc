@@ -320,75 +320,6 @@ byte *MetadataRecover::parseMetadataLog(table_id_t id, uint64_t version,
   }
 }
 
-/** Apply the collected persistent dynamic metadata to in-memory
-table objects */
-void MetadataRecover::apply() {
-  PersistentTables::iterator iter;
-
-  for (iter = m_tables.begin(); iter != m_tables.end(); ++iter) {
-    table_id_t table_id = iter->first;
-    PersistentTableMetadata *metadata = iter->second;
-    dict_table_t *table;
-
-    table = dd_table_open_on_id(table_id, nullptr, nullptr, false, true);
-
-    /* If the table is nullptr, it might be already dropped */
-    if (table == nullptr) {
-      continue;
-    }
-
-    dict_sys_mutex_enter();
-
-    /* At this time, the metadata in DDTableBuffer has
-    already been applied to table object, we can apply
-    the latest status of metadata read from redo logs to
-    the table now. We can read the dirty_status directly
-    since it's in recovery phase */
-
-    /* The table should be either CLEAN or applied BUFFERED
-    metadata from DDTableBuffer just now */
-    ut_ad(table->dirty_status.load() == METADATA_CLEAN ||
-          table->dirty_status.load() == METADATA_BUFFERED);
-
-    bool buffered = (table->dirty_status.load() == METADATA_BUFFERED);
-
-    mutex_enter(&dict_persist->mutex);
-
-    uint64_t autoinc_persisted = table->autoinc_persisted;
-    bool is_dirty = dict_table_apply_dynamic_metadata(table, metadata);
-
-    if (is_dirty) {
-      /* This table was not marked as METADATA_BUFFERED
-      before the redo logs are applied, so it's not in
-      the list */
-      if (!buffered) {
-        ut_ad(!table->in_dirty_dict_tables_list);
-#ifndef UNIV_HOTBACKUP
-        UT_LIST_ADD_LAST(dict_persist->dirty_dict_tables, table);
-#endif
-      }
-
-      table->dirty_status.store(METADATA_DIRTY);
-      ut_d(table->in_dirty_dict_tables_list = true);
-      ++dict_persist->num_dirty_tables;
-
-      /* For those tables which are not initialized by
-      innobase_initialize_autoinc(), the next counter should be advanced to
-      point to the next auto increment value.  This is simlilar to
-      metadata_applier::operator(). */
-      if (autoinc_persisted != table->autoinc_persisted &&
-          table->autoinc != ~0ULL) {
-        ++table->autoinc;
-      }
-    }
-
-    mutex_exit(&dict_persist->mutex);
-    dict_sys_mutex_exit();
-
-    dd_table_close(table, nullptr, nullptr, false);
-  }
-}
-
 /** Creates the recovery system. */
 void recv_sys_create() {
   if (recv_sys != nullptr) {
@@ -3980,7 +3911,7 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
   }
 
   /* Disallow checkpoints until recovery is finished, and changes gathered
-  in recv_sys->recovered_metadata (srv_dict_metadata) are transferred to
+  in recv_sys->metadata_recover (dict_metadata) are transferred to
   dict_table_t objects (happens in srv0start.cc). */
 
   err = log_start(log, checkpoint_lsn, recovered_lsn, false);
@@ -4073,14 +4004,10 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
     }
   }
 
-  MetadataRecover *metadata;
+  MetadataRecover *metadata{};
 
   if (!aborting) {
-    metadata = recv_sys->metadata_recover;
-
-    recv_sys->metadata_recover = nullptr;
-  } else {
-    metadata = nullptr;
+    std::swap(metadata, recv_sys->metadata_recover);
   }
 
   recv_sys_free();

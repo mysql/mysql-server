@@ -356,10 +356,6 @@ class MetadataRecover {
   was truncated */
   byte *parseMetadataLog(table_id_t id, uint64_t version, byte *ptr, byte *end);
 
-  /** Apply the collected persistent dynamic metadata to in-memory
-  table objects */
-  void apply();
-
   /** Store the collected persistent dynamic metadata to
   mysql.innodb_dynamic_metadata */
   void store();

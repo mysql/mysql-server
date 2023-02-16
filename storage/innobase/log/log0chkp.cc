@@ -280,7 +280,7 @@ static lsn_t log_compute_available_for_checkpoint_lsn(const log_t &log) {
 
 static void log_update_available_for_checkpoint_lsn(log_t &log) {
   /* Note: log.m_allow_checkpoints is set to true after recovery is finished,
-  and changes gathered in srv_dict_metadata are applied to dict_table_t
+  and changes gathered in recv_sys->metadata_recover are applied to dict_table_t
   objects; or in log_start() if recovery was not needed. We can't trust
   flush lists until recovery is finished, so we must not update lsn available
   for checkpoint (as update would be based on what we can see inside them). */
@@ -758,7 +758,7 @@ static bool log_request_sync_flush(const log_t &log, lsn_t new_oldest) {
 
 lsn_t log_sync_flush_lsn(log_t &log) {
   /* Note: log.m_allow_checkpoints is set to true after recovery is finished,
-  and changes gathered in srv_dict_metadata are applied to dict_table_t
+  and changes gathered in recv_sys->metadata_recover are applied to dict_table_t
   objects; or in log_start() if recovery was not needed. Until that happens
   checkpoints are disallowed, so sync flush decisions (based on checkpoint age)
   should be postponed. */
@@ -862,7 +862,7 @@ static bool log_should_checkpoint(log_t &log) {
 #endif /* UNIV_DEBUG */
 
   /* Note: log.allow_checkpoints is set to true after recovery is finished,
-  and changes gathered in srv_dict_metadata are applied to dict_table_t
+  and changes gathered in recv_sys->metadata_recover are applied to dict_table_t
   objects; or in log_start() if recovery was not needed. We can't reclaim
   free space in redo log until DD dynamic metadata records are safe. */
   if (!log.m_allow_checkpoints.load(std::memory_order_acquire)) {

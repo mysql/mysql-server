@@ -1402,18 +1402,7 @@ void dict_table_load_dynamic_metadata(dict_table_t *table);
 write dirty persistent data of table to mysql.innodb_dynamic_metadata
 accordingly. */
 void dict_persist_to_dd_table_buffer();
-#endif /* !UNIV_HOTBACKUP */
 
-/** Apply the persistent dynamic metadata read from redo logs or
-DDTableBuffer to corresponding table during recovery.
-@param[in,out]  table           table
-@param[in]      metadata        structure of persistent metadata
-@return true if we do apply something to the in-memory table object,
-otherwise false */
-bool dict_table_apply_dynamic_metadata(dict_table_t *table,
-                                       const PersistentTableMetadata *metadata);
-
-#ifndef UNIV_HOTBACKUP
 /** Sets merge_threshold in the SYS_INDEXES
 @param[in,out]  index           index
 @param[in]      merge_threshold value to set */
