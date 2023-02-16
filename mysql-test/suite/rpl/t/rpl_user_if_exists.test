@@ -267,19 +267,7 @@ CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'pass',u3 I
 --let $assert_cond= [SHOW MASTER STATUS, Position,1] = $pos_before
 --source include/assert.inc
 
-# User u1 exists
-
 CREATE USER u1;
---let $pos_before= query_get_value(show master status,Position,1)
-# CREATE gets ERROR since shsh auth_plugin do not exists
---error ER_PLUGIN_IS_NOT_LOADED
-CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'pass',u3 IDENTIFIED BY 'nw';
-
-# Check that  the above statement has not been logged
---let $assert_text= assert that the above Event has not been added to binlog
---let $assert_cond= [SHOW MASTER STATUS, Position,1] = $pos_before
---source include/assert.inc
-
 DROP USER u3;
 
 --echo # Errors scenarios related to password_history

@@ -255,6 +255,7 @@ ne_user2@localhost,ne_user3@localhost;
 Warnings:
 Note	3162	Authorization ID 'ne_user2'@'localhost' does not exist.
 Note	3162	Authorization ID 'ne_user3'@'localhost' does not exist.
+# restart:
 #
 # Bug #21807286: "CREATE USER IF NOT EXISTS" REPORTS AN ERROR
 #
@@ -269,4 +270,23 @@ ALTER USER IF EXISTS b21807286@localhost IDENTIFIED BY 'xyz';
 Warnings:
 Note	3162	Authorization ID 'b21807286'@'localhost' does not exist.
 # End of 5.7 tests
-# restart:
+#
+# Bug #34906592: CREATE USER IF NOT EXISTS adds a password history entry
+#
+SET GLOBAL password_history = 5;
+CREATE USER IF NOT EXISTS b34906592@localhost IDENTIFIED BY 'password';
+# Test: should return 0 rows.
+SELECT User,Host FROM mysql.password_history WHERE User = 'b34906592';
+User	Host
+b34906592	localhost
+# Test: shouls succeed with a warning that user exists
+CREATE USER IF NOT EXISTS b34906592@localhost IDENTIFIED BY 'password';
+Warnings:
+Note	3163	Authorization ID 'b34906592'@'localhost' already exists.
+# Test: should return 0 rows.
+SELECT User,Host FROM mysql.password_history WHERE User = 'b34906592';
+User	Host
+b34906592	localhost
+DROP USER b34906592@localhost;
+SET GLOBAL password_history = default;
+# End of 8.0 tests

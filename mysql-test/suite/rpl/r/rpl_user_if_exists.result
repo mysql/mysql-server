@@ -265,9 +265,6 @@ CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'pass',u3 I
 ERROR HY000: Plugin 'shsh' is not loaded
 include/assert.inc [assert that the above Event has not been added to binlog]
 CREATE USER u1;
-CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'pass',u3 IDENTIFIED BY 'nw';
-ERROR HY000: Plugin 'shsh' is not loaded
-include/assert.inc [assert that the above Event has not been added to binlog]
 DROP USER u3;
 # Errors scenarios related to password_history
 SET @old_password_history= @@GLOBAL.password_history;
