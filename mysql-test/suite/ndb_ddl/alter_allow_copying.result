@@ -5,6 +5,17 @@ set @@ndb_allow_copying_alter_table = 0;
 ALTER TABLE t1
 modify column b varchar(255);
 ERROR 0A000: Implicit copying alter is not supported. Reason: ndb_allow_copying_alter_table=0. Try ALGORITHM=COPY to force the alter.
+SHOW WARNINGS LIMIT 2;
+Level	Code	Message
+Warning	1846	Reason: 'Altering field type is not supported'
+Error	1846	Implicit copying alter is not supported. Reason: ndb_allow_copying_alter_table=0. Try ALGORITHM=COPY to force the alter.
+set @@ndb_allow_copying_alter_table = 0;
+ALTER TABLE t8 ADD COLUMN VALUE_NEW VARCHAR(25) DEFAULT NULL;
+ERROR 0A000: Implicit copying alter is not supported. Reason: ndb_allow_copying_alter_table=0. Try ALGORITHM=COPY to force the alter.
+SHOW WARNINGS LIMIT 2;
+Level	Code	Message
+Warning	1846	Reason: 'Found hidden primary key or user defined partitioning'
+Error	1846	Implicit copying alter is not supported. Reason: ndb_allow_copying_alter_table=0. Try ALGORITHM=COPY to force the alter.
 set @@ndb_allow_copying_alter_table = 0;
 ALTER TABLE t1
 ALGORITHM=COPY,
