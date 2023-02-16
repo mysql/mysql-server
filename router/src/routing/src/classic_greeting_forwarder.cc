@@ -840,8 +840,9 @@ ServerGreetor::client_greeting_full() {
 static stdx::expected<SSL_CTX *, std::error_code> get_dest_ssl_ctx(
     MySQLRoutingContext &ctx, const std::string &id) {
   return mysql_harness::make_tcp_address(id).and_then(
-      [&ctx](const auto &addr) -> stdx::expected<SSL_CTX *, std::error_code> {
-        return ctx.dest_ssl_ctx(addr.address())->get();
+      [&ctx,
+       &id](const auto &addr) -> stdx::expected<SSL_CTX *, std::error_code> {
+        return ctx.dest_ssl_ctx(id, addr.address())->get();
       });
 }
 
