@@ -90,7 +90,7 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
   or is being dropped; if we succeed in initing the page in the buffer
   pool for read, then DISCARD cannot proceed until the read has
   completed */
-  bpage = buf_page_init_for_read(err, mode, page_id, page_size, unzip);
+  bpage = buf_page_init_for_read(mode, page_id, page_size, unzip);
 
   ut_a(bpage == nullptr || bpage->get_space()->id == page_id.space());
 
