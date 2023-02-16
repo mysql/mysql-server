@@ -22,7 +22,8 @@
 
 [Unit]
 Description=MySQL Router
-After=network.target
+After=network-online.target
+Wants=network-online.target
 After=syslog.target
 
 
