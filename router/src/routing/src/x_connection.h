@@ -600,6 +600,8 @@ class MysqlRoutingXConnection
   void tls_connect_init();
   void tls_connect();
 
+  void client_con_close();
+
   void client_recv_cmd();
 
   void client_cap_get();
