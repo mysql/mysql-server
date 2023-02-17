@@ -79,7 +79,7 @@ MYSQL_ADD_PLUGIN(authentication_kerberos_client
   ${UTILITY}
   LINK_LIBRARIES
   ${KERBEROS_LIB}
-  ${SSL_LIBRARIES}
+  OpenSSL::SSL OpenSSL::Crypto
   ${LIBDL}
   ${MY_SQL}
   CLIENT_ONLY

@@ -319,6 +319,10 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
         STRING(REGEX MATCH "ext::([a-z]+)" MATCH_LIB "${lib}")
         SET(SYSTEM_LIB ${CMAKE_MATCH_1})
         SET(${var} "${${var}} -l${SYSTEM_LIB} ")
+      ELSEIF(lib MATCHES "OpenSSL::SSL")
+        SET(${var} "${${var}} -lssl ")
+      ELSEIF(lib MATCHES "OpenSSL::Crypto")
+        SET(${var} "${${var}} -lcrypto ")
       ELSEIF (lib MATCHES "^\\-L")
         # Search directory. Test on FreeBSD: -L/usr/local/lib -lunwind
         SET(${var} "${${var}} ${lib} ")
@@ -361,7 +365,7 @@ ENDIF()
 SET(CONFIG_CLIENT_LIBS "${CLIENT_LIBS}")
 SET(CONFIG_LIBS_PRIVATE "${CLIENT_LIBS}")
 SET(CONFIG_REQUIRES_PRIVATE "")
-# ssl.cmake should have used pkg-config rather than cmake to locate ssl
+
 IF (WITH_SSL STREQUAL "system")
   # We have implemented "system" for other platforms as well, but those
   # are non-native packages.

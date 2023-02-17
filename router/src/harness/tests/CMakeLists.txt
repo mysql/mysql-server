@@ -97,7 +97,7 @@ SET(TESTS
 FOREACH(TEST ${TESTS})
   ADD_HARNESS_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include/
-    LIB_DEPENDS test-helpers;${SSL_LIBRARIES})
+    LIB_DEPENDS test-helpers;OpenSSL::SSL OpenSSL::Crypto)
 ENDFOREACH()
 
 SET(TESTS
@@ -109,7 +109,7 @@ FOREACH(TEST ${TESTS})
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include/
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/include/
     INCLUDE_DIRS ${MySQLRouter_BINARY_DIR}/src/harness/include/
-    LIB_DEPENDS harness_tls;test-helpers;${SSL_LIBRARIES})
+    LIB_DEPENDS harness_tls;test-helpers;OpenSSL::SSL;OpenSSL::Crypto)
 ENDFOREACH()
 
 SET(TESTS

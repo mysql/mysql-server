@@ -1003,6 +1003,7 @@ configure_file(
 add_library(event_core STATIC ${SRC_CORE})
 add_library(event_extra STATIC ${SRC_EXTRA})
 add_library(event_openssl STATIC ${SRC_OPENSSL})
+TARGET_LINK_LIBRARIES(event_openssl OpenSSL::SSL OpenSSL::Crypto)
 # These are interdependent libraries.
 TARGET_LINK_LIBRARIES(event_extra event_core)
 TARGET_LINK_LIBRARIES(event_openssl event_core)

@@ -72,7 +72,7 @@ SET(KEYRING_FILE_SOURCE
 
 SET(KEYRING_FILE_LIBRARIES
   keyring_common
-  ${SSL_LIBRARIES}
+  OpenSSL::SSL OpenSSL::Crypto
 )
 
 MYSQL_ADD_COMPONENT(keyring_file

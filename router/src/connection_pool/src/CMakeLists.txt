@@ -34,7 +34,7 @@ TARGET_LINK_LIBRARIES(connection_pool
   harness_net_ts
   mysql_protocol
   PRIVATE
-  ${SSL_LIBRARIES}
+  OpenSSL::SSL OpenSSL::Crypto
   )
 TARGET_INCLUDE_DIRECTORIES(connection_pool PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}

@@ -193,7 +193,7 @@ MYSQL_ADD_PLUGIN(group_replication
   LINK_LIBRARIES
   ext::lz4
   ext::zlib
-  ${SSL_LIBRARIES}
+  OpenSSL::SSL OpenSSL::Crypto
   ext::libprotobuf-lite
   ${GR_PROTOBUF_LITE_LIB}
   mysqlgcs

@@ -40,7 +40,7 @@ MYSQL_ADD_PLUGIN(
   # Authentication plugin main
   authentication_oci_client_plugin.cc
 
-  LINK_LIBRARIES oci_common mysys ${SSL_LIBRARIES}
+  LINK_LIBRARIES oci_common mysys OpenSSL::SSL OpenSSL::Crypto
 
   CLIENT_ONLY
   MODULE_ONLY MODULE_OUTPUT_NAME "authentication_oci_client"

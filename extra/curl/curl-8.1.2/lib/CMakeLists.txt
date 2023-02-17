@@ -74,6 +74,7 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 target_link_libraries(${LIB_NAME} PRIVATE ${CURL_LIBS})
+target_link_libraries(${LIB_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 transform_makefile_inc("Makefile.soname" "${CMAKE_CURRENT_BINARY_DIR}/Makefile.soname.cmake")
 include(${CMAKE_CURRENT_BINARY_DIR}/Makefile.soname.cmake)

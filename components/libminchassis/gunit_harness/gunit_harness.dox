@@ -218,7 +218,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   MYSQL_ADD_EXECUTABLE(test_foo-t
     test_foo.cc
     test_harness_component.cc
-    LINK_LIBRARIES gtest ${CMAKE_DL_LIBS} minchassis ${SSL_LIBRARIES}
+    LINK_LIBRARIES gtest ${CMAKE_DL_LIBS} minchassis
+                   OpenSSL::SSL OpenSSL::Crypto
     SYSTEM_INCLUDE_DIRECTORIES ${GMOCK_INCLUDE_DIRS}
     ADD_TEST test_foo-t
     COMPONENT Test)

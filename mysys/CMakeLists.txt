@@ -196,7 +196,7 @@ ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES}
   ${LIBRT}
   ${LIBEXECINFO}
   ${LIBUNWIND_LDFLAGS}
-  ${SSL_LIBRARIES}
+  OpenSSL::SSL OpenSSL::Crypto
   )
 
 # For targets that link with mysys, and are independent of other targets.

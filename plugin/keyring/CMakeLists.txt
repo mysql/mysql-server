@@ -40,7 +40,7 @@ MYSQL_ADD_PLUGIN(keyring_file
   file_io.cc
   hash_to_buffer_serializer.cc
   keyring.cc
-  LINK_LIBRARIES ${SSL_LIBRARIES}
+  LINK_LIBRARIES OpenSSL::SSL OpenSSL::Crypto
   MODULE_ONLY
   MODULE_OUTPUT_NAME "keyring_file"
   )

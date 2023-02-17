@@ -43,7 +43,7 @@ SET(KEYRING_ENCRYPTION_TEST_LIBRARIES
   ${CMAKE_DL_LIBS}
   minchassis
   mysys
-  ${SSL_LIBRARIES}
+  OpenSSL::SSL OpenSSL::Crypto
 )
 
 MYSQL_ADD_EXECUTABLE(mysql_keyring_encryption_test

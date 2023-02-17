@@ -85,7 +85,7 @@ MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
   LINK_LIBRARIES
   ${SASL_LIBRARY}
   ${LDAP_KERBEROS_LIBS}
-  ${SSL_LIBRARIES}
+  OpenSSL::SSL OpenSSL::Crypto
   ${LIBDL}
   ${MY_SYS}
   CLIENT_ONLY

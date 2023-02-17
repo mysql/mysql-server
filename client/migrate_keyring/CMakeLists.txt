@@ -42,7 +42,7 @@ SET(MIGRATE_KEYRING_LIBRARIES
   mysys
   mysqlclient
   client_base
-  ${SSL_LIBRARIES}
+  OpenSSL::SSL OpenSSL::Crypto
 )
 
 MYSQL_ADD_EXECUTABLE(mysql_migrate_keyring

@@ -37,7 +37,7 @@ TARGET_LINK_LIBRARIES(http_common
   harness_tls
   ext::libevent
   PRIVATE
-  ${SSL_LIBRARIES}
+  OpenSSL::SSL OpenSSL::Crypto
   )
 TARGET_INCLUDE_DIRECTORIES(http_common
   PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}

@@ -536,8 +536,9 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES TARGET_ARG)
   # must be merged into mysqlclient.lib
   IF(WIN32 AND ${TARGET} STREQUAL "mysqlclient")
     SET(LINKER_EXTRA_FLAGS "")
-    FOREACH(LIB ${SSL_LIBRARIES})
-      STRING_APPEND(LINKER_EXTRA_FLAGS " ${LIB}")
+    FOREACH(LIB OpenSSL::SSL OpenSSL::Crypto)
+      GET_TARGET_PROPERTY(dot_lib_file ${LIB} IMPORTED_LOCATION)
+      STRING_APPEND(LINKER_EXTRA_FLAGS " \"${dot_lib_file}\"")
     ENDFOREACH()
 
     # __NULL_IMPORT_DESCRIPTOR already defined, second definition ignored

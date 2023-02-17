@@ -40,7 +40,7 @@
 # For Windows or macOS, WITH_SSL="system" is handled a bit differently:
 # We assume you have installed
 #     https://slproweb.com/products/Win32OpenSSL.html
-#     find_package(OpenSSL) will locate it
+#     we locate in the same way as a "custom" installation.
 # or
 #     https://brew.sh
 #     https://formulae.brew.sh/formula/openssl@1.1
@@ -95,6 +95,8 @@ MACRO(FATAL_SSL_NOT_FOUND_ERROR string)
   ENDIF()
 ENDMACRO()
 
+# Unset whatever variables we have set
+# (in this or earlier versions of this file)
 MACRO(RESET_SSL_VARIABLES)
   UNSET(WITH_SSL_PATH)
   UNSET(WITH_SSL_PATH CACHE)
@@ -110,6 +112,14 @@ MACRO(RESET_SSL_VARIABLES)
   UNSET(CRYPTO_LIBRARY CACHE)
   UNSET(HAVE_SHA512_DIGEST_LENGTH)
   UNSET(HAVE_SHA512_DIGEST_LENGTH CACHE)
+  UNSET(OPENSSL_VERSION_MAJOR)
+  UNSET(OPENSSL_VERSION_MAJOR CACHE)
+  UNSET(OPENSSL_MAJOR_MINOR_FIX_VERSION)
+  UNSET(OPENSSL_MAJOR_MINOR_FIX_VERSION CACHE)
+  UNSET(ALTERNATIVE_SYSTEM_SSL)
+  UNSET(ALTERNATIVE_SYSTEM_SSL CACHE)
+  UNSET(LINUX_WITH_CUSTOM_LIBRARIES)
+  UNSET(LINUX_WITH_CUSTOM_LIBRARIES CACHE)
 ENDMACRO(RESET_SSL_VARIABLES)
 
 # Fetch OpenSSL version number.
@@ -135,6 +145,7 @@ MACRO(FIND_OPENSSL_VERSION)
       "^.*${version_part}[\t ]+([0-9]+).*" "\\1"
       ${version_part} "${${version_part}}")
   ENDFOREACH()
+  SET(OPENSSL_VERSION_MAJOR ${OPENSSL_VERSION_MAJOR} CACHE INTERNAL "" FORCE)
   IF(OPENSSL_VERSION_MAJOR VERSION_EQUAL 3)
     # OpenSSL 3
     SET(OPENSSL_FIX_VERSION "${OPENSSL_VERSION_PATCH}")
@@ -162,12 +173,70 @@ MACRO(FIND_OPENSSL_VERSION)
   SET(OPENSSL_MAJOR_MINOR_FIX_VERSION "${OPENSSL_VERSION_MAJOR}")
   STRING_APPEND(OPENSSL_MAJOR_MINOR_FIX_VERSION ".${OPENSSL_VERSION_MINOR}")
   STRING_APPEND(OPENSSL_MAJOR_MINOR_FIX_VERSION ".${OPENSSL_FIX_VERSION}")
+  SET(OPENSSL_MAJOR_MINOR_FIX_VERSION ${OPENSSL_MAJOR_MINOR_FIX_VERSION}
+    CACHE INTERNAL "" FORCE)
   MESSAGE(STATUS
     "OPENSSL_VERSION (${WITH_SSL}) is ${OPENSSL_MAJOR_MINOR_FIX_VERSION}")
 ENDMACRO(FIND_OPENSSL_VERSION)
 
-MACRO(FIND_ALTERNATIVE_SYSTEM_SSL)
+
+# For custom SSL, we need to find the 'openssl' executable.
+# We copy it to runtime_output_directory/${CMAKE_CFG_INTDIR}/my_openssl
+# We INSTALL my_openssl to INSTALL_BINDIR
+# All this is for mtr to pick up the correct version during testing.
+# Note the name change, we cannot install 'openssl' in a public bin/ directory.
+FUNCTION(FIND_OPENSSL_EXECUTABLE)
+  IF(WITH_SSL_PATH)
+    FIND_PROGRAM(OPENSSL_EXECUTABLE openssl
+      NO_DEFAULT_PATH
+      PATHS "${WITH_SSL_PATH}/bin"
+      DOC "path to the openssl executable")
+  ELSE()
+    MESSAGE(FATAL_ERROR "Not relevant, use system openssl.")
+    FIND_PROGRAM(OPENSSL_EXECUTABLE openssl)
+  ENDIF()
+
+  IF(OPENSSL_EXECUTABLE)
+    SET(OPENSSL_EXECUTABLE_HAS_ZLIB 0)
+    EXECUTE_PROCESS(
+      COMMAND ${OPENSSL_EXECUTABLE} "list-cipher-commands"
+      OUTPUT_VARIABLE stdout
+      ERROR_VARIABLE  stderr
+      RESULT_VARIABLE result
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      )
+    #       If previous command failed, try alternative command line (debian)
+    IF(NOT result EQUAL 0)
+      EXECUTE_PROCESS(
+        COMMAND ${OPENSSL_EXECUTABLE} "list" "-cipher-commands"
+        OUTPUT_VARIABLE stdout
+        ERROR_VARIABLE  stderr
+        RESULT_VARIABLE result
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    ENDIF()
+    IF(result EQUAL 0)
+      STRING(REGEX REPLACE "[ \n]+" ";" CIPHER_COMMAND_LIST ${stdout})
+      FOREACH(cipher_command ${CIPHER_COMMAND_LIST})
+        IF(${cipher_command} STREQUAL "zlib")
+          SET(OPENSSL_EXECUTABLE_HAS_ZLIB 1)
+        ENDIF()
+      ENDFOREACH()
+      IF(OPENSSL_EXECUTABLE_HAS_ZLIB)
+        MESSAGE(STATUS "The openssl command does support zlib")
+      ELSE()
+        MESSAGE(STATUS "The openssl command does not support zlib")
+      ENDIF()
+    ENDIF()
+  ENDIF()
+ENDFUNCTION(FIND_OPENSSL_EXECUTABLE)
+
+
+# For Oracle Linux 7: find headers/libraries for the RPM package openssl11.
+FUNCTION(FIND_ALTERNATIVE_SYSTEM_SSL)
   MYSQL_CHECK_PKGCONFIG()
+
+  # Should return: -I/usr/include/openssl11
   EXECUTE_PROCESS(COMMAND ${PKG_CONFIG_EXECUTABLE} --cflags ${WITH_SSL}
     OUTPUT_STRIP_TRAILING_WHITESPACE
     OUTPUT_VARIABLE OPENSSL_NN_FLAGS
@@ -177,6 +246,8 @@ MACRO(FIND_ALTERNATIVE_SYSTEM_SSL)
   IF(NOT OPENSSL_NN_FLAGS_RESULT EQUAL 0)
     MESSAGE(FATAL_ERROR "${OPENSSL_NN_FLAGS_ERROR}")
   ENDIF()
+
+  # Should return: -L/usr/lib64/openssl11 -lssl -lcrypto
   EXECUTE_PROCESS(COMMAND ${PKG_CONFIG_EXECUTABLE} --libs ${WITH_SSL}
     OUTPUT_STRIP_TRAILING_WHITESPACE
     OUTPUT_VARIABLE OPENSSL_NN_LIBS
@@ -186,13 +257,16 @@ MACRO(FIND_ALTERNATIVE_SYSTEM_SSL)
   IF(NOT OPENSSL_NN_LIBS_RESULT EQUAL 0)
     MESSAGE(FATAL_ERROR "${OPENSSL_NN_LIBS_ERROR}")
   ENDIF()
+
   STRING(REPLACE "-I/" "/" OPENSSL_INCLUDE_DIR ${OPENSSL_NN_FLAGS})
   STRING(REPLACE "-L/" "/" OPENSSL_LIB_DIR ${OPENSSL_NN_LIBS})
   STRING(REPLACE " -lssl" "" OPENSSL_LIB_DIR ${OPENSSL_LIB_DIR})
   STRING(REPLACE " -lcrypto" "" OPENSSL_LIB_DIR ${OPENSSL_LIB_DIR})
   SET(ALTERNATIVE_SYSTEM_SSL 1)
+  SET(ALTERNATIVE_SYSTEM_SSL 1 CACHE INTERNAL "" FORCE)
 
-  # First search in the alternative system directory.
+  # We must find everything manually, FIND_PACKAGE gets confused
+  # by the directory layout.
   FIND_PATH(OPENSSL_ROOT_DIR
     NAMES openssl/ssl.h
     NO_CMAKE_PATH
@@ -200,7 +274,6 @@ MACRO(FIND_ALTERNATIVE_SYSTEM_SSL)
     NO_DEFAULT_PATH
     HINTS ${OPENSSL_INCLUDE_DIR}
     )
-
   FIND_LIBRARY(OPENSSL_LIBRARY
     NAMES ssl
     NO_CMAKE_PATH
@@ -223,7 +296,6 @@ MACRO(FIND_ALTERNATIVE_SYSTEM_SSL)
   SET(OPENSSL_SSL_LIBRARY ${OPENSSL_LIBRARY})
   SET(OPENSSL_CRYPTO_LIBRARY ${CRYPTO_LIBRARY})
 
-  # Add support for bundled curl.
   ADD_LIBRARY(OpenSSL::SSL UNKNOWN IMPORTED)
   SET_TARGET_PROPERTIES(OpenSSL::SSL PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${OPENSSL_INCLUDE_DIR}")
@@ -233,7 +305,6 @@ MACRO(FIND_ALTERNATIVE_SYSTEM_SSL)
       IMPORTED_LOCATION "${OPENSSL_SSL_LIBRARY}")
   ENDIF()
 
-  # Add support for bundled curl.
   ADD_LIBRARY(OpenSSL::Crypto UNKNOWN IMPORTED)
   SET_TARGET_PROPERTIES(OpenSSL::Crypto PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${OPENSSL_INCLUDE_DIR}")
@@ -242,14 +313,181 @@ MACRO(FIND_ALTERNATIVE_SYSTEM_SSL)
       IMPORTED_LINK_INTERFACE_LANGUAGES "C"
       IMPORTED_LOCATION "${OPENSSL_CRYPTO_LIBRARY}")
   ENDIF()
+  FIND_OPENSSL_VERSION()
 
-ENDMACRO(FIND_ALTERNATIVE_SYSTEM_SSL)
+  # We need to ensure that all code will see this.
+  # Without the global INCLUDE here, we would have to link every
+  # single library/executable with OpenSSL::Crypto and OpenSSL::SSl
+  INCLUDE_DIRECTORIES(BEFORE SYSTEM ${OPENSSL_INCLUDE_DIR})
+
+ENDFUNCTION(FIND_ALTERNATIVE_SYSTEM_SSL)
+
+
+# For all non-windows platforms, use the standard FIND_PACKAGE utility
+# to locate OpenSSL.
+FUNCTION(FIND_SYSTEM_OPENSSL)
+  # For APPLE we set the hint ${HOMEBREW_HOME}/openssl
+  IF(APPLE AND NOT OPENSSL_ROOT_DIR)
+    SET(OPENSSL_ROOT_DIR "${HOMEBREW_HOME}/openssl")
+  ENDIF()
+
+  # Will set OPENSSL_FOUND, OPENSSL_INCLUDE_DIR and others.
+  FIND_PACKAGE(OpenSSL)
+
+  # Re-try, in case the symlink is not found.
+  IF(NOT OPENSSL_FOUND AND APPLE AND
+      OPENSSL_ROOT_DIR STREQUAL "${HOMEBREW_HOME}/openssl")
+    SET(OPENSSL_ROOT_DIR "${HOMEBREW_HOME}/openssl@1.1")
+    FIND_PACKAGE(OpenSSL)
+  ENDIF()
+
+  IF(NOT OPENSSL_FOUND)
+    RESET_SSL_VARIABLES()
+    FATAL_SSL_NOT_FOUND_ERROR("Could not find system OpenSSL")
+  ENDIF()
+
+  FIND_OPENSSL_VERSION()
+
+  # Homebrew "system" OpenSSL needs:
+  IF(NOT OPENSSL_INCLUDE_DIR STREQUAL "/usr/include")
+    INCLUDE_DIRECTORIES(BEFORE SYSTEM ${OPENSSL_INCLUDE_DIR})
+  ENDIF()
+
+ENDFUNCTION(FIND_SYSTEM_OPENSSL)
+
+
+# For custom SSL we need to find libraries, and copy them into our build.
+FUNCTION(FIND_CUSTOM_OPENSSL)
+
+  IF(WITH_SSL_PATH)
+    FIND_PATH(OPENSSL_ROOT_DIR
+      NAMES include/openssl/ssl.h
+      NO_CMAKE_PATH
+      NO_CMAKE_ENVIRONMENT_PATH
+      HINTS ${WITH_SSL_PATH}
+      )
+  ENDIF()
+
+  IF(WIN32)
+    # Treat "system" the same way as -DWITH_SSL=</path/to/custom/openssl>
+    IF(NOT OPENSSL_ROOT_DIR)
+      # We want to be able to support 32bit client-only builds
+      # FindOpenSSL.cmake will look for 32bit before 64bit ...
+      # Note that several packages may come with ssl headers,
+      # e.g. Strawberry Perl, so ignore some system paths below.
+      FILE(TO_CMAKE_PATH "$ENV{PROGRAMFILES}" _programfiles)
+      IF(SIZEOF_VOIDP EQUAL 8)
+        FIND_PATH(OPENSSL_WIN32
+          NAMES "include/openssl/ssl.h"
+          PATHS "${_programfiles}/OpenSSL-Win32" "C:/OpenSSL-Win32/"
+          NO_SYSTEM_ENVIRONMENT_PATH
+          NO_CMAKE_SYSTEM_PATH
+          )
+        FIND_PATH(OPENSSL_WIN64
+          NAMES  "include/openssl/ssl.h"
+          PATHS "${_programfiles}/OpenSSL-Win64" "C:/OpenSSL-Win64/"
+          NO_SYSTEM_ENVIRONMENT_PATH
+          NO_CMAKE_SYSTEM_PATH
+          )
+        MESSAGE(STATUS "OPENSSL_WIN32 ${OPENSSL_WIN32}")
+        MESSAGE(STATUS "OPENSSL_WIN64 ${OPENSSL_WIN64}")
+        IF(OPENSSL_WIN64)
+          IF(OPENSSL_WIN32)
+            MESSAGE(STATUS "Found both 32bit and 64bit")
+          ELSE()
+            MESSAGE(STATUS "Found 64bit")
+          ENDIF()
+          SET(OPENSSL_ROOT_DIR ${OPENSSL_WIN64})
+          MESSAGE(STATUS "OPENSSL_ROOT_DIR ${OPENSSL_ROOT_DIR}")
+        ENDIF()
+      ENDIF()
+    ENDIF(NOT OPENSSL_ROOT_DIR)
+  ENDIF(WIN32)
+
+  FIND_PATH(OPENSSL_INCLUDE_DIR
+    NAMES openssl/ssl.h
+    HINTS ${OPENSSL_ROOT_DIR}/include
+    )
+
+  IF (WIN32)
+    FIND_FILE(OPENSSL_APPLINK_C
+      NAMES openssl/applink.c
+      NO_DEFAULT_PATH
+      HINTS ${OPENSSL_ROOT_DIR}/include
+      )
+    MESSAGE(STATUS "OPENSSL_APPLINK_C ${OPENSSL_APPLINK_C}")
+    IF(NOT OPENSSL_APPLINK_C)
+      RESET_SSL_VARIABLES()
+      FATAL_SSL_NOT_FOUND_ERROR(
+        "Cannot find applink.c for WITH_SSL=${WITH_SSL}.")
+    ENDIF()
+    GET_FILENAME_COMPONENT(OPENSSL_ROOT_DIR ${OPENSSL_INCLUDE_DIR} PATH)
+    SET(WITH_SSL_PATH "${OPENSSL_ROOT_DIR}" CACHE PATH "Path to system SSL")
+  ENDIF()
+
+  FIND_LIBRARY(OPENSSL_LIBRARY
+    NAMES ssl libssl ssleay32 ssleay32MD
+    HINTS ${OPENSSL_ROOT_DIR}/lib ${OPENSSL_ROOT_DIR}/lib64)
+  FIND_LIBRARY(CRYPTO_LIBRARY
+    NAMES crypto libcrypto libeay32
+    HINTS ${OPENSSL_ROOT_DIR}/lib ${OPENSSL_ROOT_DIR}/lib64)
+
+  IF(OPENSSL_INCLUDE_DIR)
+    FIND_OPENSSL_VERSION()
+  ENDIF()
+  IF (OPENSSL_MAJOR_MINOR_FIX_VERSION VERSION_LESS
+      ${MIN_OPENSSL_VERSION_REQUIRED})
+    RESET_SSL_VARIABLES()
+    FATAL_SSL_NOT_FOUND_ERROR(
+      "Not a supported openssl version in WITH_SSL=${WITH_SSL}.")
+  ENDIF()
+
+  FIND_OPENSSL_EXECUTABLE()
+  MYSQL_CHECK_SSL_DLLS()
+
+  # Add OpenSSL::SSL and OpenSSL::Crypto libraries.
+  # On Windows we link against libssl.lib and libcrypto.lib, found above,
+  #   we *run* with libcrypto-1_1-x64.dll or libcrypto-1_1.dll
+  #   which are copied into runtime_output_directory/${CMAKE_CFG_INTDIR}.
+  # On Unix we link against libssl.so and libcrypto.so
+  #   which are copied int library_output_directory.
+  ADD_LIBRARY(OpenSSL::SSL UNKNOWN IMPORTED)
+  SET_TARGET_PROPERTIES(OpenSSL::SSL PROPERTIES
+    IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+    INTERFACE_INCLUDE_DIRECTORIES "${OPENSSL_INCLUDE_DIR}")
+  IF(WIN32)
+    SET_TARGET_PROPERTIES(OpenSSL::SSL PROPERTIES
+      IMPORTED_LOCATION "${OPENSSL_LIBRARY}")
+  ELSE()
+    SET_TARGET_PROPERTIES(OpenSSL::SSL PROPERTIES
+      IMPORTED_LOCATION "${COPIED_OPENSSL_LIBRARY}")
+  ENDIF()
+
+  ADD_LIBRARY(OpenSSL::Crypto UNKNOWN IMPORTED)
+  SET_TARGET_PROPERTIES(OpenSSL::Crypto PROPERTIES
+    IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+    INTERFACE_INCLUDE_DIRECTORIES "${OPENSSL_INCLUDE_DIR}")
+  IF(WIN32)
+    SET_TARGET_PROPERTIES(OpenSSL::Crypto PROPERTIES
+      IMPORTED_LOCATION "${CRYPTO_LIBRARY}")
+  ELSE()
+    SET_TARGET_PROPERTIES(OpenSSL::Crypto PROPERTIES
+      IMPORTED_LOCATION "${COPIED_CRYPTO_LIBRARY}")
+  ENDIF()
+
+  # We need to ensure that all code will see this.
+  # Without the global INCLUDE here, we would have to link every
+  # single library/executable with OpenSSL::Crypto and OpenSSL::SSl
+  INCLUDE_DIRECTORIES(BEFORE SYSTEM ${OPENSSL_INCLUDE_DIR})
+
+ENDFUNCTION(FIND_CUSTOM_OPENSSL)
+
 
 # MYSQL_CHECK_SSL
 #
 # Provides the following configure options:
-# WITH_SSL=[yes|system|<path/to/custom/installation>]
-MACRO (MYSQL_CHECK_SSL)
+# WITH_SSL=[openssl11|yes|system|<path/to/custom/installation>]
+FUNCTION(MYSQL_CHECK_SSL)
 
   IF(NOT WITH_SSL)
     SET(WITH_SSL "system" CACHE STRING ${WITH_SSL_DOC_STRING} FORCE)
@@ -273,236 +511,45 @@ MACRO (MYSQL_CHECK_SSL)
   STRING(REGEX MATCH "^openssl([0-9]+)$" UNUSED ${WITH_SSL})
   IF(CMAKE_MATCH_1)
     FIND_ALTERNATIVE_SYSTEM_SSL()
-  ENDIF()
-
-  IF(WITH_SSL STREQUAL "system" OR WITH_SSL_PATH OR ALTERNATIVE_SYSTEM_SSL)
-    IF((APPLE OR WIN32) AND WITH_SSL STREQUAL "system")
-      # FindOpenSSL.cmake knows about
-      # http://www.slproweb.com/products/Win32OpenSSL.html
-      # and will look for "C:/Program Files/OpenSSL-Win64/" (and others)
-      # For APPLE we set the hint ${HOMEBREW_HOME}/openssl
-      IF(LINK_STATIC_RUNTIME_LIBRARIES)
-        SET(OPENSSL_MSVC_STATIC_RT ON)
-      ENDIF()
-      IF(APPLE AND NOT OPENSSL_ROOT_DIR)
-        SET(OPENSSL_ROOT_DIR "${HOMEBREW_HOME}/openssl")
-      ENDIF()
-      # Treat "system" the same way as -DWITH_SSL=</path/to/custom/openssl>
-      IF(WIN32 AND NOT OPENSSL_ROOT_DIR)
-        # We want to be able to support 32bit client-only builds
-        # FindOpenSSL.cmake will look for 32bit before 64bit ...
-        # Note that several packages may come with ssl headers,
-        # e.g. Strawberry Perl, so ignore some system paths below.
-        FILE(TO_CMAKE_PATH "$ENV{PROGRAMFILES}" _programfiles)
-        IF(SIZEOF_VOIDP EQUAL 8)
-          FIND_PATH(OPENSSL_WIN32
-            NAMES "include/openssl/ssl.h"
-            PATHS "${_programfiles}/OpenSSL-Win32" "C:/OpenSSL-Win32/"
-            NO_SYSTEM_ENVIRONMENT_PATH
-            NO_CMAKE_SYSTEM_PATH
-            )
-          FIND_PATH(OPENSSL_WIN64
-            NAMES  "include/openssl/ssl.h"
-            PATHS "${_programfiles}/OpenSSL-Win64" "C:/OpenSSL-Win64/"
-            NO_SYSTEM_ENVIRONMENT_PATH
-            NO_CMAKE_SYSTEM_PATH
-            )
-          MESSAGE(STATUS "OPENSSL_WIN32 ${OPENSSL_WIN32}")
-          MESSAGE(STATUS "OPENSSL_WIN64 ${OPENSSL_WIN64}")
-          IF(OPENSSL_WIN64)
-            IF(OPENSSL_WIN32)
-              MESSAGE(STATUS "Found both 32bit and 64bit")
-            ELSE()
-              MESSAGE(STATUS "Found 64bit")
-            ENDIF()
-            SET(OPENSSL_ROOT_DIR ${OPENSSL_WIN64})
-            MESSAGE(STATUS "OPENSSL_ROOT_DIR ${OPENSSL_ROOT_DIR}")
-          ENDIF()
-        ENDIF()
-      ENDIF(WIN32 AND NOT OPENSSL_ROOT_DIR)
-
-      # Input hint is OPENSSL_ROOT_DIR.
-      # Will set OPENSSL_FOUND, OPENSSL_INCLUDE_DIR and others.
-      FIND_PACKAGE(OpenSSL)
-
-      # Re-try, in case the symlink is not found.
-      IF(NOT OPENSSL_FOUND AND APPLE AND
-          OPENSSL_ROOT_DIR STREQUAL "${HOMEBREW_HOME}/openssl")
-        SET(OPENSSL_ROOT_DIR "${HOMEBREW_HOME}/openssl@1.1")
-        FIND_PACKAGE(OpenSSL)
-      ENDIF()
-
-      IF(OPENSSL_FOUND)
-        GET_FILENAME_COMPONENT(OPENSSL_ROOT_DIR ${OPENSSL_INCLUDE_DIR} PATH)
-        SET(WITH_SSL_PATH "${OPENSSL_ROOT_DIR}" CACHE PATH "Path to system SSL")
-      ELSE()
-        RESET_SSL_VARIABLES()
-        FATAL_SSL_NOT_FOUND_ERROR("Could not find system OpenSSL")
-      ENDIF()
-    ENDIF()
-
-    # First search in WITH_SSL_PATH.
-    FIND_PATH(OPENSSL_ROOT_DIR
-      NAMES include/openssl/ssl.h
-      NO_CMAKE_PATH
-      NO_CMAKE_ENVIRONMENT_PATH
-      HINTS ${WITH_SSL_PATH}
-    )
-    # Then search in standard places (if not found above).
-    FIND_PATH(OPENSSL_ROOT_DIR
-      NAMES include/openssl/ssl.h
-    )
-
-    FIND_PATH(OPENSSL_INCLUDE_DIR
-      NAMES openssl/ssl.h
-      HINTS ${OPENSSL_ROOT_DIR}/include
-    )
-
-    IF (WIN32)
-      FIND_FILE(OPENSSL_APPLINK_C
-        NAMES openssl/applink.c
-        NO_DEFAULT_PATH
-        HINTS ${OPENSSL_ROOT_DIR}/include
-      )
-      MESSAGE(STATUS "OPENSSL_APPLINK_C ${OPENSSL_APPLINK_C}")
-      IF(NOT OPENSSL_APPLINK_C)
-        RESET_SSL_VARIABLES()
-        FATAL_SSL_NOT_FOUND_ERROR(
-          "Cannot find applink.c for WITH_SSL=${WITH_SSL}.")
-      ENDIF()
-    ENDIF()
-
-    FIND_LIBRARY(OPENSSL_LIBRARY
-                 NAMES ssl libssl ssleay32 ssleay32MD
-                 HINTS ${OPENSSL_ROOT_DIR}/lib ${OPENSSL_ROOT_DIR}/lib64)
-    FIND_LIBRARY(CRYPTO_LIBRARY
-                 NAMES crypto libcrypto libeay32
-                 HINTS ${OPENSSL_ROOT_DIR}/lib ${OPENSSL_ROOT_DIR}/lib64)
-
-    IF(OPENSSL_INCLUDE_DIR)
-      FIND_OPENSSL_VERSION()
-    ENDIF()
-    IF (OPENSSL_MAJOR_MINOR_FIX_VERSION VERSION_LESS
-        ${MIN_OPENSSL_VERSION_REQUIRED})
-      RESET_SSL_VARIABLES()
-      FATAL_SSL_NOT_FOUND_ERROR(
-        "Not a supported openssl version in WITH_SSL=${WITH_SSL}.")
-    ENDIF()
-
-    IF("${OPENSSL_MAJOR_MINOR_FIX_VERSION}" VERSION_GREATER "1.1.0")
-       ADD_DEFINITIONS(-DHAVE_TLSv13)
-    ENDIF()
-
-    IF(OPENSSL_INCLUDE_DIR AND
-       OPENSSL_LIBRARY     AND
-       CRYPTO_LIBRARY
-      )
-      SET(OPENSSL_FOUND TRUE)
-      IF(WITH_SSL_PATH)
-        FIND_PROGRAM(OPENSSL_EXECUTABLE openssl
-          NO_DEFAULT_PATH
-          PATHS "${WITH_SSL_PATH}/bin"
-          DOC "path to the openssl executable")
-      ELSE()
-        FIND_PROGRAM(OPENSSL_EXECUTABLE openssl)
-      ENDIF()
-      IF(OPENSSL_EXECUTABLE)
-        SET(OPENSSL_EXECUTABLE_HAS_ZLIB 0)
-        EXECUTE_PROCESS(
-          COMMAND ${OPENSSL_EXECUTABLE} "list-cipher-commands"
-          OUTPUT_VARIABLE stdout
-          ERROR_VARIABLE  stderr
-          RESULT_VARIABLE result
-          OUTPUT_STRIP_TRAILING_WHITESPACE
-          )
-#       If previous command failed, try alternative command line (debian)
-        IF(NOT result EQUAL 0)
-          EXECUTE_PROCESS(
-            COMMAND ${OPENSSL_EXECUTABLE} "list" "-cipher-commands"
-            OUTPUT_VARIABLE stdout
-            ERROR_VARIABLE  stderr
-            RESULT_VARIABLE result
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-            )
-        ENDIF()
-        IF(result EQUAL 0)
-          STRING(REGEX REPLACE "[ \n]+" ";" CIPHER_COMMAND_LIST ${stdout})
-          FOREACH(cipher_command ${CIPHER_COMMAND_LIST})
-            IF(${cipher_command} STREQUAL "zlib")
-              SET(OPENSSL_EXECUTABLE_HAS_ZLIB 1)
-            ENDIF()
-          ENDFOREACH()
-          IF(OPENSSL_EXECUTABLE_HAS_ZLIB)
-            MESSAGE(STATUS "The openssl command does support zlib")
-          ELSE()
-            MESSAGE(STATUS "The openssl command does not support zlib")
-          ENDIF()
-        ENDIF()
-      ENDIF()
+  ELSEIF(WITH_SSL STREQUAL "system")
+    IF(WIN32)
+      FIND_CUSTOM_OPENSSL()
     ELSE()
-      SET(OPENSSL_FOUND FALSE)
+      FIND_SYSTEM_OPENSSL()
     ENDIF()
-
-    SET(MY_CRYPTO_LIBRARY "${CRYPTO_LIBRARY}")
-    SET(MY_OPENSSL_LIBRARY "${OPENSSL_LIBRARY}")
-
-    # The whitespace here C:/Program Files/OpenSSL-Win64
-    # creates problems for transitive library dependencies.
-    # Copy the .lib files to the build directory, and link with the copies.
-    IF(WIN32 AND WITH_SSL STREQUAL "system")
-      CONFIGURE_FILE(${MY_CRYPTO_LIBRARY}
-        "${CMAKE_BINARY_DIR}/copied_crypto.lib" COPYONLY)
-      CONFIGURE_FILE(${MY_OPENSSL_LIBRARY}
-        "${CMAKE_BINARY_DIR}/copied_openssl.lib" COPYONLY)
-      SET(MY_CRYPTO_LIBRARY  "${CMAKE_BINARY_DIR}/copied_crypto.lib")
-      SET(MY_OPENSSL_LIBRARY "${CMAKE_BINARY_DIR}/copied_openssl.lib")
-    ENDIF()
-
-    MESSAGE(STATUS "OPENSSL_INCLUDE_DIR = ${OPENSSL_INCLUDE_DIR}")
-    MESSAGE(STATUS "OPENSSL_LIBRARY = ${OPENSSL_LIBRARY}")
-    MESSAGE(STATUS "CRYPTO_LIBRARY = ${CRYPTO_LIBRARY}")
-    MESSAGE(STATUS "OPENSSL_LIB_DIR = ${OPENSSL_LIB_DIR}")
-    MESSAGE(STATUS "OPENSSL_VERSION_MAJOR = ${OPENSSL_VERSION_MAJOR}")
-    MESSAGE(STATUS "OPENSSL_VERSION_MINOR = ${OPENSSL_VERSION_MINOR}")
-    MESSAGE(STATUS "OPENSSL_FIX_VERSION = ${OPENSSL_FIX_VERSION}")
-
-    INCLUDE(CheckSymbolExists)
-
-    CMAKE_PUSH_CHECK_STATE()
-    SET(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
-    CHECK_SYMBOL_EXISTS(SHA512_DIGEST_LENGTH "openssl/sha.h"
-                        HAVE_SHA512_DIGEST_LENGTH)
-    CMAKE_POP_CHECK_STATE()
-
-    IF(OPENSSL_FOUND AND HAVE_SHA512_DIGEST_LENGTH)
-      SET(SSL_LIBRARIES ${MY_OPENSSL_LIBRARY} ${MY_CRYPTO_LIBRARY})
-      IF(SOLARIS)
-        SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${LIBSOCKET})
-      ENDIF()
-      IF(LINUX)
-        SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${LIBDL})
-      ENDIF()
-      MESSAGE(STATUS "SSL_LIBRARIES = ${SSL_LIBRARIES}")
-      INCLUDE_DIRECTORIES(SYSTEM ${OPENSSL_INCLUDE_DIR})
-    ELSE()
-      RESET_SSL_VARIABLES()
-      FATAL_SSL_NOT_FOUND_ERROR(
-        "Cannot find appropriate system libraries for WITH_SSL=${WITH_SSL}.")
-    ENDIF()
-  ELSEIF(ALTERNATIVE_SYSTEM_SSL)
-    MESSAGE(STATUS "Using alternative system OpenSSL: ${WITH_SSL}")
+  ELSEIF(WITH_SSL_PATH)
+    FIND_CUSTOM_OPENSSL()
   ELSE()
     RESET_SSL_VARIABLES()
     FATAL_SSL_NOT_FOUND_ERROR(
       "Wrong option or path for WITH_SSL=${WITH_SSL}.")
   ENDIF()
-ENDMACRO(MYSQL_CHECK_SSL)
+
+  IF (OPENSSL_MAJOR_MINOR_FIX_VERSION VERSION_LESS
+      ${MIN_OPENSSL_VERSION_REQUIRED})
+    RESET_SSL_VARIABLES()
+    FATAL_SSL_NOT_FOUND_ERROR(
+      "Not a supported openssl version in WITH_SSL=${WITH_SSL}.")
+  ENDIF()
+
+  # TODO(tdidriks): move to config.h.cmake / my_config.h
+  IF("${OPENSSL_MAJOR_MINOR_FIX_VERSION}" VERSION_GREATER "1.1.0")
+    ADD_DEFINITIONS(-DHAVE_TLSv13)
+  ENDIF()
+
+  GET_TARGET_PROPERTY(foo OpenSSL::SSL INTERFACE_INCLUDE_DIRECTORIES)
+  MESSAGE(STATUS "OPENSSL_INCLUDE_DIR = ${foo}")
+  GET_TARGET_PROPERTY(foo OpenSSL::SSL IMPORTED_LOCATION)
+  GET_TARGET_PROPERTY(bar OpenSSL::Crypto IMPORTED_LOCATION)
+  MESSAGE(STATUS "OPENSSL_LIBRARIES = ${foo} ${bar}")
+
+ENDFUNCTION(MYSQL_CHECK_SSL)
+
 
 # If cmake is invoked with -DWITH_SSL=</path/to/custom/openssl>
-# and we discover that the installation has dynamic libraries,
-# then copy the dlls
+# then copy the shared libraries:
 # to runtime_output_directory (Windows),
-# or library_output_directory (Mac/Linux).
+# or library_output_directory (Unix).
 # INSTALL(FILES ...) the shared libraries
 # to INSTALL_BINDIR      (Windows)
 # or INSTALL_LIBDIR      (Mac)
@@ -527,12 +574,9 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
       SET(OPENSSL_CUSTOM_LIBRARY "${OPENSSL_LIBRARY}" CACHE FILEPATH "")
 
       COPY_CUSTOM_SHARED_LIBRARY("${CRYPTO_CUSTOM_LIBRARY}" ""
-        CRYPTO_LIBRARY crypto_target)
+        COPIED_CRYPTO_LIBRARY crypto_target)
       COPY_CUSTOM_SHARED_LIBRARY("${OPENSSL_CUSTOM_LIBRARY}" ""
-        OPENSSL_LIBRARY openssl_target)
-
-      SET(SSL_LIBRARIES ${CRYPTO_LIBRARY} ${OPENSSL_LIBRARY})
-      MESSAGE(STATUS "SSL_LIBRARIES = ${SSL_LIBRARIES}")
+        COPIED_OPENSSL_LIBRARY openssl_target)
 
       ADD_CUSTOM_TARGET(copy_openssl_dlls
         DEPENDS ${crypto_target} ${openssl_target})
@@ -549,11 +593,8 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
       IF(CRYPTO_EXT STREQUAL ".dylib" AND OPENSSL_EXT STREQUAL ".dylib")
         SET(HAVE_CRYPTO_DYLIB 1)
         SET(HAVE_OPENSSL_DYLIB 1)
-        IF(WITH_SSL STREQUAL "system")
-          MESSAGE(STATUS "Using system OpenSSL from Homebrew")
-        ELSE()
-          SET(APPLE_WITH_CUSTOM_SSL 1)
-        ENDIF()
+        SET(APPLE_WITH_CUSTOM_SSL 1)
+        SET(APPLE_WITH_CUSTOM_SSL 1 CACHE INTERNAL "" FORCE)
       ENDIF()
     ENDIF(APPLE)
 
@@ -579,6 +620,9 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
         ENDIF()
       ENDFOREACH()
 
+      SET(CRYPTO_VERSION ${CRYPTO_VERSION} CACHE INTERNAL "" FORCE)
+      SET(OPENSSL_VERSION ${OPENSSL_VERSION} CACHE INTERNAL "" FORCE)
+
       GET_FILENAME_COMPONENT(CRYPTO_DIRECTORY "${CRYPTO_LIBRARY}" DIRECTORY)
       GET_FILENAME_COMPONENT(OPENSSL_DIRECTORY "${OPENSSL_LIBRARY}" DIRECTORY)
       GET_FILENAME_COMPONENT(CRYPTO_NAME "${CRYPTO_LIBRARY}" NAME)
@@ -587,13 +631,10 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
       SET(CRYPTO_FULL_NAME "${CRYPTO_DIRECTORY}/${CRYPTO_VERSION}")
       SET(OPENSSL_FULL_NAME "${OPENSSL_DIRECTORY}/${OPENSSL_VERSION}")
 
-      # Link with the copied libraries, rather than the original ones.
-      SET(SSL_LIBRARIES
-        ${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/${OPENSSL_NAME}
-        ${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/${CRYPTO_NAME}
-        )
-      MESSAGE(STATUS)
-      MESSAGE(STATUS "SSL_LIBRARIES = ${SSL_LIBRARIES}")
+      SET(COPIED_CRYPTO_LIBRARY
+        ${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/${CRYPTO_NAME})
+      SET(COPIED_OPENSSL_LIBRARY
+        ${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/${OPENSSL_NAME})
 
       # Do copying and dependency patching in a sub-process, so that we can
       # skip it if already done.  The BYPRODUCTS argument appears to be
@@ -762,14 +803,9 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
         COPY_OPENSSL_BINARY(${OPENSSL_EXECUTABLE} "" "" openssl_exe_target)
         ADD_DEPENDENCIES(${openssl_exe_target} copy_openssl_dlls)
       ELSE()
-        MESSAGE(STATUS "Cannot find SSL dynamic libraries")
-        IF(OPENSSL_VERSION_MAJOR VERSION_EQUAL 1 AND
-           OPENSSL_VERSION_MINOR VERSION_EQUAL 1)
-          SET(SSL_LIBRARIES ${SSL_LIBRARIES} crypt32.lib)
-          MESSAGE(STATUS "SSL_LIBRARIES ${SSL_LIBRARIES}")
-        ENDIF()
+        MESSAGE(FATAL_ERROR "Cannot find SSL dynamic libraries")
       ENDIF()
-    ENDIF()
+    ENDIF(WIN32)
   ENDIF()
 ENDMACRO(MYSQL_CHECK_SSL_DLLS)
 

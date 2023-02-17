@@ -1822,6 +1822,8 @@ IF(WITH_CUSTOM_LIBRARIES)
       SET(${WITH_OPT} ${${WITH_OPT}} CACHE INTERNAL "" FORCE)
       MESSAGE(STATUS "${WITH_OPT} ${${WITH_OPT}}")
     ELSE()
+      # WITH_CURL may be set to "none" in the cache, unset normal variable.
+      UNSET(${WITH_OPT})
       MESSAGE(WARNING "${WITH_OPT} not found") # This should be FATAL_ERROR
     ENDIF()
   ENDFOREACH()
@@ -1829,7 +1831,6 @@ ENDIF()
 
 # Add system/custom openssl.
 MYSQL_CHECK_SSL()
-MYSQL_CHECK_SSL_DLLS()
 
 # Other system libs which use OpenSSL must be disabled.
 # This includes: kerberos sasl ldap curl.

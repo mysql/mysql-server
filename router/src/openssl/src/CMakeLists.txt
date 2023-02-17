@@ -24,7 +24,7 @@ INCLUDE(GenerateExportHeader)
 
 ADD_HARNESS_PLUGIN(router_openssl SOURCES
   openssl_plugin.cc
-  REQUIRES ${SSL_LIBRARIES};harness_tls
+  REQUIRES OpenSSL::SSL OpenSSL::Crypto;harness_tls
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
 TARGET_INCLUDE_DIRECTORIES(router_openssl PUBLIC
