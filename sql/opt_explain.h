@@ -132,7 +132,7 @@ class Modification_plan {
      to mark modified tables etc.
 */
 
-class Query_result_explain final : public Query_result_send {
+class Query_result_explain : public Query_result_send {
  protected:
   /**
     Pointer to underlying Query_result_insert, Query_result_update or
@@ -163,6 +163,24 @@ class Query_result_explain final : public Query_result_send {
     Query_result_send::cleanup();
     interceptor->cleanup();
   }
+};
+
+/**
+ * Wrapper class for writing EXPLAIN output to a user variable.
+ *
+ * This class overrides Query_result_send::send_data() to write the output of
+ * the EXPLAIN query to the user variable specified by m_variable_name.
+ */
+class Query_result_explain_into_var final : public Query_result_explain {
+ public:
+  Query_result_explain_into_var(Query_expression *expr, Query_result *child,
+                                std::string_view variable_name)
+      : Query_result_explain(expr, child), m_variable_name(variable_name) {}
+
+  bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
+
+ private:
+  std::string_view m_variable_name;
 };
 
 bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,

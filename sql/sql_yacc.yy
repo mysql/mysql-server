@@ -13996,7 +13996,38 @@ explain_stmt:
           describe_command opt_explain_options explainable_stmt
           {
             $$= NEW_PTN PT_explain($2.explain_format_type, $2.is_analyze,
-                                   $2.is_explicit, $3);
+                                   $2.is_explicit, $3,
+                                   /*explain_into_variable_name=*/std::nullopt);
+          }
+        | describe_command
+          opt_explain_options   // Using the opt_explain_options rule instead
+                                // of opt_explain_format here allows for
+                                // the implementation of EXPLAIN ANALYZE INTO
+                                // without changing the language in the future.
+          INTO '@' ident_or_text
+          select_stmt           // Using the select_stmt rule is the simplest
+                                // way to only allow for SELECT statements.
+                                // Change to explainable_stmt when EXPLAIN INTO
+                                // is implemented for other statements.
+          {
+            if ($2.is_analyze) {
+              MYSQL_YYABORT_ERROR(ER_EXPLAIN_INTO_ANALYZE_NOT_SUPPORTED, MYF(0));
+            }
+            if (!$2.is_explicit) {
+              MYSQL_YYABORT_ERROR(ER_EXPLAIN_INTO_IMPLICIT_FORMAT_NOT_SUPPORTED,
+                                  MYF(0));
+            }
+            if ($2.explain_format_type != Explain_format_type::JSON) {
+              if ($2.explain_format_type == Explain_format_type::TREE) {
+                MYSQL_YYABORT_ERROR(ER_EXPLAIN_INTO_FORMAT_NOT_SUPPORTED, MYF(0),
+                                    "TREE");
+              } else {
+                MYSQL_YYABORT_ERROR(ER_EXPLAIN_INTO_FORMAT_NOT_SUPPORTED, MYF(0),
+                                    "TRADITIONAL");
+              }
+            }
+            $$= NEW_PTN PT_explain($2.explain_format_type, $2.is_analyze,
+                                   $2.is_explicit, $6, to_string_view($5));
           }
         ;
 
@@ -14041,6 +14072,7 @@ opt_explain_format:
               MYSQL_YYABORT;
             }
           }
+        ;
 
 opt_explain_options:
           ANALYZE_SYM opt_explain_format

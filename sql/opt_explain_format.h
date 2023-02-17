@@ -32,6 +32,8 @@
 #include <sys/types.h>
 
 #include <cstring>
+#include <optional>
+#include <string_view>
 
 #include "my_alloc.h"  // MEM_ROOT
 #include "my_compiler.h"
@@ -509,8 +511,17 @@ class Explain_format {
  protected:
   Query_result *output;  ///< output resulting data there
 
- public:
+ private:
+  std::optional<std::string_view> m_explain_into_variable_name;
+
+ protected:
   Explain_format() : output(nullptr) {}
+  explicit Explain_format(
+      std::optional<std::string_view> explain_into_variable_name)
+      : output(nullptr),
+        m_explain_into_variable_name(explain_into_variable_name) {}
+
+ public:
   virtual ~Explain_format() = default;
 
   /**
@@ -535,6 +546,30 @@ class Explain_format {
     @retval false       Format is not Iterator-based.
   */
   virtual bool is_iterator_based() const { return false; }
+
+  /**
+   * Whether the output of an EXPLAIN statement should be stored in a user
+   * variable or sent to the client. If this function returns true,
+   * explain_into_variable_name() returns the name of the variable.
+   *
+   * @retval true       EXPLAIN output should be stored in a user variable.
+   * @retval false      EXPLAIN output should be sent to the client.
+   */
+  bool is_explain_into() const {
+    return m_explain_into_variable_name.has_value();
+  }
+
+  /**
+   * Returns the name of the user variable the output of this EXPLAIN
+   * statement is to be stored in. Should only be called if this is an
+   * EXPLAIN INTO statement.
+   *
+   * @return std::string_view The name of the variable to store the output in.
+   */
+  std::string_view explain_into_variable_name() const {
+    assert(is_explain_into());
+    return m_explain_into_variable_name.value();
+  }
 
   /**
     Send EXPLAIN header item(s) to output stream

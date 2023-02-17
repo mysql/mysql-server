@@ -41,8 +41,12 @@ class Explain_format_JSON : public Explain_format {
  public:
   enum class FormatVersion { kLinear, kIteratorBased };
 
-  Explain_format_JSON(FormatVersion version)
-      : current_context(nullptr), m_version(version) {}
+  Explain_format_JSON(
+      FormatVersion version,
+      std::optional<std::string_view> explain_into_variable_name)
+      : Explain_format(explain_into_variable_name),
+        current_context(nullptr),
+        m_version(version) {}
 
   bool is_hierarchical() const override { return true; }
 

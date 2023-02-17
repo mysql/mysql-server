@@ -1,0 +1,95 @@
+#
+# WL#15588 Store EXPLAIN FORMAT=JSON SELECT output in user variable.
+#
+SET @v1 = 'UNCHANGED';
+SET @v2 = @v1;
+
+# Unsupported functionality.
+EXPLAIN ANALYZE FORMAT=JSON INTO @v1 SELECT 1;
+ERROR 0A000: EXPLAIN ANALYZE does not support the INTO clause.
+EXPLAIN INTO @v1 SELECT 1;
+ERROR 0A000: EXPLAIN INTO does not support implicit FORMAT.
+EXPLAIN FORMAT=TRADITIONAL INTO @v1 SELECT 1;
+ERROR 0A000: EXPLAIN INTO does not support FORMAT=TRADITIONAL.
+EXPLAIN FORMAT=TREE INTO @v1 SELECT 1;
+ERROR 0A000: EXPLAIN INTO does not support FORMAT=TREE.
+# Check that the variable was not changed on error.
+SELECT @v1, @v1 = @v2;
+@v1	@v1 = @v2
+UNCHANGED	1
+
+CREATE TABLE t1 (i1 int, i2 int);
+CREATE TABLE t2 (i3 int, i4 int);
+INSERT INTO t1 VALUES (1,2), (2,3), (3,4);
+INSERT INTO t2 SELECT i2, i1 FROM t1;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+
+# Simple SELECT.
+EXPLAIN FORMAT=JSON INTO @v1 SELECT * FROM t1 JOIN t2 ON i1 = i3 WHERE i2 = 2;
+EXPLAIN
+SELECT @v1, JSON_VALID(@v1) from dual;
+@v1	JSON_VALID(@v1)
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.10"
+    },
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 1,
+          "filtered": "33.33",
+          "cost_info": {
+            "read_cost": "0.45",
+            "eval_cost": "0.10",
+            "prefix_cost": "0.55",
+            "data_read_per_join": "16"
+          },
+          "used_columns": [
+            "i1",
+            "i2"
+          ],
+          "attached_condition": "(`test`.`t1`.`i2` = 2)"
+        }
+      },
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 1,
+          "filtered": "33.33",
+          "using_join_buffer": "hash join",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "0.10",
+            "prefix_cost": "1.10",
+            "data_read_per_join": "16"
+          },
+          "used_columns": [
+            "i3",
+            "i4"
+          ],
+          "attached_condition": "(`test`.`t2`.`i3` = `test`.`t1`.`i1`)"
+        }
+      }
+    ]
+  }
+}	1
+
+# User variable is overwritten on successful execution.
+SET @v2 = @v1;
+EXPLAIN FORMAT=JSON INTO @v1 SELECT * FROM t1;
+EXPLAIN
+SELECT JSON_VALID(@v1), @v1 != @v2, @v1 NOT LIKE CONCAT(@v2, '%');
+JSON_VALID(@v1)	@v1 != @v2	@v1 NOT LIKE CONCAT(@v2, '%')
+1	1	1
+DROP TABLE t1, t2;
+SET @v1=NULL, @v2=NULL;

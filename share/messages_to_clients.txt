@@ -9971,6 +9971,15 @@ ER_LANGUAGE_COMPONENT_CANNOT_UNINSTALL
 ER_SP_NO_ALTER_LANGUAGE
   eng "Altering the language of an existing routine is not possible."
 
+ER_EXPLAIN_INTO_ANALYZE_NOT_SUPPORTED 0A000
+  eng "EXPLAIN ANALYZE does not support the INTO clause."
+
+ER_EXPLAIN_INTO_IMPLICIT_FORMAT_NOT_SUPPORTED 0A000
+  eng "EXPLAIN INTO does not support implicit FORMAT."
+
+ER_EXPLAIN_INTO_FORMAT_NOT_SUPPORTED 0A000
+  eng "EXPLAIN INTO does not support FORMAT=%s."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

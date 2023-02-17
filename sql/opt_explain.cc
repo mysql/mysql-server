@@ -2091,12 +2091,21 @@ bool explain_query_specification(THD *explain_thd, const THD *query_thd,
 
 static bool ExplainIterator(THD *ethd, const THD *query_thd,
                             Query_expression *unit) {
-  Query_result_send result;
+  unique_ptr_destroy_only<Query_result_send> result;
+  if (ethd->lex->explain_format->is_explain_into()) {
+    result.reset(new (ethd->mem_root) Query_result_explain_into_var(
+        unit, result.get(),
+        ethd->lex->explain_format->explain_into_variable_name()));
+  } else {
+    result.reset(new (ethd->mem_root) Query_result_send());
+  }
+  if (result == nullptr) return true;
+
   {
     mem_root_deque<Item *> field_list(ethd->mem_root);
     Item *item = new Item_empty_string("EXPLAIN", 78, system_charset_info);
     field_list.push_back(item);
-    if (result.send_result_set_metadata(
+    if (result->send_result_set_metadata(
             ethd, field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
       return true;
     }
@@ -2117,11 +2126,11 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
       ethd->raise_warning(ER_QUERY_INTERRUPTED);
     }
 
-    if (result.send_data(ethd, field_list)) {
+    if (result->send_data(ethd, field_list)) {
       return true;
     }
   }
-  return result.send_eof(ethd);
+  return result->send_eof(ethd);
 }
 
 /**
@@ -2226,6 +2235,9 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
   const bool secondary_engine = SecondaryEngineHandlerton(query_thd) != nullptr;
 
   LEX *lex = explain_thd->lex;
+
+  const bool is_explain_into = lex->explain_format->is_explain_into();
+
   if (lex->explain_format->is_iterator_based()) {
     if (lex->is_explain_analyze) {
       if (secondary_engine) {
@@ -2288,7 +2300,7 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
                          ? unit->query_result()
                          : unit->first_query_block()->query_result();
 
-  Query_result_explain explain_wrapper(unit, explain_result);
+  unique_ptr_destroy_only<Query_result_explain> explain_wrapper;
 
   if (other) {
     if (!((explain_result = new (explain_thd->mem_root) Query_result_send())))
@@ -2298,8 +2310,19 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
       return true; /* purecov: inspected */
   } else {
     assert(unit->is_optimized());
-    if (explain_result->need_explain_interceptor())
-      explain_result = &explain_wrapper;
+    if (is_explain_into) {
+      explain_wrapper.reset(
+          new (explain_thd->mem_root) Query_result_explain_into_var(
+              unit, explain_result,
+              lex->explain_format->explain_into_variable_name()));
+      explain_result = explain_wrapper.get();
+      if (explain_result == nullptr) return true;
+    } else if (explain_result->need_explain_interceptor()) {
+      explain_wrapper.reset(new (explain_thd->mem_root)
+                                Query_result_explain(unit, explain_result));
+      explain_result = explain_wrapper.get();
+      if (explain_result == nullptr) return true;
+    }
   }
 
   explain_thd->lex->explain_format->send_headers(explain_result);
@@ -2316,7 +2339,7 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
           : mysql_explain_query_expression(explain_thd, query_thd, unit);
 
   // Skip this if applicable. See print_query_for_explain() comments.
-  if (!res && !other) {
+  if (!res && !other && !is_explain_into) {
     StringBuffer<1024> str;
     print_query_for_explain(query_thd, unit, &str);
     str.append('\0');
@@ -2603,4 +2626,15 @@ Modification_plan::~Modification_plan() {
     thd->query_plan.set_modification_plan(nullptr);
     thd->unlock_query_plan();
   }
+}
+
+bool Query_result_explain_into_var::send_data(
+    THD *thd, const mem_root_deque<Item *> &items) {
+  assert(items.size() == 1);
+  Item_func_set_user_var *suv = new Item_func_set_user_var(
+      Name_string(m_variable_name.data(), m_variable_name.length()), items[0]);
+  if (suv->fix_fields(thd, nullptr)) return true;
+  suv->save_item_result(items[0]);
+  if (suv->update()) return true;
+  return false;
 }
