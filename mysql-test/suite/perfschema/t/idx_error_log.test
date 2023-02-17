@@ -11,7 +11,7 @@ let $table = performance_schema.error_log;
 
 SELECT logged INTO @startup
   FROM performance_schema.error_log
- WHERE error_code="MY-010116" ORDER BY logged DESC LIMIT 1;
+ WHERE error_code="MY-014069" ORDER BY logged DESC LIMIT 1;
 
 ###########################################################################
 # Test index on LOGGED, THREAD_ID, PRIO, ERROR_CODE, SUBSYSTEM
@@ -32,7 +32,7 @@ let $col1_act = "System";
 --source ../include/idx_explain_error_log.inc
 
 let $col1 = ERROR_CODE;
-let $col1_act = "MY-010116";
+let $col1_act = "MY-014069";
 --source ../include/idx_explain_error_log.inc
 
 let $col1 = SUBSYSTEM;

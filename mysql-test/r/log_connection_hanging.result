@@ -1,0 +1,21 @@
+# connect as root from root_con1, and make the thread sleep
+SET DEBUG="+d,simulate_connection_thread_hang";
+SELECT 1;
+# connect as root from root_con2, and make the thread sleep
+SET DEBUG="+d,simulate_connection_thread_hang";
+SELECT 1;
+# ---------------------------------------------------
+# shut server down
+# Server is down
+# close the test connections
+# ---------------------------------------------------
+# Read the logs
+# looking for ER_THREAD_STILL_ALIVE
+Pattern "Waiting for forceful disconnection of Thread" found
+# Search completed
+# looking for ER_NUM_THREADS_STILL_ALIVE
+Pattern "Waiting for forceful disconnection of" found
+# Search completed
+# ---------------------------------------------------
+# Clean Up
+# ---------------------------------------------------

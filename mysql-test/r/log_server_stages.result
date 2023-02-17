@@ -1,0 +1,56 @@
+# ---------------------------------------------------
+# shut server down
+# Server is down
+# ---------------------------------------------------
+# Run the server with --initialize
+# ---------------------------------------------------
+# extract the root password
+password found
+# ---------------------------------------------------
+# Restart the server against DDIR, and connect
+# connect as root
+# reset the password
+SET PASSWORD='';
+CREATE DATABASE test;
+# ---------------------------------------------------
+# shut server down
+# Server is down
+# close the test connection
+# ---------------------------------------------------
+# Read the logs
+# Looking for ER_SRV_INIT_START
+Pattern "MySQL Server Initialization - start" found
+# Search completed
+# Looking for ER_SRV_INIT_END
+Pattern "MySQL Server Initialization - end" found
+# Search completed
+# Looking for ER_SRV_START
+Pattern "MySQL Server - start" found
+# Search completed
+# Looking for ER_CONNECTIONS_SHUTDOWN_START
+Pattern "MySQL Server: Closing Connections - start" found
+# Search completed
+# Looking for ER_CONNECTIONS_SHUTDOWN_END
+Pattern "MySQL Server: Closing Connections - end" found
+# Search completed
+# Looking for ER_PLUGINS_SHUTDOWN_START
+Pattern "MySQL Server: Plugins Shutdown - start" found
+# Search completed
+# Looking for ER_PLUGINS_SHUTDOWN_END
+Pattern "MySQL Server: Plugins Shutdown - end" found
+# Search completed
+# Looking for ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN_START
+Pattern "MySQL Server: Components Shutdown - start" found
+# Search completed
+# Looking for ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN_END
+Pattern "MySQL Server: Components Shutdown - end" found
+# Search completed
+# Looking for ER_SRV_END
+Pattern "MySQL Server - end" found
+# Search completed
+# ---------------------------------------------------
+# Clean Up
+# delete mysqld log
+# delete datadir
+# delete password
+# ---------------------------------------------------

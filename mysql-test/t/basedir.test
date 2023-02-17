@@ -199,10 +199,12 @@ EOF
   open(MYSQLD_OUT, $mysqld_out) || die "Failed to open '$mysqld_out': $!";
   print "# Look for output (there should be none):\n";
   print "# Supressing output for initialize:\n";
+  print "# Supressing output for server shutdown\n";
   while(<MYSQLD_OUT>)
   {
     if (!(/initializing of server has completed/) &&
-        !(/Invalid systemd notify socket, cannot send:/)) {
+        !(/Invalid systemd notify socket, cannot send:/) &&
+        !(/MySQL Server - end./)) {
       print;
     }
   }

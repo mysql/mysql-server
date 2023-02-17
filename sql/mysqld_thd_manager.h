@@ -332,6 +332,14 @@ class Global_THD_manager {
   void do_for_all_thd(Do_THD_Impl *func);
 
   /**
+   * This function calls func() for all first "n" THDs across all THD list
+   * partitions.
+   * @param func Object of class which overrides operator()
+   * @param n number of elements we want to call func for
+   */
+  void do_for_first_n_thd(Do_THD_Impl *func, uint n);
+
+  /**
     Returns a THD_ptr containing first THD for which operator() returns true.
 
     @param func Object of class which overrides operator()

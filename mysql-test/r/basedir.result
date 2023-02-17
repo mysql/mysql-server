@@ -26,6 +26,7 @@
 # Look for [ERROR] in error log (there should be none):
 # Look for output (there should be none):
 # Supressing output for initialize:
+# Supressing output for server shutdown
 # Wait for daemon server to start
 # Execute a query to see that it is running OK
 SHOW DATABASES;

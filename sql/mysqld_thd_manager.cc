@@ -314,6 +314,19 @@ void Global_THD_manager::do_for_all_thd(Do_THD_Impl *func) {
   }
 }
 
+void Global_THD_manager::do_for_first_n_thd(Do_THD_Impl *func, uint n) {
+  Do_THD doit(func);
+  uint num_processed_thds = 0;
+  for (int i = 0; i < NUM_PARTITIONS; i++) {
+    MUTEX_LOCK(lock, &LOCK_thd_list[i]);
+    for (auto it = thd_list[i].begin(); it != thd_list[i].end(); it++) {
+      if (num_processed_thds == n) return;
+      doit(*it);
+      num_processed_thds++;
+    }
+  }
+}
+
 THD_ptr Global_THD_manager::find_thd(Find_THD_Impl *func) {
   const Find_THD find_thd(func);
   for (int i = 0; i < NUM_PARTITIONS; i++) {

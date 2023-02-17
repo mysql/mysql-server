@@ -36,14 +36,14 @@ stderr
 # Determine start-up time. Must succeed for other results to have meaning.
 SELECT logged INTO @startup
 FROM performance_schema.error_log
-WHERE error_code="MY-010116" ORDER BY logged DESC LIMIT 1;
+WHERE error_code="MY-014069" ORDER BY logged DESC LIMIT 1;
 
 # Since we're logging to stderr, we should see this message exactly once
 # (from our current start-up). Otherwise, we might see more of them from
 # previous runs:
 SELECT COUNT(logged)
 FROM performance_schema.error_log
-WHERE error_code="MY-010116" ORDER BY logged;
+WHERE error_code="MY-014069" ORDER BY logged;
 COUNT(logged)
 1
 
@@ -91,9 +91,11 @@ AND error_code NOT IN("MY-011243", "MY-011240", "MY-011245", "MY-010931",
 "MY-012363", "MY-011953", "MY-013623", "MY-013711",
 "MY-013880", "MY-013881", "MY-013882", "MY-013883",
 "MY-013884", "MY-013908", "MY-013930", "MY-014013",
-"MY-000068", "MY-014066", "MY-014067", "MY-014068")
+"MY-000068", "MY-014066", "MY-014067", "MY-014068",
+"MY-013932", "MY-010101", "MY-010099")
 ORDER BY logged, error_code;
 prio	error_code	subsystem
+System	MY-014069	Server
 System	MY-010116	Server
 Warning	MY-010075	Server
 System	MY-013576	InnoDB
@@ -157,7 +159,8 @@ AND prio!="Note"
 "MY-010931", "MY-010116", "MY-011810", "MY-000000",
 "MY-000067", "MY-010159", "MY-013595", "MY-013602",
 "MY-010108", "MY-012363", "MY-013711", "MY-013908",
-"MY-013930", "MY-000068")
+"MY-013930", "MY-000068", "MY-014069", "MY-010101",
+"MY-010099")
 ORDER BY logged;
 prio	error_code	subsystem	data
 System	MY-013576	InnoDB	InnoDB initialization has started.
@@ -179,7 +182,7 @@ COUNT(*)>0
 SET @@session.time_zone=@@global.log_timestamps;
 SELECT logged INTO @startup
 FROM performance_schema.error_log
-WHERE error_code="MY-010116" ORDER BY logged DESC LIMIT 1;
+WHERE error_code="MY-014069" ORDER BY logged DESC LIMIT 1;
 SELECT LEFT(logged,19), error_code, subsystem, data
 FROM performance_schema.error_log
 WHERE logged<@startup AND error_code="MY-999999";
@@ -201,13 +204,13 @@ SET @@session.time_zone=@@global.log_timestamps;
 # Determine start-up time. Must succeed for other results to have meaning
 SELECT logged INTO @startup
 FROM performance_schema.error_log
-WHERE error_code="MY-010116" ORDER BY logged DESC LIMIT 1;
+WHERE error_code="MY-014069" ORDER BY logged DESC LIMIT 1;
 
 # FR-1.3.3 JSON log mode
 # SELECT with = cond with (possibly) several results
 SELECT logged=@startup
 FROM performance_schema.error_log
-WHERE error_code="MY-010116" ORDER BY logged DESC LIMIT 1;
+WHERE error_code="MY-014069" ORDER BY logged DESC LIMIT 1;
 logged=@startup
 1
 
@@ -216,10 +219,10 @@ SELECT prio,error_code,subsystem,JSON_EXTRACT(data,'$.err_symbol')
 FROM performance_schema.error_log
 WHERE logged>=@startup
 AND LEFT(data,1)='{'
-   AND JSON_EXTRACT(data,'$.err_symbol')="ER_STARTING_AS"
+   AND JSON_EXTRACT(data,'$.err_symbol')="ER_SRV_START"
  ORDER BY logged;
 prio	error_code	subsystem	JSON_EXTRACT(data,'$.err_symbol')
-System	MY-010116	Server	"ER_STARTING_AS"
+System	MY-014069	Server	"ER_SRV_START"
 
 # FR-1.4.2 Information from previous run/log
 # FR-2 Loading information from previous run
@@ -264,7 +267,7 @@ WHERE component_urn="file://component_log_sink_json";
 # restart: --log-error-verbosity=1
 SELECT logged INTO @startup
 FROM performance_schema.error_log
-WHERE error_code="MY-010116"
+WHERE error_code="MY-014069"
  ORDER BY logged DESC LIMIT 1;
 
 # There should be no warnings/infos with verbosity=1.
@@ -278,7 +281,7 @@ COUNT(*)=0
 # restart: --log-error-verbosity=2
 SELECT logged INTO @startup
 FROM performance_schema.error_log
-WHERE error_code="MY-010116"
+WHERE error_code="MY-014069"
  ORDER BY logged DESC LIMIT 1;
 
 # There should be no infos with verbosity=2.
@@ -298,7 +301,7 @@ COUNT(*)=0
 # restart: --log-error=LOG_FILE_V1 --log-error-verbosity=1
 SELECT logged INTO @startup
 FROM performance_schema.error_log
-WHERE error_code="MY-010116"
+WHERE error_code="MY-014069"
  ORDER BY logged DESC LIMIT 1;
 
 # There should be no warnings/infos with verbosity=1.
@@ -312,7 +315,7 @@ COUNT(*)=0
 # restart: --log-error=LOG_FILE_V2 --log-error-verbosity=2
 SELECT logged INTO @startup
 FROM performance_schema.error_log
-WHERE error_code="MY-010116"
+WHERE error_code="MY-014069"
  ORDER BY logged DESC LIMIT 1;
 
 # There should be warnings/infos with verbosity=2.
@@ -326,7 +329,7 @@ COUNT(*)>0
 # restart: --log-error=LOG_FILE_V3 --log-error-verbosity=3
 SELECT logged INTO @startup
 FROM performance_schema.error_log
-WHERE error_code="MY-010116"
+WHERE error_code="MY-014069"
  ORDER BY logged DESC LIMIT 1;
 
 # There should be infos with verbosity=3.
@@ -338,11 +341,11 @@ COUNT(*)>0
 
 # Pass --log-error-suppression-list at start-up, then show that the
 # listed errors have been excluded from the table!
-# restart: --log-error-suppression-list=MY-013595,MY-010069,MY-011810,MY-010116 --log-error-verbosity=3
+# restart: --log-error-suppression-list=MY-013595,MY-010069,MY-011810,MY-010116,MY-014069 --log-error-verbosity=3
 # Show that log_error_suppression_list was accepted from the command-line.
 SELECT @@global.log_error_suppression_list;
 @@global.log_error_suppression_list
-MY-013595,MY-010069,MY-011810,MY-010116
+MY-013595,MY-010069,MY-011810,MY-010116,MY-014069
 # Show that we have no log file (i.e. we're logging to stderr).
 # This is to guard against --log-error=... being added to the .opt file,
 # which would then be applied on every restart and skew results in subtle ways.
@@ -351,7 +354,7 @@ SELECT @@global.log_error;
 stderr
 SELECT error_code
 FROM performance_schema.error_log
-WHERE error_code IN("MY-013595","MY-010069","MY-011810","MY-010116")
+WHERE error_code IN("MY-013595","MY-010069","MY-011810","MY-010116", "MY-014069")
 AND prio<>"System";
 error_code
 
@@ -365,16 +368,16 @@ UNINSTALL COMPONENT "file://component_log_filter_dragnet";
 SELECT @@global.dragnet.log_error_filter_rules;
 @@global.dragnet.log_error_filter_rules
 IF ERR_CODE == ER_SERVER_STARTUP_MSG THEN drop.
-# get start-up timestamp from ER_STARTING_AS
+# get start-up timestamp from ER_SRV_START
 SELECT COUNT(logged)
 FROM performance_schema.error_log
-WHERE error_code="MY-010116"
+WHERE error_code="MY-014069"
  ORDER BY logged DESC LIMIT 1;
 COUNT(logged)
 1
 SELECT logged INTO @startup
 FROM performance_schema.error_log
-WHERE error_code="MY-010116"
+WHERE error_code="MY-014069"
  ORDER BY logged DESC LIMIT 1;
 # show that we filtered out ER_SERVER_STARTUP_MSG
 SELECT IF(COUNT(*)<>0, "failed: not filtered", "success: filtered")
@@ -391,12 +394,12 @@ SET @@global.log_error_services=DEFAULT;
 
 # PERSIST + JSON
 SET PERSIST log_error_verbosity=1;
-SET PERSIST log_error_suppression_list="MY-013595,MY-010069,MY-011810,MY-010116";
+SET PERSIST log_error_suppression_list="MY-013595,MY-010069,MY-011810,MY-010116,MY-014069";
 SET PERSIST log_error_services="log_filter_internal; log_sink_json";
 # restart: --log-error=LOG_FILE_PJ
 SELECT logged INTO @startup
 FROM performance_schema.error_log
-WHERE error_code="MY-010116"
+WHERE error_code="MY-014069"
  ORDER BY logged DESC LIMIT 1;
 # verbosity=1 (persisted), should apply (and result in 0 notes/warnings)
 SELECT COUNT(*)=0 FROM performance_schema.error_log
@@ -406,7 +409,7 @@ COUNT(*)=0
 # no errors excluded by log_error_suppression_list should appear:
 SELECT COUNT(*)=0
 FROM performance_schema.error_log
-WHERE error_code IN("MY-013595","MY-010069","MY-011810","MY-010116")
+WHERE error_code IN("MY-013595","MY-010069","MY-011810","MY-014069")
 AND logged>=@startup AND prio<>"System";
 COUNT(*)=0
 1
@@ -415,10 +418,10 @@ SELECT prio,error_code,subsystem,JSON_EXTRACT(data,'$.err_symbol')
 FROM performance_schema.error_log
 WHERE logged>=@startup
 AND LEFT(data,1)='{'
-   AND JSON_EXTRACT(data,'$.err_symbol')="ER_STARTING_AS"
+   AND JSON_EXTRACT(data,'$.err_symbol')="ER_SRV_START"
  ORDER BY logged;
 prio	error_code	subsystem	JSON_EXTRACT(data,'$.err_symbol')
-System	MY-010116	Server	"ER_STARTING_AS"
+System	MY-014069	Server	"ER_SRV_START"
 RESET PERSIST log_error_verbosity;
 RESET PERSIST log_error_suppression_list;
 RESET PERSIST log_error_services;

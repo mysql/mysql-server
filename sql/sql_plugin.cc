@@ -2082,6 +2082,8 @@ void plugin_shutdown() {
 
     reap_needed = true;
 
+    if (!opt_initialize) LogErr(INFORMATION_LEVEL, ER_PLUGINS_SHUTDOWN_START);
+
     /*
       We want to shut down plugins in a reasonable order, this will
       become important when we have plugins which depend upon each other.
@@ -2123,6 +2125,9 @@ void plugin_shutdown() {
       if (plugins[i]->state == PLUGIN_IS_DELETED)
         plugins[i]->state = PLUGIN_IS_DYING;
     }
+
+    if (!opt_initialize) LogErr(INFORMATION_LEVEL, ER_PLUGINS_SHUTDOWN_END);
+
     mysql_mutex_unlock(&LOCK_plugin);
 
     /*

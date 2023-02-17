@@ -12282,6 +12282,42 @@ ER_TELEMETRY_WARNING
 ER_TELEMETRY_ERROR
   eng "%s"
 
+ER_SRV_START
+  eng "MySQL Server - start."
+
+ER_SRV_END
+  eng "MySQL Server - end."
+
+ER_SRV_INIT_START
+  eng "MySQL Server Initialization - start."
+
+ER_SRV_INIT_END
+  eng "MySQL Server Initialization - end."
+
+ER_PLUGINS_SHUTDOWN_START
+  eng "MySQL Server: Plugins Shutdown - start."
+
+ER_PLUGINS_SHUTDOWN_END
+  eng "MySQL Server: Plugins Shutdown - end."
+
+ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN_START
+  eng "MySQL Server: Components Shutdown - start."
+
+ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN_END
+  eng "MySQL Server: Components Shutdown - end (with return value = %d)."
+
+ER_CONNECTIONS_SHUTDOWN_START
+  eng "MySQL Server: Closing Connections - start."
+
+ER_CONNECTIONS_SHUTDOWN_END
+  eng "MySQL Server: Closing Connections - end."
+
+ER_THREAD_STILL_ALIVE
+  eng "Waiting for forceful disconnection of Thread (ID %ld) to end."
+
+ER_NUM_THREADS_STILL_ALIVE
+  eng "Waiting for forceful disconnection of %ld thread(s) to end."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

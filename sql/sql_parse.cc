@@ -1346,6 +1346,15 @@ bool do_command(THD *thd) {
   net_new_transaction(net);
 
   /*
+    WL#15369 : to make connections threads sleep to test if
+    ER_THREAD_STILL_ALIVE, and ER_NUM_THREADS_STILL_ALIVE are
+    being logged in the intended way, i.e. when connection threads
+    are still alive, even after forcefully disconnecting them in
+    close_connections().
+ */
+  DBUG_EXECUTE_IF("simulate_connection_thread_hang", sleep(15););
+
+  /*
     Synchronization point for testing of KILL_CONNECTION.
     This sync point can wait here, to simulate slow code execution
     between the last test of thd->killed and blocking in read().

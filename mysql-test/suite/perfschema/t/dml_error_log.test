@@ -4,8 +4,8 @@ SELECT * FROM performance_schema.error_log
   LIMIT 1;
 
 SELECT * FROM performance_schema.error_log
- WHERE error_code="MY-010116"
-    OR data LIKE "% starting as process %"
+ WHERE error_code="MY-014069"
+    OR data LIKE "% MySQL Server - start. %"
  LIMIT 1;
 --enable_result_log
 

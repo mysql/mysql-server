@@ -2136,6 +2136,9 @@ static bool mysql_component_infrastructure_init() {
   @retval true failure
 */
 static bool component_infrastructure_deinit() {
+  if (!opt_initialize)
+    LogErr(INFORMATION_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN_START);
+
   persistent_dynamic_loader_deinit();
   bool retval = false;
 
@@ -2154,6 +2157,11 @@ static bool component_infrastructure_deinit() {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN);
     retval = true;
   }
+
+  if (!opt_initialize)
+    LogErr(INFORMATION_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN_END,
+           retval);
+
   /*
     It's the deinitialize_minimal_chassis() that actually unloads all
     components. Services provided by mysql_server component may still
@@ -2306,8 +2314,39 @@ class Call_close_conn : public Do_THD_Impl {
   bool is_server_shutdown;
 };
 
+/**
+  This class implements callback function used by
+  log_alive_threads_info(Global.. ) to check which threads are alive
+ */
+class Log_alive_individual_thread : public Do_THD_Impl {
+ public:
+  void operator()(THD *closing_thd) override {
+    if (closing_thd->get_protocol()->connection_alive()) {
+      LogErr(INFORMATION_LEVEL, ER_THREAD_STILL_ALIVE,
+             static_cast<long>(closing_thd->thread_id()));
+    }
+  }
+};
+
+/**
+  This function logs number of threads, and info about first "n" number of
+  threads that are still alive after forcefully shutdown, used by
+  close_connections()
+ */
+void log_alive_threads_info(Global_THD_manager *thd_manager, uint n) {
+  Log_alive_individual_thread log_alive_individual_thread;
+  uint alive_thread_count = thd_manager->get_thd_count();
+  if (alive_thread_count && !opt_initialize) {
+    LogErr(INFORMATION_LEVEL, ER_NUM_THREADS_STILL_ALIVE, alive_thread_count);
+    thd_manager->do_for_first_n_thd(&log_alive_individual_thread, n);
+  }
+}
+
 static void close_connections(void) {
   DBUG_TRACE;
+
+  if (!opt_initialize) LogErr(INFORMATION_LEVEL, ER_CONNECTIONS_SHUTDOWN_START);
+
   (void)RUN_HOOK(server_state, before_server_shutdown, (nullptr));
 
   Per_thread_connection_handler::kill_blocked_pthreads();
@@ -2381,6 +2420,12 @@ static void close_connections(void) {
   Events::deinit();
   DBUG_PRINT("quit", ("Waiting for threads to die (count=%u)",
                       thd_manager->get_thd_count()));
+  /*
+     Logging just before waiting, so if it shutdown hangs, we have better chance
+     at debugging. below function prints info about first "n"
+     threads, currently set to 100.
+  */
+  log_alive_threads_info(thd_manager, 100);
   thd_manager->wait_till_no_thd();
   /*
     Connection threads might take a little while to go down after removing from
@@ -2389,6 +2434,9 @@ static void close_connections(void) {
   Connection_handler_manager::wait_till_no_connection();
 
   delete_slave_info_objects();
+
+  if (!opt_initialize) LogErr(INFORMATION_LEVEL, ER_CONNECTIONS_SHUTDOWN_END);
+
   DBUG_PRINT("quit", ("close_connections thread"));
 }
 
@@ -2503,6 +2551,13 @@ void clean_up_mysqld_mutexes() { clean_up_mutexes(); }
 static void mysqld_exit(int exit_code) {
   assert((exit_code >= MYSQLD_SUCCESS_EXIT && exit_code <= MYSQLD_ABORT_EXIT) ||
          exit_code == MYSQLD_RESTART_EXIT);
+
+  // this is to prevent mtr from accidentally printing this log when it runs
+  // mysqld with --verbose --help to extract version info and variable values
+  // and when mysqld is run with --validate-config option
+  if (!is_help_or_validate_option())
+    LogErr(SYSTEM_LEVEL, opt_initialize ? ER_SRV_INIT_END : ER_SRV_END);
+
   mysql_audit_finalize();
   Srv_session::module_deinit();
   delete_optimizer_cost_module();
@@ -7346,6 +7401,12 @@ int mysqld_main(int argc, char **argv)
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
   heo_error = handle_early_options();
+
+  // this is to prevent mtr from accidentally printing this log when it runs
+  // mysqld with --verbose --help to extract version info and variable values
+  // and when mysqld is run with --validate-config option
+  if (!is_help_or_validate_option())
+    LogErr(SYSTEM_LEVEL, opt_initialize ? ER_SRV_INIT_START : ER_SRV_START);
 
   init_sql_statement_names();
   ulong requested_open_files = 0;

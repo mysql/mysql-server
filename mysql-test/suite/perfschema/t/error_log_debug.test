@@ -52,7 +52,7 @@ DELETE FROM mysql.component
 --source include/restart_mysqld.inc
 SELECT logged INTO @startup
   FROM performance_schema.error_log
- WHERE error_code="MY-010116"
+ WHERE error_code="MY-014069"
  ORDER BY logged DESC LIMIT 1;
 
 SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio";
@@ -68,7 +68,7 @@ SELECT COUNT(*)=1
 --source include/restart_mysqld.inc
 SELECT logged INTO @startup
   FROM performance_schema.error_log
- WHERE error_code="MY-010116"
+ WHERE error_code="MY-014069"
  ORDER BY logged DESC LIMIT 1;
 
 --echo # Should fail, we should not see entries from the previous run's
