@@ -92,25 +92,4 @@ v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 DROP TABLE t1, t2;
 DROP VIEW v1, v2;
 DROP FUNCTION f1;
-#
-# Bug#34801210: Error Illegal mix of collations when using views and IN
-#               statements
-#
-CREATE TABLE t900 ( id INT UNSIGNED PRIMARY KEY NOT NULL,
-val varchar(32) NOT NULL) collate utf8mb4_sv_0900_ai_ci;
-SET session collation_connection = 'utf8mb4_sv_0900_ai_ci';
-CREATE OR REPLACE VIEW v1_t900 AS SELECT * FROM t900 WHERE val = 'data';
-CREATE OR REPLACE VIEW v2_t900 AS SELECT * FROM t900 WHERE val IN ('data') ;
-SELECT * FROM v1_t900 WHERE val = 'something';
-id	val
-SELECT * FROM v2_t900 WHERE val = 'something';
-id	val
-SET session collation_connection = 'utf8mb4_general_ci';
-SELECT * FROM v1_t900 WHERE val = 'something';
-id	val
-SELECT * FROM v2_t900 WHERE val = 'something';
-id	val
-DROP VIEW v1_t900;
-DROP VIEW v2_t900;
-DROP TABLE t900;
 # restart:

@@ -130,3 +130,26 @@ DROP TABLE t1;
 SELECT member_role
 FROM performance_schema.replication_group_members
 WHERE member_host = @@hostname AND member_role='PRIMARY';
+
+--echo #
+--echo # Bug#34801210: Error Illegal mix of collations when using views and IN
+--echo #               statements
+--echo #
+set @old_collation = @@collation_connection;
+
+CREATE TABLE t1 ( id INT UNSIGNED PRIMARY KEY NOT NULL,
+                    val varchar(32) NOT NULL) collate utf8mb4_sv_0900_ai_ci;
+SET session collation_connection = 'utf8mb4_sv_0900_ai_ci';
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE val = 'data';
+CREATE VIEW v2 AS SELECT * FROM t1 WHERE val IN ('data') ;
+SELECT * FROM v1 WHERE val = 'something';
+SELECT * FROM v2 WHERE val = 'something';
+SET session collation_connection = 'utf8mb4_general_ci';
+SELECT * FROM v1 WHERE val = 'something';
+SELECT * FROM v2 WHERE val = 'something';
+
+# Cleanup and restore
+DROP VIEW v1;
+DROP VIEW v2;
+DROP TABLE t1;
+SET session collation_connection = @old_collation;
