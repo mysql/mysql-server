@@ -51,6 +51,137 @@ delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
 insert into test.c1(id) select id from p1;
 delete from test.c1;
+Check interaction of inplace alters and restarts
+create table parent (parent_pk int,
+parent_uk int,
+b int,
+primary key (parent_pk),
+unique(parent_uk)
+) engine=ndb;
+create table child (child_pk int,
+child_uk int,
+child_ord int,
+data int,
+primary key(child_pk),
+unique(child_uk),
+key(child_ord),
+constraint pkpk foreign key (child_pk) references parent (parent_pk), # PK->PK
+constraint pkuk foreign key (child_pk) references parent (parent_uk), # PK->UK
+constraint ukpk foreign key (child_uk) references parent (parent_pk), # UK->PK
+constraint ukuk foreign key (child_uk) references parent (parent_uk), # UK->UK
+constraint ordpk foreign key (child_ord) references parent (parent_pk), # ORD -> PK
+constraint orduk foreign key (child_ord) references parent (parent_uk) # ORD -> UK
+) engine=ndb;
+insert into parent values
+(1,1,1), (2,2,2), (3,3,3), (4,4,4), (5,5,5), (6,6,6), (7,7,7), (8,8,8), (9,9,9), (10,10,10),
+(11,100,11),
+(200,12,200);
+Succesful inserts
+insert into child values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4), (5,5,5,5), (6,6,6,6), (7,7,7,7), (8,8,8,8), (9,9,9,9);
+FK checks working
+insert into child values (20, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `pkpk` FOREIGN KEY (`child_pk`) REFERENCES `parent` (`parent_pk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (11, 11, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `pkuk` FOREIGN KEY (`child_pk`) REFERENCES `parent` (`parent_uk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 12, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `ukpk` FOREIGN KEY (`child_uk`) REFERENCES `parent` (`parent_pk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 200, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `ukuk` FOREIGN KEY (`child_uk`) REFERENCES `parent` (`parent_uk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 10, 12, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `ordpk` FOREIGN KEY (`child_ord`) REFERENCES `parent` (`parent_pk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 10, 200, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `orduk` FOREIGN KEY (`child_ord`) REFERENCES `parent` (`parent_uk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+Capture initial schema versions for parent
+and child tables and unique indices involved
+in foreign keys
+Now alter the tables and indices inplace
+Existing FKs should be unaffected.
+Alter parent
+Rename table x 2
+rename table parent to guardian;
+rename table guardian to parent;
+Parent metadata version diff
+Parent table version diff
+major_diff	minor_diff
+0	2
+Parent unique version diff
+major_diff	minor_diff
+0	0
+Add a column
+alter table parent add column extra int;
+Warnings:
+Warning	1478	Converted FIXED field 'extra' to DYNAMIC to enable online ADD COLUMN
+Parent metadata version diff
+Parent table version diff
+major_diff	minor_diff
+0	3
+Parent unique version diff
+major_diff	minor_diff
+0	0
+Fiddle with READ_BACKUP
+alter table parent comment='NDB_TABLE=READ_BACKUP=0';
+alter table parent comment='NDB_TABLE=READ_BACKUP=1';
+Parent metadata version diff
+Parent table version diff
+major_diff	minor_diff
+0	5
+Parent unique version diff
+major_diff	minor_diff
+0	2
+Alter child
+Rename table
+rename table child to junior;
+rename table junior to child;
+Child metadata diff
+Child table version diff
+major_diff	minor_diff
+0	2
+Child unique version diff
+major_diff	minor_diff
+0	0
+Child ordered version diff
+major_diff	minor_diff
+0	0
+Rename a column
+alter table child rename column data to datum;
+Child metadata diff
+Child table version diff
+major_diff	minor_diff
+0	3
+Child unique version diff
+major_diff	minor_diff
+0	0
+Child ordered version diff
+major_diff	minor_diff
+0	0
+Add a column
+alter table child add column extra int;
+Warnings:
+Warning	1478	Converted FIXED field 'extra' to DYNAMIC to enable online ADD COLUMN
+Child metadata diff
+Child table version diff
+major_diff	minor_diff
+0	4
+Child unique version diff
+major_diff	minor_diff
+0	0
+Child ordered version diff
+major_diff	minor_diff
+0	0
+Fiddle with readbackup
+alter table child comment='NDB_TABLE=READ_BACKUP=0';
+alter table child comment='NDB_TABLE=READ_BACKUP=1';
+Child metadata diff
+Child table version diff
+major_diff	minor_diff
+0	6
+Child unique version diff
+major_diff	minor_diff
+0	2
+Child ordered version diff
+major_diff	minor_diff
+0	2
 -- Normal NR
 --- Wait for node to stop
 --- Show FKs working
@@ -62,6 +193,19 @@ delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
 insert into test.c1(id) select id from p1;
 delete from test.c1;
+FK checks working
+insert into child values (20, 10, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `pkpk` FOREIGN KEY (`child_pk`) REFERENCES `parent` (`parent_pk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (11, 11, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `pkuk` FOREIGN KEY (`child_pk`) REFERENCES `parent` (`parent_uk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 12, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `ukpk` FOREIGN KEY (`child_uk`) REFERENCES `parent` (`parent_pk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 200, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `ukuk` FOREIGN KEY (`child_uk`) REFERENCES `parent` (`parent_uk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 10, 12, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `ordpk` FOREIGN KEY (`child_ord`) REFERENCES `parent` (`parent_pk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 10, 200, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `orduk` FOREIGN KEY (`child_ord`) REFERENCES `parent` (`parent_uk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 --- Startup node again
 --- Wait for node to recover
 --- Show FKs working
@@ -73,6 +217,19 @@ delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
 insert into test.c1(id) select id from p1;
 delete from test.c1;
+FK checks working
+insert into child values (20, 10, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `pkpk` FOREIGN KEY (`child_pk`) REFERENCES `parent` (`parent_pk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (11, 11, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `pkuk` FOREIGN KEY (`child_pk`) REFERENCES `parent` (`parent_uk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 12, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `ukpk` FOREIGN KEY (`child_uk`) REFERENCES `parent` (`parent_pk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 200, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `ukuk` FOREIGN KEY (`child_uk`) REFERENCES `parent` (`parent_uk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 10, 12, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `ordpk` FOREIGN KEY (`child_ord`) REFERENCES `parent` (`parent_pk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 10, 200, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `orduk` FOREIGN KEY (`child_ord`) REFERENCES `parent` (`parent_uk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 -- Initial NR
 --- Wait for node to stop
 --- Show FKs working
@@ -84,6 +241,19 @@ delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
 insert into test.c1(id) select id from p1;
 delete from test.c1;
+FK checks working
+insert into child values (20, 10, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `pkpk` FOREIGN KEY (`child_pk`) REFERENCES `parent` (`parent_pk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (11, 11, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `pkuk` FOREIGN KEY (`child_pk`) REFERENCES `parent` (`parent_uk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 12, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `ukpk` FOREIGN KEY (`child_uk`) REFERENCES `parent` (`parent_pk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 200, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `ukuk` FOREIGN KEY (`child_uk`) REFERENCES `parent` (`parent_uk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 10, 12, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `ordpk` FOREIGN KEY (`child_ord`) REFERENCES `parent` (`parent_pk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 10, 200, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `orduk` FOREIGN KEY (`child_ord`) REFERENCES `parent` (`parent_uk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 --- Startup node again
 --- Wait for node to recover
 --- Show FKs working
@@ -95,6 +265,19 @@ delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
 insert into test.c1(id) select id from p1;
 delete from test.c1;
+FK checks working
+insert into child values (20, 10, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `pkpk` FOREIGN KEY (`child_pk`) REFERENCES `parent` (`parent_pk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (11, 11, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `pkuk` FOREIGN KEY (`child_pk`) REFERENCES `parent` (`parent_uk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 12, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `ukpk` FOREIGN KEY (`child_uk`) REFERENCES `parent` (`parent_pk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 200, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `ukuk` FOREIGN KEY (`child_uk`) REFERENCES `parent` (`parent_uk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 10, 12, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `ordpk` FOREIGN KEY (`child_ord`) REFERENCES `parent` (`parent_pk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 10, 200, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `orduk` FOREIGN KEY (`child_ord`) REFERENCES `parent` (`parent_uk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 -- System restart
 --- Wait for node to stop
 --- Startup nodes again
@@ -109,8 +292,23 @@ delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
 insert into test.c1(id) select id from p1;
 delete from test.c1;
+FK checks working
+insert into child values (20, 10, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `pkpk` FOREIGN KEY (`child_pk`) REFERENCES `parent` (`parent_pk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (11, 11, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `pkuk` FOREIGN KEY (`child_pk`) REFERENCES `parent` (`parent_uk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 12, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `ukpk` FOREIGN KEY (`child_uk`) REFERENCES `parent` (`parent_pk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 200, 10, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `ukuk` FOREIGN KEY (`child_uk`) REFERENCES `parent` (`parent_uk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 10, 12, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `ordpk` FOREIGN KEY (`child_ord`) REFERENCES `parent` (`parent_pk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+insert into child values (10, 10, 200, 10, 10);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `orduk` FOREIGN KEY (`child_ord`) REFERENCES `parent` (`parent_uk`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from test.p1;
 drop table test.c2;
 drop table test.c1;
 drop table test.p1;
 drop table test.`rows`;
+drop table test.child;
+drop table test.parent;

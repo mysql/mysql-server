@@ -76,6 +76,289 @@ insert into p1(parent_id) select a from `rows`;
 insert into test.c1(id) select id from p1;
 delete from test.c1;
 
+
+--echo Check interaction of inplace alters and restarts
+
+create table parent (parent_pk int,
+                     parent_uk int,
+                     b int,
+                     primary key (parent_pk),
+                     unique(parent_uk)
+                    ) engine=ndb;
+
+create table child (child_pk int,
+                    child_uk int,
+                    child_ord int,
+                    data int,
+                    primary key(child_pk),
+                    unique(child_uk),
+                    key(child_ord),
+                    constraint pkpk foreign key (child_pk) references parent (parent_pk), # PK->PK
+                    constraint pkuk foreign key (child_pk) references parent (parent_uk), # PK->UK
+                    constraint ukpk foreign key (child_uk) references parent (parent_pk), # UK->PK
+                    constraint ukuk foreign key (child_uk) references parent (parent_uk), # UK->UK
+                    constraint ordpk foreign key (child_ord) references parent (parent_pk), # ORD -> PK
+                    constraint orduk foreign key (child_ord) references parent (parent_uk) # ORD -> UK
+                    ) engine=ndb;
+
+insert into parent values
+  (1,1,1), (2,2,2), (3,3,3), (4,4,4), (5,5,5), (6,6,6), (7,7,7), (8,8,8), (9,9,9), (10,10,10),
+  (11,100,11),
+  (200,12,200);
+
+--echo Succesful inserts
+insert into child values
+  (1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4), (5,5,5,5), (6,6,6,6), (7,7,7,7), (8,8,8,8), (9,9,9,9);
+
+--echo FK checks working
+--error 1452
+insert into child values (20, 10, 10, 10); # PK -> PK
+--error 1452
+insert into child values (11, 11, 10, 10); # PK -> UK
+--error 1452
+insert into child values (10, 12, 10, 10); # UK -> PK
+--error 1452
+insert into child values (10, 200, 10, 10); # UK -> UK
+--error 1452
+insert into child values (10, 10, 12, 10); # ORD -> PK
+--error 1452
+insert into child values (10, 10, 200, 10); # ORD -> UK
+
+--echo Capture initial schema versions for parent
+--echo and child tables and unique indices involved
+--echo in foreign keys
+
+--disable_query_log
+# Parent table
+select version & 0xffffff,
+       version >> 24
+  into @vpmaj, @vpmin
+  from ndbinfo.dict_obj_info
+ where fq_name like 'test/def/parent';
+
+# Parent unique
+select version & 0xffffff,
+       version >> 24
+  into @vpumaj, @vpumin
+  from ndbinfo.dict_obj_info
+ where fq_name like 'sys/def/%parent_uk$unique';
+
+# Child table
+select version & 0xffffff,
+       version >> 24
+  into @vcmaj, @vcmin
+  from ndbinfo.dict_obj_info
+ where fq_name like 'test/def/child';
+
+# Child unique
+select version & 0xffffff,
+       version >> 24
+  into @vcumaj, @vcumin
+  from ndbinfo.dict_obj_info
+ where fq_name like 'sys/def/%child_uk$unique';
+
+# Child ordered
+select version & 0xffffff,
+       version >> 24
+  into @vcomaj, @vcomin
+  from ndbinfo.dict_obj_info
+ where fq_name like 'sys/def/%child_ord';
+--enable_query_log
+
+--echo Now alter the tables and indices inplace
+--echo Existing FKs should be unaffected.
+
+--echo Alter parent
+
+--echo Rename table x 2
+rename table parent to guardian;
+rename table guardian to parent;
+
+--echo Parent metadata version diff
+--disable_query_log
+--echo Parent table version diff
+select (version & 0xffffff) - @vpmaj as major_diff,
+       (version >> 24) - @vpmin as minor_diff
+  from ndbinfo.dict_obj_info
+ where fq_name like 'test/def/parent';
+
+--echo Parent unique version diff
+select (version & 0xffffff) - @vpumaj as major_diff,
+       (version >> 24) - @vpumin as minor_diff
+  from ndbinfo.dict_obj_info
+ where fq_name like 'sys/def/%parent_uk$unique';
+
+# Following fails with
+# ERROR 1846 (0A000): ALTER TABLE is not supported. Reason: Altering name of a field being referenced from a foreign key is not supported. Try dropping foreign key first.
+
+#--echo Rename a column
+#alter table parent rename column b to bee;
+#
+#--echo Parent metadata version diff
+#--echo Parent table version diff
+#select (version & 0xffffff) - @vpmaj as major_diff,
+#       (version >> 24) - @vpmin as minor_diff
+#  from ndbinfo.dict_obj_info
+# where fq_name like 'test/def/parent';
+#
+#--echo Parent unique version diff
+#select (version & 0xffffff) - @vpumaj as major_diff,
+#       (version >> 24) - @vpumin as minor_diff
+#  from ndbinfo.dict_obj_info
+# where fq_name like 'sys/def/%parent_uk$unique';
+--enable_query_log
+
+--echo Add a column
+alter table parent add column extra int;
+
+--echo Parent metadata version diff
+--disable_query_log
+--echo Parent table version diff
+select (version & 0xffffff) - @vpmaj as major_diff,
+       (version >> 24) - @vpmin as minor_diff
+  from ndbinfo.dict_obj_info
+ where fq_name like 'test/def/parent';
+
+--echo Parent unique version diff
+select (version & 0xffffff) - @vpumaj as major_diff,
+       (version >> 24) - @vpumin as minor_diff
+  from ndbinfo.dict_obj_info
+ where fq_name like 'sys/def/%parent_uk$unique';
+
+--enable_query_log
+
+--echo Fiddle with READ_BACKUP
+alter table parent comment='NDB_TABLE=READ_BACKUP=0';
+alter table parent comment='NDB_TABLE=READ_BACKUP=1';
+
+--echo Parent metadata version diff
+--disable_query_log
+--echo Parent table version diff
+select (version & 0xffffff) - @vpmaj as major_diff,
+       (version >> 24) - @vpmin as minor_diff
+  from ndbinfo.dict_obj_info
+ where fq_name like 'test/def/parent';
+
+--echo Parent unique version diff
+select (version & 0xffffff) - @vpumaj as major_diff,
+       (version >> 24) - @vpumin as minor_diff
+  from ndbinfo.dict_obj_info
+ where fq_name like 'sys/def/%parent_uk$unique';
+
+--enable_query_log
+
+--echo Alter child
+
+--echo Rename table
+# Note that renaming a child table which has
+# fk constraints with auto-generated names results
+# in the fks all being replaced with fresh fks
+# In this test the constraints have specific names to
+# avoid this behaviour.
+#
+rename table child to junior;
+rename table junior to child;
+
+--echo Child metadata diff
+--disable_query_log
+--echo Child table version diff
+select (version & 0xffffff) - @vcmaj as major_diff,
+       (version >> 24) - @vcmin as minor_diff
+  from ndbinfo.dict_obj_info
+ where fq_name like 'test/def/child';
+
+--echo Child unique version diff
+select (version & 0xffffff) - @vcumaj as major_diff,
+       (version >> 24) - @vcumin as minor_diff
+  from ndbinfo.dict_obj_info
+ where fq_name like 'sys/def/%child_uk$unique';
+
+--echo Child ordered version diff
+select (version & 0xffffff) - @vcomaj as major_diff,
+       (version >> 24) - @vcomin as minor_diff
+  from ndbinfo.dict_obj_info
+ where fq_name like 'sys/def/%child_ord';
+
+--enable_query_log
+
+--echo Rename a column
+alter table child rename column data to datum;
+
+--echo Child metadata diff
+--disable_query_log
+--echo Child table version diff
+select (version & 0xffffff) - @vcmaj as major_diff,
+       (version >> 24) - @vcmin as minor_diff
+  from ndbinfo.dict_obj_info
+ where fq_name like 'test/def/child';
+
+--echo Child unique version diff
+select (version & 0xffffff) - @vcumaj as major_diff,
+       (version >> 24) - @vcumin as minor_diff
+  from ndbinfo.dict_obj_info
+ where fq_name like 'sys/def/%child_uk$unique';
+
+--echo Child ordered version diff
+select (version & 0xffffff) - @vcomaj as major_diff,
+       (version >> 24) - @vcomin as minor_diff
+  from ndbinfo.dict_obj_info
+ where fq_name like 'sys/def/%child_ord';
+
+--enable_query_log
+
+--echo Add a column
+alter table child add column extra int;
+
+--echo Child metadata diff
+--disable_query_log
+
+--echo Child table version diff
+select (version & 0xffffff) - @vcmaj as major_diff,
+       (version >> 24) - @vcmin as minor_diff
+  from ndbinfo.dict_obj_info
+ where fq_name like 'test/def/child';
+
+--echo Child unique version diff
+select (version & 0xffffff) - @vcumaj as major_diff,
+       (version >> 24) - @vcumin as minor_diff
+  from ndbinfo.dict_obj_info
+ where fq_name like 'sys/def/%child_uk$unique';
+
+--echo Child ordered version diff
+select (version & 0xffffff) - @vcomaj as major_diff,
+       (version >> 24) - @vcomin as minor_diff
+  from ndbinfo.dict_obj_info
+ where fq_name like 'sys/def/%child_ord';
+
+--enable_query_log
+
+--echo Fiddle with readbackup
+
+alter table child comment='NDB_TABLE=READ_BACKUP=0';
+alter table child comment='NDB_TABLE=READ_BACKUP=1';
+
+--echo Child metadata diff
+--disable_query_log
+--echo Child table version diff
+select (version & 0xffffff) - @vcmaj as major_diff,
+       (version >> 24) - @vcmin as minor_diff
+  from ndbinfo.dict_obj_info
+ where fq_name like 'test/def/child';
+
+--echo Child unique version diff
+select (version & 0xffffff) - @vcumaj as major_diff,
+       (version >> 24) - @vcumin as minor_diff
+  from ndbinfo.dict_obj_info
+ where fq_name like 'sys/def/%child_uk$unique';
+
+--echo Child ordered version diff
+select (version & 0xffffff) - @vcomaj as major_diff,
+       (version >> 24) - @vcomin as minor_diff
+  from ndbinfo.dict_obj_info
+ where fq_name like 'sys/def/%child_ord';
+
+--enable_query_log
+
 --echo -- Normal NR
 --exec $_mgm_cmd -e "1 RESTART -n" >> $NDB_TOOLS_OUTPUT
 
@@ -92,6 +375,21 @@ insert into p1(parent_id) select a from `rows`;
 insert into test.c1(id) select id from p1;
 delete from test.c1;
 
+--echo FK checks working
+--error 1452
+insert into child values (20, 10, 10, 10, 10); # PK -> PK
+--error 1452
+insert into child values (11, 11, 10, 10, 10); # PK -> UK
+--error 1452
+insert into child values (10, 12, 10, 10, 10); # UK -> PK
+--error 1452
+insert into child values (10, 200, 10, 10, 10); # UK -> UK
+--error 1452
+insert into child values (10, 10, 12, 10, 10); # ORD -> PK
+--error 1452
+insert into child values (10, 10, 200, 10, 10); # ORD -> UK
+
+
 --echo --- Startup node again
 --exec $_mgm_cmd -e "ALL START" >> $NDB_TOOLS_OUTPUT
 
@@ -107,6 +405,21 @@ delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
 insert into test.c1(id) select id from p1;
 delete from test.c1;
+
+--echo FK checks working
+--error 1452
+insert into child values (20, 10, 10, 10, 10); # PK -> PK
+--error 1452
+insert into child values (11, 11, 10, 10, 10); # PK -> UK
+--error 1452
+insert into child values (10, 12, 10, 10, 10); # UK -> PK
+--error 1452
+insert into child values (10, 200, 10, 10, 10); # UK -> UK
+--error 1452
+insert into child values (10, 10, 12, 10, 10); # ORD -> PK
+--error 1452
+insert into child values (10, 10, 200, 10, 10); # ORD -> UK
+
 
 
 --echo -- Initial NR
@@ -126,6 +439,21 @@ insert into p1(parent_id) select a from `rows`;
 insert into test.c1(id) select id from p1;
 delete from test.c1;
 
+--echo FK checks working
+--error 1452
+insert into child values (20, 10, 10, 10, 10); # PK -> PK
+--error 1452
+insert into child values (11, 11, 10, 10, 10); # PK -> UK
+--error 1452
+insert into child values (10, 12, 10, 10, 10); # UK -> PK
+--error 1452
+insert into child values (10, 200, 10, 10, 10); # UK -> UK
+--error 1452
+insert into child values (10, 10, 12, 10, 10); # ORD -> PK
+--error 1452
+insert into child values (10, 10, 200, 10, 10); # ORD -> UK
+
+
 --echo --- Startup node again
 --exec $_mgm_cmd -e "ALL START" >> $NDB_TOOLS_OUTPUT
 
@@ -141,6 +469,21 @@ delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
 insert into test.c1(id) select id from p1;
 delete from test.c1;
+
+--echo FK checks working
+--error 1452
+insert into child values (20, 10, 10, 10, 10); # PK -> PK
+--error 1452
+insert into child values (11, 11, 10, 10, 10); # PK -> UK
+--error 1452
+insert into child values (10, 12, 10, 10, 10); # UK -> PK
+--error 1452
+insert into child values (10, 200, 10, 10, 10); # UK -> UK
+--error 1452
+insert into child values (10, 10, 12, 10, 10); # ORD -> PK
+--error 1452
+insert into child values (10, 10, 200, 10, 10); # ORD -> UK
+
 
 --echo -- System restart
 --exec $_mgm_cmd -e "ALL RESTART -n" >> $NDB_TOOLS_OUTPUT
@@ -167,10 +510,28 @@ insert into p1(parent_id) select a from `rows`;
 insert into test.c1(id) select id from p1;
 delete from test.c1;
 
+--echo FK checks working
+--error 1452
+insert into child values (20, 10, 10, 10, 10); # PK -> PK
+--error 1452
+insert into child values (11, 11, 10, 10, 10); # PK -> UK
+--error 1452
+insert into child values (10, 12, 10, 10, 10); # UK -> PK
+--error 1452
+insert into child values (10, 200, 10, 10, 10); # UK -> UK
+--error 1452
+insert into child values (10, 10, 12, 10, 10); # ORD -> PK
+--error 1452
+insert into child values (10, 10, 200, 10, 10); # ORD -> UK
+
+
 delete from test.p1;
 
 drop table test.c2;
 drop table test.c1;
 drop table test.p1;
 drop table test.`rows`;
+
+drop table test.child;
+drop table test.parent;
 --remove_file $NDB_TOOLS_OUTPUT
