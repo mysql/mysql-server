@@ -27,6 +27,7 @@
 #include <memory>
 
 #include "libbinlogevents/include/compression/compressor.h"  // binary_log::transaction::compression::Compressor
+#include "libbinlogevents/include/nodiscard.h"
 #include "my_inttypes.h"  // IWYU pragma: keep
 
 #include "libbinlogevents/include/compression/factory.h"

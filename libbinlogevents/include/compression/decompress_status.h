@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2019, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,47 +20,27 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef BINLOG_TOOLS_ITERATORS_H
-#define BINLOG_TOOLS_ITERATORS_H
+#ifndef LIBBINLOGEVENTS_COMPRESSION_DECOMPRESS_STATUS_H_
+#define LIBBINLOGEVENTS_COMPRESSION_DECOMPRESS_STATUS_H_
 
-#include <queue>
-#include "sql/binlog_reader.h"
+#include <ostream>
+#include <string>
 
-namespace binlog {
-namespace tools {
+namespace binary_log::transaction::compression {
 
-class Iterator {
- protected:
-  std::queue<Log_event *> m_events;
-  Binlog_file_reader *m_binlog_reader;
-  bool m_verify_checksum;
-  bool m_copy_event_buffer;
-  int m_error_number;
-  std::string m_error_message;
-
- public:
-  Iterator(Binlog_file_reader *);
-  virtual ~Iterator();
-
-  virtual void unset_copy_event_buffer();
-  virtual void set_copy_event_buffer();
-
-  virtual void unset_verify_checksum();
-  virtual void set_verify_checksum();
-
-  virtual bool has_error();
-  virtual int get_error_number();
-  virtual std::string get_error_message();
-
-  virtual Log_event *begin();
-  virtual Log_event *end();
-  virtual Log_event *next();
-
- protected:
-  virtual Log_event *do_next();
+enum class Decompress_status {
+  success,           ///< Decompression succeeded.
+  out_of_memory,     ///< Memory allocation failed.
+  exceeds_max_size,  ///< Requested size exceeds configured maximum.
+  truncated,         ///< There were remaining bytes,
+                     /// but less than requested.
+  corrupted,         ///< Compression library reported an error.
+  end                ///< Zero remaining bytes.
 };
 
-}  // namespace tools
-}  // namespace binlog
+std::string_view debug_string(Decompress_status status);
+std::ostream &operator<<(std::ostream &stream, Decompress_status status);
 
-#endif
+}  // namespace binary_log::transaction::compression
+
+#endif  // ifndef LIBBINLOGEVENTS_COMPRESSION_DECOMPRESS_STATUS_H_

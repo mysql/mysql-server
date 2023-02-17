@@ -68,8 +68,14 @@ CREATE TABLE t (a INT);
 --expr $file_stop_pos = $binlog_position - $ten
 --source include/copy_file_segment.inc
 
---let $assert_command = $MYSQL_BINLOG --force-if-open $binlog_fullpath.tmp
---let $assert_regex = # File ends with a truncated event
+--let $dev_null = /dev/null
+--source include/check_windows.inc
+if ($have_windows) {
+  --let $dev_null = NUL
+}
+
+--let $assert_command = $MYSQL_BINLOG --force-if-open $out_filename 2>&1 > $dev_null
+--let $assert_regex = WARNING: File ends with a truncated event
 --let $assert_status = 0
 --source include/assert_command_output.inc
 

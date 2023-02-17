@@ -49,8 +49,12 @@ class Thread_stage_guard {
   Thread_stage_guard(THD *thd, const PSI_stage_info &new_stage,
                      const char *func, const char *file,
                      const unsigned int line)
-      : m_thd(thd), m_func(func), m_file(file), m_line(line) {
-    thd->enter_stage(&new_stage, &old_stage, func, file, line);
+      : m_new_stage(new_stage),
+        m_thd(thd),
+        m_func(func),
+        m_file(file),
+        m_line(line) {
+    thd->enter_stage(&new_stage, &m_old_stage, func, file, line);
   }
 
   Thread_stage_guard(const Thread_stage_guard &) = delete;
@@ -58,19 +62,29 @@ class Thread_stage_guard {
   Thread_stage_guard &operator=(const Thread_stage_guard &) = delete;
   Thread_stage_guard &operator=(Thread_stage_guard &&) = delete;
 
+  /// Revert back to the old stage before this object goes out of scope.
+  void set_old_stage() const {
+    m_thd->enter_stage(&m_old_stage, nullptr, m_func, m_file, m_line);
+  }
+
+  /// Restore the new stage, in case set_old_stage was used earlier.
+  void set_new_stage() const {
+    m_thd->enter_stage(&m_new_stage, nullptr, m_func, m_file, m_line);
+  }
+
   /// Revert the old stage that was used before this object's
   /// constructor was invoked.
   ///
   /// @note This will set the function/filename/line number relating
   /// to where the Thread_stage_guard was created, not where it went
   /// out of scope.
-  ~Thread_stage_guard() {
-    m_thd->enter_stage(&old_stage, nullptr, m_func, m_file, m_line);
-  }
+  ~Thread_stage_guard() { set_old_stage(); }
 
  private:
   /// The previous stage.
-  PSI_stage_info old_stage;
+  PSI_stage_info m_old_stage;
+  /// The new stage.
+  PSI_stage_info m_new_stage;
   /// The session.
   THD *m_thd;
   /// The name of the calling function.
@@ -81,13 +95,37 @@ class Thread_stage_guard {
   const unsigned int m_line;
 };
 
-/// Sets the thread stage for the given thread, and make it restore
-/// the previous stage at the end of the code block.
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
-#define THD_STAGE_GUARD(thd, new_stage)                      \
-  raii::Thread_stage_guard _thread_stage_guard_##new_stage { \
-    (thd), (new_stage), __func__, __FILE__, __LINE__         \
+
+/// Set the thread stage for the given thread, and make it restore the
+/// previous stage at the end of the invoking scope, using the named
+/// local RAII variable.
+///
+/// @param name A variable name. The macro will define a variable of
+/// type Thread_stage_guard with this name in the current scope where
+/// this macro is invoked.
+///
+/// @param thd The thread for which the stage should be set.
+///
+/// @param new_stage The new stage.  `thd` will use this stage until
+/// the end of the scope where the macro is invoked.  At that point,
+/// the stage is reverted to what it was before invoking this macro.
+#define NAMED_THD_STAGE_GUARD(name, thd, new_stage)  \
+  raii::Thread_stage_guard name {                    \
+    (thd), (new_stage), __func__, __FILE__, __LINE__ \
   }
+
+/// Set the thread stage for the given thread, and make it restore the
+/// previous stage at the end of the invoking scope.
+///
+/// @param thd The thread for which the stage should be set.
+///
+/// @param new_stage The new stage.  `thd` will use this stage until
+/// the end of the scope where the macro is invoked.  At that point,
+/// the stage is reverted to what it was before invoking this macro.
+#define THD_STAGE_GUARD(thd, new_stage) \
+  NAMED_THD_STAGE_GUARD(_thread_stage_guard_##new_stage, (thd), (new_stage))
+
 // NOLINTEND(cppcoreguidelines-macro-usage)
 
 }  // namespace raii

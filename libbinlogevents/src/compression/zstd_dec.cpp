@@ -25,85 +25,116 @@
 #include <algorithm>
 #include "wrapper_functions.h"
 
-namespace binary_log {
-namespace transaction {
-namespace compression {
+namespace binary_log::transaction::compression {
 
-Zstd_dec::Zstd_dec() : m_ctx(nullptr) {
-  // create the stream context
-  m_ctx = ZSTD_createDStream();
+Zstd_dec::Zstd_dec() : m_ctx(nullptr) {}
+
+Zstd_dec::~Zstd_dec() { destroy(); }
+
+void Zstd_dec::destroy() {
   if (m_ctx != nullptr) {
-    size_t ret = ZSTD_initDStream(m_ctx);
-    if (ZSTD_isError(ret)) {
-      ZSTD_freeDStream(m_ctx);
-      m_ctx = nullptr;
+    ZSTD_freeDStream(m_ctx);
+    m_ctx = nullptr;
+  }
+}
+
+type Zstd_dec::do_get_type_code() const { return type_code; }
+
+void Zstd_dec::do_reset() {
+  BAPI_TRACE;
+
+  if (m_ctx != nullptr) {
+    auto ret = ZSTD_initDStream(m_ctx);
+    if (ZSTD_isError(ret) != 0U) {
+      BAPI_LOG("info", BAPI_VAR(ZSTD_getErrorName(ret)));
+      destroy();
     }
   }
 }
 
-Zstd_dec::~Zstd_dec() {
-  if (m_ctx != nullptr) ZSTD_freeDStream(m_ctx);
+void Zstd_dec::do_feed(const Char_t *input_data, Size_t input_size) {
+  BAPI_TRACE;
+  BAPI_LOG("info", BAPI_VAR(input_size));
+
+  // Protect against two successive calls to `feed` without a call to
+  // `compress` between them.
+  assert(m_ibuf.pos == m_ibuf.size);
+
+  m_ibuf.src = input_data;
+  m_ibuf.size = input_size;
+  m_ibuf.pos = 0;
 }
 
-type Zstd_dec::compression_type_code() { return ZSTD; }
+std::pair<Decompress_status, Decompressor::Size_t> Zstd_dec::do_decompress(
+    Char_t *out, Size_t output_size) {
+  BAPI_TRACE;
+  assert(m_ibuf.src);
 
-bool Zstd_dec::open() {
-  size_t ret{0};
-  if (m_ctx == nullptr) return true;
-    /*
-     The advanced compression API used below as declared stable in
-     1.4.0.
+  // NOLINTBEGIN(cppcoreguidelines-macro-usage)
+#define TRACE_RETURN(status, size)                                       \
+  {                                                                      \
+    BAPI_LOG("info", __FILE__ << ":" << __LINE__ << ": return ["         \
+                              << debug_string(Decompress_status::status) \
+                              << ", " << (size) << "]");                 \
+    return std::make_pair(Decompress_status::status, (size));            \
+  }
+  // NOLINTEND(cppcoreguidelines-macro-usage)
 
-     The advanced API allows reusing the same context instead of
-     creating a new one every time we open the compressor. This
-     is useful within the binary log compression.
-    */
-#if ZSTD_VERSION_NUMBER >= 10400
-  /** Reset session only. Dictionary will remain. */
-  ret = ZSTD_DCtx_reset(m_ctx, ZSTD_reset_session_only);
-#else
-  ret = ZSTD_initDStream(m_ctx);
-#endif
+  if (m_ctx == nullptr) {
+    m_ctx = ZSTD_createDStream();
+    if (m_ctx == nullptr) TRACE_RETURN(out_of_memory, 0);
+  }
 
-  return ZSTD_isError(ret);
-}
-
-bool Zstd_dec::close() {
-  if (m_ctx == nullptr) return true;
-  return false;
-}
-
-std::tuple<std::size_t, bool> Zstd_dec::decompress(const unsigned char *in,
-                                                   size_t in_size) {
-  ZSTD_outBuffer obuf{m_buffer, capacity(), size()};
-  ZSTD_inBuffer ibuf{in, in_size, 0};
-  std::size_t ret{0};
-  auto err{false};
-
+  ZSTD_outBuffer obuf{/*.dst = */ out,
+                      /*.size = */ output_size,
+                      /*.pos = */ 0};
+  // Decompress.
+  size_t ret = 0;
   do {
-    auto min_buffer_len{ZSTD_DStreamOutSize()};
+    // clang-format off
+    BAPI_LOG("info", "before decompress:"
+             << " " << BAPI_VAR(output_size)
+             << " " << BAPI_VAR(m_ibuf.size)
+             << " " << BAPI_VAR(m_ibuf.pos)
+             << " " << BAPI_VAR(obuf.size)
+             << " " << BAPI_VAR(obuf.pos));
+    ret = ZSTD_decompressStream(m_ctx, &obuf, &m_ibuf);
+    BAPI_LOG("info", "after decompress:"
+             << " " << BAPI_VAR(ret)
+             << " " << BAPI_VAR(output_size)
+             << " " << BAPI_VAR(m_ibuf.size)
+             << " " << BAPI_VAR(m_ibuf.pos)
+             << " " << BAPI_VAR(obuf.size)
+             << " " << BAPI_VAR(obuf.pos));
+    // clang-format on
+    // ZSTD detected corrupt data.
+    if (ZSTD_isError(ret) != 0U) {
+      BAPI_LOG("info", BAPI_VAR(ZSTD_getErrorName(ret)));
+      TRACE_RETURN(corrupted, 0);
+    }
+    // If there is a frame boundary in the middle of the input, ZSTD
+    // will stop at the boundary, even if there is more input
+    // available and more output space available.  So in that case we
+    // repeat.
+  } while (m_ibuf.pos < m_ibuf.size && obuf.pos < obuf.size);
 
-    // make sure that we have buffer space to hold the results
-    if ((err = reserve(min_buffer_len))) break;
+  auto was_frame_boundary = m_frame_boundary;
+  m_frame_boundary = (ret == 0);
+  if (obuf.pos == 0 && was_frame_boundary) TRACE_RETURN(end, 0);
+  if (obuf.pos < output_size) TRACE_RETURN(truncated, obuf.pos);
 
-    // update the obuf buffer pointer and offset
-    obuf.dst = m_buffer;
-    obuf.size = capacity();
-
-    // decompress
-    ret = ZSTD_decompressStream(m_ctx, &obuf, &ibuf);
-
-    // update the cursor
-    m_buffer_cursor = m_buffer + obuf.pos;
-
-    // error handling
-    if ((err = ZSTD_isError(ret))) break;
-
-  } while (obuf.size == obuf.pos);
-
-  return std::make_tuple((ibuf.size - ibuf.pos), err);
+  // ZSTD was able to decode all requested bytes.
+  assert(obuf.pos == output_size);
+  TRACE_RETURN(success, output_size);
 }
 
-}  // namespace compression
-}  // namespace transaction
-}  // namespace binary_log
+Decompressor::Grow_constraint_t Zstd_dec::do_get_grow_constraint_hint() const {
+  Grow_constraint_t ret;
+  ret.set_grow_increment(ZSTD_DStreamOutSize());
+  // Todo: we may use ZSTD_getFrameContentSize at the beginning of
+  // each frame to get an upper bound, and pass that to
+  // ret.set_max_size.
+  return ret;
+}
+
+}  // namespace binary_log::transaction::compression

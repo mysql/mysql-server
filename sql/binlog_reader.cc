@@ -48,7 +48,8 @@ static void debug_corrupt_event(unsigned char *buffer, unsigned int event_len) {
       "corrupt_read_log_event", unsigned char type = buffer[EVENT_TYPE_OFFSET];
       if (type != binary_log::FORMAT_DESCRIPTION_EVENT &&
           type != binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
-          type != binary_log::GTID_LOG_EVENT) {
+          type != binary_log::GTID_LOG_EVENT &&
+          type != binary_log::ANONYMOUS_GTID_LOG_EVENT) {
         int cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN -
                                 LOG_EVENT_MINIMAL_HEADER_LEN) +
                       LOG_EVENT_MINIMAL_HEADER_LEN;
@@ -71,6 +72,7 @@ bool Binlog_event_data_istream::read_event_header() {
 bool Binlog_event_data_istream::fill_event_data(
     unsigned char *event_data, bool verify_checksum,
     enum_binlog_checksum_alg checksum_alg) {
+  DBUG_TRACE;
   memcpy(event_data, m_header, LOG_EVENT_MINIMAL_HEADER_LEN);
   if (read_fixed_length<Binlog_read_error::TRUNC_EVENT>(
           event_data + LOG_EVENT_MINIMAL_HEADER_LEN,
@@ -96,13 +98,19 @@ bool Binlog_event_data_istream::fill_event_data(
 }
 
 bool Binlog_event_data_istream::check_event_header() {
+  DBUG_TRACE;
   m_event_length = uint4korr(m_header + EVENT_LEN_OFFSET);
 
-  if (m_event_length < LOG_EVENT_MINIMAL_HEADER_LEN)
+  if (m_event_length < LOG_EVENT_MINIMAL_HEADER_LEN) {
+    DBUG_LOG("info", DBUG_VAR(m_event_length)
+                         << " < " << DBUG_VAR(LOG_EVENT_MINIMAL_HEADER_LEN));
     return m_error->set_type(Binlog_read_error::BOGUS);
-  if (m_event_length > m_max_event_size)
+  }
+  if (m_event_length > m_max_event_size) {
+    DBUG_LOG("info", DBUG_VAR(m_event_length)
+                         << " > " << DBUG_VAR(m_max_event_size));
     return m_error->set_type(Binlog_read_error::EVENT_TOO_LARGE);
-
+  }
   return false;
 }
 

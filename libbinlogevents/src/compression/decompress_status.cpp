@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,38 +20,34 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <compression/factory.h>
-#include <compression/none_comp.h>
-#include <compression/none_dec.h>
-#include <compression/zstd_comp.h>
-#include <compression/zstd_dec.h>
-#include <my_byteorder.h>
-#include <algorithm>
+#include <compression/decompressor.h>
 
 namespace binary_log::transaction::compression {
 
-std::unique_ptr<Compressor> Factory::build_compressor(type t) {
-  switch (t) {
-    case ZSTD:
-      return std::make_unique<Zstd_comp>();
-    case NONE:
-      return std::make_unique<None_comp>();
+std::string_view debug_string(Decompress_status status) {
+  switch (status) {
+    case Decompress_status::success:
+      return "success";
+    case Decompress_status::out_of_memory:
+      return "out_of_memory";
+    case Decompress_status::exceeds_max_size:
+      return "exceeds_max_size";
+    case Decompress_status::truncated:
+      return "truncated";
+    case Decompress_status::corrupted:
+      return "corrupted";
+    case Decompress_status::end:
+      return "end";
     default:
       break;
   }
-  return std::unique_ptr<Compressor>();
+  assert(0);
+  return "[invalid]";
 }
 
-std::unique_ptr<Decompressor> Factory::build_decompressor(type t) {
-  switch (t) {
-    case ZSTD:
-      return std::make_unique<Zstd_dec>();
-    case NONE:
-      return std::make_unique<None_dec>();
-    default:
-      break;
-  }
-  return std::unique_ptr<Decompressor>();
+std::ostream &operator<<(std::ostream &stream, const Decompress_status status) {
+  stream << debug_string(status);
+  return stream;
 }
 
 }  // namespace binary_log::transaction::compression

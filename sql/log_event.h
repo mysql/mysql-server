@@ -871,6 +871,11 @@ class Log_event {
     Returns the human readable name of the given event type.
   */
   static const char *get_type_str(Log_event_type type);
+  /// Get the name of an event type, or "Unknown" if out of range.
+  /// @param type The type as an int
+  /// @retval name of an event type, if it is one
+  /// @retval "Unknown" if the value is out of range
+  static const char *get_type_str(uint type);
   /**
     Returns the human readable name of this event's type.
   */

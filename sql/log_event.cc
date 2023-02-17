@@ -34,6 +34,7 @@
 #include <sys/time.h>
 #endif
 #include <algorithm>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <string>
@@ -69,8 +70,9 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/binlog_reader.h"
 #include "sql/field_common_properties.h"
-#include "sql/my_decimal.h"   // my_decimal
-#include "sql/rpl_handler.h"  // RUN_HOOK
+#include "sql/my_decimal.h"               // my_decimal
+#include "sql/raii/thread_stage_guard.h"  // NAMED_THD_STAGE_GUARD
+#include "sql/rpl_handler.h"              // RUN_HOOK
 #include "sql/rpl_tblmap.h"
 #include "sql/sql_show_processlist.h"  // pfs_processlist_enabled
 #include "sql/system_variables.h"
@@ -168,7 +170,7 @@ Error_log_throttle slave_ignored_err_throttle(
 
 #include "libbinlogevents/include/codecs/binary.h"
 #include "libbinlogevents/include/codecs/factory.h"
-#include "libbinlogevents/include/compression/iterator.h"
+#include "libbinlogevents/include/compression/payload_event_buffer_istream.h"
 #include "mysqld_error.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_record.h"  // enum_row_image_type, Bit_reader
@@ -860,10 +862,10 @@ time_t Log_event::get_time() {
 
 #endif
 
-/**
-  @return
-  returns the human readable name of the event's type
-*/
+const char *Log_event::get_type_str(uint type) {
+  if (type > binary_log::ENUM_END_EVENT) return "Unknown";
+  return get_type_str(Log_event_type(type));
+}
 
 const char *Log_event::get_type_str(Log_event_type type) {
   switch (type) {
@@ -3399,6 +3401,7 @@ bool Query_log_event::write(Basic_ostream *ostream) {
     SET PSEUDO_THREAD_ID=
     for each query using temp tables.
   */
+
   int4store(buf + Q_THREAD_ID_OFFSET, slave_proxy_id);
   int4store(buf + Q_EXEC_TIME_OFFSET, exec_time);
   buf[Q_DB_LEN_OFFSET] = (char)db_len;
@@ -13991,25 +13994,24 @@ uint8 Transaction_payload_log_event::mts_number_dbs() {
 
 int Transaction_payload_log_event::do_apply_event(Relay_log_info const *rli) {
   DBUG_TRACE;
-  int res = 0;
-  PSI_stage_info old_stage;
-
-  /* apply events in the payload */
-
-  binary_log::transaction::compression::Iterable_buffer it(
-      m_payload, m_payload_size, m_uncompressed_size, m_compression_type);
-
-  thd->enter_stage(&stage_binlog_transaction_decompress, &old_stage, __func__,
-                   __FILE__, __LINE__);
-  for (auto ptr : it) {
-    THD_STAGE_INFO(thd, old_stage);
-    if ((res = apply_payload_event(rli, (const uchar *)ptr))) break;
-    thd->enter_stage(&stage_binlog_transaction_decompress, &old_stage, __func__,
-                     __FILE__, __LINE__);
+  using Istream_t =
+      binary_log::transaction::compression::Payload_event_buffer_istream;
+  Istream_t istream(*this);
+  NAMED_THD_STAGE_GUARD(stage_guard, thd, stage_binlog_transaction_decompress);
+  Istream_t::Buffer_ptr_t buffer;
+  while (istream >> buffer) {
+    stage_guard.set_old_stage();
+    /// @todo Use Decompressing_event_object_istream instead
+    if (apply_payload_event(rli, (const uchar *)buffer->data())) return 1;
+    stage_guard.set_new_stage();
   }
-  THD_STAGE_INFO(thd, old_stage);
+  if (istream.has_error()) {
+    LogErr(ERROR_LEVEL, ER_RPL_REPLICA_ERROR_READING_RELAY_LOG_EVENTS,
+           rli->get_for_channel_str(), istream.get_error_str().c_str());
+    return 1;
+  }
 
-  return res;
+  return 0;
 }
 
 static bool shall_delete_event_after_apply(Log_event *ev) {

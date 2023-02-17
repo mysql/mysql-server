@@ -58,7 +58,7 @@
 #include "dur_prop.h"
 #include "libbinlogevents/include/buffer/grow_calculator.h"
 #include "libbinlogevents/include/compression/compressor.h"
-#include "libbinlogevents/include/compression/iterator.h"
+#include "libbinlogevents/include/compression/payload_event_buffer_istream.h"
 #include "libbinlogevents/include/control_events.h"
 #include "libbinlogevents/include/debug_vars.h"
 #include "libbinlogevents/include/rows_event.h"
@@ -84,10 +84,10 @@
 #include "partition_info.h"
 #include "prealloced_array.h"
 #include "scope_guard.h"
+#include "sql/binlog/decompressing_event_object_istream.h"
 #include "sql/binlog/global.h"
 #include "sql/binlog/group_commit/bgc_ticket_manager.h"  // Bgc_ticket_manager
 #include "sql/binlog/recovery.h"  // binlog::Binlog_recovery
-#include "sql/binlog/tools/iterators.h"
 #include "sql/binlog_ostream.h"
 #include "sql/binlog_reader.h"
 #include "sql/create_field.h"
@@ -3383,7 +3383,6 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
         max<my_off_t>(BIN_LOG_HEADER_SIZE, lex_mi->pos);  // user-friendly
     char search_file_name[FN_REFLEN], *name;
     const char *log_file_name = lex_mi->log_file_name;
-    Log_event *ev = nullptr;
 
     unit->set_limit(thd, thd->lex->current_query_block());
     limit_start = unit->offset_limit_cnt;
@@ -3435,66 +3434,28 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
 
     DEBUG_SYNC(thd, "after_show_binlog_event_found_file");
 
-    /**
-      Relaylog_file_reader and Binlog_file_reader are typedefs to
-      Basic_binlog_file_reader whereas Relaylog_file_reader uses
-      a Relaylog_ifile in the template instantiation and
-      Binlog_file_reader uses a Binlog_ifile in the template
-      instantiation.
+    binlog::Decompressing_event_object_istream istream(binlog_file_reader);
 
-      Binlog_ifile and Relaylog_ifile differ only in the open()
-      member function and they both derive from Basic_binlog_ifile.
-
-      Therefore, it is OK to cast to Binlog_file_reader here.
-
-      TODO: in the future investigate if some refactoring is needed
-            here. Perhaps make the Iterator itself templated.
-     */
-    binlog::tools::Iterator it(
-        reinterpret_cast<Binlog_file_reader *>(&binlog_file_reader));
-
-    /*
-      Unpacked events shall copy their part of the buffer from uncompressed
-      buffer (the cointainer, i.e., the buffer iterator goes out of scope
-      once the events are inflated and put in a vector). However, it is
-      unclear if the *buffer* from which events are deserialized is still
-      needed for the porposes of displaying events in SHOW BINLOG/RELAYLOG
-      EVENTS.
-    */
     my_off_t last_log_pos = 0;
-    for (event_count = 0, ev = it.begin(); ev != it.end();) {
+    event_count = 0;
+    std::shared_ptr<Log_event> ev;
+    while (istream >> ev) {
       DEBUG_SYNC(thd, "wait_in_show_binlog_events_loop");
       if (event_count >= limit_start &&
           ev->net_send(protocol, linfo.log_file_name, pos)) {
-        /* purecov: begin inspected */
         errmsg = "Net error";
-        delete ev;
-        ev = nullptr;
         goto err;
-        /* purecov: end */
       }
       last_log_pos = ev->common_header->log_pos;
-      delete ev;
-      ev = nullptr;
       pos = binlog_file_reader.position();
 
       if (++event_count == limit_end) break;
-      if ((ev = it.next()) == it.end()) break;
-      if (it.has_error()) break;
       if (end_pos > 0 && pos >= end_pos &&
           (ev->common_header->log_pos != last_log_pos)) {
-        delete ev;
-        ev = nullptr;
         break;
       }
     }
-
-    if (binlog_file_reader.has_fatal_error())
-      errmsg = binlog_file_reader.get_error_str();
-    else if (it.has_error())
-      errmsg = it.get_error_message(); /* purecov: inspected */
-    else
-      errmsg = "";
+    if (istream.has_error()) errmsg = istream.get_error_str();
   }
   // Check that linfo is still on the function scope.
   DEBUG_SYNC(thd, "after_show_binlog_events");
@@ -4036,7 +3997,7 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
     binary_log::Log_event_basic_info log_event_info;
     std::tie(info_error, log_event_info) = extract_log_event_basic_info(
         ev->temp_buf, data_len,
-        relaylog_file_reader.format_description_event());
+        &relaylog_file_reader.format_description_event());
 
     if (info_error || trx_parser->feed_event(log_event_info, false)) {
       /*

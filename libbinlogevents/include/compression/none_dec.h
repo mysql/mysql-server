@@ -20,63 +20,50 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef LIBBINLOGEVENTS_COMPRESSION_NONE_DEC_H_INCLUDED
-#define LIBBINLOGEVENTS_COMPRESSION_NONE_DEC_H_INCLUDED
+#ifndef LIBBINLOGEVENTS_COMPRESSION_NONE_DEC_H_
+#define LIBBINLOGEVENTS_COMPRESSION_NONE_DEC_H_
 
 #include "decompressor.h"
+#include "libbinlogevents/include/nodiscard.h"
 
-namespace binary_log {
-namespace transaction {
-namespace compression {
+namespace binary_log::transaction::compression {
 
-/**
-  This decompressor does not decompress. The only thing that it
-  does is to copy the data from the input to the output buffer.
- */
+/// Decompressor subclass that only copies input to output without
+/// decompressing it.
 class None_dec : public Decompressor {
- private:
-  None_dec &operator=(const None_dec &rhs) = delete;
-  None_dec(const None_dec &) = delete;
-
  public:
+  using typename Decompressor::Char_t;
+  using typename Decompressor::Size_t;
+  static constexpr type type_code = NONE;
+
   None_dec() = default;
+  ~None_dec() override = default;
 
-  /**
-    Shall return the compression type code.
+  None_dec(const None_dec &) = delete;
+  None_dec(const None_dec &&) = delete;
+  None_dec &operator=(const None_dec &) = delete;
+  None_dec &operator=(const None_dec &&) = delete;
 
-    @return the compression type code.
-   */
-  type compression_type_code() override;
+ private:
+  /// @return NONE
+  type do_get_type_code() const override;
 
-  /**
-    No op member function.
+  /// @copydoc Decompressor::do_reset
+  void do_reset() override;
 
-    @return false on success, true otherwise.
-   */
-  bool open() override;
+  /// @copydoc Decompressor::do_feed
+  void do_feed(const Char_t *input_data, Size_t input_size) override;
 
-  /**
-    This member function shall simply copy the input buffer to the
-    output buffer. It shall grow the output buffer if needed.
+  /// @copydoc Decompressor::do_decompress
+  [[NODISCARD]] std::pair<Decompress_status, Size_t> do_decompress(
+      Char_t *out, Size_t output_size) override;
 
-    @param data a pointer to the buffer holding the data to decompress
-    @param length the size of the data to decompress.
-
-    @return false on success, true otherwise.
-   */
-  std::tuple<std::size_t, bool> decompress(const unsigned char *data,
-                                           size_t length) override;
-
-  /**
-    No op member function.
-
-    @return false on success, true otherwise.
-   */
-  bool close() override;
+  /// Input data
+  const Char_t *m_input_data;
+  Size_t m_input_size;
+  Size_t m_input_position;
 };
 
-}  // namespace compression
-}  // namespace transaction
-}  // namespace binary_log
+}  // namespace binary_log::transaction::compression
 
-#endif  // LIBBINLOGEVENTS_COMPRESSION_NONE_DEC_H_INCLUDED
+#endif  // LIBBINLOGEVENTS_COMPRESSION_NONE_DEC_H_

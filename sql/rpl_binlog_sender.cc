@@ -1108,7 +1108,7 @@ int Binlog_sender::send_format_description_event(File_reader &reader,
 
   Log_event *ev = nullptr;
   Binlog_read_error binlog_read_error = binlog_event_deserialize(
-      event_ptr, event_len, reader.format_description_event(), false, &ev);
+      event_ptr, event_len, &reader.format_description_event(), false, &ev);
   if (binlog_read_error.has_error()) {
     set_fatal_error(binlog_read_error.get_str());
     return 1;
