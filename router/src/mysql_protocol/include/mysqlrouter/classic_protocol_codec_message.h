@@ -3166,9 +3166,7 @@ class Codec<borrowable::message::client::BinlogDumpGtid<Borrowed>>
         .step(bw::FixedInt<4>(v_.server_id()))
         .step(bw::FixedInt<4>(v_.filename().size()))
         .step(bw::String<Borrowed>(v_.filename()))
-        .step(bw::FixedInt<8>(v_.position()))
-        //
-        ;
+        .step(bw::FixedInt<8>(v_.position()));
 
     if (v_.flags() & value_type::Flags::through_gtid) {
       accu.step(bw::FixedInt<4>(v_.sids().size()))
@@ -3179,12 +3177,12 @@ class Codec<borrowable::message::client::BinlogDumpGtid<Borrowed>>
   }
 
  public:
-  using __base = impl::EncodeBase<Codec<value_type>>;
+  using base_ = impl::EncodeBase<Codec<value_type>>;
 
-  friend __base;
+  friend base_;
 
-  constexpr Codec(value_type v, capabilities::value_type caps)
-      : __base(caps), v_{std::move(v)} {}
+  constexpr Codec(value_type val, capabilities::value_type caps)
+      : base_(caps), v_{std::move(val)} {}
 
   constexpr static uint8_t cmd_byte() noexcept {
     return static_cast<uint8_t>(CommandByte::BinlogDumpGtid);
@@ -3210,6 +3208,19 @@ class Codec<borrowable::message::client::BinlogDumpGtid<Borrowed>>
     auto filename_res =
         accu.template step<bw::String<Borrowed>>(filename_len_res->value());
     auto position_res = accu.template step<bw::FixedInt<8>>();
+
+    stdx::flags<typename value_type::Flags> flags;
+    flags.underlying_value(flags_res->value());
+
+    if (!(flags & value_type::Flags::through_gtid)) {
+      if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+      return std::make_pair(
+          accu.result().value(),
+          value_type(flags, server_id_res->value(), filename_res->value(),
+                     position_res->value(), {}));
+    }
+
     auto sids_len_res = accu.template step<bw::FixedInt<4>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
@@ -3217,9 +3228,6 @@ class Codec<borrowable::message::client::BinlogDumpGtid<Borrowed>>
         accu.template step<bw::String<Borrowed>>(sids_len_res->value());
 
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
-
-    stdx::flags<typename value_type::Flags> flags;
-    flags.underlying_value(flags_res->value());
 
     return std::make_pair(
         accu.result().value(),
