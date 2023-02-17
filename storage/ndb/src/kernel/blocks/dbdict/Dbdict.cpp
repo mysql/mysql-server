@@ -27069,7 +27069,8 @@ Dbdict::createFK_parse(Signal* signal, bool master,
       return;
     }
 
-    if (fk.ParentIndexVersion != parentIndexEntry->m_tableVersion)
+    if (table_version_major(fk.ParentIndexVersion) !=
+        table_version_major(parentIndexEntry->m_tableVersion))
     {
       jam();
       setError(error, CreateFKRef::InvalidParentIndexVersion, __LINE__);
@@ -27127,7 +27128,8 @@ Dbdict::createFK_parse(Signal* signal, bool master,
       return;
     }
 
-    if (fk.ChildIndexVersion != childIndexEntry->m_tableVersion)
+    if (table_version_major(fk.ChildIndexVersion) !=
+        table_version_major(childIndexEntry->m_tableVersion))
     {
       jam();
       setError(error, CreateFKRef::InvalidChildIndexVersion, __LINE__);
