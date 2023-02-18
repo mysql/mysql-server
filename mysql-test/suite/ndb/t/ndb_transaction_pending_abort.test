@@ -1,0 +1,30 @@
+--source include/have_ndb.inc
+
+# See Bug#32491105 DATA NODE CRASH WHEN MAXDMLOPERATIONSPERTRANSACTION
+# VIOLATED BY DELETE STMT
+
+create table t(id int NOT NULL PRIMARY KEY, data int unsigned) engine=ndb;
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t
+    fields terminated by ' ' lines terminated by '\n' (id, @data) set data = id;
+
+select count(*) from t;
+
+# Check that it is possible to commit a SCAN operation which is run 'on top'
+# of an operation which is pending abort.
+
+begin;
+update t set data=data+1 ORDER BY id LIMIT 5000;
+update t set data=data+1 ORDER BY id LIMIT 5000;
+
+# Data node soft crash due to temporary error 234
+# MaxNoOfConcurrentOperations exceeded by multiple transactions
+--error 1297
+update t set data=data+1 ORDER BY id LIMIT 5000;
+commit;
+
+begin;
+update t set data=data+1 ORDER BY id LIMIT 5000;
+update t set data=data+1 ORDER BY id LIMIT 5000;
+commit;
+
+drop table t;

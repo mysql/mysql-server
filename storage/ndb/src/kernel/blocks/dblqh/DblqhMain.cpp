@@ -10417,19 +10417,25 @@ void Dblqh::handleDeallocOp(Signal* signal,
 /**
  * execTUP_DEALLOCREQ
  *
- * Receive notification from ACC that a TUPle is no longer needed
+ * Receive notification from ACC that a TUPle is no longer needed.
+ * This can be due to transaction COMMIT or ABORT.
  * ACC informs LQH of each operation involved in deallocation
  * so that LQH can determine when it is safe to ask TUP to release
- * the storage.
+ * the storage, even when operations complete in an arbitrary order.
  *
- * 2 cases :
- *   i)  theData[5] != RNIL : Notification(s) of pending deallocation
- *   ii) theData[5] == RNIL : Deallocation triggered
+ * 3 cases :
+ *   i)   Op notification : theData[4] != RNIL, theData[5] != RNIL
+ *   ii)  Trigger         : theData[4] != RNIL, theData[5] == RNIL
+ *   iii) Immediate       : theData[4] == RNIL
  *
- * For commit, there can be 1 or more invocations of i) followed
- * by one invocation of ii)
+ * For transaction commit resulting in deallocation, there will be
+ * one or more invocations of i) Notification, followed by one
+ * invocation of ii) Trigger
  *
- * For abort, there will be 1 invocation of ii)
+ * For transaction abort, there will either be :
+ *   One invocation of ii)  Trigger
+ *     or
+ *   One invocation of iii) Immediate
  *
  * From LQH's point of view :
  * 1) ACC informs LQH of a set of operations involved in deallocating a tuple
@@ -10438,29 +10444,51 @@ void Dblqh::handleDeallocOp(Signal* signal,
  *   - For each tuple + set of operations involved in deallocating it, ACC
  *     informs LQH of a single designated 'counting op' which is a member of
  *     the set and which might help LQH track the state of the set + the tuple
- * 2) ACC requires that LQH does not deallocate the tuple before
- *    ACC gives permission to do so.
- * 3) Special case (aborts) : Just a single trigger notification - LQH should
- *    deallocate on operation completion
+ * 2) ACC still requires that LQH does not deallocate the tuple before
+ *    ACC gives permission to do so (in the Trigger notification)
+ * 3) Special cases (aborts) :
+ *    Either :
+ *    - Just a single trigger notification - LQH should deallocate on completion
+ *      of this operation.
+ *    - Just a single immediate notification - LQH should deallocate immediately
+ *      on receiving this signal.
  *
- * LQH : dealloc_iff (All notified ops complete && Trigger from ACC received)
+ * LQH : dealloc_iff ((All notified ops complete && Trigger from ACC received) ||
+ *                    (Immediate deallocation requested))
  */
 void Dblqh::execTUP_DEALLOCREQ(Signal* signal)
 {
-  TcConnectionrecPtr regTcPtr;  
   
   jamEntryDebug();
-  regTcPtr.i = signal->theData[4];
-  ndbrequire(tcConnect_pool.getValidPtr(regTcPtr));
-  
+
   if (TRACENR_FLAG)
   {
     Local_key tmp;
     tmp.m_page_no = signal->theData[2];
     tmp.m_page_idx = signal->theData[3];
-    TRACENR("TUP_DEALLOC: " << tmp << 
-      (signal->theData[5] == RNIL ? " TRIGGER" : " NOTIFICATION") << endl);
+    
+    TRACENR("TUP_DEALLOC: " << tmp << (signal->theData[4] == RNIL ? 
+      " IMMEDIATE" : (signal->theData[5] == RNIL ? 
+      " TRIGGER" : "NOTIFICATION")) << endl);
   }
+
+  if (signal->theData[4] == RNIL)
+  {
+    /* Immediate Dealloc Request, used for abort of insert
+     * triggered by commit of scan op.
+     * No delete or counting operation specified.
+     */
+    jam();
+    ndbrequire(signal->theData[5] == RNIL);
+    /* FragId, TableRef, PageNo + PageIdx set by ACC, pass on */
+    c_tup->execTUP_DEALLOCREQ(signal);
+    return;
+  }
+
+  TcConnectionrecPtr regTcPtr;
+
+  regTcPtr.i = signal->theData[4];
+  ndbrequire(tcConnect_pool.getValidPtr(regTcPtr));
 
   regTcPtr.p->m_row_id.m_page_no = signal->theData[2];
   regTcPtr.p->m_row_id.m_page_idx = signal->theData[3];
