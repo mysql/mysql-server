@@ -31,6 +31,7 @@
 #include <utility>       // move
 
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/stdx/ranges.h"
 #include "mysqlrouter/classic_protocol_codec_base.h"
 #include "mysqlrouter/classic_protocol_codec_error.h"
 #include "mysqlrouter/classic_protocol_codec_wire.h"
@@ -1329,10 +1330,13 @@ class Codec<borrowable::message::server::StmtRow<Borrowed>>
           case field_type::Tiny:
             field_size_res = 1;
             break;
-          default:
-            return stdx::make_unexpected(
-                make_error_code(codec_errc::field_type_unknown));
         }
+
+        if (!field_size_res) {
+          return stdx::make_unexpected(
+              make_error_code(codec_errc::field_type_unknown));
+        }
+
         const auto value_res =
             accu.template step<bw::String<Borrowed>>(field_size_res.value());
         if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -1926,79 +1930,78 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
         .step(bw::FixedInt<4>(v_.iteration_count()));
 
     // values.size() and types.size() MUST be the same
-    if (!v_.values().empty()) {
-      // mark all that are NULL in the nullbits
-      //
-      // - one bit per parameter to send
-      // - if a parameter is NULL, the bit is set, and later no value is added.
-      std::vector<uint8_t> nullbits(bytes_per_bits(v_.values().size()));
+    if (v_.values().empty()) return accu.result();
 
-      {
-        size_t byte_pos{}, bit_pos{};
-        for (auto const &v : v_.values()) {
-          if (bit_pos > 7) {
-            bit_pos = 0;
-            ++byte_pos;
-          }
+    // mark all that are NULL in the nullbits
+    //
+    // - one bit per parameter to send
+    // - if a parameter is NULL, the bit is set, and later no value is added.
+    std::vector<uint8_t> nullbits(bytes_per_bits(v_.values().size()));
 
-          if (!v) {
-            nullbits[byte_pos] |= 1 << bit_pos;
-          }
-
-          ++bit_pos;
+    {
+      size_t byte_pos{}, bit_pos{};
+      for (auto const &v : v_.values()) {
+        if (bit_pos > 7) {
+          bit_pos = 0;
+          ++byte_pos;
         }
+
+        if (!v) {
+          nullbits[byte_pos] |= 1 << bit_pos;
+        }
+
+        ++bit_pos;
       }
+    }
 
-      accu.step(bw::String<Borrowed>(typename bw::String<Borrowed>::value_type(
-                    reinterpret_cast<const char *>(nullbits.data()),
-                    nullbits.size())))
-          .step(bw::FixedInt<1>(v_.new_params_bound()));
-      if (v_.new_params_bound()) {
-        for (const auto &t : v_.types()) {
-          accu.step(bw::FixedInt<2>(t));
-        }
-        size_t n{};
-        for (const auto &v : v_.values()) {
-          // add all the values that aren't NULL
-          if (v.has_value()) {
-            // write length of the type is a variable length
-            switch (v_.types()[n++]) {
-              case field_type::Bit:
-              case field_type::Blob:
-              case field_type::Varchar:
-              case field_type::VarString:
-              case field_type::Set:
-              case field_type::String:
-              case field_type::Enum:
-              case field_type::TinyBlob:
-              case field_type::MediumBlob:
-              case field_type::LongBlob:
-              case field_type::Decimal:
-              case field_type::NewDecimal:
-              case field_type::Geometry:
-                accu.step(bw::VarInt(v->size()));
-                break;
-              case field_type::Date:
-              case field_type::DateTime:
-              case field_type::Timestamp:
-              case field_type::Time:
-                accu.step(bw::FixedInt<1>(v->size()));
-                break;
-              case field_type::LongLong:
-              case field_type::Double:
-              case field_type::Long:
-              case field_type::Int24:
-              case field_type::Float:
-              case field_type::Short:
-              case field_type::Year:
-              case field_type::Tiny:
-                // fixed size
-                break;
-            }
-            accu.step(bw::String<Borrowed>(v.value()));
-          }
-        }
+    accu
+        .step(bw::String<Borrowed>(typename bw::String<Borrowed>::value_type(
+            reinterpret_cast<const char *>(nullbits.data()), nullbits.size())))
+        .step(bw::FixedInt<1>(v_.new_params_bound()));
+    if (v_.new_params_bound()) {
+      for (const auto &t : v_.types()) {
+        accu.step(bw::FixedInt<2>(t));
       }
+    }
+
+    for (auto [n, v] : stdx::views::enumerate(v_.values())) {
+      // add all the values that aren't NULL
+      if (!v.has_value()) continue;
+      // write length of the type is a variable length
+      switch (v_.types()[n] & 0xff) {
+        case field_type::Bit:
+        case field_type::Blob:
+        case field_type::Varchar:
+        case field_type::VarString:
+        case field_type::Set:
+        case field_type::String:
+        case field_type::Enum:
+        case field_type::TinyBlob:
+        case field_type::MediumBlob:
+        case field_type::LongBlob:
+        case field_type::Decimal:
+        case field_type::NewDecimal:
+        case field_type::Geometry:
+          accu.step(bw::VarInt(v->size()));
+          break;
+        case field_type::Date:
+        case field_type::DateTime:
+        case field_type::Timestamp:
+        case field_type::Time:
+          accu.step(bw::FixedInt<1>(v->size()));
+          break;
+        case field_type::LongLong:
+        case field_type::Double:
+        case field_type::Long:
+        case field_type::Int24:
+        case field_type::Float:
+        case field_type::Short:
+        case field_type::Year:
+        case field_type::Tiny:
+          // fixed size
+          break;
+      }
+      accu.step(bw::String<Borrowed>(v.value()));
     }
 
     return accu.result();
@@ -2105,14 +2108,18 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
     auto new_params_bound_res = accu.template step<bw::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
+    auto new_params_bound = new_params_bound_res->value();
+    if (new_params_bound != 1) {
+      // new-params-bound is required as long as the decoder doesn't know the
+      // old param-defs
+      return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
+    }
+
     std::vector<classic_protocol::field_type::value_type> types;
-    std::vector<std::optional<std::string>> values;
+    std::vector<std::optional<typename value_type::string_type>> values;
 
-    if (new_params_bound_res->value()) {
-      const auto nullbits = nullbits_res->value();
-
+    if (new_params_bound == 1) {
       types.reserve(param_count);
-      values.reserve(param_count);
 
       for (size_t n{}; n < param_count; ++n) {
         auto type_res = accu.template step<bw::FixedInt<2>>();
@@ -2120,73 +2127,83 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
 
         types.push_back(type_res->value());
       }
-      for (size_t n{}, bit_pos{}, byte_pos{}; n < param_count; ++n, ++bit_pos) {
-        if (bit_pos > 7) {
-          bit_pos = 0;
-          ++byte_pos;
+    }
+
+    const auto nullbits = nullbits_res->value();
+    values.reserve(param_count);
+
+    for (size_t n{}, bit_pos{}, byte_pos{}; n < param_count; ++n, ++bit_pos) {
+      if (bit_pos > 7) {
+        bit_pos = 0;
+        ++byte_pos;
+      }
+
+      if (!(nullbits[byte_pos] & (1 << bit_pos))) {
+        stdx::expected<size_t, std::error_code> field_size_res(
+            stdx::make_unexpected(
+                make_error_code(std::errc::invalid_argument)));
+        switch (types[n] & 0xff) {
+          case field_type::Bit:
+          case field_type::Blob:
+          case field_type::Varchar:
+          case field_type::VarString:
+          case field_type::Set:
+          case field_type::String:
+          case field_type::Enum:
+          case field_type::TinyBlob:
+          case field_type::MediumBlob:
+          case field_type::LongBlob:
+          case field_type::Decimal:
+          case field_type::NewDecimal:
+          case field_type::Geometry: {
+            auto string_field_size_res = accu.template step<bw::VarInt>();
+            if (!accu.result())
+              return stdx::make_unexpected(accu.result().error());
+
+            field_size_res = string_field_size_res->value();
+          } break;
+          case field_type::Date:
+          case field_type::DateTime:
+          case field_type::Timestamp:
+          case field_type::Time: {
+            auto time_field_size_res = accu.template step<bw::FixedInt<1>>();
+            if (!accu.result())
+              return stdx::make_unexpected(accu.result().error());
+
+            field_size_res = time_field_size_res->value();
+          } break;
+          case field_type::LongLong:
+          case field_type::Double:
+            field_size_res = 8;
+            break;
+          case field_type::Long:
+          case field_type::Int24:
+          case field_type::Float:
+            field_size_res = 4;
+            break;
+          case field_type::Short:
+          case field_type::Year:
+            field_size_res = 2;
+            break;
+          case field_type::Tiny:
+            field_size_res = 1;
+            break;
         }
 
-        if (!(nullbits[byte_pos] & (1 << bit_pos))) {
-          stdx::expected<size_t, std::error_code> field_size_res(
-              stdx::make_unexpected(
-                  make_error_code(std::errc::invalid_argument)));
-          switch (types[n]) {
-            case field_type::Bit:
-            case field_type::Blob:
-            case field_type::Varchar:
-            case field_type::VarString:
-            case field_type::Set:
-            case field_type::String:
-            case field_type::Enum:
-            case field_type::TinyBlob:
-            case field_type::MediumBlob:
-            case field_type::LongBlob:
-            case field_type::Decimal:
-            case field_type::NewDecimal:
-            case field_type::Geometry: {
-              auto string_field_size_res = accu.template step<bw::VarInt>();
-              if (!accu.result())
-                return stdx::make_unexpected(accu.result().error());
-
-              field_size_res = string_field_size_res->value();
-            } break;
-            case field_type::Date:
-            case field_type::DateTime:
-            case field_type::Timestamp:
-            case field_type::Time: {
-              auto time_field_size_res = accu.template step<bw::FixedInt<1>>();
-              if (!accu.result())
-                return stdx::make_unexpected(accu.result().error());
-
-              field_size_res = time_field_size_res->value();
-            } break;
-            case field_type::LongLong:
-            case field_type::Double:
-              field_size_res = 8;
-              break;
-            case field_type::Long:
-            case field_type::Int24:
-            case field_type::Float:
-              field_size_res = 4;
-              break;
-            case field_type::Short:
-            case field_type::Year:
-              field_size_res = 2;
-              break;
-            case field_type::Tiny:
-              field_size_res = 1;
-              break;
-          }
-          auto value_res =
-              accu.template step<bw::String<Borrowed>>(field_size_res.value());
-          if (!accu.result()) {
-            return stdx::make_unexpected(accu.result().error());
-          }
-
-          values.push_back(value_res->value());
-        } else {
-          values.emplace_back(std::nullopt);
+        if (!field_size_res) {
+          return stdx::make_unexpected(
+              make_error_code(codec_errc::field_type_unknown));
         }
+
+        auto value_res =
+            accu.template step<bw::String<Borrowed>>(field_size_res.value());
+        if (!accu.result()) {
+          return stdx::make_unexpected(accu.result().error());
+        }
+
+        values.push_back(value_res->value());
+      } else {
+        values.emplace_back(std::nullopt);
       }
     }
 
@@ -3149,9 +3166,7 @@ class Codec<borrowable::message::client::BinlogDumpGtid<Borrowed>>
         .step(bw::FixedInt<4>(v_.server_id()))
         .step(bw::FixedInt<4>(v_.filename().size()))
         .step(bw::String<Borrowed>(v_.filename()))
-        .step(bw::FixedInt<8>(v_.position()))
-        //
-        ;
+        .step(bw::FixedInt<8>(v_.position()));
 
     if (v_.flags() & value_type::Flags::through_gtid) {
       accu.step(bw::FixedInt<4>(v_.sids().size()))
@@ -3162,12 +3177,12 @@ class Codec<borrowable::message::client::BinlogDumpGtid<Borrowed>>
   }
 
  public:
-  using __base = impl::EncodeBase<Codec<value_type>>;
+  using base_ = impl::EncodeBase<Codec<value_type>>;
 
-  friend __base;
+  friend base_;
 
-  constexpr Codec(value_type v, capabilities::value_type caps)
-      : __base(caps), v_{std::move(v)} {}
+  constexpr Codec(value_type val, capabilities::value_type caps)
+      : base_(caps), v_{std::move(val)} {}
 
   constexpr static uint8_t cmd_byte() noexcept {
     return static_cast<uint8_t>(CommandByte::BinlogDumpGtid);
@@ -3193,6 +3208,19 @@ class Codec<borrowable::message::client::BinlogDumpGtid<Borrowed>>
     auto filename_res =
         accu.template step<bw::String<Borrowed>>(filename_len_res->value());
     auto position_res = accu.template step<bw::FixedInt<8>>();
+
+    stdx::flags<typename value_type::Flags> flags;
+    flags.underlying_value(flags_res->value());
+
+    if (!(flags & value_type::Flags::through_gtid)) {
+      if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+      return std::make_pair(
+          accu.result().value(),
+          value_type(flags, server_id_res->value(), filename_res->value(),
+                     position_res->value(), {}));
+    }
+
     auto sids_len_res = accu.template step<bw::FixedInt<4>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
@@ -3200,9 +3228,6 @@ class Codec<borrowable::message::client::BinlogDumpGtid<Borrowed>>
         accu.template step<bw::String<Borrowed>>(sids_len_res->value());
 
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
-
-    stdx::flags<typename value_type::Flags> flags;
-    flags.underlying_value(flags_res->value());
 
     return std::make_pair(
         accu.result().value(),

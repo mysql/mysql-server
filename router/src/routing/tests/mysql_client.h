@@ -906,7 +906,7 @@ class MysqlClient {
                        std::is_same<decltype(std::declval<N>().data()),
                                     typename N::value_type *>>::value,
       stdx::expected<Statement::Result, MysqlError>>::type
-  query(const std::string &stmt, const T &params, const N &names) {
+  query(std::string_view stmt, const T &params, const N &names) {
     Statement st(m_.get());
 
     const auto bind_res = st.bind_params(params, names);

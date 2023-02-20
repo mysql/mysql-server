@@ -419,6 +419,16 @@ TEST(MessageServerError, sql_state) {
   EXPECT_EQ(msg.sql_state(), "HY000");
 }
 
+TEST(MessageServerError, short_sql_state) {
+  std::array<uint8_t, 6> packet{
+      0xff, 0x12, 0x34, '#', 'F', 'O',
+  };
+  auto decode_res =
+      classic_protocol::Codec<classic_protocol::message::server::Error>::decode(
+          net::buffer(packet), {classic_protocol::capabilities::protocol_41});
+  ASSERT_FALSE(decode_res);
+}
+
 // server::Greeting
 
 using CodecMessageServerGreetingTest =

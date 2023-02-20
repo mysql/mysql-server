@@ -186,9 +186,8 @@ FUNCTION(LIBFUZZER_ADD_TEST TARGET)
       )
   ENDIF()
 
-  # use cmake -E env to set the LLVM_PROFILE_FILE in a portable way
-  ADD_TEST(${TARGET}
-            ${TARGET}
+  ADD_TEST(NAME ${TARGET}
+    COMMAND ${TARGET}
             -max_total_time=${ARG_MAX_TOTAL_TIME} -timeout=${ARG_TIMEOUT}
             -artifact_prefix=${BINARY_ARTIFACT_DIR}/
             ${BINARY_CORPUS_DIR}

@@ -1054,7 +1054,7 @@ class StmtExecute {
   using string_type =
       std::conditional_t<Borrowed, std::string_view, std::string>;
 
-  using value_type = std::optional<std::string>;
+  using value_type = std::optional<string_type>;
 
   /**
    * construct a ExecuteStmt message.
