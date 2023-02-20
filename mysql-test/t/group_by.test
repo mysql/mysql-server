@@ -3562,3 +3562,10 @@ GROUP BY t1.a;
 --eval $query
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#32932749: HYPERGRAPH: FAKESINGLEROWITERATOR::SETNULLROWFLAG(BOOL):
+--echo #               ASSERTION `!IS_NULL_ROW' FAILED.
+--echo #
+
+SELECT COUNT(*) WHERE RAND() > 1;
