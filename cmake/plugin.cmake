@@ -42,8 +42,9 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
     WIN_DEF_FILE
     )
   SET(PLUGIN_MULTI_VALUE_KW
-    DEPENDENCIES   # target1 ... targetN
-    LINK_LIBRARIES # lib1 ... libN
+    DEPENDENCIES        # target1 ... targetN
+    LINK_LIBRARIES      # lib1 ... libN
+    SYSTEM_INCLUDE_DIRECTORIES # for TARGET_SYSTEM_INCLUDE_DIRECTORIES
     )
 
   CMAKE_PARSE_ARGUMENTS(ARG
@@ -288,6 +289,12 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
     # Most plugins seem to #include my_checksum.h in some way.
     # Link explicitly here, to avoid build breaks on e.g. Windows.
     TARGET_LINK_LIBRARIES(${target} ext::zlib)
+  ENDIF()
+
+  # Add SYSTEM INCLUDE_DIRECTORIES
+  IF(ARG_SYSTEM_INCLUDE_DIRECTORIES)
+    TARGET_INCLUDE_DIRECTORIES(${target} SYSTEM PRIVATE
+      ${ARG_SYSTEM_INCLUDE_DIRECTORIES})
   ENDIF()
 
   IF(BUILD_PLUGIN AND ARG_LINK_LIBRARIES)
