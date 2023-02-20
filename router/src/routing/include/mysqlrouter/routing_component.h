@@ -34,6 +34,7 @@
 #include <string>
 #include <vector>
 
+#include "connection.h"
 #include "mysql/harness/config_parser.h"
 #include "tcp_address.h"
 
@@ -121,6 +122,8 @@ class ROUTING_EXPORT MySQLRoutingComponent {
 
   uint64_t current_total_connections();
   uint64_t max_total_connections() const { return max_total_connections_; }
+
+  MySQLRoutingConnectionBase *get_connection(const std::string &ep);
 
   std::vector<std::string> route_names() const;
 

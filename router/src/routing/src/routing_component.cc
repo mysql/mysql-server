@@ -214,6 +214,21 @@ uint64_t MySQLRoutingComponent::current_total_connections() {
   return result;
 }
 
+MySQLRoutingConnectionBase *MySQLRoutingComponent::get_connection(
+    const std::string &client_endpoint) {
+  MySQLRoutingConnectionBase *result = nullptr;
+
+  std::lock_guard<std::mutex> lock(routes_mu_);
+
+  for (const auto &el : routes_) {
+    if (auto r = el.second.lock()) {
+      if ((result = r->get_connection(client_endpoint))) break;
+    }
+  }
+
+  return result;
+}
+
 MySQLRoutingAPI MySQLRoutingComponent::api(const std::string &name) {
   std::lock_guard<std::mutex> lock(routes_mu_);
 
