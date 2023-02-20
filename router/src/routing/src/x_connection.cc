@@ -297,6 +297,16 @@ MysqlRoutingXConnection::encode_error_packet(std::vector<uint8_t> &error_frame,
   return xproto_frame_encode(err_msg, error_frame);
 }
 
+void MysqlRoutingXConnection::client_con_close() {
+  Mysqlx::Ok msg_ok;
+  msg_ok.set_msg("bye!");
+  std::vector<uint8_t> out_buf;
+  xproto_frame_encode(msg_ok, out_buf);
+
+  return async_send_client_buffer(net::buffer(out_buf),
+                                  Function::kWaitClientClose);
+}
+
 void MysqlRoutingXConnection::async_run() {
   this->accepted();
 
@@ -531,8 +541,7 @@ void MysqlRoutingXConnection::client_recv_cmd() {
   if (server_connection_state_ok) {
     switch (msg) {
       case Msg::kConClose:
-        // wait for the client to close the connection.
-        return async_recv_client(Function::kWaitClientClose);
+        return client_con_close();
       case Msg::kConCapGet:
         return client_cap_get();
       case Msg::kConCapSet:
