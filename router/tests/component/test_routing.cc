@@ -28,6 +28,8 @@
 #include <string>
 #include <thread>
 
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+
 #include <gmock/gmock-matchers.h>
 #include <gtest/gtest.h>
 
