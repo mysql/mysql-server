@@ -758,7 +758,7 @@ End of init
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='/*!80000 SET SESSION information_schema_stats_expiry=0 */')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=, query='')
- > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SHOW VARIABLES LIKE 'gtid\_mode'')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SHOW VARIABLES LIKE 'gtid_mode'')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SHOW VARIABLES LIKE 'ndbinfo\_version'')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=, query='')
