@@ -551,6 +551,9 @@ class MysqlRoutingXConnection
   void wait_client_close();
   void finish();
 
+  void server_tls_shutdown();
+  void client_tls_shutdown();
+
   void done();
 
   stdx::expected<void, std::error_code> forward_tls(Channel *src_channel,

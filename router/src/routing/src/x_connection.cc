@@ -3141,10 +3141,12 @@ void MysqlRoutingXConnection::finish() {
   }
   if (active_work_ == 0) {
     if (server_socket.is_open()) {
+      server_tls_shutdown();
       (void)server_socket.shutdown(net::socket_base::shutdown_send);
       (void)server_socket.close();
     }
     if (client_socket.is_open()) {
+      client_tls_shutdown();
       (void)client_socket.shutdown(net::socket_base::shutdown_send);
       (void)client_socket.close();
     }
@@ -3159,3 +3161,17 @@ void MysqlRoutingXConnection::wait_client_close() { finish(); }
 //
 // removes the connection from the connection-container.
 void MysqlRoutingXConnection::done() { this->disassociate(); }
+
+void MysqlRoutingXConnection::server_tls_shutdown() {
+  auto *channel = this->socket_splicer()->server_channel();
+  if (channel->ssl()) {
+    (void)channel->tls_shutdown();
+  }
+}
+
+void MysqlRoutingXConnection::client_tls_shutdown() {
+  auto *channel = this->socket_splicer()->client_channel();
+  if (channel->ssl()) {
+    (void)channel->tls_shutdown();
+  }
+}
