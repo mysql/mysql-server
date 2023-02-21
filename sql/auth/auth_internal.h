@@ -305,7 +305,7 @@ bool set_and_validate_user_attributes(
     THD *thd, LEX_USER *Str, acl_table::Pod_user_what_to_update &what_to_set,
     bool is_privileged_user, bool is_role, Table_ref *history_table,
     bool *history_check_done, const char *cmd, Userhostpassword_list &,
-    I_multi_factor_auth **mfa = nullptr);
+    I_multi_factor_auth **mfa = nullptr, bool if_not_exists = false);
 typedef std::pair<std::string, bool> Grant_privilege;
 typedef std::unordered_multimap<Role_id, Grant_privilege, role_id_hash>
     User_to_dynamic_privileges_map;
