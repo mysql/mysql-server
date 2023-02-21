@@ -200,6 +200,12 @@ FUNCTION(FIND_CUSTOM_CURL CURL_INCLUDE_DIR)
   IF(WIN32)
     ADD_DEPENDENCIES(curl_interface copy_curl_dlls)
   ENDIF()
+  IF(APPLE)
+    TARGET_LINK_LIBRARIES(curl_interface
+      INTERFACE "-framework CoreFoundation")
+    TARGET_LINK_LIBRARIES(curl_interface
+      INTERFACE "-framework SystemConfiguration")
+  ENDIF()
 
 ENDFUNCTION(FIND_CUSTOM_CURL)
 
