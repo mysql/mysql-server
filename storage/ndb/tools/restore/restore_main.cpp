@@ -2101,48 +2101,48 @@ int do_restore(RestoreThreadData *thrdata)
     return NdbToolsProgramExitCode::FAILED;
   }
 
-  const BackupFormat::FileHeader & tmp = metaData.getFileHeader();
-  const Uint32 version = tmp.BackupVersion;
+  {
+    const BackupFormat::FileHeader & tmp = metaData.getFileHeader();
+    const Uint32 backupFileVersion = tmp.BackupVersion;
+    const Uint32 backupNdbVersion = tmp.NdbVersion;
+    const Uint32 backupMySQLVersion = tmp.MySQLVersion;
   
-  char buf[NDB_VERSION_STRING_BUF_SZ];
-  char new_buf[NDB_VERSION_STRING_BUF_SZ];
-  info.setLevel(254);
+    char buf[NDB_VERSION_STRING_BUF_SZ];
+    info.setLevel(254);
 
-  if (version >= NDBD_RAW_LCP)
-  {
-  restoreLogger.log_info("Backup version in files: %s ndb version: %s",
-           ndbGetVersionString(version, 0,
-                               ndbd_drop6(version) ? "-drop6" : 0,
-                               buf, sizeof(buf)),
-           ndbGetVersionString(tmp.NdbVersion, tmp.MySQLVersion, 0,
-                                buf, sizeof(buf)));
-  }
-  else
-  {
-    restoreLogger.log_info("Backup version in files: %s",
-           ndbGetVersionString(version, 0,
-                               ndbd_drop6(version) ? "-drop6" : 0,
-                               buf, sizeof(buf)));
-  }
+    if (backupFileVersion >= NDBD_RAW_LCP)
+    {
+      restoreLogger.log_info("Backup from version : %s file format : %x",
+                             ndbGetVersionString(backupNdbVersion, backupMySQLVersion, 0,
+                                                 buf, sizeof(buf)),
+                             backupFileVersion);
+    }
+    else
+    {
+      restoreLogger.log_info("Backup file format : %x",
+                             backupFileVersion);
+    }
 
-  /**
-   * check wheater we can restore the backup (right version).
-   */
-  // in these versions there was an error in how replica info was
-  // stored on disk
-  if (version >= MAKE_VERSION(5,1,3) && version <= MAKE_VERSION(5,1,9))
-  {
-    restoreLogger.log_error("Restore program incompatible with backup versions between %s and %s"
-        ,ndbGetVersionString(MAKE_VERSION(5,1,3), 0, 0, buf, sizeof(buf))
-        ,ndbGetVersionString(MAKE_VERSION(5,1,9), 0, 0, new_buf, sizeof(new_buf))
-       );
-    return NdbToolsProgramExitCode::FAILED;
-  }
+    /**
+     * check whether we can restore the backup (right version).
+     */
+    // in these versions there was an error in how replica info was
+    // stored on disk
+    if (backupFileVersion >= MAKE_VERSION(5,1,3) && backupFileVersion <= MAKE_VERSION(5,1,9))
+    {
+      char new_buf[NDB_VERSION_STRING_BUF_SZ];
+      restoreLogger.log_error("Restore program incompatible with backup file versions between %s and %s"
+                              ,ndbGetVersionString(MAKE_VERSION(5,1,3), 0, 0, buf, sizeof(buf))
+                              ,ndbGetVersionString(MAKE_VERSION(5,1,9), 0, 0, new_buf, sizeof(new_buf))
+                              );
+      return NdbToolsProgramExitCode::FAILED;
+    }
 
-  if (version > NDB_VERSION)
-  {
-    restoreLogger.log_error("Restore program older than backup version. Not supported. Use new restore program");
-    return NdbToolsProgramExitCode::FAILED;
+    if (backupFileVersion > NDB_VERSION)
+    {
+      restoreLogger.log_error("Restore program older than backup version. Not supported. Use new restore program");
+      return NdbToolsProgramExitCode::FAILED;
+    }
   }
 
   restoreLogger.log_debug("Load content");
