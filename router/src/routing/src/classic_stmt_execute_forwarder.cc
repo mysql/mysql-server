@@ -26,6 +26,7 @@
 
 #include "classic_connection_base.h"
 #include "classic_frame.h"
+#include "hexify.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqld_error.h"  // mysql-server error-codes
@@ -61,7 +62,26 @@ StmtExecuteForwarder::process() {
 stdx::expected<Processor::Result, std::error_code>
 StmtExecuteForwarder::command() {
   if (auto &tr = tracer()) {
-    tr.trace(Tracer::Event().stage("stmt_execute::command"));
+    auto *socket_splicer = connection()->socket_splicer();
+    auto *src_channel = socket_splicer->client_channel();
+    auto *src_protocol = connection()->client_protocol();
+
+    auto msg_res = ClassicFrame::recv_msg<
+        classic_protocol::borrowed::message::client::StmtExecute>(src_channel,
+                                                                  src_protocol);
+    if (!msg_res) return recv_client_failed(msg_res.error());
+
+    const auto &recv_buf = src_channel->recv_plain_view();
+
+    tr.trace(Tracer::Event().stage(
+        "stmt_execute::command:\nstmt-id: " +              //
+        std::to_string(msg_res->statement_id()) + "\n" +   //
+        "flags: " + msg_res->flags().to_string() + "\n" +  //
+        "new-params-bound: " + std::to_string(msg_res->new_params_bound()) +
+        "\n" +  //
+        "types::size(): " + std::to_string(msg_res->types().size()) + "\n" +
+        "values::size(): " + std::to_string(msg_res->values().size()) + "\n" +
+        mysql_harness::hexify(recv_buf)));
   }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();

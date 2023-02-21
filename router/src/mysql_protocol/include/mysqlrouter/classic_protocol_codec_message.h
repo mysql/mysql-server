@@ -2111,17 +2111,13 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
     auto new_params_bound_res = accu.template step<bw::FixedInt<1>>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
-    auto new_params_bound = new_params_bound_res->value();
-    if (new_params_bound != 1) {
-      // new-params-bound is required as long as the decoder doesn't know the
-      // old param-defs
-      return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
-    }
-
     std::vector<typename value_type::ParamDef> types;
     std::vector<std::optional<typename value_type::string_type>> values;
 
-    if (new_params_bound == 1) {
+    auto new_params_bound = new_params_bound_res->value();
+    if (new_params_bound == 0) {
+      types = *metadata_res;
+    } else if (new_params_bound == 1) {
       types.reserve(param_count);
 
       for (size_t n{}; n < param_count; ++n) {
@@ -2130,6 +2126,8 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
 
         types.push_back(type_res->value());
       }
+    } else {
+      return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
     }
 
     const auto nullbits = nullbits_res->value();

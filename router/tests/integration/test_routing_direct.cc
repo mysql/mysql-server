@@ -2161,6 +2161,17 @@ TEST_P(ConnectionTest, classic_protocol_prepare_execute) {
   };
   ASSERT_NO_ERROR(stmt.bind_params(params));
 
+  // execute again to trigger a StmtExecute with new-params-bound = 1.
+  {
+    auto exec_res = stmt.execute();
+    ASSERT_NO_ERROR(exec_res);
+
+    for ([[maybe_unused]] auto res : *exec_res) {
+      // drain the resultsets.
+    }
+  }
+
+  // execute again to trigger a StmtExecute with new-params-bound = 0.
   {
     auto exec_res = stmt.execute();
     ASSERT_NO_ERROR(exec_res);
@@ -2174,7 +2185,7 @@ TEST_P(ConnectionTest, classic_protocol_prepare_execute) {
     auto events_res = changed_event_counters(cli);
     ASSERT_NO_ERROR(events_res);
 
-    EXPECT_THAT(*events_res, ElementsAre(Pair("statement/com/Execute", 1),
+    EXPECT_THAT(*events_res, ElementsAre(Pair("statement/com/Execute", 2),
                                          Pair("statement/com/Prepare", 1)));
   }
 
@@ -2186,7 +2197,7 @@ TEST_P(ConnectionTest, classic_protocol_prepare_execute) {
     ASSERT_NO_ERROR(events_res);
 
     EXPECT_THAT(*events_res,
-                ElementsAre(Pair("statement/com/Execute", 1),
+                ElementsAre(Pair("statement/com/Execute", 2),
                             Pair("statement/com/Prepare", 1),
                             // explicit
                             Pair("statement/com/Reset Connection", 1),
