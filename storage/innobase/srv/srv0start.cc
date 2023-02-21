@@ -128,9 +128,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** fil_space_t::flags for hard-coded tablespaces */
 extern uint32_t predefined_flags;
 
-/** Recovered persistent metadata */
-static MetadataRecover *srv_dict_metadata;
-
 /** true if a raw partition is in use */
 bool srv_start_raw_disk_in_use = false;
 
@@ -1569,7 +1566,6 @@ dberr_t srv_start(bool create_new_db) {
   mtr_t mtr;
   purge_pq_t *purge_queue;
 
-  assert(srv_dict_metadata == nullptr);
   /* Reset the start state. */
   srv_start_state = SRV_START_STATE_NONE;
 
@@ -2150,12 +2146,8 @@ dberr_t srv_start(bool create_new_db) {
 
     RECOVERY_CRASH(3);
 
-    srv_dict_metadata = recv_recovery_from_checkpoint_finish(false);
-
-    if (recv_sys->is_cloned_db && srv_dict_metadata != nullptr) {
-      ut::delete_(srv_dict_metadata);
-      srv_dict_metadata = nullptr;
-    }
+    auto *dict_metadata = recv_recovery_from_checkpoint_finish(false);
+    ut_a(dict_metadata != nullptr);
 
     /* We need to save the dynamic metadata collected from redo log to DD
     buffer table here. This is to make sure that the dynamic metadata is not
@@ -2169,10 +2161,10 @@ dberr_t srv_start(bool create_new_db) {
       DBUG_SUICIDE();
     });
 
-    if (srv_dict_metadata != nullptr && !srv_dict_metadata->empty()) {
+    if (!recv_sys->is_cloned_db && !dict_metadata->empty()) {
       ut_a(redo_writes_allowed);
 
-      /* Open this table in case srv_dict_metadata should be applied to this
+      /* Open this table in case dict_metadata should be applied to this
       table before checkpoint. And because DD is not fully up yet, the table
       can be opened by internal APIs. */
 
@@ -2195,11 +2187,12 @@ dberr_t srv_start(bool create_new_db) {
           ut::new_withkey<DDTableBuffer>(UT_NEW_THIS_FILE_PSI_KEY);
       /* We write redo log here. We assume that there should be enough room in
       log files, supposing log_free_check() works fine before crash. */
-      srv_dict_metadata->store();
+      dict_metadata->store();
 
       /* Flush logs to persist the changes. */
       log_buffer_flush_to_disk(*log_sys);
     }
+    ut::delete_(dict_metadata);
 
     RECOVERY_CRASH(4);
 
@@ -2448,12 +2441,6 @@ static void apply_dynamic_metadata() {
   const metadata_applier applier;
 
   dict_sys->for_each_table(applier);
-
-  if (srv_dict_metadata != nullptr) {
-    srv_dict_metadata->apply();
-    ut::delete_(srv_dict_metadata);
-    srv_dict_metadata = nullptr;
-  }
 }
 
 /** On a restart, initialize the remaining InnoDB subsystems so that
@@ -3157,9 +3144,6 @@ void srv_shutdown() {
   dict_persist_close();
   btr_search_sys_free();
   undo_spaces_deinit();
-
-  ut::delete_(srv_dict_metadata);
-
   os_aio_free();
   que_close();
   row_mysql_close();

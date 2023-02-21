@@ -1403,6 +1403,8 @@ void dict_table_move_from_non_lru_to_lru(dict_table_t *table) {
   table->can_be_evicted = true;
 }
 
+#ifndef UNIV_HOTBACKUP
+
 /** Look up an index in a table.
 @param[in]      table   table
 @param[in]      id      index identifier
@@ -1420,7 +1422,6 @@ static const dict_index_t *dict_table_find_index_on_id(
   return (nullptr);
 }
 
-#ifndef UNIV_HOTBACKUP
 const dict_index_t *dict_index_find(const index_id_t &id) {
   ut_ad(dict_sys_mutex_own());
 
@@ -3947,7 +3948,6 @@ static void dict_init_dynamic_metadata(dict_table_t *table,
 
   /* Will initialize other metadata here */
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /** Apply the persistent dynamic metadata read from redo logs or
 DDTableBuffer to corresponding table during recovery.
@@ -3955,7 +3955,7 @@ DDTableBuffer to corresponding table during recovery.
 @param[in]      metadata        structure of persistent metadata
 @return true if we do apply something to the in-memory table object,
 otherwise false */
-bool dict_table_apply_dynamic_metadata(
+static bool dict_table_apply_dynamic_metadata(
     dict_table_t *table, const PersistentTableMetadata *metadata) {
   bool get_dirty = false;
 
@@ -4025,7 +4025,6 @@ bool dict_table_apply_dynamic_metadata(
   return (get_dirty);
 }
 
-#ifndef UNIV_HOTBACKUP
 /** Read persistent dynamic metadata stored in a buffer
 @param[in]      buffer          buffer to read
 @param[in]      size            size of data in buffer
