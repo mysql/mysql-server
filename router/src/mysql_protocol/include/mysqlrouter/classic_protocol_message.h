@@ -1056,6 +1056,18 @@ class StmtExecute {
 
   using value_type = std::optional<string_type>;
 
+  struct ParamDef {
+    ParamDef() = default;
+
+    ParamDef(uint16_t type_and_flags_) : type_and_flags(type_and_flags_) {}
+
+    friend bool operator==(const ParamDef &lhs, const ParamDef &rhs) {
+      return lhs.type_and_flags == rhs.type_and_flags;
+    }
+
+    uint16_t type_and_flags{};
+  };
+
   /**
    * construct a ExecuteStmt message.
    *
@@ -1068,8 +1080,7 @@ class StmtExecute {
    */
   StmtExecute(uint32_t statement_id, classic_protocol::cursor::value_type flags,
               uint32_t iteration_count, bool new_params_bound,
-              std::vector<classic_protocol::field_type::value_type> types,
-              std::vector<value_type> values)
+              std::vector<ParamDef> types, std::vector<value_type> values)
       : statement_id_{statement_id},
         flags_{flags},
         iteration_count_{iteration_count},
@@ -1081,9 +1092,7 @@ class StmtExecute {
   classic_protocol::cursor::value_type flags() const noexcept { return flags_; }
   uint32_t iteration_count() const noexcept { return iteration_count_; }
   bool new_params_bound() const noexcept { return new_params_bound_; }
-  std::vector<classic_protocol::field_type::value_type> types() const {
-    return types_;
-  }
+  std::vector<ParamDef> types() const { return types_; }
   std::vector<value_type> values() const { return values_; }
 
  private:
@@ -1091,7 +1100,7 @@ class StmtExecute {
   classic_protocol::cursor::value_type flags_;
   uint32_t iteration_count_;
   bool new_params_bound_;
-  std::vector<classic_protocol::field_type::value_type> types_;
+  std::vector<ParamDef> types_;
   std::vector<value_type> values_;
 };
 

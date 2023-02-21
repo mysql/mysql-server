@@ -1959,8 +1959,8 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
             reinterpret_cast<const char *>(nullbits.data()), nullbits.size())))
         .step(bw::FixedInt<1>(v_.new_params_bound()));
     if (v_.new_params_bound()) {
-      for (const auto &t : v_.types()) {
-        accu.step(bw::FixedInt<2>(t));
+      for (const auto &param_def : v_.types()) {
+        accu.step(bw::FixedInt<2>(param_def.type_and_flags));
       }
     }
 
@@ -1968,7 +1968,7 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
       // add all the values that aren't NULL
       if (!v.has_value()) continue;
       // write length of the type is a variable length
-      switch (v_.types()[n] & 0xff) {
+      switch (v_.types()[n].type_and_flags & 0xff) {
         case field_type::Bit:
         case field_type::Blob:
         case field_type::Varchar:
@@ -2000,8 +2000,10 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
         case field_type::Tiny:
           // fixed size
           break;
+        default:
+          assert(false || "Unknown Type");
       }
-      accu.step(bw::String<Borrowed>(v.value()));
+      accu.step(borrowed::wire::String(v.value()));
     }
 
     return accu.result();
@@ -2013,48 +2015,49 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
 
   friend __base;
 
-  constexpr Codec(value_type v, capabilities::value_type caps)
-      : __base(caps), v_{std::move(v)} {}
+  constexpr Codec(value_type val, capabilities::value_type caps)
+      : __base(caps), v_{std::move(val)} {}
 
   constexpr static uint8_t cmd_byte() noexcept {
     return static_cast<uint8_t>(CommandByte::StmtExecute);
   }
 
   /**
-   * decode a sequence of buffers into a message::client::ExecuteStmt.
+   * decode a buffer into a message::client::StmtExecute.
    *
-   * @param buffer sequence of buffers
+   * @param buffer a buffer
    * @param caps protocol capabilities
-   * @param param_count_lookup callable that expects a 'uint32_t statement_id'
-   * that returns and integer that's convertible to 'stdx::expected<uint16_t,
-   * std::error_code>' representing the parameter count of the prepared
-   * statement
+   * @param metadata_lookup callable that expects a 'uint32_t statement_id'
+   * that returns a result that's convertible to
+   * 'stdx::expected<std::vector<ParamDef>, std::error_code>' representing the
+   * parameter-definitions of the prepared statement
    *
-   * decoding a ExecuteStmt message requires a parameter count of the prepared
-   * statement. The param_count_lookup function may be called to get the param
-   * count for the statement-id.
+   * decoding a StmtExecute message requires the parameter-definitions of the
+   * prepared statement. The metadata_lookup function may be called to get
+   * the parameter-definitions for the statement-id.
    *
-   * The function may return a param-count directly
+   * The function may return a parameter-definitions directly
    *
    * \code
-   * ExecuteStmt::decode(
+   * StmtExecute::decode(
    *   buffers,
    *   capabilities::protocol_41,
-   *   [](uint32_t stmt_id) { return 1; });
+   *   [](uint32_t stmt_id) { return std::vector<ParamDef>{}; });
    * \endcode
    *
-   * ... or a stdx::expected<uint16_t, std::error_code> if it wants to signal
-   * that a statement-id wasn't found
+   * ... or a stdx::expected<std::vector<ParamDef>, std::error_code> if it wants
+   * to signal that a statement-id wasn't found
    *
    * \code
-   * ExecuteStmt::decode(
+   * StmtExecute::decode(
    *   buffers,
    *   capabilities::protocol_41,
-   *   [](uint32_t stmt_id) -> stdx::expected<uint16_t, std::error_code> {
+   *   [](uint32_t stmt_id) ->
+   *       stdx::expected<std::vector<ParamDef>, std::error_code> {
    *     bool found{true};
    *
    *     if (found) {
-   *       return 1;
+   *       return {};
    *     } else {
    *       return stdx::make_unexpected(make_error_code(
    *         codec_errc::statement_id_not_found));
@@ -2065,7 +2068,7 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
   template <class Func>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
       const net::const_buffer &buffer, capabilities::value_type caps,
-      Func &&param_count_lookup) {
+      Func &&metadata_lookup) {
     impl::DecodeBufferAccumulator accu(buffer, caps);
 
     namespace bw = borrowable::wire;
@@ -2083,14 +2086,14 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
 
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
-    stdx::expected<uint64_t, std::error_code> param_count_res =
-        param_count_lookup(statement_id_res->value());
-    if (!param_count_res) {
+    stdx::expected<std::vector<typename value_type::ParamDef>, std::error_code>
+        metadata_res = metadata_lookup(statement_id_res->value());
+    if (!metadata_res) {
       return stdx::make_unexpected(
           make_error_code(codec_errc::statement_id_not_found));
     }
 
-    const size_t param_count = param_count_res.value();
+    const size_t param_count = metadata_res->size();
 
     if (param_count == 0) {
       if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -2115,7 +2118,7 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
       return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
     }
 
-    std::vector<classic_protocol::field_type::value_type> types;
+    std::vector<typename value_type::ParamDef> types;
     std::vector<std::optional<typename value_type::string_type>> values;
 
     if (new_params_bound == 1) {
@@ -2142,7 +2145,7 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
         stdx::expected<size_t, std::error_code> field_size_res(
             stdx::make_unexpected(
                 make_error_code(std::errc::invalid_argument)));
-        switch (types[n] & 0xff) {
+        switch (types[n].type_and_flags & 0xff) {
           case field_type::Bit:
           case field_type::Blob:
           case field_type::Varchar:

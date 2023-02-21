@@ -51,6 +51,8 @@ StmtPrepareForwarder::process() {
       return end_of_params();
     case Stage::Ok:
       return ok();
+    case Stage::OkDone:
+      return ok_done();
     case Stage::Error:
       return error();
     case Stage::Done:
@@ -152,8 +154,8 @@ StmtPrepareForwarder::response() {
 
 stdx::expected<Processor::Result, std::error_code> StmtPrepareForwarder::ok() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
 
   const auto msg_res = ClassicFrame::recv_msg<
       classic_protocol::borrowed::message::server::StmtPrepareOk>(src_channel,
@@ -171,6 +173,9 @@ stdx::expected<Processor::Result, std::error_code> StmtPrepareForwarder::ok() {
     params_left_ = stmt_prep_ok.param_count();
   }
 
+  prep_stmt_.parameters.resize(stmt_prep_ok.param_count());
+  stmt_id_ = stmt_prep_ok.statement_id();
+
   connection()->some_state_changed(true);
 
   stage(Stage::Param);
@@ -184,18 +189,36 @@ bool StmtPrepareForwarder::has_more_messages() const {
 
 stdx::expected<Processor::Result, std::error_code>
 StmtPrepareForwarder::param() {
-  if (params_left_ > 0) {
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("stmt_prepare::param"));
-    }
-    if (--params_left_ == 0) {
-      stage(Stage::EndOfParams);
-    }
-    return forward_server_to_client(has_more_messages());
+  if (params_left_ == 0) {
+    stage(Stage::Column);
+    return Result::Again;
   }
 
-  stage(Stage::Column);
-  return Result::Again;
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
+
+  auto msg_res =
+      ClassicFrame::recv_msg<classic_protocol::message::server::ColumnMeta>(
+          src_channel, src_protocol);
+  if (!msg_res) return recv_server_failed(msg_res.error());
+
+  bool is_unsigned =
+      msg_res->flags().test(classic_protocol::column_def::pos::is_unsigned);
+
+  // 0x8000 is the unsigned-flag.
+  prep_stmt_.parameters.emplace_back(msg_res->type() |
+                                     (is_unsigned ? 1 << 15 : 0));
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("stmt_prepare::param"));
+  }
+
+  if (--params_left_ == 0) {
+    stage(Stage::EndOfParams);
+  }
+
+  return forward_server_to_client(has_more_messages());
 }
 
 stdx::expected<Processor::Result, std::error_code>
@@ -229,7 +252,7 @@ StmtPrepareForwarder::column() {
     return forward_server_to_client(has_more_messages());
   }
 
-  stage(Stage::Done);
+  stage(Stage::OkDone);
   return Result::Again;
 }
 
@@ -237,7 +260,7 @@ stdx::expected<Processor::Result, std::error_code>
 StmtPrepareForwarder::end_of_columns() {
   auto src_protocol = connection()->server_protocol();
 
-  stage(Stage::Done);
+  stage(Stage::OkDone);
 
   if (src_protocol->shared_capabilities().test(
           classic_protocol::capabilities::pos::
@@ -250,6 +273,17 @@ StmtPrepareForwarder::end_of_columns() {
     tr.trace(Tracer::Event().stage("stmt_prepare::end_of_columns"));
   }
   return forward_server_to_client();
+}
+stdx::expected<Processor::Result, std::error_code>
+StmtPrepareForwarder::ok_done() {
+  auto *dst_protocol = connection()->client_protocol();
+
+  // remember the stmt.
+  dst_protocol->prepared_statements().emplace(stmt_id_, prep_stmt_);
+
+  stage(Stage::Done);
+
+  return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code>

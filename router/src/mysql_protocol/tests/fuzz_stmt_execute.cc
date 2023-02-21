@@ -49,7 +49,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   using msg_type = classic_protocol::borrowed::message::client::StmtExecute;
 
   auto decode_res = classic_protocol::Codec<msg_type>::decode(
-      data, caps, [num_params](auto /* stmt_id */) { return num_params; });
+      data, caps, [num_params](auto /* stmt_id */) {
+        return std::vector<msg_type::ParamDef>(num_params);
+      });
 
   if (decode_res) {
     // if it decode, can we encode it again?
@@ -66,8 +68,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 
     // ... and decode again?
     auto decode_again_res = classic_protocol::Codec<msg_type>::decode(
-        net::buffer(buf), caps,
-        [num_params](auto /* stmt_id */) { return num_params; });
+        net::buffer(buf), caps, [num_params](auto /* stmt_id */) {
+          return std::vector<msg_type::ParamDef>(num_params);
+        });
 
     if (!decode_again_res) {
       auto msg = decode_res->second;
@@ -84,7 +87,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
                 << "stmt-id   : " << msg.statement_id() << "\n"
                 << "flags     : " << msg.flags().to_string() << "\n"
                 << "iters     : " << msg.iteration_count() << "\n"
-                << "bound     : " << msg.new_params_bound() << "\n"
+                << "new-types : " << msg.new_params_bound() << "\n"
+                << "types     : " << msg.types().size() << "\n"
                 << "params    : " << msg.values().size() << "\n";
 
       abort();

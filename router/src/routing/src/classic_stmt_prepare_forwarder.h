@@ -27,6 +27,8 @@
 
 #include "forwarding_processor.h"
 
+#include "classic_prepared_statement.h"
+
 class StmtPrepareForwarder : public ForwardingProcessor {
  public:
   using ForwardingProcessor::ForwardingProcessor;
@@ -41,6 +43,7 @@ class StmtPrepareForwarder : public ForwardingProcessor {
     Param,
     EndOfParams,
     Ok,
+    OkDone,
     Error,
     Done,
   };
@@ -55,11 +58,12 @@ class StmtPrepareForwarder : public ForwardingProcessor {
   stdx::expected<Result, std::error_code> connect();
   stdx::expected<Result, std::error_code> connected();
   stdx::expected<Result, std::error_code> response();
+  stdx::expected<Result, std::error_code> ok();
   stdx::expected<Result, std::error_code> column();
   stdx::expected<Result, std::error_code> end_of_columns();
   stdx::expected<Result, std::error_code> param();
   stdx::expected<Result, std::error_code> end_of_params();
-  stdx::expected<Result, std::error_code> ok();
+  stdx::expected<Result, std::error_code> ok_done();
   stdx::expected<Result, std::error_code> error();
 
   bool has_more_messages() const;
@@ -68,6 +72,9 @@ class StmtPrepareForwarder : public ForwardingProcessor {
 
   size_t columns_left_{0};
   size_t params_left_{0};
+
+  uint16_t stmt_id_{};
+  PreparedStatement prep_stmt_{};
 };
 
 #endif
