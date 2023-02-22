@@ -4227,6 +4227,11 @@ loop:
   right_page_no = btr_page_get_next(page, &mtr);
   left_page_no = btr_page_get_prev(page, &mtr);
 
+#ifdef UNIV_DEBUG
+  const ulint cur_page_no = page_get_page_no(page);
+  index_details.add_page(cur_page_no, level);
+#endif /* UNIV_DEBUG */
+
   ut_a(!page_is_empty(page) ||
        (level == 0 && page_get_page_no(page) == dict_index_get_page(index)));
 
