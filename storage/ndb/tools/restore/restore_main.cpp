@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2182,48 +2182,47 @@ main(int argc, char** argv)
     exitHandler(NdbRestoreStatus::Failed);
   }
 
-  const BackupFormat::FileHeader & tmp = metaData.getFileHeader();
-  const Uint32 version = tmp.BackupVersion;
-  
-  char buf[NDB_VERSION_STRING_BUF_SZ];
-  char new_buf[NDB_VERSION_STRING_BUF_SZ];
-  info.setLevel(254);
+  {
+    const BackupFormat::FileHeader & tmp = metaData.getFileHeader();
+    const Uint32 backupFileVersion = tmp.BackupVersion;
+    const Uint32 backupNdbVersion = tmp.NdbVersion;
+    const Uint32 backupMySQLVersion = tmp.MySQLVersion;
 
-  if (version >= NDBD_RAW_LCP)
-  {
-    restoreLogger.log_info("Backup version in files: %s ndb version: %s",
-           ndbGetVersionString(version, 0,
-                               isDrop6(version) ? "-drop6" : 0,
-                               buf, sizeof(buf)),
-           ndbGetVersionString(tmp.NdbVersion, tmp.MySQLVersion, 0,
-                                buf, sizeof(buf)));
-  }
-  else
-  {
-    restoreLogger.log_info("Backup version in files: %s",
-           ndbGetVersionString(version, 0,
-                               isDrop6(version) ? "-drop6" : 0,
-                               buf, sizeof(buf)));
-  }
+    char buf[NDB_VERSION_STRING_BUF_SZ];
+    info.setLevel(254);
+    if (backupFileVersion >= NDBD_RAW_LCP)
+    {
+      restoreLogger.log_info("Backup from version : %s file format : %x",
+                             ndbGetVersionString(backupNdbVersion, backupMySQLVersion, 0,
+                                                 buf, sizeof(buf)),
+                             backupFileVersion);
+    }
+    else
+    {
+      restoreLogger.log_info("Backup file format : %x",
+                             backupFileVersion);
+    }
 
-  /**
-   * check wheater we can restore the backup (right version).
-   */
-  // in these versions there was an error in how replica info was
-  // stored on disk
-  if (version >= MAKE_VERSION(5,1,3) && version <= MAKE_VERSION(5,1,9))
-  {
-    restoreLogger.log_error("Restore program incompatible with backup versions between %s and %s"
-        ,ndbGetVersionString(MAKE_VERSION(5,1,3), 0, 0, buf, sizeof(buf))
-        ,ndbGetVersionString(MAKE_VERSION(5,1,9), 0, 0, new_buf, sizeof(new_buf))
-       );
-    exitHandler(NdbRestoreStatus::Failed);
-  }
+    /**
+     * check whether we can restore the backup (right version).
+     */
+    // in these versions there was an error in how replica info was
+    // stored on disk
+    if (backupFileVersion >= MAKE_VERSION(5,1,3) && backupFileVersion <= MAKE_VERSION(5,1,9))
+    {
+      char new_buf[NDB_VERSION_STRING_BUF_SZ];
+      restoreLogger.log_error("Restore program incompatible with backup file versions between %s and %s"
+                              ,ndbGetVersionString(MAKE_VERSION(5,1,3), 0, 0, buf, sizeof(buf))
+                              ,ndbGetVersionString(MAKE_VERSION(5,1,9), 0, 0, new_buf, sizeof(new_buf))
+                              );
+      exitHandler(NdbRestoreStatus::Failed);
+    }
 
-  if (version > NDB_VERSION)
-  {
-    restoreLogger.log_error("Restore program older than backup version. Not supported. Use new restore program");
-    exitHandler(NdbRestoreStatus::Failed);
+    if (backupFileVersion > NDB_VERSION)
+    {
+      restoreLogger.log_error("Restore program older than backup version. Not supported. Use new restore program");
+      exitHandler(NdbRestoreStatus::Failed);
+    }
   }
 
   restoreLogger.log_debug("Load content");
