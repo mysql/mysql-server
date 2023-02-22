@@ -1052,6 +1052,7 @@ NdbEventOperationImpl::receive_event()
   const Uint32* aAttrPtr = m_data_item->ptr[0].p;
   const Uint32* aAttrEndPtr = aAttrPtr + m_data_item->ptr[0].sz;
   const Uint32* aDataPtr = m_data_item->ptr[1].p;
+  const Uint32* aDataEndPtr = m_data_item->ptr[1].p + m_data_item->ptr[1].sz;
 
   DBUG_DUMP_EVENT(
       "after", (const char*)m_data_item->ptr[1].p, m_data_item->ptr[1].sz * 4);
@@ -1061,7 +1062,19 @@ NdbEventOperationImpl::receive_event()
   // copy data into the RecAttr's
   // we assume that the respective attribute lists are sorted
 
-  // first the pk's
+  // Note:
+  // - The attr data in ptr[1] section contain only the attr value.
+  //   The header section in ptr[0] contain its header.
+  // - In the ptr[2] section, the headers preceed each attr value.
+  // - The same PK-attr may be sent twice:
+  //   1. Always as part of the PK-value, extracted as first part
+  //      of ptr[1] section.
+  //   2. Optional as part of the BEFORE value as well if it changed.
+  // - Retrieved BEFORE/AFTER-PK values are first set to the *same*
+  //   value from the PK-value, then BEFORE-PK is replaced with the
+  //   PK-values in BEFORE if found.
+  //
+  // First the pk's
   {
     NdbRecAttr *tAttr= theFirstPkAttrs[0];
     NdbRecAttr *tAttr1= theFirstPkAttrs[1];
@@ -1073,7 +1086,7 @@ NdbEventOperationImpl::receive_event()
 	     AttributeHeader(*aAttrPtr).getAttributeId());
       receive_data(tAttr, aDataPtr, tDataSz);
       if (!is_insert)
-	receive_data(tAttr1, aDataPtr, tDataSz);
+        receive_data(tAttr1, aDataPtr, tDataSz);
       else
         tAttr1->setUNDEFINED(); // do not leave unspecified
       tAttr1= tAttr1->next();
@@ -1083,88 +1096,88 @@ NdbEventOperationImpl::receive_event()
       tAttr= tAttr->next();
     }
   }
-  
-  NdbRecAttr *tWorkingRecAttr = theFirstDataAttrs[0];
-  Uint32 tRecAttrId;
-  Uint32 tAttrId;
-  Uint32 tDataSz;
-  int hasSomeData= (operation != NdbDictionary::Event::_TE_UPDATE) ||
-    m_allow_empty_update;
-  while ((aAttrPtr < aAttrEndPtr) && (tWorkingRecAttr != nullptr)) {
-    tRecAttrId = tWorkingRecAttr->attrId();
-    tAttrId = AttributeHeader(*aAttrPtr).getAttributeId();
-    tDataSz = AttributeHeader(*aAttrPtr).getByteSize();
-    
-    while (tAttrId > tRecAttrId) {
-      DBUG_PRINT_EVENT("info",("undef [%u] %u 0x%x [%u] 0x%x",
-                               tAttrId, tDataSz, *aDataPtr, tRecAttrId, aDataPtr));
-      tWorkingRecAttr->setUNDEFINED();
-      tWorkingRecAttr = tWorkingRecAttr->next();
-      if (tWorkingRecAttr == nullptr)
-	break;
-      tRecAttrId = tWorkingRecAttr->attrId();
-    }
-    if (tWorkingRecAttr == nullptr)
-      break;
-    
-    if (tAttrId == tRecAttrId) {
-      hasSomeData=1;
-      
-      DBUG_PRINT_EVENT("info",("set [%u] %u 0x%x [%u] 0x%x",
-                               tAttrId, tDataSz, *aDataPtr, tRecAttrId, aDataPtr));
-      
-      receive_data(tWorkingRecAttr, aDataPtr, tDataSz);
-      tWorkingRecAttr = tWorkingRecAttr->next();
-    }
-    aAttrPtr++;
-    aDataPtr += (tDataSz + 3) >> 2;
-  }
-    
-  while (tWorkingRecAttr != nullptr) {
-    tRecAttrId = tWorkingRecAttr->attrId();
-    //printf("set undefined [%u] %u %u [%u]\n",
-    //       tAttrId, tDataSz, *aDataPtr, tRecAttrId);
-    tWorkingRecAttr->setUNDEFINED();
-    tWorkingRecAttr = tWorkingRecAttr->next();
-  }
-  
-  tWorkingRecAttr = theFirstDataAttrs[1];
-  aDataPtr = m_data_item->ptr[2].p;
-  const Uint32* aDataEndPtr = aDataPtr + m_data_item->ptr[2].sz;
-  while ((aDataPtr < aDataEndPtr) && (tWorkingRecAttr != nullptr)) {
-    tRecAttrId = tWorkingRecAttr->attrId();
-    tAttrId = AttributeHeader(*aDataPtr).getAttributeId();
-    tDataSz = AttributeHeader(*aDataPtr).getByteSize();
-    aDataPtr++;
-    while (tAttrId > tRecAttrId) {
-      tWorkingRecAttr->setUNDEFINED();
-      tWorkingRecAttr = tWorkingRecAttr->next();
-      if (tWorkingRecAttr == nullptr)
-	break;
-      tRecAttrId = tWorkingRecAttr->attrId();
-    }
-    if (tWorkingRecAttr == nullptr)
-      break;
-    if (tAttrId == tRecAttrId) {
-      assert(!m_eventImpl->m_tableImpl->getColumn(tRecAttrId)->getPrimaryKey());
-      hasSomeData=1;
-      
-      receive_data(tWorkingRecAttr, aDataPtr, tDataSz);
-      tWorkingRecAttr = tWorkingRecAttr->next();
-    }
-    aDataPtr += (tDataSz + 3) >> 2;
-  }
-  while (tWorkingRecAttr != nullptr) {
-    tWorkingRecAttr->setUNDEFINED();
-    tWorkingRecAttr = tWorkingRecAttr->next();
-  }
-  
-  if (hasSomeData)
-  {
-    DBUG_RETURN_EVENT(1);
-  }
 
-  DBUG_RETURN_EVENT(0);
+  bool hasSomeData= (operation != NdbDictionary::Event::_TE_UPDATE);
+
+  // AFTER values
+  {
+    NdbRecAttr *dataRecAttr = theFirstDataAttrs[0];
+    while ((aAttrPtr < aAttrEndPtr) && (dataRecAttr != nullptr)) {
+      Uint32 tRecAttrId = dataRecAttr->attrId();
+      const Uint32 tAttrId = AttributeHeader(*aAttrPtr).getAttributeId();
+      const Uint32 tDataSz = AttributeHeader(*aAttrPtr).getByteSize();
+      assert(!m_eventImpl->m_tableImpl->getColumn(tAttrId)->getPrimaryKey());
+
+      while (tAttrId > tRecAttrId) {
+        DBUG_PRINT_EVENT("info",("undef [%u] %u 0x%x [%u] 0x%x",
+                                tAttrId, tDataSz, *aDataPtr, tRecAttrId, aDataPtr));
+        dataRecAttr->setUNDEFINED();
+        dataRecAttr = dataRecAttr->next();
+        if (dataRecAttr == nullptr)
+          break;
+        tRecAttrId = dataRecAttr->attrId();
+      }
+      if (tAttrId == tRecAttrId) {
+        hasSomeData = true;
+        DBUG_PRINT_EVENT("info",("set [%u] %u 0x%x [%u] 0x%x",
+                                 tAttrId, tDataSz, *aDataPtr, tRecAttrId, aDataPtr));
+        receive_data(dataRecAttr, aDataPtr, tDataSz);
+        dataRecAttr = dataRecAttr->next();
+      }
+      aAttrPtr++;
+      aDataPtr += (tDataSz + 3) >> 2;
+      assert(aDataPtr <= aDataEndPtr);
+    }
+    while (dataRecAttr != nullptr) {
+      dataRecAttr->setUNDEFINED();
+      dataRecAttr = dataRecAttr->next();
+    }
+  }  // end AFTER-value
+
+  // BEFORE values, possibly with PK values as well
+  {
+    NdbRecAttr *dataRecAttr = theFirstDataAttrs[1];
+    NdbRecAttr *pkRecAttr = theFirstPkAttrs[1];
+    aDataPtr = m_data_item->ptr[2].p;
+    aDataEndPtr = aDataPtr + m_data_item->ptr[2].sz;
+    while (aDataPtr < aDataEndPtr) {
+      const Uint32 tAttrId = AttributeHeader(*aDataPtr).getAttributeId();
+      const Uint32 tDataSz = AttributeHeader(*aDataPtr).getByteSize();
+      aDataPtr++;
+
+      // recAttr is either a PK-BEFORE or a DATA-BEFORE-VALUE
+      NdbRecAttr **recAttr;
+      if (m_eventImpl->m_tableImpl->getColumn(tAttrId)->getPrimaryKey()) {
+        recAttr = &pkRecAttr;
+      } else {
+        recAttr = &dataRecAttr;
+      }
+      if ((*recAttr) != nullptr) {
+        Uint32 tRecAttrId = (*recAttr)->attrId();
+        while (tAttrId > tRecAttrId) {
+          if (!m_eventImpl->m_tableImpl->getColumn(tAttrId)->getPrimaryKey()) {
+            // PK-values already set, do not UNDEFINE
+            (*recAttr)->setUNDEFINED();
+          }
+          (*recAttr) = (*recAttr)->next();
+          if ((*recAttr) == nullptr)
+            break;
+          tRecAttrId = (*recAttr)->attrId();
+        }
+        if (tAttrId == tRecAttrId) {
+          hasSomeData = 1;
+          receive_data((*recAttr), aDataPtr, tDataSz);
+          (*recAttr) = (*recAttr)->next();
+        }
+      }
+      aDataPtr += (tDataSz + 3) >> 2;
+    }
+    while (dataRecAttr != nullptr) {
+      dataRecAttr->setUNDEFINED();
+      dataRecAttr = dataRecAttr->next();
+    }
+  }
+  DBUG_RETURN_EVENT(hasSomeData || m_allow_empty_update);
 }
 
 NdbDictionary::Event::TableEvent 

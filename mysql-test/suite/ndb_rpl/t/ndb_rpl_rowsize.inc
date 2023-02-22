@@ -55,5 +55,62 @@ SET SESSION DEBUG="-d,ndb_crash_on_drop_SUB_TABLE_DATA";
 connection master;
 DROP TABLE t;
 
+################################
+# Test case added for bug#34388068:
+#    NDB: Update to char data type columns in primay keys are lost on replica
+#
+# Changed PK values may now be included in the BEFORE trigger values as well.
+# Check that SUMA buffering is still able to handle the larger 'values'
+
+eval CREATE TABLE t (
+   pk01 CHAR(255) NOT NULL,
+   pk02 CHAR(255) NOT NULL,
+   pk03 CHAR(255) NOT NULL,
+   data VARBINARY($varsize) NOT NULL,
+   PRIMARY KEY(pk01,pk02,pk03)
+) ENGINE ndb;
+
+eval INSERT INTO t (pk01, pk02, pk03, data) VALUES ("xyz", "xyz", "xyz", REPEAT('.', $varsize));
+SELECT pk01, LENGTH(data), CRC32(data) FROM t;
+
+connection master;
+--echo Update PK's to an 'equal' 'XYZ' value which is now included in BEFORE values
+eval UPDATE t SET
+  pk01 = "XYZ", pk02 = "XYZ", pk03 = "XYZ", data = repeat(':', $varsize)
+where pk01 = "xyz";
+SELECT pk01, LENGTH(data), CRC32(data) FROM t;
+
 sync_slave_with_master;
+--echo ******* Select from Slave *************
+--echo
+SELECT pk01, LENGTH(data), CRC32(data) FROM t;
+
+connection master;
+--echo Update PK's to non-equal 'XXX' values -> Update as delete+insert
+--echo All PK values is included in BEFORE values
+eval UPDATE t SET
+  pk01 = "XXX", pk02 = "XXX", pk03 = "XXX", data = repeat(':', $varsize)
+where pk01 = "xyz";
+SELECT pk01, LENGTH(data), CRC32(data) FROM t;
+
+sync_slave_with_master;
+--echo ******* Select from Slave *************
+--echo
+SELECT pk01, LENGTH(data), CRC32(data) FROM t;
+
+connection default;
+
+DELETE FROM t;
+SELECT pk01, LENGTH(data), CRC32(data) FROM t;
+
+sync_slave_with_master;
+--echo ******* Select from Slave *************
+--echo
+SELECT pk01, LENGTH(data), CRC32(data) FROM t;
+
+connection master;
+DROP TABLE t;
+
+sync_slave_with_master;
+
 --source include/rpl_end.inc

@@ -5318,9 +5318,7 @@ NdbEventOperation *Ndb_binlog_client::create_event_op_in_NDB(
     }
 
     /* Check if user explicitly requires monitoring of empty updates */
-    if (opt_ndb_log_empty_update) {
-      op->setAllowEmptyUpdate(true);
-    }
+    op->setAllowEmptyUpdate(opt_ndb_log_empty_update);
 
     // Setup the attributes that should be subscribed.
     const TABLE *table = event_data->shadow_table;

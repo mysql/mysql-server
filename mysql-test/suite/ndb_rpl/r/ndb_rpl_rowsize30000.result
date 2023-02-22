@@ -51,4 +51,50 @@ SELECT LENGTH(pk01), CRC32(pk01), LENGTH(data), CRC32(data) FROM t;
 LENGTH(pk01)	CRC32(pk01)	LENGTH(data)	CRC32(data)
 SET SESSION DEBUG="-d,ndb_crash_on_drop_SUB_TABLE_DATA";
 DROP TABLE t;
+CREATE TABLE t (
+pk01 CHAR(255) NOT NULL,
+pk02 CHAR(255) NOT NULL,
+pk03 CHAR(255) NOT NULL,
+data VARBINARY(26924) NOT NULL,
+PRIMARY KEY(pk01,pk02,pk03)
+) ENGINE ndb;
+Warnings:
+Warning	1296	Specified key 'PRIMARY' was too long (max = 3056 bytes); statistics will not be generated
+INSERT INTO t (pk01, pk02, pk03, data) VALUES ("xyz", "xyz", "xyz", REPEAT('.', 26924));
+SELECT pk01, LENGTH(data), CRC32(data) FROM t;
+pk01	LENGTH(data)	CRC32(data)
+xyz	26924	3689915749
+Update PK's to an 'equal' 'XYZ' value which is now included in BEFORE values
+UPDATE t SET
+pk01 = "XYZ", pk02 = "XYZ", pk03 = "XYZ", data = repeat(':', 26924)
+where pk01 = "xyz";
+SELECT pk01, LENGTH(data), CRC32(data) FROM t;
+pk01	LENGTH(data)	CRC32(data)
+XYZ	26924	491613150
+******* Select from Slave *************
+
+SELECT pk01, LENGTH(data), CRC32(data) FROM t;
+pk01	LENGTH(data)	CRC32(data)
+XYZ	26924	491613150
+Update PK's to non-equal 'XXX' values -> Update as delete+insert
+All PK values is included in BEFORE values
+UPDATE t SET
+pk01 = "XXX", pk02 = "XXX", pk03 = "XXX", data = repeat(':', 26924)
+where pk01 = "xyz";
+SELECT pk01, LENGTH(data), CRC32(data) FROM t;
+pk01	LENGTH(data)	CRC32(data)
+XXX	26924	491613150
+******* Select from Slave *************
+
+SELECT pk01, LENGTH(data), CRC32(data) FROM t;
+pk01	LENGTH(data)	CRC32(data)
+XXX	26924	491613150
+DELETE FROM t;
+SELECT pk01, LENGTH(data), CRC32(data) FROM t;
+pk01	LENGTH(data)	CRC32(data)
+******* Select from Slave *************
+
+SELECT pk01, LENGTH(data), CRC32(data) FROM t;
+pk01	LENGTH(data)	CRC32(data)
+DROP TABLE t;
 include/rpl_end.inc
