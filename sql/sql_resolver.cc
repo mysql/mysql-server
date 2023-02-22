@@ -4763,7 +4763,8 @@ bool WalkAndReplace(
     THD *thd, Item *item,
     const function<ReplaceResult(Item *item, Item *parent,
                                  unsigned argument_idx)> &get_new_item) {
-  if (item->type() == Item::FUNC_ITEM || item->type() == Item::SUM_FUNC_ITEM) {
+  if (item->type() == Item::FUNC_ITEM ||
+      (item->type() == Item::SUM_FUNC_ITEM && item->m_is_window_function)) {
     Item_func *func_item = down_cast<Item_func *>(item);
     for (unsigned argument_idx = 0; argument_idx < func_item->arg_count;
          argument_idx++) {
