@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -490,8 +490,7 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   Uint32 tData;
   Uint32 tempData[ NDB_MAX_TUPLE_SIZE_IN_WORDS ];
   OperationType tOpType = theOperationType;
-  OperationStatus tStatus = theStatus;
-
+  const OperationStatus tStatus = theStatus;
 
   if ((tOpType == UpdateRequest) ||
       (tOpType == WriteRequest)) {
@@ -553,11 +552,8 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
     DBUG_RETURN(-1);
   }//if
   if (tAttrInfo->m_pk) {
-    if (theOperationType == InsertRequest) {
+    if (tOpType == InsertRequest) {
       DBUG_RETURN(equal_impl(tAttrInfo, aValuePassed));
-    } else {
-      setErrorCodeAbort(4202);
-      DBUG_RETURN(-1);
     }//if
   }//if
 
@@ -1260,14 +1256,6 @@ NdbOperation::handleOperationOptions (const OperationType type,
         {
           // Column is NULL in Get/SetValueSpec structure
           return 4295;
-        }
-
-        if (type == UpdateRequest && pcol->getPrimaryKey())
-        {
-          // It is not possible to update a primary key column.
-          // It can be set like this for insert and write (but it
-          // still needs to be included in the key NdbRecord and row).
-          return 4202;
         }
 
         if (pvalue == NULL)
