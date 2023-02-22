@@ -1236,6 +1236,8 @@ error:
   @param[out] generated_passwords A list of generated random passwords. Depends
   on LEX_USER.
   @param[out] i_mfa Interface to Multi factor authentication methods.
+  @param if_not_exists   True if this is a CREATE ... IF NOT EXISTS type of
+                         statement. Valid for CREATE USER/ROLE.
 
   @retval 0 ok
   @retval 1 ERROR;
