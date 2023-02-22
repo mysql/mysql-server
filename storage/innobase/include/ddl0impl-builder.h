@@ -41,7 +41,6 @@ namespace ddl {
 // Forward declaration.
 struct Copy_ctx;
 struct File_cursor;
-struct Merge_cursor;
 class RTree_inserter;
 
 /** For loading indexes. */
@@ -62,12 +61,6 @@ struct Builder {
     was an error during the sort phase. */
     SORT,
 
-    /** Sort rows across all the temporary files. */
-    FULL_SORT,
-
-    /** Build the btree using multiple threads */
-    BTREE_BUILD_MT,
-
     /** Build the btree. */
     BTREE_BUILD,
 
@@ -82,7 +75,6 @@ struct Builder {
 
     /** Stop on error. */
     ERROR
-
   };
 
   /** Constructor.
@@ -109,25 +101,6 @@ struct Builder {
 
   /** @return the DDL context. */
   Context &ctx() noexcept { return m_ctx; }
-
-  /** Get the number of threads.
-  @return the number of threads. */
-  [[nodiscard]] size_t get_n_threads() const noexcept {
-    return m_thread_ctxs.size();
-  }
-
-  /** Get the Btree_load object of the given thread ID.
-  @param[in]  thread_id  thread identifier.
-  @return pointer to the Btree_load object. */
-  [[nodiscard]] Btree_load *get_btree_load(size_t thread_id) const noexcept {
-    return m_btree_loads[thread_id];
-  }
-
-  /** Get the i/o buffer size used.
-  @return the i/o buffer size. */
-  size_t get_io_buffer_size() const {
-    return m_ctx.load_io_buffer_size(m_thread_ctxs.size());
-  }
 
   /** Parallel scan thread spawn failed, release the extra thread states. */
   void fallback_to_single_thread() noexcept;
@@ -164,7 +137,6 @@ struct Builder {
 
   /** Set the next state. */
   void set_next_state() noexcept;
-  void set_next_state(Builder::State state) noexcept;
 
   /** Initialize the cursor.
   @param[in,out] cursor         Cursor to initialize.
@@ -199,43 +171,9 @@ struct Builder {
   @return DB_SUCCESS or error code. */
   [[nodiscard]] dberr_t merge_sort(size_t thread_id) noexcept;
 
-  /** Sort the rows across all temporary files.  This is needed so that
-  the btree build can be done using multiple threads. Uses a single
-  Merge_cursor and is done in a single thread.  A new thread is spawned as
-  soon as one temporary file is created.
-  @return DB_SUCCESS or error code. */
-  [[nodiscard]] dberr_t full_sort() noexcept;
-
   /** Load the sorted data into the B+Tree.
-  @return DB_SUCCESS or error code. */
+  @return DB_SUCESS or error code. */
   [[nodiscard]] dberr_t btree_build() noexcept;
-
-  /** Load the sorted data into the B+Tree, using multiple threads.
-  Each thread will build a subtree, and these subtrees will be combined to
-  form the finel B-tree.
-  @return DB_SUCESS or error code. */
-  [[nodiscard]] dberr_t btree_build_mt() noexcept;
-
-  /** Load the sorted data from one file into the subtree (B+Tree),
-  using single thread.
-  @return DB_SUCESS or error code. */
-  static dberr_t btree_subtree_build(Builder *builder,
-                                     size_t thread_id) noexcept;
-#ifdef UNIV_DEBUG
-  /** Check if all keys in l_file is < all keys in r_file.
-  @return DB_SUCCESS if keys in l_file < keys in r_file. */
-  dberr_t check_keys_disjoint(const file_t &l_file, const file_t &r_file);
-
-  /** Check if the files in m_files_vec are in ascending order. All keys
-  in file m_files_vec[i] is less than all keys in file m_files_vec[j], where
-  i < j.
-  @return DB_SUCCESS if all files are in order, error code otherwise. */
-  dberr_t check_file_order();
-
-  /** Check if the given file is sorted.
-  @return DB_SUCCESS if file is sorted, error code otherwise. */
-  dberr_t check_file_is_sorted(const file_t &file);
-#endif /* UNIV_DEBUG */
 
   /** Close temporary files, Flush all dirty pages, apply the row log
   and write the redo log record.
@@ -284,6 +222,7 @@ struct Builder {
   @param[in] index              Index on which redo logging was disabled */
   static void write_redo(const dict_index_t *index) noexcept;
 
+ private:
   /** State of a cluster index reader thread. */
   struct Thread_ctx {
     /** Constructor.
@@ -295,29 +234,6 @@ struct Builder {
 
     /** Destructor. */
     ~Thread_ctx() noexcept;
-
-    /** Change the file associated to this object.
-    @param[in]   file   the file to be associated with this object. */
-    void set_file(file_t &&file) {
-      m_file = std::move(file);
-      m_n_recs = m_file.m_n_recs;
-    }
-
-    dberr_t init(dict_index_t *index) {
-      auto p = ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
-                                  index->n_fields * sizeof(dfield_t));
-
-      if (p == nullptr) {
-        return DB_OUT_OF_MEMORY;
-      }
-
-      m_prev_fields = static_cast<dfield_t *>(p);
-      return DB_SUCCESS;
-    }
-
-    /* Get the file descriptor.
-    @return the file descriptor. */
-    os_fd_t fd() { return m_file.fd(); }
 
     /** Thread ID. */
     size_t m_id{};
@@ -331,10 +247,6 @@ struct Builder {
     /** Merge file handle. */
     ddl::file_t m_file{};
 
-    /** Get the i/o buffer size used.
-    @return the i/o buffer size. */
-    size_t get_io_buffer_size() const { return m_aligned_buffer.get_size(); }
-
     /** Buffer to use for file writes. */
     Aligned_buffer m_aligned_buffer{};
 
@@ -343,38 +255,10 @@ struct Builder {
 
     /** For spatial/Rtree rows handling. */
     RTree_inserter *m_rtree_inserter{};
-
-    /** Memory heap to use while doing row format conversions. */
-    Scoped_heap m_conv_heap{};
-
-    /** Memory heap to use for storing previous record (dup check). */
-    Scoped_heap m_prev_heap{};
-
-    /** For tracking duplicates. */
-    dfield_t *m_prev_fields{};
   };
-
-  [[nodiscard]] Builder::Thread_ctx *get_thread_ctx(
-      size_t thread_id) const noexcept {
-    return m_thread_ctxs[thread_id];
-  }
 
   using Allocator = ut::allocator<Thread_ctx *>;
   using Thread_ctxs = std::vector<Thread_ctx *, Allocator>;
-  using Btree_loads = std::vector<Btree_load *, ut::allocator<Btree_load *>>;
-
-  /** Write rows to a temporary file. */
-  static dberr_t sorted_file_joiner(Builder *builder, Thread_ctx *ctx1,
-                                    Thread_ctx *ctx2);
-
-  /** Split the sorted data from the merge cursor into different files.
-  Number of files created will be equal to the number of threads used to
-  read the data.
-  @param[in]    builder  the index builder
-  @param[in]    cursor  merge cursor combining data from multiple
-  individually sorted data.
-  @return DB_SUCCESS or error code. */
-  static dberr_t split_data_into_files(Builder *builder, Merge_cursor &cursor);
 
   /** Create the tasks to merge Sort the file before we load the file into
   the Btree index.
@@ -496,16 +380,11 @@ struct Builder {
   @return DB_SUCCESS or error code. */
   dberr_t insert_direct(Cursor &cursor, size_t thread_id) noexcept;
 
-  /** Merge the subtrees.  */
-  dberr_t merge_subtrees() noexcept;
-
- public:
   /** Create the merge file, if needed.
   @param[in,out] file           File handle.
   @return true if file was opened successfully . */
   [[nodiscard]] bool create_file(ddl::file_t &file) noexcept;
 
- private:
   /** Check for duplicates in the first block
   @param[in] dupcheck           Files to check for duplicates.
   @param[in,out] dup            For collecting duplicate key information.
@@ -535,6 +414,9 @@ struct Builder {
   /** Per thread context. */
   Thread_ctxs m_thread_ctxs{};
 
+  /** For tracking duplicates. */
+  dfield_t *m_prev_fields{};
+
   /** For collecting duplicate entries (error reporting). */
   Dup m_clust_dup{};
 
@@ -550,93 +432,13 @@ struct Builder {
   /** Number of active sort tasks. */
   std::atomic<size_t> m_n_sort_tasks{};
 
+  /** Cluster index bulk load instance to use, direct insert without
+  a file sort. */
+  Btree_load *m_btr_load{};
+
   /** Stage per builder. */
   Alter_stage *m_local_stage{};
-
- public:
-  /** Get the trx id.
-  @return trx id. */
-  trx_id_t get_trx_id() const { return m_ctx.get_trx_id(); }
-  trx_t *trx() const { return m_ctx.trx(); }
-
-  /** Get the flush observer object.
-  @return the flush observer object. */
-  Flush_observer *get_observer() const { return m_ctx.flush_observer(); }
-
-  /** Cluster index bulk load instances to use, direct insert without
-  a file sort. */
-  Btree_loads m_btree_loads{};
-
-  /** Build threads used to build subtrees. */
-  std::vector<std::thread> m_build_threads;
-
-  using Files_t = std::vector<file_t, ut::allocator<file_t>>;
-  /* Files containing sorted data.  These are input to build subtrees.
-  All keys in m_files_vec[0] <= m_files_vec[1] ... and so on. */
-  Files_t m_files_vec;
-
-  /** Were subtrees built using multiple threads. */
-  bool m_is_subtree{false};
-
-  /** Total number of pages allocated by all Btree_loads of this Builder
-  object. */
-  size_t n_pages_allocated{};
 };
-
-inline void Builder::set_next_state(Builder::State state) noexcept {
-  ut_ad(m_state.load() < state);
-  set_state(state);
-}
-
-inline std::ostream &operator<<(std::ostream &out,
-                                const ddl::Builder::State &value) {
-  switch (value) {
-    case Builder::State::SETUP_SORT:
-      out << "SETUP_SORT";
-      break;
-
-    case Builder::State::SORT:
-      out << "SORT";
-      break;
-
-    case Builder::State::FULL_SORT:
-      out << "FULL_SORT";
-      break;
-
-    case Builder::State::BTREE_BUILD_MT:
-      out << "BTREE_BUILD_MT";
-      break;
-
-    case Builder::State::BTREE_BUILD:
-      out << "BTREE_BUILD";
-      break;
-
-    case Builder::State::FTS_SORT_AND_BUILD:
-      out << "FTS_SORT_AND_BUILD";
-      break;
-
-    case Builder::State::FINISH:
-      out << "FINISH";
-      break;
-
-    case Builder::State::ERROR:
-      out << "ERROR";
-      break;
-
-    case Builder::State::ADD:
-      out << "ADD";
-      break;
-
-    case Builder::State::INIT:
-      out << "INIT";
-      break;
-
-    case Builder::State::STOP:
-      out << "STOP";
-      break;
-  }
-  return out;
-}
 
 struct Load_cursor : Btree_load::Cursor {
   /** Default constructor. */
@@ -731,11 +533,7 @@ struct Merge_cursor : public Load_cursor {
     return m_cursors.size();
   }
 
-  /** Get the maximum amount of data (in bytes)
-  @return the maximum amount of data in bytes. */
-  [[nodiscard]] size_t get_max_data_size() const noexcept;
-
- public:
+ private:
   /** @return the current cursor at the head of the queue. */
   [[nodiscard]] File_cursor *pop() noexcept;
 
@@ -785,9 +583,5 @@ struct Merge_cursor : public Load_cursor {
 };
 
 }  // namespace ddl
-
-#ifdef UNIV_DEBUG
-void set_bulk_load_split_mode(size_t split_mode);
-#endif /* UNIV_DEBUG */
 
 #endif /* !ddl0impl_builder_h */

@@ -42,7 +42,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <current_thd.h>
 #include <sql_thd_internal_api.h>
 
-#include <scope_guard.h>
 #include "btr0sea.h"
 #include "dict0dd.h"
 #include "dict0mem.h"
@@ -234,9 +233,6 @@ std::ostream &DDL_Record::print(std::ostream &out) const {
       break;
     case Log_Type::ALTER_UNENCRYPT_TABLESPACE_LOG:
       out << "ALTER UNENCRYPT TABLESPACE";
-      break;
-    case Log_Type::LOAD_BULK_LOG:
-      out << "LOAD BULK";
       break;
     default:
       ut_d(ut_error);
@@ -463,7 +459,6 @@ void DDL_Log_Table::create_tuple(ulint id, const dict_index_t *index) {
 }
 
 dberr_t DDL_Log_Table::insert(const DDL_Record &record) {
-  ut_ad(record.validate());
   dberr_t error;
   dict_index_t *index = m_table->first_index();
   dtuple_t *entry;
@@ -852,66 +847,6 @@ inline bool Log_DDL::skip(const dict_table_t *table, THD *thd) {
   return (recv_recovery_on || thread_local_ddl_log_replay ||
           (table != nullptr && table->is_temporary()) ||
           thd_is_bootstrap_thread(thd));
-}
-
-dberr_t Log_DDL::write_load_bulk_log(trx_t *trx, const dict_table_t *table) {
-  dberr_t err{DB_SUCCESS};
-  ut_ad(trx == thd_to_trx(current_thd));
-
-  if (skip(table, trx->mysql_thd)) {
-    return (DB_SUCCESS);
-  }
-  uint64_t id = next_id();
-  ulint thread_id = thd_get_thread_id(trx->mysql_thd);
-  trx->ddl_operation = true;
-  const dict_index_t *index = table->first_index();
-
-  {
-    trx_t *ins_trx = trx_allocate_for_background();
-    auto guard =
-        create_scope_guard([ins_trx]() { trx_free_for_background(ins_trx); });
-    trx_start_internal(ins_trx, UT_LOCATION_HERE);
-    ins_trx->ddl_operation = true;
-    err = insert_load_bulk_log(ins_trx, id, thread_id, table->space, index->id,
-                               index->page);
-    if (err != DB_SUCCESS) {
-      trx_rollback_for_mysql(ins_trx);
-      return err;
-    }
-    trx_commit_for_mysql(ins_trx);
-  }
-
-  err = delete_by_id(trx, id, false);
-  ut_ad(err == DB_SUCCESS || err == DB_TOO_MANY_CONCURRENT_TRXS);
-  return err;
-}
-
-dberr_t Log_DDL::insert_load_bulk_log(trx_t *trx, uint64_t id, ulint thread_id,
-                                      space_id_t space_id,
-                                      space_index_t index_id,
-                                      page_no_t root_page_no) {
-  ut_ad(trx != nullptr);
-  ut_ad(trx->ddl_operation);
-
-  dberr_t err;
-  DDL_Record record;
-  record.set_id(id);
-  record.set_thread_id(thread_id);
-  record.set_type(Log_Type::LOAD_BULK_LOG);
-  record.set_space_id(space_id);
-  record.set_index_id(index_id);
-  record.set_page_no(root_page_no);
-
-  {
-    DDL_Log_Table ddl_log(trx);
-    err = ddl_log.insert(record);
-  }
-
-  if (err == DB_SUCCESS && srv_print_ddl_logs) {
-    ib::info(ER_IB_MSG_647) << "DDL log insert : " << record;
-  }
-
-  return err;
 }
 
 dberr_t Log_DDL::write_free_tree_log(trx_t *trx, const dict_index_t *index,
@@ -1645,11 +1580,6 @@ dberr_t Log_DDL::replay(DDL_Record &record) {
   }
 
   switch (record.get_type()) {
-    case Log_Type::LOAD_BULK_LOG:
-      replay_load_bulk_log(record.get_space_id(), record.get_index_id(),
-                           record.get_page_no());
-      break;
-
     case Log_Type::FREE_TREE_LOG:
       replay_free_tree_log(record.get_space_id(), record.get_page_no(),
                            record.get_index_id());
@@ -1689,73 +1619,6 @@ dberr_t Log_DDL::replay(DDL_Record &record) {
   }
 
   return (err);
-}
-
-void Log_DDL::replay_load_bulk_log(space_id_t space_id, space_index_t index_id,
-                                   page_no_t root) {
-  ut_ad(space_id != SPACE_UNKNOWN);
-  ut_ad(!fsp_is_undo_tablespace(space_id));
-
-  /* Check if the tablespace exists. */
-  bool found;
-  const page_size_t page_size(fil_space_get_page_size(space_id, &found));
-
-  /* Skip if tablespace is missing */
-  if (!found) {
-    if (srv_print_ddl_logs) {
-      ib::info(ER_IB_MSG_655) << "DDL log replay: LOAD BULK tablespace "
-                              << space_id << " is missing.";
-    }
-    return;
-  }
-
-  fil_space_t *space = fil_space_acquire(space_id);
-
-  if (space == nullptr) {
-    return;
-  }
-  fil_node_t &node = space->files.front();
-  auto guard = create_scope_guard([space]() { fil_space_release(space); });
-  const page_id_t root_page_id(space_id, root);
-
-  mtr_t mtr;
-  mtr_start(&mtr);
-  buf_block_t *old =
-      buf_page_get(root_page_id, page_size, RW_S_LATCH, UT_LOCATION_HERE, &mtr);
-  ut_a(old != nullptr);
-  const bool is_compact = old->is_compact();
-  mtr_commit(&mtr);
-
-  const trx_t *trx{};
-  buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_FLUSH_WRITE, trx);
-  buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, trx);
-
-  ut_a(node.n_pending_ios == 0);
-  const char *filename = node.name;
-  os_offset_t file_size = page_size.physical() * FIL_IBD_FILE_INITIAL_SIZE;
-  os_file_truncate(filename, node.handle, file_size);
-  node.size = FIL_IBD_FILE_INITIAL_SIZE;
-  space->size = FIL_IBD_FILE_INITIAL_SIZE;
-
-  mtr_start(&mtr);
-  fsp_header_init(space_id, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
-  mtr_commit(&mtr);
-
-  auto err = btr_sdi_create_index(space_id, false);
-  ut_a(err == DB_SUCCESS);
-
-  mtr_start(&mtr);
-  auto block = fseg_create(space_id, 0, PAGE_HEADER + PAGE_BTR_SEG_TOP, &mtr);
-  fseg_create(space_id, block->page.id.page_no(),
-              PAGE_HEADER + PAGE_BTR_SEG_LEAF, &mtr);
-  ut_a(block->page.id == root_page_id);
-  auto page = buf_block_get_frame(block);
-  page_create(block, &mtr, is_compact, FIL_PAGE_INDEX);
-  btr_page_set_level(page, nullptr, 0, &mtr);
-  btr_page_set_index_id(page, nullptr, index_id, &mtr);
-  btr_page_set_next(page, nullptr, FIL_NULL, &mtr);
-  btr_page_set_prev(page, nullptr, FIL_NULL, &mtr);
-  mtr_commit(&mtr);
 }
 
 void Log_DDL::replay_free_tree_log(space_id_t space_id, page_no_t page_no,

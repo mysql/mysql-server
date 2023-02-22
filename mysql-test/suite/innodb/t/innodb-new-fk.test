@@ -2,10 +2,6 @@
 --source include/have_debug_sync.inc
 --source include/have_innodb_max_16k.inc
 
---disable_query_log
-call mtr.add_suppression(".InnoDB. Compare_key: table=.*, index=.*");
---enable_query_log
-
 --enable_connect_log
 
 --echo #

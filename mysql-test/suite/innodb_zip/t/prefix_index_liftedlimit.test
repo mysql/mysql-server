@@ -13,9 +13,6 @@
 #                                                                    #
 ######################################################################
 
---disable_query_log
-call mtr.add_suppression(".InnoDB. Compare_key: table=.*, index=.*");
---enable_query_log
 
 # Save innodb variables
 --disable_query_log

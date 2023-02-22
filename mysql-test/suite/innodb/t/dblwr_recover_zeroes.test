@@ -34,6 +34,7 @@ SET GLOBAL innodb_checkpoint_disabled=1;
 START TRANSACTION;
 INSERT INTO t1 VALUES(6, repeat('.',12));
 
+SET SESSION innodb_interpreter = 'init';
 SET SESSION innodb_interpreter = 'open_table test/t1';
 
 --echo # Identify the space_id of the given table.

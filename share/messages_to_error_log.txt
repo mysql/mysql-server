@@ -11950,7 +11950,7 @@ ER_IB_MSG_INVALID_PAGE_TYPE
   eng "Found page type mismatch. Expected %u, found %u, in page: space_id=%lu page_no= %lu"
 
 ER_IB_PARALLEL_READER_WORKER_INFO
-  eng "preader: thread_id=%zu, n_threads=%zu, n_ctx=%zu, one_range_per_thread=%s, n_index=%zu, index_list=%s, err=%zu"
+  eng "preader: space_id=%zu, table=%s, index=%s, scan_ctx=%zu, ctx=%zu, thread_id=%zu, n_threads=%zu"
 
 ER_IB_BULK_LOAD_SUBTREE_INFO
   eng "bulkload: space_id=%zu, table=%s, index=%s, height=%zu, n_extents=%zu, n_pages=%zu"

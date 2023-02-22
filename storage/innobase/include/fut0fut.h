@@ -39,24 +39,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mtr0mtr.h"
 
 #ifndef UNIV_HOTBACKUP
-class Btree_load;
-
 /** Gets a pointer to a file address and latches the page.
 @param[in]      space           Space id
 @param[in]      page_size       Page size
 @param[in]      addr            File address
 @param[in]      rw_latch        RW_S_LATCH, RW_X_LATCH, RW_SX_LATCH
-@param[in,out]  mtr             Mini-transaction
 @param[out]     ptr_block       File page
-@param[in]      btree_load      bulk load context object.
+@param[in,out]  mtr             Mini-transaction
 @return pointer to a byte in (*ptr_block)->frame; the *ptr_block is
 bufferfixed and latched */
-[[nodiscard]] byte *fut_get_ptr(space_id_t space, const page_size_t &page_size,
-                                fil_addr_t addr, rw_lock_type_t rw_latch,
-                                mtr_t *mtr, buf_block_t **ptr_block = nullptr,
-                                const Btree_load *btree_load = nullptr);
+[[nodiscard]] static inline byte *fut_get_ptr(
+    space_id_t space, const page_size_t &page_size, fil_addr_t addr,
+    rw_lock_type_t rw_latch, mtr_t *mtr, buf_block_t **ptr_block = nullptr);
 
-// #include "fut0fut.ic"
+#include "fut0fut.ic"
 #endif /* !UNIV_HOTBACKUP */
 
 #endif /* fut0fut_h */

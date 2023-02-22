@@ -64,78 +64,15 @@ using Merge_offsets = std::deque<os_offset_t, ut::allocator<os_offset_t>>;
 
 /** Information about temporary files used in merge sort */
 struct file_t {
-  /* Default constructor. */
-  file_t() : file_t(OS_FD_CLOSED, 0, 0) {}
+  /** File. */
+  Unique_os_file_descriptor m_file;
 
-  /* Constructor. */
-  file_t(os_fd_t fd, os_offset_t size, uint64_t n_recs)
-      : m_fd(fd), m_size(size), m_n_recs(n_recs) {}
-
-  /** Reset the members of this object.  The underlying file need not be
-  closed.  This object doesn't track the underlying file anymore. */
-  void reset();
-
-  /** Swap the file descriptor.
-  @param[in,out]  fd  file descriptor to be swapped. */
-  void swap(os_fd_t &fd) { std::swap(m_fd, fd); }
-
-  /** Check if the file is closed.
-  @return true if closed, false otherwise. */
-  bool is_closed() const { return m_fd == OS_FD_CLOSED; }
-
-  /** Check if the file is closed.
-  @return true if closed, false otherwise. */
-  bool is_open() const { return m_fd != OS_FD_CLOSED; }
-
-  /** Print this object.
-  @param[in]  out  output stream into which object will be printed.
-  @return output stream into which object was printed. */
-  inline std::ostream &print(std::ostream &out) const;
-
-  /** Close the file. */
-  inline void close();
-
-  /** Get the file descriptor.
-  @return the file descriptor. */
-  os_fd_t fd() const { return m_fd; }
-
-  /** Set the file descriptor. */
-  void set_fd(os_fd_t fd) { m_fd = fd; }
-
- private:
-  /** File descriptor. */
-  os_fd_t m_fd{OS_FD_CLOSED};
-
- public:
   /** Size of the file in bytes. */
-  os_offset_t m_size{};
+  os_offset_t m_size;
 
   /** Number of records in the file */
   uint64_t m_n_recs{};
 };
-
-void file_t::close() {
-  if (m_fd != OS_FD_CLOSED) {
-    ddl::file_destroy_low(m_fd);
-    m_fd = OS_FD_CLOSED;
-  }
-}
-
-std::ostream &file_t::print(std::ostream &out) const {
-  out << "[file_t: m_fd=" << m_fd << ", m_size=" << m_size
-      << ", m_n_recs=" << m_n_recs << "]";
-  return out;
-}
-
-inline void file_t::reset() {
-  m_fd = OS_FD_CLOSED;
-  m_size = 0;
-  m_n_recs = 0;
-}
-
-inline std::ostream &operator<<(std::ostream &out, const file_t &obj) {
-  return obj.print(out);
-}
 
 /** Fetch the document ID from the table. */
 struct Fetch_sequence : public Context::FTS::Sequence {
@@ -179,15 +116,21 @@ struct Fetch_sequence : public Context::FTS::Sequence {
   doc_id_t m_max_doc_id{};
 };
 
-/** Physical row context.  This is a wrapper class for a clustered index
-record.  It can be used to build a record for a given index. */
+/** Physical row context. */
 struct Row {
-  /** Build a row for the given index using the available clustered index
-  record (member m_rec).
+  /** Constructor. */
+  Row() = default;
+
+  Row(const Row &) = default;
+
+  /** Destructor. */
+  ~Row() = default;
+
+  /** Build a row from a raw record.
   @param[in,out] ctx            DDL context.
-  @param[in,out] index          Build record for this index.
+  @param[in,out] index          Index the record belongs to.
   @param[in,out] heap           Heap to use for allocation.
-  @param[in] type               Either of ROW_COPY_DATA or ROW_COPY_POINTERS.
+  @param[in] type               Copy pointers or copy data.
   @return DB_SUCCESS or error code. */
   [[nodiscard]] dberr_t build(ddl::Context &ctx, dict_index_t *index,
                               mem_heap_t *heap, size_t type) noexcept;
@@ -198,11 +141,10 @@ struct Row {
   /** Column offsets. */
   ulint *m_offsets{};
 
-  /** Clustered index record. */
+  /** Row data. */
   const rec_t *m_rec{};
 
-  /** DTuple data, mapped over m_rec. This is populated by build() member
-  function. */
+  /** DTuple data, mapped over m_rec. */
   const dtuple_t *m_ptr{};
 
   /** Add column data values. */

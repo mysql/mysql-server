@@ -201,8 +201,6 @@ enum dberr_t {
   DB_AUTOINC_READ_ERROR,
   /** Failed to read as read was beyond file size. */
   DB_FILE_READ_BEYOND_SIZE,
-  /** Data is not in sorted order. */
-  DB_DATA_NOT_SORTED,
 
   /* The following are partial failure codes */
 
