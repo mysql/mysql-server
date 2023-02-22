@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1641,6 +1641,8 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
   Uint32 dynamic_count= 0;
   regTabPtr->blobAttributeMask.clear();
   regTabPtr->notNullAttributeMask.clear();
+  regTabPtr->allPkAttributeMask.clear();
+  regTabPtr->nonCharPkAttributeMask.clear();
   for (Uint32 i = 0; i < NO_DYNAMICS; ++i)
   {
     bzero(regTabPtr->dynVarSizeMask[i], dyn_null_words[i]<<2);
@@ -1665,10 +1667,20 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
       jam();
       regTabPtr->blobAttributeMask.set(i);
     }
-    if(!AttributeDescriptor::getNullable(attrDescriptor))
+    if (!AttributeDescriptor::getNullable(attrDescriptor))
     {
       jam();
       regTabPtr->notNullAttributeMask.set(i);
+    }
+    if (AttributeDescriptor::getPrimaryKey(attrDescriptor))
+    {
+      jam();
+      regTabPtr->allPkAttributeMask.set(i);
+      if (!AttributeOffset::getCharsetFlag(attrDes2))
+      {
+        jam();
+        regTabPtr->nonCharPkAttributeMask.set(i);
+      }
     }
     if (!AttributeDescriptor::getDynamic(attrDescriptor))
     {

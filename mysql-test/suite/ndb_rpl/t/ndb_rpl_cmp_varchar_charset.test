@@ -1,0 +1,65 @@
+
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--connection master
+
+--echo ##########################################
+--echo # bug#34388068 NDB:Update to char data type columns in
+--echo #              primay keys are lost on replica.
+
+###############################
+## Test all different combinations of ndb_log_update*
+## Change to primary key char columns should be correctly
+## replicated independent of these settings
+
+set global ndb_log_updated_only=0;
+set global ndb_log_update_as_write=0;
+set global ndb_log_update_minimal=0;
+--source ndb_rpl_cmp_varchar_charset.inc
+
+set global ndb_log_updated_only=1;
+set global ndb_log_update_as_write=0;
+set global ndb_log_update_minimal=0;
+--source ndb_rpl_cmp_varchar_charset.inc
+
+set global ndb_log_updated_only=0;
+set global ndb_log_update_as_write=1;
+set global ndb_log_update_minimal=0;
+--source ndb_rpl_cmp_varchar_charset.inc
+
+set global ndb_log_updated_only=1;
+set global ndb_log_update_as_write=1;
+set global ndb_log_update_minimal=0;
+--source ndb_rpl_cmp_varchar_charset.inc
+
+set global ndb_log_updated_only=0;
+set global ndb_log_update_as_write=1;
+set global ndb_log_update_minimal=1;
+--source ndb_rpl_cmp_varchar_charset.inc
+
+set global ndb_log_updated_only=1;
+set global ndb_log_update_as_write=1;
+set global ndb_log_update_minimal=1;
+--source ndb_rpl_cmp_varchar_charset.inc
+
+--echo ############################################################
+--echo The two test cases below currently *fails* to replicate the
+--echo changes due to Bug#35450016. The incorrect result is recorded.
+set global ndb_log_updated_only=0;
+set global ndb_log_update_as_write=0;
+set global ndb_log_update_minimal=1;
+--source ndb_rpl_cmp_varchar_charset.inc
+
+set global ndb_log_updated_only=1;
+set global ndb_log_update_as_write=0;
+set global ndb_log_update_minimal=1;
+--source ndb_rpl_cmp_varchar_charset.inc
+
+## Reset to default
+set global ndb_log_updated_only=default;
+set global ndb_log_update_as_write=default;
+set global ndb_log_update_minimal=default;
+
+--source include/rpl_end.inc

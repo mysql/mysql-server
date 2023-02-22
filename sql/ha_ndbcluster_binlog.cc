@@ -5423,8 +5423,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     share->op= op; // assign op in NDB_SHARE
 
     /* Check if user explicitly requires monitoring of empty updates */
-    if (opt_ndb_log_empty_update)
-      op->setAllowEmptyUpdate(true);
+    op->setAllowEmptyUpdate(opt_ndb_log_empty_update);
 
     if (op->execute())
     {

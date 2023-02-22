@@ -1,0 +1,695 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+##########################################
+# bug#34388068 NDB:Update to char data type columns in
+#              primay keys are lost on replica.
+set global ndb_log_updated_only=0;
+set global ndb_log_update_as_write=0;
+set global ndb_log_update_minimal=0;
+
+
+#####################################
+show variables like 'ndb_log_update_%';
+Variable_name	Value
+ndb_log_update_as_write	OFF
+ndb_log_update_minimal	OFF
+ndb_log_updated_only	OFF
+#####################################
+############## Varchar ##############
+create table t1(str varchar(32) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+#########################################
+############## Longvarchar ##############
+create table t1(str varchar(512) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+#####################################
+############ Varbinary ##############
+create table t1(str varbinary(32) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+##########################################################
+# Lower and upper case are compared as equal.
+# Binary representation are unequal though, and update
+# Need to be propogated to replica even when the 'after' images
+# are 'compared-equal'.
+# Tests inserts 'xyz', then update it to 'XYZ'.
+# Check that rows are updated on replica as well.
+
+#####################################
+############## Varchar ##############
+create table t1(str varchar(32) primary key) engine = ndb;
+Insert 'xyz', then update varchar(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated varchar(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+##################################
+############## Char ##############
+create table t1(str char(32) primary key) engine = ndb;
+Insert 'xyz', then update char(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated char(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+##################################
+############ Varbinary ###########
+create table t1(str varbinary(32) primary key) engine = ndb;
+Insert 'xyz', then update varbinary(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated varbinary(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+set global ndb_log_updated_only=1;
+set global ndb_log_update_as_write=0;
+set global ndb_log_update_minimal=0;
+
+
+#####################################
+show variables like 'ndb_log_update_%';
+Variable_name	Value
+ndb_log_update_as_write	OFF
+ndb_log_update_minimal	OFF
+ndb_log_updated_only	ON
+#####################################
+############## Varchar ##############
+create table t1(str varchar(32) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+#########################################
+############## Longvarchar ##############
+create table t1(str varchar(512) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+#####################################
+############ Varbinary ##############
+create table t1(str varbinary(32) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+##########################################################
+# Lower and upper case are compared as equal.
+# Binary representation are unequal though, and update
+# Need to be propogated to replica even when the 'after' images
+# are 'compared-equal'.
+# Tests inserts 'xyz', then update it to 'XYZ'.
+# Check that rows are updated on replica as well.
+
+#####################################
+############## Varchar ##############
+create table t1(str varchar(32) primary key) engine = ndb;
+Insert 'xyz', then update varchar(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated varchar(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+##################################
+############## Char ##############
+create table t1(str char(32) primary key) engine = ndb;
+Insert 'xyz', then update char(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated char(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+##################################
+############ Varbinary ###########
+create table t1(str varbinary(32) primary key) engine = ndb;
+Insert 'xyz', then update varbinary(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated varbinary(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+set global ndb_log_updated_only=0;
+set global ndb_log_update_as_write=1;
+set global ndb_log_update_minimal=0;
+
+
+#####################################
+show variables like 'ndb_log_update_%';
+Variable_name	Value
+ndb_log_update_as_write	ON
+ndb_log_update_minimal	OFF
+ndb_log_updated_only	OFF
+#####################################
+############## Varchar ##############
+create table t1(str varchar(32) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+#########################################
+############## Longvarchar ##############
+create table t1(str varchar(512) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+#####################################
+############ Varbinary ##############
+create table t1(str varbinary(32) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+##########################################################
+# Lower and upper case are compared as equal.
+# Binary representation are unequal though, and update
+# Need to be propogated to replica even when the 'after' images
+# are 'compared-equal'.
+# Tests inserts 'xyz', then update it to 'XYZ'.
+# Check that rows are updated on replica as well.
+
+#####################################
+############## Varchar ##############
+create table t1(str varchar(32) primary key) engine = ndb;
+Insert 'xyz', then update varchar(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated varchar(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+##################################
+############## Char ##############
+create table t1(str char(32) primary key) engine = ndb;
+Insert 'xyz', then update char(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated char(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+##################################
+############ Varbinary ###########
+create table t1(str varbinary(32) primary key) engine = ndb;
+Insert 'xyz', then update varbinary(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated varbinary(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+set global ndb_log_updated_only=1;
+set global ndb_log_update_as_write=1;
+set global ndb_log_update_minimal=0;
+
+
+#####################################
+show variables like 'ndb_log_update_%';
+Variable_name	Value
+ndb_log_update_as_write	ON
+ndb_log_update_minimal	OFF
+ndb_log_updated_only	ON
+#####################################
+############## Varchar ##############
+create table t1(str varchar(32) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+#########################################
+############## Longvarchar ##############
+create table t1(str varchar(512) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+#####################################
+############ Varbinary ##############
+create table t1(str varbinary(32) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+##########################################################
+# Lower and upper case are compared as equal.
+# Binary representation are unequal though, and update
+# Need to be propogated to replica even when the 'after' images
+# are 'compared-equal'.
+# Tests inserts 'xyz', then update it to 'XYZ'.
+# Check that rows are updated on replica as well.
+
+#####################################
+############## Varchar ##############
+create table t1(str varchar(32) primary key) engine = ndb;
+Insert 'xyz', then update varchar(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated varchar(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+##################################
+############## Char ##############
+create table t1(str char(32) primary key) engine = ndb;
+Insert 'xyz', then update char(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated char(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+##################################
+############ Varbinary ###########
+create table t1(str varbinary(32) primary key) engine = ndb;
+Insert 'xyz', then update varbinary(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated varbinary(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+set global ndb_log_updated_only=0;
+set global ndb_log_update_as_write=1;
+set global ndb_log_update_minimal=1;
+
+
+#####################################
+show variables like 'ndb_log_update_%';
+Variable_name	Value
+ndb_log_update_as_write	ON
+ndb_log_update_minimal	ON
+ndb_log_updated_only	OFF
+#####################################
+############## Varchar ##############
+create table t1(str varchar(32) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+#########################################
+############## Longvarchar ##############
+create table t1(str varchar(512) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+#####################################
+############ Varbinary ##############
+create table t1(str varbinary(32) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+##########################################################
+# Lower and upper case are compared as equal.
+# Binary representation are unequal though, and update
+# Need to be propogated to replica even when the 'after' images
+# are 'compared-equal'.
+# Tests inserts 'xyz', then update it to 'XYZ'.
+# Check that rows are updated on replica as well.
+
+#####################################
+############## Varchar ##############
+create table t1(str varchar(32) primary key) engine = ndb;
+Insert 'xyz', then update varchar(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated varchar(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+##################################
+############## Char ##############
+create table t1(str char(32) primary key) engine = ndb;
+Insert 'xyz', then update char(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated char(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+##################################
+############ Varbinary ###########
+create table t1(str varbinary(32) primary key) engine = ndb;
+Insert 'xyz', then update varbinary(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated varbinary(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+set global ndb_log_updated_only=1;
+set global ndb_log_update_as_write=1;
+set global ndb_log_update_minimal=1;
+
+
+#####################################
+show variables like 'ndb_log_update_%';
+Variable_name	Value
+ndb_log_update_as_write	ON
+ndb_log_update_minimal	ON
+ndb_log_updated_only	ON
+#####################################
+############## Varchar ##############
+create table t1(str varchar(32) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+#########################################
+############## Longvarchar ##############
+create table t1(str varchar(512) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+#####################################
+############ Varbinary ##############
+create table t1(str varbinary(32) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+##########################################################
+# Lower and upper case are compared as equal.
+# Binary representation are unequal though, and update
+# Need to be propogated to replica even when the 'after' images
+# are 'compared-equal'.
+# Tests inserts 'xyz', then update it to 'XYZ'.
+# Check that rows are updated on replica as well.
+
+#####################################
+############## Varchar ##############
+create table t1(str varchar(32) primary key) engine = ndb;
+Insert 'xyz', then update varchar(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated varchar(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+##################################
+############## Char ##############
+create table t1(str char(32) primary key) engine = ndb;
+Insert 'xyz', then update char(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated char(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+##################################
+############ Varbinary ###########
+create table t1(str varbinary(32) primary key) engine = ndb;
+Insert 'xyz', then update varbinary(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated varbinary(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+############################################################
+The two test cases below currently *fails* to replicate the
+changes due to Bug#35450016. The incorrect result is recorded.
+set global ndb_log_updated_only=0;
+set global ndb_log_update_as_write=0;
+set global ndb_log_update_minimal=1;
+
+
+#####################################
+show variables like 'ndb_log_update_%';
+Variable_name	Value
+ndb_log_update_as_write	OFF
+ndb_log_update_minimal	ON
+ndb_log_updated_only	OFF
+#####################################
+############## Varchar ##############
+create table t1(str varchar(32) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one        >>>
+drop table t1;
+#########################################
+############## Longvarchar ##############
+create table t1(str varchar(512) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one        >>>
+drop table t1;
+#####################################
+############ Varbinary ##############
+create table t1(str varbinary(32) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+##########################################################
+# Lower and upper case are compared as equal.
+# Binary representation are unequal though, and update
+# Need to be propogated to replica even when the 'after' images
+# are 'compared-equal'.
+# Tests inserts 'xyz', then update it to 'XYZ'.
+# Check that rows are updated on replica as well.
+
+#####################################
+############## Varchar ##############
+create table t1(str varchar(32) primary key) engine = ndb;
+Insert 'xyz', then update varchar(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated varchar(32) to 'XYZ' as well
+select str from t1;
+str
+xyz
+drop table t1;
+##################################
+############## Char ##############
+create table t1(str char(32) primary key) engine = ndb;
+Insert 'xyz', then update char(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated char(32) to 'XYZ' as well
+select str from t1;
+str
+xyz
+drop table t1;
+##################################
+############ Varbinary ###########
+create table t1(str varbinary(32) primary key) engine = ndb;
+Insert 'xyz', then update varbinary(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated varbinary(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+set global ndb_log_updated_only=1;
+set global ndb_log_update_as_write=0;
+set global ndb_log_update_minimal=1;
+
+
+#####################################
+show variables like 'ndb_log_update_%';
+Variable_name	Value
+ndb_log_update_as_write	OFF
+ndb_log_update_minimal	ON
+ndb_log_updated_only	ON
+#####################################
+############## Varchar ##############
+create table t1(str varchar(32) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one        >>>
+drop table t1;
+#########################################
+############## Longvarchar ##############
+create table t1(str varchar(512) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one        >>>
+drop table t1;
+#####################################
+############ Varbinary ##############
+create table t1(str varbinary(32) primary key) engine = ndb;
+Insert space padded row, then update it to non-padded
+insert into t1(str) values ("one        ");
+update t1 set str="one";
+Verify the replica update, no trailing spaces anymore!
+select concat("<<<",str,">>>") from t1;
+concat("<<<",str,">>>")
+<<<one>>>
+drop table t1;
+##########################################################
+# Lower and upper case are compared as equal.
+# Binary representation are unequal though, and update
+# Need to be propogated to replica even when the 'after' images
+# are 'compared-equal'.
+# Tests inserts 'xyz', then update it to 'XYZ'.
+# Check that rows are updated on replica as well.
+
+#####################################
+############## Varchar ##############
+create table t1(str varchar(32) primary key) engine = ndb;
+Insert 'xyz', then update varchar(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated varchar(32) to 'XYZ' as well
+select str from t1;
+str
+xyz
+drop table t1;
+##################################
+############## Char ##############
+create table t1(str char(32) primary key) engine = ndb;
+Insert 'xyz', then update char(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated char(32) to 'XYZ' as well
+select str from t1;
+str
+xyz
+drop table t1;
+##################################
+############ Varbinary ###########
+create table t1(str varbinary(32) primary key) engine = ndb;
+Insert 'xyz', then update varbinary(32) to 'XYZ'
+insert into t1(str) values ("xyz");
+update t1 set str="XYZ";
+Verify the replica updated varbinary(32) to 'XYZ' as well
+select str from t1;
+str
+XYZ
+drop table t1;
+set global ndb_log_updated_only=default;
+set global ndb_log_update_as_write=default;
+set global ndb_log_update_minimal=default;
+include/rpl_end.inc
