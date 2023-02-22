@@ -12222,6 +12222,10 @@ ER_REDUCED_DBLWR_FILE_CORRUPTED
 ER_REDUCED_DBLWR_PAGE_FOUND
   eng "Database page corruption of tablespace %s space_id: %u page_num: %u. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode."
 
+ER_CONN_INIT_CONNECT_IGNORED_MFA
+  eng "init_connect variable is ignored for user: %s host: %s due to multi-factor registration required sandboxing"
+
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

@@ -819,6 +819,11 @@ static void prepare_new_connection_state(THD *thd) {
              sctx->priv_host().str);
       return;
     }
+    if (sctx->is_in_registration_sandbox_mode()) {
+      LogErr(WARNING_LEVEL, ER_CONN_INIT_CONNECT_IGNORED_MFA,
+             sctx->priv_user().str, sctx->priv_host().str);
+      return;
+    }
     // Do not print OOM error to error log.
     thd->m_mem_cnt.set_curr_mode(
         (MEM_CNT_UPDATE_GLOBAL_COUNTER | MEM_CNT_GENERATE_ERROR));
