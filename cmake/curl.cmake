@@ -246,6 +246,13 @@ FUNCTION(MYSQL_CHECK_CURL)
   MESSAGE(STATUS "CURL_INCLUDE_DIR = ${CURL_INCLUDE_DIR}")
   FIND_CURL_VERSION()
   ADD_LIBRARY(ext::curl ALIAS curl_interface)
+  # Downgrade errors to warnings
+  # We could instead do INTERFACE_COMPILE_DEFINITIONS CURL_DISABLE_DEPRECATION
+  # That would silence curl warnings completely.
+  IF(MY_COMPILER_IS_GNU AND CURL_VERSION VERSION_GREATER "7.86")
+    SET_TARGET_PROPERTIES(curl_interface PROPERTIES INTERFACE_COMPILE_OPTIONS
+      "-Wno-error=deprecated-declarations")
+  ENDIF()
 
 ENDFUNCTION(MYSQL_CHECK_CURL)
 
