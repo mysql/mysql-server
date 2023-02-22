@@ -764,17 +764,6 @@ uint32_t fsp_flags_to_dict_tf(uint32_t fsp_flags, bool compact);
 static inline ulint xdes_calc_descriptor_index(const page_size_t &page_size,
                                                ulint offset);
 
-/** Mark all the pages of the extent as used.
-@param[in]  descr   extent descriptor
-@param[in]  mtr  mini transaction context. */
-void xdes_mark_all_used(xdes_t *descr, mtr_t *mtr);
-
-/** Mark all the pages of the extent from given page_no as free.
-@param[in]  descr   extent descriptor
-@param[in]  mtr  mini transaction context.
-@param[in]  from  all pages from this page_no is marked as free. */
-void xdes_mark_pages_free(xdes_t *descr, mtr_t *mtr, const page_no_t from);
-
 /** Gets a descriptor bit of a page.
 @param[in]      descr   descriptor
 @param[in]      bit     XDES_FREE_BIT or XDES_CLEAN_BIT
@@ -1035,52 +1024,4 @@ inline std::ostream &operator<<(std::ostream &out,
 fseg_inode_t *fseg_inode_get(const fseg_header_t *header, space_id_t space,
                              const page_size_t &page_size, mtr_t *mtr,
                              buf_block_t **block = nullptr);
-
-struct Page_alloc_info {
-  explicit Page_alloc_info(const page_size_t &page_size)
-      : Page_alloc_info(SPACE_UNKNOWN, page_size, 0, nullptr) {}
-
-  Page_alloc_info(space_id_t space_id, const page_size_t &page_size,
-                  page_no_t hint, fseg_header_t *fseg_hdr)
-      : m_space_id(space_id),
-        m_page_size(page_size),
-        m_hint(hint),
-        m_fseg_header(fseg_hdr) {}
-
-  space_id_t m_space_id;
-  page_size_t m_page_size;
-  page_no_t m_hint;
-  fseg_header_t *m_fseg_header;
-};
-
-using Page_range_t = std::pair<page_no_t, page_no_t>;
-
-/** Allocate pages in bulk. */
-dberr_t fseg_alloc_pages_of_extent(const Page_alloc_info &info, mtr_t *mtr,
-                                   Page_range_t &page_range);
-
-/** Free a contiguous range of pages belonging to a single extent.
-@param[in]  info context information.
-@param[in]  mtr  mini-transaction context.
-@param[in]  page_range  range of page numbers to be freed. */
-void fseg_free_pages_of_extent(const Page_alloc_info &info, mtr_t *mtr,
-                               const Page_range_t &page_range);
-
-void fsp_init_file_page_low(buf_block_t *block);
-
-/** Allocate a page number.
-@param[in]  space  tablespace object
-@param[in]  page_size  page size in the given tablespace.
-@param[in]  seg_inode  file segment inode where page number is to be allocated.
-@param[in]  hint  hint of which page would be desirable.
-@param[in]  direction  If the new page is needed because of an index page split,
-              and records are inserted there in order, into which direction
-              they go alphabetically: FSP_DOWN, FSP_UP, FSP_NO_DIR
-@param[in]  mtr  mini-transaction context.
-@param[in,out]  has_done_reservation true if caller has done reservation.
-@return the allocated page number.  */
-page_no_t fseg_alloc_page_no(fil_space_t *space, const page_size_t &page_size,
-                             fseg_inode_t *seg_inode, page_no_t hint,
-                             byte direction,
-                             mtr_t *mtr IF_DEBUG(, bool has_done_reservation));
 #endif

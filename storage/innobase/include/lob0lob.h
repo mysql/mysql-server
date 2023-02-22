@@ -39,8 +39,7 @@ LOB issues. */
 /* #define ZLOB_DEBUG */
 
 struct upd_t;
-class Btree_load;
-using Block_cache = std::map<page_no_t, buf_block_t *>;
+typedef std::map<page_no_t, buf_block_t *> BlockCache;
 
 /**
 @file
@@ -465,10 +464,22 @@ struct ref_t {
 #ifdef UNIV_DEBUG
   /** Check if the given mtr has necessary latches to update this LOB
   reference.
-  @param[in]  mtr Mini-transaction that needs to be checked. If mtr is nullptr,
-                  this function can be considered as a no-op.
+  @param[in]  mtr Mini-transaction that needs to
+                  be checked.
   @return true if valid, false otherwise. */
-  [[nodiscard]] bool validate(mtr_t *mtr) const noexcept;
+  bool validate(mtr_t *mtr) {
+    ut_ad(m_ref != nullptr);
+    ut_ad(mtr != nullptr);
+
+    if (mtr->get_log_mode() == MTR_LOG_NO_REDO) {
+      return (true);
+    }
+
+    buf_block_t *block = mtr->memo_contains_page_flagged(
+        m_ref, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX);
+    ut_ad(block != nullptr);
+    return (true);
+  }
 
   /** Check if the space_id in the LOB reference is equal to the
   space_id of the index to which it belongs.
@@ -542,14 +553,6 @@ enum opcode {
   OPCODE_UNKNOWN
 };
 
-struct Lob_ctx {
-  /** The object doing the bulk load of an index. */
-  Btree_load *m_btree_load{};
-
-  /** The trx doing LOB store. If unavailable it could be nullptr. */
-  trx_t *m_trx{};
-};
-
 /** Stores the fields in big_rec_vec to the tablespace and puts pointers to
 them in rec.  The extern flags in rec will have to be set beforehand. The
 fields are stored on pages allocated from leaf node file segment of the index
@@ -559,7 +562,8 @@ TODO: If the allocation extends the tablespace, it will not be redo logged, in
 any mini-transaction.  Tablespace extension should be redo-logged, so that
 recovery will not fail when the big_rec was written to the extended portion of
 the file, in case the file was somehow truncated in the crash.
-@param[in]      lob_ctx         Context information for LOB operation.
+@param[in]      trx             the trx doing LOB store. If unavailable it
+                                could be nullptr.
 @param[in,out]  pcur            a persistent cursor. if btr_mtr is restarted,
                                 then this can be repositioned.
 @param[in]      upd             update vector
@@ -574,7 +578,7 @@ the file, in case the file was somehow truncated in the crash.
 @param[in]      op              operation code
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 [[nodiscard]] dberr_t btr_store_big_rec_extern_fields(
-    Lob_ctx &lob_ctx, btr_pcur_t *pcur, const upd_t *upd, ulint *offsets,
+    trx_t *trx, btr_pcur_t *pcur, const upd_t *upd, ulint *offsets,
     const big_rec_t *big_rec_vec, mtr_t *btr_mtr, opcode op);
 
 /** Copies an externally stored field of a record to mem heap.
@@ -637,12 +641,12 @@ static inline byte *btr_rec_get_field_ref(const dict_index_t *index, byte *rec,
   return rec + lob::btr_rec_get_field_ref_offs(index, offsets, n);
 }
 
-/** Deallocate a buffer block that was reserved for a BLOB part. If the block
-is BUF_BLOCK_MEMORY, then do nothing.
-@param[in] index Index
-@param[in] block Buffer block (could be a BUF_BLOCK_MEMORY).
-@param[in] all  true=remove also the compressed page if there is one
-@param[in] mtr Mini-transaction to commit. */
+/** Deallocate a buffer block that was reserved for a BLOB part.
+@param[in]      index   Index
+@param[in]      block   Buffer block
+@param[in]      all     true=remove also the compressed page
+                        if there is one
+@param[in]      mtr     Mini-transaction to commit */
 void blob_free(dict_index_t *index, buf_block_t *block, bool all, mtr_t *mtr);
 
 /** The B-tree context under which the LOB operation is done. */
@@ -712,8 +716,7 @@ class BtrContext {
         m_offsets(other.m_offsets),
         m_block(other.m_block),
         m_op(other.m_op),
-        m_btr_page_no(other.m_btr_page_no),
-        m_btree_load(other.m_btree_load) {}
+        m_btr_page_no(other.m_btr_page_no) {}
 
   /** Marks non-updated off-page fields as disowned by this record.
   The ownership must be transferred to the updated record which is
@@ -999,7 +1002,9 @@ class BtrContext {
 
   /** Check if there is enough space in the redo log file.  The btr
   mini-transaction will be restarted. */
-  inline void check_redolog();
+  void check_redolog() {
+    is_bulk() ? check_redolog_bulk() : check_redolog_normal();
+  }
 
   /** Mark the nth field as externally stored.
   @param[in]    field_no        the field number. */
@@ -1030,10 +1035,9 @@ class BtrContext {
     return (true);
   }
 
- public:
   /** Get the associated mini-transaction.
   @return the mini-transaction. */
-  mtr_t *get_mtr() { return m_mtr; }
+  mtr_t *get_mtr() { return (m_mtr); }
 
   /** Get the pointer to the clustered record block.
   @return pointer to the clustered rec block. */
@@ -1088,22 +1092,7 @@ class BtrContext {
 
   /** Page number where the clust rec is present. */
   page_no_t m_btr_page_no;
-
-  /** For bulk load */
-  Btree_load *m_btree_load{};
-
-  [[nodiscard]] Btree_load *get_btree_load() const noexcept {
-    return m_btree_load;
-  }
 };
-
-void BtrContext::check_redolog() {
-  /* If there is no associated mtr, then no redo logs are generated, which means
-  no need to check redo log space availability. */
-  if (m_mtr != nullptr) {
-    is_bulk() ? check_redolog_bulk() : check_redolog_normal();
-  }
-}
 
 /** The context for a LOB operation.  It contains the necessary information
 to carry out a LOB operation. */

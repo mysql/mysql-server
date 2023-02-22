@@ -190,7 +190,7 @@ struct first_page_t : public basic_page_t {
   @param[in]    addr    Location of file list node.
   @param[in]    mtr   Mini-transaction context to be used.
   @return               the file list node.*/
-  inline flst_node_t *addr2ptr_x(const fil_addr_t &addr, mtr_t *mtr) const;
+  flst_node_t *addr2ptr_x(const fil_addr_t &addr, mtr_t *mtr) const;
 
   /** Load the file list node from the given location.  An x-latch is taken
   on the page containing the file list node.
@@ -292,10 +292,18 @@ struct first_page_t : public basic_page_t {
 
   /** Set the transaction identifier in the first page header.
   @param[in]    id      the transaction identifier. */
-  void set_trx_id(trx_id_t id);
+  void set_trx_id(trx_id_t id) {
+    byte *ptr = frame() + OFFSET_TRX_ID;
+    mach_write_to_6(ptr, id);
+    mlog_log_string(ptr, 6, m_mtr);
+  }
 
   /** Initialize the LOB version to 1. */
-  inline void init_lob_version();
+  void init_lob_version() {
+    ut_ad(m_mtr != nullptr);
+
+    mlog_write_ulint(frame() + OFFSET_LOB_VERSION, 1, MLOG_4BYTES, m_mtr);
+  }
 
   /** Get the lob version number.
   @return the lob version. */
@@ -316,7 +324,11 @@ struct first_page_t : public basic_page_t {
 
   /** Set the last transaction identifier.
   @param[in]    id      the trx identifier. */
-  inline void set_last_trx_id(trx_id_t id);
+  void set_last_trx_id(trx_id_t id) {
+    byte *ptr = frame() + OFFSET_LAST_TRX_ID;
+    mach_write_to_6(ptr, id);
+    mlog_log_string(ptr, 6, m_mtr);
+  }
 
   /** Set the last transaction undo number.
   @param[in]    undo_no the trx undo number. */
@@ -344,7 +356,7 @@ struct first_page_t : public basic_page_t {
   /** Set the length of data stored in bytes.
   @param[in]    len     amount of data stored in bytes. */
   void set_data_len(ulint len) {
-    ut_ad(m_mtr != nullptr || m_block->is_memory());
+    ut_ad(m_mtr != nullptr);
 
     mlog_write_ulint(frame() + OFFSET_DATA_LEN, len, MLOG_4BYTES, m_mtr);
   }
@@ -392,7 +404,7 @@ struct first_page_t : public basic_page_t {
   ulint read(ulint offset, byte *ptr, ulint want);
 
   void set_page_type() {
-    ut_ad(m_mtr != nullptr || m_block->is_memory());
+    ut_ad(m_mtr != nullptr);
 
     mlog_write_ulint(frame() + FIL_PAGE_TYPE, FIL_PAGE_TYPE_LOB_FIRST,
                      MLOG_2BYTES, m_mtr);
@@ -427,7 +439,7 @@ struct first_page_t : public basic_page_t {
   std::ostream &print_index_entries(std::ostream &out) const;
 
   std::ostream &print_index_entries_cache_s(std::ostream &out,
-                                            Block_cache &cache) const;
+                                            BlockCache &cache) const;
 
   /** Obtain the location where the data begins.
   @return pointer to location within page where data begins. */
@@ -473,34 +485,6 @@ struct first_page_t : public basic_page_t {
     load_x(mtr);
   }
 };
-
-flst_node_t *first_page_t::addr2ptr_x(const fil_addr_t &addr,
-                                      mtr_t *mtr) const {
-  ut_ad(m_mtr != nullptr || m_block->is_memory());
-
-  const space_id_t space = dict_index_get_space(m_index);
-  const page_size_t page_size = dict_table_page_size(m_index->table);
-  buf_block_t *block = nullptr;
-  flst_node_t *result = fut_get_ptr(space, page_size, addr, RW_X_LATCH, mtr,
-                                    &block, m_btree_load);
-  const page_type_t type = block->get_page_type();
-  ut_a(type == FIL_PAGE_TYPE_LOB_FIRST || type == FIL_PAGE_TYPE_LOB_INDEX);
-  return result;
-}
-
-void first_page_t::init_lob_version() {
-  ut_ad(m_mtr != nullptr || m_block->is_memory());
-
-  mlog_write_ulint(frame() + OFFSET_LOB_VERSION, 1, MLOG_4BYTES, m_mtr);
-}
-
-void first_page_t::set_last_trx_id(trx_id_t id) {
-  ut_ad(m_mtr != nullptr || m_block->is_memory());
-  byte *ptr = frame() + OFFSET_LAST_TRX_ID;
-  mach_write_to_6(ptr, id);
-
-  if (m_mtr != nullptr) mlog_log_string(ptr, 6, m_mtr);
-}
 
 } /* namespace lob */
 

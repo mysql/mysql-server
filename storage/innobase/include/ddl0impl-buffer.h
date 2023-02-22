@@ -106,18 +106,9 @@ struct Aligned_buffer : private ut::Non_copyable {
     return true;
   }
 
-  /** Deallocate the buffer. */
-  void deallocate() noexcept {
-    if (m_io_buffer.first != nullptr) {
-      m_buffer.deallocate();
-    }
-  }
-
   /** Get the IO buffer.
   @return the io buffer suitably aligned. */
   IO_buffer io_buffer() noexcept { return m_io_buffer; }
-
-  size_t get_size() const { return m_io_buffer.second; }
 
  private:
   /** Raw buffer (unaligned pointer). */
@@ -228,7 +219,6 @@ struct Key_sort_buffer : private ut::Non_copyable {
   [[nodiscard]] static int compare(const dfield_t *lhs, const dfield_t *rhs,
                                    Dup *dup) noexcept;
 
-  /** DTuple is an array of dfield_t objects. */
   using DTuple = dfield_t *;
   using DTuples = std::vector<DTuple, ut::allocator<DTuple>>;
 

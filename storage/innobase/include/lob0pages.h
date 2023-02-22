@@ -39,23 +39,17 @@ struct data_page_t : public basic_page_t {
 
   data_page_t() = default;
 
-  /** Constructor.
-  @param[in]  block   the buffer block.
-  @param[in]  mtr    mini transcation context.*/
-  data_page_t(buf_block_t *block, mtr_t *mtr);
+  /** Constructor. */
+  data_page_t(buf_block_t *block, mtr_t *mtr) : basic_page_t(block, mtr) {
+    page_type_t type = get_page_type();
+    ut_a(type == FIL_PAGE_TYPE_LOB_DATA);
+  }
 
   data_page_t(buf_block_t *block, mtr_t *mtr, dict_index_t *index)
       : basic_page_t(block, mtr, index) {}
 
   data_page_t(mtr_t *mtr, dict_index_t *index)
       : basic_page_t(nullptr, mtr, index) {}
-
-  /** Constructor.
-  @param[in]  mtr    mini transcation context.
-  @param[in]  index  index to which lob belongs.
-  @param[in]  btree_load  bulk load context. */
-  data_page_t(mtr_t *mtr, dict_index_t *index, Btree_load *btree_load)
-      : basic_page_t(nullptr, mtr, index, btree_load) {}
 
   /** Constructor.
   @param[in]    block   the buffer block.*/
@@ -78,12 +72,18 @@ struct data_page_t : public basic_page_t {
     m_block = nullptr;
   }
 
-  /** Set the page type to FIL_PAGE_TYPE_LOB_DATA. */
-  inline void set_page_type();
+  void set_page_type() {
+    ut_ad(m_mtr != nullptr);
 
-  /** Save the trx id that created this data.
-  @param[in]  id   Identifier of the trx that created this data. */
-  inline void set_trx_id(trx_id_t id);
+    mlog_write_ulint(frame() + FIL_PAGE_TYPE, FIL_PAGE_TYPE_LOB_DATA,
+                     MLOG_2BYTES, m_mtr);
+  }
+
+  void set_trx_id(trx_id_t id) {
+    byte *ptr = frame() + OFFSET_TRX_ID;
+    mach_write_to_6(ptr, id);
+    mlog_log_string(ptr, 6, m_mtr);
+  }
 
   /** Write the trx identifier to the header, without
   generating redo log.
@@ -121,9 +121,11 @@ struct data_page_t : public basic_page_t {
     return (mach_read_from_4(frame() + OFFSET_DATA_LEN));
   }
 
-  /** Set the data length.
-  @param[in]  len  amount of LOB data available in tihs page. */
-  inline void set_data_len(ulint len);
+  void set_data_len(ulint len) {
+    ut_ad(m_mtr != nullptr);
+
+    mlog_write_ulint(frame() + OFFSET_DATA_LEN, len, MLOG_4BYTES, m_mtr);
+  }
 
   /** Read data from the data page.
   @param[in]    offset  read begins at this offset.
@@ -155,35 +157,6 @@ struct data_page_t : public basic_page_t {
 
   ulint space_left() const;
 };
-
-inline data_page_t::data_page_t(buf_block_t *block, mtr_t *mtr)
-    : basic_page_t(block, mtr) {
-  page_type_t type = get_page_type();
-  ut_a(type == FIL_PAGE_TYPE_LOB_DATA);
-}
-
-void data_page_t::set_trx_id(trx_id_t id) {
-  ut_ad(m_mtr != nullptr || buf_page_t::is_memory(frame()));
-
-  byte *ptr = frame() + OFFSET_TRX_ID;
-  mach_write_to_6(ptr, id);
-  if (m_mtr != nullptr) {
-    mlog_log_string(ptr, 6, m_mtr);
-  }
-}
-
-void data_page_t::set_data_len(ulint len) {
-  ut_ad(m_mtr != nullptr || buf_page_t::is_memory(frame()));
-
-  mlog_write_ulint(frame() + OFFSET_DATA_LEN, len, MLOG_4BYTES, m_mtr);
-}
-
-void data_page_t::set_page_type() {
-  ut_ad(m_mtr != nullptr || buf_page_t::is_memory(frame()));
-
-  mlog_write_ulint(frame() + FIL_PAGE_TYPE, FIL_PAGE_TYPE_LOB_DATA, MLOG_2BYTES,
-                   m_mtr);
-}
 
 } /* namespace lob */
 

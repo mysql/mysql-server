@@ -46,10 +46,8 @@ class Table_ref;
 class Sql_cmd_load_table final : public Sql_cmd {
  public:
   Sql_cmd_load_table(enum_filetype filetype, bool is_local_file,
-                     enum_source_type source_type, const LEX_STRING &filename,
-                     ulong file_count, bool in_key_order,
-                     On_duplicate on_duplicate, Table_ident *table,
-                     List<String> *opt_partitions,
+                     const LEX_STRING &filename, On_duplicate on_duplicate,
+                     Table_ident *table, List<String> *opt_partitions,
                      const CHARSET_INFO *opt_charset,
                      String *opt_xml_rows_identified_by,
                      const Field_separators &field_separators,
@@ -57,20 +55,16 @@ class Sql_cmd_load_table final : public Sql_cmd {
                      mem_root_deque<Item *> *opt_fields_or_vars,
                      mem_root_deque<Item *> *opt_set_fields,
                      mem_root_deque<Item *> *opt_set_exprs,
-                     List<String> *opt_set_expr_strings, bool is_bulk_operation)
+                     List<String> *opt_set_expr_strings)
       : m_exchange(filename.str, false, filetype),
         m_is_local_file(is_local_file),
-        m_bulk_source(source_type),
-        m_file_count(file_count),
-        m_ordered_data(in_key_order),
         m_on_duplicate(on_duplicate),
         m_table(table),
         m_opt_partitions(opt_partitions),
         m_opt_fields_or_vars(*THR_MALLOC),
         m_opt_set_fields(*THR_MALLOC),
         m_opt_set_exprs(*THR_MALLOC),
-        m_opt_set_expr_strings(opt_set_expr_strings),
-        m_is_bulk_operation(is_bulk_operation) {
+        m_opt_set_expr_strings(opt_set_expr_strings) {
     if (opt_fields_or_vars)
       m_opt_fields_or_vars = std::move(*opt_fields_or_vars);
     assert((opt_set_fields == nullptr) ^ (opt_set_exprs != nullptr));
@@ -97,18 +91,6 @@ class Sql_cmd_load_table final : public Sql_cmd {
  public:
   sql_exchange m_exchange;
   const bool m_is_local_file;
-
- private:
-  /// Source for bulk data.
-  enum_source_type m_bulk_source;
-
-  /// Number of input files.
-  ulong m_file_count;
-
-  /// true if input data is in order of Primary Key.
-  bool m_ordered_data;
-
- public:
   const On_duplicate m_on_duplicate;
   Table_ident *const m_table;
   List<String> *const m_opt_partitions;
@@ -127,11 +109,6 @@ class Sql_cmd_load_table final : public Sql_cmd {
  private:
   bool execute_inner(THD *thd, enum enum_duplicates handle_duplicates);
 
-  bool execute_bulk(THD *thd);
-
-  bool bulk_driver_service(THD *thd, const TABLE *table,
-                           long long &affected_rows);
-
   bool read_fixed_length(THD *thd, COPY_INFO &info, Table_ref *table_list,
                          READ_INFO &read_info, ulong skip_lines);
 
@@ -145,10 +122,6 @@ class Sql_cmd_load_table final : public Sql_cmd {
   bool write_execute_load_query_log_event(
       THD *thd, const char *db, const char *table_name, bool is_concurrent,
       enum enum_duplicates duplicates, bool transactional_table, int errocode);
-
- private:
-  /// true if BULK LOAD.
-  bool m_is_bulk_operation;
 };
 
 #endif /* SQL_LOAD_INCLUDED */

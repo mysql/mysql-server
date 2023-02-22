@@ -25,7 +25,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 #include "lob0impl.h"
-#include "btr0load.h"
 #include "lob0del.h"
 #include "lob0index.h"
 #include "lob0inf.h"
@@ -44,8 +43,6 @@ namespace lob {
 
 static void buf_block_set_next_page_no(buf_block_t *block,
                                        page_no_t next_page_no, mtr_t *mtr) {
-  ut_ad(block != nullptr);
-  ut_ad(mtr != nullptr || block->is_memory());
   mlog_write_ulint(block->frame + FIL_PAGE_NEXT, next_page_no, MLOG_4BYTES,
                    mtr);
 }
@@ -68,22 +65,15 @@ bool plist_base_node_t::validate() const {
 }
 #endif /* UNIV_DEBUG */
 
+/** Allocate one node page. */
 buf_block_t *node_page_t::alloc(first_page_t &first_page, bool bulk) {
   ut_ad(m_block == nullptr);
-  ut_ad(m_mtr == nullptr || m_btree_load == nullptr);
-  ut_ad(m_mtr != nullptr || m_btree_load != nullptr);
-  ut_ad(m_mtr != nullptr || bulk);
-
   page_no_t hint = FIL_NULL;
 
   /* For testing purposes, pretend that the LOB page allocation failed.*/
   DBUG_EXECUTE_IF("innodb_lob_alloc_node_page_failed", return (nullptr););
 
-  if (bulk) {
-    m_block = m_btree_load->blob()->alloc_index_page();
-  } else {
-    m_block = alloc_lob_page(m_index, m_mtr, hint);
-  }
+  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
   if (m_block == nullptr) {
     return (nullptr);
@@ -104,12 +94,12 @@ buf_block_t *node_page_t::alloc(first_page_t &first_page, bool bulk) {
 
   /* Populate the free list with empty index entry nodes. */
   for (ulint i = 0; i < node_count; ++i) {
-    flst_add_last(free_list, cur, m_mtr, m_btree_load);
+    flst_add_last(free_list, cur, m_mtr);
     cur += index_entry_t::SIZE;
   }
 
-  ut_d(flst_validate(free_list, m_mtr, m_btree_load));
-  return m_block;
+  ut_d(flst_validate(free_list, m_mtr));
+  return (m_block);
 }
 
 std::ostream &z_frag_entry_t::print(std::ostream &out) const {
@@ -133,7 +123,7 @@ the given fragment page.
 @param[in]      frag_page       the fragment page whose information
                                 will be stored in current fragment entry. */
 void z_frag_entry_t::update(const z_frag_page_t &frag_page) {
-  ut_ad(m_mtr != nullptr || buf_page_t::is_memory(m_node));
+  ut_ad(m_mtr != nullptr);
 
   set_page_no(frag_page.get_page_no());
   set_n_frags(frag_page.get_n_frags());
@@ -203,7 +193,7 @@ dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
     page. */
 
     z_data_page_t data_page(mtr, index);
-    buf_block_t *tmp_block = data_page.alloc(first, first_page_no + 1, bulk);
+    buf_block_t *tmp_block = data_page.alloc(first_page_no + 1, bulk);
 
     if (tmp_block == nullptr) {
       return (DB_OUT_OF_FILE_SPACE);
@@ -227,7 +217,7 @@ dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
 
   } else {
     /* Data can fit into a fragment page. */
-    z_frag_page_t frag_page(mtr, index, first.get_btree_load());
+    z_frag_page_t frag_page(mtr, index);
     z_frag_entry_t frag_entry(mtr);
 
     frag_id = first.alloc_fragment(bulk, remain, frag_page, frag_entry);
@@ -261,7 +251,7 @@ dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
   /* As long as data cannot fit into a fragment page, use a data page. */
   while (remain > 0 && !z_frag_page_t::can_data_fit(index, remain)) {
     z_data_page_t data_page(mtr, index);
-    buf_block_t *new_block = data_page.alloc(first, first_page_no + 1, bulk);
+    buf_block_t *new_block = data_page.alloc(first_page_no + 1, bulk);
 
     if (new_block == nullptr) {
       return (DB_OUT_OF_FILE_SPACE);
@@ -280,16 +270,9 @@ dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
     data_page.set_trx_id(trxid);
 
     /* Get the previous page and update its next page. */
-    buf_block_t *block{};
-    if (mtr != nullptr) {
-      block = buf_page_get(page_id_t(dict_index_get_space(index), prev_page_no),
-                           dict_table_page_size(index->table), RW_X_LATCH,
-                           UT_LOCATION_HERE, mtr);
-    } else {
-      Btree_load *btree_load = first.get_btree_load();
-      block = btree_load->block_get(prev_page_no);
-      ut_ad(block != nullptr);
-    }
+    buf_block_t *block = buf_page_get(
+        page_id_t(dict_index_get_space(index), prev_page_no),
+        dict_table_page_size(index->table), RW_X_LATCH, UT_LOCATION_HERE, mtr);
 
     buf_block_set_next_page_no(block, data_page.get_page_no(), mtr);
 
@@ -299,7 +282,7 @@ dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
   if (remain > 0) {
     ut_ad(remain <= frag_max_payload);
     ut_ad(frag_id == FRAG_ID_NULL);
-    z_frag_page_t frag_page(mtr, index, first.get_btree_load());
+    z_frag_page_t frag_page(mtr, index);
     z_frag_entry_t frag_entry(mtr);
 
     frag_id = first.alloc_fragment(bulk, remain, frag_page, frag_entry);
@@ -330,19 +313,9 @@ dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
     frag_entry.update(frag_page);
 
     /* Get the previous page and update its next page. */
-    buf_block_t *block{};
-
-    if (mtr != nullptr) {
-      block = buf_page_get(page_id_t(dict_index_get_space(index), prev_page_no),
-                           dict_table_page_size(index->table), RW_X_LATCH,
-                           UT_LOCATION_HERE, mtr);
-    } else {
-      ut_ad(bulk);
-      Btree_load *btree_load = first.get_btree_load();
-      ut_ad(btree_load != nullptr);
-      block = btree_load->block_get(prev_page_no);
-      ut_ad(block != nullptr);
-    }
+    buf_block_t *block = buf_page_get(
+        page_id_t(dict_index_get_space(index), prev_page_no),
+        dict_table_page_size(index->table), RW_X_LATCH, UT_LOCATION_HERE, mtr);
 
     buf_block_set_next_page_no(block, frag_page.get_page_no(), mtr);
   }
@@ -417,11 +390,8 @@ dberr_t z_insert_chunk(dict_index_t *index, z_first_page_t &first, trx_t *trx,
     out_entry->reset(entry);
   }
 
-  ut_ad(z_validate_strm(index, first, entry, bulk ? nullptr : mtr));
-  if (bulk) {
-    err = first.flush_data_extents();
-  }
-  return err;
+  ut_ad(z_validate_strm(index, entry, mtr));
+  return (DB_SUCCESS);
 }
 
 /** Insert a compressed large object (LOB) into the system.
@@ -442,8 +412,6 @@ dberr_t z_insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
   space_id_t space_id = dict_index_get_space(index);
   byte *field_ref;
   mtr_t *mtr = ctx->get_mtr();
-  Btree_load *btree_load = ctx->get_btree_load();
-  ut_ad(mtr != nullptr || btree_load != nullptr);
   const trx_id_t trxid = (trx == nullptr ? 0 : trx->id);
   const ulint commit_freq = 4;
 
@@ -470,7 +438,7 @@ dberr_t z_insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
     return (err);
   }
 
-  z_first_page_t first(mtr, index, btree_load);
+  z_first_page_t first(mtr, index);
   buf_block_t *first_block = first.alloc(ctx->is_bulk());
 
   if (first_block == nullptr) {
@@ -498,7 +466,7 @@ dberr_t z_insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
   while (remain > 0) {
     ut_ad(first.get_page_type() == FIL_PAGE_TYPE_ZLOB_FIRST);
 
-    z_index_entry_t entry(mtr, index, btree_load);
+    z_index_entry_t entry(mtr, index);
     ulint size = (remain >= chunk_size) ? chunk_size : remain;
 
     err = z_insert_chunk(index, first, trx, ptr, size, &entry, mtr,
@@ -581,12 +549,8 @@ buf_block_t *z_frag_page_t::alloc(z_first_page_t &first, page_no_t hint,
   /* For testing purposes, pretend that the LOB page allocation failed.*/
   DBUG_EXECUTE_IF("innodb_lob_alloc_z_frag_page_failed", return (nullptr););
 
-  if (bulk) {
-    m_btree_load = first.get_btree_load();
-    m_block = m_btree_load->blob()->alloc_index_page();
-  } else {
-    m_block = alloc_lob_page(m_index, m_mtr, hint);
-  }
+  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
+
   if (m_block == nullptr) {
     return (nullptr);
   }
@@ -606,7 +570,7 @@ buf_block_t *z_frag_page_t::alloc(z_first_page_t &first, page_no_t hint,
   } else {
     if (frag_page_no != FIL_NULL) {
       /* Load the first fragment page and updates its prev page. */
-      z_frag_page_t tmp(m_mtr, m_index, first.get_btree_load());
+      z_frag_page_t tmp(m_mtr, m_index);
       tmp.load_x(frag_page_no);
       tmp.set_page_prev(get_page_no());
     }
@@ -657,13 +621,7 @@ buf_block_t *z_frag_node_page_t::alloc(z_first_page_t &first, bool bulk) {
   DBUG_EXECUTE_IF("innodb_lob_alloc_z_frag_node_page_failed",
                   return (nullptr););
 
-  if (bulk) {
-    m_btree_load = first.get_btree_load();
-    m_block = m_btree_load->blob()->alloc_index_page();
-    ut_ad(m_block != nullptr);
-  } else {
-    m_block = alloc_lob_page(m_index, m_mtr, hint);
-  }
+  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
   if (m_block == nullptr) {
     return (nullptr);
@@ -825,13 +783,13 @@ void z_frag_page_t::dealloc_with_entry(z_first_page_t &first,
     /* The fragment pages are doubly linked via FIL_PAGE_NEXT and
     FIL_PAGE_PREV. Update the links before deallocating a fragment page. */
     if (next_frag_page != FIL_NULL) {
-      z_frag_page_t zfp_next(alloc_mtr, m_index, first.get_btree_load());
+      z_frag_page_t zfp_next(alloc_mtr, m_index);
       zfp_next.load_x(next_frag_page);
       zfp_next.set_page_prev(prev_frag_page);
     }
 
     if (prev_frag_page != FIL_NULL) {
-      z_frag_page_t zfp_prev(alloc_mtr, m_index, first.get_btree_load());
+      z_frag_page_t zfp_prev(alloc_mtr, m_index);
       zfp_prev.load_x(prev_frag_page);
       zfp_prev.set_page_next(next_frag_page);
     }
@@ -998,7 +956,6 @@ dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
   ut_ad(ref.validate(ctx->get_mtr()));
 
   first_page_t first(mtr, index);
-  first.set_btree_load(ctx->get_btree_load());
   buf_block_t *first_block = first.alloc(mtr, ctx->is_bulk());
 
   if (first_block == nullptr) {
@@ -1040,7 +997,7 @@ dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
     entry.set_page_no(first.get_page_no());
     entry.set_data_len(to_write);
     entry.set_lob_version(1);
-    flst_add_last(index_list, node, mtr, first.get_btree_load());
+    flst_add_last(index_list, node, mtr);
 
     first.set_trx_id(trxid);
     first.set_data_len(to_write);
@@ -1050,7 +1007,7 @@ dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
   const ulint commit_freq = 4;
 
   while (remaining > 0) {
-    data_page_t data_page(mtr, index, first.get_btree_load());
+    data_page_t data_page(mtr, index);
     buf_block_t *block = data_page.alloc(mtr, ctx->is_bulk());
 
     if (block == nullptr) {
@@ -1070,7 +1027,7 @@ dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
       break;
     }
 
-    index_entry_t entry(node, mtr, index, first.get_btree_load());
+    index_entry_t entry(node, mtr, index);
     entry.set_versions_null();
     entry.set_trx_id(trxid);
     entry.set_trx_id_modifier(trxid);
@@ -1128,7 +1085,7 @@ ulint read(ReadContext *ctx, ref_t ref, ulint offset, ulint len, byte *buf) {
 #endif /* LOB_DEBUG */
 
   /* Cache of s-latched blocks of LOB index pages.*/
-  Block_cache cached_blocks;
+  BlockCache cached_blocks;
 
   ut_ad(len > 0);
 
@@ -1292,14 +1249,7 @@ buf_block_t *z_index_page_t::alloc(z_first_page_t &first, bool bulk) {
   /* For testing purposes, pretend that the LOB page allocation failed.*/
   DBUG_EXECUTE_IF("innodb_lob_alloc_z_index_page_failed", return (nullptr););
 
-  if (bulk) {
-    m_btree_load = first.get_btree_load();
-    m_block = m_btree_load->blob()->alloc_index_page();
-    ut_ad(m_block != nullptr);
-    m_btree_load->block_put(m_block);
-  } else {
-    m_block = alloc_lob_page(m_index, m_mtr, hint);
-  }
+  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
   if (m_block == nullptr) {
     return (nullptr);
@@ -1317,21 +1267,18 @@ buf_block_t *z_index_page_t::alloc(z_first_page_t &first, bool bulk) {
   return (m_block);
 }
 
-buf_block_t *z_data_page_t::alloc(z_first_page_t &first, page_no_t hint,
-                                  bool bulk) {
+/** Allocate one data page.
+@param[in]      hint    hint page number for allocation.
+@param[in]      bulk    true if bulk operation (OPCODE_INSERT_BULK)
+                        false otherwise.
+@return the allocated buffer block. */
+buf_block_t *z_data_page_t::alloc(page_no_t hint, bool bulk) {
   ut_ad(m_block == nullptr);
 
   /* For testing purposes, pretend that the LOB page allocation failed.*/
   DBUG_EXECUTE_IF("innodb_lob_alloc_z_data_page_failed", return (nullptr););
 
-  if (bulk) {
-    m_btree_load = first.get_btree_load();
-    m_block = m_btree_load->blob()->alloc_data_page();
-    m_btree_load->block_put(m_block);
-    ut_ad(m_block != nullptr);
-  } else {
-    m_block = alloc_lob_page(m_index, m_mtr, hint);
-  }
+  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
   if (m_block == nullptr) {
     return (nullptr);
@@ -1342,13 +1289,11 @@ buf_block_t *z_data_page_t::alloc(z_first_page_t &first, page_no_t hint,
 }
 
 void z_index_page_t::init(flst_base_node_t *free_lst, mtr_t *mtr) {
-  ut_ad(mtr == nullptr || m_btree_load == nullptr);
-  ut_ad(mtr != nullptr || m_btree_load != nullptr);
   ulint n = get_n_index_entries();
   for (ulint i = 0; i < n; ++i) {
     byte *ptr = frame() + LOB_PAGE_DATA;
     ptr += (i * z_index_entry_t::SIZE);
-    z_index_entry_t entry(ptr, mtr, m_btree_load);
+    z_index_entry_t entry(ptr, mtr);
     entry.init();
     entry.push_back(free_lst);
   }
@@ -1427,69 +1372,4 @@ void z_index_page_t::import(trx_id_t trx_id) {
   }
 }
 
-buf_block_t *z_frag_page_t::load_x(page_no_t page_no) {
-  ut_ad(m_mtr == nullptr || m_btree_load == nullptr);
-  if (m_mtr != nullptr) {
-    const page_id_t page_id(dict_index_get_space(m_index), page_no);
-    const page_size_t page_size(dict_table_page_size(m_index->table));
-    m_block =
-        buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
-  } else {
-    m_block = m_btree_load->block_get(page_no);
-  }
-  ut_ad(m_mtr != nullptr || m_block->is_memory());
-  return m_block;
-}
-
-void z_data_page_t::init() {
-  ut_ad(m_mtr != nullptr || m_block->is_memory());
-
-  set_page_type();
-  set_version_0();
-  set_next_page(FIL_NULL);
-  set_data_len(0);
-  set_trx_id(0);
-}
-
-buf_block_t *z_frag_node_page_t::load_x(page_no_t page_no) {
-  page_id_t page_id(dict_index_get_space(m_index), page_no);
-  page_size_t page_size(dict_table_page_size(m_index->table));
-  if (m_mtr != nullptr) {
-    m_block =
-        buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
-  } else {
-    m_block = m_btree_load->block_get(page_no);
-  }
-
-  ut_ad(m_block->get_page_type() == FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY);
-
-  return (m_block);
-}
-
-void z_frag_node_page_t::init(flst_base_node_t *free_lst) {
-  ut_ad(m_mtr != nullptr || m_block->is_memory());
-
-  ulint n = get_n_frag_entries();
-  for (ulint i = 0; i < n; ++i) {
-    byte *ptr = frame() + LOB_PAGE_DATA;
-    ptr += (i * z_frag_entry_t::SIZE);
-    z_frag_entry_t entry(ptr, m_mtr, m_btree_load);
-    entry.init();
-    entry.push_back(free_lst);
-  }
-}
-
-buf_block_t *z_index_page_t::load_x(page_no_t page_no) {
-  page_id_t page_id(dict_index_get_space(m_index), page_no);
-  page_size_t page_size(dict_table_page_size(m_index->table));
-  if (m_mtr != nullptr) {
-    m_block =
-        buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
-  } else {
-    m_block = m_btree_load->block_get(page_no);
-  }
-
-  ut_ad(m_block->get_page_type() == FIL_PAGE_TYPE_ZLOB_INDEX);
-  return (m_block);
-}
 }  // namespace lob
