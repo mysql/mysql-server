@@ -4578,11 +4578,13 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
 */
 
 bool JOIN::clear_fields(table_map *save_nullinfo) {
-  for (uint tableno = 0; tableno < primary_tables; tableno++) {
-    QEP_TAB *const tab = qep_tab + tableno;
-    TABLE *const table = tab->table_ref->table;
+  assert(*save_nullinfo == 0);
+
+  for (Table_ref *table_ref = tables_list; table_ref != nullptr;
+       table_ref = table_ref->next_leaf) {
+    TABLE *const table = table_ref->table;
     if (!table->has_null_row()) {
-      *save_nullinfo |= tab->table_ref->map();
+      *save_nullinfo |= table_ref->map();
       if (table->const_table) table->save_null_flags();
       table->set_null_row();  // All fields are NULL
     }
@@ -4601,10 +4603,10 @@ bool JOIN::clear_fields(table_map *save_nullinfo) {
 void JOIN::restore_fields(table_map save_nullinfo) {
   assert(save_nullinfo);
 
-  for (uint tableno = 0; tableno < primary_tables; tableno++) {
-    QEP_TAB *const tab = qep_tab + tableno;
-    if (save_nullinfo & tab->table_ref->map()) {
-      TABLE *const table = tab->table_ref->table;
+  for (Table_ref *table_ref = tables_list; table_ref != nullptr;
+       table_ref = table_ref->next_leaf) {
+    if (save_nullinfo & table_ref->map()) {
+      TABLE *const table = table_ref->table;
       if (table->const_table) table->restore_null_flags();
       table->reset_null_row();
     }
