@@ -2284,9 +2284,7 @@ double Item_sum_avg::val_real() {
     double sum = Item_sum_sum::val_real();
 
     if (m_window->is_last_row_in_frame()) {
-      int64 divisor = (m_window->needs_buffering()
-                           ? m_window->rowno_in_frame() - m_frame_null_count
-                           : m_count - m_frame_null_count);
+      const int64 divisor = m_count - m_frame_null_count;
       if (divisor > 0) sum = sum / ulonglong2double(divisor);
     }
     m_avg = sum;  // save
@@ -2347,9 +2345,7 @@ my_decimal *Item_sum_avg::val_decimal(my_decimal *val) {
       }
     }
 
-    int64 divisor = (m_window->needs_buffering()
-                         ? m_window->rowno_in_frame() - m_frame_null_count
-                         : m_count - m_frame_null_count);
+    const int64 divisor = m_count - m_frame_null_count;
 
     if (m_window->is_last_row_in_frame() && divisor > 0) {
       int2my_decimal(E_DEC_FATAL_ERROR, divisor, false, &cnt);

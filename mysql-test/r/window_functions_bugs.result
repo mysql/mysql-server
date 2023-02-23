@@ -1607,3 +1607,60 @@ f1	f2	DENSE_RANK() OVER (ORDER BY f1)	RANK() OVER (ORDER BY f1)
 2	1	2	3
 2	2	2	3
 DROP TABLE t1;
+#
+# Bug#35013880: Wrong result for AVG() OVER(ROWS BETWEEN 1 FOLLOWING AND UNBOUNDED FOLLOWING)
+#
+CREATE TABLE t (n INTEGER, r FLOAT);
+INSERT INTO t VALUES (1, 1.0), (2, 2.0), (3, 3.0), (4, 4.0);
+# No high precision for floating point, lest we don't use inversion.
+# With no inversion we do not see the error.
+SET SESSION windowing_use_high_precision=FALSE;
+SELECT n
+, SUM(n)   OVER w AS "sum(n)"
+     , COUNT(*) OVER w AS "count(n)"
+     , AVG(n)   OVER w AS "avg(n)"
+     , SUM(n)   OVER w / COUNT(*) OVER w AS "sum(n)/count(n)",
+r
+, SUM(r)   OVER w AS "sum(r)"
+     , COUNT(*) OVER w AS "count(r)"
+     , AVG(r)   OVER w AS "avg(r)"
+     , SUM(r)   OVER w / COUNT(*) OVER w AS "sum(r)/count(r)"
+FROM t WINDOW w AS (ORDER BY n ROWS BETWEEN 1 FOLLOWING AND UNBOUNDED FOLLOWING)
+ORDER BY n;
+n	sum(n)	count(n)	avg(n)	sum(n)/count(n)	r	sum(r)	count(r)	avg(r)	sum(r)/count(r)
+1	9	3	3.0000	3.0000	1	9	3	3	3
+2	7	2	3.5000	3.5000	2	7	2	3.5	3.5
+3	4	1	4.0000	4.0000	3	4	1	4	4
+4	NULL	0	NULL	NULL	4	NULL	0	NULL	NULL
+SET SESSION windowing_use_high_precision=default;
+# Was correct even before, because AVG(r) changes the code path even
+# for AVG(n): only with inversion did we see the error.
+SELECT n
+, SUM(n)   OVER w AS "sum(n)"
+     , COUNT(*) OVER w AS "count(n)"
+     , AVG(n)   OVER w AS "avg(n)"
+     , SUM(n)   OVER w / COUNT(*) OVER w AS "sum(n)/count(n)",
+r
+, SUM(r)   OVER w AS "sum(r)"
+     , COUNT(*) OVER w AS "count(r)"
+     , AVG(r)   OVER w AS "avg(r)"
+     , SUM(r)   OVER w / COUNT(*) OVER w AS "sum(r)/count(r)"
+FROM t WINDOW w AS (ORDER BY n ROWS BETWEEN 1 FOLLOWING AND UNBOUNDED FOLLOWING)
+ORDER BY n;
+n	sum(n)	count(n)	avg(n)	sum(n)/count(n)	r	sum(r)	count(r)	avg(r)	sum(r)/count(r)
+1	9	3	3.0000	3.0000	1	9	3	3	3
+2	7	2	3.5000	3.5000	2	7	2	3.5	3.5
+3	4	1	4.0000	4.0000	3	4	1	4	4
+4	NULL	0	NULL	NULL	4	NULL	0	NULL	NULL
+DROP TABLE t;
+#
+# Bug#33064174 PERCENT_RANK() RETURNS WRONG RESULT
+#
+CREATE TABLE t1 ( a TIME );
+INSERT INTO t1 VALUES ('02:00:00');
+INSERT INTO t1 VALUES (NULL);
+SELECT a, PERCENT_RANK() OVER (ORDER BY a) FROM t1;
+a	PERCENT_RANK() OVER (ORDER BY a)
+NULL	0
+02:00:00	1
+DROP TABLE t1;
