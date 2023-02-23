@@ -407,6 +407,7 @@ dberr_t Page_load::init() noexcept {
   m_modified = true;
 
   ut_d(m_total_data = 0);
+
   return DB_SUCCESS;
 }
 
@@ -423,12 +424,11 @@ dberr_t Page_load::insert(const rec_t *rec, Rec_offsets offsets) noexcept {
     auto old_offsets = rec_get_offsets(
         old_rec, m_index, nullptr, ULINT_UNDEFINED, UT_LOCATION_HERE, &m_heap);
 
-    ulint n_fields;
-    const bool is_spatial = page_is_spatial_non_leaf(old_rec, m_index);
-    const bool is_mvi = m_index->is_multi_value();
-    const int cmp = cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index,
-                                is_spatial, &n_fields);
-    ut_ad(cmp > 0 || (is_mvi && cmp >= 0));
+    ut_ad(cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index,
+                      page_is_spatial_non_leaf(old_rec, m_index)) > 0 ||
+          (m_index->is_multi_value() &&
+           cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index,
+                       page_is_spatial_non_leaf(old_rec, m_index)) >= 0));
   }
 
   m_total_data += rec_size;
@@ -1319,6 +1319,5 @@ dberr_t Btree_load::build(Cursor &cursor) noexcept {
       break;
     }
   }
-
   return err == DB_END_OF_INDEX ? DB_SUCCESS : err;
 }

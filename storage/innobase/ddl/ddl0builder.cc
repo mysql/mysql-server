@@ -1659,8 +1659,8 @@ dberr_t Builder::check_duplicates(Thread_ctxs &dupcheck, Dup *dup) noexcept {
   auto prev_dtuple = dtuple;
   Scoped_heap prev_tuple_heap;
 
-  /* For secondary indexes we have to compare all the columns for the
-  index, this includes the cluster index primary key columns too. */
+  /* For secondary indexes we have to compare all the columns for the index,
+  this includes the cluster index primary key columns too. */
   Compare_key compare_key(m_index, dup, !m_sort_index->is_clustered());
 
   const auto n_compare = dict_index_get_n_unique_in_tree(m_index);

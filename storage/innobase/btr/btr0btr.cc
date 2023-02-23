@@ -55,18 +55,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef UNIV_DEBUG
-struct Index_details {
-  void add_page(const page_no_t page_no, const size_t level) {
-    if (level < MAX_LEVEL) {
-      m_pages[level].push_back(page_no);
-    }
-  }
-  static const size_t MAX_LEVEL = 20;
-  std::vector<page_no_t> m_pages[MAX_LEVEL];
-};
-#endif /* UNIV_DEBUG */
-
 #ifndef UNIV_HOTBACKUP
 /** Checks if the page in the cursor can be merged with given page.
  If necessary, re-organize the merge_page.
@@ -3893,10 +3881,6 @@ bool btr_index_rec_validate(const rec_t *rec,          /*!< in: index record */
       rec_print_old(stderr, rec);
       putc('\n', stderr);
     }
-#ifdef UNIV_DEBUG
-    const bool wrong_field_count = false;
-    ut_ad(wrong_field_count);
-#endif /* UNIV_DEBUG */
     return false;
   }
 
@@ -4047,15 +4031,13 @@ static void btr_validate_report2(
 }
 
 /** Validates index tree level.
-@param[in] index  index dictionary object.
-@param[in] trx    transaction or nullptr
-@param[in] level  level number to validate
-@param[in] lockout  true if X-latch index is intended
-@param[in] index_details debug only argument to collect index details.
-@return true if ok */
+ @return true if ok */
 static bool btr_validate_level(
-    dict_index_t *index, const trx_t *trx, ulint level,
-    bool lockout IF_DEBUG(, Index_details &index_details)) {
+    dict_index_t *index, /*!< in: index tree */
+    const trx_t *trx,    /*!< in: transaction or NULL */
+    ulint level,         /*!< in: level number */
+    bool lockout)        /*!< in: true if X-latch index is intended */
+{
   buf_block_t *block;
   page_t *page;
   buf_block_t *right_block = nullptr; /* remove warning */
@@ -4226,11 +4208,6 @@ loop:
 
   right_page_no = btr_page_get_next(page, &mtr);
   left_page_no = btr_page_get_prev(page, &mtr);
-
-#ifdef UNIV_DEBUG
-  const ulint cur_page_no = page_get_page_no(page);
-  index_details.add_page(cur_page_no, level);
-#endif /* UNIV_DEBUG */
 
   ut_a(!page_is_empty(page) ||
        (level == 0 && page_get_page_no(page) == dict_index_get_page(index)));
@@ -4496,9 +4473,6 @@ static bool btr_validate_spatial_index(
     dict_index_t *index, /*!< in: index */
     const trx_t *trx)    /*!< in: transaction or NULL */
 {
-#ifdef UNIV_DEBUG
-  Index_details index_details;
-#endif /* UNIV_DEBUG */
   mtr_t mtr;
   bool ok = true;
 
@@ -4518,8 +4492,7 @@ static bool btr_validate_spatial_index(
     fprintf(stderr, "Level %lu:\n", n - i);
 #endif /* UNIV_RTR_DEBUG */
 
-    if (!btr_validate_level(index, trx, n - i,
-                            true IF_DEBUG(, index_details))) {
+    if (!btr_validate_level(index, trx, n - i, true)) {
       ok = false;
       break;
     }
@@ -4537,10 +4510,6 @@ bool btr_validate_index(
     const trx_t *trx,    /*!< in: transaction or NULL */
     bool lockout)        /*!< in: true if X-latch index is intended */
 {
-#ifdef UNIV_DEBUG
-  Index_details index_details;
-#endif /* UNIV_DEBUG */
-
   /* Full Text index are implemented by auxiliary tables,
   not the B-tree */
   if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)) {
@@ -4598,8 +4567,7 @@ bool btr_validate_index(
   ulint n = btr_page_get_level(root);
 
   for (ulint i = 0; i <= n; ++i) {
-    if (!btr_validate_level(index, trx, n - i,
-                            lockout IF_DEBUG(, index_details))) {
+    if (!btr_validate_level(index, trx, n - i, lockout)) {
       ok = false;
       break;
     }

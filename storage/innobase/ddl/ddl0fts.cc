@@ -40,7 +40,6 @@ Created 10/13/2010 Jimmy Yang */
 #include "fts0plugin.h"
 #include "lob0lob.h"
 #include "os0thread-create.h"
-#include "scope_guard.h"
 #include "sql/sql_class.h"
 
 #include <current_thd.h>

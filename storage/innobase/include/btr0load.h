@@ -169,8 +169,6 @@ class Btree_load : private ut::Non_copyable {
   /** B-tree index */
   dict_index_t *m_index{};
 
-  fil_space_t *m_space{};
-
   /** Transaction id */
   trx_id_t m_trx_id{};
 

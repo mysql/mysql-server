@@ -336,10 +336,6 @@ class Flush_observer {
 
   /** True if the operation was interrupted. */
   bool m_interrupted{};
-
-#ifdef UNIV_DEBUG
-  std::vector<page_id_t> m_flushed_page_ids;
-#endif /* UNIV_DEBUG */
 };
 
 lsn_t get_flush_sync_lsn() noexcept;
