@@ -167,7 +167,7 @@ static bool ignore_errors = false, wait_flag = false, quick = false,
 static bool opt_binary_as_hex_set_explicitly = false;
 static bool debug_info_flag, debug_check_flag;
 static bool column_types_flag;
-static bool preserve_comments = false;
+static bool preserve_comments = true;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose = 0, opt_silent = 0, opt_mysql_port = 0,
             opt_local_infile = 0;
@@ -1688,9 +1688,9 @@ static struct my_option my_long_options[] = {
      nullptr, 0, nullptr},
     {"comments", 'c',
      "Preserve comments. Send comments to the server."
-     " The default is --skip-comments (discard comments), enable with "
-     "--comments.",
-     &preserve_comments, &preserve_comments, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     " The default is --comments (keep comments), disable with "
+     "--skip-comments.",
+     &preserve_comments, &preserve_comments, nullptr, GET_BOOL, NO_ARG, 1, 0, 0,
      nullptr, 0, nullptr},
     {"compress", 'C', "Use compression in server/client protocol.",
      &opt_compress, &opt_compress, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr,

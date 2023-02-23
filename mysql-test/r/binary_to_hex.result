@@ -83,7 +83,7 @@ c9: 0x000000000101000000000000000000F03F000000000000F03F
 
 <?xml version="1.0"?>
 
-<resultset statement="SELECT * FROM t1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<resultset statement="SELECT * FROM t1 " xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <row>
 	<field name="c1">0x74696E79626C6F622D74657874207265616461626C65</field>
 	<field name="c2">0x626C6F622D74657874207265616461626C65</field>
