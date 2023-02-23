@@ -521,6 +521,28 @@ void BootstrapConfigurator::store_mrs_data_in_keyring() {
   }
 }
 
+void check_version_compatibility(mysqlrouter::MySQLSession *session) {
+  auto row = session->query_one(
+      "SELECT substring_index(@@version, '.', 1), concat(@@version_comment, "
+      "@@version)");
+  bool ok = true;
+  if (std::atoi((*row)[0]) < 8 || strncmp((*row)[1], "MySQL", 5) != 0) {
+    std::cout << "Unsupported MySQL server version: " << (*row)[1] << "\n";
+    ok = false;
+  }
+
+  row = session->query_one("SELECT @@basedir");
+  if (strstr((*row)[0], "rds")) {
+    ok = false;
+  }
+  try {
+    session->query_one("SELECT aurora_version()");
+    ok = false;
+  } catch (...) {
+  }
+  if (!ok) throw std::runtime_error("Target DB System is not fully supported");
+}
+
 void BootstrapConfigurator::check_mrs_metadata(
     mysqlrouter::MySQLSession *session) const {
   try {
@@ -549,22 +571,7 @@ void BootstrapConfigurator::check_mrs_metadata(
     }
   }
 
-  auto row = session->query_one(
-      "SELECT substring_index(@@version, '.', 1), concat(@@version_comment, "
-      "@@version)");
-  if (std::stoi((*row)[0]) != 8) {
-    std::cout << "Unsupported MySQL server version: " << (*row)[1] << "\n";
-    throw std::runtime_error("Unsupported MySQL server version");
-  }
-  row = session->query_one("SELECT @@basedir");
-  if (strstr((*row)[0], "rds")) {
-    throw std::runtime_error("Unsupported MySQL server");
-  }
-  try {
-    session->query_one("SELECT aurora_version()");
-    throw std::runtime_error("Unsupported MySQL server");
-  } catch (...) {
-  }
+  check_version_compatibility(session);
 }
 
 bool BootstrapConfigurator::can_configure_mrs(
