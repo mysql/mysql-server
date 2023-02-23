@@ -43,24 +43,6 @@ Created 2020-11-01 by Sunny Bains. */
 #include "row0vers.h"
 #include "ut0stage.h"
 
-#ifdef UNIV_DEBUG
-static bool g_ddl_delay_clust_index = false;
-
-/** This is a debug variable. In the Builder::State::SETUP_SORT there is a
-duplicate check which can be enabled or disabled using this variable. Refer
-to the innodb_interpreter commands "ddl_disable_dupcheck_in_setup_sort" and
-"ddl_enable_dupcheck_in_setup_sort" to control this variable. */
-static bool g_ddl_disable_dupcheck_in_setup_sort = false;
-
-void disable_dupcheck_in_setup_sort() {
-  g_ddl_disable_dupcheck_in_setup_sort = true;
-}
-void enable_dupcheck_in_setup_sort() {
-  g_ddl_disable_dupcheck_in_setup_sort = false;
-}
-
-#endif /* UNIV_DEBUG */
-
 namespace ddl {
 
 /** Context for copying cluster index row for the index to being created. */
@@ -1840,9 +1822,6 @@ dberr_t Builder::create_merge_sort_tasks() noexcept {
            (n_empty == 0 && n_single == dupcheck.size()) ||
            (n_single == 0 && n_multiple + n_empty == dupcheck.size()));
     }
-    if (g_ddl_disable_dupcheck_in_setup_sort) {
-      dupcheck.clear();
-    }
 #endif /* UNIV_DEBUG */
     auto err = check_duplicates(dupcheck, &dup);
 
@@ -2014,6 +1993,7 @@ dberr_t Builder::finish() noexcept {
     set_next_state();
     return get_error();
   }
+
   ut_a(m_n_sort_tasks == 0);
   ut_a(get_state() == State::FINISH);
 
@@ -2105,15 +2085,6 @@ void Builder::set_next_state() noexcept {
 
 dberr_t Loader::Task::operator()() noexcept {
   dberr_t err;
-
-#ifdef UNIV_DEBUG
-  if (g_ddl_delay_clust_index) {
-    if (m_builder->index()->is_clustered()) {
-      g_ddl_delay_clust_index = false;
-      std::this_thread::sleep_for(std::chrono::seconds{10});
-    }
-  }
-#endif /* UNIV_DEBUG */
 
   switch (m_builder->get_state()) {
     case Builder::State::SETUP_SORT:
