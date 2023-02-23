@@ -81,9 +81,12 @@ void trace_error(const char *variable_user, const char *access,
 struct MrdsModule {
   MrdsModule(const ::mrs::Configuration &c) : configuration{c} {
     using namespace mysqlrouter;
+    extern void check_version_compatibility(mysqlrouter::MySQLSession *);
     try {
       auto conn1 = mysql_connection_cache.get_instance(
           collector::kMySQLConnectionMetadata);
+
+      check_version_compatibility(conn1.get());
     } catch (const MySQLSession::Error &e) {
       trace_error("mysql_user", "metadata", "mysql_rest_service_meta_provider",
                   e);
@@ -95,6 +98,8 @@ struct MrdsModule {
     try {
       auto conn2 = mysql_connection_cache.get_instance(
           collector::kMySQLConnectionUserdata);
+
+      check_version_compatibility(conn2.get());
     } catch (const MySQLSession::Error &e) {
       trace_error("mysql_user_data_access", "user-data",
                   "mysql_rest_service_data_provider", e);
@@ -189,7 +194,6 @@ static void run(mysql_harness::PluginFuncEnv *env) {
     service_monitor.wait_for_services(service_names);
     g_mrs_configuration->init_runtime_configuration();
     g_mrds_module.reset(new MrdsModule(*g_mrs_configuration));
-
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
   } catch (const std::runtime_error &exc) {
