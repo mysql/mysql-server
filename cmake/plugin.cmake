@@ -36,6 +36,7 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
     TEST_ONLY
     VISIBILITY_HIDDEN # Add -fvisibility=hidden on UNIX
                       # TODO(tdidriks) make this default if MODULE_ONLY
+    SERVER_AND_CLIENT # Two plugins in a single binary
     )
   SET(PLUGIN_ONE_VALUE_KW
     MODULE_OUTPUT_NAME
@@ -54,6 +55,9 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
     ${ARGN}
     )
 
+  IF(ARG_CLIENT_ONLY AND ARG_SERVER_AND_CLIENT)
+    MESSAGE(FATAL_ERROR "Need to pick one of CLIENT_ONLY or SERVER_AND_CLIENT for the ${plugin} plugin.")
+  ENDIF()
   SET(plugin ${plugin_arg})
   SET(SOURCES ${ARG_UNPARSED_ARGUMENTS})
 
@@ -192,7 +196,10 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
       MY_TARGET_LINK_OPTIONS(${target}
         "LINKER:--compress-debug-sections=zlib")
     ENDIF()
-    IF(ARG_CLIENT_ONLY)
+    IF(ARG_SERVER_AND_CLIENT)
+      SET_TARGET_PROPERTIES (${target} PROPERTIES
+        COMPILE_DEFINITIONS "MYSQL_DYNAMIC_CLIENT_PLUGIN;MYSQL_DYNAMIC_PLUGIN")
+    ELSEIF(ARG_CLIENT_ONLY)
       SET_TARGET_PROPERTIES (${target} PROPERTIES
         COMPILE_DEFINITIONS "MYSQL_DYNAMIC_CLIENT_PLUGIN")
     ELSE()
