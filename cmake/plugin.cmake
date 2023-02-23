@@ -192,6 +192,13 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
       MY_TARGET_LINK_OPTIONS(${target}
         "LINKER:--compress-debug-sections=zlib")
     ENDIF()
+    IF(ARG_CLIENT_ONLY)
+      SET_TARGET_PROPERTIES (${target} PROPERTIES
+        COMPILE_DEFINITIONS "MYSQL_DYNAMIC_CLIENT_PLUGIN")
+    ELSE()
+      SET_TARGET_PROPERTIES (${target} PROPERTIES
+        COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
+    ENDIF()
     SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX "")
 
     # CLIENT_ONLY plugins should have no undefined symbols.
@@ -208,8 +215,6 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
         "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
     ENDIF()
     IF(NOT ARG_CLIENT_ONLY)
-      SET_TARGET_PROPERTIES (${target} PROPERTIES
-        COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
       TARGET_LINK_LIBRARIES (${target} mysqlservices)
     ENDIF()
 
