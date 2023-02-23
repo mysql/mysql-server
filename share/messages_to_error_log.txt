@@ -8916,7 +8916,7 @@ ER_IB_MSG_1127
   eng "Unable to create monitor file %s: %s"
 
 ER_IB_MSG_1128
-  eng "Disabling background log and ibuf IO write threads."
+  eng "Disabling background ibuf IO read threads."
 
 ER_IB_MSG_1129
   eng "Cannot initialize AIO sub-system"

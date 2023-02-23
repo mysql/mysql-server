@@ -37,9 +37,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/dd/object_id.h"
 #include "sql/dd/types/column.h"
 #include "univ.i"
-#ifdef UNIV_HOTBACKUP
+#if defined UNIV_COMPILE_TEST_FUNCS || defined UNIV_HOTBACKUP
 #include "sql/dd/types/spatial_reference_system.h"
-#endif /* UNIV_HOTBACKUP */
+#endif /* UNIV_COMPILE_TEST_FUNCS || UNIV_HOTBACKUP */
 #include "btr0types.h"
 #include "data0type.h"
 #include "dict0types.h"
