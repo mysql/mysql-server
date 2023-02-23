@@ -131,8 +131,6 @@ void log_and_clear_thd_conditions(THD *thd,
       case condition_logging_level::ERROR: {
         ndb_log_error("Got error '%u: %s'", err->mysql_errno(),
                       err->message_text());
-        // Detect when "Duplicate entry" error occurs.
-        assert(err->mysql_errno() != 1062);
       } break;
     }
   }
