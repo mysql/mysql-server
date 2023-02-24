@@ -111,6 +111,7 @@ ADD_LIBRARY(routing SHARED
   classic_greeting_receiver.cc
 
   sql_value.cc
+  show_warnings_parser.cc
 )
 
 TARGET_LINK_LIBRARIES(routing

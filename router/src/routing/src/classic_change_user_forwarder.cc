@@ -251,6 +251,9 @@ stdx::expected<Processor::Result, std::error_code> ChangeUserForwarder::ok() {
   // clear the warnings
   connection()->execution_context().diagnostics_area().warnings().clear();
 
+  // clear the prepared statements.
+  connection()->client_protocol()->prepared_statements().clear();
+
   if (connection()->context().connection_sharing() &&
       connection()->greeting_from_router()) {
     // if connection sharing is enabled in the config, enable the

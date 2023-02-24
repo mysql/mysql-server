@@ -42,9 +42,21 @@ StmtCloseForwarder::process() {
 
 stdx::expected<Processor::Result, std::error_code>
 StmtCloseForwarder::command() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection()->client_protocol();
+
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_close::command"));
   }
+
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::client::StmtClose>(src_channel,
+                                                              src_protocol);
+  if (!msg_res) return recv_client_failed(msg_res.error());
+
+  // forget everything about a prepared statement.
+  src_protocol->prepared_statements().erase(msg_res->statement_id());
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
@@ -65,9 +77,9 @@ StmtCloseForwarder::command() {
     discard_current_msg(src_channel, src_protocol);
 
     return Result::Again;
-  } else {
-    stage(Stage::Done);
-
-    return forward_client_to_server();
   }
+
+  stage(Stage::Done);
+
+  return forward_client_to_server();
 }

@@ -31,6 +31,7 @@
 #include <gtest/gtest.h>
 
 #include "mysqlrouter/classic_protocol_constants.h"
+#include "mysqlrouter/classic_protocol_message.h"
 #include "test_classic_protocol_codec.h"
 
 // string_literals are supposed to solve the same problem, but they are broken
@@ -1145,7 +1146,7 @@ std::ostream &operator<<(std::ostream &os, const StmtExecute &v) {
   os << "  types: "
      << "\n";
   for (auto const &t : v.types()) {
-    os << "    - " << static_cast<uint16_t>(t) << "\n";
+    os << "    - " << t.type_and_flags << "\n";
   }
   os << "  values: "
      << "\n";
@@ -1167,7 +1168,11 @@ using CodecMessageClientStmtExecuteTest =
 
 TEST_P(CodecMessageClientStmtExecuteTest, encode) { test_encode(GetParam()); }
 TEST_P(CodecMessageClientStmtExecuteTest, decode) {
-  test_decode(GetParam(), [](uint32_t /* statement_id */) { return 1; });
+  test_decode(GetParam(), [](uint32_t /* statement_id */) {
+    // one param
+    return std::vector<
+        classic_protocol::message::client::StmtExecute::ParamDef>{{}};
+  });
 }
 
 const CodecParam<classic_protocol::message::client::StmtExecute>

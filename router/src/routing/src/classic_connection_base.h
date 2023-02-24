@@ -29,9 +29,11 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "channel.h"
+#include "classic_prepared_statement.h"
 #include "connection.h"  // MySQLRoutingConnectionBase
 #include "mysql/harness/net_ts/executor.h"
 #include "mysql/harness/net_ts/timer.h"
@@ -157,6 +159,13 @@ class ClassicProtocolState : public ProtocolStateBase {
     sent_attributes_ = std::move(attrs);
   }
 
+  using PreparedStatements = std::unordered_map<uint32_t, PreparedStatement>;
+
+  const PreparedStatements &prepared_statements() const {
+    return prepared_stmts_;
+  }
+  PreparedStatements &prepared_statements() { return prepared_stmts_; }
+
  private:
   classic_protocol::capabilities::value_type server_caps_{};
   classic_protocol::capabilities::value_type client_caps_{};
@@ -177,6 +186,8 @@ class ClassicProtocolState : public ProtocolStateBase {
 
   std::string auth_method_name_;
   std::string auth_method_data_;
+
+  PreparedStatements prepared_stmts_;
 };
 
 class MysqlRoutingClassicConnectionBase

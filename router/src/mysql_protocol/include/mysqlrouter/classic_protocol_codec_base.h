@@ -110,6 +110,7 @@ stdx::expected<size_t, std::error_code> encode(const T &v,
  *
  * @param buffer buffer to read from
  * @param caps protocol capabilities
+ * @tparam T the message class
  * @returns number of bytes read from 'buffers' and a T on success, or
  * std::error_code on error
  */
@@ -117,6 +118,28 @@ template <class T>
 stdx::expected<std::pair<size_t, T>, std::error_code> decode(
     const net::const_buffer &buffer, capabilities::value_type caps) {
   return Codec<T>::decode(buffer, caps);
+}
+
+/**
+ * decode a message from a buffer.
+ *
+ * @param buffer buffer to read from
+ * @param caps protocol capabilities
+ * @param args arguments that shall be forwarded to T's decode()
+ * @tparam T the message class
+ * @tparam Args Types of the extra arguments to be forwarded to T's decode()
+ * function.
+ * @returns number of bytes read from 'buffers' and a T on success, or
+ * std::error_code on error
+ */
+template <class T, class... Args>
+stdx::expected<std::pair<size_t, T>, std::error_code> decode(
+    const net::const_buffer &buffer, capabilities::value_type caps,
+    // clang-format off
+    Args &&... args
+    // clang-format on
+) {
+  return Codec<T>::decode(buffer, caps, std::forward<Args>(args)...);
 }
 
 namespace impl {
