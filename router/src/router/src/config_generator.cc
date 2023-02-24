@@ -3368,8 +3368,8 @@ void ConfigGenerator::create_start_script(
   script << "[Environment]::SetEnvironmentVariable(\"ROUTER_PID\","
          << "\"" << directory << "\\"
          << "mysqlrouter.pid\", \"Process\")" << std::endl;
-  script << "Start-Process \"" << program_path << "\" \" -c " << directory
-         << "/mysqlrouter.conf\""
+  script << "Start-Process \"" << program_path << "\" -ArgumentList \"-c\", '\""
+         << directory << "/mysqlrouter.conf\"'"
          << " -NoNewWindow" << std::endl;
   script.close();
 
