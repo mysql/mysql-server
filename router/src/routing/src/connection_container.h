@@ -215,6 +215,15 @@ class ConnectionContainer {
   void disconnect_all();
 
   /**
+   * @brief Retrieve the connection object for the given client endpoint
+   *
+   * @param client_endpoint The endpoint string
+   * @returns the connection object, or nullptr
+   */
+  MySQLRoutingConnectionBase *get_connection(
+      const std::string &client_endpoint);
+
+  /**
    * @brief removes connection from container
    *
    * This function should be called by thread of execution when connection

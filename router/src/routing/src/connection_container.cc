@@ -57,6 +57,23 @@ unsigned ConnectionContainer::disconnect(const AllowedNodes &nodes) {
   return number_of_disconnected_connections;
 }
 
+MySQLRoutingConnectionBase *ConnectionContainer::get_connection(
+    const std::string &client_endpoint) {
+  MySQLRoutingConnectionBase *ret = nullptr;
+
+  auto lookup = [&ret, &client_endpoint](auto &connection) {
+    if (ret) return;
+    const auto client_address = connection.first->get_client_address();
+    if (client_address == client_endpoint) {
+      ret = connection.first;
+    }
+  };
+
+  connections_.for_each(lookup);
+
+  return ret;
+}
+
 void ConnectionContainer::disconnect_all() {
   connections_.for_each(
       [](const auto &connection) { connection.first->disconnect(); });
