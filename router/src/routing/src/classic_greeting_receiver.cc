@@ -576,8 +576,12 @@ ClientGreetor::client_greeting_after_tls() {
     return Result::SendToClient;
   }
 
-  if (src_protocol->client_greeting()->auth_method_data() == "\x00"sv) {
+  if (src_protocol->client_greeting()->auth_method_data() == "\x00"sv ||
+      src_protocol->client_greeting()->auth_method_data().empty()) {
     // special value for 'empty password'. Not scrambled.
+    //
+    // - php sends no trailing '\0'
+    // - libmysqlclient sends a trailing '\0'
     src_protocol->password("");
 
     stage(Stage::Accepted);
