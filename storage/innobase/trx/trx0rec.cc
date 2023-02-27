@@ -376,6 +376,8 @@ const byte *trx_undo_read_v_idx(const dict_table_t *table, const byte *ptr,
 @return true if stored successfully, false if space is not enough */
 static bool trx_undo_store_multi_value(page_t *undo_page,
                                        const dfield_t *vfield, byte **ptr) {
+  ut_ad(vfield != nullptr);
+
   Multi_value_logger mv_logger(
       static_cast<multi_value_data *>(dfield_get_data(vfield)),
       dfield_get_len(vfield));
@@ -1618,6 +1620,8 @@ static ulint trx_undo_page_report_modify(
         if (update) {
           ut_ad(!row);
           if (update->old_vrow == nullptr) {
+            /* This only happens in cascade update. And virtual column can't be
+            affected, so it is Ok to set it to NULL */
             flen = UNIV_SQL_NULL;
           } else {
             vfield = dtuple_get_nth_v_field(update->old_vrow, col->v_pos);
@@ -1647,6 +1651,11 @@ static ulint trx_undo_page_report_modify(
         }
 
         if (col->m_col.is_multi_value()) {
+          dfield_t multi_value_field;
+          if (vfield == nullptr) {
+            dfield_set_null(&multi_value_field);
+            vfield = &multi_value_field;
+          }
           bool suc = trx_undo_store_multi_value(undo_page, vfield, &ptr);
           if (!suc) {
             return 0;
