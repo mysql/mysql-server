@@ -285,6 +285,7 @@ static mysql_cond_t commit_cond;
 static mysql_mutex_t commit_cond_m;
 mysql_cond_t resume_encryption_cond;
 mysql_mutex_t resume_encryption_cond_m;
+os_event_t recovery_lock_taken;
 static bool innodb_inited = false;
 
 [[maybe_unused]] static inline bool EQ_CURRENT_THD(THD *thd) {
@@ -1612,6 +1613,7 @@ static int innodb_shutdown(handlerton *, ha_panic_function) {
     mysql_cond_destroy(&commit_cond);
     mysql_mutex_destroy(&resume_encryption_cond_m);
     mysql_cond_destroy(&resume_encryption_cond);
+    os_event_destroy(recovery_lock_taken);
 
     os_event_global_destroy();
   }
@@ -4086,7 +4088,7 @@ static bool innobase_dict_recover(dict_recovery_mode_t dict_recovery_mode,
       srv_dict_recover_on_restart();
   }
 
-  srv_start_threads(dict_recovery_mode != DICT_RECOVERY_RESTART_SERVER);
+  srv_start_threads();
 
 #ifndef UNIV_HOTBACKUP
   /* Update the metadata for innodb_temporary tablespace to reflect
@@ -5576,6 +5578,7 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
   mysql_mutex_init(resume_encryption_cond_mutex_key.m_value,
                    &resume_encryption_cond_m, MY_MUTEX_INIT_FAST);
   mysql_cond_init(resume_encryption_cond_key.m_value, &resume_encryption_cond);
+  recovery_lock_taken = os_event_create();
   innodb_inited = true;
 #ifdef MYSQL_DYNAMIC_PLUGIN
   if (innobase_hton != p) {

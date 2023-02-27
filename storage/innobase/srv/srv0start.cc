@@ -2466,9 +2466,9 @@ void srv_start_purge_threads() {
   srv_start_state_set(SRV_START_STATE_PURGE);
 }
 
-/** Start up the InnoDB service threads which are independent of DDL recovery
-@param[in]      bootstrap       True if this is in bootstrap */
-void srv_start_threads(bool bootstrap) {
+/** Start up the InnoDB service threads which are independent of DDL recovery.
+ */
+void srv_start_threads() {
   if (!srv_read_only_mode) {
     /* Before 8.0, it was master thread that was doing periodical
     checkpoints (every 7s). Since 8.0, it is the log checkpointer
@@ -2499,16 +2499,6 @@ void srv_start_threads(bool bootstrap) {
   if (srv_read_only_mode) {
     purge_sys->state = PURGE_STATE_DISABLED;
     return;
-  }
-
-  if (!bootstrap && srv_force_recovery < SRV_FORCE_NO_TRX_UNDO &&
-      trx_sys_need_rollback()) {
-    /* Rollback all recovered transactions that are
-    not in committed nor in XA PREPARE state. */
-    srv_threads.m_trx_recovery_rollback = os_thread_create(
-        trx_recovery_rollback_thread_key, 0, trx_recovery_rollback_thread);
-
-    srv_threads.m_trx_recovery_rollback.start();
   }
 
   /* Create the master thread which does purge and other utility
@@ -2542,6 +2532,18 @@ void srv_start_threads(bool bootstrap) {
 }
 
 void srv_start_threads_after_ddl_recovery() {
+  if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO && trx_sys_need_rollback()) {
+    /* Rollback all recovered transactions that are
+    not in committed nor in XA PREPARE state. */
+    srv_threads.m_trx_recovery_rollback = os_thread_create(
+        trx_recovery_rollback_thread_key, 0, trx_recovery_rollback_thread);
+
+    srv_threads.m_trx_recovery_rollback.start();
+    /* Wait till shared MDL is taken by background thread for all tables,
+    for which rollback is to be performed. */
+    os_event_wait(recovery_lock_taken);
+  }
+
   /* Start the buffer pool dump/load thread, which will access spaces thus
         must wait for DDL recovery */
   srv_threads.m_buf_dump =
