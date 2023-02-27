@@ -31,6 +31,7 @@ ADD_LIBRARY(http_common
   base64.cc
   http_common.cc
   http_time.cc
+  http_auth_method_basic.cc
   )
 TARGET_LINK_LIBRARIES(http_common
   PUBLIC
@@ -163,7 +164,6 @@ TARGET_INCLUDE_DIRECTORIES(http_auth_realm PRIVATE
 ADD_HARNESS_PLUGIN(http_server
   SOURCES
   http_auth.cc
-  http_auth_method_basic.cc
   http_server_component.cc
   http_server_plugin.cc
   static_files.cc

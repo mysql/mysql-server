@@ -28,12 +28,12 @@
 #include <memory>
 #include <vector>
 
+#include "helper/http/url.h"
 #include "helper/mysql_time.h"
 #include "mrs/database/entry/auth_app.h"
 #include "mrs/database/entry/auth_user.h"
 #include "mrs/http/cookie.h"
 #include "mrs/http/session_manager.h"
-#include "mrs/http/url.h"
 #include "mrs/interface/authorize_handler.h"
 #include "mrs/users/user_manager.h"
 

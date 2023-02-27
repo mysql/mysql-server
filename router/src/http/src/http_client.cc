@@ -47,6 +47,8 @@ class IOContext::impl {
 
 IOContext::IOContext() : pImpl_{new impl()} {}
 
+void IOContext::do_break() { event_base_loopbreak(pImpl_->ev_base.get()); }
+
 bool IOContext::dispatch() {
   int ret = event_base_dispatch(pImpl_->ev_base.get());
 

@@ -28,9 +28,9 @@
 #include <string_view>
 
 #include "helper/container/map.h"
+#include "helper/http/url.h"
 #include "helper/json/to_string.h"
 #include "mrs/database/entry/auth_user.h"
-#include "mrs/http/url.h"
 #include "mrs/rest/request_context.h"
 
 #include "mysql/harness/logging/logging.h"
@@ -56,7 +56,7 @@ Oauth2GoogleHandler::~Oauth2GoogleHandler() {
 }
 
 std::string Oauth2GoogleHandler::get_url_location(GenericSessionData *,
-                                                  http::Url *url) const {
+                                                  Url *url) const {
   std::string result{!entry_.url.empty()
                          ? entry_.url
                          : "https://accounts.google.com/o/oauth2/v2/auth"};

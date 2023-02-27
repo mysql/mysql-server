@@ -52,6 +52,7 @@ class Oauth2Handler : public interface::AuthorizeHandler {
   using UserManager = mrs::users::UserManager;
   using SessionManager = mrs::http::SessionManager;
   using VariantPointer = helper::VariantPointer;
+  using Url = helper::http::Url;
 
  public:
   class RequestHandler {
@@ -104,7 +105,7 @@ class Oauth2Handler : public interface::AuthorizeHandler {
  protected:
   virtual std::string get_url_direct_auth() const = 0;
   virtual std::string get_url_location(GenericSessionData *data,
-                                       http::Url *url) const = 0;
+                                       Url *url) const = 0;
   virtual std::string get_url_validation(GenericSessionData *data) const = 0;
   virtual RequestHandlerPtr get_request_handler_access_token(
       GenericSessionData *session_data) = 0;
@@ -119,7 +120,7 @@ class Oauth2Handler : public interface::AuthorizeHandler {
   void set_cookie_session_id(HttpRequest *request,
                              SessionManager::Session *session);
 
-  void new_session_start_login(Session *session, http::Url *url);
+  void new_session_start_login(Session *session, Url *url);
   bool http_acquire_access_token(GenericSessionData *data);
   bool http_verify_account(Session *session, GenericSessionData *data,
                            SqlSessionCached *sql_session);

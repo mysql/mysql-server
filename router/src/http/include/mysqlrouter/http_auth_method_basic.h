@@ -29,7 +29,7 @@
 #include <system_error>
 
 #include "http_auth_method.h"
-#include "mysqlrouter/http_server_export.h"
+#include "mysqlrouter/http_common_export.h"
 
 /**
  * Basic Authentication for HTTP.
@@ -54,7 +54,7 @@
  * end
  * @enduml
  */
-class HTTP_SERVER_EXPORT HttpAuthMethodBasic : public HttpAuthMethod {
+class HTTP_COMMON_EXPORT HttpAuthMethodBasic : public HttpAuthMethod {
  public:
   static constexpr char kMethodName[] = "Basic";
   struct AuthData {
@@ -68,4 +68,4 @@ class HTTP_SERVER_EXPORT HttpAuthMethodBasic : public HttpAuthMethod {
   static std::string encode_authorization(const AuthData &auth_data);
 };
 
-#endif
+#endif  // ROUTER_HTTP_AUTH_METHOD_BASIC_INCLUDED

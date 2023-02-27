@@ -26,8 +26,8 @@
 
 #include <cassert>
 
+#include "helper/http/url.h"
 #include "mrs/http/cookie.h"
-#include "mrs/http/url.h"
 #include "mrs/http/utilities.h"
 #include "mrs/interface/object.h"
 #include "mrs/rest/request_context.h"
@@ -119,15 +119,14 @@ std::string HandlerAuthorizeCommon::append_status_parameters(
     RequestContext *ctxt, const http::Error &error) {
   auto uri = HttpUri::parse(redirection_);
 
-  http::Url::append_query_parameter(uri, "status",
-                                    get_authentication_status(error.status));
+  Url::append_query_parameter(uri, "status",
+                              get_authentication_status(error.status));
 
   if (HttpStatusCode::Ok == error.status) {
-    http::Url::append_query_parameter(uri, "user_id",
-                                      ctxt->user.user_id.to_string());
-    http::Url::append_query_parameter(uri, "user_name", ctxt->user.name);
+    Url::append_query_parameter(uri, "user_id", ctxt->user.user_id.to_string());
+    Url::append_query_parameter(uri, "user_name", ctxt->user.name);
   } else if (HttpStatusCode::Unauthorized != error.status) {
-    http::Url::append_query_parameter(uri, "message", error.message);
+    Url::append_query_parameter(uri, "message", error.message);
   }
 
   return uri.join();

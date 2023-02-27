@@ -30,13 +30,13 @@
 #include "mysqlrouter/http_request.h"
 
 #include "helper/container/generic.h"
+#include "helper/http/url.h"
 #include "helper/json/rapid_json_interator.h"
 #include "helper/json/text_to.h"
 #include "helper/json/to_string.h"
 #include "helper/media_detector.h"
 #include "mrs/database/query_rest_sp.h"
 #include "mrs/database/query_rest_sp_media.h"
-#include "mrs/http/url.h"
 #include "mrs/rest/request_context.h"
 #include "mrs/router_observation_entities.h"
 
@@ -47,6 +47,7 @@ namespace rest {
 
 using HttpResult = mrs::rest::Handler::HttpResult;
 using CachedObject = collector::MysqlCacheManager::CachedObject;
+using Url = helper::http::Url;
 
 // static std::string to_string(
 //    const std::string &value,
@@ -187,11 +188,11 @@ void HandlerSP::authorization(rest::RequestContext *ctxt) {
 HttpResult HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
   using namespace std::string_literals;
 
-  http::Url::Keys keys;
-  http::Url::Values values;
+  Url::Keys keys;
+  Url::Values values;
 
   auto &requests_uri = ctxt->request->get_uri();
-  http::Url::parse_query(requests_uri.get_query().c_str(), &keys, &values);
+  Url::parse_query(requests_uri.get_query().c_str(), &keys, &values);
 
   auto &p = route_->get_parameters();
   for (auto key : keys) {

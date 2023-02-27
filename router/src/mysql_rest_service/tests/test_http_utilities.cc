@@ -26,9 +26,9 @@
 #include <gtest/gtest.h>
 #include <string>
 
-#include "mrs/http/url.h"
+#include "helper/http/url.h"
 
-using namespace mrs;
+using namespace helper;
 using namespace testing;
 using namespace std::string_literals;
 

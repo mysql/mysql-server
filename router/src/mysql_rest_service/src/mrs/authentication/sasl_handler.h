@@ -54,7 +54,7 @@ class SaslHandler : public interface::AuthorizeHandler {
   using UserManager = mrs::users::UserManager;
   using SessionManager = mrs::http::SessionManager;
   using VariantPointer = helper::VariantPointer;
-  using UrlParameters = http::Url::Parameaters;
+  using UrlParameters = helper::http::Url::Parameaters;
   using SessionData = http::SessionManager::Session::SessionData;
 
  public:

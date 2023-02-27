@@ -22,6 +22,14 @@
 
 INCLUDE(GenerateExportHeader)
 
+ADD_LIBRARY(mysql_rest_service_if INTERFACE)
+
+TARGET_INCLUDE_DIRECTORIES(mysql_rest_service_if
+  INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+    ${CMAKE_CURRENT_BINARY_DIR}/../include/
+    )
+
 ADD_HARNESS_PLUGIN(mysql_rest_service
   SOURCES
   collector/counted_mysql_session.cc
@@ -97,7 +105,7 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   mrs/rest/handler_schema_metadata.cc
   mrs/rest/handler_sp.cc
   rest_mrs_plugin.cc
-  REQUIRES io_component;harness-library;router_lib;routing;http_server;rest_api;http_client;ext::libevent
+  REQUIRES io_component;harness-library;router_lib;routing;http_server;rest_api;http_client;ext::libevent;mysql_rest_service_if;
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
 
@@ -107,10 +115,11 @@ TARGET_INCLUDE_DIRECTORIES(mysql_rest_service
     ${PROJECT_SOURCE_DIR}/src/metadata_cache/include/
     ${PROJECT_SOURCE_DIR}/src/routing/include/
     ${CMAKE_CURRENT_BINARY_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}/../include/
     ${CMAKE_CURRENT_SOURCE_DIR}
     )
-    
+
+
+
 GENERATE_EXPORT_HEADER(mysql_rest_service
   EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/mysql_rest_service_export.h)
 

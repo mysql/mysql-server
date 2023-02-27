@@ -26,7 +26,7 @@
 
 #include "mysql/harness/logging/logging.h"
 
-#include "mrs/http/url.h"
+#include "helper/http/url.h"
 #include "mrs/interface/object.h"
 #include "mrs/json/response_json_template.h"
 #include "mrs/rest/request_context.h"
@@ -38,6 +38,7 @@ namespace rest {
 
 using HttpResult = Handler::HttpResult;
 using Route = mrs::interface::Object;
+using Url = helper::http::Url;
 
 HandlerSchemaMetadata::HandlerSchemaMetadata(
     RouteSchema *schema, mrs::interface::AuthorizeManager *auth_manager)
@@ -55,11 +56,11 @@ HttpResult HandlerSchemaMetadata::handle_get(rest::RequestContext *ctxt) {
   const uint32_t k_default_limit = 25;
   uint32_t offset = 0;
   uint32_t limit = k_default_limit;
-  http::Url::Parameaters query_parameaters;
+  Url::Parameaters query_parameaters;
   json::ResponseJsonTemplate response_template;
 
-  http::Url::parse_query(requests_uri.get_query().c_str(), &query_parameaters);
-  http::Url::parse_offset_limit(query_parameaters, &offset, &limit);
+  Url::parse_query(requests_uri.get_query().c_str(), &query_parameaters);
+  Url::parse_offset_limit(query_parameaters, &offset, &limit);
 
   response_template.begin(offset, limit, limit == k_default_limit,
                           schema_->get_url());

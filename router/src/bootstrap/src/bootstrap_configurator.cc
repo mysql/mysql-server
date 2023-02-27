@@ -490,7 +490,11 @@ void BootstrapConfigurator::store_mrs_data_in_keyring() {
   mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
 
   auto secret = mrs_secret_;
-  if (secret.empty()) {
+  int prompt_for_jwt = 0;
+  while (secret.empty()) {
+    if (prompt_for_jwt++) {
+      std::cout << "\nJSON Web Token, can't be set to an empty string.\n";
+    }
     std::cout << "\n";
     std::cout << "Please enter a secret string to be used as a JSON Web Token "
                  "(JWT) secret.\n"
@@ -502,9 +506,7 @@ void BootstrapConfigurator::store_mrs_data_in_keyring() {
     secret = prompt_password("JWT secret");
   }
 
-  if (!secret.empty()) {
-    keyring->store("rest-user", "jwt_secret", secret);
-  }
+  keyring->store("rest-user", "jwt_secret", secret);
 
   keyring->store(mrs_metadata_account_.user, kKeyringAttributePassword,
                  mrs_metadata_account_.pass);
