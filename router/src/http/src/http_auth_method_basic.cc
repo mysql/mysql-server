@@ -22,7 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "http_auth_method_basic.h"
+#include "mysqlrouter/http_auth_method_basic.h"
 
 #include <algorithm>  // std::find
 #include <iterator>   // std::back_inserter

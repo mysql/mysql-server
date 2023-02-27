@@ -378,7 +378,8 @@ sub mysqlds     { return _like('mysqld.'); }
 sub ndbds       { return _like('cluster_config.ndbd.'); }
 sub ndb_mgmds   { return _like('cluster_config.ndb_mgmd.'); }
 sub clusters    { return _like('mysql_cluster.'); }
-sub all_servers { return (mysqlds(), ndb_mgmds(), ndbds()); }
+sub routers     { return _like('router.'); }
+sub all_servers { return (mysqlds(), ndb_mgmds(), ndbds(), routers()); }
 
 # Return an object which refers to the group named '[mysqld]'
 # from the my.cnf file. Options specified in the section can
@@ -756,9 +757,17 @@ sub main {
   if ($group_replication) {
     $ports_per_thread = $ports_per_thread + 10;
   }
-  
+
   if ($router_test) {
     $ENV{'MTR_ROUTER_PORT_OFFSET'} = $ports_per_thread - 10;
+    $ports_per_thread = $ports_per_thread + 10;
+  }
+
+  if ($router_test) {
+    $ports_per_thread = $ports_per_thread + 10;
+  }
+
+  if ($router_test) {
     $ports_per_thread = $ports_per_thread + 10;
   }
 
@@ -766,7 +775,7 @@ sub main {
     # Reserve 10 extra ports per worker process
     $ports_per_thread = $ports_per_thread + 10;
   }
-  
+
   mtr_report("ports_per_thread:".$ports_per_thread);
 
   create_manifest_file();
@@ -2686,6 +2695,18 @@ sub find_mysqld {
                 [@mysqld_names]);
 }
 
+sub find_router {
+  my ($router_basedir) = $ENV{MTR_BINDIR} || @_;
+
+  my @router_names = ("mysqlrouter");
+
+  return
+    my_find_bin($router_basedir,
+                [ "runtime_output_directory", "libexec", "sbin", "bin" ],
+                [@router_names]);
+}
+
+
 # Finds paths to various executables (other than mysqld) and sets
 # the corresponding '$exe_xxx' variables.
 sub executable_setup () {
@@ -3280,7 +3301,8 @@ sub environment_setup {
   $ENV{'MYSQL_UPGRADE'}       = client_arguments("mysql_upgrade");
   $ENV{'MYSQLADMIN'}          = native_path($exe_mysqladmin);
   $ENV{'MYSQLXTEST'}          = mysqlxtest_arguments();
-  $ENV{'MYSQLROUTER'}          = mysqlrouter_arguments();
+  $ENV{'MYSQLROUTER'}         = mysqlrouter_arguments();
+
   $ENV{'MYSQL_MIGRATE_KEYRING'} = $exe_mysql_migrate_keyring;
   $ENV{'MYSQL_KEYRING_ENCRYPTION_TEST'} = $exe_mysql_keyring_encryption_test;
   $ENV{'MYSQL_TEST_EVENT_TRACKING'} = $exe_mysql_test_event_tracking;
@@ -3332,6 +3354,11 @@ sub environment_setup {
                     "$bindir/share/mysql_fix_privilege_tables.sql",
                     "$bindir/share/mysql/mysql_fix_privilege_tables.sql");
   $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'} = $file_mysql_fix_privilege_tables;
+
+  # Setup env so childs can execute mysqlrouter_keyring
+  my $exe_mysqlrouter_keyring = mtr_exe_exists("$path_client_bindir/mysqlrouter_keyring");
+  $ENV{'MYSQLROUTER_KEYRING'} = native_path($exe_mysqlrouter_keyring);
+
 
   # my_print_defaults
   my $exe_my_print_defaults =
@@ -5960,17 +5987,18 @@ sub check_expected_crash_and_restart($$) {
   my $proc  = shift;
   my $tinfo = shift;
 
-  foreach my $mysqld (mysqlds()) {
+  foreach my $application (mysqlds(), routers()) {
     next
-      unless (($mysqld->{proc} and $mysqld->{proc} eq $proc) or
+      unless (($application->{proc} and $application->{proc} eq $proc) or
               ($ENV{'MTR_MANUAL_DEBUG'} and $proc->{'SAFE_NAME'} eq 'timer'));
 
     # If a test was started with bootstrap options, make sure
     # the restart happens with the same options.
-    my $bootstrap_opts = get_bootstrap_opts($mysqld, $tinfo);
+    my $bootstrap_opts = get_bootstrap_opts($application, $tinfo);
+    my $is_router = $application->name() =~ /^router/;
 
     # Check if crash expected by looking at the .expect file in var/tmp
-    my $expect_file = "$opt_vardir/tmp/" . $mysqld->name() . ".expect";
+    my $expect_file = "$opt_vardir/tmp/" . $application->name() . ".expect";
     if (-f $expect_file) {
       mtr_verbose("Crash was expected, file '$expect_file' exists");
       for (my $waits = 0 ; $waits < 50 ; mtr_milli_sleep(100), $waits++) {
@@ -5991,19 +6019,19 @@ sub check_expected_crash_and_restart($$) {
 
         # If the last line begins with 'restart:' or 'restart_abort:' (with
         # a colon), rest of the line is read as additional command line options
-        # to be provided to the mysql server during restart.
+        # to be provided to the application during restart.
         # Anything other than 'wait', 'restart:' or'restart_abort:' will result
-        # in a restart with the original mysqld options.
+        # in a restart with the original application options.
         my $follow_up_wait = 0;
         if ($last_line =~ /restart:(.+)/) {
           my @rest_opt = split(' ', $1);
-          $mysqld->{'restart_opts'} = \@rest_opt;
+          $application->{'restart_opts'} = \@rest_opt;
         } elsif ($last_line =~ /restart_abort:(.+)/) {
           my @rest_opt = split(' ', $1);
-          $mysqld->{'restart_opts'} = \@rest_opt;
+          $application->{'restart_opts'} = \@rest_opt;
           $follow_up_wait = 1;
         } else {
-          delete $mysqld->{'restart_opts'};
+          delete $application->{'restart_opts'};
         }
 
         # Attempt to remove the .expect file. If it fails in
@@ -6028,11 +6056,15 @@ sub check_expected_crash_and_restart($$) {
           mtr_verbose("Test says wait after unsuccessful restart");
         }
 
-        # Start server with same settings as last time
-        mysqld_start($mysqld, $mysqld->{'started_opts'},
-                     $tinfo, $bootstrap_opts);
+        if ($is_router) {
+          router_start($application, $application->{'started_opts'}, $tinfo);
+        } else {
+          # Start server with same settings as last time
+          mysqld_start($application, $application->{'started_opts'},
+                       $tinfo, $bootstrap_opts);
+        }
 
-        if ($tinfo->{'secondary-engine'}) {
+        if ($tinfo->{'secondary-engine'} && !$is_router) {
           my $restart_flag = 1;
           # Start secondary engine servers.
           start_secondary_engine_servers($tinfo, $restart_flag);
@@ -6589,6 +6621,134 @@ sub mysqld_start ($$$$) {
   return;
 }
 
+sub router_create_config_file($$) {
+  my $router          = shift;
+  my $config_filename = shift;
+
+  my $tmpdir = $router->value("tmpdir");
+  my $std_data = $router->value("std_data");
+  my $router_port = $router->value("port");
+  my $router_remote = $ENV{ROUTER_REMOTE} or die "Need ROUTER_REMOTE";
+
+  my $router_client_ssl_cert="$std_data/server-cert.pem";
+  my $router_client_ssl_key="$std_data/server-key.pem";
+
+  my $router_client_ssl_mode = $router->value("client_ssl_mode");
+  my $router_server_ssl_mode = $router->value("server_ssl_mode");
+  my $output = $router->value('#log-error');
+
+  my $routing_plugin = find_plugin("routing", "plugin_output_directory") or die();
+  my $plugin_dir = dirname($routing_plugin);
+  my $logdir = dirname($output);
+  my $logname = basename($output);
+
+  my $router_config = <<PERL_HEREDOC;
+[DEFAULT]
+plugin_folder=$plugin_dir
+logging_folder=$logdir
+runtime_folder=$tmpdir/run
+data_folder=$tmpdir/data
+client_ssl_cert=$router_client_ssl_cert
+client_ssl_key=$router_client_ssl_key
+
+[logger]
+level=DEBUG
+filename=$logname
+
+[routing:undertest]
+bind_address=0.0.0.0
+bind_port=$router_port
+destinations=127.0.0.1:$router_remote
+routing_strategy=round-robin
+protocol=classic
+client_ssl_mode=$router_client_ssl_mode
+server_ssl_mode=$router_server_ssl_mode
+server_ssl_verify=DISABLED
+
+PERL_HEREDOC
+
+   open(FILE, ">", $config_filename) or die($!);
+   print FILE $router_config;
+   close(FILE);
+}
+
+sub router_start ($$$) {
+  my $router         = shift;
+  my $extra_opts     = shift;
+  my $tinfo          = shift;
+
+  mtr_verbose(My::Options::toStr("router_start", @$extra_opts));
+
+  my $exe = find_router($basedir);
+
+  my $config_dir = $router->value('tmpdir');
+  mkpath($config_dir);
+  my $config_file = $config_dir . '/' . $router->name() . '.cnf';
+  router_create_config_file($router, $config_file);
+  my $pid_file = $router->value('pid-file');
+
+  my $args;
+  mtr_init_args(\$args);
+
+  if (!$opt_skip_core) {
+    mtr_add_arg($args, "--core-file");
+  }
+  mtr_add_arg($args, "--pid-file=%s", $pid_file);
+  mtr_add_arg($args, "--config=%s", $config_file);
+
+  my $output = $router->value('#log-error');
+
+  my @all_opts;
+  if (exists $router->{'restart_opts'}) {
+    foreach my $extra_opt (@$extra_opts) {
+      next if $extra_opt eq '';
+      my ($opt_name1, $value1) = My::Options::split_option($extra_opt);
+      my $found = 0;
+      foreach my $restart_opt (@{ $router->{'restart_opts'} }) {
+        next if $restart_opt eq '';
+        my ($opt_name2, $value2) = My::Options::split_option($restart_opt);
+        $found = 1 if (My::Options::option_equals($opt_name1, $opt_name2));
+        last if $found == 1;
+      }
+      push(@all_opts, $extra_opt) if $found == 0;
+    }
+    push(@all_opts, @{ $router->{'restart_opts'} });
+    mtr_verbose(
+       My::Options::toStr("router_start restart", @{ $router->{'restart_opts'} }
+       ));
+  } else {
+    @all_opts = @$extra_opts;
+  }
+
+  foreach my $opt (@all_opts) {
+    mtr_add_arg($args, "%s", $opt);
+  }
+
+  # Remember this log file for valgrind/shutdown error report search.
+  $logs{$output} = 1;
+
+  if (defined $exe) {
+    $router->{'proc'} =
+      My::SafeProcess->new(name        => $router->name(),
+                           path        => $exe,
+                           args        => \$args,
+                           output      => $output,
+                           error       => $output,
+                           append      => 1,
+                           verbose     => $opt_verbose,
+                           nocore      => $opt_skip_core,
+                           host        => undef,
+                           pid_file    => $pid_file);
+
+    mtr_verbose("Started $router->{proc}");
+  }
+
+  # Remember options used when starting
+  $router->{'started_opts'} = $extra_opts;
+
+  return;
+}
+
 sub stop_all_servers () {
   my $shutdown_timeout = $_[0] or 0;
 
@@ -7056,6 +7216,19 @@ sub start_servers($) {
     $mysqld->{'started_tinfo'} = $tinfo;
   }
 
+  # Start routers
+  foreach my $router (routers()) {
+    my $extra_opts = get_extra_opts($router, $tinfo);
+
+    if ($router->{proc}) {
+      # Already started, write start of testcase to log file
+      mark_testcase_start_in_logs($router, $tinfo);
+      next;
+    }
+
+    router_start($router, $extra_opts, $tinfo);
+  }
+
   # Wait for clusters to start
   foreach my $cluster (clusters()) {
     if (ndbcluster_wait_started($cluster, "")) {
@@ -7105,6 +7278,27 @@ sub start_servers($) {
       install_secondary_engine_plugin($mysqld);
     }
   }
+
+  # Wait for routers to start
+  foreach my $router (routers()) {
+    next if !started($router);
+
+    if (!sleep_until_pid_file_created($router->value('pid-file'),
+                                      $opt_start_timeout,
+                                      $router->{'proc'})
+      ) {
+      $tinfo->{comment} = "Failed to start " . $router->name();
+      my $logfile = $router->value('#log-error');
+      if (defined $logfile and -f $logfile) {
+        my @srv_lines = extract_server_log($logfile, $tinfo->{name});
+        $tinfo->{logfile} = "Router log is:\n" . join("", @srv_lines);
+      } else {
+        $tinfo->{logfile} = "Could not open router logfile: '$logfile'";
+      }
+      return 1;
+    }
+  }
+
 
   return 0;
 }

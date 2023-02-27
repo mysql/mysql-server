@@ -65,8 +65,7 @@ void CmdArgHandler::add_option(const CmdOption &other) noexcept {
   assert(!other.names.empty());  // need none empty names container
   assert(debug_check_option_names(other.names));
 
-  options_.emplace_back(other.names, other.description, other.value_req,
-                        other.metavar, other.action, other.at_end_action);
+  options_.push_back(other);
 }
 
 OptionContainer::const_iterator CmdArgHandler::find_option(

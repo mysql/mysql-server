@@ -26,9 +26,9 @@
 
 #include <cassert>
 
+#include "helper/http/url.h"
 #include "helper/json/to_string.h"
 #include "mrs/http/cookie.h"
-#include "mrs/http/url.h"
 #include "mrs/http/utilities.h"
 #include "mrs/interface/object.h"
 #include "mrs/rest/request_context.h"
@@ -42,6 +42,7 @@ namespace rest {
 
 using HttpResult = HandlerAuthorize::HttpResult;
 using Route = mrs::interface::Object;
+using Url = helper::http::Url;
 
 HandlerAuthorize::HandlerAuthorize(const UniversalId service_id,
                                    const std::string &url,
@@ -147,14 +148,14 @@ std::string HandlerAuthorize::append_status_parameters(
                                 : session->users_on_complete_url_redirection);
 
   if (!jwt_token.empty())
-    http::Url::append_query_parameter(uri, "accessToken", jwt_token);
+    Url::append_query_parameter(uri, "accessToken", jwt_token);
   if (!session->handler_name.empty())
-    http::Url::append_query_parameter(uri, "app", session->handler_name);
+    Url::append_query_parameter(uri, "app", session->handler_name);
   if (!session->users_on_complete_timeout.empty())
-    http::Url::append_query_parameter(uri, "onCompletionClose",
-                                      session->users_on_complete_timeout);
-  http::Url::append_query_parameter(uri, "login",
-                                    get_authentication_status(error.status));
+    Url::append_query_parameter(uri, "onCompletionClose",
+                                session->users_on_complete_timeout);
+  Url::append_query_parameter(uri, "login",
+                              get_authentication_status(error.status));
 
   //  if (HttpStatusCode::Ok == error.status) {
   //    http::Url::append_query_parameter(uri, "user_id",
@@ -171,7 +172,7 @@ bool HandlerAuthorize::request_error(RequestContext *ctxt,
                                      const http::Error &error) {
   if (HttpMethod::Options == ctxt->request->get_method()) return false;
   // Oauth2 authentication may redirect, allow it.
-  http::Url url(ctxt->request->get_uri());
+  Url url(ctxt->request->get_uri());
 
   auto session = authorization_manager_->get_current_session(
       get_service_id(), ctxt->request->get_input_headers(), &ctxt->cookies);

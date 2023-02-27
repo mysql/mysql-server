@@ -31,11 +31,11 @@
 #include <rapidjson/reader.h>
 
 #include "helper/container/map.h"
+#include "helper/http/url.h"
 #include "helper/json/rapid_json_to_struct.h"
 #include "helper/json/text_to.h"
 #include "helper/json/to_string.h"
 #include "mrs/http/error.h"
-#include "mrs/http/url.h"
 #include "mrs/http/utilities.h"
 #include "mrs/rest/request_context.h"
 
@@ -71,6 +71,7 @@ class JsonGetState : public helper::json::RapidReaderHandlerToStruct<
 using AuthApp = mrs::database::entry::AuthApp;
 using AuthenticationState = SaslHandler::AuthenticationState;
 using SaslData = SaslHandler::SaslData;
+using Url = helper::http::Url;
 
 SaslHandler::SaslHandler(const AuthApp &entry) : entry_{entry} {
   log_debug("SaslHandler for service %s", to_string(entry_).c_str());
@@ -117,7 +118,7 @@ AuthenticationState get_authentication_state_impl(const std::string &s) {
 }
 
 AuthenticationState SaslHandler::get_authentication_state(
-    const http::Url::Parameaters &parameters, const bool has_auth_data) {
+    const Url::Parameaters &parameters, const bool has_auth_data) {
   const static std::string kState{"state"};
   auto state = get_authentication_state_impl(
       helper::container::get_value_default(parameters, kState, ""));

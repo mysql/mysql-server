@@ -1,0 +1,4 @@
+--source include/have_router.inc
+
+connect (router_conn,127.0.0.1,root,,test,$ROUTER_PORT);
+SELECT 1;

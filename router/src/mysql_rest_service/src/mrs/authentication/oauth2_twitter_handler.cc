@@ -33,11 +33,11 @@
 
 #include <helper/json/text_to.h>
 #include "helper/container/map.h"
+#include "helper/http/url.h"
 #include "helper/json/rapid_json_to_map.h"
 #include "helper/json/to_string.h"
 #include "helper/string/random.h"
 #include "mrs/database/entry/auth_user.h"
-#include "mrs/http/url.h"
 #include "mrs/rest/request_context.h"
 
 #include "mysql/harness/logging/logging.h"
@@ -120,7 +120,7 @@ Oauth2TwitterHandler::Oauth2TwitterHandler(const AuthApp &entry)
 }
 
 std::string Oauth2TwitterHandler::get_url_location(GenericSessionData *data,
-                                                   http::Url *) const {
+                                                   Url *) const {
   std::string result{!entry_.url.empty()
                          ? entry_.url
                          : "https://twitter.com/i/oauth2/authorize"};

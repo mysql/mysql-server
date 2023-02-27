@@ -41,8 +41,7 @@ class Oauth2TwitterHandler : public Oauth2Handler {
   Oauth2TwitterHandler(const AuthApp &entry);
 
  private:
-  std::string get_url_location(GenericSessionData *,
-                               http::Url *url) const override;
+  std::string get_url_location(GenericSessionData *, Url *url) const override;
   std::string get_url_direct_auth() const override;
   std::string get_url_validation(GenericSessionData *data) const override;
 

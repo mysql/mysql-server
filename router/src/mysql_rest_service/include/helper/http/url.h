@@ -39,7 +39,7 @@
 
 #include "mysqlrouter/http_request.h"
 
-namespace mrs {
+namespace helper {
 namespace http {
 
 class Url {
@@ -187,6 +187,6 @@ class Url {
 };
 
 }  // namespace http
-}  // namespace mrs
+}  // namespace helper
 
 #endif  // ROUTER_SRC_REST_MRS_SRC_MRS_HTTP_URL_PATH_QUERY_H_

@@ -1,0 +1,3071 @@
+
+SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
+SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
+SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
+
+# -----------------------------------------------------
+# Schema mysql_rest_service_metadata
+# -----------------------------------------------------
+# Holds metadata information for the MySQL REST Service.
+DROP SCHEMA IF EXISTS `mysql_rest_service_metadata` ;
+
+# -----------------------------------------------------
+# Schema mysql_rest_service_metadata
+#
+# Holds metadata information for the MySQL REST Service.
+# -----------------------------------------------------
+CREATE SCHEMA IF NOT EXISTS `mysql_rest_service_metadata` DEFAULT CHARACTER SET utf8 COLLATE utf8_bin ;
+USE `mysql_rest_service_metadata` ;
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`url_host`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`url_host` (
+  `id` BINARY(16) NOT NULL,
+  `name` VARCHAR(255) NOT NULL DEFAULT '' COMMENT 'Specifies the host name of the MRS as represented in the request URLs. Example: example.com',
+  `comments` VARCHAR(512) NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `name_UNIQUE` (`name` ASC) VISIBLE)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`service`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`service` (
+  `id` BINARY(16) NOT NULL,
+  `url_host_id` BINARY(16) NOT NULL,
+  `url_context_root` VARCHAR(255) NOT NULL DEFAULT '/mrs' COMMENT 'Specifies context root of the MRS as represented in the request URLs, default being /mrs. URL Example: https://www.example.com/mrs',
+  `url_protocol` SET('HTTP', 'HTTPS') NOT NULL DEFAULT 'HTTP',
+  `enabled` TINYINT NOT NULL DEFAULT 1,
+  `comments` VARCHAR(512) NULL,
+  `options` JSON NULL,
+  `auth_path` VARCHAR(255) NOT NULL DEFAULT '/authentication' COMMENT 'The path used for authentication. The following sub-paths will be made available for <service_path>/<auth_path>:  /login /status /logout /completed',
+  `auth_completed_url` VARCHAR(255) NULL COMMENT 'The authentication workflow will redirect to this URL after successful- or failed login. If this field is not set, the workflow will redirect to <service_path>/<auth_path>/completed if the <service_path>/<auth_path>/login?onCompletionRedirect parameter has not been set.',
+  `auth_completed_url_validation` VARCHAR(512) NULL COMMENT 'A regular expression to validate the <service_path>/<auth_path>/login?onCompletionRedirect parameter. If set, this allows to limit the possible URLs an application can specify for this parameter.',
+  `auth_completed_page_content` TEXT NULL COMMENT 'If this field is set its content will replace the page content of the /completed page.',
+  `enable_sql_endpoint` TINYINT NOT NULL DEFAULT 0,
+  `custom_metadata_schema` VARCHAR(255) NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_service_url_host1_idx` (`url_host_id` ASC) VISIBLE,
+  CONSTRAINT `fk_service_url_host1`
+    FOREIGN KEY (`url_host_id`)
+    REFERENCES `mysql_rest_service_metadata`.`url_host` (`id`)
+    ON DELETE RESTRICT
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`db_schema`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`db_schema` (
+  `id` BINARY(16) NOT NULL,
+  `service_id` BINARY(16) NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
+  `request_path` VARCHAR(255) NOT NULL,
+  `requires_auth` TINYINT NOT NULL DEFAULT 0,
+  `enabled` TINYINT NOT NULL DEFAULT 1,
+  `items_per_page` INT NULL DEFAULT 25,
+  `comments` VARCHAR(512) NULL,
+  `options` JSON NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_db_schema_service1_idx` (`service_id` ASC) VISIBLE,
+  CONSTRAINT `fk_db_schema_service1`
+    FOREIGN KEY (`service_id`)
+    REFERENCES `mysql_rest_service_metadata`.`service` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`db_object`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`db_object` (
+  `id` BINARY(16) NOT NULL,
+  `db_schema_id` BINARY(16) NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
+  `request_path` VARCHAR(255) NOT NULL,
+  `enabled` TINYINT NOT NULL DEFAULT 1,
+  `object_type` ENUM('TABLE', 'VIEW', 'PROCEDURE') NOT NULL,
+  `crud_operations` SET('CREATE', 'READ', 'UPDATE', 'DELETE') NOT NULL DEFAULT '',
+  `format` ENUM('FEED', 'ITEM', 'MEDIA') NOT NULL DEFAULT 'FEED' COMMENT 'The HTTP request method for this handler. \'feed\' executes the source query and returns the result set in JSON representation, \'item\' returns a single row instead, \'media\' turns the result set into a binary representation with accompanying HTTP Content-Type header.',
+  `items_per_page` INT NULL,
+  `media_type` VARCHAR(45) NULL,
+  `auto_detect_media_type` TINYINT NOT NULL DEFAULT 0,
+  `requires_auth` TINYINT NOT NULL DEFAULT 0,
+  `auth_stored_procedure` VARCHAR(255) NULL DEFAULT 0 COMMENT 'Specifies the STORE PROCEDURE that should be called to identify if the given user is allowed to perform the given CRUD operation. The SP has to be in the same schema as the schema object and it has to accept the following parameters: (user_id, schema, object, crud_operation).  It returns true or false.',
+  `row_user_ownership_enforced` TINYINT NOT NULL DEFAULT 0 COMMENT 'Specifies if row level security is enforced on this object.',
+  `row_user_ownership_column` VARCHAR(255) NULL COMMENT 'Defines the column used for row user ownership checks',
+  `options` JSON NULL,
+  `details` JSON NULL,
+  `comments` VARCHAR(512) NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_db_objects_db_schema1_idx` (`db_schema_id` ASC) INVISIBLE,
+  CONSTRAINT `fk_db_objects_db_schema1`
+    FOREIGN KEY (`db_schema_id`)
+    REFERENCES `mysql_rest_service_metadata`.`db_schema` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`field`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`field` (
+  `id` BINARY(16) NOT NULL,
+  `db_object_id` BINARY(16) NOT NULL,
+  `position` INT NOT NULL,
+  `name` VARCHAR(255) NOT NULL COMMENT 'The name of the parameter',
+  `bind_field_name` VARCHAR(255) NOT NULL COMMENT 'The column to map when the parameter is given, similar to an alias for the column.',
+  `datatype` ENUM('STRING', 'INT', 'DOUBLE', 'BOOLEAN', 'LONG', 'TIMESTAMP', 'JSON') NOT NULL COMMENT 'The type of the parameter',
+  `mode` ENUM("IN", "OUT", "INOUT") NOT NULL DEFAULT 'IN',
+  `details` JSON NULL,
+  `comments` VARCHAR(255) NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_parameter_db_object1_idx` (`db_object_id` ASC) VISIBLE,
+  CONSTRAINT `fk_parameter_db_object1`
+    FOREIGN KEY (`db_object_id`)
+    REFERENCES `mysql_rest_service_metadata`.`db_object` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`auth_vendor`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`auth_vendor` (
+  `id` BINARY(16) NOT NULL,
+  `name` VARCHAR(65) NOT NULL,
+  `validation_url` VARCHAR(255) NULL COMMENT 'URL used to validate the access_token provided by the client. Example: https://graph.facebook.com/debug_token?input_token=%access_token%&access_token=%app_access_token%',
+  `enabled` TINYINT NOT NULL DEFAULT 1,
+  `comments` VARCHAR(512) NULL,
+  PRIMARY KEY (`id`))
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`auth_app`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`auth_app` (
+  `id` BINARY(16) NOT NULL,
+  `auth_vendor_id` BINARY(16) NOT NULL,
+  `service_id` BINARY(16) NOT NULL,
+  `name` VARCHAR(45) NULL,
+  `description` VARCHAR(512) NULL,
+  `url` VARCHAR(255) NULL,
+  `url_direct_auth` VARCHAR(255) NULL,
+  `access_token` VARCHAR(1024) NULL COMMENT 'The app access token to validate the user login.',
+  `app_id` VARCHAR(1024) NULL,
+  `enabled` TINYINT NULL,
+  `limit_to_registered_users` TINYINT NOT NULL DEFAULT 1 COMMENT 'Limit the users that can log in to the list of users in the auth_user table. The auth_user table can be pre-filled with users by specifying the name and email only. The vendor_user_id will be added on the first login automatically.',
+  `default_role_id` BINARY(16) NULL COMMENT 'If set, a new user that has not any auth_roles assigned will get this role assigned when he logs in the first time.',
+  PRIMARY KEY (`id`),
+  INDEX `fk_auth_app_auth_vendor1_idx` (`auth_vendor_id` ASC) VISIBLE,
+  INDEX `fk_auth_app_service1_idx` (`service_id` ASC) VISIBLE,
+  UNIQUE INDEX `unique_name_per_service` (`service_id` ASC, `name` ASC) VISIBLE,
+  CONSTRAINT `fk_auth_app_auth_vendor1`
+    FOREIGN KEY (`auth_vendor_id`)
+    REFERENCES `mysql_rest_service_metadata`.`auth_vendor` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_auth_app_service1`
+    FOREIGN KEY (`service_id`)
+    REFERENCES `mysql_rest_service_metadata`.`service` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`mrs_user`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user` (
+  `id` BINARY(16) NOT NULL,
+  `auth_app_id` BINARY(16) NOT NULL,
+  `name` VARCHAR(225) NULL,
+  `email` VARCHAR(255) NULL,
+  `vendor_user_id` VARCHAR(255) NULL,
+  `login_permitted` TINYINT NOT NULL DEFAULT 0,
+  `mapped_user_id` VARCHAR(255) NULL,
+  `app_options` JSON NULL,
+  `auth_string` TEXT NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_auth_user_auth_app1_idx` (`auth_app_id` ASC) VISIBLE,
+  CONSTRAINT `fk_auth_user_auth_app1`
+    FOREIGN KEY (`auth_app_id`)
+    REFERENCES `mysql_rest_service_metadata`.`auth_app` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`config`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`config` (
+  `id` TINYINT NOT NULL DEFAULT 1,
+  `service_enabled` TINYINT NULL,
+  `data` JSON NULL,
+  PRIMARY KEY (`id`))
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`redirect`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`redirect` (
+  `id` BINARY(16) NOT NULL,
+  `pattern` VARCHAR(1024) NULL,
+  `target` VARCHAR(512) NULL,
+  PRIMARY KEY (`id`))
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`url_host_alias`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`url_host_alias` (
+  `id` BINARY(16) NOT NULL,
+  `url_host_id` BINARY(16) NOT NULL,
+  `alias` VARCHAR(255) NOT NULL COMMENT 'Specifies additional aliases for the given host, e.g. www.example.com',
+  PRIMARY KEY (`id`),
+  INDEX `fk_url_host_alias_url_host1_idx` (`url_host_id` ASC) VISIBLE,
+  CONSTRAINT `fk_url_host_alias_url_host1`
+    FOREIGN KEY (`url_host_id`)
+    REFERENCES `mysql_rest_service_metadata`.`url_host` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`content_set`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`content_set` (
+  `id` BINARY(16) NOT NULL,
+  `service_id` BINARY(16) NOT NULL,
+  `request_path` VARCHAR(255) NOT NULL,
+  `requires_auth` TINYINT NOT NULL DEFAULT 0,
+  `enabled` TINYINT NOT NULL DEFAULT 0,
+  `comments` VARCHAR(512) NULL,
+  `options` JSON NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_static_content_version_service1_idx` (`service_id` ASC) VISIBLE,
+  CONSTRAINT `fk_static_content_version_service1`
+    FOREIGN KEY (`service_id`)
+    REFERENCES `mysql_rest_service_metadata`.`service` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`content_file`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`content_file` (
+  `id` BINARY(16) NOT NULL,
+  `content_set_id` BINARY(16) NOT NULL,
+  `request_path` VARCHAR(255) NOT NULL DEFAULT '/',
+  `requires_auth` TINYINT NOT NULL DEFAULT 0,
+  `enabled` TINYINT NOT NULL DEFAULT 1,
+  `content` LONGBLOB NOT NULL,
+  `size` BIGINT GENERATED ALWAYS AS (LENGTH(content)) STORED,
+  PRIMARY KEY (`id`),
+  INDEX `fk_content_content_set1_idx` (`content_set_id` ASC) VISIBLE,
+  CONSTRAINT `fk_content_content_set1`
+    FOREIGN KEY (`content_set_id`)
+    REFERENCES `mysql_rest_service_metadata`.`content_set` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`audit_log`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`audit_log` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `schema_name` VARCHAR(255) NULL,
+  `table_name` VARCHAR(255) NOT NULL,
+  `dml_type` ENUM('INSERT', 'UPDATE', 'DELETE') NOT NULL,
+  `old_row_data` JSON NULL,
+  `new_row_data` JSON NULL,
+  `changed_by` VARCHAR(255) NOT NULL,
+  `changed_at` TIMESTAMP NOT NULL,
+  `old_row_id` BINARY(16) NULL,
+  `new_row_id` BINARY(16) NULL,
+  PRIMARY KEY (`id`),
+  INDEX `idx_table_name` (`table_name` ASC) VISIBLE,
+  INDEX `idx_changed_at` (`changed_at` ASC) VISIBLE,
+  INDEX `idx_changed_by` (`changed_by` ASC) VISIBLE,
+  INDEX `idx_new_row_id` (`new_row_id` ASC) VISIBLE,
+  INDEX `idx_old_row_id` (`old_row_id` ASC) VISIBLE)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`mrs_role`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_role` (
+  `id` BINARY(16) NOT NULL,
+  `derived_from_role_id` BINARY(16) NULL,
+  `specific_to_service_id` BINARY(16) NULL,
+  `caption` VARCHAR(150) NOT NULL,
+  `description` VARCHAR(512) NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_priv_role_priv_role1_idx` (`derived_from_role_id` ASC) VISIBLE,
+  INDEX `fk_auth_role_service1_idx` (`specific_to_service_id` ASC) VISIBLE,
+  UNIQUE INDEX `auth_role_unique_caption` (`caption` ASC) VISIBLE,
+  CONSTRAINT `fk_priv_role_priv_role1`
+    FOREIGN KEY (`derived_from_role_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_role` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_auth_role_service1`
+    FOREIGN KEY (`specific_to_service_id`)
+    REFERENCES `mysql_rest_service_metadata`.`service` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`mrs_user_has_role`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user_has_role` (
+  `user_id` BINARY(16) NOT NULL,
+  `role_id` BINARY(16) NOT NULL,
+  `comments` VARCHAR(512) NULL,
+  PRIMARY KEY (`user_id`, `role_id`),
+  INDEX `fk_auth_user_has_privilege_role_privilege_role1_idx` (`role_id` ASC) VISIBLE,
+  INDEX `fk_auth_user_has_privilege_role_auth_user1_idx` (`user_id` ASC) VISIBLE,
+  CONSTRAINT `fk_auth_user_has_privilege_role_auth_user1`
+    FOREIGN KEY (`user_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_user` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_auth_user_has_privilege_role_privilege_role1`
+    FOREIGN KEY (`role_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_role` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`mrs_user_hierarchy_type`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user_hierarchy_type` (
+  `id` BINARY(16) NOT NULL,
+  `caption` VARCHAR(150) NULL,
+  `description` VARCHAR(512) NULL,
+  `specific_to_service_id` BINARY(16) NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_user_hierarchy_type_service1_idx` (`specific_to_service_id` ASC) VISIBLE,
+  CONSTRAINT `fk_user_hierarchy_type_service1`
+    FOREIGN KEY (`specific_to_service_id`)
+    REFERENCES `mysql_rest_service_metadata`.`service` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`mrs_user_hierarchy`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user_hierarchy` (
+  `user_id` BINARY(16) NOT NULL,
+  `reporting_to_user_id` BINARY(16) NOT NULL,
+  `user_hierarchy_type_id` BINARY(16) NOT NULL,
+  PRIMARY KEY (`user_id`, `reporting_to_user_id`, `user_hierarchy_type_id`),
+  INDEX `fk_user_hierarchy_auth_user2_idx` (`reporting_to_user_id` ASC) VISIBLE,
+  INDEX `fk_user_hierarchy_hierarchy_type1_idx` (`user_hierarchy_type_id` ASC) VISIBLE,
+  CONSTRAINT `fk_user_hierarchy_auth_user1`
+    FOREIGN KEY (`user_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_user` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_user_hierarchy_auth_user2`
+    FOREIGN KEY (`reporting_to_user_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_user` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_user_hierarchy_hierarchy_type1`
+    FOREIGN KEY (`user_hierarchy_type_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_user_hierarchy_type` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`mrs_privilege`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_privilege` (
+  `id` BINARY(16) NOT NULL,
+  `role_id` BINARY(16) NOT NULL,
+  `crud_operations` SET('CREATE', 'READ', 'UPDATE', 'DELETE') NOT NULL DEFAULT '',
+  `service_id` BINARY(16) NULL,
+  `db_schema_id` BINARY(16) NULL,
+  `db_object_id` BINARY(16) NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_priv_on_schema_db_schema1_idx` (`db_schema_id` ASC) VISIBLE,
+  INDEX `fk_priv_on_schema_service1_idx` (`service_id` ASC) VISIBLE,
+  INDEX `fk_priv_on_schema_db_object1_idx` (`db_object_id` ASC) VISIBLE,
+  CONSTRAINT `fk_priv_on_schema_auth_role1`
+    FOREIGN KEY (`role_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_role` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_priv_on_schema_db_schema1`
+    FOREIGN KEY (`db_schema_id`)
+    REFERENCES `mysql_rest_service_metadata`.`db_schema` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_priv_on_schema_service1`
+    FOREIGN KEY (`service_id`)
+    REFERENCES `mysql_rest_service_metadata`.`service` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_priv_on_schema_db_object1`
+    FOREIGN KEY (`db_object_id`)
+    REFERENCES `mysql_rest_service_metadata`.`db_object` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`mrs_user_group`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user_group` (
+  `id` BINARY(16) NOT NULL,
+  `specific_to_service_id` BINARY(16) NULL,
+  `caption` VARCHAR(45) NULL,
+  `description` VARCHAR(512) NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_user_group_service1_idx` (`specific_to_service_id` ASC) VISIBLE,
+  CONSTRAINT `fk_user_group_service1`
+    FOREIGN KEY (`specific_to_service_id`)
+    REFERENCES `mysql_rest_service_metadata`.`service` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`mrs_user_group_has_role`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user_group_has_role` (
+  `user_group_id` BINARY(16) NOT NULL,
+  `role_id` BINARY(16) NOT NULL,
+  PRIMARY KEY (`user_group_id`, `role_id`),
+  INDEX `fk_user_group_has_auth_role_auth_role1_idx` (`role_id` ASC) VISIBLE,
+  INDEX `fk_user_group_has_auth_role_user_group1_idx` (`user_group_id` ASC) VISIBLE,
+  CONSTRAINT `fk_user_group_has_auth_role_user_group1`
+    FOREIGN KEY (`user_group_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_user_group` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_user_group_has_auth_role_auth_role1`
+    FOREIGN KEY (`role_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_role` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`mrs_user_has_group`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user_has_group` (
+  `user_id` BINARY(16) NOT NULL,
+  `user_group_id` BINARY(16) NOT NULL,
+  `comments` VARCHAR(512) NULL,
+  PRIMARY KEY (`user_id`, `user_group_id`),
+  INDEX `fk_auth_user_has_user_group_user_group1_idx` (`user_group_id` ASC) VISIBLE,
+  INDEX `fk_auth_user_has_user_group_auth_user1_idx` (`user_id` ASC) VISIBLE,
+  CONSTRAINT `fk_auth_user_has_user_group_auth_user1`
+    FOREIGN KEY (`user_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_user` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_auth_user_has_user_group_user_group1`
+    FOREIGN KEY (`user_group_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_user_group` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`mrs_group_hierarchy_type`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_group_hierarchy_type` (
+  `id` BINARY(16) NOT NULL,
+  `caption` VARCHAR(150) NULL,
+  `description` VARCHAR(512) NULL,
+  PRIMARY KEY (`id`))
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`mrs_user_group_hierarchy`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_user_group_hierarchy` (
+  `user_group_id` BINARY(16) NOT NULL,
+  `parent_group_id` BINARY(16) NOT NULL,
+  `group_hierarchy_type_id` BINARY(16) NOT NULL,
+  `level` INT UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`user_group_id`, `parent_group_id`, `group_hierarchy_type_id`),
+  INDEX `fk_user_group_has_user_group_user_group2_idx` (`parent_group_id` ASC) VISIBLE,
+  INDEX `fk_user_group_has_user_group_user_group1_idx` (`user_group_id` ASC) VISIBLE,
+  INDEX `fk_user_group_hierarchy_group_hierarchy_type1_idx` (`group_hierarchy_type_id` ASC) VISIBLE,
+  CONSTRAINT `fk_user_group_has_user_group_user_group1`
+    FOREIGN KEY (`user_group_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_user_group` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_user_group_has_user_group_user_group2`
+    FOREIGN KEY (`parent_group_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_user_group` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_user_group_hierarchy_group_hierarchy_type1`
+    FOREIGN KEY (`group_hierarchy_type_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_group_hierarchy_type` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`mrs_db_object_row_group_security`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`mrs_db_object_row_group_security` (
+  `db_object_id` BINARY(16) NOT NULL,
+  `group_hierarchy_type_id` BINARY(16) NOT NULL,
+  `row_group_ownership_column` VARCHAR(255) NOT NULL,
+  `level` INT UNSIGNED NOT NULL DEFAULT 0,
+  `match_level` ENUM('HIGHER', 'EQUAL OR HIGHER', 'EQUAL', 'LOWER OR EQUAL', 'LOWER') NOT NULL DEFAULT 'HIGHER',
+  INDEX `fk_table1_db_object1_idx` (`db_object_id` ASC) VISIBLE,
+  INDEX `fk_db_object_row_security_group_hierarchy_type1_idx` (`group_hierarchy_type_id` ASC) VISIBLE,
+  PRIMARY KEY (`db_object_id`, `group_hierarchy_type_id`),
+  CONSTRAINT `fk_table1_db_object1`
+    FOREIGN KEY (`db_object_id`)
+    REFERENCES `mysql_rest_service_metadata`.`db_object` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_db_object_row_security_group_hierarchy_type1`
+    FOREIGN KEY (`group_hierarchy_type_id`)
+    REFERENCES `mysql_rest_service_metadata`.`mrs_group_hierarchy_type` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`router`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`router` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'The ID of the router instance and is a unique identifier of the server instance.',
+  `router_name` VARCHAR(255) NOT NULL COMMENT 'A user specified name for an instance of the router. Should default to address:port, where port is the RW port for classic protocol. Set via --name during router bootstrap.',
+  `address` VARCHAR(255) CHARACTER SET 'ascii' COLLATE 'ascii_general_ci' NOT NULL COMMENT 'Network address of the host the Router is running on. Set via --report--host during bootstrap.',
+  `product_name` VARCHAR(128) NOT NULL COMMENT 'The product name of the routing component, e.g. \'MySQL Router\'',
+  `version` VARCHAR(12) NULL COMMENT 'The version of the router instance. Updated on bootstrap and each startup of the router instance. Format: x.y.z, 3 digits for each component. Managed by Router.',
+  `last_check_in` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'A timestamp updated by the router every hour with the current time. This timestamp is used to detect routers that are no longer used or stalled. Managed by Router.',
+  `attributes` JSON NULL COMMENT 'Router specific custom attributes. Managed by Router.',
+  `options` JSON NULL COMMENT 'Router instance specific configuration options.',
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `address_router_name` (`address` ASC, `router_name` ASC) VISIBLE)
+ENGINE = InnoDB
+COMMENT = 'no_audit_log';
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`router_status`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`router_status` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `router_id` INT UNSIGNED NOT NULL,
+  `status_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'The time the status was reported',
+  `timespan` SMALLINT NOT NULL COMMENT 'The timespan of the measuring interval',
+  `mysql_connections` MEDIUMINT NOT NULL DEFAULT 0,
+  `mysql_queries` MEDIUMINT NOT NULL DEFAULT 0,
+  `http_requests_get` MEDIUMINT NOT NULL DEFAULT 0,
+  `http_requests_post` MEDIUMINT NOT NULL DEFAULT 0,
+  `http_requests_put` MEDIUMINT NOT NULL DEFAULT 0,
+  `http_requests_delete` MEDIUMINT NOT NULL DEFAULT 0,
+  `active_mysql_connections` MEDIUMINT NOT NULL DEFAULT 0,
+  `details` JSON NULL COMMENT 'More detailed status information',
+  PRIMARY KEY (`id`),
+  INDEX `fk_router_status_router1_idx` (`router_id` ASC) VISIBLE,
+  INDEX `status_time` (`status_time` ASC) VISIBLE,
+  CONSTRAINT `fk_router_status_router1`
+    FOREIGN KEY (`router_id`)
+    REFERENCES `mysql_rest_service_metadata`.`router` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB
+COMMENT = 'no_audit_log';
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`router_session`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`router_session` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` BINARY(16) NOT NULL,
+  `service_id` BINARY(16) NOT NULL,
+  `expires` DATETIME NOT NULL,
+  PRIMARY KEY (`id`))
+ENGINE = InnoDB
+COMMENT = 'no_audit_log';
+
+
+# -----------------------------------------------------
+# Table `mysql_rest_service_metadata`.`router_general_log`
+# -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mysql_rest_service_metadata`.`router_general_log` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `router_id` INT UNSIGNED NOT NULL,
+  `router_session_id` INT UNSIGNED NULL,
+  `log_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `log_type` ENUM("INFO", "WARNING", "ERROR") NOT NULL,
+  `code` SMALLINT UNSIGNED NULL,
+  `message` VARCHAR(255) NULL,
+  `data` JSON NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_router_general_log_router1_idx` (`router_id` ASC) VISIBLE,
+  INDEX `log_time` (`log_time` ASC) VISIBLE,
+  INDEX `fk_router_general_log_router_session1_idx` (`router_session_id` ASC) VISIBLE,
+  CONSTRAINT `fk_router_general_log_router1`
+    FOREIGN KEY (`router_id`)
+    REFERENCES `mysql_rest_service_metadata`.`router` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_router_general_log_router_session1`
+    FOREIGN KEY (`router_session_id`)
+    REFERENCES `mysql_rest_service_metadata`.`router_session` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB
+COMMENT = 'no_audit_log';
+
+USE `mysql_rest_service_metadata` ;
+
+# -----------------------------------------------------
+# View `mysql_rest_service_metadata`.`schema_version`
+# -----------------------------------------------------
+USE `mysql_rest_service_metadata`;
+CREATE  OR REPLACE SQL SECURITY INVOKER VIEW schema_version (major, minor, patch) AS SELECT 1, 0, 32;
+
+# -----------------------------------------------------
+# View `mysql_rest_service_metadata`.`mrs_user_schema_version`
+# -----------------------------------------------------
+USE `mysql_rest_service_metadata`;
+CREATE  OR REPLACE SQL SECURITY INVOKER VIEW mrs_user_schema_version (major, minor, patch) AS SELECT 1, 0, 32;
+USE `mysql_rest_service_metadata`;
+
+DELIMITER $$;
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`url_host_BEFORE_DELETE` BEFORE DELETE ON `url_host` FOR EACH ROW
+BEGIN
+	DELETE FROM `mysql_rest_service_metadata`.`url_host_alias` WHERE `url_host_id` = OLD.`id`;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`service_BEFORE_INSERT` BEFORE INSERT ON `service` FOR EACH ROW
+BEGIN
+	SET @host_name := (SELECT h.name FROM `mysql_rest_service_metadata`.url_host h WHERE h.id = NEW.url_host_id);
+	SET @validPath := (SELECT `mysql_rest_service_metadata`.`valid_request_path`(CONCAT(@host_name, NEW.url_context_root)));
+    
+    IF @validPath = 0 THEN
+		SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "The request_path is already used by another entity.";
+    END IF;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`service_BEFORE_UPDATE` BEFORE UPDATE ON `service` FOR EACH ROW
+BEGIN
+	IF (NEW.url_context_root <> OLD.url_context_root) THEN
+		SET @host_name := (SELECT h.name FROM `mysql_rest_service_metadata`.url_host h WHERE h.id = NEW.url_host_id);
+		SET @validPath := (SELECT `mysql_rest_service_metadata`.`valid_request_path`(CONCAT(@host_name, NEW.url_context_root)));
+		
+		IF @validPath = 0 THEN
+			SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "The request_path is already used by another entity.";
+		END IF;
+	END IF;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`service_BEFORE_DELETE` BEFORE DELETE ON `service` FOR EACH ROW
+BEGIN
+	# Since FK CASCADE does not fire the triggers on the related tables, manually trigger the DELETEs
+	DELETE FROM `mysql_rest_service_metadata`.`db_schema` WHERE `service_id` = OLD.`id`;
+    DELETE FROM `mysql_rest_service_metadata`.`content_set` WHERE `service_id` = OLD.`id`;
+    DELETE FROM `mysql_rest_service_metadata`.`auth_app` WHERE `service_id` = OLD.`id`;
+    DELETE FROM `mysql_rest_service_metadata`.`mrs_role` WHERE `specific_to_service_id` = OLD.`id`;
+    DELETE FROM `mysql_rest_service_metadata`.`mrs_user_hierarchy_type` WHERE `specific_to_service_id` = OLD.`id`;
+    DELETE FROM `mysql_rest_service_metadata`.`mrs_user_group` WHERE `specific_to_service_id` = OLD.`id`;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`db_schema_BEFORE_INSERT` BEFORE INSERT ON `db_schema` FOR EACH ROW
+BEGIN
+	SET @service_path := (SELECT CONCAT(h.name, se.url_context_root) AS path
+		FROM `mysql_rest_service_metadata`.service se
+            LEFT JOIN `mysql_rest_service_metadata`.url_host h
+                ON se.url_host_id = h.id
+		WHERE se.id = NEW.service_id);
+	SET @validPath := (SELECT `mysql_rest_service_metadata`.`valid_request_path`(CONCAT(@service_path, NEW.request_path)));
+    
+    IF @validPath = 0 THEN
+		SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "The request_path is already used by another entity.";
+    END IF;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`db_schema_BEFORE_UPDATE` BEFORE UPDATE ON `db_schema` FOR EACH ROW
+BEGIN
+	IF (NEW.request_path <> OLD.request_path OR NEW.service_id <> OLD.service_id) THEN
+		SET @service_path := (SELECT CONCAT(h.name, se.url_context_root) AS path
+			FROM `mysql_rest_service_metadata`.service se
+				LEFT JOIN `mysql_rest_service_metadata`.url_host h
+					ON se.url_host_id = h.id
+			WHERE se.id = NEW.service_id);
+		SET @validPath := (SELECT `mysql_rest_service_metadata`.`valid_request_path`(CONCAT(@service_path, NEW.request_path)));
+		
+		IF @validPath = 0 THEN
+			SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "The request_path is already used by another entity.";
+		END IF;
+    END IF;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`db_schema_BEFORE_DELETE` BEFORE DELETE ON `db_schema` FOR EACH ROW
+BEGIN
+	DELETE FROM `mysql_rest_service_metadata`.`db_object` WHERE `db_schema_id` = OLD.`id`;
+    DELETE FROM `mysql_rest_service_metadata`.`mrs_privilege` WHERE `db_schema_id` = OLD.`id`;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`db_object_BEFORE_INSERT` BEFORE INSERT ON `db_object` FOR EACH ROW
+BEGIN
+    SET @schema_path := (SELECT CONCAT(h.name, se.url_context_root, sc.request_path) AS path
+        FROM `mysql_rest_service_metadata`.db_schema sc
+            LEFT OUTER JOIN `mysql_rest_service_metadata`.service se
+                ON se.id = sc.service_id
+            LEFT JOIN `mysql_rest_service_metadata`.url_host h
+                ON se.url_host_id = h.id
+        WHERE sc.id = NEW.db_schema_id);
+    SET @validPath := (SELECT `mysql_rest_service_metadata`.`valid_request_path`(CONCAT(@schema_path, NEW.request_path)));
+    
+    IF @validPath = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "The request_path is already used by another entity.";
+    END IF;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`db_object_BEFORE_UPDATE` BEFORE UPDATE ON `db_object` FOR EACH ROW
+BEGIN
+    IF (NEW.request_path <> OLD.request_path OR NEW.db_schema_id <> OLD.db_schema_id) THEN
+        SET @schema_path := (SELECT CONCAT(h.name, se.url_context_root, sc.request_path) AS path
+            FROM `mysql_rest_service_metadata`.db_schema sc
+                LEFT OUTER JOIN `mysql_rest_service_metadata`.service se
+                    ON se.id = sc.service_id
+                LEFT JOIN `mysql_rest_service_metadata`.url_host h
+                    ON se.url_host_id = h.id
+            WHERE sc.id = NEW.db_schema_id);
+        SET @validPath := (SELECT `mysql_rest_service_metadata`.`valid_request_path`(CONCAT(@schema_path, NEW.request_path)));
+        
+        IF @validPath = 0 THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "The request_path is already used by another entity.";
+        END IF;
+    END IF;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`db_object_BEFORE_DELETE` BEFORE DELETE ON `db_object` FOR EACH ROW
+BEGIN
+	DELETE FROM `mysql_rest_service_metadata`.`field` WHERE `db_object_id` = OLD.`id`;
+    DELETE FROM `mysql_rest_service_metadata`.`mrs_privilege` WHERE `db_object_id` = OLD.`id`;
+    DELETE FROM `mysql_rest_service_metadata`.`mrs_db_object_row_group_security` WHERE `db_object_id` = OLD.`id`;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`auth_vendor_BEFORE_DELETE` BEFORE DELETE ON `auth_vendor` FOR EACH ROW
+BEGIN
+	DELETE FROM `mysql_rest_service_metadata`.`auth_app` WHERE `auth_vendor_id` = OLD.`id`;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`auth_app_BEFORE_DELETE` BEFORE DELETE ON `auth_app` FOR EACH ROW
+BEGIN
+	DELETE FROM `mysql_rest_service_metadata`.`mrs_user` WHERE `auth_app_id` = OLD.`id`;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`mrs_user_BEFORE_INSERT` BEFORE INSERT ON `mrs_user` FOR EACH ROW
+BEGIN
+	IF NEW.name IS NOT NULL AND (SELECT COUNT(*) FROM `mysql_rest_service_metadata`.`mrs_user` AS u 
+		WHERE UPPER(u.name) = UPPER(NEW.name) AND u.auth_app_id = NEW.auth_app_id AND NEW.id <> u.id) > 0
+	THEN
+		SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "This name has already been used.";
+	END IF;
+	IF NEW.email IS NOT NULL AND (SELECT COUNT(*) FROM `mysql_rest_service_metadata`.`mrs_user` AS u 
+		WHERE UPPER(u.email) = UPPER(NEW.email) AND u.auth_app_id = NEW.auth_app_id AND NEW.id <> u.id) > 0
+	THEN
+		SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "This email has already been used.";
+    END IF;
+    IF (NEW.auth_string IS NULL AND 
+        (SELECT a.auth_vendor_id FROM `mysql_rest_service_metadata`.`auth_app` AS a WHERE a.id = NEW.auth_app_id) = 0x30000000000000000000000000000000)
+    THEN
+		SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "A this account requires a password to be set.";
+    END IF;
+    IF JSON_STORAGE_SIZE(NEW.app_options) > 16384 THEN
+		SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "The JSON value stored in app_options must not be bigger than 16KB.";
+    END IF;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`mrs_user_BEFORE_UPDATE` BEFORE UPDATE ON `mrs_user` FOR EACH ROW
+BEGIN
+	IF NEW.name IS NOT NULL AND (SELECT COUNT(*) FROM `mysql_rest_service_metadata`.`mrs_user` AS u 
+		WHERE UPPER(u.name) = UPPER(NEW.name) AND u.auth_app_id = NEW.auth_app_id AND NEW.id <> u.id) > 0
+	THEN
+		SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "This name has already been used.";
+	END IF;
+	IF NEW.email IS NOT NULL AND (SELECT COUNT(*) FROM `mysql_rest_service_metadata`.`mrs_user` AS u 
+		WHERE UPPER(u.email) = UPPER(NEW.email) AND u.auth_app_id = NEW.auth_app_id AND NEW.id <> u.id) > 0
+	THEN
+		SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "This email has already been used.";
+    END IF;
+    IF (NEW.auth_string IS NULL AND 
+        (SELECT a.auth_vendor_id FROM `mysql_rest_service_metadata`.`auth_app` AS a WHERE a.id = NEW.auth_app_id) = 0x30000000000000000000000000000000)
+    THEN
+		SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "A this account requires a password to be set.";
+    END IF;
+    IF JSON_STORAGE_SIZE(NEW.app_options) > 16384 THEN
+		SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "The JSON value stored in app_options must not be bigger than 16KB.";
+    END IF;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`mrs_user_BEFORE_DELETE` BEFORE DELETE ON `mrs_user` FOR EACH ROW
+BEGIN
+	DELETE FROM `mysql_rest_service_metadata`.`mrs_user_hierarchy` WHERE `user_id` = OLD.`id` OR `reporting_to_user_id` = OLD.`id`;
+    DELETE FROM `mysql_rest_service_metadata`.`mrs_user_has_role` WHERE `user_id` = OLD.`id`;
+    DELETE FROM `mysql_rest_service_metadata`.`mrs_user_has_group` WHERE `user_id` = OLD.`id`;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`content_set_BEFORE_INSERT` BEFORE INSERT ON `content_set` FOR EACH ROW
+BEGIN
+	SET @service_path := (SELECT CONCAT(h.name, se.url_context_root) AS path
+		FROM `mysql_rest_service_metadata`.service se
+            LEFT JOIN `mysql_rest_service_metadata`.url_host h
+                ON se.url_host_id = h.id
+		WHERE se.id = NEW.service_id);
+	SET @validPath := (SELECT `mysql_rest_service_metadata`.`valid_request_path`(CONCAT(@service_path, NEW.request_path)));
+    
+    IF @validPath = 0 THEN
+		SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "The request_path is already used by another entity.";
+    END IF;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`content_set_BEFORE_UPDATE` BEFORE UPDATE ON `content_set` FOR EACH ROW
+BEGIN
+	IF (NEW.request_path <> OLD.request_path OR NEW.service_id <> OLD.service_id) THEN
+		SET @service_path := (SELECT CONCAT(h.name, se.url_context_root) AS path
+			FROM `mysql_rest_service_metadata`.service se
+				LEFT JOIN `mysql_rest_service_metadata`.url_host h
+					ON se.url_host_id = h.id
+			WHERE se.id = NEW.service_id);
+		SET @validPath := (SELECT `mysql_rest_service_metadata`.`valid_request_path`(CONCAT(@service_path, NEW.request_path)));
+		
+		IF @validPath = 0 THEN
+			SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "The request_path is already used by another entity.";
+		END IF;
+    END IF;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`content_set_BEFORE_DELETE` BEFORE DELETE ON `content_set` FOR EACH ROW
+BEGIN
+	DELETE FROM `mysql_rest_service_metadata`.`content_file`
+	WHERE `content_set_id` = OLD.`id`;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`content_file_BEFORE_INSERT` BEFORE INSERT ON `content_file` FOR EACH ROW
+BEGIN
+    SET @content_set_path := (SELECT CONCAT(h.name, se.url_context_root, co.request_path) AS path
+        FROM `mysql_rest_service_metadata`.content_set co
+            LEFT OUTER JOIN `mysql_rest_service_metadata`.service se
+                ON se.id = co.service_id
+            LEFT JOIN `mysql_rest_service_metadata`.url_host h
+                ON se.url_host_id = h.id
+        WHERE co.id = NEW.content_set_id);
+    SET @validPath := (SELECT `mysql_rest_service_metadata`.`valid_request_path`(CONCAT(@content_set_path, NEW.request_path)));
+    
+    IF @validPath = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "The request_path is already used by another entity.";
+    END IF;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`content_file_BEFORE_UPDATE` BEFORE UPDATE ON `content_file` FOR EACH ROW
+BEGIN
+    IF (NEW.request_path <> OLD.request_path OR NEW.content_set_id <> OLD.content_set_id) THEN
+        SET @content_set_path := (SELECT CONCAT(h.name, se.url_context_root, co.request_path) AS path
+            FROM `mysql_rest_service_metadata`.content_set co
+                LEFT OUTER JOIN `mysql_rest_service_metadata`.service se
+                    ON se.id = co.service_id
+                LEFT JOIN `mysql_rest_service_metadata`.url_host h
+                    ON se.url_host_id = h.id
+            WHERE co.id = NEW.content_set_id);
+        SET @validPath := (SELECT `mysql_rest_service_metadata`.`valid_request_path`(CONCAT(@content_set_path, NEW.request_path)));
+        
+        IF @validPath = 0 THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = "The request_path is already used by another entity.";
+        END IF;
+    END IF;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`mrs_role_BEFORE_DELETE` BEFORE DELETE ON `mrs_role` FOR EACH ROW
+BEGIN
+	DELETE FROM `mysql_rest_service_metadata`.`mrs_user_has_role` WHERE `role_id` = OLD.`id`;
+    -- Workaround to fix issue with recursive delete
+	IF OLD.id <> NULL THEN
+		DELETE FROM `mysql_rest_service_metadata`.`mrs_role` WHERE `derived_from_role_id` = OLD.`id`;
+	END IF;
+    DELETE FROM `mysql_rest_service_metadata`.`mrs_privilege` WHERE `role_id` = OLD.`id`;
+    DELETE FROM `mysql_rest_service_metadata`.`mrs_user_group_has_role` WHERE `role_id` = OLD.`id`;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`mrs_user_hierarchy_type_BEFORE_DELETE` BEFORE DELETE ON `mrs_user_hierarchy_type` FOR EACH ROW
+BEGIN
+	DELETE FROM `mysql_rest_service_metadata`.`mrs_user_hierarchy` WHERE `user_hierarchy_type_id` = OLD.`id`;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`mrs_user_group_BEFORE_DELETE` BEFORE DELETE ON `mrs_user_group` FOR EACH ROW
+BEGIN
+	DELETE FROM `mysql_rest_service_metadata`.`mrs_user_has_group` WHERE `user_group_id` = OLD.`id`;
+    DELETE FROM `mysql_rest_service_metadata`.`mrs_user_group_hierarchy` WHERE `user_group_id` = OLD.`id` OR `parent_group_id` = OLD.`id`;
+    DELETE FROM `mysql_rest_service_metadata`.`mrs_user_group_has_role` WHERE `user_group_id` = OLD.`id`;
+END$$
+
+USE `mysql_rest_service_metadata`$$
+CREATE DEFINER = CURRENT_USER TRIGGER `mysql_rest_service_metadata`.`mrs_group_hierarchy_type_BEFORE_DELETE` BEFORE DELETE ON `mrs_group_hierarchy_type` FOR EACH ROW
+BEGIN
+	DELETE FROM `mysql_rest_service_metadata`.`mrs_user_group_hierarchy` WHERE `group_hierarchy_type_id` = OLD.`id`;
+    DELETE FROM `mysql_rest_service_metadata`.`mrs_db_object_row_group_security` WHERE `group_hierarchy_type_id` = OLD.`id`;
+END$$
+
+
+DELIMITER ;$$
+
+SET SQL_MODE=@OLD_SQL_MODE;
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
+SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
+
+# -----------------------------------------------------
+# Data for table `mysql_rest_service_metadata`.`auth_vendor`
+# -----------------------------------------------------
+START TRANSACTION;
+USE `mysql_rest_service_metadata`;
+INSERT INTO `mysql_rest_service_metadata`.`auth_vendor` (`id`, `name`, `validation_url`, `enabled`, `comments`) VALUES (0x30, 'MRS', 'NULL', 1, 'Built-in user management of MRS');
+INSERT INTO `mysql_rest_service_metadata`.`auth_vendor` (`id`, `name`, `validation_url`, `enabled`, `comments`) VALUES (0x31, 'MySQL Internal', 'NULL', 1, 'Provides basic authentication via MySQL Server accounts');
+INSERT INTO `mysql_rest_service_metadata`.`auth_vendor` (`id`, `name`, `validation_url`, `enabled`, `comments`) VALUES (0x32, 'Facebook', 'NULL', 1, 'Uses the Facebook Login OAuth2 service');
+INSERT INTO `mysql_rest_service_metadata`.`auth_vendor` (`id`, `name`, `validation_url`, `enabled`, `comments`) VALUES (0x34, 'Google', 'NULL', 1, 'Uses the Google OAuth2 service');
+
+COMMIT;
+
+
+# -----------------------------------------------------
+# Data for table `mysql_rest_service_metadata`.`config`
+# -----------------------------------------------------
+START TRANSACTION;
+USE `mysql_rest_service_metadata`;
+INSERT INTO `mysql_rest_service_metadata`.`config` (`id`, `service_enabled`, `data`) VALUES (1, 1, '{}');
+
+COMMIT;
+
+
+# -----------------------------------------------------
+# Data for table `mysql_rest_service_metadata`.`mrs_role`
+# -----------------------------------------------------
+START TRANSACTION;
+USE `mysql_rest_service_metadata`;
+INSERT INTO `mysql_rest_service_metadata`.`mrs_role` (`id`, `derived_from_role_id`, `specific_to_service_id`, `caption`, `description`) VALUES (0x31, NULL, NULL, 'Full Access', 'Full access to all db_objects');
+
+COMMIT;
+
+
+# -----------------------------------------------------
+# Data for table `mysql_rest_service_metadata`.`mrs_user_hierarchy_type`
+# -----------------------------------------------------
+START TRANSACTION;
+USE `mysql_rest_service_metadata`;
+INSERT INTO `mysql_rest_service_metadata`.`mrs_user_hierarchy_type` (`id`, `caption`, `description`, `specific_to_service_id`) VALUES (0x31, 'Direct Report', 'And employee directly reporting to the user', NULL);
+INSERT INTO `mysql_rest_service_metadata`.`mrs_user_hierarchy_type` (`id`, `caption`, `description`, `specific_to_service_id`) VALUES (0x32, 'Dotted Line Report', 'And employee reporting to the user via a dotted line relationship', NULL);
+
+COMMIT;
+
+
+# -----------------------------------------------------
+# Data for table `mysql_rest_service_metadata`.`mrs_privilege`
+# -----------------------------------------------------
+START TRANSACTION;
+USE `mysql_rest_service_metadata`;
+INSERT INTO `mysql_rest_service_metadata`.`mrs_privilege` (`id`, `role_id`, `crud_operations`, `service_id`, `db_schema_id`, `db_object_id`) VALUES (0x31, 0x31, 'CREATE,READ,UPDATE,DELETE', NULL, NULL, NULL);
+
+COMMIT;
+
+# -----------------------------------------------------
+# Additional SQL
+
+# Ensure only one row in `mysql_rest_service_metadata`.`config` 
+ALTER TABLE `mysql_rest_service_metadata`.`config` 
+	ADD CONSTRAINT Config_OnlyOneRow CHECK (id = 1);
+
+DELIMITER $$;
+
+CREATE FUNCTION `mysql_rest_service_metadata`.`get_sequence_id`() RETURNS BINARY(16) NOT DETERMINISTIC NO SQL 
+RETURN UUID_TO_BIN(UUID(), 1)$$
+
+CREATE EVENT `mysql_rest_service_metadata`.`delete_old_audit_log_entries` ON SCHEDULE EVERY 1 DAY DO 
+DELETE FROM `mysql_rest_service_metadata`.`audit_log` WHERE changed_at < UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 14 DAY))$$
+
+
+CREATE FUNCTION `mysql_rest_service_metadata`.`valid_request_path`(path VARCHAR(255)) 
+RETURNS TINYINT(1) NOT DETERMINISTIC READS SQL DATA
+BEGIN
+    SET @valid := (SELECT COUNT(*) = 0 AS valid FROM 
+        (SELECT CONCAT(h.name,
+            se.url_context_root) as full_request_path
+        FROM `mysql_rest_service_metadata`.service se
+            LEFT JOIN `mysql_rest_service_metadata`.url_host h
+                ON se.url_host_id = h.id
+        WHERE CONCAT(h.name, se.url_context_root) = path
+        UNION
+        SELECT CONCAT(h.name, se.url_context_root,
+            sc.request_path) as full_request_path
+        FROM `mysql_rest_service_metadata`.db_schema sc
+            LEFT OUTER JOIN `mysql_rest_service_metadata`.service se
+                ON se.id = sc.service_id
+            LEFT JOIN `mysql_rest_service_metadata`.url_host h
+                ON se.url_host_id = h.id
+        WHERE CONCAT(h.name, se.url_context_root,
+                sc.request_path) = path
+        UNION
+        SELECT CONCAT(h.name, se.url_context_root,
+            sc.request_path, o.request_path) as full_request_path
+        FROM `mysql_rest_service_metadata`.db_object o
+            LEFT OUTER JOIN `mysql_rest_service_metadata`.db_schema sc
+                ON sc.id = o.db_schema_id
+            LEFT OUTER JOIN `mysql_rest_service_metadata`.service se
+                ON se.id = sc.service_id
+            LEFT JOIN `mysql_rest_service_metadata`.url_host h
+                ON se.url_host_id = h.id
+        WHERE CONCAT(h.name, se.url_context_root,
+                sc.request_path, o.request_path) = path
+        UNION
+        SELECT CONCAT(h.name, se.url_context_root,
+            co.request_path) as full_request_path
+        FROM `mysql_rest_service_metadata`.content_set co
+            LEFT OUTER JOIN `mysql_rest_service_metadata`.service se
+                ON se.id = co.service_id
+            LEFT JOIN `mysql_rest_service_metadata`.url_host h
+                ON se.url_host_id = h.id
+        WHERE CONCAT(h.name, se.url_context_root,
+                co.request_path) = path) AS p);
+
+     RETURN @valid;
+END$$
+
+DELIMITER ;$$
+
+# -----------------------------------------------------
+# Create audit_log triggers
+# 
+
+DELIMITER $$;
+CREATE TRIGGER `mysql_rest_service_metadata`.`field_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `field` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "field", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "db_object_id", NEW.db_object_id,
+            "position", NEW.position,
+            "name", NEW.name,
+            "bind_field_name", NEW.bind_field_name,
+            "datatype", NEW.datatype,
+            "mode", NEW.mode,
+            "details", NEW.details,
+            "comments", NEW.comments),
+        NULL,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`field_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `field` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "field", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "db_object_id", OLD.db_object_id,
+            "position", OLD.position,
+            "name", OLD.name,
+            "bind_field_name", OLD.bind_field_name,
+            "datatype", OLD.datatype,
+            "mode", OLD.mode,
+            "details", OLD.details,
+            "comments", OLD.comments),
+        JSON_OBJECT(
+            "id", NEW.id,
+            "db_object_id", NEW.db_object_id,
+            "position", NEW.position,
+            "name", NEW.name,
+            "bind_field_name", NEW.bind_field_name,
+            "datatype", NEW.datatype,
+            "mode", NEW.mode,
+            "details", NEW.details,
+            "comments", NEW.comments),
+        OLD.id,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`field_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `field` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "field", 
+        "DELETE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "db_object_id", OLD.db_object_id,
+            "position", OLD.position,
+            "name", OLD.name,
+            "bind_field_name", OLD.bind_field_name,
+            "datatype", OLD.datatype,
+            "mode", OLD.mode,
+            "details", OLD.details,
+            "comments", OLD.comments),
+        NULL,
+        OLD.id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`db_schema_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `db_schema` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "db_schema", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "service_id", NEW.service_id,
+            "name", NEW.name,
+            "request_path", NEW.request_path,
+            "requires_auth", NEW.requires_auth,
+            "enabled", NEW.enabled,
+            "items_per_page", NEW.items_per_page,
+            "comments", NEW.comments,
+            "options", NEW.options),
+        NULL,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`db_schema_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `db_schema` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "db_schema", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "service_id", OLD.service_id,
+            "name", OLD.name,
+            "request_path", OLD.request_path,
+            "requires_auth", OLD.requires_auth,
+            "enabled", OLD.enabled,
+            "items_per_page", OLD.items_per_page,
+            "comments", OLD.comments,
+            "options", OLD.options),
+        JSON_OBJECT(
+            "id", NEW.id,
+            "service_id", NEW.service_id,
+            "name", NEW.name,
+            "request_path", NEW.request_path,
+            "requires_auth", NEW.requires_auth,
+            "enabled", NEW.enabled,
+            "items_per_page", NEW.items_per_page,
+            "comments", NEW.comments,
+            "options", NEW.options),
+        OLD.id,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`db_schema_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `db_schema` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "db_schema", 
+        "DELETE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "service_id", OLD.service_id,
+            "name", OLD.name,
+            "request_path", OLD.request_path,
+            "requires_auth", OLD.requires_auth,
+            "enabled", OLD.enabled,
+            "items_per_page", OLD.items_per_page,
+            "comments", OLD.comments,
+            "options", OLD.options),
+        NULL,
+        OLD.id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`service_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `service` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "service", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "url_host_id", NEW.url_host_id,
+            "url_context_root", NEW.url_context_root,
+            "url_protocol", NEW.url_protocol,
+            "enabled", NEW.enabled,
+            "comments", NEW.comments,
+            "options", NEW.options,
+            "auth_path", NEW.auth_path,
+            "auth_completed_url", NEW.auth_completed_url,
+            "auth_completed_url_validation", NEW.auth_completed_url_validation,
+            "enable_sql_endpoint", NEW.enable_sql_endpoint,
+            "custom_metadata_schema", NEW.custom_metadata_schema),
+        NULL,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`service_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `service` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "service", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "url_host_id", OLD.url_host_id,
+            "url_context_root", OLD.url_context_root,
+            "url_protocol", OLD.url_protocol,
+            "enabled", OLD.enabled,
+            "comments", OLD.comments,
+            "options", OLD.options,
+            "auth_path", OLD.auth_path,
+            "auth_completed_url", OLD.auth_completed_url,
+            "auth_completed_url_validation", OLD.auth_completed_url_validation,
+            "enable_sql_endpoint", OLD.enable_sql_endpoint,
+            "custom_metadata_schema", OLD.custom_metadata_schema),
+        JSON_OBJECT(
+            "id", NEW.id,
+            "url_host_id", NEW.url_host_id,
+            "url_context_root", NEW.url_context_root,
+            "url_protocol", NEW.url_protocol,
+            "enabled", NEW.enabled,
+            "comments", NEW.comments,
+            "options", NEW.options,
+            "auth_path", NEW.auth_path,
+            "auth_completed_url", NEW.auth_completed_url,
+            "auth_completed_url_validation", NEW.auth_completed_url_validation,
+            "enable_sql_endpoint", NEW.enable_sql_endpoint,
+            "custom_metadata_schema", NEW.custom_metadata_schema),
+        OLD.id,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`service_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `service` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "service", 
+        "DELETE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "url_host_id", OLD.url_host_id,
+            "url_context_root", OLD.url_context_root,
+            "url_protocol", OLD.url_protocol,
+            "enabled", OLD.enabled,
+            "comments", OLD.comments,
+            "options", OLD.options,
+            "auth_path", OLD.auth_path,
+            "auth_completed_url", OLD.auth_completed_url,
+            "auth_completed_url_validation", OLD.auth_completed_url_validation,
+            "enable_sql_endpoint", OLD.enable_sql_endpoint,
+            "custom_metadata_schema", OLD.custom_metadata_schema),
+        NULL,
+        OLD.id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`db_object_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `db_object` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "db_object", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "db_schema_id", NEW.db_schema_id,
+            "name", NEW.name,
+            "request_path", NEW.request_path,
+            "enabled", NEW.enabled,
+            "object_type", NEW.object_type,
+            "crud_operations", NEW.crud_operations,
+            "format", NEW.format,
+            "items_per_page", NEW.items_per_page,
+            "media_type", NEW.media_type,
+            "auto_detect_media_type", NEW.auto_detect_media_type,
+            "requires_auth", NEW.requires_auth,
+            "auth_stored_procedure", NEW.auth_stored_procedure,
+            "row_user_ownership_enforced", NEW.row_user_ownership_enforced,
+            "row_user_ownership_column", NEW.row_user_ownership_column,
+            "options", NEW.options,
+            "details", NEW.details,
+            "comments", NEW.comments),
+        NULL,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`db_object_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `db_object` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "db_object", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "db_schema_id", OLD.db_schema_id,
+            "name", OLD.name,
+            "request_path", OLD.request_path,
+            "enabled", OLD.enabled,
+            "object_type", OLD.object_type,
+            "crud_operations", OLD.crud_operations,
+            "format", OLD.format,
+            "items_per_page", OLD.items_per_page,
+            "media_type", OLD.media_type,
+            "auto_detect_media_type", OLD.auto_detect_media_type,
+            "requires_auth", OLD.requires_auth,
+            "auth_stored_procedure", OLD.auth_stored_procedure,
+            "row_user_ownership_enforced", OLD.row_user_ownership_enforced,
+            "row_user_ownership_column", OLD.row_user_ownership_column,
+            "options", OLD.options,
+            "details", OLD.details,
+            "comments", OLD.comments),
+        JSON_OBJECT(
+            "id", NEW.id,
+            "db_schema_id", NEW.db_schema_id,
+            "name", NEW.name,
+            "request_path", NEW.request_path,
+            "enabled", NEW.enabled,
+            "object_type", NEW.object_type,
+            "crud_operations", NEW.crud_operations,
+            "format", NEW.format,
+            "items_per_page", NEW.items_per_page,
+            "media_type", NEW.media_type,
+            "auto_detect_media_type", NEW.auto_detect_media_type,
+            "requires_auth", NEW.requires_auth,
+            "auth_stored_procedure", NEW.auth_stored_procedure,
+            "row_user_ownership_enforced", NEW.row_user_ownership_enforced,
+            "row_user_ownership_column", NEW.row_user_ownership_column,
+            "options", NEW.options,
+            "details", NEW.details,
+            "comments", NEW.comments),
+        OLD.id,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`db_object_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `db_object` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "db_object", 
+        "DELETE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "db_schema_id", OLD.db_schema_id,
+            "name", OLD.name,
+            "request_path", OLD.request_path,
+            "enabled", OLD.enabled,
+            "object_type", OLD.object_type,
+            "crud_operations", OLD.crud_operations,
+            "format", OLD.format,
+            "items_per_page", OLD.items_per_page,
+            "media_type", OLD.media_type,
+            "auto_detect_media_type", OLD.auto_detect_media_type,
+            "requires_auth", OLD.requires_auth,
+            "auth_stored_procedure", OLD.auth_stored_procedure,
+            "row_user_ownership_enforced", OLD.row_user_ownership_enforced,
+            "row_user_ownership_column", OLD.row_user_ownership_column,
+            "options", OLD.options,
+            "details", OLD.details,
+            "comments", OLD.comments),
+        NULL,
+        OLD.id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `mrs_user` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "auth_app_id", NEW.auth_app_id,
+            "name", NEW.name,
+            "email", NEW.email,
+            "vendor_user_id", NEW.vendor_user_id,
+            "login_permitted", NEW.login_permitted,
+            "mapped_user_id", NEW.mapped_user_id,
+            "app_options", NEW.app_options),
+        NULL,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `mrs_user` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "auth_app_id", OLD.auth_app_id,
+            "name", OLD.name,
+            "email", OLD.email,
+            "vendor_user_id", OLD.vendor_user_id,
+            "login_permitted", OLD.login_permitted,
+            "mapped_user_id", OLD.mapped_user_id,
+            "app_options", OLD.app_options),
+        JSON_OBJECT(
+            "id", NEW.id,
+            "auth_app_id", NEW.auth_app_id,
+            "name", NEW.name,
+            "email", NEW.email,
+            "vendor_user_id", NEW.vendor_user_id,
+            "login_permitted", NEW.login_permitted,
+            "mapped_user_id", NEW.mapped_user_id,
+            "app_options", NEW.app_options),
+        OLD.id,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `mrs_user` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user", 
+        "DELETE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "auth_app_id", OLD.auth_app_id,
+            "name", OLD.name,
+            "email", OLD.email,
+            "vendor_user_id", OLD.vendor_user_id,
+            "login_permitted", OLD.login_permitted,
+            "mapped_user_id", OLD.mapped_user_id,
+            "app_options", OLD.app_options),
+        NULL,
+        OLD.id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`auth_vendor_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `auth_vendor` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "auth_vendor", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "name", NEW.name,
+            "validation_url", NEW.validation_url,
+            "enabled", NEW.enabled,
+            "comments", NEW.comments),
+        NULL,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`auth_vendor_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `auth_vendor` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "auth_vendor", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "name", OLD.name,
+            "validation_url", OLD.validation_url,
+            "enabled", OLD.enabled,
+            "comments", OLD.comments),
+        JSON_OBJECT(
+            "id", NEW.id,
+            "name", NEW.name,
+            "validation_url", NEW.validation_url,
+            "enabled", NEW.enabled,
+            "comments", NEW.comments),
+        OLD.id,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`auth_vendor_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `auth_vendor` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "auth_vendor", 
+        "DELETE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "name", OLD.name,
+            "validation_url", OLD.validation_url,
+            "enabled", OLD.enabled,
+            "comments", OLD.comments),
+        NULL,
+        OLD.id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`auth_app_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `auth_app` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "auth_app", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "auth_vendor_id", NEW.auth_vendor_id,
+            "service_id", NEW.service_id,
+            "name", NEW.name,
+            "description", NEW.description,
+            "url", NEW.url,
+            "url_direct_auth", NEW.url_direct_auth,
+            "access_token", NEW.access_token,
+            "app_id", NEW.app_id,
+            "enabled", NEW.enabled,
+            "limit_to_registered_users", NEW.limit_to_registered_users,
+            "default_role_id", NEW.default_role_id),
+        NULL,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`auth_app_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `auth_app` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "auth_app", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "auth_vendor_id", OLD.auth_vendor_id,
+            "service_id", OLD.service_id,
+            "name", OLD.name,
+            "description", OLD.description,
+            "url", OLD.url,
+            "url_direct_auth", OLD.url_direct_auth,
+            "access_token", OLD.access_token,
+            "app_id", OLD.app_id,
+            "enabled", OLD.enabled,
+            "limit_to_registered_users", OLD.limit_to_registered_users,
+            "default_role_id", OLD.default_role_id),
+        JSON_OBJECT(
+            "id", NEW.id,
+            "auth_vendor_id", NEW.auth_vendor_id,
+            "service_id", NEW.service_id,
+            "name", NEW.name,
+            "description", NEW.description,
+            "url", NEW.url,
+            "url_direct_auth", NEW.url_direct_auth,
+            "access_token", NEW.access_token,
+            "app_id", NEW.app_id,
+            "enabled", NEW.enabled,
+            "limit_to_registered_users", NEW.limit_to_registered_users,
+            "default_role_id", NEW.default_role_id),
+        OLD.id,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`auth_app_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `auth_app` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "auth_app", 
+        "DELETE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "auth_vendor_id", OLD.auth_vendor_id,
+            "service_id", OLD.service_id,
+            "name", OLD.name,
+            "description", OLD.description,
+            "url", OLD.url,
+            "url_direct_auth", OLD.url_direct_auth,
+            "access_token", OLD.access_token,
+            "app_id", OLD.app_id,
+            "enabled", OLD.enabled,
+            "limit_to_registered_users", OLD.limit_to_registered_users,
+            "default_role_id", OLD.default_role_id),
+        NULL,
+        OLD.id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`config_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `config` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "config", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "service_enabled", NEW.service_enabled,
+            "data", NEW.data),
+        NULL,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`config_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `config` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "config", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "service_enabled", OLD.service_enabled,
+            "data", OLD.data),
+        JSON_OBJECT(
+            "id", NEW.id,
+            "service_enabled", NEW.service_enabled,
+            "data", NEW.data),
+        OLD.id,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`config_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `config` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "config", 
+        "DELETE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "service_enabled", OLD.service_enabled,
+            "data", OLD.data),
+        NULL,
+        OLD.id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`redirect_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `redirect` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "redirect", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "pattern", NEW.pattern,
+            "target", NEW.target),
+        NULL,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`redirect_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `redirect` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "redirect", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "pattern", OLD.pattern,
+            "target", OLD.target),
+        JSON_OBJECT(
+            "id", NEW.id,
+            "pattern", NEW.pattern,
+            "target", NEW.target),
+        OLD.id,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`redirect_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `redirect` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "redirect", 
+        "DELETE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "pattern", OLD.pattern,
+            "target", OLD.target),
+        NULL,
+        OLD.id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`url_host_alias_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `url_host_alias` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "url_host_alias", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "url_host_id", NEW.url_host_id,
+            "alias", NEW.alias),
+        NULL,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`url_host_alias_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `url_host_alias` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "url_host_alias", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "url_host_id", OLD.url_host_id,
+            "alias", OLD.alias),
+        JSON_OBJECT(
+            "id", NEW.id,
+            "url_host_id", NEW.url_host_id,
+            "alias", NEW.alias),
+        OLD.id,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`url_host_alias_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `url_host_alias` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "url_host_alias", 
+        "DELETE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "url_host_id", OLD.url_host_id,
+            "alias", OLD.alias),
+        NULL,
+        OLD.id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`url_host_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `url_host` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "url_host", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "name", NEW.name,
+            "comments", NEW.comments),
+        NULL,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`url_host_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `url_host` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "url_host", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "name", OLD.name,
+            "comments", OLD.comments),
+        JSON_OBJECT(
+            "id", NEW.id,
+            "name", NEW.name,
+            "comments", NEW.comments),
+        OLD.id,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`url_host_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `url_host` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "url_host", 
+        "DELETE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "name", OLD.name,
+            "comments", OLD.comments),
+        NULL,
+        OLD.id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`content_file_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `content_file` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "content_file", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "content_set_id", NEW.content_set_id,
+            "request_path", NEW.request_path,
+            "requires_auth", NEW.requires_auth,
+            "enabled", NEW.enabled,
+            "size", NEW.size),
+        NULL,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`content_file_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `content_file` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "content_file", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "content_set_id", OLD.content_set_id,
+            "request_path", OLD.request_path,
+            "requires_auth", OLD.requires_auth,
+            "enabled", OLD.enabled,
+            "size", OLD.size),
+        JSON_OBJECT(
+            "id", NEW.id,
+            "content_set_id", NEW.content_set_id,
+            "request_path", NEW.request_path,
+            "requires_auth", NEW.requires_auth,
+            "enabled", NEW.enabled,
+            "size", NEW.size),
+        OLD.id,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`content_file_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `content_file` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "content_file", 
+        "DELETE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "content_set_id", OLD.content_set_id,
+            "request_path", OLD.request_path,
+            "requires_auth", OLD.requires_auth,
+            "enabled", OLD.enabled,
+            "size", OLD.size),
+        NULL,
+        OLD.id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`content_set_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `content_set` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "content_set", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "service_id", NEW.service_id,
+            "request_path", NEW.request_path,
+            "requires_auth", NEW.requires_auth,
+            "enabled", NEW.enabled,
+            "comments", NEW.comments,
+            "options", NEW.options),
+        NULL,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`content_set_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `content_set` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "content_set", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "service_id", OLD.service_id,
+            "request_path", OLD.request_path,
+            "requires_auth", OLD.requires_auth,
+            "enabled", OLD.enabled,
+            "comments", OLD.comments,
+            "options", OLD.options),
+        JSON_OBJECT(
+            "id", NEW.id,
+            "service_id", NEW.service_id,
+            "request_path", NEW.request_path,
+            "requires_auth", NEW.requires_auth,
+            "enabled", NEW.enabled,
+            "comments", NEW.comments,
+            "options", NEW.options),
+        OLD.id,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`content_set_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `content_set` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "content_set", 
+        "DELETE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "service_id", OLD.service_id,
+            "request_path", OLD.request_path,
+            "requires_auth", OLD.requires_auth,
+            "enabled", OLD.enabled,
+            "comments", OLD.comments,
+            "options", OLD.options),
+        NULL,
+        OLD.id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_role_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `mrs_role` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_role", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "derived_from_role_id", NEW.derived_from_role_id,
+            "specific_to_service_id", NEW.specific_to_service_id,
+            "caption", NEW.caption,
+            "description", NEW.description),
+        NULL,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_role_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `mrs_role` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_role", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "derived_from_role_id", OLD.derived_from_role_id,
+            "specific_to_service_id", OLD.specific_to_service_id,
+            "caption", OLD.caption,
+            "description", OLD.description),
+        JSON_OBJECT(
+            "id", NEW.id,
+            "derived_from_role_id", NEW.derived_from_role_id,
+            "specific_to_service_id", NEW.specific_to_service_id,
+            "caption", NEW.caption,
+            "description", NEW.description),
+        OLD.id,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_role_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `mrs_role` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_role", 
+        "DELETE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "derived_from_role_id", OLD.derived_from_role_id,
+            "specific_to_service_id", OLD.specific_to_service_id,
+            "caption", OLD.caption,
+            "description", OLD.description),
+        NULL,
+        OLD.id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_has_role_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `mrs_user_has_role` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_has_role", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "user_id", NEW.user_id,
+            "role_id", NEW.role_id,
+            "comments", NEW.comments),
+        NULL,
+        NEW.user_id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_has_role_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `mrs_user_has_role` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_has_role", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "user_id", OLD.user_id,
+            "role_id", OLD.role_id,
+            "comments", OLD.comments),
+        JSON_OBJECT(
+            "user_id", NEW.user_id,
+            "role_id", NEW.role_id,
+            "comments", NEW.comments),
+        OLD.user_id,
+        NEW.user_id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_has_role_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `mrs_user_has_role` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_has_role", 
+        "DELETE", 
+        JSON_OBJECT(
+            "user_id", OLD.user_id,
+            "role_id", OLD.role_id,
+            "comments", OLD.comments),
+        NULL,
+        OLD.user_id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_hierarchy_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `mrs_user_hierarchy` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_hierarchy", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "user_id", NEW.user_id,
+            "reporting_to_user_id", NEW.reporting_to_user_id,
+            "user_hierarchy_type_id", NEW.user_hierarchy_type_id),
+        NULL,
+        NEW.user_id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_hierarchy_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `mrs_user_hierarchy` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_hierarchy", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "user_id", OLD.user_id,
+            "reporting_to_user_id", OLD.reporting_to_user_id,
+            "user_hierarchy_type_id", OLD.user_hierarchy_type_id),
+        JSON_OBJECT(
+            "user_id", NEW.user_id,
+            "reporting_to_user_id", NEW.reporting_to_user_id,
+            "user_hierarchy_type_id", NEW.user_hierarchy_type_id),
+        OLD.user_id,
+        NEW.user_id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_hierarchy_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `mrs_user_hierarchy` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_hierarchy", 
+        "DELETE", 
+        JSON_OBJECT(
+            "user_id", OLD.user_id,
+            "reporting_to_user_id", OLD.reporting_to_user_id,
+            "user_hierarchy_type_id", OLD.user_hierarchy_type_id),
+        NULL,
+        OLD.user_id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_hierarchy_type_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `mrs_user_hierarchy_type` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_hierarchy_type", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "caption", NEW.caption,
+            "description", NEW.description,
+            "specific_to_service_id", NEW.specific_to_service_id),
+        NULL,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_hierarchy_type_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `mrs_user_hierarchy_type` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_hierarchy_type", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "caption", OLD.caption,
+            "description", OLD.description,
+            "specific_to_service_id", OLD.specific_to_service_id),
+        JSON_OBJECT(
+            "id", NEW.id,
+            "caption", NEW.caption,
+            "description", NEW.description,
+            "specific_to_service_id", NEW.specific_to_service_id),
+        OLD.id,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_hierarchy_type_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `mrs_user_hierarchy_type` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_hierarchy_type", 
+        "DELETE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "caption", OLD.caption,
+            "description", OLD.description,
+            "specific_to_service_id", OLD.specific_to_service_id),
+        NULL,
+        OLD.id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_privilege_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `mrs_privilege` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_privilege", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "role_id", NEW.role_id,
+            "crud_operations", NEW.crud_operations,
+            "service_id", NEW.service_id,
+            "db_schema_id", NEW.db_schema_id,
+            "db_object_id", NEW.db_object_id),
+        NULL,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_privilege_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `mrs_privilege` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_privilege", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "role_id", OLD.role_id,
+            "crud_operations", OLD.crud_operations,
+            "service_id", OLD.service_id,
+            "db_schema_id", OLD.db_schema_id,
+            "db_object_id", OLD.db_object_id),
+        JSON_OBJECT(
+            "id", NEW.id,
+            "role_id", NEW.role_id,
+            "crud_operations", NEW.crud_operations,
+            "service_id", NEW.service_id,
+            "db_schema_id", NEW.db_schema_id,
+            "db_object_id", NEW.db_object_id),
+        OLD.id,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_privilege_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `mrs_privilege` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_privilege", 
+        "DELETE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "role_id", OLD.role_id,
+            "crud_operations", OLD.crud_operations,
+            "service_id", OLD.service_id,
+            "db_schema_id", OLD.db_schema_id,
+            "db_object_id", OLD.db_object_id),
+        NULL,
+        OLD.id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_group_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `mrs_user_group` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_group", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "specific_to_service_id", NEW.specific_to_service_id,
+            "caption", NEW.caption,
+            "description", NEW.description),
+        NULL,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_group_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `mrs_user_group` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_group", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "specific_to_service_id", OLD.specific_to_service_id,
+            "caption", OLD.caption,
+            "description", OLD.description),
+        JSON_OBJECT(
+            "id", NEW.id,
+            "specific_to_service_id", NEW.specific_to_service_id,
+            "caption", NEW.caption,
+            "description", NEW.description),
+        OLD.id,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_group_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `mrs_user_group` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_group", 
+        "DELETE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "specific_to_service_id", OLD.specific_to_service_id,
+            "caption", OLD.caption,
+            "description", OLD.description),
+        NULL,
+        OLD.id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_group_has_role_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `mrs_user_group_has_role` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_group_has_role", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "user_group_id", NEW.user_group_id,
+            "role_id", NEW.role_id),
+        NULL,
+        NEW.user_group_id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_group_has_role_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `mrs_user_group_has_role` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_group_has_role", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "user_group_id", OLD.user_group_id,
+            "role_id", OLD.role_id),
+        JSON_OBJECT(
+            "user_group_id", NEW.user_group_id,
+            "role_id", NEW.role_id),
+        OLD.user_group_id,
+        NEW.user_group_id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_group_has_role_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `mrs_user_group_has_role` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_group_has_role", 
+        "DELETE", 
+        JSON_OBJECT(
+            "user_group_id", OLD.user_group_id,
+            "role_id", OLD.role_id),
+        NULL,
+        OLD.user_group_id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_has_group_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `mrs_user_has_group` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_has_group", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "user_id", NEW.user_id,
+            "user_group_id", NEW.user_group_id,
+            "comments", NEW.comments),
+        NULL,
+        NEW.user_id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_has_group_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `mrs_user_has_group` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_has_group", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "user_id", OLD.user_id,
+            "user_group_id", OLD.user_group_id,
+            "comments", OLD.comments),
+        JSON_OBJECT(
+            "user_id", NEW.user_id,
+            "user_group_id", NEW.user_group_id,
+            "comments", NEW.comments),
+        OLD.user_id,
+        NEW.user_id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_has_group_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `mrs_user_has_group` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_has_group", 
+        "DELETE", 
+        JSON_OBJECT(
+            "user_id", OLD.user_id,
+            "user_group_id", OLD.user_group_id,
+            "comments", OLD.comments),
+        NULL,
+        OLD.user_id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_group_hierarchy_type_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `mrs_group_hierarchy_type` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_group_hierarchy_type", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "id", NEW.id,
+            "caption", NEW.caption,
+            "description", NEW.description),
+        NULL,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_group_hierarchy_type_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `mrs_group_hierarchy_type` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_group_hierarchy_type", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "caption", OLD.caption,
+            "description", OLD.description),
+        JSON_OBJECT(
+            "id", NEW.id,
+            "caption", NEW.caption,
+            "description", NEW.description),
+        OLD.id,
+        NEW.id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_group_hierarchy_type_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `mrs_group_hierarchy_type` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_group_hierarchy_type", 
+        "DELETE", 
+        JSON_OBJECT(
+            "id", OLD.id,
+            "caption", OLD.caption,
+            "description", OLD.description),
+        NULL,
+        OLD.id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_group_hierarchy_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `mrs_user_group_hierarchy` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_group_hierarchy", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "user_group_id", NEW.user_group_id,
+            "parent_group_id", NEW.parent_group_id,
+            "group_hierarchy_type_id", NEW.group_hierarchy_type_id,
+            "level", NEW.level),
+        NULL,
+        NEW.user_group_id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_group_hierarchy_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `mrs_user_group_hierarchy` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_group_hierarchy", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "user_group_id", OLD.user_group_id,
+            "parent_group_id", OLD.parent_group_id,
+            "group_hierarchy_type_id", OLD.group_hierarchy_type_id,
+            "level", OLD.level),
+        JSON_OBJECT(
+            "user_group_id", NEW.user_group_id,
+            "parent_group_id", NEW.parent_group_id,
+            "group_hierarchy_type_id", NEW.group_hierarchy_type_id,
+            "level", NEW.level),
+        OLD.user_group_id,
+        NEW.user_group_id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_user_group_hierarchy_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `mrs_user_group_hierarchy` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_user_group_hierarchy", 
+        "DELETE", 
+        JSON_OBJECT(
+            "user_group_id", OLD.user_group_id,
+            "parent_group_id", OLD.parent_group_id,
+            "group_hierarchy_type_id", OLD.group_hierarchy_type_id,
+            "level", OLD.level),
+        NULL,
+        OLD.user_group_id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_db_object_row_group_security_AFTER_INSERT_AUDIT_LOG` AFTER INSERT ON `mrs_db_object_row_group_security` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_db_object_row_group_security", 
+        "INSERT", 
+        NULL,
+        JSON_OBJECT(
+            "db_object_id", NEW.db_object_id,
+            "group_hierarchy_type_id", NEW.group_hierarchy_type_id,
+            "row_group_ownership_column", NEW.row_group_ownership_column,
+            "level", NEW.level,
+            "match_level", NEW.match_level),
+        NULL,
+        NEW.db_object_id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_db_object_row_group_security_AFTER_UPDATE_AUDIT_LOG` AFTER UPDATE ON `mrs_db_object_row_group_security` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_db_object_row_group_security", 
+        "UPDATE", 
+        JSON_OBJECT(
+            "db_object_id", OLD.db_object_id,
+            "group_hierarchy_type_id", OLD.group_hierarchy_type_id,
+            "row_group_ownership_column", OLD.row_group_ownership_column,
+            "level", OLD.level,
+            "match_level", OLD.match_level),
+        JSON_OBJECT(
+            "db_object_id", NEW.db_object_id,
+            "group_hierarchy_type_id", NEW.group_hierarchy_type_id,
+            "row_group_ownership_column", NEW.row_group_ownership_column,
+            "level", NEW.level,
+            "match_level", NEW.match_level),
+        OLD.db_object_id,
+        NEW.db_object_id,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+CREATE TRIGGER `mysql_rest_service_metadata`.`mrs_db_object_row_group_security_AFTER_DELETE_AUDIT_LOG` AFTER DELETE ON `mrs_db_object_row_group_security` FOR EACH ROW
+BEGIN
+	INSERT INTO `mysql_rest_service_metadata`.`audit_log` (
+		table_name, dml_type, old_row_data, new_row_data, old_row_id, new_row_id, changed_by, changed_at)
+	VALUES (
+        "mrs_db_object_row_group_security", 
+        "DELETE", 
+        JSON_OBJECT(
+            "db_object_id", OLD.db_object_id,
+            "group_hierarchy_type_id", OLD.group_hierarchy_type_id,
+            "row_group_ownership_column", OLD.row_group_ownership_column,
+            "level", OLD.level,
+            "match_level", OLD.match_level),
+        NULL,
+        OLD.db_object_id,
+        NULL,
+        CURRENT_USER(), 
+        CURRENT_TIMESTAMP
+    );
+END$$
+
+DELIMITER ;$$
+
+# -----------------------------------------------------
+# Create roles for the MySQL RDS Service
+# 
+# The mysql_rest_service_admin ROLE allows to fully manage the mrs services
+# The mysql_rest_service_schema_admin ROLE allows to manage the database schemas assigned to mrs services
+# The mysql_rest_service_meta_provider ROLE is used by the MySQL Router to read the mrs metadata and make inserts into the auth_user table
+# The mysql_rest_service_data_provider ROLE is used by the MySQL Router to read the actual schema data that is exposed via REST
+
+CREATE ROLE IF NOT EXISTS 'mysql_rest_service_admin', 'mysql_rest_service_schema_admin', 'mysql_rest_service_meta_provider', 'mysql_rest_service_data_provider';
+
+# `mysql_rest_service_metadata`.`schema_version`
+GRANT SELECT ON `mysql_rest_service_metadata`.`schema_version` 
+	TO 'mysql_rest_service_admin', 'mysql_rest_service_schema_admin', 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`audit_log`
+GRANT SELECT ON `mysql_rest_service_metadata`.`audit_log` 
+	TO 'mysql_rest_service_admin', 'mysql_rest_service_schema_admin', 'mysql_rest_service_meta_provider';
+
+# -----------------------------------------------------
+# Config
+
+# `mysql_rest_service_metadata`.`config`
+GRANT SELECT, UPDATE 
+	ON `mysql_rest_service_metadata`.`config` 
+    TO 'mysql_rest_service_admin', 'mysql_rest_service_schema_admin';
+GRANT SELECT ON `mysql_rest_service_metadata`.`config` 
+	TO 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`redirect`
+GRANT SELECT, INSERT, UPDATE, DELETE 
+	ON `mysql_rest_service_metadata`.`redirect` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT ON `mysql_rest_service_metadata`.`redirect` 
+	TO 'mysql_rest_service_schema_admin', 'mysql_rest_service_meta_provider';
+
+# -----------------------------------------------------
+# Service
+
+# `mysql_rest_service_metadata`.`url_host`
+GRANT SELECT, INSERT, UPDATE, DELETE 
+	ON `mysql_rest_service_metadata`.`url_host` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT ON `mysql_rest_service_metadata`.`url_host` 
+	TO 'mysql_rest_service_schema_admin', 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`url_host_alias`
+GRANT SELECT, INSERT, DELETE 
+	ON `mysql_rest_service_metadata`.`url_host_alias` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT ON `mysql_rest_service_metadata`.`url_host_alias` 
+	TO 'mysql_rest_service_schema_admin', 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`service`
+GRANT SELECT, INSERT, UPDATE, DELETE 
+	ON `mysql_rest_service_metadata`.`service` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT ON `mysql_rest_service_metadata`.`service` 
+	TO 'mysql_rest_service_schema_admin', 'mysql_rest_service_meta_provider';
+
+# -----------------------------------------------------
+# Schema Objects
+
+# `mysql_rest_service_metadata`.`db_schema`
+GRANT SELECT, INSERT, UPDATE, DELETE 
+	ON `mysql_rest_service_metadata`.`db_schema` 
+    TO 'mysql_rest_service_admin', 'mysql_rest_service_schema_admin';
+GRANT SELECT ON `mysql_rest_service_metadata`.`db_schema` 
+	TO 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`db_object`
+GRANT SELECT, INSERT, UPDATE, DELETE
+	ON `mysql_rest_service_metadata`.`db_object` 
+	TO 'mysql_rest_service_admin', 'mysql_rest_service_schema_admin';
+GRANT SELECT ON `mysql_rest_service_metadata`.`db_object` 
+	TO 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`mrs_db_object_row_group_security`
+GRANT SELECT, INSERT, UPDATE, DELETE
+	ON `mysql_rest_service_metadata`.`mrs_db_object_row_group_security` 
+	TO 'mysql_rest_service_admin', 'mysql_rest_service_schema_admin';
+GRANT SELECT ON `mysql_rest_service_metadata`.`mrs_db_object_row_group_security` 
+	TO 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`field`
+GRANT SELECT, INSERT, UPDATE, DELETE 
+	ON `mysql_rest_service_metadata`.`field` 
+    TO 'mysql_rest_service_admin', 'mysql_rest_service_schema_admin';
+GRANT SELECT ON `mysql_rest_service_metadata`.`field` 
+	TO 'mysql_rest_service_meta_provider';
+
+# -----------------------------------------------------
+# Static Content
+
+# `mysql_rest_service_metadata`.`content_set`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`content_set` 
+	TO 'mysql_rest_service_admin';
+GRANT SELECT ON `mysql_rest_service_metadata`.`content_set` 
+	TO 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`content_file`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`content_file` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT ON `mysql_rest_service_metadata`.`content_file` 
+	TO 'mysql_rest_service_meta_provider';
+
+# -----------------------------------------------------
+# User Authentication
+
+# `mysql_rest_service_metadata`.`auth_app`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`auth_app` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT ON `mysql_rest_service_metadata`.`auth_app` 
+	TO 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`auth_vendor`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`auth_vendor` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT ON `mysql_rest_service_metadata`.`auth_vendor` 
+	TO 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`mrs_user`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`mrs_user` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT, INSERT ON `mysql_rest_service_metadata`.`mrs_user` 
+	TO 'mysql_rest_service_meta_provider';
+GRANT SELECT ON `mysql_rest_service_metadata`.`mrs_user` 
+	TO 'mysql_rest_service_data_provider';
+
+# -----------------------------------------------------
+# User Hierarchy
+
+# `mysql_rest_service_metadata`.`mrs_user_hierarchy`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`mrs_user_hierarchy` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT, INSERT ON `mysql_rest_service_metadata`.`mrs_user_hierarchy` 
+	TO 'mysql_rest_service_meta_provider';
+GRANT SELECT ON `mysql_rest_service_metadata`.`mrs_user_hierarchy` 
+	TO 'mysql_rest_service_data_provider';
+
+# `mysql_rest_service_metadata`.`mrs_user_hierarchy_type`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`mrs_user_hierarchy_type` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT, INSERT ON `mysql_rest_service_metadata`.`mrs_user_hierarchy_type` 
+	TO 'mysql_rest_service_meta_provider';
+
+# -----------------------------------------------------
+# User Roles
+
+# `mysql_rest_service_metadata`.`mrs_user_has_role`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`mrs_user_has_role` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT, INSERT ON `mysql_rest_service_metadata`.`mrs_user_has_role` 
+	TO 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`mrs_role`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`mrs_role` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT, INSERT ON `mysql_rest_service_metadata`.`mrs_role` 
+	TO 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`mrs_privilege`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`mrs_privilege` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT, INSERT ON `mysql_rest_service_metadata`.`mrs_privilege` 
+	TO 'mysql_rest_service_meta_provider';
+
+# -----------------------------------------------------
+# User Group Management
+
+# `mysql_rest_service_metadata`.`mrs_user_has_group`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`mrs_user_has_group` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT, INSERT ON `mysql_rest_service_metadata`.`mrs_user_has_group` 
+	TO 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`mrs_user_group`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`mrs_user_group` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT, INSERT ON `mysql_rest_service_metadata`.`mrs_user_group` 
+	TO 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`mrs_user_group_has_role`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`mrs_user_group_has_role` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT, INSERT ON `mysql_rest_service_metadata`.`mrs_user_group_has_role` 
+	TO 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`mrs_group_hierarchy_type`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`mrs_group_hierarchy_type` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT, INSERT ON `mysql_rest_service_metadata`.`mrs_group_hierarchy_type` 
+	TO 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`mrs_user_group_hierarchy`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`mrs_user_group_hierarchy` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT, INSERT ON `mysql_rest_service_metadata`.`mrs_user_group_hierarchy` 
+	TO 'mysql_rest_service_meta_provider';
+GRANT SELECT ON `mysql_rest_service_metadata`.`mrs_user_group_hierarchy` 
+	TO 'mysql_rest_service_data_provider';
+
+# -----------------------------------------------------
+# Router Management
+
+# `mysql_rest_service_metadata`.`router`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`router` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT, INSERT, UPDATE ON `mysql_rest_service_metadata`.`router` 
+	TO 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`router_status`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`router_status` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT, INSERT, UPDATE ON `mysql_rest_service_metadata`.`router_status` 
+	TO 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`router_general_log`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`router_general_log` 
+    TO 'mysql_rest_service_admin';
+GRANT INSERT ON `mysql_rest_service_metadata`.`router_general_log` 
+	TO 'mysql_rest_service_meta_provider';
+
+# `mysql_rest_service_metadata`.`router_session`
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON `mysql_rest_service_metadata`.`router_session` 
+    TO 'mysql_rest_service_admin';
+GRANT SELECT, INSERT ON `mysql_rest_service_metadata`.`router_session` 
+	TO 'mysql_rest_service_meta_provider';
+
+# -----------------------------------------------------
+# Procedures
+
+# `mysql_rest_service_metadata`.`get_sequence_id`
+
+GRANT EXECUTE ON FUNCTION `mysql_rest_service_metadata`.`get_sequence_id`
+	TO 'mysql_rest_service_admin', 'mysql_rest_service_schema_admin', 'mysql_rest_service_meta_provider', 'mysql_rest_service_data_provider';
+

@@ -46,7 +46,7 @@ class Oauth2GoogleHandler : public Oauth2Handler {
  private:
   std::string get_url_direct_auth() const override;
   std::string get_url_location(GenericSessionData *data,
-                               http::Url *url) const override;
+                               Url *url) const override;
   std::string get_url_validation(GenericSessionData *data) const override;
 
   std::string get_body_access_token_request(

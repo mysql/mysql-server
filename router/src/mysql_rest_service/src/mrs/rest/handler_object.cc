@@ -32,6 +32,7 @@
 #include "mysql/harness/string_utils.h"
 
 #include "helper/container/generic.h"
+#include "helper/http/url.h"
 #include "helper/json/rapid_json_to_text.h"
 #include "helper/json/to_sqlstring.h"
 #include "helper/json/to_string.h"
@@ -41,7 +42,6 @@
 #include "mrs/database/query_rest_table_delete.h"
 #include "mrs/database/query_rest_table_insert.h"
 #include "mrs/database/query_rest_table_single_row.h"
-#include "mrs/http/url.h"
 #include "mrs/rest/request_context.h"
 #include "mrs/router_observation_entities.h"
 
@@ -55,6 +55,7 @@ using UserId = mrs::database::entry::AuthUser::UserId;
 using RowUserOwnership = mrs::database::entry::RowUserOwnership;
 using sqlstring = mysqlrouter::sqlstring;
 using SqlStrings = std::vector<sqlstring>;
+using Url = helper::http::Url;
 using rapidjson::StringRef;
 
 class SqlValueIterator
@@ -254,7 +255,7 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
   auto columns = route_->get_cached_columnes();
 
-  http::Url uri_param(requests_uri);
+  Url uri_param(requests_uri);
 
   auto it_f = uri_param.is_query_parameter("f");
   auto it_raw = uri_param.is_query_parameter("raw");
@@ -292,7 +293,7 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
   if (pk_value.str().empty()) {
     uint32_t offset = 0;
     uint32_t limit = route_->get_on_page();
-    http::Url::parse_offset_limit(uri_param.parameters_, &offset, &limit);
+    Url::parse_offset_limit(uri_param.parameters_, &offset, &limit);
 
     if (raw_value.empty()) {
       database::QueryRestTable rest;
@@ -463,13 +464,12 @@ HttpResult HandlerObject::handle_post(
 
 std::string HandlerObject::get_path_after_object_name(HttpUri &requests_uri) {
   auto path = requests_uri.get_path();
-  auto last_path =
-      http::Url::extra_path_element(route_->get_rest_path_raw(), path);
+  auto last_path = Url::extra_path_element(route_->get_rest_path_raw(), path);
   return last_path;
 }
 
 std::string HandlerObject::get_rest_query_parameter(HttpUri &requests_uri) {
-  http::Url uri_param(requests_uri);
+  Url uri_param(requests_uri);
   auto query = uri_param.get_query_parameter("q");
   return query;
 }

@@ -35,7 +35,10 @@
 #include "helper/json/rapid_json_interator.h"
 #include "helper/json/to_string.h"
 
+#include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/utils_sqlstring.h"
+
+IMPORT_LOG_FUNCTIONS()
 
 namespace mrs {
 namespace database {
@@ -165,6 +168,7 @@ void FilterObjectGenerator::parse_orderby_asof_wmember(Object object) {
 
 bool FilterObjectGenerator::parse_complex_object(const char *name,
                                                  Value *value) {
+  log_debug("Parser complex_object ");
   if ("$or"s == name) {
     where_ += "(";
     parse_complex_or(value);
@@ -184,6 +188,7 @@ bool FilterObjectGenerator::parse_complex_object(const char *name,
 }
 
 bool FilterObjectGenerator::parse_simple_object(Value *object) {
+  log_debug("Parser simple_object");
   if (!object->IsObject()) return false;
   if (object->MemberCount() != 1) return false;
 
@@ -191,6 +196,7 @@ bool FilterObjectGenerator::parse_simple_object(Value *object) {
   Value *value = &object->MemberBegin()->value;
   auto &argument = argument_.back();
 
+  log_debug("parse_simple_object %i", static_cast<int>(value->GetType()));
   where_ += " ";
   if ("$eq"s == name) {
     where_ +=
@@ -235,6 +241,7 @@ bool FilterObjectGenerator::parse_simple_object(Value *object) {
 }
 
 void FilterObjectGenerator::parse_match(Value *value) {
+  log_debug("Parser match");
   if (!value->IsObject())
     throw std::runtime_error("Match operator, requires JSON object as value.");
   auto param = value->FindMember("$params");
@@ -288,6 +295,7 @@ void FilterObjectGenerator::parse_match(Value *value) {
 }
 
 void FilterObjectGenerator::parse_complex_and(Value *value) {
+  log_debug("Parser complex_and");
   if (value->IsObject())
     throw std::runtime_error(
         "Simple operators are not supported for complex operations (just "
@@ -313,6 +321,7 @@ void FilterObjectGenerator::parse_complex_and(Value *value) {
   }
 }
 void FilterObjectGenerator::parse_complex_or(Value *value) {
+  log_debug("Parser complex_or");
   if (value->IsObject())
     throw std::runtime_error(
         "Simple operators are not supported for complex operations (just "
@@ -341,21 +350,25 @@ void FilterObjectGenerator::parse_complex_or(Value *value) {
 bool FilterObjectGenerator::has_order() const { return has_order_; }
 
 void FilterObjectGenerator::parse_wmember(const char *name, Value *value) {
+  log_debug("Parser wmember");
   using namespace std::literals::string_literals;
   has_filter_ = true;
   argument_.push_back(name);
   if (parse_complex_object(name, value)) return;
   if (parse_simple_object(value)) return;
+  log_debug("fallback");
   // TODO(lkotula): array of ComplectValues (Shouldn't be in review)
   where_ += " "s + name + "=" + to_string<tosString, tosNumber, tosDate>(value);
   argument_.pop_back();
 }
 
 void FilterObjectGenerator::parse_asof(Value * /*value*/) {
+  log_debug("Parser asof");
   throw std::runtime_error("`asof` attribute not supported.");
 }
 
 void FilterObjectGenerator::prase_order(Object object) {
+  log_debug("Parser Order");
   const char *kWrongValueForOrder =
       "Wrong value for order, expected: [1,-1, ASC, DESC].";
   const char *kWrongTypeForOrder =

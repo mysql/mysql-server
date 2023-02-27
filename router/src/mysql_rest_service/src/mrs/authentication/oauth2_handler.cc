@@ -31,12 +31,12 @@
 #include <rapidjson/reader.h>
 
 #include "helper/container/map.h"
+#include "helper/http/url.h"
 #include "helper/json/rapid_json_to_map.h"
 #include "helper/json/text_to.h"
 #include "helper/json/to_string.h"
 #include "mrs/authentication/www_authentication_handler.h"
 #include "mrs/http/error.h"
-#include "mrs/http/url.h"
 #include "mrs/http/utilities.h"
 #include "mrs/rest/request_context.h"
 
@@ -189,7 +189,7 @@ bool Oauth2Handler::http_acquire_access_token(GenericSessionData *data) {
   return true;
 }
 
-void Oauth2Handler::new_session_start_login(Session *session, http::Url *url) {
+void Oauth2Handler::new_session_start_login(Session *session, Url *url) {
   std::string uri = entry_.host + url->get_path();
 
   if (url->get_query().length()) {
@@ -229,7 +229,7 @@ bool Oauth2Handler::authorize(RequestContext &ctxt, Session *session,
   auto session_data = session->get_data<GenericSessionData>();
 
   auto url = ctxt.get_http_url();
-  http::Url::Parameaters &query_parameters = url.parameters_;
+  Url::Parameaters &query_parameters = url.parameters_;
   const bool token_in_parameters = 0 != query_parameters.count(kToken);
   const bool code_in_parameters = 0 != query_parameters.count(kCode);
 

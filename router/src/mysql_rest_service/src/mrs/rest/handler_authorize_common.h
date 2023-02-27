@@ -37,6 +37,9 @@ namespace mrs {
 namespace rest {
 
 class HandlerAuthorizeCommon : public Handler {
+ private:
+  using Url = helper::http::Url;
+
  public:
   HandlerAuthorizeCommon(const UniversalId service_id, const std::string &url,
                          const std::string &rest_path_matcher,

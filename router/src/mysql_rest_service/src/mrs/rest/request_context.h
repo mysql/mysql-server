@@ -39,6 +39,7 @@ namespace rest {
 struct RequestContext {
   using SqlSessionCached = collector::MysqlCacheManager::CachedObject;
   using AuthUser = mrs::database::entry::AuthUser;
+  using Url = helper::http::Url;
 
   RequestContext(interface::AuthorizeManager *auth_manager = nullptr)
       : auth_manager_{auth_manager} {}
@@ -54,7 +55,7 @@ struct RequestContext {
   AuthUser user;
   bool post_authentication{false};
 
-  http::Url get_http_url() { return request->get_uri(); }
+  Url get_http_url() { return request->get_uri(); }
   HttpHeaders &get_in_headers() { return request->get_input_headers(); }
 };
 

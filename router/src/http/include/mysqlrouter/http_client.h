@@ -53,6 +53,7 @@ class HTTP_CLIENT_EXPORT IOContext {
    * @throws  std::runtime_error on internal, unexpected error
    */
   bool dispatch();
+  void do_break();
 
  private:
   class impl;
