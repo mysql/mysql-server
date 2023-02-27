@@ -43,6 +43,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "que0que.h"
 #endif /* UNIV_HOTBACKUP */
 
+extern os_event_t recovery_lock_taken;
+
 /** Determines if this transaction is rolling back an incomplete transaction
  in crash recovery.
  @return true if trx is an incomplete transaction that is being rolled

@@ -84,6 +84,11 @@ typedef std::map<trx_t *, table_id_set, std::less<trx_t *>,
 /** Map of resurrected transactions to affected table_id */
 static trx_table_map resurrected_trx_tables;
 
+/* std::vector to store the trx id & table id of tables that needs to be
+ * rollbacked. We take SHARED MDL on these tables inside
+ * trx_recovery_rollback_thread before letting server accept connections */
+std::vector<std::pair<trx_id_t, table_id_t>> to_rollback_trx_tables;
+
 /** Dummy session used currently in MySQL interface */
 sess_t *trx_dummy_sess = nullptr;
 
@@ -769,8 +774,8 @@ void trx_resurrect_locks(bool all) {
 
     const table_id_set &tables = element.second;
 
-    for (auto id : tables) {
-      auto table = dd_table_open_on_id(id, nullptr, nullptr, false, true);
+    for (auto table_id : tables) {
+      auto table = dd_table_open_on_id(table_id, nullptr, nullptr, false, true);
 
       if (table == nullptr) {
         continue;
@@ -786,15 +791,24 @@ void trx_resurrect_locks(bool all) {
         continue;
       }
 
+      bool is_XA = false;
+
       if (trx->state.load(std::memory_order_relaxed) == TRX_STATE_PREPARED &&
           !dict_table_is_sdi(table->id)) {
         trx->mod_tables.insert(table);
+        is_XA = true;
       }
       DICT_TF2_FLAG_SET(table, DICT_TF2_RESURRECT_PREPARED);
 
-      lock_table_ix_resurrect(table, trx);
-      ib::info(ER_IB_RESURRECT_ACQUIRE_TABLE_LOCK, ulong(table->id),
-               table->name.m_name);
+      /* We don't rollback DDL or XA prepared transaction in background */
+      if (!all || is_XA) {
+        lock_table_ix_resurrect(table, trx);
+        ib::info(ER_IB_RESURRECT_ACQUIRE_TABLE_LOCK, ulong(table->id),
+                 table->name.m_name);
+      } else {
+        /* MDL & IX_LOCK is taken inside trx_recovery_rollback_thread */
+        to_rollback_trx_tables.push_back(std::make_pair(trx->id, table_id));
+      }
 
       DBUG_PRINT("ib_trx", ("resurrect" TRX_ID_FMT "  table '%s' IX lock",
                             trx_get_id_for_print(trx), table->name.m_name));
