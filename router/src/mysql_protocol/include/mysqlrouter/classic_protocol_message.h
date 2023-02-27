@@ -773,17 +773,33 @@ class Query {
   using string_type =
       std::conditional_t<Borrowed, std::string_view, std::string>;
 
+  struct Param {
+    uint16_t type_and_flags;
+    string_type name;
+    std::optional<string_type> value;
+
+    Param(uint16_t t, string_type n, std::optional<string_type> v)
+        : type_and_flags(t), name(std::move(n)), value(std::move(v)) {}
+  };
+
+  Query(string_type statement) : statement_{std::move(statement)} {}
+
   /**
-   * construct a Query message.
+   * construct a Query message with values.
    *
-   * @param statement statement to prepare
+   * @param statement statement to query
+   * @param values values for statement
    */
-  constexpr Query(string_type statement) : statement_{std::move(statement)} {}
+  Query(string_type statement, std::vector<Param> values)
+      : statement_{std::move(statement)}, values_(std::move(values)) {}
 
   constexpr string_type statement() const { return statement_; }
 
+  std::vector<Param> values() const { return values_; }
+
  private:
   string_type statement_;
+  std::vector<Param> values_;
 };
 
 template <bool Borrowed>
@@ -1068,11 +1084,15 @@ class StmtExecute {
 
     ParamDef(uint16_t type_and_flags_) : type_and_flags(type_and_flags_) {}
 
+    ParamDef(uint16_t type_and_flags_, string_type name_)
+        : type_and_flags(type_and_flags_), name(std::move(name_)) {}
+
     friend bool operator==(const ParamDef &lhs, const ParamDef &rhs) {
-      return lhs.type_and_flags == rhs.type_and_flags;
+      return lhs.type_and_flags == rhs.type_and_flags && lhs.name == rhs.name;
     }
 
     uint16_t type_and_flags{};
+    string_type name;
   };
 
   /**
