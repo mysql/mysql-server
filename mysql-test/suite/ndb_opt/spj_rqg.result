@@ -2120,7 +2120,7 @@ EXPLAIN
             -> Table scan on table1, activating pushed join of 3 tables
             -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.col_int), child of table1 in pushed join
         -> Nested loop inner join
-            -> Index lookup on table3 using ix1 (col_int=9), activating pushed join of 2 tables
+            -> Index lookup on table3 using PRIMARY (col_int=9), activating pushed join of 2 tables
             -> Single-row index lookup on table4 using ix1 (col_int_unique=table3.col_int_unique), child of table3 in pushed join, with pushed condition: (table4.col_int = 9)
     -> Nested loop inner join
         -> Nested loop left join
