@@ -17161,7 +17161,7 @@ Dbdict::indexStatBg_process(Signal* signal)
     TxHandlePtr tx_ptr;
     if (!seizeTxHandle(tx_ptr)) {
       jam();
-      return; // wait for one
+      break; // wait for one
     }
     Callback c = {
       safe_cast(&Dbdict::indexStatBg_fromBeginTrans),
