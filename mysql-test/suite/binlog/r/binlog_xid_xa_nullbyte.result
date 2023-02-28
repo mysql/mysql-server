@@ -1,0 +1,31 @@
+include/rpl_init.inc [topology=none]
+#
+# 1) Configuration
+#
+include/suppress_messages.inc
+# Connection 1 suppresses message <Found 2 prepared XA transactions>.
+#
+# 2) Create a table and prepare 2 XA transactions
+#
+CREATE TABLE t (a INT);
+XA START X'0011';
+INSERT INTO t VALUES (1);
+XA END X'0011';
+XA PREPARE X'0011';
+XA START X'0022';
+INSERT INTO t VALUES (2);
+XA END X'0022';
+XA PREPARE X'0022';
+#
+# 3) Restart the server
+#
+include/rpl_restart_server.inc [server_number=1]
+#
+# 4) Rollback the transaction to remove XID from prepared state.
+#
+XA rollback X'0011';
+XA rollback X'0022';
+#
+# 5) Cleanup
+#
+DROP TABLE t;

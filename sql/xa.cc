@@ -146,8 +146,8 @@ bool xid_t::operator<(const xid_t &rhs) const {
   if (this->get_bqual_length() > rhs.get_bqual_length()) {
     return false;
   }
-  if (std::strncmp(this->get_data(), rhs.get_data(),
-                   this->get_gtrid_length() + this->get_bqual_length()) < 0)
+  if (std::memcmp(this->get_data(), rhs.get_data(),
+                  this->get_gtrid_length() + this->get_bqual_length()) < 0)
     return true;
   return false;
 }
