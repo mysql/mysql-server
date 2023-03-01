@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -8902,6 +8902,115 @@ int runWatchdogSlowShutdownCleanup(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runApiDetectNoFirstHeartbeat(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Steps
+   * 1 Stop a random data node from witch link to API node will be blocked
+   * 2 Connect new API Node
+   * 3 Block data node for sending signals to API node
+   * 4 Start data node
+   *
+   * Expectation
+   * - API node disconnected after 60 secs timeout
+   */
+
+  NdbRestarter restarter;
+
+  const int nodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
+  g_err << "Stop target Data Node." << endl;
+  if (restarter.restartOneDbNode(nodeId,
+                           /** initial */ false,
+                           /** nostart */ true,
+                           /** abort   */ true)) {
+    return NDBT_FAILED;
+  }
+
+  if (restarter.waitNodesNoStart(&nodeId, 1))
+    return NDBT_FAILED;
+
+  g_err << "Connect new API Node." << endl;
+  Ndb_cluster_connection* cluster_connection = new Ndb_cluster_connection();
+  if (cluster_connection->connect() != 0)
+  {
+    g_err << "ERROR: connect failure." << endl;
+    return NDBT_FAILED;
+  }
+
+  Ndb* ndb = new Ndb(cluster_connection,
+                     "TEST_DB");
+  if (ndb->init() != 0)
+  {
+    g_err << "ERROR: Ndb::init failure." << endl;
+    return NDBT_FAILED;
+  }
+  if(ndb->waitUntilReady(30) != 0)
+  {
+    g_err << "ERROR: Ndb::waitUntilReady timeout." << endl;
+    return NDBT_FAILED;
+  }
+
+  const int apiNodeId = ndb->getNodeId();
+  g_err << "Blocking node " << nodeId << " for sending signals to API node " <<
+      apiNodeId << "." << endl;
+  const int dumpCodeBlockSend[] = {9988, apiNodeId};
+  const int dumpCodeUnblockSend [] = {9989, apiNodeId};
+  if (restarter.dumpStateOneNode(nodeId, dumpCodeBlockSend, 2))
+  {
+    g_err << "Dump state failed." << endl;
+      return NDBT_FAILED;
+  }
+
+  g_err << "Start target Data Node." << endl;
+  if (restarter.startNodes(&nodeId, 1) != 0)
+  {
+    g_err << "Wait node start failed" << endl;
+    CHECK((restarter.dumpStateOneNode(nodeId, dumpCodeUnblockSend,2)) == NDBT_OK,
+      "Dump state failed.")
+    return NDBT_FAILED;
+  }
+
+  if(restarter.waitClusterStarted() != 0)
+  {
+    g_err << "ERROR: Cluster failed to start" << endl;
+    CHECK((restarter.dumpStateOneNode(nodeId, dumpCodeUnblockSend,2)) == NDBT_OK,
+        "Dump state failed.")
+    return NDBT_FAILED;
+  }
+
+  struct ndb_logevent event;
+  int filter[]= { 15, NDB_MGM_EVENT_CATEGORY_CONNECTION, 0 };
+  NdbLogEventHandle handle =
+    ndb_mgm_create_logevent_handle(restarter.handle, filter);
+
+  Uint32 timeout = 65000;
+  while(ndb_logevent_get_next(handle, &event, 1) >= 0 &&
+      event.type != NDB_LE_Disconnected && timeout>0)
+  {
+    timeout--;
+  }
+  ndb_mgm_destroy_logevent_handle(&handle);
+
+  g_err << "Cleaning up" << endl;
+  // disconnect api node
+  delete ndb;
+  delete cluster_connection;
+
+  CHECK((restarter.dumpStateOneNode(nodeId, dumpCodeUnblockSend,2)) == NDBT_OK,
+        "Dump state failed.")
+
+  if(timeout==0)
+  {
+    g_err << "Timeout waiting for node " << nodeId << " to disconnect." << endl;
+    return NDBT_FAILED;
+  }
+  if(event.NODE_FAILREP.failed_node != static_cast<Uint32>(apiNodeId))
+  {
+    g_err << "Node " << event.NODE_FAILREP.failed_node << " disconnect " <<
+        "Expected node to disconnect is " << apiNodeId << "." << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -9664,9 +9773,15 @@ TESTCASE("WatchdogSlowShutdown",
   INITIALIZER(runWatchdogSlowShutdown);
   FINALIZER(runWatchdogSlowShutdownCleanup);
 }
-
-
-NDBT_TESTSUITE_END(testNodeRestart);
+TESTCASE("ApiDetectNoFirstHeartbeat",
+         "Check that data nodes are notified of API node disconnection "
+         "when communication is available one-way (from API node to data node)."
+         "Includes the case where the link from data node to API node was broken"
+         "before the first API_REGCONF arrived to API node");
+{
+  STEP(runApiDetectNoFirstHeartbeat);
+}
+NDBT_TESTSUITE_END(testNodeRestart)
 
 int main(int argc, const char** argv){
   ndb_init();
