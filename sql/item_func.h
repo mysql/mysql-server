@@ -2014,6 +2014,11 @@ class Item_func_last_insert_id final : public Item_int_func {
   bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "last_insert_id"; }
+
+  table_map get_initial_pseudo_tables() const override {
+    return INNER_TABLE_BIT;
+  }
+
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
     unsigned_flag = true;
