@@ -119,6 +119,9 @@ const char *client_errors[] = {
     "Invalid first argument for MYSQL_OPT_USER_PASSWORD option. Valid value "
     "should be between 1 and 3 inclusive.",
     "Can't get session data: %s",
+    "'%-.32s' character set is having more than 1 byte minimum character "
+    "length, which cannot be used as a client character set. Please use any "
+    "of the single byte minimum ones, e.g. utf8mb4, latin1 etc.",
     ""};
 
 static const char *get_client_errmsg(int nr) {
