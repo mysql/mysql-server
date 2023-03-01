@@ -5836,7 +5836,7 @@ double find_worst_seeks(const TABLE *table, double num_rows,
   Estimate the number of matched rows for each joined table.
   Set up range scan for tables that have proper predicates.
   Eliminate tables that have filter conditions that are always false based on
-  analyzing range scan predicates.
+  analysis performed in resolver phase or analysis of range scan predicates.
 
   @returns false if success, true if error
 */
@@ -5880,28 +5880,28 @@ bool JOIN::estimate_rowcount() {
     add_loose_index_scan_and_skip_scan_keys(this, tab);
 
     // Perform range analysis if the table has keys that can be used.
-
     Table_ref *const tl = tab->table_ref;
+    Item *condition = nullptr;
+    /*
+      For an inner table of an outer join, the join condition is either
+      attached to the actual table, or to the embedding join nest.
+      For tables that are inner-joined or semi-joined, the join condition
+      is taken from the WHERE condition.
+    */
+    if (tl->is_inner_table_of_outer_join()) {
+      for (Table_ref *t = tl; t != nullptr; t = t->embedding) {
+        if (t->join_cond() != nullptr) {
+          condition = t->join_cond();
+          break;
+        }
+      }
+      assert(condition != nullptr);
+    } else {
+      condition = where_cond;
+    }
+    bool always_false_cond = false, range_analysis_done = false;
     if (!tab->const_keys.is_clear_all() ||
         !tab->skip_scan_keys.is_clear_all()) {
-      Item *condition = nullptr;
-      /*
-        For an inner table of an outer join, the join condition is either
-        attached to the actual table, or to the embedding join nest.
-        For tables that are inner-joined or semi-joined, the join condition
-        is taken from the WHERE condition.
-      */
-      if (tl->is_inner_table_of_outer_join()) {
-        for (Table_ref *t = tl; t != nullptr; t = t->embedding) {
-          if (t->join_cond() != nullptr) {
-            condition = t->join_cond();
-            break;
-          }
-        }
-        assert(condition != nullptr);
-      } else {
-        condition = where_cond;
-      }
       /*
         This call fills tab->range_scan() with the best range access method
         possible for this table, and only if it's better than table scan.
@@ -5910,49 +5910,54 @@ bool JOIN::estimate_rowcount() {
       ha_rows records = get_quick_record_count(thd, tab, row_limit, condition);
 
       if (records == 0 && thd->is_error()) return true;
-
-      /*
-        Check for "always false" and mark table as "const".
-        Exclude outer-joined tables unless the table is the single outer-joined
-        table in the query block (this also eliminates tables inside
-        outer-joined derived tables).
-        Exclude semi-joined and anti-joined tables (only those tables that are
-        functionally dependent can be marked "const", and subsequently pulled
-        out of their semi-join nests).
-      */
-      if (records == 0 && tab->table()->reginfo.impossible_range &&
-          (!tl->is_inner_table_of_outer_join() || tl->embedding == nullptr) &&
-          (!(tl->embedding != nullptr && tl->embedding->is_sj_or_aj_nest()))) {
-        /*
-          Always false WHERE condition or (outer) join condition.
-          In case of outer join, mark that one empty NULL row is matched.
-          In case of WHERE, don't set found_const_table_map to get the
-          caller to abort with a zero row result.
-        */
-        mark_const_table(tab, nullptr);
-        tab->set_type(JT_CONST);  // Override setting made in mark_const_table()
-        if (tab->join_cond() != nullptr) {
-          // Generate an empty row
-          trace_table.add("returning_empty_null_row", true)
-              .add_alnum("cause", "always_false_outer_join_condition");
-          found_const_table_map |= tl->map();
-          tab->table()->set_null_row();  // All fields are NULL
-        } else {
-          trace_table.add("rows", 0).add_alnum("cause",
-                                               "impossible_where_condition");
-        }
-      }
+      if (records == 0 && tab->table()->reginfo.impossible_range)
+        always_false_cond = true;
       if (records != HA_POS_ERROR) {
         tab->found_records = records;
         tab->read_time = tab->range_scan() ? tab->range_scan()->cost : 0.0;
       }
-    } else {
+      range_analysis_done = true;
+    } else if (tab->join_cond() != nullptr && tab->join_cond()->const_item() &&
+               tab->join_cond()->val_int() == 0) {
+      always_false_cond = true;
+    }
+
+    /*
+      Check for "always false" and mark table as "const".
+      Exclude outer-joined tables unless the table is the single outer-joined
+      table in the query block (this also eliminates tables inside
+      outer-joined derived tables).
+      Exclude semi-joined and anti-joined tables (only those tables that are
+      functionally dependent can be marked "const", and subsequently pulled
+      out of their semi-join nests).
+    */
+    if (always_false_cond &&
+        (!tl->is_inner_table_of_outer_join() || tl->embedding == nullptr) &&
+        (!(tl->embedding != nullptr && tl->embedding->is_sj_or_aj_nest()))) {
+      /*
+        Always false WHERE condition or (outer) join condition.
+        In case of outer join, mark that one empty NULL row is matched.
+        In case of WHERE, don't set found_const_table_map to get the
+        caller to abort with a zero row result.
+      */
+      mark_const_table(tab, nullptr);
+      tab->set_type(JT_CONST);  // Override setting made in mark_const_table()
+      if (tab->join_cond() != nullptr) {
+        // Generate an empty row
+        trace_table.add("returning_empty_null_row", true)
+            .add_alnum("cause", "always_false_outer_join_condition");
+        found_const_table_map |= tl->map();
+        tab->table()->set_null_row();  // All fields are NULL
+      } else {
+        trace_table.add("rows", 0).add_alnum("cause",
+                                             "impossible_where_condition");
+      }
+    } else if (!range_analysis_done) {
       Opt_trace_object(trace, "table_scan")
           .add("rows", tab->found_records)
           .add("cost", tab->read_time);
     }
   }
-
   return false;
 }
 
