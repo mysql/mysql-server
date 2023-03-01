@@ -1977,3 +1977,79 @@ ALTER TABLE t1 DROP INDEX `PRIMARY`, ADD COLUMN c INT NOT NULL AUTO_INCREMENT,
 ADD KEY (c);
 DROP TABLE t1;
 SET @@SESSION.information_schema_stats_expiry = DEFAULT;
+#
+# Bug#33419246 AUTO_INCREMENT can be set to less than MAX + 1 and not forced to MAX + 1
+# Bug#34418341 AUTOINC counter resets to 1 after ALTER TABLE following by restart
+# Bug#34951259 alter table... auto_increment=1 does not work as expected
+#
+CREATE TABLE `t1` (`id` INT NOT NULL PRIMARY KEY);
+INSERT INTO `t1` (`id`) VALUES (1), (2), (3);
+ALTER TABLE `t1` MODIFY `id` INT NOT NULL AUTO_INCREMENT;
+SHOW CREATE TABLE `t1`;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select `AUTO_INCREMENT` from information_schema.tables where table_name='t1';
+AUTO_INCREMENT
+4
+# restart:
+SHOW CREATE TABLE `t1`;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select `AUTO_INCREMENT` from information_schema.tables where table_name='t1';
+AUTO_INCREMENT
+4
+SET SESSION information_schema_stats_expiry=0;
+INSERT INTO `t1` (`id`) VALUES (NULL);
+SELECT * FROM `t1`;
+id
+1
+2
+3
+4
+SHOW CREATE TABLE `t1`;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select `AUTO_INCREMENT` from information_schema.tables where table_name='t1';
+AUTO_INCREMENT
+5
+SET SESSION information_schema_stats_expiry=DEFAULT;
+DROP TABLE t1;
+CREATE TABLE `t1` (`id` INT NOT NULL PRIMARY KEY);
+INSERT INTO `t1` (`id`) VALUES (1), (2), (3);
+ALTER TABLE `t1` MODIFY `id` INT NOT NULL AUTO_INCREMENT;
+ALTER TABLE `t1` AUTO_INCREMENT=1;
+SHOW CREATE TABLE `t1`;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO `t1` (`id`) VALUES (NULL);
+DROP TABLE t1;
+CREATE TABLE `t1` (`id` INT NOT NULL PRIMARY KEY);
+INSERT INTO `t1` (`id`) VALUES (1), (2), (3);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION debug= "+d, crash_create_after_autoinc_persisted_update";
+ALTER TABLE `t1` MODIFY `id` INT NOT NULL AUTO_INCREMENT;
+ERROR HY000: Lost connection to MySQL server during query
+SHOW CREATE TABLE `t1`;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
