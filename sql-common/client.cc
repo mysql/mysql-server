@@ -9211,6 +9211,17 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name) {
     cs_name = mysql->options.charset_name;
   }
 
+#ifndef MYSQL_SERVER
+  if (mysql->charset != nullptr) {
+    if (!is_supported_parser_charset(mysql->charset)) {
+      set_mysql_extended_error(mysql, CR_INVALID_CLIENT_CHARSET,
+                               unknown_sqlstate,
+                               ER_CLIENT(CR_INVALID_CLIENT_CHARSET), cs_name);
+      return 1;
+    }
+  }
+#endif
+
   if (strlen(cs_name) < MY_CS_NAME_SIZE &&
       (cs = get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0)))) {
     char buff[MY_CS_NAME_SIZE + 10];

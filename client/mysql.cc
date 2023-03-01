@@ -4731,7 +4731,7 @@ static bool init_connection_options(MYSQL *mysql) {
     mysql_options(mysql, MYSQL_INIT_COMMAND, init_command);
   }
 
-  mysql_set_character_set(mysql, default_charset);
+  if (mysql_set_character_set(mysql, default_charset)) return true;
 
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
