@@ -11494,7 +11494,7 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
                           5;  // for backticks, dot `db`.`tab`
   // allocated on thread, freed-up on thread exit
   char *full_tab_name = (char *)sql_calloc(name_len + 1);  // for \0 at the end
-  sprintf(full_tab_name, "`%s`.%s`", table_list->db, table_list->table_name);
+  sprintf(full_tab_name, "`%s`.`%s`", table_list->db, table_list->table_name);
   full_tab_name[name_len] = '\0';  // may not needed, since inited with 0
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
@@ -11573,10 +11573,16 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
   });
 
   // Update the secondary_load flag based on the current operation.
-  if (table_def->options().set("secondary_load", is_load) ||
+  if (DBUG_EVALUATE_IF("sim_fail_metadata_update",
+                       (my_error(ER_SECONDARY_ENGINE, MYF(0),
+                                 "Simulated failure during metadata update"),
+                        true),
+                       false) ||
+      table_def->options().set("secondary_load", is_load) ||
       thd->dd_client()->update(table_def)) {
-    LogErr(ERROR_LEVEL, ER_SECONDARY_ENGINE,
-           "SECONDARY_LOAD metadata update failed for table %s", full_tab_name);
+    LogErr(ERROR_LEVEL, ER_SECONDARY_ENGINE_DDL_FAILED, full_tab_name,
+           (is_load ? "secondary_load" : "secondary_unload"),
+           "metadata update failed");
     return true;
   }
 
@@ -11592,11 +11598,16 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
 
   /* Write binlog to maintain replication consistency. Read-Replica's may not
    * have binlog enabled. write_bin_log API takes care of such cases. */
-  if (write_bin_log(thd, true, thd->query().str, thd->query().length, true) !=
-      0) {
-    LogErr(ERROR_LEVEL, ER_SECONDARY_ENGINE,
-           "Unable to write to binlog for alter table %s secondary_%s",
-           full_tab_name, (is_load ? "load" : "unload"));
+  if (DBUG_EVALUATE_IF("sim_fail_binlog_write",
+                       (my_error(ER_SECONDARY_ENGINE, MYF(0),
+                                 "Simulated failure during binlog write"),
+                        true),
+                       false) ||
+      (write_bin_log(thd, true, thd->query().str, thd->query().length, true) !=
+       0)) {
+    LogErr(ERROR_LEVEL, ER_SECONDARY_ENGINE_DDL_FAILED, full_tab_name,
+           (is_load ? "secondary_load" : "secondary_unload"),
+           "binlog write failed");
     return true;
   }
 
@@ -11616,10 +11627,15 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
   table_list->table = nullptr;
 
   // Commit transaction if no errors.
-  if (trans_commit_stmt(thd) || trans_commit_implicit(thd)) {
-    LogErr(ERROR_LEVEL, ER_SECONDARY_ENGINE,
-           "Commit failed for alter table %s secondary_%s", full_tab_name,
-           (is_load ? "load" : "unload"));
+  if (DBUG_EVALUATE_IF("sim_fail_transaction_commit",
+                       (my_error(ER_SECONDARY_ENGINE, MYF(0),
+                                 "Simulated failure during metadata update"),
+                        true),
+                       false) ||
+      trans_commit_stmt(thd) || trans_commit_implicit(thd)) {
+    LogErr(ERROR_LEVEL, ER_SECONDARY_ENGINE_DDL_FAILED, full_tab_name,
+           (is_load ? "secondary_load" : "secondary_unload"),
+           "transaction commit failed");
     return true;
   }
 
