@@ -2539,3 +2539,22 @@ SET @@sql_mode='';
 --error ER_DATA_OUT_OF_RANGE
 DO RANDOM_BYTES(CAST((RANDOM_BYTES('?+,$ F5')) as unsigned));
 SET @@sql_mode = default;
+
+--echo #
+--echo # Bug#35129361 my_strnncollsp_utf16 Assertion `(slen % 2) == 0' failed.
+--echo #
+
+CREATE TABLE t1 (
+  c1 varchar(255)
+);
+
+INSERT INTO t1 VALUES('m'),('u'),('i');
+
+--error ER_CANNOT_CONVERT_STRING
+SELECT
+  CASE (AES_ENCRYPT(0, c1))
+  WHEN '1234556789' THEN -1535639552
+  WHEN (CONVERT(c1 USING utf16)) THEN c1 END
+FROM t1;
+
+DROP TABLE t1;
