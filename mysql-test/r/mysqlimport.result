@@ -34,5 +34,17 @@ mysql.test: Records: 1  Deleted: 0  Skipped: 0  Warnings: 1
 mysql.test: Records: 1  Deleted: 0  Skipped: 1  Warnings: 2
 # cleanup
 DROP TABLE mysql.test;
+#
+# Bug#34999015: mysqlimport doesn't escape reserved-word table names
+#   when used with --delete
+#
+CREATE DATABASE b34999015_db;
+CREATE TABLE b34999015_db.`KEY` (`ID` INT NOT NULL, PRIMARY KEY (`ID`));
+# Creating a temp sql file to be loaded.
+# Test: should succeed
+b34999015_db.KEY: Records: 3  Deleted: 0  Skipped: 0  Warnings: 0
+# cleanup
+DROP TABLE b34999015_db.`KEY`
+DROP DATABASE b34999015_db;
 
 End of tests

@@ -53,5 +53,29 @@ CREATE TABLE mysql.test(a INT PRIMARY KEY);
 DROP TABLE mysql.test;
 --remove_file $MYSQL_TMP_DIR/test.txt
 
+--echo #
+--echo # Bug#34999015: mysqlimport doesn't escape reserved-word table names
+--echo #   when used with --delete
+--echo #
+
+CREATE DATABASE b34999015_db;
+CREATE TABLE b34999015_db.`KEY` (`ID` INT NOT NULL, PRIMARY KEY (`ID`));
+
+--echo # Creating a temp sql file to be loaded.
+--write_file $MYSQLTEST_VARDIR/tmp/KEY.txt
+1
+2
+3
+EOF
+
+--echo # Test: should succeed
+--exec $MYSQL_IMPORT -uroot b34999015_db --local --delete $MYSQLTEST_VARDIR/tmp/KEY.txt 2>&1
+
+echo # cleanup
+DROP TABLE b34999015_db.`KEY`;
+DROP DATABASE b34999015_db;
+--remove_file $MYSQLTEST_VARDIR/tmp/KEY.txt
+
+
 --echo
 --echo End of tests
