@@ -519,7 +519,7 @@ AuthCachingSha2Forwarder::auth_data() {
     // next is a Ok packet.
     stage(Stage::Response);
 
-    if (in_handshake_) {
+    if (in_handshake_ && src_protocol->password().has_value()) {
       // 0x03 means the client-greeting provided the right scrambled
       // password that matches the cached entry.
 
