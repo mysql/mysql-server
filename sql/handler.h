@@ -778,6 +778,8 @@ given at all. */
 */
 #define HA_CREATE_USED_DEFAULT_ENCRYPTION (1L << 30)
 
+#define HA_CREATE_USED_DPT (1L << 31)
+
 /**
   This option is used to convey that the create table should not
   commit the operation and keep the transaction started.
@@ -3019,6 +3021,7 @@ struct HA_CREATE_INFO {
   const char *data_file_name{nullptr};
   const char *index_file_name{nullptr};
   const char *alias{nullptr};
+  ulonglong dpt{0};
   ulonglong max_rows{0};
   ulonglong min_rows{0};
   ulonglong auto_increment_value{0};

@@ -3498,6 +3498,7 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table) {
   TABLE_SHARE *share = table->s;
   DBUG_TRACE;
 
+  create_info->dpt = share->dpt;
   create_info->max_rows = share->max_rows;
   create_info->min_rows = share->min_rows;
   create_info->table_options = share->db_create_options;

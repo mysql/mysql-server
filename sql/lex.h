@@ -216,6 +216,7 @@ static const SYMBOL symbols[] = {
     {SYM("DIV", DIV_SYM)},
     {SYM("DO", DO_SYM)},
     {SYM("DOUBLE", DOUBLE_SYM)},
+    {SYM("DPT", DPT_SYM)},
     {SYM("DROP", DROP)},
     {SYM("DUAL", DUAL_SYM)},
     {SYM("DUMPFILE", DUMPFILE)},

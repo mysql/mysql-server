@@ -787,6 +787,7 @@ struct TABLE_SHARE {
   Key_map visible_indexes;
   Key_map keys_for_keyread;
   ha_rows min_rows{0}, max_rows{0}; /* create information */
+  ulong dpt{0};                     /* create information */
   ulong avg_row_length{0};          /* create information */
   ulong mysql_version{0};           /* 0 if .frm is created before 5.0 */
   ulong reclength{0};               /* Recordlength */
