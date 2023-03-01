@@ -3288,8 +3288,7 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
         // see struct System_variables
         // Except: plugin variables declared with MYSQL_THDVAR_INT,
         // which may actually be signed.
-        if (((thdvar_int_t *)opt)->offset == -1 &&
-            !(opt->flags & PLUGIN_VAR_UNSIGNED))
+        if (!(opt->flags & PLUGIN_VAR_UNSIGNED))
           ((thdvar_int_t *)opt)->resolve = mysql_sys_var_int;
         else
           ((thdvar_uint_t *)opt)->resolve = mysql_sys_var_uint;

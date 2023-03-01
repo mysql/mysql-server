@@ -6604,6 +6604,107 @@ TEST_F(HypergraphSecondaryEngineTest, DontCallCostHookForEmptyJoins) {
   EXPECT_STREQ("t2", paths[0].table_scan().table->alias);
 }
 
+TEST_F(HypergraphSecondaryEngineTest,
+       SecondaryEngineGraphSimplificationRestart) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
+      /*nullable=*/true);
+
+  static constexpr string_view reset_keyword =
+      "SECONDARY_ENGINE_REQUESTING_RESET";
+  thread_local int count_resets;
+  count_resets = 0;
+
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+  hton->secondary_engine_check_optimizer_request =
+      [](THD *, const JoinHypergraph &, const AccessPath *, int, int,
+         bool is_root_access_path, std::string *trace) {
+        SecondaryEngineGraphSimplificationRequestParameters output = {
+            SecondaryEngineGraphSimplificationRequest::kContinue, 100};
+        if (is_root_access_path && count_resets == 0) {
+          *trace += reset_keyword;
+          count_resets += 1;
+          output.secondary_engine_optimizer_request =
+              SecondaryEngineGraphSimplificationRequest::kRestart;
+        }
+        return output;
+      };
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  size_t pos_of_reset_keyword = trace.find(reset_keyword);
+  // Ensure reset got requested by secondary engine.
+  ASSERT_NE(pos_of_reset_keyword, std::string::npos);
+  ASSERT_EQ(count_resets, 1);
+
+  size_t pos_of_construct_after_reset =
+      trace.find("Constructed hypergraph", /* pos= */ pos_of_reset_keyword);
+  // Ensure hypergraph got constructed after the requested by secondary engine
+  ASSERT_NE(pos_of_construct_after_reset, std::string::npos);
+}
+
+TEST_F(HypergraphSecondaryEngineTest,
+       SecondaryEngineGraphSimplificationTriggered) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
+      /*nullable=*/true);
+
+  static constexpr string_view simplification_trigger_keyword =
+      "SECONDARY_ENGINE_REQUESTING_SIMPLIFICATION";
+  thread_local int count_triggers;
+  count_triggers = 0;
+  thread_local int updated_subgraph_pairs_max;
+  updated_subgraph_pairs_max = 0;
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+
+  hton->secondary_engine_check_optimizer_request =
+      [](THD *, const JoinHypergraph &, const AccessPath *,
+         int current_num_subgraph_pairs, int, bool, std::string *trace) {
+        SecondaryEngineGraphSimplificationRequestParameters output = {
+            SecondaryEngineGraphSimplificationRequest::kContinue, 100};
+        if ((current_num_subgraph_pairs > 1) && (count_triggers == 0)) {
+          *trace += simplification_trigger_keyword;
+          count_triggers += 1;
+          output.secondary_engine_optimizer_request =
+              SecondaryEngineGraphSimplificationRequest::kRestart;
+          output.subgraph_pair_limit = 2;
+        } else if ((count_triggers == 1) &&
+                   (current_num_subgraph_pairs > updated_subgraph_pairs_max)) {
+          updated_subgraph_pairs_max = current_num_subgraph_pairs;
+        }
+
+        return output;
+      };
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  size_t pos_of_trigger_keyword = trace.find(simplification_trigger_keyword);
+  // Ensure simplification got requested by secondary engine.
+  ASSERT_NE(pos_of_trigger_keyword, std::string::npos);
+  ASSERT_EQ(count_triggers, 1);
+  // Ensure simplified graph was simple enough search space.
+  ASSERT_LE(updated_subgraph_pairs_max, 2);
+
+  size_t pos_of_simplification_after_trigger =
+      trace.find("doing heuristic graph simplification.",
+                 /* pos= */ pos_of_trigger_keyword);
+  // Ensure hypergraph triggered simplidication after the requested by secondary
+  // engine
+  ASSERT_NE(pos_of_simplification_after_trigger, std::string::npos);
+}
+
 /*
   A hypergraph receiver that doesn't actually cost any plans;
   it only counts the number of possible plans that would be

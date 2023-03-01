@@ -429,18 +429,6 @@ bool IsQueryGraphSimpleEnough(THD *thd [[maybe_unused]],
   return !error;
 }
 
-void SetNumberOfSimplifications(int num_simplifications,
-                                GraphSimplifier *simplifier) {
-  while (simplifier->num_steps_done() < num_simplifications) {
-    GraphSimplifier::SimplificationResult error [[maybe_unused]] =
-        simplifier->DoSimplificationStep();
-    assert(error != GraphSimplifier::NO_SIMPLIFICATION_POSSIBLE);
-  }
-  while (simplifier->num_steps_done() > num_simplifications) {
-    simplifier->UndoSimplificationStep();
-  }
-}
-
 struct JoinStatus {
   double cost;
   double num_output_rows;
@@ -908,6 +896,20 @@ void GraphSimplifier::UndoSimplificationStep() {
   // or any of the cardinalities here.
 }
 
+void SetNumberOfSimplifications(int num_simplifications,
+                                GraphSimplifier *simplifier) {
+  assert(simplifier->num_steps_done() + simplifier->num_steps_undone() >=
+         num_simplifications);
+  while (simplifier->num_steps_done() < num_simplifications) {
+    GraphSimplifier::SimplificationResult error [[maybe_unused]] =
+        simplifier->DoSimplificationStep();
+    assert(error != GraphSimplifier::NO_SIMPLIFICATION_POSSIBLE);
+  }
+  while (simplifier->num_steps_done() > num_simplifications) {
+    simplifier->UndoSimplificationStep();
+  }
+}
+
 /**
   Repeatedly apply simplifications (in the order of most to least safe) to the
   given hypergraph, until it is below “subgraph_pair_limit” subgraph pairs
@@ -926,22 +928,22 @@ void GraphSimplifier::UndoSimplificationStep() {
   afresh.
  */
 void SimplifyQueryGraph(THD *thd, int subgraph_pair_limit,
-                        JoinHypergraph *graph, string *trace) {
+                        JoinHypergraph *graph, GraphSimplifier *simplifier,
+                        string *trace) {
   if (trace != nullptr) {
     *trace +=
         "\nQuery became too complicated, doing heuristic graph "
         "simplification.\n";
   }
 
-  GraphSimplifier simplifier(graph, thd->mem_root);
   MEM_ROOT counting_mem_root;
 
   int lower_bound = 0, upper_bound = 1;
   int num_subgraph_pairs_upper = -1;
   for (;;) {  // Termination condition within loop.
     bool hit_upper_limit = false;
-    while (simplifier.num_steps_done() < upper_bound) {
-      if (simplifier.DoSimplificationStep() ==
+    while (simplifier->num_steps_done() < upper_bound) {
+      if (simplifier->DoSimplificationStep() ==
           GraphSimplifier::NO_SIMPLIFICATION_POSSIBLE) {
         if (!IsQueryGraphSimpleEnough(thd, *graph, subgraph_pair_limit,
                                       &counting_mem_root,
@@ -957,7 +959,7 @@ void SimplifyQueryGraph(THD *thd, int subgraph_pair_limit,
           return;
         }
 
-        upper_bound = simplifier.num_steps_done();
+        upper_bound = simplifier->num_steps_done();
         hit_upper_limit = true;
         break;
       }
@@ -992,7 +994,7 @@ void SimplifyQueryGraph(THD *thd, int subgraph_pair_limit,
   // is enough.
   while (upper_bound - lower_bound > 1) {
     int mid = (lower_bound + upper_bound) / 2;
-    SetNumberOfSimplifications(mid, &simplifier);
+    SetNumberOfSimplifications(mid, simplifier);
     if (IsQueryGraphSimpleEnough(thd, *graph, subgraph_pair_limit,
                                  &counting_mem_root,
                                  &num_subgraph_pairs_upper)) {
@@ -1003,7 +1005,7 @@ void SimplifyQueryGraph(THD *thd, int subgraph_pair_limit,
   }
 
   // Now upper_bound is the correct number of steps to use.
-  SetNumberOfSimplifications(upper_bound, &simplifier);
+  SetNumberOfSimplifications(upper_bound, simplifier);
 
   if (trace != nullptr) {
     *trace += StringPrintf(

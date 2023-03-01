@@ -174,6 +174,8 @@ class CostingReceiver {
       table_map immediate_update_delete_candidates, bool need_rowid,
       SecondaryEngineFlags engine_flags, int subgraph_pair_limit,
       secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook,
+      secondary_engine_check_optimizer_request_t
+          secondary_engine_planning_complexity_check_hook,
       string *trace)
       : m_thd(thd),
         m_query_block(query_block),
@@ -193,6 +195,8 @@ class CostingReceiver {
         m_engine_flags(engine_flags),
         m_subgraph_pair_limit(subgraph_pair_limit),
         m_secondary_engine_cost_hook(secondary_engine_cost_hook),
+        m_secondary_engine_planning_complexity_check(
+            secondary_engine_planning_complexity_check_hook),
         m_trace(trace) {
     // At least one join type must be supported.
     assert(Overlaps(engine_flags,
@@ -213,6 +217,8 @@ class CostingReceiver {
   }
 
   bool FoundSingleNode(int node_idx);
+
+  bool evaluate_secondary_engine_optimizer_state_request();
 
   // Called EmitCsgCmp() in the DPhyp paper.
   bool FoundSubgraphPair(NodeMap left, NodeMap right, int edge_idx);
@@ -240,6 +246,8 @@ class CostingReceiver {
     }
     return access_paths;
   }
+
+  int subgraph_pair_limit() const { return m_subgraph_pair_limit; }
 
   /// True if the result of the join is found to be always empty, typically
   /// because of an impossible WHERE clause.
@@ -411,6 +419,11 @@ class CostingReceiver {
   /// for execution in a secondary storage engine, or nullptr otherwise.
   secondary_engine_modify_access_path_cost_t m_secondary_engine_cost_hook;
 
+  /// Pointer to a function that returns what state should hypergraph progress
+  /// for optimization with secondary storage engine, or nullptr otherwise.
+  secondary_engine_check_optimizer_request_t
+      m_secondary_engine_planning_complexity_check;
+
   /// If not nullptr, we store human-readable optimizer trace information here.
   string *m_trace;
 
@@ -580,6 +593,17 @@ secondary_engine_modify_access_path_cost_t SecondaryEngineCostHook(
   } else {
     return secondary_engine->secondary_engine_modify_access_path_cost;
   }
+}
+
+/// Gets the secondary storage engine hypergraph state hook function, if any.
+secondary_engine_check_optimizer_request_t SecondaryEngineStateCheckHook(
+    const THD *thd) {
+  const handlerton *secondary_engine = SecondaryEngineHandlerton(thd);
+  if (secondary_engine == nullptr) {
+    return nullptr;
+  }
+
+  return secondary_engine->secondary_engine_check_optimizer_request;
 }
 
 /// Returns the MATCH function of a predicate that can be pushed down to a
@@ -3061,6 +3085,24 @@ bool IsEmptyJoin(const RelationalExpression::Type join_type, bool left_is_empty,
   return false;
 }
 
+bool CostingReceiver::evaluate_secondary_engine_optimizer_state_request() {
+  SecondaryEngineGraphSimplificationRequestParameters restart_parameters =
+      m_secondary_engine_planning_complexity_check(
+          m_thd, *m_graph, /*ap = */ nullptr,
+          /*current_num_sg_pairs = */ m_num_seen_subgraph_pairs,
+          /*current_sg_pairs_limit = */ m_subgraph_pair_limit,
+          /*is_root_ap=*/false,
+          /*requested_num_sg_pairs = */ m_trace);
+
+  switch (restart_parameters.secondary_engine_optimizer_request) {
+    case SecondaryEngineGraphSimplificationRequest::kRestart:
+      m_subgraph_pair_limit = restart_parameters.subgraph_pair_limit;
+      return true;
+    case SecondaryEngineGraphSimplificationRequest::kContinue:
+      break;
+  }
+  return false;
+}
 /**
   If the ON clause of a left join only references tables on the right side of
   the join, pushing the condition into the right side is a valid thing to do. If
@@ -3152,10 +3194,17 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
   m_graph->secondary_engine_costing_flags |=
       SecondaryEngineCostingFlag::HAS_MULTIPLE_BASE_TABLES;
 
-  if (++m_num_seen_subgraph_pairs > m_subgraph_pair_limit &&
-      m_subgraph_pair_limit >= 0) {
-    // Bail out; we're going to be needing graph simplification,
-    // which the caller will handle for us.
+  ++m_num_seen_subgraph_pairs;
+
+  if (m_secondary_engine_planning_complexity_check != nullptr) {
+    /* In presence of secondary engine complexity hook, use it preferably. */
+    if (evaluate_secondary_engine_optimizer_state_request()) {
+      return true;
+    }
+  } else if (m_num_seen_subgraph_pairs > m_subgraph_pair_limit &&
+             m_subgraph_pair_limit >= 0) {
+    /* Bail out; we're going to be needing graph simplification,
+     * which the caller will handle for us. */
     return true;
   }
 
@@ -3313,6 +3362,14 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
             new_obsolete_orderings, &wrote_trace);
       }
       m_overflow_bitset_mem_root.ClearForReuse();
+
+      if (m_secondary_engine_planning_complexity_check != nullptr) {
+        /* In presence of secondary engine complexity hook, use it preferably.
+         */
+        if (evaluate_secondary_engine_optimizer_state_request()) {
+          return true;
+        }
+      }
     }
   }
 
@@ -4637,6 +4694,7 @@ void CostingReceiver::CommitBitsetsToHeap(AccessPath *path) const {
 /// as it is expensive.
 [[maybe_unused]] bool CostingReceiver::BitsetsAreCommitted(
     AccessPath *path) const {
+  DBUG_EXECUTE_IF("disable_bitsets_are_committed", { return true; });
   // Verify that there are no uncommitted bitsets forgotten in children.
   bool all_ok = true;
   WalkAccessPaths(path, /*join=*/nullptr,
@@ -4694,6 +4752,7 @@ AccessPath *CostingReceiver::ProposeAccessPath(
       // Rejected by the secondary engine.
       return nullptr;
     }
+
     assert(!m_thd->is_error());
     assert(path->init_cost <= path->cost);
     if (!IsEmpty(path->filter_predicates)) {
@@ -6522,8 +6581,9 @@ static void CacheCostInfoForJoinConditions(THD *thd,
   multiple candidates in play at every step if they are meaningfully different,
   and only pick out the winning candidate based on cost at the very end.
  */
-AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
-                              string *trace) {
+static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
+                                          bool *retry, int *subgraph_pair_limit,
+                                          string *trace) {
   JOIN *join = query_block->join;
   if (CheckSupportedQuery(thd)) return nullptr;
 
@@ -6656,13 +6716,16 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   }
   const secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook =
       SecondaryEngineCostHook(thd);
+  const secondary_engine_check_optimizer_request_t
+      secondary_engine_optimizer_request_state_hook =
+          SecondaryEngineStateCheckHook(thd);
   CostingReceiver receiver(
       thd, query_block, graph, &orderings, &sort_ahead_orderings,
       &active_indexes, &fulltext_searches, fulltext_tables,
       sargable_fulltext_predicates, update_delete_target_tables,
       immediate_update_delete_candidates, need_rowid, EngineFlags(thd),
-      thd->variables.optimizer_max_subgraph_pairs, secondary_engine_cost_hook,
-      trace);
+      *subgraph_pair_limit, secondary_engine_cost_hook,
+      secondary_engine_optimizer_request_state_hook, trace);
   if (graph.edges.empty()) {
     // Fast path for single-table queries. No need to run the join enumeration
     // when there is no join. Just visit the only node directly.
@@ -6672,40 +6735,46 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     }
   } else if (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
              !thd->is_error() && join->zero_result_cause == nullptr) {
-    SimplifyQueryGraph(thd, thd->variables.optimizer_max_subgraph_pairs, &graph,
-                       trace);
-
-    // Reset the receiver and run the query again, this time with
-    // the simplified hypergraph (and no query limit, in case the
-    // given limit was just inherently too low, e.g., one subgraph pair
-    // and three tables).
-    //
-    // It's not given that we _must_ reset the receiver; we could
-    // probably have reused its state (which could save time and
-    // even lead to a better plan, if we have simplified away some
-    // join orderings that have already been evaluated).
-    // However, more subgraph pairs also often means we get more access
-    // paths on the Pareto frontier for each subgraph, and given
-    // that we don't currently have any heuristics to curb the
-    // amount of those, it is probably good to get the second-order
-    // effect as well and do a full reset.
-    if (trace) {
-      *trace += "Simplified hypergraph:\n";
-      *trace += PrintDottyHypergraph(graph);
-      *trace += "\nRestarting query planning with the new graph.\n";
-    }
-    receiver = CostingReceiver(
-        thd, query_block, graph, &orderings, &sort_ahead_orderings,
-        &active_indexes, &fulltext_searches, fulltext_tables,
-        sargable_fulltext_predicates, update_delete_target_tables,
-        immediate_update_delete_candidates, need_rowid, EngineFlags(thd),
-        /*subgraph_pair_limit=*/-1, secondary_engine_cost_hook, trace);
-    // Reset the secondary engine planning flags
-    graph.secondary_engine_costing_flags = {};
-    if (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
-        thd->is_error()) {
-      return nullptr;
-    }
+    GraphSimplifier simplifier(&graph, thd->mem_root);
+    do {
+      *subgraph_pair_limit = receiver.subgraph_pair_limit();
+      SetNumberOfSimplifications(0, &simplifier);
+      SimplifyQueryGraph(thd, *subgraph_pair_limit, &graph, &simplifier, trace);
+      if (trace != nullptr) {
+        *trace += "Simplified hypergraph:\n";
+        *trace += PrintDottyHypergraph(graph);
+        *trace += "\nRestarting query planning with the new graph.\n";
+      }
+      if (secondary_engine_optimizer_request_state_hook == nullptr) {
+        /** ensure full enumeration is done for primary engine. */
+        *subgraph_pair_limit = -1;
+      }
+      // Reset the receiver and run the query again, this time with
+      // the simplified hypergraph (and no query limit, in case the
+      // given limit was just inherently too low, e.g., one subgraph pair
+      // and three tables).
+      //
+      // It's not given that we _must_ reset the receiver; we could
+      // probably have reused its state (which could save time and
+      // even lead to a better plan, if we have simplified away some
+      // join orderings that have already been evaluated).
+      // However, more subgraph pairs also often means we get more access
+      // paths on the Pareto frontier for each subgraph, and given
+      // that we don't currently have any heuristics to curb the
+      // amount of those, it is probably good to get the second-order
+      // effect as well and do a full reset.
+      receiver = CostingReceiver(
+          thd, query_block, graph, &orderings, &sort_ahead_orderings,
+          &active_indexes, &fulltext_searches, fulltext_tables,
+          sargable_fulltext_predicates, update_delete_target_tables,
+          immediate_update_delete_candidates, need_rowid, EngineFlags(thd),
+          /*subgraph_pair_limit=*/*subgraph_pair_limit,
+          secondary_engine_cost_hook,
+          secondary_engine_optimizer_request_state_hook, trace);
+      // Reset the secondary engine planning flags
+      graph.secondary_engine_costing_flags = {};
+    } while (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
+             (join->zero_result_cause == nullptr) && (!thd->is_error()));
   }
   if (thd->is_error()) return nullptr;
 
@@ -7088,6 +7157,20 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                           return a->cost < b->cost;
                         });
 
+  if (secondary_engine_optimizer_request_state_hook != nullptr) {
+    SecondaryEngineGraphSimplificationRequestParameters
+        root_path_quality_status =
+            secondary_engine_optimizer_request_state_hook(
+                thd, graph, root_path, *subgraph_pair_limit,
+                *subgraph_pair_limit, /*is_root_ap=*/true, trace);
+    if (root_path_quality_status.secondary_engine_optimizer_request ==
+        SecondaryEngineGraphSimplificationRequest::kRestart) {
+      *retry = true;
+      *subgraph_pair_limit = root_path_quality_status.subgraph_pair_limit;
+      return nullptr;
+    }
+  }
+
   // Materialize the result if a top-level query block has the SQL_BUFFER_RESULT
   // option, and the chosen root path isn't already a materialization path. Skip
   // the materialization path when using an external executor, since it will
@@ -7134,5 +7217,21 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     join->best_rowcount = PLACEHOLDER_TABLE_ROW_ESTIMATE;
   }
 
+  return root_path;
+}
+
+AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
+                              string *trace) {
+  assert(thd->variables.optimizer_max_subgraph_pairs <
+         ulong{std::numeric_limits<int>::max()});
+  int next_retry_subgraph_pairs =
+      static_cast<int>(thd->variables.optimizer_max_subgraph_pairs);
+  bool retry = false;
+  AccessPath *root_path = FindBestQueryPlanInner(
+      thd, query_block, &retry, &next_retry_subgraph_pairs, trace);
+  if (retry) {
+    root_path = FindBestQueryPlanInner(thd, query_block, &retry,
+                                       &next_retry_subgraph_pairs, trace);
+  }
   return root_path;
 }
