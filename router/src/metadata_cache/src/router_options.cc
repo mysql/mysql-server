@@ -269,28 +269,28 @@ bool RouterOptions::read_from_metadata(mysqlrouter::MySQLSession &session,
   return true;
 }
 
-ReadReplicasMode RouterOptions::get_read_replicas_mode() const {
-  ReadReplicasMode result = kDefaultReadReplicasMode;
+ReadOnlyTargets RouterOptions::get_read_only_targets() const {
+  ReadOnlyTargets result = kDefaultReadOnlyTargets;
   auto &log_suppressor = LogSuppressor::instance();
   std::string warning;
   const auto mode_op = MetadataJsonOptions::get_router_option_str(
-      options_str_, "read_replicas_mode");
+      options_str_, "read_only_targets");
 
   if (!mode_op) {
-    warning = "Error reading read_replicas_mode from the v2_routers.options: " +
+    warning = "Error reading read_only_targets from the v2_routers.options: " +
               mode_op.error() + ". Using default mode.";
   } else {
     if (!mode_op.value()) {
       // value not in options, use default
-    } else if (*mode_op.value() == "append") {
-      result = ReadReplicasMode::append;
-    } else if (*mode_op.value() == "replace") {
-      result = ReadReplicasMode::replace;
-    } else if (*mode_op.value() == "ignore") {
-      result = ReadReplicasMode::ignore;
+    } else if (*mode_op.value() == "all") {
+      result = ReadOnlyTargets::all;
+    } else if (*mode_op.value() == "read_replicas") {
+      result = ReadOnlyTargets::read_replicas;
+    } else if (*mode_op.value() == "secondaries") {
+      result = ReadOnlyTargets::secondaries;
     } else {
-      warning = "Unknown read_replicas_mode read from the metadata: '" +
-                *mode_op.value() + "'. Using default mode. (" + options_str_ +
+      warning = "Unknown read_only_targets read from the metadata: '" +
+                *mode_op.value() + "'. Using default value. (" + options_str_ +
                 ")";
     }
   }
@@ -298,26 +298,27 @@ ReadReplicasMode RouterOptions::get_read_replicas_mode() const {
   // we want to log the warning only when it's changing
   std::string message;
   if (!warning.empty()) {
-    message = "Error parsing read_replicas_mode from options JSON string: " +
-              warning + "; Using '" + to_string(result) + "' mode";
+    message =
+        "Error parsing read_only_targets from options JSON string: " + warning +
+        "; Using '" + to_string(result) + "' value";
   } else {
-    message = "Using read_replicas_mode='" + to_string(result) + "'";
+    message = "Using read_only_targets='" + to_string(result) + "'";
   }
 
-  log_suppressor.log_message(LogSuppressor::MessageId::kReadReplicasMode, "",
+  log_suppressor.log_message(LogSuppressor::MessageId::kReadOnlyTargets, "",
                              message, !warning.empty(),
                              mysql_harness::logging::LogLevel::kWarning,
                              mysql_harness::logging::LogLevel::kInfo, true);
   return result;
 }
 
-std::string to_string(const ReadReplicasMode mode) {
+std::string to_string(const ReadOnlyTargets mode) {
   switch (mode) {
-    case ReadReplicasMode::append:
-      return "append";
-    case ReadReplicasMode::replace:
-      return "replace";
+    case ReadOnlyTargets::all:
+      return "all";
+    case ReadOnlyTargets::read_replicas:
+      return "read_replicas";
     default:
-      return "ignore";
+      return "secondaries";
   }
 }

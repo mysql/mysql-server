@@ -748,15 +748,15 @@ void sort_cluster_nodes(
   cluster.members = std::move(sorted);
 }
 
-void apply_read_replicas_mode(metadata_cache::cluster_nodes_list_t &nodes,
-                              ReadReplicasMode mode) {
-  switch (mode) {
-    case ReadReplicasMode::append:
+void apply_read_only_targets_option(metadata_cache::cluster_nodes_list_t &nodes,
+                                    ReadOnlyTargets read_only_targets) {
+  switch (read_only_targets) {
+    case ReadOnlyTargets::all:
       // nothing to do, the nodes set already contains the read replicas if
       // there were any configured in the metadata, all have 'ignore' flag
       // cleared
       break;
-    case ReadReplicasMode::ignore:
+    case ReadOnlyTargets::secondaries:
       // we need to tag ReadReplicas as 'ignore'
       std::for_each(nodes.begin(), nodes.end(),
                     [](metadata_cache::ManagedInstance &i) {
@@ -766,7 +766,7 @@ void apply_read_replicas_mode(metadata_cache::cluster_nodes_list_t &nodes,
                       }
                     });
       break;
-    case ReadReplicasMode::replace:
+    case ReadOnlyTargets::read_replicas:
       // we need to tag non-ReadReplica RO nodes as 'ignore'
       std::for_each(nodes.begin(), nodes.end(),
                     [](metadata_cache::ManagedInstance &i) {
@@ -799,15 +799,15 @@ GRMetadataBackend::fetch_cluster_topology(
 
   fetch_periodic_stats_update_frequency(schema_version, router_id);
 
-  const ReadReplicasMode read_replicas_mode = [&]() {
+  const ReadOnlyTargets read_only_targets = [&]() {
     if (whole_topology) {
       // does not matter when we return the whole topology
-      return ReadReplicasMode::append;
+      return ReadOnlyTargets::all;
     }
     RouterOptions router_options{schema_version};
     router_options.read_from_metadata(*metadata_->get_connection().get(),
                                       router_id);
-    return router_options.get_read_replicas_mode();
+    return router_options.get_read_only_targets();
   }();
 
   // we are done with querying metadata
@@ -848,7 +848,7 @@ GRMetadataBackend::fetch_cluster_topology(
                                  non_primary_mds.end());
 
   if (!whole_topology) {
-    apply_read_replicas_mode(cluster.members, read_replicas_mode);
+    apply_read_only_targets_option(cluster.members, read_only_targets);
   }
 
   if (needs_writable_node) {
@@ -1555,15 +1555,15 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
   result = update_clusterset_topology_from_metadata_server(*connection, cs_id,
                                                            view_id);
 
-  const ReadReplicasMode read_replicas_mode = [&]() {
+  const ReadOnlyTargets read_only_targets = [&]() {
     if (whole_topology) {
       // does not matter when we return the whole topology
-      return ReadReplicasMode::append;
+      return ReadOnlyTargets::all;
     }
     RouterOptions router_options{schema_version};
     router_options.read_from_metadata(*metadata_->get_connection().get(),
                                       router_id);
-    return router_options.get_read_replicas_mode();
+    return router_options.get_read_only_targets();
   }();
 
   // we are done with querying metadata
@@ -1595,7 +1595,7 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
         cluster.members.clear();
       }
 
-      apply_read_replicas_mode(cluster.members, read_replicas_mode);
+      apply_read_only_targets_option(cluster.members, read_only_targets);
 
       result.clusters_data = {cluster};
     } else

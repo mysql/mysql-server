@@ -71,11 +71,11 @@ class RouterClusterSetOptions {
   std::string options_str_;
 };
 
-enum class ReadReplicasMode { append, replace, ignore };
-static const ReadReplicasMode kDefaultReadReplicasMode =
-    ReadReplicasMode::ignore;
+enum class ReadOnlyTargets { all, read_replicas, secondaries };
+static const ReadOnlyTargets kDefaultReadOnlyTargets =
+    ReadOnlyTargets::secondaries;
 
-std::string to_string(const ReadReplicasMode mode);
+std::string to_string(const ReadOnlyTargets mode);
 
 /** @class RouterOptions
  *
@@ -97,10 +97,10 @@ class RouterOptions {
   bool read_from_metadata(mysqlrouter::MySQLSession &session,
                           const unsigned router_id);
 
-  /** @brief Get the Read Replicas mode assigned to a given Router in the
+  /** @brief Get the setting for RO targets assigned to a given Router in the
    * metadata
    */
-  ReadReplicasMode get_read_replicas_mode() const;
+  ReadOnlyTargets get_read_only_targets() const;
 
  private:
   std::string options_str_;

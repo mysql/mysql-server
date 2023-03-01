@@ -50,8 +50,8 @@ class LogSuppressor {
     /* incorrect JSON for instance_type from the last query */
     kInstanceType,
 
-    /* incorrect JSON or value for read_replicas_mode */
-    kReadReplicasMode
+    /* incorrect JSON or value for read_only_targets */
+    kReadOnlyTargets
   };
 
   static LogSuppressor &instance() {

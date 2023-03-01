@@ -134,7 +134,7 @@ class METADATA_CACHE_EXPORT ManagedInstance {
    * is hidden */
   bool disconnect_existing_sessions_when_hidden;
   /** Should the node be ignored for new and existing connections (for example
-   * due to the read_replicas_mode) */
+   * due to the read_only_targets option) */
   bool ignore{false};
 };
 

@@ -246,7 +246,7 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
   }
 
   void create_gr_cluster(size_t gr_nodes_number, size_t rr_number,
-                         const std::string &read_replicas_mode) {
+                         const std::string &read_only_targets) {
     const auto gr_trace_file =
         get_data_dir().join("metadata_rr_gr_nodes.js").str();
     const auto no_gr_trace_file = get_data_dir().join("my_port.js").str();
@@ -277,7 +277,7 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
                       .wait_for_rest_endpoint_ready());
     }
 
-    router_options_ = get_router_options(read_replicas_mode);
+    router_options_ = get_router_options(read_only_targets);
     update_cluster_metadata();
   }
 
@@ -368,9 +368,9 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
     if (update_metadata) update_cluster_metadata();
   }
 
-  void change_read_replicas_mode(const std::optional<std::string> &mode) {
-    if (mode)
-      router_options_ = R"({"read_replicas_mode" : ")" + *mode + R"("})";
+  void change_read_only_targets(const std::optional<std::string> &value) {
+    if (value)
+      router_options_ = R"({"read_only_targets" : ")" + *value + R"("})";
     else
       router_options_ = "{}";
     update_cluster_metadata();
@@ -565,8 +565,8 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
  private:
   bool is_target_clusterset_{false};
 
-  std::string get_router_options(const std::string &mode) {
-    return R"({"read_replicas_mode" : ")" + mode + R"("})";
+  std::string get_router_options(const std::string &read_only_targets) {
+    return R"({"read_only_targets" : ")" + read_only_targets + R"("})";
   }
 };
 
@@ -574,84 +574,83 @@ const std::chrono::milliseconds ReadReplicaTest::kTTL = 50ms;
 const std::chrono::seconds ReadReplicaTest::kReadyNotifyTimeout = 30s;
 
 /**
- * @test Check that changes to read_replicas_mode while the Router is running
+ * @test Check that changes to read_only_targets while the Router is running
  * are handled properly.
  */
-TEST_F(ReadReplicaTest, ReadReplicaModeChanges) {
+TEST_F(ReadReplicaTest, ReadOnlyTargetsChanges) {
   const unsigned initial_gr_nodes_count = 3;
   const unsigned initial_replica_nodes_count = 1;
 
-  create_gr_cluster(initial_gr_nodes_count, initial_replica_nodes_count,
-                    "append");
+  create_gr_cluster(initial_gr_nodes_count, initial_replica_nodes_count, "all");
   const auto &router = launch_router();
 
-  // append
+  // all
   for (size_t i = 0; i <= gr_nodes_count_ + 1; i++) {
     make_new_connection_ok(router_port_ro, get_all_ro_classic_ports());
   }
 
-  change_read_replicas_mode("replace");
+  change_read_only_targets("read_replicas");
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
-  // replace
+  // read_replicas
   for (size_t i = 0; i <= 2 * read_replica_nodes_count_; i++) {
     make_new_connection_ok(router_port_ro, get_read_replicas_classic_ports());
   }
 
-  change_read_replicas_mode("ignore");
+  change_read_only_targets("secondaries");
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
-  // ignore
+  // secondaries
   for (size_t i = 0; i <= gr_nodes_count_; i++) {
     make_new_connection_ok(router_port_ro, get_gr_ro_classic_ports());
   }
 
-  change_read_replicas_mode(std::nullopt);
+  change_read_only_targets(std::nullopt);
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
-  // unset defaults to "ignore"
+  // unset defaults to "secondaries"
   for (size_t i = 0; i <= gr_nodes_count_; i++) {
     make_new_connection_ok(router_port_ro, get_gr_ro_classic_ports());
   }
 
-  change_read_replicas_mode("");
+  change_read_only_targets("");
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
-  // empty defaults to "ignore"
-  for (size_t i = 0; i <= gr_nodes_count_; i++) {
-    make_new_connection_ok(router_port_ro, get_gr_ro_classic_ports());
-  }
-  check_log_contains(
-      &router,
-      "Error parsing read_replicas_mode from options JSON string: "
-      "Unknown read_replicas_mode read from the metadata: ''. "
-      "Using default mode. ({\"read_replicas_mode\" : \"\"})",
-      1);
-
-  change_read_replicas_mode("foo");
-  EXPECT_TRUE(
-      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
-
-  // unrecognised defaults to "ignore"
+  // empty defaults to "secondaries"
   for (size_t i = 0; i <= gr_nodes_count_; i++) {
     make_new_connection_ok(router_port_ro, get_gr_ro_classic_ports());
   }
   check_log_contains(
       &router,
-      "Error parsing read_replicas_mode from options JSON string: "
-      "Unknown read_replicas_mode read from the metadata: 'foo'. "
-      "Using default mode. ({\"read_replicas_mode\" : \"foo\"})",
+      "Error parsing read_only_targets from options JSON string: "
+      "Unknown read_only_targets read from the metadata: ''. "
+      "Using default value. ({\"read_only_targets\" : \"\"})",
       1);
 
-  // set back valid mode
-  change_read_replicas_mode("append");
+  change_read_only_targets("foo");
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
-  check_log_contains(&router, "Using read_replicas_mode='append'", 2);
+
+  // unrecognised defaults to "secondaries"
+  for (size_t i = 0; i <= gr_nodes_count_; i++) {
+    make_new_connection_ok(router_port_ro, get_gr_ro_classic_ports());
+  }
+  check_log_contains(
+      &router,
+      "Error parsing read_only_targets from options JSON string: "
+      "Unknown read_only_targets read from the metadata: 'foo'. "
+      "Using default value. ({\"read_only_targets\" : \"foo\"})",
+      1);
+
+  // set back valid read_only_targets option
+  change_read_only_targets("all");
+  EXPECT_TRUE(
+      wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
+  check_log_contains(&router, "Using read_only_targets='all'", 2);
 
   // make sure Read Replicas were NOT added to the state file as a metadata
   // servers
@@ -661,7 +660,7 @@ TEST_F(ReadReplicaTest, ReadReplicaModeChanges) {
 }
 
 /**
- * @test Check that changes to read_replicas_mode while the Router is running
+ * @test Check that changes to read_only_targets while the Router is running
  * are handled properly when there is only single GR node (RW).
  */
 TEST_F(ReadReplicaTest, ReadReplicaModeChangesGRWithOnlyRWNode) {
@@ -669,7 +668,7 @@ TEST_F(ReadReplicaTest, ReadReplicaModeChangesGRWithOnlyRWNode) {
   const unsigned initial_read_replica_nodes_count = 0;
 
   create_gr_cluster(initial_gr_nodes_count, initial_read_replica_nodes_count,
-                    "append");
+                    "all");
   launch_router();
 
   make_new_connection_ok(router_port_rw, cluster_nodes_[0].classic_port);
@@ -686,7 +685,7 @@ TEST_F(ReadReplicaTest, ReadReplicaModeChangesGRWithOnlyRWNode) {
     make_new_connection_ok(router_port_ro, cluster_nodes_[1].classic_port);
   }
 
-  change_read_replicas_mode("ignore");
+  change_read_only_targets("secondaries");
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
@@ -694,7 +693,7 @@ TEST_F(ReadReplicaTest, ReadReplicaModeChangesGRWithOnlyRWNode) {
   // no RO connection should be possible now
   verify_new_connection_fails(router_port_ro);
 
-  change_read_replicas_mode("replace");
+  change_read_only_targets("read_replicas");
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
@@ -714,11 +713,11 @@ TEST_F(ReadReplicaTest, ReadReplicaInstanceType) {
   const unsigned replica_nodes_count = 1;
   const auto read_replica_node_id = gr_nodes_count;
 
-  create_gr_cluster(gr_nodes_count, replica_nodes_count, "replace");
+  create_gr_cluster(gr_nodes_count, replica_nodes_count, "read_replicas");
   const auto &router = launch_router();
 
-  // the read_replicas_mode is replace so the Router should only use RR node for
-  // RO connections
+  // the read_only_targets=read_replicas so the Router should only use RR node
+  // for RO connections
   for (size_t i = 0; i < 2 * replica_nodes_count; i++) {
     make_new_connection_ok(router_port_ro,
                            cluster_nodes_[read_replica_node_id].classic_port);
@@ -727,22 +726,22 @@ TEST_F(ReadReplicaTest, ReadReplicaInstanceType) {
   set_instance_type(read_replica_node_id, "group-member");
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
-  // no read-replica and the mode is "replace" so the RO connection should not
-  // be possible
+  // no read-replica and the read_only_targets is "read_replicas" so the RO
+  // connection should not be possible
   verify_new_connection_fails(router_port_ro);
 
   set_instance_type(read_replica_node_id, std::nullopt);
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
-  // no read-replica and the mode is "replace" so the RO connection should not
-  // be possible
+  // no read-replica and read_only_targets is "read_replicas" so the RO
+  // connection should not be possible
   verify_new_connection_fails(router_port_ro);
 
   set_instance_type(read_replica_node_id, "");
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
-  // no read-replica and the mode is "replace" so the RO connection should not
-  // be possible
+  // no read-replica and read_only_targets is "read_replicas" so the RO
+  // connection should not be possible
   verify_new_connection_fails(router_port_ro);
 
   check_log_contains(&router,
@@ -753,8 +752,8 @@ TEST_F(ReadReplicaTest, ReadReplicaInstanceType) {
   set_instance_type(read_replica_node_id, "foo");
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
-  // no read-replica and the mode is "replace" so the RO connection should not
-  // be possible
+  // no read-replica and the read_only_targets is "read_replicas" so the RO
+  // connection should not be possible
   verify_new_connection_fails(router_port_ro);
 
   check_log_contains(&router,
@@ -772,12 +771,12 @@ TEST_F(ReadReplicaTest, ReadReplicaAddRemove) {
   const unsigned initial_read_replica_nodes_count = 1;
 
   create_gr_cluster(initial_gr_nodes_count, initial_read_replica_nodes_count,
-                    "append");
+                    "all");
   launch_router();
 
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
-  // the read_replicas_mode is append so the Router should use both GR
+  // the read_only_targets is all so the Router should use both GR
   // secondaries and RR nodes for RO connections
   for (size_t i = 0; i < gr_nodes_count_ + read_replica_nodes_count_; i++) {
     make_new_connection_ok(router_port_ro, get_all_ro_classic_ports());
@@ -796,21 +795,21 @@ TEST_F(ReadReplicaTest, ReadReplicaAddRemove) {
     make_new_connection_ok(router_port_rw, get_gr_rw_classic_ports());
   }
 
-  change_read_replicas_mode("ignore");
+  change_read_only_targets("secondaries");
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
   for (size_t i = 0; i < 2 * gr_nodes_count_; i++) {
     make_new_connection_ok(router_port_ro, get_gr_ro_classic_ports());
   }
 
-  change_read_replicas_mode("replace");
+  change_read_only_targets("read_replicas");
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
   for (size_t i = 0; i < 2 * read_replica_nodes_count_; i++) {
     make_new_connection_ok(router_port_ro, get_read_replicas_classic_ports());
   }
 
-  change_read_replicas_mode("append");
+  change_read_only_targets("secondaries");
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
   for (size_t i = 0; i < gr_nodes_count_ + read_replica_nodes_count_; i++) {
@@ -826,7 +825,7 @@ TEST_F(ReadReplicaTest, ReadReplicaAddRemove) {
     make_new_connection_ok(router_port_ro, get_all_ro_classic_ports());
   }
 
-  change_read_replicas_mode("replace");
+  change_read_only_targets("read_replicas");
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
   for (size_t i = 0; i < 2 * read_replica_nodes_count_; i++) {
@@ -840,7 +839,7 @@ TEST_F(ReadReplicaTest, ReadReplicaAddRemove) {
 
   verify_new_connection_fails(router_port_ro);
 
-  change_read_replicas_mode("ignore");
+  change_read_only_targets("secondaries");
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
   for (size_t i = 0; i < 2 * gr_nodes_count_; i++) {
@@ -854,7 +853,7 @@ class ReadReplicaQuarantinedTest
 
 /**
  * @test Check that Read Replicas are quarantined properly when cannot be
- * accessed for user connections ("replace" read_replica_mode).
+ * accessed for user connections ("read_replicas" read_only_targets).
  */
 TEST_P(ReadReplicaQuarantinedTest, ReadReplicaQuarantined) {
   // [ A ] - GR RW node
@@ -865,7 +864,7 @@ TEST_P(ReadReplicaQuarantinedTest, ReadReplicaQuarantined) {
   const unsigned gr_nodes_count = gr_rw_nodes_count + gr_ro_nodes_count;
   unsigned read_replica_nodes_count = 2;
 
-  create_gr_cluster(gr_nodes_count, read_replica_nodes_count, "replace");
+  create_gr_cluster(gr_nodes_count, read_replica_nodes_count, "read_replicas");
   const unsigned quarantine_threshold = GetParam();
   const auto &router = launch_router(quarantine_threshold);
 
@@ -949,9 +948,9 @@ INSTANTIATE_TEST_SUITE_P(ReadReplicaQuarantined, ReadReplicaQuarantinedTest,
 
 /**
  * @test Check that Read Replicas quarantined properly when cannot be accessed
- * for user connections ("append" read_replica_mode).
+ * for user connections (read_only_targets = "all").
  */
-TEST_F(ReadReplicaTest, ReadReplicaQuarantinedModeAppend) {
+TEST_F(ReadReplicaTest, ReadReplicaQuarantinedReadOnlyTargetsAll) {
   // [ A ] - GR RW node
   // [ B, C ] - GR RO nodes
   // [ D, E ] - read replicas
@@ -959,7 +958,7 @@ TEST_F(ReadReplicaTest, ReadReplicaQuarantinedModeAppend) {
   const unsigned initial_read_replica_nodes_count = 2;
 
   create_gr_cluster(initial_gr_nodes_count, initial_read_replica_nodes_count,
-                    "append");
+                    "all");
   const unsigned quarantine_threshold = 1;
   const auto &router = launch_router(quarantine_threshold);
 
@@ -1083,7 +1082,7 @@ TEST_F(ReadReplicaTest, ReadReplicaGRPlusStaticRouting) {
   const unsigned read_replica_nodes_count = 2;
   const unsigned static_dest_count = 2;
 
-  create_gr_cluster(gr_rw_nodes_count, read_replica_nodes_count, "append");
+  create_gr_cluster(gr_rw_nodes_count, read_replica_nodes_count, "all");
   launch_static_destinations(static_dest_count);
   launch_router(/*quarantine_threshold*/ 1, "gr",
                 /*add_static_route*/ true);
@@ -1147,7 +1146,7 @@ TEST_F(ReadReplicaTest, ReadReplicaClusterSet) {
   const unsigned replica1_gr_nodes_count = 3;
   const unsigned replica1_read_replicas_nodes_count = 1;
   std::string router_cs_options = R"({"target_cluster" : "primary"})";
-  const std::string router_options = R"({"read_replicas_mode" : "append"})";
+  const std::string router_options = R"({"read_only_targets" : "all"})";
 
   const std::vector<size_t> read_replicas_per_cluster{
       primary_read_replicas_nodes_count, replica1_read_replicas_nodes_count, 0};
@@ -1159,7 +1158,7 @@ TEST_F(ReadReplicaTest, ReadReplicaClusterSet) {
 
   launch_router();
 
-  // read_replicas_mode is 'append' so both 2 RO nodes of the Primary Cluster
+  // read_only_targets is 'all' so both 2 RO nodes of the Primary Cluster
   // and 2 RRs should be used
   const auto expected_ports = get_all_cs_ro_classic_ports(0);
   std::vector<std::pair<uint16_t, std::unique_ptr<MySQLSession>>> ro_cons;
@@ -1182,7 +1181,7 @@ TEST_F(ReadReplicaTest, ReadReplicaClusterSet) {
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
 
   ro_cons.clear();
-  // read_replicas_mode is 'append' so all 3 RO nodes of the second Cluster and
+  // read_only_targets is 'all' so all 3 RO nodes of the second Cluster and
   // 1 RR should be used
   const auto expected_ports_2 = get_all_cs_ro_classic_ports(1);
   for (size_t i = 0;
@@ -1203,7 +1202,7 @@ TEST_F(ReadReplicaTest, ReadReplicaClusterSet) {
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
 
   ro_cons.clear();
-  // read_replicas_mode is 'append' so both 2 RO nodes of the Primary Cluster
+  // read_only_targets is 'all' so both 2 RO nodes of the Primary Cluster
   // and 2 RRs should be used
   for (size_t i = 0;
        i < 2 * (primary_gr_ro_nodes_count + primary_read_replicas_nodes_count);
@@ -1258,7 +1257,7 @@ TEST_P(ReadReplicaInvalidatedClusterTest,
   const std::string router_cs_options = get_router_cs_options_as_json_str(
       "primary", GetParam().invalidated_cluster_policy);
 
-  const std::string router_options = R"({"read_replicas_mode" : "append"})";
+  const std::string router_options = R"({"read_only_targets" : "all"})";
 
   const std::vector<size_t> read_replicas_per_cluster{
       primary_read_replicas_nodes_count, replica1_read_replicas_nodes_count, 0};
@@ -1275,7 +1274,7 @@ TEST_P(ReadReplicaInvalidatedClusterTest,
 
   const auto expected_ports = get_all_cs_ro_classic_ports(0);
   std::vector<std::pair<uint16_t, std::unique_ptr<MySQLSession>>> ro_cons;
-  // read_replicas_mode is 'append' so both 2 RO nodes of the Primary Cluster
+  // read_only_targets is 'all' so both 2 RO nodes of the Primary Cluster
   // and 2 RRs should be used
   for (size_t i = 0;
        i < 2 * (primary_gr_ro_nodes_count + primary_read_replicas_nodes_count);
@@ -1347,11 +1346,10 @@ TEST_P(ReadReplicaNoQuorumTest, ReadReplicaGRNoQuorum) {
   const unsigned initial_gr_nodes_count = 3;
   const unsigned initial_replica_nodes_count = 2;
 
-  create_gr_cluster(initial_gr_nodes_count, initial_replica_nodes_count,
-                    "append");
+  create_gr_cluster(initial_gr_nodes_count, initial_replica_nodes_count, "all");
   /*const auto &router =*/launch_router();
 
-  // append
+  // all
   for (size_t i = 0; i <= initial_gr_nodes_count + initial_replica_nodes_count;
        i++) {
     make_new_connection_ok(router_port_ro, get_all_ro_classic_ports());
@@ -1367,14 +1365,14 @@ TEST_P(ReadReplicaNoQuorumTest, ReadReplicaGRNoQuorum) {
   verify_new_connection_fails(router_port_rw);
   verify_new_connection_fails(router_port_ro);
 
-  change_read_replicas_mode("replace");
+  change_read_only_targets("read_replicas");
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
   verify_new_connection_fails(router_port_rw);
   verify_new_connection_fails(router_port_ro);
 
-  change_read_replicas_mode("ignore");
+  change_read_only_targets("secondaries");
   EXPECT_TRUE(
       wait_for_transaction_count_increase(cluster_nodes_[0].http_port, 3));
 
@@ -1386,16 +1384,16 @@ INSTANTIATE_TEST_SUITE_P(ReadReplicaGRNoQuorum, ReadReplicaNoQuorumTest,
                          ::testing::Values("OFFLINE", "UNREACHABLE"));
 
 /**
- * @test Check that hiding Read Replica nodes works as expected when "append"
- * mode is used
+ * @test Check that hiding Read Replica nodes works as expected when
+ * read_only_targets="all" option is used
  */
-TEST_F(ReadReplicaTest, HidingNodesAppendMode) {
+TEST_F(ReadReplicaTest, HidingNodesReadOnlyTargetsAll) {
   // [ A ] - GR RW node
   // [ B, C ] - GR RO nodes
   // [ D, E ] - RR nodes
   const unsigned gr_nodes_count = 3;
   const unsigned read_replica_nodes_count = 2;
-  create_gr_cluster(gr_nodes_count, read_replica_nodes_count, "append");
+  create_gr_cluster(gr_nodes_count, read_replica_nodes_count, "all");
   launch_router();
 
   std::vector<std::pair<uint16_t, std::unique_ptr<MySQLSession>>> ro_cons;
@@ -1471,17 +1469,17 @@ TEST_F(ReadReplicaTest, HidingNodesAppendMode) {
 }
 
 /**
- * @test Check that hiding Read Replica nodes works as expected when "replace"
- * mode is used
+ * @test Check that hiding Read Replica nodes works as expected when
+ * read_only_targets="read_replicas" option is used
  */
-TEST_F(ReadReplicaTest, HidingNodesReplaceMode) {
+TEST_F(ReadReplicaTest, HidingNodesReadReplicas) {
   // [ A ] - GR RW node
   // [ B, C ] - GR RO nodes
   // [ D, E ] - RR nodes
   const unsigned gr_nodes_count = 3;
   const unsigned replica_nodes_count = 2;
 
-  create_gr_cluster(gr_nodes_count, replica_nodes_count, "replace");
+  create_gr_cluster(gr_nodes_count, replica_nodes_count, "read_replicas");
   launch_router();
 
   std::vector<std::pair<uint16_t, std::unique_ptr<MySQLSession>>> ro_cons;
@@ -1549,7 +1547,7 @@ class MetadataUnavailableTest
 
 /**
  * @test Check that when the GR nodes are not available the Router does not try
- * to reach read replicas for the metadata regardless of read_replicas_mode
+ * to reach read replicas for the metadata regardless of read_only_targets
  */
 TEST_P(MetadataUnavailableTest, MetadataUnavailable) {
   // [ A ] - GR RW node
@@ -1603,7 +1601,8 @@ TEST_P(MetadataUnavailableTest, MetadataUnavailable) {
 }
 
 INSTANTIATE_TEST_SUITE_P(MetadataUnavailable, MetadataUnavailableTest,
-                         ::testing::Values("append", "replace", "ignore"));
+                         ::testing::Values("all", "read_replicas",
+                                           "secondaries"));
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
