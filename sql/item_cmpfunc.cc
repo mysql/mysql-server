@@ -3663,6 +3663,9 @@ Item *Item_func_case::find_item(String *) {
       assert(cmp_items[(uint)cmp_type]);
       if (!(value_added_map & (1U << (uint)cmp_type))) {
         cmp_items[(uint)cmp_type]->store_value(args[first_expr_num]);
+        if (current_thd->is_error()) {
+          return nullptr;
+        }
         if ((null_value = args[first_expr_num]->null_value))
           return else_expr_num != -1 ? args[else_expr_num] : nullptr;
         value_added_map |= 1U << (uint)cmp_type;
@@ -3775,7 +3778,10 @@ bool Item_func_case::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
   char buff[MAX_FIELD_WIDTH];
   String dummy_str(buff, sizeof(buff), default_charset());
   Item *item = find_item(&dummy_str);
-  if (!item) return (null_value = true);
+  if (!item) {
+    null_value = is_nullable();
+    return true;
+  }
   if (item->get_date(ltime, fuzzydate)) return error_date();
   null_value = item->null_value;
   return false;
@@ -3786,7 +3792,10 @@ bool Item_func_case::get_time(MYSQL_TIME *ltime) {
   char buff[MAX_FIELD_WIDTH];
   String dummy_str(buff, sizeof(buff), default_charset());
   Item *item = find_item(&dummy_str);
-  if (!item) return (null_value = true);
+  if (!item) {
+    null_value = is_nullable();
+    return true;
+  }
   if (item->get_time(ltime)) return error_time();
   null_value = item->null_value;
   return false;

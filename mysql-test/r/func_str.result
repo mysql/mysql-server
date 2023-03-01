@@ -5725,3 +5725,17 @@ SET @@sql_mode='';
 DO RANDOM_BYTES(CAST((RANDOM_BYTES('?+,$ F5')) as unsigned));
 ERROR 22003: length value is out of range in 'random_bytes'
 SET @@sql_mode = default;
+#
+# Bug#35129361 my_strnncollsp_utf16 Assertion `(slen % 2) == 0' failed.
+#
+CREATE TABLE t1 (
+c1 varchar(255)
+);
+INSERT INTO t1 VALUES('m'),('u'),('i');
+SELECT
+CASE (AES_ENCRYPT(0, c1))
+WHEN '1234556789' THEN -1535639552
+WHEN (CONVERT(c1 USING utf16)) THEN c1 END
+FROM t1;
+ERROR HY000: Cannot convert string '\xDC\x01\xA0\xC1\x02\xD8...' from binary to utf16
+DROP TABLE t1;
