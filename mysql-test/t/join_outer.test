@@ -2654,3 +2654,75 @@ INSERT INTO t2 VALUES (1), (2), (3), (4);
 WITH subq(x) AS (SELECT 1 AS x FROM t1 AS t1a, t1 AS t1b, t2 WHERE FALSE)
 SELECT 1 FROM t1 LEFT JOIN subq ON t1.x = subq.x ORDER BY subq.x;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#34668756: impossible on not optimized in 8.x like 5.6
+--echo #
+CREATE TABLE t1 (f1 INT, f2 INT);
+CREATE TABLE t2 (f1 INT, f2 INT);
+CREATE TABLE t3 (f1 INT, f2 INT);
+INSERT INTO t1 VALUES(1, 10), (2, 20), (3, 30), (4, 40);
+INSERT INTO t2 VALUES(1, 10), (2, 20), (5, 30), (6, 40);
+INSERT INTO t3 VALUES(1, 20), (3, 30), (7, 40), (8, 50);
+
+#Inner-joined tables with always false join condition and false WHERE clause
+EXPLAIN
+SELECT t1.f1
+FROM t1 JOIN t2 ON t1.f1 = t2.f2 AND 1=2;
+EXPLAIN
+SELECT t1.f1
+FROM t1 JOIN t2 ON t1.f1 = t2.f2
+WHERE 1=2;
+EXPLAIN
+SELECT t1.f1
+FROM t1 JOIN t2 ON t1.f1 = t2.f2 AND 1=2 JOIN t3 ON t2.f1=t3.f1 AND 1=2;
+EXPLAIN
+SELECT t1.f1
+FROM t1 JOIN t2 ON t1.f1 = t2.f2 JOIN t3 ON t2.f1=t3.f1
+WHERE 1=2;
+
+#Outer-joined tables with always false join condition and false WHERE clause
+EXPLAIN
+SELECT t1.f1,t2.f1
+FROM t1 LEFT JOIN t2 ON t1.f1=t2.f1 AND t1.f2=t2.f2 AND 1=2;
+EXPLAIN
+SELECT t1.f1,t2.f1
+FROM t1 LEFT JOIN t2 ON t1.f1=t2.f1 AND t1.f2=t2.f2
+WHERE 1=2;
+EXPLAIN
+SELECT t1.f1,t2.f1
+FROM t1 LEFT JOIN t2 ON t1.f1=t2.f1 AND 1=2 LEFT JOIN t3 ON t2.f1=t3.f1 AND 1=2;
+EXPLAIN
+SELECT t1.f1,t2.f1
+FROM t1 LEFT JOIN t2 ON t1.f1=t2.f1 AND 1=2 LEFT JOIN t3 ON t2.f1=t3.f1
+WHERE 1=2;
+
+#Semi join with false WHERE clause
+EXPLAIN
+SELECT f1,f2
+FROM t1 WHERE EXISTS (SELECT t2.f1,t2.f2 FROM t2 WHERE 1=2);
+EXPLAIN
+SELECT f1,f2
+FROM t1 WHERE NOT EXISTS (SELECT t2.f1,t2.f2 FROM t2 WHERE 1=2);
+
+#Anti-join tables with always false join condition and false WHERE clause
+EXPLAIN
+SELECT t2.f1,t2.f2
+FROM t1 RIGHT JOIN t2 ON t1.f1=t2.f1 AND 1=2;
+EXPLAIN
+SELECT t2.f1,t2.f2
+FROM t1 RIGHT JOIN t2 ON t1.f1=t2.f1 AND 1=2
+WHERE t1.f1>NULL;
+
+EXPLAIN
+SELECT t3.f1
+FROM t1 JOIN t2 ON t1.f1=t2.f1 AND 1=2 LEFT JOIN t3 ON t1.f1=t3.f1 AND 1=2
+WHERE 1=2;
+EXPLAIN
+SELECT t3.f1
+FROM t1 JOIN t2 ON t1.f1=t2.f1 LEFT JOIN t3 ON t1.f1=t3.f1 AND 1=2;
+EXPLAIN
+SELECT t2.f1
+FROM t1 RIGHT JOIN t2 ON t1.f1=t2.f1 AND 1=2 LEFT JOIN t3 ON t1.f1=t3.f1 AND 1=2;
+
+DROP TABLES t1,t2,t3;
