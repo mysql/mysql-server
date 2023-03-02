@@ -2739,12 +2739,6 @@ class THD : public MDL_context_owner,
   /** number of name_const() substitutions, see sp_head.cc:subst_spvars() */
   uint query_name_consts;
 
-  /*
-    If we do a purge of binary logs, log index info of the threads
-    that are currently reading it needs to be adjusted. To do that
-    each thread that is using LOG_INFO needs to adjust the pointer to it
-  */
-  LOG_INFO *current_linfo;
   /* Used by the sys_var class to store temporary values */
   union {
     bool bool_value;

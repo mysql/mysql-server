@@ -744,7 +744,6 @@ THD::THD(bool enable_plugins)
   lex->thd = nullptr;
   lex->set_current_query_block(nullptr);
   m_lock_usec = 0L;
-  current_linfo = nullptr;
   slave_thread = false;
   memset(&variables, 0, sizeof(variables));
   m_thread_id = Global_THD_manager::reserved_thread_id;

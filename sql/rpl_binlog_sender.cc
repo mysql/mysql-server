@@ -261,9 +261,8 @@ void Binlog_sender::init() {
   init_heartbeat_period();
   m_last_event_sent_ts = now_in_nanosecs();
 
-  mysql_mutex_lock(&thd->LOCK_thd_data);
-  thd->current_linfo = &m_linfo;
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
+  m_linfo.thread_id = thd->thread_id();
+  mysql_bin_log.register_log_info(&m_linfo);
 
   /* Initialize the buffer only once. */
   m_packet.mem_realloc(PACKET_MIN_SIZE);  // size of the buffer
@@ -364,9 +363,7 @@ void Binlog_sender::cleanup() {
   if (m_transmit_started)
     (void)RUN_HOOK(binlog_transmit, transmit_stop, (thd, m_flag));
 
-  mysql_mutex_lock(&thd->LOCK_thd_data);
-  thd->current_linfo = nullptr;
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
+  mysql_bin_log.unregister_log_info(&m_linfo);
 
   thd->variables.max_allowed_packet =
       global_system_variables.max_allowed_packet;
@@ -380,6 +377,7 @@ void Binlog_sender::cleanup() {
 
 void Binlog_sender::run() {
   DBUG_TRACE;
+
   init();
 
   unsigned int max_event_size =

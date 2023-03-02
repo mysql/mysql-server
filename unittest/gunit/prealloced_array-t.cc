@@ -453,6 +453,26 @@ TEST_F(PreallocedArrayTest, CustomNewDelete) {
   for (int ix = 0; ix < 42; ++ix) EXPECT_EQ(ix, array[ix].getval());
 }
 
+/*
+  A simple class to verify that Prealloced_array also works for
+  dynamically allocated objects on heap.
+ */
+class TestAllocHeap {
+ public:
+  TestAllocHeap(int val) : m_int(val) {}
+  int getval() const { return m_int; }
+
+ private:
+  int m_int;
+};
+
+TEST_F(PreallocedArrayTest, CustomNewDeletePointer) {
+  Prealloced_array<TestAllocHeap *, 1> array(PSI_NOT_INSTRUMENTED);
+  for (int ix = 0; ix < 42; ++ix) array.push_back(new TestAllocHeap(ix));
+  for (int ix = 0; ix < 42; ++ix) EXPECT_EQ(ix, array[ix]->getval());
+  for (int ix = 0; ix < 42; ++ix) delete array[ix];
+}
+
 /**
   A class that wraps an integer. Objects of this class can be moved,
   but cannot be copied.
