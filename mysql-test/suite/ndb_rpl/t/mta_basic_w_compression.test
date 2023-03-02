@@ -1,0 +1,16 @@
+--echo # Check compression turned on
+--echo #Verify settings:
+--echo # 1. Check that binlog compression is turned on
+select @@binlog_transaction_compression;
+--echo # 2. Check that also ndb_binlog compression is turned on
+--echo #    (this is not required but otherwise a warning is logged)
+select @@ndb_log_transaction_compression;
+
+--source suite/ndb_rpl/t/mta_basic.test
+
+# Check that some binlog data was compressed
+if (`SELECT COMPRESSED_BYTES_COUNTER < 1000
+     FROM performance_schema.binary_log_transaction_compression_stats
+     WHERE log_type = 'BINARY' AND COMPRESSION_TYPE != 'NONE'`) {
+  die Could not find any compressed binlog data;
+}

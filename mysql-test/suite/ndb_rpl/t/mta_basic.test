@@ -1,0 +1,91 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+
+--echo # Basic NDB MTA test
+
+# Configure replication, don't start applier
+--let $rpl_skip_start_slave= 1
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--echo # Check that the source is properly configured for to calculate
+--echo # transaction dependencies for changes coming from NDB
+--echo # 1. using WRITESET mode
+select @@binlog_transaction_dependency_tracking;
+--echo # 2. ndb_binlog transaction dependencies turned on
+select @@ndb_log_transaction_dependency;
+
+--echo # Check that the replica is configured to apply changes in parallel
+--source include/rpl_connection_slave.inc
+--echo # 1. Using more than one worker
+select @@replica_parallel_workers;
+--echo # 2. Using LOGICAL_CLOCK for parallel type
+select @@replica_parallel_type;
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (
+  a INT PRIMARY KEY
+) engine=ndb;
+
+--echo # Insert independent rows, each row change in it's own epoch
+let $epochs = 10;
+while($epochs) {
+
+  BEGIN;
+  eval INSERT INTO t1 VALUES ($epochs);
+  COMMIT;
+
+  # Wait until all changes has been written to binlog and new epoch started
+  --source suite/ndb/include/ndb_binlog_wait_own_changes.inc
+  dec $epochs;
+}
+
+# When manually inspecting binlog contents there should be a difference
+# greater than one between last_committed= and sequence_number= for each
+# epoch transaction which has been written to the binlog.
+# For example "last_committed=1	sequence_number=9" indicates that
+# transaction 9 depends on 1
+#--let $datadir= `SELECT @@datadir`
+#--exec $MYSQL_BINLOG --force-if-open $datadir/master-bin.000001
+
+# Verify that the above generated epoch transactions are all independent
+--let $binlog_file=master-bin.000001
+--let $logical_timestamps=0 1;1 2;1 3;1 4;1 5;1 6;1 7;1 8;1 9;1 10;1 11
+--source include/assert_logical_timestamps.inc
+
+
+--source include/rpl_start_slaves.inc
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+SELECT * FROM t1 ORDER BY a;
+
+--echo # Show that the workers have applied transactions
+--echo # - each worker has applied at least one transaction
+--echo # - this implies that the generated binlog is parallelisable to at
+--echo #   least as many workers which are configured and that
+--echo #   there are also as many or more row changes as workers
+--replace_column 3 [TIMESTAMP] 4 [TIMESTAMP]
+query_vertical
+  SELECT
+    WORKER_ID,
+    LAST_APPLIED_TRANSACTION /* should say ANONYMOUS */,
+    LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP,
+    LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP,
+    APPLYING_TRANSACTION /* should be empty */
+  FROM performance_schema.replication_applier_status_by_worker
+  ORDER BY WORKER_ID;
+
+--echo # Show that coordinator have processed transactions
+query_vertical
+  SELECT
+    CHANNEL_NAME,
+    LAST_PROCESSED_TRANSACTION /* should say ANONYMOUS */,
+    PROCESSING_TRANSACTION /* should be empty */
+  FROM performance_schema.replication_applier_status_by_coordinator;
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

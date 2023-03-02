@@ -1,0 +1,7 @@
+!include suite/ndb_rpl/t/mta_basic.cnf
+
+[mysqld]
+
+# Turn on binlog compression (both mysqld and ndb_binlog)
+binlog_transaction_compression=ON
+ndb_log_transaction_compression=ON

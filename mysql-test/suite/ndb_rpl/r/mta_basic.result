@@ -1,0 +1,135 @@
+# Basic NDB MTA test
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+# Check that the source is properly configured for to calculate
+# transaction dependencies for changes coming from NDB
+# 1. using WRITESET mode
+select @@binlog_transaction_dependency_tracking;
+@@binlog_transaction_dependency_tracking
+WRITESET
+# 2. ndb_binlog transaction dependencies turned on
+select @@ndb_log_transaction_dependency;
+@@ndb_log_transaction_dependency
+1
+# Check that the replica is configured to apply changes in parallel
+[connection slave]
+# 1. Using more than one worker
+select @@replica_parallel_workers;
+@@replica_parallel_workers
+4
+# 2. Using LOGICAL_CLOCK for parallel type
+select @@replica_parallel_type;
+@@replica_parallel_type
+LOGICAL_CLOCK
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+[connection master]
+CREATE TABLE t1 (
+a INT PRIMARY KEY
+) engine=ndb;
+# Insert independent rows, each row change in it's own epoch
+BEGIN;
+INSERT INTO t1 VALUES (10);
+COMMIT;
+# Wait for ndb_binlog thread...
+BEGIN;
+INSERT INTO t1 VALUES (9);
+COMMIT;
+# Wait for ndb_binlog thread...
+BEGIN;
+INSERT INTO t1 VALUES (8);
+COMMIT;
+# Wait for ndb_binlog thread...
+BEGIN;
+INSERT INTO t1 VALUES (7);
+COMMIT;
+# Wait for ndb_binlog thread...
+BEGIN;
+INSERT INTO t1 VALUES (6);
+COMMIT;
+# Wait for ndb_binlog thread...
+BEGIN;
+INSERT INTO t1 VALUES (5);
+COMMIT;
+# Wait for ndb_binlog thread...
+BEGIN;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+# Wait for ndb_binlog thread...
+BEGIN;
+INSERT INTO t1 VALUES (3);
+COMMIT;
+# Wait for ndb_binlog thread...
+BEGIN;
+INSERT INTO t1 VALUES (2);
+COMMIT;
+# Wait for ndb_binlog thread...
+BEGIN;
+INSERT INTO t1 VALUES (1);
+COMMIT;
+# Wait for ndb_binlog thread...
+include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;1 4;1 5;1 6;1 7;1 8;1 9;1 10;1 11]
+include/rpl_start_slaves.inc
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+# Show that the workers have applied transactions
+# - each worker has applied at least one transaction
+# - this implies that the generated binlog is parallelisable to at
+#   least as many workers which are configured and that
+#   there are also as many or more row changes as workers
+SELECT
+WORKER_ID,
+LAST_APPLIED_TRANSACTION /* should say ANONYMOUS */,
+LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP,
+LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP,
+APPLYING_TRANSACTION /* should be empty */
+FROM performance_schema.replication_applier_status_by_worker
+ORDER BY WORKER_ID;
+WORKER_ID	1
+LAST_APPLIED_TRANSACTION	ANONYMOUS
+LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP	[TIMESTAMP]
+LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP	[TIMESTAMP]
+APPLYING_TRANSACTION	
+WORKER_ID	2
+LAST_APPLIED_TRANSACTION	ANONYMOUS
+LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP	[TIMESTAMP]
+LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP	[TIMESTAMP]
+APPLYING_TRANSACTION	
+WORKER_ID	3
+LAST_APPLIED_TRANSACTION	ANONYMOUS
+LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP	[TIMESTAMP]
+LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP	[TIMESTAMP]
+APPLYING_TRANSACTION	
+WORKER_ID	4
+LAST_APPLIED_TRANSACTION	ANONYMOUS
+LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP	[TIMESTAMP]
+LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP	[TIMESTAMP]
+APPLYING_TRANSACTION	
+# Show that coordinator have processed transactions
+SELECT
+CHANNEL_NAME,
+LAST_PROCESSED_TRANSACTION /* should say ANONYMOUS */,
+PROCESSING_TRANSACTION /* should be empty */
+FROM performance_schema.replication_applier_status_by_coordinator;
+CHANNEL_NAME	
+LAST_PROCESSED_TRANSACTION	ANONYMOUS
+PROCESSING_TRANSACTION	
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc
