@@ -1,0 +1,2 @@
+--replica-skip-errors=ddl_exist_errors
+
