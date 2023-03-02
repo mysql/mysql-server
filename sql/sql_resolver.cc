@@ -4183,17 +4183,6 @@ void Query_block::remove_redundant_subquery_clauses(
 */
 
 void Query_block::empty_order_list(Query_block *sl) {
-  if (m_windows.elements != 0) {
-    /*
-      The next lines doing cleanup of ORDER elements expect the
-      query block's ORDER BY items to be the last part of fields and
-      base_ref_items, as they just chop the lists' end. But if there is a
-      window, that end is actually the PARTITION BY and ORDER BY clause of the
-      window, so do not chop then: leave the items in place.
-    */
-    order_list.clear();
-    return;
-  }
   for (ORDER *o = order_list.first; o != nullptr; o = o->next) {
     if (o->is_item_original()) {
       Item::Cleanup_after_removal_context ctx(sl);
@@ -4202,6 +4191,16 @@ void Query_block::empty_order_list(Query_block *sl) {
     }
   }
   order_list.clear();
+  if (m_windows.elements != 0) {
+    /*
+      The next lines doing cleanup of ORDER elements expect the
+      query block's ORDER BY items to be the last part of fields and
+      base_ref_items, as they just chop the lists' end. But if there is a
+      window, that end is actually the PARTITION BY and ORDER BY clause of the
+      window, so do not chop then: leave the items in place.
+    */
+    return;
+  }
   while (hidden_order_field_count-- > 0) {
     fields.pop_front();
     base_ref_items[fields.size()] = nullptr;
