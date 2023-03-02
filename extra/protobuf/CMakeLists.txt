@@ -100,7 +100,13 @@ SET(protobuf_BUILD_EXAMPLES OFF CACHE INTERNAL "")
 IF(SOLARIS)
   SET(protobuf_BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
 ELSE()
-  SET(protobuf_BUILD_SHARED_LIBS ON CACHE INTERNAL "")
+  # With static C/C++ libraries, protoc with shared libs will segfault,
+  # so use static libs instead.
+  IF(CMAKE_CXX_FLAGS MATCHES "-static-libgcc")
+    SET(protobuf_BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+  ELSE()
+    SET(protobuf_BUILD_SHARED_LIBS ON CACHE INTERNAL "")
+  ENDIF()
 ENDIF()
 
 SET(protobuf_MSVC_STATIC_RUNTIME OFF CACHE INTERNAL "")
