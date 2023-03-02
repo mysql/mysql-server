@@ -1116,3 +1116,30 @@ SELECT * FROM t1 wHERE pk = 5 AND
 pk	col_date	col_datetime	col_varchar
 5	2022-02-25	2022-02-25 11:01:14	I
 DROP TABLE t1;
+#
+# Bug#35080094: MySQL server crash -
+#               Assertion CompatibleTypesForIndexLookup failed
+#
+CREATE TABLE t(a VARCHAR(100) CHARSET latin1, KEY(a));
+INSERT INTO t VALUES ('2023-1-1 1:2:3'), ('2023-01-01 01:02:03');
+SELECT * FROM t WHERE a = TIMESTAMP'2023-01-01 01:02:03';
+a
+2023-01-01 01:02:03
+2023-1-1 1:2:3
+DROP TABLE t;
+#
+# Bug#35115909: Wrong join result when one of the join columns
+#               is compared to a temporal literal
+#
+CREATE TABLE t (a VARCHAR(30) CHARSET latin1,
+b VARCHAR(30) CHARSET latin1);
+INSERT INTO t VALUES
+('2023-01-01 01:02:03', '2023-01-01 01:02:03'),
+('2023-01-01 01:02:03', '2023-1-1 1:2:3'),
+('2023-1-1 1:2:3',      '2023-01-01 01:02:03'),
+('2023-1-1 1:2:3',      '2023-1-1 1:2:3');
+SELECT * FROM t WHERE a = b and b = TIMESTAMP'2023-01-01 01:02:03';
+a	b
+2023-01-01 01:02:03	2023-01-01 01:02:03
+2023-1-1 1:2:3	2023-1-1 1:2:3
+DROP TABLE t;

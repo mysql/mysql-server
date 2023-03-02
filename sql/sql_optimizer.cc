@@ -3949,6 +3949,11 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
             (const_item->data_type() == MYSQL_TYPE_JSON)) {
           return false;
         }
+        // Similarly, strings and temporal types have different semantics for
+        // equality comparison.
+        if (const_item->is_temporal() && !field_item->is_temporal()) {
+          return false;
+        }
       }
 
       bool copyfl;
