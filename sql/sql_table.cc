@@ -16980,6 +16980,26 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     }
   }
 
+  if ((alter_info->flags & Alter_info::ALTER_DROP_PARTITION) != 0U) {
+    auto mdl_type = mdl_ticket->get_type();
+    auto downgrade_guard = create_scope_guard(
+        [mdl_ticket, mdl_type] { mdl_ticket->downgrade_lock(mdl_type); });
+
+    if (thd->mdl_context.upgrade_shared_lock(mdl_ticket, MDL_EXCLUSIVE,
+                                             thd->variables.lock_wait_timeout))
+      return true;
+
+    const dd::Table *table_def = nullptr;
+    if (thd->dd_client()->acquire(table_list->db, table_list->table_name,
+                                  &table_def))
+      return true;
+
+    table_list->partition_names = &alter_info->partition_names;
+    if (secondary_engine_unload_table(
+            thd, table_list->db, table_list->table_name, *table_def, false))
+      return true;
+  }
+
   /*
     Store all columns that are going to be dropped, since we need this list
     when removing column statistics later. The reason we need to store it here,
