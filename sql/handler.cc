@@ -436,14 +436,14 @@ plugin_ref ha_resolve_by_name(THD *thd, const LEX_CSTRING *name,
 
 bool ha_secondary_engine_supports_ddl(
     THD *thd, const LEX_CSTRING &secondary_engine) noexcept {
-  bool ret = false;
+  /* Allow DDLs by default if plugin is not installed. Otherwise let the plugin
+   * handler decide the fate. */
+  bool ret = true;
   auto *plugin = ha_resolve_by_name_raw(thd, secondary_engine);
 
   if (plugin != nullptr) {
     const auto *se_hton = plugin_data<const handlerton *>(plugin);
-    if (se_hton != nullptr) {
-      ret = secondary_engine_supports_ddl(se_hton);
-    }
+    ret = (se_hton != nullptr) ? secondary_engine_supports_ddl(se_hton) : false;
 
     plugin_unlock(thd, plugin);
   }
