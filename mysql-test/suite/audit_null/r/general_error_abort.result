@@ -1,4 +1,4 @@
-call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_ERROR' cannot be aborted.");
+call mtr.add_suppression("Event 'EVENT_TRACKING_GENERAL_ERROR' cannot be aborted.");
 INSTALL PLUGIN null_audit SONAME 'adt_null.so';
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
                                      'MYSQL_AUDIT_PARSE_PREPARSE;;;'

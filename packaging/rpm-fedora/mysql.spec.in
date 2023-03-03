@@ -1242,7 +1242,7 @@ rm -r $(readlink var) var
 %endif # with_router
 
 %changelog
-* Mon Nov 28 2022 Harin Nalin Vadodaria <harin.vadodaria@oracle.com> - 8.0.33-1
+* Wed Mar 01 2023 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.34-1
 - Added components, libraries and binaries related to event tracking
 
 * Thu Oct 13 2022 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 8.0.33-1

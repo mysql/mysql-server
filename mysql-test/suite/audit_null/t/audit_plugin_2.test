@@ -3,10 +3,10 @@
 
 --source include/have_null_audit_plugin.inc
 
-call mtr.add_suppression("Event 'MYSQL_AUDIT_COMMAND_END' cannot be aborted.");
-call mtr.add_suppression("Event 'MYSQL_AUDIT_CONNECTION_DISCONNECT' cannot be aborted.");
-call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_RESULT' cannot be aborted.");
-call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_STATUS' cannot be aborted.");
+call mtr.add_suppression("Event 'EVENT_TRACKING_COMMAND_END' cannot be aborted.");
+call mtr.add_suppression("Event 'EVENT_TRACKING_CONNECTION_DISCONNECT' cannot be aborted.");
+call mtr.add_suppression("Event 'EVENT_TRACKING_GENERAL_RESULT' cannot be aborted.");
+call mtr.add_suppression("Event 'EVENT_TRACKING_GENERAL_STATUS' cannot be aborted.");
 call mtr.add_suppression("Command 'Ping' cannot be aborted.");
 call mtr.add_suppression("Plugin mysqlx reported.*Unable to use user mysql.session");
 call mtr.add_suppression("Plugin mysqlx reported: 'Internal error");

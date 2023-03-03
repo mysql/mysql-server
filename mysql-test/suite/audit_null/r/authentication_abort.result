@@ -1,7 +1,7 @@
-call mtr.add_suppression("Event 'MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE' cannot be aborted.");
-call mtr.add_suppression("Event 'MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME' cannot be aborted.");
-call mtr.add_suppression("Event 'MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP' cannot be aborted.");
-call mtr.add_suppression("Event 'MYSQL_AUDIT_AUTHENTICATION_FLUSH' cannot be aborted.");
+call mtr.add_suppression("Event 'EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE' cannot be aborted.");
+call mtr.add_suppression("Event 'EVENT_TRACKING_AUTHENTICATION_AUTHID_RENAME' cannot be aborted.");
+call mtr.add_suppression("Event 'EVENT_TRACKING_AUTHENTICATION_AUTHID_DROP' cannot be aborted.");
+call mtr.add_suppression("Event 'EVENT_TRACKING_AUTHENTICATION_FLUSH' cannot be aborted.");
 call mtr.add_suppression("Abort MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE with my_message.");
 call mtr.add_suppression("Abort MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME with my_message.");
 call mtr.add_suppression("Abort MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP with my_message.");

@@ -1,10 +1,10 @@
 --source include/have_null_audit_plugin.inc
 --source include/no_protocol.inc
 
-call mtr.add_suppression("Event 'MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE' cannot be aborted.");
-call mtr.add_suppression("Event 'MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME' cannot be aborted.");
-call mtr.add_suppression("Event 'MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP' cannot be aborted.");
-call mtr.add_suppression("Event 'MYSQL_AUDIT_AUTHENTICATION_FLUSH' cannot be aborted.");
+call mtr.add_suppression("Event 'EVENT_TRACKING_AUTHENTICATION_CREDENTIAL_CHANGE' cannot be aborted.");
+call mtr.add_suppression("Event 'EVENT_TRACKING_AUTHENTICATION_AUTHID_RENAME' cannot be aborted.");
+call mtr.add_suppression("Event 'EVENT_TRACKING_AUTHENTICATION_AUTHID_DROP' cannot be aborted.");
+call mtr.add_suppression("Event 'EVENT_TRACKING_AUTHENTICATION_FLUSH' cannot be aborted.");
 
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN null_audit SONAME '$AUDIT_NULL';

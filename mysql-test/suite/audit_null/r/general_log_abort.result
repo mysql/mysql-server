@@ -4,7 +4,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                      'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
 SELECT 1;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GENERAL_LOG';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_GENERAL_LOG';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT

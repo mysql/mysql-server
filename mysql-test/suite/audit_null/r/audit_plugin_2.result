@@ -1,7 +1,7 @@
-call mtr.add_suppression("Event 'MYSQL_AUDIT_COMMAND_END' cannot be aborted.");
-call mtr.add_suppression("Event 'MYSQL_AUDIT_CONNECTION_DISCONNECT' cannot be aborted.");
-call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_RESULT' cannot be aborted.");
-call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_STATUS' cannot be aborted.");
+call mtr.add_suppression("Event 'EVENT_TRACKING_COMMAND_END' cannot be aborted.");
+call mtr.add_suppression("Event 'EVENT_TRACKING_CONNECTION_DISCONNECT' cannot be aborted.");
+call mtr.add_suppression("Event 'EVENT_TRACKING_GENERAL_RESULT' cannot be aborted.");
+call mtr.add_suppression("Event 'EVENT_TRACKING_GENERAL_STATUS' cannot be aborted.");
 call mtr.add_suppression("Command 'Ping' cannot be aborted.");
 call mtr.add_suppression("Plugin mysqlx reported.*Unable to use user mysql.session");
 call mtr.add_suppression("Plugin mysqlx reported: 'Internal error");
@@ -12,12 +12,12 @@ INSTALL PLUGIN null_audit SONAME 'adt_null.<expected_extension>';
 CREATE USER user1@localhost IDENTIFIED BY 'pass';
 SET GLOBAL null_audit_event_order_check = "MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE;;ABORT_RET";
 connect(localhost,user1,pass,test,MASTER_PORT,MASTER_SOCKET);
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_CONNECTION_PRE_AUTHENTICATE';1).
 SET GLOBAL null_audit_event_order_check = "MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE;;;"
                                           "MYSQL_AUDIT_GENERAL_LOG;;;"
                                           "MYSQL_AUDIT_CONNECTION_CONNECT;;ABORT_RET";
 connect(localhost,user1,pass,test,MASTER_PORT,MASTER_SOCKET);
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_CONNECTION_CONNECT';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_CONNECTION_CONNECT';1).
 SET GLOBAL null_audit_event_order_check = NULL;
 SET GLOBAL null_audit_event_order_check = "MYSQL_AUDIT_CONNECTION_DISCONNECT;;ABORT_RET";
 # mysql_audit_connection_disconnect result does not have any significance
@@ -28,7 +28,7 @@ SET GLOBAL null_audit_event_order_check = NULL;
 # Command start abort
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";ABORT_RET';
 SELECT 1;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_COMMAND_START';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_COMMAND_START';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
@@ -123,7 +123,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="0";ABORT_RET';
 SELECT 1;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_QUERY_START';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_QUERY_START';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
@@ -138,7 +138,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
                                           'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="0";ABORT_RET';
 SELECT 1;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_QUERY_STATUS_END';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_QUERY_STATUS_END';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
@@ -156,7 +156,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
                                           'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;name="null_audit_abort_value" value="1";ABORT_RET';
 SELECT @@GLOBAL.null_audit_abort_value;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GLOBAL_VARIABLE_GET';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_GLOBAL_VARIABLE_GET';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
@@ -186,7 +186,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;ABORT_RET',
 @@null_audit_event_order_check_exact = 1;
 SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GLOBAL_VARIABLE_GET';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_GLOBAL_VARIABLE_GET';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
@@ -214,7 +214,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_GLOBAL_VARIABLE_SET;name="null_audit_event_order_check" value="NULL";ABORT_RET',
 @@null_audit_event_order_check_exact = 1;
 SET @@GLOBAL.null_audit_event_order_check = NULL;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GLOBAL_VARIABLE_SET';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_GLOBAL_VARIABLE_SET';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
@@ -228,7 +228,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
                                           'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;name="null_audit_abort_value" value="1";ABORT_RET';
 SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'null_audit_abort_value';
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GLOBAL_VARIABLE_GET';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_GLOBAL_VARIABLE_GET';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
@@ -247,7 +247,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_TABLE_ACCESS_INSERT;db="super_test" table="test_table";;'
                                           'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="5";ABORT_RET';
 INSERT INTO test_table VALUES(1);
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_QUERY_STATUS_END';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_QUERY_STATUS_END';1).
 SELECT * FROM test_table;
 a
 SELECT @@null_audit_event_order_check;
@@ -265,7 +265,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="5";ABORT_RET';
 INSERT INTO test_table VALUES(1);
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_QUERY_START';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_QUERY_START';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
@@ -287,7 +287,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="5";ABORT_RET',
 @@null_audit_event_order_check_exact = 1;
 INSERT INTO test_table VALUES(3); INSERT INTO test_table VALUES(4); |;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_QUERY_STATUS_END';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_QUERY_STATUS_END';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
@@ -329,7 +329,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="91";ABORT_RET',
 @@null_audit_event_order_check_exact = 1;
 CALL simple_proc();
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_QUERY_STATUS_END';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_QUERY_STATUS_END';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
@@ -616,7 +616,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="5";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_INSERT;db="super_test" table="test_table";ABORT_RET';
 INSERT INTO test_table VALUES (1),(2);
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_INSERT';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_INSERT';1).
 SELECT * FROM test_table ORDER BY a;
 a
 SELECT @@null_audit_event_order_check;
@@ -692,7 +692,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="6";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_INSERT;db="super_test" table="test_table";ABORT_RET';
 INSERT INTO test_table SELECT a+2 FROM test_table;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_INSERT';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_INSERT';1).
 SELECT * FROM test_table ORDER BY a;
 a
 1
@@ -708,7 +708,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_TABLE_ACCESS_INSERT;db="super_test" table="test_table";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_READ;db="super_test" table="test_table";ABORT_RET';
 INSERT INTO test_table SELECT a+2 FROM test_table;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_READ';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_READ';1).
 SELECT * FROM test_table ORDER BY a;
 a
 1
@@ -775,7 +775,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="4";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_UPDATE;db="super_test" table="test_table";ABORT_RET';
 UPDATE test_table SET a=a+4;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_UPDATE';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_UPDATE';1).
 SELECT * FROM test_table ORDER BY a;
 a
 1
@@ -854,7 +854,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="4";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_UPDATE;db="super_test" table="test_table";ABORT_RET';
 UPDATE test_table SET a=a+10 WHERE a>10;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_UPDATE';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_UPDATE';1).
 SELECT * FROM test_table ORDER BY a;
 a
 9
@@ -931,7 +931,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="7";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_DELETE;db="super_test" table="test_table";ABORT_RET';
 DELETE FROM test_table WHERE a>7;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_DELETE';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_DELETE';1).
 SELECT * FROM test_table ORDER BY a;
 a
 9
@@ -990,7 +990,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="7";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_DELETE;db="super_test" table="test_table";ABORT_RET';
 DELETE FROM test_table;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_DELETE';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_DELETE';1).
 SELECT * FROM test_table ORDER BY a;
 a
 9
@@ -1061,7 +1061,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="40";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_INSERT;db="super_test" table="test_table_3";ABORT_RET';
 REPLACE INTO test_table_3 VALUES (1, 'New');
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_INSERT';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_INSERT';1).
 SELECT * FROM test_table_3 ORDER BY id;
 id	data
 1	Old
@@ -1117,7 +1117,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="41";;'
                                           'MYSQL_AUDIT_TABLE_ACCESS_INSERT;db="super_test" table="test_table_3";ABORT_RET';
 REPLACE INTO test_table_3 SELECT id, 'Sel' FROM test_table_3;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_INSERT';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_INSERT';1).
 SELECT * FROM test_table_3 ORDER BY id;
 id	data
 1	New
@@ -1175,7 +1175,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_QUERY_START;sql_command_id="8";;'
                                      'MYSQL_AUDIT_TABLE_ACCESS_DELETE;db="super_test" table="test_table_3";ABORT_RET';
 TRUNCATE test_table_3;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_DELETE';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_DELETE';1).
 SELECT * FROM test_table_3 ORDER BY id;
 id	data
 1	Sec
@@ -1490,7 +1490,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                      'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
                                      'MYSQL_AUDIT_TABLE_ACCESS_READ;db="super_test" table="merge_table";ABORT_RET';
 SELECT * FROM merge_table;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_READ';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_READ';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
@@ -1503,7 +1503,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                      'MYSQL_AUDIT_TABLE_ACCESS_READ;db="super_test" table="merge_table_1";;'
                                      'MYSQL_AUDIT_TABLE_ACCESS_READ;db="super_test" table="merge_table_2";ABORT_RET';
 SELECT * FROM merge_table;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_READ';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_READ';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
@@ -1623,7 +1623,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_QUERY_START;sql_command_id="30";;'
                                      'MYSQL_AUDIT_TABLE_ACCESS_INSERT;db="super_test" table="audit_load_data";ABORT_RET';
 load data infile '../../std_data/loaddata_dq.dat' into table audit_load_data fields terminated by ',' enclosed by '"' escaped by '"' (a,b);
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_INSERT';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_INSERT';1).
 SELECT * FROM audit_load_data ORDER BY a;
 a	b
 SELECT @@null_audit_event_order_check;
@@ -1660,7 +1660,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                      'MYSQL_AUDIT_QUERY_START;sql_command_id="30";;'
                                      'MYSQL_AUDIT_TABLE_ACCESS_INSERT;db="super_test" table="audit_xml_data";ABORT_RET';
 load xml infile '../../std_data/loadxml.dat' into table audit_xml_data rows identified by '<row>';
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_TABLE_ACCESS_INSERT';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_TABLE_ACCESS_INSERT';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
@@ -1767,7 +1767,7 @@ SET @@GLOBAL.null_audit_event_order_check = 'MYSQL_AUDIT_CONNECTION_PRE_AUTHENTI
                                                  'MYSQL_AUDIT_GENERAL_LOG;;;'
                                                  'MYSQL_AUDIT_CONNECTION_CONNECT;;ABORT_RET';
 connect(localhost,user1,,test,MASTER_PORT,MASTER_SOCKET);
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_CONNECTION_CONNECT';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_CONNECTION_CONNECT';1).
 SET @@GLOBAL.null_audit_event_order_check = NULL,
 @@GLOBAL.null_audit_event_order_check_exact = 1;
 #--COM_CHANGE_USER
@@ -1777,7 +1777,7 @@ ERROR 42000: Access denied for user 'user2'@'%' to database 'mysql'
 # Allow 'user2' to use 'mysql' database.
 GRANT ALL ON mysql.* TO user2;
 # Change user with 'mysql' as initial database
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_COMMAND_START';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_COMMAND_START';1).
 SELECT USER(), CURRENT_USER();
 USER()	CURRENT_USER()
 user1@localhost	user1@%
@@ -1798,7 +1798,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="35";ABORT_RET';
 USE mysql;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_QUERY_START';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_QUERY_START';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
@@ -1810,7 +1810,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="0";ABORT_RET';
 SELECT 1;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_QUERY_START';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_QUERY_START';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
@@ -1844,7 +1844,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;sql_command_id="0";ABORT_RET';
 SELECT 1;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_QUERY_START';123).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_QUERY_START';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
@@ -1856,7 +1856,7 @@ SET @@null_audit_event_order_check_exact = <expected_check_exact>;
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
                                           'MYSQL_AUDIT_PARSE_PREPARSE;;ABORT_RET';
 SELECT 1;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_PARSE_PREPARSE';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_PARSE_PREPARSE';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
@@ -1865,7 +1865,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_PARSE_PREPARSE;;;'
                                           'MYSQL_AUDIT_PARSE_POSTPARSE;;ABORT_RET';
 SELECT 1;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_PARSE_POSTPARSE';1).
+ERROR HY000: Aborted by Audit API ('EVENT_TRACKING_PARSE_POSTPARSE';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
