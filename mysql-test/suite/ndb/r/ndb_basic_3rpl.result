@@ -203,6 +203,7 @@ ndb_show_foreign_key_mock_tables	#
 ndb_slave_conflict_role	#
 ndb_table_no_logging	#
 ndb_table_temporary	#
+ndb_tls_search_path	#
 ndb_use_copying_alter_table	#
 ndb_use_exact_count	#
 ndb_use_transactions	#

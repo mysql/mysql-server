@@ -522,6 +522,10 @@ TransporterFacade::start_instance(NodeId nodeId,
     DBUG_RETURN(-1);
   }
 
+  theTransporterRegistry->init_tls(m_tls_search_path,
+                                   m_tls_node_type,
+                                   m_tls_primary_api);
+
   if (theClusterMgr == nullptr)
   {
     theClusterMgr = new ClusterMgr(*this);
@@ -1666,7 +1670,10 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   m_send_thread_mutex(nullptr),
   m_send_thread_cond(nullptr),
   m_send_thread_nodes(),
-  m_has_data_nodes()
+  m_has_data_nodes(),
+  m_tls_search_path(NDB_TLS_SEARCH_PATH),
+  m_tls_node_type(NODE_TYPE_API),
+  m_tls_primary_api(true)
 {
   DBUG_ENTER("TransporterFacade::TransporterFacade");
   thePollMutex = NdbMutex_CreateWithName("PollMutex");
@@ -1766,6 +1773,16 @@ TransporterFacade::set_up_node_active_in_send_buffers(Uint32 nodeId,
     m_active_nodes.set(remoteNodeId);
   }
   DBUG_VOID_RETURN;
+}
+
+void
+TransporterFacade::configure_tls(const char * searchPath,
+                                 int nodeType, bool isPrimary)
+{
+  assert(searchPath);
+  m_tls_search_path = searchPath;
+  m_tls_node_type = nodeType;
+  m_tls_primary_api = isPrimary;
 }
 
 bool

@@ -73,6 +73,12 @@ public:
   int start_instance(NodeId, const ndb_mgm_configuration*);
   void stop_instance();
 
+  void configure_tls(const char *, int type, bool primary);
+  void api_configure_tls(const char * searchPath, bool primary)
+  {
+    configure_tls(searchPath, NODE_TYPE_API, primary);
+  }
+
   /*
     (Re)configure the TransporterFacade
     to a specific configuration
@@ -596,6 +602,11 @@ private:
    * of sending to these nodes.
    */
   NodeBitmask m_has_data_nodes;
+
+  /* TLS Configuration */
+  const char * m_tls_search_path;
+  int m_tls_node_type;
+  bool m_tls_primary_api;
 };
 
 inline

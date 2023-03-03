@@ -615,6 +615,9 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
     m_nodes_proximity_mutex = nullptr;
   }
 
+  free(const_cast<char *>(m_tls_search_path));
+  m_tls_search_path = nullptr;
+
   if (m_event_add_drop_mutex)
     NdbMutex_Destroy(m_event_add_drop_mutex);
   m_event_add_drop_mutex = nullptr;
@@ -936,6 +939,14 @@ Ndb_cluster_connection_impl::set_data_node_neighbour(Uint32 node)
   }
   m_data_node_neighbour = node;
   NdbMutex_Unlock(m_nodes_proximity_mutex);
+}
+
+void
+Ndb_cluster_connection_impl::configure_tls(const char * searchPath)
+{
+  bool isPrimary = ! (bool) m_main_connection;
+  m_tls_search_path = strdup(searchPath);
+  m_transporter_facade->api_configure_tls(m_tls_search_path, isPrimary);
 }
 
 void
@@ -1388,6 +1399,11 @@ Ndb_cluster_connection_impl::do_test()
     }
   }
   delete[] nodes;
+}
+
+void Ndb_cluster_connection::configure_tls(const char * searchPath, int)
+{
+  m_impl.configure_tls(searchPath);
 }
 
 void Ndb_cluster_connection::set_data_node_neighbour(Uint32 node)

@@ -109,6 +109,26 @@ public:
   void set_name(const char *name);
 
   /**
+   * Configure TLS for the connection.
+   *
+   * tls_search_path is a colon-delimited list of directories that may contain
+   * TLS private key files or signed public key certificates. The search path
+   * may contain absolute directories, relative directories, and environment
+   * variables which will be expanded.
+   *
+   * The second (int) parameter will be introduced in WL#15524.
+   *
+   * If the node finds active NDB TLS node keys and certificates in the seach
+   * path, it will be able to connect securely to other nodes. These keys and
+   * certificates can be created using the ndb_sign_keys tool.
+   *
+   * If configure_tls() is not called for a connection, the search path used
+   * will be the compile-time default NDB_TLS_SEARCH_PATH.
+
+   */
+   void configure_tls(const char * tls_search_path, int);
+
+  /**
    * For each Ndb_cluster_connection, NDB publishes a URI in the ndbinfo
    * processes table. A user may customize this URI using set_service_uri().
    *

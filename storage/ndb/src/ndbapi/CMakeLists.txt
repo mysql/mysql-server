@@ -78,5 +78,8 @@ ADD_CONVENIENCE_LIBRARY(ndbapi
   LINK_LIBRARIES ext::zlib
   )
 
+SET_PROPERTY(SOURCE TransporterFacade.cpp
+             PROPERTY COMPILE_DEFINITIONS
+             NDB_TLS_SEARCH_PATH="${WITH_NDB_TLS_SEARCH_PATH}")
 
 NDB_ADD_TEST(SectionIterators-t SectionIterators.cpp NdbApiSignal.cpp)

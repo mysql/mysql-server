@@ -59,6 +59,8 @@ static uint g_pool_alloc = 0;
 static uint g_pool_pos = 0;
 static mysql_mutex_t g_pool_mutex;
 
+extern char *opt_ndb_tls_search_path;
+
 /**
    @brief Parse the --ndb-cluster-connection-pool-nodeids=nodeid[,nodeidN]
           comma separated list of nodeids to use for the pool
@@ -245,6 +247,7 @@ int ndbcluster_connect(ulong wait_connected,  // Timeout in seconds
     char buf[128];
     snprintf(buf, sizeof(buf), "mysqld --server-id=%lu", server_id);
     g_ndb_cluster_connection->set_name(buf);
+    g_ndb_cluster_connection->configure_tls(opt_ndb_tls_search_path, 0);
     snprintf(buf, sizeof(buf), "%s%s", processinfo_path, server_id_string);
     g_ndb_cluster_connection->set_service_uri("mysql", processinfo_host,
                                               processinfo_port, buf);
@@ -306,6 +309,7 @@ int ndbcluster_connect(ulong wait_connected,  // Timeout in seconds
         snprintf(buf, sizeof(buf), "mysqld --server-id=%lu (connection %u)",
                  server_id, i + 1);
         g_pool[i]->set_name(buf);
+        g_pool[i]->configure_tls(opt_ndb_tls_search_path, 0);
         const char *uri_sep = server_id ? ";" : "?";
         snprintf(buf, sizeof(buf), "%s%s%sconnection=%u", processinfo_path,
                  server_id_string, uri_sep, i + 1);
