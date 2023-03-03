@@ -697,3 +697,30 @@ d
 2021-10-11
 2021-10-11
 DROP TABLE d, dt;
+#
+# Bug#35080094: MySQL server crash -
+#               Assertion CompatibleTypesForIndexLookup failed
+#
+CREATE TABLE t(a VARCHAR(100) CHARSET latin1, KEY(a));
+INSERT INTO t VALUES ('2023-1-1'), ('2023-01-01');
+SELECT * FROM t WHERE a = DATE'2023-01-01';
+a
+2023-01-01
+2023-1-1
+DROP TABLE t;
+#
+# Bug#35115909: Wrong join result when one of the join columns
+#               is compared to a temporal literal
+#
+CREATE TABLE t (a VARCHAR(10) CHARSET latin1,
+b VARCHAR(10) CHARSET latin1);
+INSERT INTO t VALUES
+('2023-01-01', '2023-01-01'),
+('2023-01-01', '2023-1-1'),
+('2023-1-1',   '2023-01-01'),
+('2023-1-1',   '2023-1-1');
+SELECT * FROM t WHERE a = b and b = DATE'2023-01-01';
+a	b
+2023-01-01	2023-01-01
+2023-1-1	2023-1-1
+DROP TABLE t;
