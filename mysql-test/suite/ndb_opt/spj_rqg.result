@@ -3511,10 +3511,7 @@ EXPLAIN
 -> Limit: 1 row(s)
     -> Table scan on <temporary>
         -> Temporary table
-            -> Left hash join (no condition)
-                -> Table scan on table1
-                -> Hash
-                    -> Zero rows (Impossible filter)
+            -> Table scan on table1
 
 SELECT DISTINCT
 4 AS field1
