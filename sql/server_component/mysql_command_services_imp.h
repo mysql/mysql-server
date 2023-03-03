@@ -84,14 +84,16 @@ class mysql_command_services_imp {
  public:
   /* mysql_command_factory service apis */
   static DEFINE_BOOL_METHOD(init, (MYSQL_H * mysql_h));
-  static DEFINE_BOOL_METHOD(init_thread, (void *plugin));
-  static DEFINE_METHOD(void, deinit_thread, ());
   static DEFINE_BOOL_METHOD(connect, (MYSQL_H mysql_h));
   static DEFINE_BOOL_METHOD(reset, (MYSQL_H mysql_h));
   static DEFINE_BOOL_METHOD(close, (MYSQL_H mysql_h));
   static DEFINE_BOOL_METHOD(commit, (MYSQL_H mysql_h));
   static DEFINE_BOOL_METHOD(autocommit, (MYSQL_H mysql_h, bool mode));
   static DEFINE_BOOL_METHOD(rollback, (MYSQL_H mysql_h));
+
+  /* mysql_command_thread service apis */
+  static DEFINE_BOOL_METHOD(init, (void));
+  static DEFINE_METHOD(void, end, (void));
 
   /* mysql_command_options service apis */
   static DEFINE_BOOL_METHOD(set, (MYSQL_H mysql, int option, const void *arg));

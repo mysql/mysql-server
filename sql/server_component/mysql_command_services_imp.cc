@@ -78,25 +78,25 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::init, (MYSQL_H * mysql_h)) {
   return ret;
 }
 
+static MYSQL_LEX_CSTRING dummy_plugin{"server_service",
+                                      sizeof("server_service")};
 /**
-  Calls srv_session_init_thread() to initialize a thread to use the session
+  Calls session init_thread() to initialize a physical thread to use the session
   service.
 
-  @param[in] plugin A plugin structure pointer.
-
-    @retval true    failure
-    @retval false   success
+  @retval true    failure
+  @retval false   success
 */
-DEFINE_BOOL_METHOD(mysql_command_services_imp::init_thread, (void *plugin)) {
-  return srv_session_init_thread(plugin);
+DEFINE_BOOL_METHOD(mysql_command_services_imp::init, ()) {
+  return Srv_session::init_thread(&dummy_plugin);
 }
 
 /**
-  Calls srv_session_deinit_thread() to deinitialize a thread that has been using
-  the session service.
+  Calls session deinit_thread() to deinitialize a physical thread that has been
+  using the session service.
 */
-DEFINE_METHOD(void, mysql_command_services_imp::deinit_thread, ()) {
-  srv_session_deinit_thread();
+DEFINE_METHOD(void, mysql_command_services_imp::end, ()) {
+  Srv_session::deinit_thread();
 }
 
 /**

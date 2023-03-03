@@ -464,12 +464,14 @@ mysql_audit_print_service_double_data_source_imp::get
 END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_command_factory)
-mysql_command_services_imp::init, mysql_command_services_imp::init_thread,
-    mysql_command_services_imp::deinit_thread,
-    mysql_command_services_imp::connect, mysql_command_services_imp::reset,
-    mysql_command_services_imp::close, mysql_command_services_imp::commit,
-    mysql_command_services_imp::autocommit,
+mysql_command_services_imp::init, mysql_command_services_imp::connect,
+    mysql_command_services_imp::reset, mysql_command_services_imp::close,
+    mysql_command_services_imp::commit, mysql_command_services_imp::autocommit,
     mysql_command_services_imp::rollback END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_command_thread)
+mysql_command_services_imp::init,
+    mysql_command_services_imp::end END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_command_options)
 mysql_command_services_imp::set,
@@ -774,6 +776,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server,
                      mysql_audit_print_service_double_data_source),
     PROVIDES_SERVICE(mysql_server, mysql_command_factory),
+    PROVIDES_SERVICE(mysql_server, mysql_command_thread),
     PROVIDES_SERVICE(mysql_server, mysql_command_options),
     PROVIDES_SERVICE(mysql_server, mysql_command_query),
     PROVIDES_SERVICE(mysql_server, mysql_command_query_result),
