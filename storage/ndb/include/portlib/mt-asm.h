@@ -107,10 +107,8 @@ xcng(volatile unsigned * addr, int val)
   asm volatile("membar #StoreLoad | #StoreStore");
   return ret;
 }
-#define cpu_pause()
 #define NDB_HAVE_XCNG
 #else
-#define cpu_pause()
 /* link error if used incorrectly (i.e wo/ having NDB_HAVE_XCNG) */
 extern  int xcng(volatile unsigned * addr, int val);
 #endif
@@ -150,6 +148,7 @@ xcng(volatile unsigned * addr, int val)
 #define NDB_HAVE_RMB
 #define NDB_HAVE_WMB
 //#define NDB_HAVE_XCNG
+#define NDB_HAVE_CPU_PAUSE
 
 #define mb() std::atomic_thread_fence(std::memory_order_seq_cst)
 #define rmb() std::atomic_thread_fence(std::memory_order_seq_cst)
