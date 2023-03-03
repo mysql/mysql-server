@@ -1,0 +1,60 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+create table t1 (
+a int not null,
+b int,
+c int,
+unique(c)
+) engine=NDB;
+insert into t1 values(1000, 1000, 1000);
+insert into t1 values(999, 999, 999);
+insert into t1 values(998, 998, 998);
+insert into t1 values(997, 997, 997);
+include/sync_slave_sql_with_master.inc
+select count(*) from t1;
+count(*)
+4
+call mtr.add_suppression(".*NDB Replica: SQL thread attempting to apply new epoch.*while lower received epoch.*has not been committed.*");
+# Add rows on replica, used for causing uniqueness violation
+insert into t1 values (2001,2001,1001);
+insert into t1 values (2002,2002,1002);
+insert into t1 values (2003,2003,1003);
+# Replica is configured to skip unique key violation error
+SELECT @@GLOBAL.replica_skip_errors;
+@@GLOBAL.replica_skip_errors
+1022
+# Configure the ndbcluster plugin to not verify epoch sequence
+set global ndb_applier_allow_skip_epoch = 1;
+[connection master]
+# Cause a conflict
+insert into t1 values (1002,1002,1002);
+# Show the binlog events that will cause error. All the Write_rows events
+# will be batched and not send to NDB until the final Query_log_event
+# containing the COMMIT, that's when the error should be skipped
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+# Sync with master, will succeed
+include/sync_slave_sql_with_master.inc
+# Show that row change was skipped on replica
+select * from t1 where a=1002;
+a	b	c
+# Show that subsequent changes are replicated
+[connection master]
+insert into t1 values (3001,3001,3001);
+include/sync_slave_sql_with_master.inc
+select * from t1 where a=3001;
+a	b	c
+3001	3001	3001
+set global ndb_applier_allow_skip_epoch=0;
+[connection master]
+drop table t1;
+include/rpl_end.inc
