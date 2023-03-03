@@ -83,23 +83,6 @@ BEGIN_SERVICE_DEFINITION(mysql_command_factory)
 DECLARE_BOOL_METHOD(init, (MYSQL_H * mysql_h));
 
 /**
-  Calls srv_session_init_thread() to initialize a thread to use the session
-  service.
-
-  @param[in] plugin A plugin structure pointer.
-
-    @retval true    failure
-    @retval false   success
-        */
-DECLARE_BOOL_METHOD(init_thread, (void *plugin));
-
-/**
-  Calls srv_session_deinit_thread() to deinitialize a thread that has been using
-  the session service.
-*/
-DECLARE_METHOD(void, deinit_thread, ());
-
-/**
   Calls mysql_real_connect api to connects to a MySQL server.
 
   @param[in] mysql_h A valid mysql object.
@@ -162,6 +145,31 @@ DECLARE_BOOL_METHOD(autocommit, (MYSQL_H mysql_h, bool mode));
 */
 DECLARE_BOOL_METHOD(rollback, (MYSQL_H mysql_h));
 END_SERVICE_DEFINITION(mysql_command_factory)
+
+/**
+  @ingroup group_components_services_inventory
+
+  A service that provides the apis for mysql command session thread init and
+  thread end.
+
+*/
+BEGIN_SERVICE_DEFINITION(mysql_command_thread)
+
+/**
+  Calls session init_thread() to initialize a thread to use the session
+  service.
+
+  @retval true    failure
+  @retval false   success
+        */
+DECLARE_BOOL_METHOD(init, (void));
+
+/**
+  Calls session deinit_thread() to deinitialize a thread that has been using
+  the session service.
+*/
+DECLARE_METHOD(void, end, (void));
+END_SERVICE_DEFINITION(mysql_command_thread)
 
 /**
   @ingroup group_components_services_inventory
