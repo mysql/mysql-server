@@ -7123,6 +7123,9 @@ bool is_correlated_predicate_eligible(Item *cor_pred) {
     if (!item->is_outer_reference()) {
       if (item->real_item()->type() != Item::FIELD_ITEM) return false;
       non_correlated_operand = true;
+    } else if (item->used_tables() & ~PSEUDO_TABLE_BITS) {
+      // Inner table reference mixed with outer table reference is not allowed.
+      return false;
     }
   }
   // We need to find one non-correlated operand in the correlated predicate

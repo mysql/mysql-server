@@ -730,6 +730,42 @@ SELECT * FROM t1 WHERE (SELECT t2.a FROM t2 WHERE t2.a = t1.a AND t2.a = t1.a);
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#35101630 Correlated scalar subquery transf. to derived table:
+--echo #              allows unsupported expr
+--echo #
+create table t2(a int, b int);
+create table t1(a int, b int);
+insert into t1 values (1, 1);
+insert into t2 values (2,1),(2,-1);
+
+--echo # no transform expected
+let $query=
+SELECT * FROM t1 WHERE ( SELECT a FROM t2 WHERE t2.a = t1.a + ABS(t2.b) ) > 0;
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval EXPLAIN $query;
+
+--echo # no transform expected
+let $query=
+SELECT * FROM t1 WHERE ( SELECT a FROM t2 WHERE t2.a = t1.a + t2.b ) > 0;
+eval $query;
+eval EXPLAIN $query;
+
+--echo # make sure we can still have expressions on correlated side
+let $query=
+SELECT * FROM t1 WHERE ( SELECT a FROM t2 WHERE t2.a = t1.a + 3 ) > 0;
+eval $query;
+eval EXPLAIN $query;
+
+let $query=
+SELECT * FROM t1 WHERE ( SELECT a FROM t2 WHERE t2.a = t1.a + t1.b ) > 0;
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE t1, t2;
+
 SET optimizer_switch = 'subquery_to_derived=default';
 # Local Variables:
 # mode: sql
