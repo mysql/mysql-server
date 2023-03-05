@@ -12234,6 +12234,9 @@ ER_IB_BULK_FLUSHER_PUNCH_HOLE
 ER_GRP_RPL_CONN_KILLED
    eng "%s as the client session was killed."
 
+ER_THREAD_POOL_CONNECTION_REPORT
+   eng "TP conn (port: managed(delta), active, opened, closed, added, dropped): %s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
