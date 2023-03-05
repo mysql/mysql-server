@@ -12228,6 +12228,9 @@ ER_CONN_INIT_CONNECT_IGNORED_MFA
 ER_SECONDARY_ENGINE_DDL_FAILED
   eng "Execution of alter table %s %s failed because %s."
 
+ER_THREAD_POOL_CONNECTION_REPORT
+   eng "TP conn (port: managed(delta), active, opened, closed, added, dropped): %s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
