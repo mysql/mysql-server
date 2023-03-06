@@ -5759,8 +5759,8 @@ SELECT
 pk FROM v1
 ORDER BY  "cant"  IN ( ( FORMAT(  LAST_INSERT_ID( pk ) , 42 ) ) );
 pk
-2
 1
+2
 SELECT
 STDDEV_POP( ( LAST_INSERT_ID( ( - 2313724308561592320 ) ) ) ) AS field5
 FROM t1
@@ -5769,8 +5769,6 @@ ORDER BY SPACE( LAST_INSERT_ID() );
 field5
 0
 0
-Warnings:
-Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
 DROP VIEW v1;
 DROP TABLE t1;
 SET SESSION SQL_MODE=DEFAULT;
