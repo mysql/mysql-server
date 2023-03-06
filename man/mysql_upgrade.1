@@ -2,12 +2,12 @@
 .\"     Title: mysql_upgrade
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2022
+.\"      Date: 03/03/2023
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQL_UPGRADE" "1" "11/26/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQL_UPGRADE" "1" "03/03/2023" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -49,7 +49,7 @@ mysql_upgrade \- check and upgrade MySQL tables
 As of MySQL 8\&.0\&.16, the MySQL server performs the upgrade tasks previously handled by
 \fBmysql_upgrade\fR
 (for details, see
-Section\ \&2.11.3, \(lqWhat the MySQL Upgrade Process Upgrades\(rq)\&. Consequently,
+Section\ \&2.10.3, \(lqWhat the MySQL Upgrade Process Upgrades\(rq)\&. Consequently,
 \fBmysql_upgrade\fR
 is unneeded and is deprecated as of that version; expect it to be removed in a future version of MySQL\&. Because
 \fBmysql_upgrade\fR
@@ -101,7 +101,7 @@ It examines user schemas\&.
 If
 \fBmysql_upgrade\fR
 finds that a table has a possible incompatibility, it performs a table check and, if problems are found, attempts a table repair\&. If the table cannot be repaired, see
-Section\ \&2.11.13, \(lqRebuilding or Repairing Tables or Indexes\(rq
+Section\ \&2.10.13, \(lqRebuilding or Repairing Tables or Indexes\(rq
 for manual table repair strategies\&.
 .PP
 \fBmysql_upgrade\fR
@@ -128,7 +128,7 @@ Some upgrade incompatibilities may require special handling
 \fIbefore\fR
 upgrading your MySQL installation and running
 \fBmysql_upgrade\fR\&. See
-Section\ \&2.11, \(lqUpgrading MySQL\(rq, for instructions on determining whether any such incompatibilities apply to your installation and how to handle them\&.
+Section\ \&2.10, \(lqUpgrading MySQL\(rq, for instructions on determining whether any such incompatibilities apply to your installation and how to handle them\&.
 .sp .5v
 .RE
 .PP
@@ -1142,7 +1142,7 @@ This option was added in MySQL 8\&.0\&.18\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2022, Oracle and/or its affiliates.
+Copyright \(co 1997, 2023, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
