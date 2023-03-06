@@ -3689,9 +3689,9 @@ String *Item_func_case::val_str(String *str) {
       return val_string_from_time(str);
     default: {
       Item *item = find_item(str);
-      if (item) {
-        String *res;
-        if ((res = item->val_str(str))) {
+      if (item != nullptr) {
+        String *res = item->val_str(str);
+        if (res != nullptr) {
           res->set_charset(collation.collation);
           null_value = false;
           return res;
@@ -3699,57 +3699,68 @@ String *Item_func_case::val_str(String *str) {
       }
     }
   }
-  null_value = true;
-  return (String *)nullptr;
+  if (current_thd->is_error()) {
+    return error_str();
+  } else {
+    return null_return_str();
+  }
 }
 
 longlong Item_func_case::val_int() {
   assert(fixed == 1);
-  char buff[MAX_FIELD_WIDTH];
-  String dummy_str(buff, sizeof(buff), default_charset());
+  StringBuffer<MAX_FIELD_WIDTH> dummy_str(default_charset());
   Item *item = find_item(&dummy_str);
-  longlong res;
 
-  if (!item) {
-    null_value = true;
-    return 0;
+  if (item != nullptr) {
+    const longlong res = item->val_int();
+    null_value = item->null_value;
+    return res;
   }
-  res = item->val_int();
-  null_value = item->null_value;
-  return res;
+
+  if (current_thd->is_error()) {
+    return error_int();
+  }
+
+  null_value = true;
+  return 0;
 }
 
 double Item_func_case::val_real() {
   assert(fixed == 1);
-  char buff[MAX_FIELD_WIDTH];
-  String dummy_str(buff, sizeof(buff), default_charset());
+  StringBuffer<MAX_FIELD_WIDTH> dummy_str(default_charset());
   Item *item = find_item(&dummy_str);
-  double res;
 
-  if (!item) {
-    null_value = true;
-    return 0;
+  if (item != nullptr) {
+    const double res = item->val_real();
+    null_value = item->null_value;
+    return res;
   }
-  res = item->val_real();
-  null_value = item->null_value;
-  return res;
+
+  if (current_thd->is_error()) {
+    return error_real();
+  }
+
+  null_value = true;
+  return 0.0;
 }
 
 my_decimal *Item_func_case::val_decimal(my_decimal *decimal_value) {
   assert(fixed == 1);
-  char buff[MAX_FIELD_WIDTH];
-  String dummy_str(buff, sizeof(buff), default_charset());
+  StringBuffer<MAX_FIELD_WIDTH> dummy_str(default_charset());
   Item *item = find_item(&dummy_str);
-  my_decimal *res;
 
-  if (!item) {
-    null_value = true;
-    return nullptr;
+  if (item != nullptr) {
+    my_decimal *res = item->val_decimal(decimal_value);
+    null_value = item->null_value;
+    return res;
   }
 
-  res = item->val_decimal(decimal_value);
-  null_value = item->null_value;
-  return res;
+  if (current_thd->is_error()) {
+    return error_decimal(decimal_value);
+  }
+
+  null_value = true;
+  return nullptr;
 }
 
 bool Item_func_case::val_json(Json_wrapper *wr) {
