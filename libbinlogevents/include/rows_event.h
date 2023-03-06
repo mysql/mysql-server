@@ -34,6 +34,7 @@
 #ifndef ROWS_EVENT_INCLUDED
 #define ROWS_EVENT_INCLUDED
 
+#include <sstream>
 #include <vector>
 #include "control_events.h"
 #include "table_id.h"
@@ -895,7 +896,12 @@ class Rows_event : public Binary_log_event {
       Indicates that rows in this event are complete, that is contain
       values for all columns of the table.
     */
-    COMPLETE_ROWS_F = (1U << 3)
+    COMPLETE_ROWS_F = (1U << 3),
+    /**
+      Flags for everything. Please update when you add new flags.
+     */
+    ALL_FLAGS = STMT_END_F | NO_FOREIGN_KEY_CHECKS_F | RELAXED_UNIQUE_CHECKS_F |
+                COMPLETE_ROWS_F
   };
 
   /**
@@ -1029,15 +1035,46 @@ class Rows_event : public Binary_log_event {
 
   unsigned long get_width() const { return m_width; }
 
+  /**
+    @brief Gets the flags listed as strings. If there are no flags set, returns
+    an empty string.
+
+    @return A string with the names of the flags set. If no flag is set, returns
+    an empty string.
+   */
+  std::string get_enum_flag_string() const {
+    assert((STMT_END_F | NO_FOREIGN_KEY_CHECKS_F | RELAXED_UNIQUE_CHECKS_F |
+            COMPLETE_ROWS_F) == ALL_FLAGS);
+    if (!m_flags) return "";
+    std::stringstream ss;
+    ss << " flags:";
+    if (m_flags & STMT_END_F) ss << " STMT_END_F";
+    if (m_flags & NO_FOREIGN_KEY_CHECKS_F) ss << " NO_FOREIGN_KEY_CHECKS_F";
+    if (m_flags & RELAXED_UNIQUE_CHECKS_F) ss << " RELAXED_UNIQUE_CHECKS_F";
+    if (m_flags & COMPLETE_ROWS_F) ss << " COMPLETE_ROWS_F";
+    if (m_flags & ~ALL_FLAGS) {
+      assert(false);
+      auto unknown_flags = m_flags & ~ALL_FLAGS;
+      ss << " UNKNOWN_FLAG(" << std::hex << "0x" << unknown_flags << ")";
+    }
+    return ss.str();
+  }
+
+  /**
+    Gets a string describing the flags.
+
+    @param flag A set of flags to get the description for.
+    @return a string describing the flags.
+  */
   static std::string get_flag_string(enum_flag flag) {
+    assert((STMT_END_F | NO_FOREIGN_KEY_CHECKS_F | RELAXED_UNIQUE_CHECKS_F |
+            COMPLETE_ROWS_F) == ALL_FLAGS);
     std::string str = "";
     if (flag & STMT_END_F) str.append(" Last event of the statement");
     if (flag & NO_FOREIGN_KEY_CHECKS_F) str.append(" No foreign Key checks");
     if (flag & RELAXED_UNIQUE_CHECKS_F) str.append(" No unique key checks");
     if (flag & COMPLETE_ROWS_F) str.append(" Complete Rows");
-    if (flag & ~(STMT_END_F | NO_FOREIGN_KEY_CHECKS_F |
-                 RELAXED_UNIQUE_CHECKS_F | COMPLETE_ROWS_F))
-      str.append("Unknown Flag");
+    if (flag & ~ALL_FLAGS) str.append(" Unknown Flag");
     return str;
   }
 #ifndef HAVE_MYSYS

@@ -10437,9 +10437,8 @@ bool Rows_log_event::write_data_body(Basic_ostream *ostream) {
 
 int Rows_log_event::pack_info(Protocol *protocol) {
   char buf[256];
-  char const *const flagstr = get_flags(STMT_END_F) ? " flags: STMT_END_F" : "";
-  size_t bytes =
-      snprintf(buf, sizeof(buf), "table_id: %llu%s", m_table_id.id(), flagstr);
+  size_t bytes = snprintf(buf, sizeof(buf), "table_id: %llu%s", m_table_id.id(),
+                          get_enum_flag_string().c_str());
   protocol->store_string(buf, bytes, &my_charset_bin);
   return 0;
 }
@@ -10454,7 +10453,8 @@ void Rows_log_event::print_helper(FILE *,
     bool const last_stmt_event = get_flags(STMT_END_F);
     print_header(head, print_event_info, !last_stmt_event);
     my_b_printf(head, "\t%s: table id %llu%s\n", get_type_str(),
-                m_table_id.id(), last_stmt_event ? " flags: STMT_END_F" : "");
+                m_table_id.id(), get_enum_flag_string().c_str());
+
     print_base64(body, print_event_info, !last_stmt_event);
   }
 }
