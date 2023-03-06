@@ -275,6 +275,7 @@ void Relay_log_info::init_workers(ulong n_workers) {
   mts_total_wait_overlap = 0;
   mts_total_wait_worker_avail = 0;
   mts_last_online_stat = 0;
+  mta_coordinator_has_waited_stat = 0;
 
   workers.reserve(n_workers);
   workers_array_initialized = true;  // set after init

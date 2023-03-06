@@ -199,12 +199,6 @@ const char *relay_log_basename = nullptr;
 const ulong mts_slave_worker_queue_len_max = 16384;
 
 /*
-  Statistics go to the error log every # of seconds when
-  --log_error_verbosity > 2
-*/
-const long mts_online_stat_period = 60 * 2;
-
-/*
   MTS load-ballancing parameter.
   Time unit in microsecs to sleep by MTS Coordinator to avoid extra thread
   signalling in the case of Worker queues are close to be filled up.
@@ -6687,6 +6681,7 @@ static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited) {
   rli->curr_group_isolated = false;
   rli->rli_checkpoint_seqno = 0;
   rli->mts_last_online_stat = time(nullptr);
+  rli->mta_coordinator_has_waited_stat = time(nullptr);
   rli->mts_group_status = Relay_log_info::MTS_NOT_IN_GROUP;
   clear_gtid_monitoring_info = true;
 

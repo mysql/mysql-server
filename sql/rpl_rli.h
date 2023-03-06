@@ -1302,6 +1302,8 @@ class Relay_log_info : public Rpl_info {
   struct timespec stats_begin;  // applier's bootstrap time
 
   time_t mts_last_online_stat;
+  /// Last moment in time the MTA printed a coordinator waited stats
+  time_t mta_coordinator_has_waited_stat;
   /* end of MTS statistics */
 
   /**

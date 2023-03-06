@@ -48,6 +48,12 @@ struct mysql_cond_t;
 struct mysql_mutex_t;
 class Rpl_channel_filters;
 
+/*
+  Statistics go to the error log every # of seconds when
+  --log_error_verbosity > 2
+*/
+const long mts_online_stat_period = 60 * 2;
+
 typedef struct struct_slave_connection LEX_SLAVE_CONNECTION;
 
 typedef enum {

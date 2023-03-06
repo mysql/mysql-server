@@ -2121,9 +2121,15 @@ bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *worker,
     mysql_mutex_unlock(&rli->pending_jobs_lock);
     thd->EXIT_COND(&old_stage);
     if (thd->killed) return true;
-    if (rli->wq_size_waits_cnt % 10 == 1)
-      LogErr(INFORMATION_LEVEL, ER_RPL_MTA_REPLICA_COORDINATOR_HAS_WAITED,
-             rli->wq_size_waits_cnt, ev_size);
+    if (rli->wq_size_waits_cnt % 10 == 1) {
+      time_t my_now = time(nullptr);
+      if ((my_now - rli->mta_coordinator_has_waited_stat) >=
+          mts_online_stat_period) {
+        LogErr(INFORMATION_LEVEL, ER_RPL_MTA_REPLICA_COORDINATOR_HAS_WAITED,
+               rli->wq_size_waits_cnt, ev_size);
+        rli->mta_coordinator_has_waited_stat = my_now;
+      }
+    }
     mysql_mutex_lock(&rli->pending_jobs_lock);
 
     new_pend_size = rli->mts_pending_jobs_size + ev_size;
