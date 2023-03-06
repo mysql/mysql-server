@@ -2,12 +2,12 @@
 .\"     Title: ndb_restore
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2022
+.\"      Date: 03/03/2023
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_RESTORE" "1" "11/26/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_RESTORE" "1" "03/03/2023" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -89,6 +89,7 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
+lB l l
 lB l l
 lB l l
 lB l l
@@ -844,6 +845,15 @@ T}:T{
 T}
 T{
 .PP
+\fB \fR\fB--timestamp-printouts{=true|false}\fR\fB \fR
+T}:T{
+Prefix all info, error, and debug log messages with timestamps
+T}:T{
+.PP
+ADDED: NDB 8.0.33
+T}
+T{
+.PP
 \fB--usage\fR,
 .PP
 \fB \fR\fB-?\fR\fB \fR
@@ -1189,9 +1199,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 8\&.0\&.32 to a cluster running NDB Cluster 7\&.6\&.25, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 8\&.0\&.33 to a cluster running NDB Cluster 7\&.6\&.26, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.6\&.25 distribution\&.
+that comes with the NDB Cluster 7\&.6\&.26 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -4403,6 +4413,49 @@ for the current directory\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-timestamp\-printouts\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--timestamp-printouts{=true|false}
+T}
+T{
+Introduced
+T}:T{
+8.0.33-ndb-8.0.33
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+true
+T}
+.TE
+.sp 1
+Causes info, error, and debug log messages to be prefixed with timestamps\&.
+.sp
+This option is enabled by default in NDB 8\&.0\&. Disable it with
+\fB\-\-timestamp\-printouts=false\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-usage\fR
 .TS
 allbox tab(:);
@@ -4654,7 +4707,7 @@ Section\ \&23.3.7, \(lqUpgrading and Downgrading NDB Cluster\(rq, for other issu
 .PP
 It is also advisable to review
 What is New in NDB Cluster 8.0, as well as
-Section\ \&2.11.4, \(lqChanges in MySQL 8.0\(rq, for other changes between NDB 8\&.0 and previous versions of NDB Cluster that may be relevant to your particular circumstances\&.
+Section\ \&2.10.4, \(lqChanges in MySQL 8.0\(rq, for other changes between NDB 8\&.0 and previous versions of NDB Cluster that may be relevant to your particular circumstances\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -4864,7 +4917,7 @@ REPAIR TABLE
 in the
 \fBmysql\fR
 client; this must be done prior to taking the backup\&. See
-Section\ \&2.11.5, \(lqPreparing Your Installation for Upgrade\(rq, for more information\&.
+Section\ \&2.10.5, \(lqPreparing Your Installation for Upgrade\(rq, for more information\&.
 .sp
 You also restore such tables using a dump created with
 \fBmysqldump\fR\&.
@@ -5616,7 +5669,7 @@ binary supplied with the older version of the NDB Cluster software\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2022, Oracle and/or its affiliates.
+Copyright \(co 1997, 2023, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

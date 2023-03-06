@@ -2,12 +2,12 @@
 .\"     Title: mysqlbinlog
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2022
+.\"      Date: 03/03/2023
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLBINLOG" "1" "11/26/2022" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQLBINLOG" "1" "03/03/2023" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1249,9 +1249,9 @@ Use this option before MySQL 8\&.0\&.26 rather than
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-read\-from\-remote\-server\fR,
+\fB\-\-read\-from\-remote\-server=\fR\fB\fIfile_name\fR\fR,
 \fB\-R\fR
-Read the binary log from a MySQL server rather than reading a local log file\&. This option requires that the remote server be running\&. It works only for binary log files on the remote server, not relay log files\&.
+Read the binary log from a MySQL server rather than reading a local log file\&. This option requires that the remote server be running\&. It works only for binary log files on the remote server, not relay log files, and takes only the binary log file name (including the numeric suffix) as its argument, while ignoring any path\&.
 .sp
 The connection parameter options are used with this option or the
 \fB\-\-read\-from\-remote\-master\fR
@@ -3214,7 +3214,7 @@ specifies a nonzero server ID\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2022, Oracle and/or its affiliates.
+Copyright \(co 1997, 2023, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
