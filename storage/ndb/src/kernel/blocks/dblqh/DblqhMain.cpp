@@ -9586,30 +9586,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
      * This is a normal operation in a starting node which is currently being
      * synchronised with the live node.
      */
-
-    /**
-     * match used for NrCopy operations above is based on a binary
-     * comparison, but char keys with certain collations can be
-     * equivalent but not binary equal.
-     * We check for this case now if no match found so far
-     * This assumes that there is no case where
-     * binary equality does not imply collation equality.
-     */
-    bool xfrmMatch = match;
-    const Uint32 tableId = regTcPtr.p->tableref;
-    if (len > 0 && !match &&
-        g_key_descriptor_pool.getPtr(tableId)->hasCharAttr)
-    {
-      jam();
-
-      /* Copy request key into linear space */
-      Uint64 reqKey[(MAX_KEY_SIZE_IN_WORDS+1) >> 1];
-      copy((Uint32*)reqKey, regTcPtr.p->keyInfoIVal);
-
-      xfrmMatch = cmp_key(tableId, &signal->theData[24], (Uint32*)reqKey) == 0;
-    }
-
-    if (!xfrmMatch && op != ZINSERT)
+    if (!match && op != ZINSERT)
     {
       /**
        * We are performing an UPDATE or a DELETE and the row id position
@@ -9624,7 +9601,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
 	TRACENR(" IGNORE " << endl); 
       goto ignore;
     }
-    if (xfrmMatch)
+    if (match)
     {
       /**
        * An INSERT/UPDATE/DELETE/REFRESH on a record where we have the correct
@@ -9654,7 +9631,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
      * same manner as if it was a copy row coming. It might be redone later
      * but this is not a problem with consistency.
      */
-    ndbassert(!xfrmMatch && op == ZINSERT);
+    ndbassert(!match && op == ZINSERT);
 
     /**
      * Perform the following action (same as above for copy row case)
@@ -9704,36 +9681,55 @@ update_gci_ignore:
  */
 int
 Dblqh::compare_key(const TcConnectionrec* regTcPtr, 
-		   const Uint32 * ptr, Uint32 len)
+		   const Uint32 *ptr, Uint32 len)
 {
-  if (regTcPtr->primKeyLen != len)
+  ndbassert(len > 0);
+  if (regTcPtr->keyInfoIVal == RNIL)
     return 1;
-  
-  ndbassert( regTcPtr->keyInfoIVal != RNIL );
 
-  SectionReader keyInfoReader(regTcPtr->keyInfoIVal,
-                              getSectionSegmentPool());
-  
-  ndbassert(regTcPtr->primKeyLen == keyInfoReader.getSize());
-
-  while (len != 0)
+  const Uint32 tableId = regTcPtr->tableref;
+  if (g_key_descriptor_pool.getPtr(tableId)->hasCharAttr)
   {
-    const Uint32* keyChunk= NULL;
-    Uint32 chunkSize= 0;
+    /**
+     * Need to do a collation aware compare.
+     * Note that we could always have taken this code path.
+     * However, doing a binary compare when possible, is likely more efficient.
+     */
+    jam();
 
-    /* Get a ptr to a chunk of contiguous words to compare */
-    bool ok= keyInfoReader.getWordsPtr(len, keyChunk, chunkSize);
+    // Copy key into linear space.
+    Uint64 reqKey[(MAX_KEY_SIZE_IN_WORDS+1) >> 1];
+    copy((Uint32*)reqKey, regTcPtr->keyInfoIVal);
 
-    ndbrequire(ok);
-
-    if ( memcmp(ptr, keyChunk, chunkSize << 2))
-      return 1;
-    
-    ptr+= chunkSize;
-    len-= chunkSize;
+    return cmp_key(tableId, ptr, (Uint32*)reqKey);
   }
+  else
+  {
+    // A binary compare is sufficient.
+    if (regTcPtr->primKeyLen != len)
+      return 1;
 
-  return 0;
+    SectionReader keyInfoReader(regTcPtr->keyInfoIVal,
+                                getSectionSegmentPool());
+    ndbassert(regTcPtr->primKeyLen == keyInfoReader.getSize());
+
+    while (len != 0)
+    {
+      const Uint32* keyChunk= nullptr;
+      Uint32 chunkSize= 0;
+
+      /* Get a ptr to a chunk of contiguous words to compare */
+      bool ok= keyInfoReader.getWordsPtr(len, keyChunk, chunkSize);
+      ndbrequire(ok);
+
+      if (memcmp(ptr, keyChunk, chunkSize << 2))
+        return 1;
+
+      ptr+= chunkSize;
+      len-= chunkSize;
+    }
+    return 0;
+  }
 }
 
 void
