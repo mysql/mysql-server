@@ -4756,7 +4756,7 @@ String *Field_temporal_with_date::val_str(String *val_buffer, String *) const {
   val_buffer->alloc(field_length + 1);
   val_buffer->set_charset(&my_charset_numeric);
   if (get_date_internal(&ltime)) {
-    val_buffer->set_ascii(my_zero_datetime6, field_length);
+    val_buffer->copy(my_zero_datetime6, field_length, &my_charset_numeric);
     return val_buffer;
   }
   make_datetime((Date_time_format *)nullptr, &ltime, val_buffer, dec);
