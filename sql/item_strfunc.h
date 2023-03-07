@@ -331,6 +331,9 @@ class Item_func_random_bytes : public Item_str_func {
   String *val_str(String *a) override;
 
   const char *func_name() const override { return "random_bytes"; }
+  table_map get_initial_pseudo_tables() const override {
+    return RAND_TABLE_BIT;
+  }
 };
 
 class Item_func_concat : public Item_str_func {
