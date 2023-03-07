@@ -7373,6 +7373,19 @@ bool Item_func_any_value::aggregate_check_distinct(uchar *arg) {
   return false;
 }
 
+bool Item_func_any_value::collect_item_field_or_view_ref_processor(uchar *arg) {
+  Collect_item_fields_or_view_refs *info =
+      pointer_cast<Collect_item_fields_or_view_refs *>(arg);
+  if (m_phase_post) {
+    m_phase_post = false;
+    info->m_any_value_level--;
+  } else {
+    m_phase_post = true;
+    info->m_any_value_level++;
+  }
+  return false;
+}
+
 bool Item_cond_and::contains_only_equi_join_condition() const {
   for (const Item &item : list) {
     if (item.type() != Item::FUNC_ITEM) {

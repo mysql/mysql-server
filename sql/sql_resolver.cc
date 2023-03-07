@@ -6341,6 +6341,9 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
         Item_field *f = down_cast<Item_field *>(lf);
         if (unique_fields.find(f->field) == unique_fields.end()) {
           unique_fields.emplace(std::pair<Field *, Item_field *>(f->field, f));
+        } else {
+          // Should already have been deduplicated during collection
+          assert(false);
         }
       } else if (lf->type() == Item::DEFAULT_VALUE_ITEM) {
         Item_default_value *dv = down_cast<Item_default_value *>(lf);
@@ -6350,6 +6353,9 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
             unique_default_values.end()) {
           unique_default_values.emplace(
               std::pair<Field *, Item_field *>(lf_field->field, dv));
+        } else {
+          // Should already have been deduplicated during collection
+          assert(false);
         }
       } else {
         Item_view_ref *vr = down_cast<Item_view_ref *>(lf);
@@ -6372,10 +6378,21 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
 
     for (auto field_class : field_classes) {
       for (auto pair : *field_class) {
-        if (new_derived->add_item_to_list(pair.second)) return true;
-        if (baptize_item(thd, pair.second, &field_no)) return true;
-        if (update_context_to_derived(pair.second, new_derived)) return true;
-        pair.second->depended_from = nullptr;
+        Item_field *f = pair.second;
+        Item *sl_item = f;
+        if (f->type() == Item::FIELD_ITEM && f->protected_by_any_value()) {
+          // The field was mentioned only ever inside arguments to ANY_VALUE, so
+          // protect it likewise in new_derived, lest we get a
+          // ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2. If not, we let the check
+          // proceed, i.e. we do not add ANY_VALUE for the column.
+          sl_item = new (thd->mem_root) Item_func_any_value(f);
+          if (sl_item == nullptr) return true;
+          if (sl_item->fix_fields(thd, &sl_item)) return true;
+        }
+        if (new_derived->add_item_to_list(sl_item)) return true;
+        if (baptize_item(thd, sl_item, &field_no)) return true;
+        if (update_context_to_derived(sl_item, new_derived)) return true;
+        f->depended_from = nullptr;
       }
     }
 

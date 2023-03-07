@@ -829,6 +829,7 @@ DROP TABLE t1, t2;
 --echo # outer query has DEFAULT: verify it is handled correctly
 CREATE TABLE t(i INT DEFAULT 5);
 INSERT INTO t VALUES (4);
+ANALYZE TABLE t;
 
 let $query =
 SELECT DEFAULT(i) AS def,
@@ -847,6 +848,59 @@ eval $query;
 eval EXPLAIN $query;
 
 SET SQL_MODE=default;
+
+--echo # Bug#35150438 Unwarranted error message for ANY_VALUE with
+--echo #              scalar subquery transform
+let $query =
+SELECT ANY_VALUE(i) AS i1,
+       (SELECT i FROM t) AS subquery,
+       SUM(i) AS summ
+FROM t;
+
+eval $query;
+eval EXPLAIN $query;
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT i + ANY_VALUE(i) AS i1,
+       (SELECT i FROM t) AS subquery,
+       SUM(i) AS summ
+FROM t;
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT ANY_VALUE(i) + i AS i1,
+       (SELECT i FROM t) AS subquery,
+       SUM(i) AS summ
+FROM t;
+
+let $query =
+SELECT ANY_VALUE(ANY_VALUE(i) + i) AS i1,
+       (SELECT i FROM t) AS subquery,
+       SUM(i) AS summ
+FROM t;
+
+eval $query;
+eval EXPLAIN $query;
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT ANY_VALUE(i) AS i1, i as i2,
+       (SELECT i FROM t) AS subquery,
+       SUM(i) AS summ
+FROM t;
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT i as i2, ANY_VALUE(i) AS i1,
+       (SELECT i FROM t) AS subquery,
+       SUM(i) AS summ
+FROM t;
+
+let $query =
+SELECT ANY_VALUE(i) as i2, ANY_VALUE(i) AS i1,
+       (SELECT i FROM t) AS subquery,
+       SUM(i) AS summ
+FROM t;
+
+eval $query;
+eval EXPLAIN $query;
 
 DROP TABLE t;
 

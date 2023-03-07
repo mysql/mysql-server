@@ -2584,6 +2584,9 @@ class Item : public Parse_tree_node {
    public:
     List<Item> *m_item_fields_or_view_refs;
     Query_block *m_transformed_block;
+    /// Used to compute \c Item_field's \c m_protected_by_any_value. Pushed and
+    /// popped when walking arguments of \c Item_func_any_value.a
+    uint m_any_value_level{0};
     Collect_item_fields_or_view_refs(List<Item> *fields_or_vr,
                                      Query_block *transformed_block)
         : m_item_fields_or_view_refs(fields_or_vr),
@@ -4208,6 +4211,12 @@ class Item_field : public Item_ident {
   */
   const Item_field *m_base_item_field{nullptr};
 
+  /**
+    State used for transforming scalar subqueries to JOINs with derived tables,
+    cf.  \c transform_grouped_to_derived. Has accessor.
+  */
+  bool m_protected_by_any_value{false};
+
  public:
   /**
     Used during optimization to perform multiple equality analysis,
@@ -4258,7 +4267,6 @@ class Item_field : public Item_ident {
     are supported.
   */
   bool can_use_prefix_key{false};
-
   Item_field(Name_resolution_context *context_arg, const char *db_arg,
              const char *table_name_arg, const char *field_name_arg);
   Item_field(const POS &pos, const char *db_arg, const char *table_name_arg,
@@ -4448,6 +4456,8 @@ class Item_field : public Item_ident {
              select list item.
   */
   virtual bool is_asterisk() const { return false; }
+  /// See \c m_protected_by_any_value
+  bool protected_by_any_value() const { return m_protected_by_any_value; }
 };
 
 /**

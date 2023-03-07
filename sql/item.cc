@@ -881,8 +881,18 @@ bool Item_field::collect_item_field_or_view_ref_processor(uchar *arg) {
   List_iterator<Item> item_list_it(*info->m_item_fields_or_view_refs);
   Item *curr_item;
   while ((curr_item = item_list_it++)) {
-    if (curr_item->eq(this, true)) return false; /* Already in the set. */
+    if (curr_item->eq(this, true)) {
+      // We have this field already, so don't insert.  All occurrences must be
+      // protected by ANY_VALUE for us to also protect it: one occurrence that
+      // is not protected might give ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2 in
+      // strict mode, so we don't want to lose that info during transform by
+      // protecting a reference that wasn't protected before, hence '&=' below.
+      down_cast<Item_field *>(curr_item)->m_protected_by_any_value &=
+          info->m_any_value_level > 0;
+      return false; /* Already in the set. */
+    }
   }
+  m_protected_by_any_value = info->m_any_value_level > 0;
   info->m_item_fields_or_view_refs->push_back(this);
   return false;
 }

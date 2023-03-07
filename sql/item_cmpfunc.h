@@ -1484,6 +1484,11 @@ class Item_func_any_value final : public Item_func_coalesce {
   const char *func_name() const override { return "any_value"; }
   bool aggregate_check_group(uchar *arg) override;
   bool aggregate_check_distinct(uchar *arg) override;
+  bool collect_item_field_or_view_ref_processor(uchar *arg) override;
+
+ private:
+  // used when walk'ing with collect_item_field_or_view_ref_processor
+  bool m_phase_post{false};
 };
 
 class Item_func_if final : public Item_func {
