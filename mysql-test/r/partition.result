@@ -3331,8 +3331,12 @@ CREATE TABLE t (c1 INT, c2 INT) PARTITION BY RANGE(c1) (PARTITION p1 VALUES LESS
 ALTER TABLE t MODIFY COLUMN c2 CHAR(32) DEFAULT (RANDOM_BYTES(32));
 DROP TABLE t, t1, t2;
 CREATE TABLE t1 (c1 INT, c2 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32))) PARTITION BY HASH(c1);
+ERROR HY000: Expression of generated column 'c2' contains a disallowed function: random_bytes.
 CREATE TABLE t2 (c1 INT, c2 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32))) PARTITION BY RANGE(c1) (PARTITION p1 VALUES LESS THAN(100));
+ERROR HY000: Expression of generated column 'c2' contains a disallowed function: random_bytes.
 CREATE TABLE t (c1 INT, c2 INT) PARTITION BY RANGE(c1) (PARTITION p1 VALUES LESS THAN(100));
 ALTER TABLE t MODIFY COLUMN c2 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32)) STORED;
+ERROR HY000: Expression of generated column 'c2' contains a disallowed function: random_bytes.
 ALTER TABLE t ADD COLUMN c3 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32));
-DROP TABLE t, t1, t2;
+ERROR HY000: Expression of generated column 'c3' contains a disallowed function: random_bytes.
+DROP TABLE t;

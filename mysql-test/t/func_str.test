@@ -2595,3 +2595,25 @@ DROP VIEW v1;
 DROP TABLE t1;
 
 SET SESSION SQL_MODE=DEFAULT;
+
+--echo #
+--echo # Bug#35148945: String* Item::null_return_str():
+--echo #               Assertion `m_nullable' failed
+--echo #
+
+CREATE TABLE t (a VARCHAR(10) NOT NULL);
+
+INSERT INTO t
+WITH RECURSIVE seq AS (
+   SELECT 1 AS n UNION ALL SELECT n + 1 FROM seq WHERE n < 200
+)
+SELECT 'abc' FROM seq;
+
+SET sql_mode = '';
+# We don't care about the result, only that it doesn't hit an assertion.
+--disable_result_log
+SELECT LPAD(a, ASCII(RANDOM_BYTES(1)) - 10, 'abc') FROM t;
+--enable_result_log
+SET sql_mode = DEFAULT;
+
+DROP TABLE t;

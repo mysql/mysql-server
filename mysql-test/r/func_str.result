@@ -5774,3 +5774,17 @@ Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - t
 DROP VIEW v1;
 DROP TABLE t1;
 SET SESSION SQL_MODE=DEFAULT;
+#
+# Bug#35148945: String* Item::null_return_str():
+#               Assertion `m_nullable' failed
+#
+CREATE TABLE t (a VARCHAR(10) NOT NULL);
+INSERT INTO t
+WITH RECURSIVE seq AS (
+SELECT 1 AS n UNION ALL SELECT n + 1 FROM seq WHERE n < 200
+)
+SELECT 'abc' FROM seq;
+SET sql_mode = '';
+SELECT LPAD(a, ASCII(RANDOM_BYTES(1)) - 10, 'abc') FROM t;
+SET sql_mode = DEFAULT;
+DROP TABLE t;
