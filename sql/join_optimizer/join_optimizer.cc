@@ -6567,7 +6567,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       (!receiver.HasSeen(TablesBetween(0, graph.nodes.size())) ||
        receiver.root_candidates().empty())) {
     my_error(ER_SECONDARY_ENGINE, MYF(0),
-             "All plans were rejected by the secondary storage engine.");
+             "All plans were rejected by the secondary storage engine");
     return nullptr;
   }
   Prealloced_array<AccessPath *, 4> root_candidates =
@@ -6917,7 +6917,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     // (e.g., sorting, limit, grouping) that we could not build a complete plan.
     assert(secondary_engine_cost_hook != nullptr);
     my_error(ER_SECONDARY_ENGINE, MYF(0),
-             "All plans were rejected by the secondary storage engine.");
+             "All plans were rejected by the secondary storage engine");
     return nullptr;
   }
 
