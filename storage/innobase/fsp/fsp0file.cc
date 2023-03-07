@@ -890,8 +890,8 @@ dberr_t Datafile::restore_from_doublewrite(page_no_t restore_page_no) {
     now. Hence this is treated as an error. */
 
     if (found && reduced_lsn != LSN_MAX && reduced_lsn != 0) {
-      ib::error(ER_REDUCED_DBLWR_PAGE_FOUND, m_filepath, page_id.space(),
-                page_id.page_no());
+      ib::fatal(UT_LOCATION_HERE, ER_REDUCED_DBLWR_PAGE_FOUND, m_filepath,
+                page_id.space(), page_id.page_no());
     } else {
       ib::error(ER_IB_MSG_412)
           << "Corrupted page " << page_id_t(m_space_id, restore_page_no)
@@ -904,10 +904,8 @@ dberr_t Datafile::restore_from_doublewrite(page_no_t restore_page_no) {
   const lsn_t dblwr_lsn = mach_read_from_8(page + FIL_PAGE_LSN);
 
   if (found && reduced_lsn != LSN_MAX && reduced_lsn > dblwr_lsn) {
-    ib::error(ER_REDUCED_DBLWR_PAGE_FOUND, m_filepath, page_id.space(),
-              page_id.page_no());
-
-    return (DB_CORRUPTION);
+    ib::fatal(UT_LOCATION_HERE, ER_REDUCED_DBLWR_PAGE_FOUND, m_filepath,
+              page_id.space(), page_id.page_no());
   }
 
   const uint32_t flags = fsp_header_get_field(page, FSP_SPACE_FLAGS);
