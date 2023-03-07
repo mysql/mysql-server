@@ -11756,6 +11756,9 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
                                     &skip_metadata_update))
       return true;
   } else {
+    if (table_list->partition_names != nullptr) {
+      skip_metadata_update = true;
+    }
     if (DBUG_EVALUATE_IF("sim_secunload_fail",
                          (my_error(ER_SECONDARY_ENGINE, MYF(0),
                                    "Simulated failure of secondary_unload()"),
