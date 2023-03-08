@@ -16,7 +16,7 @@
 ndb_big.smoke : BUG#29110705 Not ready for automated testing yet.
 
 # ndb_rpl suite tests
-ndb_rpl.ndb_rpl_binlog_format_errors       : BUG#26078612 PB2 TEST FAILURE
+ndb_rpl.ndb_rpl_binlog_format_errors       : BUG#29776083 EXPLICIT BINLOG INJECTION WITH SELF LOGGING ENGINES IS BROKEN
 
 # ndb suite tests
 ndb.ndb_insert            : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
