@@ -12225,6 +12225,9 @@ ER_CONN_INIT_CONNECT_IGNORED_MFA
 ER_SECONDARY_ENGINE_DDL_FAILED
   eng "Execution of alter table %s %s failed because %s."
 
+ER_THREAD_POOL_CONNECTION_REPORT
+   eng "TP conn (port: managed(delta), active, opened, closed, added, dropped): %s"
+
 ER_REDUCED_DBLWR_PAGE_FOUND
   eng "Database page corruption of tablespace %s space_id: %u page_num: %u. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode."
 
@@ -12233,9 +12236,6 @@ ER_IB_BULK_FLUSHER_PUNCH_HOLE
 
 ER_GRP_RPL_CONN_KILLED
    eng "%s as the client session was killed."
-
-ER_THREAD_POOL_CONNECTION_REPORT
-   eng "TP conn (port: managed(delta), active, opened, closed, added, dropped): %s"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
