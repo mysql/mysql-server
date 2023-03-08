@@ -2196,6 +2196,11 @@ acl_authenticate(THD *thd, enum_server_command command)
   compile_time_assert(MYSQL_USERNAME_LENGTH == USERNAME_LENGTH);
   assert(command == COM_CONNECT || command == COM_CHANGE_USER);
 
+  DBUG_EXECUTE_IF("acl_authenticate_begin", {
+    const char act[] = "now SIGNAL conn2_in_acl_auth WAIT_FOR conn1_reached_kill";
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
+
   server_mpvio_initialize(thd, &mpvio, &charset_adapter);
   /*
     Clear thd->db as it points to something, that will be freed when
