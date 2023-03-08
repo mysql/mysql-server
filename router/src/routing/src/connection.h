@@ -219,8 +219,7 @@ class ConnectorBase {
   net::ip::tcp::resolver::results_type endpoints_;
   net::ip::tcp::resolver::results_type::iterator endpoints_it_;
 
-  std::error_code last_ec_{
-      make_error_code(std::errc::no_such_file_or_directory)};
+  std::error_code last_ec_{make_error_code(DestinationsErrc::kNotSet)};
 
   Function func_{Function::kInitDestination};
 

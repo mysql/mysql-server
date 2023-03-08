@@ -52,6 +52,10 @@ class DestRoundRobin : public RouteDestination {
 
   Destinations destinations() override;
 
+  routing::RoutingStrategy get_strategy() override {
+    return routing::RoutingStrategy::kRoundRobin;
+  }
+
  protected:
   // MUST take the RouteDestination Mutex
   size_t start_pos_{};

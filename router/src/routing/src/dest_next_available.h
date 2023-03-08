@@ -44,6 +44,10 @@ class DestNextAvailable final : public RouteDestination {
     }
   }
 
+  routing::RoutingStrategy get_strategy() override {
+    return routing::RoutingStrategy::kNextAvailable;
+  }
+
  private:
   size_t valid_ndx_{};
 };
