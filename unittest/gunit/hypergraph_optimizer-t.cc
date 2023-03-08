@@ -5823,6 +5823,137 @@ TEST_F(HypergraphOptimizerTest, UpdateHashJoin) {
   EXPECT_EQ(t2, hash_join.inner->table_scan().table);
 }
 
+TEST_F(HypergraphOptimizerTest, IndexSkipScan) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.y FROM t1 WHERE t1.y < 300", /*nullable=*/true);
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  t1->file->stats.data_file_length = 100e6;
+  t1->create_index(t1->field[0], t1->field[1], t1->field[2], /*unique=*/true);
+
+  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
+      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+  m_thd->variables.optimizer_switch |= OPTIMIZER_SKIP_SCAN;
+  t1->covering_keys.clear_all();
+  t1->covering_keys.set_bit(0);  // covering index on (y,w)
+  t1->s->key_info = t1->key_info;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::INDEX_SKIP_SCAN, root->type);
+  ASSERT_EQ(0, root->index_skip_scan().index);
+  ASSERT_EQ(2, root->index_skip_scan().num_used_key_parts);
+  query_block->cleanup(/*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, IndexSkipScanWithOrderBy) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.y  FROM t1 WHERE t1.y < 300 ORDER BY t1.x,t1.y",
+      /*nullable=*/true);
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  t1->file->stats.data_file_length = 100e6;
+  t1->create_index(t1->field[0], t1->field[1], /*unique=*/true);
+
+  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
+      .WillByDefault(
+          Return(HA_READ_RANGE | HA_READ_ORDER | HA_READ_NEXT | HA_READ_PREV));
+  m_thd->variables.optimizer_switch |= OPTIMIZER_SKIP_SCAN;
+  t1->covering_keys.clear_all();
+  t1->covering_keys.set_bit(0);  // covering index on (x,y)
+  t1->s->key_info = t1->key_info;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The ORDER BY order is the same as the skip scan index order, so the sort
+  // should be elided. Due to this, an AccessPath::SORT should not be added
+  // on top of AccessPath::INDEX_SKIP_SCAN
+  ASSERT_EQ(AccessPath::INDEX_SKIP_SCAN, root->type);
+  ASSERT_EQ(0, root->index_skip_scan().index);
+  ASSERT_EQ(2, root->index_skip_scan().num_used_key_parts);
+  query_block->cleanup(/*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, IndexSkipScanMultiIndex) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.y, t1.w  FROM t1 WHERE t1.w < 300 ORDER BY t1.y",
+      /*nullable=*/true);
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  t1->file->stats.data_file_length = 100e6;
+  t1->create_index(t1->field[2], t1->field[3], /*unique=*/true);
+  t1->create_index(t1->field[1], t1->field[3], /*unique=*/true);
+
+  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
+      .WillByDefault(
+          Return(HA_READ_RANGE | HA_READ_ORDER | HA_READ_NEXT | HA_READ_PREV));
+  m_thd->variables.optimizer_switch |= OPTIMIZER_SKIP_SCAN;
+  t1->covering_keys.clear_all();
+  // non-covering index on (z,w), covering index on (y,w)
+  t1->covering_keys.set_bit(0);
+  t1->covering_keys.set_bit(1);
+  t1->s->key_info = t1->key_info;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // SORT path should be elided by INDEX_SKIP_SCAN
+  ASSERT_EQ(AccessPath::INDEX_SKIP_SCAN, root->type);
+  ASSERT_EQ(1, root->index_skip_scan().index);
+  ASSERT_EQ(2, root->index_skip_scan().num_used_key_parts);
+  query_block->cleanup(/*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, IndexSkipScanMultiPredicate) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.y, t1.z, t1.w FROM t1 WHERE t1.x = 5 AND t1.z > 10 ORDER BY "
+      "t1.x, t1.y",
+      /*nullable=*/true);
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  t1->file->stats.data_file_length = 100e6;
+  t1->create_index(t1->field[0], t1->field[1], t1->field[2], /*unique=*/true);
+
+  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
+      .WillByDefault(
+          Return(HA_READ_RANGE | HA_READ_ORDER | HA_READ_NEXT | HA_READ_PREV));
+  m_thd->variables.optimizer_switch |= OPTIMIZER_SKIP_SCAN;
+  t1->covering_keys.clear_all();
+  t1->covering_keys.set_bit(0);
+  t1->s->key_info = t1->key_info;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ("((t1.x = 5) and (t1.z > 10))",
+            ItemToString(root->filter().condition));
+  AccessPath *child = root->filter().child;
+  ASSERT_EQ(AccessPath::INDEX_SKIP_SCAN, child->type);
+  ASSERT_EQ(0, child->index_skip_scan().index);
+  ASSERT_EQ(3, child->index_skip_scan().num_used_key_parts);
+
+  query_block->cleanup(/*full=*/true);
+}
+
 // An alias for better naming.
 using HypergraphSecondaryEngineTest = HypergraphOptimizerTest;
 

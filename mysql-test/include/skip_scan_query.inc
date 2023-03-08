@@ -1,22 +1,24 @@
+--source include/elide_costs.inc
+
 set optimizer_switch = 'skip_scan=on';
---eval EXPLAIN $query
+--replace_regex $elide_costs
+--eval EXPLAIN FORMAT=TREE $query
 FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
---skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read%';
 --disable_query_log
 --eval CREATE TABLE skip_scan $query
 --enable_query_log
 
 set optimizer_switch = 'skip_scan=off';
---eval EXPLAIN $query
+--replace_regex $elide_costs
+--eval EXPLAIN FORMAT=TREE $query
 FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
---skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read%';
 --disable_query_log
 --eval CREATE TABLE no_skip_scan $query
@@ -25,12 +27,12 @@ SHOW STATUS LIKE 'handler_read%';
 --let $diff_tables= test.skip_scan, test.no_skip_scan
 --source include/diff_tables.inc
 
---eval EXPLAIN $hint_query
+--replace_regex $elide_costs
+--eval EXPLAIN FORMAT=TREE $hint_query
 FLUSH STATUS;
 --disable_result_log
 --eval $hint_query
 --enable_result_log
---skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read%';
 --disable_query_log
 --eval CREATE TABLE hint_skip_scan $hint_query

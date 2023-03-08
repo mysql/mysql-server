@@ -262,6 +262,11 @@ class Fake_TABLE : public TABLE {
   }
 
   int create_index(Field *column1, Field *column2, ulong key_flags) {
+    return create_index(column1, column2, nullptr, key_flags);
+  }
+
+  int create_index(Field *column1, Field *column2, Field *column3,
+                   ulong key_flags) {
     column1->set_flag(PART_KEY_FLAG);
     int index_id = highest_index_id++;
     column1->key_start.set_bit(index_id);
@@ -273,6 +278,11 @@ class Fake_TABLE : public TABLE {
       column2->part_of_key.set_bit(index_id);
     }
 
+    if (column3 != nullptr) {
+      column3->set_flag(PART_KEY_FLAG);
+      column3->part_of_key.set_bit(index_id);
+    }
+
     KEY *key = &m_keys[index_id];
     key->table = this;
     key->flags = key->actual_flags = key_flags;
@@ -282,6 +292,11 @@ class Fake_TABLE : public TABLE {
     if (column2 != nullptr) {
       key->actual_key_parts = key->user_defined_key_parts = 2;
       key->key_part[1].init_from_field(column2);
+      ++s->key_parts;
+    }
+    if (column3 != nullptr) {
+      key->actual_key_parts = key->user_defined_key_parts = 3;
+      key->key_part[2].init_from_field(column3);
       ++s->key_parts;
     }
     key->name = "unittest_index";

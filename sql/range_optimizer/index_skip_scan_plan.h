@@ -74,14 +74,18 @@ struct IndexSkipScanParameters {
   uint eq_prefix_len;        ///< Length of the equality prefix
   uint eq_prefix_key_parts;  ///< Number of key parts in the equality prefix
   EQPrefix *eq_prefixes;     ///< Array of equality constants (IN list)
-  KEY_PART_INFO *range_key_part;  ///< The key part corresponding to the range
-                                  ///< condition
+  KEY_PART_INFO *range_key_part;  ///< The key part matching the range condition
+  uint used_key_parts;            ///< Number of index keys used for skip scan
+  double read_cost;               ///< Total cost of read
+  uint index;                     ///< Position of chosen index
+
   uchar *min_range_key;
   uchar *max_range_key;
   uchar *min_search_key;
   uchar *max_search_key;
   uint range_cond_flag;
   uint range_key_len;
+  uint num_output_rows;
 
   // The sub-tree corresponding to the range condition
   // (on key part C - for more details see description of get_best_skip_scan()).
@@ -94,6 +98,12 @@ struct IndexSkipScanParameters {
   bool has_aggregate_function;  ///< TRUE if there are aggregate functions.
 };
 
+Mem_root_array<AccessPath *> get_all_skip_scans(THD *thd,
+                                                RANGE_OPT_PARAM *param,
+                                                SEL_TREE *tree,
+                                                enum_order order_direction,
+                                                bool skip_records_in_range,
+                                                bool force_skip_scan);
 AccessPath *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param, SEL_TREE *tree,
                                enum_order order_direction,
                                bool skip_records_in_range,

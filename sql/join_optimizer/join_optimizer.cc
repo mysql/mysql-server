@@ -482,6 +482,11 @@ class CostingReceiver {
                          double num_output_rows_after_filter,
                          RANGE_OPT_PARAM *param,
                          bool *has_clustered_primary_key_scan);
+  void ProposeIndexSkipScan(int node_idx, RANGE_OPT_PARAM *param,
+                            AccessPath *skip_scan_path, TABLE *table,
+                            OverflowBitset all_predicates,
+                            size_t num_where_predicates, size_t predicate_idx,
+                            double num_output_rows_after_filter, bool inexact);
 
   void TraceAccessPaths(NodeMap nodes);
   void ProposeAccessPathForBaseTable(int node_idx,
@@ -1275,6 +1280,18 @@ struct PossibleIndexMerge {
   bool inexact;
 };
 
+/**
+  Represents a candidate index skip scan, i.e. a scan on a multi-column
+  index which uses some of, but not all, the columns of the index. Each
+  index skip scan is associated with a predicate. All candidate skip
+  scans are calculated and saved in skip_scan_paths for later proposal.
+*/
+struct PossibleIndexSkipScan {
+  SEL_TREE *tree;
+  size_t predicate_idx;  // = num_where_predicates if scan covers all predicates
+  Mem_root_array<AccessPath *> skip_scan_paths;
+};
+
 bool CostingReceiver::FindIndexRangeScans(
     int node_idx, bool *impossible, double *num_output_rows_after_filter) {
   *impossible = false;
@@ -1300,6 +1317,13 @@ bool CostingReceiver::FindIndexRangeScans(
   MutableOverflowBitset tree_subsumed_predicates{m_thd->mem_root,
                                                  m_graph->predicates.size()};
   Mem_root_array<PossibleIndexMerge> index_merges(&m_range_optimizer_mem_root);
+  Mem_root_array<PossibleIndexSkipScan> index_skip_scans(
+      &m_range_optimizer_mem_root);
+  const bool skip_scan_hint =
+      hint_table_state(m_thd, table->pos_in_table_list, SKIP_SCAN_HINT_ENUM, 0);
+  const bool allow_skip_scan =
+      skip_scan_hint || m_thd->optimizer_switch_flag(OPTIMIZER_SKIP_SCAN);
+
   const NodeMap my_map = TableBitmap(node_idx);
   SEL_TREE *tree = nullptr;
   for (size_t i = 0; i < m_graph->num_where_predicates; ++i) {
@@ -1373,6 +1397,19 @@ bool CostingReceiver::FindIndexRangeScans(
       index_merges.push_back(merge);
     }
 
+    if (allow_skip_scan && (new_tree != nullptr) &&
+        (new_tree->type != SEL_TREE::IMPOSSIBLE)) {
+      PossibleIndexSkipScan index_skip;
+      // get all index skip scan access paths before tree is modified by AND-ing
+      // of trees
+      index_skip.skip_scan_paths =
+          get_all_skip_scans(m_thd, &param, new_tree, ORDER_NOT_RELEVANT,
+                             /*skip_records_in_range=*/false, skip_scan_hint);
+      index_skip.tree = new_tree;
+      index_skip.predicate_idx = i;
+      index_skip_scans.push_back(std::move(index_skip));
+    }
+
     if (tree == nullptr) {
       tree = new_tree;
     } else {
@@ -1403,9 +1440,11 @@ bool CostingReceiver::FindIndexRangeScans(
           tree_subsumed_predicates_fixed, *m_graph, &possible_scans)) {
     return true;
   }
+  OverflowBitset all_predicates_fixed = std::move(all_predicates);
   *num_output_rows_after_filter = EstimateOutputRowsFromRangeTree(
       m_thd, param, table->file->stats.records, possible_scans, *m_graph,
-      std::move(all_predicates), m_trace);
+      all_predicates_fixed, m_trace);
+
   if (Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS)) {
     // We only wanted to use the index for estimation, and now we've done that.
     return false;
@@ -1570,6 +1609,30 @@ bool CostingReceiver::FindIndexRangeScans(
         // if we didn't choose one to begin with.
         break;
       }
+    }
+  }
+
+  if (allow_skip_scan && (m_graph->num_where_predicates > 1)) {
+    // Multiple predicates, check for index skip scan which can be used to
+    // evaluate entire WHERE condition
+    PossibleIndexSkipScan index_skip;
+    index_skip.skip_scan_paths =
+        get_all_skip_scans(m_thd, &param, tree, ORDER_NOT_RELEVANT,
+                           /*use_records_in_range=*/false, skip_scan_hint);
+    index_skip.tree = tree;
+    // Set predicate index to #predicates to indicate all predicates applied
+    index_skip.predicate_idx = m_graph->num_where_predicates;
+    index_skip_scans.push_back(std::move(index_skip));
+  }
+
+  // Propose all index skip scans
+  for (const PossibleIndexSkipScan &iskip_scan : index_skip_scans) {
+    for (AccessPath *skip_scan_path : iskip_scan.skip_scan_paths) {
+      size_t pred_idx = iskip_scan.predicate_idx;
+      ProposeIndexSkipScan(node_idx, &param, skip_scan_path, table,
+                           all_predicates_fixed, m_graph->num_where_predicates,
+                           pred_idx, *num_output_rows_after_filter,
+                           iskip_scan.tree->inexact);
     }
   }
   return false;
@@ -1738,6 +1801,72 @@ void CostingReceiver::ProposeIndexMerge(
       break;
     }
   }
+}
+
+/**
+  Propose a single INDEX_SKIP_SCAN for consideration by hypergraph.
+
+  @param node_idx               Index of the base table in the nodes array.
+  @param param                  RANGE_OPT_PARAM
+  @param skip_scan_path         INDEX_SKIP_SCAN AccessPath to propose
+  @param table                  Base table
+  @param all_predicates         Bitset of all predicates for this join
+  @param num_where_predicates   Total number of predicates in WHERE clause
+  @param predicate_idx          Index of predicate applied to this skip scan, if
+  predicate_idx = num_where_predicates, then all predicates are applied
+  @param num_output_rows_after_filter Row count output
+  @param inexact                Whether the predicate is an exact match for the
+  skip scan index
+
+*/
+void CostingReceiver::ProposeIndexSkipScan(
+    int node_idx, RANGE_OPT_PARAM *param, AccessPath *skip_scan_path,
+    TABLE *table, OverflowBitset all_predicates, size_t num_where_predicates,
+    size_t predicate_idx, double num_output_rows_after_filter, bool inexact) {
+  skip_scan_path->cost_before_filter = skip_scan_path->cost;
+  skip_scan_path->num_output_rows_before_filter =
+      skip_scan_path->num_output_rows();
+  MutableOverflowBitset applied_predicates{param->temp_mem_root,
+                                           num_where_predicates};
+  MutableOverflowBitset subsumed_predicates{param->temp_mem_root,
+                                            num_where_predicates};
+  FunctionalDependencySet new_fd_set;
+  if (predicate_idx < num_where_predicates) {
+    applied_predicates.SetBit(predicate_idx);
+    if (!inexact) {
+      subsumed_predicates.SetBit(predicate_idx);
+    }
+    ApplyPredicatesForBaseTable(
+        node_idx, OverflowBitset(std::move(applied_predicates)),
+        OverflowBitset(std::move(subsumed_predicates)),
+        /*materialize_subqueries*/ false, skip_scan_path, &new_fd_set);
+  } else {
+    // Subsumed predicates cannot be reliably calculated, so, for safety,
+    // no predicates are marked as subsumed. This may result in a FILTER
+    // with redundant predicates.
+    assert(IsEmpty(subsumed_predicates));
+    ApplyPredicatesForBaseTable(
+        node_idx, all_predicates,  // all predicates applied
+        OverflowBitset(std::move(subsumed_predicates)),
+        /*materialize_subqueries*/ false, skip_scan_path, &new_fd_set);
+  }
+
+  const uint keynr = param->real_keynr[skip_scan_path->index_skip_scan().index];
+  const auto it = find_if(m_active_indexes->begin(), m_active_indexes->end(),
+                          [table, keynr](const ActiveIndexInfo &info) {
+                            return info.table == table &&
+                                   info.key_idx == static_cast<int>(keynr);
+                          });
+  if (it != m_active_indexes->end()) {
+    skip_scan_path->ordering_state = m_orderings->SetOrder(
+        m_orderings->RemapOrderingIndex(it->forward_order));
+  }
+
+  skip_scan_path->set_num_output_rows(num_output_rows_after_filter);
+  skip_scan_path->init_cost = 0.0;
+  ProposeAccessPathWithOrderings(TableBitmap(node_idx), new_fd_set,
+                                 /*obsolete_orderings=*/0, skip_scan_path,
+                                 "index skip scan");
 }
 
 // Specifies a mapping in an Index_lookup between an index keypart and a
