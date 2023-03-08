@@ -16,6 +16,9 @@ set global ndb_blob_write_batch_bytes = @batch_sz;
 set ndb_blob_write_batch_bytes = @batch_sz;
 set global ndb_blob_read_batch_bytes = @batch_sz;
 set ndb_blob_read_batch_bytes = @batch_sz;
+set @s_replica_workers:=@@replica_parallel_workers;
+set @@GLOBAL.replica_parallel_workers=1;
+include/start_slave.inc
 show variables like 'ndb_log_update_as_write';
 Variable_name	Value
 ndb_log_update_as_write	ON
@@ -242,6 +245,9 @@ set global ndb_blob_write_batch_bytes=@s_blob_write_batch;
 set ndb_blob_write_batch_bytes=@s_blob_write_batch;
 set global ndb_blob_read_batch_bytes=@s_blob_read_batch;
 set ndb_blob_read_batch_bytes=@s_blob_read_batch;
+include/stop_slave.inc
+set @@GLOBAL.replica_parallel_workers=@s_replica_workers;
+include/start_slave.inc
 drop table tv;
 drop table tsync;
 drop table tb1;

@@ -1,5 +1,7 @@
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
+# Configure replication, don't start applier
+--let $rpl_skip_start_slave= 1
 --source suite/ndb_rpl/ndb_master-slave.inc
 
 --connection slave
@@ -16,6 +18,13 @@ set global ndb_blob_write_batch_bytes = @batch_sz;
 set ndb_blob_write_batch_bytes = @batch_sz;
 set global ndb_blob_read_batch_bytes = @batch_sz;
 set ndb_blob_read_batch_bytes = @batch_sz;
+
+# Use one worker as otherwise there will be one more roundtrip
+# due to parallel prepare
+set @s_replica_workers:=@@replica_parallel_workers;
+set @@GLOBAL.replica_parallel_workers=1;
+
+--source include/start_slave.inc
 
 --connection master
 show variables like 'ndb_log_update_as_write';
@@ -467,6 +476,9 @@ set ndb_blob_write_batch_bytes=@s_blob_write_batch;
 set global ndb_blob_read_batch_bytes=@s_blob_read_batch;
 set ndb_blob_read_batch_bytes=@s_blob_read_batch;
 
+--source include/stop_slave.inc
+set @@GLOBAL.replica_parallel_workers=@s_replica_workers;
+--source include/start_slave.inc
 
 --enable_query_log
 

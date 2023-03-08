@@ -2,9 +2,8 @@
 --source include/have_binlog_format_mixed_or_row.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
 
-
 --source include/rpl_connection_slave.inc
-show variables like 'replica_parallel_workers';
+--echo # Show that DDL errors are to be skipped
 show variables like 'replica_skip_errors';
 
 create database extra;
