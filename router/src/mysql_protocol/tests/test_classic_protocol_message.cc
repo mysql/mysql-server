@@ -699,6 +699,37 @@ TEST_P(CodecMessageServerStmtRowTest, decode) {
 
 // server::StmtPrepareOk
 
+TEST(MessageServerStmtPrepareOk, constructed) {
+  classic_protocol::message::server::StmtPrepareOk msg(0, 1, 2, 3, 4);
+
+  EXPECT_EQ(msg.statement_id(), 0);
+  EXPECT_EQ(msg.column_count(), 1);
+  EXPECT_EQ(msg.param_count(), 2);
+  EXPECT_EQ(msg.warning_count(), 3);
+  EXPECT_EQ(msg.with_metadata(), 4);
+}
+
+TEST(MessageServerStmtPrepareOk, setters) {
+  classic_protocol::message::server::StmtPrepareOk msg(0, 1, 2, 3, 4);
+
+  // check the setters overwrite the initial values.
+
+  msg.statement_id(5);
+  EXPECT_EQ(msg.statement_id(), 5);
+
+  msg.warning_count(6);
+  EXPECT_EQ(msg.warning_count(), 6);
+
+  msg.param_count(7);
+  EXPECT_EQ(msg.param_count(), 7);
+
+  msg.column_count(8);
+  EXPECT_EQ(msg.column_count(), 8);
+
+  msg.with_metadata(9);
+  EXPECT_EQ(msg.with_metadata(), 9);
+}
+
 using CodecMessageServerStmtPrepareOkTest =
     CodecTest<classic_protocol::message::server::StmtPrepareOk>;
 

@@ -559,26 +559,33 @@ class StmtPrepareOk {
         with_metadata_{with_metadata} {}
 
   constexpr uint32_t statement_id() const noexcept { return statement_id_; }
+  constexpr void statement_id(uint32_t id) noexcept { statement_id_ = id; }
   constexpr uint16_t warning_count() const noexcept { return warning_count_; }
+  constexpr void warning_count(uint16_t cnt) noexcept { warning_count_ = cnt; }
 
-  constexpr uint16_t column_count() const { return column_count_; }
-  constexpr uint16_t param_count() const { return param_count_; }
-  constexpr uint8_t with_metadata() const { return with_metadata_; }
+  constexpr uint16_t column_count() const noexcept { return column_count_; }
+  constexpr void column_count(uint16_t cnt) noexcept { column_count_ = cnt; }
+  constexpr uint16_t param_count() const noexcept { return param_count_; }
+  constexpr void param_count(uint16_t cnt) noexcept { param_count_ = cnt; }
+  constexpr uint8_t with_metadata() const noexcept { return with_metadata_; }
+  constexpr void with_metadata(uint8_t with) noexcept { with_metadata_ = with; }
+
+  friend constexpr bool operator==(const StmtPrepareOk &lhs,
+                                   const StmtPrepareOk &rhs) {
+    return (lhs.statement_id() == rhs.statement_id()) &&
+           (lhs.column_count() == rhs.column_count()) &&
+           (lhs.param_count() == rhs.param_count()) &&
+           (lhs.warning_count() == rhs.warning_count()) &&
+           (lhs.with_metadata() == rhs.with_metadata());
+  }
 
  private:
   uint32_t statement_id_;
   uint16_t warning_count_;
   uint16_t param_count_;
   uint16_t column_count_;
-  uint8_t with_metadata_{1};
+  uint8_t with_metadata_;
 };
-
-inline bool operator==(const StmtPrepareOk &a, const StmtPrepareOk &b) {
-  return (a.statement_id() == b.statement_id()) &&
-         (a.column_count() == b.column_count()) &&
-         (a.param_count() == b.param_count()) &&
-         (a.warning_count() == b.warning_count());
-}
 
 /**
  * StmtRow message.
