@@ -608,3 +608,10 @@ SET sql_mode = default;
 --echo # Bug#32591589: ASSERTION `DIGITS <= DECIMAL_INT_PART()' FAILED|SQL/ITEM_FUNC.CC
 --echo #
 SELECT CAST(9.9 AS SIGNED INTEGER) AS f;
+
+--echo #
+--echo # Bug#34973932 	Decimal value assertion error
+--echo #
+SELECT 1 < ALL(VALUES ROW(2),ROW(CAST(3 AS DECIMAL))) FROM DUAL;
+SELECT 1 < ALL(VALUES ROW(2),ROW(3.0)) FROM DUAL;
+

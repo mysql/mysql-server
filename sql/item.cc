@@ -10538,16 +10538,14 @@ longlong Item_values_column::val_int() {
   return tmp;
 }
 
-/* purecov: begin deadcode */
-
 my_decimal *Item_values_column::val_decimal(my_decimal *decimal_value) {
-  assert(false);
   assert(fixed);
   my_decimal *val = m_value_ref->val_decimal(decimal_value);
   null_value = m_value_ref->null_value;
   return val;
 }
 
+/* purecov: begin deadcode */
 bool Item_values_column::val_bool() {
   assert(false);
   assert(fixed);
@@ -10563,7 +10561,6 @@ bool Item_values_column::val_json(Json_wrapper *result) {
   null_value = m_value_ref->null_value;
   return ok;
 }
-
 /* purecov: end */
 
 String *Item_values_column::val_str(String *tmp) {
