@@ -135,12 +135,11 @@ segment or garbage
 @param[in]      len                     buffer length
 @param[in]      start_lsn               buffer start lsn
 @param[out]     group_scanned_lsn       scanning succeeded up to this lsn
-@param[out]     err  error code as returned by recv_init_crash_recovery().
 @retval	true  if limit_lsn has been reached, or not able to scan any
 more in this log group
 @retval false   otherwise */
 bool meb_scan_log_recs(size_t available_memory, const byte *buf, size_t len,
-                       lsn_t start_lsn, lsn_t *group_scanned_lsn, dberr_t &err);
+                       lsn_t start_lsn, lsn_t *group_scanned_lsn);
 
 /** Check the 4-byte checksum to the trailer checksum field of a log
 block.
