@@ -537,6 +537,10 @@ class MysqlClient {
     return {r};
   }
 
+  stdx::expected<unsigned int, MysqlError> warning_count() {
+    return mysql_warning_count(m_.get());
+  }
+
   /**
    * close a connection explicitly.
    */
