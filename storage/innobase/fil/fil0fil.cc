@@ -8546,7 +8546,7 @@ dberr_t fil_tablespace_iterate(const Encryption_metadata &encryption_metadata,
   DBUG_EXECUTE_IF("fil_tablespace_iterate_failure", {
     static bool once;
 
-    if (!once || ut::random_from_interval(0, 10) == 5) {
+    if (!once || ut::random_from_interval_fast(0, 10) == 5) {
       once = true;
       success = false;
       os_file_close(file);
