@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -10549,16 +10549,69 @@ end:
     */
     (void) close_record_scan(); 
 
-  if ((get_general_type_code() == binary_log::UPDATE_ROWS_EVENT) &&
-      (saved_m_curr_row == m_curr_row))
-  {
-    /* we need to unpack the AI so that positions get updated */
-    m_curr_row= m_curr_row_end;
-    unpack_current_row(rli, &m_cols_ai);
-  }
+  int unpack_error = skip_after_image_for_update_event(rli, saved_m_curr_row);
+  if (!error) error = unpack_error;
+
   m_table->default_column_bitmaps();
   DBUG_RETURN(error);
 
+}
+
+int Update_rows_log_event::skip_after_image_for_update_event(
+    const Relay_log_info *rli, const uchar *curr_bi_start) {
+  if (m_curr_row == curr_bi_start && m_curr_row_end != NULL) {
+    /*
+      This handles the case that the BI was read successfully, but an
+      error happened while looking up the row.  In this case, the AI
+      has not been read, so the read position is between the two
+      images.  In case the error is idempotent, we need to move the
+      position to the end of the row, and therefore we skip past the
+      AI.
+
+      The normal behavior is:
+
+      When unpack_row reads a row image, and there is no error,
+      unpack_row sets m_curr_row_end to point to the end of the image,
+      and leaves m_curr_row to point at the beginning.
+
+      The AI is read from Update_rows_log_event::do_exec_row. Before
+      calling unpack_row, do_exec_row sets m_curr_row=m_curr_row_end,
+      so that it actually reads the AI. And again, if there is no
+      error, unpack_row sets m_curr_row_end to point to the end of the
+      AI.
+
+      Thus, the positions are moved as follows:
+
+                          +--------------+--------------+
+                          | BI           | AI           |  NULL
+                          +--------------+--------------+
+      0. Initial values   ^m_curr_row                      ^m_curr_row_end
+      1. Read BI, no error
+                          ^m_curr_row    ^m_curr_row_end
+      2. Lookup BI
+      3. Set m_curr_row
+                                         ^m_curr_row
+                                         ^m_curr_row_end
+      4. Read AI, no error
+                                        ^m_curr_row    ^m_curr_row_end
+
+      If an error happened while reading the BI (e.g. corruption),
+      then we should not try to read the AI here.  Therefore we do not
+      read the AI if m_curr_row_end==NULL.
+
+      If an error happened while looking up BI, then we should try to
+      read AI here. Then we know m_curr_row_end points to beginning of
+      AI, so we come here, set m_curr_row=m_curr_row_end, and read the
+      AI.
+
+      If an error happened while reading the AI, then we should not
+      try to read the AI again.  Therefore we do not read the AI if
+      m_curr_row==curr_bi_start.
+    */
+    m_curr_row = m_curr_row_end;
+    return unpack_current_row(rli, &m_cols_ai);
+  }
+  return 0;
 }
 
 int Rows_log_event::do_hash_row(Relay_log_info const *rli)

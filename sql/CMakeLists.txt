@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2023, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -281,6 +281,7 @@ SET(SQL_SOURCE
   conn_handler/connection_handler_per_thread.cc
   conn_handler/connection_handler_one_thread.cc
   conn_handler/socket_connection.cc
+  conn_handler/init_net_server_extension.cc
   des_key_file.cc
   event_data_objects.cc
   event_db_repository.cc 

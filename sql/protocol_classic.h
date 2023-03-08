@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_CLASSIC_INCLUDED
 #define PROTOCOL_CLASSIC_INCLUDED
 
-/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -206,7 +206,8 @@ public:
   /* Return raw packet buffer */
   uchar *get_raw_packet() { return raw_packet; }
   /* Set read timeout */
-  virtual void set_read_timeout(ulong read_timeout);
+  virtual void set_read_timeout(ulong read_timeout,
+                                my_bool on_full_packet = FALSE);
   /* Set write timeout */
   virtual void set_write_timeout(ulong write_timeout);
 };

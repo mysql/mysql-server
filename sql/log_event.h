@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3305,6 +3305,31 @@ private:
   int do_table_scan_and_update(Relay_log_info const *rli);
 
   /**
+    Seek past the after-image of an update event, in case a row was processed
+    without reading the after-image.
+
+    An update event may process a row without reading the after-image,
+    e.g. in case of ignored or idempotent errors.  To ensure that the
+    read position for the next row is correct, we need to seek past
+    the after-image.
+
+    @param rli The applier context
+
+    @param curr_bi_start The read position of the beginning of the
+    before-image. (The function compares this with m_curr_row to know
+    if the after-image has been read or not.)
+
+    @retval 0 Success
+    @retval ER_* Error code returned by unpack_current_row
+  */
+  virtual int skip_after_image_for_update_event(const Relay_log_info *rli
+                                                MY_ATTRIBUTE((unused)),
+                                                const uchar *curr_bi_start
+                                                MY_ATTRIBUTE((unused))) {
+    return 0;
+  }
+
+  /**
     Initializes scanning of rows. Opens an index and initailizes an iterator
     over a list of distinct keys (m_distinct_keys) if it is a HASH_SCAN
     over an index or the table if its a HASH_SCAN over the table.
@@ -3552,6 +3577,10 @@ protected:
   virtual int do_before_row_operations(const Slave_reporting_capability *const);
   virtual int do_after_row_operations(const Slave_reporting_capability *const,int);
   virtual int do_exec_row(const Relay_log_info *const);
+
+  int skip_after_image_for_update_event(const Relay_log_info *rli,
+                                        const uchar *curr_bi_start);
+
 #endif /* defined(MYSQL_SERVER) && defined(HAVE_REPLICATION) */
 };
 

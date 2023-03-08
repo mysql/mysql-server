@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "init_net_server_extension.h"
 #include "shared_memory_connection.h"
 
 #include "violite.h"                    // Vio
@@ -93,8 +94,10 @@ public:
   {
     THD* thd= Channel_info::create_thd();
 
-    if (thd != NULL)
-      thd->security_context()->set_host_ptr(my_localhost, strlen(my_localhost));
+    if (thd != NULL) {
+        init_net_server_extension(thd);
+        thd->security_context()->set_host_ptr(my_localhost, strlen(my_localhost));
+    }
     return thd;
   }
 
