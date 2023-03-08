@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -695,9 +695,13 @@ bool Protocol_classic::send_error(uint sql_errno, const char *err_msg,
 }
 
 
-void Protocol_classic::set_read_timeout(ulong read_timeout)
+void Protocol_classic::set_read_timeout(ulong read_timeout,
+                                        my_bool on_full_packet)
 {
   my_net_set_read_timeout(&m_thd->net, read_timeout);
+  NET_SERVER* ext = static_cast<NET_SERVER*>(m_thd->net.extension);
+  assert(ext);
+  ext->timeout_on_full_packet = on_full_packet;
 }
 
 

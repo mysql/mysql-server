@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -34,16 +34,37 @@ MACRO(MYSQL_CHECK_CURL)
      ENDIF()
      MESSAGE(STATUS "CURL_LIBRARY = ${CURL_LIBRARY}")
    ELSEIF(WITH_CURL)
+    # Explicit path given. Normalize path for the following regex replace.
+    FILE(TO_CMAKE_PATH "${WITH_CURL}" WITH_CURL)
+    # Pushbuild adds /lib to the CURL path
+    STRING(REGEX REPLACE "/lib$" "" WITH_CURL "${WITH_CURL}")
+
     LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
     FIND_LIBRARY(CURL_LIBRARY
       NAMES curl
-      PATHS ${WITH_CURL}
+      PATHS ${WITH_CURL} ${WITH_CURL}/lib
       NO_DEFAULT_PATH
       NO_CMAKE_ENVIRONMENT_PATH
       NO_SYSTEM_ENVIRONMENT_PATH
     )
     LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+    IF(NOT CURL_LIBRARY)
+      MESSAGE(FATAL_ERROR "CURL library not found under '${WITH_CURL}'")
+    ENDIF()
+
+    FIND_PATH(CURL_INCLUDE_DIR
+      NAMES curl/curl.h
+      PATHS ${WITH_CURL} ${WITH_CURL}/include
+      NO_DEFAULT_PATH
+      NO_CMAKE_ENVIRONMENT_PATH
+      NO_SYSTEM_ENVIRONMENT_PATH
+      )
+    IF(NOT CURL_INCLUDE_DIR)
+      MESSAGE(FATAL_ERROR "CURL include files not found under '${WITH_CURL}'")
+    ENDIF()
+
     MESSAGE(STATUS "CURL_LIBRARY = ${CURL_LIBRARY}")
+    MESSAGE(STATUS "CURL_INCLUDE_DIR = ${CURL_INCLUDE_DIR}")
    ELSE()
      MESSAGE(STATUS
        "You need to set WITH_CURL. This"

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -603,7 +603,7 @@ char check_if_ignore_table(const char *table_name, char *table_type);
 static char *primary_key_fields(const char *table_name);
 static my_bool get_view_structure(char *table, char* db);
 static my_bool dump_all_views_in_db(char *database);
-static int get_gtid_mode(MYSQL* mysql);
+static my_bool get_gtid_mode(MYSQL* mysql);
 static int dump_all_tablespaces();
 static int dump_tablespaces_for_tables(char *db, char **table_names, int tables);
 static int dump_tablespaces_for_databases(char** databases);
@@ -5880,19 +5880,16 @@ static my_bool get_gtids_executed(MYSQL* mysql, MYSQL_RES** gtid_executed)
 /**
   This function checks if GTIDs are enabled on the server.
 
-  @param[in]          mysql         the connection to the server
+  @param[in]          mysql            the connection to the server
 
-  @retval             1             if GTIDs are enabled on the server
+  @retval             TRUE             if GTIDs are enabled on the server
 
-  @retval             0             if GTIDs are disabled on the server
-
-  @retval	      EX_MYSQLERR   error, query execution failed
-
+  @retval             FALSE            if GTIDs are disabled on the server
 */
-static int get_gtid_mode(MYSQL* mysql)
+static my_bool get_gtid_mode(MYSQL* mysql)
 {
     char* gtid_mode_val = 0;
-    int gtid_mode = 0;
+    my_bool gtid_mode = FALSE;
     MYSQL_RES* gtid_mode_res;
     MYSQL_ROW gtid_mode_row;
 
@@ -5902,7 +5899,7 @@ static int get_gtid_mode(MYSQL* mysql)
     */
     if (mysql_query_with_error_report(mysql, &gtid_mode_res,
         "SHOW VARIABLES LIKE 'gtid_mode'"))
-        return EX_MYSQLERR;
+        return FALSE;
 
     gtid_mode_row = mysql_fetch_row(gtid_mode_res);
 
@@ -5911,7 +5908,7 @@ static int get_gtid_mode(MYSQL* mysql)
       get the gtid_mode value from the second column.
     */
     gtid_mode_val = gtid_mode_row ? (char*)gtid_mode_row[1] : NULL;
-    gtid_mode = (gtid_mode_val && strcmp(gtid_mode_val, "OFF")) ? 1 : 0;
+    gtid_mode = (gtid_mode_val && strcmp(gtid_mode_val, "OFF")) ? TRUE : FALSE;
     mysql_free_result(gtid_mode_res);
 
     return gtid_mode;
@@ -6045,6 +6042,8 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con,
                                                SELECT @@GLOBAL.GTID_EXECUTED
                                                has been provided in gtid_array
 
+  @param[in]          is_gtid_enabled   TRUE if server has gtid_mode ON
+
   @retval             FALSE         successful according to the value
                                     of opt_set_gtid_purged.
 
@@ -6053,19 +6052,13 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con,
 
 static my_bool process_set_gtid_purged(MYSQL* mysql_con, my_bool flag,
                                        MY_GTID_ARRAY *gtid_array,
-                                       my_bool gtid_executed_provided)
+                                       my_bool gtid_executed_provided,
+                                       my_bool is_gtid_enabled)
 {
-  int gtid_mode = 0;
-
   if (opt_set_gtid_purged_mode == SET_GTID_PURGED_OFF)
     return FALSE;  /* nothing to be done */
 
-  gtid_mode = get_gtid_mode(mysql_con);
-
-  if(gtid_mode == EX_MYSQLERR)
-    return TRUE;
-
-  if (gtid_mode)
+  if (is_gtid_enabled)
   {
     /*
        For any gtid_mode !=OFF and irrespective of --set-gtid-purged
@@ -6366,9 +6359,9 @@ static void dynstr_realloc_checked(DYNAMIC_STRING *str, size_t additional_size)
 int main(int argc, char **argv)
 {
   MY_GTID_ARRAY* gtid_arr = NULL;
+  my_bool server_has_gtid_enabled = FALSE;
   my_bool single_trans_with_gtid_enabled = FALSE;
   my_ulonglong idx = 0;
-  int server_has_gtid_enabled = 0;
   char bin_log_name[FN_REFLEN];
   int exit_code, md_result_fd;
   MY_INIT("mysqldump");
@@ -6410,8 +6403,16 @@ int main(int argc, char **argv)
   if (opt_slave_data && do_stop_slave_sql(mysql))
     goto err;
 
+  /* check if server has GTIDs enabled */
+  server_has_gtid_enabled = get_gtid_mode(mysql);
+
+  single_trans_with_gtid_enabled =
+      (server_has_gtid_enabled && opt_single_transaction &&
+          (opt_set_gtid_purged_mode != SET_GTID_PURGED_OFF));
+
   if ((opt_lock_all_tables || opt_master_data ||
-       opt_single_transaction) &&
+       (opt_single_transaction && (flush_logs ||
+        single_trans_with_gtid_enabled))) &&
       do_flush_tables_read_lock(mysql))
     goto err;
 
@@ -6420,8 +6421,9 @@ int main(int argc, char **argv)
     this causes implicit commit starting mysql-5.5.
   */
   if (opt_lock_all_tables || opt_master_data ||
-      opt_single_transaction ||
-      opt_delete_master_logs)
+      (opt_single_transaction && (flush_logs ||
+       single_trans_with_gtid_enabled)) ||
+       opt_delete_master_logs)
   {
     if (flush_logs || opt_delete_master_logs)
     {
@@ -6446,15 +6448,6 @@ int main(int argc, char **argv)
   /* Start the transaction */
   if (opt_single_transaction && start_transaction(mysql))
     goto err;
-
-  /* check if server has GTIDs enabled */
-  if((server_has_gtid_enabled = get_gtid_mode(mysql)) == EX_MYSQLERR)
-      goto err;
-
-  single_trans_with_gtid_enabled =
-      (server_has_gtid_enabled && opt_single_transaction &&
-          (opt_set_gtid_purged_mode != SET_GTID_PURGED_OFF));
-
 
   if (single_trans_with_gtid_enabled)
   {
@@ -6502,7 +6495,7 @@ int main(int argc, char **argv)
 
   /* Process opt_set_gtid_purged and add SET disable binlog if required. */
   if (process_set_gtid_purged(mysql, FALSE, gtid_arr,
-      single_trans_with_gtid_enabled))
+      single_trans_with_gtid_enabled, server_has_gtid_enabled))
     goto err;
 
   if (opt_master_data && do_show_master_status(mysql))
@@ -6559,7 +6552,7 @@ int main(int argc, char **argv)
 
   /* Process opt_set_gtid_purged and add SET @@GLOBAL.GTID_PURGED if required. */
    if (process_set_gtid_purged(mysql, TRUE, gtid_arr,
-       single_trans_with_gtid_enabled))
+       single_trans_with_gtid_enabled, server_has_gtid_enabled))
      goto err;
 
   /* add 'START SLAVE' to end of dump */

@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,11 +28,9 @@
 # but we need at least version 1.2.11, and that's not available on
 # all the platforms we need to support.
 
-# With earier versions, several compression tests fail.
-# SET(MIN_ZLIB_VERSION_REQUIRED "1.2.11")
-
 # Security bug fixes required from:
-SET(MIN_ZLIB_VERSION_REQUIRED "1.2.12")
+SET(MIN_ZLIB_VERSION_REQUIRED "1.2.13")
+
 
 MACRO(FIND_ZLIB_VERSION)
   FOREACH(version_part
@@ -86,7 +84,7 @@ MACRO (RESET_ZLIB_VARIABLES)
   UNSET(FIND_PACKAGE_MESSAGE_DETAILS_ZLIB CACHE)
 ENDMACRO()
 
-SET(ZLIB_VERSION_DIR "zlib-1.2.12")
+SET(ZLIB_VERSION_DIR "zlib-1.2.13")
 SET(BUNDLED_ZLIB_PATH ${CMAKE_SOURCE_DIR}/extra/zlib/${ZLIB_VERSION_DIR})
 
 MACRO (MYSQL_USE_BUNDLED_ZLIB)

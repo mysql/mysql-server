@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,14 @@ struct st_net_server
   before_header_callback_fn m_before_header;
   after_header_callback_fn m_after_header;
   void *m_user_data;
+  my_bool timeout_on_full_packet;
+
+  st_net_server() {
+    m_before_header = NULL;
+    m_after_header = NULL;
+    m_user_data = NULL;
+    timeout_on_full_packet = FALSE;
+  }
 };
 
 typedef struct st_net_server NET_SERVER;
