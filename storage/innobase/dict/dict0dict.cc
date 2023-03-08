@@ -4043,6 +4043,8 @@ void dict_table_read_dynamic_metadata(const byte *buffer, ulint size,
 
     persister = dict_persist->persisters->get(type);
     ut_ad(persister != nullptr);
+    pos++;
+    size--;
 
     consumed = persister->read(*metadata, pos, size, &corrupt);
     ut_ad(consumed != 0);
@@ -5564,22 +5566,13 @@ ulint CorruptedIndexPersister::read(PersistentTableMetadata &metadata,
                                     bool *corrupt) const {
   const byte *end = buffer + size;
   ulint consumed = 0;
-  byte type;
   ulint num;
 
   *corrupt = false;
 
-  /* It should contain PM_INDEX_CORRUPTED and number at least */
-  if (size <= 2) {
+  /* It should contain a number at least */
+  if (size <= 1) {
     return (0);
-  }
-
-  type = *buffer++;
-  ++consumed;
-
-  if (type != PM_INDEX_CORRUPTED) {
-    *corrupt = true;
-    return (consumed);
   }
 
   num = mach_read_from_1(buffer);
@@ -5607,6 +5600,14 @@ ulint CorruptedIndexPersister::read(PersistentTableMetadata &metadata,
   return (consumed);
 }
 
+void CorruptedIndexPersister::aggregate(
+    PersistentTableMetadata &metadata,
+    const PersistentTableMetadata &new_entry) const {
+  for (auto id : new_entry.get_corrupted_indexes()) {
+    metadata.add_corrupted_index(id);
+  }
+}
+
 /** Write the autoinc counter of a table, we can pre-calculate
 the size by calling get_write_size()
 @param[in]      metadata        persistent metadata
@@ -5632,55 +5633,44 @@ ulint AutoIncPersister::write(const PersistentTableMetadata &metadata,
 }
 
 /** Read the autoinc counter from buffer, and store them to
-metadata object
+a metadata object
 @param[out]     metadata        metadata where we store the read data
 @param[in]      buffer          buffer to read
 @param[in]      size            size of buffer
 @param[out]     corrupt         true if we found something wrong in
-                                the buffer except incomplete buffer,
-                                otherwise false
+                                  the buffer except incomplete buffer,
+                                  otherwise false
 @return the bytes we read from the buffer if the buffer data
 is complete and we get everything, 0 if the buffer is incomplete */
 ulint AutoIncPersister::read(PersistentTableMetadata &metadata,
                              const byte *buffer, ulint size,
                              bool *corrupt) const {
-  const byte *end = buffer + size;
-  ulint consumed = 0;
-  byte type;
-  uint64_t autoinc;
-
   *corrupt = false;
 
-  /* It should contain PM_TABLE_AUTO_INC and the counter at least */
-  if (size < 2) {
-    return (0);
-  }
-
-  type = *buffer++;
-  ++consumed;
-
-  if (type != PM_TABLE_AUTO_INC) {
-    *corrupt = true;
-    return (consumed);
-  }
-
   const byte *start = buffer;
-  autoinc = mach_parse_u64_much_compressed(&start, end);
+  const auto autoinc = mach_parse_u64_much_compressed(&start, buffer + size);
 
   if (start == nullptr) {
     /* Just incomplete data, not corrupted */
     return (0);
   }
 
-  if (autoinc == 0) {
-    metadata.set_autoinc(autoinc);
-  } else {
-    metadata.set_autoinc_if_bigger(autoinc);
-  }
+  metadata.set_autoinc(autoinc);
 
-  consumed += start - buffer;
+  const ulint consumed = start - buffer;
   ut_ad(consumed <= size);
   return (consumed);
+}
+
+void AutoIncPersister::aggregate(
+    PersistentTableMetadata &metadata,
+    const PersistentTableMetadata &new_entry) const {
+  if (new_entry.get_version() > metadata.get_version()) {
+    metadata.set_autoinc(new_entry.get_autoinc());
+    metadata.set_version(new_entry.get_version());
+  } else if (new_entry.get_version() == metadata.get_version()) {
+    metadata.set_autoinc_if_bigger(new_entry.get_autoinc());
+  }
 }
 
 /** Destructor */

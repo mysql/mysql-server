@@ -302,22 +302,30 @@ byte *MetadataRecover::parseMetadataLog(table_id_t id, uint64_t version,
   ut_ad(dict_persist->persisters != nullptr);
 
   Persister *persister = dict_persist->persisters->get(type);
+  if (persister == nullptr) {
+    recv_sys->found_corrupt_log = true;
+    return ptr;
+  }
+
+  ptr++;
+
   PersistentTableMetadata *metadata = getMetadata(id);
 
+  PersistentTableMetadata new_entry{id, version};
   bool corrupt;
-  ulint consumed = persister->read(*metadata, ptr, end - ptr, &corrupt);
+  ulint consumed = persister->read(new_entry, ptr, end - ptr, &corrupt);
 
   if (corrupt) {
     recv_sys->found_corrupt_log = true;
-  } else if (consumed != 0) {
-    metadata->set_version(version);
+    return ptr + consumed;
   }
 
   if (consumed == 0) {
     return nullptr;
-  } else {
-    return ptr + consumed;
   }
+
+  persister->aggregate(*metadata, new_entry);
+  return ptr + consumed;
 }
 
 /** Creates the recovery system. */
