@@ -113,6 +113,8 @@ class DestMetadataCacheGroup final
     cache_api()->handle_sockets_acceptors_on_md_refresh();
   }
 
+  routing::RoutingStrategy get_strategy() override { return routing_strategy_; }
+
  private:
   /** @brief The Metadata Cache to use
    *

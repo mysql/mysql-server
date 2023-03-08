@@ -40,6 +40,10 @@ class DestFirstAvailable final : public RouteDestination {
   // mark index as invalid
   void mark_ndx_invalid(size_t ndx) noexcept { valid_ndx_ = ndx + 1; }
 
+  routing::RoutingStrategy get_strategy() override {
+    return routing::RoutingStrategy::kFirstAvailable;
+  }
+
  private:
   size_t valid_ndx_{};
 };

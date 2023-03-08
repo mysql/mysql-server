@@ -42,7 +42,14 @@ class ConnectProcessor : public Processor {
         io_ctx_{conn->socket_splicer()->client_conn().connection()->io_ctx()},
         destinations_{conn->current_destinations()},
         destinations_it_{destinations_.begin()},
-        on_error_(std::move(on_error)) {}
+        on_error_(std::move(on_error)) {
+    // this is needed to shut down accepting port with next-available strategy
+    // despite there are destinations available
+    if (conn->destinations()->get_strategy() ==
+        routing::RoutingStrategy::kNextAvailable) {
+      last_ec_ = make_error_code(DestinationsErrc::kNoDestinations);
+    }
+  }
 
   using server_protocol_type = net::ip::tcp;
 
@@ -94,8 +101,7 @@ class ConnectProcessor : public Processor {
   net::ip::tcp::resolver::results_type endpoints_;
   net::ip::tcp::resolver::results_type::iterator endpoints_it_;
 
-  std::error_code last_ec_{
-      make_error_code(std::errc::no_such_file_or_directory)};
+  std::error_code last_ec_{make_error_code(DestinationsErrc::kNotSet)};
 
   std::function<void(const classic_protocol::message::server::Error &err)>
       on_error_;
