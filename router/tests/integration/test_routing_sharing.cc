@@ -5681,10 +5681,23 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option) {
 
   {
     auto query_res = cli.query("DO 1; DO 2");
-    ASSERT_NO_ERROR(query_res);
+    if (can_share) {
+      ASSERT_ERROR(query_res);
 
-    for (const auto &res [[maybe_unused]] : *query_res) {
+      // multi-statements are forbidden when connection-sharing is enabled.
+      EXPECT_EQ(query_res.error().value(), 6001);
+    } else {
+      ASSERT_NO_ERROR(query_res);
+
+      for (const auto &res [[maybe_unused]] : *query_res) {
+      }
     }
+  }
+
+  {
+    // a single statement is ok though.
+    auto query_res = cli.query("DO 1");
+    ASSERT_NO_ERROR(query_res);
   }
 
   if (can_share) {
@@ -5729,9 +5742,16 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option_at_connect) {
 
   {
     auto query_res = cli.query("DO 1; DO 2");
-    ASSERT_NO_ERROR(query_res);
+    if (can_share) {
+      ASSERT_ERROR(query_res);
 
-    for (const auto &res [[maybe_unused]] : *query_res) {
+      // multi-statements are forbidden when connection-sharing is enabled.
+      EXPECT_EQ(query_res.error().value(), 6001);
+    } else {
+      ASSERT_NO_ERROR(query_res);
+
+      for (const auto &res [[maybe_unused]] : *query_res) {
+      }
     }
   }
 
@@ -5743,10 +5763,23 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option_at_connect) {
 
   {
     auto query_res = cli.query("DO 1; DO 2");
-    ASSERT_NO_ERROR(query_res);
+    if (can_share) {
+      ASSERT_ERROR(query_res);
 
-    for (const auto &res [[maybe_unused]] : *query_res) {
+      // multi-statements are forbidden when connection-sharing is enabled.
+      EXPECT_EQ(query_res.error().value(), 6001);
+    } else {
+      ASSERT_NO_ERROR(query_res);
+
+      for (const auto &res [[maybe_unused]] : *query_res) {
+      }
     }
+  }
+
+  {
+    // a single statement is ok though.
+    auto query_res = cli.query("DO 1");
+    ASSERT_NO_ERROR(query_res);
   }
 
   if (can_share) {

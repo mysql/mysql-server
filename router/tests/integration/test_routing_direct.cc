@@ -3497,6 +3497,75 @@ TEST_P(ConnectionTest, classic_protocol_charset_after_connect) {
   }
 }
 
+TEST_P(ConnectionTest, classic_protocol_router_trace_set_fails) {
+  RecordProperty("Worklog", "15582");
+  RecordProperty("RequirementId", "FR2");
+  RecordProperty("Requirement",
+                 "If connection pooling is not active, or the query is sent "
+                 "via other commands (e.g. `COM_STMT_PREPARE`) the behaviour "
+                 "MUST not change.");
+
+  RecordProperty("Description",
+                 "check that `ROUTER SET trace = 1` fails via `COM_QUERY`");
+
+  MysqlClient cli;
+
+  auto account = SharedServer::native_empty_password_account();
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  {
+    auto cmd_res = cli.query("ROUTER SET trace = 1");
+    ASSERT_ERROR(cmd_res);
+
+    EXPECT_EQ(cmd_res.error().value(), 1064) << cmd_res.error();
+  }
+}
+
+TEST_P(ConnectionTest, classic_protocol_query_attribute_router_trace_ignored) {
+  RecordProperty("Worklog", "15582");
+  RecordProperty("RequirementId", "FR2");
+  RecordProperty("Requirement",
+                 "If connection pooling is not active, or the query is sent "
+                 "via other commands (e.g. `COM_STMT_PREPARE`) the behaviour "
+                 "MUST not change.");
+
+  RecordProperty("Description",
+                 "check that query attributes starting with `router.` are "
+                 "forwarded as is and don't generate a trace.");
+
+  MysqlClient cli;
+
+  auto account = SharedServer::native_empty_password_account();
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  {
+    uint8_t tiny_one{1};
+    std::array<MYSQL_BIND, 1> params{};
+    params[0] = {};
+    params[0].buffer = &tiny_one;
+    params[0].buffer_length = sizeof(tiny_one);
+    params[0].buffer_type = MYSQL_TYPE_TINY;
+    std::array<const char *, 1> param_names{{"router.trace"}};
+
+    auto cmd_res = cli.query("DO 1", params, param_names);
+    ASSERT_NO_ERROR(cmd_res);
+
+    auto warning_count_res = cli.warning_count();
+    ASSERT_NO_ERROR(warning_count_res);
+    EXPECT_EQ(*warning_count_res, 0);
+  }
+}
+
 INSTANTIATE_TEST_SUITE_P(Spec, ConnectionTest,
                          ::testing::ValuesIn(connection_params),
                          [](auto &info) {

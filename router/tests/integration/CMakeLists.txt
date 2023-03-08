@@ -28,6 +28,7 @@ FOREACH(test_file
     test_routing_sharing.cc
     test_routing_sharing_constrained_pools.cc
     test_routing_sharing_restart.cc
+    test_routing_tracing.cc
     )
 ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE "integration"

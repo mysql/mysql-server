@@ -1463,9 +1463,16 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
   SCOPED_TRACE("// verify multi-statement works");
   {
     auto query_res = cli.query("DO /* client[0] = PASS */ 1; DO 2");
-    ASSERT_NO_ERROR(query_res);
+    if (can_share) {
+      ASSERT_ERROR(query_res);
 
-    for (const auto &res [[maybe_unused]] : *query_res) {
+      // Multi-Statements are forbidden if connection-sharing is enabled.
+      EXPECT_EQ(query_res.error().value(), 6001);
+    } else {
+      ASSERT_NO_ERROR(query_res);
+
+      for (const auto &res [[maybe_unused]] : *query_res) {
+      }
     }
   }
 
@@ -1494,9 +1501,16 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
   SCOPED_TRACE("// the 1st connection still is multi-statement");
   {
     auto query_res = cli.query("DO /* client[0] = PASS */ 1; DO 2");
-    ASSERT_NO_ERROR(query_res);
+    if (can_share) {
+      ASSERT_ERROR(query_res);
 
-    for (const auto &res [[maybe_unused]] : *query_res) {
+      // Multi-Statements are forbidden if connection-sharing is enabled.
+      EXPECT_EQ(query_res.error().value(), 6001);
+    } else {
+      ASSERT_NO_ERROR(query_res);
+
+      for (const auto &res [[maybe_unused]] : *query_res) {
+      }
     }
   }
 }
