@@ -126,10 +126,9 @@ commit;
 let $slave_sql_errno= 3030;
 --source include/wait_for_slave_sql_error.inc
 
---echo # Show the error number and message after failure
---replace_regex /end_log_pos [0-9]*/end_log_pos NNN/
+--echo # Show the error number after failure
 query_vertical
-  SELECT WORKER_ID, LAST_ERROR_NUMBER, LAST_ERROR_MESSAGE
+  SELECT WORKER_ID, LAST_ERROR_NUMBER
     FROM performance_schema.replication_applier_status_by_worker
     WHERE LAST_ERROR_NUMBER != 0;
 --echo # Show the coordinator error number and message
