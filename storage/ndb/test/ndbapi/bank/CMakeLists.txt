@@ -39,5 +39,5 @@ SET(BINS
 
 FOREACH(B ${BINS})
   NDB_ADD_EXECUTABLE(${B} ${B}.cpp)
-  TARGET_LINK_LIBRARIES(${B} ndbbank ndbNDBT ndbclient_so)
+  TARGET_LINK_LIBRARIES(${B} ndbbank ndbNDBT ndbgeneral ndbclient_so)
 ENDFOREACH()

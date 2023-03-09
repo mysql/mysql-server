@@ -25,6 +25,7 @@
 # NDB_ADD_EXECUTABLE(options source_files)
 #    Add an executable file.
 #    Options:
+#        NDBGENERAL        link with NDB general library
 #        NDBTEST           link with NDB test library
 #        NDBCLIENT         link with dynamic NDB API client library
 #        STATIC_NDBCLIENT  link with static NDB API client library
@@ -32,7 +33,8 @@
 #
 
 FUNCTION(NDB_ADD_EXECUTABLE target)
-  SET(OPTIONS "NDBCLIENT" "STATIC_NDBCLIENT" "MYSQLCLIENT" "NDBTEST")
+  SET(OPTIONS "NDBCLIENT" "NDBGENERAL" "STATIC_NDBCLIENT" "MYSQLCLIENT"
+    "NDBTEST")
   CMAKE_PARSE_ARGUMENTS(OPT "${OPTIONS}" "" "" ${ARGN})
 
   MYSQL_ADD_EXECUTABLE(${target} ${OPT_UNPARSED_ARGUMENTS}
@@ -41,6 +43,10 @@ FUNCTION(NDB_ADD_EXECUTABLE target)
 
   IF(OPT_NDBTEST)
     TARGET_LINK_LIBRARIES(${target} ndbNDBT)
+  ENDIF()
+
+  IF(OPT_NDBGENERAL)
+    TARGET_LINK_LIBRARIES(${target} ndbgeneral)
   ENDIF()
 
   IF(OPT_NDBCLIENT)
