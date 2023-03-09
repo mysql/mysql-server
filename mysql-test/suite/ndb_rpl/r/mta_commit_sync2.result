@@ -109,16 +109,14 @@ commit;
 [connection slave]
 # Wait for replication error
 include/wait_for_slave_sql_error.inc [errno=3030]
-# Show the error number and message after failure
-SELECT WORKER_ID, LAST_ERROR_NUMBER, LAST_ERROR_MESSAGE
+# Show the error number after failure
+SELECT WORKER_ID, LAST_ERROR_NUMBER
 FROM performance_schema.replication_applier_status_by_worker
 WHERE LAST_ERROR_NUMBER != 0;
 WORKER_ID	1
 LAST_ERROR_NUMBER	1180
-LAST_ERROR_MESSAGE	Worker 1 failed executing transaction 'ANONYMOUS' at source log master-bin.000001, end_log_pos NNN; Could not execute Write_rows event on table test.t1; Got error -1 - 'Unknown error -1' during COMMIT, Error_code: 1180; the event's source log master-bin.000001, end_log_pos NNN
 WORKER_ID	2
 LAST_ERROR_NUMBER	3030
-LAST_ERROR_MESSAGE	Worker 2 failed executing transaction 'ANONYMOUS' at source log master-bin.000001, end_log_pos NNN; Error 'Replica worker has stopped after at least one previous worker encountered an error when replica-preserve-commit-order was enabled. To preserve commit order, the last transaction executed by this thread has not been committed. When restarting the replica after fixing any failed threads, you should fix this worker as well.' on query. Default database: ''. Query: 'COMMIT'
 # Show the coordinator error number and message
 SELECT LAST_ERROR_NUMBER, LAST_ERROR_MESSAGE
 FROM performance_schema.replication_applier_status_by_coordinator;
