@@ -21,9 +21,13 @@ SET SESSION sql_log_bin=0;
 CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 SET SESSION sql_log_bin=1;
 SET @@global.group_replication_recovery_complete_at= "transactions_certified";
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 LOCK TABLE test.t1 READ;
 [connection server_2]
 include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 
 # 4.  Create some transactions on server1 while server2 is in recovery.
 #     This transactions will be applied by server2 when out of recovery.
@@ -48,6 +52,8 @@ unlock tables;
 
 [connection server2]
 SET @@GLOBAL.group_replication_recovery_complete_at= @debug_group_replication_recovery_complete_at;
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 [connection server1]
 DROP TABLE test.t1;
 include/group_replication_end.inc

@@ -14,14 +14,22 @@ include/assert.inc [The default of the recovery complete mode should be "transac
 # Change to a valid value.
 #
 SET GLOBAL group_replication_recovery_complete_at= "transactions_certified";
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 include/assert.inc [The recovery complete mode should now be "transactions_certified"]
 SET GLOBAL group_replication_recovery_complete_at= @configured_rec_policy;
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 #
 # Change to a valid alias.
 #
 SET GLOBAL group_replication_recovery_complete_at= 0;
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 include/assert.inc [The default of the recovery complete mode should be "transactions_certified"]
 SET GLOBAL group_replication_recovery_complete_at= 1;
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 include/assert.inc [The recovery complete mode should now be "transactions_applied"]
 #
 # Test an invalid values.
@@ -34,4 +42,6 @@ ERROR 42000: Variable 'group_replication_recovery_complete_at' can't be set to t
 # Clean up
 #
 SET GLOBAL group_replication_recovery_complete_at= @configured_rec_policy;
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

@@ -201,6 +201,8 @@ SET GLOBAL group_replication_message_cache_size = @@GLOBAL.group_replication_mes
 SET GLOBAL group_replication_paxos_single_leader = @@GLOBAL.group_replication_paxos_single_leader;
 SET GLOBAL group_replication_poll_spin_loops = @@GLOBAL.group_replication_poll_spin_loops;
 SET GLOBAL group_replication_recovery_complete_at = @@GLOBAL.group_replication_recovery_complete_at;
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 SET GLOBAL group_replication_recovery_compression_algorithms = @@GLOBAL.group_replication_recovery_compression_algorithms;
 SET GLOBAL group_replication_recovery_get_public_key = @@GLOBAL.group_replication_recovery_get_public_key;
 SET GLOBAL group_replication_recovery_public_key_path = @@GLOBAL.group_replication_recovery_public_key_path;

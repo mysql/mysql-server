@@ -175,6 +175,8 @@ Mysqlx.Ok {
 }
 ok
 START GROUP_REPLICATION;
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 include/assert.inc [group_replication_allow_local_lower_version_join is ON]
 include/assert.inc [group_replication_auto_increment_increment is 5]
 include/assert.inc [group_replication_components_stop_timeout is 10]
@@ -229,6 +231,8 @@ SET GLOBAL group_replication_gtid_assignment_block_size= @group_replication_gtid
 SET GLOBAL group_replication_local_address= @group_replication_local_address_save;
 SET GLOBAL group_replication_group_seeds= @group_replication_group_seeds_save;
 SET GLOBAL group_replication_recovery_complete_at= @group_replication_recovery_complete_at_save;
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 SET GLOBAL group_replication_poll_spin_loops= @group_replication_poll_spin_loops_save;
 SET GLOBAL group_replication_recovery_reconnect_interval= @group_replication_recovery_reconnect_interval_save;
 SET GLOBAL group_replication_recovery_retry_count= @group_replication_recovery_retry_count_save;
