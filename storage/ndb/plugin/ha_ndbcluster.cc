@@ -7784,11 +7784,21 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
     if (applier && applier->get_num_workers() > 1) {
       if (thd_ndb->m_unsent_bytes) {
         DBUG_PRINT("info", ("Applier preparing defined operations"));
-        return execute_no_commit(thd_ndb, trans, true);
+        res = execute_no_commit(thd_ndb, trans, true);
+        if (res != 0) {
+          // Fatal transaction error occured
+          const NdbError &trans_error = trans->getNdbError();
+          if (trans_error.code == 4350) {  // Transaction already aborted
+            thd_ndb->push_ndb_error_warning(trans_error);
+            res = HA_ERR_ROLLED_BACK;
+          } else {
+            res = ndbcluster_print_error(trans, thd_ndb->m_handler);
+          }
+        }
       }
     }
 
-    return 0;
+    return res;
   }
   thd_ndb->save_point_count = 0;
 
