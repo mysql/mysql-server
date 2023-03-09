@@ -140,6 +140,7 @@ constexpr value_type compress_zstd{1 << pos::compress_zstd};
 // version_added: 8.0
 constexpr value_type optional_resultset_metadata{
     1 << pos::optional_resultset_metadata};
+// version_added: 8.0
 constexpr value_type query_attributes{1 << pos::query_attributes};
 }  // namespace capabilities
 
@@ -212,8 +213,9 @@ constexpr value_type no_cursor{0};
 constexpr value_type read_only{1};
 constexpr value_type for_update{2};
 constexpr value_type scrollable{3};
+constexpr value_type param_count_available{4};
 
-constexpr value_type _bitset_size{scrollable + 1};
+constexpr value_type _bitset_size{param_count_available + 1};
 }  // namespace pos
 using value_type = std::bitset<pos::_bitset_size>;
 
@@ -221,6 +223,7 @@ constexpr value_type no_cursor{1 << pos::no_cursor};
 constexpr value_type read_only{1 << pos::read_only};
 constexpr value_type for_update{1 << pos::for_update};
 constexpr value_type scrollable{1 << pos::scrollable};
+constexpr value_type param_count_available{1 << pos::param_count_available};
 }  // namespace cursor
 
 namespace field_type {

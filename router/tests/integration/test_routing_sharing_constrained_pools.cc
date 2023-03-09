@@ -2078,38 +2078,6 @@ class WarningsChecker : public Checker {
 
     // send a statement with generates a warning or error.
     ASSERT_NO_ERROR(cli.query(stmt));
-
-    // router will return the response and inject a SHOW WARNINGS
-    // before returning the connection to the pool.
-    //
-    // c->r   : stmt
-    //    r->s: stmt
-    //    r<-s: ok, warnings
-    // c<-r   : ok, warnings
-    //    r->s: SHOW WARNINGS
-    //    r<-s: row, ... row_end
-    //    r--s: idle ... to pool
-    //
-    // As the checker may expect that the connection is pooled right after the
-    // client gets the Ok, it may sent the next command while the SHOW WARNINGS
-    // still runs.
-    //
-    // By sending a ping, it can be ensured that the SHOW WARNINGS finished and
-    // the connection is in the pool.
-    //
-    // c->r   : stmt
-    //    r->s: stmt
-    //    r<-s: ok, warnings
-    // c<-r   : ok, warnings
-    //    r->s: SHOW WARNINGS
-    // c->r   : ping
-    //    r<-s: row, ... row_end
-    //    r->s: ping
-    //    r<-s: ok
-    // c<-r   : ok
-    //    r--s: idle ... to pool
-
-    ASSERT_NO_ERROR(cli.ping());
   }
 
   std::function<void(MysqlClient &cli)> verifier() override {
@@ -2253,10 +2221,12 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, restore) {
       std::make_unique<SetSessionVarChecker>(
           SetSessionVarChecker::test_values_type{{"timestamp", "1.500000"},
                                                  {"unique_checks", "0"}}));
+
   checkers.emplace_back(
       "warnings",
       std::make_unique<WarningsChecker>(WarningsChecker::test_values_type{
           {"DO 0/0", 1365}, {"DO _utf8''", 3719}}));
+
   checkers.emplace_back(
       "no-warnings", std::make_unique<NoWarningsChecker>(
                          NoWarningsChecker::test_values_type{"DO 1", "DO 2"}));
@@ -2333,7 +2303,6 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, restore) {
               GTEST_SKIP() << connect_res.error();
             }
             ASSERT_NO_ERROR(connect_res);
-
             //
             ASSERT_NO_ERROR(cli.ping());
           }
@@ -2349,15 +2318,18 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, restore) {
         }
 
         if (clean_pool_before_verify && can_share && can_fetch_password) {
-          // only close server's connections the connections are expected to be
-          // in the pool.
+          // wait until all connections are pooled.
+          ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(
+              kMaxPoolSize, 1s));
+
+          // only close the connections that are expected to be in the pool.
           for (auto &s : shared_servers()) {
             s->close_all_connections();
           }
 
-          // wait a bit to give the connection pool time to notice that the
-          // connection got closed.
-          std::this_thread::sleep_for(50ms);
+          // wait until all connections are pooled.
+          ASSERT_NO_ERROR(
+              shared_router()->wait_for_idle_server_connections(0, 1s));
         }
 
         // verify variables that were set are reapplied.

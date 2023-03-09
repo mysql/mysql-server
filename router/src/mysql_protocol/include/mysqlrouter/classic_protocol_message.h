@@ -559,26 +559,33 @@ class StmtPrepareOk {
         with_metadata_{with_metadata} {}
 
   constexpr uint32_t statement_id() const noexcept { return statement_id_; }
+  constexpr void statement_id(uint32_t id) noexcept { statement_id_ = id; }
   constexpr uint16_t warning_count() const noexcept { return warning_count_; }
+  constexpr void warning_count(uint16_t cnt) noexcept { warning_count_ = cnt; }
 
-  constexpr uint16_t column_count() const { return column_count_; }
-  constexpr uint16_t param_count() const { return param_count_; }
-  constexpr uint8_t with_metadata() const { return with_metadata_; }
+  constexpr uint16_t column_count() const noexcept { return column_count_; }
+  constexpr void column_count(uint16_t cnt) noexcept { column_count_ = cnt; }
+  constexpr uint16_t param_count() const noexcept { return param_count_; }
+  constexpr void param_count(uint16_t cnt) noexcept { param_count_ = cnt; }
+  constexpr uint8_t with_metadata() const noexcept { return with_metadata_; }
+  constexpr void with_metadata(uint8_t with) noexcept { with_metadata_ = with; }
+
+  friend constexpr bool operator==(const StmtPrepareOk &lhs,
+                                   const StmtPrepareOk &rhs) {
+    return (lhs.statement_id() == rhs.statement_id()) &&
+           (lhs.column_count() == rhs.column_count()) &&
+           (lhs.param_count() == rhs.param_count()) &&
+           (lhs.warning_count() == rhs.warning_count()) &&
+           (lhs.with_metadata() == rhs.with_metadata());
+  }
 
  private:
   uint32_t statement_id_;
   uint16_t warning_count_;
   uint16_t param_count_;
   uint16_t column_count_;
-  uint8_t with_metadata_{1};
+  uint8_t with_metadata_;
 };
-
-inline bool operator==(const StmtPrepareOk &a, const StmtPrepareOk &b) {
-  return (a.statement_id() == b.statement_id()) &&
-         (a.column_count() == b.column_count()) &&
-         (a.param_count() == b.param_count()) &&
-         (a.warning_count() == b.warning_count());
-}
 
 /**
  * StmtRow message.
@@ -766,17 +773,33 @@ class Query {
   using string_type =
       std::conditional_t<Borrowed, std::string_view, std::string>;
 
+  struct Param {
+    uint16_t type_and_flags;
+    string_type name;
+    std::optional<string_type> value;
+
+    Param(uint16_t t, string_type n, std::optional<string_type> v)
+        : type_and_flags(t), name(std::move(n)), value(std::move(v)) {}
+  };
+
+  Query(string_type statement) : statement_{std::move(statement)} {}
+
   /**
-   * construct a Query message.
+   * construct a Query message with values.
    *
-   * @param statement statement to prepare
+   * @param statement statement to query
+   * @param values values for statement
    */
-  constexpr Query(string_type statement) : statement_{std::move(statement)} {}
+  Query(string_type statement, std::vector<Param> values)
+      : statement_{std::move(statement)}, values_(std::move(values)) {}
 
   constexpr string_type statement() const { return statement_; }
 
+  std::vector<Param> values() const { return values_; }
+
  private:
   string_type statement_;
+  std::vector<Param> values_;
 };
 
 template <bool Borrowed>
@@ -1061,11 +1084,15 @@ class StmtExecute {
 
     ParamDef(uint16_t type_and_flags_) : type_and_flags(type_and_flags_) {}
 
+    ParamDef(uint16_t type_and_flags_, string_type name_)
+        : type_and_flags(type_and_flags_), name(std::move(name_)) {}
+
     friend bool operator==(const ParamDef &lhs, const ParamDef &rhs) {
-      return lhs.type_and_flags == rhs.type_and_flags;
+      return lhs.type_and_flags == rhs.type_and_flags && lhs.name == rhs.name;
     }
 
     uint16_t type_and_flags{};
+    string_type name;
   };
 
   /**
