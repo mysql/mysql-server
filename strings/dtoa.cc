@@ -1391,7 +1391,8 @@ dig_done:
           if (++s < end) c = *s;
       }
     if (s < end && c >= '0' && c <= '9') {
-      while (s < end && c == '0') c = *++s;
+      while (s < end && *s == '0') ++s;  // Skip leading zeros in exponent.
+      if (s < end) c = *s;  // First significant digit in exponent, if any.
       if (s < end && c > '0' && c <= '9') {
         L = c - '0';
         s1 = s;
