@@ -74,6 +74,22 @@ static inline connection_descriptor *new_connection(int fd) {
   return c;
 }
 #endif
+
+/**
+ * @brief Free a connection_descriptor created with new_connection.
+ *        This function will, if the [in] parameter is not nullptr:
+ *        - Free the pointer
+ *        - Set the pointer to nullptr
+ *
+ * @param con a pointer to a connection_descriptor.
+ */
+static inline void free_connection(connection_descriptor *&con) {
+  if (con != nullptr) {
+    free(con);
+    con = nullptr;
+  }
+}
+
 static inline int is_connected(connection_descriptor *con) {
   return con->connected_ >= CON_FD;
 }

@@ -554,7 +554,9 @@ bool Gcs_xcom_control::try_send_add_node_request_to_seeds(
 
   // Until the add_node is successfully sent, for each peer...
   for (auto it = m_initial_peers.begin();
-       !add_node_accepted && it != m_initial_peers.end(); it++) {
+       !m_view_control->is_finalized() && !add_node_accepted &&
+       it != m_initial_peers.end();
+       it++) {
     // ...try to connect to it and send it the add_node request.
     Gcs_xcom_node_address &peer = **it;
 
@@ -562,9 +564,8 @@ bool Gcs_xcom_control::try_send_add_node_request_to_seeds(
     connection_descriptor *con = nullptr;
     std::tie(connected, con) = connect_to_peer(peer, my_addresses);
 
-    if (m_view_control->is_finalized()) break;
-
-    if (connected) {
+    if (bool finalized = m_view_control->is_finalized();
+        !finalized && connected) {
       MYSQL_GCS_LOG_INFO("Sucessfully connected to peer "
                          << peer.get_member_ip().c_str() << ":"
                          << peer.get_member_port()
@@ -596,7 +597,7 @@ bool Gcs_xcom_control::try_send_add_node_request_to_seeds(
       if (xcom_will_process) add_node_accepted = true;
     }
 
-    if (con != nullptr) free(con);
+    free_connection(con);
   }
 
   return add_node_accepted;
