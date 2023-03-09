@@ -1,0 +1,62 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+##################################################################
+#
+# Check that applier retries temporary errors
+# - first show that applier stops when no retries are allowed.
+# - then reconfigure to allow transaction retries and show how
+#   applier is retrying until the provoked error is cleared
+#
+[connection slave]
+call mtr.add_suppression(".*Lock timed out; Retry transaction.*");
+call mtr.add_suppression(".*worker thread retried transaction 1 time.*");
+call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
+[connection master]
+CREATE TABLE t1 (
+nid int NOT NULL,
+nom char(4) default NULL,
+prenom char(4) default NULL,
+PRIMARY KEY USING HASH (nid)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (1,"XYZ1","ABC1");
+include/sync_slave_sql_with_master.inc
+[connection slave]
+# Lock the row on replica
+BEGIN;
+UPDATE t1 SET nom="LOCK" WHERE nid=1;
+# Set number of retries low so retries are not allowed
+SET GLOBAL replica_transaction_retries=1;
+[connection master]
+# Change the row on source, this will cause lock wait timeout when
+# applying on replica
+UPDATE t1 SET nom="DEAD" WHERE nid=1;
+[connection slave1]
+# Wait for deadlock to be detected and applier to stop since
+# retries where not allowed. Use different connection.
+include/wait_for_slave_sql_error.inc [errno=1205]
+# Reconfigure retries high enough to allow retries, start replication
+SET GLOBAL replica_transaction_retries=10;
+include/start_slave.inc
+# Wait for deadlock to be detected and retried at least two times.
+[connection slave]
+# Switch back to the connection holding lock on replica, commit the
+# transaction to release lock and thus let the currently retrying
+# applier succeed
+select * from t1 order by nid;
+nid	nom	prenom
+1	LOCK	ABC1
+COMMIT;
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection slave]
+# Verify that the row was applied sucessfully on replica
+SELECT * FROM t1;
+nid	nom	prenom
+1	DEAD	ABC1
+[connection master]
+# Cleanup
+DROP TABLE t1;
+include/rpl_end.inc
