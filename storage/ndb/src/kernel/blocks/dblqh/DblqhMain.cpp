@@ -6046,7 +6046,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
      */
     bool xfrmMatch = match;
     const Uint32 tableId = regTcPtr.p->tableref;
-    if (!match &&
+    if (len > 0 && !match &&
         g_key_descriptor_pool.getPtr(tableId)->hasCharAttr)
     {
       Uint64 reqKey[ MAX_KEY_SIZE_IN_WORDS >> 1 ];
@@ -6062,6 +6062,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
                                         (Uint32*)dbXfrmKey,
                                         sizeof(dbXfrmKey) >> 2,
                                         keyPartLen);
+      ndbassert(dbXfrmKeyLen > 0);
 
       /* Copy request key into linear space */
       copy((Uint32*) reqKey, regTcPtr.p->keyInfoIVal);
@@ -6072,6 +6073,8 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
                                          (Uint32*)reqXfrmKey,
                                          sizeof(reqXfrmKey) >> 2,
                                          keyPartLen);
+      ndbassert(reqXfrmKeyLen > 0);
+
       /* Check for a match between the xfrmd keys */
       if (dbXfrmKeyLen > 0 &&
           dbXfrmKeyLen == reqXfrmKeyLen)
