@@ -10,3 +10,4 @@ replica-parallel-workers=10
 #disable-log-bin
 replica-preserve-commit-order=1
 log-replica-updates=1
+replica_transaction_retries=1
