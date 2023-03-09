@@ -3448,6 +3448,7 @@ static void mysql_ssl_free(MYSQL *mysql) {
     my_free(mysql->options.extension->ssl_crlpath);
     my_free(mysql->options.extension->tls_ciphersuites);
     my_free(mysql->options.extension->load_data_dir);
+    my_free(mysql->options.extension->tls_sni_servername);
     for (unsigned int idx = 0; idx < MAX_AUTHENTICATION_FACTOR; idx++) {
       if (mysql->options.extension->client_auth_info[idx].plugin_name) {
         my_free(mysql->options.extension->client_auth_info[idx].plugin_name);
@@ -3473,6 +3474,7 @@ static void mysql_ssl_free(MYSQL *mysql) {
     mysql->options.extension->ssl_fips_mode = SSL_FIPS_MODE_OFF;
     mysql->options.extension->tls_ciphersuites = nullptr;
     mysql->options.extension->load_data_dir = nullptr;
+    mysql->options.extension->tls_sni_servername = nullptr;
   }
   mysql->connector_fd = nullptr;
 }
@@ -4479,12 +4481,20 @@ static int cli_establish_ssl(MYSQL *mysql) {
     DBUG_PRINT("info", ("IO layer change in progress..."));
     MYSQL_TRACE(SSL_CONNECT, mysql, ());
     if (sslconnect(ssl_fd, net->vio, (long)(mysql->options.connect_timeout),
-                   ssl_session, &ssl_error, nullptr)) {
+                   ssl_session, &ssl_error, nullptr,
+                   MYSQL_OPTIONS_EXTENSION_PTR(mysql, tls_sni_servername))) {
       char buf[512];
       ERR_error_string_n(ssl_error, buf, 512);
       buf[511] = 0;
-      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
-                               ER_CLIENT(CR_SSL_CONNECTION_ERROR), buf);
+      if (ERR_GET_REASON(ssl_error) == SSL_R_TLSV1_UNRECOGNIZED_NAME) {
+        set_mysql_extended_error(mysql, CR_TLS_SERVER_NOT_FOUND,
+                                 unknown_sqlstate,
+                                 ER_CLIENT(CR_TLS_SERVER_NOT_FOUND), buf);
+      } else {
+        set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR,
+                                 unknown_sqlstate,
+                                 ER_CLIENT(CR_SSL_CONNECTION_ERROR), buf);
+      }
       if (ssl_session != nullptr) SSL_SESSION_free(ssl_session);
       goto error;
     }
@@ -4644,9 +4654,10 @@ static net_async_status cli_establish_ssl_nonblocking(MYSQL *mysql, int *res) {
     /* Connect to the server */
     DBUG_PRINT("info", ("IO layer change in progress..."));
     MYSQL_TRACE(SSL_CONNECT, mysql, ());
-    if ((ret = sslconnect(ssl_fd, net->vio,
-                          (long)(mysql->options.connect_timeout), ssl_session,
-                          &ssl_error, &ctx->ssl))) {
+    if ((ret = sslconnect(
+             ssl_fd, net->vio, (long)(mysql->options.connect_timeout),
+             ssl_session, &ssl_error, &ctx->ssl,
+             MYSQL_OPTIONS_EXTENSION_PTR(mysql, tls_sni_servername)))) {
       if (ssl_session != nullptr) SSL_SESSION_free(ssl_session);
       switch (ret) {
         case VIO_SOCKET_WANT_READ:
@@ -4663,8 +4674,16 @@ static net_async_status cli_establish_ssl_nonblocking(MYSQL *mysql, int *res) {
       char buf[512];
       ERR_error_string_n(ssl_error, buf, 512);
       buf[511] = 0;
-      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
-                               ER_CLIENT(CR_SSL_CONNECTION_ERROR), buf);
+      if (ERR_GET_REASON(ssl_error) == SSL_R_TLSV1_UNRECOGNIZED_NAME) {
+        set_mysql_extended_error(mysql, CR_TLS_SERVER_NOT_FOUND,
+                                 unknown_sqlstate,
+                                 ER_CLIENT(CR_TLS_SERVER_NOT_FOUND), buf);
+
+      } else {
+        set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR,
+                                 unknown_sqlstate,
+                                 ER_CLIENT(CR_SSL_CONNECTION_ERROR), buf);
+      }
       goto error;
     }
     if (ssl_session != nullptr) SSL_SESSION_free(ssl_session);
@@ -8791,6 +8810,10 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
       EXTENSION_SET_STRING(&mysql->options, ssl_session_data,
                            static_cast<const char *>(arg));
       break;
+    case MYSQL_OPT_TLS_SNI_SERVERNAME:
+      EXTENSION_SET_STRING(&mysql->options, tls_sni_servername,
+                           static_cast<const char *>(arg));
+      break;
     default:
       return 1;
   }
@@ -8823,7 +8846,8 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
     MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH, MYSQL_OPT_SSL_KEY, MYSQL_OPT_SSL_CERT,
     MYSQL_OPT_SSL_CA, MYSQL_OPT_SSL_CAPATH, MYSQL_OPT_SSL_CIPHER,
     MYSQL_OPT_TLS_CIPHERSUITES, MYSQL_OPT_SSL_CRL, MYSQL_OPT_SSL_CRLPATH,
-    MYSQL_OPT_TLS_VERSION, MYSQL_SERVER_PUBLIC_KEY, MYSQL_OPT_SSL_FIPS_MODE
+    MYSQL_OPT_TLS_VERSION, MYSQL_SERVER_PUBLIC_KEY, MYSQL_OPT_SSL_FIPS_MODE,
+    MYSQL_OPT_TLS_SNI_SERVERNAME
 
   <none, error returned>
     MYSQL_OPT_NAMED_PIPE, MYSQL_OPT_CONNECT_ATTR_RESET,
@@ -8944,6 +8968,10 @@ int STDCALL mysql_get_option(MYSQL *mysql, enum mysql_option option,
       *(static_cast<char **>(const_cast<void *>(arg))) =
           mysql->options.extension ? mysql->options.extension->tls_ciphersuites
                                    : nullptr;
+      break;
+    case MYSQL_OPT_TLS_SNI_SERVERNAME:
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          MYSQL_OPTIONS_EXTENSION_PTR(mysql, tls_sni_servername);
       break;
     case MYSQL_OPT_RETRY_COUNT:
       *(const_cast<uint *>(static_cast<const uint *>(arg))) =

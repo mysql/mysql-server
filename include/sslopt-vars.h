@@ -66,6 +66,7 @@ static ulong opt_ssl_fips_mode = SSL_FIPS_MODE_OFF;
 static bool ssl_mode_set_explicitly = false;
 static char *opt_ssl_session_data = nullptr;
 static bool opt_ssl_session_data_continue_on_failed_reuse = false;
+static char *opt_tls_sni_servername = nullptr;
 
 static inline int set_client_ssl_options(MYSQL *mysql) {
   /*
@@ -94,6 +95,7 @@ static inline int set_client_ssl_options(MYSQL *mysql) {
   if (opt_ssl_fips_mode > 0 && mysql_errno(mysql) == CR_SSL_FIPS_MODE_ERR)
     return 1;
   mysql_options(mysql, MYSQL_OPT_TLS_CIPHERSUITES, opt_tls_ciphersuites);
+  mysql_options(mysql, MYSQL_OPT_TLS_SNI_SERVERNAME, opt_tls_sni_servername);
   if (opt_ssl_session_data) {
     FILE *fi = fopen(opt_ssl_session_data, "rb");
     char buff[4096], *bufptr = &buff[0];

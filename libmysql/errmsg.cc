@@ -122,6 +122,8 @@ const char *client_errors[] = {
     "'%-.32s' character set is having more than 1 byte minimum character "
     "length, which cannot be used as a client character set. Please use any "
     "of the single byte minimum ones, e.g. utf8mb4, latin1 etc.",
+    "Server rejected the ssl handshake for specified sni servername, sslerror: "
+    "%-.100s",
     ""};
 
 static const char *get_client_errmsg(int nr) {

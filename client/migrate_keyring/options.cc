@@ -79,6 +79,7 @@ enum migration_options {
   OPT_SERVER_PUBLIC_KEY,
   OPT_SSL_SESSION_DATA,
   OPT_SSL_SESSION_DATA_CONTINUE_ON_FAILED_REUSE,
+  OPT_TLS_SNI_SERVERNAME,
   /* Add new value above this */
   OPT_LAST
 };

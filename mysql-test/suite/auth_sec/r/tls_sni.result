@@ -1,0 +1,138 @@
+#
+# Test WL#14839: Extend MySQL TLS handshake to allow SNI
+#
+# test FR4: must be empty
+SHOW SESSION STATUS LIKE 'Tls_sni_server_name';
+Variable_name	Value
+Tls_sni_server_name	
+CREATE TABLE init_connect_log(SNI_VALUE VARCHAR(256) CHARACTER SET latin1);
+SET GLOBAL INIT_CONNECT = 'INSERT INTO test.init_connect_log SELECT VARIABLE_VALUE FROM performance_schema.session_status WHERE VARIABLE_NAME="Tls_sni_server_name"';
+CREATE USER wl14839;
+GRANT INSERT,SELECT ON test.init_connect_log TO wl14839;
+# Test mysql
+# test FR5: mysql SNI must be empty
+Variable_name	Value
+Tls_sni_server_name	
+SELECT * FROM init_connect_log;
+SNI_VALUE
+
+DELETE FROM init_connect_log;
+# test FR5: mysql SNI must be gizmo
+Variable_name	Value
+Tls_sni_server_name	gizmo
+SELECT * FROM init_connect_log;
+SNI_VALUE
+gizmo
+DELETE FROM init_connect_log;
+# Test mysqladmin
+# test FR5: mysqladmin SNI must be empty
+mysqld is alive
+SELECT * FROM init_connect_log;
+SNI_VALUE
+
+DELETE FROM init_connect_log;
+# test FR5: mysqladmin SNI must be gizmo
+mysqld is alive
+SELECT * FROM init_connect_log;
+SNI_VALUE
+gizmo
+DELETE FROM init_connect_log;
+# Test mysqlbinlog
+# test FR5: mysqlbinlog SNI must be empty
+SELECT * FROM init_connect_log;
+SNI_VALUE
+
+DELETE FROM init_connect_log;
+# test FR5: mysqlbinlog SNI must be gizmo
+SELECT * FROM init_connect_log;
+SNI_VALUE
+gizmo
+DELETE FROM init_connect_log;
+# Test mysqldump
+# test FR5: mysqldump SNI must be empty
+SELECT * FROM init_connect_log;
+SNI_VALUE
+
+DELETE FROM init_connect_log;
+# test FR5: mysqldump SNI must be gizmo
+SELECT * FROM init_connect_log;
+SNI_VALUE
+gizmo
+DELETE FROM init_connect_log;
+# Test mysqlimport
+# test FR5: mysqlimport SNI must be empty
+SELECT * FROM init_connect_log;
+SNI_VALUE
+
+DELETE FROM init_connect_log;
+# test FR5: mysqldump SNI must be gizmo
+SELECT * FROM init_connect_log;
+SNI_VALUE
+gizmo
+DELETE FROM init_connect_log;
+# Test mysqlshow
+# test FR5: mysqlshow SNI must be empty
+SELECT * FROM init_connect_log;
+SNI_VALUE
+
+DELETE FROM init_connect_log;
+# test FR5: mysqlshow SNI must be gizmo
+SELECT * FROM init_connect_log;
+SNI_VALUE
+gizmo
+DELETE FROM init_connect_log;
+# Test mysqlslap
+# test FR5: mysqlslap SNI must be empty
+SELECT * FROM init_connect_log;
+SNI_VALUE
+
+DELETE FROM init_connect_log;
+# test FR5: mysqlslap SNI must be gizmo
+SELECT * FROM init_connect_log;
+SNI_VALUE
+gizmo
+DELETE FROM init_connect_log;
+# Test mysqltest
+# test FR5: mysqltest SNI must be empty
+SELECT * FROM init_connect_log;
+SNI_VALUE
+
+DELETE FROM init_connect_log;
+# test FR5: mysqltest SNI must be gizmo
+SELECT * FROM init_connect_log;
+SNI_VALUE
+gizmo
+DELETE FROM init_connect_log;
+# Test mysqlcheck
+# test FR5: mysqlcheck SNI must be empty
+test.init_connect_log                              OK
+SELECT * FROM init_connect_log;
+SNI_VALUE
+
+DELETE FROM init_connect_log;
+# test FR5: mysqlcheck SNI must be gizmo
+SELECT * FROM init_connect_log;
+SNI_VALUE
+gizmo
+DELETE FROM init_connect_log;
+# Test mysqlpump
+CREATE USER wl14839_2;
+GRANT SELECT ON *.* TO wl14839_2;
+# test FR5: mysqlpump SNI must be empty
+SELECT DISTINCT * FROM init_connect_log;
+SNI_VALUE
+
+DELETE FROM init_connect_log;
+# test FR5: mysqlpump SNI must be gizmo
+SELECT DISTINCT * FROM init_connect_log;
+SNI_VALUE
+gizmo
+DELETE FROM init_connect_log;
+REVOKE SELECT ON *.* FROM wl14839_2;
+DROP USER wl14839_2;
+# cleanup
+REVOKE INSERT,SELECT ON test.init_connect_log FROM wl14839;
+DROP USER wl14839;
+SET GLOBAL INIT_CONNECT = default;
+DROP TABLE init_connect_log;
+# end of 8.0 tests

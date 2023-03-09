@@ -19066,6 +19066,7 @@ static void test_wl6791() {
     MYSQL_OPT_SSL_CAPATH,
     MYSQL_OPT_SSL_CIPHER,
     MYSQL_OPT_TLS_CIPHERSUITES,
+    MYSQL_OPT_TLS_SNI_SERVERNAME,
     MYSQL_OPT_SSL_CRL,
     MYSQL_OPT_SSL_CRLPATH,
     MYSQL_SERVER_PUBLIC_KEY },
@@ -23630,6 +23631,47 @@ static void test_wl15651() {
   mysql_close(mysql_sync);
 }
 
+static void test_wl14839() {
+  myheader("test_wl14839");
+  int rc;
+
+  MYSQL *lmysql = mysql_client_init(nullptr);
+  DIE_UNLESS(lmysql);
+
+  printf("set gizmo as a SNI name.\n");
+  rc = mysql_options(lmysql, MYSQL_OPT_TLS_SNI_SERVERNAME, "gizmo");
+  myquery2(lmysql, rc);
+
+  printf("connect.\n");
+  if (!mysql_real_connect(lmysql, opt_host, opt_user, opt_password, current_db,
+                          opt_port, opt_unix_socket, 0)) {
+    fprintf(stderr, "Failed to connect to the database\n");
+    DIE_UNLESS(0);
+  }
+
+  printf("get the status Tls_sni_server_name var.\n");
+  rc = mysql_query(lmysql, "SHOW SESSION STATUS LIKE 'Tls_sni_server_name'");
+  myquery2(lmysql, rc);
+
+  MYSQL_RES *result = mysql_store_result(lmysql);
+  mytest2(lmysql, result);
+
+  MYSQL_ROW row;
+  if (!(row = mysql_fetch_row(result)) || !row[1]) {
+    fprintf(stdout, "\n *** ERROR: FAILED TO GET THE RESULT ***");
+    DIE_UNLESS(false);
+  }
+  printf("check the status Tls_sni_server_name var's value.\n");
+  if (strcmp(row[1], "gizmo")) {
+    fprintf(stdout, "\n obtained: `%s` (expected: `gizmo`)", row[1]);
+    DIE_UNLESS(false);
+  }
+  printf("Done\n");
+  mysql_free_result(result);
+
+  mysql_close(lmysql);
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -23949,6 +23991,7 @@ static struct my_tests_st my_tests[] = {
     {"test_34556764", test_34556764},
     {"test_bug34869076", test_bug34869076},
     {"test_wl15651", test_wl15651},
+    {"test_wl14839", test_wl14839},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

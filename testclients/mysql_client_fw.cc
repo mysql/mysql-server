@@ -194,6 +194,12 @@ static void die(const char *file, int line, const char *expr) {
     DIE_UNLESS(false); \
   }
 
+#define mytest2(lmysql, x)  \
+  if (!(x)) {               \
+    myerror2(lmysql, NULL); \
+    DIE_UNLESS(false);      \
+  }
+
 /* Silence unused function warnings for some of the static functions. */
 [[maybe_unused]] static int cmp_double(double *a, double *b);
 [[maybe_unused]] static void verify_col_data(const char *table, const char *col,

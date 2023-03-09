@@ -1,0 +1,153 @@
+# Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+--source include/allowed_ciphers.inc
+
+--echo #
+--echo # Test WL#14839: Extend MySQL TLS handshake to allow SNI
+--echo #
+
+--let outfile=$MYSQL_TMP_DIR/ddump.txt
+
+--echo # test FR4: must be empty
+SHOW SESSION STATUS LIKE 'Tls_sni_server_name';
+CREATE TABLE init_connect_log(SNI_VALUE VARCHAR(256) CHARACTER SET latin1);
+SET GLOBAL INIT_CONNECT = 'INSERT INTO test.init_connect_log SELECT VARIABLE_VALUE FROM performance_schema.session_status WHERE VARIABLE_NAME="Tls_sni_server_name"';
+CREATE USER wl14839;
+GRANT INSERT,SELECT ON test.init_connect_log TO wl14839;
+
+--echo # Test mysql
+--echo # test FR5: mysql SNI must be empty
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839 --ssl-mode=require -e "SHOW SESSION STATUS LIKE 'Tls_sni_server_name'" 2>&1
+SELECT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+--echo # test FR5: mysql SNI must be gizmo
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839 --ssl-mode=require --tls-sni-servername="gizmo" -e "SHOW SESSION STATUS LIKE 'Tls_sni_server_name'" 2>&1
+SELECT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+
+--echo # Test mysqladmin
+--echo # test FR5: mysqladmin SNI must be empty
+--exec $MYSQLADMIN --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839 --ssl-mode=require ping 2>&1
+SELECT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+--echo # test FR5: mysqladmin SNI must be gizmo
+--exec $MYSQLADMIN --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839 --ssl-mode=require --tls-sni-servername="gizmo" ping 2>&1
+SELECT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+
+--echo # Test mysqlbinlog
+--echo # test FR5: mysqlbinlog SNI must be empty
+--error 1
+--exec $MYSQL_BINLOG --read-from-remote-source=BINLOG-DUMP-GTIDS --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839 --ssl-mode=require dummy > $outfile 2>&1
+SELECT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+--echo # test FR5: mysqlbinlog SNI must be gizmo
+--error 1
+--exec $MYSQL_BINLOG --read-from-remote-source=BINLOG-DUMP-GTIDS --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839 --ssl-mode=require --tls-sni-servername="gizmo" dummy > $outfile 2>&1
+SELECT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+--remove_file $outfile
+
+--echo # Test mysqldump
+--echo # test FR5: mysqldump SNI must be empty
+--exec $MYSQL_DUMP --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839 --ssl-mode=require test init_connect_log > $outfile 2>&1
+SELECT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+--echo # test FR5: mysqldump SNI must be gizmo
+--exec $MYSQL_DUMP --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839 --ssl-mode=require --tls-sni-servername="gizmo" test init_connect_log > $outfile 2>&1
+SELECT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+--remove_file $outfile
+
+--echo # Test mysqlimport
+--let infile=$MYSQL_TMP_DIR/ddump2.txt
+write_file $infile;
+100foo
+200bar
+EOF
+--echo # test FR5: mysqlimport SNI must be empty
+--error 1
+--exec $MYSQL_IMPORT --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839 --ssl-mode=require test $infile >$outfile 2>&1
+SELECT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+--echo # test FR5: mysqldump SNI must be gizmo
+--error 1
+--exec $MYSQL_IMPORT --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839 --ssl-mode=require --tls-sni-servername="gizmo" test $infile > $outfile 2>&1
+SELECT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+--remove_file $outfile
+--remove_file $infile
+
+--echo # Test mysqlshow
+--echo # test FR5: mysqlshow SNI must be empty
+--exec $MYSQL_SHOW --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839 --ssl-mode=require test init_connect_log > $outfile 2>&1
+SELECT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+--echo # test FR5: mysqlshow SNI must be gizmo
+--exec $MYSQL_SHOW --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839 --ssl-mode=require --tls-sni-servername="gizmo" test init_connect_log > $outfile 2>&1
+SELECT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+--remove_file $outfile
+
+--echo # Test mysqlslap
+--echo # test FR5: mysqlslap SNI must be empty
+--error 1
+--exec $MYSQL_SLAP --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839 --ssl-mode=require --auto-generate-sql > $outfile 2>&1
+SELECT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+--echo # test FR5: mysqlslap SNI must be gizmo
+--error 1
+--exec $MYSQL_SLAP --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839 --ssl-mode=require --auto-generate-sql --tls-sni-servername="gizmo" > $outfile 2>&1
+SELECT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+--remove_file $outfile
+
+--echo # Test mysqltest
+--echo # test FR5: mysqltest SNI must be empty
+--exec echo "SELECT 1;" | $MYSQL_TEST --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839 --ssl-mode=require > $outfile 2>&1
+SELECT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+--echo # test FR5: mysqltest SNI must be gizmo
+--exec echo "SELECT 1;" | $MYSQL_TEST --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839 --ssl-mode=require --tls-sni-servername="gizmo" > $outfile 2>&1
+SELECT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+--remove_file $outfile
+
+--echo # Test mysqlcheck
+--echo # test FR5: mysqlcheck SNI must be empty
+--exec $MYSQL_CHECK --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839 --ssl-mode=require test init_connect_log 2>&1
+SELECT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+--echo # test FR5: mysqlcheck SNI must be gizmo
+--exec $MYSQL_CHECK --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839 --ssl-mode=require --tls-sni-servername="gizmo" test init_connect_log > $outfile 2>&1
+SELECT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+--remove_file $outfile
+
+--echo # Test mysqlpump
+CREATE USER wl14839_2;
+GRANT SELECT ON *.* TO wl14839_2;
+--echo # test FR5: mysqlpump SNI must be empty
+--exec $MYSQL_PUMP --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839_2 --ssl-mode=require test init_connect_log > $outfile 2>&1
+# pump can connect several times. Hence: distinct
+SELECT DISTINCT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+--echo # test FR5: mysqlpump SNI must be gizmo
+--exec $MYSQL_PUMP --host=127.0.0.1 -P $MASTER_MYPORT -u wl14839_2 --ssl-mode=require --tls-sni-servername="gizmo" test init_connect_log > $outfile 2>&1
+SELECT DISTINCT * FROM init_connect_log;
+DELETE FROM init_connect_log;
+REVOKE SELECT ON *.* FROM wl14839_2;
+DROP USER wl14839_2;
+--remove_file $outfile
+
+--echo # cleanup
+REVOKE INSERT,SELECT ON test.init_connect_log FROM wl14839;
+DROP USER wl14839;
+SET GLOBAL INIT_CONNECT = default;
+DROP TABLE init_connect_log;
+
+--echo # end of 8.0 tests

@@ -9559,6 +9559,17 @@ static int show_ssl_get_cipher(THD *thd, SHOW_VAR *var, char *) {
   return 0;
 }
 
+static int show_ssl_get_tls_sni_servername(THD *thd, SHOW_VAR *var, char *) {
+  SSL_handle ssl = thd->get_ssl();
+  var->type = SHOW_CHAR;
+  if (ssl)
+    var->value =
+        const_cast<char *>(SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name));
+  else
+    var->value = const_cast<char *>("");
+  return 0;
+}
+
 static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff) {
   SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_CHAR;
@@ -9976,6 +9987,8 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Telemetry_traces_supported", (char *)show_telemetry_traces_support,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Tls_sni_server_name", (char *)&show_ssl_get_tls_sni_servername, SHOW_FUNC,
+     SHOW_SCOPE_SESSION},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_ALL}};
 
 void add_terminator(vector<my_option> *options) {
