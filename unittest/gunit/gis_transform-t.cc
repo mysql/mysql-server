@@ -40,7 +40,7 @@
 
 namespace gis_transform_unittest {
 
-// geo SRS
+// geo SRS based on EPSG Dataset 9.3
 
 dd::String_type wgs84 =
     "GEOGCS[\"WGS 84\",DATUM[\"World Geodetic System 1984\",SPHEROID[\"WGS "
@@ -64,7 +64,7 @@ dd::String_type modairy =
     "\"EPSG\",\"9122\"]],AXIS[\"Lon\",EAST],AXIS[\"Lat\",NORTH],AUTHORITY["
     "\"EPSG\",\"4120\"]]";
 
-// projections SRS
+// projections SRS based on EPSG Dataset 9.3ß
 // 1024
 dd::String_type webmerc3857 =
     "PROJCS[\"WGS 84 / Pseudo-Mercator\",GEOGCS[\"WGS 84\",DATUM[\"World "
