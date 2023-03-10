@@ -97,6 +97,9 @@ const char *client_errors[]=
   "There is an attribute with the same name already",
   "Authentication plugin '%s' reported error: %s",
   "Insecure API function call: '%s' Use instead: '%s'",
+  "'%-.32s' character set is having more than 1 byte minimum character "
+  "length, which cannot be used as a client character set. Please use any "
+  "of the single byte minimum ones, e.g. utf8mb4, latin1 etc.",
   ""
 };
 
