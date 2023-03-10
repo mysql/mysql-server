@@ -5929,6 +5929,11 @@ ulong STDCALL mysql_get_server_version(MYSQL *mysql) {
   return major * 10000 + minor * 100 + version;
 }
 
+#ifndef MYSQL_SERVER
+static my_bool is_supported_parser_charset(const CHARSET_INFO *cs) {
+  return (cs->mbminlen == 1);
+}
+#endif
 /*
    mysql_set_character_set function sends SET NAMES cs_name to
    the server (which changes character_set_client, character_set_result
@@ -5954,6 +5959,17 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name) {
     */
     cs_name = mysql->options.charset_name;
   }
+
+#ifndef MYSQL_SERVER
+  if (mysql->charset != NULL) {
+    if (!is_supported_parser_charset(mysql->charset)) {
+      set_mysql_extended_error(mysql, CR_INVALID_CLIENT_CHARSET,
+                               unknown_sqlstate,
+                               ER(CR_INVALID_CLIENT_CHARSET), cs_name);
+      return 1;
+    }
+  }
+#endif
 
   if (strlen(cs_name) < MY_CS_NAME_SIZE &&
       (cs = get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0)))) {
