@@ -17142,7 +17142,7 @@ Dbdict::indexStatBg_process(Signal* signal)
       tx_ptr.p->tx_key
     };
     tx_ptr.p->m_callback = c;
-    infoEvent("DICT: index %u stats auto-update requested", c_indexStatBgId);
+    infoEvent("DICT: index %u stats auto-update starting", c_indexStatBgId);
     beginSchemaTrans(signal, tx_ptr);
     return;
   }
