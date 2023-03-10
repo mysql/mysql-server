@@ -4685,6 +4685,22 @@ SimulatedBlock::cmp_attr(Uint32 attrDesc, const CHARSET_INFO* cs,
 }
 
 
+/**
+ * xfrm_key_hash() and xfrm_attr_hash()
+ *
+ * Utilities for extracting key components required for generating a
+ * hash value into the specified 'dst' location.
+ *
+ * In case a character collation is available for the key, the 'xfrm'
+ * will transform the attr values in such a way that binary different
+ * values which compare as equal gets the same transformed hash value.
+ *
+ * NOTE: Do not use these methods for comparing keys: Two keys comparing
+ *       as unequal may still have the same hash key representation.
+ *       In particular, do not use these methods as a replacement for
+ *       the xfrm_key() and xfrm_attr() methods existing prior to 8.0.
+ *       You will likely need the cmp_key() & cmp_attr() methods instead.
+ */
 Uint32
 SimulatedBlock::xfrm_key_hash(
                          Uint32 tab, const Uint32* src,
