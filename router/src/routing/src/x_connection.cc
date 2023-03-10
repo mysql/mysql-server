@@ -805,7 +805,7 @@ void MysqlRoutingXConnection::connect() {
     // close the server side.
     this->connector().socket().close();
 
-    if (ec == std::errc::no_such_file_or_directory) {
+    if (ec == DestinationsErrc::kNoDestinations) {
       MySQLRoutingComponent::get_instance()
           .api(context().get_id())
           .stop_socket_acceptors();

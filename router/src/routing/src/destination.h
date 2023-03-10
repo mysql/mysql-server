@@ -206,6 +206,10 @@ class RouteDestination : public DestinationNodesStateNotifier {
   RouteDestination &operator=(const RouteDestination &other) = delete;
   RouteDestination &operator=(RouteDestination &&other) = delete;
 
+  /** @brief Return our routing strategy
+   */
+  virtual routing::RoutingStrategy get_strategy() = 0;
+
   /** @brief Adds a destination
    *
    * Adds a destination using the given address and port number.
@@ -317,5 +321,17 @@ class RouteDestination : public DestinationNodesStateNotifier {
   /** @brief Protocol for the destination */
   Protocol::Type protocol_;
 };
+
+enum class DestinationsErrc {
+  kNotSet = 1,
+  kNoDestinations = 2,
+};
+
+namespace std {
+template <>
+struct is_error_code_enum<DestinationsErrc> : true_type {};
+}  // namespace std
+
+std::error_code make_error_code(DestinationsErrc);
 
 #endif  // ROUTING_DESTINATION_INCLUDED

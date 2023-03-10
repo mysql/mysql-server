@@ -153,7 +153,8 @@ ConnectProcessor::init_destination() {
   } else {
     if (!last_ec_) {
       // no backends
-      last_ec_ = make_error_code(std::errc::no_such_file_or_directory);
+      log_debug("init_destination(): the destinations list is empty");
+      last_ec_ = make_error_code(DestinationsErrc::kNoDestinations);
     }
 
     stage(Stage::Error);
@@ -194,6 +195,9 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::resolve() {
       destination->hostname(), std::to_string(destination->port()));
 
   if (!resolve_res) {
+    log_debug("resolve(%s,%d) failed: %s:%s", destination->hostname().c_str(),
+              destination->port(), resolve_res.error().category().name(),
+              resolve_res.error().message().c_str());
     destination->connect_status(resolve_res.error());
 
     stage(Stage::NextDestination);
@@ -463,6 +467,10 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::connect() {
 
       return Result::SendableToServer;
     } else {
+      log_debug("connect(%s, %d) failed: %s:%s",
+                server_endpoint_.address().to_string().c_str(),
+                server_endpoint_.port(), connect_res.error().category().name(),
+                connect_res.error().message().c_str());
       connection()->connect_error_code(ec);
 
       stage(Stage::ConnectFinish);
@@ -651,7 +659,10 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::error() {
 
   connection()->connect_error_code(ec);
 
-  if (ec == std::errc::no_such_file_or_directory) {
+  log_debug("ConnectProcessor::error(): %s:%s", ec.category().name(),
+            ec.message().c_str());
+
+  if (ec == DestinationsErrc::kNoDestinations) {
     log_error("no backend available to connect to");
   } else {
     log_fatal_error_code("connecting to backend failed", ec);
@@ -664,7 +675,7 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::error() {
     //
     // don't retry as router may run into an infinite loop.
     ConnectionPoolComponent::get_instance().clear();
-  } else if (ec == std::errc::no_such_file_or_directory &&
+  } else if (ec == DestinationsErrc::kNoDestinations &&
              connection()->get_destination_id().empty()) {
     // if there are no destinations for a fresh connect, close the
     // acceptor-ports

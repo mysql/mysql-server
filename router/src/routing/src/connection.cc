@@ -47,7 +47,7 @@ stdx::expected<void, std::error_code> ConnectorBase::init_destination() {
     // no backends
     log_warning("%d: no connectable destinations :(", __LINE__);
     return stdx::make_unexpected(
-        make_error_code(std::errc::no_such_file_or_directory));
+        make_error_code(DestinationsErrc::kNoDestinations));
   }
 }
 
