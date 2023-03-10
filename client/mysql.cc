@@ -290,7 +290,7 @@ static int com_nopager(String *str, char*), com_pager(String *str, char*),
 #endif
 
 static int read_and_execute(bool interactive);
-static void init_connection_options(MYSQL *mysql);
+static bool init_connection_options(MYSQL *mysql);
 static int sql_connect(char *host,char *database,char *user,char *password,
 		       uint silent);
 static const char *server_version_string(MYSQL *mysql);
@@ -5015,7 +5015,12 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   }
 
   mysql_init(&mysql);
-  init_connection_options(&mysql);
+  if (init_connection_options(&mysql))
+  {
+    (void) put_error(&mysql);
+    (void) fflush(stdout);
+    return ignore_errors ? -1 : 1;		// Abort
+  }
 
 #ifdef _WIN32
   uint cnv_errors;
@@ -5108,7 +5113,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 
 
 /* Initialize options for the given connection handle. */
-static void
+static bool
 init_connection_options(MYSQL *mysql)
 {
   my_bool handle_expired= (opt_connect_expired_password || !status.batch) ?
@@ -5151,7 +5156,7 @@ init_connection_options(MYSQL *mysql)
     mysql_options(mysql, MYSQL_INIT_COMMAND, init_command);
   }
 
-  mysql_set_character_set(mysql, default_charset);
+  if (mysql_set_character_set(mysql, default_charset)) return true;
 
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
@@ -5170,6 +5175,7 @@ init_connection_options(MYSQL *mysql)
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name", "mysql");
 
   mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &handle_expired);
+  return false;
 }
 
 
