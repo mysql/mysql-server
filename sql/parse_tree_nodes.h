@@ -2372,7 +2372,7 @@ class PT_traceable_create_table_option : public PT_create_table_option {
 */
 typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::dpt),
                                          HA_CREATE_USED_DPT>
-    PT_create_table_dpt_option;
+    PT_create_dpt_option;
 
 /**
   Node for the @SQL{MAX_ROWS [=] @B{@<integer@>}} table option

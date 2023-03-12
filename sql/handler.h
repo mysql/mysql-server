@@ -3021,10 +3021,10 @@ struct HA_CREATE_INFO {
   const char *data_file_name{nullptr};
   const char *index_file_name{nullptr};
   const char *alias{nullptr};
-  ulonglong dpt{0};
   ulonglong max_rows{0};
   ulonglong min_rows{0};
   ulonglong auto_increment_value{0};
+  ulong dpt{0};
   ulong table_options{0};
   ulong avg_row_length{0};
   uint64_t used_fields{0};

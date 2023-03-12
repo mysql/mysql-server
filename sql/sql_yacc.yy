@@ -6692,7 +6692,7 @@ opt_comma:
 create_table_option:
           DPT_SYM opt_equal ulonglong_num
           {
-            $$= NEW_PTN PT_create_table_dpt_option($3);
+            $$= NEW_PTN PT_create_dpt_option($3);
           }
         |
           ENGINE_SYM opt_equal ident_or_text
