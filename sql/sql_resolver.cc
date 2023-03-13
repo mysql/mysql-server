@@ -396,7 +396,8 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   if (unit->item &&                           // 1)
       !thd->lex->is_view_context_analysis())  // 2)
   {
-    remove_redundant_subquery_clauses(thd, hidden_group_field_count);
+    if (remove_redundant_subquery_clauses(thd, hidden_group_field_count))
+      return true;
   }
 
   /*
@@ -3650,7 +3651,7 @@ bool Query_block::merge_derived(THD *thd, Table_ref *derived_table) {
         }
       }
     } else {
-      derived_query_block->empty_order_list(this);
+      if (derived_query_block->empty_order_list(this)) return true;
       trace_derived.add_alnum("transformations_to_derived_table",
                               "removed_ordering");
     }
@@ -4100,9 +4101,10 @@ void Query_block::merge_contexts(Query_block *inner) {
    @param thd               thread handler
    @param hidden_group_field_count Number of hidden group fields added
                             by setup_group().
+   @return true on error
 */
 
-void Query_block::remove_redundant_subquery_clauses(
+bool Query_block::remove_redundant_subquery_clauses(
     THD *thd, int hidden_group_field_count) {
   Item_subselect *subq_predicate = master_query_expression()->item;
   enum change {
@@ -4114,7 +4116,7 @@ void Query_block::remove_redundant_subquery_clauses(
   uint possible_changes;
 
   if (subq_predicate->substype() == Item_subselect::SINGLEROW_SUBS) {
-    if (has_limit()) return;
+    if (has_limit()) return false;
     possible_changes = REMOVE_ORDER;
   } else {
     assert(subq_predicate->substype() == Item_subselect::EXISTS_SUBS ||
@@ -4128,7 +4130,7 @@ void Query_block::remove_redundant_subquery_clauses(
 
   if ((possible_changes & REMOVE_ORDER) && order_list.elements) {
     changelog |= REMOVE_ORDER;
-    empty_order_list(this);
+    if (empty_order_list(this)) return true;
   }
 
   if ((possible_changes & REMOVE_DISTINCT) && is_distinct()) {
@@ -4170,6 +4172,7 @@ void Query_block::remove_redundant_subquery_clauses(
       if (changelog & REMOVE_GROUP) trace_changes.add_alnum("removed_grouping");
     }
   }
+  return false;
 }
 
 /**
@@ -4180,14 +4183,29 @@ void Query_block::remove_redundant_subquery_clauses(
   @param sl  Query block that possible subquery blocks in the ORDER BY clause
              are attached to (may be different from "this" when query block has
              been merged into an outer query block).
+  @returns true on error
 */
 
-void Query_block::empty_order_list(Query_block *sl) {
+bool Query_block::empty_order_list(Query_block *sl) {
   for (ORDER *o = order_list.first; o != nullptr; o = o->next) {
     if (o->is_item_original()) {
+      Item *const order_item = o->item_initial;
       Item::Cleanup_after_removal_context ctx(sl);
-      (*o->item)->walk(&Item::clean_up_after_removal, walk_options,
+      order_item->walk(&Item::clean_up_after_removal, walk_options,
                        pointer_cast<uchar *>(&ctx));
+      if (order_item->hidden && m_windows.elements != 0) {
+        // Below, when we pop off the unused expression from the select list,
+        // we do it only if the query block has no windows. So, instead, we
+        // replace the ordering expression in the select list and
+        // base_ref_items with a hidden NULL which is harmless.
+        Item *const replacement = new (parent_lex->thd->mem_root) Item_null;
+        if (replacement == nullptr) return true;
+        replacement->hidden = true;
+        std::replace(fields.begin(), fields.end(), order_item, replacement);
+        std::replace(base_ref_items.begin(),
+                     base_ref_items.begin() + fields.size(), order_item,
+                     replacement);
+      }
     }
   }
   order_list.clear();
@@ -4199,12 +4217,13 @@ void Query_block::empty_order_list(Query_block *sl) {
       window, that end is actually the PARTITION BY and ORDER BY clause of the
       window, so do not chop then: leave the items in place.
     */
-    return;
+    return false;
   }
   while (hidden_order_field_count-- > 0) {
     fields.pop_front();
     base_ref_items[fields.size()] = nullptr;
   }
+  return false;
 }
 
 /*****************************************************************************
@@ -4601,8 +4620,7 @@ bool Query_block::setup_order_final(THD *thd) {
   DBUG_TRACE;
   if (is_implicitly_grouped()) {
     // Result will contain zero or one row - ordering is redundant
-    empty_order_list(this);
-    return false;
+    return empty_order_list(this);
   }
 
   if (!master_query_expression()->is_simple()) {
@@ -4612,7 +4630,7 @@ bool Query_block::setup_order_final(THD *thd) {
     if (result.second) {
       // Part of set operation which requires global ordering may skip local
       // order
-      empty_order_list(this);
+      if (empty_order_list(this)) return true;
     }
   }
 
