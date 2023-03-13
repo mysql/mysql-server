@@ -29,6 +29,7 @@
 #include <stdexcept>  // out_of_range
 #include <system_error>
 
+#include "destination_error.h"
 #include "mysqlrouter/routing.h"
 #include "tcp_address.h"
 
@@ -156,28 +157,4 @@ void RouteDestination::start(const mysql_harness::PluginFuncEnv *) {}
 std::optional<Destinations> RouteDestination::refresh_destinations(
     const Destinations &) {
   return std::nullopt;
-}
-
-const std::error_category &destinations_error_category() noexcept {
-  class destinations_category_impl : public std::error_category {
-   public:
-    const char *name() const noexcept override { return "destinations"; }
-    std::string message(int ev) const override {
-      switch (static_cast<DestinationsErrc>(ev)) {
-        case DestinationsErrc::kNotSet:
-          return "not set";
-        case DestinationsErrc::kNoDestinations:
-          return "no destinations";
-        default:
-          return "(unrecognized error)";
-      }
-    }
-  };
-
-  static destinations_category_impl instance;
-  return instance;
-}
-
-std::error_code make_error_code(DestinationsErrc e) {
-  return {static_cast<int>(e), destinations_error_category()};
 }

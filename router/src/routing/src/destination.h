@@ -322,16 +322,4 @@ class RouteDestination : public DestinationNodesStateNotifier {
   Protocol::Type protocol_;
 };
 
-enum class DestinationsErrc {
-  kNotSet = 1,
-  kNoDestinations = 2,
-};
-
-namespace std {
-template <>
-struct is_error_code_enum<DestinationsErrc> : true_type {};
-}  // namespace std
-
-std::error_code make_error_code(DestinationsErrc);
-
 #endif  // ROUTING_DESTINATION_INCLUDED

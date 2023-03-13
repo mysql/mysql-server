@@ -38,6 +38,7 @@ ADD_DEPENDENCIES(sql_lexer GenServerSource)
 ADD_LIBRARY(routing SHARED
   mysql_routing.cc
   destination.cc
+  destination_error.cc
   dest_metadata_cache.cc
   dest_first_available.cc
   dest_next_available.cc
