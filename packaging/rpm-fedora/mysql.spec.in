@@ -974,7 +974,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/mysqltest_safe_process
 %attr(755, root, root) %{_bindir}/mysqlxtest
 %attr(755, root, root) %{_bindir}/mysql_keyring_encryption_test
-%attr(755, root, root) %{_bindir}/mysql_event_tracking_test
+%attr(755, root, root) %{_bindir}/mysql_test_event_tracking
 %attr(644, root, root) %{_mandir}/man1/comp_err.1*
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
