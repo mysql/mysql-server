@@ -3069,6 +3069,8 @@ struct HA_CREATE_INFO {
    * Is nullptr if no secondary engine defined.
    */
   LEX_CSTRING secondary_engine{nullptr, 0};
+  /** Secondary engine load status */
+  bool secondary_load{false};
 
   const char *data_file_name{nullptr};
   const char *index_file_name{nullptr};

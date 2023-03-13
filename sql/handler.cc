@@ -2633,6 +2633,7 @@ void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
     assert(secondary_engine.str == nullptr);
     secondary_engine = share->secondary_engine;
   }
+  secondary_load = share->secondary_load;
 
   if (!(used_fields & HA_CREATE_USED_AUTOEXTEND_SIZE)) {
     /* m_implicit_tablespace_autoextend_size = 0 is a valid value. Hence,
