@@ -34,6 +34,7 @@
 #include "basic_protocol_splicer.h"
 #include "context.h"
 #include "destination.h"  // RouteDestination
+#include "destination_error.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/timer.h"
 #include "mysql/harness/stdx/monitor.h"
