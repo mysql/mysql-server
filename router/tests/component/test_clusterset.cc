@@ -243,10 +243,6 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
     }
   }
 
-  int get_update_attributes_count(const std::string &json_string) {
-    return get_int_field_value(json_string, "update_attributes_count");
-  }
-
   int get_update_last_check_in_count(const std::string &json_string) {
     return get_int_field_value(json_string, "update_last_check_in_count");
   }
@@ -302,10 +298,10 @@ TEST_P(ClusterSetTargetClusterTest, ClusterSetTargetCluster) {
   const auto expected_connection_cluster_id =
       GetParam().expected_connection_cluster_id;
 
-  create_clusterset(view_id, target_cluster_id, /*primary_cluster_id*/ 0,
-                    "metadata_clusterset.js",
-                    /*router_cs_options*/ R"({"target_cluster" : ")" +
-                        target_cluster + "\" }");
+  create_clusterset(
+      view_id, target_cluster_id, /*primary_cluster_id*/ 0,
+      "metadata_clusterset.js",
+      /*router_options*/ R"({"target_cluster" : ")" + target_cluster + "\" }");
 
   SCOPED_TRACE("// Launch the Router");
   /*auto &router =*/launch_router();
@@ -377,10 +373,10 @@ TEST_F(ClusterSetTest, TargetClusterNoChange) {
   const std::string target_cluster = "primary";
   const auto target_cluster_id = 0;
 
-  create_clusterset(view_id, target_cluster_id, /*primary_cluster_id*/ 0,
-                    "metadata_clusterset.js",
-                    /*router_cs_options*/ R"({"target_cluster" : ")" +
-                        target_cluster + "\" }");
+  create_clusterset(
+      view_id, target_cluster_id, /*primary_cluster_id*/ 0,
+      "metadata_clusterset.js",
+      /*router_options*/ R"({"target_cluster" : ")" + target_cluster + "\" }");
 
   SCOPED_TRACE("// Launch the Router");
   auto &router = launch_router();
@@ -419,7 +415,7 @@ TEST_P(ClusterChangeTargetClusterInTheMetadataTest,
 
   create_clusterset(view_id, initial_target_cluster_id,
                     /*primary_cluster_id*/ 0, "metadata_clusterset.js",
-                    /*router_cs_options*/ R"({"target_cluster" : ")" +
+                    /*router_options*/ R"({"target_cluster" : ")" +
                         initial_target_cluster + "\" }");
   auto &router = launch_router();
 
@@ -480,7 +476,7 @@ TEST_P(ClusterChangeTargetClusterInTheMetadataTest,
                     changed_target_cluster_id,
                     clusterset_data_.clusters[0].nodes[0].http_port,
                     clusterset_data_,
-                    /*router_cs_options*/ R"({"target_cluster" : ")" +
+                    /*router_options*/ R"({"target_cluster" : ")" +
                         changed_target_cluster + "\" }");
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
@@ -510,7 +506,7 @@ TEST_P(ClusterChangeTargetClusterInTheMetadataTest,
     EXPECT_TRUE(wait_log_contains(router, pattern2, 5s)) << pattern2;
 
     const std::string pattern4 =
-        "INFO .* New router clusterset options read from the metadata "
+        "INFO .* New router options read from the metadata "
         "'\\{\"target_cluster\" : \"" +
         changed_target_cluster + "\" \\}', was '\\{\"target_cluster\" : \"" +
         initial_target_cluster + "\" \\}'";
@@ -628,11 +624,11 @@ INSTANTIATE_TEST_SUITE_P(
  */
 TEST_F(ClusterSetTest, ClusterChangeClustersetIDInTheMetadata) {
   const int kTargetClusterId = 0;
-  const std::string router_cs_options = R"({"target_cluster" : "primary"})";
+  const std::string router_options = R"({"target_cluster" : "primary"})";
 
   create_clusterset(view_id, kTargetClusterId,
                     /*primary_cluster_id*/ 0, "metadata_clusterset.js",
-                    router_cs_options);
+                    router_options);
   /*auto &router =*/launch_router();
 
   SCOPED_TRACE(
@@ -651,7 +647,7 @@ TEST_F(ClusterSetTest, ClusterChangeClustersetIDInTheMetadata) {
   clusterset_data_.uuid = "changed-clusterset-uuid";
 
   set_mock_metadata_on_all_cs_nodes(view_id + 1, kTargetClusterId,
-                                    clusterset_data_, router_cs_options);
+                                    clusterset_data_, router_options);
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
 
@@ -668,7 +664,7 @@ TEST_F(ClusterSetTest, ClusterChangeClustersetIDInTheMetadata) {
       "state file");
   clusterset_data_.uuid = "clusterset-uuid";
   set_mock_metadata_on_all_cs_nodes(view_id + 2, kTargetClusterId,
-                                    clusterset_data_, router_cs_options);
+                                    clusterset_data_, router_options);
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
 
@@ -685,7 +681,7 @@ TEST_F(ClusterSetTest, ClusterChangeClustersetIDInTheMetadata) {
   SCOPED_TRACE(
       "// Simulate the primary cluster can't be found in the ClusterSet");
   set_mock_metadata_on_all_cs_nodes(view_id + 3, kTargetClusterId,
-                                    clusterset_data_, router_cs_options, "", "",
+                                    clusterset_data_, router_options, "",
                                     {2, 1, 0},
                                     /*simulate_cluster_not_found*/ true);
   EXPECT_TRUE(wait_for_transaction_count_increase(
@@ -713,10 +709,10 @@ TEST_P(UnknownClusterSetTargetClusterTest, UnknownClusterSetTargetCluster) {
   const auto target_cluster = GetParam().target_cluster;
   const auto target_cluster_id = GetParam().target_cluster_id;
 
-  create_clusterset(view_id, target_cluster_id, /*primary_cluster_id*/ 0,
-                    "metadata_clusterset.js",
-                    /*router_cs_options*/ R"({"target_cluster" : ")" +
-                        target_cluster + "\" }");
+  create_clusterset(
+      view_id, target_cluster_id, /*primary_cluster_id*/ 0,
+      "metadata_clusterset.js",
+      /*router_options*/ R"({"target_cluster" : ")" + target_cluster + "\" }");
 
   auto &router = launch_router(EXIT_SUCCESS, -1s);
 
@@ -780,7 +776,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_F(ClusterSetTest, TargetClusterEmptyInMetadata) {
   create_clusterset(view_id, /*target_cluster_id*/ 0, /*primary_cluster_id*/ 0,
                     "metadata_clusterset.js",
-                    /*router_cs_options*/ R"({"target_cluster" : "" })");
+                    /*router_options*/ R"({"target_cluster" : "" })");
 
   auto &router = launch_router(EXIT_SUCCESS, -1s);
 
@@ -809,12 +805,12 @@ TEST_F(ClusterSetTest, TargetClusterEmptyInMetadata) {
 TEST_F(ClusterSetTest, ClusterRolesChangeInTheRuntime) {
   // first cluster is a primary on start
   unsigned primary_cluster_id = 0;
-  const std::string router_cs_options =
+  const std::string router_options =
       R"({"target_cluster" : "primary", "stats_updates_frequency": 1})";
 
   create_clusterset(view_id, /*target_cluster_id*/ primary_cluster_id,
                     /*primary_cluster_id*/ primary_cluster_id,
-                    "metadata_clusterset.js", router_cs_options);
+                    "metadata_clusterset.js", router_options);
   /*auto &router =*/launch_router();
 
   SCOPED_TRACE(
@@ -842,7 +838,7 @@ TEST_F(ClusterSetTest, ClusterRolesChangeInTheRuntime) {
   change_clusterset_primary(clusterset_data_, primary_cluster_id);
   set_mock_metadata_on_all_cs_nodes(view_id,
                                     /*target_cluster_id*/ primary_cluster_id,
-                                    clusterset_data_, router_cs_options);
+                                    clusterset_data_, router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
@@ -877,7 +873,7 @@ TEST_F(ClusterSetTest, ClusterRolesChangeInTheRuntime) {
   change_clusterset_primary(clusterset_data_, primary_cluster_id);
   set_mock_metadata_on_all_cs_nodes(view_id,
                                     /*target_cluster_id*/ primary_cluster_id,
-                                    clusterset_data_, router_cs_options);
+                                    clusterset_data_, router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
@@ -909,7 +905,7 @@ TEST_F(ClusterSetTest, ClusterRolesChangeInTheRuntime) {
   change_clusterset_primary(clusterset_data_, primary_cluster_id);
   set_mock_metadata_on_all_cs_nodes(view_id,
                                     /*target_cluster_id*/ primary_cluster_id,
-                                    clusterset_data_, router_cs_options);
+                                    clusterset_data_, router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
@@ -941,13 +937,13 @@ TEST_F(ClusterSetTest, TargetClusterStickToPrimaryUUID) {
   // first cluster is a primary on start
   unsigned primary_cluster_id = 0;
   const unsigned target_cluster_id = 0;
-  const std::string router_cs_options =
+  const std::string router_options =
       R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g1",
          "stats_updates_frequency": 1})";
 
   create_clusterset(view_id, /*target_cluster_id*/ target_cluster_id,
                     /*primary_cluster_id*/ primary_cluster_id,
-                    "metadata_clusterset.js", router_cs_options);
+                    "metadata_clusterset.js", router_options);
   /*auto &router =*/launch_router();
 
   SCOPED_TRACE(
@@ -976,7 +972,7 @@ TEST_F(ClusterSetTest, TargetClusterStickToPrimaryUUID) {
   change_clusterset_primary(clusterset_data_, primary_cluster_id);
   set_mock_metadata_on_all_cs_nodes(view_id,
                                     /*target_cluster_id*/ target_cluster_id,
-                                    clusterset_data_, router_cs_options);
+                                    clusterset_data_, router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
@@ -1011,7 +1007,7 @@ TEST_F(ClusterSetTest, TargetClusterStickToPrimaryUUID) {
   change_clusterset_primary(clusterset_data_, primary_cluster_id);
   set_mock_metadata_on_all_cs_nodes(view_id,
                                     /*target_cluster_id*/ target_cluster_id,
-                                    clusterset_data_, router_cs_options);
+                                    clusterset_data_, router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
@@ -1040,7 +1036,7 @@ TEST_F(ClusterSetTest, TargetClusterStickToPrimaryUUID) {
   change_clusterset_primary(clusterset_data_, primary_cluster_id);
   set_mock_metadata_on_all_cs_nodes(view_id,
                                     /*target_cluster_id*/ target_cluster_id,
-                                    clusterset_data_, router_cs_options);
+                                    clusterset_data_, router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
@@ -1070,12 +1066,12 @@ TEST_F(ClusterSetTest, TargetClusterStickToReaplicaUUID) {
   unsigned primary_cluster_id = 0;
   // our target_cluster is first Replica
   const unsigned target_cluster_id = 1;
-  const std::string router_cs_options =
+  const std::string router_options =
       R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2"})";
 
   create_clusterset(view_id, /*target_cluster_id*/ target_cluster_id,
                     /*primary_cluster_id*/ primary_cluster_id,
-                    "metadata_clusterset.js", router_cs_options);
+                    "metadata_clusterset.js", router_options);
 
   /*auto &router =*/launch_router();
 
@@ -1100,7 +1096,7 @@ TEST_F(ClusterSetTest, TargetClusterStickToReaplicaUUID) {
   change_clusterset_primary(clusterset_data_, primary_cluster_id);
   set_mock_metadata_on_all_cs_nodes(view_id,
                                     /*target_cluster_id*/ target_cluster_id,
-                                    clusterset_data_, router_cs_options);
+                                    clusterset_data_, router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
@@ -1128,7 +1124,7 @@ TEST_F(ClusterSetTest, TargetClusterStickToReaplicaUUID) {
   change_clusterset_primary(clusterset_data_, primary_cluster_id);
   set_mock_metadata_on_all_cs_nodes(view_id,
                                     /*target_cluster_id*/ target_cluster_id,
-                                    clusterset_data_, router_cs_options);
+                                    clusterset_data_, router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
@@ -1160,7 +1156,7 @@ TEST_F(ClusterSetTest, TargetClusterStickToReaplicaUUID) {
   change_clusterset_primary(clusterset_data_, primary_cluster_id);
   set_mock_metadata_on_all_cs_nodes(view_id,
                                     /*target_cluster_id*/ target_cluster_id,
-                                    clusterset_data_, router_cs_options);
+                                    clusterset_data_, router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
@@ -1197,7 +1193,7 @@ class ViewIdChangesTest
 TEST_P(ViewIdChangesTest, ViewIdChanges) {
   const int target_cluster_id = GetParam().target_cluster_id;
   const std::string target_cluster = GetParam().target_cluster;
-  const std::string router_cs_options =
+  const std::string router_options =
       R"({"target_cluster" : ")" + target_cluster + "\" }";
 
   SCOPED_TRACE(
@@ -1206,7 +1202,7 @@ TEST_P(ViewIdChangesTest, ViewIdChanges) {
 
   create_clusterset(view_id, target_cluster_id,
                     /*primary_cluster_id*/ 0, "metadata_clusterset.js",
-                    router_cs_options);
+                    router_options);
   auto &router = launch_router();
   EXPECT_EQ(9u, clusterset_data_.get_md_servers_classic_ports().size());
 
@@ -1228,7 +1224,7 @@ TEST_P(ViewIdChangesTest, ViewIdChanges) {
   set_mock_metadata(view_id + 1, /*this_cluster_id*/ 1, /*this_node_id*/ 0,
                     target_cluster_id,
                     clusterset_data_.clusters[1].nodes[0].http_port,
-                    clusterset_data_, router_cs_options);
+                    clusterset_data_, router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
@@ -1261,7 +1257,7 @@ TEST_P(ViewIdChangesTest, ViewIdChanges) {
   set_mock_metadata(view_id + 2, /*this_cluster_id*/ 2, /*this_node_id*/ 0,
                     target_cluster_id,
                     clusterset_data_.clusters[2].nodes[0].http_port,
-                    clusterset_data_, router_cs_options);
+                    clusterset_data_, router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
@@ -1278,7 +1274,7 @@ TEST_P(ViewIdChangesTest, ViewIdChanges) {
       "// Let's propagate the last change to all nodes in the ClusterSet");
 
   set_mock_metadata_on_all_cs_nodes(view_id + 2, target_cluster_id,
-                                    clusterset_data_, router_cs_options);
+                                    clusterset_data_, router_options);
 
   // state file should not change
   SCOPED_TRACE(
@@ -1308,14 +1304,14 @@ INSTANTIATE_TEST_SUITE_P(ViewIdChanges, ViewIdChangesTest,
  * [@TS_R11_3]
  */
 TEST_F(ClusterSetTest, TwoPrimaryClustersHighierViewId) {
-  const std::string router_cs_options = R"({"target_cluster" : "primary"})";
+  const std::string router_options = R"({"target_cluster" : "primary"})";
   SCOPED_TRACE(
       "// We configure Router to follow PRIMARY cluster, first cluster starts "
       "as a PRIMARY");
 
   create_clusterset(view_id, /*target_cluster_id*/ 0,
                     /*primary_cluster_id*/ 0, "metadata_clusterset.js",
-                    router_cs_options);
+                    router_options);
   /*auto &router =*/launch_router();
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
@@ -1344,7 +1340,7 @@ TEST_F(ClusterSetTest, TwoPrimaryClustersHighierViewId) {
                       clusterset_data_.clusters[kFirstReplicaClusterId]
                           .nodes[node_id]
                           .http_port,
-                      clusterset_data_, router_cs_options);
+                      clusterset_data_, router_options);
   }
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
@@ -1388,7 +1384,7 @@ TEST_F(ClusterSetTest, TwoPrimaryClustersHighierViewId) {
         view_id + 2, /*this_cluster_id*/ kPrimaryClusterId,
         /*this_node_id*/ node_id, kPrimaryClusterId,
         clusterset_data_.clusters[kPrimaryClusterId].nodes[node_id].http_port,
-        clusterset_data_, router_cs_options);
+        clusterset_data_, router_options);
   }
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
@@ -1437,7 +1433,7 @@ TEST_F(ClusterSetTest, TwoPrimaryClustersLowerViewId) {
 
   create_clusterset(view_id, /*target_cluster_id*/ 0,
                     /*primary_cluster_id*/ 0, "metadata_clusterset.js",
-                    /*router_cs_options*/ R"({"target_cluster" : "primary"})");
+                    /*router_options*/ R"({"target_cluster" : "primary"})");
   /*auto &router =*/launch_router();
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
@@ -1467,7 +1463,7 @@ TEST_F(ClusterSetTest, TwoPrimaryClustersLowerViewId) {
                           .nodes[node_id]
                           .http_port,
                       clusterset_data_,
-                      /*router_cs_options*/ "");
+                      /*router_options*/ "");
   }
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
@@ -1526,7 +1522,7 @@ TEST_P(PrimaryTargetClusterMarkedInvalidInTheMetadataTest,
   create_clusterset(view_id, /*target_cluster_id*/ kPrimaryClusterId,
                     /*primary_cluster_id*/ kPrimaryClusterId,
                     "metadata_clusterset.js",
-                    /*router_cs_options*/ R"({"target_cluster" : "primary"})");
+                    /*router_options*/ R"({"target_cluster" : "primary"})");
   /* auto &router = */ launch_router();
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
@@ -1549,7 +1545,7 @@ TEST_P(PrimaryTargetClusterMarkedInvalidInTheMetadataTest,
   set_mock_metadata_on_all_cs_nodes(
       view_id + 1,
       /*target_cluster_id*/ kPrimaryClusterId, clusterset_data_,
-      /*router_cs_options*/
+      /*router_options*/
       R"({"target_cluster" : "primary", "invalidated_cluster_policy" : ")" +
           policy + "\" }");
 
@@ -1611,7 +1607,7 @@ TEST_P(ReplicaTargetClusterMarkedInvalidInTheMetadataTest,
   create_clusterset(
       view_id, /*target_cluster_id*/ kFirstReplicaClusterId,
       /*primary_cluster_id*/ kPrimaryClusterId, "metadata_clusterset.js",
-      /*router_cs_options*/
+      /*router_options*/
       R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2",
           "stats_updates_frequency": 1})");
   /* auto &router = */ launch_router();
@@ -1643,7 +1639,7 @@ TEST_P(ReplicaTargetClusterMarkedInvalidInTheMetadataTest,
         /*this_node_id*/ node_id,
         /*target_cluster_id*/ kFirstReplicaClusterId, http_port,
         clusterset_data_,
-        /*router_cs_options*/
+        /*router_options*/
         R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2",
           "stats_updates_frequency": 1,
           "invalidated_cluster_policy" : ")" +
@@ -1693,10 +1689,10 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_F(ClusterSetTest, StateFileMetadataServersChange) {
   // also check if we handle view_id grater than 2^32 correctly
   uint64_t view_id = std::numeric_limits<uint32_t>::max() + 1;
-  const std::string router_cs_options = R"({"target_cluster" : "primary"})";
+  const std::string router_options = R"({"target_cluster" : "primary"})";
   create_clusterset(view_id, /*target_cluster_id*/ kPrimaryClusterId,
                     /*primary_cluster_id*/ 0, "metadata_clusterset.js",
-                    router_cs_options);
+                    router_options);
 
   const auto original_clusterset_data = clusterset_data_;
 
@@ -1719,7 +1715,7 @@ TEST_F(ClusterSetTest, StateFileMetadataServersChange) {
     // update each remaining node with that metadata
     set_mock_metadata_on_all_cs_nodes(view_id,
                                       /*target_cluster_id*/ kPrimaryClusterId,
-                                      clusterset_data_, router_cs_options);
+                                      clusterset_data_, router_options);
 
     // wait for the Router to refresh the metadata
     EXPECT_TRUE(wait_for_transaction_count_increase(
@@ -1756,7 +1752,7 @@ TEST_F(ClusterSetTest, StateFileMetadataServersChange) {
     // update each remaining node with that metadata
     set_mock_metadata_on_all_cs_nodes(view_id,
                                       /*target_cluster_id*/ kPrimaryClusterId,
-                                      clusterset_data_, router_cs_options);
+                                      clusterset_data_, router_options);
 
     // wait for the Router to refresh the metadata
     EXPECT_TRUE(wait_for_transaction_count_increase(
@@ -1786,7 +1782,7 @@ TEST_F(ClusterSetTest, StateFileMetadataServersChange) {
     // update each remaining node with that metadata
     set_mock_metadata_on_all_cs_nodes(view_id,
                                       /*target_cluster_id*/ kPrimaryClusterId,
-                                      clusterset_data_, router_cs_options);
+                                      clusterset_data_, router_options);
 
     // wait for the Router to refresh the metadata
     EXPECT_TRUE(wait_for_transaction_count_increase(
@@ -1813,7 +1809,7 @@ TEST_F(ClusterSetTest, StateFileMetadataServersChange) {
                     original_clusterset_data.clusters[kFirstReplicaClusterId]
                         .nodes[0]
                         .http_port,
-                    clusterset_data_, router_cs_options);
+                    clusterset_data_, router_options);
   // wait for the Router to refresh the metadata
   EXPECT_TRUE(wait_for_transaction_count_increase(
       original_clusterset_data.clusters.at(kFirstReplicaClusterId)
@@ -1843,7 +1839,7 @@ TEST_F(ClusterSetTest, StateFileMetadataServersChange) {
     // update each node with that metadata
     set_mock_metadata_on_all_cs_nodes(view_id,
                                       /*target_cluster_id*/ kPrimaryClusterId,
-                                      clusterset_data_, router_cs_options);
+                                      clusterset_data_, router_options);
 
     // if this is the first node that we are adding back we also need to set it
     // in our last standing metadata server which is no longer part of the
@@ -1855,7 +1851,7 @@ TEST_F(ClusterSetTest, StateFileMetadataServersChange) {
               .http_port;
       set_mock_metadata(view_id, /*this_cluster_id*/ 1, /*this_node_id*/ 0,
                         /*target_cluster_id*/ kPrimaryClusterId, http_port,
-                        clusterset_data_, router_cs_options);
+                        clusterset_data_, router_options);
     }
 
     // wait for the Router to refresh the metadata
@@ -1889,11 +1885,11 @@ TEST_F(ClusterSetTest, StateFileMetadataServersChange) {
  */
 TEST_F(ClusterSetTest, SomeMetadataServerUnaccessible) {
   uint64_t view_id = 1;
-  const std::string router_cs_options = R"({"target_cluster" : "primary"})";
+  const std::string router_options = R"({"target_cluster" : "primary"})";
 
   create_clusterset(view_id, /*target_cluster_id*/ 0,
                     /*primary_cluster_id*/ 0, "metadata_clusterset.js",
-                    router_cs_options);
+                    router_options);
 
   SCOPED_TRACE("// Launch Router with target_cluster=primary");
   /*auto &router =*/launch_router();
@@ -1927,7 +1923,7 @@ TEST_F(ClusterSetTest, SomeMetadataServerUnaccessible) {
     set_mock_metadata(view_id, /*this_cluster_id*/ kSecondReplicaClusterId,
                       /*this_node_id */ node_id,
                       /*target_cluster_id*/ kPrimaryClusterId, http_port,
-                      clusterset_data_, router_cs_options);
+                      clusterset_data_, router_options);
     node_id++;
   }
 
@@ -1950,122 +1946,6 @@ TEST_F(ClusterSetTest, SomeMetadataServerUnaccessible) {
                              .classic_port);
 }
 
-struct StatsUpdatesFrequencyNoUpdatesParam {
-  std::string router_cs_options_json;
-  bool expect_parsing_error;
-};
-
-class StatsUpdatesFrequencyTest : public ClusterSetTest {};
-
-class StatsUpdatesFrequencyNoUpdatesTest
-    : public StatsUpdatesFrequencyTest,
-      public ::testing::WithParamInterface<
-          StatsUpdatesFrequencyNoUpdatesParam> {};
-
-/**
- * @test Verifies that router_cs_options stats_updates_frequency field is
- * honoured as expected
- */
-TEST_P(StatsUpdatesFrequencyNoUpdatesTest, StatsUpdatesFrequencyNoUpdates) {
-  create_clusterset(view_id, /*target_cluster_id*/ 0,
-                    /*primary_cluster_id*/ 0, "metadata_clusterset.js",
-                    GetParam().router_cs_options_json);
-
-  SCOPED_TRACE("// Launch the Router");
-  auto &router = launch_router();
-
-  const auto primary_node_http_port =
-      clusterset_data_.clusters[0].nodes[0].http_port;
-
-  EXPECT_TRUE(wait_for_transaction_count_increase(primary_node_http_port, 20));
-
-  const auto last_check_in_count = get_int_global_value(
-      primary_node_http_port, "update_last_check_in_count");
-
-  // no last_check_in updates expected
-  EXPECT_EQ(0, last_check_in_count);
-
-  const std::string log_content = router.get_logfile_content();
-  const std::string error =
-      "Error parsing stats_updates_frequency from the router.options";
-  if (GetParam().expect_parsing_error) {
-    EXPECT_TRUE(pattern_found(log_content, error));
-  } else {
-    EXPECT_FALSE(pattern_found(log_content, error));
-  }
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    StatsUpdatesFrequency, StatsUpdatesFrequencyNoUpdatesTest,
-    ::testing::Values(
-        // 0) explicit 0
-        StatsUpdatesFrequencyNoUpdatesParam{
-            /*router_cs_options_json*/ R"({"stats_updates_frequency" : 0})",
-            /*expect_parsing_error*/ false},
-        // 1) field not present
-        StatsUpdatesFrequencyNoUpdatesParam{/*router_cs_options_json*/ R"({})",
-                                            /*expect_parsing_error*/ false},
-        // 2) empty value
-        StatsUpdatesFrequencyNoUpdatesParam{
-            /*router_cs_options_json*/ R"({"stats_updates_frequency" : ""})",
-            /*expect_parsing_error*/ true},
-        // 3) not a number
-        StatsUpdatesFrequencyNoUpdatesParam{
-            /*router_cs_options_json*/ R"({"stats_updates_frequency" : "aaa"})",
-            /*expect_parsing_error*/ true},
-        // 4) negative number
-        StatsUpdatesFrequencyNoUpdatesParam{
-            /*router_cs_options_json*/ R"({"stats_updates_frequency" : -1})",
-            /*expect_parsing_error*/ true}));
-
-/**
- * @test The ttl = 50ms, stats_updates_frequency=1s, the stats updates
-         should happen ~1s
- */
-TEST_F(StatsUpdatesFrequencyTest, StatsUpdatesFrequency1s) {
-  create_clusterset(view_id, /*target_cluster_id*/ 0,
-                    /*primary_cluster_id*/ 0, "metadata_clusterset.js",
-                    R"({"stats_updates_frequency" : 1})");
-
-  SCOPED_TRACE("// Launch the Router");
-  /*auto &router =*/launch_router();
-
-  const auto primary_node_http_port =
-      clusterset_data_.clusters[0].nodes[0].http_port;
-
-  EXPECT_TRUE(wait_for_transaction_count_increase(primary_node_http_port, 20));
-
-  const auto last_check_in_count = get_int_global_value(
-      primary_node_http_port, "update_last_check_in_count");
-
-  EXPECT_GE(last_check_in_count, 1);
-}
-
-/**
- * @test ttl is high, stats_updates_frequency=1s, the stats updates
-        will happen in the same rate metadata refresh will (ttl)
- */
-TEST_F(StatsUpdatesFrequencyTest, StatsUpdatesFrequencyHighTTL) {
-  create_clusterset(view_id, /*target_cluster_id*/ 0,
-                    /*primary_cluster_id*/ 0, "metadata_clusterset.js",
-                    R"({"stats_updates_frequency" : 1})");
-
-  SCOPED_TRACE("// Launch the Router");
-  /*auto &router =*/launch_router(EXIT_SUCCESS, kReadyNotifyTimeout, 30s);
-
-  const auto primary_node_http_port =
-      clusterset_data_.clusters[0].nodes[0].http_port;
-
-  // wait 2 seconds and see that there was no stats update as the TTL is high
-  // and the next update will be done along with the next metadata refresh
-  std::this_thread::sleep_for(1500ms);
-
-  const auto last_check_in_count = get_int_global_value(
-      primary_node_http_port, "update_last_check_in_count");
-
-  EXPECT_GE(last_check_in_count, 0);
-}
-
 /**
  * @test Checks that "use_replica_primary_as_rw" router options from the
  * metadata is handled properly when the target cluster is Replica
@@ -2074,11 +1954,11 @@ TEST_F(ClusterSetTest, UseReplicaPrimaryAsRwNode) {
   const int primary_cluster_id = 0;
   const int target_cluster_id = 1;
 
-  std::string router_cs_options =
+  std::string router_options =
       R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2",
           "use_replica_primary_as_rw": false})";
   create_clusterset(view_id, target_cluster_id, primary_cluster_id,
-                    "metadata_clusterset.js", router_cs_options);
+                    "metadata_clusterset.js", router_options);
 
   const auto primary_node_http_port =
       clusterset_data_.clusters[0].nodes[0].http_port;
@@ -2105,13 +1985,12 @@ TEST_F(ClusterSetTest, UseReplicaPrimaryAsRwNode) {
 
   // ==================================================================
   // now we set 'use_replica_primary_as_rw' to 'true' in the metadata
-  router_cs_options =
+  router_options =
       R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2",
           "use_replica_primary_as_rw": true})";
 
   set_mock_metadata(view_id, target_cluster_id, 0, target_cluster_id,
-                    primary_node_http_port, clusterset_data_,
-                    router_cs_options);
+                    primary_node_http_port, clusterset_data_, router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(primary_node_http_port, 2));
 
@@ -2139,13 +2018,12 @@ TEST_F(ClusterSetTest, UseReplicaPrimaryAsRwNode) {
 
   // ==================================================================
   // set 'use_replica_primary_as_rw' to 'false'
-  router_cs_options =
+  router_options =
       R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2",
           "use_replica_primary_as_rw": false})";
 
   set_mock_metadata(view_id, target_cluster_id, 0, target_cluster_id,
-                    primary_node_http_port, clusterset_data_,
-                    router_cs_options);
+                    primary_node_http_port, clusterset_data_, router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(primary_node_http_port, 2));
 
@@ -2182,11 +2060,11 @@ TEST_F(ClusterSetTest, UseReplicaPrimaryAsRwNodeIgnoredIfTargetPrimary) {
   const int primary_cluster_id = 0;
   const int target_cluster_id = 0;  // our target is primary cluster
 
-  std::string router_cs_options =
+  std::string router_options =
       R"({"target_cluster" : "primary",
           "use_replica_primary_as_rw": false})";
   create_clusterset(view_id, target_cluster_id, primary_cluster_id,
-                    "metadata_clusterset.js", router_cs_options);
+                    "metadata_clusterset.js", router_options);
 
   SCOPED_TRACE("// Launch the Router");
   /*auto &router =*/launch_router();
@@ -2209,15 +2087,14 @@ TEST_F(ClusterSetTest, UseReplicaPrimaryAsRwNodeIgnoredIfTargetPrimary) {
 
   // ==================================================================
   // set 'use_replica_primary_as_rw' to 'true'
-  router_cs_options =
+  router_options =
       R"({"target_cluster" : "primary",
           "use_replica_primary_as_rw": true})";
 
   const auto primary_node_http_port =
       clusterset_data_.clusters[0].nodes[0].http_port;
   set_mock_metadata(view_id, target_cluster_id, 0, target_cluster_id,
-                    primary_node_http_port, clusterset_data_,
-                    router_cs_options);
+                    primary_node_http_port, clusterset_data_, router_options);
 
   EXPECT_TRUE(wait_for_transaction_count_increase(primary_node_http_port, 2));
 
@@ -2253,12 +2130,12 @@ TEST_P(ClusterSetUseReplicaPrimaryAsRwNodeInvalidTest,
   const int target_cluster_id = 1;
 
   std::string inv = "\"\"";
-  std::string router_cs_options =
+  std::string router_options =
       R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2",
           "use_replica_primary_as_rw": )" +
       GetParam() + "}";
   create_clusterset(view_id, target_cluster_id, primary_cluster_id,
-                    "metadata_clusterset.js", router_cs_options);
+                    "metadata_clusterset.js", router_options);
 
   SCOPED_TRACE("// Launch the Router");
   auto &router = launch_router();
@@ -2301,10 +2178,10 @@ TEST_F(ClusterSetTest, FetchWholeTopologyConnections) {
   const std::string target_cluster = "00000000-0000-0000-0000-0000000000g2";
   const auto target_cluster_id = 1;
 
-  create_clusterset(view_id, target_cluster_id, /*primary_cluster_id*/ 0,
-                    "metadata_clusterset.js",
-                    /*router_cs_options*/ R"({"target_cluster" : ")" +
-                        target_cluster + "\" }");
+  create_clusterset(
+      view_id, target_cluster_id, /*primary_cluster_id*/ 0,
+      "metadata_clusterset.js",
+      /*router_options*/ R"({"target_cluster" : ")" + target_cluster + "\" }");
 
   SCOPED_TRACE("// Launch the Router");
   /*auto &router = */ launch_router();
@@ -2418,11 +2295,11 @@ TEST_F(ClusterSetTest, UseMultipleClustersGrNotifications) {
   const std::string target_cluster = "00000000-0000-0000-0000-0000000000g2";
   const auto target_cluster_id = 1;
 
-  create_clusterset(view_id, target_cluster_id, /*primary_cluster_id*/ 0,
-                    "metadata_clusterset.js",
-                    /*router_cs_options*/ R"({"target_cluster" : ")" +
-                        target_cluster + "\" }",
-                    "", ".*", false, true);
+  create_clusterset(
+      view_id, target_cluster_id, /*primary_cluster_id*/ 0,
+      "metadata_clusterset.js",
+      /*router_options*/ R"({"target_cluster" : ")" + target_cluster + "\" }",
+      ".*", false, true);
 
   SCOPED_TRACE("// Launch the Router");
   auto &router = launch_router(EXIT_SUCCESS, 10s, kTTL, true);

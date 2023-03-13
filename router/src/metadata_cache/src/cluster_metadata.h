@@ -31,6 +31,7 @@
 #include "mysqlrouter/metadata.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/mysql_session.h"
+#include "router_options.h"
 #include "tcp_address.h"
 
 #include <chrono>
@@ -128,7 +129,7 @@ class METADATA_CACHE_EXPORT ClusterMetadata : public MetaData {
 
   std::optional<std::chrono::seconds>
   get_periodic_stats_update_frequency() noexcept override {
-    return {};
+    return router_options_.get_stats_updates_frequency();
   }
 
  protected:
@@ -157,6 +158,8 @@ class METADATA_CACHE_EXPORT ClusterMetadata : public MetaData {
   // connection to metadata server (it may also be shared with GR status queries
   // for optimisation purposes)
   std::shared_ptr<mysqlrouter::MySQLSession> metadata_connection_;
+
+  RouterOptions router_options_;
 };
 
 std::string as_string(const char *input_str);

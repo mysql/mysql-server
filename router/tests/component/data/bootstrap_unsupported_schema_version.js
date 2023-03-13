@@ -3,12 +3,12 @@
 // */
 var common_stmts = require("common_statements");
 
-if (mysqld.global.metadata_version === undefined) {
-  mysqld.global.metadata_version = [0, 1, 0]
+if (mysqld.global.metadata_schema_version === undefined) {
+  mysqld.global.metadata_schema_version = [0, 1, 0]
 }
 
 var options = {
-  metadata_schema_version: mysqld.global.metadata_version,
+  metadata_schema_version: mysqld.global.metadata_schema_version,
 }
 
 var common_responses = common_stmts.prepare_statement_responses(

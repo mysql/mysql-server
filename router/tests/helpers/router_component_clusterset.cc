@@ -29,11 +29,10 @@
 
 void RouterComponentClusterSetTest::create_clusterset(
     uint64_t view_id, int target_cluster_id, int primary_cluster_id,
-    const std::string &tracefile, const std::string &router_cs_options,
-    const std::string &router_options,
+    const std::string &tracefile, const std::string &router_options,
     const std::string &expected_target_cluster, bool simulate_cluster_not_found,
-    bool use_gr_notifications,
-    const std::vector<size_t> &read_replicas_number) {
+    bool use_gr_notifications, const std::vector<size_t> &read_replicas_number,
+    const mysqlrouter::MetadataSchemaVersion &metadata_version) {
   const std::string tracefile_path = get_data_dir().str() + "/" + tracefile;
 
   ClusterSetData clusterset_data;
@@ -88,8 +87,8 @@ void RouterComponentClusterSetTest::create_clusterset(
           node.http_port, node.x_port);
 
       set_mock_metadata(view_id, cluster_id, node_id, target_cluster_id,
-                        node.http_port, clusterset_data, router_cs_options,
-                        router_options, expected_target_cluster, {2, 1, 0},
+                        node.http_port, clusterset_data, router_options,
+                        expected_target_cluster, metadata_version,
                         simulate_cluster_not_found);
     }
   }
@@ -180,8 +179,7 @@ void RouterComponentClusterSetTest::add_clusterset_data_field(
 
 void RouterComponentClusterSetTest::set_mock_metadata_on_all_cs_nodes(
     uint64_t view_id, unsigned target_cluster_id,
-    const ClusterSetData &clusterset_data, const std::string &router_cs_options,
-    const std::string &router_options,
+    const ClusterSetData &clusterset_data, const std::string &router_options,
     const std::string &expected_target_cluster,
     const mysqlrouter::MetadataSchemaVersion &metadata_version,
     bool simulate_cluster_not_found) {
@@ -191,7 +189,7 @@ void RouterComponentClusterSetTest::set_mock_metadata_on_all_cs_nodes(
       const auto http_port = node.http_port;
       set_mock_metadata(view_id, /*this_cluster_id*/ cluster.id,
                         /*this_node_id*/ node_id, target_cluster_id, http_port,
-                        clusterset_data, router_cs_options, router_options,
+                        clusterset_data, router_options,
                         expected_target_cluster, metadata_version,
                         simulate_cluster_not_found);
     }
@@ -202,7 +200,6 @@ void RouterComponentClusterSetTest::set_mock_metadata(
     uint64_t view_id, unsigned this_cluster_id, unsigned this_node_id,
     unsigned target_cluster_id, uint16_t http_port,
     const ClusterSetData &clusterset_data,
-    const std::string &router_cs_options /*= ""*/,
     const std::string &router_options /*= ""*/,
     const std::string &expected_target_cluster /*= ""*/,
     const mysqlrouter::MetadataSchemaVersion &metadata_version /*= {2, 1, 0}*/,
@@ -216,10 +213,9 @@ void RouterComponentClusterSetTest::set_mock_metadata(
   md_version.PushBack(static_cast<int>(metadata_version.major), json_allocator);
   md_version.PushBack(static_cast<int>(metadata_version.minor), json_allocator);
   md_version.PushBack(static_cast<int>(metadata_version.patch), json_allocator);
-  json_doc.AddMember("metadata_version", md_version, json_allocator);
+  json_doc.AddMember("metadata_schema_version", md_version, json_allocator);
   add_json_int_field(json_doc, "view_id", view_id);
   add_json_int_field(json_doc, "target_cluster_id", target_cluster_id);
-  add_json_str_field(json_doc, "router_cs_options", router_cs_options);
   add_json_str_field(json_doc, "router_options", router_options);
   add_json_str_field(json_doc, "router_expected_target_cluster",
                      expected_target_cluster);

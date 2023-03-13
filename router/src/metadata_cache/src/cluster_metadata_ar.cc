@@ -41,7 +41,7 @@ ARClusterMetadata::~ARClusterMetadata() = default;
 stdx::expected<metadata_cache::ClusterTopology, std::error_code>
 ARClusterMetadata::fetch_cluster_topology(
     const std::atomic<bool> &terminated,
-    mysqlrouter::TargetCluster &target_cluster, const unsigned /*router_id*/,
+    mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
     const metadata_cache::metadata_servers_list_t &metadata_servers,
     bool /* needs_writable_node */, const std::string & /*clusterset_id*/,
     bool /*whole_topology*/, std::size_t &instance_id) {
@@ -97,6 +97,10 @@ ARClusterMetadata::fetch_cluster_topology(
       if (view_id == this->view_id_ && metadata_read) {
         continue;
       }
+
+      router_options_.read_from_metadata(*metadata_connection_.get(), router_id,
+                                         version,
+                                         mysqlrouter::ClusterType::RS_V2);
 
       result = fetch_topology_from_member(*metadata_connection_, view_id,
                                           cluster_id);

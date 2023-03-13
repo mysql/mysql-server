@@ -222,7 +222,8 @@ class MetadataHttpAuthTest : public RouterComponentTest {
     metadata_version_node.PushBack(md_version.major, allocator);
     metadata_version_node.PushBack(md_version.minor, allocator);
     metadata_version_node.PushBack(md_version.patch, allocator);
-    json_doc.AddMember("metadata_version", metadata_version_node, allocator);
+    json_doc.AddMember("metadata_schema_version", metadata_version_node,
+                       allocator);
 
     const auto json_str = json_to_string(json_doc);
 

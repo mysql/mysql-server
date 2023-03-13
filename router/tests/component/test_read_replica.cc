@@ -115,6 +115,35 @@ class ReadReplicaTest : public RouterComponentClusterSetTest {
     return {"destination_status", options};
   }
 
+  std::string get_router_options_as_json_str(
+      const std::string &target_cluster,
+      const std::optional<std::string> &invalidated_cluster_policy,
+      const std::optional<std::string> &read_only_targets) {
+    JsonValue json_val(rapidjson::kObjectType);
+    JsonAllocator allocator;
+    json_val.AddMember(
+        "target_cluster",
+        JsonValue(target_cluster.c_str(), target_cluster.length(), allocator),
+        allocator);
+
+    if (invalidated_cluster_policy) {
+      json_val.AddMember(
+          "invalidated_cluster_policy",
+          JsonValue((*invalidated_cluster_policy).c_str(),
+                    (*invalidated_cluster_policy).length(), allocator),
+          allocator);
+    }
+
+    if (read_only_targets) {
+      json_val.AddMember("read_only_targets",
+                         JsonValue((*read_only_targets).c_str(),
+                                   (*read_only_targets).length(), allocator),
+                         allocator);
+    }
+
+    return json_to_string(json_val);
+  }
+
   struct NodeData {
     std::string gr_node_status{"ONLINE"};
     std::string uuid;
@@ -1145,14 +1174,14 @@ TEST_F(ReadReplicaTest, ReadReplicaClusterSet) {
   const unsigned primary_read_replicas_nodes_count = 2;
   const unsigned replica1_gr_nodes_count = 3;
   const unsigned replica1_read_replicas_nodes_count = 1;
-  std::string router_cs_options = R"({"target_cluster" : "primary"})";
-  const std::string router_options = R"({"read_only_targets" : "all"})";
+  std::string router_options =
+      get_router_options_as_json_str("primary", std::nullopt, "all");
 
   const std::vector<size_t> read_replicas_per_cluster{
       primary_read_replicas_nodes_count, replica1_read_replicas_nodes_count, 0};
   create_clusterset(view_id_, /*target_cluster_id*/ 0,
                     /*primary_cluster_id*/ 0, "metadata_clusterset.js",
-                    router_cs_options, router_options, ".*", false, false,
+                    router_options, ".*", false, false,
                     read_replicas_per_cluster);
   is_target_clusterset(true);
 
@@ -1171,12 +1200,11 @@ TEST_F(ReadReplicaTest, ReadReplicaClusterSet) {
   check_all_ports_used(expected_ports, ro_cons);
 
   // change the target cluster to secondary cluster
-  router_cs_options =
-      R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2"})";
+  router_options = get_router_options_as_json_str(
+      "00000000-0000-0000-0000-0000000000g2", std::nullopt, "all");
   RouterComponentClusterSetTest::set_mock_metadata_on_all_cs_nodes(
       ++view_id_,
-      /*target_cluster_id*/ 1, clusterset_data_, router_cs_options,
-      router_options);
+      /*target_cluster_id*/ 1, clusterset_data_, router_options);
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
 
@@ -1193,10 +1221,11 @@ TEST_F(ReadReplicaTest, ReadReplicaClusterSet) {
   check_all_ports_used(expected_ports_2, ro_cons);
 
   // change the target cluster back to primary cluster
-  router_cs_options = R"({"target_cluster" : "primary"})";
+  router_options =
+      get_router_options_as_json_str("primary", std::nullopt, "all");
   RouterComponentClusterSetTest::set_mock_metadata_on_all_cs_nodes(
       ++view_id_,
-      /*target_cluster_id*/ 0, clusterset_data_, router_cs_options,
+      /*target_cluster_id*/ 0, clusterset_data_, router_options,
       router_options);
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
@@ -1223,27 +1252,6 @@ class ReadReplicaInvalidatedClusterTest
       public ::testing::WithParamInterface<
           ReadReplicaInvalidatedClusterTestParam> {};
 
-std::string get_router_cs_options_as_json_str(
-    const std::string &target_cluster,
-    const std::optional<std::string> &invalidated_cluster_policy) {
-  JsonValue json_val(rapidjson::kObjectType);
-  JsonAllocator allocator;
-  json_val.AddMember(
-      "target_cluster",
-      JsonValue(target_cluster.c_str(), target_cluster.length(), allocator),
-      allocator);
-
-  if (invalidated_cluster_policy) {
-    json_val.AddMember(
-        "invalidated_cluster_policy",
-        JsonValue((*invalidated_cluster_policy).c_str(),
-                  (*invalidated_cluster_policy).length(), allocator),
-        allocator);
-  }
-
-  return json_to_string(json_val);
-}
-
 /**
  * @test Check that Read Replicas are handled as expected when used with a
  * ClusterSet and the target Cluster is marked as invalid in the metadata
@@ -1254,16 +1262,14 @@ TEST_P(ReadReplicaInvalidatedClusterTest,
   const unsigned primary_gr_ro_nodes_count = 2;
   const unsigned primary_read_replicas_nodes_count = 2;
   const unsigned replica1_read_replicas_nodes_count = 1;
-  const std::string router_cs_options = get_router_cs_options_as_json_str(
-      "primary", GetParam().invalidated_cluster_policy);
-
-  const std::string router_options = R"({"read_only_targets" : "all"})";
+  const std::string router_options = get_router_options_as_json_str(
+      "primary", GetParam().invalidated_cluster_policy, "all");
 
   const std::vector<size_t> read_replicas_per_cluster{
       primary_read_replicas_nodes_count, replica1_read_replicas_nodes_count, 0};
   create_clusterset(view_id_, /*target_cluster_id*/ 0,
                     /*primary_cluster_id*/ 0, "metadata_clusterset.js",
-                    router_cs_options, router_options, ".*", false, false,
+                    router_options, ".*", false, false,
                     read_replicas_per_cluster);
   is_target_clusterset(true);
 
@@ -1288,8 +1294,7 @@ TEST_P(ReadReplicaInvalidatedClusterTest,
   clusterset_data_.clusters[0].invalid = true;
   RouterComponentClusterSetTest::set_mock_metadata_on_all_cs_nodes(
       ++view_id_,
-      /*target_cluster_id*/ 0, clusterset_data_, router_cs_options,
-      router_options);
+      /*target_cluster_id*/ 0, clusterset_data_, router_options);
   EXPECT_TRUE(wait_for_transaction_count_increase(
       clusterset_data_.clusters[0].nodes[0].http_port, 2));
 

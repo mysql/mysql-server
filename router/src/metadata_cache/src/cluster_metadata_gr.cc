@@ -85,18 +85,11 @@ class GRMetadataBackend {
   virtual stdx::expected<metadata_cache::ClusterTopology, std::error_code>
   fetch_cluster_topology(
       MySQLSession::Transaction &transaction,
-      const mysqlrouter::MetadataSchemaVersion &schema_version,
-      mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
+      mysqlrouter::TargetCluster &target_cluster,
       const metadata_cache::metadata_server_t &metadata_server,
       const metadata_cache::metadata_servers_list_t &metadata_servers,
-      bool needs_writable_node, const std::string &clusterset_id,
-      bool whole_topology);
-
-  virtual void fetch_periodic_stats_update_frequency(
-      const mysqlrouter::MetadataSchemaVersion & /*schema_version*/,
-      const unsigned /*router_id*/) {
-    periodic_stats_update_frequency_ = std::nullopt;
-  }
+      bool needs_writable_node, const RouterOptions &router_options,
+      const std::string &clusterset_id, bool whole_topology);
 
   virtual std::vector<metadata_cache::metadata_servers_list_t>
   get_metadata_servers(
@@ -105,17 +98,11 @@ class GRMetadataBackend {
     return get_all_metadata_servers(metadata_servers);
   }
 
-  virtual std::optional<std::chrono::seconds>
-  get_periodic_stats_update_frequency() noexcept {
-    return periodic_stats_update_frequency_;
-  }
-
   virtual void reset() {}
 
  protected:
   GRClusterMetadata *metadata_;
   ConnectCallback connect_clb_;
-  std::optional<std::chrono::seconds> periodic_stats_update_frequency_{};
 };
 
 GRMetadataBackend::~GRMetadataBackend() = default;
@@ -154,10 +141,6 @@ class GRMetadataBackendV2 : public GRMetadataBackend {
   mysqlrouter::ClusterType get_cluster_type() override {
     return mysqlrouter::ClusterType::GR_V2;
   }
-
-  virtual void fetch_periodic_stats_update_frequency(
-      const mysqlrouter::MetadataSchemaVersion &schema_version,
-      const unsigned router_id) override;
 };
 
 /* Connection to the GR metadata clusterset */
@@ -176,16 +159,15 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
    *
    * @param transaction transaction to be used for SQL queries required by this
    * function
-   * @param schema_version current metadata schema version
    * @param [in,out] target_cluster object identifying the Cluster this
    * operation refers to
-   * @param router_id id of the router in the cluster metadata
    * @param metadata_server info about the metadata server we are querying
    * @param metadata_servers set of all the metadata servers read during
    * the bootstrap or the last metadata refresh, sorted by the staus of the
    * cluster and status of the node in the cluster (Primary first)
    * @param needs_writable_node flag indicating if the caller needs us to query
    * for writable node
+   * @param router_options options configured for this Router in the metadata
    * @param clusterset_id UUID of the ClusterSet the Cluster belongs to (if
    * bootstrapped as a ClusterSet)
    * @param whole_topology return all usable nodes, ignore potential metadata
@@ -197,11 +179,11 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
   stdx::expected<metadata_cache::ClusterTopology, std::error_code>
   fetch_cluster_topology(
       MySQLSession::Transaction &transaction,
-      const mysqlrouter::MetadataSchemaVersion &schema_version,
-      mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
+      mysqlrouter::TargetCluster &target_cluster,
       const metadata_cache::metadata_server_t &metadata_server,
       const metadata_cache::metadata_servers_list_t &metadata_servers,
-      bool needs_writable_node, const std::string &clusterset_id = "",
+      bool needs_writable_node, const RouterOptions &router_options,
+      const std::string &clusterset_id = "",
       bool whole_topology = false) override;
 
   void reset() override { metadata_read_ = false; }
@@ -238,13 +220,6 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
     }
 
     return result;
-  }
-
-  virtual std::optional<std::chrono::seconds>
-  get_periodic_stats_update_frequency() noexcept override {
-    using namespace std::chrono_literals;
-    return periodic_stats_update_frequency_ ? periodic_stats_update_frequency_
-                                            : 0s;
   }
 
  private:
@@ -293,13 +268,12 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
    * for writable node
    * @param whole_topology return all usable nodes, ignore potential metadata
    * filters or policies (like target_cluster etc.)
-   * @param router_cs_options ClusterSet related options configured for this
-   * Router in the metadata
+   * @param router_options options configured for this Router in the metadata
    * @param metadata_servers the list of ClusterSet metadata servers
    */
   void update_clusterset_status_from_gr(
       metadata_cache::ClusterTopology &cs_topology, bool needs_writable_node,
-      bool whole_topology, const RouterClusterSetOptions &router_cs_options,
+      bool whole_topology, const RouterOptions &router_options,
       const metadata_cache::metadata_servers_list_t &metadata_servers);
 
   /** @brief Given the topology read from the metadata and updated with the
@@ -322,7 +296,6 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
    */
   std::optional<metadata_cache::metadata_server_t> find_rw_server();
 
-  std::string router_cs_options_string{""};
   std::optional<metadata_cache::ClusterTopology> cluster_topology_{};
 };
 
@@ -713,13 +686,6 @@ void GRClusterMetadata::update_backend(
   }
 }
 
-std::optional<std::chrono::seconds>
-GRClusterMetadata::get_periodic_stats_update_frequency() noexcept {
-  if (!metadata_backend_) return {};
-
-  return metadata_backend_->get_periodic_stats_update_frequency();
-}
-
 // sort the cluster nodes based on already sorted metadata servers list in the
 // following order:
 // 1. PRIMARY instance(s)
@@ -782,12 +748,11 @@ void apply_read_only_targets_option(metadata_cache::cluster_nodes_list_t &nodes,
 stdx::expected<metadata_cache::ClusterTopology, std::error_code>
 GRMetadataBackend::fetch_cluster_topology(
     MySQLSession::Transaction &transaction,
-    const mysqlrouter::MetadataSchemaVersion &schema_version,
-    mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
+    mysqlrouter::TargetCluster &target_cluster,
     const metadata_cache::metadata_server_t & /*metadata_server*/,
     const metadata_cache::metadata_servers_list_t &metadata_servers,
-    bool needs_writable_node, const std::string &clusterset_id = "",
-    bool whole_topology = false) {
+    bool needs_writable_node, const RouterOptions &router_options,
+    const std::string &clusterset_id = "", bool whole_topology = false) {
   metadata_cache::ClusterTopology result;
 
   // fetch cluster topology from the metadata server (this is
@@ -797,16 +762,11 @@ GRMetadataBackend::fetch_cluster_topology(
       target_cluster,
       clusterset_id);  // throws metadata_cache::metadata_error
 
-  fetch_periodic_stats_update_frequency(schema_version, router_id);
-
   const ReadOnlyTargets read_only_targets = [&]() {
     if (whole_topology) {
       // does not matter when we return the whole topology
       return ReadOnlyTargets::all;
     }
-    RouterOptions router_options{schema_version};
-    router_options.read_from_metadata(*metadata_->get_connection().get(),
-                                      router_id);
     return router_options.get_read_only_targets();
   }();
 
@@ -938,9 +898,13 @@ GRClusterMetadata::fetch_cluster_topology(
           continue;
         }
 
+        router_options_.read_from_metadata(
+            *metadata_connection_.get(), router_id, version,
+            metadata_backend_->get_cluster_type());
+
         result_tmp = metadata_backend_->fetch_cluster_topology(
-            transaction, version, target_cluster, router_id, metadata_server,
-            metadata_servers, needs_writable_node, clusterset_id,
+            transaction, target_cluster, metadata_server, metadata_servers,
+            needs_writable_node, router_options_, clusterset_id,
             whole_topology);
 
         last_fetch_cluster_id = i;
@@ -1157,27 +1121,6 @@ GRMetadataBackendV2::fetch_instances_from_metadata_server(
   result.target_cluster_pos = 0;
 
   return result;
-}
-
-void GRMetadataBackendV2::fetch_periodic_stats_update_frequency(
-    const mysqlrouter::MetadataSchemaVersion &schema_version,
-    const unsigned router_id) {
-  if (schema_version >= mysqlrouter::kClusterSetsMetadataVersion) {
-    const auto connection = metadata_->get_connection();
-    const bool is_part_of_cluster_set =
-        mysqlrouter::is_part_of_cluster_set(connection.get());
-    if (is_part_of_cluster_set) {
-      RouterClusterSetOptions router_clusterset_options;
-      if (router_clusterset_options.read_from_metadata(*connection.get(),
-                                                       router_id)) {
-        periodic_stats_update_frequency_ =
-            router_clusterset_options.get_stats_updates_frequency();
-        return;
-      }
-    }
-  }
-
-  periodic_stats_update_frequency_ = std::nullopt;
 }
 
 GRClusterMetadata::~GRClusterMetadata() = default;
@@ -1448,12 +1391,11 @@ GRClusterSetMetadataBackend::find_rw_server() {
 stdx::expected<metadata_cache::ClusterTopology, std::error_code>
 GRClusterSetMetadataBackend::fetch_cluster_topology(
     MySQLSession::Transaction &transaction,
-    const mysqlrouter::MetadataSchemaVersion &schema_version,
-    mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
+    mysqlrouter::TargetCluster &target_cluster,
     const metadata_cache::metadata_server_t &metadata_server,
     const metadata_cache::metadata_servers_list_t &metadata_servers,
-    bool needs_writable_node, const std::string &clusterset_id,
-    bool whole_topology) {
+    bool needs_writable_node, const RouterOptions &router_options,
+    const std::string &clusterset_id, bool whole_topology) {
   metadata_cache::ClusterTopology result;
   auto connection = metadata_->get_connection();
 
@@ -1504,27 +1446,8 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
         make_error_code(metadata_cache::metadata_errc::outdated_view_id));
   }
 
-  // check if router options did not change in the metadata
-  RouterClusterSetOptions router_clusterset_options;
-  if (!router_clusterset_options.read_from_metadata(*connection, router_id)) {
-    return stdx::make_unexpected(make_error_code(
-        metadata_cache::metadata_errc::no_metadata_read_successful));
-  }
-
-  if (router_clusterset_options.get_string() != router_cs_options_string) {
-    log_info(
-        "New router clusterset options read from the metadata '%s', was '%s'",
-        router_clusterset_options.get_string().c_str(),
-        router_cs_options_string.c_str());
-    router_cs_options_string = router_clusterset_options.get_string();
-  }
-
-  periodic_stats_update_frequency_ =
-      router_clusterset_options.get_stats_updates_frequency();
-
   // get target_cluster info
-  auto new_target_cluster_op =
-      router_clusterset_options.get_target_cluster(router_id);
+  auto new_target_cluster_op = router_options.get_target_cluster();
   if (!new_target_cluster_op) {
     return stdx::make_unexpected(make_error_code(
         metadata_cache::metadata_errc::no_metadata_read_successful));
@@ -1560,9 +1483,6 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
       // does not matter when we return the whole topology
       return ReadOnlyTargets::all;
     }
-    RouterOptions router_options{schema_version};
-    router_options.read_from_metadata(*metadata_->get_connection().get(),
-                                      router_id);
     return router_options.get_read_only_targets();
   }();
 
@@ -1574,7 +1494,7 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
   // we got topology from the configured metadata, now let's update it with the
   // current state from the GR
   update_clusterset_status_from_gr(result, needs_writable_node, whole_topology,
-                                   router_clusterset_options, metadata_servers);
+                                   router_options, metadata_servers);
 
   // knowing the Clusters current status we can update metadata servers list
   // with a correct order
@@ -1609,7 +1529,7 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
 
 void GRClusterSetMetadataBackend::update_clusterset_status_from_gr(
     metadata_cache::ClusterTopology &cs_topology, bool needs_writable_node,
-    bool whole_topology, const RouterClusterSetOptions &router_cs_options,
+    bool whole_topology, const RouterOptions &router_options,
     const metadata_cache::metadata_servers_list_t &metadata_servers) {
   for (auto [pos, cluster] :
        stdx::views::enumerate(cs_topology.clusters_data)) {
@@ -1644,7 +1564,7 @@ void GRClusterSetMetadataBackend::update_clusterset_status_from_gr(
     // or if our target cluster is invalidated
     if (!whole_topology) {
       if ((!cluster.is_primary &&
-           !router_cs_options.get_use_replica_primary_as_rw()) ||
+           !router_options.get_use_replica_primary_as_rw()) ||
           cluster.is_invalidated) {
         for (auto &member : cluster.members) {
           if (member.mode == metadata_cache::ServerMode::ReadWrite) {

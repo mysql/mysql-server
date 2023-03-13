@@ -11,8 +11,8 @@ if (mysqld.global.cluster_name == undefined) {
   mysqld.global.cluster_name = "mycluster";
 }
 
-if (mysqld.global.metadata_version === undefined) {
-  mysqld.global.metadata_version = [2, 0, 3];
+if (mysqld.global.metadata_schema_version === undefined) {
+  mysqld.global.metadata_schema_version = [2, 0, 3];
 }
 
 if (mysqld.global.gr_id === undefined) {
@@ -20,7 +20,7 @@ if (mysqld.global.gr_id === undefined) {
 }
 
 var options = {
-  metadata_schema_version: mysqld.global.metadata_version,
+  metadata_schema_version: mysqld.global.metadata_schema_version,
   cluster_type: "gr",
   gr_id: mysqld.global.gr_id,
   clusterset_present: 0,
@@ -84,8 +84,8 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
     }
     // metadata ver 2.1+
     else if (
-        (mysqld.global.metadata_version[0] >= 2 &&
-         mysqld.global.metadata_version[1] >= 1) &&
+        (mysqld.global.metadata_schema_version[0] >= 2 &&
+         mysqld.global.metadata_schema_version[1] >= 1) &&
         common_responses_v2_1.hasOwnProperty(stmt)) {
       return common_responses_v2_1[stmt];
     } else if (

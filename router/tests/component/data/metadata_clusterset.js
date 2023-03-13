@@ -12,15 +12,18 @@ if (mysqld.global.update_last_check_in_count === undefined) {
   mysqld.global.update_last_check_in_count = 0;
 }
 
+if (mysqld.global.metadata_schema_version === undefined) {
+  mysqld.global.metadata_schema_version = [2, 2, 0];
+}
+
 var options = {
   cluster_type: "gr",
-  metadata_schema_version: [2, 2, 0],
+  metadata_schema_version: mysqld.global.metadata_schema_version,
   clusterset_present: 1,
   bootstrap_target_type: "clusterset",
   clusterset_target_cluster_id: mysqld.global.target_cluster_id,
   view_id: mysqld.global.view_id,
   clusterset_data: mysqld.global.clusterset_data,
-  router_cs_options: mysqld.global.router_cs_options,
   router_options: mysqld.global.router_options,
   clusterset_simulate_cluster_not_found:
       mysqld.global.simulate_cluster_not_found,
@@ -41,7 +44,6 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_cluster_instances_v2_gr",
       "router_select_router_options_view",
       "router_commit",
-      "router_router_select_cs_options",
       "router_rollback",
 
       "select_port",
@@ -55,6 +57,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_clusterset_select_cluster_info_by_gr_uuid",
       "router_clusterset_select_gr_primary_member",
       "router_clusterset_select_gr_members_status",
+      "router_router_select_cs_options",
     ],
     options);
 

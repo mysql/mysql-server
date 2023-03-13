@@ -15,8 +15,8 @@ if (mysqld.global.rest_user_credentials === undefined) {
   mysqld.global.rest_user_credentials = [];
 }
 
-if (mysqld.global.metadata_version === undefined) {
-  mysqld.global.metadata_version = [0, 0, 0];
+if (mysqld.global.metadata_schema_version === undefined) {
+  mysqld.global.metadata_schema_version = [0, 0, 0];
 }
 
 if (mysqld.global.rest_auth_query_count === undefined) {
@@ -41,7 +41,7 @@ var group_replication_members_online =
     nodes(gr_node_host, mysqld.global.gr_nodes, mysqld.global.gr_id);
 
 var options = {
-  metadata_schema_version: mysqld.global.metadata_version,
+  metadata_schema_version: mysqld.global.metadata_schema_version,
   group_replication_members: group_replication_members_online,
   innodb_cluster_instances: gr_memberships.cluster_nodes(
       mysqld.global.gr_node_host, mysqld.global.cluster_nodes),

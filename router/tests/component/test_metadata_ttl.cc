@@ -39,6 +39,7 @@
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
+#include "router_component_clusterset.h"
 #include "router_component_test.h"
 #include "router_component_testutils.h"
 #include "router_config.h"
@@ -47,12 +48,13 @@
 #include "tcp_port_pool.h"
 
 using mysqlrouter::ClusterType;
+using mysqlrouter::MetadataSchemaVersion;
 using mysqlrouter::MySQLSession;
 using ::testing::PrintToString;
 using namespace std::chrono_literals;
 using namespace std::string_literals;
 
-class MetadataChacheTTLTest : public RouterComponentTest {
+class MetadataChacheTTLTest : public RouterComponentClusterSetTest {
  protected:
   std::string get_metadata_cache_section(
       ClusterType cluster_type = ClusterType::GR_V2,
@@ -244,9 +246,9 @@ TEST_F(MetadataChacheTTLTest, Quarantine) {
   for (size_t i = 0; i < kClusterNodes; ++i) {
     cluster_nodes.push_back(&launch_mysql_server_mock(
         json_metadata, classic_ports[i], EXIT_SUCCESS, false, http_ports[i]));
-    set_mock_metadata(http_ports[i], "uuid",
-                      classic_ports_to_gr_nodes(classic_ports), 0,
-                      classic_ports_to_cluster_nodes(classic_ports));
+    ::set_mock_metadata(http_ports[i], "uuid",
+                        classic_ports_to_gr_nodes(classic_ports), 0,
+                        classic_ports_to_cluster_nodes(classic_ports));
   }
 
   const auto router_ro_port = port_pool_.get_next_available();
@@ -280,9 +282,9 @@ TEST_F(MetadataChacheTTLTest, Quarantine) {
   SCOPED_TRACE("// bring back the cluster node");
   cluster_nodes[1] = &launch_mysql_server_mock(
       json_metadata, classic_ports[1], EXIT_SUCCESS, false, http_ports[1]);
-  set_mock_metadata(http_ports[1], "uuid",
-                    classic_ports_to_gr_nodes(classic_ports), 0,
-                    classic_ports_to_cluster_nodes(classic_ports));
+  ::set_mock_metadata(http_ports[1], "uuid",
+                      classic_ports_to_gr_nodes(classic_ports), 0,
+                      classic_ports_to_cluster_nodes(classic_ports));
 
   SCOPED_TRACE("// .. and wait for it to be cleared by the quarantine");
   EXPECT_TRUE(wait_log_contains(
@@ -471,9 +473,9 @@ TEST_P(MetadataChacheTTLTestInstanceListUnordered, InstancesListUnordered) {
   }
 
   for (auto [i, http_port] : stdx::views::enumerate(node_http_ports)) {
-    set_mock_metadata(http_port, kGroupID,
-                      classic_ports_to_gr_nodes(node_classic_ports), i,
-                      classic_ports_to_cluster_nodes(node_classic_ports));
+    ::set_mock_metadata(http_port, kGroupID,
+                        classic_ports_to_gr_nodes(node_classic_ports), i,
+                        classic_ports_to_cluster_nodes(node_classic_ports));
   }
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
@@ -491,7 +493,7 @@ TEST_P(MetadataChacheTTLTestInstanceListUnordered, InstancesListUnordered) {
   std::vector<uint16_t> node_classic_ports_reverse(node_classic_ports.rbegin(),
                                                    node_classic_ports.rend());
   for (auto [i, http_port] : stdx::views::enumerate(node_http_ports)) {
-    set_mock_metadata(
+    ::set_mock_metadata(
         http_port, kGroupID,
         classic_ports_to_gr_nodes(node_classic_ports_reverse), i,
         classic_ports_to_cluster_nodes(node_classic_ports_reverse), 1);
@@ -540,9 +542,9 @@ TEST_P(MetadataChacheTTLTestInvalidMysqlXPort, InvalidMysqlXPort) {
 
   SCOPED_TRACE(
       "// let the metadata for our single node report invalid mysqlx port");
-  set_mock_metadata(node_http_port, "uuid", {{node_classic_port}}, 0,
-                    {{node_classic_port, kInvalidPort}}, 0, 0, false,
-                    "127.0.0.1");
+  ::set_mock_metadata(node_http_port, "uuid", {{node_classic_port}}, 0,
+                      {{node_classic_port, kInvalidPort}}, 0, 0, false,
+                      "127.0.0.1");
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   const auto router_port = port_pool_.get_next_available();
@@ -910,8 +912,8 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
 
   /*auto &metadata_server = */ launch_mysql_server_mock(
       json_metadata, md_server_port, EXIT_SUCCESS, false, md_server_http_port);
-  set_mock_metadata(md_server_http_port, "uuid", {md_server_port}, 0,
-                    {md_server_port});
+  ::set_mock_metadata(md_server_http_port, "uuid", {md_server_port}, 0,
+                      {md_server_port});
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   const auto router_port = port_pool_.get_next_available();
@@ -1013,9 +1015,9 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
   for (size_t i = 0; i < NUM_NODES; ++i) {
     cluster_nodes.push_back(&launch_mysql_server_mock(
         json_metadata, node_ports[i], EXIT_SUCCESS, false, node_http_ports[i]));
-    set_mock_metadata(node_http_ports[i], "uuid",
-                      classic_ports_to_gr_nodes(node_ports), i,
-                      classic_ports_to_cluster_nodes(node_ports));
+    ::set_mock_metadata(node_http_ports[i], "uuid",
+                        classic_ports_to_gr_nodes(node_ports), i,
+                        classic_ports_to_cluster_nodes(node_ports));
   }
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
@@ -1051,8 +1053,8 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
   SCOPED_TRACE(
       "// Tell the second node that it is a new Primary and the only member of "
       "the cluster");
-  set_mock_metadata(node_http_ports[1], "uuid", {node_ports[1]}, 0,
-                    {node_ports[1]});
+  ::set_mock_metadata(node_http_ports[1], "uuid", {node_ports[1]}, 0,
+                      {node_ports[1]});
 
   SCOPED_TRACE(
       "// Connect to the router primary port, the connection should be ok and "
@@ -1113,9 +1115,9 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
           cluster_nodes[i].attributes = attr;
         }
       }
-      set_mock_metadata(node_http_ports[i], "uuid",
-                        classic_ports_to_gr_nodes(node_ports), i, cluster_nodes,
-                        primary_id, 0, false, node_hostname);
+      ::set_mock_metadata(node_http_ports[i], "uuid",
+                          classic_ports_to_gr_nodes(node_ports), i,
+                          cluster_nodes, primary_id, 0, false, node_hostname);
     }
   }
 
@@ -1158,9 +1160,9 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
     }
 
     ASSERT_NO_THROW({
-      set_mock_metadata(node_http_ports[0], "uuid",
-                        classic_ports_to_gr_nodes(node_ports), 0, cluster_nodes,
-                        primary_id, 0, false, node_hostname);
+      ::set_mock_metadata(node_http_ports[0], "uuid",
+                          classic_ports_to_gr_nodes(node_ports), 0,
+                          cluster_nodes, primary_id, 0, false, node_hostname);
     });
 
     try {
@@ -1716,27 +1718,28 @@ TEST_P(NodesHiddenWithFallbackTest, PrimaryHidden) {
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Bring down secondary nodes, primary is hidden");
-  set_mock_metadata(node_http_ports[0], "uuid", {node_ports[0]}, 0,
-                    {{node_ports[0], 0, R"({"tags" : {"_hidden": true} })"}}, 0,
-                    0, false, node_hostname);
+  ::set_mock_metadata(node_http_ports[0], "uuid", {node_ports[0]}, 0,
+                      {{node_ports[0], 0, R"({"tags" : {"_hidden": true} })"}},
+                      0, 0, false, node_hostname);
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_unused(router_rw_port));
   EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   SCOPED_TRACE("// Bring up second secondary node, primary is hidden");
-  set_mock_metadata(node_http_ports[0], "uuid", {node_ports[0], node_ports[2]},
-                    0,
-                    {{node_ports[0], 0, R"({"tags" : {"_hidden": true} })"},
-                     {node_ports[2], 0, ""}},
-                    0, 0, false, node_hostname);
+  ::set_mock_metadata(node_http_ports[0], "uuid",
+                      {node_ports[0], node_ports[2]}, 0,
+                      {{node_ports[0], 0, R"({"tags" : {"_hidden": true} })"},
+                       {node_ports[2], 0, ""}},
+                      0, 0, false, node_hostname);
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_unused(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Unhide primary node");
-  set_mock_metadata(node_http_ports[0], "uuid", {node_ports[0], node_ports[2]},
-                    0, {{node_ports[0], 0, ""}, {node_ports[2], 0, ""}}, 0, 0,
-                    false, node_hostname);
+  ::set_mock_metadata(node_http_ports[0], "uuid",
+                      {node_ports[0], node_ports[2]}, 0,
+                      {{node_ports[0], 0, ""}, {node_ports[2], 0, ""}}, 0, 0,
+                      false, node_hostname);
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
@@ -1768,7 +1771,7 @@ TEST_P(NodesHiddenWithFallbackTest, SecondaryHidden) {
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Bring down first primary node");
-  set_mock_metadata(
+  ::set_mock_metadata(
       node_http_ports[0], "uuid", {node_ports[0], node_ports[2]}, 0,
       {{node_ports[0]}, {node_ports[2], 0, R"({"tags" : {"_hidden": true} })"}},
       0, 0, false, node_hostname);
@@ -1777,9 +1780,9 @@ TEST_P(NodesHiddenWithFallbackTest, SecondaryHidden) {
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Unhide second secondary node");
-  set_mock_metadata(node_http_ports[0], "uuid", {node_ports[0], node_ports[2]},
-                    0, {{node_ports[0]}, {node_ports[2]}}, 0, 0, false,
-                    node_hostname);
+  ::set_mock_metadata(
+      node_http_ports[0], "uuid", {node_ports[0], node_ports[2]}, 0,
+      {{node_ports[0]}, {node_ports[2]}}, 0, 0, false, node_hostname);
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
@@ -2124,10 +2127,10 @@ TEST_P(MetadataCacheMetadataServersOrder, MetadataServersOrder) {
 
   for (const auto [i, http_port] :
        stdx::views::enumerate(md_servers_http_ports)) {
-    set_mock_metadata(http_port, "uuid",
-                      classic_ports_to_gr_nodes(md_servers_classic_ports), i,
-                      classic_ports_to_cluster_nodes(md_servers_classic_ports),
-                      /*primary_id=*/0);
+    ::set_mock_metadata(
+        http_port, "uuid", classic_ports_to_gr_nodes(md_servers_classic_ports),
+        i, classic_ports_to_cluster_nodes(md_servers_classic_ports),
+        /*primary_id=*/0);
   }
 
   // launch the router with metadata-cache configuration
@@ -2165,10 +2168,10 @@ TEST_P(MetadataCacheMetadataServersOrder, MetadataServersOrder) {
   // now promote first SECONDARY to become new PRIMARY
   for (const auto [i, http_port] :
        stdx::views::enumerate(md_servers_http_ports)) {
-    set_mock_metadata(http_port, "uuid",
-                      classic_ports_to_gr_nodes(md_servers_classic_ports), i,
-                      classic_ports_to_cluster_nodes(md_servers_classic_ports),
-                      /*primary_id=*/1);
+    ::set_mock_metadata(
+        http_port, "uuid", classic_ports_to_gr_nodes(md_servers_classic_ports),
+        i, classic_ports_to_cluster_nodes(md_servers_classic_ports),
+        /*primary_id=*/1);
   }
 
   // check that the second metadata server (new PRIMARY) is queried for metadata
@@ -2224,10 +2227,10 @@ TEST_P(MetadataServerInvalidGRState, InvalidGRState) {
 
   for (const auto [i, http_port] :
        stdx::views::enumerate(md_servers_http_ports)) {
-    set_mock_metadata(http_port, "uuid",
-                      classic_ports_to_gr_nodes(md_servers_classic_ports), i,
-                      classic_ports_to_cluster_nodes(md_servers_classic_ports),
-                      /*primary_id=*/0);
+    ::set_mock_metadata(
+        http_port, "uuid", classic_ports_to_gr_nodes(md_servers_classic_ports),
+        i, classic_ports_to_cluster_nodes(md_servers_classic_ports),
+        /*primary_id=*/0);
   }
 
   // launch the router with metadata-cache configuration
@@ -2262,7 +2265,7 @@ TEST_P(MetadataServerInvalidGRState, InvalidGRState) {
       // old PRIMARY sees itself as OFFLINE, does not see other nodes
       const auto gr_nodes =
           std::vector<GRNode>{{md_servers_classic_ports[0], "OFFLINE"}};
-      set_mock_metadata(
+      ::set_mock_metadata(
           http_port, "uuid", gr_nodes, 0,
           classic_ports_to_cluster_nodes(md_servers_classic_ports),
           /*primary_id=*/0);
@@ -2272,7 +2275,7 @@ TEST_P(MetadataServerInvalidGRState, InvalidGRState) {
       const auto gr_nodes =
           std::vector<GRNode>{{{md_servers_classic_ports[1], "ONLINE"},
                                {md_servers_classic_ports[2], "ONLINE"}}};
-      set_mock_metadata(
+      ::set_mock_metadata(
           http_port, "uuid", gr_nodes, i - 1,
           classic_ports_to_cluster_nodes(md_servers_classic_ports),
           /*primary_id=*/0);
@@ -2328,10 +2331,10 @@ TEST_P(MetadataServerNoQuorum, NoQuorum) {
 
   for (const auto [i, http_port] :
        stdx::views::enumerate(md_servers_http_ports)) {
-    set_mock_metadata(http_port, "uuid",
-                      classic_ports_to_gr_nodes(md_servers_classic_ports), i,
-                      classic_ports_to_cluster_nodes(md_servers_classic_ports),
-                      /*primary_id=*/0);
+    ::set_mock_metadata(
+        http_port, "uuid", classic_ports_to_gr_nodes(md_servers_classic_ports),
+        i, classic_ports_to_cluster_nodes(md_servers_classic_ports),
+        /*primary_id=*/0);
   }
 
   // launch the router with metadata-cache configuration
@@ -2370,7 +2373,7 @@ TEST_P(MetadataServerNoQuorum, NoQuorum) {
           std::vector<GRNode>{{md_servers_classic_ports[0], "ONLINE"},
                               {md_servers_classic_ports[1], "OFFLINE"},
                               {md_servers_classic_ports[2], "OFFLINE"}};
-      set_mock_metadata(
+      ::set_mock_metadata(
           http_port, "uuid", gr_nodes, 0,
           classic_ports_to_cluster_nodes(md_servers_classic_ports),
           /*primary_id=*/0);
@@ -2380,7 +2383,7 @@ TEST_P(MetadataServerNoQuorum, NoQuorum) {
       const auto gr_nodes =
           std::vector<GRNode>{{{md_servers_classic_ports[1], "ONLINE"},
                                {md_servers_classic_ports[2], "ONLINE"}}};
-      set_mock_metadata(
+      ::set_mock_metadata(
           http_port, "uuid", gr_nodes, i - 1,
           classic_ports_to_cluster_nodes(md_servers_classic_ports),
           /*primary_id=*/0);
@@ -2430,9 +2433,9 @@ TEST_P(MetadataServerGRErrorStates, GRErrorStates) {
                            false, md_servers_http_port);
 
   std::vector<GRNode> gr_nodes{{md_servers_classic_port, GetParam()}};
-  set_mock_metadata(md_servers_http_port, "uuid", gr_nodes, 0,
-                    classic_ports_to_cluster_nodes({md_servers_classic_port}),
-                    /*primary_id=*/0);
+  ::set_mock_metadata(md_servers_http_port, "uuid", gr_nodes, 0,
+                      classic_ports_to_cluster_nodes({md_servers_classic_port}),
+                      /*primary_id=*/0);
 
   // launch the router with metadata-cache configuration
   const std::string metadata_cache_section =
@@ -2593,9 +2596,9 @@ TEST_P(SessionReuseTest, SessionReuse) {
     cluster_nodes.push_back(&launch_mysql_server_mock(
         json_metadata, classic_ports[i], EXIT_SUCCESS, false, http_ports[i], 0,
         "", "0.0.0.0", 30s, /*enable_ssl*/ test_params.server_ssl_enabled));
-    set_mock_metadata(http_ports[i], "uuid",
-                      classic_ports_to_gr_nodes(classic_ports), 0,
-                      classic_ports_to_cluster_nodes(classic_ports));
+    ::set_mock_metadata(http_ports[i], "uuid",
+                        classic_ports_to_gr_nodes(classic_ports), 0,
+                        classic_ports_to_cluster_nodes(classic_ports));
   }
 
   const auto router_rw_port = port_pool_.get_next_available();
@@ -2656,6 +2659,320 @@ INSTANTIATE_TEST_SUITE_P(
         SessionReuseTestParams{/*router_ssl_mode*/ "DISABLED",
                                /*server_ssl_enabled*/ true,
                                /*expected_session_reuse*/ false}));
+
+struct StatsUpdatesFrequencyParam {
+  std::string test_name;
+  std::string test_requirements;
+  std::string test_description;
+
+  std::string router_options_json;
+  ClusterType cluster_type;
+  MetadataSchemaVersion metadata_version;
+  bool expect_updates;
+  bool expect_parsing_error;
+};
+
+class StatsUpdatesFrequencyTest
+    : public MetadataChacheTTLTest,
+      public ::testing::WithParamInterface<StatsUpdatesFrequencyParam> {
+ protected:
+  int get_int_global_value(const uint16_t http_port, const std::string &name) {
+    const auto server_globals =
+        MockServerRestClient(http_port).get_globals_as_json_string();
+
+    return get_int_field_value(server_globals, name);
+  }
+};
+
+/**
+ * @test Verifies that router_options stats_updates_frequency field is
+ * honoured as expected
+ */
+TEST_P(StatsUpdatesFrequencyTest, Verify) {
+  uint16_t primary_node_http_port{};
+  std::vector<uint16_t> metadata_server_ports;
+
+  RecordProperty("Worklog", "15599");
+  RecordProperty("RequirementId", GetParam().test_requirements);
+  RecordProperty("Description", GetParam().test_description);
+
+  if (GetParam().cluster_type == ClusterType::GR_CS) {
+    create_clusterset(1, /*target_cluster_id*/ 0,
+                      /*primary_cluster_id*/ 0, "metadata_clusterset.js",
+                      GetParam().router_options_json);
+
+    primary_node_http_port = clusterset_data_.clusters[0].nodes[0].http_port;
+    metadata_server_ports = clusterset_data_.get_md_servers_classic_ports();
+  } else {
+    const std::string tracefile =
+        GetParam().cluster_type == ClusterType::GR_V2
+            ? get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str()
+            : get_data_dir().join("metadata_dynamic_nodes_v2_ar.js").str();
+
+    const auto md_server_port = port_pool_.get_next_available();
+    primary_node_http_port = port_pool_.get_next_available();
+    metadata_server_ports.push_back(md_server_port);
+
+    launch_mysql_server_mock(tracefile, md_server_port, EXIT_SUCCESS, false,
+                             primary_node_http_port);
+
+    ::set_mock_metadata(primary_node_http_port, "uuid",
+                        classic_ports_to_gr_nodes({md_server_port}), 0,
+                        classic_ports_to_cluster_nodes({md_server_port}), 0, 0,
+                        false, "127.0.0.1", GetParam().router_options_json,
+                        GetParam().metadata_version);
+  }
+
+  SCOPED_TRACE("// Launch the Router");
+  const auto router_rw_port = port_pool_.get_next_available();
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(GetParam().cluster_type, "0.05");
+  const std::string routing_rw = get_metadata_cache_routing_section(
+      router_rw_port, "PRIMARY", "first-available", "", "rw");
+
+  auto &router = launch_router(metadata_cache_section, routing_rw,
+                               metadata_server_ports, EXIT_SUCCESS,
+                               /*wait_for_notify_ready=*/30s);
+
+  EXPECT_TRUE(wait_for_transaction_count_increase(primary_node_http_port, 20));
+
+  // initial update should always be done once
+  const int attributes_upd_count =
+      get_int_global_value(primary_node_http_port, "update_attributes_count");
+  EXPECT_EQ(1, attributes_upd_count);
+
+  const auto last_check_in_count = get_int_global_value(
+      primary_node_http_port, "update_last_check_in_count");
+
+  if (GetParam().expect_updates) {
+    // last_check_in updates expected
+    EXPECT_GT(last_check_in_count, 0);
+  } else {
+    // no last_check_in updates expected
+    EXPECT_EQ(0, last_check_in_count);
+  }
+
+  const std::string log_content = router.get_logfile_content();
+  const std::string error =
+      "Error parsing stats_updates_frequency from the router.options";
+  if (GetParam().expect_parsing_error) {
+    EXPECT_TRUE(pattern_found(log_content, error));
+  } else {
+    EXPECT_FALSE(pattern_found(log_content, error));
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, StatsUpdatesFrequencyTest,
+    ::testing::Values(
+        StatsUpdatesFrequencyParam{
+            "clusterset_updates_frequency_0", "FR1.1,FR1.3",
+            "router_options.stats_updates_frequency=0 - ClusterSet",
+            /*router_options_json*/ R"({"stats_updates_frequency" : 0})",
+            /*cluster_type*/ ClusterType::GR_CS,
+            /*metadata_version*/ {2, 2, 0},
+            /*expect_updates*/ false,
+            /*expect_parsing_error*/ false},
+        // explicit 0 - InnoDBCluster
+        StatsUpdatesFrequencyParam{
+            "cluster_updates_frequency_0", "FR1.1,FR1.3",
+            "router_options.stats_updates_frequency=0 - InnoDBCluster",
+            /*router_options_json*/ R"({"stats_updates_frequency" : 0})",
+            /*cluster_type*/ ClusterType::GR_V2,
+            /*metadata_version*/ {2, 2, 0},
+            /*expect_updates*/ false,
+            /*expect_parsing_error*/ false},
+        // explicit 0 - ReplicaSet
+        StatsUpdatesFrequencyParam{
+            "replicaset_updates_frequency_0", "FR1.1,FR1.3",
+            "router_options.stats_updates_frequency=0 - ReplicaSet",
+            /*router_options_json*/ R"({"stats_updates_frequency" : 0})",
+            /*cluster_type*/ ClusterType::RS_V2,
+            /*metadata_version*/ {2, 2, 0},
+            /*expect_updates*/ false,
+            /*expect_parsing_error*/ false},
+        StatsUpdatesFrequencyParam{
+            "clusterset_options_empty_json", "FR1.1,FR1.4.2",
+            "stats_updates_frequency field not present in router_options JSON "
+            "- ClusterSet - default is never do updates",
+            /*router_options_json*/ "{}",
+            /*cluster_type*/ ClusterType::GR_CS,
+            /*metadata_version*/ {2, 2, 0},
+            /*expect_updates*/ false,
+            /*expect_parsing_error*/ false},
+        StatsUpdatesFrequencyParam{"cluster_options_empty_json",
+                                   "FR1.1,FR1.4.1",
+                                   "stats_updates_frequency field not present "
+                                   "in router_options JSON - InnoDBCluster - "
+                                   "default is do updates every 10th TTL",
+                                   /*router_options_json*/ "{}",
+                                   /*cluster_type*/ ClusterType::GR_V2,
+                                   /*metadata_version*/ {2, 2, 0},
+                                   /*expect_updates*/ true,
+                                   /*expect_parsing_error*/ false},
+        StatsUpdatesFrequencyParam{"replicaset_options_empty_json",
+                                   "FR1.1,FR1.4.1",
+                                   "stats_updates_frequency field not present "
+                                   "in router_options JSON - ReplicaSet - "
+                                   "default is do updates every 10th TTL",
+                                   /*router_options_json*/ "{}",
+                                   /*cluster_type*/ ClusterType::RS_V2,
+                                   /*metadata_version*/ {2, 2, 0},
+                                   /*expect_updates*/ true,
+                                   /*expect_parsing_error*/ false},
+        StatsUpdatesFrequencyParam{"clusterset_options_empty_string",
+                                   "FR1.1,FR1.4.2",
+                                   "router_options is empty string - "
+                                   "ClusterSet - default is never do updates",
+                                   /*router_options_json*/ "",
+                                   /*cluster_type*/ ClusterType::GR_CS,
+                                   /*metadata_version*/ {2, 2, 0},
+                                   /*expect_updates*/ false,
+                                   /*expect_parsing_error*/ false},
+        StatsUpdatesFrequencyParam{
+            "cluster_options_empty_string", "FR1.1,FR1.4.1",
+            "router_options is empty string - InnoDBCluster - default is do "
+            "updates every 10th TTL",
+            /*router_options_json*/ "",
+            /*cluster_type*/ ClusterType::GR_V2,
+            /*metadata_version*/ {2, 2, 0},
+            /*expect_updates*/ true,
+            /*expect_parsing_error*/ false},
+        StatsUpdatesFrequencyParam{
+            "replicaset_options_empty_string", "FR1.1,FR1.4.1",
+            "router_options is empty string - ReplicaSet - default is do "
+            "updates every 10th TTL",
+            /*router_options_json*/ "",
+            /*cluster_type*/ ClusterType::RS_V2,
+            /*metadata_version*/ {2, 2, 0},
+            /*expect_updates*/ true,
+            /*expect_parsing_error*/ false},
+        StatsUpdatesFrequencyParam{
+            "clusterset_updates_frequency_not_a_number",
+            "FR1.1,FR1.4.2,FR1.4.3",
+            "router_options.stats_updates_frequency is not a number - "
+            "ClusterSet - default is never do updates",
+            /*router_options_json*/ R"({"stats_updates_frequency" : "aaa"})",
+            /*cluster_type*/ ClusterType::GR_CS,
+            /*metadata_version*/ {2, 2, 0},
+            /*expect_updates*/ false,
+            /*expect_parsing_error*/ true},
+        StatsUpdatesFrequencyParam{
+            "cluster_updates_frequency_not_a_number", "FR1.1,FR1.4.1,FR1.4.3",
+            "router_options.stats_updates_frequency is not a number - "
+            "InnoDBCluster - default is do updates every 10th TTL",
+            /*router_options_json*/ R"({"stats_updates_frequency" : "aaa"})",
+            /*cluster_type*/ ClusterType::GR_V2,
+            /*metadata_version*/ {2, 2, 0},
+            /*expect_updates*/ true,
+            /*expect_parsing_error*/ true},
+        StatsUpdatesFrequencyParam{
+            "replicaset_updates_frequency_negative_number",
+            "FR1.1,FR1.4.1,FR1.4.3",
+            "router_options.stats_updates_frequency is negative number - "
+            "ReplicaSet - default is do updates every 10th TTL",
+            /*router_options_json*/ R"({"stats_updates_frequency" : -1})",
+            /*cluster_type*/ ClusterType::RS_V2,
+            /*metadata_version*/ {2, 2, 0},
+            /*expect_updates*/ true,
+            /*expect_parsing_error*/ true},
+        StatsUpdatesFrequencyParam{
+            "clusterset_updates_frequency_1s", "FR1.1,FR1.2",
+            "router_options.stats_updates_frequency is 1s - we run for 2s+ so "
+            "at least 1 update is expected",
+            /*router_options_json*/ R"({"stats_updates_frequency" : 1})",
+            /*cluster_type*/ ClusterType::GR_CS,
+            /*metadata_version*/ {2, 2, 0},
+            /*expect_updates*/ true,
+            /*expect_parsing_error*/ false},
+        StatsUpdatesFrequencyParam{
+            "cluster_updates_frequency_1s", "FR1.1,FR1.2",
+            "router_options.stats_updates_frequency is 1s - we run for 2s+ so "
+            "at least 1 update is expected",
+            /*router_options_json*/ R"({"stats_updates_frequency" : 1})",
+            /*cluster_type*/ ClusterType::GR_V2,
+            /*metadata_version*/ {2, 2, 0},
+            /*expect_updates*/ true,
+            /*expect_parsing_error*/ false},
+        StatsUpdatesFrequencyParam{
+            "replicaset_updates_frequency_1s", "FR1.1,FR1.2",
+            "router_options.stats_updates_frequency is 1s - we run for 2s+ so "
+            "at least 1 update is expected",
+            /*router_options_json*/ R"({"stats_updates_frequency" : 1})",
+            /*cluster_type*/ ClusterType::RS_V2,
+            /*metadata_version*/ {2, 2, 0},
+            /*expect_updates*/ true,
+            /*expect_parsing_error*/ false},
+        StatsUpdatesFrequencyParam{
+            "clusterset_updates_frequency_5s", "FR1.1,FR1.2",
+            "router_options.stats_updates_frequency 5s - we run for 2s+ so no "
+            "update is expected",
+            /*router_options_json*/ R"({"stats_updates_frequency" : 5})",
+            /*cluster_type*/ ClusterType::GR_CS,
+            /*metadata_version*/ {2, 2, 0},
+            /*expect_updates*/ false,
+            /*expect_parsing_error*/ false},
+        StatsUpdatesFrequencyParam{
+            "cluster_updates_frequency_5s", "FR1.1,FR1.2",
+            "router_options.stats_updates_frequency 5s - we run for 2s+ so no "
+            "update is expected",
+            /*router_options_json*/ R"({"stats_updates_frequency" : 5})",
+            /*cluster_type*/ ClusterType::GR_V2,
+            /*metadata_version*/ {2, 2, 0},
+            /*expect_updates*/ false,
+            /*expect_parsing_error*/ false},
+        StatsUpdatesFrequencyParam{
+            "replicaset_updates_frequency_5s", "FR1.1,FR1.2",
+            "router_options.stats_updates_frequency 5s - we run for 2s+ so no "
+            "update is expected",
+            /*router_options_json*/ R"({"stats_updates_frequency" : 5})",
+            /*cluster_type*/ ClusterType::RS_V2,
+            /*metadata_version*/ {2, 2, 0},
+            /*expect_updates*/ false,
+            /*expect_parsing_error*/ false},
+        StatsUpdatesFrequencyParam{"replicaset_options_invalid_json",
+                                   "FR1.1,FR1.4.3",
+                                   "ReplicaSet - router_options is not a valid "
+                                   "JSON - default is update every 10TTL, "
+                                   "parsing error should be logged",
+                                   /*router_options_json*/ "aaabc",
+                                   /*cluster_type*/ ClusterType::RS_V2,
+                                   /*metadata_version*/ {2, 2, 0},
+                                   /*expect_updates*/ true,
+                                   /*expect_parsing_error*/ true},
+        StatsUpdatesFrequencyParam{
+            "clusterset_metadata_2_1_0_empty_options", "FR2",
+            "ClusterSet, metadata vesion 2.1.0 (before v2_router_options view "
+            "was added) - router_cs_options is empty - default is never update",
+            /*router_options_json*/ "",
+            /*cluster_type*/ ClusterType::GR_CS,
+            /*metadata_version*/ {2, 1, 0},
+            /*expect_updates*/ false,
+            /*expect_parsing_error*/ false},
+        StatsUpdatesFrequencyParam{
+            "clusterset_metadata_2_1_0_updates_frequency_1s", "FR2",
+            "ClusterSet, metadata vesion 2.1.0 (before v2_router_options view "
+            "was added) - v2_router_cs_options has 1s configured so we "
+            "fallback to it, updates expected",
+            /*router_options_json*/ R"({"stats_updates_frequency" : 1})",
+            /*cluster_type*/ ClusterType::GR_CS,
+            /*metadata_version*/ {2, 1, 0},
+            /*expect_updates*/ true,
+            /*expect_parsing_error*/ false},
+        StatsUpdatesFrequencyParam{
+            "clusterset_metadata_2_1_0_updates_frequency_0s", "FR2",
+            "Standalone Cluster, metadata vesion 2.1.0 (before "
+            "v2_router_options view was added), even though "
+            "v2_router_cs_options has '0' configured so we don't use it for "
+            "standalone Cluster, we still expect updates every 10TTL",
+            /*router_options_json*/ R"({"stats_updates_frequency" : 0})",
+            /*cluster_type*/ ClusterType::GR_V2,
+            /*metadata_version*/ {2, 1, 0},
+            /*expect_updates*/ true,
+            /*expect_parsing_error*/ false}),
+    [](const ::testing::TestParamInfo<StatsUpdatesFrequencyParam> &info) {
+      return info.param.test_name;
+    });
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

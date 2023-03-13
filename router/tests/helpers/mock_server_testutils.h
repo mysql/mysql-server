@@ -92,6 +92,8 @@ std::vector<ClusterNode> classic_ports_to_cluster_nodes(
  * @param error_on_md_query if true the mock should return an error when
  * handling the metadata query
  * @param gr_node_host address of the host with the nodes
+ * @param router_options JSON with router options in metadata
+ * @param metadata_version metadata schema version
  *
  * @return JSON object with the GR mock data.
  */
@@ -100,7 +102,10 @@ JsonValue mock_GR_metadata_as_json(
     unsigned gr_pos, const std::vector<ClusterNode> &cluster_nodes,
     unsigned primary_id = 0, uint64_t view_id = 0,
     bool error_on_md_query = false,
-    const std::string &gr_node_host = "127.0.0.1");
+    const std::string &gr_node_host = "127.0.0.1",
+    const std::string &router_options = "",
+    const mysqlrouter::MetadataSchemaVersion &metadata_version =
+        mysqlrouter::MetadataSchemaVersion{2, 2, 0});
 
 /**
  * Sets the metadata returned by the mock server.
@@ -114,14 +119,19 @@ JsonValue mock_GR_metadata_as_json(
  * @param view_id metadata view id (for AR cluster)
  * @param error_on_md_query if true the mock should return an error when
  * @param gr_node_host address of the host with the nodes handling the metadata
+ * @param router_options JSON with router options in metadata
+ * @param metadata_version metadata schema version
  * query
  */
-void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
-                       const std::vector<GRNode> &gr_nodes, unsigned gr_pos,
-                       const std::vector<ClusterNode> &cluster_nodes,
-                       unsigned primary_id = 0, uint64_t view_id = 0,
-                       bool error_on_md_query = false,
-                       const std::string &gr_node_host = "127.0.0.1");
+void set_mock_metadata(
+    uint16_t http_port, const std::string &gr_id,
+    const std::vector<GRNode> &gr_nodes, unsigned gr_pos,
+    const std::vector<ClusterNode> &cluster_nodes, unsigned primary_id = 0,
+    uint64_t view_id = 0, bool error_on_md_query = false,
+    const std::string &gr_node_host = "127.0.0.1",
+    const std::string &router_options = "",
+    const mysqlrouter::MetadataSchemaVersion &metadata_version =
+        mysqlrouter::MetadataSchemaVersion{2, 2, 0});
 
 void set_mock_bootstrap_data(
     uint16_t http_port, const std::string &cluster_name,

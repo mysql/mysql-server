@@ -109,7 +109,6 @@ var defaults = {
   rest_user_credentials: [],
   version: "8.0.24",  // SELECT @@version;
   router_expected_target_cluster: ".*",
-  router_cs_options: "",
   router_options: "",
   gr_member_state: "ONLINE",
   gr_members_all: 3,
@@ -1244,11 +1243,11 @@ function get_response(stmt_key, options) {
     case "router_router_select_cs_options":
       return {
         stmt:
-            "SELECT router_options FROM mysql_innodb_cluster_metadata.v2_cs_router_options where router_id = " +
+            "SELECT router_options FROM mysql_innodb_cluster_metadata.v2_cs_router_options WHERE router_id = " +
             options.router_id,
         result: {
           columns: [{"name": "router_options", "type": "VAR_STRING"}],
-          rows: [[options.router_cs_options]]
+          rows: [[options.router_options]]
         }
       };
     case "router_clusterset_select_cluster_info_by_primary_role":

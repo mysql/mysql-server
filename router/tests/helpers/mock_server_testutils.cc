@@ -73,7 +73,8 @@ JsonValue mock_GR_metadata_as_json(
     const std::string &gr_id, const std::vector<GRNode> &gr_nodes,
     unsigned gr_pos, const std::vector<ClusterNode> &cluster_nodes,
     unsigned primary_id, uint64_t view_id, bool error_on_md_query,
-    const std::string &gr_node_host) {
+    const std::string &gr_node_host, const std::string &router_options,
+    const mysqlrouter::MetadataSchemaVersion &metadata_version) {
   JsonValue json_doc(rapidjson::kObjectType);
   JsonAllocator allocator;
   json_doc.AddMember(
@@ -114,19 +115,30 @@ JsonValue mock_GR_metadata_as_json(
       "gr_node_host",
       JsonValue(gr_node_host.c_str(), gr_node_host.length(), allocator),
       allocator);
+  json_doc.AddMember(
+      "router_options",
+      JsonValue(router_options.c_str(), router_options.length(), allocator),
+      allocator);
+
+  JsonValue md_version(rapidjson::kArrayType);
+  md_version.PushBack(static_cast<int>(metadata_version.major), allocator);
+  md_version.PushBack(static_cast<int>(metadata_version.minor), allocator);
+  md_version.PushBack(static_cast<int>(metadata_version.patch), allocator);
+  json_doc.AddMember("metadata_schema_version", md_version, allocator);
 
   return json_doc;
 }
 
-void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
-                       const std::vector<GRNode> &gr_nodes, unsigned gr_pos,
-                       const std::vector<ClusterNode> &cluster_nodes,
-                       unsigned primary_id, uint64_t view_id,
-                       bool error_on_md_query,
-                       const std::string &gr_node_host) {
+void set_mock_metadata(
+    uint16_t http_port, const std::string &gr_id,
+    const std::vector<GRNode> &gr_nodes, unsigned gr_pos,
+    const std::vector<ClusterNode> &cluster_nodes, unsigned primary_id,
+    uint64_t view_id, bool error_on_md_query, const std::string &gr_node_host,
+    const std::string &router_options,
+    const mysqlrouter::MetadataSchemaVersion &metadata_version) {
   const auto json_doc = mock_GR_metadata_as_json(
       gr_id, gr_nodes, gr_pos, cluster_nodes, primary_id, view_id,
-      error_on_md_query, gr_node_host);
+      error_on_md_query, gr_node_host, router_options, metadata_version);
 
   const auto json_str = json_to_string(json_doc);
 
@@ -167,7 +179,7 @@ void set_mock_bootstrap_data(
   md_version.PushBack(static_cast<int>(metadata_version.major), allocator);
   md_version.PushBack(static_cast<int>(metadata_version.minor), allocator);
   md_version.PushBack(static_cast<int>(metadata_version.patch), allocator);
-  json_doc.AddMember("metadata_version", md_version, allocator);
+  json_doc.AddMember("metadata_schema_version", md_version, allocator);
 
   json_doc.AddMember("gr_id",
                      JsonValue(cluster_specific_id.c_str(),

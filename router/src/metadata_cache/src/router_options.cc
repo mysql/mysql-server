@@ -25,8 +25,13 @@
 // enable using Rapidjson library with std::string
 #define RAPIDJSON_HAS_STDSTRING 1
 
+#ifdef RAPIDJSON_NO_SIZETYPEDEFINE
+#include "my_rapidjson_size_t.h"
+#endif
+
 #include "router_options.h"
 
+#include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 
 #include "log_suppressor.h"
@@ -66,9 +71,9 @@ class MetadataJsonOptions {
     return it->value.GetString();
   }
 
-  static stdx::expected<uint32_t, std::string> get_router_option_uint(
-      const std::string &options, const std::string &name,
-      const uint32_t default_value) {
+  static stdx::expected<std::optional<uint32_t>, std::string>
+  get_router_option_uint(const std::string &options, const std::string &name,
+                         const std::optional<uint32_t> default_value) {
     if (options.empty()) return default_value;
 
     rapidjson::Document json_doc;
@@ -126,30 +131,8 @@ class MetadataJsonOptions {
 
 }  // namespace
 
-bool RouterClusterSetOptions::read_from_metadata(
-    mysqlrouter::MySQLSession &session, const unsigned router_id) {
-  const std::string query =
-      "SELECT router_options FROM "
-      "mysql_innodb_cluster_metadata.v2_cs_router_options where router_id "
-      "= " +
-      std::to_string(router_id);
-
-  std::unique_ptr<MySQLSession::ResultRow> row(session.query_one(query));
-  if (!row) {
-    log_error(
-        "Error reading router.options from v2_cs_router_options: did not "
-        "find router entry for router_id '%u'",
-        router_id);
-    return false;
-  }
-
-  options_str_ = as_string((*row)[0]);
-
-  return true;
-}
-
-std::optional<mysqlrouter::TargetCluster>
-RouterClusterSetOptions::get_target_cluster(const unsigned router_id) const {
+std::optional<mysqlrouter::TargetCluster> RouterOptions::get_target_cluster()
+    const {
   std::string out_error;
   // check if we have a target cluster assigned in the metadata
   const auto target_cluster_op = MetadataJsonOptions::get_router_option_str(
@@ -157,7 +140,7 @@ RouterClusterSetOptions::get_target_cluster(const unsigned router_id) const {
   mysqlrouter::TargetCluster target_cluster;
 
   if (!target_cluster_op) {
-    log_error("Error reading target_cluster from the router.options: %s",
+    log_error("Error reading target_cluster from the router_options: %s",
               target_cluster_op.error().c_str());
     return {};
   }
@@ -190,7 +173,7 @@ RouterClusterSetOptions::get_target_cluster(const unsigned router_id) const {
     log_custom(log_level,
                "Target cluster for router_id=%d not set, using 'primary' as "
                "a target cluster",
-               router_id);
+               router_id_);
     target_cluster_str = "primary";
   } else {
     target_cluster_str = *target_cluster_op.value();
@@ -208,29 +191,46 @@ RouterClusterSetOptions::get_target_cluster(const unsigned router_id) const {
   return target_cluster;
 }
 
-std::chrono::seconds RouterClusterSetOptions::get_stats_updates_frequency()
+std::optional<std::chrono::seconds> RouterOptions::get_stats_updates_frequency()
     const {
   using namespace std::chrono_literals;
+  using SecOptional = std::optional<std::chrono::seconds>;
+  // the default in case of ClusterSet is 0s (never update), for standalone
+  // Cluster it is std::nullopt (update every 10th TTL)
+  using UintOptional = std::optional<uint32_t>;
+  const UintOptional default_value_uint =
+      cluster_type_ == mysqlrouter::ClusterType::GR_CS
+          ? UintOptional{0}
+          : UintOptional{std::nullopt};
   const auto stats_updates_frequency_op =
-      MetadataJsonOptions::get_router_option_uint(options_str_,
-                                                  "stats_updates_frequency", 0);
+      MetadataJsonOptions::get_router_option_uint(
+          options_str_, "stats_updates_frequency", default_value_uint);
+
   if (!stats_updates_frequency_op) {
+    const SecOptional default_value_sec =
+        cluster_type_ == mysqlrouter::ClusterType::GR_CS
+            ? SecOptional{0s}
+            : SecOptional{std::nullopt};
     log_warning(
-        "Error parsing stats_updates_frequency from the router.options: %s. "
-        "Using default value %u",
-        stats_updates_frequency_op.error().c_str(), 0);
-    return 0s;
+        "Error parsing stats_updates_frequency from the router_options: %s. "
+        "Using default value",
+        stats_updates_frequency_op.error().c_str());
+    return default_value_sec;
   }
 
-  return std::chrono::seconds(stats_updates_frequency_op.value());
+  if (!stats_updates_frequency_op.value()) {
+    return SecOptional{std::nullopt};
+  }
+
+  return SecOptional{std::chrono::seconds(*stats_updates_frequency_op.value())};
 }
 
-bool RouterClusterSetOptions::get_use_replica_primary_as_rw() const {
+bool RouterOptions::get_use_replica_primary_as_rw() const {
   auto result = MetadataJsonOptions::get_router_option_bool(
       options_str_, "use_replica_primary_as_rw", false);
   if (!result) {
     log_warning(
-        "Error parsing use_replica_primary_as_rw from the router.options: "
+        "Error parsing use_replica_primary_as_rw from the router_options: "
         "%s. Using default value 'false'",
         result.error().c_str());
     return false;
@@ -239,32 +239,48 @@ bool RouterClusterSetOptions::get_use_replica_primary_as_rw() const {
   return result.value();
 }
 
-bool RouterOptions::read_from_metadata(mysqlrouter::MySQLSession &session,
-                                       const unsigned router_id) {
-  const bool options_view_exists =
-      schema_version_ >= mysqlrouter::MetadataSchemaVersion{2, 2, 0};
+bool RouterOptions::read_from_metadata(
+    mysqlrouter::MySQLSession &session, const unsigned router_id,
+    const mysqlrouter::MetadataSchemaVersion schema_version,
+    const mysqlrouter::ClusterType cluster_type) {
+  router_id_ = router_id;
+  cluster_type_ = cluster_type;
+  const bool router_options_view_exists =
+      schema_version >= mysqlrouter::MetadataSchemaVersion{2, 2, 0};
 
-  if (!options_view_exists) {
+  std::string options_view;
+  if (router_options_view_exists) {
+    options_view = "v2_router_options";
+  } else if (cluster_type == mysqlrouter::ClusterType::GR_CS) {
+    // before the v2_router_options view was added (metadata 2.2),
+    // ClusterSet-related options were read from v2_cs_router_options, now
+    // v2_router_options is the superset of it and should be used instead
+    options_view = "v2_cs_router_options";
+  } else {
     options_str_ = "";
     return true;
   }
 
   const std::string query =
-      "SELECT router_options FROM "
-      "mysql_innodb_cluster_metadata.v2_router_options WHERE "
-      "router_id = " +
-      std::to_string(router_id);
+      "SELECT router_options FROM mysql_innodb_cluster_metadata." +
+      options_view + " WHERE router_id = " + std::to_string(router_id);
 
   std::unique_ptr<MySQLSession::ResultRow> row(session.query_one(query));
   if (!row) {
     log_error(
-        "Error reading options from v2_router_options: did not "
-        "find router entry for router_id '%u'",
-        router_id);
+        "Error reading options from %s : did not find router entry for "
+        "router_id '%u'",
+        options_view.c_str(), router_id);
     return false;
   }
 
-  options_str_ = as_string((*row)[0]);
+  const std::string options = (*row)[0] == nullptr ? "" : (*row)[0];
+
+  if (options != options_str_) {
+    log_info("New router options read from the metadata '%s', was '%s'",
+             options.c_str(), options_str_.c_str());
+    options_str_ = options;
+  }
 
   return true;
 }
@@ -277,8 +293,8 @@ ReadOnlyTargets RouterOptions::get_read_only_targets() const {
       options_str_, "read_only_targets");
 
   if (!mode_op) {
-    warning = "Error reading read_only_targets from the v2_routers.options: " +
-              mode_op.error() + ". Using default mode.";
+    warning = "Error reading read_only_targets from the router_options: " +
+              mode_op.error() + ". Using default value.";
   } else {
     if (!mode_op.value()) {
       // value not in options, use default

@@ -132,9 +132,6 @@ class METADATA_CACHE_EXPORT GRClusterMetadata : public ClusterMetadata {
   auth_credentials_t fetch_auth_credentials(
       const mysqlrouter::TargetCluster &target_cluster) override;
 
-  std::optional<std::chrono::seconds>
-  get_periodic_stats_update_frequency() noexcept override;
-
  protected:
   /** @brief Queries the metadata server for the list of instances that belong
    * to the desired cluster.
