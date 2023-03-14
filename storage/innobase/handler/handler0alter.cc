@@ -6462,6 +6462,9 @@ during prepare, but might not be during commit).
     assert(!(ha_alter_info->handler_flags & Alter_inplace_info::ADD_PK_INDEX));
     assert(ctx->new_table == prebuilt->table);
 
+    /* Wait for background stats processing to stop using the table, so
+    we can drop the index */
+    dict_stats_wait_bg_to_stop_using_table(prebuilt->table, ctx->trx);
     innobase_rollback_sec_index(prebuilt->table, table, false, ctx->trx);
   }
 
