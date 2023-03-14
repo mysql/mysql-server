@@ -145,12 +145,10 @@ void ssl_shutdown_con(connection_descriptor *con) {
   }
 }
 
-bool Xcom_network_provider::cleanup_secure_connections_context() {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(0);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-
-  return false;
+void Xcom_network_provider::cleanup_secure_connections_context() {
+  auto secure_connections_context_cleaner =
+      this->get_secure_connections_context_cleaner();
+  std::invoke(secure_connections_context_cleaner);
 }
 
 bool Xcom_network_provider::finalize_secure_connections_context() {
