@@ -447,6 +447,8 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
     net::const_buffer session_trackers,
     classic_protocol::capabilities::value_type caps,
     bool ignore_some_state_changed) {
+  std::bitset<5> set_names_sysvar{};
+
   do {
     auto decode_session_res = classic_protocol::decode<
         classic_protocol::borrowed::session_track::Field>(session_trackers,
@@ -482,6 +484,16 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
           // ignore errors?
         } else {
           const auto kv = decode_value_res->second;
+
+          if (kv.key() == "character_set_client") {
+            set_names_sysvar.set(0);
+          } else if (kv.key() == "character_set_connection") {
+            set_names_sysvar.set(1);
+          } else if (kv.key() == "character_set_results") {
+            set_names_sysvar.set(2);
+          } else if (kv.key() == "collation_connection") {
+            set_names_sysvar.set(3);
+          }
 
           exec_ctx_.system_variables().set(std::string(kv.key()),
                                            Value(std::string(kv.value())));
@@ -703,6 +715,12 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
     // go to the next field.
     session_trackers += decoded_size;
   } while (session_trackers.size() > 0);
+
+  if (set_names_sysvar.to_ulong() == 0b0111) {
+    // character_set... are set, but not collation_connection.
+
+    collation_connection_maybe_dirty_ = true;
+  }
 
   return {};
 }

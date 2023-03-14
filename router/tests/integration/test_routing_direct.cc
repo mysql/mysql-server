@@ -3581,6 +3581,29 @@ TEST_P(ConnectionTest, classic_protocol_quit_no_aborted_connections) {
   EXPECT_EQ((*before_res)[0][0], (*after_res)[0][0]);
 }
 
+TEST_P(ConnectionTest, classic_protocol_charset_after_connect) {
+  MysqlClient cli;
+
+  auto account = SharedServer::native_empty_password_account();
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  cli.set_option(MysqlClient::CharsetName("latin1"));
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  {
+    auto cmd_res = query_one_result(
+        cli, "select @@character_set_client, @@collation_connection");
+    ASSERT_NO_ERROR(cmd_res);
+
+    EXPECT_THAT(*cmd_res,
+                ElementsAre(ElementsAre("latin1", "latin1_swedish_ci")));
+  }
+}
+
 INSTANTIATE_TEST_SUITE_P(Spec, ConnectionTest,
                          ::testing::ValuesIn(connection_params),
                          [](auto &info) {

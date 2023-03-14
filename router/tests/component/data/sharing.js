@@ -23,6 +23,24 @@ function increment_event(event_name) {
       return select_port;
     } else if (
         stmt ===
+        "SELECT 'collation_connection', @@SESSION.`collation_connection` UNION SELECT 'character_set_client', @@SESSION.`character_set_client` UNION SELECT 'sql_mode', @@SESSION.`sql_mode`") {
+      increment_event(statement_sql_select);
+
+      return {
+        result: {
+          columns: [
+            {name: "collation_connection", type: "STRING"},
+            {name: "@@SESSION.collation_connection", type: "STRING"},
+          ],
+          rows: [
+            ["collation_connection", "utf8mb4_0900_ai_ci"],
+            ["character_set_client", "utf8mb4"],
+            ["sql_mode", "bar"],
+          ]
+        }
+      };
+    } else if (
+        stmt ===
         "SELECT ATTR_NAME, ATTR_VALUE FROM performance_schema.session_account_connect_attrs WHERE PROCESSLIST_ID = CONNECTION_ID() ORDER BY ATTR_NAME") {
       increment_event(statement_sql_select);
 
