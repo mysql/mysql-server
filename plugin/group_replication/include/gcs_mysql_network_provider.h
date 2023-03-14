@@ -399,7 +399,7 @@ class Gcs_mysql_network_provider : public Network_provider {
   bool configure_secure_connections(
       const Network_configuration_parameters &params) override;
 
-  bool cleanup_secure_connections_context() override;
+  void cleanup_secure_connections_context() override;
 
   bool finalize_secure_connections_context() override;
 

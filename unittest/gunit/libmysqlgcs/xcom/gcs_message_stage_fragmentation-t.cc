@@ -182,6 +182,7 @@ class Mock_gcs_network_provider_management_interface
   MOCK_METHOD1(xcom_get_ssl_fips_mode, int(const char *mode));
   MOCK_METHOD0(xcom_get_ssl_fips_mode, int());
   MOCK_METHOD0(cleanup_secure_connections_context, void());
+  MOCK_METHOD0(delayed_cleanup_secure_connections_context, void());
   MOCK_METHOD0(finalize_secure_connections_context, void());
   MOCK_METHOD0(remove_all_network_provider, void());
   MOCK_METHOD1(remove_network_provider, void(enum_transport_protocol));
