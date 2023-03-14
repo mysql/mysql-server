@@ -1172,20 +1172,20 @@ class Item_func_weight_string final : public Item_str_func {
 
   String tmp_value;
   uint flags;
-  const uint num_codepoints;
   const uint result_length;
   Item_field *m_field_ref{nullptr};
   const bool as_binary;
 
  public:
+  const uint num_codepoints;
   Item_func_weight_string(const POS &pos, Item *a, uint result_length_arg,
                           uint num_codepoints_arg, uint flags_arg,
                           bool as_binary_arg = false)
       : Item_str_func(pos, a),
         flags(flags_arg),
-        num_codepoints(num_codepoints_arg),
         result_length(result_length_arg),
-        as_binary(as_binary_arg) {}
+        as_binary(as_binary_arg),
+        num_codepoints(num_codepoints_arg) {}
 
   bool do_itemize(Parse_context *pc, Item **res) override;
 
