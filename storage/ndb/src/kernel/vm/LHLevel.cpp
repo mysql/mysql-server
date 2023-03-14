@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ struct elem
   Uint16 head;
   static LHBits32 hash(Uint32 val)
   {
-    return LHBits32(md5_hash((Uint64*)&val, 1));
+    return LHBits32(md5_hash(&val, 1));
   }
 };
 

@@ -27,9 +27,10 @@
 
 #include "md5_hash.hpp"
 
-#ifdef WORDS_BIGENDIAN
-#define HIGHFIRST 1
-#endif
+#include <string.h>       // memcpy()
+#include <my_compiler.h>  // likely
+#include <my_config.h>    // big/little endian
+
 
 /*
  * This code implements the MD5 message-digest algorithm.
@@ -47,25 +48,6 @@
  * of 4 bytes long. Word 0 of the calculated 4-word hash value
  * is returned as the hash value.
  */
-
-#ifndef HIGHFIRST
-#define byteReverse(buf, len)	/* Nothing */
-#else
-void byteReverse(unsigned char *buf, unsigned longs);
-/*
- * Note: this code is harmless on little-endian machines.
- */
-void byteReverse(unsigned char *buf, unsigned longs)
-{
-    Uint32 t;
-    do {
-	t = (Uint32) ((unsigned) buf[3] << 8 | buf[2]) << 16 |
-	    ((unsigned) buf[1] << 8 | buf[0]);
-	*(Uint32 *) buf = t;
-	buf += 4;
-    } while (--longs);
-}
-#endif
 
 /* The four core functions - F1 is optimized somewhat */
 
@@ -168,47 +150,46 @@ static void MD5Transform(Uint32 buf[4], Uint32 const in[16])
 }
 
 /*
- * Start MD5 accumulation.  Set bit count to 0 and buffer to mysterious
+ * Start MD5 accumulation. Set bit count to 0 and buffer to mysterious
  * initialization constants.
  */
-void md5_hash(Uint32 result[4], const Uint64* keybuf, Uint32 no_of_32_words)
+void md5_hash(Uint32 result[4],
+              const char* keybuf,
+              Uint32 no_of_bytes)
 {
-  /**
-   * This is the external interface of the module
-   * It is assumed that keybuf is placed on 8 byte
-   * alignment.
-   */
-  Uint32 i;
   Uint32 buf[4];
   union {
     Uint64 transform64_buf[8];
     Uint32 transform32_buf[16];
   };
-  Uint32 len = no_of_32_words << 2;
-  const Uint64* key64buf = (const Uint64*)keybuf;
-  const Uint32* key32buf = (const Uint32*)keybuf;
+
+  // Round up to full word length
+  const Uint32 len = (no_of_bytes + 3) & ~3;
 
   buf[0] = 0x67452301;
   buf[1] = 0xefcdab89;
   buf[2] = 0x98badcfe;
   buf[3] = 0x10325476;
 
-  while (no_of_32_words >= 16) {
-    transform64_buf[0] = key64buf[0];
-    transform64_buf[1] = key64buf[1];
-    transform64_buf[2] = key64buf[2];
-    transform64_buf[3] = key64buf[3];
-    transform64_buf[4] = key64buf[4];
-    transform64_buf[5] = key64buf[5];
-    transform64_buf[6] = key64buf[6];
-    transform64_buf[7] = key64buf[7];
-    no_of_32_words -= 16;
-    key64buf += 8;
-    byteReverse((unsigned char *)transform32_buf, 16);
+  while (no_of_bytes >= 64) {
+    memcpy(transform32_buf, keybuf, 64);
+    keybuf += 64;
+    no_of_bytes -= 64;
     MD5Transform(buf, transform32_buf);
   }
 
-  key32buf = (const Uint32*)key64buf;
+  if (unlikely(no_of_bytes >= 61)) { // Will be a full frame when padded
+    // Last word written will not be a full word -> zero pad before memcpy over
+    transform32_buf[15] = 0;
+    memcpy(transform32_buf, keybuf, no_of_bytes);
+    keybuf += no_of_bytes;
+    no_of_bytes = 0;
+    MD5Transform(buf, transform32_buf);
+  }
+
+  // Remaining words, including zero padding, to get to a word-aligned size.
+  const Uint32 no_of_32_words = (no_of_bytes + 3) >> 2;
+
   transform64_buf[0] = 0;
   transform64_buf[1] = 0;
   transform64_buf[2] = 0;
@@ -218,34 +199,46 @@ void md5_hash(Uint32 result[4], const Uint64* keybuf, Uint32 no_of_32_words)
   transform64_buf[6] = 0;
   transform64_buf[7] = (Uint64)len;
 
-  for (i = 0; i < no_of_32_words; i++)
-    transform32_buf[i] = key32buf[i];
+  // 0x800... Is used as an end / length mark, possibly overwriting the 'len'.
   transform32_buf[no_of_32_words] = 0x80000000;
 
-  if (no_of_32_words < 14) {
-    byteReverse((unsigned char *)transform32_buf, 16);
-    MD5Transform(buf, transform32_buf);
-  } else {
-    if (no_of_32_words == 14)
-      transform32_buf[15] = 0;
-    MD5Transform(buf, transform32_buf);
-    transform64_buf[0] = 0;
-    transform64_buf[1] = 0;
-    transform64_buf[2] = 0;
-    transform64_buf[3] = 0;
-    transform64_buf[4] = 0;
-    transform64_buf[5] = 0;
-    transform64_buf[6] = 0;
-    transform64_buf[7] = (Uint64)len;
-    byteReverse((unsigned char *)transform32_buf, 16);
-    MD5Transform(buf, transform32_buf);    
+  if (likely(no_of_32_words > 0)) {
+    // Last word written may not be a full word -> zero pad before memcpy over
+    transform32_buf[no_of_32_words-1] = 0;
+    memcpy(transform32_buf, keybuf, no_of_bytes);
+
+    if (unlikely(no_of_32_words >= 14)) {
+      // On a little endian platform the memcpy() + 0x800.. wrote over 'len'
+      // located at 32_buf[14], 32_buf[15] was already zero.
+      // On a big endian, len is written to 32_buf[15] and not written over
+      // if '#32_words == 14' -> We clear it as it is set in next frame instead.
+#ifdef WORDS_BIGENDIAN
+      if (no_of_32_words == 14)
+        transform32_buf[15] = 0;
+#endif
+      // Note: 'len' should have been written to 32_buf[15] for both
+      //       big/little endian.
+      // For backward bug compatability it is too late to fix it now.
+      MD5Transform(buf, transform32_buf);
+      transform64_buf[0] = 0;
+      transform64_buf[1] = 0;
+      transform64_buf[2] = 0;
+      transform64_buf[3] = 0;
+      transform64_buf[4] = 0;
+      transform64_buf[5] = 0;
+      transform64_buf[6] = 0;
+      transform64_buf[7] = (Uint64)len;
+    }
   }
+  MD5Transform(buf, transform32_buf);
 
   result[0] = buf[0];
   result[1] = buf[1];
   result[2] = buf[2];
   result[3] = buf[3];
 }
+
+
 
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
@@ -370,27 +363,6 @@ test_sample test_samples[] = {
   {0, {0,0,0,0}}  // End mark
 };
 #endif
-
-
-/**
- * Glue function for allowing to test non-word-aligned 'no_of_bytes'.
- * Will zero-pad the 'key' to a word aligned length before hashing. 
- */
-void md5_hash(Uint32 result[4],
-              const char* keybuf,
-              Uint32 no_of_bytes)
-{
-  union {
-    char tmp[MAX_TEST_SAMPLE_WORDS*4];
-    Uint64 _align;
-  };
-  memcpy(tmp, keybuf, no_of_bytes);
-  while (no_of_bytes & 3) {
-    tmp[no_of_bytes++] = 0;
-  }
-  md5_hash(result, (Uint64*)tmp, no_of_bytes / 4);
-}
-
 
 int main()
 {

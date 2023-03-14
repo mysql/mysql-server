@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1202,11 +1202,7 @@ private:
   BlockReference cndbcntrRef;
   Uint16 csignalkey;
   Uint32 czero;
-  union {
   Uint32 ckeys[2048 * MAX_XFRM_MULTIPLY];
-  Uint64 ckeys_align;
-  };
-  
   Uint32 c_errorInsert3000_TableId;
   Uint32 c_memusage_report_frequency;
 };

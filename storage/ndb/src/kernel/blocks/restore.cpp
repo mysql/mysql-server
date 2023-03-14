@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1192,7 +1192,7 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
   if (g_key_descriptor_pool.getPtr(tableId)->hasCharAttr)
     hashValue = calulate_hash(tableId, key_start);
   else
-    hashValue = md5_hash((Uint64*)key_start, keyLen);
+    hashValue = md5_hash(key_start, keyLen);
   
   Uint32 tmp= 0;
   LqhKeyReq::setAttrLen(tmp, attrLen);
@@ -1296,13 +1296,13 @@ Uint32
 Restore::calulate_hash(Uint32 tableId, const Uint32 *src)
 {
   jam();
-  Uint64 Tmp[(MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1];
+  Uint32 tmp[MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY];
   Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
-  Uint32 keyLen = xfrm_key(tableId, src, (Uint32*)Tmp, sizeof(Tmp) >> 2, 
+  Uint32 keyLen = xfrm_key(tableId, src, tmp, sizeof(tmp) >> 2,
 			   keyPartLen);
   ndbrequire(keyLen);
   
-  return md5_hash(Tmp, keyLen);
+  return md5_hash(tmp, keyLen);
 }
 
 void

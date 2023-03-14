@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5846,7 +5846,7 @@ LHBits32 Dbacc::getElementHash(OperationrecPtr& oprec)
     localkey = oprec.p->localdata;
     Uint32 len = readTablePk(localkey.m_page_no, localkey.m_page_idx, ElementHeader::setLocked(oprec.i), oprec);
     if (len > 0)
-      oprec.p->hashValue = LHBits32(md5_hash((Uint64*)ckeys, len));
+      oprec.p->hashValue = LHBits32(md5_hash(ckeys, len));
   }
   return oprec.p->hashValue;
 }
@@ -5868,7 +5868,7 @@ LHBits32 Dbacc::getElementHash(Uint32 const* elemptr)
   if (len > 0)
   {
     jam();
-    return LHBits32(md5_hash((Uint64*)ckeys, len));
+    return LHBits32(md5_hash(ckeys, len));
   }
   else
   { // Return an invalid hash value if no data

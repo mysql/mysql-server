@@ -6221,7 +6221,7 @@ Dblqh::nr_copy_delete_row(Signal* signal,
     }
     else
     {
-      req->hashValue = md5_hash((Uint64*)(signal->theData+24), len);
+      req->hashValue = md5_hash(signal->theData+24, len);
     }
     req->keyLen = 0; // seach by local key
     req->localKey[0] = rowid->m_page_no;
@@ -14094,13 +14094,13 @@ Uint32
 Dblqh::calculateHash(Uint32 tableId, const Uint32* src) 
 {
   jam();
-  Uint64 Tmp[(MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1];
+  Uint32 tmp[MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY];
   Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
-  Uint32 keyLen = xfrm_key(tableId, src, (Uint32*)Tmp, sizeof(Tmp) >> 2, 
+  Uint32 keyLen = xfrm_key(tableId, src, tmp, sizeof(tmp) >> 2,
 			   keyPartLen);
   ndbrequire(keyLen);
-  
-  return md5_hash(Tmp, keyLen);
+
+  return md5_hash(tmp, keyLen);
 }//Dblqh::calculateHash()
 
 /**
@@ -14806,7 +14806,7 @@ void Dblqh::copyTupkeyConfLab(Signal* signal)
   }
   else
   {
-    tcConnectptr.p->hashValue = md5_hash((Uint64*)tmp, len);
+    tcConnectptr.p->hashValue = md5_hash(tmp, len);
   }
 
   // Copy keyinfo into long section for LQHKEYREQ below
