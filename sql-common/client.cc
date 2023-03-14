@@ -5398,7 +5398,7 @@ static net_async_status client_mpvio_write_packet_nonblocking(
     MYSQL_TRACE(SEND_AUTH_DATA, mpvio->mysql, ((size_t)pkt_len, pkt));
 
     if (mpvio->mysql->thd)
-      *result = 1; /* no chit-chat in embedded */
+      error = true; /* no chit-chat in embedded */
     else {
       net_async_status status =
           my_net_write_nonblocking(net, pkt, pkt_len, &error);
