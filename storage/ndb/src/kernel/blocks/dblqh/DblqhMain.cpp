@@ -17641,7 +17641,7 @@ Uint32
 Dblqh::readPrimaryKeys(Uint32 opPtrI, Uint32 *dst, bool xfrm_hash)
 {
   TcConnectionrecPtr regTcPtr;
-  Uint64 Tmp[MAX_KEY_SIZE_IN_WORDS >> 1];
+  Uint32 Tmp[MAX_KEY_SIZE_IN_WORDS];
 
   jamEntry();
   regTcPtr.i = opPtrI;
@@ -17649,7 +17649,7 @@ Dblqh::readPrimaryKeys(Uint32 opPtrI, Uint32 *dst, bool xfrm_hash)
 
   const Uint32 tableId = regTcPtr.p->tableref;
   const Uint32 keyLen = regTcPtr.p->primKeyLen;
-  Uint32 *buf = xfrm_hash ? (Uint32*)Tmp : dst;
+  Uint32 *buf = xfrm_hash ? Tmp : dst;
 
   copy(buf, regTcPtr.p->keyInfoIVal);
 
@@ -17657,7 +17657,7 @@ Dblqh::readPrimaryKeys(Uint32 opPtrI, Uint32 *dst, bool xfrm_hash)
   {
     jam();
     Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
-    return xfrm_key_hash(tableId, (Uint32*)Tmp, dst, ~0, keyPartLen);
+    return xfrm_key_hash(tableId, Tmp, dst, ~0, keyPartLen);
   }
   return keyLen;
 }
