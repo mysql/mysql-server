@@ -899,9 +899,7 @@ static stdx::expected<unsigned long, MysqlError> fetch_connection_id(
   return stdx::make_unexpected(MysqlError(1, "no rows", "HY000"));
 }
 
-class ShareConnectionTest
-    : public RouterComponentTest,
-      public ::testing::WithParamInterface<ShareConnectionParam> {
+class ShareConnectionTestBase : public RouterComponentTest {
  public:
   static constexpr const size_t kNumServers = 3;
   static constexpr const size_t kMaxPoolSize = 128;
@@ -932,6 +930,25 @@ class ShareConnectionTest
 
   SharedRouter *shared_router() { return TestWithSharedRouter::router(); }
 
+  ~ShareConnectionTestBase() override {
+    if (::testing::Test::HasFailure()) {
+      shared_router()->process_manager().dump_logs();
+    }
+  }
+
+ protected:
+  const std::string valid_ssl_key_{SSL_TEST_DATA_DIR "/server-key-sha512.pem"};
+  const std::string valid_ssl_cert_{SSL_TEST_DATA_DIR
+                                    "/server-cert-sha512.pem"};
+
+  const std::string wrong_password_{"wrong_password"};
+  const std::string empty_password_{""};
+};
+
+class ShareConnectionTest
+    : public ShareConnectionTestBase,
+      public ::testing::WithParamInterface<ShareConnectionParam> {
+ public:
   void SetUp() override {
     for (auto &s : shared_servers()) {
       // shared_server_ may be null if TestWithSharedServer::SetUpTestSuite
@@ -945,20 +962,6 @@ class ShareConnectionTest
       }
     }
   }
-
-  ~ShareConnectionTest() override {
-    if (::testing::Test::HasFailure()) {
-      shared_router()->process_manager().dump_logs();
-    }
-  }
-
- protected:
-  const std::string valid_ssl_key_{SSL_TEST_DATA_DIR "/server-key-sha512.pem"};
-  const std::string valid_ssl_cert_{SSL_TEST_DATA_DIR
-                                    "/server-cert-sha512.pem"};
-
-  const std::string wrong_password_{"wrong_password"};
-  const std::string empty_password_{""};
 };
 
 /**
@@ -2018,158 +2021,6 @@ TEST_P(ShareConnectionTest, classic_protocol_list_fields_fails) {
   }
 }
 
-TEST_P(ShareConnectionTest, classic_protocol_change_user_native_empty) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  auto account = SharedServer::native_empty_password_account();
-
-  ASSERT_NO_ERROR(cli.change_user(account.username, account.password, ""));
-
-  {
-    auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
-    ASSERT_NO_ERROR(cmd_res);
-
-    EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(
-                              account.username + "@localhost", "<NULL>")));
-  }
-}
-
-TEST_P(ShareConnectionTest, classic_protocol_change_user_native) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  auto account = SharedServer::native_password_account();
-
-  ASSERT_NO_ERROR(cli.change_user(account.username, account.password, ""));
-
-  {
-    auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
-    ASSERT_NO_ERROR(cmd_res);
-
-    EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(
-                              account.username + "@localhost", "<NULL>")));
-  }
-}
-
-TEST_P(ShareConnectionTest, classic_protocol_change_user_caching_sha2_empty) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  auto account = SharedServer::caching_sha2_empty_password_account();
-  {
-    auto change_user_res =
-        cli.change_user(account.username, account.password, "");
-    ASSERT_NO_ERROR(change_user_res);
-  }
-
-  {
-    auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
-    ASSERT_NO_ERROR(cmd_res);
-
-    EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(
-                              account.username + "@localhost", "<NULL>")));
-  }
-}
-
-TEST_P(ShareConnectionTest, classic_protocol_change_user_caching_sha2) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.set_option(MysqlClient::GetServerPublicKey(true));
-
-  cli.username("root");
-  cli.password("");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  auto expect_success = !(GetParam().client_ssl_mode == kDisabled &&
-                          (GetParam().server_ssl_mode == kRequired ||
-                           GetParam().server_ssl_mode == kPreferred));
-
-  auto account = SharedServer::caching_sha2_password_account();
-  {
-    auto change_user_res =
-        cli.change_user(account.username, account.password, "");
-    if (expect_success) {
-      ASSERT_NO_ERROR(change_user_res);
-    } else {
-      ASSERT_ERROR(change_user_res);
-    }
-  }
-
-  if (expect_success) {
-    auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
-    ASSERT_NO_ERROR(cmd_res);
-
-    EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(
-                              account.username + "@localhost", "<NULL>")));
-  }
-}
-
-TEST_P(ShareConnectionTest,
-       classic_protocol_change_user_caching_sha2_with_schema) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.set_option(MysqlClient::GetServerPublicKey(true));
-
-  cli.username("root");
-  cli.password("");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  {
-    auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
-    ASSERT_NO_ERROR(cmd_res);
-
-    EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre("root@localhost", "<NULL>")));
-  }
-
-  auto expect_success = !(GetParam().client_ssl_mode == kDisabled &&
-                          (GetParam().server_ssl_mode == kRequired ||
-                           GetParam().server_ssl_mode == kPreferred));
-
-  auto account = SharedServer::caching_sha2_password_account();
-  {
-    auto change_user_res =
-        cli.change_user(account.username, account.password, "testing");
-    if (expect_success) {
-      ASSERT_NO_ERROR(change_user_res);
-    } else {
-      ASSERT_ERROR(change_user_res);
-    }
-  }
-
-  if (expect_success) {
-    auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
-    ASSERT_NO_ERROR(cmd_res);
-
-    EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(
-                              account.username + "@localhost", "testing")));
-  }
-}
-
 TEST_P(ShareConnectionTest,
        classic_protocol_change_user_caching_sha2_with_attributes_with_pool) {
   shared_router()->populate_connection_pool(GetParam());
@@ -2306,89 +2157,6 @@ SELECT ATTR_NAME, ATTR_VALUE
                   })));
       }
     }
-  }
-}
-
-TEST_P(ShareConnectionTest,
-       classic_protocol_change_user_sha256_password_empty) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  auto account = SharedServer::sha256_empty_password_account();
-
-  ASSERT_NO_ERROR(cli.change_user(account.username, account.password, ""));
-
-  {
-    auto query_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
-    ASSERT_NO_ERROR(query_res);
-
-    EXPECT_THAT(*query_res, ElementsAre(ElementsAre(
-                                account.username + "@localhost", "<NULL>")));
-  }
-}
-
-TEST_P(ShareConnectionTest, classic_protocol_change_user_sha256_password) {
-  SCOPED_TRACE("// connecting to server");
-  MysqlClient cli;
-
-  cli.username("root");
-  cli.password("");
-
-  ASSERT_NO_ERROR(
-      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
-
-  SCOPED_TRACE("// check the server side matches the SSL requirements");
-  {
-    auto cipher_res = query_one_result(cli, R"(
-SELECT VARIABLE_VALUE
-  FROM performance_schema.session_status
- WHERE VARIABLE_NAME = 'ssl_cipher')");
-    ASSERT_NO_ERROR(cipher_res);
-
-    if (GetParam().server_ssl_mode == kDisabled ||
-        (GetParam().server_ssl_mode == kAsClient &&
-         GetParam().client_ssl_mode == kDisabled)) {
-      EXPECT_THAT(*cipher_res, ElementsAre(ElementsAre("")));
-    } else {
-      EXPECT_THAT(*cipher_res, ElementsAre(ElementsAre(::testing::Ne(""))));
-    }
-  }
-
-  {
-    auto query_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
-    ASSERT_NO_ERROR(query_res);
-
-    EXPECT_THAT(*query_res,
-                ElementsAre(ElementsAre("root@localhost", "<NULL>")));
-  }
-
-  auto expect_success = !(GetParam().client_ssl_mode == kDisabled &&
-                          (GetParam().server_ssl_mode == kRequired ||
-                           GetParam().server_ssl_mode == kPreferred));
-
-  auto account = SharedServer::sha256_password_account();
-  {
-    auto change_user_res =
-        cli.change_user(account.username, account.password, "" /* = schema */);
-    if (expect_success) {
-      ASSERT_NO_ERROR(change_user_res);
-    } else {
-      ASSERT_ERROR(change_user_res);
-    }
-  }
-
-  if (expect_success) {
-    auto query_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
-    ASSERT_NO_ERROR(query_res);
-
-    EXPECT_THAT(*query_res, ElementsAre(ElementsAre(
-                                account.username + "@localhost", "<NULL>")));
   }
 }
 
@@ -6797,6 +6565,193 @@ INSTANTIATE_TEST_SUITE_P(Spec, ShareConnectionTest,
                          [](auto &info) {
                            return "ssl_modes_" + info.param.testname;
                          });
+
+struct ChangeUserParam {
+  std::string scenario;
+
+  SharedServer::Account account;
+
+  std::function<bool(bool, ShareConnectionParam)> expect_success;
+};
+
+static const ChangeUserParam change_user_params[] = {
+    {"native_empty_password", SharedServer::native_empty_password_account(),
+     [](bool, auto connect_param) {
+       return connect_param.client_ssl_mode != kDisabled;
+     }},
+    {"native_password", SharedServer::native_password_account(),
+
+     [](bool with_ssl, auto connect_param) {
+       return with_ssl && connect_param.client_ssl_mode != kDisabled;
+     }},
+    {"caching_sha2_empty_password",
+     SharedServer::caching_sha2_empty_password_account(),
+     [](bool, auto) { return true; }},
+    {"caching_sha2_password", SharedServer::caching_sha2_password_account(),
+
+     [](bool with_ssl, auto connect_param) {
+       return with_ssl && connect_param.client_ssl_mode != kDisabled;
+     }},
+    {"sha256_empty_password", SharedServer::sha256_empty_password_account(),
+     [](bool, auto) { return true; }},
+    {"sha256_password", SharedServer::sha256_password_account(),
+
+     [](bool, auto connect_param) {
+       return connect_param.client_ssl_mode != kDisabled;
+     }},
+};
+
+/*
+ * test combinations of "change-user".
+ *
+ * - client's --ssl-mode=DISABLED|PREFERRED
+ * - router's client_ssl_mode,server_ssl_mode
+ * - authentication-methods mysql_native_password, caching-sha2-password and
+ *   sha256_password
+ * - with and without a schema.
+ *
+ * reuses the connection to the router if all ssl-mode's stay the same.
+ */
+class ChangeUserTest
+    : public ShareConnectionTestBase,
+      public ::testing::WithParamInterface<std::tuple<
+          bool, ShareConnectionParam, ChangeUserParam, std::string>> {
+ public:
+  static void TearDownTestSuite() {
+    cli_.reset();
+    ShareConnectionTestBase::TearDownTestSuite();
+  }
+
+ protected:
+  static std::unique_ptr<MysqlClient> cli_;
+  static bool last_with_ssl_;
+  static ShareConnectionParam last_connect_param_;
+};
+
+std::unique_ptr<MysqlClient> ChangeUserTest::cli_{};
+bool ChangeUserTest::last_with_ssl_{};
+ShareConnectionParam ChangeUserTest::last_connect_param_{};
+
+TEST_P(ChangeUserTest, classic_protocol) {
+  auto [with_ssl, connect_param, test_param, schema] = GetParam();
+
+  auto [name, account, expect_success_func] = test_param;
+
+  auto expect_success = expect_success_func(with_ssl, connect_param);
+
+  const bool can_share = connect_param.can_share();
+
+  if (!with_ssl && connect_param.client_ssl_mode == kRequired) {
+    // invalid combination.
+    return;
+  }
+
+  // drop the connection if it doesn't match the "SSL" needs.
+  if (cli_ &&
+      (with_ssl != last_with_ssl_ ||
+       last_connect_param_.client_ssl_mode != connect_param.client_ssl_mode ||
+       last_connect_param_.server_ssl_mode != connect_param.server_ssl_mode)) {
+    cli_.reset();
+  }
+
+  if (!cli_) {
+    // flush the pool to ensure the test can for "wait_for_pooled_connection(1)"
+    for (auto &srv : shared_servers()) {
+      srv->close_all_connections();  // reset the router's connection-pool
+    }
+
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+
+    cli_ = std::make_unique<MysqlClient>();
+
+    cli_->set_option(MysqlClient::GetServerPublicKey(true));
+    if (!with_ssl) {
+      cli_->set_option(MysqlClient::SslMode(SSL_MODE_DISABLED));
+    }
+    cli_->username("root");
+    cli_->password("");
+    last_with_ssl_ = with_ssl;
+    last_connect_param_ = connect_param;
+
+    ASSERT_NO_ERROR(cli_->connect(shared_router()->host(),
+                                  shared_router()->port(connect_param)));
+  }
+
+  if (account.auth_method == "caching_sha2_password") {
+    for (auto &srv : shared_servers()) {
+      srv->flush_privileges();
+    }
+  }
+
+  {
+    auto cmd_res =
+        cli_->change_user(account.username, account.password, schema);
+
+    if (!account.password.empty() &&
+        (account.auth_method == "caching_sha2_password" ||
+         account.auth_method == "sha256_password") &&
+        connect_param.client_ssl_mode == kDisabled &&
+        (connect_param.server_ssl_mode == kPreferred ||
+         connect_param.server_ssl_mode == kRequired)) {
+      // client will ask for the public-key, but router doesn't have a
+      // public key (as client_ssl_mode is DISABLED and server is SSL and
+      // therefore doesn't have public-key either).
+      ASSERT_ERROR(cmd_res);
+
+      cli_.reset();
+
+      return;
+    }
+
+    ASSERT_NO_ERROR(cmd_res);
+    {
+      // no warnings.
+      auto warning_res = cli_->warning_count();
+      ASSERT_NO_ERROR(warning_res);
+      EXPECT_EQ(*warning_res, 0);
+    }
+
+    if (can_share && expect_success) {
+      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+    }
+
+    {
+      auto cmd_res = query_one_result(*cli_, "SELECT USER(), SCHEMA()");
+      ASSERT_NO_ERROR(cmd_res);
+
+      EXPECT_THAT(*cmd_res,
+                  ElementsAre(ElementsAre(account.username + "@localhost",
+                                          schema.empty() ? "<NULL>" : schema)));
+    }
+  }
+
+  // and change the user again.
+  //
+  // With caching_sha2_password this should be against the cached hand-shake.
+  {
+    auto cmd_res =
+        cli_->change_user(account.username, account.password, schema);
+    ASSERT_NO_ERROR(cmd_res);
+
+    if (can_share && expect_success) {
+      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+    }
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, ChangeUserTest,
+    ::testing::Combine(::testing::Bool(),
+                       ::testing::ValuesIn(share_connection_params),
+                       ::testing::ValuesIn(change_user_params),
+                       ::testing::Values("", "testing")),
+    [](auto &info) {
+      auto schema = std::get<3>(info.param);
+      return "with" + std::string(std::get<0>(info.param) ? "" : "out") +
+             "_ssl__via_" + std::get<1>(info.param).testname + "_" +
+             std::get<2>(info.param).scenario +
+             (schema.empty() ? "_without_schema"s : ("_with_schema_" + schema));
+    });
 
 int main(int argc, char *argv[]) {
   net::impl::socket::init();
