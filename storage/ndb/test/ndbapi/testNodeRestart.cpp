@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -8218,6 +8218,24 @@ runGcpStop(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+int
+cleanupGcpStopTest(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  restarter.insertErrorInAllNodes(0);
+
+  /* Reset GCP stop timeouts */
+  int code = DumpStateOrd::DihSetGcpStopVals;
+  restarter.dumpStateAllNodes(&code, 1);
+
+  /* Reset StopOnError behaviour */
+  code = DumpStateOrd::CmvmiSetRestartOnErrorInsert;
+  restarter.dumpStateAllNodes(&code, 1);
+
+  return NDBT_OK;
+}
+
+
 int CMT_createTableHook(Ndb* ndb,
                         NdbDictionary::Table& table,
                         int when,
@@ -10924,6 +10942,7 @@ TESTCASE("GcpStop",
 {
   INITIALIZER(runCreateEvent);
   STEP(runGcpStop);
+  FINALIZER(cleanupGcpStopTest);
   FINALIZER(runDropEvent);
 }
 TESTCASE("GcpStopIsolation",
@@ -10933,6 +10952,7 @@ TESTCASE("GcpStopIsolation",
   TC_PROPERTY("GcpStopIsolation", Uint32(1));
   INITIALIZER(runCreateEvent);
   STEP(runGcpStop);
+  FINALIZER(cleanupGcpStopTest);
   FINALIZER(runDropEvent);
 }
 TESTCASE("LCPLMBLeak",
