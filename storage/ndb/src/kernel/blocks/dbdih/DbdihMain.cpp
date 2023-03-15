@@ -24915,6 +24915,12 @@ void Dbdih::initCommonData()
       m_micro_gcp.m_master.m_time_between_gcp = tmp;
     }
 
+#ifdef ERROR_INSERT
+    m_gcp_monitor.m_micro_gcp.test_set_max_lag = 0;
+    m_gcp_monitor.m_gcp_save.test_set_max_lag = 0;
+    m_gcp_monitor.m_savedMaxCommitLag = 0;
+#endif
+
     // These will be set when nodes reach state 'started'.
     m_gcp_monitor.m_micro_gcp.m_max_lag_ms = 0;
     m_gcp_monitor.m_gcp_save.m_max_lag_ms = 0;
@@ -28133,6 +28139,12 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     if (signal->getLength() != 3)
     {
       jam();
+      g_eventLogger->info("Resetting GCP_COMMIT and GCP_SAVE max lag millis");
+#ifdef ERROR_INSERT
+      m_gcp_monitor.m_micro_gcp.test_set_max_lag = false;
+      m_gcp_monitor.m_gcp_save.test_set_max_lag = false;
+#endif
+      setGCPStopTimeouts(signal, true, true);
       return;
     }
     if (signal->theData[1] == 0)
@@ -28158,6 +28170,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 #endif
     }
     sendINFO_GCP_STOP_TIMER(signal);
+    return;
   }
 
   if (arg == DumpStateOrd::DihStallLcpStart)
