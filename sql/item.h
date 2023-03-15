@@ -2181,18 +2181,24 @@ public:
             compared as DATETIME values by the Arg_comparator.
       FALSE otherwise.
   */
-  inline bool has_compatible_context(Item *item) const
-  {
-    /* Same context. */
-    if (cmp_context == (Item_result)-1 || item->cmp_context == cmp_context)
+  inline bool has_compatible_context(Item *item) const {
+    // If no explicit context has been set, assume the same type as the item
+    const Item_result this_context =
+        cmp_context == (Item_result)-1 ? result_type() : cmp_context;
+    const Item_result other_context = item->cmp_context == (Item_result)-1
+                                          ? item->result_type()
+                                          : item->cmp_context;
+
+    // Check if both items have the same context
+    if (this_context == other_context) {
       return TRUE;
+    }
     /* DATETIME comparison context. */
     if (is_temporal_with_date())
-      return item->is_temporal_with_date() ||
-             item->cmp_context == STRING_RESULT;
+      return item->is_temporal_with_date() || other_context == STRING_RESULT;
     if (item->is_temporal_with_date())
-      return is_temporal_with_date() || cmp_context == STRING_RESULT;
-    return FALSE;
+      return is_temporal_with_date() || this_context == STRING_RESULT;
+    return false;
   }
   virtual Field::geometry_type get_geometry_type() const
     { return Field::GEOM_GEOMETRY; };
