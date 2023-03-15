@@ -880,7 +880,8 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
           my_printf_error(0,
                           "Too many rows returned: '%llu'. "
                           "Expecting no more than '%d' rows",
-                          error_flags, mysql_num_rows(res), MAX_MYSQL_VAR);
+                          error_flags, (unsigned long long)mysql_num_rows(res),
+                          MAX_MYSQL_VAR);
           mysql_free_result(res);
           return -1;
         }
