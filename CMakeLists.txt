@@ -2596,6 +2596,11 @@ IF(DOXYGEN_FOUND)
   ENDIF()
 ENDIF(DOXYGEN_FOUND)
 
+MYSQL_ADD_EXECUTABLE(stack_direction
+  ${CMAKE_SOURCE_DIR}/cmake/stack_direction.c
+  SKIP_INSTALL
+  )
+
 INCLUDE(CPack)
 
 # C/CXX compiler flags consist of:

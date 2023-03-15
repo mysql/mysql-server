@@ -7233,6 +7233,8 @@ int win_main(int argc, char **argv)
 int mysqld_main(int argc, char **argv)
 #endif
 {
+  initialize_stack_direction();
+
   // Substitute the full path to the executable in argv[0]
   substitute_progpath(argv);
   sysd::notify_connect();
