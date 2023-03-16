@@ -151,7 +151,8 @@ DROP TABLE t;
 if ($engine == 'innodb' )
 {
   --echo Testing DESC index with skip scan and NULL range.
-  CREATE TABLE t1 (a INT, b INT, c INT, d INT, e INT);
+  CREATE TABLE t1 (a INT, b INT, c INT, d INT, e INT,
+                   KEY k1(a DESC, b, c DESC, d, e DESC));
 
   INSERT INTO t1 VALUES
   (NULL, 1, 1, 3, 4), (NULL, 2, 1, 4, 5),
@@ -163,15 +164,27 @@ if ($engine == 'innodb' )
   INSERT INTO t1 SELECT * FROM t1;
   INSERT INTO t1 SELECT * FROM t1;
 
-  ALTER TABLE t1 ADD KEY k1(a DESC, b, c DESC, d, e DESC);
   ANALYZE TABLE t1;
 
   --let $query = SELECT a, b, c, d FROM t1 WHERE (a IN (1, 5) or a IS NULL) AND b in (1, 2) AND d BETWEEN 2 AND 5
   --let $hint_query = SELECT /*+ SKIP_SCAN(t1) */ a, b, c, d FROM t1 WHERE (a IN (1, 5) or a IS NULL) AND b in (1, 2) AND d BETWEEN 2 AND 5
   --source include/skip_scan_query.inc
 
-  ALTER TABLE t1 DROP KEY k1;
-  ALTER TABLE t1 ADD KEY k1(a, b DESC, c, d DESC, e);
+  DROP TABLE t1;
+
+  CREATE TABLE t1 (a INT, b INT, c INT, d INT, e INT,
+                   KEY k1(a, b DESC, c, d DESC, e));
+
+  INSERT INTO t1 VALUES
+  (NULL, 1, 1, 3, 4), (NULL, 2, 1, 4, 5),
+  (1, 2, 1, 3, 4), (2, 2, 1, 4, 5),
+  (5, 2, 3, 3, 4), (2, 2, 1, 4, 11),
+  (8, 2, 1, 3, 4), (7, 2, 1, 4, 9);
+
+  INSERT INTO t1 SELECT * FROM t1;
+  INSERT INTO t1 SELECT * FROM t1;
+  INSERT INTO t1 SELECT * FROM t1;
+
   ANALYZE TABLE t1;
 
   --let $query = SELECT a, b, c, d FROM t1 WHERE (a IN (1, 5) or a IS NULL) AND b in (1, 2) AND d BETWEEN 2 AND 5
