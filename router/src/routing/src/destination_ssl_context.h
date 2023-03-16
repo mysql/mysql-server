@@ -27,6 +27,7 @@
 
 #include "mysqlrouter/routing_export.h"
 
+#include <chrono>
 #include <map>
 #include <mutex>
 #include <string>
@@ -39,6 +40,12 @@
  */
 class ROUTING_EXPORT DestinationTlsContext {
  public:
+  DestinationTlsContext(bool session_cache_mode, size_t ssl_session_cache_size,
+                        unsigned int ssl_session_cache_timeout)
+      : session_cache_mode_(session_cache_mode),
+        ssl_session_cache_size_(ssl_session_cache_size),
+        ssl_session_cache_timeout_(ssl_session_cache_timeout) {}
+
   /**
    * set SslVerify.
    */
@@ -112,6 +119,10 @@ class ROUTING_EXPORT DestinationTlsContext {
   std::map<std::string, std::unique_ptr<TlsClientContext>> tls_contexts_;
 
   std::mutex mtx_;
+
+  bool session_cache_mode_{true};
+  size_t ssl_session_cache_size_{};
+  std::chrono::seconds ssl_session_cache_timeout_{std::chrono::seconds(0)};
 };
 
 #endif

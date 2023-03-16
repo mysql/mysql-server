@@ -644,6 +644,10 @@ const char *MySQLSession::ssl_cipher() {
   return connection_ ? mysql_get_ssl_cipher(connection_) : nullptr;
 }
 
+bool MySQLSession::is_ssl_session_reused() {
+  return connection_ ? mysql_get_ssl_session_reused(connection_) : false;
+}
+
 void MySQLSession::LoggingStrategyDebugLogger::log(const std::string &msg) {
   log_debug("%s", msg.c_str());
 }

@@ -75,8 +75,10 @@ TlsClientContext *DestinationTlsContext::get(const std::string &dest_id,
   const auto it = tls_contexts_.find(dest_id);
   if (it == tls_contexts_.end()) {
     // not found
-    auto res =
-        tls_contexts_.emplace(dest_id, std::make_unique<TlsClientContext>());
+    auto res = tls_contexts_.emplace(
+        dest_id, std::make_unique<TlsClientContext>(
+                     TlsVerify::PEER, session_cache_mode_,
+                     ssl_session_cache_size_, ssl_session_cache_timeout_));
     auto *tls_ctx = res.first->second.get();
 
     if (!ciphers_.empty()) tls_ctx->cipher_list(ciphers_);

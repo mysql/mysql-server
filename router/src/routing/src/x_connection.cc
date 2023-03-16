@@ -1201,12 +1201,12 @@ void MysqlRoutingXConnection::forward_tls_init() {
   forward_tls_server_to_client();
 }
 
-static stdx::expected<SSL_CTX *, std::error_code> get_dest_ssl_ctx(
+static stdx::expected<TlsClientContext *, std::error_code> get_dest_ssl_ctx(
     MySQLRoutingContext &ctx, const std::string &id) {
   return mysql_harness::make_tcp_address(id).and_then(
-      [&ctx,
-       &id](const auto &addr) -> stdx::expected<SSL_CTX *, std::error_code> {
-        return ctx.dest_ssl_ctx(id, addr.address())->get();
+      [&ctx, &id](const auto &addr)
+          -> stdx::expected<TlsClientContext *, std::error_code> {
+        return ctx.dest_ssl_ctx(id, addr.address());
       });
 }
 
@@ -1214,14 +1214,25 @@ void MysqlRoutingXConnection::tls_connect_init() {
   auto *socket_splicer = this->socket_splicer();
   auto *dst_channel = socket_splicer->server_channel();
 
-  auto ssl_ctx_res = get_dest_ssl_ctx(context(), get_destination_id());
-  if (!ssl_ctx_res || ssl_ctx_res.value() == nullptr) {
+  auto tls_client_ctx_res = get_dest_ssl_ctx(context(), get_destination_id());
+  if (!tls_client_ctx_res || tls_client_ctx_res.value() == nullptr ||
+      (*tls_client_ctx_res)->get() == nullptr) {
     // shouldn't happen. But if it does, close the connection.
     log_warning("failed to create SSL_CTX");
 
     return send_server_failed(make_error_code(std::errc::invalid_argument));
   }
-  dst_channel->init_ssl(*ssl_ctx_res);
+
+  auto *tls_client_ctx = *tls_client_ctx_res;
+  auto *ssl_ctx = tls_client_ctx->get();
+
+  dst_channel->init_ssl(ssl_ctx);
+
+  tls_client_ctx->get_session().and_then(
+      [&](auto *sess) -> stdx::expected<void, std::error_code> {
+        SSL_set_session(dst_channel->ssl(), sess);
+        return {};
+      });
 
   return tls_connect();
 }

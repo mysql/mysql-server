@@ -301,7 +301,8 @@ void MySQLServerMock::run(mysql_harness::PluginFuncEnv *env) {
 
   mysql_harness::on_service_ready(env);
 
-  log_info("Starting to handle connections on port: %d", bind_port_);
+  log_info("Starting to handle %s connections on port: %d",
+           protocol_name_.c_str(), bind_port_);
 
   acceptor.async_run();
 

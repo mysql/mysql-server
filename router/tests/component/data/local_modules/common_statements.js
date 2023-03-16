@@ -190,7 +190,7 @@ function get_response(stmt_key, options) {
         stmt: "select @@port",
         result: {
           columns: [{name: "@@port", type: "LONG"}],
-          rows: [[options["port"]]]
+          rows: [[mysqld.session.port]]
         }
       };
     case "select_repeat_4097":

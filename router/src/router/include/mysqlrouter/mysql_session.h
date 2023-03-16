@@ -444,6 +444,8 @@ class ROUTER_LIB_EXPORT MySQLSession {
 
   virtual const char *ssl_cipher();
 
+  virtual bool is_ssl_session_reused();
+
  protected:
   std::unique_ptr<LoggingStrategy> logging_strategy_;
 
@@ -461,8 +463,6 @@ class ROUTER_LIB_EXPORT MySQLSession {
   bool connected_;
   std::string connection_address_;
   SQLLogFilter log_filter_;
-
-  virtual MYSQL *raw_mysql() noexcept { return connection_; }
 
   class MYSQL_RES_Deleter {
    public:

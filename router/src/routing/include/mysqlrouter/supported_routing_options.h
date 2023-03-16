@@ -28,7 +28,7 @@
 #include <array>
 #include <string_view>
 
-static constexpr std::array<const char *, 31> routing_supported_options{
+static constexpr std::array<const char *, 37> routing_supported_options{
     "protocol",
     "destinations",
     "bind_port",
@@ -62,6 +62,12 @@ static constexpr std::array<const char *, 31> routing_supported_options{
     "unreachable_destination_refresh_interval",
     "connection_sharing",
     "connection_sharing_delay",
+    "client_ssl_session_cache_mode",
+    "client_ssl_session_cache_size",
+    "client_ssl_session_cache_timeout",
+    "server_ssl_session_cache_mode",
+    "server_ssl_session_cache_size",
+    "server_ssl_session_cache_timeout",
 };
 
 #endif /* MYSQLROUTER_ROUTING_SUPPORTED_ROUTING_INCLUDED */

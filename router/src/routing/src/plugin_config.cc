@@ -474,6 +474,24 @@ RoutingPluginConfig::RoutingPluginConfig(
                      StringOption{});
   GET_OPTION_CHECKED(dest_ssl_curves, section, "server_ssl_curves",
                      StringOption{});
+  auto ssl_session_cache_size_op = IntOption<uint32_t>{1, 0x7fffffff};
+  auto ssl_session_cache_timeout_op = IntOption<uint32_t>{0, 84600};
+  GET_OPTION_CHECKED(client_ssl_session_cache_mode, section,
+                     "client_ssl_session_cache_mode", BoolOption{});
+  GET_OPTION_CHECKED(client_ssl_session_cache_size, section,
+                     "client_ssl_session_cache_size",
+                     ssl_session_cache_size_op);
+  GET_OPTION_CHECKED(client_ssl_session_cache_timeout, section,
+                     "client_ssl_session_cache_timeout",
+                     ssl_session_cache_timeout_op);
+  GET_OPTION_CHECKED(server_ssl_session_cache_mode, section,
+                     "server_ssl_session_cache_mode", BoolOption{});
+  GET_OPTION_CHECKED(server_ssl_session_cache_size, section,
+                     "server_ssl_session_cache_size",
+                     ssl_session_cache_size_op);
+  GET_OPTION_CHECKED(server_ssl_session_cache_timeout, section,
+                     "server_ssl_session_cache_timeout",
+                     ssl_session_cache_timeout_op);
 
   if (get_option(section, "unreachable_destination_refresh_interval",
                  StringOption{}) != "") {
@@ -550,9 +568,7 @@ std::string RoutingPluginConfig::get_default(const std::string &option) const {
        std::to_string(routing::kDefaultDestinationConnectionTimeout.count())},
       {"max_connect_errors", std::to_string(routing::kDefaultMaxConnectErrors)},
       {"client_connect_timeout",
-       std::to_string(std::chrono::duration_cast<std::chrono::seconds>(
-                          routing::kDefaultClientConnectTimeout)
-                          .count())},
+       std::to_string(routing::kDefaultClientConnectTimeout.count())},
       {"net_buffer_length", std::to_string(routing::kDefaultNetBufferLength)},
       {"thread_stack_size",
        std::to_string(mysql_harness::kDefaultStackSizeInKiloBytes)},
@@ -561,6 +577,18 @@ std::string RoutingPluginConfig::get_default(const std::string &option) const {
       {"server_ssl_verify", "disabled"},
       {"connection_sharing", "0"},
       {"connection_sharing_delay", "1"},
+      {"client_ssl_session_cache_mode",
+       routing::kDefaultSslSessionCacheMode ? "1" : "0"},
+      {"client_ssl_session_cache_size",
+       std::to_string(routing::kDefaultSslSessionCacheSize)},
+      {"client_ssl_session_cache_timeout",
+       std::to_string(routing::kDefaultSslSessionCacheTimeout.count())},
+      {"server_ssl_session_cache_mode",
+       routing::kDefaultSslSessionCacheMode ? "1" : "0"},
+      {"server_ssl_session_cache_size",
+       std::to_string(routing::kDefaultSslSessionCacheSize)},
+      {"server_ssl_session_cache_timeout",
+       std::to_string(routing::kDefaultSslSessionCacheTimeout.count())},
   };
 
   const auto it = defaults.find(option);

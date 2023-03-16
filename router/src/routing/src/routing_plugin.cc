@@ -260,7 +260,10 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     RoutingPluginConfig config(section);
 
     // client side TlsContext.
-    TlsServerContext source_tls_ctx;
+    TlsServerContext source_tls_ctx{TlsVersion::TLS_1_2, TlsVersion::AUTO,
+                                    config.client_ssl_session_cache_mode,
+                                    config.client_ssl_session_cache_size,
+                                    config.client_ssl_session_cache_timeout};
 
     if (config.source_ssl_mode != SslMode::kDisabled &&
         config.source_ssl_mode != SslMode::kPassthrough) {
@@ -320,7 +323,9 @@ static void start(mysql_harness::PluginFuncEnv *env) {
       }
     }
 
-    DestinationTlsContext dest_tls_ctx;
+    DestinationTlsContext dest_tls_ctx{config.server_ssl_session_cache_mode,
+                                       config.server_ssl_session_cache_size,
+                                       config.server_ssl_session_cache_timeout};
     if (config.dest_ssl_mode != SslMode::kDisabled) {
       // validate the config-values one time
       TlsServerContext tls_server_ctx;

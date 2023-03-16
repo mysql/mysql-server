@@ -79,6 +79,14 @@ class RoutingConfig {
       connection_sharing_delay{};  //!< delay before an idling connection is
                                    //!< moved to the pool and connection sharing
                                    //!< is allowed.
+
+  bool client_ssl_session_cache_mode{true};
+  size_t client_ssl_session_cache_size{};
+  unsigned int client_ssl_session_cache_timeout{};
+
+  bool server_ssl_session_cache_mode{true};
+  size_t server_ssl_session_cache_size{};
+  unsigned int server_ssl_session_cache_timeout{};
 };
 
 #endif  // ROUTING_CONFIG_INCLUDED

@@ -99,6 +99,21 @@ constexpr const std::chrono::milliseconds kDefaultConnectionSharingDelay{1000};
 constexpr const std::chrono::seconds
     kDefaultUnreachableDestinationRefreshInterval{1};
 
+/**
+ * Default SSL session cache mode.
+ */
+constexpr const bool kDefaultSslSessionCacheMode{true};
+
+/**
+ * Default SSL session cache size.
+ */
+constexpr const unsigned int kDefaultSslSessionCacheSize{1024};
+
+/**
+ * Default SSL session cache timeout.
+ */
+constexpr const std::chrono::seconds kDefaultSslSessionCacheTimeout{300};
+
 /** @brief Modes supported by Routing plugin */
 enum class AccessMode {
   kUndefined = 0,

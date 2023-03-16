@@ -57,7 +57,10 @@ class HARNESS_TLS_EXPORT TlsServerContext : public TlsContext {
    * construct a TLS Context for server-side.
    */
   TlsServerContext(TlsVersion min_version = TlsVersion::TLS_1_2,
-                   TlsVersion max_version = TlsVersion::AUTO);
+                   TlsVersion max_version = TlsVersion::AUTO,
+                   bool session_cache_mode = false,
+                   size_t session_cache_size = 0,
+                   unsigned int session_cache_timeout = 0);
 
   /**
    * load key and cert.

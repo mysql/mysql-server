@@ -317,7 +317,10 @@ stdx::expected<void, std::error_code> set_auto_dh_params(SSL_CTX *ssl_ctx) {
 }
 }  // namespace
 
-TlsServerContext::TlsServerContext(TlsVersion min_ver, TlsVersion max_ver)
+TlsServerContext::TlsServerContext(TlsVersion min_ver, TlsVersion max_ver,
+                                   bool session_cache_mode,
+                                   size_t session_cache_size,
+                                   unsigned int session_cache_timeout)
     : TlsContext(server_method) {
   version_range(min_ver, max_ver);
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
@@ -332,6 +335,16 @@ TlsServerContext::TlsServerContext(TlsVersion min_ver, TlsVersion max_ver)
 #endif
   SSL_CTX_set_options(ssl_ctx_.get(), SSL_OP_NO_COMPRESSION);
   cipher_list("ALL");  // ALL - unacceptable ciphers
+
+  const auto cache_mode =
+      session_cache_mode ? SSL_SESS_CACHE_SERVER : SSL_SESS_CACHE_OFF;
+  SSL_CTX_set_session_cache_mode(ssl_ctx_.get(), cache_mode);
+  if (cache_mode == SSL_SESS_CACHE_OFF) {
+    SSL_CTX_set_options(ssl_ctx_.get(), SSL_OP_NO_TICKET);
+  } else {
+    SSL_CTX_sess_set_cache_size(ssl_ctx_.get(), session_cache_size);
+    SSL_CTX_set_timeout(ssl_ctx_.get(), session_cache_timeout);
+  }
 }
 
 stdx::expected<void, std::error_code> TlsServerContext::load_key_and_cert(

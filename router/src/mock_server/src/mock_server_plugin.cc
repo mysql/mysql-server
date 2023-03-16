@@ -30,7 +30,8 @@
 #include <string>
 #include <system_error>  // error_code
 
-#include "mysql.h"  // mysql_ssl_mode
+#include "my_thread.h"  // my_thread_self_setname
+#include "mysql.h"      // mysql_ssl_mode
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/logging/logging.h"
@@ -219,11 +220,14 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     name = section->name;
   }
 
+  my_thread_self_setname(std::string("MockSrv:" + section->key).c_str());
+
   try {
     PluginConfig config{section};
     const std::string key = section->name + ":" + section->key;
 
-    TlsServerContext tls_server_ctx;
+    TlsServerContext tls_server_ctx{TlsVersion::TLS_1_2, TlsVersion::AUTO, true,
+                                    1024, 300};
 
     if (config.ssl_mode != SSL_MODE_DISABLED) {
       if (!config.tls_version.empty()) {
