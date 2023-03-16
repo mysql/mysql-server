@@ -118,9 +118,7 @@ ENDIF()
 # TODO(tdidriks): replace with "--warnings=all"
 # Legacy backward compatibility suppressions:
 # * no-yacc: for --yacc
-# * no-empty-rule: for empty rules without %empty
 # * no-precedence: for useless precedence or/and associativity rules
-# * no-deprecated: %pure-parser is deprecated
 SET(BISON_FLAGS_WARNINGS
-  "--warnings=all,no-yacc,no-empty-rule,no-precedence,no-deprecated"
+  "--warnings=all,no-yacc,no-precedence"
   CACHE INTERNAL "BISON 3.x flags")
