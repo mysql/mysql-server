@@ -62,7 +62,7 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
 
 %}
 
-%pure-parser
+%define api.pure
 
 %parse-param { class THD *thd }
 %parse-param { class Hint_scanner *scanner }
@@ -257,7 +257,7 @@ max_execution_time_hint:
 
 
 opt_hint_param_table_list:
-          /* empty */ { $$.init(thd->mem_root); }
+          %empty { $$.init(thd->mem_root); }
         | hint_param_table_list
         ;
 
@@ -277,7 +277,7 @@ hint_param_table_list:
         ;
 
 opt_hint_param_table_list_empty_qb:
-          /* empty */ { $$.init(thd->mem_root); }
+          %empty { $$.init(thd->mem_root); }
         | hint_param_table_list_empty_qb
         ;
 
@@ -297,7 +297,7 @@ hint_param_table_list_empty_qb:
         ;
 
 opt_hint_param_index_list:
-          /* empty */ { $$.init(thd->mem_root); }
+          %empty { $$.init(thd->mem_root); }
         | hint_param_index_list
         ;
 
@@ -346,7 +346,7 @@ hint_param_table_ext:
         ;
 
 opt_qb_name:
-          /* empty */ { $$= NULL_CSTR; }
+          %empty { $$= NULL_CSTR; }
         | HINT_ARG_QB_NAME
         ;
 
@@ -423,7 +423,7 @@ qb_level_hint:
           ;
 
 semijoin_strategies:
-          /* empty */ { $$= 0; }
+          %empty { $$= 0; }
 	| semijoin_strategy
           {
             $$= $1;

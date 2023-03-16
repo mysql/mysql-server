@@ -40,10 +40,6 @@
 #include "sql/sql_lex_hash.h"
 #include "sql_chars.h"
 
-// This must be last, due to bison 2.3 on OsX
-#ifndef YYSTYPE_IS_DECLARED
-#define YYSTYPE_IS_DECLARED 1
-#endif  // YYSTYPE_IS_DECLARED
 #include "sql/sql_hints.yy.h"
 
 class PT_hint_list;
