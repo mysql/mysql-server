@@ -807,6 +807,8 @@ MYSQL *STDCALL mysql_real_connect_dns_srv(MYSQL *mysql,
                                           const char *db,
                                           unsigned long client_flag);
 
+enum connect_stage STDCALL mysql_get_connect_nonblocking_stage(MYSQL *mysql);
+
 #ifdef __cplusplus
 }
 #endif

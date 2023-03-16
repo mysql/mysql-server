@@ -4774,6 +4774,73 @@ int mysql_get_socket_descriptor(MYSQL *mysql) {
   return -1;
 }
 
+connect_stage STDCALL mysql_get_connect_nonblocking_stage(MYSQL *mysql) {
+  static const std::map<csm_function, connect_stage> stages = {
+    {csm_begin_connect, CONNECT_STAGE_NET_BEGIN_CONNECT},
+    {csm_complete_connect, CONNECT_STAGE_NET_COMPLETE_CONNECT},
+    {csm_wait_connect, CONNECT_STAGE_NET_WAIT_CONNECT},
+    {csm_read_greeting, CONNECT_STAGE_READ_GREETING},
+    {csm_parse_handshake, CONNECT_STAGE_PARSE_HANDSHAKE},
+    {csm_establish_ssl, CONNECT_STAGE_ESTABLISH_SSL},
+    {csm_authenticate, CONNECT_STAGE_AUTHENTICATE},
+    {csm_prep_select_database, CONNECT_STAGE_PREP_SELECT_DATABASE},
+#if !defined(MYSQL_SERVER)
+    {csm_prep_init_commands, CONNECT_STAGE_PREP_INIT_COMMANDS},
+    {csm_send_one_init_command, CONNECT_STAGE_SEND_ONE_INIT_COMMAND},
+#endif
+  };
+
+  static const std::map<authsm_function, connect_stage> auth_stages = {
+      {authsm_begin_plugin_auth, CONNECT_STAGE_AUTH_BEGIN},
+      {authsm_run_first_authenticate_user,
+       CONNECT_STAGE_AUTH_RUN_FIRST_AUTHENTICATE_USER},
+      {authsm_handle_first_authenticate_user,
+       CONNECT_STAGE_AUTH_HANDLE_FIRST_AUTHENTICATE_USER},
+      {authsm_read_change_user_result,
+       CONNECT_STAGE_AUTH_READ_CHANGE_USER_RESULT},
+      {authsm_handle_change_user_result,
+       CONNECT_STAGE_AUTH_HANDLE_CHANGE_USER_REQUEST},
+      {authsm_run_second_authenticate_user,
+       CONNECT_STAGE_AUTH_RUN_SECOND_AUTHENTICATE_USER},
+      {authsm_init_multi_auth, CONNECT_STAGE_AUTH_INIT_MULTI_AUTH},
+      {authsm_finish_auth, CONNECT_STAGE_AUTH_FINISH_AUTH},
+      {authsm_handle_second_authenticate_user,
+       CONNECT_STAGE_AUTH_HANDLE_SECOND_AUTHENTICATE_USER},
+      {authsm_do_multi_plugin_auth, CONNECT_STAGE_AUTH_DO_MULTI_PLUGIN_AUTH},
+      {authsm_handle_multi_auth_response,
+       CONNECT_STAGE_AUTH_HANDLE_MULTI_AUTH_RESPONSE}};
+
+  if (mysql) {
+    NET *net = &mysql->net;
+    if (!net->vio) {
+      /* Seems the first stage hasn't started yet or it was unsuccessful, and
+        needs to be restarted so return the 1st stage */
+      return CONNECT_STAGE_NOT_STARTED;
+    }
+
+    mysql_async_connect *ctx = ASYNC_DATA(mysql)->connect_context;
+    if (!ctx) {
+      // If context is null and vio->net is set, means connection is complete
+      return CONNECT_STAGE_COMPLETE;
+    }
+
+    // Do the more detailed authentication stage
+    if (ctx->state_function == csm_authenticate &&
+        ctx->auth_context != nullptr &&
+        ctx->auth_context->state_function != nullptr) {
+      auto search = auth_stages.find(ctx->auth_context->state_function);
+      assert(search != auth_stages.end());
+      if (search != auth_stages.end()) return search->second;
+    }
+
+    auto search = stages.find(ctx->state_function);
+    assert(search != stages.end());
+    if (search != stages.end()) {
+      return search->second;
+    }
+  }
+  return CONNECT_STAGE_INVALID;
+}
 /* clang-format off */
 /**
   @page page_protocol_connection_phase_packets_protocol_handshake_response Protocol::HandshakeResponse:
