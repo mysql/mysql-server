@@ -751,6 +751,8 @@ struct TABLE_SHARE {
 
   /** Secondary storage engine. */
   LEX_CSTRING secondary_engine{nullptr, 0};
+  /** Secondary engine load status */
+  bool secondary_load{false};
 
   const CHARSET_INFO *table_charset{
       nullptr}; /* Default charset of string fields */
