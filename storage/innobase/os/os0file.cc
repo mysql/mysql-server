@@ -889,7 +889,7 @@ static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
                                         void **m2, IORequest *type);
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef WIN_ASYNC_IO
+#if defined(WIN_ASYNC_IO) && !defined(UNIV_HOTBACKUP)
 /** This function is only used in Windows asynchronous i/o.
 Waits for an aio operation to complete. This function is used to wait
 for completed requests. The aio array of pending requests is divided
