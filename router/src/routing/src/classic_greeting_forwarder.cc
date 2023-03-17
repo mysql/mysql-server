@@ -586,6 +586,8 @@ ServerGreetor::server_greeting_greeting() {
             dst_channel, dst_protocol, msg);
     if (!send_res) return send_client_failed(send_res.error());
 
+    dst_protocol->server_greeting(msg);
+
     stage(Stage::ServerGreetingSent);  // hand over to the ServerFirstConnector
     return Result::SendToClient;
   } else {

@@ -576,8 +576,21 @@ ClientGreetor::client_greeting_after_tls() {
     return Result::SendToClient;
   }
 
-  if (src_protocol->client_greeting()->auth_method_data() == "\x00"sv ||
-      src_protocol->client_greeting()->auth_method_data().empty()) {
+  // if the client and server use the same auth-method-name,
+  // then a empty auth-method-data means "empty-password".
+  //
+  // - server: --default-auth=caching-sha2-password
+  // - client: --default-auth=caching-sha2-password
+  //
+  // Otherwise its value is bogus:
+  //
+  // - server: --default-auth=caching-sha2-password
+  // - client: --default-auth=mysql_native_password
+  //
+  if ((src_protocol->auth_method_name() ==
+       src_protocol->server_greeting()->auth_method_name()) &&
+      (src_protocol->client_greeting()->auth_method_data() == "\x00"sv ||
+       src_protocol->client_greeting()->auth_method_data().empty())) {
     // special value for 'empty password'. Not scrambled.
     //
     // - php sends no trailing '\0'
