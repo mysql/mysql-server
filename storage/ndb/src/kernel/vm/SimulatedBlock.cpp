@@ -3533,7 +3533,20 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
     info.m_status = FragmentSendInfo::SendComplete;
     return true;
   }
-  ndbrequire(blockToMain(rg.m_block) != V_QUERY);
+  /*
+   * Fragmented signals must not be sent to a V_QUERY block since different
+   * signal fragments may then arrive at different block instances.
+   * It only makes sense to check for specific m_block number for data nodes.
+   * For other nodes block number in signal is only relevant for one API/MGM
+   * node, that is if a non DB node is receiver it must be alone in the
+   * receiver group.
+   */
+  if (unlikely(blockToMain(rg.m_block) == V_QUERY))
+  {
+    ndbrequire(rg.m_nodes.count() == 1);
+    const Uint32 nodeId = rg.m_nodes.find_first();
+    ndbrequire(getNodeInfo(nodeId).getType() != NodeInfo::DB);
+  }
 
   /**
    * Setup info object
@@ -3896,7 +3909,20 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
      */
     return true;
   }
-  ndbrequire(blockToMain(rg.m_block) != V_QUERY);
+  /*
+   * Fragmented signals must not be sent to a V_QUERY block since different
+   * signal fragments may then arrive at different block instances.
+   * It only makes sense to check for specific m_block number for data nodes.
+   * For other nodes block number in signal is only relevant for one API/MGM
+   * node, that is if a non DB node is receiver it must be alone in the
+   * receiver group.
+   */
+  if (unlikely(blockToMain(rg.m_block) == V_QUERY))
+  {
+    ndbrequire(rg.m_nodes.count() == 1);
+    const Uint32 nodeId = rg.m_nodes.find_first();
+    ndbrequire(getNodeInfo(nodeId).getType() != NodeInfo::DB);
+  }
 
   /**
    * Setup info object
