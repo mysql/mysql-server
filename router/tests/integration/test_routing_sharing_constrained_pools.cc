@@ -955,7 +955,6 @@ class ShareConnectionTestTemp
       if (s == nullptr || s->mysqld_failed_to_start()) {
         GTEST_SKIP() << "failed to start mysqld";
       } else {
-        s->flush_privileges();       // reset the auth-cache
         s->close_all_connections();  // reset the router's connection-pool
         s->reset_to_defaults();
       }
@@ -1428,6 +1427,10 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, overlapping_connections) {
 
 TEST_P(ShareConnectionTinyPoolOneServerTest,
        overlapping_connections_different_accounts) {
+  for (auto &s : shared_servers()) {
+    s->flush_privileges();  // reset the auth-cache
+  }
+
   MysqlClient cli1, cli2, cli3;
 
   const bool can_fetch_password = !(GetParam().client_ssl_mode == kDisabled);

@@ -956,7 +956,6 @@ class ShareConnectionTest
       if (s == nullptr || s->mysqld_failed_to_start()) {
         GTEST_SKIP() << "failed to start mysqld";
       } else {
-        s->flush_privileges();       // reset the auth-cache
         s->close_all_connections();  // reset the router's connection-pool
         s->reset_to_defaults();
       }
@@ -2023,6 +2022,10 @@ TEST_P(ShareConnectionTest, classic_protocol_list_fields_fails) {
 
 TEST_P(ShareConnectionTest,
        classic_protocol_change_user_caching_sha2_with_attributes_with_pool) {
+  for (auto &srv : shared_servers()) {
+    srv->flush_privileges();  // reset auth-cache for caching-sha2-password
+  }
+
   shared_router()->populate_connection_pool(GetParam());
 
   SCOPED_TRACE("// connecting to server");
@@ -5804,6 +5807,10 @@ TEST_P(ShareConnectionTest, classic_protocol_native_user_with_pass) {
 //
 
 TEST_P(ShareConnectionTest, classic_protocol_caching_sha2_password_with_pass) {
+  for (auto &srv : shared_servers()) {
+    srv->flush_privileges();  // reset auth-cache for caching-sha2-password
+  }
+
   auto account = SharedServer::caching_sha2_password_account();
 
   std::string username(account.username);
@@ -5866,6 +5873,10 @@ TEST_P(ShareConnectionTest, classic_protocol_caching_sha2_password_with_pass) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_caching_sha2_password_no_pass) {
+  for (auto &srv : shared_servers()) {
+    srv->flush_privileges();  // reset auth-cache for caching-sha2-password
+  }
+
   auto account = SharedServer::caching_sha2_empty_password_account();
 
   {
@@ -5926,6 +5937,10 @@ TEST_P(ShareConnectionTest,
        classic_protocol_caching_sha2_over_plaintext_with_pass) {
   if (GetParam().client_ssl_mode == kRequired) {
     GTEST_SKIP() << "test requires plaintext connection.";
+  }
+
+  for (auto &srv : shared_servers()) {
+    srv->flush_privileges();  // reset auth-cache for caching-sha2-password
   }
 
   auto account = SharedServer::caching_sha2_single_use_password_account();
@@ -6257,6 +6272,10 @@ TEST_P(
     GTEST_SKIP() << "test requires plaintext connection.";
   }
 
+  for (auto &srv : shared_servers()) {
+    srv->flush_privileges();  // reset auth-cache for caching-sha2-password
+  }
+
   bool expect_success =
 #if OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(1, 0, 2)
       // DISABLED/DISABLED will get the public-key from the server.
@@ -6347,6 +6366,10 @@ TEST_P(
     classic_protocol_caching_sha2_password_over_plaintext_with_get_server_key_with_pool) {
   if (GetParam().client_ssl_mode == kRequired) {
     GTEST_SKIP() << "test requires plaintext connection.";
+  }
+
+  for (auto &srv : shared_servers()) {
+    srv->flush_privileges();  // reset auth-cache for caching-sha2-password
   }
 
   shared_router()->populate_connection_pool(GetParam());

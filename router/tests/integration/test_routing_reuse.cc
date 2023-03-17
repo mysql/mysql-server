@@ -716,8 +716,6 @@ class ReuseConnectionTest
     // shared_server_ may be null if TestWithSharedServer::SetUpTestSuite threw?
     if (shared_server_ == nullptr || shared_server_->mysqld_failed_to_start()) {
       GTEST_SKIP() << "failed to start mysqld";
-    } else {
-      shared_server_->flush_prileges();
     }
   }
 
@@ -924,6 +922,9 @@ TEST_P(ReuseConnectionTest, classic_protocol_change_user_native) {
 }
 
 TEST_P(ReuseConnectionTest, classic_protocol_change_user_caching_sha2_empty) {
+  // reset auth-cache for caching-sha2-password
+  shared_server_->flush_prileges();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -945,6 +946,9 @@ TEST_P(ReuseConnectionTest, classic_protocol_change_user_caching_sha2_empty) {
 }
 
 TEST_P(ReuseConnectionTest, classic_protocol_change_user_caching_sha2) {
+  // reset auth-cache for caching-sha2-password
+  shared_server_->flush_prileges();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -1866,6 +1870,9 @@ TEST_P(ReuseConnectionTest, classic_protocol_native_user_with_pass) {
 //
 
 TEST_P(ReuseConnectionTest, classic_protocol_caching_sha2_password_with_pass) {
+  // reset auth-cache for caching-sha2-password
+  shared_server_->flush_prileges();
+
   auto account = shared_server_->caching_sha2_password_account();
 
   std::string username(account.username);
@@ -1928,6 +1935,9 @@ TEST_P(ReuseConnectionTest, classic_protocol_caching_sha2_password_with_pass) {
 }
 
 TEST_P(ReuseConnectionTest, classic_protocol_caching_sha2_password_no_pass) {
+  // reset auth-cache for caching-sha2-password
+  shared_server_->flush_prileges();
+
   auto account = shared_server_->caching_sha2_empty_password_account();
 
   std::string username(account.username);
@@ -1994,6 +2004,9 @@ TEST_P(ReuseConnectionTest,
   if (GetParam().client_ssl_mode == kRequired) {
     GTEST_SKIP() << "test requires plaintext connection.";
   }
+
+  // reset auth-cache for caching-sha2-password
+  shared_server_->flush_prileges();
 
   auto account = shared_server_->caching_sha2_single_use_password_account();
 
@@ -2350,7 +2363,7 @@ TEST_P(ReuseConnectionTest, x_protocol_crud_find) {
     EXPECT_EQ(exec_res->get_warnings(), xcl::XQuery_result::Warnings{});
     EXPECT_EQ(exec_res->has_resultset(), true);
 
-    auto row = exec_res->get_next_row();
+    const auto *row = exec_res->get_next_row();
     std::string string_v;
     ASSERT_TRUE(row->get_string(0, &string_v));
     // content is {_id: "0000027323879689"}
@@ -3769,6 +3782,9 @@ TEST_P(ReuseConnectionTest,
 
 TEST_P(ReuseConnectionTest,
        x_protocol_session_authenticate_start_caching_sha2_password_empty) {
+  // reset auth-cache for caching-sha2-password
+  shared_server_->flush_prileges();
+
   SCOPED_TRACE("// connect");
   auto sess_res = xsess(GetParam());
   ASSERT_NO_ERROR(sess_res);
@@ -3794,6 +3810,9 @@ TEST_P(ReuseConnectionTest,
 
 TEST_P(ReuseConnectionTest,
        x_protocol_session_authenticate_start_caching_sha2_password) {
+  // reset auth-cache for caching-sha2-password
+  shared_server_->flush_prileges();
+
   SCOPED_TRACE("// connect");
   auto sess_res = xsess(GetParam());
   ASSERT_NO_ERROR(sess_res);
@@ -3857,6 +3876,9 @@ TEST_P(ReuseConnectionTest, x_protocol_connect_native) {
 }
 
 TEST_P(ReuseConnectionTest, x_protocol_connect_sha256_password_empty) {
+  // reset auth-cache for caching-sha2-password
+  shared_server_->flush_prileges();
+
   SCOPED_TRACE("// setup");
   auto sess = xcl::create_session();
   auto account = shared_server_->sha256_empty_password_account();
@@ -3880,6 +3902,9 @@ TEST_P(ReuseConnectionTest, x_protocol_connect_sha256_password_empty) {
 }
 
 TEST_P(ReuseConnectionTest, x_protocol_connect_sha256_password) {
+  // reset auth-cache for caching-sha2-password
+  shared_server_->flush_prileges();
+
   auto sess = xcl::create_session();
   auto account = shared_server_->sha256_password_account();
 
@@ -3902,6 +3927,9 @@ TEST_P(ReuseConnectionTest, x_protocol_connect_sha256_password) {
 }
 
 TEST_P(ReuseConnectionTest, x_protocol_connect_caching_sha2_password_empty) {
+  // reset auth-cache for caching-sha2-password
+  shared_server_->flush_prileges();
+
   SCOPED_TRACE("// setup");
 
   auto sess = xcl::create_session();
@@ -3934,6 +3962,9 @@ TEST_P(ReuseConnectionTest, x_protocol_connect_caching_sha2_password_empty) {
 }
 
 TEST_P(ReuseConnectionTest, x_protocol_connect_caching_sha2_password) {
+  // reset auth-cache for caching-sha2-password
+  shared_server_->flush_prileges();
+
   SCOPED_TRACE("// setup");
   auto sess = xcl::create_session();
 

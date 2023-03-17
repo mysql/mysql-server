@@ -656,8 +656,6 @@ class ConnectionTestBase : public RouterComponentTest {
       // threw?
       if (s == nullptr || s->mysqld_failed_to_start()) {
         GTEST_SKIP() << "failed to start mysqld";
-      } else {
-        s->flush_privileges();  // reset the auth-cache
       }
     }
   }
@@ -967,6 +965,10 @@ TEST_P(ConnectionTest, classic_protocol_change_user_native_over_socket) {
 #endif
 
 TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2_empty) {
+  for (auto &srv : shared_servers()) {
+    srv->flush_privileges();  // reset the auth-cache
+  }
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -993,6 +995,10 @@ TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2_empty) {
 }
 
 TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2) {
+  for (auto &srv : shared_servers()) {
+    srv->flush_privileges();  // reset the auth-cache
+  }
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -1030,6 +1036,10 @@ TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2) {
 
 #if !defined(_WIN32)
 TEST_P(ConnectionTest, classic_protocol_caching_sha2_over_socket) {
+  for (auto &srv : shared_servers()) {
+    srv->flush_privileges();  // reset the auth-cache
+  }
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -1053,6 +1063,10 @@ TEST_P(ConnectionTest, classic_protocol_caching_sha2_over_socket) {
 }
 
 TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2_over_socket) {
+  for (auto &srv : shared_servers()) {
+    srv->flush_privileges();  // reset the auth-cache
+  }
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -1079,6 +1093,10 @@ TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2_over_socket) {
 #endif
 
 TEST_P(ConnectionTest, classic_protocol_change_user_caching_sha2_with_schema) {
+  for (auto &srv : shared_servers()) {
+    srv->flush_privileges();  // reset the auth-cache
+  }
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -3087,6 +3105,10 @@ TEST_P(
 TEST_P(
     ConnectionTest,
     classic_protocol_caching_sha2_password_over_plaintext_with_get_server_key) {
+  for (auto &srv : shared_servers()) {
+    srv->flush_privileges();  // reset the auth-cache
+  }
+
   if (GetParam().client_ssl_mode == kRequired) {
     GTEST_SKIP() << "test requires plaintext connection.";
   }
@@ -3460,6 +3482,12 @@ TEST_P(ConnectionConnectTest, classic_protocol_connect) {
 
   auto [test_name, account, expected_error_code_func] = test_param;
 
+  if (account.auth_method == "caching_sha2_password") {
+    for (auto &srv : shared_servers()) {
+      srv->flush_privileges();  // reset the auth-cache
+    }
+  }
+
   MysqlClient cli;
 
   if (default_auth != "default"sv) {
@@ -3529,8 +3557,6 @@ class Benchmark : public RouterComponentTest,
       // threw?
       if (s == nullptr || s->mysqld_failed_to_start()) {
         GTEST_SKIP() << "failed to start mysqld";
-      } else {
-        s->flush_privileges();  // reset the auth-cache
       }
     }
   }
