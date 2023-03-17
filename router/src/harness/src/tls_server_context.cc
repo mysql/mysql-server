@@ -501,8 +501,9 @@ std::vector<std::string> TlsServerContext::default_ciphers() {
   // required by RFC5246, but quite likely removed by the !SSLv3 filter
   const std::vector<std::string> optional_p3{"AES128-SHA"};
 
-  std::vector<std::string> out(mandatory_p1.size() + optional_p1.size() +
-                               optional_p2.size() + optional_p3.size());
+  std::vector<std::string> out;
+  out.reserve(mandatory_p1.size() + optional_p1.size() + optional_p2.size() +
+              optional_p3.size());
   for (const std::vector<std::string> &a :
        std::vector<std::vector<std::string>>{mandatory_p1, optional_p1,
                                              optional_p2, optional_p3}) {
