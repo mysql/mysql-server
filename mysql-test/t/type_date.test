@@ -603,3 +603,20 @@ INSERT INTO t VALUES
 --sorted_result
 SELECT * FROM t WHERE a = b and b = DATE'2023-01-01';
 DROP TABLE t;
+
+--echo #
+--echo # Bug#35173907: Assertion `CompatibleTypesForIndexLookup(eq_item,
+--echo #               field, right)' failed
+--echo #
+
+# Complements a test case with the same bug number in type_time. The
+# assertion was only seen when the indexed column was a TIME column,
+# so this test case is only for extra test coverage.
+CREATE TABLE t(a DATE, KEY(a));
+INSERT INTO t VALUES ('2023-03-15');
+SET timestamp = UNIX_TIMESTAMP('2023-03-15 01:02:03');
+SELECT * FROM t WHERE a = CURRENT_TIME;
+SELECT * FROM t WHERE a = CURRENT_TIMESTAMP;
+SELECT * FROM t WHERE a = CURRENT_DATE;
+SET timestamp = DEFAULT;
+DROP TABLE t;

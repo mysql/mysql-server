@@ -3951,8 +3951,18 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
         }
         // Similarly, strings and temporal types have different semantics for
         // equality comparison.
-        if (const_item->is_temporal() && !field_item->is_temporal()) {
-          return false;
+        if (const_item->is_temporal()) {
+          // No multiple equality for string columns compared to temporal
+          // values. See also comment in comparable_in_index().
+          if (!field_item->is_temporal()) {
+            return false;
+          }
+          // No multiple equality for TIME columns compared to temporal values.
+          // See also comment in comparable_in_index().
+          if (const_item->is_temporal_with_date() &&
+              !field_item->is_temporal_with_date()) {
+            return false;
+          }
         }
       }
 
