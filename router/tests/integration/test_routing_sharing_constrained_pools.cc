@@ -1331,6 +1331,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, overlapping_connections) {
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/com/Reset Connection", 1),
                                 Pair("statement/sql/do", 1),
+                                Pair("statement/sql/select", 1),
                                 Pair("statement/sql/set_option", 2)));
       } else {
         // cli1: set-option
@@ -1356,7 +1357,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, overlapping_connections) {
         // cli1: change-user + set-option (+ select)
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/com/Reset Connection", 2),
-                                Pair("statement/sql/select", 1),
+                                Pair("statement/sql/select", 2),
                                 Pair("statement/sql/set_option", 3)));
       } else {
         // cli1: set-option
@@ -1523,6 +1524,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/com/Reset Connection", 1),
                                 Pair("statement/sql/do", 1),
+                                Pair("statement/sql/select", 1),
                                 Pair("statement/sql/set_option", 2)));
       } else {
         // cli1: set-option
@@ -1548,7 +1550,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
         // cli1: change-user + set-option (+ select)
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/com/Reset Connection", 2),
-                                Pair("statement/sql/select", 1),
+                                Pair("statement/sql/select", 2),
                                 Pair("statement/sql/set_option", 3)));
       } else {
         // cli1: set-option

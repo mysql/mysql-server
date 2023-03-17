@@ -1022,6 +1022,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_after_connect_same_user) {
       // - (+ select)
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Change user", 2),
+                              Pair("statement/sql/select", 2),
                               Pair("statement/sql/set_option", 3)));
     } else {
       EXPECT_THAT(*events_res, ::testing::IsEmpty());
@@ -1036,6 +1037,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_after_connect_same_user) {
     if (can_share) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Reset Connection", 1),
+                              Pair("statement/sql/select", 1),
                               Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res, ::testing::IsEmpty());
@@ -1050,6 +1052,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_after_connect_same_user) {
     if (can_share) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Reset Connection", 1),
+                              Pair("statement/sql/select", 1),
                               Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res, ::testing::IsEmpty());
@@ -1077,7 +1080,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_after_connect_same_user) {
       // - set-option
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Change user", 3),
-                              Pair("statement/sql/select", 1),
+                              Pair("statement/sql/select", 3),
                               Pair("statement/sql/set_option", 4)));
     } else {
       EXPECT_THAT(*events_res, ::testing::IsEmpty());
@@ -1347,6 +1350,7 @@ TEST_P(ShareConnectionTest,
       // - (+ select)
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Change user", 2),
+                              Pair("statement/sql/select", 2),
                               Pair("statement/sql/set_option", 3)));
     } else {
       EXPECT_THAT(*events_res, ::testing::IsEmpty());
@@ -1361,6 +1365,7 @@ TEST_P(ShareConnectionTest,
     if (can_share) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Reset Connection", 1),
+                              Pair("statement/sql/select", 1),
                               Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res, ::testing::IsEmpty());
@@ -1375,6 +1380,7 @@ TEST_P(ShareConnectionTest,
     if (can_share) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Reset Connection", 1),
+                              Pair("statement/sql/select", 1),
                               Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res, ::testing::IsEmpty());
@@ -1402,7 +1408,7 @@ TEST_P(ShareConnectionTest,
       // - set-option
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Change user", 3),
-                              Pair("statement/sql/select", 1),
+                              Pair("statement/sql/select", 3),
                               Pair("statement/sql/set_option", 4)));
     } else {
       EXPECT_THAT(*events_res, ::testing::IsEmpty());
@@ -1533,6 +1539,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_same_user) {
     if (can_share) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Change user", 2),
+                              Pair("statement/sql/select", 2),
                               Pair("statement/sql/set_option", 3)));
     } else {
       EXPECT_THAT(*events_res, IsEmpty());
@@ -1547,6 +1554,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_same_user) {
     if (can_share) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Reset Connection", 1),
+                              Pair("statement/sql/select", 1),
                               Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res, IsEmpty());
@@ -1561,6 +1569,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_same_user) {
     if (can_share) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Reset Connection", 1),
+                              Pair("statement/sql/select", 1),
                               Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res, IsEmpty());
@@ -1575,7 +1584,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_same_user) {
     if (can_share) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Change user", 3),
-                              Pair("statement/sql/select", 1),
+                              Pair("statement/sql/select", 3),
                               Pair("statement/sql/set_option", 4)));
     } else {
       EXPECT_THAT(*events_res, IsEmpty());
@@ -1679,6 +1688,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
         // cli1: change-user + set-option (+ select)
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/com/Change user", 2),
+                                Pair("statement/sql/select", 2),
                                 Pair("statement/sql/set_option", 3)));
       } else {
         // cli1: set-option
@@ -1701,6 +1711,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
       if (can_fetch_password) {
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/com/Reset Connection", 1),
+                                Pair("statement/sql/select", 1),
                                 Pair("statement/sql/set_option", 2)));
       } else {
         EXPECT_THAT(*events_res,
@@ -1720,6 +1731,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
       if (can_fetch_password) {
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/com/Reset Connection", 1),
+                                Pair("statement/sql/select", 1),
                                 Pair("statement/sql/set_option", 2)));
       } else {
         EXPECT_THAT(*events_res,
@@ -1743,11 +1755,12 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
         // cli4: change-user + set-option (+ select)
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/com/Change user", 3),
-                                Pair("statement/sql/select", 1),
+                                Pair("statement/sql/select", 3),
                                 Pair("statement/sql/set_option", 4)));
       } else {
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/com/Reset Connection", 1),
+                                Pair("statement/sql/select", 1),
                                 Pair("statement/sql/set_option", 2)));
       }
     } else {
@@ -1771,12 +1784,12 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/com/Change user", 3),
                                 Pair("statement/com/Reset Connection", 1),
-                                Pair("statement/sql/select", 2),
+                                Pair("statement/sql/select", 4),
                                 Pair("statement/sql/set_option", 5)));
       } else {
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/com/Reset Connection", 2),
-                                Pair("statement/sql/select", 1),
+                                Pair("statement/sql/select", 2),
                                 Pair("statement/sql/set_option", 3)));
       }
     } else {
@@ -1802,7 +1815,7 @@ TEST_P(ShareConnectionTest, classic_protocol_share_different_accounts) {
         EXPECT_THAT(*events_res,
                     ElementsAre(Pair("statement/com/Change user", 4),
                                 Pair("statement/com/Reset Connection", 1),
-                                Pair("statement/sql/select", 3),
+                                Pair("statement/sql/select", 5),
                                 Pair("statement/sql/set_option", 6)));
       } else {
         // cli1: set-option
@@ -2912,6 +2925,7 @@ TEST_P(ShareConnectionTest, classic_protocol_set_vars) {
     if (can_share) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Reset Connection", 2),
+                              Pair("statement/sql/select", 1),
                               Pair("statement/sql/set_option", 4)));
     } else {
       EXPECT_THAT(*events_res,
@@ -2941,7 +2955,7 @@ TEST_P(ShareConnectionTest, classic_protocol_set_vars) {
     if (can_share) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Reset Connection", 4),
-                              Pair("statement/sql/select", 2),
+                              Pair("statement/sql/select", 3),
                               Pair("statement/sql/set_option", 6)));
     } else {
       EXPECT_THAT(*events_res,
@@ -3029,6 +3043,7 @@ TEST_P(ShareConnectionTest, classic_protocol_temporary_table_fails_can_share) {
           ElementsAre(Pair("statement/com/Reset Connection", 3),
                       Pair("statement/sql/do", 1),
                       Pair("statement/sql/error", 1),         // CREATE TABLE
+                      Pair("statement/sql/select", 1),        //
                       Pair("statement/sql/set_option", 4),    //
                       Pair("statement/sql/show_warnings", 1)  // CREATE TABLE
                       ));
@@ -3300,6 +3315,7 @@ TEST_P(ShareConnectionTest, classic_protocol_show_warnings_and_change_user) {
           ElementsAre(Pair("statement/com/Reset Connection", 3),  // from-pool
                       Pair("statement/sql/create_table", 1),
                       Pair("statement/sql/insert_select", 1),
+                      Pair("statement/sql/select", 1),
                       Pair("statement/sql/set_option", 4),    // init-trackers
                       Pair("statement/sql/show_warnings", 1)  // injected
                       ));
@@ -3957,7 +3973,7 @@ TEST_P(ShareConnectionTest, classic_protocol_set_names) {
     if (can_share) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Reset Connection", 3),
-                              Pair("statement/sql/select", 1),
+                              Pair("statement/sql/select", 3),
                               Pair("statement/sql/set_option", 5)));
     } else {
       EXPECT_THAT(*events_res,
@@ -4016,7 +4032,7 @@ TEST_P(ShareConnectionTest, classic_protocol_lock_tables_and_reset) {
                   ElementsAre(Pair("statement/com/Reset Connection", 4),
                               Pair("statement/sql/create_table", 1),
                               Pair("statement/sql/lock_tables", 1),
-                              Pair("statement/sql/select", 1),
+                              Pair("statement/sql/select", 2),
                               Pair("statement/sql/set_option", 5)));
     } else {
       EXPECT_THAT(*events_res,
@@ -4045,7 +4061,7 @@ TEST_P(ShareConnectionTest, classic_protocol_lock_tables_and_reset) {
                   ElementsAre(Pair("statement/com/Reset Connection", 6),
                               Pair("statement/sql/create_table", 1),
                               Pair("statement/sql/lock_tables", 1),
-                              Pair("statement/sql/select", 3),
+                              Pair("statement/sql/select", 4),
                               Pair("statement/sql/set_option", 7)));
     } else {
       EXPECT_THAT(*events_res,
@@ -4089,6 +4105,7 @@ TEST_P(ShareConnectionTest, classic_protocol_get_lock) {
           *events_res,
           ElementsAre(Pair("statement/com/Reset Connection", 1),  // from-pool
                       Pair("statement/sql/do", 1),                // DO ...()
+                      Pair("statement/sql/select", 1),
                       Pair("statement/sql/set_option", 2)  // connect, from-pool
                       ));
     } else {
@@ -4111,7 +4128,7 @@ TEST_P(ShareConnectionTest, classic_protocol_get_lock) {
                                    // DO GET_LOCK()
                                    Pair("statement/sql/do", 1),
                                    // events
-                                   Pair("statement/sql/select", 1),
+                                   Pair("statement/sql/select", 2),
                                    // connect, from-pool, explicit, from-pool
                                    Pair("statement/sql/set_option", 4)));
     } else {
@@ -4171,6 +4188,7 @@ TEST_P(ShareConnectionTest, classic_protocol_get_lock_in_transaction) {
                       Pair("statement/sql/begin", 1),      // START TRANSACTION
                       Pair("statement/sql/do", 1),         // DO ...()
                       Pair("statement/sql/rollback", 1),   // ROLLBACK
+                      Pair("statement/sql/select", 1),     //
                       Pair("statement/sql/set_option", 2)  // connect, from-pool
                       ));
     } else {
@@ -4200,7 +4218,7 @@ TEST_P(ShareConnectionTest, classic_protocol_get_lock_in_transaction) {
                                    // ROLLBACK
                                    Pair("statement/sql/rollback", 1),
                                    // events
-                                   Pair("statement/sql/select", 1),
+                                   Pair("statement/sql/select", 2),
                                    // connect, from-pool, explicit, from-pool
                                    Pair("statement/sql/set_option", 4)));
     } else {
@@ -4249,6 +4267,7 @@ TEST_P(ShareConnectionTest, classic_protocol_service_get_write_locks) {
           *events_res,
           ElementsAre(Pair("statement/com/Reset Connection", 1),  // from-pool
                       Pair("statement/sql/do", 1),                // DO ...()
+                      Pair("statement/sql/select", 1),
                       Pair("statement/sql/set_option", 2)  // connect, from-pool
                       ));
     } else {
@@ -4283,7 +4302,7 @@ TEST_P(ShareConnectionTest, classic_protocol_service_get_write_locks) {
                                    // DO ...()
                                    Pair("statement/sql/do", 1),
                                    // events, metadata-locks
-                                   Pair("statement/sql/select", 2),
+                                   Pair("statement/sql/select", 3),
                                    // connect, from-pool, explicit, from-pool
                                    Pair("statement/sql/set_option", 4)));
     } else {
@@ -4357,6 +4376,7 @@ TEST_P(ShareConnectionTest,
                       Pair("statement/sql/begin", 1),      // START TRANSACTION
                       Pair("statement/sql/do", 1),         // DO ...()
                       Pair("statement/sql/rollback", 1),   // ROLLBACK
+                      Pair("statement/sql/select", 1),     //
                       Pair("statement/sql/set_option", 2)  // connect, from-pool
                       ));
     } else {
@@ -4400,7 +4420,7 @@ TEST_P(ShareConnectionTest,
                                    // ROLLBACK
                                    Pair("statement/sql/rollback", 1),
                                    // events, metadata-locks
-                                   Pair("statement/sql/select", 2),
+                                   Pair("statement/sql/select", 3),
                                    // connect, from-pool, explicit, from-pool
                                    Pair("statement/sql/set_option", 4)));
     } else {
@@ -4462,6 +4482,7 @@ TEST_P(ShareConnectionTest, classic_protocol_service_get_read_locks) {
           *events_res,
           ElementsAre(Pair("statement/com/Reset Connection", 1),  // from-pool
                       Pair("statement/sql/do", 1),                // DO ...()
+                      Pair("statement/sql/select", 1),
                       Pair("statement/sql/set_option", 2)  // connect, from-pool
                       ));
     } else {
@@ -4496,7 +4517,7 @@ TEST_P(ShareConnectionTest, classic_protocol_service_get_read_locks) {
                                    // DO ...()
                                    Pair("statement/sql/do", 1),
                                    // events, metadata-locks
-                                   Pair("statement/sql/select", 2),
+                                   Pair("statement/sql/select", 3),
                                    // connect, from-pool, explicit, from-pool
                                    Pair("statement/sql/set_option", 4)));
     } else {
@@ -4570,6 +4591,7 @@ TEST_P(ShareConnectionTest,
                       Pair("statement/sql/begin", 1),      // START TRANSACTION
                       Pair("statement/sql/do", 1),         // DO ...()
                       Pair("statement/sql/rollback", 1),   // ROLLBACK
+                      Pair("statement/sql/select", 1),     //
                       Pair("statement/sql/set_option", 2)  // connect, from-pool
                       ));
     } else {
@@ -4613,7 +4635,7 @@ TEST_P(ShareConnectionTest,
                                    // ROLLBACK
                                    Pair("statement/sql/rollback", 1),
                                    // events, metadata-locks
-                                   Pair("statement/sql/select", 2),
+                                   Pair("statement/sql/select", 3),
                                    // connect, from-pool, explicit, from-pool
                                    Pair("statement/sql/set_option", 4)));
     } else {
@@ -4675,6 +4697,7 @@ TEST_P(ShareConnectionTest, classic_protocol_version_tokens_lock_shared) {
           *events_res,
           ElementsAre(Pair("statement/com/Reset Connection", 1),  // from-pool
                       Pair("statement/sql/do", 1),                // DO ...()
+                      Pair("statement/sql/select", 1),            //
                       Pair("statement/sql/set_option", 2)  // connect, from-pool
                       ));
     } else {
@@ -4711,7 +4734,7 @@ TEST_P(ShareConnectionTest, classic_protocol_version_tokens_lock_shared) {
                                    // DO ...()
                                    Pair("statement/sql/do", 1),
                                    // events, metadata-locks
-                                   Pair("statement/sql/select", 2),
+                                   Pair("statement/sql/select", 3),
                                    // connect, from-pool, explicit, from-pool
                                    Pair("statement/sql/set_option", 4)));
     } else {
@@ -4769,6 +4792,7 @@ TEST_P(ShareConnectionTest, classic_protocol_version_tokens_lock_exclusive) {
           *events_res,
           ElementsAre(Pair("statement/com/Reset Connection", 1),  // from-pool
                       Pair("statement/sql/do", 1),                // DO ...()
+                      Pair("statement/sql/select", 1),            //
                       Pair("statement/sql/set_option", 2)  // connect, from-pool
                       ));
     } else {
@@ -4805,7 +4829,7 @@ TEST_P(ShareConnectionTest, classic_protocol_version_tokens_lock_exclusive) {
                                    // DO ...()
                                    Pair("statement/sql/do", 1),
                                    // events, metadata-locks
-                                   Pair("statement/sql/select", 2),
+                                   Pair("statement/sql/select", 3),
                                    // connect, from-pool, explicit, from-pool
                                    Pair("statement/sql/set_option", 4)));
     } else {
@@ -4857,6 +4881,7 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_fail) {
       EXPECT_THAT(*events_res,
                   ElementsAre(Pair("statement/com/Prepare", 1),
                               Pair("statement/com/Reset Connection", 2),
+                              Pair("statement/sql/select", 1),     //
                               Pair("statement/sql/set_option", 3)  //
                               ));
     } else {
@@ -4910,6 +4935,7 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute) {
                               // from-pool
                               Pair("statement/com/Reset Connection", 1),
                               // connect, from-pool
+                              Pair("statement/sql/select", 1),     //
                               Pair("statement/sql/set_option", 2)  //
                               ));
     } else {
@@ -4932,7 +4958,7 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute) {
                               // from-pool, events, from-pool
                               Pair("statement/com/Reset Connection", 3),
                               // events
-                              Pair("statement/sql/select", 1),
+                              Pair("statement/sql/select", 2),
                               Pair("statement/sql/set_option", 4)));
     } else {
       EXPECT_THAT(*events_res,
@@ -5008,6 +5034,7 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute_fetch) {
                               Pair("statement/com/Fetch", 2),
                               Pair("statement/com/Prepare", 1),
                               Pair("statement/com/Reset Connection", 1),
+                              Pair("statement/sql/select", 1),
                               Pair("statement/sql/set_option", 2)));
     } else {
       EXPECT_THAT(*events_res, ElementsAre(Pair("statement/com/Execute", 1),
@@ -5248,6 +5275,7 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute_no_result) {
                               Pair("statement/com/Prepare", 1),
                               // from-pool
                               Pair("statement/com/Reset Connection", 1),
+                              Pair("statement/sql/select", 1),
                               // connect, from-pool
                               Pair("statement/sql/set_option", 2)  //
                               ));
@@ -5272,7 +5300,7 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute_no_result) {
                               // from-pool, events, from-pool
                               Pair("statement/com/Reset Connection", 3),
                               // events
-                              Pair("statement/sql/select", 1),
+                              Pair("statement/sql/select", 2),
                               Pair("statement/sql/set_option", 4)));
     } else {
       EXPECT_THAT(*events_res,
@@ -5332,6 +5360,7 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute_call) {
                               // from-pool
                               Pair("statement/com/Reset Connection", 1),
                               Pair("statement/sp/stmt", 2),
+                              Pair("statement/sql/select", 1),
                               // connect, from-pool
                               Pair("statement/sql/set_option", 2)  //
                               ));
@@ -5358,7 +5387,7 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_execute_call) {
                               Pair("statement/com/Reset Connection", 3),
                               Pair("statement/sp/stmt", 2),
                               // events
-                              Pair("statement/sql/select", 1),
+                              Pair("statement/sql/select", 2),
                               Pair("statement/sql/set_option", 4)));
     } else {
       EXPECT_THAT(*events_res,
@@ -6738,6 +6767,29 @@ TEST_P(ShareConnectionTest, classic_protocol_unknown_command) {
   SCOPED_TRACE(
       "// after an invalid command, normal commands should still work.");
   ASSERT_NO_ERROR(cli.ping());
+}
+
+TEST_P(ShareConnectionTest, classic_protocol_charset_after_connect) {
+  MysqlClient cli;
+
+  auto account = SharedServer::native_empty_password_account();
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  cli.set_option(MysqlClient::CharsetName("latin1"));
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  {
+    auto cmd_res = query_one_result(
+        cli, "select @@character_set_client, @@collation_connection");
+    ASSERT_NO_ERROR(cmd_res);
+
+    EXPECT_THAT(*cmd_res,
+                ElementsAre(ElementsAre("latin1", "latin1_swedish_ci")));
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(Spec, ShareConnectionTest,

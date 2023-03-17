@@ -477,6 +477,14 @@ class MysqlRoutingClassicConnectionBase
   RouteDestination *destinations() { return route_destination_; }
   Destinations &current_destinations() { return destinations_; }
 
+  void collation_connection_maybe_dirty(bool val) {
+    collation_connection_maybe_dirty_ = val;
+  }
+
+  bool collation_connection_maybe_dirty() const {
+    return collation_connection_maybe_dirty_;
+  }
+
  private:
   RouteDestination *route_destination_;
   Destinations destinations_;
@@ -494,6 +502,8 @@ class MysqlRoutingClassicConnectionBase
   std::optional<classic_protocol::session_track::TransactionCharacteristics>
       trx_characteristics_;
   bool some_state_changed_{false};
+
+  bool collation_connection_maybe_dirty_{false};
 
   bool requires_tls_{true};
 
