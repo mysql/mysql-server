@@ -1191,8 +1191,8 @@ ulong cli_safe_read_with_ok_complete(MYSQL *mysql, bool parse_ok,
 
   if (len == packet_error || len == 0) {
 #ifndef NDEBUG
-    char desc[VIO_DESCRIPTION_SIZE];
-    vio_description(net->vio, desc);
+    char desc[VIO_DESCRIPTION_SIZE]{"n/a"};
+    if (net->vio) vio_description(net->vio, desc);
     DBUG_PRINT("error",
                ("Wrong connection or packet. fd: %s  len: %lu", desc, len));
 #endif  // NDEBUG
