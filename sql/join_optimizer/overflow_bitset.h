@@ -351,6 +351,12 @@ class OverflowBitsetBitsIn {
     int m_base;
 
    public:
+    using iterator_category = std::forward_iterator_tag;
+    using difference_type = size_t;
+    using value_type = size_t;
+    using pointer = value_type *;
+    using reference = value_type &;
+
     // For inline bitsets.
     iterator(uint64_t state, const Combine *combine)
         : m_combine(combine), m_state(state), m_end(nullptr), m_base(0) {

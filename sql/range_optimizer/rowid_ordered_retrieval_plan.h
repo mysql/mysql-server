@@ -50,15 +50,6 @@ struct ROR_SCAN_INFO {
 
   /** Fields used in the query and covered by this ROR scan. */
   OverflowBitset covered_fields;
-  /**
-    Fields used in the query that are a) covered by this ROR scan and
-    b) not already covered by ROR scans ordered earlier in the merge
-    sequence.
-  */
-  OverflowBitset covered_fields_remaining;
-  /** Number of fields in covered_fields_remaining (caching of
-   * bitmap_bits_set()) */
-  uint num_covered_fields_remaining;
 
   /**
     Cost of reading all index records with values in sel_arg intervals set

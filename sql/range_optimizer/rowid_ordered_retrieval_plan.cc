@@ -178,8 +178,6 @@ static ROR_SCAN_INFO *make_ror_scan(const RANGE_OPT_PARAM *param, int idx,
       covered_fields.SetBit(key_part->fieldnr - 1);
   }
   ror_scan->covered_fields = std::move(covered_fields);
-  ror_scan->covered_fields_remaining = ror_scan->covered_fields;
-
   double rows = rows2double(param->table->quick_rows[ror_scan->keynr]);
   ror_scan->index_read_cost =
       param->table->file->index_scan_cost(ror_scan->keynr, 1, rows);
@@ -195,30 +193,6 @@ static ROR_SCAN_INFO *make_ror_scan(const RANGE_OPT_PARAM *param, int idx,
   ror_scan->ranges = {&ranges[0], ranges.size()};
 
   return ror_scan;
-}
-
-/**
-  Compare two ROR_SCAN_INFO* by
-    1. Number of fields in this index that are not already covered
-       by other indexes earlier in the intersect ordering: descending
-    2. E(Number of records): ascending
-
-  @param scan1   first ror scan to compare
-  @param scan2   second ror scan to compare
-
-  @return true if scan1 > scan2, false otherwise
-*/
-static bool is_better_intersect_match(const ROR_SCAN_INFO *scan1,
-                                      const ROR_SCAN_INFO *scan2) {
-  if (scan1 == scan2) return false;
-
-  if (scan1->num_covered_fields_remaining > scan2->num_covered_fields_remaining)
-    return false;
-
-  if (scan1->num_covered_fields_remaining < scan2->num_covered_fields_remaining)
-    return true;
-
-  return (scan1->records > scan2->records);
 }
 
 /**
@@ -239,66 +213,34 @@ static bool is_better_intersect_match(const ROR_SCAN_INFO *scan1,
   @param         needed_fields  Bitmask of fields needed by the query.
   @param         mem_root       memory root to be used.
 */
-static void find_intersect_order(Mem_root_array<ROR_SCAN_INFO *> *ror_scans,
-                                 OverflowBitset needed_fields,
-                                 MEM_ROOT *mem_root) {
-  // nothing to sort if there are only zero or one ROR scans
-  if (ror_scans->size() <= 1) return;
-
-  /*
-    Bitmap of fields we would like the ROR scans to cover. Will be
-    modified by the loop below so that when we're looking for a ROR
-    scan in position 'x' in the ordering, all fields covered by ROR
-    scans 0,...,x-1 have been removed.
-  */
-  OverflowBitset fields_to_cover = needed_fields;
-
-  // Sort ROR scans
-  for (uint cur_i = 0; cur_i < ror_scans->size(); cur_i++) {
-    ROR_SCAN_INFO *cur_scan = (*ror_scans)[cur_i];
-    // Calculate how many fields in 'fields_to_cover' that are
-    // not already covered are covered by the current scan
-    // we are looking into.
-    cur_scan->covered_fields_remaining = OverflowBitset::And(
-        mem_root, cur_scan->covered_fields_remaining, fields_to_cover);
-    cur_scan->num_covered_fields_remaining =
-        PopulationCount(cur_scan->covered_fields_remaining);
-    ROR_SCAN_INFO *best_scan = (*ror_scans)[cur_i];
-    uint best_i = cur_i;
-    // Compare with the next set of ror_scans to find the best_scan
-    for (uint next_i = cur_i + 1; next_i < ror_scans->size(); next_i++) {
-      ROR_SCAN_INFO *next_scan = (*ror_scans)[next_i];
-      // Calculate the fields that would be covered by the "next_scan"
-      // which are not already covered by the previous scans.
-      next_scan->covered_fields_remaining = OverflowBitset::And(
-          mem_root, next_scan->covered_fields_remaining, fields_to_cover);
-      next_scan->num_covered_fields_remaining =
-          PopulationCount(next_scan->covered_fields_remaining);
-      // No need to compare with 'best_scan' if 'next_scan' does not
-      // contribute with uncovered fields.
-      if (next_scan->num_covered_fields_remaining == 0) continue;
-      if (is_better_intersect_match(best_scan, next_scan)) {
-        best_scan = next_scan;
-        best_i = next_i;
-      }
-    }
-
-    /*
-      'best_scan' is now the ROR scan that will be sorted in place of
-      'cur_scan'. When searching for the best ROR scans later in the sort
-      sequence we do not need coverage of the fields covered by 'best_scan'.
-    */
-    MutableOverflowBitset remaining_fields_to_cover =
-        fields_to_cover.Clone(mem_root);
-    for (int i : BitsSetIn(best_scan->covered_fields)) {
-      remaining_fields_to_cover.ClearBit(i);
-    }
-    if (best_i != cur_i) {
-      std::swap((*ror_scans)[best_i], (*ror_scans)[cur_i]);
-    }
-    fields_to_cover = std::move(remaining_fields_to_cover);
-
-    if (fields_to_cover.empty()) return;  // No more fields to cover
+void find_intersect_order(Mem_root_array<ROR_SCAN_INFO *> *ror_scans,
+                          OverflowBitset needed_fields, MEM_ROOT *mem_root) {
+  for (uint index = 0; index < ror_scans->size(); index++) {
+    std::stable_sort(
+        ror_scans->begin() + index, ror_scans->end(),
+        [needed_fields](ROR_SCAN_INFO *a, ROR_SCAN_INFO *b) {
+          /*
+           Compare two ROR_SCAN_INFO* by
+           1. Number of fields in this index that are not already
+           covered by other indexes earlier in the intersect
+           ordering: descending
+           2. E(Number of records): ascending
+          */
+          auto fields_in_a = BitsSetInBoth(a->covered_fields, needed_fields);
+          uint num_fields_a =
+              std::distance(fields_in_a.begin(), fields_in_a.end());
+          auto fields_in_b = BitsSetInBoth(b->covered_fields, needed_fields);
+          uint num_fields_b =
+              std::distance(fields_in_b.begin(), fields_in_b.end());
+          if (num_fields_a < num_fields_b) return false;
+          if (num_fields_a > num_fields_b) return true;
+          return a->records < b->records;
+        });
+    MutableOverflowBitset fields_to_be_covered = needed_fields.Clone(mem_root);
+    for (uint i : BitsSetIn((*ror_scans)[index]->covered_fields))
+      fields_to_be_covered.ClearBit(i);
+    needed_fields = std::move(fields_to_be_covered);
+    if (needed_fields.empty()) break;
   }
 }
 
