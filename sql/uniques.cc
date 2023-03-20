@@ -64,7 +64,7 @@
 #include "sql/sql_base.h"  // TEMP_PREFIX
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
-#include "sql/sql_executor.h"  // check_unique_constraint
+#include "sql/sql_executor.h"  // check_unique_fields
 #include "sql/sql_sort.h"
 #include "sql/sql_tmp_table.h"  // create_duplicate_weedout_tmp_table
 #include "sql/table.h"
@@ -972,7 +972,7 @@ bool Unique_on_insert::unique_add(void *ptr) {
   Field *key = *m_table->visible_field_ptr();
   if (key->store((const char *)ptr, m_size, &my_charset_bin) != TYPE_OK)
     return true; /* purecov: inspected */
-  if (!check_unique_constraint(m_table)) return true;
+  if (!check_unique_fields(m_table)) return true;
   const uint res = m_table->file->ha_write_row(m_table->record[0]);
   if (res) {
     bool dup = false;

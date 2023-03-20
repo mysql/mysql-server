@@ -83,10 +83,17 @@ class HashJoinChunk {
   ///   flag, saying whether the row had a matching row.
   ///
   /// @returns true if the initialization failed.
-  bool Init(const pack_rows::TableCollection &tables, bool uses_match_flags);
+  bool Init(const pack_rows::TableCollection &tables,
+            bool uses_match_flags = false);
 
-  /// @returns the number of rows in this HashJoinChunk
-  ha_rows num_rows() const { return m_num_rows; }
+  /// @returns the number of rows in this chunk
+  ha_rows NumRows() const { return m_num_rows; }
+
+  /// Set the number of rows we currently care about in this chunk.
+  /// Used to keep track of number of rows written from a certain
+  /// point in time (the counter is incremented by writing).
+  /// @param no  the number to set the counter to
+  void SetNumRows(ha_rows no) { m_num_rows = no; }
 
   /// Write a row to the HashJoinChunk.
   ///
@@ -101,9 +108,13 @@ class HashJoinChunk {
   /// @param matched whether this row has seen a matching row from the other
   ///   input. The flag is only written if 'm_uses_match_flags' is set, and if
   ///   the row comes from the probe input.
+  /// @param file_set_no Used by set operations only: the zero based chunk file
+  ///   set number. If equal to std::numeric_limits<size_t>::max(), ignore (
+  ///   default value).
   ///
   /// @retval true on error.
-  bool WriteRowToChunk(String *buffer, bool matched);
+  bool WriteRowToChunk(String *buffer, bool matched,
+                       size_t file_set_no = std::numeric_limits<size_t>::max());
 
   /// Read a row from the HashJoinChunk and put it in the record buffer.
   ///
@@ -117,13 +128,29 @@ class HashJoinChunk {
   /// @param[out] matched whether this row has seen a matching row from the
   ///   other input. The flag is only restored if 'm_uses_match_flags' is set,
   ///   and if the row comes from the probe input.
+  /// @param file_set_no Used by set operations only: the zero based chunk file
+  ///   set number. If not nullptr, set this to current set file number. Note:
+  ///   If WriteRowToChunk used a non ignorable file_set_no, it is expected
+  ///   that a non nullptr value be provided here for reading of rows to proceed
+  ///   correctly.
   /// @retval true on error.
-  bool LoadRowFromChunk(String *buffer, bool *matched);
+  bool LoadRowFromChunk(String *buffer, bool *matched,
+                        size_t *file_set_no = nullptr);
 
   /// Flush the file buffer, and prepare the file for reading.
   ///
   /// @retval true on error
   bool Rewind();
+
+  /// Switch from reading to writing, saving current read position
+  /// m_last_read_pos. Continue writing from m_last_write_pos.
+  /// @retval true on error
+  bool SetAppend();
+
+  /// Switch from writing to reading, saving current write position in
+  /// m_last_write_pos. Continue reading from m_last_read_pos.
+  /// @retval true on error
+  bool ContinueRead();
 
  private:
   // A collection of which tables the chunk file holds data from. Used to
@@ -138,6 +165,10 @@ class HashJoinChunk {
 
   // Whether every row is prefixed with a match flag.
   bool m_uses_match_flags{false};
+
+  // Used to resume writing and reading from previous position
+  size_t m_last_write_pos{0};
+  size_t m_last_read_pos{0};
 };
 
 #endif  // SQL_ITERATORS_HASH_JOIN_CHUNK_H_

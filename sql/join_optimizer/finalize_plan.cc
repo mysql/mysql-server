@@ -365,11 +365,11 @@ static Temp_table_param *GetItemsToCopy(AccessPath *path) {
       // Materializes a different query block.
       return nullptr;
     }
-    assert(param->query_blocks.size() == 1);
-    if (!param->query_blocks[0].copy_items) {
+    assert(param->m_operands.size() == 1);
+    if (!param->m_operands[0].copy_items) {
       return nullptr;
     }
-    return param->query_blocks[0].temp_table_param;
+    return param->m_operands[0].temp_table_param;
   }
   if (path->type == AccessPath::WINDOW) {
     return path->window().temp_table_param;
@@ -512,10 +512,10 @@ static void DelayedCreateTemporaryTable(THD *thd, Query_block *query_block,
                 *last_window_temp_table;
       } else {
         // All other materializations are of the SELECT list.
-        assert(path->materialize().param->query_blocks.size() == 1);
+        assert(path->materialize().param->m_operands.size() == 1);
         TABLE *table = CreateTemporaryTableFromSelectList(
             thd, query_block, nullptr,
-            &path->materialize().param->query_blocks[0].temp_table_param,
+            &path->materialize().param->m_operands[0].temp_table_param,
             after_aggregation);
         path->materialize().param->table =
             path->materialize().table_path->table_scan().table = table;

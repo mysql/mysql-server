@@ -7,7 +7,7 @@ memory/sql/Blob_mem_storage::storage
 memory/sql/Filesort_buffer::sort_keys
 memory/sql/Filesort_info::merge
 memory/sql/Filesort_info::record_pointers
-memory/sql/hash_join
+memory/sql/hashed_operation
 memory/sql/IndexRangeScanIterator::mrr_buf_desc
 memory/sql/Partition::prune_exec
 memory/sql/Prepared_statement::infrastructure
@@ -32,7 +32,7 @@ memory/sql/Blob_mem_storage::storage	controlled_by_default	controlled
 memory/sql/Filesort_buffer::sort_keys	controlled_by_default	controlled
 memory/sql/Filesort_info::merge	controlled_by_default	controlled
 memory/sql/Filesort_info::record_pointers	controlled_by_default	controlled
-memory/sql/hash_join	controlled_by_default	controlled
+memory/sql/hashed_operation	controlled_by_default	controlled
 memory/sql/IndexRangeScanIterator::mrr_buf_desc	controlled_by_default	controlled
 memory/sql/Partition::prune_exec	controlled_by_default	controlled
 memory/sql/Prepared_statement::infrastructure	controlled_by_default	controlled

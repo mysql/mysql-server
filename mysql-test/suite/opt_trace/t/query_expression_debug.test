@@ -1,0 +1,7 @@
+--source include/have_debug.inc
+
+let $char_type=VARCHAR(60);
+--source suite/opt_trace/include/query_expression_debug.inc
+let $char_type=TEXT;
+--source suite/opt_trace/include/query_expression_debug.inc
+

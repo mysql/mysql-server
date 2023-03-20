@@ -463,9 +463,9 @@ class Query_term_set_op : public Query_term {
 
   // Recursively set up materialization for a query term tree. For details,
   // see implementation.
-  Mem_root_array<MaterializePathParameters::QueryBlock>
-  setup_materialize_set_op(THD *thd, TABLE *dst_table, bool union_distinct_only,
-                           bool calc_found_rows);
+  Mem_root_array<MaterializePathParameters::Operand> setup_materialize_set_op(
+      THD *thd, TABLE *dst_table, bool union_distinct_only,
+      bool calc_found_rows);
 
  protected:
   /**

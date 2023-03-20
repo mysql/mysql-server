@@ -1602,11 +1602,10 @@ AccessPath *MoveCompositeIteratorsFromTablePath(
         bottom_of_table_path->stream().child = path;
         break;
       case AccessPath::MATERIALIZE:
-        assert(bottom_of_table_path->materialize().param->query_blocks.size() ==
+        assert(bottom_of_table_path->materialize().param->m_operands.size() ==
                1);
-        bottom_of_table_path->materialize()
-            .param->query_blocks[0]
-            .subquery_path = path;
+        bottom_of_table_path->materialize().param->m_operands[0].subquery_path =
+            path;
         break;
       default:
         assert(false);
@@ -3421,7 +3420,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl) {
     }
   }
 
-  if (!check_unique_constraint(sjtbl->tmp_table)) return 1;
+  if (!check_unique_fields(sjtbl->tmp_table)) return 1;
   error = sjtbl->tmp_table->file->ha_write_row(sjtbl->tmp_table->record[0]);
   if (error) {
     /* If this is a duplicate error, return immediately */
@@ -3915,7 +3914,7 @@ static bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1) {
     false records are the same
 */
 
-static bool table_rec_cmp(TABLE *table) {
+bool table_rec_cmp(TABLE *table) {
   DBUG_TRACE;
   const ptrdiff_t diff = table->record[1] - table->record[0];
   Field **fields = table->visible_field_ptr();
@@ -3933,7 +3932,7 @@ static bool table_rec_cmp(TABLE *table) {
   @returns generated hash
 */
 
-ulonglong unique_hash(const Field *field, ulonglong *hash_val) {
+ulonglong calc_field_hash(const Field *field, ulonglong *hash_val) {
   uint64 seed1 = 0, seed2 = 4;
   ulonglong crc = *hash_val;
 
@@ -3988,7 +3987,7 @@ static ulonglong unique_hash_group(ORDER *group) {
   for (ORDER *ord = group; ord; ord = ord->next) {
     Field *field = ord->field_in_tmp_table;
     assert(field);
-    unique_hash(field, &crc);
+    calc_field_hash(field, &crc);
   }
 
   return crc;
@@ -3999,18 +3998,18 @@ static ulonglong unique_hash_group(ORDER *group) {
   @param table the table for which we want a hash of its fields
   @return the hash value
 */
-static ulonglong unique_hash_fields(TABLE *table) {
+ulonglong calc_row_hash(TABLE *table) {
   ulonglong crc = 0;
   Field **fields = table->visible_field_ptr();
 
   for (uint i = 0; i < table->visible_field_count(); i++)
-    unique_hash(fields[i], &crc);
+    calc_field_hash(fields[i], &crc);
 
   return crc;
 }
 
 /**
-  Check unique_constraint.
+  Check whether a row is already present in the tmp table
 
   @details Calculates record's hash and checks whether the record given in
   table->record[0] is already present in the tmp table.
@@ -4026,7 +4025,7 @@ static ulonglong unique_hash_fields(TABLE *table) {
     true  record wasn't found
 */
 
-bool check_unique_constraint(TABLE *table) {
+bool check_unique_fields(TABLE *table) {
   ulonglong hash;
 
   if (!table->hash_field) return true;
@@ -4036,7 +4035,7 @@ bool check_unique_constraint(TABLE *table) {
   if (table->group)
     hash = unique_hash_group(table->group);
   else
-    hash = unique_hash_fields(table);
+    hash = calc_row_hash(table);
   table->hash_field->store(hash, true);
   int res = table->file->ha_index_read_map(table->record[1],
                                            table->hash_field->field_ptr(),

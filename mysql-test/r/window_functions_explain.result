@@ -16670,34 +16670,18 @@ join_optimization": {
               "select#": 1,
               "steps": [
                 {
-                  "creating_tmp_table": {
-                    "tmp_table_info": {
-                      "table": "<temporary>",
-                      "in_plan_at_position": 2,
-                      "columns": 6,
-                      "row_length": 29,
-                      "key_length": 0,
-                      "unique_constraint": false,
-                      "makes_grouped_rows": false,
-                      "cannot_insert_duplicates": false,
-                      "location": "TempTable"
-                    }
-                  }
-                },
-                {
-                  "materialize": {
-                    "select#": 1,
+                  "no de-duplication": {
                     "steps": [
                       {
                         "creating_tmp_table": {
                           "tmp_table_info": {
                             "table": "<temporary>",
-                            "in_plan_at_position": 1,
-                            "columns": 5,
-                            "row_length": 22,
-                            "key_length": 5,
+                            "in_plan_at_position": 2,
+                            "columns": 6,
+                            "row_length": 29,
+                            "key_length": 0,
                             "unique_constraint": false,
-                            "makes_grouped_rows": true,
+                            "makes_grouped_rows": false,
                             "cannot_insert_duplicates": false,
                             "location": "TempTable"
                           }
@@ -16707,6 +16691,67 @@ join_optimization": {
                         "materialize": {
                           "select#": 1,
                           "steps": [
+                            {
+                              "no de-duplication": {
+                                "steps": [
+                                  {
+                                    "creating_tmp_table": {
+                                      "tmp_table_info": {
+                                        "table": "<temporary>",
+                                        "in_plan_at_position": 1,
+                                        "columns": 5,
+                                        "row_length": 22,
+                                        "key_length": 5,
+                                        "unique_constraint": false,
+                                        "makes_grouped_rows": true,
+                                        "cannot_insert_duplicates": false,
+                                        "location": "TempTable"
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "materialize": {
+                                      "select#": 1,
+                                      "steps": [
+                                        {
+                                          "de-duplicate with index": {
+                                            "steps": [
+                                            ]
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "sorting_table": "<temporary>",
+                                    "filesort_information": [
+                                      {
+                                        "direction": "asc",
+                                        "expression": "`t`.`i`"
+                                      }
+                                    ],
+                                    "filesort_priority_queue_optimization": {
+                                      "usable": false,
+                                      "cause": "not applicable (no LIMIT)"
+                                    },
+                                    "filesort_execution": [
+                                    ],
+                                    "filesort_summary": {
+                                      "memory_available": 262144,
+                                      "key_size": "XXX",
+                                      "row_size": "XXX",
+                                      "max_rows_per_buffer": "NNN",
+                                      "num_rows_estimate": 40,
+                                      "num_rows_found": 24,
+                                      "num_initial_chunks_spilled_to_disk": 0,
+                                      "peak_memory_used": "NNN",
+                                      "sort_algorithm": "std::sort",
+                                      "sort_mode": "<fixed_sort_key, packed_additional_fields>"
+                                    }
+                                  }
+                                ]
+                              }
+                            }
                           ]
                         }
                       },
@@ -16714,7 +16759,7 @@ join_optimization": {
                         "sorting_table": "<temporary>",
                         "filesort_information": [
                           {
-                            "direction": "asc",
+                            "direction": "desc",
                             "expression": "`t`.`i`"
                           }
                         ],
@@ -16729,7 +16774,7 @@ join_optimization": {
                           "key_size": "XXX",
                           "row_size": "XXX",
                           "max_rows_per_buffer": "NNN",
-                          "num_rows_estimate": 40,
+                          "num_rows_estimate": 15,
                           "num_rows_found": 24,
                           "num_initial_chunks_spilled_to_disk": 0,
                           "peak_memory_used": "NNN",
@@ -16738,33 +16783,6 @@ join_optimization": {
                         }
                       }
                     ]
-                  }
-                },
-                {
-                  "sorting_table": "<temporary>",
-                  "filesort_information": [
-                    {
-                      "direction": "desc",
-                      "expression": "`t`.`i`"
-                    }
-                  ],
-                  "filesort_priority_queue_optimization": {
-                    "usable": false,
-                    "cause": "not applicable (no LIMIT)"
-                  },
-                  "filesort_execution": [
-                  ],
-                  "filesort_summary": {
-                    "memory_available": 262144,
-                    "key_size": "XXX",
-                    "row_size": "XXX",
-                    "max_rows_per_buffer": "NNN",
-                    "num_rows_estimate": 15,
-                    "num_rows_found": 24,
-                    "num_initial_chunks_spilled_to_disk": 0,
-                    "peak_memory_used": "NNN",
-                    "sort_algorithm": "std::sort",
-                    "sort_mode": "<fixed_sort_key, packed_additional_fields>"
                   }
                 }
               ]

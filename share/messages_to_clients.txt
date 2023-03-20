@@ -10045,6 +10045,9 @@ ER_INNODB_IMPORT_DROP_COL_METADATA_MISMATCH
 ER_INNODB_IMPORT_ENUM_NULL_TERMINATOR_MISSING
   eng "Enum/Set element name missing null terminator for column '%s'"
 
+ER_SIMULATED_INJECTION_ERROR
+  eng "%s %s %zu."
+
 #
 #  End of 8.1 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

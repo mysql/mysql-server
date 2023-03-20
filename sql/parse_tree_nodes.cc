@@ -1640,7 +1640,7 @@ void PT_set_operation::merge_descendants(Parse_context *pc,
     for (Query_term *elt : ql.m_elts) {
       // We only collapse same kind, and only if no LIMIT on it. Also, we do
       // not collapse INTERSECT ALL due to difficulty in computing it if we
-      // do, cf. logic in MaterializeIterator<Profiler>::MaterializeQueryBlock.
+      // do, cf. logic in MaterializeIterator<Profiler>::MaterializeOperand.
       if (elt->term_type() == QT_QUERY_BLOCK || /* 1 */
           elt->term_type() != op ||             /* 2 */
           (op == QT_EXCEPT && count > 0) ||     /* 3 */

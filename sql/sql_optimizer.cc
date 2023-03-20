@@ -11582,9 +11582,9 @@ double EstimateRowAccesses(const AccessPath *path, double num_evaluations,
             const double num_materializations =
                 subpath->materialize().param->rematerialize ? num_evaluations
                                                             : 1.0;
-            for (const MaterializePathParameters::QueryBlock &query_block :
-                 subpath->materialize().param->query_blocks) {
-              rows += EstimateRowAccesses(query_block.subquery_path,
+            for (const MaterializePathParameters::Operand &operand :
+                 subpath->materialize().param->m_operands) {
+              rows += EstimateRowAccesses(operand.subquery_path,
                                           num_materializations, kNoLimit);
             }
             return true;

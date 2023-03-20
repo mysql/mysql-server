@@ -1,0 +1,576 @@
+#
+# Debug build companion of query_expression.inc
+# See also suite opt_trace.query_expression{_debug).test
+#
+CREATE TABLE t(i INT, d DATE, c VARCHAR(60) CHARSET latin1) ENGINE=innodb;
+set @@cte_max_recursion_depth = 100000;
+INSERT INTO t
+WITH RECURSIVE cte AS (
+SELECT 0 AS i, '2022-04-30' AS d, 'abracadabra' as c
+UNION
+SELECT 1 AS i, '2022-04-30' AS d, 'rabarbra' as c
+UNION
+SELECT i+2, d, c FROM cte
+WHERE i+2 < 65536/2
+)
+SELECT i,d,c FROM cte;
+set @@cte_max_recursion_depth = default;
+INSERT INTO t select i, d, c FROM  t;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+# Test spill correctness with secondary overflow using
+# injection. This query with setop_hash_buffer_size == 16384
+# will give 128 chunk files. With default setting it does not
+# spill to disk.
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+CREATE TABLE no_hashing AS SELECT * FROM t INTERSECT SELECT * FROM t;
+SET SESSION optimizer_switch = 'hash_set_operations=default';
+SET SESSION setop_hash_buffer_size = 16384;
+SET SESSION debug_setop_secondary_overflow_at='0 128 1';
+SELECT * FROM t INTERSECT SELECT * FROM t;
+ERROR HY000: Chunk number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: 127.
+SET SESSION debug_setop_secondary_overflow_at='1 128 1';
+SELECT * FROM t INTERSECT SELECT * FROM t;
+ERROR HY000: Chunk number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: 127.
+SET SESSION debug_setop_secondary_overflow_at='2 0 1';
+SELECT * FROM t INTERSECT SELECT * FROM t;
+ERROR HY000: Set number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: 1.
+# Compare old approach (no hashing) with hashing w/spill and secondary overflow
+SET SESSION debug_setop_secondary_overflow_at='0 0 1';
+CREATE TABLE t_0_0_1 AS SELECT * FROM t INTERSECT SELECT * FROM t;
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_0_0_1) derived;
+COUNT(*)
+0
+SELECT COUNT(*) FROM (SELECT * FROM t_0_0_1 EXCEPT ALL SELECT * FROM no_hashing) derived;
+COUNT(*)
+0
+SET SESSION optimizer_switch = 'hash_set_operations=default';
+DROP TABLE t_0_0_1;
+# Compare old approach (no hashing) with hashing w/spill and secondary overflow
+SET SESSION debug_setop_secondary_overflow_at='0 0 200';
+CREATE TABLE t_0_0_200 AS SELECT * FROM t INTERSECT SELECT * FROM t;
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_0_0_200) derived;
+COUNT(*)
+0
+SELECT COUNT(*) FROM (SELECT * FROM t_0_0_200 EXCEPT ALL SELECT * FROM no_hashing) derived;
+COUNT(*)
+0
+SET SESSION optimizer_switch = 'hash_set_operations=default';
+DROP TABLE t_0_0_200;
+# Compare old approach (no hashing) with hashing w/spill and secondary overflow
+SET SESSION debug_setop_secondary_overflow_at='0 50 20';
+CREATE TABLE t_0_50_20 AS SELECT * FROM t INTERSECT SELECT * FROM t;
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_0_50_20) derived;
+COUNT(*)
+0
+SELECT COUNT(*) FROM (SELECT * FROM t_0_50_20 EXCEPT ALL SELECT * FROM no_hashing) derived;
+COUNT(*)
+0
+SET SESSION optimizer_switch = 'hash_set_operations=default';
+DROP TABLE t_0_50_20;
+# Too high row
+SET SESSION debug_setop_secondary_overflow_at='1 127 279';
+CREATE TABLE t___ AS SELECT * FROM t INTERSECT SELECT * FROM t;
+ERROR HY: Row number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: .
+# Compare old approach (no hashing) with hashing w/spill and secondary overflow
+SET SESSION debug_setop_secondary_overflow_at='0 127 200';
+CREATE TABLE t_0_127_200 AS SELECT * FROM t INTERSECT SELECT * FROM t;
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_0_127_200) derived;
+COUNT(*)
+0
+SELECT COUNT(*) FROM (SELECT * FROM t_0_127_200 EXCEPT ALL SELECT * FROM no_hashing) derived;
+COUNT(*)
+0
+SET SESSION optimizer_switch = 'hash_set_operations=default';
+DROP TABLE t_0_127_200;
+# Compare old approach (no hashing) with hashing w/spill and secondary overflow
+SET SESSION debug_setop_secondary_overflow_at='1 0 1';
+CREATE TABLE t_1_0_1 AS SELECT * FROM t INTERSECT SELECT * FROM t;
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_1_0_1) derived;
+COUNT(*)
+0
+SELECT COUNT(*) FROM (SELECT * FROM t_1_0_1 EXCEPT ALL SELECT * FROM no_hashing) derived;
+COUNT(*)
+0
+SET SESSION optimizer_switch = 'hash_set_operations=default';
+DROP TABLE t_1_0_1;
+# Compare old approach (no hashing) with hashing w/spill and secondary overflow
+SET SESSION debug_setop_secondary_overflow_at='1 50 20';
+CREATE TABLE t_1_50_20 AS SELECT * FROM t INTERSECT SELECT * FROM t;
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_1_50_20) derived;
+COUNT(*)
+0
+SELECT COUNT(*) FROM (SELECT * FROM t_1_50_20 EXCEPT ALL SELECT * FROM no_hashing) derived;
+COUNT(*)
+0
+SET SESSION optimizer_switch = 'hash_set_operations=default';
+DROP TABLE t_1_50_20;
+# Row too high
+SET SESSION debug_setop_secondary_overflow_at='1 127 258';
+CREATE TABLE t___ AS SELECT * FROM t INTERSECT SELECT * FROM t;
+ERROR HY: Row number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: .
+# Compare old approach (no hashing) with hashing w/spill and secondary overflow
+# Row in last chunk
+SET SESSION debug_setop_secondary_overflow_at='1 127 200';
+CREATE TABLE t_1_127_200 AS SELECT * FROM t INTERSECT SELECT * FROM t;
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_1_127_200) derived;
+COUNT(*)
+0
+SELECT COUNT(*) FROM (SELECT * FROM t_1_127_200 EXCEPT ALL SELECT * FROM no_hashing) derived;
+COUNT(*)
+0
+DROP TABLE t_1_127_200;
+SET SESSION debug_setop_secondary_overflow_at= default;
+SET SESSION optimizer_switch = 'hash_set_operations=default';
+SET SESSION setop_hash_buffer_size = default;
+DROP TABLE no_hashing;
+#
+# Test overflow in resulting tmp table at secondary overflow
+#
+SET SESSION optimizer_trace="enabled=on";
+SET SESSION tmp_table_size=100000;
+# b) With secondary overflow
+SET SESSION debug_setop_secondary_overflow_at='0 10 20';
+SELECT * FROM (SELECT * FROM t INTERSECT SELECT * FROM t) AS derived ORDER BY i LIMIT 20;
+i	d	c
+0	2022-04-30	abracadabra
+1	2022-04-30	rabarbra
+2	2022-04-30	abracadabra
+3	2022-04-30	rabarbra
+4	2022-04-30	abracadabra
+5	2022-04-30	rabarbra
+6	2022-04-30	abracadabra
+7	2022-04-30	rabarbra
+8	2022-04-30	abracadabra
+9	2022-04-30	rabarbra
+10	2022-04-30	abracadabra
+11	2022-04-30	rabarbra
+12	2022-04-30	abracadabra
+13	2022-04-30	rabarbra
+14	2022-04-30	abracadabra
+15	2022-04-30	rabarbra
+16	2022-04-30	abracadabra
+17	2022-04-30	rabarbra
+18	2022-04-30	abracadabra
+19	2022-04-30	rabarbra
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
+FROM information_schema.optimizer_trace;
+JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
+[
+  {
+    "steps": [
+      {
+        "creating_tmp_table": {
+          "tmp_table_info": {
+            "table": "derived",
+            "columns": 5,
+            "location": "TempTable",
+            "key_length": 0,
+            "row_length": 86,
+            "unique_constraint": true,
+            "makes_grouped_rows": false,
+            "in_plan_at_position": 0,
+            "cannot_insert_duplicates": true
+          }
+        }
+      },
+      {
+        "materialize for intersect": {
+          "steps": [
+            {
+              "de-duplicate with hash table": {
+                "steps": [
+                  {
+                    "spill to disk initiated": {
+                      "chunk sets": 1,
+                      "chunk files": 64
+                    }
+                  },
+                  {
+                    "spill handling overflow, reverting to index": {
+                      "steps": [
+                        {
+                          "creating_tmp_table": {
+                            "tmp_table_info": {
+                              "table": "derived",
+                              "columns": 5,
+                              "location": "TempTable",
+                              "key_length": 8,
+                              "row_length": 86,
+                              "unique_constraint": true,
+                              "makes_grouped_rows": false,
+                              "in_plan_at_position": 0,
+                              "cannot_insert_duplicates": true
+                            }
+                          }
+                        },
+                        {
+                          "converting_tmp_table_to_ondisk": {
+                            "cause": "memory_table_size_exceeded",
+                            "tmp_table_info": {
+                              "table": "derived",
+                              "columns": 5,
+                              "location": "disk (InnoDB)",
+                              "key_length": 8,
+                              "row_length": 86,
+                              "record_format": "fixed",
+                              "unique_constraint": true,
+                              "makes_grouped_rows": false,
+                              "in_plan_at_position": 0,
+                              "cannot_insert_duplicates": true
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "select#": 2
+        }
+      },
+      {
+        "materialize for intersect": {
+          "steps": [
+            {
+              "de-duplicate with index": {
+                "steps": []
+              }
+            }
+          ],
+          "select#": 3
+        }
+      },
+      {
+        "sorting_table": "derived",
+        "filesort_summary": {
+          "key_size": 9,
+          "row_size": 94,
+          "sort_mode": "<fixed_sort_key, additional_fields>",
+          "num_rows_found": 32768,
+          "sort_algorithm": "std::sort",
+          "memory_available": 262144,
+          "peak_memory_used": "elided",
+          "num_rows_estimate": "elided",
+          "max_rows_per_buffer": 21,
+          "unpacked_addon_fields": "using_priority_queue",
+          "num_initial_chunks_spilled_to_disk": "elided"
+        },
+        "filesort_execution": [],
+        "filesort_information": [
+          {
+            "direction": "asc",
+            "expression": "`derived`.`i`"
+          }
+        ],
+        "filesort_priority_queue_optimization": {
+          "limit": 20,
+          "chosen": true
+        }
+      }
+    ],
+    "select#": 1
+  }
+]
+SET SESSION debug_setop_secondary_overflow_at= default;
+SET SESSION tmp_table_size=default;
+SET SESSION setop_hash_buffer_size=default;
+SET SESSION optimizer_trace="enabled=default";
+DROP TABLE t;
+#
+# Debug build companion of query_expression.inc
+# See also suite opt_trace.query_expression{_debug).test
+#
+CREATE TABLE t(i INT, d DATE, c TEXT CHARSET latin1) ENGINE=innodb;
+set @@cte_max_recursion_depth = 100000;
+INSERT INTO t
+WITH RECURSIVE cte AS (
+SELECT 0 AS i, '2022-04-30' AS d, 'abracadabra' as c
+UNION
+SELECT 1 AS i, '2022-04-30' AS d, 'rabarbra' as c
+UNION
+SELECT i+2, d, c FROM cte
+WHERE i+2 < 65536/2
+)
+SELECT i,d,c FROM cte;
+set @@cte_max_recursion_depth = default;
+INSERT INTO t select i, d, c FROM  t;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+# Test spill correctness with secondary overflow using
+# injection. This query with setop_hash_buffer_size == 16384
+# will give 128 chunk files. With default setting it does not
+# spill to disk.
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+CREATE TABLE no_hashing AS SELECT * FROM t INTERSECT SELECT * FROM t;
+SET SESSION optimizer_switch = 'hash_set_operations=default';
+SET SESSION setop_hash_buffer_size = 16384;
+SET SESSION debug_setop_secondary_overflow_at='0 128 1';
+SELECT * FROM t INTERSECT SELECT * FROM t;
+ERROR HY000: Chunk number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: 127.
+SET SESSION debug_setop_secondary_overflow_at='1 128 1';
+SELECT * FROM t INTERSECT SELECT * FROM t;
+ERROR HY000: Chunk number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: 127.
+SET SESSION debug_setop_secondary_overflow_at='2 0 1';
+SELECT * FROM t INTERSECT SELECT * FROM t;
+ERROR HY000: Set number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: 1.
+# Compare old approach (no hashing) with hashing w/spill and secondary overflow
+SET SESSION debug_setop_secondary_overflow_at='0 0 1';
+CREATE TABLE t_0_0_1 AS SELECT * FROM t INTERSECT SELECT * FROM t;
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_0_0_1) derived;
+COUNT(*)
+0
+SELECT COUNT(*) FROM (SELECT * FROM t_0_0_1 EXCEPT ALL SELECT * FROM no_hashing) derived;
+COUNT(*)
+0
+SET SESSION optimizer_switch = 'hash_set_operations=default';
+DROP TABLE t_0_0_1;
+# Compare old approach (no hashing) with hashing w/spill and secondary overflow
+SET SESSION debug_setop_secondary_overflow_at='0 0 200';
+CREATE TABLE t_0_0_200 AS SELECT * FROM t INTERSECT SELECT * FROM t;
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_0_0_200) derived;
+COUNT(*)
+0
+SELECT COUNT(*) FROM (SELECT * FROM t_0_0_200 EXCEPT ALL SELECT * FROM no_hashing) derived;
+COUNT(*)
+0
+SET SESSION optimizer_switch = 'hash_set_operations=default';
+DROP TABLE t_0_0_200;
+# Compare old approach (no hashing) with hashing w/spill and secondary overflow
+SET SESSION debug_setop_secondary_overflow_at='0 50 20';
+CREATE TABLE t_0_50_20 AS SELECT * FROM t INTERSECT SELECT * FROM t;
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_0_50_20) derived;
+COUNT(*)
+0
+SELECT COUNT(*) FROM (SELECT * FROM t_0_50_20 EXCEPT ALL SELECT * FROM no_hashing) derived;
+COUNT(*)
+0
+SET SESSION optimizer_switch = 'hash_set_operations=default';
+DROP TABLE t_0_50_20;
+# Too high row
+SET SESSION debug_setop_secondary_overflow_at='1 127 279';
+CREATE TABLE t___ AS SELECT * FROM t INTERSECT SELECT * FROM t;
+ERROR HY: Row number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: .
+# Compare old approach (no hashing) with hashing w/spill and secondary overflow
+SET SESSION debug_setop_secondary_overflow_at='0 127 200';
+CREATE TABLE t_0_127_200 AS SELECT * FROM t INTERSECT SELECT * FROM t;
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_0_127_200) derived;
+COUNT(*)
+0
+SELECT COUNT(*) FROM (SELECT * FROM t_0_127_200 EXCEPT ALL SELECT * FROM no_hashing) derived;
+COUNT(*)
+0
+SET SESSION optimizer_switch = 'hash_set_operations=default';
+DROP TABLE t_0_127_200;
+# Compare old approach (no hashing) with hashing w/spill and secondary overflow
+SET SESSION debug_setop_secondary_overflow_at='1 0 1';
+CREATE TABLE t_1_0_1 AS SELECT * FROM t INTERSECT SELECT * FROM t;
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_1_0_1) derived;
+COUNT(*)
+0
+SELECT COUNT(*) FROM (SELECT * FROM t_1_0_1 EXCEPT ALL SELECT * FROM no_hashing) derived;
+COUNT(*)
+0
+SET SESSION optimizer_switch = 'hash_set_operations=default';
+DROP TABLE t_1_0_1;
+# Compare old approach (no hashing) with hashing w/spill and secondary overflow
+SET SESSION debug_setop_secondary_overflow_at='1 50 20';
+CREATE TABLE t_1_50_20 AS SELECT * FROM t INTERSECT SELECT * FROM t;
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_1_50_20) derived;
+COUNT(*)
+0
+SELECT COUNT(*) FROM (SELECT * FROM t_1_50_20 EXCEPT ALL SELECT * FROM no_hashing) derived;
+COUNT(*)
+0
+SET SESSION optimizer_switch = 'hash_set_operations=default';
+DROP TABLE t_1_50_20;
+# Row too high
+SET SESSION debug_setop_secondary_overflow_at='1 127 258';
+CREATE TABLE t___ AS SELECT * FROM t INTERSECT SELECT * FROM t;
+ERROR HY: Row number in debug_setop_secondary_overflow_at too high: should be lower than or equal to: .
+# Compare old approach (no hashing) with hashing w/spill and secondary overflow
+# Row in last chunk
+SET SESSION debug_setop_secondary_overflow_at='1 127 200';
+CREATE TABLE t_1_127_200 AS SELECT * FROM t INTERSECT SELECT * FROM t;
+SET SESSION optimizer_switch = 'hash_set_operations=off';
+SELECT COUNT(*) FROM (SELECT * FROM no_hashing EXCEPT ALL SELECT * FROM t_1_127_200) derived;
+COUNT(*)
+0
+SELECT COUNT(*) FROM (SELECT * FROM t_1_127_200 EXCEPT ALL SELECT * FROM no_hashing) derived;
+COUNT(*)
+0
+DROP TABLE t_1_127_200;
+SET SESSION debug_setop_secondary_overflow_at= default;
+SET SESSION optimizer_switch = 'hash_set_operations=default';
+SET SESSION setop_hash_buffer_size = default;
+DROP TABLE no_hashing;
+#
+# Test overflow in resulting tmp table at secondary overflow
+#
+SET SESSION optimizer_trace="enabled=on";
+SET SESSION tmp_table_size=100000;
+# b) With secondary overflow
+SET SESSION debug_setop_secondary_overflow_at='0 10 20';
+SELECT * FROM (SELECT * FROM t INTERSECT SELECT * FROM t) AS derived ORDER BY i LIMIT 20;
+i	d	c
+0	2022-04-30	abracadabra
+1	2022-04-30	rabarbra
+2	2022-04-30	abracadabra
+3	2022-04-30	rabarbra
+4	2022-04-30	abracadabra
+5	2022-04-30	rabarbra
+6	2022-04-30	abracadabra
+7	2022-04-30	rabarbra
+8	2022-04-30	abracadabra
+9	2022-04-30	rabarbra
+10	2022-04-30	abracadabra
+11	2022-04-30	rabarbra
+12	2022-04-30	abracadabra
+13	2022-04-30	rabarbra
+14	2022-04-30	abracadabra
+15	2022-04-30	rabarbra
+16	2022-04-30	abracadabra
+17	2022-04-30	rabarbra
+18	2022-04-30	abracadabra
+19	2022-04-30	rabarbra
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
+FROM information_schema.optimizer_trace;
+JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
+[
+  {
+    "steps": [
+      {
+        "creating_tmp_table": {
+          "tmp_table_info": {
+            "table": "derived",
+            "columns": 5,
+            "location": "TempTable",
+            "key_length": 0,
+            "row_length": 34,
+            "unique_constraint": true,
+            "makes_grouped_rows": false,
+            "in_plan_at_position": 0,
+            "cannot_insert_duplicates": true
+          }
+        }
+      },
+      {
+        "materialize for intersect": {
+          "steps": [
+            {
+              "de-duplicate with hash table": {
+                "steps": [
+                  {
+                    "spill to disk initiated": {
+                      "chunk sets": 1,
+                      "chunk files": 64
+                    }
+                  },
+                  {
+                    "spill handling overflow, reverting to index": {
+                      "steps": [
+                        {
+                          "creating_tmp_table": {
+                            "tmp_table_info": {
+                              "table": "derived",
+                              "columns": 5,
+                              "location": "TempTable",
+                              "key_length": 8,
+                              "row_length": 34,
+                              "unique_constraint": true,
+                              "makes_grouped_rows": false,
+                              "in_plan_at_position": 0,
+                              "cannot_insert_duplicates": true
+                            }
+                          }
+                        },
+                        {
+                          "converting_tmp_table_to_ondisk": {
+                            "cause": "memory_table_size_exceeded",
+                            "tmp_table_info": {
+                              "table": "derived",
+                              "columns": 5,
+                              "location": "disk (InnoDB)",
+                              "key_length": 8,
+                              "row_length": 34,
+                              "record_format": "fixed",
+                              "unique_constraint": true,
+                              "makes_grouped_rows": false,
+                              "in_plan_at_position": 0,
+                              "cannot_insert_duplicates": true
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "select#": 2
+        }
+      },
+      {
+        "materialize for intersect": {
+          "steps": [
+            {
+              "de-duplicate with index": {
+                "steps": []
+              }
+            }
+          ],
+          "select#": 3
+        }
+      },
+      {
+        "sorting_table": "derived",
+        "filesort_summary": {
+          "key_size": 9,
+          "row_size": 65574,
+          "sort_mode": "<fixed_sort_key, packed_additional_fields>",
+          "num_rows_found": 32768,
+          "sort_algorithm": "std::stable_sort",
+          "memory_available": 262144,
+          "peak_memory_used": "elided",
+          "num_rows_estimate": "elided",
+          "max_rows_per_buffer": 3,
+          "num_initial_chunks_spilled_to_disk": "elided"
+        },
+        "filesort_execution": [],
+        "filesort_information": [
+          {
+            "direction": "asc",
+            "expression": "`derived`.`i`"
+          }
+        ],
+        "filesort_priority_queue_optimization": {
+          "limit": 20
+        }
+      }
+    ],
+    "select#": 1
+  }
+]
+SET SESSION debug_setop_secondary_overflow_at= default;
+SET SESSION tmp_table_size=default;
+SET SESSION setop_hash_buffer_size=default;
+SET SESSION optimizer_trace="enabled=default";
+DROP TABLE t;

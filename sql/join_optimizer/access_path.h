@@ -1525,32 +1525,31 @@ inline AccessPath *NewStreamingAccessPath(THD *thd, AccessPath *child,
   return path;
 }
 
-inline Mem_root_array<MaterializePathParameters::QueryBlock>
+inline Mem_root_array<MaterializePathParameters::Operand>
 SingleMaterializeQueryBlock(THD *thd, AccessPath *path, int select_number,
                             JOIN *join, bool copy_items,
                             Temp_table_param *temp_table_param) {
   assert(path != nullptr);
-  Mem_root_array<MaterializePathParameters::QueryBlock> array(thd->mem_root, 1);
-  MaterializePathParameters::QueryBlock &query_block = array[0];
-  query_block.subquery_path = path;
-  query_block.select_number = select_number;
-  query_block.join = join;
-  query_block.disable_deduplication_by_hash_field = false;
-  query_block.copy_items = copy_items;
-  query_block.temp_table_param = temp_table_param;
+  Mem_root_array<MaterializePathParameters::Operand> array(thd->mem_root, 1);
+  MaterializePathParameters::Operand &operand = array[0];
+  operand.subquery_path = path;
+  operand.select_number = select_number;
+  operand.join = join;
+  operand.disable_deduplication_by_hash_field = false;
+  operand.copy_items = copy_items;
+  operand.temp_table_param = temp_table_param;
   return array;
 }
 
 inline AccessPath *NewMaterializeAccessPath(
-    THD *thd,
-    Mem_root_array<MaterializePathParameters::QueryBlock> query_blocks,
+    THD *thd, Mem_root_array<MaterializePathParameters::Operand> operands,
     Mem_root_array<const AccessPath *> *invalidators, TABLE *table,
     AccessPath *table_path, Common_table_expr *cte, Query_expression *unit,
     int ref_slice, bool rematerialize, ha_rows limit_rows,
     bool reject_multiple_rows) {
   MaterializePathParameters *param =
       new (thd->mem_root) MaterializePathParameters;
-  param->query_blocks = std::move(query_blocks);
+  param->m_operands = std::move(operands);
   if (rematerialize) {
     // There's no point in adding invalidators if we're rematerializing
     // every time anyway.
@@ -1572,9 +1571,8 @@ inline AccessPath *NewMaterializeAccessPath(
   param->reject_multiple_rows = reject_multiple_rows;
 
 #ifndef NDEBUG
-  for (MaterializePathParameters::QueryBlock &query_block :
-       param->query_blocks) {
-    assert(query_block.subquery_path != nullptr);
+  for (MaterializePathParameters::Operand &operand : param->m_operands) {
+    assert(operand.subquery_path != nullptr);
   }
 #endif
 

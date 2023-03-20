@@ -44,3 +44,19 @@ let $elide_costs_and_rows = /[(]cost=[0-9.e+-]+ rows=[0-9.e+-]+[)]/(...)/;
 # ellipsis for the elided metrics. This is to make the output the same
 # regardless of whether there actually is some metric to elide.
 let $elide_metrics = / *[(]cost=.*//;
+
+# Usage: --replace_regex $elide_trace_costs_and_rows
+# Removes metrics from optimizer trace (JSON)
+#
+# Filter out unstable cost and row estimates.  replace_regex
+# allows only a *single* variable substitution
+# (cf. do_get_replace_regex in mysqltest.cc), so build the
+# entire expression incrementally.
+let $elide_trace_costs_and_rows=/cost\": [0-9.]+/cost\": "elided"/;
+let $elide_trace_costs_and_rows=$elide_trace_costs_and_rows /cost_for_plan\": [0-9.]+/cost_for_plan\": "elided"/;
+let $elide_trace_costs_and_rows=$elide_trace_costs_and_rows /rows\": [0-9.]+/rows\": "elided"/;
+let $elide_trace_costs_and_rows=$elide_trace_costs_and_rows /rows_for_plan\": [0-9.]+/rows_for_plan\": "elided"/;
+let $elide_trace_costs_and_rows=$elide_trace_costs_and_rows /rows_to_scan\": [0-9.]+/rows_to_scan\": "elided"/;
+let $elide_trace_costs_and_rows=$elide_trace_costs_and_rows /num_rows_estimate\": [0-9.]+/num_rows_estimate\": "elided"/;
+
+let $elide_json_costs=/cost": "[0-9.]*"/cost": "elided"/;

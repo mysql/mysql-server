@@ -527,7 +527,7 @@ class TableValueConstructorIterator final : public RowIterator {
 /**
   Auxiliary class to squeeze two 32 bits integers into a 64 bits one, cf.
   logic of INTERSECT ALL in
-  MaterializeIterator<Profiler>::MaterializeQueryBlock.
+  MaterializeIterator<Profiler>::MaterializeOperand.
   For INTERSECT ALL we need two counters: the number of duplicates in the left
   operand, and the number of matches seen (so far) from the right operand.
   Instead of adding another field to the temporary table, we subdivide the

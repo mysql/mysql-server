@@ -160,6 +160,12 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
             "materialize": {
               "select#": 1,
               "steps": [
+                {
+                  "de-duplicate with index on hash field": {
+                    "steps": [
+                    ] /* steps */
+                  } /* de-duplicate with index on hash field */
+                }
               ] /* steps */
             } /* materialize */
           }
@@ -321,6 +327,12 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
             "materialize": {
               "select#": 1,
               "steps": [
+                {
+                  "de-duplicate with index": {
+                    "steps": [
+                    ] /* steps */
+                  } /* de-duplicate with index */
+                }
               ] /* steps */
             } /* materialize */
           }
@@ -499,21 +511,27 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
               "select#": 1,
               "steps": [
                 {
-                  "converting_tmp_table_to_ondisk": {
-                    "cause": "memory_table_size_exceeded",
-                    "tmp_table_info": {
-                      "table": "<temporary>",
-                      "in_plan_at_position": 1,
-                      "columns": 3,
-                      "row_length": 4182,
-                      "key_length": 43,
-                      "unique_constraint": false,
-                      "makes_grouped_rows": true,
-                      "cannot_insert_duplicates": false,
-                      "location": "disk (TMP_TABLE_ENGINE)",
-                      "record_format": "packed"
-                    } /* tmp_table_info */
-                  } /* converting_tmp_table_to_ondisk */
+                  "de-duplicate with index": {
+                    "steps": [
+                      {
+                        "converting_tmp_table_to_ondisk": {
+                          "cause": "memory_table_size_exceeded",
+                          "tmp_table_info": {
+                            "table": "<temporary>",
+                            "in_plan_at_position": 1,
+                            "columns": 3,
+                            "row_length": 4182,
+                            "key_length": 43,
+                            "unique_constraint": false,
+                            "makes_grouped_rows": true,
+                            "cannot_insert_duplicates": false,
+                            "location": "disk (TMP_TABLE_ENGINE)",
+                            "record_format": "packed"
+                          } /* tmp_table_info */
+                        } /* converting_tmp_table_to_ondisk */
+                      }
+                    ] /* steps */
+                  } /* de-duplicate with index */
                 }
               ] /* steps */
             } /* materialize */
@@ -1204,35 +1222,47 @@ ORDER BY cc	{
             } /* creating_tmp_table */
           },
           {
-            "materialize": {
+            "materialize for union": {
               "select#": 2,
               "steps": [
                 {
-                  "converting_tmp_table_to_ondisk": {
-                    "cause": "memory_table_size_exceeded",
-                    "tmp_table_info": {
-                      "table": "tt",
-                      "in_plan_at_position": 0,
-                      "columns": 2,
-                      "row_length": 757,
-                      "key_length": 757,
-                      "unique_constraint": false,
-                      "makes_grouped_rows": false,
-                      "cannot_insert_duplicates": true,
-                      "location": "disk (TMP_TABLE_ENGINE)",
-                      "record_format": "packed"
-                    } /* tmp_table_info */
-                  } /* converting_tmp_table_to_ondisk */
+                  "de-duplicate with index": {
+                    "steps": [
+                      {
+                        "converting_tmp_table_to_ondisk": {
+                          "cause": "memory_table_size_exceeded",
+                          "tmp_table_info": {
+                            "table": "tt",
+                            "in_plan_at_position": 0,
+                            "columns": 2,
+                            "row_length": 757,
+                            "key_length": 757,
+                            "unique_constraint": false,
+                            "makes_grouped_rows": false,
+                            "cannot_insert_duplicates": true,
+                            "location": "disk (TMP_TABLE_ENGINE)",
+                            "record_format": "packed"
+                          } /* tmp_table_info */
+                        } /* converting_tmp_table_to_ondisk */
+                      }
+                    ] /* steps */
+                  } /* de-duplicate with index */
                 }
               ] /* steps */
-            } /* materialize */
+            } /* materialize for union */
           },
           {
-            "materialize": {
+            "materialize for union": {
               "select#": 3,
               "steps": [
+                {
+                  "de-duplicate with index": {
+                    "steps": [
+                    ] /* steps */
+                  } /* de-duplicate with index */
+                }
               ] /* steps */
-            } /* materialize */
+            } /* materialize for union */
           },
           {
             "sorting_table": "tt",

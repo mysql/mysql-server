@@ -1,0 +1,5 @@
+let $char_type=VARCHAR(60);
+--source suite/opt_trace/include/query_expression.inc
+let $char_type=TEXT;
+--source suite/opt_trace/include/query_expression.inc
+

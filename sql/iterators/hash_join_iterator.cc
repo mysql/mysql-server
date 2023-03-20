@@ -568,19 +568,14 @@ bool HashJoinIterator::ReadNextHashJoinChunk() {
   // it works like this; if we are at the end of the build chunk, move to the
   // next. If not, keep reading from the same chunk pair. We also move to the
   // next pair of chunk files if the probe chunk file is empty.
-  bool move_to_next_chunk = false;
-  if (m_current_chunk == -1) {
-    // We are before the first chunk, so move to the next.
-    move_to_next_chunk = true;
-  } else if (m_build_chunk_current_row >=
-             m_chunk_files_on_disk[m_current_chunk].build_chunk.num_rows()) {
-    // We are done reading all the rows from the build chunk.
-    move_to_next_chunk = true;
-  } else if (m_chunk_files_on_disk[m_current_chunk].probe_chunk.num_rows() ==
-             0) {
-    // The probe chunk file is empty.
-    move_to_next_chunk = true;
-  }
+  const bool move_to_next_chunk =
+      // We are before the first chunk, so move to the next.
+      m_current_chunk == -1 ||
+      // We are done reading all the rows from the build chunk.
+      m_build_chunk_current_row >=
+          m_chunk_files_on_disk[m_current_chunk].build_chunk.NumRows() ||
+      // The probe chunk file is empty.
+      m_chunk_files_on_disk[m_current_chunk].probe_chunk.NumRows() == 0;
 
   if (move_to_next_chunk) {
     m_current_chunk++;
@@ -605,7 +600,7 @@ bool HashJoinIterator::ReadNextHashJoinChunk() {
       m_chunk_files_on_disk[m_current_chunk].build_chunk;
 
   const bool reject_duplicate_keys = RejectDuplicateKeys();
-  for (; m_build_chunk_current_row < build_chunk.num_rows();
+  for (; m_build_chunk_current_row < build_chunk.NumRows();
        ++m_build_chunk_current_row) {
     // Read the next row from the chunk file, and put it in the in-memory row
     // buffer. If the buffer goes full, do the probe phase against the rows we
@@ -652,7 +647,7 @@ bool HashJoinIterator::ReadNextHashJoinChunk() {
   m_probe_chunk_current_row = 0;
   SetReadingProbeRowState();
 
-  if (m_build_chunk_current_row < build_chunk.num_rows() &&
+  if (m_build_chunk_current_row < build_chunk.NumRows() &&
       m_join_type != JoinType::INNER) {
     // The build chunk did not fit into memory, causing us to refill the hash
     // table once the probe input is consumed. If we don't take any special
@@ -755,7 +750,7 @@ bool HashJoinIterator::ReadRowFromProbeChunkFile() {
   // that row into the record buffer of the probe input table.
   HashJoinChunk &current_probe_chunk =
       m_chunk_files_on_disk[m_current_chunk].probe_chunk;
-  if (m_probe_chunk_current_row >= current_probe_chunk.num_rows()) {
+  if (m_probe_chunk_current_row >= current_probe_chunk.NumRows()) {
     // No more rows in the current probe chunk, so load the next chunk of
     // build rows into the hash table.
     if (m_write_to_probe_row_saving) {
@@ -795,7 +790,7 @@ bool HashJoinIterator::ReadRowFromProbeRowSavingFile() {
   // Read one row from the probe row saving file, and put that row into the
   // record buffer of the probe input table.
   if (m_probe_row_saving_read_file_current_row >=
-      m_probe_row_saving_read_file.num_rows()) {
+      m_probe_row_saving_read_file.NumRows()) {
     // We are done reading all the rows from the probe row saving file. If probe
     // row saving is still enabled, we have a new set of rows in the probe row
     // saving write file.

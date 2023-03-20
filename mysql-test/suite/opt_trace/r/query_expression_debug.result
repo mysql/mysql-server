@@ -1,0 +1,216 @@
+#
+# Test optimizer trace for secondary overflow
+#
+CREATE TABLE t(i INT, d DATE, c VARCHAR(60) CHARSET latin1) ENGINE=innodb;
+SET @@cte_max_recursion_depth = 100000;
+INSERT INTO t
+WITH RECURSIVE cte AS (
+SELECT 0 AS i, '2022-04-30' AS d, 'abracadabra' as c
+UNION
+SELECT 1 AS i, '2022-04-30' AS d, 'rabarbra' as c
+UNION
+SELECT i+2, d, c FROM cte
+WHERE i+2 < 65536/2
+)
+SELECT i,d,c FROM cte;
+SET @@cte_max_recursion_depth = default;
+INSERT INTO t select i, d, c FROM  t;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SET SESSION optimizer_trace='enabled=on';
+SET SESSION setop_hash_buffer_size = 16 * 1024;
+SET SESSION debug_setop_secondary_overflow_at= '1 50 20';
+SELECT COUNT(*) FROM (SELECT * FROM t INTERSECT SELECT * FROM t) derived;
+COUNT(*)
+32768
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
+FROM information_schema.optimizer_trace;
+JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
+[
+  {
+    "steps": [
+      {
+        "creating_tmp_table": {
+          "tmp_table_info": {
+            "table": "derived",
+            "columns": 5,
+            "location": "TempTable",
+            "key_length": 0,
+            "row_length": 86,
+            "unique_constraint": true,
+            "makes_grouped_rows": false,
+            "in_plan_at_position": 0,
+            "cannot_insert_duplicates": true
+          }
+        }
+      },
+      {
+        "materialize for intersect": {
+          "steps": [
+            {
+              "de-duplicate with hash table": {
+                "steps": [
+                  {
+                    "spill to disk initiated": {
+                      "chunk sets": 2,
+                      "chunk files": 257
+                    }
+                  },
+                  {
+                    "spill handling overflow, reverting to index": {
+                      "steps": [
+                        {
+                          "creating_tmp_table": {
+                            "tmp_table_info": {
+                              "table": "derived",
+                              "columns": 5,
+                              "location": "TempTable",
+                              "key_length": 8,
+                              "row_length": 86,
+                              "unique_constraint": true,
+                              "makes_grouped_rows": false,
+                              "in_plan_at_position": 0,
+                              "cannot_insert_duplicates": true
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "select#": 2
+        }
+      },
+      {
+        "materialize for intersect": {
+          "steps": [
+            {
+              "de-duplicate with index": {
+                "steps": []
+              }
+            }
+          ],
+          "select#": 3
+        }
+      }
+    ],
+    "select#": 1
+  }
+]
+SET SESSION debug_setop_secondary_overflow_at= default;
+SET SESSION optimizer_switch = 'hash_set_operations=default';
+SET SESSION optimizer_trace = 'enabled=default';
+SET SESSION setop_hash_buffer_size = default;
+DROP TABLE t;
+#
+# Test optimizer trace for secondary overflow
+#
+CREATE TABLE t(i INT, d DATE, c TEXT CHARSET latin1) ENGINE=innodb;
+SET @@cte_max_recursion_depth = 100000;
+INSERT INTO t
+WITH RECURSIVE cte AS (
+SELECT 0 AS i, '2022-04-30' AS d, 'abracadabra' as c
+UNION
+SELECT 1 AS i, '2022-04-30' AS d, 'rabarbra' as c
+UNION
+SELECT i+2, d, c FROM cte
+WHERE i+2 < 65536/2
+)
+SELECT i,d,c FROM cte;
+SET @@cte_max_recursion_depth = default;
+INSERT INTO t select i, d, c FROM  t;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SET SESSION optimizer_trace='enabled=on';
+SET SESSION setop_hash_buffer_size = 16 * 1024;
+SET SESSION debug_setop_secondary_overflow_at= '1 50 20';
+SELECT COUNT(*) FROM (SELECT * FROM t INTERSECT SELECT * FROM t) derived;
+COUNT(*)
+32768
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
+FROM information_schema.optimizer_trace;
+JSON_PRETTY(JSON_EXTRACT(trace,"$.steps[*].join_execution"))
+[
+  {
+    "steps": [
+      {
+        "creating_tmp_table": {
+          "tmp_table_info": {
+            "table": "derived",
+            "columns": 5,
+            "location": "TempTable",
+            "key_length": 0,
+            "row_length": 34,
+            "unique_constraint": true,
+            "makes_grouped_rows": false,
+            "in_plan_at_position": 0,
+            "cannot_insert_duplicates": true
+          }
+        }
+      },
+      {
+        "materialize for intersect": {
+          "steps": [
+            {
+              "de-duplicate with hash table": {
+                "steps": [
+                  {
+                    "spill to disk initiated": {
+                      "chunk sets": 2,
+                      "chunk files": 257
+                    }
+                  },
+                  {
+                    "spill handling overflow, reverting to index": {
+                      "steps": [
+                        {
+                          "creating_tmp_table": {
+                            "tmp_table_info": {
+                              "table": "derived",
+                              "columns": 5,
+                              "location": "TempTable",
+                              "key_length": 8,
+                              "row_length": 34,
+                              "unique_constraint": true,
+                              "makes_grouped_rows": false,
+                              "in_plan_at_position": 0,
+                              "cannot_insert_duplicates": true
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "select#": 2
+        }
+      },
+      {
+        "materialize for intersect": {
+          "steps": [
+            {
+              "de-duplicate with index": {
+                "steps": []
+              }
+            }
+          ],
+          "select#": 3
+        }
+      }
+    ],
+    "select#": 1
+  }
+]
+SET SESSION debug_setop_secondary_overflow_at= default;
+SET SESSION optimizer_switch = 'hash_set_operations=default';
+SET SESSION optimizer_trace = 'enabled=default';
+SET SESSION setop_hash_buffer_size = default;
+DROP TABLE t;

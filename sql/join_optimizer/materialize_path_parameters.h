@@ -37,8 +37,8 @@ class Common_table_expr;
 class Query_expression;
 
 struct MaterializePathParameters {
-  // Corresponds to MaterializeIterator::QueryBlock; see it for documentation.
-  struct QueryBlock {
+  // Corresponds to MaterializeIterator::Operand; see it for documentation.
+  struct Operand {
     AccessPath *subquery_path;
     int select_number;
     JOIN *join;
@@ -54,7 +54,7 @@ struct MaterializePathParameters {
     /// The number of materialized blocks, i.e. set operands
     uint m_total_operands{0};
   };
-  Mem_root_array<QueryBlock> query_blocks;
+  Mem_root_array<Operand> m_operands;
   Mem_root_array<const AccessPath *> *invalidators;
 
   /// Handle to table to materialize into.

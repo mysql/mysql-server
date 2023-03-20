@@ -1374,26 +1374,32 @@ TRACE
               "select#": 2,
               "steps": [
                 {
-                  "temp_table_aggregate": {
-                    "select#": 2,
+                  "no de-duplication": {
                     "steps": [
                       {
-                        "creating_tmp_table": {
-                          "tmp_table_info": {
-                            "table": "<temporary>",
-                            "in_plan_at_position": 1,
-                            "columns": 2,
-                            "row_length": 22,
-                            "key_length": 5,
-                            "unique_constraint": false,
-                            "makes_grouped_rows": true,
-                            "cannot_insert_duplicates": false,
-                            "location": "TempTable"
-                          } /* tmp_table_info */
-                        } /* creating_tmp_table */
+                        "temp_table_aggregate": {
+                          "select#": 2,
+                          "steps": [
+                            {
+                              "creating_tmp_table": {
+                                "tmp_table_info": {
+                                  "table": "<temporary>",
+                                  "in_plan_at_position": 1,
+                                  "columns": 2,
+                                  "row_length": 22,
+                                  "key_length": 5,
+                                  "unique_constraint": false,
+                                  "makes_grouped_rows": true,
+                                  "cannot_insert_duplicates": false,
+                                  "location": "TempTable"
+                                } /* tmp_table_info */
+                              } /* creating_tmp_table */
+                            }
+                          ] /* steps */
+                        } /* temp_table_aggregate */
                       }
                     ] /* steps */
-                  } /* temp_table_aggregate */
+                  } /* no de-duplication */
                 }
               ] /* steps */
             } /* materialize */
@@ -3754,6 +3760,12 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
             "materialize": {
               "select#": 2,
               "steps": [
+                {
+                  "no de-duplication": {
+                    "steps": [
+                    ] /* steps */
+                  } /* no de-duplication */
+                }
               ] /* steps */
             } /* materialize */
           }

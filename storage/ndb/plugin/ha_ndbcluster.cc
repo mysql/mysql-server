@@ -1,4 +1,4 @@
-﻿/* Copyright (c) 2004, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -14296,9 +14296,9 @@ static void fixup_pushed_access_paths(THD *thd, AccessPath *path,
         break;
       }
       case AccessPath::MATERIALIZE: {
-        for (const MaterializePathParameters::QueryBlock &query_block :
-             subpath->materialize().param->query_blocks) {
-          AccessPath *subquery = query_block.subquery_path;
+        for (const MaterializePathParameters::Operand &operand :
+             subpath->materialize().param->m_operands) {
+          AccessPath *subquery = operand.subquery_path;
           assert(!has_pushed_members_outside_of_branch(subquery, join));
         }
         break;

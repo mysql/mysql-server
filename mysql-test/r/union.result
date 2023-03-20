@@ -227,11 +227,11 @@ a
 (select * from t1 limit 3) intersect (select * from t1 limit 3);
 a
 1
-2
+3
 (select * from t1 limit 4) except (select * from t1 limit 1);
 a
-2
 3
+2
 set SQL_SELECT_LIMIT=DEFAULT;
 drop table t1,t2;
 CREATE TABLE t1 (

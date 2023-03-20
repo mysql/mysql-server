@@ -34,7 +34,6 @@ memory/sql/Unique::sort_buffer test passed.
 memory/sql/Unique::merge_buffer test passed.
 # Testing memory/sql/bison_stack.
 memory/sql/bison_stack test passed.
-# Testing memory/sql/hash_join.
-memory/sql/hash_join test passed.
-# Testing memory/sql/hash_join.
-memory/sql/hash_join test passed.
+# Testing memory/sql/hashed_operation.
+memory/sql/hashed_operation test passed.
+# Testing memory/sql/hashed_operation.

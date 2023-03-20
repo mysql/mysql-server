@@ -132,7 +132,7 @@ extern PSI_memory_key key_memory_global_system_variables;
 extern PSI_memory_key key_memory_errmsgs_handler;
 extern PSI_memory_key key_memory_handlerton_objects;
 extern PSI_memory_key key_memory_hash_index_key_buffer;
-extern PSI_memory_key key_memory_hash_join;
+extern PSI_memory_key key_memory_hash_op;
 extern PSI_memory_key key_memory_help;
 extern PSI_memory_key key_memory_histograms;
 extern PSI_memory_key key_memory_host_cache_hostname;

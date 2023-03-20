@@ -252,9 +252,11 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
 bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct);
 bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 bool make_group_fields(JOIN *main_join, JOIN *curr_join);
-bool check_unique_constraint(TABLE *table);
-ulonglong unique_hash(const Field *field, ulonglong *hash);
+bool check_unique_fields(TABLE *table);
+ulonglong calc_row_hash(TABLE *table);
+ulonglong calc_field_hash(const Field *field, ulonglong *hash);
 int read_const(TABLE *table, Index_lookup *ref);
+bool table_rec_cmp(TABLE *table);
 
 class QEP_TAB : public QEP_shared_owner {
  public:

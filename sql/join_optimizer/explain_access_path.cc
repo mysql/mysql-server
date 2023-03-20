@@ -334,7 +334,7 @@ static std::unique_ptr<Json_object> ExplainMaterializeAccessPath(
     }
   }();
 
-  const bool is_set_operation = param->query_blocks.size() > 1;
+  const bool is_set_operation = param->m_operands.size() > 1;
   string str;
   const bool doing_dedup = MaterializeIsDoingDeduplication(param->table);
   if (param->cte != nullptr) {
@@ -452,11 +452,10 @@ static std::unique_ptr<Json_object> ExplainMaterializeAccessPath(
   // We don't list the table iterator as an explicit child; we mark it in
   // our description instead. (Anything else would look confusingly much
   // like a join.)
-  for (const MaterializePathParameters::QueryBlock &query_block :
-       param->query_blocks) {
+  for (const MaterializePathParameters::Operand &operand : param->m_operands) {
     string this_heading = heading;
 
-    if (query_block.disable_deduplication_by_hash_field) {
+    if (operand.disable_deduplication_by_hash_field) {
       if (this_heading.empty()) {
         this_heading = "Disable deduplication";
       } else {
@@ -465,8 +464,8 @@ static std::unique_ptr<Json_object> ExplainMaterializeAccessPath(
     }
     if (!param->table->is_union_or_table() &&
         (param->table->is_except() && param->table->is_distinct()) &&
-        query_block.m_operand_idx > 0 &&
-        (query_block.m_operand_idx < query_block.m_first_distinct)) {
+        operand.m_operand_idx > 0 &&
+        (operand.m_operand_idx < operand.m_first_distinct)) {
       if (this_heading.empty()) {
         this_heading = "Disable deduplication";
       } else {
@@ -474,7 +473,7 @@ static std::unique_ptr<Json_object> ExplainMaterializeAccessPath(
       }
     }
 
-    if (query_block.is_recursive_reference) {
+    if (operand.is_recursive_reference) {
       if (this_heading.empty()) {
         this_heading = "Repeat until convergence";
       } else {
@@ -482,8 +481,7 @@ static std::unique_ptr<Json_object> ExplainMaterializeAccessPath(
       }
     }
 
-    children->push_back(
-        {query_block.subquery_path, this_heading, query_block.join});
+    children->push_back({operand.subquery_path, this_heading, operand.join});
   }
 
   return (error ? nullptr : std::move(ret_obj));

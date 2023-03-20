@@ -212,7 +212,8 @@ static constexpr const unsigned long long OPTIMIZER_SWITCH_DEFAULT{
     OPTIMIZER_SWITCH_COND_FANOUT_FILTER | OPTIMIZER_SWITCH_DERIVED_MERGE |
     OPTIMIZER_SKIP_SCAN | OPTIMIZER_SWITCH_HASH_JOIN |
     OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX |
-    OPTIMIZER_SWITCH_DERIVED_CONDITION_PUSHDOWN};
+    OPTIMIZER_SWITCH_DERIVED_CONDITION_PUSHDOWN |
+    OPTIMIZER_SWITCH_HASH_SET_OPERATIONS};
 
 static constexpr const unsigned long MYSQLD_NET_RETRY_COUNT{10};
 
@@ -3435,6 +3436,7 @@ static const char *optimizer_switch_names[] = {
     "prefer_ordering_index",
     "hypergraph_optimizer",  // Deliberately not documented below.
     "derived_condition_pushdown",
+    "hash_set_operations",
     "default",
     NullS};
 static Sys_var_flagset Sys_optimizer_switch(
@@ -3448,7 +3450,7 @@ static Sys_var_flagset Sys_optimizer_switch(
     " block_nested_loop, batched_key_access, use_index_extensions,"
     " condition_fanout_filter, derived_merge, hash_join,"
     " subquery_to_derived, prefer_ordering_index,"
-    " derived_condition_pushdown} and val is one of "
+    " derived_condition_pushdown, hash_set_operations} and val is one of "
     "{on, off, default}",
     HINT_UPDATEABLE SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
     optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT), NO_MUTEX_GUARD,
@@ -7712,3 +7714,30 @@ static Sys_var_bool Sys_tls_certificates_enforced_validation(
     READ_ONLY NON_PERSIST GLOBAL_VAR(opt_tls_certificates_enforced_validation),
     CMD_LINE(OPT_ARG), DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_ulonglong Sys_setop_hash_buffer_size(
+    "setop_hash_buffer_size",
+    "The maximum size of the buffer used for hash based set operations ",
+    HINT_UPDATEABLE SESSION_VAR(setop_hash_buffer_size), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(16384 /* 16*1024 */, max_mem_sz), DEFAULT(256ULL * 1024),
+    BLOCK_SIZE(128));
+
+#ifndef NDEBUG
+// If this variable is set, it will inject a secondary overflow in spill to
+// disk of in-memory hash table used for INTERSECT, EXCEPT. Three integers must
+// be given to indicate where to inject the overflow:
+//   a) set index, cf. explanation in comments for class SpillState
+//   b) chunk index
+//   c) row number
+// Syntax: <set-idx:integer 0-based> <chunk-idx:integer 0-based>
+//         <row_no:integer 1-based>
+// Example:
+//       SET SESSION debug_setop_secondary_overflow_at = '1 5 7';
+// If the numbers given are outside range on the high side, they will never
+// trigger any secondary spill.
+static Sys_var_charptr Sys_debug_setop_secondary_overflow_at(
+    "debug_setop_secondary_overflow_at", "Error injection",
+    HINT_UPDATEABLE SESSION_VAR(debug_setop_secondary_overflow_at),
+    CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(""), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
+#endif

@@ -2681,7 +2681,7 @@ enum store_key::store_key_result store_key_hash_item::copy_inner() {
     // Convert to and from little endian, since that is what gets
     // stored in the hash field we are lookup up against.
     ulonglong h = uint8korr(pointer_cast<char *>(hash));
-    h = unique_hash(to_field, &h);
+    h = calc_field_hash(to_field, &h);
     int8store(pointer_cast<char *>(hash), h);
   }
   return res;

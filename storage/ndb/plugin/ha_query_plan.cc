@@ -588,16 +588,16 @@ void ndb_pushed_builder_ctx::construct(Join_nest *nest_ctx,
     }
     case AccessPath::MATERIALIZE: {
       MaterializePathParameters *param = path->materialize().param;
-      for (const MaterializePathParameters::QueryBlock &query_block :
-           param->query_blocks) {
+      for (const MaterializePathParameters::Operand &operand :
+           param->m_operands) {
         // MATERIALIZE are evaluated and stored in a temporary table.
         // They comes in different variants, where they may be 'const',
         // later scanned, or a temporary index created for later lookups.
         // Generally we need to handle them as completely separate queries,
         // without any relation to an upper Join_scope -> 'Query_scope'
-        if (query_block.join == m_join) {  // Within Query_block?
+        if (operand.join == m_join) {  // Within Query_block?
           construct(new (m_thd->mem_root) Query_scope(nest_ctx, "materialized"),
-                    query_block.subquery_path);
+                    operand.subquery_path);
         }
       }
       break;

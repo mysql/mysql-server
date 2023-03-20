@@ -15,9 +15,9 @@ let $start_from = 1;
 let $max_tests = 1000;
 
 CREATE TABLE t1(f1 INT, f2 INT, KEY(f1), KEY(f2));
-INSERT INTO t1 VALUES 
+INSERT INTO t1 VALUES
 (1,1), (2,2), (3,3), (4,4), (5, 5), (6, 6), (7, 7), (8, 8), (9, 9), (10, 10);
-INSERT INTO t1 VALUES 
+INSERT INTO t1 VALUES
 (1,1), (2,2), (3,3), (4,4), (5, 5), (6, 6), (7, 7), (8, 8), (9, 9), (10, 10);
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
@@ -206,14 +206,14 @@ let $memory_key = memory/sql/bison_stack;
 let $test_query = SELECT ((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((1))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))));
 --source include/mem_cnt_check_err.inc
 
---echo # Testing memory/sql/hash_join.
+--echo # Testing memory/sql/hashed_operation.
 CREATE TABLE t0(c0 INT);
 CREATE TABLE t3(c0 DOUBLE);
 CREATE TABLE t2(c0 DOUBLE);
 INSERT INTO t0 VALUES(0);
 INSERT INTO t3 VALUES('-0');
 INSERT INTO t2 VALUES('+0');
-let $memory_key = memory/sql/hash_join;
+let $memory_key = memory/sql/hashed_operation;
 let $test_query = SELECT * FROM t0, t3 WHERE t0.c0 = t3.c0;
 --source include/mem_cnt_check_err.inc
 DROP TABLE t0, t3, t2;
@@ -221,7 +221,7 @@ DROP TABLE t0, t3, t2;
 DROP PROCEDURE p1;
 DROP TABLE t1;
 
---echo # Testing memory/sql/hash_join.
+--echo # Testing memory/sql/hashed_operation.
 CREATE TABLE t1 (i BIGINT);
 CREATE TABLE t2 (i BIGINT);
 INSERT INTO t1 VALUES (1), (2), (3);

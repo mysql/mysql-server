@@ -496,6 +496,7 @@ inline bool my_b_inited(const IO_CACHE *info) {
 constexpr int my_b_EOF = INT_MIN;
 
 inline int my_b_read(IO_CACHE *info, uchar *buffer, size_t count) {
+  assert(info->type != WRITE_CACHE);
   if (info->read_pos + count <= info->read_end) {
     memcpy(buffer, info->read_pos, count);
     info->read_pos += count;
@@ -505,6 +506,7 @@ inline int my_b_read(IO_CACHE *info, uchar *buffer, size_t count) {
 }
 
 inline int my_b_write(IO_CACHE *info, const uchar *buffer, size_t count) {
+  assert(info->type != READ_CACHE);
   if (info->write_pos + count <= info->write_end) {
     memcpy(info->write_pos, buffer, count);
     info->write_pos += count;

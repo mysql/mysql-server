@@ -535,6 +535,15 @@ class HashJoinIterator final : public RowIterator {
   // It is incremented during the state LOADING_NEXT_CHUNK_PAIR.
   int m_current_chunk{-1};
 
+  // Which row we currently are reading from each of the hash join chunk file.
+  ha_rows m_build_chunk_current_row = 0;
+  ha_rows m_probe_chunk_current_row = 0;
+
+  // How many rows we assume there will be when reading the build input.
+  // This is used to choose how many chunks we break it into on disk.
+  const double m_estimated_build_rows;
+
+ public:
   // The seed that is by xxHash64 when calculating the hash from a join
   // key. We use xxHash64 when calculating the hash that is used for
   // determining which chunk file a row should be placed in (in case of
@@ -544,14 +553,6 @@ class HashJoinIterator final : public RowIterator {
   // no special meaning.
   static constexpr uint32_t kChunkPartitioningHashSeed{899339};
 
-  // Which row we currently are reading from each of the hash join chunk file.
-  ha_rows m_build_chunk_current_row = 0;
-  ha_rows m_probe_chunk_current_row = 0;
-
-  // How many rows we assume there will be when reading the build input.
-  // This is used to choose how many chunks we break it into on disk.
-  const double m_estimated_build_rows;
-
   // The maximum number of HashJoinChunks that is allocated for each of the
   // inputs in case we spill to disk. We might very well end up with an amount
   // less than this number, but we keep an upper limit so we don't risk running
@@ -560,6 +561,7 @@ class HashJoinIterator final : public RowIterator {
   // should be placed in.
   static constexpr size_t kMaxChunks = 128;
 
+ private:
   // A buffer that is used during two phases:
   // 1) when constructing a join key from join conditions.
   // 2) when moving a row between tables' record buffers and the hash table.

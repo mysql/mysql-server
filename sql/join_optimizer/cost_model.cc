@@ -195,35 +195,36 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path) {
 
   path->set_num_output_rows(0);
   double cost_for_cacheable = 0.0;
-  bool left_block = true;
+  bool left_operand = true;
   subquery_cost = 0.0;
-  for (const MaterializePathParameters::QueryBlock &block :
-       path->materialize().param->query_blocks) {
-    if (block.subquery_path->num_output_rows() >= 0.0) {
+  for (const MaterializePathParameters::Operand &operand :
+       path->materialize().param->m_operands) {
+    if (operand.subquery_path->num_output_rows() >= 0.0) {
       // For INTERSECT and EXCEPT we can never get more rows than we have in
       // the left block, so do not add unless we are looking at left block or
       // we have a UNION.
-      if (left_block || path->materialize().param->table == nullptr ||
+      if (left_operand || path->materialize().param->table == nullptr ||
           path->materialize().param->table->is_union_or_table()) {
         path->set_num_output_rows(path->num_output_rows() +
-                                  block.subquery_path->num_output_rows());
-      } else if (!left_block &&
+                                  operand.subquery_path->num_output_rows());
+      } else if (!left_operand &&
                  path->materialize().param->table->is_intersect()) {
         // INTERSECT can never give more rows than that of its smallest operand
         path->set_num_output_rows(std::min(
-            path->num_output_rows(), block.subquery_path->num_output_rows()));
+            path->num_output_rows(), operand.subquery_path->num_output_rows()));
       }
-      // For implicit grouping block.subquery_path->num_output_rows() may be set
-      // (to 1.0) even if block.subquery_path->cost is undefined (cf.
+      // For implicit grouping operand.subquery_path->num_output_rows() may be
+      // set (to 1.0) even if operand.subquery_path->cost is undefined (cf.
       // Bug#35240913).
-      if (block.subquery_path->cost > 0.0) {
-        subquery_cost += block.subquery_path->cost;
-        if (block.join != nullptr && block.join->query_block->is_cacheable()) {
-          cost_for_cacheable += block.subquery_path->cost;
+      if (operand.subquery_path->cost > 0.0) {
+        subquery_cost += operand.subquery_path->cost;
+        if (operand.join != nullptr &&
+            operand.join->query_block->is_cacheable()) {
+          cost_for_cacheable += operand.subquery_path->cost;
         }
       }
     }
-    left_block = false;
+    left_operand = false;
   }
 
   if (table_path->type == AccessPath::TABLE_SCAN) {

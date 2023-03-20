@@ -3605,6 +3605,9 @@ class Field_blob : public Field_longstr {
     end of statement. Since InnoDB consumes calculated values only after all
     needed table's virtual fields were calculated, we have to have such backup
     buffer for each field.
+
+    Also used for set operation hashing: we need to compare the new
+    and the existing record with the same hash.
   */
   String m_blob_backup;
 

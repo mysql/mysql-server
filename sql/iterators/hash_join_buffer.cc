@@ -51,50 +51,64 @@
 
 using pack_rows::TableCollection;
 
-namespace hash_join_buffer {
-
-LinkedImmutableString
-HashJoinRowBuffer::StoreLinkedImmutableStringFromTableBuffers(
-    LinkedImmutableString next_ptr, bool *full) {
-  size_t row_size_upper_bound = m_row_size_upper_bound;
-  if (m_tables.has_blob_column()) {
+LinkedImmutableString StoreLinkedImmutableStringFromTableBuffers(
+    MEM_ROOT *mem_root, MEM_ROOT *overflow_mem_root, TableCollection tables,
+    LinkedImmutableString next_ptr, size_t row_size_upper_bound, bool *full) {
+  if (tables.has_blob_column()) {
     // The row size upper bound can have changed.
-    row_size_upper_bound = ComputeRowSizeUpperBound(m_tables);
+    row_size_upper_bound = ComputeRowSizeUpperBound(tables);
   }
 
   const size_t required_value_bytes =
       LinkedImmutableString::RequiredBytesForEncode(row_size_upper_bound);
 
-  std::pair<char *, char *> block = m_mem_root.Peek();
+  std::pair<char *, char *> block = mem_root->Peek();
   if (static_cast<size_t>(block.second - block.first) < required_value_bytes) {
     // No room in this block; ask for a new one and try again.
-    m_mem_root.ForceNewBlock(required_value_bytes);
-    block = m_mem_root.Peek();
+    mem_root->ForceNewBlock(required_value_bytes);
+    block = mem_root->Peek();
   }
   bool committed = false;
   char *start_of_value, *dptr;
   LinkedImmutableString ret{nullptr};
   if (static_cast<size_t>(block.second - block.first) >= required_value_bytes) {
     dptr = start_of_value = block.first;
-  } else {
+  } else if (overflow_mem_root != nullptr) {
     dptr = start_of_value =
-        pointer_cast<char *>(m_overflow_mem_root.Alloc(required_value_bytes));
+        pointer_cast<char *>(overflow_mem_root->Alloc(required_value_bytes));
     if (dptr == nullptr) {
       return LinkedImmutableString{nullptr};
     }
     committed = true;
     *full = true;
+  } else if (full == nullptr) {
+    // Used by set operations, we handle empty return and spill to disk
+    return ret;
+  } else {
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+             current_thd->variables.setop_hash_buffer_size);
+    return ret;  // spill to disk
   }
 
   ret = LinkedImmutableString::EncodeHeader(next_ptr, &dptr);
   dptr = pointer_cast<char *>(
-      StoreFromTableBuffersRaw(m_tables, pointer_cast<uchar *>(dptr)));
+      StoreFromTableBuffersRaw(tables, pointer_cast<uchar *>(dptr)));
 
   if (!committed) {
     const size_t actual_length = dptr - pointer_cast<char *>(start_of_value);
-    m_mem_root.RawCommit(actual_length);
+    mem_root->RawCommit(actual_length);
   }
   return ret;
+}
+
+namespace hash_join_buffer {
+
+LinkedImmutableString
+HashJoinRowBuffer::StoreLinkedImmutableStringFromTableBuffers(
+    LinkedImmutableString next_ptr, bool *full) {
+  return ::StoreLinkedImmutableStringFromTableBuffers(
+      &m_mem_root, &m_overflow_mem_root, m_tables, next_ptr,
+      m_row_size_upper_bound, full);
 }
 
 // A convenience form of LoadIntoTableBuffers() that also verifies the end
@@ -116,8 +130,8 @@ HashJoinRowBuffer::HashJoinRowBuffer(
     size_t max_mem_available)
     : m_join_conditions(std::move(join_conditions)),
       m_tables(std::move(tables)),
-      m_mem_root(key_memory_hash_join, 16384 /* 16 kB */),
-      m_overflow_mem_root(key_memory_hash_join, 256),
+      m_mem_root(key_memory_hash_op, 16384 /* 16 kB */),
+      m_overflow_mem_root(key_memory_hash_op, 256),
       m_hash_map(nullptr),
       m_max_mem_available(
           std::max<size_t>(max_mem_available, 16384 /* 16 kB */)) {

@@ -744,10 +744,10 @@ class Query_expression {
 
   /**
     If there is an unfinished materialization (see optimize()),
-    contains one element for each query block in this query expression.
+    contains one element for each operand (query block) in this query
+    expression.
    */
-  Mem_root_array<MaterializePathParameters::QueryBlock>
-      m_query_blocks_to_materialize;
+  Mem_root_array<MaterializePathParameters::Operand> m_operands;
 
  private:
   /**
@@ -893,14 +893,12 @@ class Query_expression {
   bool force_create_iterators(THD *thd);
 
   /// See optimize().
-  bool unfinished_materialization() const {
-    return !m_query_blocks_to_materialize.empty();
-  }
+  bool unfinished_materialization() const { return !m_operands.empty(); }
 
   /// See optimize().
-  Mem_root_array<MaterializePathParameters::QueryBlock>
+  Mem_root_array<MaterializePathParameters::Operand>
   release_query_blocks_to_materialize() {
-    return std::move(m_query_blocks_to_materialize);
+    return std::move(m_operands);
   }
 
   /// Set new query result object for this query expression
@@ -1856,8 +1854,8 @@ class Query_block : public Query_term {
   /// using the field's index in a derived table.
   Item *get_derived_expr(uint expr_index);
 
-  MaterializePathParameters::QueryBlock setup_materialize_query_block(
-      AccessPath *childPath, TABLE *dst_table);
+  MaterializePathParameters::Operand setup_materialize_query_block(
+      AccessPath *child_path, TABLE *dst_table) const;
 
   // ************************************************
   // * Members (most of these should not be public) *

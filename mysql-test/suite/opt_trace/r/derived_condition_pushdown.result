@@ -452,57 +452,69 @@ trace
               "select#": 2,
               "steps": [
                 {
-                  "creating_tmp_table": {
-                    "tmp_table_info": {
-                      "table": "<temporary>",
-                      "in_plan_at_position": 1,
-                      "columns": 3,
-                      "row_length": 15,
-                      "key_length": 5,
-                      "unique_constraint": false,
-                      "makes_grouped_rows": true,
-                      "cannot_insert_duplicates": false,
-                      "location": "TempTable"
-                    }
-                  }
-                },
-                {
-                  "materialize": {
-                    "select#": 2,
+                  "no de-duplication": {
                     "steps": [
+                      {
+                        "creating_tmp_table": {
+                          "tmp_table_info": {
+                            "table": "<temporary>",
+                            "in_plan_at_position": 1,
+                            "columns": 3,
+                            "row_length": 15,
+                            "key_length": 5,
+                            "unique_constraint": false,
+                            "makes_grouped_rows": true,
+                            "cannot_insert_duplicates": false,
+                            "location": "TempTable"
+                          }
+                        }
+                      },
+                      {
+                        "materialize": {
+                          "select#": 2,
+                          "steps": [
+                            {
+                              "de-duplicate with index": {
+                                "steps": [
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "sorting_table": "<temporary>",
+                        "filesort_information": [
+                          {
+                            "direction": "asc",
+                            "expression": "`t1`.`f1`"
+                          },
+                          {
+                            "direction": "asc",
+                            "expression": "`t1`.`f2`"
+                          }
+                        ],
+                        "filesort_priority_queue_optimization": {
+                          "usable": false,
+                          "cause": "not applicable (no LIMIT)"
+                        },
+                        "filesort_execution": [
+                        ],
+                        "filesort_summary": {
+                          "memory_available": 262144,
+                          "key_size": 18,
+                          "row_size": 31,
+                          "max_rows_per_buffer": 15,
+                          "num_rows_estimate": 15,
+                          "num_rows_found": 1,
+                          "num_initial_chunks_spilled_to_disk": 0,
+                          "peak_memory_used": "NNN",
+                          "sort_algorithm": "none",
+                          "unpacked_addon_fields": "skip_heuristic",
+                          "sort_mode": "<fixed_sort_key, additional_fields>"
+                        }
+                      }
                     ]
-                  }
-                },
-                {
-                  "sorting_table": "<temporary>",
-                  "filesort_information": [
-                    {
-                      "direction": "asc",
-                      "expression": "`t1`.`f1`"
-                    },
-                    {
-                      "direction": "asc",
-                      "expression": "`t1`.`f2`"
-                    }
-                  ],
-                  "filesort_priority_queue_optimization": {
-                    "usable": false,
-                    "cause": "not applicable (no LIMIT)"
-                  },
-                  "filesort_execution": [
-                  ],
-                  "filesort_summary": {
-                    "memory_available": 262144,
-                    "key_size": 18,
-                    "row_size": 31,
-                    "max_rows_per_buffer": 15,
-                    "num_rows_estimate": 15,
-                    "num_rows_found": 1,
-                    "num_initial_chunks_spilled_to_disk": 0,
-                    "peak_memory_used": "NNN",
-                    "sort_algorithm": "none",
-                    "unpacked_addon_fields": "skip_heuristic",
-                    "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
               ]
@@ -1247,28 +1259,12 @@ trace
               "select#": 2,
               "steps": [
                 {
-                  "creating_tmp_table": {
-                    "tmp_table_info": {
-                      "table": "dt1",
-                      "in_plan_at_position": 0,
-                      "columns": 2,
-                      "row_length": 17,
-                      "key_length": 0,
-                      "unique_constraint": false,
-                      "makes_grouped_rows": false,
-                      "cannot_insert_duplicates": false,
-                      "location": "TempTable"
-                    }
-                  }
-                },
-                {
-                  "materialize": {
-                    "select#": 3,
+                  "no de-duplication": {
                     "steps": [
                       {
                         "creating_tmp_table": {
                           "tmp_table_info": {
-                            "table": "dt0",
+                            "table": "dt1",
                             "in_plan_at_position": 0,
                             "columns": 2,
                             "row_length": 17,
@@ -1282,8 +1278,42 @@ trace
                       },
                       {
                         "materialize": {
-                          "select#": 4,
+                          "select#": 3,
                           "steps": [
+                            {
+                              "no de-duplication": {
+                                "steps": [
+                                  {
+                                    "creating_tmp_table": {
+                                      "tmp_table_info": {
+                                        "table": "dt0",
+                                        "in_plan_at_position": 0,
+                                        "columns": 2,
+                                        "row_length": 17,
+                                        "key_length": 0,
+                                        "unique_constraint": false,
+                                        "makes_grouped_rows": false,
+                                        "cannot_insert_duplicates": false,
+                                        "location": "TempTable"
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "materialize": {
+                                      "select#": 4,
+                                      "steps": [
+                                        {
+                                          "no de-duplication": {
+                                            "steps": [
+                                            ]
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  }
+                                ]
+                              }
+                            }
                           ]
                         }
                       }
@@ -2008,28 +2038,40 @@ trace
             }
           },
           {
-            "materialize": {
+            "materialize for union": {
               "select#": 2,
               "steps": [
                 {
-                  "creating_tmp_table": {
-                    "tmp_table_info": {
-                      "table": "<temporary>",
-                      "in_plan_at_position": 1,
-                      "columns": 2,
-                      "row_length": 11,
-                      "key_length": 5,
-                      "unique_constraint": false,
-                      "makes_grouped_rows": true,
-                      "cannot_insert_duplicates": false,
-                      "location": "TempTable"
-                    }
-                  }
-                },
-                {
-                  "materialize": {
-                    "select#": 2,
+                  "de-duplicate with index": {
                     "steps": [
+                      {
+                        "creating_tmp_table": {
+                          "tmp_table_info": {
+                            "table": "<temporary>",
+                            "in_plan_at_position": 1,
+                            "columns": 2,
+                            "row_length": 11,
+                            "key_length": 5,
+                            "unique_constraint": false,
+                            "makes_grouped_rows": true,
+                            "cannot_insert_duplicates": false,
+                            "location": "TempTable"
+                          }
+                        }
+                      },
+                      {
+                        "materialize": {
+                          "select#": 2,
+                          "steps": [
+                            {
+                              "de-duplicate with index": {
+                                "steps": [
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      }
                     ]
                   }
                 }
@@ -2037,9 +2079,15 @@ trace
             }
           },
           {
-            "materialize": {
+            "materialize for union": {
               "select#": 3,
               "steps": [
+                {
+                  "de-duplicate with index": {
+                    "steps": [
+                    ]
+                  }
+                }
               ]
             }
           }

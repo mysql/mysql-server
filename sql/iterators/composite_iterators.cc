@@ -31,9 +31,11 @@
 
 #include "field_types.h"
 #include "mem_root_deque.h"
+#include "my_bit.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "my_xxhash.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "scope_guard.h"
@@ -41,14 +43,18 @@
 #include "sql/error_handler.h"
 #include "sql/field.h"
 #include "sql/handler.h"
+#include "sql/immutable_string.h"
 #include "sql/item.h"
 #include "sql/item_func.h"
 #include "sql/item_sum.h"
 #include "sql/iterators/basic_row_iterators.h"
+#include "sql/iterators/hash_join_buffer.h"
+#include "sql/iterators/hash_join_iterator.h"
 #include "sql/iterators/timing_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/key.h"
+#include "sql/mysqld.h"
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 #include "sql/pfs_batch_mode.h"
@@ -66,6 +72,7 @@
 #include "sql/window.h"
 #include "template_utils.h"
 
+#include "extra/robin-hood-hashing/robin_hood.h"
 using pack_rows::TableCollection;
 using std::string;
 using std::swap;
@@ -481,7 +488,7 @@ int NestedLoopIterator::Read() {
       }
 
       // Init() could read the NULL row flags (e.g., when building a hash
-      // table), so unset them before instead of after.
+      // map), so unset them before instead of after.
       m_source_inner->SetNullRowFlag(false);
 
       if (m_source_inner->Init()) {
@@ -596,13 +603,23 @@ class DummyIteratorProfiler final : public IteratorProfiler {
   which items is governed by the temporary table parameters.
 
   Conceptually (although not performance-wise!), the MaterializeIterator is a
-  no-op if you don't ask for deduplication, and in some cases (e.g. when
+  no-op if you don't ask for deduplication[1], and in some cases (e.g. when
   scanning a table only once), we elide it. However, it's not necessarily
   straightforward to do so by just not inserting the iterator, as the optimizer
   will have set up everything (e.g., read sets, or what table upstream items
   will read from) assuming the materialization will happen, so the realistic
   option is setting up everything as if materialization would happen but not
   actually write to the table; see StreamingIterator for details.
+
+  [1] if we have a UNION DISTINCT or INTERSECT or EXCEPT it is not a no-op
+    - for UNION DISTINCT MaterializeIterator de-duplicates rows via a key
+      on the materialized table in two ways: a) a unique key if possible or
+      a non-unique key on a hash of the row, if not. For details, see
+      \c create_tmp_table.
+    - INTERSECT and EXCEPE use two ways: a) using
+      in-memory hashing (with posible spill to disk), in which case the
+  materialized table is keyless, or if this approach overflows, b) using a
+  non-unique key on the materialized table, the keys being the hash of the rows.
 
   MaterializeIterator conceptually materializes iterators, not JOINs or
   Query_expressions. However, there are many details that leak out
@@ -619,7 +636,7 @@ class MaterializeIterator final : public TableRowIterator {
  public:
   /**
     @param thd Thread handler.
-    @param query_blocks_to_materialize List of query blocks to materialize.
+    @param operands List of operands (aka query blocks) to materialize.
     @param path_params MaterializePath settings.
     @param table_iterator Iterator used for scanning the temporary table
       after materialization.
@@ -631,9 +648,7 @@ class MaterializeIterator final : public TableRowIterator {
       query_blocks_to_materialize should contain only one member, with the same
       join.
    */
-  MaterializeIterator(THD *thd,
-                      Mem_root_array<materialize_iterator::QueryBlock>
-                          query_blocks_to_materialize,
+  MaterializeIterator(THD *thd, materialize_iterator::Operands operands,
                       const MaterializePathParameters *path_params,
                       unique_ptr_destroy_only<RowIterator> table_iterator,
                       JOIN *join);
@@ -662,8 +677,7 @@ class MaterializeIterator final : public TableRowIterator {
   }
 
  private:
-  Mem_root_array<materialize_iterator::QueryBlock>
-      m_query_blocks_to_materialize;
+  materialize_iterator::Operands m_operands;
   unique_ptr_destroy_only<RowIterator> m_table_iterator;
 
   /// If we are materializing a CTE, points to it (otherwise nullptr).
@@ -742,8 +756,48 @@ class MaterializeIterator final : public TableRowIterator {
   */
   Profiler m_table_iter_profiler;
 
+  /// Use a hash map to implement row matching for set operations if true
+  bool m_use_hash_map{true};
+
+  // Iff m_use_hash_map, the MEM_ROOT on which all of the hash map keys and
+  // values are allocated. The actual hash map is on the regular heap.
+  unique_ptr_destroy_only<MEM_ROOT> m_mem_root;
+  size_t m_row_size_upper_bound;
+
+  using hash_map_type = robin_hood::unordered_flat_map<
+      ImmutableStringWithLength, LinkedImmutableString,
+      hash_join_buffer::KeyHasher, hash_join_buffer::KeyEquals>;
+
+  // The hash map where the rows are stored.
+  std::unique_ptr<hash_map_type> m_hash_map;
+
+  // The number of rows stored in m_hash_map (<= rows read in left operand)
+  // (before spill happens).
+  size_t m_rows_in_hash_map{0};
+
+  // The number of rows read from left operand (before spill happens)
+  size_t m_read_rows_before_dedup{0};
+
+  /// Used to keep track of the current hash table entry focus after insertion
+  /// or lookup.
+  hash_map_type::iterator m_hash_map_iterator;
+
+  /// Holds encoded row (if any) stored in the hash table
+  LinkedImmutableString m_next_ptr{nullptr};
+
+  /// last found row in hash map
+  LinkedImmutableString m_last_row{nullptr};
+
+  /// Needed for interfacing hash join function by hash set ops. We only ever
+  /// have one table (the resulting tmp table of the set operation).
+  TableCollection m_table_collection;
+
+  /// Spill to disk state for set operation: when in-memory hash map
+  /// overflows, this keeps track of state.
+  materialize_iterator::SpillState m_spill_state;
+
   /// Whether we are deduplicating using a hash field on the temporary
-  /// table. (This condition mirrors check_unique_constraint().)
+  /// table. (This condition mirrors check_unique_fields().)
   /// If so, we compute a hash value for every row, look up all rows with
   /// the same hash and manually compare them to the row we are trying to
   /// insert.
@@ -752,30 +806,39 @@ class MaterializeIterator final : public TableRowIterator {
   /// The common method is to have a regular index on the table
   /// over the right columns, and in that case, ha_write_row() will fail
   /// with an ignorable error, so that the row is ignored even though
-  /// check_unique_constraint() is not called. However, B-tree indexes
+  /// check_unique_fields() is not called. However, B-tree indexes
   /// have limitations, in particular on length, that sometimes require us
   /// to do this instead. See create_tmp_table() for details.
   bool doing_hash_deduplication() const { return table()->hash_field; }
 
-  /// Whether we are deduplicating, whether through a hash field
-  /// or a regular unique index.
-  bool doing_deduplication() const;
-
   bool MaterializeRecursive();
-  bool MaterializeQueryBlock(
-      const materialize_iterator::QueryBlock &query_block,
-      ha_rows *stored_rows);
+  bool MaterializeOperand(const materialize_iterator::Operand &operand,
+                          ha_rows *stored_rows);
+  int read_next_row(const materialize_iterator::Operand &operand);
+  bool check_unique_fields_hash_map(TABLE *t, bool write, bool *found,
+                                    bool *spill);
+  void backup_or_restore_blob_pointers(bool backup);
+  void update_row_in_hash_map();
+  bool store_row_in_hash_map();
+  bool handle_hash_map_full(const materialize_iterator::Operand &operand,
+                            ha_rows *stored_rows);
+  bool process_row(const materialize_iterator::Operand &operand,
+                   materialize_iterator::Operands &operands, TABLE *t,
+                   uchar *set_counter_0, uchar *set_counter_1, bool *read_next);
+  bool process_row_hash(const materialize_iterator::Operand &operand, TABLE *t,
+                        ha_rows *stored_rows);
+  bool materialize_hash_map(TABLE *t, ha_rows *stored_rows);
+  bool load_HF_row_into_hash_map();
+  friend class materialize_iterator::SpillState;
 };
 
 template <typename Profiler>
 MaterializeIterator<Profiler>::MaterializeIterator(
-    THD *thd,
-    Mem_root_array<materialize_iterator::QueryBlock>
-        query_blocks_to_materialize,
+    THD *thd, materialize_iterator::Operands operands,
     const MaterializePathParameters *path_params,
     unique_ptr_destroy_only<RowIterator> table_iterator, JOIN *join)
     : TableRowIterator(thd, path_params->table),
-      m_query_blocks_to_materialize(std::move(query_blocks_to_materialize)),
+      m_operands(std::move(operands)),
       m_table_iterator(std::move(table_iterator)),
       m_cte(path_params->cte),
       m_query_expression(path_params->unit),
@@ -784,16 +847,19 @@ MaterializeIterator<Profiler>::MaterializeIterator(
       m_rematerialize(path_params->rematerialize),
       m_reject_multiple_rows(path_params->reject_multiple_rows),
       m_limit_rows(path_params->limit_rows),
-      m_invalidators(thd->mem_root) {
+      m_invalidators(thd->mem_root),
+      m_use_hash_map(
+          !table()->is_union_or_table() &&
+          thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HASH_SET_OPERATIONS)),
+      m_spill_state(thd, thd->mem_root) {
   assert(m_limit_rows == HA_POS_ERROR /* EXCEPT, INTERCEPT */ ||
          path_params->table->is_union_or_table());
-
   if (m_ref_slice != -1) {
     assert(m_join != nullptr);
   }
   if (m_join != nullptr) {
-    assert(m_query_blocks_to_materialize.size() == 1);
-    assert(m_query_blocks_to_materialize[0].join == m_join);
+    assert(m_operands.size() == 1);
+    assert(m_operands[0].join == m_join);
   }
   if (path_params->invalidators != nullptr) {
     for (const AccessPath *invalidator_path : *path_params->invalidators) {
@@ -910,24 +976,25 @@ bool MaterializeIterator<Profiler>::Init() {
   // initialize scanning of the index over that hash field. (This is entirely
   // separate from any index usage when reading back the materialized table;
   // m_table_iterator will do that for us.)
-  auto end_unique_index =
-      create_scope_guard([&] { table()->file->ha_index_end(); });
-  if (doing_hash_deduplication()) {
+  auto end_unique_index = create_scope_guard([&] {
+    if (table()->file->inited == handler::INDEX) table()->file->ha_index_end();
+  });
+
+  if (doing_hash_deduplication() && !m_use_hash_map) {
     if (table()->file->ha_index_init(0, /*sorted=*/false)) {
       return true;
     }
-  } else {
-    // We didn't open the index, so we don't need to close it.
-    end_unique_index.commit();
   }
+
   ha_rows stored_rows = 0;
 
   if (m_query_expression != nullptr && m_query_expression->is_recursive()) {
     if (MaterializeRecursive()) return true;
   } else {
-    for (const materialize_iterator::QueryBlock &query_block :
-         m_query_blocks_to_materialize) {
-      if (MaterializeQueryBlock(query_block, &stored_rows)) return true;
+    for (const materialize_iterator::Operand &operand : m_operands) {
+      if (MaterializeOperand(operand, &stored_rows)) {
+        return true;
+      }
       if (table()->is_union_or_table()) {
         // For INTERSECT and EXCEPT, this is done in TableScanIterator
         if (m_reject_multiple_rows && stored_rows > 1) {
@@ -935,6 +1002,13 @@ bool MaterializeIterator<Profiler>::Init() {
           return true;
         } else if (stored_rows >= m_limit_rows) {
           break;
+        }
+      } else {
+        // INTERSECT, EXCEPT: no rows in left operand: no need to process more
+        if (m_use_hash_map) {
+          if (m_hash_map == nullptr) break;
+        } else {
+          if (stored_rows == 0) break;
         }
       }
     }
@@ -1044,10 +1118,9 @@ bool MaterializeIterator<Profiler>::MaterializeRecursive() {
 
   // Give each recursive iterator access to the stored number of rows
   // (see FollowTailIterator::Read() for details).
-  for (const materialize_iterator::QueryBlock &query_block :
-       m_query_blocks_to_materialize) {
-    if (query_block.is_recursive_reference) {
-      query_block.recursive_reader->set_stored_rows_pointer(&stored_rows);
+  for (const materialize_iterator::Operand &operand : m_operands) {
+    if (operand.is_recursive_reference) {
+      operand.recursive_reader->set_stored_rows_pointer(&stored_rows);
     }
   }
 
@@ -1055,20 +1128,18 @@ bool MaterializeIterator<Profiler>::MaterializeRecursive() {
   // Trash the pointers on exit, to ease debugging of dangling ones to the
   // stack.
   auto pointer_cleanup = create_scope_guard([this] {
-    for (const materialize_iterator::QueryBlock &query_block :
-         m_query_blocks_to_materialize) {
-      if (query_block.is_recursive_reference) {
-        query_block.recursive_reader->set_stored_rows_pointer(nullptr);
+    for (const materialize_iterator::Operand &operand : m_operands) {
+      if (operand.is_recursive_reference) {
+        operand.recursive_reader->set_stored_rows_pointer(nullptr);
       }
     }
   });
 #endif
 
-  // First, materialize all non-recursive query blocks.
-  for (const materialize_iterator::QueryBlock &query_block :
-       m_query_blocks_to_materialize) {
-    if (!query_block.is_recursive_reference) {
-      if (MaterializeQueryBlock(query_block, &stored_rows)) return true;
+  // First, materialize all non-recursive operands.
+  for (const materialize_iterator::Operand &operand : m_operands) {
+    if (!operand.is_recursive_reference) {
+      if (MaterializeOperand(operand, &stored_rows)) return true;
     }
   }
 
@@ -1078,10 +1149,9 @@ bool MaterializeIterator<Profiler>::MaterializeRecursive() {
   ha_rows last_stored_rows;
   do {
     last_stored_rows = stored_rows;
-    for (const materialize_iterator::QueryBlock &query_block :
-         m_query_blocks_to_materialize) {
-      if (query_block.is_recursive_reference) {
-        if (MaterializeQueryBlock(query_block, &stored_rows)) return true;
+    for (const materialize_iterator::Operand &operand : m_operands) {
+      if (operand.is_recursive_reference) {
+        if (MaterializeOperand(operand, &stored_rows)) return true;
       }
     }
 
@@ -1105,25 +1175,642 @@ bool MaterializeIterator<Profiler>::MaterializeRecursive() {
   return false;
 }
 
+/**
+  Walk through de-duplicated rows from in-memory hash table and/or spilled
+  overflow HF chunks [1] and write said rows to table t, updating stored_rows
+  counter.
+
+  [1] Depending on spill state. We have three cases:
+
+  a) No spill to disk: write rows from in-memory hash table.
+  b) Spill to disk: write completed HF chunks, all chunks exist in the same
+     generation >= 2 (the number is the same as the number of set operands).
+  c) We saw secondary overflow during spill processing and must recover: write
+     completed HF chunks (mix of 1. and 2.generation) and write the in-memory
+     hash table
+  @param t            output table
+  @param stored_rows  counter for # of rows stored in output table
+  @returns true on error
+*/
 template <typename Profiler>
-bool MaterializeIterator<Profiler>::MaterializeQueryBlock(
-    const materialize_iterator::QueryBlock &query_block, ha_rows *stored_rows) {
-  Opt_trace_context *const trace = &thd()->opt_trace;
-  Opt_trace_object trace_wrapper(trace);
-  Opt_trace_object trace_exec(trace, "materialize");
-  trace_exec.add_select_number(query_block.select_number);
-  Opt_trace_array trace_steps(trace, "steps");
-  TABLE *const t = table();
-  // The next two declarations are for read_counter: used to implement
-  // INTERSECT and EXCEPT.
-  uchar *const set_counter_0 =
-      t->set_counter() != nullptr ? t->set_counter()->field_ptr() : nullptr;
-  uchar *const set_counter_1 = t->set_counter() != nullptr
-                                   ? set_counter_0 + t->s->rec_buff_length
-                                   : nullptr;
+bool MaterializeIterator<Profiler>::materialize_hash_map(TABLE *t,
+                                                         ha_rows *stored_rows) {
+  if (m_spill_state.spill()) {
+    if (m_spill_state.secondary_overflow()) {
+      // c) write finished HF chunks (a strict subset with secondary overflow)
+      //
+      // Write all de-duplicated rows directly to output file. These rows have
+      // set counters initialized. Steps are:
+      //
+      // 1. We can write all 1. generation HF files which we didn't get to when
+      // we saw the secondary overflow.  These are the ones "after" [1] the
+      // current logical chunk, whose {set_idx, chunk_idx} > {current_set_idx,
+      // current_chunk_idx}, but since we haven't read them we dispose of them
+      // first so read positions will be correct for 2. generation chunks.
+      //
+      // 2. Write 2. generation HF chunks which already have all rows from left
+      // operand (of their hash bucket), so we can write all those as
+      // well. These are the ones "before" [1] the current logical chunk whose
+      // processing blew up, i.e. those which have {set_idx, chunk_idx} <
+      // {current_set_idx, current_chunk_idx}
+      //
+      // 3. The rows in the current in-memory hash table, these are ready for
+      // writing, as they already have counters.
+      //
+      // [1] see explanatory diagram in write_partially_completed_HFs
+      //
+      // As the next phase in the recovery process for secondary overflow, we
+      // switch to reading in not de-duplicated rows and match those against
+      // the index in the output table (as done for UNION).
+      //
+      // The rows that still need reading and de-duplicating are:
+      //
+      // 4. offending row (i.e. the one which caused the memory overflow - we
+      // saved a copy),
+      // 5. any remaining rows in the current (left operand) IF
+      // chunk file, and
+      // 6. all rows in the remaining (left) IF chunk files.
+      //
+      // We handle 1,2 and 3 here, the rest are handled by
+      // read_next_row_secondary_overflow when that gets called as part of
+      // normal (no longer hashing) processing of left operand rows.  Right
+      // operand(s) are then processed as normal.
+      //
+      if (m_spill_state.write_partially_completed_HFs(thd(), m_operands,
+                                                      stored_rows))
+        return true;
+      // Next, write the de-duplicated rows in in-memory hash table, case c)
+    } else {
+      // b) Read finished HF chunks and write them, nothing remains in in-memory
+      // hash table, so we can return when this is done
+      return m_spill_state.write_completed_HFs(thd(), m_operands, stored_rows);
+    }
+  }
+
+  if (m_hash_map == nullptr) return false;  // left operand is empty
+
+  // a), c)
+  for (auto f = m_hash_map->begin(); f != m_hash_map->end(); f++) {
+    if (*stored_rows >= m_limit_rows) break;
+
+    LinkedImmutableString row_with_same_hash = f->second;
+    while (row_with_same_hash != nullptr) {
+      hash_join_buffer::LoadImmutableStringIntoTableBuffers(m_table_collection,
+                                                            row_with_same_hash);
+      int error = t->file->ha_write_row(t->record[0]);
+      if (error == 0) {
+        ++*stored_rows;
+      } else {
+        // create_ondisk_from_heap will generate error if needed.
+        assert(!t->file->is_ignorable_error(error));
+        if (create_ondisk_from_heap(thd(), t, error,
+                                    /*insert_last_record=*/true,
+                                    /*ignore_last_dup=*/true, nullptr))
+          return true; /* purecov: inspected */
+        if (m_spill_state.secondary_overflow()) {
+          assert(t->s->keys == 1);
+          if (t->file->ha_index_init(0, false) != 0) return true;
+        } else {
+          // else: we use hashing, so skip ha_index_init
+          assert(t->s->keys == 0);
+        }
+        ++*stored_rows;
+
+        // Inform each reader that the table has changed under their feet,
+        // so they'll need to reposition themselves.
+        for (const materialize_iterator::Operand &operand : m_operands) {
+          if (operand.is_recursive_reference) {
+            operand.recursive_reader->RepositionCursorAfterSpillToDisk();
+          }
+        }
+      }
+      row_with_same_hash = row_with_same_hash.Decode().next;
+    }
+  }
+
+  return false;
+}
+
+/**
+  We just read a row from a HF chunk file. Now, insert it into the hash map
+  to prepare for the set operation with another operand, in IF chunk files.
+  @returns true on error
+*/
+template <typename Profiler>
+bool MaterializeIterator<Profiler>::load_HF_row_into_hash_map() {
+  bool found = false;
+  bool spill = false;
+  if (check_unique_fields_hash_map(table(), /*write*/ true, &found, &spill))
+    return true;
+
+  // Since the HF chunk files only contain unique rows, we assert that the row
+  // is not already in the hash map
+  assert(!found);
+
+  if (spill) {
+    // It fit before, should fit now
+    assert(false);
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+             current_thd->variables.setop_hash_buffer_size);
+    return true;
+  }
+
+  spill = store_row_in_hash_map();
+  if (spill) {
+    // It fit before, should fit now
+    assert(false);
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+             current_thd->variables.setop_hash_buffer_size);
+    return true;
+  }
+
+  return false;
+}
+
+/**
+  Save (or restore) blob pointers in \c Field::m_blob_backup. We need to have
+  two full copies of a record for comparison, so we save record[0] to record[1]
+  before reading from the hash table with LoadImmutableStringIntoTableBuffers.
+  This will only work correctly for blobs if we also save the blob pointers
+  lest they be clobbered when reading from the hash table, which reestablishes
+  a full record in record[0] and resets Field blob pointers based on
+  record[0]'s blob pointers. By saving them here we make sure that record[1]'s
+  blob pointers do not point to overwritten or deallocated space.
+
+  @param backup   If true, do backup, else restore blob pointers
+*/
+template <typename Profiler>
+void MaterializeIterator<Profiler>::backup_or_restore_blob_pointers(
+    bool backup) {
+  assert(m_table_collection.tables().size() == 1);
+  const pack_rows::Table &tbl = m_table_collection.tables()[0];
+
+  for (const pack_rows::Column &column : tbl.columns) {
+    if (column.field->is_flag_set(BLOB_FLAG) || column.field->is_array()) {
+      Field_blob *bf = down_cast<Field_blob *>(column.field);
+      if (backup)
+        bf->backup_blob_field();
+      else
+        bf->restore_blob_backup();
+    }
+  }
+}
+
+/**
+  Check presence of row in hash map, and make hash map iterator ready
+  for writing value. If we find the row or prepare a write, we set
+
+    - m_hash_map_iterator
+    - m_last_row
+    - m_next_ptr
+
+  for use by companion method \c store_row_in_hash_map.
+
+  @param[in]  t       the source table
+  @param[in]  write   if true, prepare a new write of row in hash map if
+                      not already there (left block only)
+  @param[out] found   set to true if the row was found in hash map
+  @param[out] spill   set to true of we ran out of space
+  @returns true on error
+*/
+template <typename Profiler>
+bool MaterializeIterator<Profiler>::check_unique_fields_hash_map(TABLE *t,
+                                                                 bool write,
+                                                                 bool *found,
+                                                                 bool *spill) {
+  const size_t max_mem_available = thd()->variables.setop_hash_buffer_size;
+
+  *spill = false;
+
+#ifndef NDEBUG
+  if (m_spill_state.spill()) {
+    if (write &&  // Only inject error for left operand: can only happen there
+        m_spill_state.read_state() == materialize_iterator::SpillState::
+                                          ReadingState::SS_READING_LEFT_IF &&
+        m_spill_state.simulated_secondary_overflow(spill))
+      return true;
+    if (*spill) return false;
+  }
+#endif
+  if (m_mem_root == nullptr) {
+    assert(write);
+    m_mem_root = make_unique_destroy_only<MEM_ROOT>(
+        thd()->mem_root, key_memory_hash_op, /* blocksize 16K */ 16384);
+    if (m_mem_root == nullptr) return true;
+    m_hash_map.reset(new hash_map_type(
+        /*bucket_count=*/10, hash_join_buffer::KeyHasher()));
+
+    if (m_hash_map == nullptr) {
+      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(hash_map_type));
+      return true;
+    }
+
+    Prealloced_array<TABLE *, 4> ta(key_memory_hash_op, 1);
+    ta[0] = t;
+    TableCollection tc(ta, false, 0, 0);
+    m_table_collection = tc;
+    m_row_size_upper_bound = ComputeRowSizeUpperBound(m_table_collection);
+  }
+
+  ulonglong primary_hash = 0;
+  if (m_spill_state.read_state() !=
+      materialize_iterator::SpillState::ReadingState::SS_NONE) {
+    // We have read this row from a chunk file, so we know its hash already
+    primary_hash = static_cast<ulonglong>(t->hash_field->val_int());
+    assert(primary_hash == calc_row_hash(t));
+  } else {
+    // Create the key, a hash of the record
+    primary_hash = calc_row_hash(t);
+    // Save hash field in record: avoids rehash of HF-k chunk files when read
+    // but takes unnecessary space in memory hash map.
+    t->hash_field->store(static_cast<longlong>(primary_hash), true);
+  }
+  // A secondary hash based on primary hash used as robin hood key
+  ImmutableStringWithLength robin_hood_key;
+  const size_t required_key_bytes =
+      ImmutableStringWithLength::RequiredBytesForEncode(sizeof(primary_hash));
+  std::pair<char *, char *> block = m_mem_root->Peek();
+  if (static_cast<size_t>(block.second - block.first) < required_key_bytes) {
+    // No room in this block; ask for a new one and try again.
+    m_mem_root->ForceNewBlock(required_key_bytes);
+    block = m_mem_root->Peek();
+  }
+  size_t bytes_to_commit = 0;
+  if (static_cast<size_t>(block.second - block.first) >= required_key_bytes) {
+    char *ptr = block.first;
+    robin_hood_key = ImmutableStringWithLength::Encode(
+        pointer_cast<const char *>(&primary_hash), sizeof(primary_hash), &ptr);
+    assert(ptr < block.second);
+    bytes_to_commit = ptr - block.first;
+  } else if (write) {
+    // spill to disk
+    *spill = true;
+    return false;
+  }
+
+  *found = false;
+  bool inserted = false;
+  if (write) {
+    std::pair<hash_map_type::iterator, bool> key_it_and_inserted;
+    try {
+      key_it_and_inserted =
+          m_hash_map->emplace(robin_hood_key, LinkedImmutableString{nullptr});
+    } catch (const std::overflow_error &) {
+      // This can only happen if the hash function is extremely bad
+      // (should never happen in practice).
+      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+               thd()->variables.setop_hash_buffer_size);
+      return true;
+    }
+    m_hash_map_iterator = key_it_and_inserted.first;
+    inserted = key_it_and_inserted.second;
+    *found = false;
+  } else {
+    m_hash_map_iterator = m_hash_map->find(robin_hood_key);
+    if (m_hash_map_iterator == m_hash_map->end()) {
+      return false;
+    }
+  }
+  m_next_ptr = LinkedImmutableString(nullptr);
+
+  if (inserted) {
+    // We inserted an element, so the hash map may have grown.
+    // Update the capacity available for the MEM_ROOT; our total may
+    // have gone slightly over already, and if so, we will signal
+    // that and immediately start spilling to disk.
+    size_t bytes_used = m_hash_map->calcNumBytesTotal(m_hash_map->mask() + 1);
+    if (bytes_used >= max_mem_available) {
+      // spill to disk
+      *spill = true;
+      return false;
+    }
+    m_mem_root->set_max_capacity(max_mem_available - bytes_used);
+
+    // We need to keep this key.
+    m_mem_root->RawCommit(bytes_to_commit);
+  } else {
+    // Check if rows are equal.
+    // We have the record we just read in record[0], save that into record[1]
+    // because LoadImmutableStringIntoTableBuffers will instantiate into
+    // record[0], then compare record[1] against record[0].
+    store_record(t, record[1]);
+    if (m_table_collection.has_blob_column()) {
+      // LoadImmutableStringIntoTableBuffers will destroy/clobber any blob we
+      // have in record[0] lest we change the pointer, so save blob pointers in
+      // record[0].
+      backup_or_restore_blob_pointers(/*backup=*/true);
+    }
+    m_last_row = m_hash_map_iterator->second;
+    while (m_last_row != nullptr) {
+      hash_join_buffer::LoadImmutableStringIntoTableBuffers(m_table_collection,
+                                                            m_last_row);
+      if (!table_rec_cmp(t)) {
+        *found = true;
+        break;
+      }
+      m_last_row = m_last_row.Decode().next;
+    }
+
+    if (m_table_collection.has_blob_column()) {
+      backup_or_restore_blob_pointers(/*backup=*/false);
+    }
+    if (!*found) {
+      // We didn't find the record just read in the hash table, so our caller
+      // will want to "write" it to the hash table, which means we need it back
+      // in record[0] since that is where it is expected to be found.
+      restore_record(t, record[1]);
+    } else {
+      // We found it, and our caller will want to update counter in the record
+      // we just retrieved from the hash table and then update the hash table's
+      // record , so we must leave the hash table's version of the record in
+      // place in record[0]
+    }
+
+    // We already have another element with the same key, so our insert
+    // failed, put the new value in the hash bucket, but keep track of
+    // what the old one was; it will be our “next” pointer.
+    m_next_ptr = m_hash_map_iterator->second;
+  }
+
+  return false;
+}
+
+template <typename Profiler>
+bool MaterializeIterator<Profiler>::handle_hash_map_full(
+    const materialize_iterator::Operand &operand, ha_rows *stored_rows) {
+  if (m_spill_state.spill()) {
+    m_spill_state.set_secondary_overflow();
+    Opt_trace_context *trace = &thd()->opt_trace;
+    Opt_trace_object trace_wrapper(trace);
+    Opt_trace_object trace_exec(trace,
+                                "spill handling overflow, reverting to index");
+    Opt_trace_array trace_steps(trace, "steps");
+    m_use_hash_map = false;
+
+    // Save current row for later use, see save_operand_to_IF_chunk_files
+    if (m_spill_state.save_offending_row()) return true;
+
+    TABLE *const t = table();
+    close_tmp_table(t);
+    t->s->keys = 1;  // activate hash key index
+    t->set_hashing(false);
+    if (instantiate_tmp_table(thd(), t)) return true;
+    if (t->file->ha_index_init(0, false) != 0) return true;
+
+    if (materialize_hash_map(t, stored_rows)) return true;
+
+    return false;
+  }
+  if (m_spill_state.init(operand, m_hash_map.get(), m_rows_in_hash_map,
+                         m_read_rows_before_dedup, m_mem_root.get(), table()))
+    return true;
+
+  return false;
+}
+
+/**
+  Store the current row image into the hash map. Presumes the hash map iterator
+  has looked up the (secondary hash), and possibly inserted its key and is
+  positioned on it.  Links any existing entry behind it, i.e. we insert at
+  front of the hash bucket, cf.  StoreLinkedImmutableStringFromTableBuffers.
+  Update \c m_rows_in_hash_map.
+  @returns true on error
+ */
+template <typename Profiler>
+bool MaterializeIterator<Profiler>::store_row_in_hash_map() {
+  // Save the contents of all columns and make the hash map iterator's value
+  // field ("->second") point to it.
+  LinkedImmutableString last_row_stored =
+      StoreLinkedImmutableStringFromTableBuffers(
+          m_mem_root.get(),
+          /*overflow_mem_root*/ nullptr, m_table_collection, m_next_ptr,
+          m_row_size_upper_bound, /*full*/ nullptr);
+  if (last_row_stored == nullptr) {
+    return true;
+  }
+  m_hash_map_iterator->second = last_row_stored;
+  m_rows_in_hash_map++;
+  return false;
+}
+
+template <typename Profiler>
+void MaterializeIterator<Profiler>::update_row_in_hash_map() {
+  LinkedImmutableString::Decoded data = m_last_row.Decode();
+  // We are just writing back the row, its size hasn't changed so this should be
+  // safe, only the set counter (uint_64_t) will have changed.
+  const uchar *ptr = pointer_cast<const uchar *>(data.data);
+  StoreFromTableBuffersRaw(m_table_collection, const_cast<uchar *>(ptr));
+}
+
+template <typename Profiler>
+int MaterializeIterator<Profiler>::read_next_row(
+    const materialize_iterator::Operand &operand) {
+  if (m_spill_state.spill()) {
+    return m_spill_state.read_next_row(&operand);
+  }
+  int result = operand.subquery_iterator->Read();
+  if (result == 0) {
+    m_read_rows_before_dedup++;
+    // Materialize items for this row.
+    if (operand.copy_items) {
+      if (copy_funcs(operand.temp_table_param, thd())) return 1;
+    }
+  }
+  return result;
+}
+
+template <typename Profiler>
+bool MaterializeIterator<Profiler>::process_row_hash(
+    const materialize_iterator::Operand &operand, TABLE *t,
+    ha_rows *stored_rows) {
+  auto read_counter = [t]() -> ulonglong {
+    ulonglong cnt = static_cast<ulonglong>(t->set_counter()->val_int());
+    return cnt;
+  };
+
+  if (m_spill_state.read_state() ==
+      materialize_iterator::SpillState::ReadingState::SS_READING_RIGHT_HF) {
+    // Need special handling here since otherwise for operand > 0, we wouldn't
+    // be re-populating the hash map, just checking against it, cf comment
+    // below: "never write"
+    return load_HF_row_into_hash_map();
+  }
+
+  const bool left_operand = operand.m_operand_idx == 0;
+  bool found = false;  // true if we just found a record in the hash map
+  bool spill_to_disk = false;
+
+  if (check_unique_fields_hash_map(t, /*write*/ left_operand, &found,
+                                   &spill_to_disk))
+    return true;
+
+  if (spill_to_disk) {
+    assert(left_operand);
+    return handle_hash_map_full(operand, stored_rows);
+  }
+
+  switch (t->set_op_type()) {
+    case TABLE::SOT_UNION_ALL:
+      assert(false);
+      break;
+    case TABLE::SOT_UNION_DISTINCT:
+      assert(false);
+      break;
+    case TABLE::SOT_EXCEPT_ALL:
+    case TABLE::SOT_EXCEPT_DISTINCT:
+      if (left_operand) {
+        //
+        // After we finish reading the left side, each row's counter contains
+        // the number of duplicates seen of that row.
+        //
+        if (!found) {
+          // counter := 1
+          t->set_counter()->store(1, true);
+          // next, go on to write the row
+        } else {
+          // counter := counter + 1
+          t->set_counter()->store(read_counter() + 1, true);
+          update_row_in_hash_map();
+          return false;
+        }
+      } else {  // right operand(s)
+        //
+        // After this right side has been processed, the counter contains the
+        // number of duplicates not yet matched (and thus removed) by this
+        // right side or any previous right side(s).
+        //
+        if (!found) {
+          // row doesn't have a counter-part in left side, so we can ignore it
+          return false;
+        }
+        ulonglong cnt = read_counter();
+        if (cnt > 0) {
+          if (operand.m_operand_idx < operand.m_first_distinct)
+            // counter := counter - 1
+            t->set_counter()->store(static_cast<longlong>(cnt - 1), true);
+          else
+            t->set_counter()->store(0, true);
+          update_row_in_hash_map();
+        }
+        return false;  // right hand side of EXCEPT, never write
+      }
+
+      break;
+    case TABLE::SOT_INTERSECT_ALL:
+      if (left_operand) {
+        //
+        // In left pass we establish initial count of each row in subcounter
+        // 0. In right block we increment subcounter 1 (up to initial count),
+        // on final read we use min(subcounter 0, subcounter 1) as the
+        // intersection result. NOTE: this only works correctly if we only ever
+        // have two blocks for INTERSECT ALL: so they should not have been
+        // merged.
+        //
+        if (!found) {
+          HalfCounter c(0);
+          // left side counter := 1
+          c[0] = 1;
+          t->set_counter()->store(static_cast<longlong>(c.value()), true);
+          // go on to write the row
+        } else {
+          HalfCounter c(read_counter());
+          if (static_cast<uint64_t>(c[0]) + 1 >
+              std::numeric_limits<uint32_t>::max()) {
+            my_error(ER_INTERSECT_ALL_MAX_DUPLICATES_EXCEEDED, MYF(0));
+            return true;
+          }
+          // left side counter := left side counter + 1
+          c[0]++;
+          t->set_counter()->store(static_cast<longlong>(c.value()), true);
+          update_row_in_hash_map();
+          return false;
+        }
+      } else {  // right operand
+        assert(operand.m_operand_idx <= 1);
+        //
+        // At the end of the (single) right side pass, we have two counters for
+        // each row: in one, the number of duplicates seen on the left side,
+        // and in the other, the number of times this row was matched on the
+        // right side (we do not increment it past the number seen on the left
+        // side, since we can maximally get that number of duplicates for the
+        // operation).
+        //
+        if (!found) {
+          // row doesn't have a counter-part in left side, so we can ignore it
+          return false;
+        }
+        // we found a left side candidate
+        HalfCounter c(read_counter());
+        const uint32_t left_side = c[0];
+        if (c[1] + 1 <= left_side) {
+          // right side counter = right side counter + 1
+          c[1]++;
+          t->set_counter()->store(static_cast<longlong>(c.value()), true);
+          update_row_in_hash_map();
+        }  // else: already matched all occurences from left side table
+        return false;  // right hand side of INTERSECT, never write
+      }
+
+      break;
+    case TABLE::SOT_INTERSECT_DISTINCT:
+      if (left_operand) {
+        //
+        // After we finish reading the left side, each row's counter contains N
+        // - 1, i.e. the number of operands intersected.
+        //
+        if (!found) {
+          // counter := no_of_operands - 1
+          t->set_counter()->store(
+              static_cast<longlong>(operand.m_total_operands - 1), true);
+          // next, go on to write the row
+        } else {
+          // We have already written this row and initialized its counter.
+          return false;
+        }
+      } else {  // right operand(s)
+        //
+        // After this right side operand, each row's counter either wasn't seen
+        // by this block (and is thus still left undecremented), or we see it,
+        // in which the counter is decremented once to indicated that it was
+        // matched by this right side and thus is still a candidate for the
+        // final inclusion, pending outcome of any further right side
+        // operands. The number of the present set operand (materialized block
+        // number) is used for this purpose.
+        //
+        if (!found) {
+          // row doesn't have a counter-part in left side, so we can ignore it
+          return false;
+        }
+        // we found a left side candidate, now check its counter to see if it
+        // has already been matched with this right side row or not. If so,
+        // decrement to indicate is has been matched by this operand. If the
+        // row was missing in a previous right side operand, we will also skip
+        // it here, since its counter is too high, and we will leave it behind.
+        ulonglong cnt = read_counter();
+        if (cnt == operand.m_total_operands - operand.m_operand_idx) {
+          // counter -:= 1
+          cnt = cnt - 1;
+          t->set_counter()->store(static_cast<longlong>(cnt), true);
+          update_row_in_hash_map();
+        }
+        return false;  // right hand side of INTERSECT, never write
+      }
+      break;
+    case TABLE::SOT_NONE:
+      assert(false);
+  }
+
+  return store_row_in_hash_map() && handle_hash_map_full(operand, stored_rows);
+}
+
+template <typename Profiler>
+bool MaterializeIterator<Profiler>::process_row(
+    const materialize_iterator::Operand &operand,
+    materialize_iterator::Operands &operands, TABLE *t, uchar *set_counter_0,
+    uchar *set_counter_1, bool *read_next) {
   /**
     Read the value of TABLE::m_set_counter from record[1]. The value can be
-    found there after a call to check_unique_constraint if the row was
+    found there after a call to check_unique_fields if the row was
     found. Note that m_set_counter a priori points to record[0], which is
     used when writing and updating the counter.
    */
@@ -1135,31 +1822,259 @@ bool MaterializeIterator<Profiler>::MaterializeQueryBlock(
     return cnt;
   };
 
-  auto spill_to_disk_and_retry_update_row = [t, this](THD *thd,
-                                                      int error) -> int {
-    bool dummy;
-    if (create_ondisk_from_heap(thd, t, error,
+  auto spill_to_disk_and_retry_update_row =
+      [t, &operands](int seen_tmp_table_error) -> int {
+    bool dummy = false;
+    if (create_ondisk_from_heap(current_thd, t, seen_tmp_table_error,
                                 /*insert_last_record=*/false,
                                 /*ignore_last_dup=*/true, &dummy))
-      return true; /* purecov: inspected */
+      return 1; /* purecov: inspected */
     // Table's engine changed; index is not initialized anymore.
-    if (t->file->ha_index_init(0, /*sorted*/ false)) return true;
+    if (t->file->ha_index_init(0, /*sorted*/ false) != 0) return 1;
 
     // Inform each reader that the table has changed under their feet,
     // so they'll need to reposition themselves.
-    for (const materialize_iterator::QueryBlock &query_b :
-         m_query_blocks_to_materialize) {
-      if (query_b.is_recursive_reference) {
-        query_b.recursive_reader->RepositionCursorAfterSpillToDisk();
+    for (const materialize_iterator::Operand &op : operands) {
+      if (op.is_recursive_reference) {
+        op.recursive_reader->RepositionCursorAfterSpillToDisk();
       }
     }
     // re-try update: 1. reposition to same row
-    error = check_unique_constraint(t);
-    assert(error == 0);
+    bool found [[maybe_unused]] = !check_unique_fields(t);
+    assert(found);
     return t->file->ha_update_row(t->record[1], t->record[0]);
   };
 
-  JOIN *join = query_block.join;
+  const bool left_operand = operand.m_operand_idx == 0;
+  int error = 0;
+
+  switch (t->set_op_type()) {
+    case TABLE::SOT_UNION_ALL:
+      assert(false);
+      break;
+    case TABLE::SOT_UNION_DISTINCT:
+      assert(false);
+      break;
+    case TABLE::SOT_EXCEPT_ALL:
+    case TABLE::SOT_EXCEPT_DISTINCT:
+      if (left_operand) {
+        //
+        // After we finish reading the left side, each row's counter contains
+        // the number of duplicates seen of that row.
+        if (check_unique_fields(t)) {
+          // counter := 1
+          t->set_counter()->store(1, true);
+          // next, go on to write the row
+        } else {
+          // counter := counter + 1
+          t->set_counter()->store(read_counter() + 1, true);
+          error = t->file->ha_update_row(t->record[1], t->record[0]);
+          return !t->file->is_ignorable_error(error) &&
+                 spill_to_disk_and_retry_update_row(error);
+        }
+      } else {  // right operand(s)
+        //
+        // After this right side has been processed, the counter contains the
+        // number of duplicates not yet matched (and thus removed) by this right
+        // side or any previous right side(s).
+        if (check_unique_fields(t)) {
+          // row doesn't have a counter-part in left side, so we can ignore it
+          return false;
+        }
+        ulonglong cnt = read_counter();
+        if (cnt > 0) {
+          if (operand.m_operand_idx < operand.m_first_distinct)
+            // counter := counter - 1
+            t->set_counter()->store(static_cast<longlong>(cnt - 1), true);
+          else
+            t->set_counter()->store(0, true);
+          error = t->file->ha_update_row(t->record[1], t->record[0]);
+          if (!t->file->is_ignorable_error(error) &&
+              spill_to_disk_and_retry_update_row(error))
+            return true;
+        }
+        // right hand side of EXCEPT, never write
+        return false;
+      }
+      break;
+    case TABLE::SOT_INTERSECT_ALL:
+      if (left_operand) {
+        //
+        // In left pass we establish initial count of each row in subcounter
+        // 0. In right block we increment subcounter 1 (up to initial count), on
+        // final read we use min(subcounter 0, subcounter 1) as the intersection
+        // result. NOTE: this only works correctly if we only ever have two
+        // operands for INTERSECT ALL: so they should not have been merged.
+        if (check_unique_fields(t)) {
+          HalfCounter c(0);
+          // left side counter := 1
+          c[0] = 1;
+          t->set_counter()->store(static_cast<longlong>(c.value()), true);
+          // go on to write the row
+        } else {
+          HalfCounter c(read_counter());
+          if (static_cast<uint64_t>(c[0]) + 1 >
+              std::numeric_limits<uint32_t>::max()) {
+            my_error(ER_INTERSECT_ALL_MAX_DUPLICATES_EXCEEDED, MYF(0));
+            return true;
+          }
+          // left side counter := left side counter + 1
+          c[0]++;
+          t->set_counter()->store(static_cast<longlong>(c.value()), true);
+          error = t->file->ha_update_row(t->record[1], t->record[0]);
+          if (!t->file->is_ignorable_error(error) &&
+              spill_to_disk_and_retry_update_row(error))
+            return true;
+        }
+      } else {  // right operand
+        assert(operand.m_operand_idx <= 1);
+        //
+        // At the end of the (single) right side pass, we have two counters for
+        // each row: in one, the number of duplicates seen on the left side, and
+        // in the other, the number of times this row was matched on the right
+        // side (we do not increment it past the number seen on the left side,
+        // since we can maximally get that number of duplicates for the
+        // operation).
+        if (check_unique_fields(t))
+          // row doesn't have a counter-part in left side, so we can ignore it
+          return false;
+        // we found a left side candidate
+        HalfCounter c(read_counter());
+        const uint32_t left_side = c[0];
+        if (c[1] + 1 <= left_side) {
+          // right side counter = right side counter + 1
+          c[1]++;
+          t->set_counter()->store(static_cast<longlong>(c.value()), true);
+          error = t->file->ha_update_row(t->record[1], t->record[0]);
+          if (!t->file->is_ignorable_error(error) &&
+              spill_to_disk_and_retry_update_row(error))
+            return true;
+        }  // else: already matched all occurences from left side table
+
+        // right hand side of INTERSECT, never write
+        return false;
+      }
+      break;
+    case TABLE::SOT_INTERSECT_DISTINCT:
+      if (left_operand) {
+        //
+        // After we finish reading the left side, each row's counter contains N
+        // - 1, i.e. the number of operands intersected.
+        if (check_unique_fields(t)) {
+          // counter := no_of_operands - 1
+          t->set_counter()->store(
+              static_cast<longlong>(operand.m_total_operands - 1), true);
+          // next, go on to write the row
+        } else {
+          // We have already written this row and initialized its counter.
+          return false;
+        }
+      } else {  // right operand(s)
+        //
+        // After this right side, each row's counter either wasn't seen by this
+        // block (and is thus still left undecremented), or we see it, in which
+        // the counter is decremented once to indicate that it was matched by
+        // this right side and thus is still a candidate for the final
+        // inclusion, pending outcome of any further right side operands. The
+        // number of the present set operand (materialized block number) is used
+        // for this purpose.
+        //
+        if (check_unique_fields(t)) {
+          // row doesn't have a counter-part in left side, so we can ignore it
+          return false;
+        }
+        // we found a left side candidate, now check its counter to see if
+        // it has already been matched with this right side row or not. If
+        // so, decrement to indicate is has been matched by this operand. If
+        // the row was missing in a previous right side operand, we will
+        // also skip it here, since its counter is too high, and we will
+        // leave it behind.
+        ulonglong cnt = read_counter();
+        if (cnt == operand.m_total_operands - operand.m_operand_idx) {
+          // counter -:= 1
+          cnt = cnt - 1;
+          t->set_counter()->store(static_cast<longlong>(cnt), true);
+          error = t->file->ha_update_row(t->record[1], t->record[0]);
+          if (!t->file->is_ignorable_error(error) &&
+              spill_to_disk_and_retry_update_row(error))
+            return true;
+        }
+        // right hand side of INTERSECT, never write
+        return false;
+      }
+      break;
+    case TABLE::SOT_NONE:
+      assert(false);
+  }
+
+  *read_next = false;  // proceed to write;
+  return false;
+}
+
+template <typename Profiler>
+bool MaterializeIterator<Profiler>::MaterializeOperand(
+    const materialize_iterator::Operand &operand, ha_rows *stored_rows) {
+  TABLE *const t = table();
+  Opt_trace_context *const trace = &thd()->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  const char *legend = nullptr;
+  switch (t->set_op_type()) {
+    case TABLE::SOT_EXCEPT_ALL:
+    case TABLE::SOT_EXCEPT_DISTINCT:
+      legend = "materialize for except";
+      break;
+    case TABLE::SOT_INTERSECT_ALL:
+    case TABLE::SOT_INTERSECT_DISTINCT:
+      legend = "materialize for intersect";
+      break;
+    case TABLE::SOT_UNION_ALL:
+    case TABLE::SOT_UNION_DISTINCT:
+      if (m_operands.size() == 1)
+        legend = "materialize";
+      else
+        legend = "materialize for union";
+      break;
+    case TABLE::SOT_NONE:
+      legend = "materialize";
+      break;
+  }
+  Opt_trace_object trace_exec(trace, legend);
+  trace_exec.add_select_number(operand.select_number);
+  Opt_trace_array trace_steps(trace, "steps");
+  Opt_trace_object trace_wrapper2(trace);
+
+  const bool is_union_or_table = t->is_union_or_table();
+
+  if (is_union_or_table) {
+    if (t->hash_field != nullptr) {
+      if (operand.disable_deduplication_by_hash_field)
+        legend = "no de-duplication";
+      else
+        legend = "de-duplicate with index on hash field";
+    } else {
+      if (t->s->keys > 0)
+        legend = "de-duplicate with index";
+      else
+        legend = "no de-duplication";
+    }
+  } else {
+    if (m_use_hash_map)
+      legend = "de-duplicate with hash table";
+    else
+      legend = "de-duplicate with index";
+  }
+  Opt_trace_object trace_exec2(trace, legend);
+  Opt_trace_array trace_steps2(trace, "steps");
+
+  // The next two declarations are for read_counter: used to implement
+  // INTERSECT and EXCEPT.
+  uchar *const set_counter_0 =
+      t->set_counter() != nullptr ? t->set_counter()->field_ptr() : nullptr;
+  uchar *const set_counter_1 = t->set_counter() != nullptr
+                                   ? set_counter_0 + t->s->rec_buff_length
+                                   : nullptr;
+
+  JOIN *join = operand.join;
   if (join != nullptr) {
     join->set_executed();  // The dynamic range optimizer expects this.
 
@@ -1173,12 +2088,11 @@ bool MaterializeIterator<Profiler>::MaterializeQueryBlock(
     }
   }
 
-  if (query_block.subquery_iterator->Init()) {
+  if (operand.subquery_iterator->Init()) {
     return true;
   }
 
-  PFSBatchMode pfs_batch_mode(query_block.subquery_iterator.get());
-  const bool is_union_or_table = table()->is_union_or_table();
+  PFSBatchMode pfs_batch_mode(operand.subquery_iterator.get());
 
   while (true) {
     // For EXCEPT and INTERSECT we test LIMIT in ScanTableIterator
@@ -1186,191 +2100,42 @@ bool MaterializeIterator<Profiler>::MaterializeQueryBlock(
 
     if (*stored_rows >= m_limit_rows) break;
 
-    int error = query_block.subquery_iterator->Read();
-    if (error > 0 || thd()->is_error())
+    int error = read_next_row(operand);
+    if (error > 0 || thd()->is_error()) {
       return true;
-    else if (error < 0)
+    }
+    if (error < 0) {
+      // When using hash map, we haven't written any rows to the materialized
+      // table yet, so do that now that we have seen all rows from all set
+      // operands (alias blocks).
+      if (m_use_hash_map &&
+          operand.m_operand_idx + 1 == operand.m_total_operands &&
+          materialize_hash_map(t, stored_rows))
+        return true;
       break;
-    else if (thd()->killed) {
+    }
+    if (thd()->killed) {
       thd()->send_kill_message();
       return true;
     }
 
-    // Materialize items for this row.
-    if (query_block.copy_items) {
-      if (copy_funcs(query_block.temp_table_param, thd())) return true;
-    }
-
     if (is_union_or_table) {
-      if (query_block.disable_deduplication_by_hash_field) {
+      if (operand.disable_deduplication_by_hash_field) {
         assert(doing_hash_deduplication());
-      } else if (!check_unique_constraint(t)) {
+      } else if (!check_unique_fields(t)) {
         continue;
       }
-    } else if (query_block.m_operand_idx == 0) {
-      //
-      // Left side of INTERSECT, EXCEPT
-      //
-      if (t->is_except()) {
-        //
-        // EXCEPT                After we finish reading the left side, each
-        //                       row's counter contains the number of duplicates
-        //                       seen of that row.
-        if (check_unique_constraint(t)) {
-          // counter := 1
-          t->set_counter()->store(1, true);
-          // next, go on to write the row
-        } else {
-          // counter := counter + 1
-          t->set_counter()->store(read_counter() + 1, true);
-          error = t->file->ha_update_row(t->record[1], t->record[0]);
-          if (!t->file->is_ignorable_error(error) &&
-              spill_to_disk_and_retry_update_row(thd(), error))
-            return true;
-          continue;
-        }
-      } else {
-        assert(t->is_intersect());
-        if (t->is_distinct()) {
-          //
-          // INTERSECT DISTINCT  After we finish reading the left side, each
-          //                     row's counter contains N - 1, i.e. the number
-          //                     of operands intersected.
-          if (check_unique_constraint(t)) {
-            // counter := no_of_operands - 1
-            t->set_counter()->store(query_block.m_total_operands - 1, true);
-            // next, go on to write the row
-          } else {
-            // We have already written this row and initialized its counter.
-            continue;
-          }
-        } else {
-          //
-          // INTERSECT ALL       In left pass we establish initial count of
-          //                     each row in subcounter 0. In right block we
-          //                     increment subcounter 1 (up to initial count),
-          //                     on final read we use min(subcounter 0,
-          //                     subcounter 1) as the intersection
-          //                     result. NOTE: this only works correctly if we
-          //                     only ever have two blocks for INTERSECT ALL:
-          //                     so they should not have been merged
-          if (check_unique_constraint(t)) {
-            HalfCounter c(0);
-            // left side counter := 1
-            c[0] = 1;
-            t->set_counter()->store(c.value(), true);
-            // go on to write the row
-          } else {
-            HalfCounter c(read_counter());
-            if (static_cast<uint64_t>(c[0]) + 1 >
-                std::numeric_limits<uint32_t>::max()) {
-              my_error(ER_INTERSECT_ALL_MAX_DUPLICATES_EXCEEDED, MYF(0));
-              return true;
-            }
-            // left side counter := left side counter + 1
-            c[0]++;
-            t->set_counter()->store(c.value(), true);
-            error = t->file->ha_update_row(t->record[1], t->record[0]);
-            if (!t->file->is_ignorable_error(error) &&
-                spill_to_disk_and_retry_update_row(thd(), error))
-              return true;
-            continue;
-          }
-        }
-      }
     } else {
-      //
-      // Right side of INTERSECT, EXCEPT
-      //
-      if (t->is_except()) {
-        //
-        // EXCEPT                After this right side has been processed, the
-        //                       counter contains the number of duplicates not
-        //                       yet matched (and thus removed) by this right
-        //                       side or any previous right side(s).
-        if (check_unique_constraint(t)) {
-          // row doesn't have a counter-part in left side, so we can ignore it
-          continue;
-        }
-        ulonglong cnt = read_counter();
-        if (cnt > 0) {
-          if (query_block.m_operand_idx < query_block.m_first_distinct)
-            // counter := counter - 1
-            t->set_counter()->store(cnt - 1, true);
-          else
-            t->set_counter()->store(0, true);
-          error = t->file->ha_update_row(t->record[1], t->record[0]);
-          if (!t->file->is_ignorable_error(error) &&
-              spill_to_disk_and_retry_update_row(thd(), error))
-            return true;
-        }
-      } else {
-        assert(t->is_intersect());
-        //
-        // INTERSECT  - right side(s)
-        //
-        if (t->is_distinct()) {
-          //
-          // INTERSECT DISTINCT  After this right side, each row's counter
-          //                     either wasn't seen by this block (and is thus
-          //                     still left undecremented), or we see it, in
-          //                     which the counter is decremented once to
-          //                     indicated that it was matched by this right
-          //                     side and thus is still a candidate for the
-          //                     final inclusion, pending outcome of any
-          //                     further right side operands. The number of
-          //                     the present set operand (materialized block
-          //                     number) is used for this purpose.
-          //
-          if (check_unique_constraint(t)) {
-            // row doesn't have a counter-part in left side, so we can ignore it
-            continue;
-          }
-          // we found a left side candidate, now check its counter to see if
-          // it has already been matched with this right side row or not. If
-          // so, decrement to indicate is has been matched by this operand. If
-          // the row was missing in a previous right side operand, we will
-          // also skip it here, since its counter is too high, and we will
-          // leave it behind.
-          ulonglong cnt = read_counter();
-          if (cnt == query_block.m_total_operands - query_block.m_operand_idx) {
-            // counter -:= 1
-            cnt = cnt - 1;
-            t->set_counter()->store(cnt, true);
-            error = t->file->ha_update_row(t->record[1], t->record[0]);
-            if (!t->file->is_ignorable_error(error) &&
-                spill_to_disk_and_retry_update_row(thd(), error))
-              return true;
-          }
-        } else {
-          assert(query_block.m_operand_idx <= 1);
-          //
-          // INTERSECT ALL       At the end of the (single) right side pass,
-          //                     we have two counters for each row: in one,
-          //                     the number of duplicates seen on the left
-          //                     side, and in the other, the number of times
-          //                     this row was matched on the right side (we do
-          //                     not increment it past the number seen on the
-          //                     left side, since we can maximally get that
-          //                     number of duplicates for the operation).
-          if (check_unique_constraint(t))
-            // row doesn't have a counter-part in left side, so we can ignore it
-            continue;
-          // we found a left side candidate
-          HalfCounter c(read_counter());
-          const uint32_t left_side = c[0];
-          if (c[1] + 1 <= left_side) {
-            // right side counter = right side counter + 1
-            c[1]++;
-            t->set_counter()->store(c.value(), true);
-            error = t->file->ha_update_row(t->record[1], t->record[0]);
-            if (!t->file->is_ignorable_error(error) &&
-                spill_to_disk_and_retry_update_row(thd(), error))
-              return true;
-          }  // else: already matched all occurences from left side table
-        }
+      if (m_use_hash_map) {
+        if (process_row_hash(operand, t, stored_rows)) return true;
+        continue;
       }
-      continue;  // right hand side of EXCEPT or INTERSECT, never write
+      bool read_next = true;
+      if (process_row(operand, m_operands, t, set_counter_0, set_counter_1,
+                      &read_next))
+        return true;
+      if (read_next) continue;
+      // else proceed to write
     }
 
     error = t->file->ha_write_row(t->record[0]);
@@ -1380,21 +2145,19 @@ bool MaterializeIterator<Profiler>::MaterializeQueryBlock(
     }
     // create_ondisk_from_heap will generate error if needed.
     if (!t->file->is_ignorable_error(error)) {
-      bool is_duplicate;
+      bool is_duplicate = false;
       if (create_ondisk_from_heap(thd(), t, error,
                                   /*insert_last_record=*/true,
                                   /*ignore_last_dup=*/true, &is_duplicate))
         return true; /* purecov: inspected */
       // Table's engine changed; index is not initialized anymore.
       if (t->hash_field) t->file->ha_index_init(0, false);
-      if (!is_duplicate &&
-          (t->is_union_or_table() || query_block.m_operand_idx == 0))
+      if (!is_duplicate && (is_union_or_table || operand.m_operand_idx == 0))
         ++*stored_rows;
 
       // Inform each reader that the table has changed under their feet,
       // so they'll need to reposition themselves.
-      for (const materialize_iterator::QueryBlock &query_b :
-           m_query_blocks_to_materialize) {
+      for (const materialize_iterator::Operand &query_b : m_operands) {
         if (query_b.is_recursive_reference) {
           query_b.recursive_reader->RepositionCursorAfterSpillToDisk();
         }
@@ -1402,7 +2165,7 @@ bool MaterializeIterator<Profiler>::MaterializeQueryBlock(
     } else {
       // An ignorable error means duplicate key, ie. we deduplicated
       // away the row. This is seemingly separate from
-      // check_unique_constraint(), which only checks hash indexes.
+      // check_unique_fields(), which only checks hash indexes.
     }
   }
 
@@ -1431,43 +2194,760 @@ int MaterializeIterator<Profiler>::Read() {
 
 template <typename Profiler>
 void MaterializeIterator<Profiler>::EndPSIBatchModeIfStarted() {
-  for (const materialize_iterator::QueryBlock &query_block :
-       m_query_blocks_to_materialize) {
-    query_block.subquery_iterator->EndPSIBatchModeIfStarted();
+  for (const materialize_iterator::Operand &operand : m_operands) {
+    operand.subquery_iterator->EndPSIBatchModeIfStarted();
   }
   m_table_iterator->EndPSIBatchModeIfStarted();
 }
 
-template <typename Profiler>
-bool MaterializeIterator<Profiler>::doing_deduplication() const {
-  if (doing_hash_deduplication()) {
+bool materialize_iterator::SpillState::save_offending_row() {
+  // Save offending row, we may not be able to write it in first set of
+  // chunk files, so make a copy. This space goes out of the normal mem_root
+  // since it's only one row.
+  if (m_offending_row.m_buffer.reserve(
+          m_table_collection.has_blob_column()
+              ? 0
+              : ComputeRowSizeUpperBound(m_table_collection)) ||
+      StoreFromTableBuffers(m_table_collection, &m_offending_row.m_buffer)) {
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+             ComputeRowSizeUpperBound(m_table_collection));
     return true;
   }
+  return false;
+}
 
-  // We assume that if there's an unique index, it has to be used for
-  // deduplication.
-  if (table()->key_info != nullptr) {
-    for (size_t i = 0; i < table()->s->keys; ++i) {
-      if ((table()->key_info[i].flags & HA_NOSAME) != 0) {
+bool materialize_iterator::SpillState::compute_chunk_file_sets(
+    const Operand *current_operand) {
+  const double total_estimated_rows = current_operand->m_estimated_output_rows;
+
+  /// This could be 1 too high, if we managed to insert key but not value, but
+  /// never mind.
+  const size_t rows_in_hash_map = m_hash_map->size();
+
+  // Slightly underestimate number of rows in hash map to avoid
+  // hash map overflow when reading chunk files.
+  constexpr double kReductionFactor = 0.9;
+  const double reduced_rows_in_hash_map =
+      std::max<double>(1, rows_in_hash_map * kReductionFactor);
+
+  // Since we have de-duplicated rows, rows_in_hash_map may represent a
+  // larger number of rows read than actually in the table, but we ignore that
+  // when making the estimate: the remaining rows of the left operand may not
+  // contain duplicates.
+  const size_t num_chunks =
+      std::ceil(total_estimated_rows / reduced_rows_in_hash_map);
+
+  // Ensure that the number of chunks is always a power of two. This allows
+  // us to do some optimizations when calculating which chunk a row should
+  // be placed in.
+  m_num_chunks = my_round_up_to_next_power(num_chunks);
+  m_no_of_chunk_file_sets = (m_num_chunks + HashJoinIterator::kMaxChunks - 1) /
+                            HashJoinIterator::kMaxChunks;
+  m_current_chunk_file_set = 0;
+
+  // Save offending row, we may not be able to write it in first set of
+  // chunk files, so make a copy. This space goes out of the normal mem_root
+  // since it's only one row.
+  if (save_offending_row()) return true;
+
+  // Hash offending row's content with tertiary hash value to determine its
+  // chunk index.
+  const ulonglong primary_hash =
+      static_cast<ulonglong>(m_materialized_table->hash_field->val_int());
+  const uint64_t chunk_hash =
+      MY_XXH64(&primary_hash, sizeof(primary_hash), m_hash_seed);
+
+  const size_t chunk_index = hash_to_chunk_index(chunk_hash);
+  m_offending_row.m_chunk_offset = chunk_offset(chunk_index);
+  m_offending_row.m_set = chunk_index_to_set(chunk_index);
+  // Set up the row buffer used when deserializing chunk rows.
+  const size_t upper_row_size =
+      m_table_collection.has_blob_column()
+          ? 0
+          : ComputeRowSizeUpperBound(m_table_collection);
+  if (m_row_buffer.reserve(upper_row_size)) {
+    my_error(ER_OUTOFMEMORY, MYF(0), upper_row_size);
+    return true;  // oom
+  }
+
+  m_chunk_files.resize(std::min(m_num_chunks, HashJoinIterator::kMaxChunks));
+
+  /// Set aside space for current generation of chunk row counters. This is
+  /// a two dimensional matrix. Each element is allocated in
+  /// initialize_first_HF_chunk_files
+  m_row_counts.resize(m_chunk_files.size());
+
+  Opt_trace_context *const trace = &m_thd->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object trace_exec(trace, "spill to disk initiated");
+  trace_exec.add("chunk files",
+                 m_chunk_files.size() * 2 +                   // *2: HF + IF
+                     (m_no_of_chunk_file_sets > 1 ? 1 : 0));  // REMAININGINPUT
+  trace_exec.add("chunk sets", m_no_of_chunk_file_sets);
+  return false;
+}
+
+bool materialize_iterator::SpillState::initialize_first_HF_chunk_files() {
+  // Initialize HF and IF chunk files. We assign HF as the "build" chunk and IF
+  // as the "probe" chunk (the terms "build" and "probe" were chosen for the
+  // hash join usage of the chunk abstraction).
+  for (size_t i = 0; i < m_chunk_files.size(); i++) {
+    ChunkPair &chunk_pair = m_chunk_files[i];
+    if (chunk_pair.build_chunk.Init(m_table_collection) ||
+        chunk_pair.probe_chunk.Init(m_table_collection)) {
+      my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
+      return true;
+    }
+    // Initialize counters matrix
+    Mem_root_array<CountPair> ma(current_thd->mem_root, 1);
+    ma.resize(m_no_of_chunk_file_sets);
+    m_row_counts[i] = std::move(ma);
+  }
+
+  /// Initialize REMAININGINPUT tmp file for replay of input rows for chunk file
+  /// sets 2..S
+  return m_no_of_chunk_file_sets > 1 &&
+         m_remaining_input.Init(m_table_collection);
+}
+
+/// Spread the contents of the hash map over the HF files. All rows for
+/// chunk file set 0 precede all rows for chunk file set 1 etc, so we can
+/// later retrieve all rows belonging to each file set by scanning only a
+/// section of each chunk file.
+bool materialize_iterator::SpillState::spread_hash_map_to_HF_chunk_files() {
+  size_t total = 0;
+  for (size_t set = 0; set < m_no_of_chunk_file_sets; set++) {
+    size_t rows_visited = 0;
+    for (auto f = m_hash_map->begin(); f != m_hash_map->end(); f++) {
+      LinkedImmutableString row_with_same_hash = f->second;
+      while (row_with_same_hash != nullptr) {
+        hash_join_buffer::LoadImmutableStringIntoTableBuffers(
+            m_table_collection, row_with_same_hash);
+        if (StoreFromTableBuffers(m_table_collection, &m_row_buffer)) {
+          return true;
+        }
+        rows_visited++;
+        // Hash row's content with tertiary hash to determine its chunk index,
+        // and write it if its set index equals the current set. This way,
+        // all rows belonging to a set are stored consecutively, and sets in
+        // index order.
+        const ulonglong primary_hash =
+            static_cast<ulonglong>(m_materialized_table->hash_field->val_int());
+        const uint64_t chunk_hash =
+            MY_XXH64(&primary_hash, sizeof(primary_hash), m_hash_seed);
+        const size_t chunk_index = hash_to_chunk_index(chunk_hash);
+        const size_t set_index = chunk_index_to_set(chunk_index);
+        const size_t offset = chunk_offset(chunk_index);
+
+        if (set_index == set) {
+          // If this row goes into current chunk file set, write it.
+          if (m_chunk_files[offset].build_chunk.WriteRowToChunk(
+                  &m_row_buffer, /*matched*/ false, set_index /*, &offset*/)) {
+            my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
+            return true;
+          }
+
+          total++;
+        }
+        row_with_same_hash = row_with_same_hash.Decode().next;
+      }
+    }
+
+    size_t idx = 0;
+    for (auto &chunk : m_chunk_files) {
+      /// TODO: this matrix of counts is allocated on normal execution
+      /// \c MEM_ROOT.  If this space usage is seen as excessive, we could get
+      /// rid of it by instead putting sentinel rows in a chunk at the start of
+      /// each new chunk file set. That way, we can know when we have read all
+      /// rows belonging to a chunk file set (instead of relying on this
+      /// counter matrix).
+      m_row_counts[idx][set].HF_count = chunk.build_chunk.NumRows();
+      /// Reset number at end of each set, so we can determine number of rows
+      /// for each set in a chunk file, cf. m_row_counts above.
+      chunk.build_chunk.SetNumRows(0);
+      idx++;
+    }
+  }
+
+  // Reset correct total number of rows (sum for all sets) in each chunk
+  // and rewind the HF files for reading from the start of the file
+  for (size_t chunk_idx = 0; chunk_idx < m_chunk_files.size(); chunk_idx++) {
+    size_t chunk_total = 0;
+    for (size_t set_idx = 0; set_idx < m_no_of_chunk_file_sets; set_idx++)
+      chunk_total += m_row_counts[chunk_idx][set_idx].HF_count;
+    m_chunk_files[chunk_idx].build_chunk.SetNumRows(chunk_total);
+    if (m_chunk_files[chunk_idx].build_chunk.Rewind()) return true;
+  }
+
+  return false;
+}
+
+bool materialize_iterator::SpillState::append_hash_map_to_HF() {
+  m_chunk_files[m_current_chunk_idx].build_chunk.SetAppend();
+
+  size_t rows_visited = 0;
+  for (auto f = m_hash_map->begin(); f != m_hash_map->end(); f++) {
+    LinkedImmutableString row_with_same_hash = f->second;
+    while (row_with_same_hash != nullptr) {
+      hash_join_buffer::LoadImmutableStringIntoTableBuffers(m_table_collection,
+                                                            row_with_same_hash);
+      if (StoreFromTableBuffers(m_table_collection, &m_row_buffer)) {
         return true;
+      }
+      rows_visited++;
+      // We shouldn't need to do this over again: we know chunk no and set
+      // already. Compute it for assertion.
+#ifndef NDEBUG
+      const ulonglong primary_hash =
+          static_cast<ulonglong>(m_materialized_table->hash_field->val_int());
+      const uint64_t chunk_hash =
+          MY_XXH64(&primary_hash, sizeof(primary_hash), m_hash_seed);
+      const size_t chunk_index = hash_to_chunk_index(chunk_hash);
+      const size_t set_index = chunk_index_to_set(chunk_index);
+      const size_t offset = chunk_offset(chunk_index);
+      // If this row goes into current chunk file set, write it.
+      assert(offset == m_current_chunk_idx);
+      assert(set_index == m_current_chunk_file_set);
+#endif
+      if (m_chunk_files[m_current_chunk_idx].build_chunk.WriteRowToChunk(
+              &m_row_buffer, /*matched*/ false, m_current_chunk_file_set)) {
+        my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
+        return true;
+      }
+      row_with_same_hash = row_with_same_hash.Decode().next;
+    }
+  }
+  m_row_counts[m_current_chunk_idx][m_current_chunk_file_set].HF_count =
+      rows_visited;
+
+  reset_hash_map(m_hash_map);
+  m_hash_map_mem_root->ClearForReuse();
+
+  m_chunk_files[m_current_chunk_idx].build_chunk.ContinueRead();
+
+  return false;
+}
+
+bool materialize_iterator::SpillState::save_operand_to_IF_chunk_files(
+    const Operand *current_operand) {
+  for (size_t set = 0; set < m_no_of_chunk_file_sets; set++) {
+    size_t rows_left_in_remaining_input = 0;
+    if (set > 0) {
+      rows_left_in_remaining_input = m_remaining_input.NumRows();
+      /// Prepare to read from REMAININGINPUT
+      m_remaining_input.Rewind();
+    }
+    while (true) {
+      bool done = false;  // done reading rows for this chunk file set
+
+      // Save the input row that caused the spill, we saved that away
+      if (m_offending_row.m_unsaved) {
+        assert(set == 0);
+        m_offending_row.m_unsaved = false;
+        LoadIntoTableBuffers(
+            m_table_collection,
+            pointer_cast<const uchar *>(m_offending_row.m_buffer.ptr()));
+        if (m_offending_row.m_set == 0) {
+          if (m_chunk_files[m_offending_row.m_chunk_offset]
+                  .probe_chunk.WriteRowToChunk(&m_offending_row.m_buffer,
+                                               /*matched*/ false, set)) {
+            return true;
+          }
+          m_row_counts[m_offending_row.m_chunk_offset][set].IF_count++;
+        } else if (m_no_of_chunk_file_sets > 1) {
+          /// If we have more than one chunk file set, we need the input rows
+          /// (that we couldn't write to set 0) again for writing to the next
+          /// sets, so save in REMAININGINPUT
+          if (m_remaining_input.WriteRowToChunk(&m_offending_row.m_buffer,
+                                                /*matched*/ false)) {
+            return true;
+          }
+        }
+      }
+
+      if (set == 0) {
+        int error = current_operand->subquery_iterator->Read();
+        if (error > 0 || current_thd->is_error()) return true;
+        if (error < 0) {
+          done = true;  // done reading the rest of left operand
+        } else {
+          // Materialize items for this row.
+          if (current_operand->copy_items) {
+            if (copy_funcs(current_operand->temp_table_param, current_thd))
+              return true;
+          }
+          if (StoreFromTableBuffers(m_table_collection, &m_row_buffer))
+            return true;
+        }
+
+      } else {
+        if (rows_left_in_remaining_input-- > 0) {
+          bool dummy = false;
+          if (m_remaining_input.LoadRowFromChunk(&m_row_buffer,
+                                                 /*matched*/ &dummy))
+            return true;
+        } else {
+          done = true;
+        }
+      }
+      if (done) break;  // move on to next chunk file set, if any
+
+      const ulonglong primary_hash = calc_row_hash(m_materialized_table);
+      m_materialized_table->hash_field->store(
+          static_cast<longlong>(primary_hash), true);
+      const uint64_t chunk_hash =
+          MY_XXH64(&primary_hash, sizeof(primary_hash), m_hash_seed);
+      const size_t chunk_index = hash_to_chunk_index(chunk_hash);
+      const size_t set_index = chunk_index_to_set(chunk_index);
+      const size_t offset = chunk_offset(chunk_index);
+      // If this row goes into current chunk file set, write it.
+      if (set_index == set) {
+        if (m_chunk_files[offset].probe_chunk.WriteRowToChunk(
+                &m_row_buffer, /*matched*/ false, set_index)) {
+          return true;
+        }
+        // Update the set counter of IF-k. Note that
+        m_row_counts[offset][set].IF_count++;
+      }
+      /// If we have more than one chunk file set, we need the input rows (that
+      /// we couldn't write to set 0) again for writing to the next sets, so
+      /// save in REMAININGINPUT
+      if (m_no_of_chunk_file_sets > 1 && set == 0 && set_index != 0) {
+        if (m_remaining_input.WriteRowToChunk(&m_row_buffer, /*matched*/ false))
+          return true;
+      }
+    }
+  }
+
+  /// Rewind all IF chunk files and possibly REMAININGINPUT.
+  size_t offset = 0;
+  for (auto &chunk : m_chunk_files) {
+    if (chunk.probe_chunk.Rewind()) return true;
+    offset++;
+  }
+
+  return m_no_of_chunk_file_sets > 1 && m_remaining_input.Rewind();
+}
+
+bool materialize_iterator::SpillState::reset_for_spill_handling() {
+  // We have HF and IF on chunk files, get ready for reading rest of left
+  // operand rows
+  reset_hash_map(m_hash_map);
+  m_hash_map_mem_root->ClearForReuse();
+  m_current_chunk_idx = 0;
+  m_current_chunk_file_set = 0;
+  m_current_row_in_chunk = 0;
+
+  return false;
+}
+
+bool materialize_iterator::SpillState::write_HF(THD *thd, size_t set,
+                                                size_t chunk_idx,
+                                                const Operands &operands,
+                                                ha_rows *stored_rows) {
+  for (size_t rowno = 0; rowno < m_row_counts[chunk_idx][set].HF_count;
+       rowno++) {
+    size_t set_idx = 0;
+    if (m_chunk_files[chunk_idx].build_chunk.LoadRowFromChunk(
+            &m_row_buffer, nullptr, &set_idx))
+      return true;
+#ifndef NDEBUG
+    const ulonglong primary_hash =
+        static_cast<ulonglong>(m_materialized_table->hash_field->val_int());
+    const uint64_t chunk_hash =
+        MY_XXH64(&primary_hash, sizeof(primary_hash), m_hash_seed);
+    const size_t chunk_index = hash_to_chunk_index(chunk_hash);
+    const size_t set_index = chunk_index_to_set(chunk_index);
+    assert(chunk_offset(chunk_index) == chunk_idx);
+    assert(set_idx == set_index);
+    assert(set == set_idx);
+#endif
+    int error = m_materialized_table->file->ha_write_row(
+        m_materialized_table->record[0]);
+    if (error == 0) {
+      ++*stored_rows;
+    } else {
+      // create_ondisk_from_heap will generate error if needed.
+      assert(!m_materialized_table->file->is_ignorable_error(error));
+      if (create_ondisk_from_heap(thd, m_materialized_table, error,
+                                  /*insert_last_record=*/true,
+                                  /*ignore_last_dup=*/true, nullptr))
+        return true; /* purecov: inspected */
+      if (secondary_overflow()) {
+        assert(m_materialized_table->s->keys == 1);
+        if (m_materialized_table->file->ha_index_init(0, false) != 0)
+          return true;
+      } else {
+        // else: we use hashing, so skip ha_index_init
+        assert(m_materialized_table->s->keys == 0);
+      }
+      ++*stored_rows;
+
+      // Inform each reader that the table has changed under their feet,
+      // so they'll need to reposition themselves.
+      for (const materialize_iterator::Operand &query_b : operands) {
+        if (query_b.is_recursive_reference) {
+          query_b.recursive_reader->RepositionCursorAfterSpillToDisk();
+        }
       }
     }
   }
   return false;
 }
 
+bool materialize_iterator::SpillState::write_partially_completed_HFs(
+    THD *thd, const Operands &operands, ha_rows *stored_rows) {
+  // State when secondary overflow occurred when making 2. generation HF chunks
+  // is described by m_current_chunk_idx, m_current_chunk_file_set and
+  // m_current_row_in_chunk, corresponding to OF ("overflow") below
+  //
+  // 1.generation
+  //     0        m_current_chunk_idx  m_chunk_files.size() - 1
+  //     |                        |           |
+  //     V                        V           V
+  // |------+------+------+    +------+    +------|
+  // |   r  |   r  |   r  | .. |   r  | .. |   r  |  0
+  // |------+------+------+    +------+    +------|
+  //                   :
+  // |------+------+------+    +------+    +------|
+  // |   r  |   r  |   r  | .. |   r  | .. |   I  |  m_current_chunk_file_set
+  // |------+------+------+    +------+    +------|
+  //                   :
+  // |------+------+------+    +------+    +------|
+  // |   I  |   I  |   I  | .. |   I  | .. |   I  |  m_no_of_chunk_file_sets - 1
+  // |------+------+------+    +------+    +------|
+  //
+  // 2.generation
+  // |------+------+------+    +------+    +------|
+  // |   C  |   C  |   C  | .. |   C  | .. |   C  |  0
+  // |------+------+------+    +------+    +------|
+  //                   :
+  // |------+------+------+    +------+    +------|
+  // |   C  |   C  |   C  | .. |  OF  | .. |      |  m_current_chunk_file_set
+  // |------+------+------+    +------+    +------|
+  //                   :
+  // |------+------+------+    +------+    +------|
+  // |      |      |      | .. |      | .. |      |  m_no_of_chunk_file_sets - 1
+  // |------+------+------+    +------+    +------|
+  //
+  // We sucessfully read all chunks labelled r and matched them with their
+  // respective IF chunks, so they exist in 2. generation labeled C ("complete")
+  //
+  // Now, read and write to output table the already de-duplicated rows.
+  // First the remaining chunk files from the 1. generation labeled I
+  // ("incomplete").  Reading 1. generation chunks first ensures that the
+  // reading positions are correct for reading the 2. generation chunks in the
+  // next step.
+  // Next, read and write the completed chunk files from 2. generation.
+  // The 1. generation of the chunk file OF, given by {m_current_chunk_idx,
+  // m_current_chunk_file_set} has already been read into the in-memory hash
+  // table. Writing the latter as well as the offending row and the
+  // reading/de-duplicating rest of the left operand IF files will be handled
+  // elsewhere (in materialize_hash_map and read_next_row_secondary_overflow).
+
+  // Write Is
+  for (size_t set = m_current_chunk_file_set; set < m_no_of_chunk_file_sets;
+       set++) {
+    const size_t min_C =
+        set == m_current_chunk_file_set ? m_current_chunk_idx + 1 : 0;
+    for (size_t offset = min_C; offset < m_chunk_files.size(); offset++) {
+      if (write_HF(thd, set, offset, operands, stored_rows)) return true;
+    }
+  }
+  // Write Cs
+  for (size_t set = 0; set <= m_current_chunk_file_set; set++) {
+    const size_t max_C = set == m_current_chunk_file_set ? m_current_chunk_idx
+                                                         : m_chunk_files.size();
+    for (size_t offset = 0; offset < max_C; offset++) {
+      if (write_HF(thd, set, offset, operands, stored_rows)) return true;
+    }
+  }
+
+  return false;
+}
+
+bool materialize_iterator::SpillState::write_completed_HFs(
+    THD *thd, const Operands &operands, ha_rows *stored_rows) {
+  // Write >= 2. generation finished chunk files
+  for (size_t set = 0; set < m_no_of_chunk_file_sets; set++) {
+    for (size_t offset = 0; offset < m_chunk_files.size(); offset++) {
+      if (write_HF(thd, set, offset, operands, stored_rows)) return true;
+    }
+  }
+  return false;
+}
+
+#ifndef NDEBUG
+bool materialize_iterator::SpillState::simulated_secondary_overflow(
+    bool *spill) {
+  const char *const common_msg =
+      "in debug_setop_secondary_overflow_at too high: should be lower than "
+      "or equal to:";
+  // Have we indicated a value?
+  if (strlen(current_thd->variables.debug_setop_secondary_overflow_at) > 0 &&
+      m_simulated_set_idx == std::numeric_limits<size_t>::max()) {
+    // Parse out variables with
+    // syntax: <set-idx:integer 0-based> <chunk-idx:integer 0-based>
+    // <row_no:integer 1-based>
+    int tokens [[maybe_unused]] = sscanf(
+        current_thd->variables.debug_setop_secondary_overflow_at, "%zu %zu %zu",
+        &m_simulated_set_idx, &m_simulated_chunk_idx, &m_simulated_row_no);
+    if (tokens != 3 || m_simulated_row_no < 1 ||
+        m_simulated_chunk_idx >= m_chunk_files.size()) {
+      my_error(ER_SIMULATED_INJECTION_ERROR, MYF(0), "Chunk number", common_msg,
+               m_chunk_files.size() - 1);
+      return true;
+    }
+
+    if (static_cast<size_t>(m_simulated_set_idx) >= m_no_of_chunk_file_sets) {
+      my_error(ER_SIMULATED_INJECTION_ERROR, MYF(0), "Set number", common_msg,
+               m_no_of_chunk_file_sets - 1);
+      return true;
+    }
+  }
+
+  if (m_simulated_set_idx <
+      std::numeric_limits<size_t>::max()) {  // initialized
+    if (m_current_chunk_file_set == m_simulated_set_idx &&
+        m_current_chunk_idx == m_simulated_chunk_idx) {
+      if (m_simulated_row_no >
+          m_row_counts[m_current_chunk_idx][m_current_chunk_file_set]
+              .IF_count) {
+        my_error(ER_SIMULATED_INJECTION_ERROR, MYF(0), "Row number", common_msg,
+                 m_row_counts[m_current_chunk_idx][m_current_chunk_file_set]
+                     .IF_count);
+        return true;
+      }
+
+      if (m_current_row_in_chunk == static_cast<size_t>(m_simulated_row_no)) {
+        *spill = true;
+      }
+    }
+  }
+
+  return false;
+}
+#endif
+
+bool materialize_iterator::SpillState::init(const Operand &left_operand,
+                                            hash_map_type *hash_map,
+                                            size_t rows_in_hash_table,
+                                            size_t read_rows_before_dedup,
+                                            MEM_ROOT *hash_map_mem_root,
+                                            TABLE *t) {
+  m_hash_map = hash_map;
+  m_rows_in_hash_map = rows_in_hash_table;
+  m_read_rows_before_dedup = read_rows_before_dedup;
+  m_hash_map_mem_root = hash_map_mem_root;
+  m_materialized_table = t;
+
+  // prepare m_materialized_table as a TableCollection; this is needed by
+  // some APIs we use
+  {
+    Prealloced_array<TABLE *, 4> ta(key_memory_hash_op, 1);
+    ta[0] = t;
+    pack_rows::TableCollection tc(ta, false, 0, 0);
+    m_table_collection = tc;
+  }
+  // Use different hash seed for chunking of EXCEPT and INTERSECT
+  // to avoid effects of initial set of rows all from one set op
+  // ending up in same chunk in the next set op if that spills over too.
+  // TODO: maybe assign a different seed to all set ops in a query.
+  m_hash_seed = m_materialized_table->is_except()
+                    ? HashJoinIterator::kChunkPartitioningHashSeed
+                    : HashJoinIterator::kChunkPartitioningHashSeed *
+                          m_magic_prime; /* arbitrary prime */
+
+  if (compute_chunk_file_sets(&left_operand) ||                 // 3.
+      initialize_first_HF_chunk_files() ||                      // 3.a
+      spread_hash_map_to_HF_chunk_files() ||                    // 3.a
+      save_rest_of_operand_to_IF_chunk_files(&left_operand) ||  // 3.b
+      reset_for_spill_handling())                               // 3.b/3.c
+    return true;
+  m_spill_read_state = ReadingState::SS_READING_LEFT_HF;
+  return false;
+}
+
+int materialize_iterator::SpillState::read_next_row(
+    const Operand *current_operand) {
+  if (m_secondary_overflow) return read_next_row_secondary_overflow();
+
+  ReadingState prev_state =
+      ReadingState::SS_NONE;  // init: silly but silences clang-tidy
+  do {
+    prev_state = m_spill_read_state;
+    switch (m_spill_read_state) {
+      case ReadingState::SS_READING_LEFT_HF:
+      case ReadingState::SS_READING_RIGHT_HF: {
+        while (true) {
+          if (++m_current_row_in_chunk <=
+              m_row_counts[m_current_chunk_idx][m_current_chunk_file_set]
+                  .HF_count) {
+            size_t set_idx = 0;
+            if (m_chunk_files[m_current_chunk_idx].build_chunk.LoadRowFromChunk(
+                    &m_row_buffer, nullptr, &set_idx))
+              return 1;
+#ifndef NDEBUG
+            const ulonglong primary_hash = static_cast<ulonglong>(
+                m_materialized_table->hash_field->val_int());
+            const uint64_t chunk_hash =
+                MY_XXH64(&primary_hash, sizeof(primary_hash), m_hash_seed);
+            const size_t chunk_index = hash_to_chunk_index(chunk_hash);
+            const size_t set_index = chunk_index_to_set(chunk_index);
+            assert(chunk_offset(chunk_index) == m_current_chunk_idx);
+            assert(set_idx == set_index);
+            assert(set_idx == m_current_chunk_file_set);
+#endif
+            // We loaded a row from the current HF chunk, return and
+            // put it in hash map
+            break;
+          }
+          // We have read the entire current HF chunk into the hash map, now
+          // read current IF chunk's rows and process them against the hash
+          // map
+          m_current_row_in_chunk = 0;
+          switch_to_IF();
+          break;
+        }
+      } break;
+      case ReadingState::SS_READING_LEFT_IF:
+      case ReadingState::SS_READING_RIGHT_IF: {
+        while (true) {
+          if (++m_current_row_in_chunk <=
+              m_row_counts[m_current_chunk_idx][m_current_chunk_file_set]
+                  .IF_count) {
+            size_t set_idx = 0;
+            if (m_chunk_files[m_current_chunk_idx].probe_chunk.LoadRowFromChunk(
+                    &m_row_buffer, nullptr, &set_idx))
+              return 1;
+#ifndef NDEBUG
+            const ulonglong primary_hash = static_cast<ulonglong>(
+                m_materialized_table->hash_field->val_int());
+            const uint64_t chunk_hash =
+                MY_XXH64(&primary_hash, sizeof(primary_hash), m_hash_seed);
+            const size_t chunk_index = hash_to_chunk_index(chunk_hash);
+            assert(chunk_index_to_set(chunk_index) == set_idx);
+            assert(chunk_offset(chunk_index) == m_current_chunk_idx);
+#endif
+            if (set_idx == m_current_chunk_file_set) {
+              // OK, we found a row from the current set, process row
+              break;
+            }
+          } else {
+            append_hash_map_to_HF();
+
+            m_current_row_in_chunk = 0;
+            if (++m_current_chunk_idx < m_chunk_files.size()) {
+              // Move on to next {HF, IF} chunk pair
+              switch_to_HF();
+              break;
+            }
+            // We have exhaused the chunk pairs in the current set, move to
+            // the first {HF, IF} chunk pair in the next set.
+            m_current_chunk_idx = 0;
+            if (++m_current_chunk_file_set < m_no_of_chunk_file_sets) {
+              switch_to_HF();
+              break;
+            }
+            // We have exhausted all {HF, IF} chunk pairs for the current
+            // operand (left or right), get ready for the next right
+            // operand(s)
+            m_current_chunk_file_set = 0;
+            m_spill_read_state = ReadingState::SS_COPY_OPERAND_N_TO_IF;
+            for (auto &chunk : m_chunk_files) {
+              // We have read and de-duplicated all operand rows, and the
+              // rows are located in the current generation of HF chunk sets
+              // and these are already correctly positioned for reading,
+              // residing immediately after the previous generation chunk
+              // sets.  We now want to fill the probe chunks with the next
+              // (right) operand's rows and perform set operation against
+              // the current generation's HF chunk sets.
+              if (chunk.probe_chunk.Init(m_table_collection)) return 1;
+            }
+            if (m_remaining_input.Init(m_table_collection)) return 1;
+            // Done reading current operand
+            return -1;
+          }
+        }
+      } break;
+
+      case ReadingState::SS_COPY_OPERAND_N_TO_IF: {
+        // We are reading a new operand, so reset IF counters
+        for (size_t set = 0; set < m_no_of_chunk_file_sets; set++)
+          for (size_t i = 0; i < m_row_counts.size(); i++)
+            m_row_counts[i][set].IF_count = 0;
+
+        if (save_operand_to_IF_chunk_files(current_operand) ||
+            reset_for_spill_handling())
+          return 1;
+        m_spill_read_state = ReadingState::SS_READING_RIGHT_HF;
+      } break;
+
+      case ReadingState::SS_NONE:
+      case ReadingState::SS_FLUSH_REST_OF_LEFT_IFS:
+        assert(false);
+    }
+  } while (m_spill_read_state != prev_state);
+
+  return 0;
+}
+
+int materialize_iterator::SpillState::read_next_row_secondary_overflow() {
+  do {
+    switch (m_spill_read_state) {
+      case ReadingState::SS_READING_LEFT_IF:
+        LoadIntoTableBuffers(
+            m_table_collection,
+            pointer_cast<const uchar *>(m_offending_row.m_buffer.ptr()));
+        m_spill_read_state = ReadingState::SS_FLUSH_REST_OF_LEFT_IFS;
+        break;
+      case ReadingState::SS_FLUSH_REST_OF_LEFT_IFS:
+        if (++m_current_row_in_chunk <=
+            m_row_counts[m_current_chunk_idx][m_current_chunk_file_set]
+                .IF_count) {
+          size_t set_idx = 0;
+          if (m_chunk_files[m_current_chunk_idx].probe_chunk.LoadRowFromChunk(
+                  &m_row_buffer, nullptr, &set_idx))
+            return 1;
+#ifndef NDEBUG
+          const ulonglong primary_hash = static_cast<ulonglong>(
+              m_materialized_table->hash_field->val_int());
+          const uint64_t chunk_hash =
+              MY_XXH64(&primary_hash, sizeof(primary_hash), m_hash_seed);
+          const size_t chunk_index = hash_to_chunk_index(chunk_hash);
+          assert(chunk_index_to_set(chunk_index) == set_idx);
+          assert(chunk_offset(chunk_index) == m_current_chunk_idx);
+          assert(m_current_chunk_file_set == set_idx);
+#endif
+        } else {
+          m_current_row_in_chunk = 0;
+          if (++m_current_chunk_idx < m_chunk_files.size()) continue;
+          m_current_chunk_idx = 0;
+          if (++m_current_chunk_file_set < m_no_of_chunk_file_sets) continue;
+          // No more IF chunks left to process, we have recovered from secondary
+          // overflow, all de-duplicated rows are on output table, now it is
+          // safe to move on to right operand(s).
+          secondary_overflow_handling_done();
+          return -1;
+        }
+        break;
+      default:
+        assert(false);
+    }
+    break;  // got a row
+  } while (true);
+
+  return 0;
+}
+
 RowIterator *materialize_iterator::CreateIterator(
-    THD *thd,
-    Mem_root_array<materialize_iterator::QueryBlock>
-        query_blocks_to_materialize,
-    const MaterializePathParameters *path_params,
+    THD *thd, Operands operands, const MaterializePathParameters *path_params,
     unique_ptr_destroy_only<RowIterator> table_iterator, JOIN *join) {
   if (thd->lex->is_explain_analyze) {
     RowIterator *const table_iter_ptr = table_iterator.get();
 
     auto iter = new (thd->mem_root) MaterializeIterator<IteratorProfilerImpl>(
-        thd, std::move(query_blocks_to_materialize), path_params,
-        std::move(table_iterator), join);
+        thd, std::move(operands), path_params, std::move(table_iterator), join);
 
     /*
       Provide timing data for the iterator that iterates over the temporary
@@ -1478,8 +2958,7 @@ RowIterator *materialize_iterator::CreateIterator(
     return iter;
   } else {
     return new (thd->mem_root) MaterializeIterator<DummyIteratorProfiler>(
-        thd, std::move(query_blocks_to_materialize), path_params,
-        std::move(table_iterator), join);
+        thd, std::move(operands), path_params, std::move(table_iterator), join);
   }
 }
 
@@ -1738,7 +3217,7 @@ bool TemptableAggregateIterator<Profiler>::Init() {
       */
       if (copy_funcs(m_temp_table_param, thd()))
         return true; /* purecov: inspected */
-      group_found = !check_unique_constraint(table());
+      group_found = !check_unique_fields(table());
     } else {
       for (ORDER *group = table()->group; group; group = group->next) {
         Item *item = *group->item;

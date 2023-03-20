@@ -2994,18 +2994,30 @@ TRACE
             } /* creating_tmp_table */
           },
           {
-            "materialize": {
+            "materialize for union": {
               "select#": 2,
               "steps": [
+                {
+                  "de-duplicate with index": {
+                    "steps": [
+                    ] /* steps */
+                  } /* de-duplicate with index */
+                }
               ] /* steps */
-            } /* materialize */
+            } /* materialize for union */
           },
           {
-            "materialize": {
+            "materialize for union": {
               "select#": 3,
               "steps": [
+                {
+                  "de-duplicate with index": {
+                    "steps": [
+                    ] /* steps */
+                  } /* de-duplicate with index */
+                }
               ] /* steps */
-            } /* materialize */
+            } /* materialize for union */
           }
         ] /* steps */
       } /* join_execution */
@@ -3041,25 +3053,43 @@ show_json_object('"join_execution": {', TRACE)
             } /* creating_tmp_table */
           },
           {
-            "materialize": {
+            "materialize for union": {
               "select#": 2,
               "steps": [
+                {
+                  "no de-duplication": {
+                    "steps": [
+                    ] /* steps */
+                  } /* no de-duplication */
+                }
               ] /* steps */
-            } /* materialize */
+            } /* materialize for union */
           },
           {
-            "materialize": {
+            "materialize for union": {
               "select#": 3,
               "steps": [
+                {
+                  "no de-duplication": {
+                    "steps": [
+                    ] /* steps */
+                  } /* no de-duplication */
+                }
               ] /* steps */
-            } /* materialize */
+            } /* materialize for union */
           },
           {
-            "materialize": {
+            "materialize for union": {
               "select#": 3,
               "steps": [
+                {
+                  "no de-duplication": {
+                    "steps": [
+                    ] /* steps */
+                  } /* no de-duplication */
+                }
               ] /* steps */
-            } /* materialize */
+            } /* materialize for union */
           }
         ] /* steps */
       } 
@@ -3091,18 +3121,30 @@ show_json_object('"join_execution": {', TRACE)
             } /* creating_tmp_table */
           },
           {
-            "materialize": {
+            "materialize for union": {
               "select#": 2,
               "steps": [
+                {
+                  "no de-duplication": {
+                    "steps": [
+                    ] /* steps */
+                  } /* no de-duplication */
+                }
               ] /* steps */
-            } /* materialize */
+            } /* materialize for union */
           },
           {
-            "materialize": {
+            "materialize for union": {
               "select#": 3,
               "steps": [
+                {
+                  "no de-duplication": {
+                    "steps": [
+                    ] /* steps */
+                  } /* no de-duplication */
+                }
               ] /* steps */
-            } /* materialize */
+            } /* materialize for union */
           }
         ] /* steps */
       } 

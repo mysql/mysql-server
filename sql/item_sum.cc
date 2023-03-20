@@ -1298,7 +1298,7 @@ bool Aggregator_distinct::add() {
       return tree->unique_add(table->record[0] + table->s->null_bytes);
     }
 
-    if (!check_unique_constraint(table)) return false;
+    if (!check_unique_fields(table)) return false;
     error = table->file->ha_write_row(table->record[0]);
     if (error && !table->file->is_ignorable_error(error)) {
       if (create_ondisk_from_heap(current_thd, table, error,

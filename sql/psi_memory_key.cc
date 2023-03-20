@@ -107,7 +107,7 @@ PSI_memory_key key_memory_global_system_variables;
 PSI_memory_key key_memory_errmsgs_handler;
 PSI_memory_key key_memory_handlerton_objects;
 PSI_memory_key key_memory_hash_index_key_buffer;
-PSI_memory_key key_memory_hash_join;
+PSI_memory_key key_memory_hash_op;
 PSI_memory_key key_memory_help;
 PSI_memory_key key_memory_histograms;
 PSI_memory_key key_memory_host_cache_hostname;
@@ -369,7 +369,7 @@ static PSI_memory_info all_server_memory[] = {
     {&key_memory_log_sink_pfs, "log_sink_pfs", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_histograms, "histograms", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_hash_join, "hash_join", PSI_FLAG_MEM_COLLECT, 0,
+    {&key_memory_hash_op, "hashed_operation", PSI_FLAG_MEM_COLLECT, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_rm_table_foreach_root, "rm_table::foreach_root",
      PSI_FLAG_THREAD, 0,

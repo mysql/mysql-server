@@ -2560,7 +2560,7 @@ bool UpdateRowsIterator::DoImmediateUpdatesAndBufferRowIds(
       }
 
       // check if a record exists with the same hash value
-      if (!check_unique_constraint(tmp_table))
+      if (!check_unique_fields(tmp_table))
         return false;  // skip adding duplicate record to the temp table
 
       /* Write row, ignoring duplicated updates to a row */

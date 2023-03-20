@@ -163,12 +163,12 @@ void WalkAccessPaths(AccessPathPtr path, JoinPtr join,
     case AccessPath::MATERIALIZE:
       WalkAccessPaths(path->materialize().table_path, join, cross_query_blocks,
                       std::forward<Func &&>(func), post_order_traversal);
-      for (const MaterializePathParameters::QueryBlock &query_block :
-           path->materialize().param->query_blocks) {
+      for (const MaterializePathParameters::Operand &operand :
+           path->materialize().param->m_operands) {
         if (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_TREE ||
             (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK &&
-             query_block.join == join)) {
-          WalkAccessPaths(query_block.subquery_path, query_block.join,
+             operand.join == join)) {
+          WalkAccessPaths(operand.subquery_path, operand.join,
                           cross_query_blocks, std::forward<Func &&>(func),
                           post_order_traversal);
         }
