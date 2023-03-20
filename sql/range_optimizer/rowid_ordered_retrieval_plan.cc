@@ -60,22 +60,6 @@ using std::max;
 using std::min;
 
 #ifndef NDEBUG
-static void print_ror_scans_arr(TABLE *table, const char *msg,
-                                ROR_SCAN_INFO **start, ROR_SCAN_INFO **end) {
-  DBUG_TRACE;
-
-  char buff[1024];
-  String tmp(buff, sizeof(buff), &my_charset_bin);
-  tmp.length(0);
-  for (; start != end; start++) {
-    if (tmp.length()) tmp.append(',');
-    tmp.append(table->key_info[(*start)->keynr].name);
-  }
-  if (!tmp.length()) tmp.append(STRING_WITH_LEN("(empty)"));
-  DBUG_PRINT("info", ("ROR key scans (%s): %s", msg, tmp.ptr()));
-  fprintf(DBUG_FILE, "ROR key scans (%s): %s", msg, tmp.ptr());
-}
-
 static void print_ror_scans(TABLE *table, const char *msg,
                             const Mem_root_array<ROR_SCAN_INFO *> &ror_scans) {
   DBUG_TRACE;
@@ -221,8 +205,8 @@ static bool is_better_intersect_match(const ROR_SCAN_INFO *scan1,
 
 /**
   Sort indexes in an order that is likely to be a good index merge
-  intersection order. After running this function, [start, ..., end-1]
-  is ordered according to this strategy:
+  intersection order. After running this function ror_scans are
+  ordered according to this strategy:
 
     1) Minimize the number of indexes that must be used in the
        intersection. I.e., the index covering most fields not already
@@ -233,17 +217,15 @@ static bool is_better_intersect_match(const ROR_SCAN_INFO *scan1,
   Note that all permutations of index ordering are not tested, so this
   function may not find the optimal order.
 
-  @param[in,out] start     Pointer to the start of indexes that may
-                           be used in index merge intersection
-  @param         end       Pointer past the last index that may be used.
-  @param         param     Parameter from test_quick_select function.
+  @param[in,out] ror_scans      ror scans to be used in index merge intersection
+  @param         param          Range optimizer parameter
   @param         needed_fields  Bitmask of fields needed by the query.
 */
-static void find_intersect_order(ROR_SCAN_INFO **start, ROR_SCAN_INFO **end,
+static void find_intersect_order(Mem_root_array<ROR_SCAN_INFO *> *ror_scans,
                                  const RANGE_OPT_PARAM *param,
                                  const MY_BITMAP *needed_fields) {
   // nothing to sort if there are only zero or one ROR scans
-  if ((start == end) || (start + 1 == end)) return;
+  if (ror_scans->size() <= 1) return;
 
   /*
     Bitmap of fields we would like the ROR scans to cover. Will be
@@ -259,53 +241,43 @@ static void find_intersect_order(ROR_SCAN_INFO **start, ROR_SCAN_INFO **end,
   bitmap_init(&fields_to_cover, map, needed_fields->n_bits);
   bitmap_copy(&fields_to_cover, needed_fields);
 
-  // Sort ROR scans in [start,...,end-1]
-  for (ROR_SCAN_INFO **place = start; place < (end - 1); place++) {
-    /* Placeholder for the best ROR scan found for position 'place' so far */
-    ROR_SCAN_INFO **best = place;
-    ROR_SCAN_INFO **current = place + 1;
-
-    {
-      /*
-        Calculate how many fields in 'fields_to_cover' not already
-        covered by [start,...,place-1] the 'best' index covers. The
-        result is used in is_better_intersect_match() and is valid
-        when finding the best ROR scan for position 'place' only.
-      */
-      bitmap_intersect(&(*best)->covered_fields_remaining, &fields_to_cover);
-      (*best)->num_covered_fields_remaining =
-          bitmap_bits_set(&(*best)->covered_fields_remaining);
-    }
-    for (; current < end; current++) {
-      {
-        /*
-          Calculate how many fields in 'fields_to_cover' not already
-          covered by [start,...,place-1] the 'current' index covers.
-          The result is used in is_better_intersect_match() and is
-          valid when finding the best ROR scan for position 'place' only.
-        */
-        bitmap_intersect(&(*current)->covered_fields_remaining,
-                         &fields_to_cover);
-        (*current)->num_covered_fields_remaining =
-            bitmap_bits_set(&(*current)->covered_fields_remaining);
-
-        /*
-          No need to compare with 'best' if 'current' does not
-          contribute with uncovered fields.
-        */
-        if ((*current)->num_covered_fields_remaining == 0) continue;
+  // Sort ROR scans
+  for (uint cur_i = 0; cur_i < ror_scans->size(); cur_i++) {
+    ROR_SCAN_INFO *cur_scan = (*ror_scans)[cur_i];
+    // Calculate how many fields in 'fields_to_cover' that are
+    // not already covered are covered by the current scan
+    // we are looking into.
+    bitmap_intersect(&cur_scan->covered_fields_remaining, &fields_to_cover);
+    cur_scan->num_covered_fields_remaining =
+        bitmap_bits_set(&cur_scan->covered_fields_remaining);
+    ROR_SCAN_INFO *best_scan = (*ror_scans)[cur_i];
+    uint best_i = cur_i;
+    // Compare with the next set of ror_scans to find the best_scan
+    for (uint next_i = cur_i + 1; next_i < ror_scans->size(); next_i++) {
+      ROR_SCAN_INFO *next_scan = (*ror_scans)[next_i];
+      // Calculate the fields that would be covered by the "next_scan"
+      // which are not already covered by the previous scans.
+      bitmap_intersect(&next_scan->covered_fields_remaining, &fields_to_cover);
+      next_scan->num_covered_fields_remaining =
+          bitmap_bits_set(&next_scan->covered_fields_remaining);
+      // No need to compare with 'best_scan' if 'next_scan' does not
+      // contribute with uncovered fields.
+      if (next_scan->num_covered_fields_remaining == 0) continue;
+      if (is_better_intersect_match(best_scan, next_scan)) {
+        best_scan = next_scan;
+        best_i = next_i;
       }
-
-      if (is_better_intersect_match(*best, *current)) best = current;
     }
 
     /*
-      'best' is now the ROR scan that will be sorted in position
-      'place'. When searching for the best ROR scans later in the sort
-      sequence we do not need coverage of the fields covered by 'best'
+      'best_scan' is now the ROR scan that will be sorted in place of
+      'cur_scan'. When searching for the best ROR scans later in the sort
+      sequence we do not need coverage of the fields covered by 'best_scan'.
     */
-    bitmap_subtract(&fields_to_cover, &(*best)->covered_fields);
-    if (best != place) std::swap(*best, *place);
+    bitmap_subtract(&fields_to_cover, &best_scan->covered_fields);
+    if (best_i != cur_i) {
+      std::swap((*ror_scans)[best_i], (*ror_scans)[cur_i]);
+    }
 
     if (bitmap_is_clear_all(&fields_to_cover))
       return;  // No more fields to cover
@@ -777,18 +749,14 @@ AccessPath *get_best_ror_intersect(
     Step1: Collect ROR-able SEL_ARGs and create ROR_SCAN_INFO for each of
     them. Also find and save clustered PK scan if there is one.
   */
-  ROR_SCAN_INFO **cur_ror_scan;
   ROR_SCAN_INFO *cpk_scan = nullptr;
   uint cpk_no;
   bool cpk_scan_used = false;
 
-  if (!(tree->ror_scans =
-            param->temp_mem_root->ArrayAlloc<ROR_SCAN_INFO *>(param->keys)))
-    return nullptr;
   cpk_no = ((table->file->primary_key_is_clustered()) ? table->s->primary_key
                                                       : MAX_KEY);
-
-  for (idx = 0, cur_ror_scan = tree->ror_scans; idx < param->keys; idx++) {
+  Mem_root_array<ROR_SCAN_INFO *> ror_scans(param->temp_mem_root);
+  for (idx = 0; idx < param->keys; idx++) {
     ROR_SCAN_INFO *scan;
     if (!tree->ror_scans_map.is_set(idx)) continue;
     if (!(scan = make_ror_scan(param, idx, tree->keys[idx], needed_fields)))
@@ -796,25 +764,19 @@ AccessPath *get_best_ror_intersect(
     if (param->real_keynr[idx] == cpk_no) {
       cpk_scan = scan;
       tree->n_ror_scans--;
-    } else
-      *(cur_ror_scan++) = scan;
+    } else {
+      ror_scans.push_back(scan);
+    }
   }
 
-  tree->ror_scans_end = cur_ror_scan;
-  DBUG_EXECUTE("info", print_ror_scans_arr(table, "original", tree->ror_scans,
-                                           tree->ror_scans_end););
+  DBUG_EXECUTE("info", print_ror_scans(table, "original", ror_scans););
+
   /*
-    Ok, [ror_scans, ror_scans_end) is array of ptrs to initialized
-    ROR_SCAN_INFO's.
-    Step 2: Get best ROR-intersection using an approximate algorithm.
+    Get best ROR-intersection using an approximate algorithm.
   */
-  find_intersect_order(tree->ror_scans, tree->ror_scans_end, param,
-                       needed_fields);
+  find_intersect_order(&ror_scans, param, needed_fields);
 
-  DBUG_EXECUTE("info", print_ror_scans_arr(table, "ordered", tree->ror_scans,
-                                           tree->ror_scans_end););
-
-  cur_ror_scan = tree->ror_scans;
+  DBUG_EXECUTE("info", print_ror_scans(table, "ordered", ror_scans););
   /*
     Note: trace_isect_idx.end() is called to close this object after
     this while-loop.
@@ -822,27 +784,26 @@ AccessPath *get_best_ror_intersect(
   Opt_trace_array trace_isect_idx(trace, "intersecting_indexes");
   ROR_intersect_plan cur_plan(param), best_plan(param);
 
-  while (cur_ror_scan != tree->ror_scans_end && !cur_plan.m_is_covering) {
+  for (uint index = 0; index < ror_scans.size() && !cur_plan.m_is_covering;
+       index++) {
+    ROR_SCAN_INFO *cur_scan = ror_scans[index];
     Opt_trace_object trace_idx(trace);
-    trace_idx.add_utf8("index", table->key_info[(*cur_ror_scan)->keynr].name);
+    trace_idx.add_utf8("index", table->key_info[cur_scan->keynr].name);
 
-    if (!compound_hint_key_enabled(table, (*cur_ror_scan)->keynr,
+    if (!compound_hint_key_enabled(table, cur_scan->keynr,
                                    INDEX_MERGE_HINT_ENUM)) {
       trace_idx.add("usable", false).add_alnum("cause", "index_merge_hint");
-      cur_ror_scan++;
       continue;
     }
 
     /* S= S + first(R);  R= R - first(R); */
-    if (!cur_plan.add(needed_fields, *cur_ror_scan, false, &trace_idx,
+    if (!cur_plan.add(needed_fields, cur_scan, false, &trace_idx,
                       force_index_merge && !use_cheapest_index_merge)) {
       trace_idx.add("cumulated_total_cost", cur_plan.m_total_cost)
           .add("usable", false)
           .add_alnum("cause", "does_not_reduce_cost_of_intersect");
-      cur_ror_scan++;
       continue;
     }
-    cur_ror_scan++;
 
     trace_idx.add("cumulated_total_cost", cur_plan.m_total_cost)
         .add("usable", true)

@@ -976,10 +976,6 @@ class SEL_TREE {
   Key_map ror_scans_map; /* bitmask of ROR scan-able elements in keys */
   uint n_ror_scans;      /* number of set bits in ror_scans_map */
 
-  ROR_SCAN_INFO **ror_scans;     /* list of ROR key scans */
-  ROR_SCAN_INFO **ror_scans_end; /* last ROR scan */
-  /* Note that #records for each key scan is stored in table->quick_rows */
-
   /**
     Convenience function for removing an element in keys[]. The typical
     use for this function is to disconnect the next_key_part from the
