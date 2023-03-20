@@ -76,30 +76,25 @@ static void print_ror_scans(TABLE *table, const char *msg,
 #endif
 
 /*
-  Fill needed_fields with bitmap of fields used in the query.
-  SYNOPSIS
-    fill_used_fields_bitmap()
-      param Parameter from test_quick_select function.
-
+  Get the needed fields used in the query.
   NOTES
-    Clustered PK members are not put into the bitmap as they are implicitly
-    present in all keys (and it is impossible to avoid reading them).
-  RETURN
-    0  Ok
-    1  Out of memory.
+  Clustered PK members are not put into the bitmap as they are implicitly
+  present in all keys (and it is impossible to avoid reading them).
 */
 
-static int fill_used_fields_bitmap(const RANGE_OPT_PARAM *param,
-                                   MY_BITMAP *needed_fields) {
+static OverflowBitset get_needed_fields(const RANGE_OPT_PARAM *param) {
   TABLE *table = param->table;
-  my_bitmap_map *tmp;
-  if (!(tmp = static_cast<my_bitmap_map *>(
-            param->return_mem_root->Alloc(table->s->column_bitmap_size))) ||
-      bitmap_init(needed_fields, tmp, table->s->fields))
-    return 1;
 
-  bitmap_copy(needed_fields, table->read_set);
-  bitmap_union(needed_fields, table->write_set);
+  MutableOverflowBitset fields(param->temp_mem_root, table->s->fields);
+
+  for (size_t i = bitmap_get_first_set(table->read_set); i != MY_BIT_NONE;
+       i = bitmap_get_next_set(table->read_set, i)) {
+    fields.SetBit(i);
+  }
+  for (size_t i = bitmap_get_first_set(table->write_set); i != MY_BIT_NONE;
+       i = bitmap_get_next_set(table->write_set, i)) {
+    fields.SetBit(i);
+  }
 
   uint pk = table->s->primary_key;
   if (pk != MAX_KEY && table->file->primary_key_is_clustered()) {
@@ -108,9 +103,9 @@ static int fill_used_fields_bitmap(const RANGE_OPT_PARAM *param,
     KEY_PART_INFO *key_part_end =
         key_part + table->key_info[pk].user_defined_key_parts;
     for (; key_part != key_part_end; ++key_part)
-      bitmap_clear_bit(needed_fields, key_part->fieldnr - 1);
+      fields.ClearBit(key_part->fieldnr - 1);
   }
-  return 0;
+  return fields;
 }
 
 void trace_basic_info_rowid_intersection(THD *thd, const AccessPath *path,
@@ -161,10 +156,8 @@ void trace_basic_info_rowid_union(THD *thd, const AccessPath *path,
 
 static ROR_SCAN_INFO *make_ror_scan(const RANGE_OPT_PARAM *param, int idx,
                                     SEL_ROOT *sel_root,
-                                    const MY_BITMAP *needed_fields) {
+                                    OverflowBitset needed_fields) {
   ROR_SCAN_INFO *ror_scan;
-  my_bitmap_map *bitmap_buf1;
-  my_bitmap_map *bitmap_buf2;
   uint keynr;
   DBUG_TRACE;
 
@@ -175,30 +168,17 @@ static ROR_SCAN_INFO *make_ror_scan(const RANGE_OPT_PARAM *param, int idx,
   ror_scan->sel_root = sel_root;
   ror_scan->records = param->table->quick_rows[keynr];
 
-  if (!(bitmap_buf1 = (my_bitmap_map *)param->return_mem_root->Alloc(
-            param->table->s->column_bitmap_size)))
-    return nullptr;
-  if (!(bitmap_buf2 = (my_bitmap_map *)param->return_mem_root->Alloc(
-            param->table->s->column_bitmap_size)))
-    return nullptr;
-
-  if (bitmap_init(&ror_scan->covered_fields, bitmap_buf1,
-                  param->table->s->fields))
-    return nullptr;
-  if (bitmap_init(&ror_scan->covered_fields_remaining, bitmap_buf2,
-                  param->table->s->fields))
-    return nullptr;
-
-  bitmap_clear_all(&ror_scan->covered_fields);
-
   KEY_PART_INFO *key_part = param->table->key_info[keynr].key_part;
   KEY_PART_INFO *key_part_end =
       key_part + param->table->key_info[keynr].user_defined_key_parts;
+  MutableOverflowBitset covered_fields(param->temp_mem_root,
+                                       needed_fields.capacity());
   for (; key_part != key_part_end; ++key_part) {
-    if (bitmap_is_set(needed_fields, key_part->fieldnr - 1))
-      bitmap_set_bit(&ror_scan->covered_fields, key_part->fieldnr - 1);
+    if (IsBitSet(key_part->fieldnr - 1, needed_fields))
+      covered_fields.SetBit(key_part->fieldnr - 1);
   }
-  bitmap_copy(&ror_scan->covered_fields_remaining, &ror_scan->covered_fields);
+  ror_scan->covered_fields = std::move(covered_fields);
+  ror_scan->covered_fields_remaining = ror_scan->covered_fields;
 
   double rows = rows2double(param->table->quick_rows[ror_scan->keynr]);
   ror_scan->index_read_cost =
@@ -256,12 +236,12 @@ static bool is_better_intersect_match(const ROR_SCAN_INFO *scan1,
   function may not find the optimal order.
 
   @param[in,out] ror_scans      ror scans to be used in index merge intersection
-  @param         param          Range optimizer parameter
   @param         needed_fields  Bitmask of fields needed by the query.
+  @param         mem_root       memory root to be used.
 */
 static void find_intersect_order(Mem_root_array<ROR_SCAN_INFO *> *ror_scans,
-                                 const RANGE_OPT_PARAM *param,
-                                 const MY_BITMAP *needed_fields) {
+                                 OverflowBitset needed_fields,
+                                 MEM_ROOT *mem_root) {
   // nothing to sort if there are only zero or one ROR scans
   if (ror_scans->size() <= 1) return;
 
@@ -271,13 +251,7 @@ static void find_intersect_order(Mem_root_array<ROR_SCAN_INFO *> *ror_scans,
     scan in position 'x' in the ordering, all fields covered by ROR
     scans 0,...,x-1 have been removed.
   */
-  MY_BITMAP fields_to_cover;
-  my_bitmap_map *map;
-  if (!(map = (my_bitmap_map *)param->temp_mem_root->Alloc(
-            param->table->s->column_bitmap_size)))
-    return;
-  bitmap_init(&fields_to_cover, map, needed_fields->n_bits);
-  bitmap_copy(&fields_to_cover, needed_fields);
+  OverflowBitset fields_to_cover = needed_fields;
 
   // Sort ROR scans
   for (uint cur_i = 0; cur_i < ror_scans->size(); cur_i++) {
@@ -285,9 +259,10 @@ static void find_intersect_order(Mem_root_array<ROR_SCAN_INFO *> *ror_scans,
     // Calculate how many fields in 'fields_to_cover' that are
     // not already covered are covered by the current scan
     // we are looking into.
-    bitmap_intersect(&cur_scan->covered_fields_remaining, &fields_to_cover);
+    cur_scan->covered_fields_remaining = OverflowBitset::And(
+        mem_root, cur_scan->covered_fields_remaining, fields_to_cover);
     cur_scan->num_covered_fields_remaining =
-        bitmap_bits_set(&cur_scan->covered_fields_remaining);
+        PopulationCount(cur_scan->covered_fields_remaining);
     ROR_SCAN_INFO *best_scan = (*ror_scans)[cur_i];
     uint best_i = cur_i;
     // Compare with the next set of ror_scans to find the best_scan
@@ -295,9 +270,10 @@ static void find_intersect_order(Mem_root_array<ROR_SCAN_INFO *> *ror_scans,
       ROR_SCAN_INFO *next_scan = (*ror_scans)[next_i];
       // Calculate the fields that would be covered by the "next_scan"
       // which are not already covered by the previous scans.
-      bitmap_intersect(&next_scan->covered_fields_remaining, &fields_to_cover);
+      next_scan->covered_fields_remaining = OverflowBitset::And(
+          mem_root, next_scan->covered_fields_remaining, fields_to_cover);
       next_scan->num_covered_fields_remaining =
-          bitmap_bits_set(&next_scan->covered_fields_remaining);
+          PopulationCount(next_scan->covered_fields_remaining);
       // No need to compare with 'best_scan' if 'next_scan' does not
       // contribute with uncovered fields.
       if (next_scan->num_covered_fields_remaining == 0) continue;
@@ -312,25 +288,27 @@ static void find_intersect_order(Mem_root_array<ROR_SCAN_INFO *> *ror_scans,
       'cur_scan'. When searching for the best ROR scans later in the sort
       sequence we do not need coverage of the fields covered by 'best_scan'.
     */
-    bitmap_subtract(&fields_to_cover, &best_scan->covered_fields);
+    MutableOverflowBitset remaining_fields_to_cover =
+        fields_to_cover.Clone(mem_root);
+    for (int i : BitsSetIn(best_scan->covered_fields)) {
+      remaining_fields_to_cover.ClearBit(i);
+    }
     if (best_i != cur_i) {
       std::swap((*ror_scans)[best_i], (*ror_scans)[cur_i]);
     }
+    fields_to_cover = std::move(remaining_fields_to_cover);
 
-    if (bitmap_is_clear_all(&fields_to_cover))
-      return;  // No more fields to cover
+    if (fields_to_cover.empty()) return;  // No more fields to cover
   }
 }
 
-ROR_intersect_plan::ROR_intersect_plan(const RANGE_OPT_PARAM *param)
+ROR_intersect_plan::ROR_intersect_plan(const RANGE_OPT_PARAM *param,
+                                       size_t num_fields)
     : m_param(param),
       m_ror_scans(param->return_mem_root, 0),
-      m_out_rows(m_param->table->file->stats.records) {
-  my_bitmap_map *buf = static_cast<my_bitmap_map *>(
-      m_param->temp_mem_root->Alloc(param->table->s->column_bitmap_size));
-  bitmap_init(&m_covered_fields, buf, m_param->table->s->fields);
-  bitmap_clear_all(&m_covered_fields);
-}
+      m_out_rows(m_param->table->file->stats.records),
+      m_covered_fields(
+          MutableOverflowBitset(param->temp_mem_root, num_fields)) {}
 
 ROR_intersect_plan &ROR_intersect_plan::operator=(
     const ROR_intersect_plan &plan) {
@@ -338,9 +316,7 @@ ROR_intersect_plan &ROR_intersect_plan::operator=(
   m_ror_scans.clear();
   for (ROR_SCAN_INFO *scan : plan.m_ror_scans) m_ror_scans.push_back(scan);
   m_is_covering = plan.m_is_covering;
-  assert(m_param->table == plan.m_param->table);
-  memcpy(m_covered_fields.bitmap, plan.m_covered_fields.bitmap,
-         no_bytes_in_map(&plan.m_covered_fields));
+  m_covered_fields = plan.m_covered_fields;
   m_out_rows = plan.m_out_rows;
   m_total_cost = plan.m_total_cost;
   m_index_records = plan.m_index_records;
@@ -466,7 +442,7 @@ double ROR_intersect_plan::get_scan_selectivity(
   SEL_ARG *tuple_arg = nullptr;
   key_part_map keypart_map = 0;
   bool cur_covered;
-  bool prev_covered = bitmap_is_set(&m_covered_fields, key_part->fieldnr - 1);
+  bool prev_covered = IsBitSet(key_part->fieldnr - 1, m_covered_fields);
   key_range min_range;
   key_range max_range;
   min_range.key = key_val;
@@ -479,8 +455,8 @@ double ROR_intersect_plan::get_scan_selectivity(
   for (SEL_ROOT *sel_root = scan->sel_root; sel_root;
        sel_root = sel_root->root->next_key_part) {
     DBUG_PRINT("info", ("sel_root step"));
-    cur_covered = bitmap_is_set(&m_covered_fields,
-                                key_part[sel_root->root->part].fieldnr - 1);
+    cur_covered =
+        IsBitSet(key_part[sel_root->root->part].fieldnr - 1, m_covered_fields);
     if (cur_covered != prev_covered) {
       /* create (part1val, ..., part{n-1}val) tuple. */
       bool is_null_range = false;
@@ -593,7 +569,7 @@ double ROR_intersect_plan::get_scan_selectivity(
     false  It doesn't make sense to add this ROR scan to this ROR-intersection.
 */
 
-bool ROR_intersect_plan::add(const MY_BITMAP *needed_fields,
+bool ROR_intersect_plan::add(OverflowBitset needed_fields,
                              ROR_SCAN_INFO *ror_scan, bool is_cpk_scan,
                              Opt_trace_object *trace_costs, bool ignore_cost) {
   double selectivity_mult = 1.0;
@@ -629,8 +605,9 @@ bool ROR_intersect_plan::add(const MY_BITMAP *needed_fields,
     m_index_read_cost += ror_scan->index_read_cost;
     if (trace_costs != nullptr)
       trace_costs->add("index_scan_cost", ror_scan->index_read_cost);
-    bitmap_union(&m_covered_fields, &ror_scan->covered_fields);
-    if (!m_is_covering && bitmap_is_subset(needed_fields, &m_covered_fields)) {
+    m_covered_fields = OverflowBitset::Or(
+        m_param->temp_mem_root, m_covered_fields, ror_scan->covered_fields);
+    if (!m_is_covering && IsSubset(needed_fields, m_covered_fields)) {
       DBUG_PRINT("info", ("ROR-intersect is covering now"));
       m_is_covering = true;
     }
@@ -795,14 +772,11 @@ AccessPath *get_best_ror_intersect(THD *thd, const RANGE_OPT_PARAM *param,
   cpk_no = ((table->file->primary_key_is_clustered()) ? table->s->primary_key
                                                       : MAX_KEY);
   Mem_root_array<ROR_SCAN_INFO *> ror_scans(param->temp_mem_root);
-  MY_BITMAP needed_fields;
-  if (fill_used_fields_bitmap(param, &needed_fields)) {
-    return nullptr;
-  }
+  OverflowBitset needed_fields = get_needed_fields(param);
   for (idx = 0; idx < param->keys; idx++) {
     ROR_SCAN_INFO *scan;
     if (!tree->ror_scans_map.is_set(idx)) continue;
-    if (!(scan = make_ror_scan(param, idx, tree->keys[idx], &needed_fields)))
+    if (!(scan = make_ror_scan(param, idx, tree->keys[idx], needed_fields)))
       return nullptr;
     if (param->real_keynr[idx] == cpk_no) {
       cpk_scan = scan;
@@ -817,7 +791,7 @@ AccessPath *get_best_ror_intersect(THD *thd, const RANGE_OPT_PARAM *param,
   /*
     Get best ROR-intersection using an approximate algorithm.
   */
-  find_intersect_order(&ror_scans, param, &needed_fields);
+  find_intersect_order(&ror_scans, needed_fields, param->temp_mem_root);
 
   DBUG_EXECUTE("info", print_ror_scans(table, "ordered", ror_scans););
   /*
@@ -825,7 +799,8 @@ AccessPath *get_best_ror_intersect(THD *thd, const RANGE_OPT_PARAM *param,
     this while-loop.
   */
   Opt_trace_array trace_isect_idx(trace, "intersecting_indexes");
-  ROR_intersect_plan cur_plan(param), best_plan(param);
+  ROR_intersect_plan cur_plan(param, needed_fields.capacity()),
+      best_plan(param, needed_fields.capacity());
 
   for (uint index = 0; index < ror_scans.size() && !cur_plan.m_is_covering;
        index++) {
@@ -840,7 +815,7 @@ AccessPath *get_best_ror_intersect(THD *thd, const RANGE_OPT_PARAM *param,
     }
 
     /* S= S + first(R);  R= R - first(R); */
-    if (!cur_plan.add(&needed_fields, cur_scan, false, &trace_idx,
+    if (!cur_plan.add(needed_fields, cur_scan, false, &trace_idx,
                       force_index_merge && !use_cheapest_index_merge)) {
       trace_idx.add("cumulated_total_cost", cur_plan.m_total_cost)
           .add("usable", false)
@@ -901,7 +876,7 @@ AccessPath *get_best_ror_intersect(THD *thd, const RANGE_OPT_PARAM *param,
     Opt_trace_object trace_cpk(trace, "clustered_pk");
     if (cpk_scan && !cur_plan.m_is_covering &&
         compound_hint_key_enabled(table, cpk_no, INDEX_MERGE_HINT_ENUM)) {
-      if (cur_plan.add(&needed_fields, cpk_scan, true, &trace_cpk, true) &&
+      if (cur_plan.add(needed_fields, cpk_scan, true, &trace_cpk, true) &&
           ((cur_plan.m_total_cost < min_cost) ||
            (force_index_merge &&
             (!use_cheapest_index_merge ||

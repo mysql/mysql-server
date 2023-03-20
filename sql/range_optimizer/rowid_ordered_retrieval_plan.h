@@ -26,8 +26,8 @@
 #include <sys/types.h>
 
 #include "my_base.h"
-#include "my_bitmap.h"
 #include "sql/handler.h"
+#include "sql/join_optimizer/overflow_bitset.h"
 #include "sql/range_optimizer/range_opt_param.h"
 #include "sql/range_optimizer/range_optimizer.h"
 
@@ -49,13 +49,13 @@ struct ROR_SCAN_INFO {
   SEL_ROOT *sel_root;
 
   /** Fields used in the query and covered by this ROR scan. */
-  MY_BITMAP covered_fields;
+  OverflowBitset covered_fields;
   /**
     Fields used in the query that are a) covered by this ROR scan and
     b) not already covered by ROR scans ordered earlier in the merge
     sequence.
   */
-  MY_BITMAP covered_fields_remaining;
+  OverflowBitset covered_fields_remaining;
   /** Number of fields in covered_fields_remaining (caching of
    * bitmap_bits_set()) */
   uint num_covered_fields_remaining;
@@ -77,11 +77,11 @@ struct ROR_SCAN_INFO {
 // of rowid ordered scans for a ROR-Intersect plan.
 class ROR_intersect_plan {
  public:
-  ROR_intersect_plan(const RANGE_OPT_PARAM *param);
+  ROR_intersect_plan(const RANGE_OPT_PARAM *param, size_t num_fields);
   ROR_intersect_plan(const ROR_intersect_plan &) = delete;
   ROR_intersect_plan &operator=(const ROR_intersect_plan &plan);
 
-  bool add(const MY_BITMAP *needed_fields, ROR_SCAN_INFO *ror_scan,
+  bool add(OverflowBitset needed_fields, ROR_SCAN_INFO *ror_scan,
            bool is_cpk_scan, Opt_trace_object *trace_costs, bool ignore_cost);
   double get_scan_selectivity(const ROR_SCAN_INFO *scan) const;
   size_t num_scans() const { return m_ror_scans.size(); }
@@ -100,7 +100,7 @@ class ROR_intersect_plan {
 
  private:
   /// Bitmap of fields covered by the scans in the plan.
-  MY_BITMAP m_covered_fields;
+  OverflowBitset m_covered_fields;
   /// Number of rows to be read from indexes that are used for rowid ordered
   /// scans
   ha_rows m_index_records{0};
