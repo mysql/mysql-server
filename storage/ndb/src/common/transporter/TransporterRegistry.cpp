@@ -3847,6 +3847,13 @@ NdbSocket TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
     DBUG_RETURN(NdbSocket());  // an invalid socket, newly created on the stack
   }
 
+  /* Before converting, try to start TLS. */
+  if(m_tls_keys.ctx())
+  {
+    (void) ndb_mgm_set_ssl_ctx(*h, m_tls_keys.ctx());
+    (void) ndb_mgm_start_tls(*h);
+  }
+
   if (!report_dynamic_ports(*h))
   {
     ndb_mgm_destroy_handle(h);
