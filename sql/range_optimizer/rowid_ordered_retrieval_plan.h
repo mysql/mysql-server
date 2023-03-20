@@ -108,11 +108,12 @@ class ROR_intersect_plan {
   Cost_estimate m_index_read_cost;
 };
 
-AccessPath *get_best_ror_intersect(
-    THD *thd, const RANGE_OPT_PARAM *param, TABLE *table,
-    bool index_merge_intersect_allowed, SEL_TREE *tree,
-    const MY_BITMAP *needed_fields, double cost_est,
-    bool force_index_merge_result, bool reuse_handler);
+AccessPath *get_best_ror_intersect(THD *thd, const RANGE_OPT_PARAM *param,
+                                   TABLE *table,
+                                   bool index_merge_intersect_allowed,
+                                   SEL_TREE *tree, double cost_est,
+                                   bool force_index_merge_result,
+                                   bool reuse_handler);
 
 void trace_basic_info_rowid_intersection(THD *thd, const AccessPath *path,
                                          const RANGE_OPT_PARAM *param,

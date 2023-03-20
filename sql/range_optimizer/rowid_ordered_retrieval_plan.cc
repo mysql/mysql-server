@@ -75,6 +75,44 @@ static void print_ror_scans(TABLE *table, const char *msg,
 }
 #endif
 
+/*
+  Fill needed_fields with bitmap of fields used in the query.
+  SYNOPSIS
+    fill_used_fields_bitmap()
+      param Parameter from test_quick_select function.
+
+  NOTES
+    Clustered PK members are not put into the bitmap as they are implicitly
+    present in all keys (and it is impossible to avoid reading them).
+  RETURN
+    0  Ok
+    1  Out of memory.
+*/
+
+static int fill_used_fields_bitmap(const RANGE_OPT_PARAM *param,
+                                   MY_BITMAP *needed_fields) {
+  TABLE *table = param->table;
+  my_bitmap_map *tmp;
+  if (!(tmp = static_cast<my_bitmap_map *>(
+            param->return_mem_root->Alloc(table->s->column_bitmap_size))) ||
+      bitmap_init(needed_fields, tmp, table->s->fields))
+    return 1;
+
+  bitmap_copy(needed_fields, table->read_set);
+  bitmap_union(needed_fields, table->write_set);
+
+  uint pk = table->s->primary_key;
+  if (pk != MAX_KEY && table->file->primary_key_is_clustered()) {
+    /* The table uses clustered PK and it is not internally generated */
+    KEY_PART_INFO *key_part = table->key_info[pk].key_part;
+    KEY_PART_INFO *key_part_end =
+        key_part + table->key_info[pk].user_defined_key_parts;
+    for (; key_part != key_part_end; ++key_part)
+      bitmap_clear_bit(needed_fields, key_part->fieldnr - 1);
+  }
+  return 0;
+}
+
 void trace_basic_info_rowid_intersection(THD *thd, const AccessPath *path,
                                          const RANGE_OPT_PARAM *param,
                                          Opt_trace_object *trace_object) {
@@ -716,11 +754,12 @@ static AccessPath *MakeAccessPath(ROR_SCAN_INFO *scan, TABLE *table,
     NULL if out of memory or no suitable plan found.
 */
 
-AccessPath *get_best_ror_intersect(
-    THD *thd, const RANGE_OPT_PARAM *param, TABLE *table,
-    bool index_merge_intersect_allowed, SEL_TREE *tree,
-    const MY_BITMAP *needed_fields, double cost_est,
-    bool force_index_merge_result, bool reuse_handler) {
+AccessPath *get_best_ror_intersect(THD *thd, const RANGE_OPT_PARAM *param,
+                                   TABLE *table,
+                                   bool index_merge_intersect_allowed,
+                                   SEL_TREE *tree, double cost_est,
+                                   bool force_index_merge_result,
+                                   bool reuse_handler) {
   uint idx;
   Cost_estimate min_cost;
   Opt_trace_context *const trace = &thd->opt_trace;
@@ -756,10 +795,14 @@ AccessPath *get_best_ror_intersect(
   cpk_no = ((table->file->primary_key_is_clustered()) ? table->s->primary_key
                                                       : MAX_KEY);
   Mem_root_array<ROR_SCAN_INFO *> ror_scans(param->temp_mem_root);
+  MY_BITMAP needed_fields;
+  if (fill_used_fields_bitmap(param, &needed_fields)) {
+    return nullptr;
+  }
   for (idx = 0; idx < param->keys; idx++) {
     ROR_SCAN_INFO *scan;
     if (!tree->ror_scans_map.is_set(idx)) continue;
-    if (!(scan = make_ror_scan(param, idx, tree->keys[idx], needed_fields)))
+    if (!(scan = make_ror_scan(param, idx, tree->keys[idx], &needed_fields)))
       return nullptr;
     if (param->real_keynr[idx] == cpk_no) {
       cpk_scan = scan;
@@ -774,7 +817,7 @@ AccessPath *get_best_ror_intersect(
   /*
     Get best ROR-intersection using an approximate algorithm.
   */
-  find_intersect_order(&ror_scans, param, needed_fields);
+  find_intersect_order(&ror_scans, param, &needed_fields);
 
   DBUG_EXECUTE("info", print_ror_scans(table, "ordered", ror_scans););
   /*
@@ -797,7 +840,7 @@ AccessPath *get_best_ror_intersect(
     }
 
     /* S= S + first(R);  R= R - first(R); */
-    if (!cur_plan.add(needed_fields, cur_scan, false, &trace_idx,
+    if (!cur_plan.add(&needed_fields, cur_scan, false, &trace_idx,
                       force_index_merge && !use_cheapest_index_merge)) {
       trace_idx.add("cumulated_total_cost", cur_plan.m_total_cost)
           .add("usable", false)
@@ -858,7 +901,7 @@ AccessPath *get_best_ror_intersect(
     Opt_trace_object trace_cpk(trace, "clustered_pk");
     if (cpk_scan && !cur_plan.m_is_covering &&
         compound_hint_key_enabled(table, cpk_no, INDEX_MERGE_HINT_ENUM)) {
-      if (cur_plan.add(needed_fields, cpk_scan, true, &trace_cpk, true) &&
+      if (cur_plan.add(&needed_fields, cpk_scan, true, &trace_cpk, true) &&
           ((cur_plan.m_total_cost < min_cost) ||
            (force_index_merge &&
             (!use_cheapest_index_merge ||
