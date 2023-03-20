@@ -40,6 +40,10 @@ AuthNativeForwarder::process() {
       return init();
     case Stage::ClientData:
       return client_data();
+    case Stage::CachingSha2Scrambled:
+      return caching_sha2_scrambled();
+    case Stage::CachingSha2Plaintext:
+      return caching_sha2_plaintext();
     case Stage::Response:
       return response();
     case Stage::Error:
@@ -53,11 +57,35 @@ AuthNativeForwarder::process() {
   harness_assert_this_should_not_execute();
 }
 
-// server switched to mysql_native_password
+/*
+ * server switched to mysql_native_password
+ *
+ * - if the client supports caching-sha2-password, use it to fetch the client's
+ *   password.
+ * - otherwise forward the switch message to the client.
+ */
 stdx::expected<Processor::Result, std::error_code> AuthNativeForwarder::init() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto dst_channel = socket_splicer->client_channel();
-  auto dst_protocol = connection()->client_protocol();
+  auto *dst_channel = socket_splicer->client_channel();
+  auto *dst_protocol = connection()->client_protocol();
+
+  if (connection()->context().connection_sharing() &&
+      dst_protocol->auth_method_name() == "caching_sha2_password" &&
+      socket_splicer->client_conn().is_secure_transport()) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("native::forward::request_plaintext"));
+    }
+
+    // speak caching-sha2-password with the client to get the plaintext-password
+    auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::AuthMethodSwitch>(
+        dst_channel, dst_protocol,
+        {dst_protocol->auth_method_name(), initial_server_auth_data_});
+    if (!send_res) return send_client_failed(send_res.error());
+
+    stage(Stage::CachingSha2Scrambled);
+    return Result::SendToClient;
+  }
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("native::forward::switch"));
@@ -75,19 +103,127 @@ stdx::expected<Processor::Result, std::error_code> AuthNativeForwarder::init() {
 stdx::expected<Processor::Result, std::error_code>
 AuthNativeForwarder::client_data() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->client_channel();
-  auto src_protocol = connection()->client_protocol();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection()->client_protocol();
 
-  auto read_res = ClassicFrame::ensure_frame_header(src_channel, src_protocol);
-  if (!read_res) return recv_client_failed(read_res.error());
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::client::AuthMethodData>(
+      src_channel, src_protocol);
+  if (!msg_res) return recv_client_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("native::forward::scrambled_password"));
   }
 
+  if (msg_res->auth_method_data().empty()) {
+    src_protocol->password("");
+  }
+
   stage(Stage::Response);
 
   return forward_client_to_server();
+}
+
+/*
+ * - receive the caching_sha2_password's scrambled fast-auth packet
+ * - if it is empty, remember the empty-password and forward it.
+ * - otherwise, discard it and ask the client for the plaintext-password.
+ */
+stdx::expected<Processor::Result, std::error_code>
+AuthNativeForwarder::caching_sha2_scrambled() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection()->client_protocol();
+  auto *dst_channel = socket_splicer->server_channel();
+  auto *dst_protocol = connection()->server_protocol();
+
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::client::AuthMethodData>(
+      src_channel, src_protocol);
+  if (!msg_res) return recv_client_failed(msg_res.error());
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("native::forward::scrambled"));
+  }
+
+  // caching-sha2-password sends a "\x00" for empty-password.
+  if (msg_res->auth_method_data() == std::string_view("\x00", 1)) {
+    src_protocol->password("");
+
+    discard_current_msg(src_channel, src_protocol);
+
+    stage(Stage::Response);
+
+    // native password expected a empty packet for empty-password.
+    auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::client::AuthMethodData>(
+        dst_channel, dst_protocol, {{}});
+    if (!send_res) return send_server_failed(send_res.error());
+
+    return Result::SendToServer;
+  }
+
+  discard_current_msg(src_channel, src_protocol);
+
+  // request the plaintext password.
+  stage(Stage::CachingSha2Plaintext);
+
+  auto send_res = ClassicFrame::send_msg<
+      classic_protocol::borrowed::message::server::AuthMethodData>(
+      src_channel, src_protocol, {"\x04"});
+  if (!send_res) return send_client_failed(send_res.error());
+
+  return Result::SendToClient;
+}
+
+/*
+ * - receive the client's plaintext password via caching-sha2-password
+ * - scramble according to mysql-native-password.
+ */
+stdx::expected<Processor::Result, std::error_code>
+AuthNativeForwarder::caching_sha2_plaintext() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection()->client_protocol();
+  auto *dst_channel = socket_splicer->server_channel();
+  auto *dst_protocol = connection()->server_protocol();
+
+  // receive plaintext password.
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::client::AuthMethodData>(
+      src_channel, src_protocol);
+  if (!msg_res) return recv_client_failed(msg_res.error());
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("native::forward::plaintext"));
+  }
+
+  src_protocol->password(
+      std::string(AuthBase::strip_trailing_null(msg_res->auth_method_data())));
+
+  discard_current_msg(src_channel, src_protocol);
+
+  // scramble according the mysql_native_password.
+  auto scramble_res =
+      Auth::scramble(AuthBase::strip_trailing_null(initial_server_auth_data_),
+                     *src_protocol->password());
+  if (!scramble_res) {
+    return recv_client_failed(make_error_code(std::errc::bad_message));
+  }
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("native::forward::scrambled"));
+  }
+
+  // send scrambled native-password to the server.
+  stage(Stage::Response);
+
+  auto send_res =
+      ClassicFrame::send_msg<classic_protocol::message::client::AuthMethodData>(
+          dst_channel, dst_protocol, {*scramble_res});
+  if (!send_res) return send_server_failed(send_res.error());
+
+  return Result::SendToServer;
 }
 
 stdx::expected<Processor::Result, std::error_code>

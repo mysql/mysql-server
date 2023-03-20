@@ -350,8 +350,6 @@ AuthForwarder::auth_method_switch() {
 
   src_protocol->auth_method_name(auth_method_name);
   src_protocol->auth_method_data(auth_method_data);
-  dst_protocol->auth_method_name(auth_method_name);
-  dst_protocol->auth_method_data(auth_method_data);
 
   if (auto &tr = tracer()) {
     tr.trace(
@@ -362,6 +360,9 @@ AuthForwarder::auth_method_switch() {
   discard_current_msg(src_channel, src_protocol);
 
   if (auth_method_name == AuthSha256Password::kName) {
+    dst_protocol->auth_method_name(auth_method_name);
+    dst_protocol->auth_method_data(auth_method_data);
+
     if (dst_protocol->password().has_value()) {
       connection()->push_processor(std::make_unique<AuthSha256Sender>(
           connection(), auth_method_data, dst_protocol->password().value()));
@@ -370,6 +371,9 @@ AuthForwarder::auth_method_switch() {
           connection(), auth_method_data));
     }
   } else if (auth_method_name == AuthCachingSha2Password::kName) {
+    dst_protocol->auth_method_name(auth_method_name);
+    dst_protocol->auth_method_data(auth_method_data);
+
     if (dst_protocol->password().has_value()) {
       connection()->push_processor(std::make_unique<AuthCachingSha2Sender>(
           connection(), auth_method_data, dst_protocol->password().value()));
@@ -379,6 +383,9 @@ AuthForwarder::auth_method_switch() {
     }
   } else if (auth_method_name == AuthNativePassword::kName) {
     if (dst_protocol->password().has_value()) {
+      dst_protocol->auth_method_name(auth_method_name);
+      dst_protocol->auth_method_data(auth_method_data);
+
       connection()->push_processor(std::make_unique<AuthNativeSender>(
           connection(), auth_method_data, dst_protocol->password().value()));
     } else {
@@ -386,6 +393,9 @@ AuthForwarder::auth_method_switch() {
           connection(), auth_method_data));
     }
   } else if (auth_method_name == AuthCleartextPassword::kName) {
+    dst_protocol->auth_method_name(auth_method_name);
+    dst_protocol->auth_method_data(auth_method_data);
+
     if (dst_protocol->password().has_value()) {
       connection()->push_processor(std::make_unique<AuthCleartextSender>(
           connection(), auth_method_data, dst_protocol->password().value()));
@@ -394,6 +404,9 @@ AuthForwarder::auth_method_switch() {
           connection(), auth_method_data));
     }
   } else {
+    dst_protocol->auth_method_name(auth_method_name);
+    dst_protocol->auth_method_data(auth_method_data);
+
     connection()->push_processor(std::make_unique<AuthGenericForwarder>(
         connection(), auth_method_name, auth_method_data));
   }
