@@ -1,3 +1,12 @@
 # Run only with hypergraph optimizer
 --source include/have_hypergraph.inc
 --source include/index_merge_innodb.inc
+
+--echo #
+--echo # Bug#35383419: WL#14808:ASSERT: `read_rows >= 0.0' in
+--echo #               Cost_model_server::tmptable_readwrite_cos
+--echo #
+CREATE TABLE t1 (f1 INT, f2 INT, f3 INT, PRIMARY KEY(f1), KEY(f2), KEY(f3));
+SELECT 1
+FROM t1 WHERE (f3 IN (SELECT f3 FROM t1)) AND f1 IN (75, 70) OR (f2 IS NULL);
+DROP TABLE t1;

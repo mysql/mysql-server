@@ -5398,10 +5398,10 @@ TEST_F(HypergraphOptimizerTest, DontSubsumeIndexMergePredicateInRangeScan) {
 TEST_F(HypergraphOptimizerTest, DontSubsumeRangePredicateInIndexMerge) {
   // Always false condition: t1.x BETWEEN 5 AND 0
   // Possible range scan: t1.x IS NULL
-  // Possible index merge: t1.y = 2 OR t1.z = 3
+  // Possible index merge: t1.y > 2 OR t1.z > 3
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 WHERE t1.x BETWEEN 5 AND 0 "
-      "OR (t1.x IS NULL AND (t1.y = 2 OR t1.z = 3))",
+      "OR (t1.x IS NULL AND (t1.y > 2 OR t1.z > 3))",
       /*nullable=*/true);
 
   Fake_TABLE *t1 = m_fake_tables["t1"];
@@ -5437,7 +5437,7 @@ TEST_F(HypergraphOptimizerTest, DontSubsumeRangePredicateInIndexMerge) {
   // we get the entire WHERE condition for now.
   EXPECT_EQ(
       "((t1.x between 5 and 0) or "
-      "((t1.x is null) and ((t1.y = 2) or (t1.z = 3))))",
+      "((t1.x is null) and ((t1.y > 2) or (t1.z > 3))))",
       ItemToString(root->filter().condition));
 }
 
@@ -5556,6 +5556,166 @@ TEST_F(HypergraphOptimizerTest, IndexMergeInexactRangeWithOverflowBitset) {
   // Since an inexact range predicate is used, all predicates should be kept in
   // the filter node on top.
   EXPECT_EQ(predicates, ItemToString(root->filter().condition));
+}
+
+TEST_F(HypergraphOptimizerTest, RORUnion) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT 1 FROM t1 WHERE t1.x = 3 OR t1.y = 4",
+                      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  CreateOrderedIndex({t1->field[0]});
+  CreateOrderedIndex({t1->field[1]});
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // No filter; it should be subsumed.
+  ASSERT_EQ(AccessPath::ROWID_UNION, root->type);
+  ASSERT_EQ(2, root->rowid_union().children->size());
+
+  AccessPath *child0 = (*root->rowid_union().children)[0];
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, child0->type);
+  ASSERT_EQ(1, child0->index_range_scan().num_ranges);
+
+  AccessPath *child1 = (*root->rowid_union().children)[1];
+  EXPECT_EQ(AccessPath::INDEX_RANGE_SCAN, child1->type);
+
+  query_block->cleanup(/*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, RORUnionSubsumesOnlyOnePredicate) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE (t1.x = 3 OR t1.y = 4) AND (t1.y = 0 OR t1.z = "
+      "0)",
+      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  CreateOrderedIndex({t1->field[0]});
+  CreateOrderedIndex({t1->field[1]});
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The second predicate should not be subsumed, so we have a filter.
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ("((t1.y = 0) or (t1.z = 0))",
+            ItemToString(root->filter().condition));
+  EXPECT_EQ(AccessPath::ROWID_UNION, root->filter().child->type);
+
+  query_block->cleanup(/*full=*/true);
+}
+
+// When there is a choice between Index Merge and ROR Union,
+// ROR Union plan is always picked since it avoids sorting
+// by Row IDs.
+TEST_F(HypergraphOptimizerTest, RORUnionPickedOverIndexMerge) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE (t1.x = 3 OR t1.y = 4) AND (t1.y > 0 OR t1.z > "
+      "0)",
+      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  // Create indexes on x, y and z.
+  CreateOrderedIndex({t1->field[0]});
+  CreateOrderedIndex({t1->field[1]});
+  CreateOrderedIndex({t1->field[2]});
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The second predicate should not be subsumed, so we have a filter.
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ("((t1.y > 0) or (t1.z > 0))",
+            ItemToString(root->filter().condition));
+  EXPECT_EQ(AccessPath::ROWID_UNION, root->filter().child->type);
+
+  query_block->cleanup(/*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, RORUnionWithOrderBy) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE t1.x = 3 OR t1.y = 4 ORDER BY t1.x",
+      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  t1->s->primary_key = CreateOrderedIndex({t1->field[0]}, HA_NOSAME);
+  CreateOrderedIndex({t1->field[1]});
+
+  // Mark the index as clustered.
+  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
+          primary_key_is_clustered())
+      .WillByDefault(Return(true));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+                        // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::ROWID_UNION, root->type);
+  EXPECT_EQ(2, root->rowid_union().children->size());
+
+  query_block->cleanup(/*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, RORUnionBetterThanIndexMerge) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE t1.x = 3 AND t1.y > 4 or t1.z = 5",
+      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 10000;
+  CreateOrderedIndex({t1->field[0]});
+  CreateOrderedIndex({t1->field[0], t1->field[1]});
+  CreateOrderedIndex({t1->field[2]});
+
+  // Mark the index as supporting range scans.
+  Mock_HANDLER *handler = down_cast<Mock_HANDLER *>(t1->file);
+  ON_CALL(*handler, index_flags(_, _, _))
+      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+
+  EXPECT_CALL(*handler, records_in_range(0, _, _)).WillRepeatedly(Return(150));
+  EXPECT_CALL(*handler, records_in_range(1, _, _)).WillRepeatedly(Return(100));
+  EXPECT_CALL(*handler, records_in_range(2, _, _)).WillRepeatedly(Return(100));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+                        // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ(AccessPath::ROWID_UNION, root->filter().child->type);
+  AccessPath *rowid_union = root->filter().child;
+  EXPECT_EQ(2, rowid_union->rowid_union().children->size());
+  AccessPath *child0 = (*rowid_union->rowid_union().children)[0];
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, child0->type);
+  ASSERT_EQ(0, child0->index_range_scan().index);
+
+  AccessPath *child1 = (*rowid_union->rowid_union().children)[1];
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, child1->type);
+  ASSERT_EQ(2, child1->index_range_scan().index);
+
+  query_block->cleanup(/*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, PropagateCondConstants) {

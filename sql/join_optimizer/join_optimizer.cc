@@ -97,6 +97,7 @@
 #include "sql/range_optimizer/range_analysis.h"
 #include "sql/range_optimizer/range_opt_param.h"
 #include "sql/range_optimizer/range_optimizer.h"
+#include "sql/range_optimizer/rowid_ordered_retrieval_plan.h"
 #include "sql/range_optimizer/tree.h"
 #include "sql/sql_array.h"
 #include "sql/sql_base.h"
@@ -496,6 +497,12 @@ class CostingReceiver {
                          double num_output_rows_after_filter,
                          RANGE_OPT_PARAM *param,
                          bool *has_clustered_primary_key_scan);
+  void ProposeRowIdOrderedUnion(TABLE *table, int node_idx,
+                                const SEL_IMERGE &imerge, int pred_idx,
+                                bool inexact, int num_where_predicates,
+                                double num_output_rows_after_filter,
+                                const RANGE_OPT_PARAM *param,
+                                Mem_root_array<AccessPath *> paths);
   void ProposeIndexSkipScan(int node_idx, RANGE_OPT_PARAM *param,
                             AccessPath *skip_scan_path, TABLE *table,
                             OverflowBitset all_predicates,
@@ -1196,7 +1203,8 @@ double EstimateOutputRowsFromRangeTree(
 AccessPath *FindCheapestIndexRangeScan(THD *thd, SEL_TREE *tree,
                                        RANGE_OPT_PARAM *param,
                                        bool prefer_clustered_primary_key_scan,
-                                       bool *inexact) {
+                                       bool *inexact,
+                                       bool need_rowid_ordered_rows) {
   double best_cost = DBL_MAX;
   int best_key = -1;
   int best_num_rows = -1;
@@ -1217,8 +1225,15 @@ AccessPath *FindCheapestIndexRangeScan(THD *thd, SEL_TREE *tree,
                            /*update_tbl_stats=*/true, ORDER_NOT_RELEVANT,
                            /*skip_records_in_range=*/false, &mrr_flags,
                            &buf_size, &cost, &is_ror_scan, &is_imerge_scan);
-    if (num_rows == HA_POS_ERROR || !is_imerge_scan) {
+    if (num_rows == HA_POS_ERROR || (!is_imerge_scan && !is_ror_scan)) {
       continue;
+    }
+    if (!is_ror_scan && need_rowid_ordered_rows) {
+      continue;
+    }
+    if (is_ror_scan) {
+      tree->n_ror_scans++;
+      tree->ror_scans_map.set_bit(idx);
     }
     const bool is_preferred_cpk =
         prefer_clustered_primary_key_scan &&
@@ -1269,7 +1284,7 @@ AccessPath *FindCheapestIndexRangeScan(THD *thd, SEL_TREE *tree,
   path->index_range_scan().mrr_buf_size = best_mrr_buf_size;
   path->index_range_scan().can_be_used_for_ror =
       tree->ror_scans_map.is_set(best_key);
-  path->index_range_scan().need_rows_in_rowid_order = false;
+  path->index_range_scan().need_rows_in_rowid_order = need_rowid_ordered_rows;
   path->index_range_scan().can_be_used_for_imerge = true;
   path->index_range_scan().reuse_handler = false;
   path->index_range_scan().geometry = Overlaps(key->flags, HA_SPATIAL);
@@ -1581,6 +1596,7 @@ bool CostingReceiver::FindIndexRangeScans(
       // get consistent values.
       path.cost = path.cost_before_filter = cost.total_cost();
       path.index_range_scan().can_be_used_for_imerge = is_imerge_scan;
+      path.index_range_scan().can_be_used_for_ror = is_ror_scan;
       path.ordering_state = m_orderings->SetOrder(ordering_idx);
       path.index_range_scan().reverse = (order_direction == ORDER_DESC);
 
@@ -1624,17 +1640,15 @@ bool CostingReceiver::FindIndexRangeScans(
     }
   }
 
-  // Propose all index merges we have collected. Note that this is only
-  // “sort-index” merges, ie., generally collect all the row IDs,
-  // deduplicate them by sorting (in a Unique object) and then read all the
-  // rows. If the indexes are “ROR compatible” (give out their rows in row ID
-  // order directly, without any sort -- typically only for InnoDB indexes with
-  // the primary key appended directly after the last key part), we can
-  // union/intersect them directly without any sorts (“ROR scans”). However, we
-  // do not support that yet; it will be for a future worklog.
+  // Propose all index merges we have collected. This proposes both
+  // "sort-index" merges, ie., generally collect all the row IDs,
+  // deduplicate them by sorting (in a Unique object) and then read all
+  // the rows. If the indexes are “ROR compatible” (give out their rows in
+  // row ID order directly, without any sort which is mostly the case
+  // when a condition has equality predicates), we propose ROR union scans.
   for (const PossibleIndexMerge &imerge : index_merges) {
     for (bool allow_clustered_primary_key_scan : {true, false}) {
-      bool has_clustered_primary_key_scan;
+      bool has_clustered_primary_key_scan = false;
       ProposeIndexMerge(table, node_idx, *imerge.imerge, imerge.pred_idx,
                         imerge.inexact, allow_clustered_primary_key_scan,
                         m_graph->num_where_predicates,
@@ -1674,6 +1688,127 @@ bool CostingReceiver::FindIndexRangeScans(
   return false;
 }
 
+int GetRowIdOrdering(const TABLE *table, const LogicalOrderings *orderings,
+                     const Mem_root_array<ActiveIndexInfo> *active_indexes) {
+  const auto it =
+      find_if(active_indexes->begin(), active_indexes->end(),
+              [table](const ActiveIndexInfo &info) {
+                return info.table == table &&
+                       info.key_idx == static_cast<int>(table->s->primary_key);
+              });
+  if (it != active_indexes->end()) {
+    return orderings->SetOrder(
+        orderings->RemapOrderingIndex(it->forward_order));
+  }
+  return 0;
+}
+
+void CostingReceiver::ProposeRowIdOrderedUnion(
+    TABLE *table, int node_idx, const SEL_IMERGE &imerge, int pred_idx,
+    bool inexact, int num_where_predicates, double num_output_rows_after_filter,
+    const RANGE_OPT_PARAM *param, Mem_root_array<AccessPath *> paths) {
+  double cost = 0.0;
+  double num_output_rows = 0.0;
+  double intersect_factor = 1.0;
+  auto p_it = paths.begin();
+  for (auto t_it = imerge.trees.begin(); t_it != imerge.trees.end();
+       t_it++, p_it++) {
+    AccessPath *range_path = *p_it;
+    SEL_TREE *tree = *t_it;
+    inexact |= tree->inexact;
+    cost += range_path->cost;
+    num_output_rows += range_path->num_output_rows();
+    range_path->index_range_scan().need_rows_in_rowid_order = true;
+    // Get the factor by which this index would reduce the output rows
+    intersect_factor *=
+        min(1.0, range_path->num_output_rows() / table->file->stats.records);
+  }
+
+  // rows to retrieve =
+  // SUM(rows_from_all_range_scans) - (table_rows * intersect_factor)
+  num_output_rows -=
+      static_cast<ha_rows>(intersect_factor * table->file->stats.records);
+  // NOTE: We always give is_interrupted = false, because we don't
+  // really know where we will be in the join tree.
+  Cost_estimate sweep_cost;
+  get_sweep_read_cost(table, num_output_rows, /*interrupted=*/false,
+                      &sweep_cost);
+  cost += sweep_cost.total_cost();
+  cost += table->cost_model()->key_compare_cost(rows2double(num_output_rows) *
+                                                std::log2(paths.size()));
+
+  AccessPath ror_union_path;
+  ror_union_path.type = AccessPath::ROWID_UNION;
+  ror_union_path.rowid_union().table = table;
+  ror_union_path.rowid_union().forced_by_hint = false;
+  ror_union_path.rowid_union().children = new (param->return_mem_root)
+      Mem_root_array<AccessPath *>(std::move(paths));
+
+  ror_union_path.cost = ror_union_path.cost_before_filter = cost;
+  ror_union_path.init_cost = ror_union_path.init_once_cost = cost;
+  ror_union_path.set_num_output_rows(
+      ror_union_path.num_output_rows_before_filter =
+          min<double>(num_output_rows, num_output_rows_after_filter));
+
+  if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
+    ror_union_path.immediate_update_delete_table = node_idx;
+    // Don't allow immediate update of any keys being scanned.
+    if (IsUpdateStatement(m_thd) &&
+        uses_index_on_fields(&ror_union_path, table->write_set)) {
+      ror_union_path.immediate_update_delete_table = -1;
+    }
+  }
+
+  // Find out which ordering we would follow, if any. Rows are read in
+  // row ID order (which follows the primary key).
+  if (!table->s->is_missing_primary_key() &&
+      table->file->primary_key_is_clustered()) {
+    ror_union_path.ordering_state =
+        GetRowIdOrdering(table, m_orderings, m_active_indexes);
+  }
+
+  // An index merge corresponds to one predicate (see comment on
+  // PossibleIndexMerge), and subsumes that predicate if and only if it is a
+  // faithful representation of everything in it.
+  MutableOverflowBitset this_predicate(param->temp_mem_root,
+                                       num_where_predicates);
+  this_predicate.SetBit(pred_idx);
+  OverflowBitset applied_predicates(std::move(this_predicate));
+  OverflowBitset subsumed_predicates =
+      inexact ? OverflowBitset() : applied_predicates;
+  const bool contains_subqueries = Overlaps(ror_union_path.filter_predicates,
+                                            m_graph->materializable_predicates);
+  // Add some trace info.
+  string description_for_trace;
+  for (AccessPath *path : *ror_union_path.rowid_union().children) {
+    description_for_trace +=
+        string(param->table->key_info[path->index_range_scan().index].name) +
+        " ";
+  }
+  description_for_trace += "union";
+  for (bool materialize_subqueries : {false, true}) {
+    AccessPath new_path = ror_union_path;
+    FunctionalDependencySet new_fd_set;
+    ApplyPredicatesForBaseTable(node_idx, applied_predicates,
+                                subsumed_predicates, materialize_subqueries,
+                                &new_path, &new_fd_set);
+
+    // Override the number of estimated rows, so that all paths get the
+    // same.
+    new_path.set_num_output_rows(num_output_rows_after_filter);
+
+    ProposeAccessPathWithOrderings(
+        TableBitmap(node_idx), new_fd_set,
+        /*obsolete_orderings=*/0, &new_path,
+        materialize_subqueries ? "mat. subq" : description_for_trace.c_str());
+
+    if (!contains_subqueries) {
+      // Nothing to try to materialize.
+      break;
+    }
+  }
+}
+
 void CostingReceiver::ProposeIndexMerge(
     TABLE *table, int node_idx, const SEL_IMERGE &imerge, int pred_idx,
     bool inexact, bool allow_clustered_primary_key_scan,
@@ -1694,6 +1829,9 @@ void CostingReceiver::ProposeIndexMerge(
   double non_cpk_rows = 0.0;
 
   Mem_root_array<AccessPath *> paths(m_thd->mem_root);
+  Mem_root_array<AccessPath *> ror_paths(m_thd->mem_root);
+  bool all_scans_are_ror = true;
+  bool all_scans_ror_able = true;
   for (SEL_TREE *tree : imerge.trees) {
     inexact |= tree->inexact;
 
@@ -1706,11 +1844,32 @@ void CostingReceiver::ProposeIndexMerge(
     AccessPath *path = FindCheapestIndexRangeScan(
         m_thd, tree, param,
         /*prefer_clustered_primary_key_scan=*/allow_clustered_primary_key_scan,
-        &inexact);
+        &inexact, /*need_rowid_ordered_rows=*/false);
 
     if (path == nullptr) {
       // Something failed; ignore.
       return;
+    }
+    all_scans_are_ror &= path->index_range_scan().can_be_used_for_ror;
+    all_scans_ror_able &= (tree->n_ror_scans > 0);
+    // Check if we can find a row-id ordered scan even though it is not
+    // the cheapest one. It might be advantageous to have row-id ordered
+    // union scan instead of a "sort-union" scan.
+    if (all_scans_ror_able) {
+      if (path->index_range_scan().can_be_used_for_ror) {
+        ror_paths.push_back(path);
+      } else if (tree->n_ror_scans > 0) {
+        AccessPath *ror_path = FindCheapestIndexRangeScan(
+            m_thd, tree, param,
+            /*prefer_clustered_primary_key_scan=*/
+            allow_clustered_primary_key_scan, &inexact,
+            /*need_rowid_ordered_rows=*/true);
+        if (ror_path == nullptr) {
+          all_scans_ror_able = false;
+        } else {
+          ror_paths.push_back(ror_path);
+        }
+      }
     }
     paths.push_back(path);
     cost += path->cost;
@@ -1722,8 +1881,18 @@ void CostingReceiver::ProposeIndexMerge(
       *has_clustered_primary_key_scan = true;
     } else {
       non_cpk_cost += path->cost;
-      non_cpk_rows = path->num_output_rows();
+      non_cpk_rows += path->num_output_rows();
     }
+  }
+  // Propose row-id ordered union plan if possible.
+  if (all_scans_ror_able) {
+    ProposeRowIdOrderedUnion(table, node_idx, imerge, pred_idx, inexact,
+                             num_where_predicates, num_output_rows_after_filter,
+                             param, std::move(ror_paths));
+    // If all chosen scans (best range scans) are ROR compatible, there
+    // is no need to propose an Index Merge plan as ROR-Union plan will
+    // always be better (Avoids sorting by row IDs).
+    if (all_scans_are_ror) return;
   }
 
   double init_cost = non_cpk_cost;
@@ -1790,16 +1959,8 @@ void CostingReceiver::ProposeIndexMerge(
   // out-of-order (ironically enough).
   if (!*has_clustered_primary_key_scan &&
       table->file->primary_key_is_clustered()) {
-    const auto it = find_if(
-        m_active_indexes->begin(), m_active_indexes->end(),
-        [table](const ActiveIndexInfo &info) {
-          return info.table == table &&
-                 info.key_idx == static_cast<int>(table->s->primary_key);
-        });
-    if (it != m_active_indexes->end()) {
-      imerge_path.ordering_state = m_orderings->SetOrder(
-          m_orderings->RemapOrderingIndex(it->forward_order));
-    }
+    imerge_path.ordering_state =
+        GetRowIdOrdering(table, m_orderings, m_active_indexes);
   }
 
   // An index merge corresponds to one predicate (see comment on
@@ -1815,6 +1976,14 @@ void CostingReceiver::ProposeIndexMerge(
               : applied_predicates;
   const bool contains_subqueries = Overlaps(imerge_path.filter_predicates,
                                             m_graph->materializable_predicates);
+  // Add some trace info.
+  string description_for_trace;
+  for (AccessPath *path : *imerge_path.index_merge().children) {
+    description_for_trace +=
+        string(param->table->key_info[path->index_range_scan().index].name) +
+        " ";
+  }
+  description_for_trace += "sort-union";
   for (bool materialize_subqueries : {false, true}) {
     AccessPath new_path = imerge_path;
     FunctionalDependencySet new_fd_set;
@@ -1829,7 +1998,7 @@ void CostingReceiver::ProposeIndexMerge(
     ProposeAccessPathWithOrderings(
         TableBitmap(node_idx), new_fd_set,
         /*obsolete_orderings=*/0, &new_path,
-        materialize_subqueries ? "mat. subq" : "index merge");
+        materialize_subqueries ? "mat. subq" : description_for_trace.c_str());
 
     if (!contains_subqueries) {
       // Nothing to try to materialize.
