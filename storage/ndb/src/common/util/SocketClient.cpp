@@ -73,22 +73,23 @@ SocketClient::bind(const char* local_hostname,
   if (!ndb_socket_valid(m_sockfd))
     return -1;
 
-  struct sockaddr_in6 local;
-  memset(&local, 0, sizeof(local));
-  local.sin6_family = AF_INET6;
-  local.sin6_port = htons(local_port);
+  // Resolve local address
+  ndb_sockaddr local;
+  if (Ndb_getAddr(&local, local_hostname))
+  {
+    return errno ? errno : EINVAL;
+  }
+
   if (local_port == 0 &&
       m_last_used_port != 0)
   {
     // Try to bind to the same port as last successful connect instead of
     // any ephemeral port. Intention is to reuse any previous TIME_WAIT TCB
-    local.sin6_port = htons(m_last_used_port);
+    local.set_port(m_last_used_port);
   }
-
-  // Resolve local address
-  if (Ndb_getInAddr6(&local.sin6_addr, local_hostname))
+  else
   {
-    return errno ? errno : EINVAL;
+    local.set_port(local_port);
   }
 
   if (ndb_socket_reuseaddr(m_sockfd, true) == -1)
@@ -99,7 +100,7 @@ SocketClient::bind(const char* local_hostname,
     return ret;
   }
 
-  while (ndb_bind_inet(m_sockfd, &local) == -1)
+  while (ndb_bind(m_sockfd, &local) == -1)
   {
     if (local_port == 0 &&
         m_last_used_port != 0)
@@ -107,7 +108,7 @@ SocketClient::bind(const char* local_hostname,
       // Failed to bind same port as last, retry with any
       // ephemeral port(as originally requested)
       m_last_used_port = 0; // Reset last used port
-      local.sin6_port = htons(0); // Try bind with any port
+      local.set_port(0); // Try bind with any port
       continue;
     }
 
@@ -152,19 +153,17 @@ SocketClient::connect(NdbSocket & secureSocket,
     }
   }
 
-  struct sockaddr_in6 server_addr;
-  memset(&server_addr, 0, sizeof(server_addr));
-  server_addr.sin6_family = AF_INET6;
-  server_addr.sin6_port = htons(server_port);
+  ndb_sockaddr server_addr;
 
   // Resolve server address
-  if (Ndb_getInAddr6(&server_addr.sin6_addr, server_hostname))
+  if (Ndb_getAddr(&server_addr, server_hostname))
   {
     DEBUG_FPRINTF((stderr, "Failed Ndb_getInAddr in connect\n"));
     ndb_socket_close(m_sockfd);
     ndb_socket_invalidate(&m_sockfd);
     return;
   }
+  server_addr.set_port(server_port);
 
   // Set socket non blocking
   if (ndb_socket_nonblock(m_sockfd, true) < 0)
@@ -177,7 +176,7 @@ SocketClient::connect(NdbSocket & secureSocket,
 
   // Start non blocking connect
   DEBUG_FPRINTF((stderr, "Connect to %s:%u\n", server_hostname, server_port));
-  int r = ndb_connect_inet6(m_sockfd, &server_addr);
+  int r = ndb_connect(m_sockfd, &server_addr);
   if (r == 0)
     goto done; // connected immediately.
 

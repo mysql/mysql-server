@@ -62,6 +62,7 @@
 #include <NodeInfo.hpp>
 #include <NdbSleep.h>
 #include "portlib/NdbTCP.h"
+#include "portlib/ndb_sockaddr.h"
 
 #include <TransporterRegistry.hpp> // Get connect address
 
@@ -4753,16 +4754,15 @@ Qmgr::execAPI_VERSION_REQ(Signal * signal) {
                 "Cannot fit in6_inaddr into ApiVersionConf:m_inet6_addr");
   NodeInfo nodeInfo = getNodeInfo(nodeId);
   conf->m_inet_addr = 0;
+  Uint32 siglen = ApiVersionConf::SignalLengthIPv4;
   if(nodeInfo.m_connected)
   {
     conf->version = nodeInfo.m_version;
     conf->mysql_version = nodeInfo.m_mysql_version;
-    struct in6_addr in= globalTransporterRegistry.get_connect_address(nodeId);
-    memcpy(conf->m_inet6_addr, in.s6_addr, sizeof(conf->m_inet6_addr));
-    if (IN6_IS_ADDR_V4MAPPED(&in))
-    {
-      memcpy(&conf->m_inet_addr, &conf->m_inet6_addr[12], sizeof(in_addr));
-    }
+    ndb_sockaddr in= globalTransporterRegistry.get_connect_address(nodeId);
+    if (in.get_in6_addr((in6_addr*)&conf->m_inet6_addr) == 0)
+      siglen = ApiVersionConf::SignalLength;
+    (void) in.get_in_addr((in_addr*)&conf->m_inet_addr);
   }
   else
   {
@@ -4775,7 +4775,7 @@ Qmgr::execAPI_VERSION_REQ(Signal * signal) {
   sendSignal(senderRef,
 	     GSN_API_VERSION_CONF,
 	     signal,
-	     ApiVersionConf::SignalLength, JBB);
+	     siglen, JBB);
 }
 
 void
@@ -8937,10 +8937,10 @@ Qmgr::execDBINFO_SCANREQ(Signal *signal)
           /* MGM/API node is too old to send ProcessInfoRep, so create a
              fallback-style report */
 
-          struct in6_addr addr= globalTransporterRegistry.get_connect_address(i);
+          ndb_sockaddr addr= globalTransporterRegistry.get_connect_address(i);
           char service_uri[INET6_ADDRSTRLEN + 6];
           strcpy(service_uri, "ndb://");
-          Ndb_inet_ntop(AF_INET6, & addr, service_uri + 6, 46);
+          Ndb_inet_ntop(&addr, service_uri + 6, 46);
 
           Ndbinfo::Row row(signal, req);
           row.write_uint32(getOwnNodeId());                 // reporting_node_id
@@ -8998,7 +8998,7 @@ Qmgr::execPROCESSINFO_REP(Signal *signal)
          of ProcessInfo::setHostAddress() is also available, which
          takes a struct sockaddr * and length.
       */
-      struct in6_addr addr=
+      ndb_sockaddr addr=
         globalTransporterRegistry.get_connect_address(report->node_id);
       processInfo->setHostAddress(& addr);
     }

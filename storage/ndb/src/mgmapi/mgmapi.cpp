@@ -46,6 +46,7 @@
 #include <ndb_limits.h>
 #include <EventLogger.hpp>
 #include <memory>
+#include "portlib/ndb_sockaddr.h"
 
 //#define MGMAPI_LOG
 #define MGM_CMD(name, fun, desc) \
@@ -886,8 +887,8 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
       }
 
       // return immediately when all the hostnames are invalid.
-      struct in6_addr addr;
-      if (Ndb_getInAddr6(&addr, cfg.ids[i].name.c_str()) != 0) {
+      ndb_sockaddr addr;
+      if (Ndb_getAddr(&addr, cfg.ids[i].name.c_str()) != 0) {
         invalid_Address++;
         if (cfg.ids.size() - invalid_Address == 0) {
           fprintf(handle->errstream,

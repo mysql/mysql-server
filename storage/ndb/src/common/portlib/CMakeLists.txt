@@ -81,4 +81,4 @@ NDB_ADD_TEST(NdbHW-t NdbHW.cpp LIBS ndbmgmapi ndbgeneral ndbportlib)
 
 NDB_ADD_TEST(NdbDir-t NdbDir.cpp LIBS ndbmgmapi ndbgeneral ndbportlib)
 
-NDB_ADD_TEST(NdbGetInAddr-t NdbTCP.cpp LIBS ${LIBSOCKET} ${LIBNSL})
+NDB_ADD_TEST(NdbGetInAddr-t NdbTCP.cpp LIBS ndbgeneral ${LIBSOCKET} ${LIBNSL})

@@ -25,6 +25,8 @@
 #ifndef NDB_SOCKET_H
 #define NDB_SOCKET_H
 
+#include "portlib/ndb_sockaddr.h"
+
 #ifdef _WIN32
 #include <winsock2.h>
 using socket_t = SOCKET;
@@ -139,9 +141,9 @@ ndb_socket_t ndb_socket_create_dual_stack(int type, int protocol)
    Use ndb_socket_errno() to retrieve error
 */
 static inline
-int ndb_bind_inet(ndb_socket_t s, const struct sockaddr_in6 *addr)
+int ndb_bind(ndb_socket_t s, const ndb_sockaddr *addr)
 {
-  int r = bind(s.s, (const struct sockaddr*)addr, sizeof(struct sockaddr_in6));
+  int r = bind(s.s, addr->get_sockaddr(), addr->get_sockaddr_len());
   return r ? -1 : 0;
 }
 
@@ -159,52 +161,57 @@ int ndb_listen(ndb_socket_t s, int backlog)
    Use ndb_socket_errno() to retrieve error
 */
 static inline
-ndb_socket_t ndb_accept(ndb_socket_t s, struct sockaddr *addr,
-                        socklen_t *addrlen)
+ndb_socket_t ndb_accept(ndb_socket_t s, ndb_sockaddr *addr)
 {
-  return ndb_socket_create_from_native( accept(s.s, addr, addrlen) );
+  ndb_sockaddr::storage_type sa;
+  socklen_t salen = sizeof(sa);
+  socket_t sock = accept(s.s, &sa.common, &salen);
+  if (sock != -1 && addr != nullptr)
+  {
+    *addr = ndb_sockaddr(&sa.common, salen);
+  }
+  return ndb_socket_create_from_native(sock);
 }
 
 /* Returns 0 on success.
    Use ndb_socket_errno() to retrieve error
 */
 static inline
-int ndb_connect_inet6(ndb_socket_t s, const struct sockaddr_in6 *addr)
+int ndb_connect(ndb_socket_t s, const ndb_sockaddr *addr)
 {
-  return connect(s.s, (const struct sockaddr*) addr,
-                 sizeof(struct sockaddr_in6));
+  return connect(s.s, addr->get_sockaddr(), addr->get_sockaddr_len());
 }
 
 // Returns 0 on success, 1 on error
 static inline
-int ndb_getpeername(ndb_socket_t s, struct sockaddr_in6 *addr)
+int ndb_getpeername(ndb_socket_t s, ndb_sockaddr *addr)
 {
-  socklen_t len = sizeof(struct sockaddr_in6);
-  if(getpeername(s.s, (struct sockaddr*) addr, &len))
+  ndb_sockaddr::storage_type sa;
+  socklen_t salen = sizeof(sa);
+  if (getpeername(s.s, &sa.common, &salen) == -1)
     return 1;
-
+  *addr = ndb_sockaddr(&sa.common, salen);
   return 0;
 }
 
 // Returns 0 on success, 1 on error
 static inline
-int ndb_getsockname(ndb_socket_t s, struct sockaddr_in6 *addr)
+int ndb_getsockname(ndb_socket_t s, ndb_sockaddr *addr)
 {
-  socklen_t len = sizeof(struct sockaddr_in6);
-  if(getsockname(s.s, (struct sockaddr*) addr, &len))
+  ndb_sockaddr::storage_type sa;
+  socklen_t salen = sizeof(sa);
+  if (getsockname(s.s, &sa.common, &salen) == -1)
     return 1;
-
+  *addr = ndb_sockaddr(&sa.common, salen);
   return 0;
 }
 
 // Returns 0 on success or ndb_socket_errno() on failure
 static inline
-int ndb_socket_connect_address(ndb_socket_t s, struct in6_addr *a)
+int ndb_socket_connect_address(ndb_socket_t s, ndb_sockaddr *a)
 {
-  struct sockaddr_in6 addr;
-  if(ndb_getpeername(s, &addr) == -1) return ndb_socket_errno();
+  if(ndb_getpeername(s, a) == -1) return ndb_socket_errno();
 
-  *a= addr.sin6_addr;
   return 0;
 }
 
@@ -212,10 +219,10 @@ int ndb_socket_connect_address(ndb_socket_t s, struct in6_addr *a)
 static inline
 int ndb_socket_get_port(ndb_socket_t s, unsigned short *port)
 {
-  struct sockaddr_in6 servaddr;
+  ndb_sockaddr servaddr;
   if(ndb_getsockname(s, &servaddr) < 0) return 1;
 
-  *port= ntohs(servaddr.sin6_port);
+  *port= servaddr.get_port();
   return 0;
 }
 

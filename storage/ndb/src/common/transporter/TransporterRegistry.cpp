@@ -36,6 +36,7 @@
 #include "TCP_Transporter.hpp"
 #include "Multi_Transporter.hpp"
 #include "Loopback_Transporter.hpp"
+#include "portlib/ndb_sockaddr.h"
 
 #ifdef NDB_SHM_TRANSPORTER_SUPPORTED
 #include "SHM_Transporter.hpp"
@@ -95,7 +96,7 @@ private:
 };
 
 
-struct in6_addr
+ndb_sockaddr
 TransporterRegistry::get_connect_address(NodeId node_id) const
 {
   return theNodeIdTransporters[node_id]->m_connect_address;

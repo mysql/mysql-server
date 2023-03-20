@@ -38,6 +38,7 @@
 #include <DnsCache.hpp>
 #include <EventLogger.hpp>
 #include "portlib/NdbTCP.h"
+#include "portlib/ndb_sockaddr.h"
 
 //****************************************************************************
 //****************************************************************************
@@ -424,7 +425,7 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration *conf,
     }
 
     const char * name;
-    struct in6_addr addr;
+    ndb_sockaddr addr;
     if(!iter.get(CFG_CONNECTION_HOSTNAME_1, &name) && strlen(name)){
       if(dnsCache.getAddress(&addr, name) != 0){
 	tmp.assfmt("Could not resolve hostname [node %d]: %s", nodeId1, name);

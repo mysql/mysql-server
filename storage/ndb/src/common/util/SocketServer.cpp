@@ -35,6 +35,7 @@
 #include "ndb_socket.h"
 #include <OwnProcessInfo.hpp>
 #include <EventLogger.hpp>
+#include "portlib/ndb_sockaddr.h"
 
 #if 0
 #define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
@@ -67,15 +68,13 @@ SocketServer::~SocketServer() {
 
 bool SocketServer::tryBind(unsigned short port, const char* intface,
                            char* error, size_t error_size) {
-  struct sockaddr_in6 servaddr;
-  memset(&servaddr, 0, sizeof(servaddr));
-  servaddr.sin6_family = AF_INET6;
-  servaddr.sin6_addr = in6addr_any;
-  servaddr.sin6_port = htons(port);
-
+  ndb_sockaddr servaddr(port);
   if(intface != nullptr){
-    if(Ndb_getInAddr6(&servaddr.sin6_addr, intface))
+    ndb_sockaddr addr;
+    if(Ndb_getAddr(&addr, intface))
       return false;
+    addr.set_port(port);
+    servaddr = addr;
   }
 
   const ndb_socket_t sock =
@@ -91,7 +90,7 @@ bool SocketServer::tryBind(unsigned short port, const char* intface,
     return false;
   }
 
-  if (ndb_bind_inet(sock, &servaddr) == -1) {
+  if (ndb_bind(sock, &servaddr) == -1) {
     if (error != nullptr) {
       int err_code = ndb_socket_errno();
       snprintf(error, error_size, "%d '%s'", err_code,
@@ -112,15 +111,14 @@ SocketServer::setup(SocketServer::Service * service,
         const char * intface){
   DBUG_ENTER("SocketServer::setup");
   DBUG_PRINT("enter",("interface=%s, port=%u", intface, *port));
-  struct sockaddr_in6 servaddr;
-  memset(&servaddr, 0, sizeof(servaddr));
-  servaddr.sin6_family = AF_INET6;
-  servaddr.sin6_addr = in6addr_any;
-  servaddr.sin6_port = htons(*port);
 
+  ndb_sockaddr servaddr(*port);
   if(intface != nullptr){
-    if(Ndb_getInAddr6(&servaddr.sin6_addr, intface))
+    ndb_sockaddr addr;
+    if(Ndb_getAddr(&addr, intface))
       DBUG_RETURN(false);
+    addr.set_port(*port);
+    servaddr = addr;
   }
 
   const ndb_socket_t sock =
@@ -142,7 +140,7 @@ SocketServer::setup(SocketServer::Service * service,
     DBUG_RETURN(false);
   }
 
-  if (ndb_bind_inet(sock, &servaddr) == -1) {
+  if (ndb_bind(sock, &servaddr) == -1) {
     DBUG_PRINT("error",("bind() - %d - %s",
       socket_errno, strerror(socket_errno)));
     ndb_socket_close(sock);
@@ -150,7 +148,7 @@ SocketServer::setup(SocketServer::Service * service,
   }
 
   /* Get the address and port we bound to */
-  struct sockaddr_in6 serv_addr;
+  ndb_sockaddr serv_addr;
   if(ndb_getsockname(sock, &serv_addr))
   {
     g_eventLogger->info(
@@ -160,8 +158,8 @@ SocketServer::setup(SocketServer::Service * service,
     ndb_socket_close(sock);
     DBUG_RETURN(false);
   }
-  *port = ntohs(serv_addr.sin6_port);
-  setOwnProcessInfoServerAddress((sockaddr*)& serv_addr);
+  *port = serv_addr.get_port();
+  setOwnProcessInfoServerAddress(& serv_addr);
 
   DBUG_PRINT("info",("bound to %u", *port));
 
@@ -228,7 +226,7 @@ SocketServer::doAccept()
     ServiceInstance & si = m_services[i];
     assert(m_services_poller.is_socket_equal(i, si.m_socket));
 
-    const ndb_socket_t childSock = ndb_accept(si.m_socket, nullptr, nullptr);
+    const ndb_socket_t childSock = ndb_accept(si.m_socket, nullptr);
     if (!ndb_socket_valid(childSock))
     {
       // Could not 'accept' socket(maybe at max fds), indicate error

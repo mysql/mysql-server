@@ -52,6 +52,7 @@
 #include <NdbMutex.h>
 
 #include "portlib/NdbTick.h"
+#include "portlib/ndb_sockaddr.h"
 #include "util/NdbSocket.h"
 
 #ifndef _WIN32
@@ -542,7 +543,7 @@ public:
   Transporter* get_transporter(TrpId id) const;
   Transporter* get_node_transporter(NodeId nodeId) const;
   bool is_shm_transporter(NodeId nodeId);
-  struct in6_addr get_connect_address(NodeId node_id) const;
+  ndb_sockaddr get_connect_address(NodeId node_id) const;
 
   Uint64 get_bytes_sent(NodeId nodeId) const;
   Uint64 get_bytes_received(NodeId nodeId) const;
