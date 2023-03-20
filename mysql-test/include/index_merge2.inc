@@ -19,6 +19,7 @@
 --echo # (Start of test file: index_merge2.inc)
 
 eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
+eval SET SESSION EXPLAIN_FORMAT = tree;
 
 --disable_warnings
 drop table if exists t1,t2;
@@ -49,10 +50,12 @@ analyze table t1;
 -- enable_query_log
 
 --echo # No primary key
+--replace_regex $elide_costs
 explain select * from t1 where key1 < 5 or key2 > 197;
 
 select * from t1 where key1 < 5 or key2 > 197;
 
+--replace_regex $elide_costs
 explain select * from t1 where key1 < 3 or key2 > 195;
 select * from t1 where key1 < 3 or key2 > 195;
 
@@ -73,10 +76,12 @@ analyze table t1;
 -- enable_result_log
 -- enable_query_log
 
+--replace_regex $elide_costs
 explain select * from t1 where key1 < 5 or key2 > 197;
 
 select * from t1 where key1 < 5 or key2 > 197;
 
+--replace_regex $elide_costs
 explain select * from t1 where key1 < 3 or key2 > 195;
 select * from t1 where key1 < 3 or key2 > 195;
 
@@ -106,6 +111,7 @@ analyze table t1;
 -- enable_result_log
 -- enable_query_log
 
+--replace_regex $elide_costs
 explain select pk from t1 where key1 = 1 and key2 = 1;
 select pk from t1 where key2 = 1 and key1 = 1;
 select pk from t1 ignore index(key1,key2) where key2 = 1 and key1 = 1;
@@ -148,31 +154,14 @@ analyze table t2;
 -- enable_result_log
 -- enable_query_log
 
-if ($index_merge_random_rows_in_EXPLAIN)
-{
-  --replace_column 10 #
-}
-if ($engine_type == MyISAM)
-{
-  # Bug#33457946: The estimated selectivity is different on 32-bit and
-  # 64-bit platforms.
-  --replace_column 11 #
-}
+--replace_regex $elide_costs
 explain select count(*) from t1 where
   key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
 
 select count(*) from t1 where
   key1a = 2 and key1b is null and key2a = 2 and key2b is null;
 
-if ($index_merge_random_rows_in_EXPLAIN)
-{
-  --replace_column 10 #
-}
-if ($engine_type == MyISAM) {
-  # Bug#33457946: The estimated selectivity is different on 32-bit and
-  # 64-bit platforms.
-  --replace_column 11 #
-}
+--replace_regex $elide_costs
 explain select count(*) from t1 where
   key1a = 2 and key1b is null and key3a = 2 and key3b is null;
 
@@ -389,11 +378,8 @@ analyze table t1;
 -- enable_result_log
 -- enable_query_log
 
-if ($index_merge_random_rows_in_EXPLAIN)
-{
-  --replace_column 10 #
-}
 # to test the bug, the following must use "sort_union":
+--replace_regex $elide_costs
 explain select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
 select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
 drop table t1;
