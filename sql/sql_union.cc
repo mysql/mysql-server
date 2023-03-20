@@ -1838,7 +1838,7 @@ void Query_expression::cleanup(bool full) {
   cleaned = (full ? UC_CLEAN : UC_PART_CLEAN);
 
   if (full) {
-    m_root_iterator.reset();
+    clear_root_access_path();
   }
 
   m_query_blocks_to_materialize.clear();
