@@ -1,0 +1,27 @@
+DROP DATABASE IF EXISTS db1;
+CREATE DATABASE `db1`;
+USE `db1`;
+CREATE TABLE db1.`tb1` (
+`col1` varchar(8) NOT NULL 
+);
+INSERT INTO db1.`tb1`(col1) VALUES ('20211114');
+CREATE PROCEDURE db1.`stored_proc1`()
+BEGIN
+WITH t_dataset_info as (
+SELECT col1 as yyyymmdd FROM tb1 WHERE col1 = (SELECT max(col1) FROM tb1 )
+)
+SELECT a.yyyymmdd as yyyymmdd
+FROM (
+SELECT a.yyyymmdd
+FROM t_dataset_info a
+WHERE a.yyyymmdd = (SELECT max(a.yyyymmdd) FROM t_dataset_info a WHERE a.yyyymmdd <= '20220131')
+) a;
+END|
+SET optimizer_switch="derived_merge=off";
+call db1.stored_proc1();
+yyyymmdd
+20211114
+call db1.stored_proc1();
+yyyymmdd
+20211114
+DROP DATABASE db1;

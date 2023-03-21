@@ -78,6 +78,7 @@ Handler::Handler(handlerton *hton, TABLE_SHARE *table_share_arg)
       m_index_read_number_of_cells(),
       m_deleted_rows() {
   handler::ref_length = sizeof(Storage::Element *);
+  is_temptable_cached = false;
 
   // Overriding `handlerton::` with a function-pointer in `TempTable`, or
   // any other plugin, is not always sufficient for server to actually invoke
@@ -231,6 +232,22 @@ int Handler::close() {
   handler::active_index = MAX_KEY;
   m_rnd_iterator_is_positioned = false;
   m_index_cursor.unposition();
+
+  /* Ensure the cached keys in use for the temporary table associated with this
+     handler are cleared so that no attempts are made to access a non-existent
+     temporary table object when a query is re-executed but before it is cached. 
+     Before the query is cached, if the keys inuse are not cleared, the
+     query processor will assume that an open temporary table exists and try
+     to access it, causing the engine to crash as it attempts to dereference
+     a null pointer. This crash only happens when the temptable handler is
+     used for the second time, after the second usage the null pointer access
+     no longer happens.
+  */
+  if (!is_temptable_cached){
+    table->keys_in_use_for_query.clear_all();
+    is_temptable_cached = true;
+  }
+  
 
   /* Marked unused - temporary fix for GCC 8 bug 82728. */
   const Result ret TEMPTABLE_UNUSED = Result::OK;

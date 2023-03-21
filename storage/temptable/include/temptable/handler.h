@@ -523,6 +523,15 @@ class Handler : public ::handler {
   /** Currently opened table, or `nullptr` if none is opened. */
   Table *m_opened_table;
 
+  /* Determine if handler has cached the underlying 
+   * data of a temptable. This normally happens
+   * after the second usage  of the temptable handler.
+   * Before the second usage, we want to
+   * reset keys_in_use_for_query of the underlying
+   * temptable.
+   */
+  bool is_temptable_cached;
+
   /** Pointer to the non-owned shared-block of memory to be re-used by all
    * `Allocator` instances or copies made by `Table`. */
   Block *m_shared_block;

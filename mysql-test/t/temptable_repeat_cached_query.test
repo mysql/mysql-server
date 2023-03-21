@@ -1,0 +1,45 @@
+########################################################################################
+# Check that repeat queries that are cached do not cause MySQL to crash due to
+# usable keys not being reset after completion of processing for each query for
+# the TempTable storage engine.
+########################################################################################
+
+# Disable warnings as they add noise that is not relevant to verifying the
+# behavior that is being tested.
+--disable_warnings
+
+DROP DATABASE IF EXISTS db1;
+CREATE DATABASE `db1`;
+USE `db1`;
+
+CREATE TABLE db1.`tb1` (
+  `col1` varchar(8) NOT NULL 
+);
+
+INSERT INTO db1.`tb1`(col1) VALUES ('20211114');
+
+
+--delimiter |
+
+CREATE PROCEDURE db1.`stored_proc1`()
+BEGIN
+
+    WITH t_dataset_info as (
+        SELECT col1 as yyyymmdd FROM tb1 WHERE col1 = (SELECT max(col1) FROM tb1 )
+    )
+    SELECT a.yyyymmdd as yyyymmdd
+                      FROM (
+                            SELECT a.yyyymmdd
+                              FROM t_dataset_info a
+                            WHERE a.yyyymmdd = (SELECT max(a.yyyymmdd) FROM t_dataset_info a WHERE a.yyyymmdd <= '20220131')
+                            ) a;
+
+END|
+
+--delimiter ;
+SET optimizer_switch="derived_merge=off";
+
+call db1.stored_proc1();
+call db1.stored_proc1();
+DROP DATABASE db1;
+--enable_warnings
