@@ -510,7 +510,7 @@ class CostingReceiver {
                                 bool inexact, int num_where_predicates,
                                 double num_output_rows_after_filter,
                                 const RANGE_OPT_PARAM *param,
-                                Mem_root_array<AccessPath *> paths);
+                                const Mem_root_array<AccessPath *> &paths);
   void ProposeAllRowIdOrderedIntersectPlans(
       TABLE *table, int node_idx, SEL_TREE *tree, int num_where_predicates,
       const Mem_root_array<PossibleRORScan> &possible_ror_scans,
@@ -1980,25 +1980,57 @@ void CostingReceiver::ProposeRowIdOrderedIntersect(
   }
 }
 
+// Propose Row-ID ordered index merge plans. We propose both ROR-Union
+// and ROR-Union with ROR-Intersect plans. For every "imerge",
+// ProposeIndexMerge() finds the cheapest range scan for each part
+// of the OR condition. If all such range scans are marked as ROR
+// compatible, we propose a ROR Union plan. Each part of an OR
+// condition could in turn have multiple predicates. In such a case
+// it proposes ROR Union of ROR intersect plan.
 void CostingReceiver::ProposeRowIdOrderedUnion(
     TABLE *table, int node_idx, const SEL_IMERGE &imerge, int pred_idx,
     bool inexact, int num_where_predicates, double num_output_rows_after_filter,
-    const RANGE_OPT_PARAM *param, Mem_root_array<AccessPath *> paths) {
+    const RANGE_OPT_PARAM *param,
+    const Mem_root_array<AccessPath *> &range_paths) {
   double cost = 0.0;
   double num_output_rows = 0.0;
   double intersect_factor = 1.0;
-  auto p_it = paths.begin();
+  auto p_it = range_paths.begin();
+  Mem_root_array<AccessPath *> paths(m_thd->mem_root);
   for (auto t_it = imerge.trees.begin(); t_it != imerge.trees.end();
        t_it++, p_it++) {
     AccessPath *range_path = *p_it;
     SEL_TREE *tree = *t_it;
     inexact |= tree->inexact;
-    cost += range_path->cost;
-    num_output_rows += range_path->num_output_rows();
-    range_path->index_range_scan().need_rows_in_rowid_order = true;
+    // The cheapest range scan chosen is an ror scan. If this needs
+    // to be compared against an ROR-intersect plan, we need
+    // to add the row retrieval cost for the range scan. We only
+    // have the index scan cost.
+    double scan_cost = table->file
+                           ->read_cost(range_path->index_range_scan().index, 1,
+                                       range_path->num_output_rows())
+                           .total_cost();
+    scan_cost +=
+        table->cost_model()->row_evaluate_cost(range_path->num_output_rows());
+    // Only pick the best intersect plan to be proposed as part of an ROR-Union.
+    AccessPath *ror_intersect_path = get_best_ror_intersect(
+        m_thd, param, table, /*index_merge_intersect_allowed=*/true, tree,
+        scan_cost, /*force_index_merge_result=*/false, /*reuse_handler=*/false);
+    AccessPath *path = ror_intersect_path;
+    if (path == nullptr) {
+      path = range_path;
+      path->index_range_scan().need_rows_in_rowid_order = true;
+    } else {
+      path->rowid_intersection().need_rows_in_rowid_order = true;
+      path->init_cost = path->cost;
+      path->rowid_intersection().retrieve_full_rows = false;
+    }
+    paths.push_back(path);
+    cost += path->cost;
+    num_output_rows += path->num_output_rows();
     // Get the factor by which this index would reduce the output rows
     intersect_factor *=
-        min(1.0, range_path->num_output_rows() / table->file->stats.records);
+        min(1.0, path->num_output_rows() / table->file->stats.records);
   }
 
   // rows to retrieve =
@@ -2058,9 +2090,20 @@ void CostingReceiver::ProposeRowIdOrderedUnion(
   // Add some trace info.
   string description_for_trace;
   for (AccessPath *path : *ror_union_path.rowid_union().children) {
-    description_for_trace +=
-        string(param->table->key_info[path->index_range_scan().index].name) +
-        " ";
+    if (path->type == AccessPath::ROWID_INTERSECTION) {
+      description_for_trace += "[";
+      for (AccessPath *range_path : *path->rowid_intersection().children) {
+        description_for_trace +=
+            string(param->table->key_info[range_path->index_range_scan().index]
+                       .name) +
+            " ";
+      }
+      description_for_trace += "intersect] ";
+    } else {
+      description_for_trace +=
+          string(param->table->key_info[path->index_range_scan().index].name) +
+          " ";
+    }
   }
   description_for_trace += "union";
   for (bool materialize_subqueries : {false, true}) {
@@ -2132,11 +2175,14 @@ void CostingReceiver::ProposeIndexMerge(
     // Check if we can find a row-id ordered scan even though it is not
     // the cheapest one. It might be advantageous to have row-id ordered
     // union scan instead of a "sort-union" scan.
+    AccessPath *ror_path = nullptr;
     if (all_scans_ror_able) {
       if (path->index_range_scan().can_be_used_for_ror) {
-        ror_paths.push_back(path);
+        // Make a copy of the found range scan access path.
+        ror_path = new (param->return_mem_root) AccessPath(*path);
+        ror_paths.push_back(ror_path);
       } else if (tree->n_ror_scans > 0) {
-        AccessPath *ror_path = FindCheapestIndexRangeScan(
+        ror_path = FindCheapestIndexRangeScan(
             m_thd, tree, param,
             /*prefer_clustered_primary_key_scan=*/
             allow_clustered_primary_key_scan, &inexact,
@@ -2165,7 +2211,7 @@ void CostingReceiver::ProposeIndexMerge(
   if (all_scans_ror_able) {
     ProposeRowIdOrderedUnion(table, node_idx, imerge, pred_idx, inexact,
                              num_where_predicates, num_output_rows_after_filter,
-                             param, std::move(ror_paths));
+                             param, ror_paths);
     // If all chosen scans (best range scans) are ROR compatible, there
     // is no need to propose an Index Merge plan as ROR-Union plan will
     // always be better (Avoids sorting by row IDs).

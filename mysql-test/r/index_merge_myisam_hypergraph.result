@@ -600,16 +600,25 @@ where (a.key1 = 1 and a.key2 = 1 and a.key3 = 1 and a.key4=1 and a.key5=1 and a.
 and (b.key1 = 1 and b.key2 = 1 and b.key3 = 1 and b.key4=1 and b.key5=1 and b.key6=1 and b.key7 = 1 or b.key8=1);
 EXPLAIN
 -> Aggregate: max((((((((((a.key1 + b.key1) + a.key2) + b.key2) + a.key3) + b.key3) + a.key4) + b.key4) + a.key5) + b.key5))  (rows=1)
-    -> Inner hash join (no condition)  (rows=10424)
+    -> Nested loop inner join  (rows=10424)
         -> Filter: (((a.key1 = 1) and (a.key2 = 1) and (a.key3 = 1) and (a.key4 = 1) and (a.key5 = 1) and (a.key6 = 1) and (a.key7 = 1)) or (a.key8 = 1))  (rows=102)
-            -> Deduplicate rows sorted by row ID  (rows=102)
-                -> Index range scan on a using i7 over (key7 = 1)  (rows=451)
+            -> Deduplicate rows sorted by row ID  (rows=18.2)
+                -> Intersect rows sorted by row ID  (rows=17.2)
+                    -> Index range scan on a using i2 over (key2 = 1)  (rows=451)
+                    -> Index range scan on a using i3 over (key3 = 1)  (rows=451)
+                    -> Index range scan on a using i4 over (key4 = 1)  (rows=451)
+                    -> Index range scan on a using i5 over (key5 = 1)  (rows=451)
+                    -> Index range scan on a using i6,i7? over (key6 = 1)  (rows=451)
                 -> Index range scan on a using i8 over (key8 = 1)  (rows=1)
-        -> Hash
-            -> Filter: (((b.key1 = 1) and (b.key2 = 1) and (b.key3 = 1) and (b.key4 = 1) and (b.key5 = 1) and (b.key6 = 1) and (b.key7 = 1)) or (b.key8 = 1))  (rows=102)
-                -> Deduplicate rows sorted by row ID  (rows=102)
-                    -> Index range scan on b using i7 over (key7 = 1)  (rows=451)
-                    -> Index range scan on b using i8 over (key8 = 1)  (rows=1)
+        -> Filter: (((b.key1 = 1) and (b.key2 = 1) and (b.key3 = 1) and (b.key4 = 1) and (b.key5 = 1) and (b.key6 = 1) and (b.key7 = 1)) or (b.key8 = 1))  (rows=102)
+            -> Deduplicate rows sorted by row ID  (rows=18.2)
+                -> Intersect rows sorted by row ID  (rows=17.2)
+                    -> Index range scan on b using i2 over (key2 = 1)  (rows=451)
+                    -> Index range scan on b using i3 over (key3 = 1)  (rows=451)
+                    -> Index range scan on b using i4 over (key4 = 1)  (rows=451)
+                    -> Index range scan on b using i5 over (key5 = 1)  (rows=451)
+                    -> Index range scan on b using i6,i7? over (key6 = 1)  (rows=451)
+                -> Index range scan on b using i8 over (key8 = 1)  (rows=1)
 
 select max(a.key1 + b.key1 + a.key2 + b.key2 + a.key3 + b.key3 + a.key4 + b.key4 + a.key5 + b.key5)
 from t0 as a, t0 as b
@@ -937,8 +946,12 @@ explain select key1,key1,key3,key3,filler1 from t1 where key1=100 and key1=100 o
 EXPLAIN
 -> Filter: (((t1.key1 = 100) and (t1.key1 = 100)) or ((t1.key3 = 100) and (t1.key3 = 100)))  (...)
     -> Deduplicate rows sorted by row ID  (...)
-        -> Index range scan on t1 using key1 over (key1 = 100)  (...)
-        -> Index range scan on t1 using key3 over (key3 = 100)  (...)
+        -> Intersect rows sorted by row ID  (...)
+            -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+            -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+        -> Intersect rows sorted by row ID  (...)
+            -> Index range scan on t1 using key3 over (key3 = 100)  (...)
+            -> Index range scan on t1 using key3 over (key3 = 100)  (...)
 
 explain format=json select key1,key1,key3,key3,filler1 from t1 where key1=100 and key1=100 or key3=100 and key3=100;
 EXPLAIN
@@ -948,30 +961,76 @@ EXPLAIN
     {
       "inputs": [
         {
-          "ranges": [
-            "(key1 = 100)"
+          "inputs": [
+            {
+              "ranges": [
+                "(key1 = 100)"
+              ],
+              "covering": false,
+              "operation": "Index range scan on t1 using key1 over (key1 = 100)",
+              "index_name": "key1",
+              "table_name": "t1",
+              "access_type": "index",
+              "estimated_rows": "#",
+              "index_access_type": "index_range_scan",
+              "estimated_total_cost": "#",
+              "estimated_first_row_cost": "#"
+            },
+            {
+              "ranges": [
+                "(key1 = 100)"
+              ],
+              "covering": false,
+              "operation": "Index range scan on t1 using key1 over (key1 = 100)",
+              "index_name": "key1",
+              "table_name": "t1",
+              "access_type": "index",
+              "estimated_rows": "#",
+              "index_access_type": "index_range_scan",
+              "estimated_total_cost": "#",
+              "estimated_first_row_cost": "#"
+            }
           ],
-          "covering": false,
-          "operation": "Index range scan on t1 using key1 over (key1 = 100)",
-          "index_name": "key1",
-          "table_name": "t1",
-          "access_type": "index",
+          "operation": "Intersect rows sorted by row ID",
+          "access_type": "rowid_intersection",
           "estimated_rows": "#",
-          "index_access_type": "index_range_scan",
           "estimated_total_cost": "#",
           "estimated_first_row_cost": "#"
         },
         {
-          "ranges": [
-            "(key3 = 100)"
+          "inputs": [
+            {
+              "ranges": [
+                "(key3 = 100)"
+              ],
+              "covering": false,
+              "operation": "Index range scan on t1 using key3 over (key3 = 100)",
+              "index_name": "key3",
+              "table_name": "t1",
+              "access_type": "index",
+              "estimated_rows": "#",
+              "index_access_type": "index_range_scan",
+              "estimated_total_cost": "#",
+              "estimated_first_row_cost": "#"
+            },
+            {
+              "ranges": [
+                "(key3 = 100)"
+              ],
+              "covering": false,
+              "operation": "Index range scan on t1 using key3 over (key3 = 100)",
+              "index_name": "key3",
+              "table_name": "t1",
+              "access_type": "index",
+              "estimated_rows": "#",
+              "index_access_type": "index_range_scan",
+              "estimated_total_cost": "#",
+              "estimated_first_row_cost": "#"
+            }
           ],
-          "covering": false,
-          "operation": "Index range scan on t1 using key3 over (key3 = 100)",
-          "index_name": "key3",
-          "table_name": "t1",
-          "access_type": "index",
+          "operation": "Intersect rows sorted by row ID",
+          "access_type": "rowid_intersection",
           "estimated_rows": "#",
-          "index_access_type": "index_range_scan",
           "estimated_total_cost": "#",
           "estimated_first_row_cost": "#"
         }
@@ -1023,8 +1082,12 @@ explain select key1,key1,key3,key3 from t1 where key1=100 and key1=100 or key3=1
 EXPLAIN
 -> Filter: (((t1.key1 = 100) and (t1.key1 = 100)) or ((t1.key3 = 100) and (t1.key3 = 100)))  (...)
     -> Deduplicate rows sorted by row ID  (...)
-        -> Index range scan on t1 using key1 over (key1 = 100)  (...)
-        -> Index range scan on t1 using key3 over (key3 = 100)  (...)
+        -> Intersect rows sorted by row ID  (...)
+            -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+            -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+        -> Intersect rows sorted by row ID  (...)
+            -> Index range scan on t1 using key3 over (key3 = 100)  (...)
+            -> Index range scan on t1 using key3 over (key3 = 100)  (...)
 
 select key1,key2,key3,key4 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 key1	key2	key3	key4
@@ -1035,8 +1098,12 @@ explain select key1,key1,key3,key3,filler1 from t1 where key1=100 and key1=100 o
 EXPLAIN
 -> Filter: (((t1.key1 = 100) and (t1.key1 = 100)) or ((t1.key3 = 100) and (t1.key3 = 100)))  (...)
     -> Deduplicate rows sorted by row ID  (...)
-        -> Index range scan on t1 using key1 over (key1 = 100)  (...)
-        -> Index range scan on t1 using key3 over (key3 = 100)  (...)
+        -> Intersect rows sorted by row ID  (...)
+            -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+            -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+        -> Intersect rows sorted by row ID  (...)
+            -> Index range scan on t1 using key3 over (key3 = 100)  (...)
+            -> Index range scan on t1 using key3 over (key3 = 100)  (...)
 
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 key1	key2	key3	key4	filler1
@@ -1060,7 +1127,9 @@ explain select key1,key1,key3,key4,filler1 from t1 where key1=100 and key1=100 o
 EXPLAIN
 -> Filter: (((t1.key1 = 100) and (t1.key1 = 100)) or (t1.key3 = 101))  (...)
     -> Deduplicate rows sorted by row ID  (...)
-        -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+        -> Intersect rows sorted by row ID  (...)
+            -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+            -> Index range scan on t1 using key1 over (key1 = 100)  (...)
         -> Index range scan on t1 using key3 over (key3 = 101)  (...)
 
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=101;
@@ -1084,8 +1153,12 @@ explain select key1,key1,key3,key3,filler1 from t1 where key1=100 and key1=100 o
 EXPLAIN
 -> Filter: (((t1.key1 = 100) and (t1.key1 = 100)) or ((t1.key3 = 100) and (t1.key3 = 100)))  (...)
     -> Deduplicate rows sorted by row ID  (...)
-        -> Index range scan on t1 using key1 over (key1 = 100)  (...)
-        -> Index range scan on t1 using key3 over (key3 = 100)  (...)
+        -> Intersect rows sorted by row ID  (...)
+            -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+            -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+        -> Intersect rows sorted by row ID  (...)
+            -> Index range scan on t1 using key3 over (key3 = 100)  (...)
+            -> Index range scan on t1 using key3 over (key3 = 100)  (...)
 
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 key1	key2	key3	key4	filler1
@@ -1096,8 +1169,12 @@ explain select key1,key1,key3,key3,filler1 from t1 where key1=100 and key1=100 o
 EXPLAIN
 -> Filter: (((t1.key1 = 100) and (t1.key1 = 100)) or ((t1.key3 = 100) and (t1.key3 = 100)))  (...)
     -> Deduplicate rows sorted by row ID  (...)
-        -> Index range scan on t1 using key1 over (key1 = 100)  (...)
-        -> Index range scan on t1 using key3 over (key3 = 100)  (...)
+        -> Intersect rows sorted by row ID  (...)
+            -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+            -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+        -> Intersect rows sorted by row ID  (...)
+            -> Index range scan on t1 using key3 over (key3 = 100)  (...)
+            -> Index range scan on t1 using key3 over (key3 = 100)  (...)
 
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 key1	key2	key3	key4	filler1
@@ -1120,7 +1197,9 @@ EXPLAIN
 -> Filter: ((t1.key3 = 200) or ((t1.key1 = 100) and (t1.key1 = 100)) or (t1.key3 = 200))  (...)
     -> Deduplicate rows sorted by row ID  (...)
         -> Index range scan on t1 using key3 over (key3 = 200)  (...)
-        -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+        -> Intersect rows sorted by row ID  (...)
+            -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+            -> Index range scan on t1 using key1 over (key1 = 100)  (...)
         -> Index range scan on t1 using key3 over (key3 = 200)  (...)
 
 select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
@@ -1134,7 +1213,9 @@ EXPLAIN
 -> Filter: ((t1.key3 = 200) or ((t1.key1 = 100) and (t1.key1 = 100)) or (t1.key3 = 200))  (...)
     -> Deduplicate rows sorted by row ID  (...)
         -> Index range scan on t1 using key3 over (key3 = 200)  (...)
-        -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+        -> Intersect rows sorted by row ID  (...)
+            -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+            -> Index range scan on t1 using key1 over (key1 = 100)  (...)
         -> Index range scan on t1 using key3 over (key3 = 200)  (...)
 
 select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
@@ -1149,7 +1230,9 @@ EXPLAIN
 -> Filter: ((t1.key3 = 200) or ((t1.key1 = 100) and (t1.key1 = 100)) or (t1.key3 = 200))  (...)
     -> Deduplicate rows sorted by row ID  (...)
         -> Index range scan on t1 using key3 over (key3 = 200)  (...)
-        -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+        -> Intersect rows sorted by row ID  (...)
+            -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+            -> Index range scan on t1 using key1 over (key1 = 100)  (...)
         -> Index range scan on t1 using key3 over (key3 = 200)  (...)
 
 select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
@@ -2482,9 +2565,11 @@ This will use intersection inside a union:
 set optimizer_switch=@default_optimizer_switch;
 explain select * from t1 where a=10 and b=10 or c=10;
 EXPLAIN
--> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (cost=22.3..27.6 rows=545)
-    -> Deduplicate rows sorted by row ID  (cost=16.9..22.2 rows=54)
-        -> Index range scan on t1 using b over (b = 10)  (cost=0.111..5.44 rows=49)
+-> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (cost=3.64..4.24 rows=545)
+    -> Deduplicate rows sorted by row ID  (cost=3.14..3.64 rows=6)
+        -> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=1)
+            -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
+            -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
         -> Index range scan on t1 using c over (c = 10)  (cost=0.157..0.783 rows=5)
 
 Should be only union left:
@@ -2492,9 +2577,11 @@ set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_intersection=off';
 explain select * from t1 where a=10 and b=10 or c=10;
 EXPLAIN
--> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (cost=22.3..27.6 rows=545)
-    -> Deduplicate rows sorted by row ID  (cost=16.9..22.2 rows=54)
-        -> Index range scan on t1 using b over (b = 10)  (cost=0.111..5.44 rows=49)
+-> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (cost=3.64..4.24 rows=545)
+    -> Deduplicate rows sorted by row ID  (cost=3.14..3.64 rows=6)
+        -> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=1)
+            -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
+            -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
         -> Index range scan on t1 using c over (c = 10)  (cost=0.157..0.783 rows=5)
 
 This will switch to sort-union (intersection will be gone, too,
@@ -2503,9 +2590,11 @@ set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_union=off';
 explain select * from t1 where a=10 and b=10 or c=10;
 EXPLAIN
--> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (cost=22.3..27.6 rows=545)
-    -> Deduplicate rows sorted by row ID  (cost=16.9..22.2 rows=54)
-        -> Index range scan on t1 using b over (b = 10)  (cost=0.111..5.44 rows=49)
+-> Filter: (((t1.a = 10) and (t1.b = 10)) or (t1.c = 10))  (cost=3.64..4.24 rows=545)
+    -> Deduplicate rows sorted by row ID  (cost=3.14..3.64 rows=6)
+        -> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=1)
+            -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
+            -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
         -> Index range scan on t1 using c over (c = 10)  (cost=0.157..0.783 rows=5)
 
 set optimizer_switch=@default_optimizer_switch;

@@ -10,3 +10,21 @@ CREATE TABLE t1 (f1 INT, f2 INT, f3 INT, PRIMARY KEY(f1), KEY(f2), KEY(f3));
 SELECT 1
 FROM t1 WHERE (f3 IN (SELECT f3 FROM t1)) AND f1 IN (75, 70) OR (f2 IS NULL);
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#35387885: Assertion failure: row0mysql.cc in my_server_abort
+--echo #               at ../sql/signal_handler.cc
+--echo #
+
+CREATE TABLE t1 (f1 INT AUTO_INCREMENT, f2 INT, f3 INT,
+ PRIMARY KEY(f1), KEY(f2), KEY(f3));
+INSERT INTO t1 (f2,f3) VALUES
+ (2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3);
+ANALYZE TABLE t1;
+# Should choose sort-union(f3,f2) because the condition "f2 BETWEEN 5 AND 10"
+# would make it cheaper compared to union(f3, pk)
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=tree SELECT COUNT(f2)
+ FROM t1 WHERE (f3 = 10 OR f2 BETWEEN 5 AND 10) AND f1 = f2;
+SELECT COUNT(f2) FROM t1 WHERE (f3 = 10 OR f2 BETWEEN 5 AND 10) AND f1 = f2;
+DROP TABLE t1;

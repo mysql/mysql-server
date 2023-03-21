@@ -5925,6 +5925,48 @@ TEST_F(HypergraphOptimizerTest, RORIntersectPreferCoveringOverSelectivity) {
   query_block->cleanup(/*full=*/true);
 }
 
+TEST_F(HypergraphOptimizerTest, RORUnionWithIntersect) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE (t1.x = 3 AND t1.y = 4)"
+      " OR (t1.z = 5)",
+      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  CreateOrderedIndex({t1->field[0]});
+  CreateOrderedIndex({t1->field[1]});
+  CreateOrderedIndex({t1->field[2]});
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // We find the filter here even though it could be subsumed.
+  // At the moment we are aggressive in marking any range tree
+  // as inexact if it has more than one predicate (has an AND)
+  // in any one part of an OR condition like the one we have
+  // here.
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  AccessPath *rowid_union = root->filter().child;
+  ASSERT_EQ(AccessPath::ROWID_UNION, rowid_union->type);
+  ASSERT_EQ(2, rowid_union->rowid_union().children->size());
+
+  AccessPath *child0 = (*rowid_union->rowid_union().children)[0];
+  ASSERT_EQ(AccessPath::ROWID_INTERSECTION, child0->type);
+  EXPECT_EQ(2, child0->rowid_intersection().children->size());
+  AccessPath *child01 = (*child0->rowid_intersection().children)[0];
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, child01->type);
+  AccessPath *child02 = (*child0->rowid_intersection().children)[1];
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, child02->type);
+
+  AccessPath *child1 = (*rowid_union->rowid_union().children)[1];
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, child1->type);
+  query_block->cleanup(/*full=*/true);
+}
+
 TEST_F(HypergraphOptimizerTest, PropagateCondConstants) {
   Query_block *query_block =
       ParseAndResolve("SELECT t1.x FROM t1 WHERE t1.x = 10 and t1.x <> 11",
