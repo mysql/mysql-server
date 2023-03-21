@@ -29,9 +29,9 @@ create table test.t1 (a int primary key) engine=ndb;
 show warnings;
 Level	Code	Message
 drop table test.t1;
-MySQLD error output for server 1.1 matching pattern %NDB Binlog: logging%
+MySQLD error output for server 1.1 matching pattern %Binlog: logging%
 relevant
-[note] ndb binlog: logging ./test/t1 (full,use_update)
+[system] binlog: logging ./test/t1 (full,use_update)
 delete from mysql.ndb_replication;
 Check that NULL uses server defaults
 show variables like 'ndb_log_update_as_write';
@@ -45,9 +45,9 @@ create table test.t1 (a int primary key) engine=ndb;
 show warnings;
 Level	Code	Message
 drop table test.t1;
-MySQLD error output for server 1.1 matching pattern %NDB Binlog: logging%
+MySQLD error output for server 1.1 matching pattern %Binlog: logging%
 relevant
-[note] ndb binlog: logging ./test/t1 (updated,use_write)
+[system] binlog: logging ./test/t1 (updated,use_write)
 Correct schema for the table but other errors
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$X(X)");
 create table t1 (a int key, X int) engine ndb;

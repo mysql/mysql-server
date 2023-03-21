@@ -12,9 +12,6 @@ ndbcluster
 ndb-wait-connected=120
 ndb-wait-setup=240
 ndb-extra-logging=99
-# Set error log verbosity to max, otherwise info messages
-# are filtered away
-log-error-verbosity=3
 
 # Turn off X plugin since this test is large and will
 # use those ports as well

@@ -9,10 +9,6 @@ Connect to replica and ensure data is there.
 select count(*) from t1;
 count(*)
 1000
-call mtr.add_suppression(".*NDB Replica: SQL thread stopped as attempting to apply new epoch.*while lower received epoch.*has not been committed.*");
-call mtr.add_suppression(".*Could not execute Write_rows event on table.*");
-call mtr.add_suppression(".*Replica: Got error 173 'Unknown error code' from NDBCLUSTER.*");
-call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
 Make a replica side change
 This can cause uniqueness violations when we replicate data
 insert into t1 values (2001,2001,1001);
@@ -49,8 +45,6 @@ set global ndb_applier_allow_skip_epoch = 1;
 show variables like 'ndb_applier_allow_skip_epoch';
 Variable_name	Value
 ndb_applier_allow_skip_epoch	ON
-call mtr.add_suppression(".*NDB Replica: SQL thread attempting to apply new epoch.*while lower received epoch.*has not been committed.*");
-call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
 Cause a conflict
 insert into t1 values (1002,1002,1002);
 Sync with master, will succeed

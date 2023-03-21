@@ -44,7 +44,6 @@ ndbcluster
 ndb-wait-connected=30
 ndb-wait-setup=120
 ndb-extra-logging=99
-log-error-verbosity=3
 
 [mysqld.1.1]
 ndb-cluster-connection-pool=1

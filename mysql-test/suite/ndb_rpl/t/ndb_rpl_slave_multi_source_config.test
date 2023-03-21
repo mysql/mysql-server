@@ -20,7 +20,7 @@
 --disable_query_log
 # Supress error messages written when ndbcluster plugin refuses
 # to start the multi source channel 'channel_1'
-call mtr.add_suppression("NDB Replica: Multi source replication is not supported.*");
+call mtr.add_suppression("Replica: Multi source replication is not supported.*");
 call mtr.add_suppression(".*Run function 'applier_start' in plugin.*");
 call mtr.add_suppression(".*Failed to run 'applier_start' hook.*");
 call mtr.add_suppression(".*Failed to remove channel 'channel_1'.*");

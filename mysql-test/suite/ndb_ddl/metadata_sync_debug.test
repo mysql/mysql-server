@@ -178,7 +178,8 @@ CREATE TABLE t5 (
 # Force synch to fail
 SET GLOBAL debug = '+d,ndb_metadata_sync_fail';
 # Suppress error
-CALL mtr.add_suppression("NDB Binlog: Failed to synchronize table");
+--disable_query_log ONCE
+CALL mtr.add_suppression("Binlog: Failed to synchronize table");
 
 # Enable metadata check with no interval so changes are detected quickly
 SET GLOBAL ndb_metadata_check_interval = 0;

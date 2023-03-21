@@ -295,7 +295,7 @@ eval insert into mysql.ndb_replication values
 
 --disable_query_log
 # Only need suppress here, as table creation fails due to this.
-call mtr.add_suppression("NDB Replica: .* Too many extra Gci bits at .*");
+call mtr.add_suppression("Replica: .* Too many extra Gci bits at .*");
 call mtr.add_suppression(".*engine for 't3' doesn't have this option");
 call mtr.add_suppression(".*engine for 't4' doesn't have this option");
 call mtr.add_suppression(".*coordinator and worker threads are stopped.*");

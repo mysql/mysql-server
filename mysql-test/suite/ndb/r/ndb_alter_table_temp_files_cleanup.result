@@ -1,4 +1,3 @@
-call mtr.add_suppression("NDB: Found temporary table test.#sql-[a-z0-9_]+.+");
 # create table t1
 CREATE TABLE t1(
 a INT PRIMARY KEY,

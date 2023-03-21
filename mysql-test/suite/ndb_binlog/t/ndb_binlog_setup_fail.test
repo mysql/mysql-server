@@ -45,15 +45,15 @@ CREATE TABLE t4 (a int primary key, b blob) ENGINE = NDB;
 # find shuffle message but successful binlog startup
 -- let $assert_text= Shuffle of se-private-id on DD
 -- let $assert_select= ndb_.*: .* -> .*
--- let $assert_only_after= NDB: Detected a normal system restart
+-- let $assert_only_after= Detected a normal system restart
 -- let $assert_match= ndb_.*: .* -> .*
 -- let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.1.err
 -- source include/assert_grep.inc
 
 -- let $assert_text= Successful Binlog startup
--- let $assert_select= NDB Binlog: Startup and setup completed
+-- let $assert_select= Binlog: Startup and setup completed
 -- let $assert_only_after= ndb_.*: .* -> .*
--- let $assert_match= NDB Binlog: Startup and setup completed
+-- let $assert_match= Binlog: Startup and setup completed
 -- source include/assert_grep.inc
 
 -- echo # Check that binlog is working doing some operations

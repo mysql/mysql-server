@@ -5,7 +5,7 @@
 # to connect to NDB and gives below warnings.
 # Hide the warnings
 --disable_query_log
-call mtr.add_suppression("NDB: Tables not available after [0-9]* seconds. Consider increasing --ndb-wait-setup value");
+call mtr.add_suppression("Tables not available after [0-9]* seconds. Consider increasing --ndb-wait-setup value");
 call mtr.add_suppression("Could not acquire global schema lock");
 --enable_query_log
 

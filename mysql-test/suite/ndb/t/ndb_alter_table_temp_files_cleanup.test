@@ -12,8 +12,8 @@
 #   - having left behind temporary tables may break operations such as alter table or mysqldump:
 #       * according to bugs #24935788 and #29892252
 #
-
-call mtr.add_suppression("NDB: Found temporary table test.#sql-[a-z0-9_]+.+");
+--disable_query_log ONCE
+call mtr.add_suppression("Found temporary table test.#sql-[a-z0-9_]+.+");
 
 --echo # create table t1
 CREATE TABLE t1(
@@ -45,7 +45,7 @@ ALTER TABLE t1 ALGORITHM=COPY;
 
 --let $assert_text=require temporary table warning message
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.1.err
---let $assert_select=NDB: Found temporary table test.#sql-[a-z0-9_]+.+
+--let $assert_select=Found temporary table test.#sql-[a-z0-9_]+.+
 --let $assert_count=1
 --source include/assert_grep.inc
 

@@ -4244,7 +4244,7 @@ int ha_ndbcluster::prepare_conflict_detection(
     Ndb_binlog_extra_row_info extra_row_info;
     if (extra_row_info.loadFromBuffer(thd->binlog_row_event_extra_data) != 0) {
       ndb_log_warning(
-          "NDB Replica: Malformed event received on table %s "
+          "Replica: Malformed event received on table %s "
           "cannot parse. Stopping SQL thread.",
           m_share->key_string());
       return ER_REPLICA_CORRUPT_EVENT;
@@ -4291,7 +4291,7 @@ int ha_ndbcluster::prepare_conflict_detection(
       switch (opt_ndb_slave_conflict_role) {
         case SCR_NONE: {
           ndb_log_warning(
-              "NDB Replica: Conflict function %s defined on "
+              "Replica: Conflict function %s defined on "
               "table %s requires ndb_applier_conflict_role variable "
               "to be set. Stopping SQL thread.",
               conflict_fn->name, m_share->key_string());
@@ -4370,7 +4370,7 @@ int ha_ndbcluster::prepare_conflict_detection(
                (transaction_id ==
                 Ndb_binlog_extra_row_info::InvalidTransactionId))) {
     ndb_log_warning(
-        "NDB Replica: Transactional conflict detection defined on "
+        "Replica: Transactional conflict detection defined on "
         "table %s, but events received without transaction ids.  "
         "Check --ndb-log-transaction-id setting on "
         "upstream Cluster.",
@@ -4471,7 +4471,7 @@ int ha_ndbcluster::prepare_conflict_detection(
       }
     } else {
       ndb_log_warning(
-          "NDB Replica: Binlog event on table %s missing "
+          "Replica: Binlog event on table %s missing "
           "info necessary for conflict detection.  "
           "Check binlog format options on upstream cluster.",
           m_share->key_string());
@@ -7864,7 +7864,7 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
            Applier retried transaction too many times, print error and exit -
            normal too many retries mechanism will cause exit
          */
-        ndb_log_error("NDB Replica: retried transaction in vain. Giving up.");
+        ndb_log_error("Replica: retried transaction in vain. Giving up.");
       }
       res = ER_GET_TEMPORARY_ERRMSG;
     } else if (trans_error.code == 4350) {  // Transaction already aborted
@@ -12497,9 +12497,9 @@ static int ndbcluster_init_abort(const char *error) {
   // flush all the buffered messages before exiting
   ndb_log_flush_buffered_messages();
   DBUG_EXECUTE("ndbcluster_init_fail1",
-               ndb_log_error_dump("ndbcluster_init_abort1"););
+               ndb_log_error("ndbcluster_init_abort1"););
   DBUG_EXECUTE("ndbcluster_init_fail2",
-               ndb_log_error_dump("ndbcluster_init_abort2"););
+               ndb_log_error("ndbcluster_init_abort2"););
 
   // Terminate things which cause server shutdown hang
   ndbcluster_binlog_end();
@@ -12558,7 +12558,7 @@ static int ndbcluster_init(void *handlerton_ptr) {
   std::function<bool()> start_channel_func = []() -> bool {
     if (!wait_setup_completed(opt_ndb_wait_setup)) {
       ndb_log_error(
-          "NDB Replica: Connection to NDB not ready after %lu seconds. "
+          "Replica: Connection to NDB not ready after %lu seconds. "
           "Consider increasing --ndb-wait-setup value",
           opt_ndb_wait_setup);
       return false;
@@ -12624,7 +12624,7 @@ static int ndbcluster_init(void *handlerton_ptr) {
   hton->pre_dd_shutdown = ndbcluster_pre_dd_shutdown;
 
   // notify_alter_table and notify_exclusive_mdl will be registered latter
-  // SO, that GSL will not be held unnecessary for non-ndb tables.
+  // SO, that GSL will not be held unnecessary for non-NDB tables.
   hton->post_ddl = ndbcluster_post_ddl;
 
   // Initialize NdbApi
@@ -12940,7 +12940,7 @@ ulonglong ha_ndbcluster::table_flags(void) const {
                 HA_GENERATED_COLUMNS | 0;
 
   /*
-    To allow for logging of ndb tables during stmt based logging;
+    To allow for logging of NDB tables during stmt based logging;
     flag cabablity, but also turn off flag for OWN_BINLOGGING
   */
   if (thd->variables.binlog_format == BINLOG_FORMAT_STMT)
@@ -17967,7 +17967,7 @@ static MYSQL_SYSVAR_BOOL(
     log_bin,         /* name */
     opt_ndb_log_bin, /* var */
     PLUGIN_VAR_OPCMDARG,
-    "Log ndb tables in the binary log. Option only has meaning if "
+    "Log NDB tables in the binary log. Option only has meaning if "
     "the binary log has been turned on for the server.",
     nullptr, /* check func. */
     nullptr, /* update func. */

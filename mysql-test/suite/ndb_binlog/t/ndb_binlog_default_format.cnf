@@ -19,9 +19,6 @@ ndb-wait-connected=30
 ndb-wait-setup=120
 ndb-cluster-connection-pool=3
 ndb-extra-logging=99
-# Set error log verbosity to max, otherwise info messages
-# are filtered away
-log-error-verbosity=3
 ndb-log-bin=1
 
 # Will be "auto upgraded" to MIXED
