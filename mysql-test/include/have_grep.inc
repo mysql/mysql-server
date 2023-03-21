@@ -4,7 +4,7 @@
 123
 456
 EOF
---error 0,1,2,127,512
+--error 0,1,2,42,127,512
 --exec grep -v -e "123" $MYSQL_TMP_DIR/grep_check
 let $status= $__error;
 

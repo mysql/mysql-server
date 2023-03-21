@@ -3383,6 +3383,7 @@ sub environment_setup {
     if $opt_sanitize;
 
   $ENV{'ASAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/asan.supp"
+    . ",detect_stack_use_after_return=false"
     if $opt_sanitize;
 
 # The Thread Sanitizer allocator should return NULL instead of crashing on out-of-memory.

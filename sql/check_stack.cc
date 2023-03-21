@@ -110,6 +110,17 @@ bool check_stack_overrun(const THD *thd, long margin, unsigned char *buf) {
   assert(thd == current_thd);
   assert(stack_direction == -1 || stack_direction == 1);
 
+#if defined(HAVE_ASAN)
+  // Stack grows upward, but our address computations do not work with
+  // the "fake stack" of ASAN. Just return OK.
+  // With ASAN_OPTIONS=detect_stack_use_after_return=true
+  // any test which deliberately runs out of stack
+  // (expects ER_STACK_OVERRUN_NEED_MORE) will most likely crash.
+  if (stack_direction == 1) {
+    return false;
+  }
+#endif
+
   long stack_used =
       used_stack(thd->thread_stack, reinterpret_cast<char *>(&stack_used));
   if (stack_used >= static_cast<long>(my_thread_stack_size - margin) ||

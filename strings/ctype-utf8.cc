@@ -4814,7 +4814,7 @@ static int my_wildcmp_unicode_impl(const CHARSET_INFO *cs, const char *str,
   int (*mb_wc)(const CHARSET_INFO *, my_wc_t *, const uchar *, const uchar *);
   mb_wc = cs->cset->mb_wc;
 
-  if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return 1;
+  if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return -1;
   while (wildstr != wildend) {
     while (true) {
       bool escaped = false;
