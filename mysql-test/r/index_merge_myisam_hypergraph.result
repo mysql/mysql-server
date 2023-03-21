@@ -634,18 +634,21 @@ count(*)
 8704
 explain select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 EXPLAIN
--> Filter: (t1.colb = 'bar')  (rows=29.2)
+-> Intersect rows sorted by row ID  (rows=29.2)
     -> Index range scan on t1 using cola over (cola = 'foo')  (rows=504)
+    -> Index range scan on t1 using colb over (colb = 'bar')  (rows=504)
 
 explain format=tree select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 EXPLAIN
--> Filter: (t1.colb = 'bar')  (rows=29.2)
+-> Intersect rows sorted by row ID  (rows=29.2)
     -> Index range scan on t1 using cola over (cola = 'foo')  (rows=504)
+    -> Index range scan on t1 using colb over (colb = 'bar')  (rows=504)
 
 explain select * from t1 force index(cola,colb) WHERE cola = 'foo' AND colb = 'bar';
 EXPLAIN
--> Filter: (t1.colb = 'bar')  (rows=29.2)
+-> Intersect rows sorted by row ID  (rows=29.2)
     -> Index range scan on t1 using cola over (cola = 'foo')  (rows=504)
+    -> Index range scan on t1 using colb over (colb = 'bar')  (rows=504)
 
 drop table t1;
 #
@@ -670,13 +673,15 @@ key(a),key(b)
 ) engine=merge union=(t1,t2);
 explain select * from t1 where a=1 and b=1;
 EXPLAIN
--> Filter: (t1.b = 1)  (rows=9.8)
-    -> Index lookup on t1 using a (a=1)  (rows=100)
+-> Intersect rows sorted by row ID  (rows=9.8)
+    -> Index range scan on t1 using a over (a = 1)  (rows=99)
+    -> Index range scan on t1 using b over (b = 1)  (rows=99)
 
 explain select * from t3 where a=1 and b=1;
 EXPLAIN
--> Filter: (t3.b = 1)  (rows=10)
-    -> Index lookup on t3 using a (a=1)  (rows=100)
+-> Intersect rows sorted by row ID  (rows=10)
+    -> Index range scan on t3 using a over (a = 1)  (rows=100)
+    -> Index range scan on t3 using b over (b = 1)  (rows=100)
 
 drop table t3;
 drop table t0, t1, t2;
@@ -921,7 +926,8 @@ count(*)
 # One row results tests for cases where a single row matches all conditions
 explain select key1,key1 from t1 where key1=100 and key1=100;
 EXPLAIN
--> Filter: (t1.key1 = 100)  (...)
+-> Intersect rows sorted by row ID  (...)
+    -> Index range scan on t1 using key1 over (key1 = 100)  (...)
     -> Index range scan on t1 using key1 over (key1 = 100)  (...)
 
 select key1,key2 from t1 where key1=100 and key2=100;
@@ -993,7 +999,8 @@ insert into t1 (key1, key2, key3, key4, filler1) values (-1, -1, 100, 100, 'key4
 #  ROR-intersection, not covering
 explain select key1,key1,filler1 from t1 where key1=100 and key1=100;
 EXPLAIN
--> Filter: (t1.key1 = 100)  (...)
+-> Intersect rows sorted by row ID  (...)
+    -> Index range scan on t1 using key1 over (key1 = 100)  (...)
     -> Index range scan on t1 using key1 over (key1 = 100)  (...)
 
 select key1,key2,filler1 from t1 where key1=100 and key2=100;
@@ -1003,7 +1010,8 @@ key1	key2	filler1
 #  ROR-intersection, covering
 explain select key1,key1 from t1 where key1=100 and key1=100;
 EXPLAIN
--> Filter: (t1.key1 = 100)  (...)
+-> Intersect rows sorted by row ID  (...)
+    -> Index range scan on t1 using key1 over (key1 = 100)  (...)
     -> Index range scan on t1 using key1 over (key1 = 100)  (...)
 
 select key1,key2 from t1 where key1=100 and key2=100;
@@ -1038,7 +1046,9 @@ key1	key2	key3	key4	filler1
 #  3-way ROR-intersection
 explain select key1,key1,key1 from t1 where key1=100 and key1=100 and key1=100;
 EXPLAIN
--> Filter: ((t1.key1 = 100) and (t1.key1 = 100))  (...)
+-> Intersect rows sorted by row ID  (...)
+    -> Index range scan on t1 using key1 over (key1 = 100)  (...)
+    -> Index range scan on t1 using key1 over (key1 = 100)  (...)
     -> Index range scan on t1 using key1 over (key1 = 100)  (...)
 
 select key1,key2,key3 from t1 where key1=100 and key2=100 and key3=100;
@@ -1094,7 +1104,8 @@ key1	key2	key3	key4	filler1
 # ROR-intersection with empty result
 explain select key1,key1 from t1 where key1=100 and key1=100;
 EXPLAIN
--> Filter: (t1.key1 = 100)  (...)
+-> Intersect rows sorted by row ID  (...)
+    -> Index range scan on t1 using key1 over (key1 = 100)  (...)
     -> Index range scan on t1 using key1 over (key1 = 100)  (...)
 
 select key1,key2 from t1 where key1=100 and key2=100;
@@ -1154,13 +1165,15 @@ key1	key2	key3	key4	filler1
 # Check that the shortest key is used for ROR-intersection, covering and non-covering.
 explain select * from t1 where st_a=1 and st_b=1;
 EXPLAIN
--> Filter: (t1.st_b = 1)  (cost=1.87..7129 rows=3808)
-    -> Index lookup on t1 using sta_swt12a (st_a=1)  (cost=1..6481 rows=6481)
+-> Intersect rows sorted by row ID  (cost=3597..3597 rows=3808)
+    -> Index range scan on t1 using st_a over (st_a = 1)  (cost=0.00534..80.5 rows=15093)
+    -> Index range scan on t1 using st_b over (st_b = 1)  (cost=0.00534..80.5 rows=15093)
 
 explain select st_a,st_b from t1 where st_a=1 and st_b=1;
 EXPLAIN
--> Filter: (t1.st_b = 1)  (cost=1.87..7129 rows=3808)
-    -> Index lookup on t1 using sta_swt12a (st_a=1)  (cost=1..6481 rows=6481)
+-> Intersect rows sorted by row ID  (cost=161..161 rows=3808)
+    -> Index range scan on t1 using st_a over (st_a = 1)  (cost=0.00534..80.5 rows=15093)
+    -> Index range scan on t1 using st_b over (st_b = 1)  (cost=0.00534..80.5 rows=15093)
 
 explain select st_a from t1 ignore index (st_a) where st_a=1 and st_b=1;
 EXPLAIN
@@ -1192,14 +1205,20 @@ EXPLAIN
 explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b)
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 EXPLAIN
--> Filter: ((t1.swt2a = 1) and (t1.st_b = 1) and (t1.swt1b = 1) and (t1.swt2b = 1))  (...)
-    -> Index lookup on t1 using sta_swt1a (st_a=1, swt1a=1)  (...)
+-> Filter: (t1.swt2b = 1)  (...)
+    -> Intersect rows sorted by row ID  (...)
+        -> Index range scan on t1 using sta_swt1a over (st_a = 1 AND swt1a = 1)  (...)
+        -> Index range scan on t1 using stb_swt1b over (st_b = 1 AND swt1b = 1)  (...)
+        -> Index range scan on t1 using sta_swt2a over (st_a = 1 AND swt2a = 1)  (...)
 
 explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b, stb_swt1b)
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 EXPLAIN
--> Filter: ((t1.swt2a = 1) and (t1.st_b = 1) and (t1.swt1b = 1) and (t1.swt2b = 1))  (...)
-    -> Index lookup on t1 using sta_swt1a (st_a=1, swt1a=1)  (...)
+-> Filter: ((t1.swt1b = 1) and (t1.swt2b = 1))  (...)
+    -> Intersect rows sorted by row ID  (...)
+        -> Index range scan on t1 using sta_swt1a over (st_a = 1 AND swt1a = 1)  (...)
+        -> Index range scan on t1 using sta_swt2a over (st_a = 1 AND swt2a = 1)  (...)
+        -> Index range scan on t1 using st_b over (st_b = 1)  (...)
 
 explain select * from t1
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1;
@@ -1210,20 +1229,23 @@ EXPLAIN
 explain select * from t1
 where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 EXPLAIN
--> Filter: ((t1.st_b = 1) and (t1.swt1b = 1))  (...)
-    -> Index lookup on t1 using sta_swt12a (st_a=1, swt1a=1)  (...)
+-> Intersect rows sorted by row ID  (...)
+    -> Index range scan on t1 using sta_swt1a over (st_a = 1 AND swt1a = 1)  (...)
+    -> Index range scan on t1 using stb_swt1b over (st_b = 1 AND swt1b = 1)  (...)
 
 explain select st_a from t1
 where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 EXPLAIN
--> Filter: ((t1.st_b = 1) and (t1.swt1b = 1))  (...)
-    -> Index lookup on t1 using sta_swt12a (st_a=1, swt1a=1)  (...)
+-> Intersect rows sorted by row ID  (...)
+    -> Index range scan on t1 using sta_swt1a over (st_a = 1 AND swt1a = 1)  (...)
+    -> Index range scan on t1 using stb_swt1b over (st_b = 1 AND swt1b = 1)  (...)
 
 explain select st_a from t1
 where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 EXPLAIN
--> Filter: ((t1.st_b = 1) and (t1.swt1b = 1))  (...)
-    -> Index lookup on t1 using sta_swt12a (st_a=1, swt1a=1)  (...)
+-> Intersect rows sorted by row ID  (...)
+    -> Index range scan on t1 using sta_swt1a over (st_a = 1 AND swt1a = 1)  (...)
+    -> Index range scan on t1 using stb_swt1b over (st_b = 1 AND swt1b = 1)  (...)
 
 drop table t0,t1;
 # 'Partially' covered fields test
@@ -1363,8 +1385,9 @@ show warnings;
 Level	Code	Message
 explain select pk from t1 where key1 = 1 and key2 = 1;
 EXPLAIN
--> Filter: (t1.key2 = 1)  (rows=1.07)
-    -> Index lookup on t1 using key1 (key1=1)  (rows=3)
+-> Intersect rows sorted by row ID  (rows=1.07)
+    -> Index range scan on t1 using key1 over (key1 = 1)  (rows=4)
+    -> Index range scan on t1 using key2 over (key2 = 1)  (rows=8)
 
 select pk from t1 where key2 = 1 and key1 = 1;
 pk
@@ -1411,8 +1434,9 @@ explain select count(*) from t1 where
 key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Filter: ((t1.key2b is null) and (t1.key2a = 2))  (rows=2.46)
+    -> Intersect rows sorted by row ID  (rows=2.46)
         -> Index range scan on t1 using i1 over (key1a = 2 AND key1b = NULL)  (rows=113)
+        -> Index range scan on t1 using i2 over (key2a = 2 AND key2b = NULL)  (rows=113)
 
 select count(*) from t1 where
 key1a = 2 and key1b is null and key2a = 2 and key2b is null;
@@ -1422,8 +1446,9 @@ explain select count(*) from t1 where
 key1a = 2 and key1b is null and key3a = 2 and key3b is null;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
-    -> Filter: ((t1.key3b is null) and (t1.key3a = 2))  (rows=2.46)
+    -> Intersect rows sorted by row ID  (rows=2.46)
         -> Index range scan on t1 using i1 over (key1a = 2 AND key1b = NULL)  (rows=113)
+        -> Index range scan on t1 using i3 over (key3a = 2 AND key3b = NULL)  (rows=113)
 
 select count(*) from t1 where
 key1a = 2 and key1b is null and key3a = 2 and key3b is null;
@@ -1928,8 +1953,10 @@ pk1	pk2	key1	key2	pktail1ok	pktail2ok	pktail3bad	pktail4bad	pktail5bad	pk2copy	b
 # Verify that CPK fields are considered to be covered by index scans
 explain select pk1,pk2 from t1 where key1 = 10 and key2=10 and 2*pk1+1 < 2*96+1;
 EXPLAIN
--> Filter: ((t1.key2 = 10) and (((2 * t1.pk1) + 1) < <cache>(((2 * 96) + 1))))  (...)
-    -> Index range scan on t1 using key1 over (key1 = 10)  (...)
+-> Filter: (((2 * t1.pk1) + 1) < <cache>(((2 * 96) + 1)))  (...)
+    -> Intersect rows sorted by row ID  (...)
+        -> Index range scan on t1 using key1 over (key1 = 10)  (...)
+        -> Index range scan on t1 using key2 over (key2 = 10)  (...)
 
 select pk1,pk2 from t1 where key1 = 10 and key2=10 and 2*pk1+1 < 2*96+1;
 pk1	pk2
@@ -1996,8 +2023,9 @@ EXPLAIN
 explain select pk1,pk2,key1,key2 from t1 where key1 = 10 and key2=10 limit 10;
 EXPLAIN
 -> Limit: 10 row(s)  (...)
-    -> Filter: (t1.key2 = 10)  (...)
+    -> Intersect rows sorted by row ID  (...)
         -> Index range scan on t1 using key1 over (key1 = 10)  (...)
+        -> Index range scan on t1 using key2 over (key2 = 10)  (...)
 
 select pk1,pk2,key1,key2 from t1 where key1 = 10 and key2=10 limit 10;
 pk1	pk2	key1	key2
@@ -2222,12 +2250,14 @@ WHERE (col_time_key, col_int_key, col_int_key) IN (
 )
 );
 EXPLAIN
--> Update t1 (buffered)  (cost=7.29..7.29 rows=0.01)
-    -> Hash semijoin (cast(t1.col_varchar_key as double) = cast(t2.col_int_key as double)), (cast(t1.col_varchar_nokey as double) = cast(t2.col_int_key as double))  (cost=7.28..7.28 rows=0.01)
+-> Update t1 (buffered)  (cost=1.41..1.41 rows=0.01)
+    -> Hash semijoin (cast(t1.col_varchar_key as double) = cast(t2.col_int_key as double)), (cast(t1.col_varchar_nokey as double) = cast(t2.col_int_key as double))  (cost=1.41..1.41 rows=0.01)
         -> Table scan on t1  (cost=0.252..0.505 rows=2)
         -> Hash
-            -> Filter: ((t2.col_time_key,t2.col_int_key,t2.col_int_key) in ((0,'a','m'),(0,'n',7)))  (cost=6.56..6.56 rows=0.192)
-                -> Index range scan on t2 using col_int_key over (col_int_key = 0)  (cost=0.369..5.16 rows=14)
+            -> Filter: ((t2.col_time_key,t2.col_int_key,t2.col_int_key) in ((0,'a','m'),(0,'n',7)))  (cost=0.683..0.683 rows=0.192)
+                -> Intersect rows sorted by row ID  (cost=0.663..0.663 rows=0.192)
+                    -> Index range scan on t2 using col_int_key over (col_int_key = 0)  (cost=0.0223..0.312 rows=14)
+                    -> Index range scan on t2 using col_time_key over (col_time_key = '00:00:00')  (cost=0.0146..0.351 rows=24)
 
 UPDATE t1 SET col_time_nokey = 25
 WHERE (col_varchar_key, col_varchar_nokey) IN (
@@ -2408,40 +2438,45 @@ This should be intersect:
 set optimizer_switch=@default_optimizer_switch;
 explain select * from t1 where a=10 and b=10;
 EXPLAIN
--> Filter: (t1.b = 10)  (cost=22.3..22.3 rows=0.48)
-    -> Index range scan on t1 using a over (a = 10)  (cost=0.355..17.4 rows=49)
+-> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=0.48)
+    -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
+    -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
 
 No intersect when index_merge is disabled:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge=off';
 explain select * from t1 where a=10 and b=10;
 EXPLAIN
--> Filter: (t1.b = 10)  (cost=22.3..22.3 rows=0.48)
-    -> Index range scan on t1 using a over (a = 10)  (cost=0.355..17.4 rows=49)
+-> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=0.48)
+    -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
+    -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
 
 No intersect if it is disabled:
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_intersection=off';
 explain select * from t1 where a=10 and b=10;
 EXPLAIN
--> Filter: (t1.b = 10)  (cost=22.3..22.3 rows=0.48)
-    -> Index range scan on t1 using a over (a = 10)  (cost=0.355..17.4 rows=49)
+-> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=0.48)
+    -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
+    -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
 
 Do intersect when union was disabled
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_union=off';
 explain select * from t1 where a=10 and b=10;
 EXPLAIN
--> Filter: (t1.b = 10)  (cost=22.3..22.3 rows=0.48)
-    -> Index range scan on t1 using a over (a = 10)  (cost=0.355..17.4 rows=49)
+-> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=0.48)
+    -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
+    -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
 
 Do intersect when sort_union was disabled
 set optimizer_switch=@default_optimizer_switch;
 set optimizer_switch='index_merge_sort_union=off';
 explain select * from t1 where a=10 and b=10;
 EXPLAIN
--> Filter: (t1.b = 10)  (cost=22.3..22.3 rows=0.48)
-    -> Index range scan on t1 using a over (a = 10)  (cost=0.355..17.4 rows=49)
+-> Intersect rows sorted by row ID  (cost=1.06..1.06 rows=0.48)
+    -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
+    -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
 
 This will use intersection inside a union:
 set optimizer_switch=@default_optimizer_switch;

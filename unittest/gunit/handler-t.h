@@ -41,6 +41,8 @@ class Mock_HANDLER : public Base_mock_HANDLER {
   MOCK_METHOD(ha_rows, records_in_range,
               (unsigned index, key_range *min_key, key_range *max_key),
               (override));
+  MOCK_METHOD(Cost_estimate, index_scan_cost,
+              (unsigned index, double ranges, double rows), (override));
 
   Mock_HANDLER(handlerton *ht_arg, TABLE_SHARE *share_arg)
       : Base_mock_HANDLER(ht_arg, share_arg) {

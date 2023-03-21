@@ -5707,11 +5707,218 @@ TEST_F(HypergraphOptimizerTest, RORUnionBetterThanIndexMerge) {
   EXPECT_EQ(AccessPath::ROWID_UNION, root->filter().child->type);
   AccessPath *rowid_union = root->filter().child;
   EXPECT_EQ(2, rowid_union->rowid_union().children->size());
+
   AccessPath *child0 = (*rowid_union->rowid_union().children)[0];
   ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, child0->type);
   ASSERT_EQ(0, child0->index_range_scan().index);
 
   AccessPath *child1 = (*rowid_union->rowid_union().children)[1];
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, child1->type);
+  ASSERT_EQ(2, child1->index_range_scan().index);
+
+  query_block->cleanup(/*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, RORIntersect) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE t1.x = 3 AND t1.y = 4 AND t1.z = 5",
+      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  CreateOrderedIndex({t1->field[0]});
+  CreateOrderedIndex({t1->field[1]});
+  CreateOrderedIndex({t1->field[2]});
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // No filter; it should be subsumed.
+  ASSERT_EQ(AccessPath::ROWID_INTERSECTION, root->type);
+  ASSERT_EQ(3, root->rowid_intersection().children->size());
+
+  AccessPath *child0 = (*root->rowid_intersection().children)[0];
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, child0->type);
+  ASSERT_EQ(1, child0->index_range_scan().num_ranges);
+
+  AccessPath *child1 = (*root->rowid_intersection().children)[1];
+  EXPECT_EQ(AccessPath::INDEX_RANGE_SCAN, child1->type);
+  ASSERT_EQ(1, child1->index_range_scan().num_ranges);
+
+  AccessPath *child2 = (*root->rowid_intersection().children)[2];
+  EXPECT_EQ(AccessPath::INDEX_RANGE_SCAN, child2->type);
+  ASSERT_EQ(1, child2->index_range_scan().num_ranges);
+
+  query_block->cleanup(/*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, RORIntersectSubsumesPredicatesPartially) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE (t1.x = 3 AND t1.y = 4 AND t1.z = 5)",
+      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  CreateOrderedIndex({t1->field[0]});
+  CreateOrderedIndex({t1->field[1]});
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The second predicate should not be subsumed, so we have a filter.
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ("(t1.z = 5)", ItemToString(root->filter().condition));
+  EXPECT_EQ(AccessPath::ROWID_INTERSECTION, root->filter().child->type);
+
+  query_block->cleanup(/*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, RORIntersectWithOrderBy) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE t1.x = 3 AND t1.y = 4 ORDER BY t1.x",
+      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  t1->s->primary_key = CreateOrderedIndex({t1->field[0]});
+  CreateOrderedIndex({t1->field[1]});
+
+  // Mark the index as clustered.
+  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
+          primary_key_is_clustered())
+      .WillByDefault(Return(true));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+                        // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // No ordering needed
+  ASSERT_EQ(AccessPath::ROWID_INTERSECTION, root->type);
+  EXPECT_EQ(1, root->rowid_intersection().children->size());
+  EXPECT_EQ(AccessPath::INDEX_RANGE_SCAN,
+            root->rowid_intersection().cpk_child->type);
+
+  query_block->cleanup(/*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, RORIntersectPreferCoveringIndex) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE t1.x = 3 AND t1.y = 4 AND t1.z = 5",
+      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  CreateOrderedIndex({t1->field[0]});
+  CreateOrderedIndex({t1->field[1]});
+  CreateOrderedIndex({t1->field[0], t1->field[1]});
+  CreateOrderedIndex({t1->field[2]});
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+                        // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::ROWID_INTERSECTION, root->type);
+  EXPECT_EQ(2, root->rowid_intersection().children->size());
+  AccessPath *child0 = (*root->rowid_intersection().children)[0];
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, child0->type);
+  // prefer the index which covers more fields
+  ASSERT_EQ(2, child0->index_range_scan().index);
+  ASSERT_EQ(2, child0->index_range_scan().num_used_key_parts);
+
+  AccessPath *child1 = (*root->rowid_intersection().children)[1];
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, child1->type);
+  ASSERT_EQ(3, child1->index_range_scan().index);
+  ASSERT_EQ(1, child1->index_range_scan().num_used_key_parts);
+
+  query_block->cleanup(/*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, RORIntersectBetterSelectivity) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE t1.x = 3 AND t1.y = 4 AND t1.z = 5",
+      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  CreateOrderedIndex({t1->field[0]});
+  CreateOrderedIndex({t1->field[1]});
+  CreateOrderedIndex({t1->field[2]});
+
+  Mock_HANDLER *handler = down_cast<Mock_HANDLER *>(t1->file);
+  EXPECT_CALL(*handler, records_in_range(0, _, _)).WillRepeatedly(Return(200));
+  EXPECT_CALL(*handler, records_in_range(1, _, _)).WillRepeatedly(Return(100));
+  EXPECT_CALL(*handler, records_in_range(2, _, _)).WillRepeatedly(Return(50));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+                        // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::ROWID_INTERSECTION, root->type);
+  EXPECT_EQ(3, root->rowid_intersection().children->size());
+  AccessPath *child0 = (*root->rowid_intersection().children)[0];
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, child0->type);
+  ASSERT_EQ(2, child0->index_range_scan().index);
+
+  AccessPath *child1 = (*root->rowid_intersection().children)[1];
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, child1->type);
+  ASSERT_EQ(1, child1->index_range_scan().index);
+
+  AccessPath *child2 = (*root->rowid_intersection().children)[2];
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, child2->type);
+  ASSERT_EQ(0, child2->index_range_scan().index);
+
+  query_block->cleanup(/*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, RORIntersectPreferCoveringOverSelectivity) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE t1.x = 3 AND t1.y = 4 AND t1.z = 5",
+      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  CreateOrderedIndex({t1->field[0]});
+  CreateOrderedIndex({t1->field[1]});
+  CreateOrderedIndex({t1->field[2]});
+  CreateOrderedIndex({t1->field[0], t1->field[1]});
+
+  Mock_HANDLER *handler = down_cast<Mock_HANDLER *>(t1->file);
+  EXPECT_CALL(*handler, records_in_range(0, _, _)).WillRepeatedly(Return(200));
+  EXPECT_CALL(*handler, records_in_range(1, _, _)).WillRepeatedly(Return(100));
+  EXPECT_CALL(*handler, records_in_range(2, _, _)).WillRepeatedly(Return(50));
+  EXPECT_CALL(*handler, records_in_range(3, _, _)).WillRepeatedly(Return(400));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+                        // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::ROWID_INTERSECTION, root->type);
+  EXPECT_EQ(2, root->rowid_intersection().children->size());
+  AccessPath *child0 = (*root->rowid_intersection().children)[0];
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, child0->type);
+  ASSERT_EQ(3, child0->index_range_scan().index);
+
+  AccessPath *child1 = (*root->rowid_intersection().children)[1];
   ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, child1->type);
   ASSERT_EQ(2, child1->index_range_scan().index);
 
@@ -6097,7 +6304,7 @@ TEST_F(HypergraphOptimizerTest, IndexSkipScan) {
   Query_block *query_block = ParseAndResolve(
       "SELECT t1.y FROM t1 WHERE t1.y < 300", /*nullable=*/true);
   Fake_TABLE *t1 = m_fake_tables["t1"];
-  t1->file->stats.records = 1000;
+  t1->file->stats.records = 10000;
   t1->file->stats.data_file_length = 100e6;
   CreateOrderedIndex({t1->field[0], t1->field[1], t1->field[2]}, HA_NOSAME);
   m_thd->variables.optimizer_switch |= OPTIMIZER_SKIP_SCAN;
@@ -6123,7 +6330,7 @@ TEST_F(HypergraphOptimizerTest, IndexSkipScanWithOrderBy) {
       "SELECT t1.y  FROM t1 WHERE t1.y < 300 ORDER BY t1.x,t1.y",
       /*nullable=*/true);
   Fake_TABLE *t1 = m_fake_tables["t1"];
-  t1->file->stats.records = 1000;
+  t1->file->stats.records = 10000;
   t1->file->stats.data_file_length = 100e6;
   CreateOrderedIndex({t1->field[0], t1->field[1]}, HA_NOSAME);
   m_thd->variables.optimizer_switch |= OPTIMIZER_SKIP_SCAN;
@@ -6152,7 +6359,7 @@ TEST_F(HypergraphOptimizerTest, IndexSkipScanMultiIndex) {
       "SELECT t1.y, t1.w  FROM t1 WHERE t1.w < 300 ORDER BY t1.y",
       /*nullable=*/true);
   Fake_TABLE *t1 = m_fake_tables["t1"];
-  t1->file->stats.records = 1000;
+  t1->file->stats.records = 10000;
   t1->file->stats.data_file_length = 100e6;
   CreateOrderedIndex({t1->field[2], t1->field[3]}, HA_NOSAME);
   CreateOrderedIndex({t1->field[1], t1->field[3]}, HA_NOSAME);

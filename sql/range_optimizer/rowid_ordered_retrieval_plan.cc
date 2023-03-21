@@ -82,7 +82,7 @@ static void print_ror_scans(TABLE *table, const char *msg,
   present in all keys (and it is impossible to avoid reading them).
 */
 
-static OverflowBitset get_needed_fields(const RANGE_OPT_PARAM *param) {
+OverflowBitset get_needed_fields(const RANGE_OPT_PARAM *param) {
   TABLE *table = param->table;
 
   MutableOverflowBitset fields(param->temp_mem_root, table->s->fields);
@@ -154,9 +154,8 @@ void trace_basic_info_rowid_union(THD *thd, const AccessPath *path,
     ROR scan structure containing a scan for {idx, sel_arg}
 */
 
-static ROR_SCAN_INFO *make_ror_scan(const RANGE_OPT_PARAM *param, int idx,
-                                    SEL_ROOT *sel_root,
-                                    OverflowBitset needed_fields) {
+ROR_SCAN_INFO *make_ror_scan(const RANGE_OPT_PARAM *param, int idx,
+                             SEL_ROOT *sel_root, OverflowBitset needed_fields) {
   ROR_SCAN_INFO *ror_scan;
   uint keynr;
   DBUG_TRACE;
@@ -578,17 +577,20 @@ bool ROR_intersect_plan::add(OverflowBitset needed_fields,
   return true;
 }
 
-static AccessPath *MakeAccessPath(ROR_SCAN_INFO *scan, TABLE *table,
-                                  KEY_PART *used_key_part, bool reuse_handler,
-                                  MEM_ROOT *mem_root) {
+AccessPath *MakeRowIdOrderedIndexScanAccessPath(ROR_SCAN_INFO *scan,
+                                                TABLE *table,
+                                                KEY_PART *used_key_part,
+                                                bool reuse_handler,
+                                                MEM_ROOT *mem_root) {
   AccessPath *path = new (mem_root) AccessPath;
   path->type = AccessPath::INDEX_RANGE_SCAN;
 
   // TODO(sgunders): The initial cost is high (it needs to read all rows and
   // sort), so we should not have zero init_cost.
-  path->cost = scan->index_read_cost.total_cost();
+  path->cost = path->cost_before_filter = scan->index_read_cost.total_cost();
+  path->init_cost = 0.0;
   path->set_num_output_rows(scan->records);
-
+  path->num_output_rows_before_filter = path->num_output_rows();
   path->index_range_scan().used_key_part = used_key_part;
   path->index_range_scan().ranges = &scan->ranges[0];
   path->index_range_scan().num_ranges = scan->ranges.size();
@@ -844,17 +846,17 @@ AccessPath *get_best_ror_intersect(THD *thd, const RANGE_OPT_PARAM *param,
         Mem_root_array<AccessPath *>(param->return_mem_root);
     children->resize(num_scans);
     for (unsigned i = 0; i < num_scans; ++i) {
-      (*children)[i] = MakeAccessPath(
+      (*children)[i] = MakeRowIdOrderedIndexScanAccessPath(
           best_plan.m_ror_scans[i], table,
           param->key[best_plan.m_ror_scans[i]->idx],
           /*reuse_handler=*/reuse_handler && best_plan.m_is_covering && i == 0,
           param->return_mem_root);
     }
     AccessPath *cpk_child =
-        cpk_scan_used
-            ? MakeAccessPath(cpk_scan, table, param->key[cpk_scan->idx],
-                             /*reuse_handler=*/false, param->return_mem_root)
-            : nullptr;
+        cpk_scan_used ? MakeRowIdOrderedIndexScanAccessPath(
+                            cpk_scan, table, param->key[cpk_scan->idx],
+                            /*reuse_handler=*/false, param->return_mem_root)
+                      : nullptr;
 
     AccessPath *path = new (param->return_mem_root) AccessPath;
     path->type = AccessPath::ROWID_INTERSECTION;

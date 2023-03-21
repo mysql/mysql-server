@@ -1244,15 +1244,15 @@ explain select * from t1 where st_a=1 and st_b=1;
 EXPLAIN
 -> Filter: ((t1.st_b = 1) and (t1.st_a = 1))  (cost=3664 rows=3515)
     -> Intersect rows sorted by row ID  (cost=3664 rows=3515)
-        -> Index range scan on t1 using st_a over (st_a = 1)  (cost=80.5 rows=15093)
-        -> Index range scan on t1 using st_b over (st_b = 1)  (cost=80.5 rows=15093)
+        -> Index range scan on t1 using st_a over (st_a = 1)  (cost=0.00534..80.5 rows=15093)
+        -> Index range scan on t1 using st_b over (st_b = 1)  (cost=0.00534..80.5 rows=15093)
 
 explain select st_a,st_b from t1 where st_a=1 and st_b=1;
 EXPLAIN
 -> Filter: ((t1.st_b = 1) and (t1.st_a = 1))  (cost=513 rows=3515)
     -> Intersect rows sorted by row ID  (cost=513 rows=3515)
-        -> Index range scan on t1 using st_a over (st_a = 1)  (cost=80.5 rows=15093)
-        -> Index range scan on t1 using st_b over (st_b = 1)  (cost=80.5 rows=15093)
+        -> Index range scan on t1 using st_a over (st_a = 1)  (cost=0.00534..80.5 rows=15093)
+        -> Index range scan on t1 using st_b over (st_b = 1)  (cost=0.00534..80.5 rows=15093)
 
 explain select st_a from t1 ignore index (st_a) where st_a=1 and st_b=1;
 EXPLAIN
@@ -2345,8 +2345,8 @@ EXPLAIN
         -> Table scan on t1  (cost=0.705 rows=2)
         -> Filter: (((t2.col_time_key,t2.col_int_key,t2.col_int_key) in ((0,'a','m'),(0,'n',7))) and (cast(t1.col_varchar_key as double) = cast(t2.col_int_key as double)) and (cast(t1.col_varchar_nokey as double) = cast(t2.col_int_key as double)))  (cost=2.44 rows=3)
             -> Intersect rows sorted by row ID  (cost=2.44 rows=3.5)
-                -> Index range scan on t2 using col_int_key over (col_int_key = 0)  (cost=0.312 rows=14)
-                -> Index range scan on t2 using col_time_key over (col_time_key = '00:00:00')  (cost=0.351 rows=24)
+                -> Index range scan on t2 using col_int_key over (col_int_key = 0)  (cost=0.0223..0.312 rows=14)
+                -> Index range scan on t2 using col_time_key over (col_time_key = '00:00:00')  (cost=0.0146..0.351 rows=24)
 
 UPDATE t1 SET col_time_nokey = 25
 WHERE (col_varchar_key, col_varchar_nokey) IN (
@@ -2528,8 +2528,8 @@ explain select * from t1 where a=10 and b=10;
 EXPLAIN
 -> Filter: ((t1.b = 10) and (t1.a = 10))  (cost=1.16 rows=1)
     -> Intersect rows sorted by row ID  (cost=1.16 rows=1)
-        -> Index range scan on t1 using a over (a = 10)  (cost=0.529 rows=49)
-        -> Index range scan on t1 using b over (b = 10)  (cost=0.529 rows=49)
+        -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
+        -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
 
 No intersect when index_merge is disabled:
 set optimizer_switch=@default_optimizer_switch;
@@ -2554,8 +2554,8 @@ explain select * from t1 where a=10 and b=10;
 EXPLAIN
 -> Filter: ((t1.b = 10) and (t1.a = 10))  (cost=1.16 rows=1)
     -> Intersect rows sorted by row ID  (cost=1.16 rows=1)
-        -> Index range scan on t1 using a over (a = 10)  (cost=0.529 rows=49)
-        -> Index range scan on t1 using b over (b = 10)  (cost=0.529 rows=49)
+        -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
+        -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
 
 Do intersect when sort_union was disabled
 set optimizer_switch=@default_optimizer_switch;
@@ -2564,8 +2564,8 @@ explain select * from t1 where a=10 and b=10;
 EXPLAIN
 -> Filter: ((t1.b = 10) and (t1.a = 10))  (cost=1.16 rows=1)
     -> Intersect rows sorted by row ID  (cost=1.16 rows=1)
-        -> Index range scan on t1 using a over (a = 10)  (cost=0.529 rows=49)
-        -> Index range scan on t1 using b over (b = 10)  (cost=0.529 rows=49)
+        -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
+        -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
 
 This will use intersection inside a union:
 set optimizer_switch=@default_optimizer_switch;
@@ -2574,8 +2574,8 @@ EXPLAIN
 -> Filter: (((t1.b = 10) and (t1.a = 10)) or (t1.c = 10))  (cost=4.24 rows=6)
     -> Deduplicate rows sorted by row ID  (cost=4.24 rows=6)
         -> Intersect rows sorted by row ID  (cost=1.06 rows=1)
-            -> Index range scan on t1 using a over (a = 10)  (cost=0.529 rows=49)
-            -> Index range scan on t1 using b over (b = 10)  (cost=0.529 rows=49)
+            -> Index range scan on t1 using a over (a = 10)  (cost=0.0108..0.529 rows=49)
+            -> Index range scan on t1 using b over (b = 10)  (cost=0.0108..0.529 rows=49)
         -> Index range scan on t1 using c over (c = 10)  (cost=0.783 rows=5)
 
 Should be only union left:

@@ -146,6 +146,14 @@ AccessPath *GetSafePathToSort(THD *thd, JOIN *join, AccessPath *path,
                               bool need_rowid,
                               bool force_materialization = false);
 
+// Represents a candidate row-id ordered scan. For a ROR compatible
+// range scan, it stores the applied and subsumed predicates.
+struct PossibleRORScan {
+  unsigned idx;
+  OverflowBitset applied_predicates;
+  OverflowBitset subsumed_predicates;
+};
+
 /**
   CostingReceiver contains the main join planning logic, selecting access paths
   based on cost. It receives subplans from DPhyp (see enumerate_subgraph.h),
@@ -503,6 +511,16 @@ class CostingReceiver {
                                 double num_output_rows_after_filter,
                                 const RANGE_OPT_PARAM *param,
                                 Mem_root_array<AccessPath *> paths);
+  void ProposeAllRowIdOrderedIntersectPlans(
+      TABLE *table, int node_idx, SEL_TREE *tree, int num_where_predicates,
+      const Mem_root_array<PossibleRORScan> &possible_ror_scans,
+      double num_output_rows_after_filter, const RANGE_OPT_PARAM *param);
+  void ProposeRowIdOrderedIntersect(
+      TABLE *table, int node_idx, int num_where_predicates,
+      const Mem_root_array<PossibleRORScan> &possible_ror_scans,
+      const Mem_root_array<ROR_SCAN_INFO *> &ror_scans, ROR_SCAN_INFO *cpk_scan,
+      double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
+      OverflowBitset needed_fields);
   void ProposeIndexSkipScan(int node_idx, RANGE_OPT_PARAM *param,
                             AccessPath *skip_scan_path, TABLE *table,
                             OverflowBitset all_predicates,
@@ -1034,6 +1052,10 @@ bool CollectPossibleRangeScans(
     scan.cost = cost.total_cost();
     scan.num_rows = num_rows;
     scan.is_ror_scan = is_ror_scan;
+    if (is_ror_scan) {
+      tree->n_ror_scans++;
+      tree->ror_scans_map.set_bit(idx);
+    }
     scan.is_imerge_scan = is_imerge_scan;
     scan.ranges = std::move(ranges);
     FindAppliedAndSubsumedPredicatesForRangeScan(
@@ -1501,6 +1523,8 @@ bool CostingReceiver::FindIndexRangeScans(
     return false;
   }
 
+  Mem_root_array<PossibleRORScan> possible_ror_scans(
+      &m_range_optimizer_mem_root);
   // Propose all single-index index range scans.
   for (PossibleRangeScan &scan : possible_scans) {
     const uint keynr = param.real_keynr[scan.idx];
@@ -1526,6 +1550,17 @@ bool CostingReceiver::FindIndexRangeScans(
     path.index_range_scan().geometry = Overlaps(key->flags, HA_SPATIAL);
     path.index_range_scan().reverse = false;
     path.index_range_scan().using_extended_key_parts = false;
+
+    // Store the applied and subsumed predicates for this range scan
+    // if it is ROR compatible. This will be used in
+    // ProposeRowIdOrderedIntersect() later.
+    if (path.index_range_scan().can_be_used_for_ror) {
+      PossibleRORScan ror_scan;
+      ror_scan.idx = scan.idx;
+      ror_scan.applied_predicates = scan.applied_predicates;
+      ror_scan.subsumed_predicates = scan.subsumed_predicates;
+      possible_ror_scans.push_back(ror_scan);
+    }
 
     if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
       path.immediate_update_delete_table = node_idx;
@@ -1639,6 +1674,10 @@ bool CostingReceiver::FindIndexRangeScans(
       }
     }
   }
+  // Now Propose Row-ID ordered index merge intersect plans if possible.
+  ProposeAllRowIdOrderedIntersectPlans(
+      table, node_idx, tree, m_graph->num_where_predicates, possible_ror_scans,
+      *num_output_rows_after_filter, &param);
 
   // Propose all index merges we have collected. This proposes both
   // "sort-index" merges, ie., generally collect all the row IDs,
@@ -1688,6 +1727,115 @@ bool CostingReceiver::FindIndexRangeScans(
   return false;
 }
 
+// Used by ProposeRowIdOrderedIntersect() to update the applied_predicates
+// and subsumed_predicates when a new scan is added to a plan.
+void UpdateAppliedAndSubsumedPredicates(
+    const uint idx, const Mem_root_array<PossibleRORScan> &possible_ror_scans,
+    const RANGE_OPT_PARAM *param, OverflowBitset *applied_predicates,
+    OverflowBitset *subsumed_predicates) {
+  const auto s_it =
+      find_if(possible_ror_scans.begin(), possible_ror_scans.end(),
+              [idx](const PossibleRORScan &scan) { return scan.idx == idx; });
+  assert(s_it != possible_ror_scans.end());
+  *applied_predicates = OverflowBitset::Or(
+      param->temp_mem_root, *applied_predicates, s_it->applied_predicates);
+  *subsumed_predicates = OverflowBitset::Or(
+      param->temp_mem_root, *subsumed_predicates, s_it->subsumed_predicates);
+}
+
+// An ROR-Intersect plan is proposed when there are atleast two
+// ROR compatible scans. To decide the order of the indexes to
+// be read for an intersect, in the old optimizer, it orders
+// the range scans based on the number of fields that are
+// covered by an index before it starts planning. This way when
+// a plan is proposed, the best indexes are always looked at first.
+// Old optimizer could propose only one plan. However hypergraph
+// optimizer can propose more. This would mean, it could choose
+// any combination of indexes to do an ROR-Intersect and propose
+// it. But we do not need to do it. E.g. if adding a range scan
+// to an existing combination of scans does not improve selectivity,
+// it does not make sense to add it. Also, if existing scans in a
+// plan already cover the fields needed by the query, we do not need
+// to add an additional scan to this.
+// So, for hypergraph optimizer what we do is, for every combination
+// of the available ROR scans, we first order the range scans
+// in the combination based on the fields covered (and selectivity) and
+// look at the scans in that order while planning. For each combination
+// if any of the scan cannot be added because it does not cover more
+// fields or does not improve selectivity, we do not propose a plan
+// with that combination. This way, we can prune the number of plans
+// that get proposed.
+// For handling the subsumed and applied predicates, we use the same
+// information that is collected when proposing all possible range scans
+// earlier in CollectPossibleRangeScans(). Ordering is similar to that
+// of other index merge scans (provides only primary key ordering).
+
+void CostingReceiver::ProposeAllRowIdOrderedIntersectPlans(
+    TABLE *table, int node_idx, SEL_TREE *tree, int num_where_predicates,
+    const Mem_root_array<PossibleRORScan> &possible_ror_scans,
+    double num_output_rows_after_filter, const RANGE_OPT_PARAM *param) {
+  if (tree->n_ror_scans < 2 || !table->file->stats.records) return;
+
+  ROR_SCAN_INFO *cpk_scan = nullptr;
+  Mem_root_array<ROR_SCAN_INFO *> ror_scans(param->temp_mem_root, 0);
+  uint cpk_no =
+      table->file->primary_key_is_clustered() ? table->s->primary_key : MAX_KEY;
+  OverflowBitset needed_fields = get_needed_fields(param);
+
+  // Create ROR_SCAN_INFO structures for all possible ROR scans.
+  // ROR_SCAN_INFO holds the necessary information to plan (like
+  // index_scan_cost, index records, fields covered by the index etc).
+  for (const PossibleRORScan &scan : possible_ror_scans) {
+    uint idx = scan.idx;
+    ROR_SCAN_INFO *ror_scan =
+        make_ror_scan(param, idx, tree->keys[idx], needed_fields);
+    if (ror_scan == nullptr) return;
+    if (param->real_keynr[idx] == cpk_no) {
+      cpk_scan = ror_scan;
+      tree->n_ror_scans--;
+    } else
+      ror_scans.push_back(ror_scan);
+  }
+
+  // We have only 2 scans available, one a non-cpk scan and
+  // another a cpk scan. Propose the plan and return.
+  if (ror_scans.size() == 1 && cpk_scan != nullptr) {
+    ProposeRowIdOrderedIntersect(
+        table, node_idx, num_where_predicates, possible_ror_scans, ror_scans,
+        cpk_scan, num_output_rows_after_filter, param, needed_fields);
+    return;
+  }
+
+  // Now propose all possible ROR intersect plans.
+  uint num_scans = ror_scans.size();
+  Mem_root_array<bool> scan_combination(param->temp_mem_root, num_scans);
+  // For each combination of the scans available, first order the
+  // scans so that we look at the best indexes first.
+  for (uint num_scans_to_use = 2; num_scans_to_use <= num_scans;
+       num_scans_to_use++) {
+    // Generate combinations.
+    std::fill(scan_combination.begin(),
+              scan_combination.end() - num_scans_to_use, false);
+    std::fill(scan_combination.end() - num_scans_to_use, scan_combination.end(),
+              true);
+    Mem_root_array<ROR_SCAN_INFO *> ror_scans_to_use(param->return_mem_root, 0);
+    do {
+      ror_scans_to_use.clear();
+      for (uint i = 0; i < ror_scans.size(); i++) {
+        if (scan_combination[i]) ror_scans_to_use.push_back(ror_scans[i]);
+      }
+      // Find an optimal order of the scans available to start planning.
+      find_intersect_order(&ror_scans_to_use, needed_fields,
+                           param->temp_mem_root);
+      ProposeRowIdOrderedIntersect(table, node_idx, num_where_predicates,
+                                   possible_ror_scans, ror_scans_to_use,
+                                   cpk_scan, num_output_rows_after_filter,
+                                   param, needed_fields);
+    } while (std::next_permutation(scan_combination.begin(),
+                                   scan_combination.end()));
+  }
+}
+
 int GetRowIdOrdering(const TABLE *table, const LogicalOrderings *orderings,
                      const Mem_root_array<ActiveIndexInfo> *active_indexes) {
   const auto it =
@@ -1701,6 +1849,135 @@ int GetRowIdOrdering(const TABLE *table, const LogicalOrderings *orderings,
         orderings->RemapOrderingIndex(it->forward_order));
   }
   return 0;
+}
+
+// Helper to ProposeAllRowIdOrderedIntersectPlans. Proposes an ROR-intersect
+// plan if all the scans are utilized in the available ror scans.
+void CostingReceiver::ProposeRowIdOrderedIntersect(
+    TABLE *table, int node_idx, int num_where_predicates,
+    const Mem_root_array<PossibleRORScan> &possible_ror_scans,
+    const Mem_root_array<ROR_SCAN_INFO *> &ror_scans, ROR_SCAN_INFO *cpk_scan,
+    double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
+    OverflowBitset needed_fields) {
+  ROR_intersect_plan plan(param, needed_fields.capacity());
+  MutableOverflowBitset ap_mutable(param->return_mem_root,
+                                   num_where_predicates);
+  OverflowBitset applied_predicates(std::move(ap_mutable));
+  MutableOverflowBitset sp_mutable(param->return_mem_root,
+                                   num_where_predicates);
+  OverflowBitset subsumed_predicates(std::move(sp_mutable));
+  uint index = 0;
+  bool cpk_scan_used = false;
+  while (index < ror_scans.size() && !plan.m_is_covering) {
+    ROR_SCAN_INFO *cur_scan = ror_scans[index];
+    if (plan.add(needed_fields, cur_scan, /*is_cpk_scan=*/false,
+                 /*trace_idx=*/nullptr, /*ignore_cost=*/false)) {
+      UpdateAppliedAndSubsumedPredicates(cur_scan->idx, possible_ror_scans,
+                                         param, &applied_predicates,
+                                         &subsumed_predicates);
+    } else {
+      return;
+    }
+    index++;
+    // We have added a non-CPK key scan to the plan. Check if we should
+    // add a CPK scan. If the obtained ROR-intersection is covering, it
+    // does not make sense to add a CPK scan. If it is not covering and
+    // we have exhausted all the avaialble non-CPK key scans, then add a
+    // CPK scan.
+    if (!plan.m_is_covering && index == ror_scans.size() &&
+        cpk_scan != nullptr) {
+      if (plan.add(needed_fields, cpk_scan, /*is_cpk_scan=*/true,
+                   /*trace_idx=*/nullptr, /*ignore_cost=*/true)) {
+        cpk_scan_used = true;
+      }
+      UpdateAppliedAndSubsumedPredicates(cpk_scan->idx, possible_ror_scans,
+                                         param, &applied_predicates,
+                                         &subsumed_predicates);
+    }
+  }
+
+  // Make the intersect plan here
+  AccessPath ror_intersect_path;
+  ror_intersect_path.type = AccessPath::ROWID_INTERSECTION;
+  ror_intersect_path.rowid_intersection().table = table;
+  ror_intersect_path.rowid_intersection().forced_by_hint = false;
+  ror_intersect_path.rowid_intersection().retrieve_full_rows =
+      !plan.m_is_covering;
+  ror_intersect_path.rowid_intersection().need_rows_in_rowid_order = false;
+
+  Mem_root_array<AccessPath *> children(param->return_mem_root);
+  for (unsigned i = 0; i < plan.num_scans(); ++i) {
+    AccessPath *child_path = MakeRowIdOrderedIndexScanAccessPath(
+        plan.m_ror_scans[i], table, param->key[plan.m_ror_scans[i]->idx],
+        /*reuse_handler=*/plan.m_is_covering && i == 0, param->return_mem_root);
+    children.push_back(child_path);
+  }
+  ror_intersect_path.rowid_intersection().children =
+      new (param->return_mem_root)
+          Mem_root_array<AccessPath *>(std::move(children));
+
+  AccessPath *cpk_child =
+      cpk_scan_used ? MakeRowIdOrderedIndexScanAccessPath(
+                          cpk_scan, table, param->key[cpk_scan->idx],
+                          /*reuse_handler=*/false, param->return_mem_root)
+                    : nullptr;
+  ror_intersect_path.rowid_intersection().cpk_child = cpk_child;
+  ror_intersect_path.cost = ror_intersect_path.cost_before_filter =
+      plan.m_total_cost.total_cost();
+  ror_intersect_path.init_cost = plan.m_total_cost.total_cost();
+  double best_rows = std::max<double>(plan.m_out_rows, 1.0);
+  ror_intersect_path.set_num_output_rows(
+      ror_intersect_path.num_output_rows_before_filter =
+          min<double>(best_rows, num_output_rows_after_filter));
+
+  if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
+    ror_intersect_path.immediate_update_delete_table = node_idx;
+    // Don't allow immediate update of any keys being scanned.
+    if (IsUpdateStatement(m_thd) &&
+        uses_index_on_fields(&ror_intersect_path, table->write_set)) {
+      ror_intersect_path.immediate_update_delete_table = -1;
+    }
+  }
+
+  // Since the rows are retrived in row-id order, it always
+  // follows the clustered primary key.
+  if (!table->s->is_missing_primary_key() &&
+      table->file->primary_key_is_clustered()) {
+    ror_intersect_path.ordering_state =
+        GetRowIdOrdering(table, m_orderings, m_active_indexes);
+  }
+
+  const bool contains_subqueries = Overlaps(
+      ror_intersect_path.filter_predicates, m_graph->materializable_predicates);
+  // Add some trace info.
+  string description_for_trace;
+  for (AccessPath *path : *ror_intersect_path.rowid_intersection().children) {
+    description_for_trace +=
+        string(param->table->key_info[path->index_range_scan().index].name) +
+        " ";
+  }
+  description_for_trace += "intersect";
+  for (bool materialize_subqueries : {false, true}) {
+    AccessPath new_path = ror_intersect_path;
+    FunctionalDependencySet new_fd_set;
+    ApplyPredicatesForBaseTable(node_idx, applied_predicates,
+                                subsumed_predicates, materialize_subqueries,
+                                &new_path, &new_fd_set);
+
+    // Override the number of estimated rows, so that all paths get the
+    // same.
+    new_path.set_num_output_rows(num_output_rows_after_filter);
+
+    ProposeAccessPathWithOrderings(
+        TableBitmap(node_idx), new_fd_set,
+        /*obsolete_orderings=*/0, &new_path,
+        materialize_subqueries ? "mat. subq" : description_for_trace.c_str());
+
+    if (!contains_subqueries) {
+      // Nothing to try to materialize.
+      break;
+    }
+  }
 }
 
 void CostingReceiver::ProposeRowIdOrderedUnion(

@@ -121,6 +121,20 @@ void add_keys_and_lengths_rowid_intersection(const AccessPath *path,
 void add_keys_and_lengths_rowid_union(const AccessPath *path, String *key_names,
                                       String *used_lengths);
 
+OverflowBitset get_needed_fields(const RANGE_OPT_PARAM *param);
+
+ROR_SCAN_INFO *make_ror_scan(const RANGE_OPT_PARAM *param, int idx,
+                             SEL_ROOT *sel_root, OverflowBitset needed_fields);
+
+void find_intersect_order(Mem_root_array<ROR_SCAN_INFO *> *ror_scans,
+                          OverflowBitset needed_fields, MEM_ROOT *mem_root);
+
+AccessPath *MakeRowIdOrderedIndexScanAccessPath(ROR_SCAN_INFO *scan,
+                                                TABLE *table,
+                                                KEY_PART *used_key_part,
+                                                bool reuse_handler,
+                                                MEM_ROOT *mem_root);
+
 #ifndef NDEBUG
 void dbug_dump_rowid_intersection(int indent, bool verbose,
                                   const Mem_root_array<AccessPath *> &children);
