@@ -185,16 +185,9 @@ class Network_provider_management_interface {
   virtual int xcom_get_ssl_fips_mode() = 0;
 
   /**
-   * @brief Cleans up SSL context directly into the active network
-   *        provider.
+   * @brief Cleans up SSL context.
    */
   virtual void cleanup_secure_connections_context() = 0;
-
-  /**
-   * @brief Cleans up SSL context indirectly from the last active network
-   *        provider.
-   */
-  virtual void delayed_cleanup_secure_connections_context() = 0;
 
   /**
    * @brief Destroys all things SSL related
