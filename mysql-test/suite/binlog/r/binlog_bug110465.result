@@ -1,0 +1,21 @@
+call mtr.add_suppression("An error occurred during flush stage of the commit");
+RESET MASTER;
+SET GLOBAL binlog_error_action = ABORT_SERVER;
+SET GLOBAL sync_binlog = 1;
+CREATE TABLE t1(i INT);
+CREATE TABLE t2(i INT);
+SET DEBUG_SYNC = "bgc_after_enrolling_for_flush_stage SIGNAL leader_enter_flush_stage WAIT_FOR follower_enter_flush_stage";
+SET SESSION debug = "+d,simulate_do_write_cache_failure";
+INSERT INTO t1 values (1);;
+SET DEBUG_SYNC = "now WAIT_FOR leader_enter_flush_stage";
+SET DEBUG_SYNC = "bgc_after_enrolling_for_flush_stage SIGNAL follower_enter_flush_stage";
+INSERT INTO t2 values (2);;
+# restart
+select * from t1;
+i
+select * from t2;
+i
+#check binlog file
+CREATE TABLE t1(i INT)
+CREATE TABLE t2(i INT)
+DROP table t1, t2;

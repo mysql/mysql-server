@@ -8439,7 +8439,9 @@ int MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
     Thd_backup_and_restore switch_thd(current_thd, head);
     std::pair<int, my_off_t> result = flush_thread_caches(head);
     total_bytes += result.second;
-    if (flush_error == 1) flush_error = result.first;
+    if ((flush_error = result.first)) {
+      break;
+    }
 #ifndef NDEBUG
     no_flushes++;
 #endif

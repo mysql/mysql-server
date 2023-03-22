@@ -1,0 +1,49 @@
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/have_debug_sync.inc
+--source include/not_crashrep.inc
+--source include/not_valgrind.inc
+
+call mtr.add_suppression("An error occurred during flush stage of the commit");
+
+RESET MASTER;
+
+SET GLOBAL binlog_error_action = ABORT_SERVER;
+SET GLOBAL sync_binlog = 1;
+CREATE TABLE t1(i INT);
+CREATE TABLE t2(i INT);
+connect(con1,localhost,root,,);
+connect(con2,localhost,root,,);
+
+--connection con1
+SET DEBUG_SYNC = "bgc_after_enrolling_for_flush_stage SIGNAL leader_enter_flush_stage WAIT_FOR follower_enter_flush_stage";
+SET SESSION debug = "+d,simulate_do_write_cache_failure";
+--source include/expect_crash.inc
+--send INSERT INTO t1 values (1);
+
+--connection con2
+SET DEBUG_SYNC = "now WAIT_FOR leader_enter_flush_stage";
+SET DEBUG_SYNC = "bgc_after_enrolling_for_flush_stage SIGNAL follower_enter_flush_stage";
+--source include/expect_crash.inc
+--send INSERT INTO t2 values (2);
+
+--connection con1
+--error 0, CR_SERVER_LOST, ER_BINLOG_LOGGING_IMPOSSIBLE
+--reap
+
+--connection con2
+--error 0, CR_SERVER_LOST, ER_BINLOG_LOGGING_IMPOSSIBLE
+--reap
+
+--connection default
+--source include/start_mysqld.inc
+select * from t1;
+select * from t2;
+--echo #check binlog file
+let $datadir = `SELECT @@DATADIR`;
+--exec $MYSQL_BINLOG --force-if-open --verbose $datadir/binlog.000001 | egrep '^CREATE|^DROP|^INSERT|^###'
+
+# Cleanup
+DROP table t1, t2;
+--disconnect con1
+--disconnect con2
