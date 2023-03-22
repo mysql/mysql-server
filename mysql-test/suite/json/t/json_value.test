@@ -1218,3 +1218,13 @@ SELECT CAST(JSON_VALUE('{}', '$.a' RETURNING FLOAT
 SELECT CAST(JSON_VALUE('{}', '$.a' RETURNING FLOAT
                        DEFAULT 1111111111111111 ON EMPTY)
             AS DECIMAL(20,2)) AS v;
+
+--echo #
+--echo # Bug#35206138: Assigning json_value output to user defined
+--echo #               variable will return NULL or empty string if
+--echo #               input is empty string
+--echo #
+
+SET @x = JSON_VALUE('{"x": ""}', '$.x');
+# Used to return NULL. Should return an empty string.
+SELECT @x;

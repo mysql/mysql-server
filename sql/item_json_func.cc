@@ -5192,6 +5192,8 @@ String *Item_func_json_value::extract_string_value(String *buffer) {
   if (wr.to_string(buffer, false, func_name(), JsonDocumentDefaultDepthHandler))
     return error_str();
 
+  if (buffer->is_empty()) return make_empty_result();
+
   unsigned conversion_errors = 0;
   if (!my_charset_same(collation.collation, buffer->charset())) {
     // The string should be returned in a different character set. Convert it.

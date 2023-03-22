@@ -1847,3 +1847,12 @@ DEFAULT 1111111111111111 ON EMPTY)
 AS DECIMAL(20,2)) AS v;
 v
 1111111126482944.00
+#
+# Bug#35206138: Assigning json_value output to user defined
+#               variable will return NULL or empty string if
+#               input is empty string
+#
+SET @x = JSON_VALUE('{"x": ""}', '$.x');
+SELECT @x;
+@x
+
