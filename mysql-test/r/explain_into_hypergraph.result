@@ -13,13 +13,15 @@ EXPLAIN FORMAT=TRADITIONAL INTO @v1 SELECT 1;
 ERROR 0A000: EXPLAIN INTO does not support FORMAT=TRADITIONAL.
 EXPLAIN FORMAT=TREE INTO @v1 SELECT 1;
 ERROR 0A000: EXPLAIN INTO does not support FORMAT=TREE.
+EXPLAIN FORMAT=JSON INTO @v1 FOR CONNECTION 1;
+ERROR 0A000: EXPLAIN FOR CONNECTION does not support the INTO clause.
 # Check that the variable was not changed on error.
 SELECT @v1, @v1 = @v2;
 @v1	@v1 = @v2
 UNCHANGED	1
 
-CREATE TABLE t1 (i1 int, i2 int);
-CREATE TABLE t2 (i3 int, i4 int);
+CREATE TABLE t1 (i1 INT PRIMARY KEY, i2 INT);
+CREATE TABLE t2 (i3 INT, i4 INT);
 INSERT INTO t1 VALUES (1,2), (2,3), (3,4);
 INSERT INTO t2 SELECT i2, i1 FROM t1;
 ANALYZE TABLE t1, t2;
@@ -27,10 +29,10 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 
-# Simple SELECT.
+# EXPLAIN SELECT.
 EXPLAIN FORMAT=JSON INTO @v1 SELECT * FROM t1 JOIN t2 ON i1 = i3 WHERE i2 = 2;
 EXPLAIN
-SELECT @v1, JSON_VALID(@v1) from dual;
+SELECT @v1, JSON_VALID(@v1);
 @v1	JSON_VALID(@v1)
 {
   "query": "/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t2`.`i3` AS `i3`,`test`.`t2`.`i4` AS `i4` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`i2` = 2) and (`test`.`t1`.`i1` = `test`.`t2`.`i3`))",
@@ -67,7 +69,7 @@ SELECT @v1, JSON_VALID(@v1) from dual;
       "condition": "(t1.i1 = t2.i3)",
       "operation": "Filter: (t1.i1 = t2.i3)",
       "access_type": "filter",
-      "estimated_rows": 0.30000000447034836,
+      "estimated_rows": 1.0,
       "estimated_total_cost": 0.55,
       "estimated_first_row_cost": 0.55
     }
@@ -75,7 +77,7 @@ SELECT @v1, JSON_VALID(@v1) from dual;
   "join_type": "inner join",
   "operation": "Nested loop inner join",
   "access_type": "join",
-  "estimated_rows": 0.09000000268220903,
+  "estimated_rows": 0.30000000447034836,
   "join_algorithm": "nested_loop",
   "estimated_total_cost": 1.1,
   "estimated_first_row_cost": 1.1
@@ -87,6 +89,58 @@ EXPLAIN FORMAT=JSON INTO @v1 SELECT * FROM t1;
 EXPLAIN
 SELECT JSON_VALID(@v1), @v1 != @v2, @v1 NOT LIKE CONCAT(@v2, '%');
 JSON_VALID(@v1)	@v1 != @v2	@v1 NOT LIKE CONCAT(@v2, '%')
+1	1	1
+SET @v1 = NULL;
+
+# EXPLAIN single table INSERT.
+EXPLAIN FORMAT=JSON INTO @v1 INSERT INTO t1 VALUES (4,5);
+EXPLAIN
+SELECT JSON_VALID(@v1), COUNT(*) = 3 FROM t1;
+JSON_VALID(@v1)	COUNT(*) = 3
+0	1
+SET @v1 = NULL;
+
+# EXPLAIN single table UPDATE.
+EXPLAIN FORMAT=JSON INTO @v1 UPDATE t1 SET i2 = i2 + 1 WHERE i1 = 1;
+EXPLAIN
+SELECT JSON_VALID(@v1), i2 = 2 FROM t1 WHERE i1 = 1;
+JSON_VALID(@v1)	i2 = 2
+1	1
+SET @v1 = NULL;
+
+# EXPLAIN single table REPLACE.
+EXPLAIN FORMAT=JSON INTO @v1 REPLACE t1 SELECT * FROM t2;
+EXPLAIN
+SELECT JSON_VALID(@v1), COUNT(*) = 3 FROM t1;
+JSON_VALID(@v1)	COUNT(*) = 3
+1	1
+SET @v1 = NULL;
+
+# EXPLAIN single table DELETE.
+EXPLAIN FORMAT=JSON INTO @v1 DELETE FROM t1;
+EXPLAIN
+SELECT JSON_VALID(@v1), COUNT(*) = 3 FROM t1;
+JSON_VALID(@v1)	COUNT(*) = 3
+1	1
+SET @v1 = NULL;
+
+# EXPLAIN multitable UPDATE.
+EXPLAIN FORMAT=JSON INTO @v1 UPDATE t1, t2 SET i1 = i1 - 1, i3 = i3 + 1;
+EXPLAIN
+SELECT JSON_VALID(@v1),
+(SELECT COUNT(*) = 3 FROM t1) AS t1_no_change,
+(SELECT COUNT(*) = 3 FROM t2) AS t2_no_change;
+JSON_VALID(@v1)	t1_no_change	t2_no_change
+1	1	1
+SET @v1 = NULL;
+
+# EXPLAIN multitable DELETE.
+EXPLAIN FORMAT=JSON INTO @v1 DELETE t1, t2 FROM t1, t2;
+EXPLAIN
+SELECT JSON_VALID(@v1),
+(SELECT COUNT(*) = 3 FROM t1) AS t1_no_change,
+(SELECT COUNT(*) = 3 FROM t2) AS t2_no_change;
+JSON_VALID(@v1)	t1_no_change	t2_no_change
 1	1	1
 DROP TABLE t1, t2;
 SET @v1=NULL, @v2=NULL;

@@ -3495,6 +3495,10 @@ Sql_cmd *PT_explain_for_connection::make_cmd(THD *thd) {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "EXPLAIN ANALYZE FOR CONNECTION");
     return nullptr;
   }
+  if (thd->lex->explain_format->is_explain_into()) {
+    my_error(ER_EXPLAIN_INTO_FOR_CONNECTION_NOT_SUPPORTED, MYF(0));
+    return nullptr;
+  }
   return &m_cmd;
 }
 

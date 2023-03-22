@@ -14049,10 +14049,7 @@ explain_stmt:
                                 // the implementation of EXPLAIN ANALYZE INTO
                                 // without changing the language in the future.
           INTO '@' ident_or_text
-          select_stmt           // Using the select_stmt rule is the simplest
-                                // way to only allow for SELECT statements.
-                                // Change to explainable_stmt when EXPLAIN INTO
-                                // is implemented for other statements.
+          explainable_stmt
           {
             if ($2.is_analyze) {
               MYSQL_YYABORT_ERROR(ER_EXPLAIN_INTO_ANALYZE_NOT_SUPPORTED, MYF(0));

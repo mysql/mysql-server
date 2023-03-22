@@ -1906,9 +1906,10 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
                                        const Modification_plan *plan,
                                        Query_block *select) {
   DBUG_TRACE;
-  Query_result_send result;
   const bool other = (query_thd != explain_thd);
   bool ret;
+  const bool is_explain_into =
+      explain_thd->lex->explain_format->is_explain_into();
 
   if (explain_thd->lex->explain_format->is_iterator_based()) {
     // These kinds of queries don't have a JOIN with an iterator tree.
@@ -1933,10 +1934,20 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
     manually.
   */
   mem_root_deque<Item *> dummy(explain_thd->mem_root);
-  if (result.prepare(explain_thd, dummy, explain_thd->lex->unit))
+  Query_result_send *result = new (explain_thd->mem_root) Query_result_send();
+  if (result == nullptr) return true;
+
+  if (is_explain_into) {
+    result = new (explain_thd->mem_root) Query_result_explain_into_var(
+        explain_thd->lex->unit, result,
+        explain_thd->lex->explain_format->explain_into_variable_name());
+    if (result == nullptr) return true;
+  }
+
+  if (result->prepare(explain_thd, dummy, explain_thd->lex->unit))
     return true; /* purecov: inspected */
 
-  explain_thd->lex->explain_format->send_headers(&result);
+  explain_thd->lex->explain_format->send_headers(result);
 
   /*
     Optimize currently non-optimized subqueries when needed, but
@@ -1976,9 +1987,9 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
             explain_thd->is_error();
   }
   if (ret)
-    result.abort_result_set(explain_thd);
+    result->abort_result_set(explain_thd);
   else {
-    if (!other) {
+    if (!other && !is_explain_into) {
       StringBuffer<1024> str;
       query_thd->lex->unit->print(
           explain_thd, &str,
@@ -1988,7 +1999,7 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
       push_warning(explain_thd, Sql_condition::SL_NOTE, ER_YES, str.ptr());
     }
 
-    result.send_eof(explain_thd);
+    result->send_eof(explain_thd);
   }
   return ret;
 }
@@ -2092,13 +2103,12 @@ bool explain_query_specification(THD *explain_thd, const THD *query_thd,
 
 static bool ExplainIterator(THD *ethd, const THD *query_thd,
                             Query_expression *unit) {
-  unique_ptr_destroy_only<Query_result_send> result;
+  Query_result_send *result = nullptr;
   if (ethd->lex->explain_format->is_explain_into()) {
-    result.reset(new (ethd->mem_root) Query_result_explain_into_var(
-        unit, result.get(),
-        ethd->lex->explain_format->explain_into_variable_name()));
+    result = new (ethd->mem_root) Query_result_explain_into_var(
+        unit, result, ethd->lex->explain_format->explain_into_variable_name());
   } else {
-    result.reset(new (ethd->mem_root) Query_result_send());
+    result = new (ethd->mem_root) Query_result_send();
   }
   if (result == nullptr) return true;
 
@@ -2301,8 +2311,6 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
                          ? unit->query_result()
                          : unit->first_query_block()->query_result();
 
-  unique_ptr_destroy_only<Query_result_explain> explain_wrapper;
-
   if (other) {
     if (!((explain_result = new (explain_thd->mem_root) Query_result_send())))
       return true; /* purecov: inspected */
@@ -2312,16 +2320,15 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
   } else {
     assert(unit->is_optimized());
     if (is_explain_into) {
-      explain_wrapper.reset(
+      explain_result =
           new (explain_thd->mem_root) Query_result_explain_into_var(
               unit, explain_result,
-              lex->explain_format->explain_into_variable_name()));
-      explain_result = explain_wrapper.get();
+              lex->explain_format->explain_into_variable_name());
       if (explain_result == nullptr) return true;
-    } else if (explain_result->need_explain_interceptor()) {
-      explain_wrapper.reset(new (explain_thd->mem_root)
-                                Query_result_explain(unit, explain_result));
-      explain_result = explain_wrapper.get();
+    }
+    if (explain_result->need_explain_interceptor()) {
+      explain_result = new (explain_thd->mem_root)
+          Query_result_explain(unit, explain_result);
       if (explain_result == nullptr) return true;
     }
   }
@@ -2351,8 +2358,6 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
     explain_result->abort_result_set(explain_thd);
   else
     explain_result->send_eof(explain_thd);
-
-  if (other) destroy(explain_result);
 
   return res;
 }
