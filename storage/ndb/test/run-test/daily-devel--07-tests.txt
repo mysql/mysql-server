@@ -283,3 +283,8 @@ max-time : 120
 cmd: testNodeRestart
 args: -n ApiDetectNoFirstHeartbeat T1
 max-time: 180
+
+cmd: testDict;
+args: -n ManyNdbObjectsGetTable T1;
+max-time: 60
+
