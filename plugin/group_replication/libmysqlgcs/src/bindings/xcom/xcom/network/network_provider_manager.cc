@@ -140,6 +140,9 @@ bool Network_provider_manager::start_active_network_provider() {
 
   bool config_ok = net_provider->configure(m_active_provider_configuration);
 
+  m_ssl_data_context_cleaner =
+      net_provider->get_secure_connections_context_cleaner();
+
   G_MESSAGE("Using %s as Communication Stack for XCom",
             Communication_stack_to_string::to_string(
                 net_provider->get_communication_stack()))
@@ -153,6 +156,9 @@ bool Network_provider_manager::stop_active_network_provider() {
   if (!net_provider) return true;
 
   set_incoming_connections_protocol(get_running_protocol());
+
+  m_ssl_data_context_cleaner =
+      net_provider->get_secure_connections_context_cleaner();
 
   return net_provider ? net_provider->stop().first : true;
 }
@@ -341,6 +347,12 @@ int Network_provider_manager::xcom_set_ssl_mode(int mode) {
 }
 
 int Network_provider_manager::xcom_get_ssl_mode() { return m_ssl_mode; }
+
+void Network_provider_manager::delayed_cleanup_secure_connections_context() {
+  if (!Network_provider_manager::getInstance().is_xcom_using_ssl()) return;
+
+  if (m_ssl_data_context_cleaner) std::invoke(m_ssl_data_context_cleaner);
+}
 
 void Network_provider_manager::cleanup_secure_connections_context() {
   if (!Network_provider_manager::getInstance().is_xcom_using_ssl()) return;
