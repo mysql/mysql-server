@@ -92,7 +92,7 @@ class Xcom_network_provider : public Network_provider {
     return successful;
   }
 
-  void cleanup_secure_connections_context() override;
+  bool cleanup_secure_connections_context() override;
 
   bool finalize_secure_connections_context() override;
 
