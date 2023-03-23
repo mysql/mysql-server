@@ -142,7 +142,18 @@ SET SESSION sql_log_bin = 1;
 
 if ( $gtid_executed == $gtid_with_extra_view)
 {
-  --let $event_sequence= $vcle_seq # $vcle_seq # $vcle_seq # $vcle_seq # Gtid # !Q(CREATE.*)
+  # CREATE USER event can occur after view change, if so set event_sequence
+  # with correct sequence
+  --let $last_event = `SHOW BINLOG EVENTS LIMIT 19, 1`
+  --let $is_last_event_create_user= `SELECT LOCATE("user", "$last_event")`
+
+  if ($is_last_event_create_user != "0") {
+    --let $event_sequence= $vcle_seq # $vcle_seq # $vcle_seq # $vcle_seq # Gtid # !Q(CREATE.*)
+  }
+
+  if ($is_last_event_create_user == "0") {
+    --let $event_sequence= $vcle_seq # $vcle_seq # $vcle_seq # Gtid # !Q(CREATE.*) # $vcle_seq
+  }
 }
 
 if ( $gtid_executed != $gtid_with_extra_view)
