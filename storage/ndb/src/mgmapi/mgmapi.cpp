@@ -856,8 +856,26 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
       }
       if (bind_address)
       {
+        ndb_sockaddr bind_addr;
+        if (Ndb_getAddr(&bind_addr, bind_address) != 0) {
+          if (!handle->m_bindaddress)
+          {
+            // retry with next mgmt server
+            continue;
+          }
+
+          fprintf(handle->errstream,
+                  "Unable to resolve local bind address: %s\n",
+                  bind_address);
+
+          setError(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, __LINE__,
+                   "Unable to resolve local bind address: %s\n",
+                   bind_address);
+          DBUG_RETURN(-1);
+        }
+        bind_addr.set_port(bind_address_port);
         int err;
-        if ((err = s.bind(bind_address, bind_address_port)) != 0)
+        if ((err = s.bind(bind_addr)) != 0)
         {
           if (!handle->m_bindaddress)
           {
@@ -905,8 +923,8 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
           continue;
         }
       }
-
-      sockfd = s.connect(cfg.ids[i].name.c_str(), cfg.ids[i].port);
+      addr.set_port(cfg.ids[i].port);
+      sockfd = s.connect(addr);
       if (ndb_socket_valid(sockfd))
 	break;
     }
@@ -2433,8 +2451,21 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
   }
   if (bind_address)
   {
+    ndb_sockaddr bind_addr;
+    if (Ndb_getAddr(&bind_addr, bind_address) != 0)
+    {
+      fprintf(handle->errstream,
+              "Unable to lookup local address '%s:0', errno: %d, "
+              "while trying to connect with connect string: '%s:%d'\n",
+              bind_address, errno, hostname, port);
+      setError(handle, NDB_MGM_BIND_ADDRESS, __LINE__,
+               "Unable to lookup local address '%s:0', errno: %d, "
+               "while trying to connect with connect string: '%s:%d'\n",
+               bind_address, errno, hostname, port);
+      DBUG_RETURN(-1);
+    }
     int err;
-    if ((err = s.bind(bind_address, 0)) != 0)
+    if ((err = s.bind(bind_addr)) != 0)
     {
       fprintf(handle->errstream,
               "Unable to bind local address '%s:0' err: %d, errno: %d, "
@@ -2447,7 +2478,21 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
       DBUG_RETURN(-1);
     }
   }
-  const ndb_socket_t sockfd = s.connect(hostname, port);
+  ndb_sockaddr addr;
+  if (Ndb_getAddr(&addr, hostname))
+  {
+    fprintf(handle->errstream,
+            "Unable to lookup remote address '%s:0', errno: %d, "
+            "while trying to connect with connect string: '%s:%d'\n",
+            hostname, errno, hostname, port);
+    setError(handle, NDB_MGM_BIND_ADDRESS, __LINE__,
+             "Unable to lookup remote address '%s:0', errno: %d, "
+             "while trying to connect with connect string: '%s:%d'\n",
+             hostname, errno, hostname, port);
+    DBUG_RETURN(-1);
+  }
+  addr.set_port(port);
+  const ndb_socket_t sockfd = s.connect(addr);
   if (!ndb_socket_valid(sockfd))
   {
     setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,

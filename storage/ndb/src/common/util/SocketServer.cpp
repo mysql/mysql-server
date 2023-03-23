@@ -66,17 +66,8 @@ SocketServer::~SocketServer() {
   }
 }
 
-bool SocketServer::tryBind(unsigned short port, const char* intface,
+bool SocketServer::tryBind(ndb_sockaddr servaddr,
                            char* error, size_t error_size) {
-  ndb_sockaddr servaddr(port);
-  if(intface != nullptr){
-    ndb_sockaddr addr;
-    if(Ndb_getAddr(&addr, intface))
-      return false;
-    addr.set_port(port);
-    servaddr = addr;
-  }
-
   const ndb_socket_t sock =
       ndb_socket_create_dual_stack(SOCK_STREAM, 0);
   if (!ndb_socket_valid(sock))
@@ -106,20 +97,9 @@ bool SocketServer::tryBind(unsigned short port, const char* intface,
 
 #define MAX_SOCKET_SERVER_TCP_BACKLOG 64
 bool
-SocketServer::setup(SocketServer::Service * service,
-        unsigned short * port,
-        const char * intface){
+SocketServer::setup(SocketServer::Service * service, ndb_sockaddr* servaddr)
+{
   DBUG_ENTER("SocketServer::setup");
-  DBUG_PRINT("enter",("interface=%s, port=%u", intface, *port));
-
-  ndb_sockaddr servaddr(*port);
-  if(intface != nullptr){
-    ndb_sockaddr addr;
-    if(Ndb_getAddr(&addr, intface))
-      DBUG_RETURN(false);
-    addr.set_port(*port);
-    servaddr = addr;
-  }
 
   const ndb_socket_t sock =
       ndb_socket_create_dual_stack(SOCK_STREAM, 0);
@@ -140,7 +120,7 @@ SocketServer::setup(SocketServer::Service * service,
     DBUG_RETURN(false);
   }
 
-  if (ndb_bind(sock, &servaddr) == -1) {
+  if (ndb_bind(sock, servaddr) == -1) {
     DBUG_PRINT("error",("bind() - %d - %s",
       socket_errno, strerror(socket_errno)));
     ndb_socket_close(sock);
@@ -148,8 +128,7 @@ SocketServer::setup(SocketServer::Service * service,
   }
 
   /* Get the address and port we bound to */
-  ndb_sockaddr serv_addr;
-  if(ndb_getsockname(sock, &serv_addr))
+  if(ndb_getsockname(sock, servaddr))
   {
     g_eventLogger->info(
         "An error occurred while trying to find out what port we bound to."
@@ -158,10 +137,9 @@ SocketServer::setup(SocketServer::Service * service,
     ndb_socket_close(sock);
     DBUG_RETURN(false);
   }
-  *port = serv_addr.get_port();
-  setOwnProcessInfoServerAddress(& serv_addr);
+  setOwnProcessInfoServerAddress(servaddr);
 
-  DBUG_PRINT("info",("bound to %u", *port));
+  DBUG_PRINT("info",("bound to %u", servaddr->get_port()));
 
   if (ndb_listen(sock, m_maxSessions > MAX_SOCKET_SERVER_TCP_BACKLOG ?
                       MAX_SOCKET_SERVER_TCP_BACKLOG : m_maxSessions) == -1)

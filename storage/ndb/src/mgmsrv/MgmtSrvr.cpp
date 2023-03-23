@@ -499,8 +499,12 @@ MgmtSrvr::start_mgm_service(const Config* config)
                                                    port);
   {
     int count= 5; // no of retries for tryBind
-    while(!m_socket_server.tryBind(port, m_opts.bind_address))
+
+    ndb_sockaddr addr;
+    while(Ndb_getAddr(&addr, m_opts.bind_address) == 0)
     {
+      addr.set_port(port);
+      if (m_socket_server.tryBind(addr)) break;
       if (--count > 0)
       {
 	NdbSleep_SecSleep(1);
@@ -523,7 +527,16 @@ MgmtSrvr::start_mgm_service(const Config* config)
       DBUG_RETURN(false);
     }
 
-    if(!m_socket_server.setup(mapi, &port, m_opts.bind_address))
+    ndb_sockaddr addr;
+    if (m_opts.bind_address && Ndb_getAddr(&addr, m_opts.bind_address))
+    {
+      delete mapi; // Will be deleted by SocketServer in all other cases
+      g_eventLogger->error("Unable to resolve management service address: %s!\n",
+                           m_opts.bind_address);
+      DBUG_RETURN(false);
+    }
+    addr.set_port(port);
+    if(!m_socket_server.setup(mapi, &addr))
     {
       delete mapi; // Will be deleted by SocketServer in all other cases
       g_eventLogger->error("Unable to setup management service port: %s!\n"
@@ -533,6 +546,7 @@ MgmtSrvr::start_mgm_service(const Config* config)
                            sockaddr_string);
       DBUG_RETURN(false);
     }
+    port = addr.get_port();
 
     if (port != m_port)
     {
@@ -4043,7 +4057,7 @@ match_hostname(const ndb_sockaddr *client_addr,
   // can use this hostname by trying to bind the configured hostname. If this
   // process can bind it also means the client can use it (is on same machine).
   if (client_addr->is_loopback()) {
-    if (SocketServer::tryBind(0, config_hostname)) {
+    if (SocketServer::tryBind(resolved_addr)) {
       // Match clients connecting on loopback address by trying to bind the
       // configured hostname, if it binds the client could use it as well.
       return HostnameMatch::ok_exact_match;

@@ -3587,14 +3587,20 @@ TransporterRegistry::start_service(SocketServer& socket_server)
       port= -t.m_s_service_port; // is a dynamic port
     TransporterService *transporter_service =
       new TransporterService(new SocketAuthSimple("ndbd", "ndbd passwd"));
-    if(!socket_server.setup(transporter_service,
-			    &port, t.m_interface))
+    ndb_sockaddr addr;
+    if (t.m_interface && Ndb_getAddr(&addr, t.m_interface))
+    {
+      g_eventLogger->error("Unable to resolve transporter service address: %s!\n",
+                           t.m_interface);
+      DBUG_RETURN(false);
+    }
+    addr.set_port(port);
+    if(!socket_server.setup(transporter_service, &addr))
     {
       DBUG_PRINT("info", ("Trying new port"));
       port= 0;
       if(t.m_s_service_port>0
-	 || !socket_server.setup(transporter_service,
-				 &port, t.m_interface))
+	 || !socket_server.setup(transporter_service, &addr))
       {
 	/*
 	 * If it wasn't a dynamically allocated port, or
@@ -3616,6 +3622,7 @@ TransporterRegistry::start_service(SocketServer& socket_server)
 	DBUG_RETURN(false);
       }
     }
+    port = addr.get_port();
     t.m_s_service_port= (t.m_s_service_port<=0)?-port:port; // -`ve if dynamic
     DBUG_PRINT("info", ("t.m_s_service_port = %d",t.m_s_service_port));
     transporter_service->setTransporterRegistry(this);

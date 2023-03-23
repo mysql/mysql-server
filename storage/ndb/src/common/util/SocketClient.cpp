@@ -67,29 +67,17 @@ SocketClient::init()
 }
 
 int
-SocketClient::bind(const char* local_hostname,
-                   unsigned short local_port)
+SocketClient::bind(ndb_sockaddr local)
 {
+  const bool no_local_port = (local.get_port() == 0);
+
   if (!ndb_socket_valid(m_sockfd))
     return -1;
 
-  // Resolve local address
-  ndb_sockaddr local;
-  if (Ndb_getAddr(&local, local_hostname))
-  {
-    return errno ? errno : EINVAL;
-  }
-
-  if (local_port == 0 &&
-      m_last_used_port != 0)
   {
     // Try to bind to the same port as last successful connect instead of
     // any ephemeral port. Intention is to reuse any previous TIME_WAIT TCB
     local.set_port(m_last_used_port);
-  }
-  else
-  {
-    local.set_port(local_port);
   }
 
   if (ndb_socket_reuseaddr(m_sockfd, true) == -1)
@@ -102,8 +90,7 @@ SocketClient::bind(const char* local_hostname,
 
   while (ndb_bind(m_sockfd, &local) == -1)
   {
-    if (local_port == 0 &&
-        m_last_used_port != 0)
+    if (no_local_port && m_last_used_port != 0)
     {
       // Failed to bind same port as last, retry with any
       // ephemeral port(as originally requested)
@@ -128,18 +115,16 @@ SocketClient::bind(const char* local_hostname,
 #endif
 
 ndb_socket_t
-SocketClient::connect(const char* server_hostname,
-                      unsigned short server_port)
+SocketClient::connect(ndb_sockaddr server_addr)
 {
   NdbSocket sock;
-  connect(sock, server_hostname, server_port);
+  connect(sock, server_addr);
   return sock.ndb_socket();
 }
 
 void
 SocketClient::connect(NdbSocket & secureSocket,
-                      const char* server_hostname,
-                      unsigned short server_port)
+                      ndb_sockaddr server_addr)
 {
   // Reset last used port(in case connect fails)
   m_last_used_port = 0;
@@ -152,18 +137,6 @@ SocketClient::connect(NdbSocket & secureSocket,
       return;
     }
   }
-
-  ndb_sockaddr server_addr;
-
-  // Resolve server address
-  if (Ndb_getAddr(&server_addr, server_hostname))
-  {
-    DEBUG_FPRINTF((stderr, "Failed Ndb_getInAddr in connect\n"));
-    ndb_socket_close(m_sockfd);
-    ndb_socket_invalidate(&m_sockfd);
-    return;
-  }
-  server_addr.set_port(server_port);
 
   // Set socket non blocking
   if (ndb_socket_nonblock(m_sockfd, true) < 0)
