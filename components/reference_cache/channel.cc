@@ -93,9 +93,10 @@ bool channel_imp::destroy(channel_imp *channel) {
 
       for (auto service_name : channel->get_service_names()) {
         auto range = channel_by_name_hash->equal_range(service_name.name_);
-        for (auto it = range.first; it != range.second; ++it) {
-          if (it->second == channel) {
-            channel_by_name_hash->erase(it);
+        for (auto it_local = range.first; it_local != range.second;
+             ++it_local) {
+          if (it_local->second == channel) {
+            channel_by_name_hash->erase(it_local);
             break;
           }
         }
@@ -162,7 +163,7 @@ void channel_imp::initialize_service_counts() {
       const char *implementation_name;
       const char *dot = nullptr;
       if (!current_registry_query->get(iter, &implementation_name)) {
-        const char *dot = strchr(implementation_name, '.');
+        dot = strchr(implementation_name, '.');
         size_t service_name_length = (dot - implementation_name);
         if ((service_name_length != service_name->name_.length()) ||
             strncmp(implementation_name, service_name->name_.c_str(),
