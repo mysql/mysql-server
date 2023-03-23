@@ -358,6 +358,8 @@ stdx::expected<Processor::Result, std::error_code> ChangeUserSender::ok() {
         src_protocol->shared_capabilities());
   }
 
+  dst_protocol->status_flags(msg.status_flags());
+
   connection()->authenticated(true);
 
   src_protocol->username(change_user_msg_->username());

@@ -238,8 +238,9 @@ stdx::expected<Processor::Result, std::error_code> StmtExecuteForwarder::row() {
 stdx::expected<Processor::Result, std::error_code>
 StmtExecuteForwarder::end_of_rows() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
+  auto *dst_protocol = connection()->client_protocol();
 
   auto msg_res =
       ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Eof>(
@@ -259,13 +260,29 @@ StmtExecuteForwarder::end_of_rows() {
     stage(Stage::Done);
   }
 
+  dst_protocol->status_flags(msg.status_flags());
+
   return forward_server_to_client();
 }
 
 stdx::expected<Processor::Result, std::error_code> StmtExecuteForwarder::ok() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
+  auto *dst_protocol = connection()->client_protocol();
+
+  auto msg_res =
+      ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Ok>(
+          src_channel, src_protocol);
+  if (!msg_res) return recv_server_failed(msg_res.error());
+
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_execute::ok"));
   }
+
+  auto msg = *msg_res;
+
+  dst_protocol->status_flags(msg.status_flags());
 
   stage(Stage::Done);
 
