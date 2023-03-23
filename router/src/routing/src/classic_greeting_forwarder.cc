@@ -1165,6 +1165,8 @@ stdx::expected<Processor::Result, std::error_code> ServerGreetor::auth_ok() {
         src_protocol->shared_capabilities());
   }
 
+  dst_protocol->status_flags(msg.status_flags());
+
   // if the server accepted the schema, track it.
   if (src_protocol->shared_capabilities().test(
           classic_protocol::capabilities::pos::connect_with_schema)) {

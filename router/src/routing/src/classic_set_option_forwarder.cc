@@ -144,9 +144,23 @@ SetOptionForwarder::response() {
 }
 
 stdx::expected<Processor::Result, std::error_code> SetOptionForwarder::ok() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
+  auto *dst_protocol = connection()->client_protocol();
+
+  auto msg_res =
+      ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Eof>(
+          src_channel, src_protocol);
+  if (!msg_res) return recv_server_failed(msg_res.error());
+
+  auto msg = *msg_res;
+
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("set_option::ok"));
   }
+
+  dst_protocol->status_flags(msg.status_flags());
 
   // don't pool the connection.
   connection()->some_state_changed(true);

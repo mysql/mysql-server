@@ -1863,6 +1863,135 @@ TEST_P(ShareConnectionTest, classic_protocol_ping_with_pool) {
   }
 }
 
+TEST_P(ShareConnectionTest, classic_protocol_server_status_after_command) {
+  MysqlClient cli;
+
+  cli.username("root");
+  cli.password("");
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  // ignore the session-state-changed as it differs if the statement comes from
+  // the router or the server due to the 'statement-id' that's not generated for
+  // queries from the router.
+  auto status_ignore_mask = ~(SERVER_SESSION_STATE_CHANGED);
+
+  auto show_warnings_status_mask = SERVER_STATUS_IN_TRANS |
+                                   SERVER_STATUS_IN_TRANS_READONLY |
+                                   SERVER_STATUS_AUTOCOMMIT;
+
+  SCOPED_TRACE("// server status and warnings after connect()");
+  {
+    auto server_status_res = cli.server_status();
+    ASSERT_NO_ERROR(server_status_res);
+
+    auto server_status = *server_status_res & status_ignore_mask;
+    EXPECT_EQ(server_status, SERVER_STATUS_AUTOCOMMIT)
+        << std::bitset<32>(server_status);
+
+    auto warning_count_res = cli.warning_count();
+    ASSERT_NO_ERROR(warning_count_res);
+    EXPECT_EQ(*warning_count_res, 0);
+  }
+
+  {
+    auto warnings_res = cli.query("SHOW Warnings");
+    ASSERT_NO_ERROR(warnings_res);
+
+    for (const auto &result [[maybe_unused]] : *warnings_res) {
+      // drain the warnings.
+    }
+
+    SCOPED_TRACE("// server status after SHOW WARNINGS");
+    {
+      auto server_status_res = cli.server_status();
+      ASSERT_NO_ERROR(server_status_res);
+
+      auto server_status = *server_status_res & status_ignore_mask;
+      EXPECT_EQ(server_status, SERVER_STATUS_AUTOCOMMIT)
+          << std::bitset<32>(server_status);
+
+      auto warning_count_res = cli.warning_count();
+      ASSERT_NO_ERROR(warning_count_res);
+      EXPECT_EQ(*warning_count_res, 0);
+    }
+  }
+
+  using TestData = std::tuple<std::string_view, int, unsigned int>;
+
+  for (auto [stmt, expected_warning_count, expected_status_code] : {
+           TestData{"DO 0/0 -- outside transaction", 1,
+                    SERVER_STATUS_AUTOCOMMIT},
+           TestData{"BEGIN", 0,
+                    SERVER_STATUS_AUTOCOMMIT | SERVER_STATUS_IN_TRANS},
+           TestData{"DO 0/0 -- in transaction", 1,
+                    SERVER_STATUS_AUTOCOMMIT | SERVER_STATUS_IN_TRANS},
+           TestData{"ROLLBACK", 0, SERVER_STATUS_AUTOCOMMIT},
+           TestData{"SET autocommit = 0", 0, 0},
+           TestData{"DO 0/0 -- after autocommit", 1, 0},
+           TestData{"SELECT * FROM mysql.user", 0,
+                    SERVER_STATUS_IN_TRANS | SERVER_QUERY_NO_INDEX_USED},
+           TestData{"START TRANSACTION READ ONLY", 0,
+                    SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY},
+           TestData{"DO 0 -- after read only trans", 0,
+                    SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY},
+       }) {
+    SCOPED_TRACE(stmt);
+    {
+      auto cmd_res = cli.query(stmt);
+      ASSERT_NO_ERROR(cmd_res);
+      for (const auto &result [[maybe_unused]] : *cmd_res) {
+        // drain the warnings.
+      }
+
+      SCOPED_TRACE("// server status and warning count after query");
+      {
+        auto server_status_res = cli.server_status();
+        ASSERT_NO_ERROR(server_status_res);
+
+        auto server_status = *server_status_res & status_ignore_mask;
+        EXPECT_EQ(server_status, expected_status_code)
+            << std::bitset<32>(server_status);
+
+        auto warning_count_res = cli.warning_count();
+        ASSERT_NO_ERROR(warning_count_res);
+        EXPECT_EQ(*warning_count_res, expected_warning_count);
+      }
+
+      SCOPED_TRACE("// warnings after query");
+      {
+        auto warnings_res = cli.query("SHOW Warnings");
+        ASSERT_NO_ERROR(warnings_res);
+
+        for (const auto &result [[maybe_unused]] : *warnings_res) {
+          // drain the warnings.
+        }
+
+        SCOPED_TRACE("// server status and warning count after show warnings");
+        {
+          auto server_status_res = cli.server_status();
+          ASSERT_NO_ERROR(server_status_res);
+
+          auto server_status = *server_status_res & status_ignore_mask;
+
+          // no flags outside the expected set.
+          EXPECT_EQ(server_status & ~show_warnings_status_mask, 0)
+              << std::bitset<32>(server_status);
+          // ensure the connection's flags are remembered
+          EXPECT_EQ(server_status & show_warnings_status_mask,
+                    expected_status_code & show_warnings_status_mask)
+              << std::bitset<32>(server_status);
+
+          auto warning_count_res = cli.warning_count();
+          ASSERT_NO_ERROR(warning_count_res);
+          EXPECT_EQ(*warning_count_res, 0);
+        }
+      }
+    }
+  }
+}
+
 // check that CMD_KILL opens a new connection to the server.
 TEST_P(ShareConnectionTest, classic_protocol_kill_zero) {
   SCOPED_TRACE("// connecting to server");

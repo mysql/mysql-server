@@ -37,6 +37,7 @@
 #include "connection.h"  // MySQLRoutingConnectionBase
 #include "mysql/harness/net_ts/executor.h"
 #include "mysql/harness/net_ts/timer.h"
+#include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/classic_protocol_session_track.h"
 #include "mysqlrouter/connection_pool.h"
@@ -166,6 +167,14 @@ class ClassicProtocolState : public ProtocolStateBase {
   }
   PreparedStatements &prepared_statements() { return prepared_stmts_; }
 
+  classic_protocol::status::value_type status_flags() const {
+    return status_flags_;
+  }
+
+  void status_flags(classic_protocol::status::value_type val) {
+    status_flags_ = val;
+  }
+
  private:
   classic_protocol::capabilities::value_type server_caps_{};
   classic_protocol::capabilities::value_type client_caps_{};
@@ -188,6 +197,9 @@ class ClassicProtocolState : public ProtocolStateBase {
   std::string auth_method_data_;
 
   PreparedStatements prepared_stmts_;
+
+  // status flags of the last statement.
+  classic_protocol::status::value_type status_flags_{};
 };
 
 class MysqlRoutingClassicConnectionBase
