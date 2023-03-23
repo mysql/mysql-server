@@ -97,6 +97,9 @@
 /* One year in seconds */
 #define LONG_TIMEOUT (3600UL * 24UL * 365UL)
 
+/*  First mysql version supporting column statistics. */
+#define FIRST_COLUMN_STATISTICS_VERSION 80002
+
 using std::string;
 
 static void add_load_option(DYNAMIC_STRING *str, const char *option,
@@ -5969,6 +5972,13 @@ int main(int argc, char **argv) {
   if (opt_single_transaction &&
       do_unlock_tables(mysql)) /* unlock but no commit! */
     goto err;
+
+  if (column_statistics &&
+      mysql_get_server_version(mysql) < FIRST_COLUMN_STATISTICS_VERSION) {
+    column_statistics = false;
+    fprintf(stderr,
+            "-- Warning: column statistics not supported by the server.\n");
+  }
 
   if (opt_alltspcs) dump_all_tablespaces();
 
