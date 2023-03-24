@@ -23,6 +23,8 @@
 #include "util/require.h"
 #include <atomic>
 #include <ndb_global.h>
+#include "my_config.h"
+#include "ndb_config.h"
 #include "portlib/ndb_compiler.h"
 #include <cstring>
 

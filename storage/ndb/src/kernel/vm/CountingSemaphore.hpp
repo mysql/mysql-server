@@ -25,6 +25,9 @@
 #ifndef COUNTING_SEMAPHORE_HPP
 #define COUNTING_SEMAPHORE_HPP
 
+#include <assert.h>
+#include "ndb_types.h"
+
 #define JAM_FILE_ID 245
 
 

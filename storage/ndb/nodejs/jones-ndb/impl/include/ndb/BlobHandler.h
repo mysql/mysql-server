@@ -22,10 +22,13 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "v8.h"
-
 #ifndef NODEJS_ADAPTER_NDB_BLOBHANDLER_H
 #define NODEJS_ADAPTER_NDB_BLOBHANDLER_H
+
+#include "v8.h"
+
+class NdbBlob;
+class NdbOperation;
 
 class BlobHandler { 
 public:

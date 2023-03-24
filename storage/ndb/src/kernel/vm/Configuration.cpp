@@ -24,6 +24,7 @@
 
 #include "util/require.h"
 #include <ndb_global.h>
+#include "ndb_config.h"
 
 #include <TransporterRegistry.hpp>
 #include "Configuration.hpp"

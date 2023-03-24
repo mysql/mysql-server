@@ -23,6 +23,7 @@
 #ifndef ARENA_POOL_HPP
 #define ARENA_POOL_HPP
 
+#include "my_config.h"
 #include "util/require.h"
 #include <ndbd_exit_codes.h>
 #include <NdbOut.hpp> // For template ArenaPool former cpp-file

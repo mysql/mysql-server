@@ -23,6 +23,7 @@
 */
 
 
+#include "ndb_config.h"
 #include "util/require.h"
 #include <ndb_global.h>
 #include <NdbTick.h>

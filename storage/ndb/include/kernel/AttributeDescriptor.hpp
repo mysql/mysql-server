@@ -25,6 +25,8 @@
 #ifndef ATTRIBUTE_DESCRIPTOR_HPP
 #define ATTRIBUTE_DESCRIPTOR_HPP
 
+#include <assert.h>
+
 #define JAM_FILE_ID 5
 
 

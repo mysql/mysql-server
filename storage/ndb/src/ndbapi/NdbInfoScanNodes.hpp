@@ -25,7 +25,9 @@
 #ifndef NDBINFO_SCAN_NODES_H
 #define NDBINFO_SCAN_NODES_H
 
+#include "NdbInfo.hpp"
 #include "NdbInfoScanOperation.hpp"
+#include "ndb_types.h"
 
 #include "kernel/NodeBitmask.hpp"
 

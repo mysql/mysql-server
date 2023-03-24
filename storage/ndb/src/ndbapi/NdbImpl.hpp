@@ -26,6 +26,7 @@
 #define NDB_IMPL_HPP
 
 #include <ndb_global.h>
+#include "my_config.h"
 #include <NdbOut.hpp>
 #include <kernel/ndb_limits.h>
 #include <NdbTick.h>

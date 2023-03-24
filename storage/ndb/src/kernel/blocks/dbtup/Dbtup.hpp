@@ -45,6 +45,7 @@
 #include <AttributeDescriptor.hpp>
 #include "AttributeOffset.hpp"
 #include "Undo_buffer.hpp"
+#include "my_config.h"
 #include "tuppage.hpp"
 #include <DynArr256.hpp>
 #include "../dbacc/Dbacc.hpp"

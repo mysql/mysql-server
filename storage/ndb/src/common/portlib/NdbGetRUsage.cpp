@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <cstring>
+#include "my_config.h"
 #include <NdbGetRUsage.h>
 #include <NdbMutex.h>
 #include <ndb_config.h>

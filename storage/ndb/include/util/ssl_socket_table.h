@@ -24,6 +24,8 @@
 #ifndef NDB_UTIL_SSL_SOCKET_TABLE_H
 #define NDB_UTIL_SSL_SOCKET_TABLE_H
 
+#include "portlib/ndb_socket.h"
+
 /* The implementation uses a static-allocated table of size
    NDB_SSL_FIXED_TABLE_SIZE, plus a dynamic unordered map for
    descriptor values larger than NDB_SSL_FIXED_TABLE_SIZE.

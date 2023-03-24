@@ -36,6 +36,7 @@
 #include <string>
 
 #include "m_ctype.h"
+#include "my_config.h"  // WORDS_BIGENDIAN
 #include "my_dbug.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC

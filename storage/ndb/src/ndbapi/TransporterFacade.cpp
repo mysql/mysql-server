@@ -37,6 +37,7 @@
 #include <NdbEnv.h>
 #include <NdbSleep.h>
 #include <NdbLockCpuUtil.h>
+#include "my_config.h"
 #include "my_thread.h"
 #include <NdbGetRUsage.h>
 

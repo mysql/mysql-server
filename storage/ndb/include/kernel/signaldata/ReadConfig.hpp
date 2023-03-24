@@ -25,6 +25,8 @@
 #ifndef READ_CONFIG_HPP
 #define READ_CONFIG_HPP
 
+#include "kernel/signaldata/SignalData.hpp"
+
 #define JAM_FILE_ID 75
 
 
