@@ -6012,8 +6012,9 @@ bool user_var_entry::store(const void *from, size_t length, Item_result type) {
     const my_decimal *dec = static_cast<const my_decimal *>(from);
     dec->sanity_check();
     new (m_ptr) my_decimal(*dec);
-  } else
+  } else if (length > 0) {
     memcpy(m_ptr, from, length);
+  }
 
   m_length = length;
   m_type = type;
@@ -6056,14 +6057,9 @@ bool Item_func_set_user_var::update_hash(const void *ptr, uint length,
 
   // args[0]->null_value could be outdated
   if (args[0]->type() == Item::FIELD_ITEM)
-    null_value = ((Item_field *)args[0])->field->is_null();
+    null_value = down_cast<Item_field *>(args[0])->field->is_null();
   else
     null_value = args[0]->null_value;
-
-  if (ptr == nullptr) {
-    assert(length == 0);
-    null_value = true;
-  }
 
   /*
     If we set a variable explicitly to NULL then keep the old
