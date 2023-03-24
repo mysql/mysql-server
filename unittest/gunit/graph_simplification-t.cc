@@ -507,7 +507,7 @@ TEST(GraphSimplificationTest, CycleNeighboringHyperedges) {
    *         \____/
    *
    * The problem with simplifying this graph is that the initial set of
-   * constraints says that all three of t2-t3, t2-t4 and t3-t4 must become
+   * constraints says that all three of t2-t3, t2-t4 and t3-t4 must come
    * before t1-{t2,t3,t4}. So if we later try to add a constraint that makes the
    * latter join come before one of those three joins, the online cycle finder
    * will tell us it's impossible because we get a cycle in the before-after
@@ -603,6 +603,75 @@ TEST(GraphSimplificationTest, CycleNeighboringHyperedges) {
   EXPECT_EQ(7, receiver.seen_nodes);
   EXPECT_EQ(6, receiver.seen_subgraph_pairs);
   EXPECT_TRUE(receiver.HasSeen(0b1111111));
+}
+
+TEST(GraphSimplificationTest, CyclicInformationSchemaView) {
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  MEM_ROOT mem_root;
+  JoinHypergraph g(&mem_root, /*query_block=*/nullptr);
+
+  /*
+    This test case is based on the INFORMATION_SCHEMA.STATISTICS view. When
+    invoking graph simplification on it, the resulting simplified graph could in
+    some circumstances (depending on table sizes and statistics) be impossible
+    to join.
+   */
+
+  NodeGuard node_guard = AddNodes(8, &mem_root, &g);
+  g.nodes[0].table->file->stats.records = 1399;
+  g.nodes[1].table->file->stats.records = 4706;
+  g.nodes[2].table->file->stats.records = 316;
+  g.nodes[3].table->file->stats.records = 222;
+  g.nodes[4].table->file->stats.records = 259;
+  g.nodes[5].table->file->stats.records = 6;
+  g.nodes[6].table->file->stats.records = 1;
+  g.nodes[7].table->file->stats.records = 1;
+
+  THD *thd = initializer.thd();
+  // t0-t1
+  AddEdge(thd, RelationalExpression::INNER_JOIN, TableBitmap(0), TableBitmap(1),
+          0.000212, &mem_root, &g);
+  // t3-t4
+  AddEdge(thd, RelationalExpression::INNER_JOIN, TableBitmap(3), TableBitmap(4),
+          0.00386, &mem_root, &g);
+  // t5-t6
+  AddEdge(thd, RelationalExpression::INNER_JOIN, TableBitmap(5), TableBitmap(6),
+          1.0, &mem_root, &g);
+  // t3-t5
+  AddEdge(thd, RelationalExpression::INNER_JOIN, TableBitmap(3), TableBitmap(5),
+          0.167, &mem_root, &g);
+  // t2-t3
+  AddEdge(thd, RelationalExpression::INNER_JOIN, TableBitmap(2), TableBitmap(3),
+          0.0045, &mem_root, &g);
+  // t0-{t2,t3}
+  AddEdge(thd, RelationalExpression::INNER_JOIN, TableBitmap(0),
+          TableBitmap(2, 3), 0.00316, &mem_root, &g);
+  // {t1,t2,t3,t5}-t7
+  AddEdge(thd, RelationalExpression::LEFT_JOIN, TableBitmap(1, 2, 3, 5),
+          TableBitmap(7), 0.001, &mem_root, &g);
+  // t0-t2
+  AddEdge(thd, RelationalExpression::INNER_JOIN, TableBitmap(0), TableBitmap(2),
+          0.00316, &mem_root, &g);
+
+  // Simplify the above graph as much as possible. The exact steps are not all
+  // that important. What matters, is that we're not making a hypergraph that is
+  // not joinable.
+  GraphSimplifier s(&g, &mem_root);
+  while (s.DoSimplificationStep() !=
+         GraphSimplifier::NO_SIMPLIFICATION_POSSIBLE) {
+  }
+
+  // Verify that the simplified graph is joinable.
+  TrivialReceiver receiver(g, &mem_root, /*subgraph_pair_limit=*/-1);
+  EXPECT_FALSE(EnumerateAllConnectedPartitions(g.graph, &receiver));
+  EXPECT_EQ(8, receiver.seen_nodes);
+  EXPECT_TRUE(receiver.HasSeen(0b11111111));
+
+  // And it should have limited the search space as much as possible (N-1 joins
+  // considered to join together N tables).
+  EXPECT_EQ(7, receiver.seen_subgraph_pairs);
 }
 
 [[nodiscard]] static NodeGuard CreateStarJoin(THD *thd, int graph_size,
