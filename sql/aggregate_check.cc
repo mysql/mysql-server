@@ -116,6 +116,7 @@ bool Distinct_check::check_query(THD *thd) {
     assert((*order->item)->fixed);
     uint counter;
     enum_resolution_type resolution;
+    Item **res;
     /*
       Search if this expression is equal to one in the SELECT
       list. setup_order()/find_order_in_list() has already done so, but not
@@ -145,12 +146,11 @@ bool Distinct_check::check_query(THD *thd) {
       differ due to white space....).
       Subqueries in ORDER BY are non-standard anyway.
     */
-    Item **const res =
-        find_item_in_list(thd, *order->item, &select->fields, &counter,
-                          REPORT_EXCEPT_NOT_FOUND, &resolution);
-    if (res == nullptr)  // Other error than "not found", my_error() was called
-      return true;       /* purecov: inspected */
-    if (res != not_found_item)  // is in SELECT list
+    if (find_item_in_list(thd, *order->item, &select->fields, &res, &counter,
+                          &resolution)) {
+      return true; /* purecov: inspected */
+    }
+    if (res != nullptr)  // is in SELECT list
       continue;
     /*
       [numbers refer to the function's comment]
@@ -269,13 +269,13 @@ bool Group_check::check_expression(THD *thd, Item *expr, bool in_select_list) {
   if (!in_select_list) {
     uint counter;
     enum_resolution_type resolution;
-    // Search if this expression is equal to one in the SELECT list.
-    Item **const res = find_item_in_list(thd, expr, &select->fields, &counter,
-                                         REPORT_EXCEPT_NOT_FOUND, &resolution);
-    if (res == nullptr)  // Other error than "not found", my_error() was called
-      return true;       /* purecov: inspected */
-    if (res != not_found_item) {
-      // is in SELECT list, which has already been validated.
+    Item **res;
+    // Check if this expression is equal to one in the SELECT list.
+    if (find_item_in_list(thd, expr, &select->fields, &res, &counter,
+                          &resolution)) {
+      return true; /* purecov: inspected */
+    }
+    if (res != nullptr) {  // in SELECT list, which has already been validated.
       return false;
     }
   }
