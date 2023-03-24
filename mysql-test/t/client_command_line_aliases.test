@@ -14,49 +14,49 @@
 
 --disable_abort_on_error
 --echo mysqlbinlog --read-from-remote-source: expect no warning
---error 1 # grep returns exit status 1
+--error 1,42 # grep returns exit status 1
 --exec $MYSQL_BINLOG --read-from-remote-source=BINLOG-DUMP-NON-GTIDS --port=$MASTER_MYPORT --user=root --host=127.0.0.1 $binlog_file 2>&1 | grep ^WARNING
 --echo mysqlbinlog --read-from-remote-master: expect warning
 --exec $MYSQL_BINLOG --read-from-remote-master=BINLOG-DUMP-NON-GTIDS --port=$MASTER_MYPORT --user=root --host=127.0.0.1 $binlog_file 2>&1 | grep ^WARNING
 
 --echo mysqldump --apply-replica-statements: expect no warning
---error 1 # grep returns exit status 1
+--error 1,42 # grep returns exit status 1
 --exec $MYSQL_DUMP --apply-replica-statements test 2>&1 | grep ^WARNING
 --echo mysqldump --apply-slave-statements: expect warning
 --exec $MYSQL_DUMP --apply-slave-statements test 2>&1 | grep ^WARNING
 
 --echo mysqldump --delete-source-logs: expect no warning
---error 1 # grep returns exit status 1
+--error 1,42 # grep returns exit status 1
 --exec $MYSQL_DUMP --delete-source-logs test 2>&1 | grep ^WARNING
 --echo mysqldump --delete-master-logs: expect warning
 --exec $MYSQL_DUMP --delete-master-logs test 2>&1 | grep ^WARNING
 
 --echo mysqldump --dump-replica: expect no warning
---error 1 # grep returns exit status 1
+--error 1,42 # grep returns exit status 1
 --exec $MYSQL_DUMP --dump-replica test 2>&1 | grep ^WARNING
 --echo mysqldump --dump-slave: expect warning
 --exec $MYSQL_DUMP --dump-slave test 2>&1 | grep ^WARNING
 
 --echo mysqldump --include-source-host-port: expect no warning
---error 1 # grep returns exit status 1
+--error 1,42 # grep returns exit status 1
 --exec $MYSQL_DUMP --include-source-host-port test 2>&1 | grep ^WARNING
 --echo mysqldump --include-master-host-port: expect warning
 --exec $MYSQL_DUMP --include-master-host-port test 2>&1 | grep ^WARNING
 
 --echo mysqldump --source-data: expect no warning
---error 1 # grep returns exit status 1
+--error 1,42 # grep returns exit status 1
 --exec $MYSQL_DUMP --source-data test 2>&1 | grep ^WARNING
 --echo mysqldump --master-data: expect warning
 --exec $MYSQL_DUMP --master-data test 2>&1 | grep ^WARNING
 
 --echo mysqladmin start-replica: expect no warning
---error 1 # grep returns exit status 1
+--error 1,42 # grep returns exit status 1
 --exec $MYSQLADMIN --no-defaults -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT start-replica 2>&1 | grep ^WARNING
 --echo mysqladmin start-slave: expect warning
 --exec $MYSQLADMIN --no-defaults -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT start-slave 2>&1 | grep ^WARNING
 
 --echo mysqladmin stop-replica: expect no warning
---error 1 # grep returns exit status 1
+--error 1,42 # grep returns exit status 1
 --exec $MYSQLADMIN --no-defaults -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT stop-replica 2>&1 | grep ^WARNING
 --echo mysqladmin stop-slave: expect warning
 --exec $MYSQLADMIN --no-defaults -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT stop-slave 2>&1 | grep ^WARNING

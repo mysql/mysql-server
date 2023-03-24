@@ -2206,7 +2206,7 @@ static int my_wildcmp_uca_impl(const CHARSET_INFO *cs, const char *str,
                                const char *str_end, const char *wildstr,
                                const char *wildend, int escape, int w_one,
                                int w_many, int recurse_level) {
-  if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return 1;
+  if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return -1;
   while (wildstr != wildend) {
     int result = -1; /* Not found, using wildcards */
     auto mb_wc = cs->cset->mb_wc;

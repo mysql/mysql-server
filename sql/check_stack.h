@@ -25,7 +25,7 @@
 
 class THD;
 
-extern "C" bool check_stack_overrun(const THD *thd, long margin,
-                                    unsigned char *dummy);
+bool check_stack_overrun(const THD *thd, long margin, unsigned char *dummy);
+int initialize_stack_direction();
 
 #endif /* SQL_CHECK_STACK_H_INCLUDED */

@@ -1080,6 +1080,9 @@ MACRO(DISABLE_MISSING_PROFILE_WARNING)
   ENDIF()
 ENDMACRO()
 
+OPTION(OPTIMIZE_SANITIZER_BUILDS
+  "Add -O1 -fno-inline to sanitizer builds" ON)
+
 MACRO(MY_SANITIZER_CHECK SAN_OPT ADD_OPTIMIZATION RESULT)
   MY_CHECK_C_COMPILER_FLAG("${SAN_OPT}" C_RESULT)
   MY_CHECK_CXX_COMPILER_FLAG("${SAN_OPT}" CXX_RESULT)
@@ -1089,7 +1092,7 @@ MACRO(MY_SANITIZER_CHECK SAN_OPT ADD_OPTIMIZATION RESULT)
     # We switch on basic optimization also for debug builds.
     # We disable inlining for stack trace readability.
     # With optimization we may get some warnings, so we switch off -Werror
-    IF(${ADD_OPTIMIZATION})
+    IF(${ADD_OPTIMIZATION} AND OPTIMIZE_SANITIZER_BUILDS)
       IF(MSVC)
         STRING_APPEND(CMAKE_C_FLAGS   " -O1 /Ob0")
         STRING_APPEND(CMAKE_CXX_FLAGS " -O1 /Ob0")
@@ -2613,6 +2616,11 @@ IF(DOXYGEN_FOUND)
     SET_PROPERTY(TARGET doxygen PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
   ENDIF()
 ENDIF(DOXYGEN_FOUND)
+
+MYSQL_ADD_EXECUTABLE(stack_direction
+  ${CMAKE_SOURCE_DIR}/cmake/stack_direction.c
+  SKIP_INSTALL
+  )
 
 INCLUDE(CPack)
 
