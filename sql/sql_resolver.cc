@@ -285,6 +285,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   for (auto it : fields) {
     it->increment_ref_count();
   }
+
   resolve_place = RESOLVE_NONE;
 
   const nesting_map save_allow_sum_func = thd->lex->allow_sum_func;
@@ -4294,13 +4295,13 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     return false;
   }
   /* Lookup the current GROUP/ORDER field in the SELECT clause. */
-  select_item = find_item_in_list(thd, order_item, fields, &counter,
-                                  REPORT_EXCEPT_NOT_FOUND, &resolution);
-  if (!select_item)
-    return true; /* The item is not unique, or some other error occurred. */
+  if (find_item_in_list(thd, order_item, fields, &select_item, &counter,
+                        &resolution)) {
+    return true;
+  }
 
   /* Check whether the resolved field is unambiguous. */
-  if (select_item != not_found_item) {
+  if (select_item != nullptr) {
     Item *view_ref = nullptr;
     /*
       If we have found field not by its alias in select list but by its
@@ -4423,7 +4424,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     The call to order_item->fix_fields() means that here we resolve
     'order_item' to a column from a table in the list 'tables', or to
     a column in some outer query. Exactly because of the second case
-    we come to this point even if (select_item == not_found_item),
+    we come to this point even if (select_item == nullptr),
     in spite of that fix_fields() calls find_item_in_list() one more
     time.
 

@@ -257,10 +257,9 @@ Field *find_field_in_table_ref(THD *thd, Table_ref *table_list,
 Field *find_field_in_table(TABLE *table, const char *name, bool allow_rowid,
                            uint *cached_field_index_ptr);
 Field *find_field_in_table_sef(TABLE *table, const char *name);
-Item **find_item_in_list(THD *thd, Item *item, mem_root_deque<Item *> *items,
-                         uint *counter,
-                         find_item_error_report_type report_error,
-                         enum_resolution_type *resolution);
+bool find_item_in_list(THD *thd, Item *item, mem_root_deque<Item *> *items,
+                       Item ***found, uint *counter,
+                       enum_resolution_type *resolution);
 bool setup_natural_join_row_types(THD *thd,
                                   mem_root_deque<Table_ref *> *from_clause,
                                   Name_resolution_context *context);
@@ -367,7 +366,6 @@ TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
                                   const char *table_name, bool no_error);
 void mark_tmp_table_for_reuse(TABLE *table);
 
-extern Item **not_found_item;
 extern Field *not_found_field;
 extern Field *view_ref_found;
 
