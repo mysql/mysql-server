@@ -22,11 +22,18 @@
 
 #include <iostream>
 
+// Visual studio gave Command-Line Warning D9025 for
+// -UMYSQL_PROJECT on the command line.
+#if defined(UNDEFINE_MYSQL_PROJECT)
+#undef MYSQL_PROJECT
+#endif
+
 #include "mysql/strings/collations.h"
 #include "mysql/strings/m_ctype.h"
 
 /**
-  @file Simple executable linked with libcollations.a to show that it works.
+  @file Simple executable linked with libstrings.a or libstrings_shared.so
+  to show that it works.
   */
 
 int main() {
