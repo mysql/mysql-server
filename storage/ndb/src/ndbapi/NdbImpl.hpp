@@ -26,7 +26,6 @@
 #define NDB_IMPL_HPP
 
 #include <ndb_global.h>
-#include "API.hpp"
 #include <NdbOut.hpp>
 #include <kernel/ndb_limits.h>
 #include <NdbTick.h>
@@ -41,6 +40,7 @@
 #include "trp_node.hpp"
 #include "NdbWaiter.hpp"
 #include "WakeupHandler.hpp"
+#include "kernel/signaldata/TcKeyConf.hpp"
 
 template <class T>
 struct Ndb_free_list_t 

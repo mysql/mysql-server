@@ -29,6 +29,7 @@
 #include <NdbCondition.h>
 #include <TransporterRegistry.hpp>
 #include <NodeBitmask.hpp>
+#include "transporter/TransporterCallback.hpp"
 
 struct trp_node;
 class NdbApiSignal;

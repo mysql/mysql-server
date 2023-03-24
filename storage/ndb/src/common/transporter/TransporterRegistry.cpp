@@ -351,6 +351,18 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
   DBUG_VOID_RETURN;
 }
 
+Uint32 TransporterRegistry::get_total_spintime() const
+{
+   assert(receiveHandle != nullptr);
+   return receiveHandle->m_total_spintime;
+}
+
+void TransporterRegistry::reset_total_spintime() const
+{
+  assert(receiveHandle != nullptr);
+  receiveHandle->m_total_spintime = 0;
+}
+
 void TransporterRegistry::set_mgm_handle(NdbMgmHandle h)
 {
   DBUG_ENTER("TransporterRegistry::set_mgm_handle");

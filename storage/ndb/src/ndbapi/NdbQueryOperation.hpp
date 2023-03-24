@@ -25,6 +25,8 @@
 #define NdbQueryOperation_H
 
 #include <ndb_types.h>
+#include "ndbapi/NdbIndexScanOperation.hpp"
+#include "NdbQueryBuilder.hpp"
 
 // this file is currently not located in include/ndbapi
 // which means that we need to use <> to include instead of ""

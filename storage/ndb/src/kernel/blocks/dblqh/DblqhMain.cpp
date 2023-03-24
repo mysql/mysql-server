@@ -98,6 +98,9 @@
 #include "DblqhCommon.hpp"
 #include "portlib/mt-asm.h"
 
+#include "../backup/Backup.hpp"
+#include "../dbtux/Dbtux.hpp"
+
 /**
  * overload handling...
  * TODO: cleanup...from all sorts of perspective

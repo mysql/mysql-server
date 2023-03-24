@@ -40,6 +40,7 @@
 #include "NdbImpl.hpp"
 #include "NdbDictionaryImpl.hpp"
 #include "ProcessInfo.hpp"
+#include "NdbWaitGroup.hpp"
 
 #include <NdbMutex.h>
 #ifdef VM_TRACE

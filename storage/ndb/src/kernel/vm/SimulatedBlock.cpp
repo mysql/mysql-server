@@ -56,6 +56,7 @@
 #include <signaldata/Sync.hpp>
 #include <DebuggerNames.hpp>
 #include "LongSignal.hpp"
+#include "transporter/TransporterCallback.hpp"
 
 #include <Properties.hpp>
 #include "Configuration.hpp"
