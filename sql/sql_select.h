@@ -1049,4 +1049,12 @@ bool optimize_secondary_engine(THD *thd);
 */
 void accumulate_statement_cost(const LEX *lex);
 
+/**
+  Returns secondary_engine handler for the statement.
+  If none exist, nullptr is returned.
+
+  @param lex the statement
+*/
+const handlerton *get_secondary_engine_handlerton(const LEX *lex);
+
 #endif /* SQL_SELECT_INCLUDED */

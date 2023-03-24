@@ -341,7 +341,7 @@ static const MYSQL_LEX_CSTRING *get_eligible_secondary_engine_from(
   return secondary_engine;
 }
 
-static const handlerton *get_secondary_engine_handlerton(const LEX *lex) {
+const handlerton *get_secondary_engine_handlerton(const LEX *lex) {
   if (const handlerton *hton = SecondaryEngineHandlerton(lex->thd);
       hton != nullptr) {
     return hton;
