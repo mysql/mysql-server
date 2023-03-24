@@ -3203,12 +3203,16 @@ class Item : public Parse_tree_node {
   bool is_blob_field() const;
 
   /// Increment reference count
-  void increment_ref_count() { ++m_ref_count; }
+  void increment_ref_count() {
+    assert(!m_abandoned);
+    ++m_ref_count;
+  }
 
   /// Decrement reference count
   uint decrement_ref_count() {
     assert(m_ref_count > 0);
-    return --m_ref_count;
+    if (--m_ref_count == 0) m_abandoned = true;
+    return m_ref_count;
   }
 
  protected:
@@ -3428,6 +3432,7 @@ class Item : public Parse_tree_node {
        be unused and can be removed.
   */
   uint m_ref_count{0};
+  bool m_abandoned{false};    ///< true if item has been fully de-referenced
   const bool is_parser_item;  ///< true if allocated directly by parser
   int8 is_expensive_cache;    ///< Cache of result of is_expensive()
   uint8 m_data_type;          ///< Data type assigned to Item
