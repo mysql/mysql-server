@@ -8268,7 +8268,8 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
         Item_field for tables.
       */
       Item_ident *item_ref = down_cast<Item_ident *>(item);
-      if (item_ref->item_name.eq_safe(find_ident->field_name) &&
+      if (!my_strcasecmp(system_charset_info, item_ref->field_name,
+                         find_ident->field_name) &&
           item_ref->table_name != nullptr &&
           !my_strcasecmp(table_alias_charset, item_ref->table_name,
                          find_ident->table_name) &&
@@ -9061,6 +9062,11 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
     if (!ref.is_null()) {
       ref[0] = item;
       ref.pop_front();
+      /*
+        Items present in ref_array have a positive reference count since
+        removal of unused columns from derived tables depends on this.
+      */
+      item->increment_ref_count();
     }
     Item *typed_item = nullptr;
     if (typed_items != nullptr && typed_it != typed_items->end()) {

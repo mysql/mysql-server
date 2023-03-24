@@ -281,11 +281,6 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
                    insert_field_list, &fields, base_ref_items))
     return true;
 
-  // Ensure that all selected expressions have a positive reference count
-  for (auto it : fields) {
-    it->increment_ref_count();
-  }
-
   resolve_place = RESOLVE_NONE;
 
   const nesting_map save_allow_sum_func = thd->lex->allow_sum_func;
