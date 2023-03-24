@@ -4840,6 +4840,78 @@ set range_optimizer_max_mem_size = @save_range_opt_max;
 
 drop table t1;
 
+echo ------------------------------------------------------------------;
+echo Bug#35185670 'mysqld crashes on expensive query';
+echo       or we may assert, or just hang until timeout...;
+echo;
+#
+# In a fragmenetd signal, the list of ReceiverId's were not correctly
+# compiled into the REQuest. Some were duplicated, others were missing.
+# In order to provoke the bug we need more than 16 receiverId's
+#  -> Create table with many partitions.
+#  -> Require the result to be ordered, which prevent multiple
+#     fragments to be folded into the same receiver.
+#
+# Test case query is based on the above large IN-list queries.
+#
+
+create table t1 (
+  k1 varchar(32) not null,
+  k2 int not null default 0,
+  primary key(k1,k2),
+  i int default 0
+) engine = ndbcluster
+partition by key() partitions 32;
+
+create table t2 (
+  k1 int not null primary key
+) engine = ndbcluster
+partition by key() partitions 32;
+
+let $query = insert into t1(k1) values ('foo');
+let $values = 1;
+while ($values < 2000)
+{
+  let $query = $query,('row# $values');
+  inc $values;
+}
+
+###################
+echo;
+echo Inserting 2000 rows in table t1;
+
+--disable_query_log
+eval $query;
+analyze table t1;
+
+insert into t2(k1) values(0);
+analyze table t2;
+--enable_query_log
+
+let $query = select * from t1 left join t2 on t2.k1=t1.i where t1.k1 in ('foo';
+let $values = 0;
+while ($values < 2000)
+{
+  let $query = $query,'row# $values';
+  inc $values;
+}
+let $query = $query ) order by t1.k1, t1.k2;
+
+echo;
+echo Expect query and IN-condition to be pushed;
+echo (If join_pushdown is enabled);
+
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
+eval explain $query;
+
+--disable_result_log
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
+eval $query;
+--enable_result_log
+
+drop table t1;
+drop table t2;
+
 ############################################################
 # Bug#14010406 LARGE PUSHED JOIN HIT ASSERT IN SPJ BLOCK
 #
