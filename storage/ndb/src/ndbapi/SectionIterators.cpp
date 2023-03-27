@@ -497,6 +497,79 @@ testSignalSectionIterator()
   return 0;
 }
 
+
+/**
+ * Iterator view of a generator
+ */
+class BufferedGeneratingIterator: public GenericSectionIterator
+{
+private :
+  Uint32* buffer;
+  Uint32 buffWords;
+  Uint32 len;
+  Uint32 pos;
+  Uint32 bias;
+
+public :
+  BufferedGeneratingIterator(Uint32 _size, Uint32 _bias, Uint32 _buffWords)
+  {
+    buffWords = _buffWords;
+    buffer = (Uint32*) malloc(_buffWords * sizeof(Uint32));
+    len = _size;
+    bias = _bias;
+    pos = 0;
+  }
+
+  ~BufferedGeneratingIterator() override
+  {
+    free(buffer);
+  }
+
+  void reset() override
+  {
+    /* Reset iterator */
+    pos = 0;
+  }
+
+  const Uint32* getNextWords(Uint32& sz) override
+  {
+    const Uint32 remain = len - pos;
+    const Uint32 chunkSize = MIN(remain, buffWords);
+
+    if (chunkSize)
+    {
+      /* Generate data in buffer */
+      for (Uint32 i = 0; i < chunkSize; i++)
+      {
+        buffer[i] = bias + pos + i;
+      }
+
+      pos += chunkSize;
+      sz = chunkSize;
+      return buffer;
+    }
+    sz= 0;
+    return nullptr;
+  }
+};
+
+int
+testBufferedGeneratingIterator()
+{
+  const int totalSize= 50000;
+  const int bias= 19;
+
+  for (int buffSize=1; buffSize < 100; buffSize++)
+  {
+    BufferedGeneratingIterator bgi(totalSize, bias, buffSize);
+
+    VERIFY(checkIterator(bgi, totalSize, bias) == 0);
+  }
+
+  return 0;
+}
+
+
 int main()
 {
   /* Unit test Section Iterators
@@ -510,10 +583,11 @@ int main()
    * Will print "OK" in success case
    */
 
-  plan(2); // Number of tests
+  plan(3); // Number of tests
 
   ok1(testLinearSectionIterator() == 0);
   ok1(testSignalSectionIterator() == 0);
+  ok1(testBufferedGeneratingIterator() == 0);
 
   return exit_status();
 }
