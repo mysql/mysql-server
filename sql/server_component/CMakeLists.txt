@@ -52,6 +52,7 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   server_component.cc
   system_variable_source_imp.cc
   table_access_service.cc
+  thread_cleanup_register_imp.cc
   udf_metadata_imp.cc
   audit_api_connection_service_imp.cc
   mysql_query_attributes_imp.cc
@@ -73,6 +74,7 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   mysql_server_event_tracking_bridge_imp.cc
   dynamic_loader_service_notification_imp.cc
   event_tracking_information.cc
+  mysql_stored_program_imp.cc
   )
 
 # This static library is used to build mysqld binary and in some unit test cases

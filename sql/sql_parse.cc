@@ -62,7 +62,8 @@
 #include "mysql/com_data.h"
 #include "mysql/components/services/bits/plugin_audit_connection_types.h"  // EVENT_TRACKING_CONNECTION_CHANGE_USER
 #include "mysql/components/services/bits/psi_statement_bits.h"  // PSI_statement_info
-#include "mysql/components/services/log_builtins.h"             // LogErr
+#include "mysql/components/services/language_service.h"
+#include "mysql/components/services/log_builtins.h"  // LogErr
 #include "mysql/my_loglevel.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -4345,8 +4346,31 @@ int mysql_execute_command(THD *thd, bool first_level) {
       assert(lex->sphead != nullptr);
 
       if (!lex->sphead->is_sql()) {
-        // TODO: Check if language is supported
-        // For now, we allow the routines to be created, but not executed
+        if (srv_registry == nullptr) {
+          my_error(ER_LANGUAGE_COMPONENT_NOT_AVAILABLE, MYF(0));
+          goto error;
+        }
+
+        my_service<SERVICE_TYPE(external_program_capability_query)>
+            lang_service("external_program_capability_query", srv_registry);
+        if (!lang_service.is_valid()) {
+          my_error(ER_LANGUAGE_COMPONENT_NOT_AVAILABLE, MYF(0));
+          goto error;
+        }
+        bool supported = false;
+        if (lang_service->get("supports_language",
+                              const_cast<char *>(lex->sp_chistics.language.str),
+                              &supported))
+          goto error;
+        if (!supported) {
+          my_error(ER_LANGUAGE_COMPONENT_UNSUPPORTED_LANGUAGE, MYF(0),
+                   lex->sp_chistics.language);
+          goto error;
+        }
+
+        my_service<SERVICE_TYPE(external_program_execution)> sp_service(
+            "external_program_execution", srv_registry);
+        if (lex->sphead->init_external_routine(sp_service)) goto error;
       }
 
       assert(lex->sphead->m_db.str); /* Must be initialized in the parser */

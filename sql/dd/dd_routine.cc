@@ -382,7 +382,11 @@ static bool fill_dd_routine_info(THD *thd, const dd::Schema &schema,
   routine->set_sql_mode(thd->variables.sql_mode);
 
   // Set client collation id.
-  routine->set_client_collation_id(thd->charset()->number);
+  if (sp->is_sql()) {
+    routine->set_client_collation_id(thd->charset()->number);
+  } else {
+    routine->set_client_collation_id(my_charset_utf8mb4_0900_ai_ci.number);
+  }
 
   // Set connection collation id.
   routine->set_connection_collation_id(

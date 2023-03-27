@@ -46,6 +46,7 @@
 #include "my_pointer_arithmetic.h"
 #include "my_systime.h"
 #include "my_user.h"  // parse_user
+#include "mysql/components/my_service.h"
 #include "mysql/components/services/bits/psi_error_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_error.h"
@@ -1719,7 +1720,8 @@ sp_head::sp_head(MEM_ROOT &&mem_root, enum_sp_type type)
       m_sptabs(system_charset_info, key_memory_sp_head_main_root),
       m_sp_cache_version(0),
       m_creation_ctx(nullptr),
-      unsafe_flags(0) {
+      unsafe_flags(0),
+      m_language_stored_program(nullptr) {
   m_first_instance = this;
   m_first_free_instance = this;
   m_last_cached_sp = this;
@@ -1803,11 +1805,12 @@ void sp_head::set_body_end(THD *thd) {
   if (is_sql()) {
     body.length = end_ptr - m_parser_data.get_body_start_ptr();
     body.str = thd->strmake(m_parser_data.get_body_start_ptr(), body.length);
+    trim_whitespace(thd->charset(), &body);
   } else {
-    body.length = code.length;
-    body.str = thd->strmake(code.str, body.length);
+    // For external languages, we only support utf8mb4
+    thd->convert_string(&body, &my_charset_utf8mb4_general_ci, code.str,
+                        code.length, thd->charset());
   }
-  trim_whitespace(thd->charset(), &body);
   m_body = to_lex_cstring(body);
 
   /* Make the string of UTF-body. */
@@ -1816,11 +1819,11 @@ void sp_head::set_body_end(THD *thd) {
     lip->body_utf8_append(end_ptr);
     body_utf8.length = lip->get_body_utf8_length();
     body_utf8.str = thd->strmake(lip->get_body_utf8_str(), body_utf8.length);
+    trim_whitespace(thd->charset(), &body_utf8);
   } else {
     thd->convert_string(&body_utf8, &my_charset_utf8mb3_general_ci, body.str,
-                        body.length, thd->charset());
+                        body.length, &my_charset_utf8mb4_general_ci);
   }
-  trim_whitespace(thd->charset(), &body_utf8);
   m_body_utf8 = to_lex_cstring(body_utf8);
 }
 
@@ -1921,6 +1924,11 @@ sp_head::~sp_head() {
   }
 
   sp_head::destroy(m_next_cached_sp);
+
+  my_service<SERVICE_TYPE(external_program_execution)> service(
+      "external_program_execution", srv_registry);
+  if (service.is_valid()) service->deinit(this->m_language_stored_program);
+  this->m_language_stored_program = nullptr;
 }
 
 Field *sp_head::create_result_field(THD *thd, size_t field_max_length,
@@ -2506,6 +2514,28 @@ err_with_cleanup:
   return err_status;
 }
 
+bool sp_head::init_external_routine(
+    my_service<SERVICE_TYPE(external_program_execution)> &service) {
+  assert(!is_sql());
+
+  if (!service.is_valid()) {
+    my_error(ER_LANGUAGE_COMPONENT_NOT_AVAILABLE, MYF(0));
+    return true;
+  }
+
+  if (m_language_stored_program == nullptr) {
+    if (service->init(reinterpret_cast<stored_program_handle>(this),
+                      &m_language_stored_program)) {
+      my_error(ER_LANGUAGE_COMPONENT_UNSUPPORTED_LANGUAGE, MYF(0),
+               m_chistics->language.str);
+      m_language_stored_program = nullptr;
+      return true;
+    }
+    if (service->parse(m_language_stored_program)) return true;
+  }
+  return false;
+}
+
 bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
                                Field *return_value_fld) {
   ulonglong binlog_save_options = 0;
@@ -2662,11 +2692,16 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
 
   locker = MYSQL_START_SP(&psi_state, m_sp_share);
 #endif
-  if (is_sql()) {
-    err_status = execute(thd, true);
-  } else {
-    my_error(ER_SP_UNSUPPORTED_LANGUAGE, MYF(0), m_chistics->language.str);
-    err_status = true;
+  if (!err_status) {
+    if (is_sql()) {
+      err_status = execute(thd, true);
+    } else {
+      my_service<SERVICE_TYPE(external_program_execution)> service(
+          "external_program_execution", srv_registry);
+      if (!(err_status = init_external_routine(service))) {
+        err_status = service->execute(m_language_stored_program);
+      }
+    }
   }
 #ifdef HAVE_PSI_SP_INTERFACE
   MYSQL_END_SP(locker);
@@ -2874,8 +2909,11 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
     if (is_sql()) {
       err_status = execute(thd, true);
     } else {
-      my_error(ER_SP_UNSUPPORTED_LANGUAGE, MYF(0), m_chistics->language.str);
-      err_status = true;
+      my_service<SERVICE_TYPE(external_program_execution)> service(
+          "external_program_execution", srv_registry);
+      if (!(err_status = init_external_routine(service))) {
+        err_status = service->execute(m_language_stored_program);
+      }
     }
   }
 #ifdef HAVE_PSI_SP_INTERFACE
@@ -3183,7 +3221,8 @@ bool sp_head::show_routine_code(THD *thd) {
   if (check_show_access(thd, &full_access) || !full_access) return true;
 
   if (!is_sql()) {
-    my_error(ER_SP_UNSUPPORTED_LANGUAGE, MYF(0), m_chistics->language.str);
+    my_error(ER_LANGUAGE_COMPONENT_UNSUPPORTED_LANGUAGE, MYF(0),
+             m_chistics->language.str);
     return true;
   }
 

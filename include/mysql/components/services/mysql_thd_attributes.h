@@ -106,6 +106,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   one for Query Digest, the only difference is that attribute name "schema"
   should be used in this case.
 */
+
 BEGIN_SERVICE_DEFINITION(mysql_thd_attributes)
 
 /**
@@ -124,6 +125,10 @@ BEGIN_SERVICE_DEFINITION(mysql_thd_attributes)
   type)
   - Query Character Set ("query_charset" of the return mysql_cstring_with_length
   type)
+  - status variable ("thd_status" of the returned uint16 type). if session is
+    OK, session is killed, query is killed or timeout
+  - time-zone name variable ("time_zone_name" of the returned
+    mysql_cstring_with_length type)
 
   @param      thd           Session THD object.
   @param      name          Name of the attribute to be set.

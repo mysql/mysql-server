@@ -2136,7 +2136,6 @@ static bool mysql_component_infrastructure_init() {
 */
 static bool component_infrastructure_deinit() {
   persistent_dynamic_loader_deinit();
-  server_component_deinit();
   bool retval = false;
 
   srv_registry->release(reinterpret_cast<my_h_service>(

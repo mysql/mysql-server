@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_thd_attributes_imp.h"
 
 #include <mysql/components/minimal_chassis.h>
+#include <mysql/components/services/bits/mysql_thd_attributes_bits.h>
 #include <mysql/components/services/defs/event_tracking_common_defs.h>
 #include <mysql/components/services/mysql_string.h>
 #include <sql_string.h>
@@ -32,6 +33,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/sql_digest.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_rewrite.h"
+#include "sql/tztime.h"
 
 DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
                    (MYSQL_THD thd, const char *name, void *inout_pvalue)) {
@@ -41,7 +43,24 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
       if (t == nullptr) t = current_thd;
       if (t == nullptr) return true;
 
-      if (!strcmp(name, "query_digest")) {
+      if (!strcmp(name, "thd_status")) {
+        *((uint16_t *)inout_pvalue) = [](auto state) {
+          switch (state) {
+            case THD::killed_state::NOT_KILLED:
+              return STATUS_SESSION_OK;
+            case THD::killed_state::KILL_CONNECTION:
+              return STATUS_SESSION_KILLED;
+            case THD::killed_state::KILL_QUERY:
+              return STATUS_QUERY_KILLED;
+            case THD::killed_state::KILL_TIMEOUT:
+              return STATUS_QUERY_TIMEOUT;
+            case THD::killed_state::KILLED_NO_VALUE:
+              return STATUS_SESSION_OK;
+            default:
+              return STATUS_SESSION_OK;
+          }
+        }(t->is_killed());
+      } else if (!strcmp(name, "query_digest")) {
         if (t->m_digest == nullptr) return true;
 
         String *res = new String[1];
@@ -107,6 +126,9 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
         const char *command = get_server_command_string(t->get_command());
         *((mysql_cstring_with_length *)inout_pvalue) = {command,
                                                         strlen(command)};
+      } else if (!strcmp(name, "time_zone_name")) {
+        *reinterpret_cast<MYSQL_LEX_CSTRING *>(inout_pvalue) =
+            t->time_zone()->get_name()->lex_cstring();
       } else
         return true; /* invalid option */
     }

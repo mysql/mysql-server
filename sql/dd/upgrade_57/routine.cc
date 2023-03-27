@@ -433,6 +433,14 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table) {
     sp->m_body.length = strlen(body);
   }
 
+  // Earlier versions of dictionary does not contain information on
+  // language, since SQL was the only option.  Normally,
+  // sp_create_routine will be called after parsing where language has
+  // been initialized to SQL (default). Make sure to set here, too.
+  if (sp->m_chistics->language.length == 0) {
+    sp->m_chistics->language = {"SQL", 3};
+  }
+
   // Create entry for SP/SF in DD table.
   if (sp_create_routine(thd, sp, &user_info, false, dummy_is_sp_created))
     goto err;

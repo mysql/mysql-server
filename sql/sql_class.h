@@ -4697,6 +4697,7 @@ class THD : public MDL_context_owner,
  public:
   bool add_external(unsigned int slot, void *data);
   void *fetch_external(unsigned int slot);
+  void release_external_store();
 
  private:
   std::unordered_map<unsigned int, void *> external_store_;

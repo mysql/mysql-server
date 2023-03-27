@@ -178,6 +178,8 @@ class sp_rcontext {
     return m_var_items.array() + var_idx;
   }
 
+  Field *get_return_field() const { return m_return_value_fld; }
+
   bool set_return_value(THD *thd, Item **return_value_item);
 
   bool is_return_value_set() const { return m_return_value_set; }

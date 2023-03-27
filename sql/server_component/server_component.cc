@@ -81,6 +81,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_server_keyring_lockable_imp.h"
 #include "mysql_server_runnable_imp.h"
 #include "mysql_status_variable_reader_imp.h"
+#include "mysql_stored_program_imp.h"
 #include "mysql_string_service_imp.h"
 #include "mysql_system_variable_update_imp.h"
 #include "mysql_thd_attributes_imp.h"
@@ -97,6 +98,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/udf_registration_imp.h"
 #include "storage/perfschema/pfs_services.h"
 #include "system_variable_source_imp.h"
+#include "thread_cleanup_register_imp.h"
 #include "udf_metadata_imp.h"
 
 // Must come after sql/log.h.
@@ -619,6 +621,126 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, event_tracking_general_information)
 Event_tracking_general_information_imp::init,
     Event_tracking_general_information_imp::deinit,
     Event_tracking_general_information_imp::get END_SERVICE_IMPLEMENTATION();
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, thread_cleanup_register)
+thread_cleanup_register_imp::register_cleanup END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_stored_program_metadata_query)
+mysql_stored_program_metadata_query_imp::get END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_argument_metadata_query)
+mysql_stored_program_argument_metadata_query_imp::get,
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_return_metadata_query)
+mysql_stored_program_return_metadata_query_imp::get,
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_stored_program_field_name)
+mysql_stored_program_field_name_imp::get_name, END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_runtime_argument_year)
+mysql_stored_program_runtime_argument_year_imp::get,
+    mysql_stored_program_runtime_argument_year_imp::set
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_runtime_argument_time)
+mysql_stored_program_runtime_argument_time_imp::get,
+    mysql_stored_program_runtime_argument_time_imp::set
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_runtime_argument_date)
+mysql_stored_program_runtime_argument_date_imp::get,
+    mysql_stored_program_runtime_argument_date_imp::set
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_runtime_argument_datetime)
+mysql_stored_program_runtime_argument_datetime_imp::get,
+    mysql_stored_program_runtime_argument_datetime_imp::set
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_runtime_argument_timestamp)
+mysql_stored_program_runtime_argument_timestamp_imp::get,
+    mysql_stored_program_runtime_argument_timestamp_imp::set
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_runtime_argument_null)
+mysql_stored_program_runtime_argument_null_imp::set,
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_runtime_argument_string)
+mysql_stored_program_runtime_argument_string_imp::get,
+    mysql_stored_program_runtime_argument_string_imp::set
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_runtime_argument_int)
+mysql_stored_program_runtime_argument_int_imp::get,
+    mysql_stored_program_runtime_argument_int_imp::set,
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_runtime_argument_unsigned_int)
+mysql_stored_program_runtime_argument_unsigned_int_imp::get,
+    mysql_stored_program_runtime_argument_unsigned_int_imp::set,
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_runtime_argument_float)
+mysql_stored_program_runtime_argument_float_imp::get,
+    mysql_stored_program_runtime_argument_float_imp::set,
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_return_value_year)
+mysql_stored_program_return_value_year_imp::set END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_return_value_time)
+mysql_stored_program_return_value_time_imp::set END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_return_value_date)
+mysql_stored_program_return_value_date_imp::set END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_return_value_datetime)
+mysql_stored_program_return_value_datetime_imp::set
+END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_return_value_timestamp)
+mysql_stored_program_return_value_timestamp_imp::set
+END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_return_value_null)
+mysql_stored_program_return_value_null_imp::set, END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_return_value_string)
+mysql_stored_program_return_value_string_imp::set END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_return_value_int)
+mysql_stored_program_return_value_int_imp::set, END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_return_value_unsigned_int)
+mysql_stored_program_return_value_unsigned_int_imp::set,
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_stored_program_return_value_float)
+mysql_stored_program_return_value_float_imp::set, END_SERVICE_IMPLEMENTATION();
 
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
@@ -799,6 +921,37 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_command_field_metadata),
     PROVIDES_SERVICE(mysql_server, dynamic_loader_services_loaded_notification),
     PROVIDES_SERVICE(mysql_server, dynamic_loader_services_unload_notification),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_metadata_query),
+    PROVIDES_SERVICE(mysql_server,
+                     mysql_stored_program_argument_metadata_query),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_metadata_query),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_field_name),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_runtime_argument_year),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_runtime_argument_time),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_runtime_argument_date),
+    PROVIDES_SERVICE(mysql_server,
+                     mysql_stored_program_runtime_argument_datetime),
+    PROVIDES_SERVICE(mysql_server,
+                     mysql_stored_program_runtime_argument_timestamp),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_runtime_argument_null),
+    PROVIDES_SERVICE(mysql_server,
+                     mysql_stored_program_runtime_argument_string),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_runtime_argument_int),
+    PROVIDES_SERVICE(mysql_server,
+                     mysql_stored_program_runtime_argument_unsigned_int),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_runtime_argument_float),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_year),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_time),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_date),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_datetime),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_timestamp),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_null),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_string),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_int),
+    PROVIDES_SERVICE(mysql_server,
+                     mysql_stored_program_return_value_unsigned_int),
+    PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_float),
+    PROVIDES_SERVICE(mysql_server, thread_cleanup_register),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();

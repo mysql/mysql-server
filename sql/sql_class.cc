@@ -1402,10 +1402,6 @@ void THD::release_resources() {
   delete events_cache_;
   events_cache_ = nullptr;
 
-  /* See if any component stored data. If so, try to free it */
-  if (!external_store_.empty())
-    (void)free_thd_store_resource(this, external_store_);
-
   if (current_thd == this) restore_globals();
 
   mysql_mutex_lock(&LOCK_status);
@@ -3600,6 +3596,12 @@ bool THD::event_notify(struct st_mysql_event_generic *event_data) {
   };
 
   return retval;
+}
+
+void THD::release_external_store() {
+  /* See if any component stored data. If so, try to free it */
+  if (!external_store_.empty())
+    (void)free_thd_store_resource(this, external_store_);
 }
 
 /**

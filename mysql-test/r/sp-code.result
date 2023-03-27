@@ -1296,20 +1296,3 @@ Pos	Instruction
 18	hpop
 19	hpop
 DROP PROCEDURE p11_many_handlers;
-#
-# WL#15454: Dictionary support for external languages
-#
-# SHOW FUNCTION/PROCEDURE CODE is not supported for external languages
-CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVASCRIPT
-AS $$
-return x-1;
-$$
-//
-SHOW FUNCTION CODE foo//
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
-DROP FUNCTION foo//
-CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
-AS $$ let b = a; $$ //
-SHOW PROCEDURE CODE bar//
-ERROR HY000: Unsupported external language: 'JAVASCRIPT'.
-DROP procedure bar//

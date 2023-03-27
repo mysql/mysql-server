@@ -741,6 +741,8 @@ void end_connection(THD *thd) {
 
   plugin_thdvar_cleanup(thd, thd->m_enable_plugins);
 
+  thd->release_external_store();
+
   /*
     The thread may returned back to the pool and assigned to a user
     that doesn't have a limit. Ensure the user is not using resources

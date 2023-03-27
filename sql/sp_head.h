@@ -37,7 +37,9 @@
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/components/my_service.h"
 #include "mysql/components/services/bits/psi_statement_bits.h"
+#include "mysql/components/services/language_service.h"
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/create_field.h"
@@ -952,6 +954,26 @@ class sp_head {
 
   /// Flags of LEX::enum_binlog_stmt_unsafe.
   uint32 unsafe_flags;
+
+ public:
+  /**
+    language component related state of this sp.
+   */
+  external_program_handle m_language_stored_program;
+
+  /**
+     Initialize and parse an external routine
+
+     If @ref m_language_stored_program is already set,
+     nothing will be done.
+
+     @param service The_program_execution service that will
+                    be used to execute this function
+
+     @returns false on success; true on failure
+  */
+  bool init_external_routine(
+      my_service<SERVICE_TYPE(external_program_execution)> &service);
 
  private:
   /// Copy sp name from parser.

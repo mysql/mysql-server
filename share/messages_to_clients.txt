@@ -9953,8 +9953,17 @@ ER_INSTALL_COMPONENT_SET_UNUSED_VALUE
 ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS
   eng "'%s' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead."
 
-ER_SP_UNSUPPORTED_LANGUAGE
-  eng "Unsupported external language: '%s'."
+ER_LANGUAGE_COMPONENT
+  eng "%s"
+
+ER_LANGUAGE_COMPONENT_NOT_AVAILABLE
+  eng "No Language component available"
+
+ER_LANGUAGE_COMPONENT_UNSUPPORTED_LANGUAGE
+  eng "Unsupported external language: %s"
+
+ER_LANGUAGE_COMPONENT_CANNOT_UNINSTALL
+  eng "Cannot uninstall Multilingual Engine - there are sessions still connected. Please disconnect all sessions and try again."
 
 ER_SP_NO_ALTER_LANGUAGE
   eng "Altering the language of an existing routine is not possible."

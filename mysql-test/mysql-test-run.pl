@@ -78,6 +78,7 @@ require "lib/mtr_process.pl";
 
 our $secondary_engine_support = eval 'use mtr_secondary_engine; 1';
 our $primary_engine_support = eval 'use mtr_external_engine; 1';
+our $external_language_support = eval 'use mtr_external_language; 1';
 
 # Global variable to keep track of completed test cases
 my $completed = [];
@@ -1862,6 +1863,10 @@ sub command_line_setup {
   } else {
     # Run the mysqld to find out what features are available
     collect_mysqld_features();
+  }
+
+  if($external_language_support){
+    find_external_language_home($bindir);
   }
 
   # Look for language files and charsetsdir, use same share

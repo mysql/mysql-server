@@ -12114,6 +12114,15 @@ ER_CHECK_TABLE_MIN_REC_FLAG_SET
 ER_CHECK_TABLE_MIN_REC_FLAG_NOT_SET
    eng "Minimum record flag is not set to first rec on page '%lu' at level '%lu' for index '%s' of table '%s'."
 
+ER_LANGUAGE_COMPONENT_INFO
+  eng "%s"
+
+ER_LANGUAGE_COMPONENT_WARNING
+  eng "%s"
+
+ER_LANGUAGE_COMPONENT_ERROR
+  eng "%s"
+
 ER_NOTE_COMPONENT_SLOT_REGISTRATION_SUCCESS
   eng "Successfully registered slot '%d' for component '%s'."
 

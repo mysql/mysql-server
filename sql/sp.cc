@@ -879,8 +879,6 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer,
   if (DBUG_EVALUATE_IF("simulate_create_routine_failure", true, false) ||
       trans_commit_stmt(thd) || trans_commit(thd))
     goto err_report_with_rollback;
-
-  // Invalidate stored routine cache.
   sp_cache_invalidate();
 
   return false;
@@ -1157,7 +1155,6 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
   if (DBUG_EVALUATE_IF("simulate_alter_routine_xcommit_failure", true, false) ||
       trans_commit_stmt(thd) || trans_commit(thd))
     goto err_report_with_rollback;
-
   sp_cache_invalidate();
 
   return false;
@@ -2036,6 +2033,17 @@ enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type,
       /* Query might have been killed, don't set error. */
       if (thd->killed) break;
       /*
+         If the language component used for parsing the routine doesn't exist
+         or doesn't support the routine code anymore then don't set error.
+      */
+      if (thd->is_error() &&
+          (thd->get_stmt_da()->mysql_errno() == ER_LANGUAGE_COMPONENT ||
+           thd->get_stmt_da()->mysql_errno() ==
+               ER_LANGUAGE_COMPONENT_NOT_AVAILABLE ||
+           thd->get_stmt_da()->mysql_errno() ==
+               ER_LANGUAGE_COMPONENT_UNSUPPORTED_LANGUAGE))
+        break;
+      /*
         Any error when loading an existing routine is either some problem
         with the DD table, or a parse error because the contents
         has been tampered with (in which case we clear that error).
@@ -2200,11 +2208,9 @@ static bool create_string(
   if (dollar_quote_len > 0) {  // For external languages, add delimiters
     buf->append("AS ");
     buf->append(dollar_quote, dollar_quote_len);
-    buf->append('\n');
   }
   buf->append(body, bodylen);
   if (dollar_quote_len > 0) {
-    buf->append('\n');
     buf->append(dollar_quote, dollar_quote_len);
   }
   thd->variables.sql_mode = old_sql_mode;

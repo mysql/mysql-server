@@ -979,28 +979,3 @@ DELIMITER ;|
 
 SHOW PROCEDURE CODE p11_many_handlers;
 DROP PROCEDURE p11_many_handlers;
-
---echo #
---echo # WL#15454: Dictionary support for external languages
---echo #
-
---echo # SHOW FUNCTION/PROCEDURE CODE is not supported for external languages
-DELIMITER //;
-
-CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVASCRIPT
-AS $$
-  return x-1;
-$$
-//
---error ER_SP_UNSUPPORTED_LANGUAGE
-SHOW FUNCTION CODE foo//
-DROP FUNCTION foo//
-
-CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
-AS $$ let b = a; $$ //
---error ER_SP_UNSUPPORTED_LANGUAGE
-SHOW PROCEDURE CODE bar//
-DROP procedure bar//
-
-DELIMITER ;//
-
