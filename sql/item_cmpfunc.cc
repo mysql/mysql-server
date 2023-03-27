@@ -2038,6 +2038,7 @@ static bool compare_pair_for_nulls(Item *a, Item *b, bool *result) {
     *result = a_null == b_null;
     return true;
   }
+  *result = false;
   return false;
 }
 
