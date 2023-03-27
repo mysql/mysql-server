@@ -6588,9 +6588,16 @@ bool dd_drop_fts_table(const char *name, bool file_per_table) {
 
   if (file_per_table) {
     dd::Object_id dd_space_id = (*dd_table->indexes().begin())->tablespace_id();
-    bool error;
-    error = dd_drop_tablespace(client, dd_space_id);
-    ut_a(!error);
+    /*
+     * In databases upgraded from MySQL versions 5.6.5 to 5.6.19,
+     * FTS tables may be located in system tablespace even if parent
+     * table is file-per-table. In this case we obviously don't want to
+     * drop the tablespace.
+     */
+    if (dd_space_id != dict_sys_t::s_dd_sys_space_id) {
+      bool error = dd_drop_tablespace(client, dd_space_id);
+      ut_a(!error);
+    }
   }
 
   if (client->drop(dd_table)) {
