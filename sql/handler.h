@@ -6958,6 +6958,19 @@ class handler {
     return mv_key_capacity(num_keys, keys_length);
   }
 
+  /**
+    Propagates the secondary storage engine offload failure reason for a query
+    to the external engine when the offloaded query fails in the secondary
+    storage engine.
+  */
+  virtual void set_external_table_offload_error(const char * /*reason*/) {}
+
+  /**
+    Identifies and throws the propagated external engine query offload or exec
+    failure reason given by the external engine handler.
+  */
+  virtual void external_table_offload_error() const {}
+
  private:
   /**
     Engine-specific function for ha_can_store_mv_keys().
