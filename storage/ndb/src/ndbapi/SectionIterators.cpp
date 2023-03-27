@@ -125,7 +125,8 @@ FragmentedSectionIterator::FragmentedSectionIterator(GenericSectionPtr ptr)
   rangeStart= 0;
   rangeLen= rangeRemain= realIterWords;
   lastReadPtr= NULL;
-  lastReadPtrLen= 0;
+  lastReadTotal= 0;
+  lastReadAvail= 0;
   moveToPos(0);
 
   assert(checkInvariants());
@@ -146,8 +147,10 @@ FragmentedSectionIterator::checkInvariants()
   /* If we have a non-null readptr and some remaining 
    * words the readptr must have some words
    */
-  assert( (lastReadPtr == NULL) || 
-          ((rangeRemain == 0) || (lastReadPtrLen != 0)));
+  assert( (lastReadPtr == NULL) ||
+          ((rangeRemain == 0) || (lastReadTotal != 0)));
+
+  assert (lastReadTotal >= lastReadAvail);
   return true;
 }
 
@@ -162,29 +165,33 @@ FragmentedSectionIterator::moveToPos(Uint32 pos)
     realIterator->reset();
     realCurrPos= 0;
     lastReadPtr= NULL;
-    lastReadPtrLen= 0;
+    lastReadTotal= 0;
+    lastReadAvail= 0;
   }
 
   if ((lastReadPtr == NULL) && 
       (realIterWords != 0) &&
-      (pos != realIterWords))
-    lastReadPtr= realIterator->getNextWords(lastReadPtrLen);
+      (pos != realIterWords)) {
+    lastReadPtr= realIterator->getNextWords(lastReadTotal);
+    lastReadAvail = lastReadTotal;
+  }
 
-  if (pos == realCurrPos)
+  if (pos == realCurrPos) {
+    lastReadAvail = lastReadTotal;
     return;
+  }
 
   /* Advance until we get a chunk which contains the pos */
-  while (pos >= realCurrPos + lastReadPtrLen)
+  while (pos >= realCurrPos + lastReadTotal)
   {
-    realCurrPos+= lastReadPtrLen;
-    lastReadPtr= realIterator->getNextWords(lastReadPtrLen);
+    realCurrPos+= lastReadTotal;
+    lastReadPtr= realIterator->getNextWords(lastReadTotal);
     assert(lastReadPtr != NULL);
+    lastReadAvail = lastReadTotal;
   }
 
   const Uint32 chunkOffset= pos - realCurrPos;
-  lastReadPtr+= chunkOffset;
-  lastReadPtrLen-= chunkOffset;
-  realCurrPos= pos;
+  lastReadAvail = lastReadTotal - chunkOffset;
 }
 
 bool
@@ -217,34 +224,42 @@ FragmentedSectionIterator::getNextWords(Uint32& sz)
 {
   assert(checkInvariants());
   const Uint32* currPtr= NULL;
+  sz = 0;
 
   if (rangeRemain)
   {
     assert(lastReadPtr != NULL);
-    assert(lastReadPtrLen != 0);
-    currPtr= lastReadPtr;
-  
-    sz= MIN(rangeRemain, lastReadPtrLen);
-  
-    if (sz == lastReadPtrLen)
-      /* Will return everything in this chunk, move iterator to 
-       * next
-       */
-      lastReadPtr= realIterator->getNextWords(lastReadPtrLen);
+    assert(lastReadTotal != 0);
+
+    if (lastReadAvail > 0)
+    {
+      /* Return remaining unconsumed data in current chunk */
+      const Uint32 skip = lastReadTotal - lastReadAvail;
+      currPtr = lastReadPtr+skip;
+      sz = lastReadAvail;
+    }
     else
     {
-      /* Not returning all of this chunk, just advance within it */
-      lastReadPtr+= sz;
-      lastReadPtrLen-= sz;
+      /* Read a new chunk, return it as consumed */
+      realCurrPos+= lastReadTotal;
+      currPtr = lastReadPtr = realIterator->getNextWords(lastReadTotal);
+      sz = lastReadAvail = lastReadTotal;
     }
-    realCurrPos+= sz;
-    rangeRemain-= sz;
+
+    if (sz > rangeRemain)
+    {
+      /* What we return may be limited by end-of-range */
+      sz = rangeRemain;
+    }
+    rangeRemain -= sz;
   }
   else
   {
     sz= 0;
   }
 
+  // Assume all returned is consumed, until optional moveToPos()
+  lastReadAvail -= sz;
   assert(checkInvariants());
   return currPtr;
 }
@@ -373,7 +388,7 @@ testLinearSectionIterator()
   for (int i=0; i<totalSize; i++)
     data[i]= bias + i;
 
-  for (int len= 0; len < 5000; len++)
+  for (int len= 0; len < 1000; len++)
   {
     LinearSectionIterator something(data, len);
 

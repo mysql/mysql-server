@@ -95,13 +95,16 @@ class FragmentedSectionIterator: public GenericSectionIterator
 private :
   GenericSectionIterator* realIterator; /* Real underlying iterator */
   Uint32 realIterWords;                 /* Total size of underlying */
-  Uint32 realCurrPos;                   /* Current pos in underlying */
+  Uint32 realCurrPos;                   /* Offset of start of last chunk
+                                         * obtained from underlying */
   Uint32 rangeStart;                    /* Sub range start in underlying */
   Uint32 rangeLen;                      /* Sub range len in underlying */
-  Uint32 rangeRemain;                   /* Remaining words in underlying */
+  Uint32 rangeRemain;                   /* Remaining unconsumed words in subrange */
   const Uint32* lastReadPtr;            /* Ptr to last chunk obtained from
                                          * underlying */
-  Uint32 lastReadPtrLen;                /* Remaining words in last chunk
+  Uint32 lastReadTotal;                 /* Total read words in last chunk, starting from
+                                         * lastReadPtr */
+  Uint32 lastReadAvail;                 /* Remaining words (unconsumed) in last chunk
                                          * obtained from underlying */
  public:
   /* Constructor
@@ -125,6 +128,8 @@ private:
    * If the iterator is already in-position then this is efficient
    * Otherwise, it has to reset() the underling iterator and
    * advance it until the start position is reached.
+   * Note that opposed to getNextWords(), moveToPos do not 'consume'
+   * what is read from the underlying iterator.
    */
     void moveToPos(Uint32 pos);
 
