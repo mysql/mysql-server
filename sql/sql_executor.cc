@@ -4323,8 +4323,13 @@ static Item_rollup_group_item *find_rollup_item_in_group_list(
   for (ORDER *group = query_block->group_list.first; group;
        group = group->next) {
     Item_rollup_group_item *rollup_item = group->rollup_item;
-    if (item->eq(rollup_item, /*binary_cmp=*/false)) {
-      return rollup_item;
+    // If we have duplicate fields in group by
+    // (E.g. GROUP BY f1,f1,f2), rollup_item is set only for
+    // the first field.
+    if (rollup_item != nullptr) {
+      if (item->eq(rollup_item, /*binary_cmp=*/false)) {
+        return rollup_item;
+      }
     }
   }
   return nullptr;
