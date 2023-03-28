@@ -1,0 +1,49 @@
+#
+# Bug#110494 "Deadlock between FLUSH STATUS, COM_CHANGE_USER
+# and SELECT FROM I_S.PROCESSLIST".
+#
+# The original problem reported was that concurrent execution of
+# COM_STATISTICS, COM_CHANGE_USER commands and SHOW FULL PROCESSLIST
+# statements sometimes led to deadlock. This test uses FLUSH STATUS
+# statement instead of the first command and SELECT ... FROM
+# I_S.PROCESSLIST instead of the latter. They acquire the same
+# locks and were affected by the same problem.
+# Doing 3000 concurrent runs of each statement was enough to reproduce
+# the deadlock with 80% probability on my machine.
+# Hence, the test doesn't reproduce the issue consistently. It is observed
+# that the test fails when run with mtr option --repeat=10 or more.
+# Also, it is hard to write a MTR test using DEBUG_SYNC, because
+# MTR doesn't allow us to run --change_user in background.
+CREATE PROCEDURE p_flush_status()
+BEGIN
+DECLARE x INT DEFAULT 3000;
+WHILE x DO
+SET x = x-1;
+FLUSH STATUS;
+END WHILE;
+END |
+CREATE PROCEDURE p_processlist()
+BEGIN
+DECLARE x INT DEFAULT 3000;
+WHILE x DO
+SET x = x-1;
+SELECT COUNT(*) INTO @a FROM information_schema.processlist;
+END WHILE;
+END |
+connect  con1, localhost, root,,;
+# Send:
+CALL p_flush_status();
+# Send:
+connect  con2, localhost, root,,;
+CALL p_processlist();
+connection default;
+# Execute COM_CHANGE_USER command 3000 times.
+connection con1;
+# Reap p_flush_status().
+disconnect con1;
+connection con2;
+# Reap p_processlist().
+disconnect con2;
+connection default;
+DROP PROCEDURE p_flush_status;
+DROP PROCEDURE p_processlist;
