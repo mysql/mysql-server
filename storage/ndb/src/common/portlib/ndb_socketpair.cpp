@@ -41,10 +41,6 @@
 
 int ndb_socketpair(ndb_socket_t s[2])
 {
-  ndb_socket_t listener = ndb_socket_create_dual_stack(SOCK_STREAM, 0);
-  if (!ndb_socket_valid(listener))
-    return -1;
-
   ndb_sockaddr addr;
   if (addr.get_address_family() == AF_INET6)
   {
@@ -57,6 +53,10 @@ int ndb_socketpair(ndb_socket_t s[2])
     addr = ndb_sockaddr(&in4, 0);
   }
 
+  ndb_socket_t listener = ndb_socket_create(addr.get_address_family());
+  if (!ndb_socket_valid(listener))
+    return -1;
+
   /* bind any local address */
   if (ndb_bind(listener, &addr) == -1)
     goto err;
@@ -68,8 +68,7 @@ int ndb_socketpair(ndb_socket_t s[2])
   if (ndb_listen(listener, 1) == -1)
     goto err;
 
-  s[0] = ndb_socket_create_dual_stack(SOCK_STREAM, 0);
-
+  s[0] = ndb_socket_create(addr.get_address_family());
   if (!ndb_socket_valid(s[0]))
     goto err;
 

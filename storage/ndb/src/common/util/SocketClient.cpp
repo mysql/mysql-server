@@ -54,13 +54,13 @@ SocketClient::~SocketClient()
 }
 
 bool
-SocketClient::init()
+SocketClient::init(int af)
 {
   assert(!ndb_socket_valid(m_sockfd));
   if (ndb_socket_valid(m_sockfd))
     ndb_socket_close(m_sockfd);
 
-  m_sockfd= ndb_socket_create_dual_stack(SOCK_STREAM, 0);
+  m_sockfd= ndb_socket_create(af);
   if (!ndb_socket_valid(m_sockfd)) {
     return false;
   }
@@ -142,6 +142,11 @@ SocketClient::connect(NdbSocket & secureSocket,
     ndb_socket_close(m_sockfd);
     ndb_socket_invalidate(&m_sockfd);
     return;
+  }
+
+  if (server_addr.need_dual_stack())
+  {
+    [[maybe_unused]] bool ok = ndb_socket_dual_stack(m_sockfd, 1);
   }
 
   // Start non blocking connect

@@ -39,7 +39,7 @@ class SocketClient
 public:
   SocketClient(SocketAuthenticator *sa = nullptr);
   ~SocketClient();
-  bool init();
+  bool init(int af);
   void set_connect_timeout(unsigned int timeout_millisec) {
     m_connect_timeout_millisec = timeout_millisec;
   }

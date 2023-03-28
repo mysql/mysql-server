@@ -3777,7 +3777,7 @@ bool TransporterRegistry::report_dynamic_ports(NdbMgmHandle h) const
  */
 ndb_socket_t TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 {
-  ndb_socket_t sockfd = ndb_socket_create();
+  ndb_socket_t sockfd;
 
   DBUG_ENTER("TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle)");
 
@@ -3817,7 +3817,7 @@ TransporterRegistry::connect_ndb_mgmd(const char* server_name,
                                       unsigned short server_port)
 {
   NdbMgmHandle h= ndb_mgm_create_handle();
-  ndb_socket_t s= ndb_socket_create();
+  ndb_socket_t s;
 
   DBUG_ENTER("TransporterRegistry::connect_ndb_mgmd(SocketClient)");
 

@@ -327,7 +327,7 @@ NdbSocket & Client::connect_plain() {
     return m_plain_socket;
   }
   server_addr.set_port(opt_port);
-  if (!init()) return m_plain_socket;
+  if (!init(server_addr.get_address_family())) return m_plain_socket;
   connect(m_plain_socket, server_addr);
   ndb_setsockopt(m_plain_socket.ndb_socket(), IPPROTO_TCP, TCP_NODELAY,
                  & opt_tcp_no_delay);
@@ -343,7 +343,7 @@ NdbSocket & Client::connect_tls() {
     return m_tls_socket;
   }
   server_addr.set_port(opt_port + 1);
-  if (!init()) return m_tls_socket;
+  if (!init(server_addr.get_address_family())) return m_tls_socket;
   connect(m_tls_socket, server_addr);
 
   if(! m_tls_socket.is_valid())

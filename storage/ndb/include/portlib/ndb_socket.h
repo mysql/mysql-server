@@ -27,23 +27,15 @@
 
 #include "portlib/ndb_sockaddr.h"
 
-#ifdef _WIN32
-#include <winsock2.h>
-using socket_t = SOCKET;
-#else
-using socket_t = int;
-#endif
-
-struct ndb_socket_t {
-  socket_t s;
-};
-
 /* Include platform-specific inline functions */
 #ifdef _WIN32
 #include "ndb_socket_win32.h"
 #else
 #include "ndb_socket_posix.h"
 #endif
+
+// Default constructed ndb_socket_t is always invalid
+static_assert(ndb_socket_t{}.s == INVALID_SOCKET);
 
 /* Functions for creating and initializing ndb_socket_t */
 
@@ -62,9 +54,9 @@ ndb_socket_t ndb_socket_create_from_native(socket_t native_socket)
 }
 
 static inline
-ndb_socket_t ndb_socket_create()
+ndb_socket_t ndb_socket_create(int af)
 {
-  return ndb_socket_create_from_native(INVALID_SOCKET);
+  return ndb_socket_t{socket(af, SOCK_STREAM, IPPROTO_TCP)};
 }
 
 static inline socket_t
@@ -116,25 +108,12 @@ int ndb_socket_reuseaddr(ndb_socket_t s, int enable)
   return ndb_setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on);
 }
 
-/* Create an IPv6 socket as used by NDB for network communications,
-   allowing mapped IPv4 addresses (socket option IPV6_V6ONLY is false).
-*/
+// Returns 0 on success, -1 on error
 static inline
-ndb_socket_t ndb_socket_create_dual_stack(int type, int protocol)
+int ndb_socket_dual_stack(ndb_socket_t s, int enable)
 {
-  ndb_socket_t s = ndb_socket_create();
-  ndb_socket_init_from_native(s, socket(AF_INET6, type, protocol));
-
-  if(! ndb_socket_valid(s))
-    return s;
-
-  int on = 0;
-  if (ndb_setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &on))
-  {
-    ndb_socket_close(s);
-    ndb_socket_invalidate(&s);
-  }
-  return s;
+  int on = !enable;
+  return ndb_setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &on);
 }
 
 /* Returns 0 on success, -1 on error

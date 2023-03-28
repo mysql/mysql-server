@@ -311,7 +311,7 @@ Transporter::connect_client()
       DBUG_RETURN(false);
     }
     remote_addr.set_port(port);
-    if (!m_socket_client->init())
+    if (!m_socket_client->init(remote_addr.get_address_family()))
     {
       DEBUG_FPRINTF((stderr, "m_socket_client->init failed, node: %u\n",
                              getRemoteNodeId()));

@@ -68,10 +68,15 @@ SocketServer::~SocketServer() {
 
 bool SocketServer::tryBind(ndb_sockaddr servaddr,
                            char* error, size_t error_size) {
-  const ndb_socket_t sock =
-      ndb_socket_create_dual_stack(SOCK_STREAM, 0);
+  const ndb_socket_t sock = ndb_socket_create(servaddr.get_address_family());
+
   if (!ndb_socket_valid(sock))
     return false;
+
+  if (servaddr.need_dual_stack())
+  {
+    [[maybe_unused]] bool ok = ndb_socket_dual_stack(sock, 1);
+  }
 
   DBUG_PRINT("info",("NDB_SOCKET: %s", ndb_socket_to_string(sock).c_str()));
 
@@ -101,13 +106,18 @@ SocketServer::setup(SocketServer::Service * service, ndb_sockaddr* servaddr)
 {
   DBUG_ENTER("SocketServer::setup");
 
-  const ndb_socket_t sock =
-      ndb_socket_create_dual_stack(SOCK_STREAM, 0);
+  const ndb_socket_t sock = ndb_socket_create(servaddr->get_address_family());
+
   if (!ndb_socket_valid(sock))
   {
     DBUG_PRINT("error",("socket() - %d - %s",
       socket_errno, strerror(socket_errno)));
     DBUG_RETURN(false);
+  }
+
+  if (servaddr->need_dual_stack())
+  {
+    [[maybe_unused]] bool ok = ndb_socket_dual_stack(sock, 1);
   }
 
   DBUG_PRINT("info",("NDB_SOCKET: %s", ndb_socket_to_string(sock).c_str()));

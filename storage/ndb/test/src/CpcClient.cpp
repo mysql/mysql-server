@@ -462,9 +462,13 @@ int SimpleCpcClient::open_connection() {
   sa.set_port(port);
 
   /* Create socket */
-  cpc_sock = ndb_socket_create_dual_stack(SOCK_STREAM, IPPROTO_TCP);
+  cpc_sock = ndb_socket_create(sa.get_address_family());
   if (!ndb_socket_valid(cpc_sock)) return -1;
 
+  if (sa.need_dual_stack())
+  {
+    [[maybe_unused]] bool ok = ndb_socket_dual_stack(cpc_sock, 1);
+  }
   return ndb_connect(cpc_sock, &sa);
 }
 

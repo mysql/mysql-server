@@ -25,6 +25,7 @@
 /* Link with winsock library */
 #pragma comment(lib, "ws2_32")
 
+#include <Winsock2.h> // INVALID_SOCKET
 #include <ws2tcpip.h>
 
 #include <string>
@@ -36,6 +37,12 @@
 using posix_poll_fd = WSAPOLLFD;
 
 using socklen_t = int;
+
+using socket_t = SOCKET;
+
+struct ndb_socket_t {
+  socket_t s = INVALID_SOCKET;
+};
 
 static inline
 int ndb_setsockopt(ndb_socket_t, int, int, const int *);
