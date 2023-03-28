@@ -271,6 +271,7 @@ const char *load_default_groups[] = {
     "mysqlpump", nullptr};
 
 int main(int argc, char **argv) {
+  CLIENT_WARN_DEPRECATED("mysqlpump", "mysqldump");
   Program program;
   program.run(argc, argv);
   return 0;
