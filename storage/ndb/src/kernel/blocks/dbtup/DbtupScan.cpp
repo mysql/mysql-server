@@ -554,8 +554,8 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
                           (Uint32*)tablePtr.p,
                           pos.m_realpid_mm,
                           key_mm.m_page_idx,
-			  pkData,
-                          true);
+                          pkData,
+                          /*hash=*/true);
       ndbrequire(ret > 0);
       pkSize = ret;
       dbg((DBTUP, "PK size=%d data=%08x", pkSize, pkData[0]));
