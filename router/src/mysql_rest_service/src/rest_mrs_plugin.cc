@@ -40,6 +40,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 #include "mysqlrouter/mysql_rest_service_export.h"
+#include "mysqlrouter/server_compatibility.h"
 
 #include <helper/plugin_monitor.h>
 #include "collector/mysql_cache_manager.h"

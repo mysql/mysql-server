@@ -3352,7 +3352,10 @@ sub environment_setup {
   my $exe_mysqlrouter_keyring = mtr_exe_exists("$path_client_bindir/mysqlrouter_keyring");
   $ENV{'MYSQLROUTER_KEYRING'} = native_path($exe_mysqlrouter_keyring);
 
-
+  # Setup env so childs can execute router_mrs_client
+  my $exe_router_mrs_client = mtr_exe_exists("$path_client_bindir/router_mrs_client");
+  $ENV{'MRS_CLIENT'} = native_path($exe_router_mrs_client);
+  
   # my_print_defaults
   my $exe_my_print_defaults =
     mtr_exe_exists("$path_client_bindir/my_print_defaults");

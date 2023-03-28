@@ -42,6 +42,7 @@ SET(lib_source_files
   default_paths.cc
   common/log_filter.cc
   common/mysql_session.cc
+  common/server_compatibility.cc
   common/utils_sqlstring.cc
   )
 

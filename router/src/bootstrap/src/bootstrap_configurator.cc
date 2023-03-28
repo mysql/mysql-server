@@ -40,6 +40,7 @@
 #include "mysql/harness/logging/registry.h"
 #include "mysqld_error.h"
 #include "mysqlrouter/default_paths.h"
+#include "mysqlrouter/server_compatibility.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
 #include "print_version.h"
@@ -521,28 +522,6 @@ void BootstrapConfigurator::store_mrs_data_in_keyring() {
     throw std::runtime_error(
         std::string("Error storing encrypted password to disk: ") + e.what());
   }
-}
-
-void check_version_compatibility(mysqlrouter::MySQLSession *session) {
-  auto row = session->query_one(
-      "SELECT substring_index(@@version, '.', 1), concat(@@version_comment, "
-      "@@version)");
-  bool ok = true;
-  if (std::atoi((*row)[0]) < 8 || strncmp((*row)[1], "MySQL", 5) != 0) {
-    std::cout << "Unsupported MySQL server version: " << (*row)[1] << "\n";
-    ok = false;
-  }
-
-  row = session->query_one("SELECT @@basedir");
-  if (strstr((*row)[0], "rds")) {
-    ok = false;
-  }
-  try {
-    session->query_one("SELECT aurora_version()");
-    ok = false;
-  } catch (...) {
-  }
-  if (!ok) throw std::runtime_error("Target DB System is not fully supported");
 }
 
 void BootstrapConfigurator::check_mrs_metadata(

@@ -42,7 +42,7 @@ using mrs_client::Result;
 using mrs_client::Url;
 using Display = http_client::ApplicationDisplay;
 
-const int kHelpScreenWidth = 130;
+const int kHelpScreenWidth = 1024;
 const int kHelpScreenIdent = 4;
 std::string g_executable;
 CmdArgHandler g_cmd_handler{};
