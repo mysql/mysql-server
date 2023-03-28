@@ -269,4 +269,7 @@ EOF
 
 --enable_query_log
 
+SET @use_secondary_engine_saved = @@use_secondary_engine;
+SET @@use_secondary_engine = OFF;
 CALL mtr.check_testcase();
+SET @@use_secondary_engine = @use_secondary_engine_saved;

@@ -52,7 +52,11 @@ SET SESSION AUTOCOMMIT = 1;
 --source include/load_error_log.inc
 
 # Call check_warnings to filter out any warning in the error_log table.
+SET @use_secondary_engine_saved = @@use_secondary_engine;
+SET @@use_secondary_engine = OFF;
 CALL mtr.check_warnings(@result);
+SET @@use_secondary_engine = @use_secondary_engine_saved;
+
 --enable_query_log
 
 if (`SELECT @result = 0`) {

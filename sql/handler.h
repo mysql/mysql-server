@@ -2449,12 +2449,24 @@ using secondary_engine_modify_access_path_cost_t = bool (*)(
 
   @param thd thread context.
 
-  @retval const char * as the offload failure reason.
+  @retval std::string_view as the offload failure reason.
           The memory pointed to is managed by the handlerton and may be freed
           when the statement completes.
 */
 using get_secondary_engine_offload_or_exec_fail_reason_t =
-    const char *(*)(THD *thd);
+    std::string_view (*)(const THD *thd);
+
+/**
+  Finds and returns a specific secondary engine query offload failure reason
+  as a string given a thread context (representing the query) whenever
+  get_secondary_engine_offload_or_exec_fail_reason_t returns an empty reason.
+
+  @param thd thread context.
+
+  @retval std::string_view as the offload failure reason.
+*/
+using find_secondary_engine_offload_fail_reason_t =
+    std::string_view (*)(THD *thd);
 
 /**
   Sets a specific secondary engine offload failure reason for a query
@@ -2463,10 +2475,13 @@ using get_secondary_engine_offload_or_exec_fail_reason_t =
 
   @param thd thread context.
 
-  @param reason as the offload failure reason.
+  @param reason offload failure reason.
+
+  @retval bool to indicate if the setting succeeded or failed
 */
-using set_secondary_engine_offload_fail_reason_t = void (*)(THD *thd,
-                                                            const char *reason);
+using set_secondary_engine_offload_fail_reason_t =
+    bool (*)(const THD *thd, std::string_view reason);
+
 enum class SecondaryEngineGraphSimplificationRequest {
   /** Continue optimization phase with current hypergraph. */
   kContinue = 0,
@@ -2914,6 +2929,15 @@ struct handlerton {
   /// signature.
   get_secondary_engine_offload_or_exec_fail_reason_t
       get_secondary_engine_offload_or_exec_fail_reason;
+
+  /// Pointer to a function that finds and returns the query offload failure
+  /// reason as a string given a thread context (representing the query) when
+  /// get_secondary_engine_offload_or_exec_fail_reason returns an empty reason.
+  ///
+  /// @see find_secondary_engine_offload_fail_reason_t for function
+  /// signature.
+  find_secondary_engine_offload_fail_reason_t
+      find_secondary_engine_offload_fail_reason;
 
   /// Pointer to a function that sets the offload failure reason as a string
   /// for a thread context (representing the query) when the offloaded query

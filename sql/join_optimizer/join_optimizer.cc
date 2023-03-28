@@ -36,6 +36,7 @@
 #include <initializer_list>
 #include <limits>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -7365,12 +7366,13 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
   }
   if (root_candidates.empty()) {
     assert(secondary_engine_cost_hook != nullptr);
-    const char *reason = get_secondary_engine_fail_reason(thd->lex);
-    if (reason != nullptr) {
-      my_error(ER_SECONDARY_ENGINE, MYF(0), reason);
+    std::string_view reason = get_secondary_engine_fail_reason(thd->lex);
+    if (!reason.empty()) {
+      my_error(ER_SECONDARY_ENGINE, MYF(0), std::data(reason));
     } else {
-      my_error(ER_SECONDARY_ENGINE, MYF(0),
-               "All plans were rejected by the secondary storage engine");
+      std::string_view err_msg = find_secondary_engine_fail_reason(thd->lex);
+      assert(!err_msg.empty());
+      set_fail_reason_and_raise_error(thd->lex, err_msg);
     }
     return nullptr;
   }
@@ -7750,12 +7752,13 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
     // The secondary engine has rejected so many of the post-processing paths
     // (e.g., sorting, limit, grouping) that we could not build a complete plan,
     // or the hook has rejected the plan as not offloadable.
-    const char *reason = get_secondary_engine_fail_reason(thd->lex);
-    if (reason != nullptr) {
-      my_error(ER_SECONDARY_ENGINE, MYF(0), reason);
+    std::string_view reason = get_secondary_engine_fail_reason(thd->lex);
+    if (!reason.empty()) {
+      my_error(ER_SECONDARY_ENGINE, MYF(0), std::data(reason));
     } else {
-      my_error(ER_SECONDARY_ENGINE, MYF(0),
-               "All plans were rejected by the secondary storage engine");
+      std::string_view err_msg = find_secondary_engine_fail_reason(thd->lex);
+      assert(!err_msg.empty());
+      set_fail_reason_and_raise_error(thd->lex, err_msg);
     }
     return nullptr;
   }

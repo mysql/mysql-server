@@ -42,9 +42,10 @@
 #include <initializer_list>
 #include <memory>
 #include <string>
-
+#include <string_view>
 #include "field_types.h"
 #include "lex_string.h"
+#include "m_string.h"        // native_strncasecmp(), native_strcasecmp()
 #include "mem_root_deque.h"  // mem_root_deque
 #include "my_alloc.h"
 #include "my_bitmap.h"
@@ -129,6 +130,7 @@
 
 using std::max;
 using std::min;
+using namespace std::literals;
 
 static store_key *get_store_key(THD *thd, Item *val, table_map used_tables,
                                 table_map const_tables,
@@ -249,7 +251,7 @@ void reset_statement_timer(THD *thd) {
  * @return True if at least one of the read columns is not in the secondary
  * engine, false otherwise.
  */
-static bool reads_not_secondary_columns(const LEX *lex) {
+bool reads_not_secondary_columns(const LEX *lex) {
   // Check all read base tables.
   const Table_ref *tl = lex->query_tables;
   // For INSERT INTO SELECT statements, the table to insert into does not have
@@ -305,8 +307,7 @@ static bool equal_engines(const LEX_CSTRING &engine1,
 // Helper function that checks if the command is eligible for secondary engine
 // and if that's true returns the name of that eligible secondary storage
 // engine.
-static const MYSQL_LEX_CSTRING *get_eligible_secondary_engine_from(
-    const LEX *lex) {
+const MYSQL_LEX_CSTRING *get_eligible_secondary_engine_from(const LEX *lex) {
   // Don't use secondary storage engines for statements that call stored
   // routines.
   if (lex->uses_stored_routines()) return nullptr;
@@ -366,14 +367,14 @@ const handlerton *get_secondary_engine_handlerton(const LEX *lex) {
   return nullptr;
 }
 
-const char *get_secondary_engine_fail_reason(const LEX *lex) {
-  auto *hton = get_secondary_engine_handlerton(lex);
+std::string_view get_secondary_engine_fail_reason(const LEX *lex) {
+  const auto *hton = get_secondary_engine_handlerton(lex);
   if (hton != nullptr &&
       hton->get_secondary_engine_offload_or_exec_fail_reason != nullptr &&
       lex->thd->is_secondary_engine_forced()) {
     return hton->get_secondary_engine_offload_or_exec_fail_reason(lex->thd);
   }
-  return nullptr;
+  return {};
 }
 
 void set_external_engine_fail_reason(const LEX *lex, const char *reason) {
@@ -399,9 +400,28 @@ static void external_engine_fail_reason(const LEX *lex) {
   }
 }
 
+std::string_view find_secondary_engine_fail_reason(const LEX *lex) {
+  const auto *hton = get_secondary_engine_handlerton(lex);
+  if (hton != nullptr &&
+      hton->find_secondary_engine_offload_fail_reason != nullptr &&
+      lex->thd->variables.use_secondary_engine == SECONDARY_ENGINE_FORCED) {
+    return hton->find_secondary_engine_offload_fail_reason(lex->thd);
+  }
+  if (hton == nullptr && get_eligible_secondary_engine_from(lex) != nullptr &&
+      get_eligible_secondary_engine_from(lex)->length > 0 &&
+      (native_strncasecmp(get_eligible_secondary_engine_from(lex)->str, "MOCK",
+                          4) == 0)) {
+    // We don't support secondary storage engine execution,
+    // if it is a MOCK secondary engine.
+    return "Queries cannot be offloaded to a MOCK secondary engine";
+  }
+  // return a generic offload error if no specific reason is known
+  return "All plans were rejected by the secondary storage engine";
+}
+
 static bool set_secondary_engine_fail_reason(const LEX *lex,
-                                             const char *reason) {
-  auto *hton = get_secondary_engine_handlerton(lex);
+                                             std::string_view reason) {
+  const auto *hton = get_secondary_engine_handlerton(lex);
   if (hton != nullptr &&
       hton->set_secondary_engine_offload_fail_reason != nullptr &&
       lex->thd->is_secondary_engine_forced()) {
@@ -411,65 +431,42 @@ static bool set_secondary_engine_fail_reason(const LEX *lex,
   return false;
 }
 
-static void set_fail_reason_and_raise_error(const LEX *lex,
-                                            const char *reason) {
-  assert(reason != nullptr && strlen(reason) > 0);
+void set_fail_reason_and_raise_error(const LEX *lex, std::string_view reason) {
+  assert(!reason.empty());
   if (set_secondary_engine_fail_reason(lex, reason)) {
     my_error(ER_SECONDARY_ENGINE, MYF(0),
-             get_secondary_engine_fail_reason(lex));
+             (std::data(get_secondary_engine_fail_reason(lex))));
   } else {
-    my_error(ER_SECONDARY_ENGINE, MYF(0), reason);
+    std::string err_msg{"Reason: "};
+    err_msg.append("\"");
+    err_msg.append(std::data(reason));
+    err_msg.append("\"");
+    my_error(ER_SECONDARY_ENGINE, MYF(0), err_msg.c_str());
   }
 }
 
-static bool find_and_set_offload_fail_reason(const LEX *lex) {
+void find_and_set_offload_fail_reason(const LEX *lex) {
   // If we are unable to gather secondary-engine-specific error message,
   // check known unsupported features and raise a specific offload error.
-  std::string err_msg;
-  if (lex->uses_stored_routines()) {
+  std::string_view err_msg{};
+  if (lex->uses_stored_routines() ||
+      (lex->m_sql_cmd != nullptr && lex->m_sql_cmd->is_part_of_sp()) ||
+      lex->thd->sp_runtime_ctx != nullptr) {
     // We don't support secondary storage engine execution,
     // if the query has statements that call stored routines.
-    err_msg = "Stored routines are not supported in secondary engines";
+    err_msg =
+        "Queries part of stored functions or calling stored functions are not "
+        "supported in secondary engines";
   } else if (!has_secondary_engine_defined(lex)) {
     // We don't support secondary storage engine execution,
     // if at least one of the query tables have no secondary engine defined.
     err_msg =
         "No secondary engine defined for at least one of the query tables";
+  } else {
+    err_msg = find_secondary_engine_fail_reason(lex);
   }
-  if (err_msg.length() > 0) {
-    set_fail_reason_and_raise_error(lex, err_msg.c_str());
-    return true;
-  }
-  return false;
-}
-
-void secondary_engine_offload_fail_msg(const LEX *lex) {
-  if (lex->m_sql_cmd == nullptr) {
-    return;
-  }
-  THD *thd = lex->thd;
-  // Gather secondary-engine-specific error message.
-  const char *offloadfail_reason = get_secondary_engine_fail_reason(lex);
-  if (offloadfail_reason != nullptr && strlen(offloadfail_reason) > 0) {
-    if (thd->is_error()) {
-      thd->clear_error();
-    }
-    my_error(ER_SECONDARY_ENGINE, MYF(0), offloadfail_reason);
-  }
-
-  // If we haven't generated a specific error so far,
-  // we try to generate one here.
-  if (!thd->is_error() && find_and_set_offload_fail_reason(lex)) {
-    return;
-  }
-  // If no specifc error could be generated so far,
-  // we give out a generic one.
-  if (!thd->is_error()) {
-    const char *err_msg =
-        "use_secondary_engine is FORCED but query could not be executed in "
-        "secondary engine";
-    set_fail_reason_and_raise_error(lex, err_msg);
-  }
+  assert(!err_msg.empty());
+  set_fail_reason_and_raise_error(lex, err_msg);
 }
 
 bool validate_use_secondary_engine(const LEX *lex) {
@@ -481,8 +478,8 @@ bool validate_use_secondary_engine(const LEX *lex) {
   // Ensure that all read columns are in the secondary engine.
   if (sql_cmd->using_secondary_storage_engine()) {
     if (reads_not_secondary_columns(lex)) {
-      const char *err_msg =
-          "One or more read columns are marked as NOT SECONDARY";
+      std::string_view err_msg = find_secondary_engine_fail_reason(lex);
+      assert(!err_msg.empty());
       set_fail_reason_and_raise_error(lex, err_msg);
       return true;
     }
@@ -493,8 +490,20 @@ bool validate_use_secondary_engine(const LEX *lex) {
           Secondary_engine_optimization::SECONDARY &&
       thd->is_secondary_engine_forced()) {
     // Gather secondary-engine-specific error message.
-    secondary_engine_offload_fail_msg(lex);
-    return true;
+    std::string_view offloadfail_reason = get_secondary_engine_fail_reason(lex);
+    if (!offloadfail_reason.empty()) {
+      if (thd->is_error()) {
+        thd->clear_error();
+      }
+      my_error(ER_SECONDARY_ENGINE, MYF(0), std::data(offloadfail_reason));
+      return true;
+    }
+    // If we haven't generated a specific error so far,
+    // we try to generate one here.
+    if (!thd->is_error()) {
+      find_and_set_offload_fail_reason(lex);
+      return true;
+    }
   }
 
   return false;
