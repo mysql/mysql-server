@@ -2882,3 +2882,20 @@ SELECT * FROM t WHERE a = b and b = TIME'01:02:03';
 a	b
 01:02:03	01:02:03
 DROP TABLE t;
+#
+# Bug#35173907: Assertion `CompatibleTypesForIndexLookup(eq_item,
+#               field, right)' failed
+#
+CREATE TABLE t(a TIME, KEY(a));
+INSERT INTO t VALUES ('01:02:03');
+SET timestamp = UNIX_TIMESTAMP('2023-03-15 01:02:03');
+SELECT * FROM t WHERE a = CURRENT_TIME;
+a
+01:02:03
+SELECT * FROM t WHERE a = CURRENT_TIMESTAMP;
+a
+01:02:03
+SELECT * FROM t WHERE a = CURRENT_DATE;
+a
+SET timestamp = DEFAULT;
+DROP TABLE t;
