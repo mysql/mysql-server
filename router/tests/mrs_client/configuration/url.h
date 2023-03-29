@@ -31,7 +31,7 @@ namespace mrs_client {
 class Url {
  public:
   Url();
-  Url(const std::string &url);
+  Url(const std::string &url, const std::string &overwrite_path = {});
 
   uint16_t get_port() const;
   bool needs_tls() const;
@@ -40,6 +40,7 @@ class Url {
 
  private:
   HttpUri uri_;
+  std::string path_;
   bool needs_tls_{false};
 };
 

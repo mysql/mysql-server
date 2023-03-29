@@ -1,0 +1,34 @@
+--source include/have_router.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/basic_schema.sql
+
+--let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name="$mrs_host_and_port"
+--source ../include/mrs_add_service.inc
+
+--let $mrs_add_schema=basic_schema
+--let $mrs_add_schema_path=/basic
+--source ../include/mrs_add_schema.inc
+
+--let $mrs_add_db_object=table1
+--let $mrs_add_db_object_path=/t1
+--source ../include/mrs_add_db_object.inc
+
+--let $mrs_add_db_object=table2
+--let $mrs_add_db_object_path=/t2
+--source ../include/mrs_add_db_object.inc
+
+--sleep 4
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url http://$mrs_host_and_port 
+
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1/1
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1/20
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1/2 --expected-status 404
+
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t2
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t2/1
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t2/2
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t2/200 --expected-status 404

@@ -19,7 +19,7 @@
 --source ../mysqlrouter_keyring.inc
 
 --let $extra_http_port=`SELECT $ROUTER_PORT + 1`
---let $extra_http_enable_ssl=1
+--let $extra_http_enable_ssl=0
 --let $extra_mrs_meta_user=root
 --let $extra_mrs_read_write_route=undertest
 --let $extra_keyring_master_file=$keyring_master_file

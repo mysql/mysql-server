@@ -51,8 +51,10 @@ struct ApplicationConfiguration {
   ApplicationConfiguration() {}
 
   std::string url;
+  std::string path;
   std::string user;
   std::string password;
+  std::string json_pointer;
   AuthenticationType authentication{AuthenticationType::kNone};
   Request::Type request{HttpMethod::Get};
   std::string session_file;

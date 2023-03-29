@@ -82,7 +82,6 @@ void trace_error(const char *variable_user, const char *access,
 struct MrdsModule {
   MrdsModule(const ::mrs::Configuration &c) : configuration{c} {
     using namespace mysqlrouter;
-    extern void check_version_compatibility(mysqlrouter::MySQLSession *);
     try {
       auto conn1 = mysql_connection_cache.get_instance(
           collector::kMySQLConnectionMetadata);

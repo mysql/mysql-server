@@ -26,6 +26,8 @@
 #include <map>
 #include <vector>
 
+#include "helper/json/rapid_json_to_text.h"
+#include "helper/json/text_to.h"
 #include "mysql/harness/arg_handler.h"
 #include "mysql/harness/string_utils.h"
 #include "mysql/harness/tls_context.h"
@@ -35,6 +37,8 @@
 #include "client/http_client_request.h"
 #include "client/session.h"
 #include "configuration/application_configuration.h"
+
+#include <rapidjson/pointer.h>
 
 using mrs_client::HttpClientRequest;
 using mrs_client::HttpClientSession;
@@ -135,7 +139,8 @@ static void verify_required_arguments() {
   }
 }
 
-static void present_results(const Result &result, const Display &display) {
+static void present_results(const std::string &json_ptr, const Result &result,
+                            const Display &display) {
   if (display.status) {
     if (display.title) std::cout << "Status: ";
     std::cout << HttpStatusCode::get_default_status_text(result.status) << "("
@@ -150,8 +155,22 @@ static void present_results(const Result &result, const Display &display) {
   }
 
   if (display.body) {
+    std::string body = result.body;
     if (display.title) std::cout << "Body: ";
-    std::cout << result.body << std::endl;
+
+    if (!json_ptr.empty()) {
+      auto doc = helper::json::text_to_document(result.body);
+      auto ptr = rapidjson::GetValueByPointer(
+          doc, rapidjson::Pointer(json_ptr.c_str()));
+      if (nullptr == ptr) {
+        // TODO(lkotula): Move the extraction of the pointer outside this
+        // function (Shouldn't be in review)
+        g_configuration.expected_status = -1;
+      } else {
+        helper::json::rapid_json_to_text(ptr, body);
+      }
+    }
+    std::cout << body << std::endl;
   }
 
   if (display.result) {
@@ -211,6 +230,13 @@ std::vector<CmdOption> g_options{
                "authentication flow.");
        }
      }},
+
+    {{"--path"},
+     "Overwrite the path specified in URL. Using this parameter, user may "
+     "split the URL on host part specified in --url and path.",
+     CmdOptionValueReq::required,
+     "meta_path",
+     [](const std::string &value) { g_configuration.path = value; }},
     {{"--session-type", "-s"},
      "Define how the session should be identified by the client. Allowed "
      "values: "
@@ -226,6 +252,19 @@ std::vector<CmdOption> g_options{
        if (!cnf_should_execute_authentication_flow()) {
          throw std::invalid_argument(
              "Session type, can be defined while executing authentication "
+             "flow.");
+       }
+     }},
+
+    {{"--json-pointer", "-j"},
+     "Print only value selected by pointer.",
+     CmdOptionValueReq::required,
+     "meta_json_pointer",
+     [](const std::string &value) { g_configuration.json_pointer = value; },
+     [](const std::string &) {
+       if (cnf_should_execute_authentication_flow()) {
+         throw std::invalid_argument(
+             "Json pointer can't be used while executing authentication "
              "flow.");
        }
      }},
@@ -314,7 +353,7 @@ int main(int argc, char *argv[]) {
 
     verify_required_arguments();
 
-    Url url{g_configuration.url};
+    Url url{g_configuration.url, g_configuration.path};
     IOContext ctx;
     HttpClientSession session{g_configuration.session_file};
     HttpClientRequest request{&ctx, &session, &url};
@@ -322,7 +361,8 @@ int main(int argc, char *argv[]) {
     auto result = execute_http_flow(request, url);
     auto result_ok = g_configuration.expected_status == result.status;
 
-    present_results(result, result_ok ? display : Display::display_all());
+    present_results(g_configuration.json_pointer, result,
+                    result_ok ? display : Display::display_all());
   } catch (const std::exception &e) {
     std::cerr << "ERROR: " << e.what() << std::endl << std::endl;
     print_usage();

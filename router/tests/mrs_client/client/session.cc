@@ -27,6 +27,8 @@
 #include <cstring>
 #include <fstream>
 
+#include "mysql/harness/string_utils.h"
+
 namespace {
 
 bool starts_with(const std::string &str, const std::string &start) {
@@ -48,9 +50,30 @@ HttpClientSession::HttpClientSession(const std::string &session_file)
 
 HttpClientSession::~HttpClientSession() { session_store(); }
 
-void HttpClientSession::fill_request_headers(HttpHeaders *) const {}
+void HttpClientSession::fill_request_headers(HttpHeaders *h) const {
+  for (auto &item : headers_) {
+    h->add(item.first.c_str(), item.second.c_str());
+  }
 
-void HttpClientSession::analyze_response_headers(HttpHeaders *) {}
+  std::string all_values;
+  for (auto &c : cookies_) {
+    if (!all_values.empty()) all_values += "; ";
+    all_values += c.first + "=" + c.second;
+  }
+  h->add("Cookie", all_values.c_str());
+}
+
+void HttpClientSession::analyze_response_headers(HttpHeaders *h) {
+  for (const auto &v : *h) {
+    if (v.first == "Set-Cookie") {
+      auto cookie = mysql_harness::split_string(v.second, ';', false);
+      if (cookie.size() == 0) continue;
+      auto name_value = mysql_harness::split_string(cookie[0], '=', true);
+      if (name_value.size() != 2) continue;
+      cookies_[name_value[0]] = name_value[1];
+    }
+  }
+}
 
 void HttpClientSession::session_store() {
   if (session_file_.empty()) return;

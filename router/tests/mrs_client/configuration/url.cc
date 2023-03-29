@@ -33,7 +33,8 @@ namespace mrs_client {
 
 Url::Url() {}
 
-Url::Url(const std::string &url) : uri_{HttpUri::parse(url)} {
+Url::Url(const std::string &url, const std::string &path)
+    : uri_{HttpUri::parse(url)} {
   // The map contains entries that define the TCP port and if its TLS
   // for i given schema.
   if (!uri_) {
@@ -49,6 +50,22 @@ Url::Url(const std::string &url) : uri_{HttpUri::parse(url)} {
     throw std::invalid_argument("URL contains invalid scheme");
 
   needs_tls_ = schemas_uses_tls[scheme];
+
+  if (path.empty()) {
+    path_ = uri_.get_path();
+    auto query = uri_.get_query();
+    auto fragment = uri_.get_fragment();
+
+    if (!query.empty()) {
+      path_ += "?" + query;
+    }
+
+    if (!fragment.empty()) {
+      path_ += "#" + fragment;
+    }
+  } else {
+    path_ = path;
+  }
 }
 
 uint16_t Url::get_port() const {
@@ -67,20 +84,6 @@ bool Url::needs_tls() const { return needs_tls_; }
 
 std::string Url::get_host() const { return uri_.get_host(); }
 
-std::string Url::get_request() const {
-  auto request = uri_.get_path();
-  auto query = uri_.get_query();
-  auto fragment = uri_.get_fragment();
-
-  if (!query.empty()) {
-    request += "?" + query;
-  }
-
-  if (!fragment.empty()) {
-    request += "#" + fragment;
-  }
-
-  return request;
-}
+std::string Url::get_request() const { return path_; }
 
 }  // namespace mrs_client
