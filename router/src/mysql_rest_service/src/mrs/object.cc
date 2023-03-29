@@ -32,6 +32,7 @@
 #include "helper/container/any_of.h"
 #include "helper/container/generic.h"
 #include "mrs/database/helper/query_table_columns.h"
+#include "mrs/database/query_entries_object.h"
 
 namespace mrs {
 
@@ -113,6 +114,7 @@ bool Object::update(const void *pv, RouteSchemaPtr schema) {
 
   pe_ = pe;
   cached_columns_.clear();
+  cached_object_.reset();
   update_variables();
 
   return result;
@@ -164,6 +166,24 @@ void Object::update_variables() {
   static_assert(static_cast<int>(Op::valueDelete) == kDelete);
 
   access_flags_ = pe_.operation;
+}
+
+void Object::cache_object() {
+  auto object = query_factory_->create_query_object();
+  auto session = cache_->get_instance(collector::kMySQLConnectionMetadata);
+  object->query_entries(session.get(), schema_name_, object_name_);
+
+  cached_object_ = object->object;
+}
+
+const Object::EntryObject &Object::get_cached_object() {
+  // TODO(alfredo) is this caching needed or should this just be queried
+  // together with pe_?
+  if (!cached_object_.has_value()) {
+    cache_object();
+  }
+
+  return *cached_object_;
 }
 
 void Object::cache_columns() {

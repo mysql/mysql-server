@@ -65,6 +65,7 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   mrs/database/query_entries_auth_role.cc
   mrs/database/query_entries_content_file.cc
   mrs/database/query_entries_db_object.cc
+  mrs/database/query_entries_object.cc
   mrs/database/query_entry_auth_user.cc
   mrs/database/query_entry_content_file.cc
   mrs/database/query_entry_fields.cc
@@ -79,6 +80,7 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   mrs/database/helper/query_state.cc
   mrs/database/helper/query_table_columns.cc
   mrs/database/helper/query_audit_log_maxid.cc
+  mrs/database/helper/object_query.cc
   mrs/json/response_json_template.cc
   mrs/http/cookie.cc
   mrs/http/utilities.cc

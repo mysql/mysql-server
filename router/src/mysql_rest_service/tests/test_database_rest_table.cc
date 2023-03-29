@@ -88,14 +88,30 @@ TEST(DbEntry, less) {
 }
 
 TEST_F(QueryRestTableTests, basic_empty_request_throws) {
-  std::vector<Column> columns{};
+  Object object;
+  object.schema = "schema";
+  object.schema_object = "obj";
 
-  EXPECT_THROW(sut_->query_entries(&mock_session_, columns, "schema", "obj", 0,
-                                   25, "my.url", "c2", true),
-               std::invalid_argument);
+  EXPECT_THROW(
+      sut_->query_entries(&mock_session_, object, 0, 25, "my.url", "c2", true),
+      std::invalid_argument);
 }
 
 TEST_F(QueryRestTableTests, basic_two_request_without_result) {
+  Object object;
+  object.schema = "schema";
+  object.schema_object = "obj";
+
+  auto f1 = std::make_shared<ObjectField>();
+  f1->name = "c1";
+  f1->db_name = "c1";
+  object.fields.push_back(f1);
+
+  auto f2 = std::make_shared<ObjectField>();
+  f1->name = "c2";
+  f1->db_name = "c2";
+  object.fields.push_back(f2);
+
   std::vector<Column> columns{{"c1", "text"}, {"c2", "mediumint", true}};
   EXPECT_CALL(mock_session_, query(StrEq("SELECT JSON_OBJECT("
                                          "'c1',`c1`,"
@@ -106,12 +122,24 @@ TEST_F(QueryRestTableTests, basic_two_request_without_result) {
                                          "FROM `schema`.`obj`  LIMIT 0,26"),
                                    _, _));
 
-  sut_->query_entries(&mock_session_, columns, "schema", "obj", 0, 25, "my.url",
-                      "c2", true);
+  sut_->query_entries(&mock_session_, object, 0, 25, "my.url", "c2", true);
 }
 
 TEST_F(QueryRestTableTests, basic_two_request_without_result_and_no_links) {
-  std::vector<Column> columns{{"c1", "text"}, {"c2", "mediumint", true}};
+  Object object;
+  object.schema = "schema";
+  object.schema_object = "obj";
+
+  auto f1 = std::make_shared<ObjectField>();
+  f1->name = "c1";
+  f1->db_name = "c1";
+  object.fields.push_back(f1);
+
+  auto f2 = std::make_shared<ObjectField>();
+  f1->name = "c2";
+  f1->db_name = "c2";
+  object.fields.push_back(f2);
+
   EXPECT_CALL(mock_session_, query(StrEq("SELECT JSON_OBJECT("
                                          "'c1',`c1`,"
                                          "'c2',`c2`, "
@@ -119,6 +147,5 @@ TEST_F(QueryRestTableTests, basic_two_request_without_result_and_no_links) {
                                          "FROM `schema`.`obj`  LIMIT 0,26"),
                                    _, _));
 
-  sut_->query_entries(&mock_session_, columns, "schema", "obj", 0, 25, "my.url",
-                      "", true);
+  sut_->query_entries(&mock_session_, object, 0, 25, "my.url", "", true);
 }

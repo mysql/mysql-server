@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,38 +22,41 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_SRC_HELPER_MYSQL_COLUMN_H_
-#define ROUTER_SRC_MYSQL_REST_SERVICE_SRC_HELPER_MYSQL_COLUMN_H_
+#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_QUERY_ENTRIES_OBJECT_H_
+#define ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_QUERY_ENTRIES_OBJECT_H_
 
+#include <map>
+#include <memory>
 #include <string>
+#include <tuple>
+#include <vector>
 
-#include <mysql.h>
+#include "mrs/database/entry/object.h"
+#include "mrs/database/helper/query.h"
 
-#include "helper/mysql_column_types.h"
+namespace mrs {
+namespace database {
 
-namespace helper {
-
-struct Column {
-  Column() : type_json{ColumnJsonTypes::kNull} {}
-  Column(const std::string &column_name, const char *type, bool primary = false,
-         bool auto_increment = false)
-      : name{column_name},
-        type_json{from_mysql_column_string_type(type)},
-        is_primary{primary},
-        is_auto_increment{auto_increment} {}
-  explicit Column(const MYSQL_FIELD *field)
-      : name{field->name, field->name_length},
-        type_json{from_mysql_column_type(field->type)},
-        is_primary{IS_PRI_KEY(field->flags) > 0},
-        is_auto_increment{(field->flags & AUTO_INCREMENT_FLAG) > 0} {}
+class QueryEntryObject : private Query {
+ public:
+  using Object = entry::Object;
+  using ObjectField = entry::ObjectField;
 
  public:
-  std::string name;
-  ColumnJsonTypes type_json;
-  bool is_primary{false};
-  bool is_auto_increment{false};
+  virtual void query_entries(MySQLSession *session, const std::string &schema,
+                             const std::string &schema_object);
+
+  Object object;
+
+ private:
+  void on_row(const Row &r) override;
+
+  std::vector<std::shared_ptr<ObjectField>> m_unparented_fields;
+  std::map<std::string, std::shared_ptr<ObjectField>> m_fields_by_reference_id;
+  int m_alias_count = 0;
 };
 
-}  // namespace helper
+}  // namespace database
+}  // namespace mrs
 
-#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_SRC_HELPER_MYSQL_COLUMN_H_
+#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_QUERY_ENTRIES_OBJECT_H_

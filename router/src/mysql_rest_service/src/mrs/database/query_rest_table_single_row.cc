@@ -23,6 +23,7 @@
 */
 
 #include "mrs/database/query_rest_table_single_row.h"
+#include "mrs/database/helper/object_query.h"
 
 #include <stdexcept>
 
@@ -50,24 +51,21 @@ namespace mrs {
 namespace database {
 
 void QueryRestTableSingleRow::query_entries(
-    MySQLSession *session, const std::vector<Column> &columns,
-    const std::string &schema, const std::string &object,
-    const std::string &primary_key, const mysqlrouter::sqlstring &pri_value,
-    const std::string &url_route) {
+    MySQLSession *session, const Object &object, const std::string &primary_key,
+    const mysqlrouter::sqlstring &pri_value, const std::string &url_route) {
   response = "";
   items = 0;
-  build_query(columns, schema, object, primary_key, pri_value, url_route);
+  build_query(object, primary_key, pri_value, url_route);
 
   execute(session);
 }
 
 void QueryRestTableSingleRow::query_last_inserted(
-    MySQLSession *session, const std::vector<Column> &columns,
-    const std::string &schema, const std::string &object,
-    const std::string &primary_key, const std::string &url_route) {
+    MySQLSession *session, const Object &object, const std::string &primary_key,
+    const std::string &url_route) {
   response = "";
   items = 0;
-  build_query_last_inserted(columns, schema, object, primary_key, url_route);
+  build_query_last_inserted(object, primary_key, url_route);
 
   execute(session);
 }
@@ -81,28 +79,27 @@ void QueryRestTableSingleRow::on_row(const Row &r) {
 }
 
 void QueryRestTableSingleRow::build_query(
-    const std::vector<Column> &columns, const std::string &schema,
-    const std::string &object, const std::string &primary_key,
+    const Object &object, const std::string &primary_key,
     const mysqlrouter::sqlstring &pri_value, const std::string &url_route) {
   query_ =
       "SELECT JSON_OBJECT(?,'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', "
-      "'href', CONCAT(?,'/',?)))) FROM !.! WHERE !=?;";
+      "'href', CONCAT(?,'/',?)))) FROM !.! t WHERE !=?;";
 
-  query_ << columns << url_route << pri_value;
-  query_ << schema << object << primary_key << pri_value;
+  query_ << build_sql_json_object(object) << url_route << pri_value;
+  query_ << object.schema << object.schema_object << primary_key << pri_value;
 }
 
 void QueryRestTableSingleRow::build_query_last_inserted(
-    const std::vector<Column> &columns, const std::string &schema,
-    const std::string &object, const std::string &primary_key,
+    const Object &object, const std::string &primary_key,
     const std::string &url_route) {
   query_ =
       "SELECT JSON_OBJECT(?,'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', "
       "'href', CONCAT(?,'/',!)))) FROM !.! WHERE !=!;";
 
   static mysqlrouter::sqlstring last_inserted{"LAST_INSERT_ID()"};
-  query_ << columns << url_route << last_inserted;
-  query_ << schema << object << primary_key << last_inserted;
+  query_ << build_sql_json_object(object) << url_route << last_inserted;
+  query_ << object.schema << object.schema_object << primary_key
+         << last_inserted;
 }
 
 }  // namespace database

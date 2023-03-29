@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "helper/mysql_column.h"
+#include "mrs/database/entry/object.h"
 #include "mrs/database/helper/query.h"
 
 namespace mrs {
@@ -36,21 +37,16 @@ namespace database {
 
 class QueryRestTableSingleRow : private QueryLog {
  public:
-  using Column = helper::Column;
+  using Object = entry::Object;
+  using ObjectField = entry::ObjectField;
 
  public:
-  virtual void query_entries(MySQLSession *session,
-                             const std::vector<Column> &columns,
-                             const std::string &schema,
-                             const std::string &object,
+  virtual void query_entries(MySQLSession *session, const Object &object,
                              const std::string &primary_key,
                              const mysqlrouter::sqlstring &pri_value,
                              const std::string &url_route);
 
-  virtual void query_last_inserted(MySQLSession *session,
-                                   const std::vector<Column> &columns,
-                                   const std::string &schema,
-                                   const std::string &object,
+  virtual void query_last_inserted(MySQLSession *session, const Object &object,
                                    const std::string &primary_key,
                                    const std::string &url_route);
 
@@ -59,14 +55,10 @@ class QueryRestTableSingleRow : private QueryLog {
 
  private:
   void on_row(const Row &r) override;
-  void build_query(const std::vector<Column> &columns,
-                   const std::string &schema, const std::string &object,
-                   const std::string &primary_key,
+  void build_query(const Object &object, const std::string &primary_key,
                    const mysqlrouter::sqlstring &pri_value,
                    const std::string &url_route);
-  void build_query_last_inserted(const std::vector<Column> &columns,
-                                 const std::string &schema,
-                                 const std::string &object,
+  void build_query_last_inserted(const Object &object,
                                  const std::string &primary_key,
                                  const std::string &url_route);
 };

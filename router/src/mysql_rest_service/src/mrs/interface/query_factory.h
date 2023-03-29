@@ -40,6 +40,7 @@ class QueryRestSPMedia;
 class QueryEntryGroupRowSecurity;
 class QueryEntryContentFile;
 class QueryEntryAuthUser;
+class QueryEntryObject;
 class QueryEntryDbObject;
 class QueryChangesContentFile;
 class QueryUserGroups;
@@ -81,6 +82,7 @@ class QueryFactory {
   create_query_auth_user() = 0;
   virtual std::shared_ptr<database::QueryEntryDbObject>
   create_query_db_object() = 0;
+  virtual std::shared_ptr<database::QueryEntryObject> create_query_object() = 0;
 
   virtual std::shared_ptr<database::QueryUserGroups>
   create_query_user_groups() = 0;

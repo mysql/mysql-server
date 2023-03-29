@@ -407,10 +407,12 @@ void FilterObjectGenerator::prase_order(Object object) {
           asc = true;
         else
           throw std::runtime_error(kWrongValueForOrder);
-      } else
+      } else {
         throw std::runtime_error(kWrongTypeForOrder);
-    } else
+      }
+    } else {
       throw std::runtime_error(kWrongTypeForOrder);
+    }
 
     order_ += asc ? " ASC" : " DESC";
   }

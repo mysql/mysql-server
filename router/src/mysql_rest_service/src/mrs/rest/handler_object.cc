@@ -254,6 +254,8 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
   auto columns = route_->get_cached_columnes();
+  std::vector<std::string> filter_columns;
+  const auto &object = route_->get_cached_object();
 
   Url uri_param(requests_uri);
 
@@ -304,8 +306,7 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
               : nullptr;
 
       rest.query_entries(
-          session.get(), columns, route_->get_schema_name(),
-          route_->get_object_name(), offset, limit, route_->get_rest_url(),
+          session.get(), object, offset, limit, route_->get_rest_url(),
           route_->get_cached_primary().name, route_->get_on_page() == limit,
           route_->get_user_row_ownership(), row_ownershop_user_id,
           route_->get_group_row_ownership(), ctxt->user.groups,
@@ -334,8 +335,7 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
   if (!route_->get_cached_primary().name.empty()) {
     if (raw_value.empty()) {
       database::QueryRestTableSingleRow rest;
-      rest.query_entries(session.get(), columns, route_->get_schema_name(),
-                         route_->get_object_name(),
+      rest.query_entries(session.get(), object,
                          route_->get_cached_primary().name, pk_value,
                          route_->get_rest_url());
 
@@ -359,7 +359,7 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
 
   // TODO(lkotula): Return proper error. (Shouldn't be in review)
   throw http::Error(HttpStatusCode::InternalError);
-}  // namespace rest
+}
 
 /// Post is insert
 HttpResult HandlerObject::handle_post(
@@ -368,7 +368,8 @@ HttpResult HandlerObject::handle_post(
   using namespace helper::json::sql;
   rapidjson::Document json_doc;
   database::QueryRestObjectInsert insert;
-  const auto &columns = route_->get_cached_columnes();
+  const auto &object = route_->get_cached_object();
+
   // std::optional<mysqlrouter::sqlstring> expected_pk_value;
   auto last_path = get_path_after_object_name(ctxt->request->get_uri());
 
@@ -449,8 +450,7 @@ HttpResult HandlerObject::handle_post(
   if (!route_->get_cached_primary().name.empty()) {
     database::QueryRestTableSingleRow fetch_one;
 
-    fetch_one.query_entries(session.get(), columns, route_->get_schema_name(),
-                            route_->get_object_name(),
+    fetch_one.query_entries(session.get(), object,
                             route_->get_cached_primary().name, pk_value,
                             route_->get_rest_url());
     Counter<kEntityCounterRestReturnedItems>::increment(fetch_one.items);
@@ -525,7 +525,7 @@ HttpResult HandlerObject::handle_put([
 
   rapidjson::Document json_doc;
   database::QueryRestObjectInsert insert;
-  const auto &columns = route_->get_cached_columnes();
+  const auto &object = route_->get_cached_object();
 
   json_doc.Parse((const char *)document.data(), document.size());
 
@@ -595,8 +595,7 @@ HttpResult HandlerObject::handle_put([
   if (!route_->get_cached_primary().name.empty()) {
     database::QueryRestTableSingleRow fetch_one;
 
-    fetch_one.query_entries(session.get(), columns, route_->get_schema_name(),
-                            route_->get_object_name(), pk, pk_value,
+    fetch_one.query_entries(session.get(), object, pk, pk_value,
                             route_->get_rest_url());
 
     Counter<kEntityCounterRestAffectedItems>::increment(fetch_one.items);

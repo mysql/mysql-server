@@ -24,12 +24,14 @@
 
 #include "mrs/database/query_rest_table.h"
 
+#include <algorithm>
 #include <map>
 #include <stdexcept>
 
 #include "helper/json/text_to.h"
-#include "helper/mysql_column.h"
 #include "mrs/database/filter_object_generator.h"
+#include "mrs/database/helper/object_query.h"
+#include "mysql/harness/utility/string.h"
 
 #include "mysql/harness/logging/logging.h"
 
@@ -38,48 +40,22 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace database {
 
-class ColumnDefinitionIterator
-    : public mysqlrouter::sqlstring::CustomContainerIterator<
-          std::vector<helper::Column>::const_iterator,
-          ColumnDefinitionIterator> {
- public:
-  using CustomContainerIterator::CustomContainerIterator;
-
-  /**
-   * Serialize the ColumnDefinition to string.
-   *
-   * This method returns `sqlstring` because streaming it to `sqlstring` doesn't
-   * force quoting or escaping. Thus it allows to concat two SQLs.
-   */
-  mysqlrouter::sqlstring operator*() {
-    mysqlrouter::sqlstring fmt{"?,!"};
-    fmt << it_->name << it_->name;
-    return fmt;
-  }
-};
-
 void QueryRestTable::query_entries(
-    MySQLSession *session, const std::vector<Column> &columns,
-    const std::string &schema, const std::string &object, const uint32_t offset,
+    MySQLSession *session, const Object &object, const uint32_t offset,
     const uint32_t limit, const std::string &url_route,
     const std::string &primary, const bool is_default_limit,
     const RowUserOwnership &row_user, UserId *user_id,
-    const std::vector<RowGroupOwnership> &row_groups,
+    const VectorOfRowGroupOwnershp &row_groups,
     const std::set<UniversalId> &user_groups, const std::string &q) {
-  if (columns.empty()) throw std::invalid_argument("Empty column list.");
   items = 0;
-  build_query(columns, schema, object, offset, limit + 1, url_route, primary,
-              row_user, user_id, row_groups, user_groups, q);
+  build_query(object, offset, limit + 1, url_route, primary, row_user, user_id,
+              row_groups, user_groups, q);
 
   serializer_.begin(offset, limit, is_default_limit, url_route);
   execute(session);
   serializer_.end();
 
   response = serializer_.get_result();
-}
-
-void QueryRestTable::on_metadata(unsigned number, MYSQL_FIELD *fields) {
-  for (unsigned i = 0; i < number; ++i) columns_.emplace_back(&fields[i]);
 }
 
 void QueryRestTable::on_row(const Row &r) {
@@ -231,16 +207,17 @@ void extend_where(mysqlrouter::sqlstring &where, const std::string &query) {
 }
 
 void QueryRestTable::build_query(
-    const std::vector<Column> &columns, const std::string &schema,
-    const std::string &object, const uint32_t offset, const uint32_t limit,
+    const Object &object, const uint32_t offset, const uint32_t limit,
     const std::string &url, const std::string &primary,
     const RowUserOwnership &row_user, UserId *user_id,
     const std::vector<RowGroupOwnership> &row_groups,
     const std::set<UniversalId> &user_groups, const std::string &query) {
   auto where = build_where(row_user, user_id, row_groups, user_groups);
   extend_where(where, query);
-  query_ = {"SELECT JSON_OBJECT(?, ?) FROM !.! ? LIMIT ?,?"};
-  query_ << ColumnDefinitionIterator::from_container(columns);
+
+  query_ =
+      mysqlrouter::sqlstring("SELECT JSON_OBJECT(?, ?) FROM !.! t ? LIMIT ?,?");
+  query_ << build_sql_json_object(object);
 
   if (primary.empty()) {
     static mysqlrouter::sqlstring empty_links{"'links', JSON_ARRAY()"};
@@ -253,7 +230,7 @@ void QueryRestTable::build_query(
     query_ << fmt;
   }
 
-  query_ << schema << object << where << offset << limit;
+  query_ << object.schema << object.schema_object << where << offset << limit;
 }
 
 }  // namespace database
