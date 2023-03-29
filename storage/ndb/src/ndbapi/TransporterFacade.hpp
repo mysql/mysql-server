@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <kernel_types.h>
 #include <ndb_limits.h>
 #include <NdbThread.h>
+#include <SectionIterators.hpp>
 #include <TransporterRegistry.hpp>
 #include <NdbMutex.h>
 #include <Vector.hpp>
@@ -620,84 +621,6 @@ trp_client::getNodeInfo(Uint32 nodeId) const
   return m_facade->theClusterMgr->getNodeInfo(nodeId);
 }
 
-/** 
- * LinearSectionIterator
- *
- * This is an implementation of GenericSectionIterator 
- * that iterates over one linear section of memory.
- * The iterator is used by the transporter at signal
- * send time to obtain all of the relevant words for the
- * signal section
- */
-class LinearSectionIterator: public GenericSectionIterator
-{
-private :
-  const Uint32* data;
-  Uint32 len;
-  bool read;
-public :
-  LinearSectionIterator(const Uint32* _data, Uint32 _len)
-  {
-    data= (_len == 0)? NULL:_data;
-    len= _len;
-    read= false;
-  }
-
-  ~LinearSectionIterator()
-  {};
-  
-  void reset()
-  {
-    /* Reset iterator */
-    read= false;
-  }
-
-  const Uint32* getNextWords(Uint32& sz)
-  {
-    if (likely(!read))
-    {
-      read= true;
-      sz= len;
-      return data;
-    }
-    sz= 0;
-    return NULL;
-  }
-};
-
-
-/** 
- * SignalSectionIterator
- *
- * This is an implementation of GenericSectionIterator 
- * that uses chained NdbApiSignal objects to store a 
- * signal section.
- * The iterator is used by the transporter at signal
- * send time to obtain all of the relevant words for the
- * signal section
- */
-class SignalSectionIterator: public GenericSectionIterator
-{
-private :
-  NdbApiSignal* firstSignal;
-  NdbApiSignal* currentSignal;
-public :
-  SignalSectionIterator(NdbApiSignal* signal)
-  {
-    firstSignal= currentSignal= signal;
-  }
-
-  ~SignalSectionIterator()
-  {};
-  
-  void reset()
-  {
-    /* Reset iterator */
-    currentSignal= firstSignal;
-  }
-
-  const Uint32* getNextWords(Uint32& sz);
-};
 
 /*
  * GenericSectionIteratorReader
