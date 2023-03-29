@@ -67,6 +67,7 @@ class ObjectStaticFile : public mrs::interface::Object {
   const std::string &get_schema_name() override;
   const std::string &get_version() override;
   const std::string &get_options() override;
+  const EntryObject &get_cached_object() override;
   const std::vector<Column> &get_cached_columnes() override;
   const Column &get_cached_primary() override;
   const Fields &get_parameters() override;

@@ -30,8 +30,8 @@
 #include <string>
 #include <vector>
 
-#include "helper/mysql_column.h"
 #include "mrs/database/entry/auth_user.h"
+#include "mrs/database/entry/object.h"
 #include "mrs/database/entry/row_group_ownership.h"
 #include "mrs/database/entry/row_user_ownership.h"
 #include "mrs/database/helper/query.h"
@@ -43,7 +43,8 @@ namespace database {
 
 class QueryRestTable : private QueryLog {
  public:
-  using Column = helper::Column;
+  using Object = entry::Object;
+  using ObjectField = entry::ObjectField;
   using UserId = entry::AuthUser::UserId;
   using UniversalId = entry::UniversalId;
   using RowGroupOwnership = entry::RowGroupOwnership;
@@ -52,36 +53,34 @@ class QueryRestTable : private QueryLog {
   using VectorOfRowGroupOwnershp = std::vector<RowGroupOwnership>;
 
  public:
-  virtual void query_entries(
-      MySQLSession *session, const std::vector<Column> &columns,
-      const std::string &schema, const std::string &object,
-      const uint32_t offset, const uint32_t limit, const std::string &url,
-      const std::string &primary, const bool is_default_limit,
-      const RowUserOwnership &user_ownership = {}, UserId *user_id = nullptr,
-      const VectorOfRowGroupOwnershp &row_groups = {},
-      const std::set<UniversalId> &user_groups = {},
-      const std::string &query = {});
+  virtual void query_entries(MySQLSession *session, const Object &object,
+                             const uint32_t offset, const uint32_t limit,
+                             const std::string &url, const std::string &primary,
+                             const bool is_default_limit,
+                             const RowUserOwnership &user_ownership = {},
+                             UserId *user_id = nullptr,
+                             const VectorOfRowGroupOwnershp &row_groups = {},
+                             const std::set<UniversalId> &user_groups = {},
+                             const std::string &query = {});
 
   std::string response;
   uint64_t items;
 
  private:
   json::ResponseJsonTemplate serializer_;
-  std::vector<helper::Column> columns_;
   mysqlrouter::sqlstring where_;
 
   void on_row(const Row &r) override;
-  void on_metadata(unsigned number, MYSQL_FIELD *fields) override;
 
   const mysqlrouter::sqlstring &build_where(
       const RowUserOwnership &row_user, UserId *user_id,
       const std::vector<RowGroupOwnership> &row_groups,
       const std::set<UniversalId> &user_groups);
-  void build_query(const std::vector<Column> &columns,
-                   const std::string &schema, const std::string &object,
-                   const uint32_t offset, const uint32_t limit,
-                   const std::string &url, const std::string &primary,
-                   const RowUserOwnership &user_row, UserId *user_id,
+
+  void build_query(const Object &object, const uint32_t offset,
+                   const uint32_t limit, const std::string &url,
+                   const std::string &primary, const RowUserOwnership &user_row,
+                   UserId *user_id,
                    const std::vector<RowGroupOwnership> &row_groups,
                    const std::set<UniversalId> &user_groups,
                    const std::string &query);

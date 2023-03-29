@@ -56,6 +56,8 @@ class MockQueryFactory : public mrs::interface::QueryFactory {
               create_query_auth_user, (), (override));
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryEntryDbObject>,
               create_query_db_object, (), (override));
+  MOCK_METHOD(std::shared_ptr<mrs::database::QueryEntryObject>,
+              create_query_object, (), (override));
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryUserGroups>,
               create_query_user_groups, (), (override));
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryRestTable>,

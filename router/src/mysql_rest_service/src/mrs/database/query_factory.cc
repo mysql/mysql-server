@@ -33,6 +33,7 @@
 #include "mrs/database/query_entries_auth_privileges.h"
 #include "mrs/database/query_entries_content_file.h"
 #include "mrs/database/query_entries_db_object.h"
+#include "mrs/database/query_entries_object.h"
 #include "mrs/database/query_entry_auth_user.h"
 #include "mrs/database/query_entry_content_file.h"
 #include "mrs/database/query_entry_group_row_security.h"
@@ -100,6 +101,10 @@ std::shared_ptr<QueryEntryAuthUser> QueryFactory::create_query_auth_user() {
 
 std::shared_ptr<QueryEntryDbObject> QueryFactory::create_query_db_object() {
   return std::make_shared<QueryEntryDbObject>();
+}
+
+std::shared_ptr<QueryEntryObject> QueryFactory::create_query_object() {
+  return std::make_shared<QueryEntryObject>();
 }
 
 std::shared_ptr<QueryUserGroups> QueryFactory::create_query_user_groups() {

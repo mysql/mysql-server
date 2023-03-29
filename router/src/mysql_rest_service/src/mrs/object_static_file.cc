@@ -132,6 +132,11 @@ const std::string &ObjectStaticFile::get_version() { return version_; }
 
 const std::string &ObjectStaticFile::get_options() { return cse_.options_json; }
 
+const interface::Object::EntryObject &ObjectStaticFile::get_cached_object() {
+  static EntryObject empty;
+  return empty;
+}
+
 const std::vector<Column> &ObjectStaticFile::get_cached_columnes() {
   static std::vector<Column> empty;
   return empty;

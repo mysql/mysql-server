@@ -28,6 +28,8 @@
 #include <string.h>
 #include <algorithm>
 #include <cassert>
+#include <optional>
+#include <utility>
 
 #include "helper/string/hex.h"
 #include "mysqlrouter/utils_sqlstring.h"
@@ -85,6 +87,17 @@ struct UniversalId {
 
   static void from_raw(UniversalId *uid, const char *binray) {
     memcpy(uid->raw, binray, k_size);
+  }
+
+  static void from_raw_optional(std::optional<UniversalId> *uid,
+                                const char *binray) {
+    if (binray) {
+      UniversalId result;
+      from_raw(&result, binray);
+      *uid = std::move(result);
+    } else {
+      (*uid).reset();
+    }
   }
 
   std::string to_string() const { return helper::string::hex(raw); }

@@ -25,6 +25,8 @@
 #include "mrs/database/query_entries_db_object.h"
 
 #include <map>
+#include <string>
+#include <utility>
 
 #include "helper/mysql_row.h"
 #include "mrs/database/helper/query_audit_log_maxid.h"

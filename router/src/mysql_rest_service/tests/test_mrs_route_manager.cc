@@ -187,8 +187,8 @@ TYPED_TEST(RouteManagerTests, notexisting_schema_does_noting) {
 }
 
 TYPED_TEST(RouteManagerTests, db_object_two_routes_with_the_same_schema) {
-  const mrs::UniversalId k_service_id{{1}};
-  const mrs::UniversalId k_schema_id{{2}};
+  const mrs::UniversalId k_service_id{1};
+  const mrs::UniversalId k_schema_id{2};
   auto objs = this->create_testing_data(
       k_service_id, {{k_schema_id, {1}}, {k_schema_id, {2}}});
   StrictMock<MockRouteSchema> schema;
@@ -332,7 +332,7 @@ TYPED_TEST(RouteManagerTests, db_object_update_two_times_same_object) {
   objs[0].requires_authentication = !objs[0].requires_authentication;
 
   EXPECT_CALL(route1,
-              update(DbObjectById(mrs::UniversalId{{1}}), EqSmartPtr(&schema)));
+              update(DbObjectById(mrs::UniversalId{1}), EqSmartPtr(&schema)));
   EXPECT_CALL(route1, turn(mrs::stateOn));
   this->sut_->update(objs);
 }
@@ -373,7 +373,7 @@ TYPED_TEST(RouteManagerTests, db_object_update_two_times_schema_changes_name) {
       .WillRepeatedly(Return(k_old_schema_name));
   // In case when "update" method receives new schema, it must remove inform
   // manager that it removed old schema
-  EXPECT_CALL(route1, update(DbObjectById(mrs::UniversalId{{1}}),
+  EXPECT_CALL(route1, update(DbObjectById(mrs::UniversalId{1}),
                              EqSmartPtr(&schema_new)))
       .WillOnce(InvokeWithoutArgs([this, &schema_old]() {
         this->sut_->schema_not_used(&schema_old);

@@ -49,6 +49,7 @@ class QueryFactory : public mrs::interface::QueryFactory {
       override;
   std::shared_ptr<QueryEntryContentFile> create_query_content_file() override;
   std::shared_ptr<QueryEntryAuthUser> create_query_auth_user() override;
+  std::shared_ptr<QueryEntryObject> create_query_object() override;
   std::shared_ptr<QueryEntryDbObject> create_query_db_object() override;
 
   std::shared_ptr<QueryUserGroups> create_query_user_groups() override;
