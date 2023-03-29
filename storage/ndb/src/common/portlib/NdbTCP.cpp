@@ -44,22 +44,6 @@ void NdbTCP_set_preferred_IP_version(int version) {
 #define EAI_NODATA EAI_NONAME
 #endif
 
-static void Ndb_make_ipv6_from_ipv4(struct sockaddr_in6* dst,
-                                    const struct sockaddr_in* src);
-
-void Ndb_make_ipv6_from_ipv4(struct sockaddr_in6* dst,
-                             const struct sockaddr_in* src)
-{
-  /*
-   * IPv4 mapped to IPv6 is ::ffff:a.b.c.d or expanded as full hex
-   * 0000:0000:0000:0000:0000:ffff:AABB:CCDD
-   */
-  dst->sin6_family = AF_INET6;
-  memset(&dst->sin6_addr.s6_addr[0], 0, 10);
-  memset(&dst->sin6_addr.s6_addr[10], 0xff, 2);
-  memcpy(&dst->sin6_addr.s6_addr[12], &src->sin_addr.s_addr, 4);
-}
-
 static struct addrinfo * get_preferred_address(struct addrinfo * ai_list)
 {
   struct addrinfo* first_ip4_addr = nullptr;
@@ -94,35 +78,26 @@ static struct addrinfo * get_preferred_address(struct addrinfo * ai_list)
   return ai_list;  // fallback to first address in original list
 }
 
-static int get_in6_addr(ndb_sockaddr* dst, const struct addrinfo* src)
+static int get_addr(ndb_sockaddr* dst, const struct addrinfo* src)
 {
   if (src == nullptr)
   {
     return -1;
   }
 
-  struct sockaddr_in6* addr6_ptr;
-  sockaddr_in6 addr6;
-
-  if (src->ai_family == AF_INET)
+  if (src->ai_family == AF_INET6)
   {
-    struct sockaddr_in* addr4_ptr = (struct sockaddr_in*)src->ai_addr;
-    Ndb_make_ipv6_from_ipv4(&addr6, addr4_ptr);
-    addr6_ptr = &addr6;
-  }
-  else if (src->ai_family == AF_INET6)
-  {
-    addr6_ptr = (struct sockaddr_in6*)src->ai_addr;
+    const sockaddr_in6* addr6_ptr = (const sockaddr_in6*)src->ai_addr;
     if(addr6_ptr->sin6_scope_id != 0)
     {
       return -1;  // require unscoped address
     }
   }
-  else
+  else if (src->ai_family != AF_INET)
   {
     return -1;
   }
-  *dst = ndb_sockaddr(&addr6_ptr->sin6_addr, 0);
+  *dst = ndb_sockaddr(src->ai_addr, src->ai_addrlen);
   return 0;
 }
 
@@ -145,7 +120,7 @@ Ndb_getAddr(ndb_sockaddr * dst, const char *address)
 
   struct addrinfo* ai_pref = get_preferred_address(ai_list);
 
-  int ret = get_in6_addr(dst, ai_pref);
+  int ret = get_addr(dst, ai_pref);
 
   freeaddrinfo(ai_list);
 

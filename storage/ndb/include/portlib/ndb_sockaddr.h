@@ -90,7 +90,7 @@ class ndb_sockaddr {
   static int set_address_family_for_unspecified_address(int af);
 
  private:
-  static int probe_address_family() { return AF_INET6; }
+  static int probe_address_family();
   static int set_get_address_family_for_unspecified_address(int af);
 
   storage_type sa;

@@ -1,4 +1,4 @@
 NDB_MGM "1.2.3.4:2;bind-address=192.0.2.0,host=2.3.4.2;bind-address=192.0.2.2" -eshow --connect-retries=1
 ERROR: Unable to connect with connect string: nodeid=0,1.2.3.4:2;bind-address=192.0.2.0:0,2.3.4.2:1186;bind-address=192.0.2.2:0
-NDB_MGM "nodeid=17,bind-address=192.0.2.3:4444,[2001:db8::1]:2,host=ndb.example:2222;bind-address=192.0.2.2:1" -eshow --connect-retries=1
-ERROR: Unable to connect with connect string: nodeid=17,[2001:db8::1]:2;bind-address=192.0.2.3:4444,ndb.example:2222;bind-address=192.0.2.2:1
+NDB_MGM "nodeid=17,bind-address=192.0.2.3:4444,192.0.2.0,[2001:db8::1]:2,host=ndb.example:2222;bind-address=192.0.2.2:1" -eshow --connect-retries=1
+ERROR: Unable to connect with connect string: nodeid=17,192.0.2.0:1186;bind-address=192.0.2.3:4444,[2001:db8::1]:2;bind-address=192.0.2.3:4444,ndb.example:2222;bind-address=192.0.2.2:1
