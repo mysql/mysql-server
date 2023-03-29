@@ -336,7 +336,7 @@ struct PT_install_component_set_element {
 
 enum class Set_operator { UNION, EXCEPT, INTERSECT };
 
-union YYSTYPE {
+union MY_SQL_PARSER_STYPE {
   Lexer_yystype lexer;  // terminal values from the lexical scanner
   /*
     Hint parser section (sql_hints.yy)
@@ -714,6 +714,7 @@ union YYSTYPE {
   List<PT_install_component_set_element> *install_component_set_list;
 };
 
-static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");
+static_assert(sizeof(MY_SQL_PARSER_STYPE) <= 32, "YYSTYPE is too big");
+using MY_HINT_PARSER_STYPE = MY_SQL_PARSER_STYPE;
 
 #endif  // PARSER_YYSTYPE_INCLUDED

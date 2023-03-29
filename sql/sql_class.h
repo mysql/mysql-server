@@ -93,6 +93,7 @@
 #include "sql/mdl.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_trace_context.h"  // Opt_trace_context
+#include "sql/parse_location.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/reference_caching_setup.h"
@@ -141,7 +142,6 @@ struct TABLE;
 class Table_ref;
 struct timeval;
 struct User_level_lock;
-struct YYLTYPE;
 
 namespace dd {
 namespace cache {
@@ -4387,15 +4387,15 @@ class THD : public MDL_context_owner,
       MY_ATTRIBUTE((format(printf, 2, 3)));
   void syntax_error(int mysql_errno, ...);
 
-  void syntax_error_at(const YYLTYPE &location) {
+  void syntax_error_at(const POS &location) {
     syntax_error_at(location, ER_SYNTAX_ERROR);
   }
-  void syntax_error_at(const YYLTYPE &location, const char *format, ...)
+  void syntax_error_at(const POS &location, const char *format, ...)
       MY_ATTRIBUTE((format(printf, 3, 4)));
-  void syntax_error_at(const YYLTYPE &location, int mysql_errno, ...);
+  void syntax_error_at(const POS &location, int mysql_errno, ...);
 
-  void vsyntax_error_at(const YYLTYPE &location, const char *format,
-                        va_list args) MY_ATTRIBUTE((format(printf, 3, 0)));
+  void vsyntax_error_at(const POS &location, const char *format, va_list args)
+      MY_ATTRIBUTE((format(printf, 3, 0)));
   void vsyntax_error_at(const char *pos_in_lexer_raw_buffer, const char *format,
                         va_list args) MY_ATTRIBUTE((format(printf, 3, 0)));
 

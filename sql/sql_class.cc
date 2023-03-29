@@ -2760,7 +2760,7 @@ void THD::syntax_error(int mysql_errno, ...) {
   @param format         Error format message. NULL means ER(ER_SYNTAX_ERROR).
 */
 
-void THD::syntax_error_at(const YYLTYPE &location, const char *format, ...) {
+void THD::syntax_error_at(const POS &location, const char *format, ...) {
   va_list args;
   va_start(args, format);
   vsyntax_error_at(location, format, args);
@@ -2782,14 +2782,14 @@ void THD::syntax_error_at(const YYLTYPE &location, const char *format, ...) {
   @param location       YYSTYPE object: error position
   @param mysql_errno    Error number to get a format string with ER_THD()
 */
-void THD::syntax_error_at(const YYLTYPE &location, int mysql_errno, ...) {
+void THD::syntax_error_at(const POS &location, int mysql_errno, ...) {
   va_list args;
   va_start(args, mysql_errno);
   vsyntax_error_at(location, ER_THD_NONCONST(this, mysql_errno), args);
   va_end(args);
 }
 
-void THD::vsyntax_error_at(const YYLTYPE &location, const char *format,
+void THD::vsyntax_error_at(const POS &location, const char *format,
                            va_list args) {
   vsyntax_error_at(location.raw.start, format, args);
 }
@@ -3063,10 +3063,11 @@ bool THD::sql_parser() {
     It is undefined (unchanged) on error. If "root" is NULL on success,
     then the parser has already called lex->make_sql_cmd() internally.
   */
-  extern int MYSQLparse(class THD * thd, class Parse_tree_root * *root);
+  extern int my_sql_parser_parse(class THD * thd,
+                                 class Parse_tree_root * *root);
 
   Parse_tree_root *root = nullptr;
-  if (MYSQLparse(this, &root) || is_error()) {
+  if (my_sql_parser_parse(this, &root) || is_error()) {
     /*
       Restore the original LEX if it was replaced when parsing
       a stored procedure. We must ensure that a parsing error

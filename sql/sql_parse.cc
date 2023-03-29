@@ -5116,7 +5116,7 @@ bool show_precheck(THD *thd, LEX *lex, bool lock [[maybe_unused]]) {
 #define MY_YACC_INIT 1000  // Start with big alloc
 #define MY_YACC_MAX 32000  // Because of 'short'
 
-bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, YYLTYPE **yyls,
+bool my_yyoverflow(short **yyss, MY_SQL_PARSER_STYPE **yyvs, POS **yyls,
                    ulong *yystacksize) {
   Yacc_state *state = &current_thd->m_parser_state->m_yacc;
   ulong old_info = 0;
@@ -5148,8 +5148,8 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, YYLTYPE **yyls,
     memcpy(state->yacc_yyls, *yyls, old_info * sizeof(**yyls));
   }
   *yyss = (short *)state->yacc_yyss;
-  *yyvs = (YYSTYPE *)state->yacc_yyvs;
-  *yyls = (YYLTYPE *)state->yacc_yyls;
+  *yyvs = (MY_SQL_PARSER_STYPE *)state->yacc_yyvs;
+  *yyls = (POS *)state->yacc_yyls;
   return false;
 }
 

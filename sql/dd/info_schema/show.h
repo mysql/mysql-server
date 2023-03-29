@@ -28,8 +28,8 @@ class String;
 class THD;
 class Query_block;
 class Table_ident;
-struct YYLTYPE;
-typedef YYLTYPE POS;
+
+#include "sql/parse_location.h"
 
 namespace dd {
 namespace info_schema {
@@ -54,7 +54,7 @@ namespace info_schema {
       ORDER BY `Charset`;
   @endcode
 
-  @param pos  - YYLTYPE position of parsing context.
+  @param pos  - POS position of parsing context.
   @param thd  - Current thread.
   @param wild - The value of LIKE clause.
   @param where_cond - @<where_clause@> clause provided by user.
@@ -87,7 +87,7 @@ Query_block *build_show_character_set_query(const POS &pos, THD *thd,
       ORDER BY `Collation`;
   @endcode
 
-  @param pos  - YYLTYPE position of parsing context.
+  @param pos  - POS position of parsing context.
   @param thd  - Current thread.
   @param wild - The value of LIKE clause.
   @param where_cond - @<where_clause@> clause provided by user.
@@ -114,7 +114,7 @@ Query_block *build_show_collation_query(const POS &pos, THD *thd,
       ORDER BY `Database`;
   @endcode
 
-  @param pos  - YYLTYPE position of parsing context.
+  @param pos  - POS position of parsing context.
   @param thd  - Current thread.
   @param wild - The value of LIKE clause.
   @param where_cond - @<where_clause@> clause provided by user.
@@ -192,7 +192,7 @@ Query_block *build_show_databases_query(const POS &pos, THD *thd, String *wild,
   Note that the thd->lex->verbose == true would mean user has
   provide keyword 'FULL'.
 
-  @param pos  - YYLTYPE position of parsing context.
+  @param pos  - POS position of parsing context.
   @param thd  - Current thread.
   @param wild - The value of LIKE clause.
   @param where_cond - @<where_clause@> clause provided by user.
@@ -253,7 +253,7 @@ Query_block *build_show_tables_query(const POS &pos, THD *thd, String *wild,
   Note that the thd->lex->verbose == true would mean user has
   provide keyword 'FULL'.
 
-  @param pos  - YYLTYPE position of parsing context.
+  @param pos  - POS position of parsing context.
   @param thd  - Current thread.
   @param table_ident  - Database and Table name of table being used.
   @param wild - The value of LIKE clause.
@@ -320,7 +320,7 @@ Query_block *build_show_columns_query(const POS &pos, THD *thd,
   @endcode
 
 
-  @param pos  - YYLTYPE position of parsing context.
+  @param pos  - POS position of parsing context.
   @param thd  - Current thread.
   @param table_ident  - Database and Table name of table being used.
   @param where_cond - @<where_clause@> clause provided by user.
@@ -376,7 +376,7 @@ Query_block *build_show_keys_query(const POS &pos, THD *thd,
 
   @endcode
 
-  @param pos  - YYLTYPE position of parsing context.
+  @param pos  - POS position of parsing context.
   @param thd  - Current thread.
   @param wild - The value of LIKE clause.
   @param where_cond - @<where_clause@> clause provided by user.
@@ -432,7 +432,7 @@ Query_block *build_show_triggers_query(const POS &pos, THD *thd, String *wild,
 
   @endcode
 
-  @param pos  - YYLTYPE position of parsing context.
+  @param pos  - POS position of parsing context.
   @param thd  - Current thread.
   @param wild - The value of LIKE clause.
   @param where_cond - @<where_clause@> clause provided by user.
@@ -494,7 +494,7 @@ Query_block *build_show_procedures_query(const POS &pos, THD *thd, String *wild,
 
   @endcode
 
-  @param pos  - YYLTYPE position of parsing context.
+  @param pos  - POS position of parsing context.
   @param thd  - Current thread.
   @param wild - The value of LIKE clause.
   @param where_cond - @<where_clause@> clause provided by user.

@@ -1156,11 +1156,6 @@ IF(APPLE)
 ENDIF()
 
 IF(WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO)
-  # We get ODR violations because of multiple bison parsers.
-  MY_CHECK_CXX_COMPILER_WARNING("error=odr" HAS_WARN_FLAG)
-  IF(HAS_WARN_FLAG)
-    MY_TARGET_LINK_OPTIONS(mysqld "${HAS_WARN_FLAG}")
-  ENDIF()
   # We may get errors in boost/geometry/srs/projections/proj/ob_tran.hpp
   # and several other boost files.
   MY_CHECK_CXX_COMPILER_WARNING("error=maybe-uninitialized" HAS_WARN_FLAG)
@@ -1313,7 +1308,7 @@ ELSE()
     ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.yy
     ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
     COMPILE_FLAGS
-    "--name-prefix=MYSQL --yacc ${BISON_FLAGS_WARNINGS} ${BISON_NO_LINE_OPT}"
+    "--yacc ${BISON_FLAGS_WARNINGS} ${BISON_NO_LINE_OPT}"
     DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
     )
 
@@ -1321,7 +1316,7 @@ ELSE()
     ${CMAKE_CURRENT_SOURCE_DIR}/sql_hints.yy
     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
     COMPILE_FLAGS
-    "--name-prefix=HINT_PARSER_ --yacc ${BISON_FLAGS_WARNINGS} ${BISON_NO_LINE_OPT}"
+    "--yacc ${BISON_FLAGS_WARNINGS} ${BISON_NO_LINE_OPT}"
     DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
     )
 

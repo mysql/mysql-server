@@ -26,7 +26,7 @@
 #include <cstdlib>  // size_t
 
 /**
-  Helper class for the YYLTYPE
+  Helper class for the MY_SQL_PARSER_LTYPE
 */
 struct Symbol_location {
   const char *start;  // token start
@@ -39,7 +39,7 @@ struct Symbol_location {
 /**
   Bison "location" class
 */
-struct YYLTYPE {
+struct MY_SQL_PARSER_LTYPE {
   Symbol_location cpp;  // token location in the preprocessed buffer
   Symbol_location raw;  // token location in the raw buffer
 
@@ -47,15 +47,16 @@ struct YYLTYPE {
 };
 
 /*
-  Note: YYLTYPE doesn't overload a default constructor (as well an underlying
-  Symbol_location).
-  OTOH if we need a zero-initialized POS, YYLTYPE or Symbol_location object,
-  we can simply call POS(), YYLTYPE() or Symbol_location(): C++ does
-  value-initialization in that case.
+  Note: MY_SQL_PARSER_LTYPE doesn't overload a default constructor (as
+  well an underlying Symbol_location).  OTOH if we need a
+  zero-initialized POS, MY_SQL_PARSER_LTYPE or Symbol_location object,
+  we can simply call POS(), MY_SQL_PARSER_LTYPE() or
+  Symbol_location(): C++ does value-initialization in that case.
 */
-typedef YYLTYPE POS;
+using POS = MY_SQL_PARSER_LTYPE;
 
-#define YYLTYPE_IS_DECLARED 1  // signal Bison that we have our own YYLTYPE
+// signal Bison that we have our own MY_SQL_PARSER_LTYPE
+#define MY_SQL_PARSER_LTYPE_IS_DECLARED 1
 
 /**
   Bison calls this macro:

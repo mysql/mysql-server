@@ -69,7 +69,8 @@
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/key_spec.h"  // KEY_CREATE_INFO
 #include "sql/mdl.h"
-#include "sql/mem_root_array.h"        // Mem_root_array
+#include "sql/mem_root_array.h"  // Mem_root_array
+#include "sql/parse_location.h"
 #include "sql/parse_tree_node_base.h"  // enum_parsing_context
 #include "sql/parser_yystype.h"
 #include "sql/query_options.h"  // OPTION_NO_CONST_TABLES
@@ -4670,7 +4671,7 @@ struct st_lex_local : public LEX {
 extern void lex_free(void);
 extern bool lex_start(THD *thd);
 extern void lex_end(LEX *lex);
-extern int MYSQLlex(union YYSTYPE *, struct YYLTYPE *, class THD *);
+extern int my_sql_parser_lex(MY_SQL_PARSER_STYPE *, POS *, class THD *);
 
 extern void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str);
 

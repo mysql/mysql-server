@@ -234,11 +234,20 @@ struct range {
   int max_seen;
 };
 
-static_assert(YYUNDEF == 1150,
-              "YYUNDEF must be stable, because raw token numbers are used in "
-              "PFS digest calculations");
-range range_for_sql_yacc2{"sql/sql_yacc.yy (before YYUNDEF)", YYUNDEF,
-                          MY_MAX_TOKEN};
+/*
+  Newer Bison versions (e.g 3.7) will rename YYUNDEF to
+  MY_SQL_PARSER_UNDEF, older versions (e.g. 3.0) will not.
+ */
+#if !defined(MY_SQL_PARSER_UNDEF)
+#define MY_SQL_PARSER_UNDEF YYUNDEF
+#endif
+
+static_assert(
+    MY_SQL_PARSER_UNDEF == 1150,
+    "MY_SQL_PARSER_UNDEF must be stable, because raw token numbers are used in "
+    "PFS digest calculations");
+range range_for_sql_yacc2{"sql/sql_yacc.yy (before MY_SQL_PARSER_UNDEF)",
+                          MY_SQL_PARSER_UNDEF, MY_MAX_TOKEN};
 
 range range_for_digests{"digest specials", 1100, range_for_sql_yacc2.start - 1};
 
@@ -247,7 +256,7 @@ static_assert(MAX_EXECUTION_TIME_HINT == 1000,
 range range_for_sql_hints{"sql/sql_hints.yy", MAX_EXECUTION_TIME_HINT,
                           range_for_digests.start - 1};
 
-range range_for_sql_yacc1{"sql/sql_yacc.yy (after YYUNDEF)", 256,
+range range_for_sql_yacc1{"sql/sql_yacc.yy (after MY_SQL_PARSER_UNDEF)", 256,
                           range_for_sql_hints.start - 1};
 
 int tok_generic_value = 0;
@@ -317,7 +326,7 @@ static void compute_tokens() {
   */
   for (const SYMBOL &sym : symbols) {
     if ((sym.group & SG_MAIN_PARSER) != 0) {
-      if (sym.tok < YYUNDEF)
+      if (sym.tok < MY_SQL_PARSER_UNDEF)
         range_for_sql_yacc1.set_token(sym.tok, sym.name, __LINE__);
       else
         range_for_sql_yacc2.set_token(sym.tok, sym.name, __LINE__);

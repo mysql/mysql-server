@@ -188,7 +188,7 @@ static const int MAX_NUMBER_OF_HISTOGRAM_BUCKETS= 1024;
 /// point seems to be generally low.
 static const int DEFAULT_NUMBER_OF_HISTOGRAM_BUCKETS= 100;
 
-int yylex(void *yylval, void *yythd);
+int my_sql_parser_lex(void *yylval, void *yythd);
 
 #define yyoverflow(A,B,C,D,E,F,G,H)           \
   {                                           \
@@ -298,7 +298,8 @@ int yylex(void *yylval, void *yythd);
 */
 
 static
-void MYSQLerror(YYLTYPE *location, THD *thd, Parse_tree_root **, const char *s)
+void my_sql_parser_error(YYLTYPE *location,
+                         THD *thd, Parse_tree_root **, const char *s)
 {
   if (strcmp(s, "syntax error") == 0) {
     thd->syntax_error_at(*location);
@@ -511,6 +512,9 @@ void warn_on_deprecated_user_defined_collation(
   }
 }
 
+// ODR violation here as well, so rename yysymbol_kind_t
+#define yysymbol_kind_t my_sql_parser_symbol_kind_t
+
 %}
 
 %start start_entry
@@ -520,6 +524,8 @@ void warn_on_deprecated_user_defined_collation(
 
 %lex-param { class THD *YYTHD }
 %define api.pure                                    /* We have threads */
+%define api.prefix {my_sql_parser_}
+
 /*
   1. We do not accept any reduce/reduce conflicts
   2. We should not introduce new shift/reduce conflicts any more.
@@ -1334,7 +1340,7 @@ void warn_on_deprecated_user_defined_collation(
   1. hint terminals (see sql_hints.yy),
   2. digest special internal token numbers (see gen_lex_token.cc, PART 6).
 
-  Note: YYUNDEF in internal to Bison. Please don't change its number, or change
+  Note: YYUNDEF is internal to Bison. Please don't change its number, or change
   it in sync with YYUNDEF in sql_hints.yy.
 */
 %token YYUNDEF 1150                /* INTERNAL (for use in the lexer) */

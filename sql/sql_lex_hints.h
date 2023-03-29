@@ -35,6 +35,7 @@
 #include "mysql/strings/m_ctype.h"
 #include "sql/lex_symbol.h"
 #include "sql/lexer_yystype.h"
+#include "sql/parser_yystype.h"
 #include "sql/sql_class.h"
 #include "sql/sql_digest_stream.h"
 #include "sql/sql_lex_hash.h"
@@ -43,12 +44,11 @@
 #include "sql/sql_hints.yy.h"
 
 class PT_hint_list;
-union YYSTYPE;
 
 /// Lexical scanner for hint comments.
 ///
 /// When the main lexical scanner recognizes the "/*+" delimiter, it calls
-/// the hint parser (HINT_PARSER_parse) to consume the rest of hint tokens
+/// the hint parser (my_hint_parser_parse) to consume the rest of hint tokens
 /// including the */ delimiter. The hint parser uses Hint_scanner as its own
 /// lexer to scan hint-specific tokens.
 class Hint_scanner {
@@ -465,7 +465,8 @@ class Hint_scanner {
   }
 };
 
-inline int HINT_PARSER_lex(YYSTYPE *yacc_yylval, Hint_scanner *scanner) {
+inline int my_hint_parser_lex(MY_HINT_PARSER_STYPE *yacc_yylval,
+                              Hint_scanner *scanner) {
   auto yylval = reinterpret_cast<Lexer_yystype *>(yacc_yylval);
   int ret = scanner->get_next_token();
   yylval->hint_string.str = scanner->yytext;
@@ -473,6 +474,7 @@ inline int HINT_PARSER_lex(YYSTYPE *yacc_yylval, Hint_scanner *scanner) {
   return ret;
 }
 
-void HINT_PARSER_error(THD *, Hint_scanner *, PT_hint_list **, const char *msg);
+void my_hint_parser_error(THD *, Hint_scanner *, PT_hint_list **,
+                          const char *msg);
 
 #endif /* SQL_LEX_HINTS_ICLUDED */

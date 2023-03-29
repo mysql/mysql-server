@@ -66,13 +66,6 @@ MYSQL_ADD_EXECUTABLE(pfs_connect_attr-t
   ${MYSQLD_EXTRA_SOURCES}
   ADD_TEST pfs_connect_attr
 )
-IF(WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO)
-  # We get ODR violations because of multiple bison parsers.
-  MY_CHECK_CXX_COMPILER_WARNING("error=odr" HAS_WARN_FLAG)
-  IF(HAS_WARN_FLAG)
-    MY_TARGET_LINK_OPTIONS(pfs_connect_attr-t "${HAS_WARN_FLAG}")
-  ENDIF()
-ENDIF()
 
 ADD_DEPENDENCIES(pfs_connect_attr-t GenServerSource)
 # For static server_unittest_library we need to explicitly link in everything

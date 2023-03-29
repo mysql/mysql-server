@@ -114,8 +114,8 @@ int Hint_scanner::scan() {
   }
 }
 
-void HINT_PARSER_error(THD *thd [[maybe_unused]], Hint_scanner *scanner,
-                       PT_hint_list **, const char *msg) {
+void my_hint_parser_error(THD *thd [[maybe_unused]], Hint_scanner *scanner,
+                          PT_hint_list **, const char *msg) {
   if (strcmp(msg, "syntax error") == 0)
     msg = ER_THD(thd, ER_WARN_OPTIMIZER_HINT_SYNTAX_ERROR);
   scanner->syntax_warning(msg);

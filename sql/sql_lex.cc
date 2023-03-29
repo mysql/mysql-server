@@ -80,8 +80,8 @@
 
 class PT_hint_list;
 
-extern int HINT_PARSER_parse(THD *thd, Hint_scanner *scanner,
-                             PT_hint_list **ret);
+extern int my_hint_parser_parse(THD *thd, Hint_scanner *scanner,
+                                PT_hint_list **ret);
 
 static int lex_one_token(Lexer_yystype *yylval, THD *thd);
 
@@ -870,7 +870,7 @@ static bool consume_optimizer_hints(Lex_input_stream *lip) {
                               lip->get_end_of_query() - lip->get_ptr(),
                               lip->m_digest);
     PT_hint_list *hint_list = nullptr;
-    int rc = HINT_PARSER_parse(lip->m_thd, &hint_scanner, &hint_list);
+    int rc = my_hint_parser_parse(lip->m_thd, &hint_scanner, &hint_list);
     if (rc == 2) return true;  // Bison's internal OOM error
     if (rc == 1) {
       /*
@@ -1346,12 +1346,13 @@ static bool consume_comment(Lex_input_stream *lip,
   @return                    token number
 
   @note
-  MYSQLlex remember the following states from the following MYSQLlex():
+  my_sql_parser_lex remember the following states from the
+  following my_sql_parser_lex():
 
   - MY_LEX_END			Found end of query
 */
 
-int MYSQLlex(YYSTYPE *yacc_yylval, YYLTYPE *yylloc, THD *thd) {
+int my_sql_parser_lex(MY_SQL_PARSER_STYPE *yacc_yylval, POS *yylloc, THD *thd) {
   auto *yylval = reinterpret_cast<Lexer_yystype *>(yacc_yylval);
   Lex_input_stream *lip = &thd->m_parser_state->m_lip;
   int token;
