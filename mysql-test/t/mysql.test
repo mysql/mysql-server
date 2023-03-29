@@ -688,4 +688,26 @@ DROP USER bug21464621;
 --exec $MYSQL -h 127.0.0.1 -P 99999 2>&1
 
 --echo
+--echo # Test support for dollar quoting
+--echo
+
+--error 1
+--exec $MYSQL test -e "CREATE FUNCTION f(i INTEGER) returns INTEGER LANGUAGE JAVASCRIPT AS \$mle\$ if (--i == 0) console.log('Hi!\nOops!'); return i; // Don't mess this up!\$mle\$;" 2>&1
+
+--error 1064
+-exec $MYSQL test -e "SELECT \$mle\$test\$mle\$;" 2>&1
+
+--error 1064
+-exec $MYSQL test -e "SELECT \$mle\$test\$mle;" 2>&1
+
+--error 1064
+-exec $MYSQL test -e "SELECT \$mle\$test\$ml\$;" 2>&1
+
+--error 1064
+-exec $MYSQL test -e "SELECT \$mle+\$mle;" 2>&1
+
+--error 1064
+-exec $MYSQL test -e "SELECT e\$mle\$ test e\$mle\$;" 2>&1
+
+--echo
 --echo End of tests

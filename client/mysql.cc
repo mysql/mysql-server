@@ -206,6 +206,8 @@ static char *histfile_tmp;
 static char *opt_histignore = nullptr;
 static String glob_buffer, old_buffer;
 static String processed_prompt;
+static String dollar_quote;
+static bool dollar_quote_supported = false;
 static char *full_username = nullptr, *part_username = nullptr,
             *default_prompt = nullptr;
 static char *current_os_user = nullptr, *current_os_sudouser = nullptr;
@@ -1264,6 +1266,15 @@ BOOL windows_ctrl_handler(DWORD fdwCtrlType) {
 }
 #endif
 
+static bool server_supports_dollar_quote(MYSQL *con) {
+  // This query will fail with parse error if dollar quotes are supported
+  if (mysql_real_query(con, "select $$", 9) &&
+      mysql_errno(&mysql) == ER_PARSE_ERROR) {
+    return true;
+  }
+  return false;
+}
+
 int main(int argc, char *argv[]) {
   char buff[80];
 
@@ -1482,6 +1493,8 @@ int main(int argc, char *argv[]) {
           INFO_INFO);
   }
 
+  dollar_quote_supported = server_supports_dollar_quote(&mysql);
+
   status.exit_status = read_and_execute(!status.batch);
 
   mysql_client_plugin_deinit();
@@ -1530,6 +1543,7 @@ void mysql_end(int sig) {
   glob_buffer.mem_free();
   old_buffer.mem_free();
   processed_prompt.mem_free();
+  dollar_quote.mem_free();
   my_free(server_version);
   free_passwords();
   my_free(opt_mysql_unix_port);
@@ -2290,16 +2304,33 @@ static int read_and_execute(bool interactive) {
       line_number++;
       if (!glob_buffer.length()) status.query_start_line = line_number;
     } else {
-      const char *prompt =
-          (ml_comment
-               ? "   /*> "
-               : glob_buffer.is_empty()
-                     ? construct_prompt()
-                     : !in_string
-                           ? "    -> "
-                           : in_string == '\''
-                                 ? "    '> "
-                                 : (in_string == '`' ? "    `> " : "    \"> "));
+      const char *prompt;
+      if (ml_comment) {
+        prompt = "   /*> ";
+      } else if (glob_buffer.is_empty()) {
+        prompt = construct_prompt();
+      } else {
+        switch (in_string) {
+          case 0:
+            prompt = "    -> ";
+            break;
+          case '\'':
+            prompt = "    '> ";
+            break;
+          case '`':
+            prompt = "    `> ";
+            break;
+          case '"':
+            prompt = "    \"> ";
+            break;
+          case '$':
+            prompt = "    $> ";
+            break;
+          default:
+            assert(false);
+        }
+      }
+
       if (opt_outfile && glob_buffer.is_empty()) fflush(OUTFILE);
 
 #if defined(_WIN32)
@@ -2498,6 +2529,47 @@ static COMMANDS *find_command(char *name) {
   return (COMMANDS *)nullptr;
 }
 
+/**
+   Check if there is a dollar quote at current position.
+   @param pos                Current position of input line
+   @param last_end_of_mb_pos Last byte of previous multi-byte character.
+                             Used to check if preceeding char is an mb char.
+   @param end_of_line        End of input line
+   @return length of dollar quote, 0 if not found
+*/
+static size_t check_for_dollar_quote(const char *pos,
+                                     const char *last_end_of_mb_pos,
+                                     const char *end_of_line) {
+  assert(*pos == '$');
+  if (!dollar_quote_supported) return 0;
+
+  // Character set state maps should always be initialized
+  assert(charset_info->ident_map);
+  // (We need info on valid characters in identifiers to ignore
+  // the case when the dollar sign is inside an identifier
+  const uchar *ident_map = charset_info->ident_map;
+  if (last_end_of_mb_pos == pos - 1 ||
+      ident_map[static_cast<uchar>(*(pos - 1))])
+    return 0;
+
+  // $ is first char of token
+  const char *p = pos + 1;
+  while (*p != '$' && ident_map[static_cast<uchar>(*p)] && p < end_of_line) {
+    int l;
+    if (use_mb(charset_info) &&
+        (l = my_ismbchar(charset_info, p, end_of_line)) > 1) {
+      p += l - 1;
+    }
+    ++p;
+  }
+  if (*p != '$') return 0;
+
+  // We have found the start of a dollar quote
+  size_t length = p - pos + 1;
+  dollar_quote.copy(pos, length, charset_info);
+  return length;
+}
+
 static bool add_line(String &buffer, char *line, size_t line_length,
                      char *in_string, bool *ml_comment, bool truncated) {
   uchar inchar;
@@ -2513,6 +2585,7 @@ static bool add_line(String &buffer, char *line, size_t line_length,
 
   char *end_of_line = line + line_length;
 
+  char *last_end_of_mb_pos = nullptr;
   for (pos = out = line; pos < end_of_line; pos++) {
     inchar = (uchar)*pos;
     if (!preserve_comments) {
@@ -2530,6 +2603,7 @@ static bool add_line(String &buffer, char *line, size_t line_length,
         pos--;
       } else
         pos += length - 1;
+      last_end_of_mb_pos = pos;
       continue;
     }
     if (!*ml_comment && inchar == '\\' &&
@@ -2686,11 +2760,34 @@ static bool add_line(String &buffer, char *line, size_t line_length,
       } else if (!*in_string && ss_comment && inchar == '*' &&
                  *(pos + 1) == '/')
         ss_comment = SSC_NONE;
-      if (inchar == *in_string)
-        *in_string = 0;
-      else if (!*ml_comment && !*in_string && ss_comment != SSC_HINT &&
-               (inchar == '\'' || inchar == '"' || inchar == '`'))
-        *in_string = (char)inchar;
+      if (inchar == *in_string) {
+        if (inchar != '$') {
+          *in_string = 0;
+        } else {
+          // Check if this is the end of the dollar quoted string
+          size_t len = dollar_quote.length();
+          if (strncmp(pos, dollar_quote.c_ptr(), len) == 0) {
+            *in_string = 0;
+            // Last character will be copied at end of loop
+            for (size_t i = 0; i < len - 1; ++i) {
+              *out++ = *pos++;
+            }
+          }
+        }
+      } else if (!*ml_comment && !*in_string && ss_comment != SSC_HINT) {
+        if (inchar == '\'' || inchar == '"' || inchar == '`')
+          *in_string = (char)inchar;
+        else if (inchar == '$') {
+          size_t len =
+              check_for_dollar_quote(pos, last_end_of_mb_pos, end_of_line);
+          if (len > 0) {
+            *in_string = '$';
+            for (size_t i = 0; i < len - 1; ++i) {
+              *out++ = *pos++;
+            }
+          }
+        }
+      }
       if (!*ml_comment || preserve_comments) {
         if (need_space && !my_isspace(charset_info, (char)inchar)) *out++ = ' ';
         need_space = false;
