@@ -427,10 +427,10 @@ Provides:       MySQL-shared = %{version}-%{release}
 Obsoletes:      MySQL-shared < %{version}-%{release}
 Obsoletes:      mysql-libs < %{version}-%{release}
 Obsoletes:      mariadb-libs
-Obsoletes:      libmysqlclient21 < %{version}-%{release}
+Obsoletes:      libmysqlclient22 < %{version}-%{release}
 Obsoletes:      mysql-connector-c-shared < 6.2
 Provides:       mysql-libs = %{version}-%{release}
-Provides:       libmysqlclient21 = %{version}-%{release}
+Provides:       libmysqlclient22 = %{version}-%{release}
 
 %description    libs
 This package contains the shared libraries for MySQL client
@@ -1138,7 +1138,7 @@ rm -r $(readlink var) var
 %doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
-%{_libdir}/mysql/libmysqlclient.so.21*
+%{_libdir}/mysql/libmysqlclient.so.22*
 
 %files client-plugins
 %defattr(-, root, root, -)
@@ -1464,6 +1464,9 @@ rm -r $(readlink var) var
 %endif # with_router
 
 %changelog
+* Wed Apr 05 2023 Erlend Dahl <erlend.dahl@oracle.com> - 8.1.0-1
+- Bump in the major version of MySQL, so increase the libmysqlclient major version to 22.
+
 * Wed Mar 01 2023 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.34-1
 - Added components, libraries and binaries related to event tracking
 

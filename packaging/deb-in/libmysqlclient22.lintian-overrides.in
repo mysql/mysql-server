@@ -20,7 +20,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-usr/lib/*/libmysqlclient.so.21*
-# legal
-usr/share/mysql-@MYSQL_BASE_VERSION@/LICENSE usr/share/doc/libmysqlclient21/
-usr/share/mysql-@MYSQL_BASE_VERSION@/README usr/share/doc/libmysqlclient21/
+# Additional license file is needed so overriding this warning
+libmysqlclient22: extra-license-file
+
+# Due to static linking this cannot be avoided and hence being overridden
+libmysqlclient22: embedded-library

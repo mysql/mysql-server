@@ -1517,7 +1517,7 @@ fi
 %doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
-%{_libdir}/mysql/libmysqlclient.so.21*
+%{_libdir}/mysql/libmysqlclient.so.22*
 %if 0%{?ssl_bundled}
 %attr(755, root, root) %{_libdir}/mysql/private/libssl.so
 %attr(755, root, root) %{_libdir}/mysql/private/libssl.so.1.1
@@ -1908,6 +1908,9 @@ fi
 %endif # with_router
 
 %changelog
+* Wed Apr 05 2023 Erlend Dahl <erlend.dahl@oracle.com> - 8.1.0-1
+- Bump in the major version of MySQL, so increase the libmysqlclient major version to 22.
+
 * Wed Mar 01 2023 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.34-1
 - Added components, libraries and binaries related to event tracking
 
