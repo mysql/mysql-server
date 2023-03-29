@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,6 +87,11 @@ public:
 private:
   // 100ms is the smallest heart beat interval supported.
   static const Uint32  minHeartBeatInterval = 100;
+  // 60000ms (1 min) is the max time we will wait for the first REGCONF signal
+  // from data node
+  static const Uint32  maxTimeWithoutFirstApiRegConfMillis = 60000;
+  static const Uint32 maxIntervalsWithoutFirstApiRegConf =
+      maxTimeWithoutFirstApiRegConfMillis / minHeartBeatInterval;
 
   void startup();
   void threadMain();
