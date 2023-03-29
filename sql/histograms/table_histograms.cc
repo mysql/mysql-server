@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ Table_histograms *Table_histograms::create(PSI_memory_key psi_key) noexcept {
     table_histograms->m_histograms = new (&table_histograms->m_mem_root)
         mem_root_unordered_map<unsigned int, const histograms::Histogram *>(
             &table_histograms->m_mem_root);
-  } catch (const std::bad_alloc &e) {
+  } catch (const std::bad_alloc &) {
     table_histograms->destroy();
     return nullptr;
   }
@@ -81,7 +81,7 @@ bool Table_histograms::insert_histogram(
         m_histograms->insert(std::make_pair(field_index, histogram_copy))
             .second;
     if (!insertion_happened) return true;  // Duplicate key.
-  } catch (const std::bad_alloc &e) {
+  } catch (const std::bad_alloc &) {
     return true;  // OOM.
   }
   return false;
