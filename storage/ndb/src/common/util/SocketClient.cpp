@@ -25,6 +25,7 @@
 
 #include <ndb_global.h>
 
+#include <cassert>
 #include "SocketClient.hpp"
 #include "SocketAuthenticator.hpp"
 #include "portlib/ndb_socket_poller.h"
@@ -55,6 +56,7 @@ SocketClient::~SocketClient()
 bool
 SocketClient::init()
 {
+  assert(!ndb_socket_valid(m_sockfd));
   if (ndb_socket_valid(m_sockfd))
     ndb_socket_close(m_sockfd);
 
@@ -117,6 +119,7 @@ SocketClient::bind(ndb_sockaddr local)
 ndb_socket_t
 SocketClient::connect(ndb_sockaddr server_addr)
 {
+  assert(ndb_socket_valid(m_sockfd));
   NdbSocket sock;
   connect(sock, server_addr);
   return sock.ndb_socket();
@@ -126,17 +129,11 @@ void
 SocketClient::connect(NdbSocket & secureSocket,
                       ndb_sockaddr server_addr)
 {
+  if (!ndb_socket_valid(m_sockfd))
+    return;
+
   // Reset last used port(in case connect fails)
   m_last_used_port = 0;
-
-  if (!ndb_socket_valid(m_sockfd))
-  {
-    if (!init())
-    {
-      DEBUG_FPRINTF((stderr, "Failed init in connect\n"));
-      return;
-    }
-  }
 
   // Set socket non blocking
   if (ndb_socket_nonblock(m_sockfd, true) < 0)

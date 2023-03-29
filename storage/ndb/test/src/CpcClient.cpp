@@ -450,10 +450,6 @@ int SimpleCpcClient::connect() {
 
 int SimpleCpcClient::open_connection() {
 
-  /* Create socket */
-  cpc_sock = ndb_socket_create_dual_stack(SOCK_STREAM, IPPROTO_TCP);
-  if (!ndb_socket_valid(cpc_sock)) return -1;
-
   // Resolve server address
   ndb_sockaddr sa;
   if (Ndb_getAddr(&sa, host))
@@ -464,6 +460,10 @@ int SimpleCpcClient::open_connection() {
     return -1;
   }
   sa.set_port(port);
+
+  /* Create socket */
+  cpc_sock = ndb_socket_create_dual_stack(SOCK_STREAM, IPPROTO_TCP);
+  if (!ndb_socket_valid(cpc_sock)) return -1;
 
   return ndb_connect(cpc_sock, &sa);
 }

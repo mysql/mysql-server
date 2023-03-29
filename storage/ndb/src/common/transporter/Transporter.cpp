@@ -292,6 +292,25 @@ Transporter::connect_client()
   }
   else
   {
+    ndb_sockaddr local;
+    if (strlen(localHostName) > 0)
+    {
+      if (Ndb_getAddr(&local, localHostName))
+      {
+        DEBUG_FPRINTF((stderr, "connect_client lookup '%s' failed, node: %u\n",
+                       localHostName, getRemoteNodeId()));
+        DBUG_RETURN(false);
+      }
+    }
+
+    ndb_sockaddr remote_addr;
+    if (Ndb_getAddr(&remote_addr, remoteHostName))
+    {
+      DEBUG_FPRINTF((stderr, "connect_client lookup remote '%s' failed, node: %u\n",
+                     remoteHostName, getRemoteNodeId()));
+      DBUG_RETURN(false);
+    }
+    remote_addr.set_port(port);
     if (!m_socket_client->init())
     {
       DEBUG_FPRINTF((stderr, "m_socket_client->init failed, node: %u\n",
@@ -308,13 +327,6 @@ Transporter::connect_client()
 
     if (strlen(localHostName) > 0)
     {
-      ndb_sockaddr local;
-      if (Ndb_getAddr(&local, localHostName))
-      {
-        DEBUG_FPRINTF((stderr, "connect_client lookup '%s' failed, node: %u\n",
-                       localHostName, getRemoteNodeId()));
-        DBUG_RETURN(false);
-      }
       if (m_socket_client->bind(local) != 0)
       {
         DEBUG_FPRINTF((stderr, "m_socket_client->bind failed, node: %u\n",
@@ -322,15 +334,6 @@ Transporter::connect_client()
         DBUG_RETURN(false);
       }
     }
-
-    ndb_sockaddr remote_addr;
-    if (Ndb_getAddr(&remote_addr, remoteHostName))
-    {
-      DEBUG_FPRINTF((stderr, "connect_client lookup remote '%s' failed, node: %u\n",
-                     remoteHostName, getRemoteNodeId()));
-      DBUG_RETURN(false);
-    }
-    remote_addr.set_port(port);
     m_socket_client->connect(secureSocket, remote_addr);
   }
 
