@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -64,6 +64,7 @@ ADD_CONVENIENCE_LIBRARY(ndbapi
             DictCache.cpp
             ndb_cluster_connection.cpp
             NdbBlob.cpp
+            SectionIterators.cpp
             SignalSender.cpp
             ObjectMap.cpp
             NdbInfo.cpp
@@ -77,3 +78,6 @@ ADD_CONVENIENCE_LIBRARY(ndbapi
 	    trp_client.cpp
             trp_node.cpp
 	    trp_buffer.cpp)
+
+
+NDB_ADD_TEST(SectionIterators-t SectionIterators.cpp NdbApiSignal.cpp)
