@@ -35,11 +35,13 @@ Dummy incoming ndb_apply_status updates, should be logged
 begin;
 insert into mysql.ndb_apply_status values (555, 12345, 'binlog.000001', 20, 30);
 insert into mysql.ndb_apply_status values (666, 67890, 'binlog.000001', 50, 60);
-replace into test.t1 values (1);
+replace into test.t1 values (2);
 commit;
 Should see ndb_apply_status updates in the Binlog
 show binlog events;
 select txt from binlog_stmts where txt like '%binlog.000001%' order by txt;
 txt
+INSERT INTO `mysql`.`ndb_apply_status` SET   @1=555   @2=12345   @3='binlog.000001'   @4=20   @5=30
+INSERT INTO `mysql`.`ndb_apply_status` SET   @1=666   @2=67890   @3='binlog.000001'   @4=50   @5=60
 set global ndb_log_apply_status=Off;
 drop table test.t1;

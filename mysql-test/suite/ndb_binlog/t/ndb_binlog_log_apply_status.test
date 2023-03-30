@@ -40,7 +40,7 @@ select * from mysql.ndb_apply_status;
 begin;
 insert into mysql.ndb_apply_status values (555, 12345, 'binlog.000001', 20, 30);
 insert into mysql.ndb_apply_status values (666, 67890, 'binlog.000001', 50, 60);
-replace into test.t1 values (1); # So that epoch is non-empty
+replace into test.t1 values (2); # So that epoch is non-empty
 commit;
 
 --echo Should see ndb_apply_status updates in the Binlog
