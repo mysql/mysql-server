@@ -137,4 +137,6 @@ include/assert.inc [Default group_replication_paxos_single_leader is 0]
 #
 # Clean up
 #
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 include/group_replication_end.inc

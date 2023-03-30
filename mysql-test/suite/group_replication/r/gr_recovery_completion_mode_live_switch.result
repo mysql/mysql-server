@@ -54,6 +54,8 @@ include/gr_wait_for_member_state.inc
 #
 SET @configured_rec_policy= @@GLOBAL.group_replication_recovery_complete_at;
 SET GLOBAL group_replication_recovery_complete_at= "transactions_certified";
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 include/gr_wait_for_member_state.inc
 #
 # Test all is fine
@@ -68,6 +70,8 @@ INSERT INTO t2 VALUES (2);
 [connection server2]
 SET GLOBAL debug= '-d,group_replication_skip_read_mode';
 SET GLOBAL group_replication_recovery_complete_at= @configured_rec_policy;
+Warnings:
+Warning	1681	'group_replication_recovery_complete_at' is deprecated and will be removed in a future release.
 DROP TABLE t1;
 DROP TABLE t2;
 include/group_replication_end.inc

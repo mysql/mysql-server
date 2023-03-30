@@ -218,6 +218,10 @@ static void check_deprecated_variables() {
     option_deprecation_warning(thd, "group_replication_ip_whitelist",
                                "group_replication_ip_allowlist");
   }
+  if (ov.recovery_completion_policy_var != RECOVERY_POLICY_WAIT_EXECUTED) {
+    push_deprecated_warn_no_replacement(
+        thd, "group_replication_recovery_complete_at");
+  }
 }
 
 static const char *get_ip_allowlist() {
@@ -3356,7 +3360,8 @@ static void update_ssl_server_cert_verification(MYSQL_THD, SYS_VAR *,
 }
 
 // Recovery threshold update method
-static int check_recovery_completion_policy(MYSQL_THD, SYS_VAR *, void *save,
+static int check_recovery_completion_policy(MYSQL_THD thd, SYS_VAR *,
+                                            void *save,
                                             struct st_mysql_value *value) {
   DBUG_TRACE;
 
@@ -3366,6 +3371,9 @@ static int check_recovery_completion_policy(MYSQL_THD, SYS_VAR *, void *save,
   long long tmp;
   long result;
   int length;
+
+  push_deprecated_warn_no_replacement(thd,
+                                      "group_replication_recovery_complete_at");
 
   Checkable_rwlock::Guard g(*lv.plugin_running_lock,
                             Checkable_rwlock::TRY_READ_LOCK);
