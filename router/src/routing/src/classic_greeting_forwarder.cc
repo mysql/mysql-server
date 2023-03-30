@@ -407,15 +407,6 @@ ServerGreetor::server_greeting_error() {
 
   auto msg = *msg_res;
 
-  if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
-    // RouterRoutingTest.RoutingTooManyServerConnections expects this
-    // message.
-    log_debug(
-        "Error from the server while waiting for greetings message: "
-        "%u, '%s'",
-        msg.error_code(), std::string(msg.message()).c_str());
-  }
-
   stage(Stage::Error);
 
   // the message arrived before the handshake started and is therefore in
@@ -1263,6 +1254,17 @@ ServerFirstConnector::server_greeted() {
     auto *src_protocol = connection()->client_protocol();
 
     stage(Stage::Error);
+
+    if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
+      auto ec = reconnect_error();
+
+      // RouterRoutingTest.RoutingTooManyServerConnections expects this
+      // message.
+      log_debug(
+          "Error from the server while waiting for greetings message: "
+          "%u, '%s'",
+          ec.error_code(), ec.message().c_str());
+    }
 
     return reconnect_send_error_msg(src_channel, src_protocol);
   }
