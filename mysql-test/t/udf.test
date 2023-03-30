@@ -1,4 +1,5 @@
 --source include/have_udf.inc
+--source include/elide_costs.inc
 #
 # To run this test, "sql/udf_example.cc" need to be compiled into
 # udf_example.so and LD_LIBRARY_PATH should be setup to point out where
@@ -859,7 +860,7 @@ let $query =
                  FROM t1 GROUP BY f1) as dt
   WHERE median != 1;
 
---replace_regex /cost=\d+.\d+(\.\.\d+\.\d+)?/cost=***/  /rows=\d+/rows=***/
+--replace_regex $elide_costs_and_rows
 --skip_if_hypergraph  # Hypergraph optimizer prints more costs.
 --eval EXPLAIN FORMAT=tree $query
 --eval $query

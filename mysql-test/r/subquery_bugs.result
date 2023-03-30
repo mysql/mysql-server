@@ -1117,19 +1117,19 @@ GROUP BY table_user.id
 ) AS d
 ) AS users FROM table_city;
 EXPLAIN
--> Index scan on table_city using PRIMARY (rows=6)
+-> Index scan on table_city using PRIMARY  (rows=6)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: group_concat(d.id separator ',') (rows=1)
-        -> Table scan on d (rows=5)
-            -> Materialize (rows=5)
-                -> Table scan on <temporary> (rows=5)
-                    -> Temporary table with deduplication (rows=5)
-                        -> Nested loop inner join (rows=5)
-                            -> Filter: (table_city.id = `<subquery4>`.city) (rows=5)
-                                -> Table scan on <subquery4> (rows=5.25)
-                                    -> Materialize with deduplication (rows=5.25)
-                                        -> Index lookup on table_city_user using city (city=table_city.id) (rows=5.25)
-                            -> Single-row covering index lookup on table_user using PRIMARY (id=`<subquery4>`.`user`) (rows=1)
+    -> Aggregate: group_concat(d.id separator ',')  (rows=1)
+        -> Table scan on d  (rows=5)
+            -> Materialize  (rows=5)
+                -> Table scan on <temporary>  (rows=5)
+                    -> Temporary table with deduplication  (rows=5)
+                        -> Nested loop inner join  (rows=5)
+                            -> Filter: (table_city.id = `<subquery4>`.city)  (rows=5)
+                                -> Table scan on <subquery4>  (rows=5.25)
+                                    -> Materialize with deduplication  (rows=5.25)
+                                        -> Index lookup on table_city_user using city (city=table_city.id)  (rows=5.25)
+                            -> Single-row covering index lookup on table_user using PRIMARY (id=`<subquery4>`.`user`)  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.table_city.id' of SELECT #4 was resolved in SELECT #1
@@ -2264,3 +2264,49 @@ WHERE t2.f1 IN (SELECT 1 FROM t1)
 ORDER BY t2.f2, subq) AS dt;
 subq
 DROP TABLE t1;
+# Bug#34946811: Failure in Item_ref::walk/Item_cond::fix_fields
+CREATE TABLE t (f integer);
+CREATE VIEW v AS SELECT * FROM t;
+SELECT 1
+FROM t AS t1 JOIN
+(SELECT v.*
+FROM v
+) AS t2
+ON t1.f = t2.f
+WHERE FALSE AND (t2.f, t2.f) IN (SELECT 1, 2);
+1
+explain SELECT 1
+FROM t AS t1 JOIN
+(SELECT v.*
+FROM v
+) AS t2
+ON t1.f = t2.f
+WHERE FALSE AND (t2.f, t2.f) IN (SELECT 1, 2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` `t1` join `test`.`t` where false
+SELECT t2.f
+FROM t AS t1 JOIN (SELECT *
+FROM (SELECT (SELECT f = 1 AS f FROM t) AS f
+FROM t
+) AS t2
+) AS t2
+ON t1.f = t2.f
+WHERE FALSE AND (t2.f,t2.f) IN (SELECT 4,3);
+f
+explain SELECT t2.f
+FROM t AS t1 JOIN (SELECT *
+FROM (SELECT (SELECT f = 1 AS f FROM t) AS f
+FROM t
+) AS t2
+) AS t2
+ON t1.f = t2.f
+WHERE FALSE AND (t2.f,t2.f) IN (SELECT 4,3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+4	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1003	/* select#1 */ select (/* select#4 */ select (`test`.`t`.`f` = 1) AS `f` from `test`.`t`) AS `f` from `test`.`t` `t1` join `test`.`t` where false
+DROP VIEW v;
+DROP TABLE t;

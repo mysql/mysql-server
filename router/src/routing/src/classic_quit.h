@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,12 @@ class QuitProcessor : public Processor {
 
   enum class Stage {
     Command,
-    ClientShutdown,
+    ServerTlsShutdownFirst,
+    ServerShutdownSend,
+    ServerTlsShutdownResponse,
+    ClientTlsShutdownFirst,
+    ClientShutdownSend,
+    ClientTlsShutdownResponse,
     Done,
   };
 
@@ -44,7 +49,34 @@ class QuitProcessor : public Processor {
 
  private:
   stdx::expected<Result, std::error_code> command();
-  stdx::expected<Result, std::error_code> client_shutdown();
+  stdx::expected<Result, std::error_code> server_tls_shutdown_first();
+  stdx::expected<Result, std::error_code> server_shutdown_send();
+  stdx::expected<Result, std::error_code> server_tls_shutdown_response();
+  stdx::expected<Result, std::error_code> client_tls_shutdown_first();
+  stdx::expected<Result, std::error_code> client_shutdown_send();
+  stdx::expected<Result, std::error_code> client_tls_shutdown_response();
+
+  Stage stage_{Stage::Command};
+};
+
+class QuitSender : public Processor {
+ public:
+  using Processor::Processor;
+
+  enum class Stage {
+    Command,
+    CloseSocket,
+    Done,
+  };
+
+  stdx::expected<Result, std::error_code> process() override;
+
+  void stage(Stage stage) { stage_ = stage; }
+  Stage stage() const { return stage_; }
+
+ private:
+  stdx::expected<Result, std::error_code> command();
+  stdx::expected<Result, std::error_code> close_socket();
 
   Stage stage_{Stage::Command};
 };

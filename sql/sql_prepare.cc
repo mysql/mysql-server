@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1129,6 +1129,10 @@ bool Sql_cmd_create_table::prepare(THD *thd) {
       return true;
 
     query_block->context.resolve_in_select_list = true;
+
+    // Use the hypergraph optimizer for the SELECT statement, if enabled.
+    lex->using_hypergraph_optimizer =
+        thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
 
     Prepared_stmt_arena_holder ps_arena_holder(thd);
 

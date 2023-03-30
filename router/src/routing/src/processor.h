@@ -148,8 +148,12 @@ class Processor : public BasicProcessor {
    * forward the current packet from the client-side to the server-side.
    *
    * Pushes a ClientToServerForwarder to the processor-stack.
+   *
+   * @param noflush if true, it isn't required to wait until the packet is sent
+   * to the server.
    */
-  stdx::expected<Result, std::error_code> forward_client_to_server();
+  stdx::expected<Result, std::error_code> forward_client_to_server(
+      bool noflush = false);
 };
 
 #endif

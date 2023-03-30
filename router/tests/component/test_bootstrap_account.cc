@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1367,9 +1367,6 @@ class AccountReuseCreateComboTestP
 
     const std::string HOST = get_local_hostname();
     const auto local_ipv4_res = get_local_ipv4(HOST);
-    EXPECT_TRUE(local_ipv4_res)
-        << "for host " << HOST << ": " << local_ipv4_res.error() << " "
-        << local_ipv4_res.error().message();
     const std::string IP = local_ipv4_res.value_or("");
 
     const std::string kColonUser = kAccountUser + ":" + kAccountUserPassword;

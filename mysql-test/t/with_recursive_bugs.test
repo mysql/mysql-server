@@ -200,7 +200,7 @@ SET SQL_BUFFER_RESULT = DEFAULT;
 --echo # Bug #30509580: SERVER CRASHED DURING EXPLAIN ANALYZE WITH RECURSIVE ...
 --echo #
 
---replace_regex $elide_costs_and_time
+--replace_regex $elide_costs_and_time_and_row_estimate
 EXPLAIN ANALYZE WITH RECURSIVE cte (n) AS
 (
   SELECT 1

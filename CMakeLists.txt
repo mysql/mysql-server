@@ -1180,6 +1180,11 @@ IF(WITH_ASAN AND WITH_MSAN)
           "Cannot use AddressSanitizer and MemorySanitizer together")
 ENDIF()
 
+IF((WITH_ASAN OR WITH_LSAN) AND (WITH_TCMALLOC OR WITH_JEMALLOC))
+  MESSAGE(FATAL_ERROR
+    "Cannot use tcmalloc/jemalloc with leak sanitizer")
+ENDIF()
+
 IF(WITH_ASAN OR WITH_LSAN OR WITH_UBSAN)
   SET(HANDLE_FATAL_SIGNALS_DEFAULT 0)
 ELSE()
@@ -1367,7 +1372,7 @@ ENDIF()
 
 # Fedora 34, RHEL9: undefined reference to symbol 'crc32_z@@ZLIB_1.2.9'
 IF(LINUX_FEDORA_34 OR LINUX_RHEL9)
-  IF(NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld")
+  IF(NOT USING_LD_LLD)
     STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--copy-dt-needed-entries")
   ENDIF()
 ENDIF()

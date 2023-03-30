@@ -105,7 +105,6 @@
 --source include/stop_slave.inc
 SET @save_replica_parallel_workers= @@GLOBAL.replica_parallel_workers;
 SET @@GLOBAL.replica_parallel_workers= 4;
-SET GLOBAL replica_parallel_workers = 0; # Workaround until WL#14885
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc

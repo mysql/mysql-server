@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,18 +80,6 @@ typedef __int32 int32_t;
 typedef unsigned __int32 uint32_t;
 typedef __int64 int64_t;
 typedef unsigned __int64 uint64_t;
-
-#ifndef MCMD_COMPILE /* Outside MCM, we use stdint.h */
-#ifndef UINT8_MAX
-#define UINT8_MAX (255)
-#endif
-#ifndef UINT16_MAX
-#define UINT16_MAX (65535)
-#endif
-#ifndef UINT32_MAX
-#define UINT32_MAX (4294967295U)
-#endif
-#endif
 
 /* WIN32 missing net/if.h */
 typedef int __daddr_t;

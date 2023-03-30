@@ -3,12 +3,12 @@
 # because they take too long.
 # The collection is retained for use on any special trees if needed.
 # Run all default suites except rpl
-#perl mysql-test-run.pl --timer --force --skip-rpl --comment=all_default_valgrind --vardir=var-all_default_valgrind --skip-ndb
+perl mysql-test-run.pl --timer --force --skip-rpl --comment=all_default_valgrind --vardir=var-all_default_valgrind --skip-ndb
 # Run all ndb tests with valgrind separately.
 # If no Ndb support, no tests will be attempted.
-#perl mysql-test-run.pl --timer --force --skip-rpl --comment=ndb_valgrind --vardir=var-ndb_valgrind --with-ndb-only
+perl mysql-test-run.pl --timer --force --skip-rpl --comment=ndb_valgrind --vardir=var-ndb_valgrind --with-ndb-only
 # Run rpl suites with explict --parallel
-#perl mysql-test-run.pl --timer --force --parallel=6 --comment=rpl-valgrind --vardir=var-rpl-valgrind --suite=rpl,rpl_gtid,rpl_nogtid
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=rpl-valgrind --vardir=var-rpl-valgrind --suite=rpl,rpl_gtid,rpl_nogtid
 
 # Group Replication
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication-valgrind --vardir=var-group_replication-valgrind --suite=group_replication

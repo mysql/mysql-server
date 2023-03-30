@@ -2738,6 +2738,14 @@
   server will remain down, but can be restarted at a later time by
   writing <b>restart</b> to the file.
 
+  If you write <b>restart:</b> or <b>restart_abort:</b> (please note
+  the colon) followed by some command line parameters, those will
+  be appended to the command line arguments of the server on restart.
+  The former should be used when the server is expected to restart
+  successfully while the latter comes with an implicit follow up wait
+  and can be used when the server is expected to exit due to the
+  provided arguments.
+
   @verbatim
   --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
   --shutdown_server 10

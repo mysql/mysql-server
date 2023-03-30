@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -572,6 +572,10 @@ class Btree_load : private ut::Non_copyable {
   @return DB_SUCCESS on success or an error code on failure. */
   dberr_t init();
 
+  /** Check if the index build operation has been interrupted.
+  @return true if the index build operation is interrupted, false otherwise.*/
+  bool is_interrupted() const;
+
   /** Get the index object.
   @return index object. */
   dict_index_t *index() const { return m_index; }
@@ -847,6 +851,10 @@ class Btree_load : private ut::Non_copyable {
   size_t get_max_flush_queue_size() const {
     return m_bulk_flusher.get_max_queue_size();
   }
+
+  /** If the data is already sorted and checked for duplicates, then we can
+  disable doing it again. */
+  void disable_check_order() { m_check_order = false; }
 
  private:
   /** Number of ranges to cache. */

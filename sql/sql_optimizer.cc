@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -853,22 +853,6 @@ bool JOIN::optimize(bool finalize_access_paths) {
   for (ORDER *ord = group_list.order; ord != nullptr; ord = ord->next) {
     (*ord->item)
         ->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
-  }
-
-  if (rollup_state != RollupState::NONE) {
-    /*
-      Fields may have been replaced by Item_rollup_group_item, so
-      recalculate the number of fields and functions for this query block.
-    */
-
-    // JOIN::optimize_rollup() may set allow_group_via_temp_table = false,
-    // and we must not undo that.
-    const bool save_allow_group_via_temp_table =
-        tmp_table_param.allow_group_via_temp_table;
-
-    count_field_types(query_block, &tmp_table_param, *fields, false, false);
-    tmp_table_param.allow_group_via_temp_table =
-        save_allow_group_via_temp_table;
   }
 
   // See if this subquery can be evaluated with subselect_indexsubquery_engine
@@ -8836,7 +8820,7 @@ static Item *part_of_refkey(TABLE *table, Index_lookup *ref,
 }
 
 bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
-                                    bool *subsumes) {
+                                    bool can_evaluate, bool *subsumes) {
   *subsumes = false;
   right_item = right_item->real_item();
   if (right_item->type() == Item::FIELD_ITEM) {
@@ -8848,8 +8832,10 @@ bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
     return false;
   }
   bool right_is_null = true;
-  if (right_item->const_for_execution()) {
-    right_is_null = right_item->is_null();
+  if (can_evaluate) {
+    assert(evaluate_during_optimization(right_item,
+                                        thd->lex->current_query_block()));
+    right_is_null = right_item->is_nullable() && right_item->is_null();
     if (thd->is_error()) return true;
   }
   if (!right_is_null) {
@@ -8888,6 +8874,7 @@ bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
         !(field->type() == MYSQL_TYPE_FLOAT && field->decimals() > 0))  // 2
     {
       *subsumes = !right_item->save_in_field_no_warnings(field, true);
+      if (thd->is_error()) return true;
     }
   }
   return false;
@@ -8933,7 +8920,9 @@ static bool test_if_ref(THD *thd, Item_field *left_item, Item *right_item,
       (join_tab->type() != JT_REF_OR_NULL)) {
     Item *ref_item = part_of_refkey(field->table, &join_tab->ref(), field);
     if (ref_item != nullptr && ref_item->eq(right_item, true)) {
-      if (ref_lookup_subsumes_comparison(thd, field, right_item, redundant)) {
+      if (ref_lookup_subsumes_comparison(thd, field, right_item,
+                                         right_item->const_for_execution(),
+                                         redundant)) {
         return true;
       }
     }
@@ -11648,4 +11637,31 @@ double EstimateRowAccesses(const AccessPath *path, double num_evaluations,
       });
 
   return rows;
+}
+
+bool IsHashEquijoinCondition(const Item_eq_base *item, table_map left_side,
+                             table_map right_side) {
+  // We are not able to create hash join conditions from row values consisting
+  // of multiple columns, so let them be added as extra conditions instead.
+  if (item->get_comparator()->get_child_comparator_count() > 1) {
+    return false;
+  }
+
+  table_map left_arg_tables = item->get_arg(0)->used_tables();
+  table_map right_arg_tables = item->get_arg(1)->used_tables();
+
+  // The equality is commutative. If the left side of the equality doesn't
+  // reference any table on the left side of the join, swap left and right to
+  // see if it's satisfied the other way around.
+  if (!Overlaps(left_arg_tables, left_side)) {
+    std::swap(left_arg_tables, right_arg_tables);
+  }
+
+  // One side of the equality should reference tables on one side of the join,
+  // and the other side of the equality should reference the other side of the
+  // join.
+  return Overlaps(left_arg_tables, left_side) &&
+         !Overlaps(left_arg_tables, right_side) &&
+         Overlaps(right_arg_tables, right_side) &&
+         !Overlaps(right_arg_tables, left_side);
 }

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -788,6 +788,22 @@ struct Merge_cursor : public Load_cursor {
 
 #ifdef UNIV_DEBUG
 void set_bulk_load_split_mode(size_t split_mode);
+
+/** This is a debug function. When an ALTER TABLE command builds both a
+clustered index and a secondary index, the clustered index build is delayed by
+a few seconds to let the secondary index build proceed first. This has been
+added to capture a test case scenario. */
+void ddl_delay_clust_index();
+
+/** This is a debug function. In the Builder::State::SETUP_SORT there is a
+duplicate check which can be avoided.  Use this debug function to disable
+the duplicate check in Builder::State::SETUP_SORT phase. */
+void disable_dupcheck_in_setup_sort();
+
+/** This is a debug function. In the Builder::State::SETUP_SORT there is a
+duplicate check which can be avoided.  Use this debug function to enable
+the duplicate check in Builder::State::SETUP_SORT phase. */
+void enable_dupcheck_in_setup_sort();
 #endif /* UNIV_DEBUG */
 
 #endif /* !ddl0impl_builder_h */

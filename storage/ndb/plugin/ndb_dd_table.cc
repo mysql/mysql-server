@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ Ndb_dd_handle ndb_dd_table_get_spi_and_version(const dd::Table *table_def) {
   }
 
   Ndb_dd_handle handle(spi, version);
-  DBUG_PRINT("info", ("%s", handle.c_str()));
+  DBUG_PRINT("info", ("%s", handle.to_string().c_str()));
 
   return handle;
 }

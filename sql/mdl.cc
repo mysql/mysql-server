@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3357,6 +3357,14 @@ void MDL_lock::object_lock_notify_conflicting_locks(MDL_context *ctx,
 
 bool MDL_context::acquire_lock(MDL_request *mdl_request,
                                Timeout_type lock_wait_timeout) {
+  // in order to test bug#34594035 call functions that before the fix
+  // caused crash and return failure
+  DBUG_EXECUTE_IF("bug34594035_fail_acl_cache_lock",
+                  debug_sync(get_thd(), "123", 3);
+                  mysql_prlock_wrlock(&m_LOCK_waiting_for);
+                  mysql_prlock_unlock(&m_LOCK_waiting_for);
+                  DBUG_SET("-d,bug34594035_fail_acl_cache_lock"); return true;);
+
   if (lock_wait_timeout == 0) {
     /*
       Resort to try_acquire_lock() in case of zero timeout.

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 
 class MysqlError {
  public:
+  MysqlError() = default;
   MysqlError(unsigned int code, std::string message, std::string sql_state)
       : code_{code},
         message_{std::move(message)},
@@ -47,7 +48,7 @@ class MysqlError {
   unsigned int value() const { return code_; }
 
  private:
-  unsigned int code_;
+  unsigned int code_{0};
   std::string message_;
   std::string sql_state_;
 };

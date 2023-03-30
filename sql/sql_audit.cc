@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1154,12 +1154,15 @@ void mysql_audit_release(THD *thd) {
     data->release_thd(thd);
   }
 
+  /* Move audit plugins array from THD to a tmp variable in order to avoid calls
+     to them via THD after the plugin is unlocked (#bug34594035) */
+  Plugin_array audit_class_plugins(std::move(thd->audit_class_plugins));
+
   /* Now we actually unlock the plugins */
-  plugin_unlock_list(nullptr, thd->audit_class_plugins.begin(),
-                     thd->audit_class_plugins.size());
+  plugin_unlock_list(nullptr, audit_class_plugins.begin(),
+                     audit_class_plugins.size());
 
   /* Reset the state of thread values */
-  thd->audit_class_plugins.clear();
   thd->audit_class_mask.clear();
   thd->audit_class_mask.resize(MYSQL_AUDIT_CLASS_MASK_SIZE);
 }

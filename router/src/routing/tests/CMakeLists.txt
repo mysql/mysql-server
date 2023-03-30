@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,8 @@ SET(test_files
   test_setup_named_socket_service.cc
   test_setup_tcp_service.cc
   test_auth_digest.cc
+  test_classic_quit_sender.cc
+  test_classic_reset_connection_sender.cc
   )
 
 FOREACH(test_file ${test_files})
@@ -66,6 +68,7 @@ ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/plugin/test_plugin.cc
   LIB_DEPENDS
     routing_export_all
     test-helpers
+    extra::rapidjson
   INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/../src
     ${PROJECT_SOURCE_DIR}/tests/helpers

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@
 #include "mysql/harness/net_ts/executor.h"               // async_completion
 #include "mysql/harness/net_ts/impl/socket_constants.h"  // wait_write
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/stdx/span.h"
 
 namespace net {
 
@@ -496,6 +497,12 @@ inline const_buffer buffer(
                       : impl::to_const_buffer(data.data(), data.size());
 }
 
+template <class T, std::size_t E>
+inline const_buffer buffer(const stdx::span<T, E> &data) noexcept {
+  return data.empty() ? const_buffer{}
+                      : impl::to_const_buffer(data.data(), data.size());
+}
+
 template <class T, size_t N>
 inline mutable_buffer buffer(T (&data)[N], size_t n) noexcept {
   return buffer(buffer(data), n);
@@ -543,6 +550,11 @@ template <class CharT, class Traits, class Allocator>
 inline const_buffer buffer(
     const std::basic_string<CharT, Traits, Allocator> &data,
     size_t n) noexcept {
+  return buffer(buffer(data), n);
+}
+
+template <class T, std::size_t E>
+inline const_buffer buffer(const stdx::span<T, E> &data, size_t n) noexcept {
   return buffer(buffer(data), n);
 }
 

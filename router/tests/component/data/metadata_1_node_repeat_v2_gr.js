@@ -36,18 +36,13 @@ options.group_replication_primary_member =
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses(
     [
-      "router_set_session_options",
-      "router_set_gr_consistency_level",
-      "select_port",
-      "router_start_transaction",
-      "router_commit",
-      "router_select_schema_version",
-      "router_select_cluster_type_v2",
-      "router_check_member_state",
-      "router_select_members_count",
+      "router_set_session_options", "router_set_gr_consistency_level",
+      "select_port", "router_start_transaction", "router_commit",
+      "router_select_schema_version", "router_select_cluster_type_v2",
+      "router_check_member_state", "router_select_members_count",
       "router_select_group_replication_primary_member",
       "router_select_group_membership_with_primary_mode",
-      "router_clusterset_present",
+      "router_clusterset_present", "router_select_router_options_view"
     ],
     options);
 

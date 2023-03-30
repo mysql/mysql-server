@@ -164,15 +164,16 @@ ResetConnectionForwarder::ok() {
   auto *src_channel = socket_splicer->server_channel();
   auto *src_protocol = connection()->server_protocol();
 
-  auto msg_res = ClassicFrame::recv_msg<classic_protocol::message::server::Ok>(
-      src_channel, src_protocol);
+  auto msg_res =
+      ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Ok>(
+          src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("reset_connection::ok"));
   }
 
-  auto msg = std::move(*msg_res);
+  auto msg = *msg_res;
 
   if (!msg.session_changes().empty()) {
     auto track_res = connection()->track_session_changes(
@@ -224,16 +225,18 @@ ResetConnectionSender::process() {
 stdx::expected<Processor::Result, std::error_code>
 ResetConnectionSender::command() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto dst_channel = socket_splicer->server_channel();
-  auto dst_protocol = connection()->server_protocol();
+  auto *dst_channel = socket_splicer->server_channel();
+  auto *dst_protocol = connection()->server_protocol();
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("reset_connection::command"));
   }
 
+  dst_protocol->seq_id(0xff);  // reset seq-id
+
   const auto send_res = ClassicFrame::send_msg<
-      classic_protocol::message::client::ResetConnection>(dst_channel,
-                                                          dst_protocol, {});
+      classic_protocol::borrowed::message::client::ResetConnection>(
+      dst_channel, dst_protocol, {});
   if (!send_res) return send_server_failed(send_res.error());
 
   stage(Stage::Response);
@@ -244,8 +247,8 @@ ResetConnectionSender::command() {
 stdx::expected<Processor::Result, std::error_code>
 ResetConnectionSender::response() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
 
   auto read_res =
       ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
@@ -273,15 +276,16 @@ stdx::expected<Processor::Result, std::error_code> ResetConnectionSender::ok() {
   auto *src_channel = socket_splicer->server_channel();
   auto *src_protocol = connection()->server_protocol();
 
-  auto msg_res = ClassicFrame::recv_msg<classic_protocol::message::server::Ok>(
-      src_channel, src_protocol);
+  auto msg_res =
+      ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Ok>(
+          src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("reset_connection::ok"));
   }
 
-  auto msg = std::move(*msg_res);
+  auto msg = *msg_res;
 
   if (!msg.session_changes().empty()) {
     auto track_res = connection()->track_session_changes(

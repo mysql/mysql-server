@@ -18,6 +18,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_set_gr_consistency_level",
       "router_select_schema_version",
       "router_select_cluster_type_v2",
+      "router_select_current_instance_attributes",
       "router_select_replication_group_name",
       "router_select_group_membership_with_primary_mode",
       "router_select_group_replication_primary_member",

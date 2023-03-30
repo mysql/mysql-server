@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -64,11 +64,11 @@ class HARNESS_TLS_EXPORT TlsServerContext : public TlsContext {
    *
    * cerifiticate is verified against the key
    *
-   * @param cert_chain_file filename of a PEM file containing a certificate
    * @param private_key_file filename of a PEM file containing a key
+   * @param cert_chain_file filename of a PEM file containing a certificate
    */
   stdx::expected<void, std::error_code> load_key_and_cert(
-      const std::string &cert_chain_file, const std::string &private_key_file);
+      const std::string &private_key_file, const std::string &cert_chain_file);
 
   /**
    * init temporary DH parameters.

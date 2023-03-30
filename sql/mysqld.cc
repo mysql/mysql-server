@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -101,11 +101,6 @@
 
   - Member variable names: Do not use foo_. Instead, use
     m_foo (non-static) or s_foo (static).
-
-  - Do not use non-const references as function parameters, even if they
-    are optional. Instead, use pointers for in/out and output parameters.
-    (This matches an older version of the Google style guide.) Do not use
-    references, whether const or non-const, as struct or class members.
 
   Old projects and modifications to old code use an older MySQL-specific
   style for the time being. Since 8.0, MySQL style uses the same formatting

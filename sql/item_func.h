@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3869,6 +3869,10 @@ class Item_func_uuid_short final : public Item_int_func {
     func_arg->banned_function_name = func_name();
     return ((func_arg->source == VGS_GENERATED_COLUMN) ||
             (func_arg->source == VGS_CHECK_CONSTRAINT));
+  }
+  // This function is random, see uuid_short_init().
+  table_map get_initial_pseudo_tables() const override {
+    return RAND_TABLE_BIT;
   }
 };
 

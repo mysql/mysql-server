@@ -244,7 +244,7 @@ bool ConfigGenerator::warn_on_no_ssl(
   try {
     // example response
     //
-    // > show status like "ssl_cipher"'
+    // > show status like 'ssl_cipher'
     // +---------------+--------------------+
     // | Variable_name | Value              |
     // +---------------+--------------------+
@@ -295,7 +295,8 @@ void ConfigGenerator::parse_bootstrap_options(
     if (it != bootstrap_options.end()) {
       const auto address = it->second;
       if (!mysql_harness::is_valid_domainname(address)) {
-        throw std::runtime_error("Invalid --bind-address value " + address);
+        throw std::runtime_error("Invalid --conf-bind-address value '" +
+                                 address + "'");
       }
     }
   }
@@ -380,7 +381,8 @@ void ConfigGenerator::connect_to_metadata_server(
     const URI &u, const std::string &bootstrap_socket,
     const std::map<std::string, std::string> &bootstrap_options) {
   // connect to (what should be a) metadata server
-  mysql_ = DIM::instance().new_MySQLSession();
+  mysql_ = std::make_unique<MySQLSession>(
+      std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
   try {
     // throws std::logic_error, std::runtime_error, Error(runtime_error)
     set_ssl_options(mysql_.get(), bootstrap_options);
@@ -450,6 +452,15 @@ void ConfigGenerator::init(
                                            bootstrap_options);
 
   // at this point we know the cluster type so let's do additional verifications
+
+  // check the type of the instance used for bootstraping - we can't allow
+  // bootstrapping from ReadReplica
+  if (metadata_->fetch_current_instance_type() == InstanceType::ReadReplica) {
+    throw std::runtime_error(
+        "Bootstrapping using the Read Replica Instance address is not "
+        "supported");
+  }
+
   if (mysqlrouter::ClusterType::RS_V2 == metadata_->get_type()) {
     if (bootstrap_options.find("use-gr-notifications") !=
         bootstrap_options.end()) {
@@ -470,8 +481,7 @@ void ConfigGenerator::init(
         bootstrap_options.end()) {
       throw std::runtime_error(
           "The parameter 'target-cluster-by-name' is valid only for Cluster "
-          "that is "
-          "part of the ClusterSet.");
+          "that is part of the ClusterSet.");
     }
   }
 
@@ -507,7 +517,6 @@ void ConfigGenerator::bootstrap_system_deployment(
     const std::map<std::string, std::vector<std::string>> &multivalue_options,
     const std::map<std::string, std::string> &default_paths) {
   auto options(user_options);
-  bool quiet = user_options.find("quiet") != user_options.end();
   mysql_harness::Path _config_file_path(config_file_path);
   AutoCleaner auto_clean;
 
@@ -563,10 +572,8 @@ void ConfigGenerator::bootstrap_system_deployment(
 
     if (backup_config_file_if_different(path, path + ".tmp", options,
                                         &auto_clean)) {
-      if (!quiet) {
-        std::cout << "\nExisting " << file_desc << " backed up to '" << path
-                  << ".bak'" << std::endl;
-      }
+      std::cout << "\nExisting " << file_desc << " backed up to '" << path
+                << ".bak'" << std::endl;
       auto_clean.add_file_delete(path);
     }
 
@@ -620,7 +627,6 @@ void ConfigGenerator::bootstrap_directory_deployment(
     const std::map<std::string, std::vector<std::string>> &multivalue_options,
     const std::map<std::string, std::string> &default_paths) {
   bool force = user_options.find("force") != user_options.end();
-  bool quiet = user_options.find("quiet") != user_options.end();
   mysql_harness::Path path(directory);
   std::string router_name;
   AutoCleaner auto_clean;
@@ -772,9 +778,8 @@ void ConfigGenerator::bootstrap_directory_deployment(
     config_file.close();
     if (backup_config_file_if_different(config_file_name,
                                         config_file_name + ".tmp", options)) {
-      if (!quiet)
-        std::cout << "\nExisting configurations backed up to '"
-                  << config_file_name << ".bak'" << std::endl;
+      std::cout << "\nExisting configurations backed up to '"
+                << config_file_name << ".bak'" << std::endl;
     }
     // rename the .tmp file to the final file
     auto rename_res = mysqlrouter::rename_file(
@@ -875,13 +880,8 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
   }
   ConfigGenerator::Options options;
   if (user_options.find("bind-address") != user_options.end()) {
-    auto address = user_options.at("bind-address");
-
-    if (!mysql_harness::is_valid_domainname(address)) {
-      throw std::runtime_error("Invalid bind-address value " + address);
-    }
-
-    options.bind_address = address;
+    // the address was already validated in parse_bootstrap_options()
+    options.bind_address = user_options.at("bind-address");
   }
 
   // if not given as a parameter we want consecutive numbers starting with 6446
@@ -1447,7 +1447,6 @@ std::string ConfigGenerator::bootstrap_deployment(
     const std::map<std::string, std::string> &default_paths,
     bool directory_deployment, AutoCleaner &auto_clean) {
   bool force = user_options.find("force") != user_options.end();
-  bool quiet = user_options.find("quiet") != user_options.end();
 
   auto cluster_info = metadata_->fetch_metadata_servers();
 
@@ -1463,10 +1462,8 @@ std::string ConfigGenerator::bootstrap_deployment(
   // inside try_bootstrap_deployment().  It cannot be done here, because the
   // autogenerated name will contain router_id, and that is still subject to
   // change inside try_bootstrap_deployment()
-
-  if (!quiet)
-    print_bootstrap_start_msg(conf_options.router_id, directory_deployment,
-                              config_file_path);
+  print_bootstrap_start_msg(conf_options.router_id, directory_deployment,
+                            config_file_path);
 
   Options options(fill_options(user_options, default_paths, conf_options));
   // Prompt for the Router's runtime account that's used by metadata_cache and
@@ -1540,27 +1537,23 @@ std::string ConfigGenerator::bootstrap_deployment(
                   state_file_path.str());
   }
 
-  // return bootstrap report (several lines of human-readable text) if desired
-  if (!quiet) {
-    const std::string cluster_type_name = [](auto cluster_type) {
-      switch (cluster_type) {
-        case ClusterType::RS_V2:
-          return "InnoDB ReplicaSet";
-        case ClusterType::GR_CS:
-          return "ClusterSet";
-        default:
-          return "InnoDB Cluster";
-      }
-    }(metadata_->get_type());
+  // return bootstrap report (several lines of human-readable text)
+  const std::string cluster_type_name = [](auto cluster_type) {
+    switch (cluster_type) {
+      case ClusterType::RS_V2:
+        return "InnoDB ReplicaSet";
+      case ClusterType::GR_CS:
+        return "ClusterSet";
+      default:
+        return "InnoDB Cluster";
+    }
+  }(metadata_->get_type());
 
-    return get_bootstrap_report_text(
-        program_name, config_file_path.str(), router_name, cluster_info.name,
-        cluster_type_name,
-        get_from_map(user_options, "report-host"s, "localhost"s),
-        !directory_deployment, options);
-  } else {
-    return "";
-  }
+  return get_bootstrap_report_text(
+      program_name, config_file_path.str(), router_name, cluster_info.name,
+      cluster_type_name,
+      get_from_map(user_options, "report-host"s, "localhost"s),
+      !directory_deployment, options);
 }
 
 void ConfigGenerator::ensure_router_id_is_ours(
@@ -2878,9 +2871,8 @@ void ConfigGenerator::create_users(const std::string &username,
       throw plugin_not_loaded(err_msg);
     }
     if (e.code() == ER_CANNOT_USER) {  // user already exists
-      // // this should only happen when running with --account-create always,
-      // // which sets if_not_exists to false
-      // harness_assert(!if_not_exists);
+      // this should only happen when running with --account-create always,
+      // which sets if_not_exists to false harness_assert(!if_not_exists);
 
       throw_account_exists(e, username);
     }

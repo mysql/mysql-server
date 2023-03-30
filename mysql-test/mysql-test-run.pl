@@ -77,7 +77,6 @@ require "lib/mtr_misc.pl";
 require "lib/mtr_process.pl";
 
 our $secondary_engine_support = eval 'use mtr_secondary_engine; 1';
-
 # Global variable to keep track of completed test cases
 my $completed = [];
 
@@ -2489,13 +2488,13 @@ sub set_build_thread_ports($) {
 
   if ($secondary_engine_support) {
     # Reserve a port for secondary engine server
-    if ($group_replication and $ports_per_thread == 50) {
+    if ($group_replication) {
       # When both group replication and secondary engine are enabled,
       # ports_per_thread value should be 50.
       # - First set of 20 ports are reserved for mysqld servers (10 each for
       #   standard and admin connections)
       # - Second set of 10 ports are reserver for Group replication
-      # - Third set of 10 ports are reserved for secondary engine server
+      # - Third set of 10 ports are reserved for secondary engine plugin
       # - Fourth and last set of 10 ports are reserved for X plugin
       $::secondary_engine_port = $baseport + 30;
     } else {
@@ -5272,9 +5271,6 @@ sub run_testcase ($) {
     # Check if it was secondary engine server that died
     if ($tinfo->{'secondary-engine'} and
         grep($proc eq $_, started(secondary_engine_servers()))) {
-      # Secondary engine server is shutdown automatically when
-      # mysqld server is shutdown.
-      next if ($proc->{EXIT_STATUS} == 0);
       # Secondary engine server crashed or died
       $tinfo->{'secondary_engine_srv_crash'} = 1;
       $tinfo->{'comment'} =
@@ -5906,13 +5902,19 @@ sub check_expected_crash_and_restart($$) {
         # Ignore any partial or unknown command
         next unless $last_line =~ /^restart/;
 
-        # If last line begins "restart:", the rest of the line is read as
-        # extra command line options to add to the restarted mysqld.
-        # Anything other than 'wait' or 'restart:' (with a colon) will
-        # result in a restart with original mysqld options.
+        # If the last line begins with 'restart:' or 'restart_abort:' (with
+        # a colon), rest of the line is read as additional command line options
+        # to be provided to the mysql server during restart.
+        # Anything other than 'wait', 'restart:' or'restart_abort:' will result
+        # in a restart with the original mysqld options.
+        my $follow_up_wait = 0;
         if ($last_line =~ /restart:(.+)/) {
           my @rest_opt = split(' ', $1);
           $mysqld->{'restart_opts'} = \@rest_opt;
+        } elsif ($last_line =~ /restart_abort:(.+)/) {
+          my @rest_opt = split(' ', $1);
+          $mysqld->{'restart_opts'} = \@rest_opt;
+          $follow_up_wait = 1;
         } else {
           delete $mysqld->{'restart_opts'};
         }
@@ -5928,6 +5930,15 @@ sub check_expected_crash_and_restart($$) {
           # Permission denied to unlink.
           # Race condition seen on windows. Wait and retry.
           mtr_milli_sleep(1000);
+        }
+
+        # Instruct an implicit wait in case the restart is intended
+        # to cause the mysql server to go down.
+        if ($follow_up_wait) {
+          my $efh = IO::File->new($expect_file, "w");
+          print $efh "wait";
+          $efh->close();
+          mtr_verbose("Test says wait after unsuccessful restart");
         }
 
         # Start server with same settings as last time

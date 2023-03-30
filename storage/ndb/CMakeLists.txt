@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -121,7 +121,7 @@ IF(NOT WITHOUT_SERVER)
   # unless it is explicitly disabled on the command line.
   MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
     DEFAULT STATIC_ONLY
-    LINK_LIBRARIES ndbclient_static)
+    LINK_LIBRARIES ndbclient_static extra::rapidjson)
 
   # Sanity check that MYSQL_ADD_PLUGIN didn't decide to skip build
   IF (NOT WITH_NDBCLUSTER_STORAGE_ENGINE)

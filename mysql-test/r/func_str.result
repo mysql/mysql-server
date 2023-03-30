@@ -5700,3 +5700,9 @@ c
 1
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# Bug#34962821 space():
+#              Item_str_func::push_packet_overflow_warning:
+#              Assertion `is_nullable()' failed.
+SET @@sql_mode='';
+DO SPACE(SHA(UUID_SHORT()));
+SET @@sql_mode = default;

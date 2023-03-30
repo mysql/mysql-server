@@ -1815,7 +1815,7 @@ ER_RPL_REPLICA_ERROR_LOADING_USER_DEFINED_LIBRARY
   eng "Error loading user-defined library, replica SQL thread aborted. Install the missing library, and restart the replica SQL thread with \"START REPLICA\". We stopped at log '%s' position %s"
 
 ER_RPL_REPLICA_ERROR_RUNNING_QUERY
-  eng "Error running query, replica SQL thread aborted. Fix the problem, and restart the replica SQL thread with \"STARTREPLICA\". We stopped at log '%s' position %s"
+  eng "Error running query, replica SQL thread aborted. Fix the problem, and restart the replica SQL thread with \"START REPLICA\". We stopped at log '%s' position %s"
 
 ER_RPL_REPLICA_SQL_THREAD_EXITING
   eng "Replica SQL thread%s exiting, replication stopped in log '%s' at position %s"
@@ -12052,7 +12052,7 @@ ER_IB_WRN_IGNORE_REDO_LOG_CAPACITY
   eng "Ignored the innodb-redo-log-capacity option in the Innodb read-only mode. Server is using active redo log files."
 
 ER_IB_PRIMARY_KEY_IS_INSTANT
-  eng "Unexpected INSTANLY Added / Dropped column: '%s' at position %lu for Table '%s', Index '%s' while getting Primary Key for row logging"
+  eng "Unexpected INSTANTLY Added / Dropped column: '%s' at position %lu for Table '%s', Index '%s' while getting Primary Key for row logging"
 
 ER_THREAD_POOL_IDLE_CONNECTION_CLOSED
    eng "%s"
@@ -12215,6 +12215,12 @@ ER_COMPONENT_MASKING_RANDOM_CREATE_REASON
 
 ER_COMPONENT_MASKING_CANNOT_ACCESS_TABLE
   eng "Cannot access %s.%s table."
+
+ER_REDUCED_DBLWR_FILE_CORRUPTED
+  eng "Cannot recover from detect_only doublewrite buffer as page %u from batch doublewrite file is corrupted."
+
+ER_REDUCED_DBLWR_PAGE_FOUND
+  eng "Database page corruption of tablespace %s space_id: %u page_num: %u. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode."
 
 ER_WARN_CANT_OPEN_CERTIFICATE
   eng "Cannot open certificate %s. Please check the cerificate"

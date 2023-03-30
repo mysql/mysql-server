@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -63,10 +63,9 @@ class Codec<frame::Header> : public impl::EncodeBase<Codec<frame::Header>> {
 
   static constexpr size_t max_size() noexcept { return 4; }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto payload_size_res = accu.template step<wire::FixedInt<3>>();
     auto seq_id_res = accu.template step<wire::FixedInt<1>>();
@@ -107,10 +106,9 @@ class Codec<frame::CompressedHeader>
 
   static size_t max_size() noexcept { return 7; }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto payload_size_res = accu.template step<wire::FixedInt<3>>();
     auto seq_id_res = accu.template step<wire::FixedInt<1>>();
@@ -157,10 +155,9 @@ class Codec<frame::Frame<PayloadType>>
   constexpr Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      net::const_buffer buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     auto header_res = accu.template step<frame::Header>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
@@ -168,7 +165,7 @@ class Codec<frame::Frame<PayloadType>>
     constexpr const size_t header_size{Codec<frame::Header>::max_size()};
 
     // check the payload is at least what we expect.
-    if (net::buffer_size(buffers) < header_size + header_res->payload_size()) {
+    if (buffer.size() < header_size + header_res->payload_size()) {
       return stdx::make_unexpected(
           make_error_code(classic_protocol::codec_errc::not_enough_input));
     }

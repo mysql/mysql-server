@@ -167,7 +167,7 @@
  *
  * ### Stage 2: Query GR, combine results with MD, determine availability
  *
- * Implemented in: `ClusterMetadata::update_cluster_status()`
+ * Implemented in: `ClusterMetadata::update_cluster_status_from_gr()`
  *
  * Here MDC iterates through the list of GR members obtained from MD in Stage
  * 1.2, until it finds a "trustworthy" GR node. A "trustworthy" GR node is one
@@ -195,7 +195,7 @@
  *
  * #### Stage 2.1: Connect to GR node
  *
- * Implemented in: `ClusterMetadata::update_cluster_status()`
+ * Implemented in: `ClusterMetadata::update_cluster_status_from_gr()`
  *
  * New connection to GR node is established (on failure, Stage 2 progresses to
  * next iteration).
@@ -236,8 +236,8 @@
  *
  * #### Stage 2.3: Quorum test
  *
- * Implemented in: `ClusterMetadata::update_cluster_status()` and
- *                   `ClusterMetadata::check_cluster_status()`
+ * Implemented in: `ClusterMetadata::update_cluster_status_from_gr()` and
+ *                   `ClusterMetadata::check_cluster_status_in_gr()`
  *
  * MD and GR data collected up to now are compared, to see if GR node just
  * queried belongs to an available cluster (or to an available cluster
@@ -414,6 +414,26 @@
 
 IMPORT_LOG_FUNCTIONS()
 
+namespace {
+std::string get_read_replica_info(
+    const metadata_cache::ManagedInstance &instance) {
+  return instance.type == mysqlrouter::InstanceType::ReadReplica
+             ? " Read Replica"
+             : "";
+}
+
+std::string get_ignored_info(const metadata_cache::ManagedInstance &instance) {
+  std::string result;
+  if (instance.ignore) {
+    result = instance.type == mysqlrouter::InstanceType::ReadReplica
+                 ? " [ignored]"
+                 : " [replaced by Read Replicas]";
+  }
+
+  return result;
+}
+}  // namespace
+
 bool GRMetadataCache::refresh(bool needs_writable_node) {
   bool changed{false};
   uint64_t view_id{0};
@@ -476,9 +496,10 @@ bool GRMetadataCache::refresh(bool needs_writable_node) {
             cluster.name.c_str(), cluster.members.size(),
             cluster.single_primary_mode ? "single-primary" : "multi-primary");
         for (const auto &mi : cluster.members) {
-          log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
-                   mi.xport, to_string(mi.mode).c_str(),
-                   get_hidden_info(mi).c_str());
+          log_info(
+              "    %s:%i / %i - mode=%s%s%s%s", mi.host.c_str(), mi.port,
+              mi.xport, to_string(mi.mode).c_str(), get_hidden_info(mi).c_str(),
+              get_read_replica_info(mi).c_str(), get_ignored_info(mi).c_str());
         }
       }
     }

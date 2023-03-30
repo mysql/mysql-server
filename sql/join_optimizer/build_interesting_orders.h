@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,6 +70,17 @@ struct SortAheadOrdering {
   // Whether aggregates must be computed before one can apply this sort
   // (because it includes at least one aggregate).
   bool aggregates_required;
+
+  /// True if this ordering can be used for sort-ahead only, and not for sorting
+  /// after the joining and aggregation are done (that is, sorting for DISTINCT,
+  /// WINDOW or ORDER BY). This flag is set for orderings on expressions that
+  /// have not been added to join->fields, and their availability cannot be
+  /// relied on at the end of the query execution, as they are not included in
+  /// the temporary table if there is a materialization step. If an ordering
+  /// marked as sort-ahead-only is actually useful after aggregation, there is
+  /// usually an equivalent ordering using expressions that do exist in
+  /// join->fields, and that can be used instead.
+  bool sort_ahead_only;
 
   // The ordering expressed in a form that filesort can use.
   ORDER *order;

@@ -923,6 +923,18 @@ FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_NAME='my_event';
 DROP EVENT my_event;
 SET TIME_ZONE=default;
 SET TIMESTAMP=default;
+#
+# Bug#11764690: SOME FUNCTIONS CAUSE ASSERTION WHEN GIVEN A ROW
+#               CONSTRUCTOR ARGUMENT
+#
+CREATE EVENT e ON SCHEDULE AT ROW(1, 2) DO SELECT 1;
+ERROR 21000: Operand should contain 1 column(s)
+CREATE EVENT e ON SCHEDULE EVERY ROW(1, 2) HOUR DO SELECT 1;
+ERROR 21000: Operand should contain 1 column(s)
+CREATE EVENT e ON SCHEDULE EVERY 1 HOUR STARTS ROW(1, 2) DO SELECT 1;
+ERROR 21000: Operand should contain 1 column(s)
+CREATE EVENT e ON SCHEDULE EVERY 1 HOUR ENDS ROW(1, 2) DO SELECT 1;
+ERROR 21000: Operand should contain 1 column(s)
 DROP DATABASE events_test;
 SET GLOBAL event_scheduler= 'ON';
 SET @@global.concurrent_insert= @concurrent_insert;

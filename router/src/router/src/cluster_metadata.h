@@ -140,6 +140,8 @@ class ClusterMetadata {
 
   virtual ClusterInfo fetch_metadata_servers() = 0;
 
+  virtual InstanceType fetch_current_instance_type() = 0;
+
   virtual std::vector<std::string> get_grant_statements(
       const std::string &new_accounts) const = 0;
 
@@ -199,6 +201,11 @@ class ClusterMetadataGRV1 : public ClusterMetadataGR {
 
   std::vector<std::string> get_routing_mode_queries() override;
 
+  InstanceType fetch_current_instance_type() override {
+    // V1 of the metadata only supported GR instances
+    return InstanceType::GroupMember;
+  }
+
   void verify_router_id_is_ours(
       const uint32_t router_id,
       const std::string &hostname_override = "") override;
@@ -236,6 +243,8 @@ class ClusterMetadataGRV2 : public ClusterMetadataGR {
   ClusterInfo fetch_metadata_servers() override;
 
   std::vector<std::string> get_routing_mode_queries() override;
+
+  InstanceType fetch_current_instance_type() override;
 
   void verify_router_id_is_ours(
       uint32_t router_id, const std::string &hostname_override = "") override;
@@ -320,6 +329,10 @@ class ClusterMetadataAR : public ClusterMetadata {
   }
 
   ClusterInfo fetch_metadata_servers() override;
+
+  InstanceType fetch_current_instance_type() override {
+    return InstanceType::AsyncMember;
+  }
 
   std::string get_cluster_type_specific_id() override;
 

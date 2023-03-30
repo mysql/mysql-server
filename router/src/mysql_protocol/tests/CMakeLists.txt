@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -41,3 +41,14 @@ IF(WIN32)
     test_classic_protocol_message.cc
     COMPILE_FLAGS "/bigobj")
 ENDIF()
+
+FOREACH(test_file
+    test_microbench.cc
+  )
+  ADD_GOOGLETEST_FILE(${test_file}
+    EXTRA_SOURCES ${CMAKE_SOURCE_DIR}/unittest/gunit/benchmark.cc
+    MODULE ${TEST_MODULE}
+    SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
+    INCLUDE_DIRS ../include/
+    LIB_DEPENDS harness_stdx)
+ENDFOREACH()

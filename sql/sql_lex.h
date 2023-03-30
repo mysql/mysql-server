@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1253,8 +1253,11 @@ class Query_block : public Query_term {
 
   void mark_as_dependent(Query_block *last, bool aggregate);
 
+  /// @returns true if query block references any tables
+  bool has_tables() const { return m_table_list.elements != 0; }
+
   /// @return true if query block is explicitly grouped (non-empty GROUP BY)
-  bool is_explicitly_grouped() const { return group_list.elements > 0; }
+  bool is_explicitly_grouped() const { return group_list.elements != 0; }
 
   /**
     @return true if this query block is implicitly grouped, ie it is not

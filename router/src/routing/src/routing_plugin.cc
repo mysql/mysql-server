@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -284,8 +284,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
                                                         config.source_ssl_cert);
       if (!res) {
         throw std::system_error(
-            res.error(), "loading client_ssl_cert '" + config.source_ssl_key +
-                             "' and client_ssl_key '" + config.source_ssl_cert +
+            res.error(), "loading client_ssl_cert '" + config.source_ssl_cert +
+                             "' and client_ssl_key '" + config.source_ssl_key +
                              "' failed");
       }
 

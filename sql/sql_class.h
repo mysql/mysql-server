@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1896,6 +1896,11 @@ class THD : public MDL_context_owner,
 
   /* MTS: method inserts a new unique name into binlog_updated_dbs */
   void add_to_binlog_accessed_dbs(const char *db);
+
+  bool is_applier_thread() const {
+    return system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+           system_thread == SYSTEM_THREAD_SLAVE_WORKER;
+  }
 
  private:
   std::unique_ptr<Transaction_ctx> m_transaction;

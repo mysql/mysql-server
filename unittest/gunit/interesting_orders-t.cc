@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,9 +37,15 @@ using std::array;
 using std::unique_ptr;
 
 template <class T, size_t Size>
-static int AddOrdering(THD *thd, std::array<T, Size> &ordering,
-                       bool interesting, LogicalOrderings *orderings) {
-  return orderings->AddOrdering(thd, Ordering{ordering}, interesting,
+static int AddOrdering(THD *thd, std::array<T, Size> &terms, bool interesting,
+                       LogicalOrderings *orderings) {
+  const Ordering::Kind kind = terms[0].direction == ORDER_NOT_RELEVANT
+                                  ? Ordering::Kind::kGroup
+                                  : Ordering::Kind::kOrder;
+
+  const Ordering::Elements elements{terms.data(), terms.size()};
+
+  return orderings->AddOrdering(thd, Ordering{elements, kind}, interesting,
                                 /*used_at_end=*/true, /*homogenize_tables=*/0);
 }
 
@@ -279,15 +285,15 @@ TEST_F(InterestingOrderingTableTest, HomogenizeOrderings) {
   ASSERT_EQ(7, m_orderings->num_orderings());
 
   // (t1.a).
-  ASSERT_THAT(m_orderings->ordering(4),
+  ASSERT_THAT(m_orderings->ordering(4).GetElements(),
               testing::ElementsAre(OrderElement{t1_a, ORDER_ASC}));
 
   // (t2.a).
-  ASSERT_THAT(m_orderings->ordering(5),
+  ASSERT_THAT(m_orderings->ordering(5).GetElements(),
               testing::ElementsAre(OrderElement{t2_a, ORDER_ASC}));
 
   // (t1.a, t1.c↓).
-  ASSERT_THAT(m_orderings->ordering(6),
+  ASSERT_THAT(m_orderings->ordering(6).GetElements(),
               testing::ElementsAre(OrderElement{t1_a, ORDER_ASC},
                                    OrderElement{t1_c, ORDER_DESC}));
 }
@@ -979,11 +985,11 @@ TEST_F(InterestingOrderingTableTest, HomogenizedOrderingsAreEquallyGood) {
 
   // Just make sure we have the right indexes.
   ASSERT_EQ(4, m_orderings->num_orderings());
-  ASSERT_THAT(m_orderings->ordering(1),
+  ASSERT_THAT(m_orderings->ordering(1).GetElements(),
               testing::ElementsAre(OrderElement{t1_a, ORDER_ASC}));
-  ASSERT_THAT(m_orderings->ordering(2),
+  ASSERT_THAT(m_orderings->ordering(2).GetElements(),
               testing::ElementsAre(OrderElement{t2_a, ORDER_ASC}));
-  ASSERT_THAT(m_orderings->ordering(3),
+  ASSERT_THAT(m_orderings->ordering(3).GetElements(),
               testing::ElementsAre(OrderElement{t3_a, ORDER_ASC}));
   LogicalOrderings::StateIndex empty_idx = m_orderings->SetOrder(0);
   LogicalOrderings::StateIndex t1a_idx = m_orderings->SetOrder(1);
@@ -1176,13 +1182,13 @@ TEST_F(InterestingOrderingTableTest, GroupCover) {
   ASSERT_EQ(6, m_orderings->num_orderings());
 
   // (b↓ac).
-  EXPECT_THAT(m_orderings->ordering(4),
+  EXPECT_THAT(m_orderings->ordering(4).GetElements(),
               testing::ElementsAre(OrderElement{b, ORDER_DESC},
                                    OrderElement{a, ORDER_ASC},
                                    OrderElement{c, ORDER_ASC}));
 
   // (d).
-  EXPECT_THAT(m_orderings->ordering(5),
+  EXPECT_THAT(m_orderings->ordering(5).GetElements(),
               testing::ElementsAre(OrderElement{d, ORDER_ASC}));
 }
 
@@ -1218,7 +1224,7 @@ TEST_F(InterestingOrderingTableTest, NoGroupCoverWithNondeterminism) {
   // an acceptable cover, but we don't constrain the cover logic;
   // there's not really any need.
   ASSERT_EQ(4, m_orderings->num_orderings());
-  EXPECT_THAT(m_orderings->ordering(3),
+  EXPECT_THAT(m_orderings->ordering(3).GetElements(),
               testing::ElementsAre(OrderElement{f, ORDER_ASC},
                                    OrderElement{r, ORDER_ASC}));
 

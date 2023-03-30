@@ -1,7 +1,7 @@
 #ifndef SQL_ITERATORS_HASH_JOIN_BUFFER_H_
 #define SQL_ITERATORS_HASH_JOIN_BUFFER_H_
 
-/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -178,16 +178,13 @@ class HashJoinRowBuffer {
   /// @param thd the thread handler
   /// @param reject_duplicate_keys If true, reject rows with duplicate keys.
   ///        If a row is rejected, the function will still return ROW_STORED.
-  /// @param store_rows_with_null_in_condition Whether to store rows where the
-  ///        join conditions contains SQL NULL.
   ///
   /// @retval ROW_STORED the row was stored.
   /// @retval BUFFER_FULL the row was stored, and the buffer is full.
   /// @retval FATAL_ERROR an unrecoverable error occurred (most likely,
   ///         malloc failed). It is the caller's responsibility to call
   ///         my_error().
-  StoreRowResult StoreRow(THD *thd, bool reject_duplicate_keys,
-                          bool store_rows_with_null_in_condition);
+  StoreRowResult StoreRow(THD *thd, bool reject_duplicate_keys);
 
   size_t size() const { return m_hash_map->size(); }
 

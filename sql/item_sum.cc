@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5003,6 +5003,10 @@ longlong Item_ntile::val_int() {
     }
 
     longlong buckets = args[0]->val_int();
+    if (buckets == 0) {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+      return error_int();
+    }
 
     /*
       Should not be evaluated until we have read all rows in partition

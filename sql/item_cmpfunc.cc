@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -798,8 +798,8 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
       if (cmp_collation.set((*left)->collation, (*right)->collation,
                             MY_COLL_CMP_CONV) ||
           cmp_collation.derivation == DERIVATION_NONE) {
-        my_coll_agg_error((*left)->collation, (*right)->collation,
-                          owner->func_name());
+        const char *func_name = owner ? owner->func_name() : "";
+        my_coll_agg_error((*left)->collation, (*right)->collation, func_name);
         return true;
       }
       if (cmp_collation.collation == &my_charset_bin) {
@@ -1696,7 +1696,10 @@ int Arg_comparator::compare_json() {
 
   // Get the JSON value in the left Item.
   Json_wrapper aw;
-  if (get_json_arg(*left, &value1, &tmp, &aw, &json_scalar)) return 1;
+  if (get_json_arg(*left, &value1, &tmp, &aw, &json_scalar)) {
+    if (set_null) owner->null_value = true;
+    return 1;
+  }
 
   bool a_is_null = (*left)->null_value;
   if (a_is_null) {
@@ -1706,7 +1709,10 @@ int Arg_comparator::compare_json() {
 
   // Get the JSON value in the right Item.
   Json_wrapper bw;
-  if (get_json_arg(*right, &value1, &tmp, &bw, &json_scalar)) return 1;
+  if (get_json_arg(*right, &value1, &tmp, &bw, &json_scalar)) {
+    if (set_null) owner->null_value = true;
+    return 1;
+  }
 
   bool b_is_null = (*right)->null_value;
   if (b_is_null) {
@@ -1824,10 +1830,16 @@ int Arg_comparator::compare_real_fixed() {
 
 int Arg_comparator::compare_int_signed() {
   longlong val1 = (*left)->val_int();
-  if (current_thd->is_error()) return 0;
+  if (current_thd->is_error()) {
+    if (set_null) owner->null_value = true;
+    return 0;
+  }
   if (!(*left)->null_value) {
     longlong val2 = (*right)->val_int();
-    if (current_thd->is_error()) return 0;
+    if (current_thd->is_error()) {
+      if (set_null) owner->null_value = true;
+      return 0;
+    }
     if (!(*right)->null_value) {
       if (set_null) owner->null_value = false;
       if (val1 < val2) return -1;
@@ -1880,10 +1892,16 @@ int Arg_comparator::compare_time_packed() {
 
 int Arg_comparator::compare_int_unsigned() {
   ulonglong val1 = (*left)->val_int();
-  if (current_thd->is_error()) return 0;
+  if (current_thd->is_error()) {
+    if (set_null) owner->null_value = true;
+    return 0;
+  }
   if (!(*left)->null_value) {
     ulonglong val2 = (*right)->val_int();
-    if (current_thd->is_error()) return 0;
+    if (current_thd->is_error()) {
+      if (set_null) owner->null_value = true;
+      return 0;
+    }
     if (!(*right)->null_value) {
       if (set_null) owner->null_value = false;
       if (val1 < val2) return -1;
@@ -2120,15 +2138,6 @@ longlong Item_func_truth::val_int() {
 bool Item_in_optimizer::fix_left(THD *thd, Item **) {
   Item *left = down_cast<Item_in_subselect *>(args[0])->left_expr;
   /*
-    Eliminate Item_view_ref objects, but keep Item_ref since the latter may
-    be needed for slice handling. Elimination is needed to avoid a bad
-   reference count if subquery predicate is eliminated.
-  */
-  while (left->type() == REF_ITEM &&
-         down_cast<Item_ref *>(left)->ref_type() == Item_ref::VIEW_REF) {
-    left = down_cast<Item_ref *>(left)->ref_item();
-  }
-  /*
     Because get_cache() depends on type of left arg, if this arg is a PS param
     we must decide of its type now. We cannot wait until we know the type of
     the subquery's SELECT list.
@@ -2142,13 +2151,23 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **) {
 
   cache->setup(left);
   used_tables_cache = left->used_tables();
+
+  /*
+    Propagate used tables information to the cache objects.
+    Since the cache objects will be used in synthesized predicates that are
+    added to the subquery's query expression, we need to add extra references
+    to them, since on removal these will be decremented twice.
+  */
   if (cache->cols() == 1) {
+    left->real_item()->increment_ref_count();
     cache->set_used_tables(used_tables_cache);
   } else {
     uint n = cache->cols();
     for (uint i = 0; i < n; i++) {
-      ((Item_cache *)cache->element_index(i))
-          ->set_used_tables(left->element_index(i)->used_tables());
+      Item_cache *const element =
+          down_cast<Item_cache *>(cache->element_index(i));
+      element->set_used_tables(left->element_index(i)->used_tables());
+      element->real_item()->increment_ref_count();
     }
   }
   not_null_tables_cache = left->not_null_tables();
@@ -6952,6 +6971,11 @@ longlong Item_equal::val_int() {
   return 1;
 }
 
+Item_equal::~Item_equal() {
+  destroy(eval_item);
+  eval_item = nullptr;
+}
+
 bool Item_equal::resolve_type(THD *thd) {
   Item *item;
   // As such item is created during optimization, types of members are known:
@@ -7351,10 +7375,9 @@ bool Item_eq_base::contains_only_equi_join_condition() const {
     return false;
   }
 
-  // We may have conditions like (1 = (t1.c = t2.c)), so check that both sides
-  // refer to at most one table.
-  if (my_count_bits(left_arg_used_tables) > 1 ||
-      my_count_bits(right_arg_used_tables) > 1) {
+  // We may have conditions like (t1.x = t1.y + t2.x) which cannot be used as an
+  // equijoin condition because t1 is referenced on both sides of the equality.
+  if (Overlaps(left_arg_used_tables, right_arg_used_tables)) {
     return false;
   }
 

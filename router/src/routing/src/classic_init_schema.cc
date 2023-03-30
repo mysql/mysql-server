@@ -157,15 +157,16 @@ stdx::expected<Processor::Result, std::error_code> InitSchemaForwarder::ok() {
   auto src_protocol = connection()->server_protocol();
 
   // Ok packet may have session trackers.
-  auto msg_res = ClassicFrame::recv_msg<classic_protocol::message::server::Ok>(
-      src_channel, src_protocol);
+  auto msg_res =
+      ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Ok>(
+          src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("init_schema::ok"));
   }
 
-  auto msg = std::move(*msg_res);
+  auto msg = *msg_res;
 
   if (!msg.session_changes().empty()) {
     // ignore the "some_state_changed" which would make the connection not
@@ -220,9 +221,9 @@ stdx::expected<Processor::Result, std::error_code> InitSchemaSender::command() {
 
   dst_protocol->seq_id(0xff);
 
-  auto send_res =
-      ClassicFrame::send_msg<classic_protocol::message::client::InitSchema>(
-          dst_channel, dst_protocol, schema_);
+  auto send_res = ClassicFrame::send_msg(
+      dst_channel, dst_protocol,
+      classic_protocol::borrowed::message::client::InitSchema{schema_});
   if (!send_res) return send_server_failed(send_res.error());
 
   stage(Stage::Response);
@@ -267,15 +268,16 @@ stdx::expected<Processor::Result, std::error_code> InitSchemaSender::ok() {
   auto src_channel = socket_splicer->server_channel();
   auto src_protocol = connection()->server_protocol();
 
-  auto msg_res = ClassicFrame::recv_msg<classic_protocol::message::server::Ok>(
-      src_channel, src_protocol);
+  auto msg_res =
+      ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Ok>(
+          src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("init_schema::ok"));
   }
 
-  auto msg = std::move(*msg_res);
+  auto msg = *msg_res;
 
   if (!msg.session_changes().empty()) {
     auto track_res = connection()->track_session_changes(
@@ -295,9 +297,9 @@ stdx::expected<Processor::Result, std::error_code> InitSchemaSender::error() {
   auto src_channel = socket_splicer->server_channel();
   auto src_protocol = connection()->server_protocol();
 
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::server::Error>(
-          src_channel, src_protocol);
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::server::Error>(src_channel,
+                                                          src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {

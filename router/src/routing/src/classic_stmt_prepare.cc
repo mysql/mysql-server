@@ -163,9 +163,9 @@ stdx::expected<Processor::Result, std::error_code> StmtPrepareForwarder::ok() {
   auto src_channel = socket_splicer->server_channel();
   auto src_protocol = connection()->server_protocol();
 
-  const auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::server::StmtPrepareOk>(
-          src_channel, src_protocol);
+  const auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::server::StmtPrepareOk>(src_channel,
+                                                                  src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
@@ -174,7 +174,7 @@ stdx::expected<Processor::Result, std::error_code> StmtPrepareForwarder::ok() {
 
   auto stmt_prep_ok = *msg_res;
 
-  if (stmt_prep_ok.with_metadata()) {
+  if (stmt_prep_ok.with_metadata() != 0) {
     columns_left_ = stmt_prep_ok.column_count();
     params_left_ = stmt_prep_ok.param_count();
   }

@@ -66,10 +66,6 @@ constexpr const unsigned int kDefaultConnectTimeout{
 constexpr const unsigned int kDefaultReadTimeout{
     mysqlrouter::MySQLSession::kDefaultReadTimeout};
 
-constexpr const std::string_view kNodeTagHidden{"_hidden"};
-constexpr const std::string_view kNodeTagDisconnectWhenHidden{
-    "_disconnect_existing_sessions_when_hidden"};
-
 /** @class metadata_error
  * Class that represents all the exceptions that are thrown while fetching the
  * metadata.

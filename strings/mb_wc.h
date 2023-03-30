@@ -1,7 +1,7 @@
 #ifndef MB_WC_INCLUDED
 #define MB_WC_INCLUDED
 
-/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public

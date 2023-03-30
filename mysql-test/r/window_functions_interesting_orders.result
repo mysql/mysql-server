@@ -8,29 +8,29 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a ORDER BY b) FROM t1;
 EXPLAIN
--> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ORDER BY t1.b ) 
+-> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ORDER BY t1.b )
     -> Sort: t1.a, t1.b
         -> Table scan on t1
 
 EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a ORDER BY b), SUM(c) OVER (ORDER BY a,b) FROM t1;
 EXPLAIN
--> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.a,t1.b ) 
-    -> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ORDER BY t1.b ) 
+-> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.a,t1.b )
+    -> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ORDER BY t1.b )
         -> Sort: t1.a, t1.b
             -> Table scan on t1
 
 EXPLAIN FORMAT=tree SELECT SUM(b) OVER (PARTITION BY a), SUM(c) OVER (ORDER BY a,b) FROM t1;
 EXPLAIN
--> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.a,t1.b ) 
-    -> Window aggregate with buffering: sum(t1.b) OVER (PARTITION BY t1.a ) 
+-> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.a,t1.b )
+    -> Window aggregate with buffering: sum(t1.b) OVER (PARTITION BY t1.a )
         -> Sort: t1.a, t1.b
             -> Table scan on t1
 
 EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a ORDER BY b), SUM(c) OVER (ORDER BY b,a) FROM t1;
 EXPLAIN
--> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.b,t1.a ) 
+-> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.b,t1.a )
     -> Sort: t1.b, t1.a
-        -> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ORDER BY t1.b ) 
+        -> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ORDER BY t1.b )
             -> Sort: t1.a, t1.b
                 -> Table scan on t1
 
@@ -40,12 +40,12 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a) FROM t1;
 EXPLAIN
--> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ) 
+-> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a )
     -> Index scan on t1 using idx
 
 EXPLAIN FORMAT=tree SELECT SUM(c) OVER (PARTITION BY a ORDER BY b) FROM t1;
 EXPLAIN
--> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ORDER BY t1.b ) 
+-> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ORDER BY t1.b )
     -> Index scan on t1 using idx
 
 ALTER TABLE t1 DROP INDEX idx;
@@ -54,23 +54,23 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT a, SUM(c) OVER (PARTITION BY a) FROM t1 ORDER BY a;
 EXPLAIN
--> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ) 
+-> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a )
     -> Sort: t1.a
         -> Table scan on t1
 
 EXPLAIN FORMAT=tree SELECT a, SUM(c) OVER (ORDER BY b), AVG(c) OVER (ORDER BY a), SUM(c) OVER (PARTITION BY a) AS x FROM t1 ORDER BY b, x;
 EXPLAIN
--> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.b ) 
+-> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.b )
     -> Sort: t1.b, x
-        -> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a ) 
-            -> Window aggregate with buffering: avg(t1.c) OVER (ORDER BY t1.a ) 
+        -> Window aggregate with buffering: sum(t1.c) OVER (PARTITION BY t1.a )
+            -> Window aggregate with buffering: avg(t1.c) OVER (ORDER BY t1.a )
                 -> Sort: t1.a
                     -> Table scan on t1
 
 EXPLAIN FORMAT=tree SELECT DISTINCT a, SUM(c) OVER (ORDER BY b) FROM t1;
 EXPLAIN
 -> Sort with duplicate removal: t1.a, `SUM(c) OVER (ORDER BY b)`
-    -> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.b ) 
+    -> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.b )
         -> Sort: t1.b
             -> Table scan on t1
 
@@ -84,13 +84,13 @@ EXPLAIN
 EXPLAIN FORMAT=tree SELECT DISTINCT a, SUM(c) OVER (ORDER BY b) FROM t1 ORDER BY a;
 EXPLAIN
 -> Sort with duplicate removal: t1.a, `SUM(c) OVER (ORDER BY b)`
-    -> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.b ) 
+    -> Window aggregate with buffering: sum(t1.c) OVER (ORDER BY t1.b )
         -> Sort: t1.b
             -> Table scan on t1
 
 EXPLAIN FORMAT=tree SELECT SUM(a) OVER (ORDER BY b) FROM t1 WHERE b=3;
 EXPLAIN
--> Window aggregate with buffering: sum(t1.a) OVER (ORDER BY t1.b ) 
+-> Window aggregate with buffering: sum(t1.a) OVER (ORDER BY t1.b )
     -> Filter: (t1.b = 3)
         -> Table scan on t1
 
@@ -100,11 +100,36 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT t1.a, SUM(t1.a) OVER (ORDER BY t1.a), SUM(t2.b) OVER (ORDER BY t2.b) FROM t1 JOIN t1 AS t2 ON t1.a = t2.b;
 EXPLAIN
--> Window aggregate with buffering: sum(t1.b) OVER (ORDER BY t1.b ) 
-    -> Window aggregate with buffering: sum(t1.a) OVER (ORDER BY t1.a ) 
+-> Window aggregate with buffering: sum(t1.b) OVER (ORDER BY t1.b )
+    -> Window aggregate with buffering: sum(t1.a) OVER (ORDER BY t1.a )
         -> Nested loop inner join
             -> Index scan on t1 using idx
             -> Filter: (t1.a = t2.b)
                 -> Table scan on t2
 
 DROP TABLE t1;
+#
+# Bug#34899286: Assertion `!OrderItemsReferenceUnavailableTables(
+#               path, used_tables_before_repla
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, x INT);
+CREATE TABLE t2 (pk INT PRIMARY KEY);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT ROW_NUMBER() OVER (PARTITION BY t1.x)
+FROM t1, t2 WHERE t1.x = t2.pk
+GROUP BY t1.pk;
+EXPLAIN
+-> Window aggregate: row_number() OVER (PARTITION BY t1.x )
+    -> Sort: t1.x
+        -> Stream results
+            -> Group (no aggregates)
+                -> Nested loop inner join
+                    -> Index scan on t1 using PRIMARY
+                    -> Filter: (t1.x = t2.pk)
+                        -> Index scan on t2 using PRIMARY
+
+DROP TABLE t1, t2;

@@ -1,0 +1,12 @@
+show global variables like "innodb_sort_buffer_size";
+Variable_name	Value
+innodb_sort_buffer_size	66664
+SET debug_sync = 'alter_table_update_log signal send_concurrent WAIT_FOR concurrent_done';
+OPTIMIZE TABLE t1;;
+SET debug_sync = 'now wait_for send_concurrent';
+UPDATE t1 SET id = id + 1;
+SET debug_sync = 'now signal concurrent_done';
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+DROP TABLE t1;

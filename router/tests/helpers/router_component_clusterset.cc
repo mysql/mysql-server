@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,9 +29,11 @@
 
 void RouterComponentClusterSetTest::create_clusterset(
     uint64_t view_id, int target_cluster_id, int primary_cluster_id,
-    const std::string &tracefile, const std::string &router_options,
+    const std::string &tracefile, const std::string &router_cs_options,
+    const std::string &router_options,
     const std::string &expected_target_cluster, bool simulate_cluster_not_found,
-    bool use_gr_notifications) {
+    bool use_gr_notifications,
+    const std::vector<size_t> &read_replicas_number) {
   const std::string tracefile_path = get_data_dir().str() + "/" + tracefile;
 
   ClusterSetData clusterset_data;
@@ -49,15 +51,22 @@ void RouterComponentClusterSetTest::create_clusterset(
     cluster_data.uuid = "00000000-0000-0000-0000-0000000000c" + id;
     cluster_data.name = "cluster-name-" + id;
     cluster_data.gr_uuid = "00000000-0000-0000-0000-0000000000g" + id;
-    for (unsigned node_id = 0; node_id < kNodesPerClusterNumber; ++node_id) {
+
+    const size_t read_replicas_num = cluster_id < read_replicas_number.size()
+                                         ? read_replicas_number[cluster_id]
+                                         : 0;
+
+    for (unsigned node_id = 0;
+         node_id < kGRNodesPerClusterNumber + read_replicas_num; ++node_id) {
       ClusterNode cluster_node;
+      cluster_node.is_read_replica = node_id >= kGRNodesPerClusterNumber;
       cluster_node.uuid = "00000000-0000-0000-0000-0000000000" +
                           std::to_string(cluster_id + 1) +
                           std::to_string(node_id + 1);
       cluster_node.host = "127.0.0.1";
       cluster_node.classic_port = port_pool_.get_next_available();
       cluster_node.http_port = port_pool_.get_next_available();
-      if (use_gr_notifications) {
+      if (use_gr_notifications && !cluster_node.is_read_replica) {
         cluster_node.x_port = port_pool_.get_next_available();
       }
 
@@ -78,9 +87,9 @@ void RouterComponentClusterSetTest::create_clusterset(
           tracefile_path, node.classic_port, EXIT_SUCCESS, false,
           node.http_port, node.x_port);
 
-      set_mock_metadata(view_id, cluster_id, target_cluster_id, node.http_port,
-                        clusterset_data, router_options,
-                        expected_target_cluster, {2, 1, 0},
+      set_mock_metadata(view_id, cluster_id, node_id, target_cluster_id,
+                        node.http_port, clusterset_data, router_cs_options,
+                        router_options, expected_target_cluster, {2, 1, 0},
                         simulate_cluster_not_found);
     }
   }
@@ -113,11 +122,13 @@ void RouterComponentClusterSetTest::add_json_int_field(JsonValue &json_doc,
 
 void RouterComponentClusterSetTest::add_clusterset_data_field(
     JsonValue &json_doc, const std::string &field,
-    const ClusterSetData &clusterset_data, const unsigned this_cluster_id) {
+    const ClusterSetData &clusterset_data, const unsigned this_cluster_id,
+    const unsigned this_node_id) {
   JsonValue clusterset_obj(rapidjson::kObjectType);
   add_json_str_field(clusterset_obj, "clusterset_id", clusterset_data.uuid);
   add_json_str_field(clusterset_obj, "clusterset_name", "clusterset-name");
   add_json_int_field(clusterset_obj, "this_cluster_id", this_cluster_id);
+  add_json_int_field(clusterset_obj, "this_node_id", this_node_id);
   add_json_int_field(clusterset_obj, "primary_cluster_id",
                      clusterset_data.primary_cluster_id);
 
@@ -146,6 +157,10 @@ void RouterComponentClusterSetTest::add_clusterset_data_field(
       if (node_data.x_port > 0) {
         add_json_int_field(node_obj, "x_port", node_data.x_port);
       }
+      const std::string attributes =
+          node_data.is_read_replica ? R"({"instance_type" : "read-replica" })"
+                                    : "{}";
+      add_json_str_field(node_obj, "attributes", attributes);
 
       cluster_nodes_array.PushBack(node_obj, json_allocator);
     }
@@ -163,9 +178,31 @@ void RouterComponentClusterSetTest::add_clusterset_data_field(
                      clusterset_obj, json_allocator);
 }
 
+void RouterComponentClusterSetTest::set_mock_metadata_on_all_cs_nodes(
+    uint64_t view_id, unsigned target_cluster_id,
+    const ClusterSetData &clusterset_data, const std::string &router_cs_options,
+    const std::string &router_options,
+    const std::string &expected_target_cluster,
+    const mysqlrouter::MetadataSchemaVersion &metadata_version,
+    bool simulate_cluster_not_found) {
+  for (const auto &cluster : clusterset_data.clusters) {
+    for (size_t node_id = 0; node_id < cluster.nodes.size(); ++node_id) {
+      const auto &node = cluster.nodes[node_id];
+      const auto http_port = node.http_port;
+      set_mock_metadata(view_id, /*this_cluster_id*/ cluster.id,
+                        /*this_node_id*/ node_id, target_cluster_id, http_port,
+                        clusterset_data, router_cs_options, router_options,
+                        expected_target_cluster, metadata_version,
+                        simulate_cluster_not_found);
+    }
+  }
+}
+
 void RouterComponentClusterSetTest::set_mock_metadata(
-    uint64_t view_id, unsigned this_cluster_id, unsigned target_cluster_id,
-    uint16_t http_port, const ClusterSetData &clusterset_data,
+    uint64_t view_id, unsigned this_cluster_id, unsigned this_node_id,
+    unsigned target_cluster_id, uint16_t http_port,
+    const ClusterSetData &clusterset_data,
+    const std::string &router_cs_options /*= ""*/,
     const std::string &router_options /*= ""*/,
     const std::string &expected_target_cluster /*= ""*/,
     const mysqlrouter::MetadataSchemaVersion &metadata_version /*= {2, 1, 0}*/,
@@ -173,7 +210,7 @@ void RouterComponentClusterSetTest::set_mock_metadata(
   JsonValue json_doc(rapidjson::kObjectType);
 
   add_clusterset_data_field(json_doc, "clusterset_data", clusterset_data,
-                            this_cluster_id);
+                            this_cluster_id, this_node_id);
 
   JsonValue md_version(rapidjson::kArrayType);
   md_version.PushBack(static_cast<int>(metadata_version.major), json_allocator);
@@ -182,6 +219,7 @@ void RouterComponentClusterSetTest::set_mock_metadata(
   json_doc.AddMember("metadata_version", md_version, json_allocator);
   add_json_int_field(json_doc, "view_id", view_id);
   add_json_int_field(json_doc, "target_cluster_id", target_cluster_id);
+  add_json_str_field(json_doc, "router_cs_options", router_cs_options);
   add_json_str_field(json_doc, "router_options", router_options);
   add_json_str_field(json_doc, "router_expected_target_cluster",
                      expected_target_cluster);

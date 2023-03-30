@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -375,6 +375,11 @@ dberr_t Page_extent::flush() {
   dberr_t err{DB_SUCCESS};
   const page_no_t n_pages = m_page_loads.size();
 
+  /* No need to flush any pages if index build has been interrupted. */
+  if (m_btree_load->is_interrupted()) {
+    return err;
+  }
+
   if (n_pages == 0) {
     /* Nothing to do. */
     return err;
@@ -389,16 +394,10 @@ dberr_t Page_extent::flush() {
   std::sort(m_page_loads.begin(), m_page_loads.end(), Page_load_compare());
 
 #ifdef UNIV_DEBUG
-  bool in_order = true;
   for (size_t i = m_range.first, j = 0;
        i < m_range.second && j < m_page_loads.size(); ++i, ++j) {
-    if (in_order) {
-      if (i != m_page_loads[j]->get_page_no()) {
-        in_order = false;
-      }
-    }
+    ut_ad(i == m_page_loads[j]->get_page_no());
   }
-  ut_ad(in_order);
 #endif /* UNIV_DEBUG */
 
   for (auto &page_load : m_page_loads) {
@@ -900,19 +899,8 @@ dberr_t Level_ctx::init() {
   btr_page_set_next(new_page, page_zip, FIL_NULL, nullptr);
   btr_page_set_prev(new_page, page_zip, FIL_NULL, nullptr);
   btr_page_set_index_id(new_page, page_zip, m_index->id, nullptr);
-
-#ifdef UNIV_DEBUG
-  {
-    /* Ensure that this page_id is not there in the buffer pool. */
-    mtr_t local_mtr;
-    local_mtr.start();
-    buf_block_t *blk = buf_page_get_gen(page_id, page_size, RW_S_LATCH, nullptr,
-                                        Page_fetch::IF_IN_POOL_POSSIBLY_FREED,
-                                        UT_LOCATION_HERE, &local_mtr);
-    ut_ad(blk == nullptr || blk->was_freed());
-    local_mtr.commit();
-  }
-#endif /* UNIV_DEBUG */
+  /* Ensure that this page_id is not there in the buffer pool. */
+  buf_page_force_evict(page_id, page_size);
   return block;
 }
 
@@ -3022,10 +3010,11 @@ dberr_t Btree_load::Merger::add_root_for_subtrees(const size_t highest_level) {
   mtr.start();
   mtr.x_lock(dict_index_get_lock(m_index), UT_LOCATION_HERE);
 
+  auto guard = create_scope_guard([&mtr]() { mtr.commit(); });
+
   if (!level_incr) {
     err = root_load.init();
     if (err != DB_SUCCESS) {
-      mtr.commit();
       return err;
     }
   }
@@ -3104,6 +3093,7 @@ dberr_t Btree_load::Merger::add_root_for_subtrees(const size_t highest_level) {
     err = root_page_commit(&root_load);
   }
   mtr.commit();
+  guard.commit();
   root_load.commit();
   return err;
 }
@@ -3512,4 +3502,8 @@ dberr_t Btree_load::Merger::root_page_commit(Page_load *root_load) {
     }
   }
   return err;
+}
+
+bool Btree_load::is_interrupted() const {
+  return (m_trx != nullptr && trx_is_interrupted(m_trx));
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -339,5 +339,7 @@ bool ndb_table_scan_and_delete_rows(
 bool ndb_get_parent_table_ids_in_dictionary(
     const NdbDictionary::Dictionary *dict,
     std::unordered_set<unsigned> &table_ids);
+
+bool ndb_dump_NDB_tables(Ndb *ndb);
 
 #endif

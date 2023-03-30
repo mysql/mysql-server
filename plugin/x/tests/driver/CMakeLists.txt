@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,7 @@ MYSQL_ADD_EXECUTABLE(mysqlxtest
   ${MYSQLX_PROTOCOL_FULL_LIB}
   ${PROTOBUF_LIBRARY}
   ${LZ4_LIBRARY}
+  extra::rapidjson
 )
 
 IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR)

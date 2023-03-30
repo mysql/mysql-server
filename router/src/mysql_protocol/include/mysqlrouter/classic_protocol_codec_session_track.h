@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -42,25 +42,28 @@ namespace classic_protocol {
  * part of session_track::Field
  */
 template <>
-class Codec<session_track::TransactionState>
-    : public impl::EncodeBase<Codec<session_track::TransactionState>> {
+class Codec<borrowable::session_track::TransactionState>
+    : public impl::EncodeBase<
+          Codec<borrowable::session_track::TransactionState>> {
   template <class Accumulator>
   constexpr auto accumulate_fields(Accumulator &&accu) const {
+    namespace bw = borrowable::wire;
+
     return accu
-        .step(wire::FixedInt<1>(0x08))  // length
-        .step(wire::FixedInt<1>(v_.trx_type()))
-        .step(wire::FixedInt<1>(v_.read_unsafe()))
-        .step(wire::FixedInt<1>(v_.read_trx()))
-        .step(wire::FixedInt<1>(v_.write_unsafe()))
-        .step(wire::FixedInt<1>(v_.write_trx()))
-        .step(wire::FixedInt<1>(v_.stmt_unsafe()))
-        .step(wire::FixedInt<1>(v_.resultset()))
-        .step(wire::FixedInt<1>(v_.locked_tables()))
+        .step(bw::FixedInt<1>(0x08))  // length
+        .step(bw::FixedInt<1>(v_.trx_type()))
+        .step(bw::FixedInt<1>(v_.read_unsafe()))
+        .step(bw::FixedInt<1>(v_.read_trx()))
+        .step(bw::FixedInt<1>(v_.write_unsafe()))
+        .step(bw::FixedInt<1>(v_.write_trx()))
+        .step(bw::FixedInt<1>(v_.stmt_unsafe()))
+        .step(bw::FixedInt<1>(v_.resultset()))
+        .step(bw::FixedInt<1>(v_.locked_tables()))
         .result();
   }
 
  public:
-  using value_type = session_track::TransactionState;
+  using value_type = borrowable::session_track::TransactionState;
   using __base = impl::EncodeBase<Codec<value_type>>;
 
   friend __base;
@@ -73,7 +76,7 @@ class Codec<session_track::TransactionState>
   /**
    * decode a session_track::TransactionState from a buffer-sequence.
    *
-   * @param buffers input buffser sequence
+   * @param buffer input buffer
    * @param caps protocol capabilities
    *
    * @retval std::pair<size_t, message::server::Ok> on success, with bytes
@@ -81,14 +84,13 @@ class Codec<session_track::TransactionState>
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
    */
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value,
-                  "buffers MUST be a const buffer sequence");
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
-    const auto payload_length_res = accu.template step<wire::VarInt>();
+    namespace bw = borrowable::wire;
+
+    const auto payload_length_res = accu.template step<bw::VarInt>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
     if (payload_length_res->value() != 0x08) {
@@ -96,14 +98,14 @@ class Codec<session_track::TransactionState>
       return stdx::make_unexpected(make_error_code(std::errc::bad_message));
     }
 
-    const auto trx_type_res = accu.template step<wire::FixedInt<1>>();
-    const auto read_unsafe_res = accu.template step<wire::FixedInt<1>>();
-    const auto read_trx_res = accu.template step<wire::FixedInt<1>>();
-    const auto write_unsafe_res = accu.template step<wire::FixedInt<1>>();
-    const auto write_trx_res = accu.template step<wire::FixedInt<1>>();
-    const auto stmt_unsafe_res = accu.template step<wire::FixedInt<1>>();
-    const auto resultset_res = accu.template step<wire::FixedInt<1>>();
-    const auto locked_tables_res = accu.template step<wire::FixedInt<1>>();
+    const auto trx_type_res = accu.template step<bw::FixedInt<1>>();
+    const auto read_unsafe_res = accu.template step<bw::FixedInt<1>>();
+    const auto read_trx_res = accu.template step<bw::FixedInt<1>>();
+    const auto write_unsafe_res = accu.template step<bw::FixedInt<1>>();
+    const auto write_trx_res = accu.template step<bw::FixedInt<1>>();
+    const auto stmt_unsafe_res = accu.template step<bw::FixedInt<1>>();
+    const auto resultset_res = accu.template step<bw::FixedInt<1>>();
+    const auto locked_tables_res = accu.template step<bw::FixedInt<1>>();
 
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
@@ -124,22 +126,25 @@ class Codec<session_track::TransactionState>
  *
  * part of session_track::Field
  */
-template <>
-class Codec<session_track::TransactionCharacteristics>
-    : public impl::EncodeBase<
-          Codec<session_track::TransactionCharacteristics>> {
+template <bool Borrowed>
+class Codec<borrowable::session_track::TransactionCharacteristics<Borrowed>>
+    : public impl::EncodeBase<Codec<
+          borrowable::session_track::TransactionCharacteristics<Borrowed>>> {
   template <class Accumulator>
-  auto accumulate_fields(Accumulator &&accu) const {
-    return accu.step(wire::VarString(v_.characteristics())).result();
+  constexpr auto accumulate_fields(Accumulator &&accu) const {
+    namespace bw = borrowable::wire;
+
+    return accu.step(bw::VarString<Borrowed>(v_.characteristics())).result();
   }
 
  public:
-  using value_type = session_track::TransactionCharacteristics;
+  using value_type =
+      borrowable::session_track::TransactionCharacteristics<Borrowed>;
   using __base = impl::EncodeBase<Codec<value_type>>;
 
   friend __base;
 
-  Codec(value_type v, capabilities::value_type caps)
+  constexpr Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
   constexpr static uint8_t type_byte() { return 0x04; }
@@ -147,7 +152,7 @@ class Codec<session_track::TransactionCharacteristics>
   /**
    * decode a session_track::TransactionCharacteristics from a buffer-sequence.
    *
-   * @param buffers input buffser sequence
+   * @param buffer input buffer
    * @param caps protocol capabilities
    *
    * @retval std::pair<size_t, session_track::TransactionCharacteristics> on
@@ -155,14 +160,13 @@ class Codec<session_track::TransactionCharacteristics>
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
    */
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value,
-                  "buffers MUST be a const buffer sequence");
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
-    const auto characteristics_res = accu.template step<wire::VarString>();
+    namespace bw = borrowable::wire;
+
+    auto characteristics_res = accu.template step<bw::VarString<Borrowed>>();
 
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
@@ -183,8 +187,10 @@ template <>
 class Codec<session_track::State>
     : public impl::EncodeBase<Codec<session_track::State>> {
   template <class Accumulator>
-  auto accumulate_fields(Accumulator &&accu) const {
-    return accu.step(wire::FixedInt<1>(v_.state())).result();
+  constexpr auto accumulate_fields(Accumulator &&accu) const {
+    namespace bw = borrowable::wire;
+
+    return accu.step(bw::FixedInt<1>(v_.state())).result();
   }
 
  public:
@@ -193,7 +199,7 @@ class Codec<session_track::State>
 
   friend __base;
 
-  Codec(value_type v, capabilities::value_type caps)
+  constexpr Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
   constexpr static uint8_t type_byte() { return 0x02; }
@@ -201,7 +207,7 @@ class Codec<session_track::State>
   /**
    * decode a session_track::State from a buffer-sequence.
    *
-   * @param buffers input buffser sequence
+   * @param buffer input buffer
    * @param caps protocol capabilities
    *
    * @retval std::pair<size_t, session_track::State> on success, with bytes
@@ -209,12 +215,13 @@ class Codec<session_track::State>
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
    */
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
-    auto state_res = accu.template step<wire::FixedInt<1>>();
+    namespace bw = borrowable::wire;
+
+    auto state_res = accu.template step<bw::FixedInt<1>>();
 
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
@@ -231,21 +238,24 @@ class Codec<session_track::State>
  *
  * part of session_track::Field
  */
-template <>
-class Codec<session_track::Schema>
-    : public impl::EncodeBase<Codec<session_track::Schema>> {
+template <bool Borrowed>
+class Codec<borrowable::session_track::Schema<Borrowed>>
+    : public impl::EncodeBase<
+          Codec<borrowable::session_track::Schema<Borrowed>>> {
   template <class Accumulator>
-  auto accumulate_fields(Accumulator &&accu) const {
-    return accu.step(wire::VarString(v_.schema())).result();
+  constexpr auto accumulate_fields(Accumulator &&accu) const {
+    namespace bw = borrowable::wire;
+
+    return accu.step(bw::VarString<Borrowed>(v_.schema())).result();
   }
 
  public:
-  using value_type = session_track::Schema;
+  using value_type = borrowable::session_track::Schema<Borrowed>;
   using __base = impl::EncodeBase<Codec<value_type>>;
 
   friend __base;
 
-  Codec(value_type v, capabilities::value_type caps)
+  constexpr Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
   constexpr static uint8_t type_byte() { return 0x01; }
@@ -253,7 +263,7 @@ class Codec<session_track::Schema>
   /**
    * decode a session_track::Schema from a buffer-sequence.
    *
-   * @param buffers input buffser sequence
+   * @param buffer input buffer
    * @param caps protocol capabilities
    *
    * @retval std::pair<size_t, session_track::Schema> on success, with bytes
@@ -261,14 +271,13 @@ class Codec<session_track::Schema>
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
    */
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value,
-                  "buffers MUST be a const buffer sequence");
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
-    auto schema_res = accu.template step<wire::VarString>();
+    namespace bw = borrowable::wire;
+
+    auto schema_res = accu.template step<bw::VarString<Borrowed>>();
 
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
@@ -285,23 +294,26 @@ class Codec<session_track::Schema>
  *
  * part of session_track::Field
  */
-template <>
-class Codec<session_track::SystemVariable>
-    : public impl::EncodeBase<Codec<session_track::SystemVariable>> {
+template <bool Borrowed>
+class Codec<borrowable::session_track::SystemVariable<Borrowed>>
+    : public impl::EncodeBase<
+          Codec<borrowable::session_track::SystemVariable<Borrowed>>> {
   template <class Accumulator>
-  auto accumulate_fields(Accumulator &&accu) const {
-    return accu.step(wire::VarString(v_.key()))
-        .step(wire::VarString(v_.value()))
+  constexpr auto accumulate_fields(Accumulator &&accu) const {
+    namespace bw = borrowable::wire;
+
+    return accu.step(bw::VarString<Borrowed>(v_.key()))
+        .step(bw::VarString<Borrowed>(v_.value()))
         .result();
   }
 
  public:
-  using value_type = session_track::SystemVariable;
+  using value_type = borrowable::session_track::SystemVariable<Borrowed>;
   using __base = impl::EncodeBase<Codec<value_type>>;
 
   friend __base;
 
-  Codec(value_type v, capabilities::value_type caps)
+  constexpr Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
   constexpr static uint8_t type_byte() { return 0x00; }
@@ -309,7 +321,7 @@ class Codec<session_track::SystemVariable>
   /**
    * decode a session_track::SystemVariable from a buffer-sequence.
    *
-   * @param buffers input buffser sequence
+   * @param buffer input buffer
    * @param caps protocol capabilities
    *
    * @retval std::pair<size_t, session_track::SystemVariable> on success, with
@@ -317,15 +329,14 @@ class Codec<session_track::SystemVariable>
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
    */
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value,
-                  "buffers MUST be a const buffer sequence");
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
-    auto key_res = accu.template step<wire::VarString>();
-    auto value_res = accu.template step<wire::VarString>();
+    namespace bw = borrowable::wire;
+
+    auto key_res = accu.template step<bw::VarString<Borrowed>>();
+    auto value_res = accu.template step<bw::VarString<Borrowed>>();
 
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
@@ -350,23 +361,26 @@ class Codec<session_track::SystemVariable>
  *
  * part of session_track::Field
  */
-template <>
-class Codec<session_track::Gtid>
-    : public impl::EncodeBase<Codec<session_track::Gtid>> {
+template <bool Borrowed>
+class Codec<borrowable::session_track::Gtid<Borrowed>>
+    : public impl::EncodeBase<
+          Codec<borrowable::session_track::Gtid<Borrowed>>> {
   template <class Accumulator>
-  auto accumulate_fields(Accumulator &&accu) const {
-    return accu.step(wire::FixedInt<1>(v_.spec()))
-        .step(wire::VarString(v_.gtid()))
+  constexpr auto accumulate_fields(Accumulator &&accu) const {
+    namespace bw = borrowable::wire;
+
+    return accu.step(bw::FixedInt<1>(v_.spec()))
+        .step(bw::VarString<Borrowed>(v_.gtid()))
         .result();
   }
 
  public:
-  using value_type = session_track::Gtid;
+  using value_type = borrowable::session_track::Gtid<Borrowed>;
   using __base = impl::EncodeBase<Codec<value_type>>;
 
   friend __base;
 
-  Codec(value_type v, capabilities::value_type caps)
+  constexpr Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
   constexpr static uint8_t type_byte() { return 0x03; }
@@ -374,7 +388,7 @@ class Codec<session_track::Gtid>
   /**
    * decode a session_track::Gtid from a buffer-sequence.
    *
-   * @param buffers input buffser sequence
+   * @param buffer input buffer
    * @param caps protocol capabilities
    *
    * @retval std::pair<size_t, session_track::Gtid> on success, with bytes
@@ -382,13 +396,14 @@ class Codec<session_track::Gtid>
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
    */
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
-    auto spec_res = accu.template step<wire::FixedInt<1>>();
-    auto gtid_res = accu.template step<wire::VarString>();
+    namespace bw = borrowable::wire;
+
+    auto spec_res = accu.template step<bw::FixedInt<1>>();
+    auto gtid_res = accu.template step<bw::VarString<Borrowed>>();
 
     if (!accu.result()) return accu.result().get_unexpected();
 
@@ -417,30 +432,33 @@ class Codec<session_track::Gtid>
  * - 0x04 session_track::TransactionCharacteristics
  * - 0x05 session_track::TransactionState
  */
-template <>
-class Codec<session_track::Field>
-    : public impl::EncodeBase<Codec<session_track::Field>> {
+template <bool Borrowed>
+class Codec<borrowable::session_track::Field<Borrowed>>
+    : public impl::EncodeBase<
+          Codec<borrowable::session_track::Field<Borrowed>>> {
   template <class Accumulator>
-  auto accumulate_fields(Accumulator &&accu) const {
-    return accu.step(wire::FixedInt<1>(v_.type()))
-        .step(wire::VarString(v_.data()))
+  constexpr auto accumulate_fields(Accumulator &&accu) const {
+    namespace bw = borrowable::wire;
+
+    return accu.step(bw::FixedInt<1>(v_.type()))
+        .step(bw::VarString<Borrowed>(v_.data()))
         .result();
   }
 
  public:
-  using value_type = session_track::Field;
+  using value_type = borrowable::session_track::Field<Borrowed>;
 
   using __base = impl::EncodeBase<Codec<value_type>>;
 
   friend __base;
 
-  Codec(value_type v, capabilities::value_type caps)
+  constexpr Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
   /**
    * decode a session_track::Field from a buffer-sequence.
    *
-   * @param buffers input buffser sequence
+   * @param buffer input buffer
    * @param caps protocol capabilities
    *
    * @retval std::pair<size_t, session_track::Field> on success, with bytes
@@ -448,14 +466,14 @@ class Codec<session_track::Field>
    * @retval codec_errc::not_enough_input not enough data to parse the whole
    * message
    */
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value);
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
-    auto type_res = accu.template step<wire::FixedInt<1>>();
-    auto data_res = accu.template step<wire::VarString>();
+    namespace bw = borrowable::wire;
+
+    auto type_res = accu.template step<bw::FixedInt<1>>();
+    auto data_res = accu.template step<bw::VarString<Borrowed>>();
 
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 

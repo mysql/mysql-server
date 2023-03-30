@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -90,12 +90,8 @@ inline std::error_code make_error_code(metadata_errc e) noexcept {
   return std::error_code(static_cast<int>(e), metadata_cache_category());
 }
 
-constexpr const bool kNodeTagHiddenDefault{false};
-constexpr const bool kNodeTagDisconnectWhenHiddenDefault{true};
-
 enum class ServerMode { ReadWrite, ReadOnly, Unavailable };
 enum class ServerRole { Primary, Secondary, Unavailable };
-enum class InstanceType { GroupMember, AsyncMember, ReadReplica };
 
 /** @class ManagedInstance
  *
@@ -103,19 +99,21 @@ enum class InstanceType { GroupMember, AsyncMember, ReadReplica };
  */
 class METADATA_CACHE_EXPORT ManagedInstance {
  public:
-  ManagedInstance(InstanceType p_type, const std::string &p_mysql_server_uuid,
+  ManagedInstance(mysqlrouter::InstanceType p_type,
+                  const std::string &p_mysql_server_uuid,
                   const ServerMode p_mode, const ServerRole p_role,
                   const std::string &p_host, const uint16_t p_port,
                   const uint16_t p_xport);
 
   using TCPAddress = mysql_harness::TCPAddress;
-  explicit ManagedInstance(InstanceType p_type);
-  explicit ManagedInstance(InstanceType p_type, const TCPAddress &addr);
+  explicit ManagedInstance(mysqlrouter::InstanceType p_type);
+  explicit ManagedInstance(mysqlrouter::InstanceType p_type,
+                           const TCPAddress &addr);
   operator TCPAddress() const;
   bool operator==(const ManagedInstance &other) const;
 
   /** @brief Instance type */
-  InstanceType type;
+  mysqlrouter::InstanceType type;
   /** @brief The uuid of the MySQL server */
   std::string mysql_server_uuid;
   /** @brief The mode of the server */
@@ -131,11 +129,13 @@ class METADATA_CACHE_EXPORT ManagedInstance {
   /** Node atributes as a json string from metadata */
   std::string attributes;
   /** Should the node be hidden from the application to use it */
-  bool hidden{kNodeTagHiddenDefault};
+  bool hidden;
   /** Should the Router disconnect existing client sessions to the node when it
    * is hidden */
-  bool disconnect_existing_sessions_when_hidden{
-      kNodeTagDisconnectWhenHiddenDefault};
+  bool disconnect_existing_sessions_when_hidden;
+  /** Should the node be ignored for new and existing connections (for example
+   * due to the read_replicas_mode) */
+  bool ignore{false};
 };
 
 using cluster_nodes_list_t = std::vector<ManagedInstance>;

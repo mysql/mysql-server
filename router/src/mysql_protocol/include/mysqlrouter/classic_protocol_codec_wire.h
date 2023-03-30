@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,6 @@
 #include "mysqlrouter/classic_protocol_codec_base.h"
 #include "mysqlrouter/classic_protocol_codec_error.h"
 #include "mysqlrouter/classic_protocol_wire.h"
-#include "mysqlrouter/partial_buffer_sequence.h"
 
 namespace classic_protocol {
 /**
@@ -49,32 +48,38 @@ namespace classic_protocol {
  * classic proto uses 1, 2, 3, 4, 8 for IntSize
  */
 template <int IntSize>
-class Codec<wire::FixedInt<IntSize>> {
+class Codec<borrowable::wire::FixedInt<IntSize>> {
  public:
   static constexpr size_t int_size{IntSize};
 
-  using value_type = wire::FixedInt<int_size>;
+  using value_type = borrowable::wire::FixedInt<int_size>;
 
-  constexpr Codec(value_type v, capabilities::value_type /* unused */)
-      : v_{v} {}
+  constexpr Codec(value_type v, capabilities::value_type /* caps */) : v_{v} {}
 
   /**
    * size of the encoded object.
    */
-  constexpr size_t size() const noexcept { return int_size; }
+  static constexpr size_t size() noexcept { return int_size; }
 
   /**
    * encode value_type into buffer.
    */
   stdx::expected<size_t, std::error_code> encode(
-      const net::mutable_buffer &buffer) const {
-    auto v = v_.value();
-
-    if (stdx::endian::native == stdx::endian::big) {
-      v = stdx::byteswap(v);
+      net::mutable_buffer buffer) const {
+    if (buffer.size() < int_size) {
+      return stdx::make_unexpected(make_error_code(std::errc::no_buffer_space));
     }
 
-    return buffer_copy(buffer, net::const_buffer(&v, int_size));
+    auto int_val = v_.value();
+
+    if (stdx::endian::native == stdx::endian::big) {
+      int_val = stdx::byteswap(int_val);
+    }
+
+    std::copy_n(reinterpret_cast<const std::byte *>(&int_val), int_size,
+                static_cast<std::byte *>(buffer.data()));
+
+    return int_size;
   }
 
   /**
@@ -82,24 +87,24 @@ class Codec<wire::FixedInt<IntSize>> {
    */
   static constexpr size_t max_size() noexcept { return int_size; }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type /* caps */) {
-    typename value_type::value_type v{};
-
-    size_t copied = buffer_copy(net::buffer(&v, int_size), buffers);
-
-    if (copied != int_size) {
+      const net::const_buffer &buffer, capabilities::value_type /* caps */) {
+    if (buffer.size() < int_size) {
       // not enough data in buffers.
       return stdx::make_unexpected(
           make_error_code(codec_errc::not_enough_input));
     }
 
+    typename value_type::value_type value{};
+
+    std::copy_n(static_cast<const std::byte *>(buffer.data()), int_size,
+                reinterpret_cast<std::byte *>(&value));
+
     if (stdx::endian::native == stdx::endian::big) {
-      v = stdx::byteswap(v);
+      value = stdx::byteswap(value);
     }
 
-    return std::make_pair(copied, value_type(v));
+    return std::make_pair(int_size, value_type(value));
   }
 
  private:
@@ -127,22 +132,23 @@ class Codec<wire::FixedInt<IntSize>> {
  *     [1 + 8 bytes read, only 4 bytes used]
  */
 template <>
-class Codec<wire::VarInt> : public impl::EncodeBase<Codec<wire::VarInt>> {
+class Codec<borrowable::wire::VarInt>
+    : public impl::EncodeBase<Codec<borrowable::wire::VarInt>> {
   template <class Accumulator>
   constexpr auto accumulate_fields(Accumulator &&accu) const {
     if (v_.value() < 251) {
-      return accu.step(wire::FixedInt<1>(v_.value())).result();
+      return accu.step(borrowable::wire::FixedInt<1>(v_.value())).result();
     } else if (v_.value() < 1 << 16) {
-      return accu.step(wire::FixedInt<1>(varint_16))
-          .step(wire::FixedInt<2>(v_.value()))
+      return accu.step(borrowable::wire::FixedInt<1>(varint_16))
+          .step(borrowable::wire::FixedInt<2>(v_.value()))
           .result();
     } else if (v_.value() < (1 << 24)) {
-      return accu.step(wire::FixedInt<1>(varint_24))
-          .step(wire::FixedInt<3>(v_.value()))
+      return accu.step(borrowable::wire::FixedInt<1>(varint_24))
+          .step(borrowable::wire::FixedInt<3>(v_.value()))
           .result();
     } else {
-      return accu.step(wire::FixedInt<1>(varint_64))
-          .step(wire::FixedInt<8>(v_.value()))
+      return accu.step(borrowable::wire::FixedInt<1>(varint_64))
+          .step(borrowable::wire::FixedInt<8>(v_.value()))
           .result();
     }
   }
@@ -151,7 +157,7 @@ class Codec<wire::VarInt> : public impl::EncodeBase<Codec<wire::VarInt>> {
   static constexpr uint8_t varint_16{0xfc};
   static constexpr uint8_t varint_24{0xfd};
   static constexpr uint8_t varint_64{0xfe};
-  using value_type = wire::VarInt;
+  using value_type = borrowable::wire::VarInt;
   using __base = impl::EncodeBase<Codec<value_type>>;
 
   friend __base;
@@ -161,13 +167,12 @@ class Codec<wire::VarInt> : public impl::EncodeBase<Codec<wire::VarInt>> {
 
   static constexpr size_t max_size() noexcept { return 9; }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
 
     // length
-    auto first_byte_res = accu.template step<wire::FixedInt<1>>();
+    auto first_byte_res = accu.template step<borrowable::wire::FixedInt<1>>();
     if (!first_byte_res) return stdx::make_unexpected(first_byte_res.error());
 
     auto first_byte = first_byte_res->value();
@@ -175,17 +180,17 @@ class Codec<wire::VarInt> : public impl::EncodeBase<Codec<wire::VarInt>> {
     if (first_byte < 251) {
       return std::make_pair(accu.result().value(), value_type(first_byte));
     } else if (first_byte == varint_16) {
-      auto value_res = accu.template step<wire::FixedInt<2>>();
+      auto value_res = accu.template step<borrowable::wire::FixedInt<2>>();
       if (!value_res) return stdx::make_unexpected(value_res.error());
       return std::make_pair(accu.result().value(),
                             value_type(value_res->value()));
     } else if (first_byte == varint_24) {
-      auto value_res = accu.template step<wire::FixedInt<3>>();
+      auto value_res = accu.template step<borrowable::wire::FixedInt<3>>();
       if (!value_res) return stdx::make_unexpected(value_res.error());
       return std::make_pair(accu.result().value(),
                             value_type(value_res->value()));
     } else if (first_byte == varint_64) {
-      auto value_res = accu.template step<wire::FixedInt<8>>();
+      auto value_res = accu.template step<borrowable::wire::FixedInt<8>>();
       if (!value_res) return stdx::make_unexpected(value_res.error());
       return std::make_pair(accu.result().value(),
                             value_type(value_res->value()));
@@ -202,30 +207,30 @@ class Codec<wire::VarInt> : public impl::EncodeBase<Codec<wire::VarInt>> {
  * codec for a NULL value in the Resultset.
  */
 template <>
-class Codec<wire::Null> : public Codec<wire::FixedInt<1>> {
+class Codec<borrowable::wire::Null>
+    : public Codec<borrowable::wire::FixedInt<1>> {
  public:
-  using value_type = wire::Null;
+  using value_type = borrowable::wire::Null;
 
   static constexpr uint8_t nul_byte{0xfb};
 
   Codec(value_type, capabilities::value_type caps)
-      : Codec<wire::FixedInt<1>>(nul_byte, caps) {}
+      : Codec<borrowable::wire::FixedInt<1>>(nul_byte, caps) {}
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type /* caps */) {
-    uint8_t v;
-
-    size_t copied = buffer_copy(net::buffer(&v, 1), buffers);
-
-    if (copied != 1) {
+      const net::const_buffer &buffer, capabilities::value_type /* caps */) {
+    if (buffer.size() < 1) {
       return stdx::make_unexpected(
           make_error_code(codec_errc::not_enough_input));
-    } else if (v != nul_byte) {
+    }
+
+    const uint8_t nul_val = *static_cast<const uint8_t *>(buffer.data());
+
+    if (nul_val != nul_byte) {
       return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
     }
 
-    return std::make_pair(copied, value_type());
+    return std::make_pair(1, value_type());
   }
 };
 
@@ -239,8 +244,7 @@ class Codec<void> {
  public:
   using value_type = size_t;
 
-  Codec(value_type v, capabilities::value_type caps)
-      : v_{std::move(v)}, caps_{caps} {}
+  Codec(value_type val, capabilities::value_type caps) : v_(val), caps_{caps} {}
 
   size_t size() const noexcept { return v_; }
 
@@ -250,13 +254,22 @@ class Codec<void> {
 
   stdx::expected<size_t, std::error_code> encode(
       const net::mutable_buffer &buffer) const {
-    return buffer_copy(buffer, net::buffer(std::vector<char>(size())));
+    if (buffer.size() < size()) {
+      return stdx::make_unexpected(make_error_code(std::errc::no_buffer_space));
+    }
+
+    auto *first = static_cast<std::uint8_t *>(buffer.data());
+    auto *last = first + size();
+
+    // fill with 0
+    std::fill(first, last, 0);
+
+    return size();
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type /* caps */) {
-    size_t buf_size = buffer_size(buffers);
+      const net::const_buffer &buffer, capabilities::value_type /* caps */) {
+    size_t buf_size = buffer.size();
 
     return std::make_pair(buf_size, buf_size);
   }
@@ -271,15 +284,15 @@ class Codec<void> {
  *
  * limited by length or buffer.size()
  */
-template <>
-class Codec<wire::String> {
+template <bool Borrowed>
+class Codec<borrowable::wire::String<Borrowed>> {
  public:
-  using value_type = wire::String;
+  using value_type = borrowable::wire::String<Borrowed>;
 
-  Codec(value_type v, capabilities::value_type caps)
+  constexpr Codec(value_type v, capabilities::value_type caps)
       : v_{std::move(v)}, caps_{caps} {}
 
-  size_t size() const noexcept { return v_.value().size(); }
+  constexpr size_t size() const noexcept { return v_.value().size(); }
 
   static size_t max_size() noexcept {
     // we actually don't know what the size of the null-term string is ... until
@@ -289,26 +302,26 @@ class Codec<wire::String> {
 
   stdx::expected<size_t, std::error_code> encode(
       const net::mutable_buffer &buffer) const {
-    return buffer_copy(buffer, net::const_buffer(v_.value().data(), size()));
+    if (buffer.size() < size()) {
+      return stdx::make_unexpected(make_error_code(std::errc::no_buffer_space));
+    }
+
+    // in -> out
+    std::copy_n(reinterpret_cast<const std::byte *>(v_.value().data()), size(),
+                static_cast<std::byte *>(buffer.data()));
+
+    return size();
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type /* caps */) {
-    size_t buf_size = buffer_size(buffers);
+      const net::const_buffer &buffer, capabilities::value_type /* caps */) {
+    const size_t buf_size = buffer_size(buffer);
 
-    // MUST handle the empty case as &s.front() for .empty() std::string is
-    // undefined and may trigger an assert()ion on glibc's implementation
-    if (0 == buf_size) {
-      return std::make_pair(buf_size, value_type(std::string()));
-    }
-    std::string s;
-    s.resize(buf_size);
+    if (0 == buf_size) return std::make_pair(buf_size, value_type());
 
-    size_t len =
-        buffer_copy(net::mutable_buffer(&s.front(), s.size()), buffers);
-
-    return std::make_pair(len, value_type(s));
+    return std::make_pair(
+        buf_size,
+        value_type({static_cast<const char *>(buffer.data()), buffer.size()}));
   }
 
  private:
@@ -322,23 +335,24 @@ class Codec<wire::String> {
  * - varint of string length
  * - string of length
  */
-template <>
-class Codec<wire::VarString> : public impl::EncodeBase<Codec<wire::VarString>> {
+template <bool Borrowed>
+class Codec<borrowable::wire::VarString<Borrowed>>
+    : public impl::EncodeBase<Codec<borrowable::wire::VarString<Borrowed>>> {
   template <class Accumulator>
-  auto accumulate_fields(Accumulator &&accu) const {
-    return accu.step(wire::VarInt(v_.value().size()))
-        .step(wire::String(v_.value()))
+  constexpr auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(borrowable::wire::VarInt(v_.value().size()))
+        .step(borrowable::wire::String<Borrowed>(v_.value()))
         .result();
   }
 
  public:
-  using value_type = wire::VarString;
-  using __base = impl::EncodeBase<Codec<value_type>>;
+  using value_type = borrowable::wire::VarString<Borrowed>;
+  using base_type = impl::EncodeBase<Codec<value_type>>;
 
-  friend __base;
+  friend base_type;
 
-  Codec(value_type v, capabilities::value_type caps)
-      : __base(caps), v_{std::move(v)} {}
+  constexpr Codec(value_type val, capabilities::value_type caps)
+      : base_type(caps), v_{std::move(val)} {}
 
   static size_t max_size() noexcept {
     // we actually don't know what the size of the null-term string is ...
@@ -346,17 +360,17 @@ class Codec<wire::VarString> : public impl::EncodeBase<Codec<wire::VarString>> {
     return std::numeric_limits<size_t>::max();
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+      const net::const_buffer &buffer, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator accu(buffer, caps);
     // decode the length
-    auto var_string_len_res = accu.template step<wire::VarInt>();
+    auto var_string_len_res = accu.template step<borrowable::wire::VarInt>();
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
     // decode string of length
     auto var_string_res =
-        accu.template step<wire::String>(var_string_len_res->value());
+        accu.template step<borrowable::wire::String<Borrowed>>(
+            var_string_len_res->value());
 
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
@@ -371,24 +385,25 @@ class Codec<wire::VarString> : public impl::EncodeBase<Codec<wire::VarString>> {
 /**
  * codec for 0-terminated string.
  */
-template <>
-class Codec<wire::NulTermString>
-    : public impl::EncodeBase<Codec<wire::NulTermString>> {
+template <bool Borrowed>
+class Codec<borrowable::wire::NulTermString<Borrowed>>
+    : public impl::EncodeBase<
+          Codec<borrowable::wire::NulTermString<Borrowed>>> {
   template <class Accumulator>
-  auto accumulate_fields(Accumulator &&accu) const {
-    return accu.template step<wire::String>(v_)
-        .template step<wire::FixedInt<1>>(0)
+  constexpr auto accumulate_fields(Accumulator &&accu) const {
+    return accu.template step<borrowable::wire::String<Borrowed>>(v_)
+        .template step<borrowable::wire::FixedInt<1>>(0)
         .result();
   }
 
  public:
-  using value_type = wire::NulTermString;
-  using __base = impl::EncodeBase<Codec<value_type>>;
+  using value_type = borrowable::wire::NulTermString<Borrowed>;
+  using base_type = impl::EncodeBase<Codec<value_type>>;
 
-  friend __base;
+  friend base_type;
 
-  Codec(value_type v, capabilities::value_type caps)
-      : __base(caps), v_{std::move(v)} {}
+  constexpr Codec(value_type val, capabilities::value_type caps)
+      : base_type(caps), v_{std::move(val)} {}
 
   static size_t max_size() noexcept {
     // we actually don't know what the size of the null-term string is ...
@@ -396,47 +411,35 @@ class Codec<wire::NulTermString>
     return std::numeric_limits<size_t>::max();
   }
 
-  template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
-      const ConstBufferSequence &buffers, capabilities::value_type /* caps */) {
+      const net::const_buffer &buffer, capabilities::value_type /* caps */) {
     // length of the string before the \0
-    size_t len{};
 
-    // we don't know where the \0 will be be, scan all buffers for the first
-    // one.
-    const auto bufend = buffer_sequence_end(buffers);
-    for (auto bufcur = buffer_sequence_begin(buffers); bufcur != bufend;
-         ++bufcur) {
-      const auto first = static_cast<const uint8_t *>(bufcur->data());
-      const auto last = first + bufcur->size();
+    const auto *first = static_cast<const uint8_t *>(buffer.data());
+    const auto *last = first + buffer.size();
 
-      const auto pos = std::find(first, last, '\0');
-      if (pos != last) {
-        // \0 was found
-        len += std::distance(first, pos);
-
-        // builds a string from the buffer-sequence's content
-        std::string s;
-        if (len > 0) {
-          // ensure we don't trigger undefined behaviour by using &s.front() if
-          // s.size() is 0
-          s.resize(len);
-          buffer_copy(net::mutable_buffer(&s.front(), s.size()), buffers, len);
-        }
-
-        return std::make_pair(len + 1, value_type(s));  // consume the \0 too
-      } else {
-        len += buffer_size(*bufcur);
-      }
+    const auto *pos = std::find(first, last, '\0');
+    if (pos == last) {
+      // no 0-term found
+      return stdx::make_unexpected(
+          make_error_code(codec_errc::missing_nul_term));
     }
 
-    // no 0-term found
-    return stdx::make_unexpected(make_error_code(codec_errc::missing_nul_term));
+    // \0 was found
+    size_t len = std::distance(first, pos);
+    if (len == 0) {
+      return std::make_pair(len + 1, value_type());  // consume the \0 too
+    }
+
+    return std::make_pair(len + 1,
+                          value_type({static_cast<const char *>(buffer.data()),
+                                      len}));  // consume the \0 too
   }
 
  private:
   const value_type v_;
 };
+
 }  // namespace classic_protocol
 
 #endif

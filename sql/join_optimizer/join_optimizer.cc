@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1759,6 +1759,10 @@ struct KeypartForRef {
   // Tables used by the condition. Necessarily includes the table “field”
   // is part of.
   table_map used_tables;
+
+  // Is it safe to evaluate "val" during optimization? It must be
+  // const_for_execution() and contain no subqueries or stored procedures.
+  bool can_evaluate;
 };
 
 int WasPushedDownToRef(Item *condition, const KeypartForRef *keyparts,
@@ -1798,13 +1802,6 @@ bool CostingReceiver::ProposeRefAccess(
   KeypartForRef keyparts[MAX_REF_PARTS];
   table_map parameter_tables = 0;
 
-  if (PopulationCount(allowed_parameter_tables) >
-      static_cast<int>(usable_keyparts)) {
-    // It is inevitable that we fail the (parameter_tables ==
-    // allowed_parameter_tables) test below, so error out earlier.
-    return false;
-  }
-
   for (unsigned keypart_idx = 0;
        keypart_idx < usable_keyparts && keypart_idx < MAX_REF_PARTS;
        ++keypart_idx) {
@@ -1820,29 +1817,17 @@ bool CostingReceiver::ProposeRefAccess(
       Item_func_eq *item = down_cast<Item_func_eq *>(
           m_graph->predicates[sp.predicate_index].condition);
       if (sp.field->eq(keyinfo.field)) {
-        // x = const.
-        if (sp.is_constant) {
+        const table_map other_side_tables =
+            sp.other_side->used_tables() & ~PSEUDO_TABLE_BITS;
+        if (IsSubset(other_side_tables, allowed_parameter_tables)) {
+          parameter_tables |= other_side_tables;
           matched_this_keypart = true;
           keyparts[keypart_idx].field = sp.field;
           keyparts[keypart_idx].condition = item;
           keyparts[keypart_idx].val = sp.other_side;
           keyparts[keypart_idx].null_rejecting = true;
           keyparts[keypart_idx].used_tables = item->used_tables();
-          ++matched_keyparts;
-          length += keyinfo.store_length;
-          break;
-        }
-
-        // x = other_table.field.
-        if (sp.other_side->type() == Item::FIELD_ITEM &&
-            IsSubset(sp.other_side->used_tables(), allowed_parameter_tables)) {
-          parameter_tables |= sp.other_side->used_tables();
-          matched_this_keypart = true;
-          keyparts[keypart_idx].field = sp.field;
-          keyparts[keypart_idx].condition = item;
-          keyparts[keypart_idx].val = sp.other_side;
-          keyparts[keypart_idx].null_rejecting = true;
-          keyparts[keypart_idx].used_tables = item->used_tables();
+          keyparts[keypart_idx].can_evaluate = sp.can_evaluate;
           ++matched_keyparts;
           length += keyinfo.store_length;
           break;
@@ -1964,7 +1949,7 @@ bool CostingReceiver::ProposeRefAccess(
     const KeypartForRef &keypart = keyparts[keypart_idx];
     bool subsumes;
     if (ref_lookup_subsumes_comparison(m_thd, keypart.field, keypart.val,
-                                       &subsumes)) {
+                                       keypart.can_evaluate, &subsumes)) {
       return true;
     }
     if (subsumes) {
@@ -2083,7 +2068,8 @@ bool HasConstantEqualityForField(
     const Field *field) {
   return std::any_of(sargable_predicates.begin(), sargable_predicates.end(),
                      [field](const SargablePredicate &sp) {
-                       return sp.is_constant && field->eq(sp.field);
+                       return sp.other_side->const_for_execution() &&
+                              field->eq(sp.field);
                      });
 }
 
@@ -2107,10 +2093,8 @@ bool CostingReceiver::ProposeAllUniqueIndexLookupsWithConstantKey(int node_idx,
   }
 
   TABLE *const table = m_graph->nodes[node_idx].table;
-  if (table->pos_in_table_list->is_recursive_reference() ||
-      Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS)) {
-    return false;
-  }
+  assert(!table->pos_in_table_list->is_recursive_reference());
+  assert(!Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS));
 
   for (const ActiveIndexInfo &index_info : *m_active_indexes) {
     if (index_info.table != table) {
@@ -3435,12 +3419,19 @@ void CostingReceiver::ProposeHashJoin(
         FindOutputRowsForJoin(outer_input_rows, inner_input_rows, edge);
   }
 
+  // left_path and join_path.hash_join().outer are intentionally different if
+  // rewrite_semi_to_inner is true. See comment where DeduplicateForSemijoin()
+  // is called above. We want to calculate join cost based on the actual left
+  // child, so use join_path.hash_join().outer in cost calculations for
+  // join_path.
+  const AccessPath *outer = join_path.hash_join().outer;
+
   // TODO(sgunders): Add estimates for spill-to-disk costs.
   // NOTE: Keep this in sync with SimulateJoin().
   const double build_cost =
       right_path->cost + right_path->num_output_rows() * kHashBuildOneRowCost;
-  double cost = left_path->cost + build_cost +
-                left_path->num_output_rows() * kHashProbeOneRowCost +
+  double cost = outer->cost + build_cost +
+                outer->num_output_rows() * kHashProbeOneRowCost +
                 num_output_rows * kHashReturnOneRowCost;
 
   // Note: This isn't strictly correct if the non-equijoin conditions
@@ -3453,7 +3444,7 @@ void CostingReceiver::ProposeHashJoin(
   join_path.num_output_rows_before_filter = num_output_rows;
   join_path.cost_before_filter = cost;
   join_path.set_num_output_rows(num_output_rows);
-  join_path.init_cost = build_cost + left_path->init_cost;
+  join_path.init_cost = build_cost + outer->init_cost;
 
   double estimated_bytes_per_row = edge->estimated_bytes_per_row;
 
@@ -3491,10 +3482,10 @@ void CostingReceiver::ProposeHashJoin(
       right_path->parameter_tables == 0) {
     // Fits in memory (with 10% estimation margin), and has
     // no external dependencies, so the hash table can be reused.
-    join_path.init_once_cost = build_cost + left_path->init_once_cost;
+    join_path.init_once_cost = build_cost + outer->init_once_cost;
   } else {
     join_path.init_once_cost =
-        left_path->init_once_cost + right_path->init_once_cost;
+        outer->init_once_cost + right_path->init_once_cost;
   }
   join_path.cost = cost;
 
@@ -3984,7 +3975,15 @@ void CostingReceiver::ProposeNestedLoopJoin(
         FindOutputRowsForJoin(outer_input_rows, inner_input_rows, edge);
     join_path.set_num_output_rows(join_path.num_output_rows_before_filter);
   }
-  join_path.init_cost = left_path->init_cost;
+
+  // left_path and join_path.nested_loop_join().outer are intentionally
+  // different if rewrite_semi_to_inner is true. See comment where
+  // DeduplicateForSemijoin() is called above. We want to calculate join cost
+  // based on the actual left child, so use join_path.nested_loop_join().outer
+  // in cost calculations for join_path.
+  const AccessPath *outer = join_path.nested_loop_join().outer;
+
+  join_path.init_cost = outer->init_cost;
 
   // NOTE: The ceil() around the number of rows on the left side is a workaround
   // for an issue where we think the left side has a very low cardinality,
@@ -3993,8 +3992,8 @@ void CostingReceiver::ProposeNestedLoopJoin(
   // band-aid (we should “just” have better row estimation and/or braking
   // factors), but it should be fairly benign in general.
   join_path.cost_before_filter = join_path.cost =
-      left_path->cost + inner->init_cost +
-      inner_rescan_cost * ceil(left_path->num_output_rows());
+      outer->cost + inner->init_cost +
+      inner_rescan_cost * ceil(outer->num_output_rows());
 
   // Nested-loop preserves any ordering from the outer side. Note that actually,
   // the two orders are _concatenated_ (if you nested-loop join something
@@ -5541,7 +5540,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
 
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
-      if (grouping.empty()) {
+      if (grouping.GetElements().empty()) {
         // Only const fields.
         AccessPath *limit_path = NewLimitOffsetAccessPath(
             thd, root_path, /*limit=*/1, /*offset=*/0, join->calc_found_rows,
@@ -5558,12 +5557,13 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         // TODO(sgunders): In some cases, we could apply LIMIT 1,
         // which would be slightly more efficient; see e.g. the test for
         // bug #33148369.
-        Item **group_items = thd->mem_root->ArrayAlloc<Item *>(grouping.size());
-        for (size_t i = 0; i < grouping.size(); ++i) {
-          group_items[i] = orderings.item(grouping[i].item);
+        Item **group_items =
+            thd->mem_root->ArrayAlloc<Item *>(grouping.GetElements().size());
+        for (size_t i = 0; i < grouping.GetElements().size(); ++i) {
+          group_items[i] = orderings.item(grouping.GetElements()[i].item);
         }
         AccessPath *dedup_path = NewRemoveDuplicatesAccessPath(
-            thd, root_path, group_items, grouping.size());
+            thd, root_path, group_items, grouping.GetElements().size());
         CopyBasicProperties(*root_path, dedup_path);
         // TODO(sgunders): Model the actual reduction in rows somehow.
         dedup_path->cost += kAggregateOneRowCost * root_path->num_output_rows();
@@ -5580,6 +5580,9 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
       // is broader than the ORDER BY clause.
       for (const SortAheadOrdering &sort_ahead_ordering :
            sort_ahead_orderings) {
+        if (sort_ahead_ordering.sort_ahead_only) {
+          continue;
+        }
         LogicalOrderings::StateIndex ordering_state = orderings.ApplyFDs(
             orderings.SetOrder(sort_ahead_ordering.ordering_idx), fd_set);
         // A broader DISTINCT could help elide ORDER BY. Not vice versa. Note
@@ -5773,6 +5776,9 @@ static int FindBestOrderingForWindow(
   bool best_following_both_orders = false;
   int best_num_matching_windows = 0;
   for (size_t i = 0; i < sort_ahead_orderings.size(); ++i) {
+    if (sort_ahead_orderings[i].sort_ahead_only) {
+      continue;
+    }
     const int ordering_idx = sort_ahead_orderings[i].ordering_idx;
     LogicalOrderings::StateIndex ordering_state =
         orderings.ApplyFDs(orderings.SetOrder(ordering_idx), fd_set);
@@ -5805,7 +5811,7 @@ static int FindBestOrderingForWindow(
     }
     Ordering ordering = orderings.ordering(ordering_idx);
     bool any_wf = false;
-    for (OrderElement elem : ordering) {
+    for (OrderElement elem : ordering.GetElements()) {
       WalkItem(orderings.item(elem.item), enum_walk::PREFIX,
                [&any_wf](Item *item) {
                  if (item->m_is_window_function) {
@@ -5856,10 +5862,11 @@ static int FindBestOrderingForWindow(
       is_best = false;
     } else if (num_matching_windows > best_num_matching_windows) {
       is_best = true;
-    } else if (orderings.ordering(ordering_idx).size() <
+    } else if (orderings.ordering(ordering_idx).GetElements().size() <
                orderings
                    .ordering(
                        sort_ahead_orderings[best_ordering_idx].ordering_idx)
+                   .GetElements()
                    .size()) {
       is_best = true;
     } else {
@@ -6152,7 +6159,8 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       continue;
     }
     Field *field = down_cast<Item_field *>(left)->field;
-    if (force_table != nullptr && force_table != field->table) {
+    TABLE *table = field->table;
+    if (force_table != nullptr && force_table != table) {
       continue;
     }
     if (field->part_of_key.is_clear_all()) {
@@ -6160,7 +6168,11 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       // key, though, but we include them for now.)
       continue;
     }
-    JoinHypergraph::Node *node = FindNodeWithTable(graph, field->table);
+    if (Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS)) {
+      // Can't use index lookups on this table, so not sargable.
+      continue;
+    }
+    JoinHypergraph::Node *node = FindNodeWithTable(graph, table);
     if (node == nullptr) {
       // A field in a different query block, so not sargable for us.
       continue;
@@ -6173,6 +6185,22 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       assert(CompatibleTypesForIndexLookup(eq_item, field, right));
     } else if (!CompatibleTypesForIndexLookup(eq_item, field, right)) {
       continue;
+    }
+
+    const table_map used_tables_left = table->pos_in_table_list->map();
+    const table_map used_tables_right = right->used_tables();
+
+    if (Overlaps(used_tables_left, used_tables_right)) {
+      // Not sargable if the tables on the left and right side overlap, such as
+      // t1.x = t1.y + t2.x. Will not be sargable in the opposite direction
+      // either, so "break" instead of "continue".
+      break;
+    }
+
+    if (Overlaps(used_tables_right, RAND_TABLE_BIT)) {
+      // Non-deterministic predicates are not sargable. Will not be sargable in
+      // the opposite direction either, so "break" instead of "continue".
+      break;
     }
 
     if (trace != nullptr) {
@@ -6204,19 +6232,18 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       graph->sargable_join_predicates.emplace(eq_item, predicate_index);
     }
 
-    // Remember if this predicate is field = const. Don't consider items with
-    // subqueries or stored procedures constant, as we don't want to execute
-    // them during optimization.
-    const bool is_constant =
-        (right->const_for_execution() && !right->has_subquery() &&
-         !right->is_expensive()) ||
-        right->used_tables() == OUTER_REF_TABLE_BIT;
+    // Can we evaluate the right side of the predicate during optimization (in
+    // ref_lookup_subsumes_comparison())? Don't consider items with subqueries
+    // or stored procedures constant, as we don't want to execute them during
+    // optimization.
+    const bool can_evaluate = right->const_for_execution() &&
+                              !right->has_subquery() && !right->is_expensive();
 
     node->sargable_predicates.push_back(
-        {predicate_index, field, right, is_constant});
+        {predicate_index, field, right, can_evaluate});
 
     // No need to check the opposite order. We have no indexes on constants.
-    if (is_constant) break;
+    if (can_evaluate) break;
   }
 }
 

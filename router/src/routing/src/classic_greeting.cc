@@ -27,7 +27,11 @@
 #include <cctype>
 #include <iostream>
 #include <random>  // uniform_int_distribution
+#include <sstream>
 #include <system_error>
+
+#include <openssl/err.h>
+#include <openssl/ssl.h>
 
 #include "classic_auth.h"
 #include "classic_auth_caching_sha2.h"
@@ -43,6 +47,7 @@
 #include "classic_lazy_connect.h"
 #include "harness_assert.h"
 #include "hexify.h"
+#include "mysql/harness/logging/logger.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"
@@ -52,6 +57,7 @@
 #include "mysqlrouter/connection_base.h"
 #include "openssl_version.h"
 #include "processor.h"
+#include "sql/server_component/mysql_command_services_imp.h"
 #include "tracer.h"
 
 using namespace std::string_literals;
@@ -109,6 +115,37 @@ static std::optional<std::string> scramble_them_all(
     return AuthCleartextPassword::scramble(nonce, pwd);
   } else {
     return std::nullopt;
+  }
+}
+
+static void ssl_info_cb(const SSL *ssl, int where, int ret) {
+  auto *conn = reinterpret_cast<MysqlRoutingClassicConnectionBase *>(
+      SSL_get_app_data(ssl));
+
+  auto &tr = conn->tracer();
+  if (!tr) return;
+
+  if ((where & SSL_CB_LOOP) != 0) {
+    tr.trace(
+        Tracer::Event().stage("tls::state: "s + SSL_state_string_long(ssl)));
+  } else if ((where & SSL_CB_ALERT) != 0) {
+    tr.trace(Tracer::Event().stage("tls::alert: "s +
+                                   SSL_alert_type_string_long(ret) + "::"s +
+                                   SSL_alert_desc_string_long(ret)));
+  } else if ((where & SSL_CB_EXIT) != 0) {
+    if (ret == 0) {
+      tr.trace(Tracer::Event().stage(
+          "tls::state: "s + SSL_state_string_long(ssl) + " <failed>"s));
+    } else if (ret < 0) {
+      switch (SSL_get_error(ssl, ret)) {
+        case SSL_ERROR_WANT_READ:
+        case SSL_ERROR_WANT_WRITE:
+          break;
+        default:
+          tr.trace(Tracer::Event().stage("tls"s + SSL_state_string_long(ssl) +
+                                         " <error>"s));
+      }
+    }
   }
 }
 
@@ -228,8 +265,8 @@ ClientGreetor::server_greeting() {
   auto random_auth_method_data = []() {
     std::random_device rd;
     std::mt19937 gen(rd());
-    // 1..255 ... no \0 chars
-    std::uniform_int_distribution<> distrib(1, 255);
+    // Scrambles defined as 7-bit: 1..127 ... no \0 chars
+    std::uniform_int_distribution<> distrib(1, 127);
 
     std::string scramble;
     scramble.resize(20 + 1);  // 20 random data + [trailing, explicit \0]
@@ -362,9 +399,9 @@ static bool client_compress_is_satisfied(
 static stdx::expected<size_t, std::error_code> send_ssl_connection_error_msg(
     Channel *dst_channel, ClassicProtocolState *dst_protocol,
     const std::string &msg) {
-  return ClassicFrame::send_msg(
-      dst_channel, dst_protocol,
-      classic_protocol::message::server::Error{CR_SSL_CONNECTION_ERROR, msg});
+  return ClassicFrame::send_msg<
+      classic_protocol::borrowed::message::server::Error>(
+      dst_channel, dst_protocol, {CR_SSL_CONNECTION_ERROR, msg});
 }
 
 /**
@@ -416,11 +453,11 @@ ClientGreetor::client_greeting() {
   // checking the server's capabilities.
   if (!client_compress_is_satisfied(src_protocol->client_capabilities(),
                                     src_protocol->shared_capabilities())) {
-    const auto send_res =
-        ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-            src_channel, src_protocol,
-            {ER_WRONG_COMPRESSION_ALGORITHM_CLIENT,
-             "Compression not supported by router."});
+    const auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Error>(
+        src_channel, src_protocol,
+        {ER_WRONG_COMPRESSION_ALGORITHM_CLIENT,
+         "Compression not supported by router."});
     if (!send_res) return send_client_failed(send_res.error());
 
     stage(Stage::Error);
@@ -475,6 +512,9 @@ ClientGreetor::tls_accept_init() {
   }
   src_channel->init_ssl(ssl_ctx);
 
+  SSL_set_app_data(src_channel->ssl(), connection());
+  SSL_set_info_callback(src_channel->ssl(), ssl_info_cb);
+
   stage(Stage::TlsAccept);
   return Result::Again;
 }
@@ -509,6 +549,19 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::tls_accept() {
 
       return recv_client_failed(ec);
     }
+  }
+
+  if (auto &tr = tracer()) {
+    auto *ssl = client_channel->ssl();
+    std::ostringstream oss;
+    oss << "tls::accept::ok: " << SSL_get_version(ssl);
+    oss << " using " << SSL_get_cipher_name(ssl);
+
+    if (SSL_session_reused(ssl) != 0) {
+      oss << ", session_reused";
+    }
+
+    tr.trace(Tracer::Event().stage(oss.str()));
   }
 
   stage(Stage::ClientGreetingAfterTls);
@@ -549,7 +602,7 @@ ClientGreetor::client_greeting_after_tls() {
           src_channel, src_protocol, src_protocol->server_capabilities());
   if (!msg_res) return recv_client_failed(msg_res.error());
 
-  auto msg = std::move(*msg_res);
+  auto msg = *msg_res;
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("client::greeting"));
@@ -569,13 +622,13 @@ ClientGreetor::client_greeting_after_tls() {
       tr.trace(Tracer::Event().stage("client::greeting::error"));
     }
 
-    const auto send_res =
-        ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-            src_channel, src_protocol,
-            {CR_AUTH_PLUGIN_CANNOT_LOAD,
-             "Authentication method " + msg.auth_method_name() +
-                 " is not supported",
-             "HY000"});
+    const auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Error>(
+        src_channel, src_protocol,
+        {CR_AUTH_PLUGIN_CANNOT_LOAD,
+         "Authentication method " + msg.auth_method_name() +
+             " is not supported",
+         "HY000"});
     if (!send_res) return send_client_failed(send_res.error());
 
     stage(Stage::Error);
@@ -589,11 +642,11 @@ ClientGreetor::client_greeting_after_tls() {
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("client::greeting::error"));
     }
-    const auto send_res =
-        ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-            src_channel, src_protocol,
-            {ER_WRONG_COMPRESSION_ALGORITHM_CLIENT,
-             "Compression not supported by router."});
+    const auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Error>(
+        src_channel, src_protocol,
+        {ER_WRONG_COMPRESSION_ALGORITHM_CLIENT,
+         "Compression not supported by router."});
     if (!send_res) return send_client_failed(send_res.error());
 
     stage(Stage::Error);
@@ -939,19 +992,21 @@ ServerGreetor::server_greeting_error() {
   auto src_channel = socket_splicer->server_channel();
   auto src_protocol = connection()->server_protocol();
 
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::server::Error>(
-          src_channel, src_protocol);
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::server::Error>(src_channel,
+                                                          src_protocol);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
-  auto msg = *msg_res;
+  if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
+    auto msg = *msg_res;
 
-  // RouterRoutingTest.RoutingTooManyServerConnections expects this
-  // message.
-  log_debug(
-      "Error from the server while waiting for greetings message: "
-      "%u, '%s'",
-      msg.error_code(), msg.message().c_str());
+    // RouterRoutingTest.RoutingTooManyServerConnections expects this
+    // message.
+    log_debug(
+        "Error from the server while waiting for greetings message: "
+        "%u, '%s'",
+        msg.error_code(), std::string(msg.message()).c_str());
+  }
 
   // close the server-socket as no futher communication is expected.
   (void)socket_splicer->server_conn().close();
@@ -1225,19 +1280,19 @@ ServerGreetor::client_greeting_start_tls() {
 
   // setting username == "" leads to a short, switch-to-ssl
   // client::Greeting.
-  auto send_res =
-      ClassicFrame::send_msg<classic_protocol::message::client::Greeting>(
-          dst_channel, dst_protocol,
-          {
-              dst_protocol->client_capabilities(),
-              initial_client_greeting_msg.max_packet_size(),
-              initial_client_greeting_msg.collation(),
-              "",  // username
-              "",  // auth_method_data
-              "",  // schema
-              "",  // auth_method_name
-              ""   // attributes
-          });
+  auto send_res = ClassicFrame::send_msg<
+      classic_protocol::borrowed::message::client::Greeting>(
+      dst_channel, dst_protocol,
+      {
+          dst_protocol->client_capabilities(),
+          initial_client_greeting_msg.max_packet_size(),
+          initial_client_greeting_msg.collation(),
+          "",  // username
+          "",  // auth_method_data
+          "",  // schema
+          "",  // auth_method_name
+          ""   // attributes
+      });
   if (!send_res) return send_server_failed(send_res.error());
 
   if (auto &tr = tracer()) {
@@ -1374,6 +1429,9 @@ ServerGreetor::tls_connect_init() {
   }
   dst_channel->init_ssl(*ssl_ctx_res);
 
+  SSL_set_app_data(dst_channel->ssl(), connection());
+  SSL_set_info_callback(dst_channel->ssl(), ssl_info_cb);
+
   // when a connection is taken from the pool for this client-connection, make
   // sure it is TLS again.
   connection()->requires_tls(true);
@@ -1401,12 +1459,11 @@ ServerGreetor::tls_connect() {
   }
 
   if (!dst_channel->tls_init_is_finished()) {
-    const auto res = dst_channel->tls_connect();
-
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("tls::connect"));
     }
 
+    const auto res = dst_channel->tls_connect();
     if (!res) {
       if (res.error() == TlsErrc::kWantRead) {
         {
@@ -1454,6 +1511,18 @@ ServerGreetor::tls_connect() {
         return Result::SendToClient;
       }
     }
+  }
+
+  if (auto &tr = tracer()) {
+    auto *ssl = dst_channel->ssl();
+    std::ostringstream oss;
+    oss << "tls::connect::ok: " << SSL_get_version(ssl);
+    oss << " using " << SSL_get_cipher_name(ssl);
+
+    if (SSL_session_reused(ssl) != 0) {
+      oss << ", session_reused";
+    }
+    tr.trace(Tracer::Event().stage(oss.str()));
   }
 
   stage(Stage::ClientGreetingAfterTls);
@@ -1584,7 +1653,7 @@ ServerGreetor::final_response() {
   }
 
   // if there is another packet, dump its payload for now.
-  auto &recv_buf = src_channel->recv_plain_buffer();
+  auto &recv_buf = src_channel->recv_plain_view();
 
   // get as much data of the current frame from the recv-buffers to log it.
   (void)ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
@@ -1622,15 +1691,16 @@ stdx::expected<Processor::Result, std::error_code> ServerGreetor::auth_ok() {
   auto *src_protocol = connection()->server_protocol();
   auto *dst_protocol = connection()->client_protocol();
 
-  auto msg_res = ClassicFrame::recv_msg<classic_protocol::message::server::Ok>(
-      src_channel, src_protocol);
+  auto msg_res =
+      ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Ok>(
+          src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("server::ok"));
   }
 
-  auto msg = std::move(*msg_res);
+  auto msg = *msg_res;
 
   if (!msg.session_changes().empty()) {
     (void)connection()->track_session_changes(
@@ -1938,18 +2008,18 @@ ServerFirstAuthenticator::client_greeting_start_tls() {
 
   // setting username == "" leads to a short, switch-to-ssl
   // client::Greeting.
-  auto send_res =
-      ClassicFrame::send_msg<classic_protocol::message::client::Greeting>(
-          dst_channel, dst_protocol,
-          {
-              client_caps, initial_client_greeting_msg.max_packet_size(),
-              initial_client_greeting_msg.collation(),
-              "",  // username
-              "",  // auth_method_data
-              "",  // schema
-              "",  // auth_method_name
-              ""   // attributes
-          });
+  auto send_res = ClassicFrame::send_msg<
+      classic_protocol::borrowed::message::client::Greeting>(
+      dst_channel, dst_protocol,
+      {
+          client_caps, initial_client_greeting_msg.max_packet_size(),
+          initial_client_greeting_msg.collation(),
+          "",  // username
+          "",  // auth_method_data
+          "",  // schema
+          "",  // auth_method_name
+          ""   // attributes
+      });
   if (!send_res) return send_server_failed(send_res.error());
 
   if (connection()->source_ssl_mode() == SslMode::kPassthrough) {
@@ -2055,13 +2125,14 @@ ServerFirstAuthenticator::client_greeting_full() {
 }
 
 static TlsErrc forward_tls(Channel *src_channel, Channel *dst_channel) {
-  auto &plain = src_channel->recv_plain_buffer();
-  src_channel->read_to_plain(5);
-
-  auto plain_buf = net::dynamic_buffer(plain);
   // at least the TLS record header.
   const size_t tls_header_size{5};
-  while (plain_buf.size() >= tls_header_size) {
+  const size_t tls_type_offset{5};
+
+  src_channel->read_to_plain(tls_header_size);
+
+  const auto &plain = src_channel->recv_plain_view();
+  while (plain.size() >= tls_header_size) {
     // plain is TLS traffic.
     const uint8_t tls_content_type = plain[0];
     const uint16_t tls_payload_size = (plain[3] << 8) | plain[4];
@@ -2075,30 +2146,29 @@ static TlsErrc forward_tls(Channel *src_channel, Channel *dst_channel) {
                   static_cast<TlsContentType>(tls_content_type))
                   .c_str());
 #endif
-    if (plain_buf.size() < tls_header_size + tls_payload_size) {
+    if (plain.size() < tls_header_size + tls_payload_size) {
       src_channel->read_to_plain(tls_header_size + tls_payload_size -
-                                 plain_buf.size());
+                                 plain.size());
     }
 
-    if (plain_buf.size() < tls_header_size + tls_payload_size) {
+    if (plain.size() < tls_header_size + tls_payload_size) {
       // there isn't the full frame yet.
       return TlsErrc::kWantRead;
     }
 
     const auto write_res = dst_channel->write(
-        plain_buf.data(0, tls_header_size + tls_payload_size));
-    if (!write_res) {
-      return TlsErrc::kWantWrite;
-    }
+        net::buffer(plain.subspan(0, tls_header_size + tls_payload_size)));
+    if (!write_res) return TlsErrc::kWantWrite;
 
     // if TlsAlert in handshake, the connection goes back to plain
     if (static_cast<TlsContentType>(tls_content_type) ==
             TlsContentType::kAlert &&
-        plain.size() >= 6 && plain[5] == 0x02) {
+        plain.size() > tls_type_offset && plain[tls_type_offset] == 0x02) {
       src_channel->is_tls(false);
       dst_channel->is_tls(false);
     }
-    plain_buf.consume(write_res.value());
+
+    src_channel->consume_plain(*write_res);
   }
 
   // want more
@@ -2113,9 +2183,9 @@ ServerFirstAuthenticator::tls_forward() {
   auto server_channel = socket_splicer->server_channel();
 
   bool client_recv_buf_changed =
-      client_last_recv_buf_size_ != client_channel->recv_buffer().size();
+      client_last_recv_buf_size_ != client_channel->recv_plain_view().size();
   bool server_recv_buf_changed =
-      server_last_recv_buf_size_ != server_channel->recv_buffer().size();
+      server_last_recv_buf_size_ != server_channel->recv_plain_view().size();
   bool client_send_buf_changed =
       client_last_send_buf_size_ != client_channel->send_buffer().size();
   bool server_send_buf_changed =
@@ -2124,7 +2194,7 @@ ServerFirstAuthenticator::tls_forward() {
   if (client_recv_buf_changed || server_send_buf_changed) {
     forward_tls(client_channel, server_channel);
 
-    client_last_recv_buf_size_ = client_channel->recv_buffer().size();
+    client_last_recv_buf_size_ = client_channel->recv_plain_view().size();
     server_last_send_buf_size_ = server_channel->send_buffer().size();
 
     if (!server_channel->send_buffer().empty()) {
@@ -2136,7 +2206,7 @@ ServerFirstAuthenticator::tls_forward() {
   } else if (server_recv_buf_changed || client_send_buf_changed) {
     forward_tls(server_channel, client_channel);
 
-    server_last_recv_buf_size_ = server_channel->recv_buffer().size();
+    server_last_recv_buf_size_ = server_channel->recv_plain_view().size();
     client_last_send_buf_size_ = client_channel->send_buffer().size();
 
     if (!client_channel->send_buffer().empty()) {
@@ -2183,6 +2253,9 @@ ServerFirstAuthenticator::tls_connect_init() {
   }
   dst_channel->init_ssl(*ssl_ctx_res);
 
+  SSL_set_app_data(dst_channel->ssl(), connection());
+  SSL_set_info_callback(dst_channel->ssl(), ssl_info_cb);
+
   connection()->requires_tls(true);
 
   stage(Stage::TlsConnect);
@@ -2208,11 +2281,11 @@ ServerFirstAuthenticator::tls_connect() {
   }
 
   if (!dst_channel->tls_init_is_finished()) {
-    const auto res = dst_channel->tls_connect();
-
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("tls::connect"));
     }
+
+    const auto res = dst_channel->tls_connect();
 
     if (!res) {
       if (res.error() == TlsErrc::kWantRead) {
@@ -2260,6 +2333,19 @@ ServerFirstAuthenticator::tls_connect() {
         return Result::SendToClient;
       }
     }
+  }
+
+  if (auto &tr = tracer()) {
+    auto *ssl = dst_channel->ssl();
+    std::ostringstream oss;
+    oss << "tls::connect::ok: " << SSL_get_version(ssl);
+    oss << " using " << SSL_get_cipher_name(ssl);
+
+    if (SSL_session_reused(ssl) != 0) {
+      oss << ", session_reused";
+    }
+
+    tr.trace(Tracer::Event().stage(oss.str()));
   }
 
   stage(Stage::ClientGreetingAfterTls);
@@ -2373,7 +2459,7 @@ ServerFirstAuthenticator::final_response() {
   }
 
   // if there is another packet, dump its payload for now.
-  auto &recv_buf = src_channel->recv_plain_buffer();
+  auto &recv_buf = src_channel->recv_plain_view();
 
   // get as much data of the current frame from the recv-buffers to log it.
   (void)ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
@@ -2409,15 +2495,16 @@ ServerFirstAuthenticator::auth_ok() {
   auto *src_channel = socket_splicer->server_channel();
   auto *src_protocol = connection()->server_protocol();
 
-  auto msg_res = ClassicFrame::recv_msg<classic_protocol::message::server::Ok>(
-      src_channel, src_protocol);
+  auto msg_res =
+      ClassicFrame::recv_msg<classic_protocol::borrowed::message::server::Ok>(
+          src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("server::ok"));
   }
 
-  auto msg = std::move(*msg_res);
+  auto msg = *msg_res;
 
   if (!msg.session_changes().empty()) {
     (void)connection()->track_session_changes(

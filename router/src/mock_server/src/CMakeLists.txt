@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -198,7 +198,7 @@ TARGET_INCLUDE_DIRECTORIES(mock_server_rest_client PUBLIC
   ${PROJECT_SOURCE_DIR}/src/mock_server/include/
   ${PROJECT_SOURCE_DIR}/src/http/include/
   )
-TARGET_LINK_LIBRARIES(mock_server_rest_client http_client)
+TARGET_LINK_LIBRARIES(mock_server_rest_client http_client extra::rapidjson)
 ADD_DEPENDENCIES(mysqlrouter_all mock_server_rest_client)
 
 TARGET_COMPILE_DEFINITIONS(mysql_server_mock

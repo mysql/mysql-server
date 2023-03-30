@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -60,6 +60,7 @@ FOREACH(test_file
     test_master_key_reader_writer.cc
     test_metadata_ttl.cc
     test_pidfile.cc
+    test_read_replica.cc
     test_rest_api.cc
     test_rest_api_enable.cc
     test_rest_metadata_cache.cc

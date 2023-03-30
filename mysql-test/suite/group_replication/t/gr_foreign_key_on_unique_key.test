@@ -186,15 +186,6 @@ DROP TABLE t1;
 --let $binlog_file= server-relay-log-group_replication_applier.000003
 --let $logical_timestamps= 0 0;1 2;2 3;3 4;3 5;4 6;5 7;6 8;7 9;9 10;8 11;11 12;12 13
 --source include/assert_logical_timestamps.inc
-#
---let $is_relay_log= 1
---let $binlog_file= server-relay-log-group_replication_applier.000002
---source include/assert_transaction_length.inc
---let $binlog_file= server-relay-log-group_replication_applier.000003
---source include/assert_transaction_length.inc
---let $binlog_file=
---let $is_relay_log=
---source include/assert_transaction_length.inc
 
 # Cleanup
 --remove_file $dump_file

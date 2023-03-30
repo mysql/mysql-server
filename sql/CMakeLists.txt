@@ -935,7 +935,8 @@ ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_main GenSysSchema)
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
   mysql_server_component_services mysys strings vio
-  binlogevents_static ${LIBWRAP} ${LIBDL} ${SSL_LIBRARIES})
+  binlogevents_static ${LIBWRAP} ${LIBDL} ${SSL_LIBRARIES}
+  extra::rapidjson)
 
 # sql/immutable_string.h uses
 # google::protobuf::io::CodedOutputStream::WriteVarint64ToArray
@@ -1361,7 +1362,7 @@ MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql
   time_zone_common.cc
   mysql_tzinfo_to_sql.cc
   DEPENDENCIES GenError
-  LINK_LIBRARIES mysys
+  LINK_LIBRARIES mysys extra::rapidjson
   )
 SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql
   PROPERTIES COMPILE_FLAGS "-DDISABLE_PSI_FILE=1 -DABBR_ARE_USED")

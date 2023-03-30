@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -240,7 +240,13 @@ class SharedServer {
                     mysql_harness::Path::directory_separator + "mysqld.err",
             });
     proc.set_logging_path(mysqld_dir_name(), "mysqld.err");
-    ASSERT_NO_THROW(proc.wait_for_exit(60s));
+    try {
+      proc.wait_for_exit(90s);
+    } catch (const std::exception &) {
+      process_manager().dump_logs();
+
+      mysqld_failed_to_start_ = true;
+    }
     if (proc.exit_code() != 0) mysqld_failed_to_start_ = true;
   }
 

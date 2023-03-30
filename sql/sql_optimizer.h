@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1247,12 +1247,14 @@ double find_worst_seeks(const TABLE *table, double num_rows,
   @param thd            thread handler
   @param field          field that is looked up through an index
   @param right_item     value used to perform look up
+  @param can_evaluate   whether the function is allowed to evaluate right_item
+                        (if true, right_item must be const-for-execution)
   @param[out] subsumes  true if an exact comparison can be done, false otherwise
 
   @returns false if success, true if error
  */
 bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
-                                    bool *subsumes);
+                                    bool can_evaluate, bool *subsumes);
 
 /**
   Checks if we need to create iterators for this query. We usually have to. The
@@ -1276,5 +1278,27 @@ bool IteratorsAreNeeded(const THD *thd, AccessPath *root_path);
  */
 double EstimateRowAccesses(const AccessPath *path, double num_evaluations,
                            double limit);
+
+/**
+  Returns true if "item" can be used as a hash join condition between the tables
+  given by "left_side" and "right_side". This is used to determine whether an
+  equijoin condition needs to be attached as an "extra" condition.
+
+  It can be used as a hash join condition if the item on one side of the
+  equality references some table in left_side and none in right_side, and the
+  other side of the equality references some table in right_side and none in
+  left_side.
+
+  @param item An equality that is a candidate for joining the left side tables
+  with the right side tables.
+  @param left_side The tables on the left side of the join.
+  @param right_side The tables on the right side of the join.
+
+  @retval true If the equality can be used as a hash join condition.
+  @retval false If the equality must be added as an extra condition to be
+    evaluated after the join.
+*/
+bool IsHashEquijoinCondition(const Item_eq_base *item, table_map left_side,
+                             table_map right_side);
 
 #endif /* SQL_OPTIMIZER_INCLUDED */

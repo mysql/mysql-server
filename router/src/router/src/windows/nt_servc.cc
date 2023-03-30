@@ -7,7 +7,7 @@
   Copyright Abandoned 1998 Irena Pancirov - Irnet Snc
   This file is public domain and comes with NO WARRANTY of any kind
 
-  Modifications Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+  Modifications Copyright (c) 2000, 2023, Oracle and/or its affiliates.
   All rights reserved.
 */
 #ifdef _WIN32

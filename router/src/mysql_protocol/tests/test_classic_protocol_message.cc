@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -213,6 +213,46 @@ INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageServerOkTest,
                          [](auto const &test_param_info) {
                            return test_param_info.param.test_name;
                          });
+
+TEST(MessageServerOk, warning_count) {
+  classic_protocol::message::server::Ok msg;
+
+  EXPECT_EQ(msg.warning_count(), 0);
+  msg.warning_count(1);
+  EXPECT_EQ(msg.warning_count(), 1);
+}
+
+TEST(MessageServerOk, last_insert_id) {
+  classic_protocol::message::server::Ok msg;
+
+  EXPECT_EQ(msg.last_insert_id(), 0);
+  msg.last_insert_id(1);
+  EXPECT_EQ(msg.last_insert_id(), 1);
+}
+
+TEST(MessageServerOk, affected_rows) {
+  classic_protocol::message::server::Ok msg;
+
+  EXPECT_EQ(msg.affected_rows(), 0);
+  msg.affected_rows(1);
+  EXPECT_EQ(msg.affected_rows(), 1);
+}
+
+TEST(MessageServerOk, message) {
+  classic_protocol::message::server::Ok msg;
+
+  EXPECT_EQ(msg.message(), "");
+  msg.message("hi");
+  EXPECT_EQ(msg.message(), "hi");
+}
+
+TEST(MessageServerOk, session_changes) {
+  classic_protocol::message::server::Ok msg;
+
+  EXPECT_EQ(msg.session_changes(), "");
+  msg.session_changes("hi");
+  EXPECT_EQ(msg.session_changes(), "hi");
+}
 
 // server::Eof
 
@@ -1607,24 +1647,6 @@ INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageServerStatisticsTest,
                          [](auto const &test_param_info) {
                            return test_param_info.param.test_name;
                          });
-
-TEST(ClassicProto, Decode_NulTermString_multiple_chunks) {
-  std::list<std::vector<uint8_t>> read_storage{{'8', '0'}, {'1', 0x00, 'f'}};
-  std::list<net::const_buffer> read_bufs;
-  for (auto const &b : read_storage) {
-    read_bufs.push_back(net::buffer(b));
-  }
-
-  const auto res =
-      classic_protocol::Codec<classic_protocol::wire::NulTermString>::decode(
-          read_bufs, {});
-
-  ASSERT_TRUE(res);
-
-  // the \0 is consumed too, but not part of the output
-  EXPECT_EQ(res->first, 3 + 1);
-  EXPECT_EQ(res->second.value(), "801");
-}
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);

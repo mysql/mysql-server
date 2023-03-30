@@ -60,6 +60,112 @@ DROP TABLE t;
 
 
 --echo #
+--echo # Bug #34670701 Too many ROLLUP rows with hypergraph
+--echo #
+
+CREATE TABLE t1(
+  a INT,
+  b INT,
+  c INT,
+  d INT,
+  e INT,
+    PRIMARY KEY(a,b),
+  KEY ix1 (c,d)
+);
+
+INSERT INTO t1 VALUES (0,0,0,0,1), (1,0,1,0,1), (0,1,2,0,1), (2,0,2,0,1), (4,0,0,0,1);
+ANALYZE TABLE t1;
+
+# When we use ROLLUP, we can scan ix1 if the group-by terms form a (correctly ordered)
+# prefix of [c,d,a,b] and the primary key for a prefix of [a,b]. Otherwise, we must sort.
+
+# All of these need sort.
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT a,c,d,sum(e) FROM t1 GROUP BY a,c,d WITH ROLLUP;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT a,d,c,sum(e) FROM t1 GROUP BY a,d,c WITH ROLLUP;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT c,a,d,sum(e) FROM t1 GROUP BY c,a,d WITH ROLLUP;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT d,a,c,sum(e) FROM t1 GROUP BY d,a,c WITH ROLLUP;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT c,d,b,sum(e) FROM t1 GROUP BY c,d,b WITH ROLLUP;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT d,c,a,sum(e) FROM t1 GROUP BY d,c,a WITH ROLLUP;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT b,a,sum(e) FROM t1 GROUP BY b,a WITH ROLLUP;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT b,sum(e) FROM t1 GROUP BY b WITH ROLLUP;
+
+# For these queries, the group-by key form a prefix of  [c,d,a,b]
+# (in that order). Therefore they can scan ix1.
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT c,sum(e) FROM t1 GROUP BY c WITH ROLLUP;
+
+SELECT c,sum(e) FROM t1 GROUP BY c WITH ROLLUP;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT c,d,sum(e) FROM t1 GROUP BY c,d WITH ROLLUP;
+
+SELECT c,d,sum(e) FROM t1 GROUP BY c,d WITH ROLLUP;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT c,d,a,sum(e) FROM t1 GROUP BY c,d,a WITH ROLLUP;
+
+SELECT c,d,a,sum(e) FROM t1 GROUP BY c,d,a WITH ROLLUP;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT c,d,a,b,sum(e) FROM t1 GROUP BY c,d,a,b WITH ROLLUP;
+
+SELECT c,d,a,b,sum(e) FROM t1 GROUP BY c,d,a,b WITH ROLLUP;
+
+# For these queries, the group-by terms for a prefix of the primary index.
+# So we can scan that.
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT a,sum(e) FROM t1 GROUP BY a WITH ROLLUP;
+
+SELECT a,sum(e) FROM t1 GROUP BY a WITH ROLLUP;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT a,b,sum(e) FROM t1 GROUP BY a,b WITH ROLLUP;
+
+SELECT a,b,sum(e) FROM t1 GROUP BY a,b WITH ROLLUP;
+
+#No ROLLUP. We scan ix1 since it covers the group-by fields.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT d,a,c,sum(e) FROM t1 GROUP BY d,a,c;
+
+SELECT d,a,c,sum(e) FROM t1 GROUP BY d,a,c;
+
+#No ROLLUP. We scan ix1 since it covers the group-by fields.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT a,d,c,sum(e) FROM t1 GROUP BY a,d,c;
+
+SELECT a,d,c,sum(e) FROM t1 GROUP BY a,d,c;
+
+#No ROLLUP. We scan the primary index since it covers the group-by fields.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT b,a,sum(e) FROM t1 GROUP BY b,a;
+
+SELECT b,a,sum(e) FROM t1 GROUP BY b,a;
+
+#No ROLLUP. No index covers the group-by fields, therefore we must sort.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT a,c,e,sum(d) FROM t1 GROUP BY a,c,e;
+
+DROP TABLE t1;
+
+--echo #
 --echo # Bug #33968442: Hypergraph gives too high row estimates for GROUP BY
 --echo #
 

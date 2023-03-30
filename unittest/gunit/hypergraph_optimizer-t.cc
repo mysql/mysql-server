@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2283,6 +2283,160 @@ TEST_F(HypergraphOptimizerTest, SargableJoinPredicateWithTypeMismatch) {
       root->nested_loop_join().inner->filter().child->eq_ref().table->alias);
 }
 
+// Test that we can use index for join conditions on the form t1.field =
+// f(t2.field), not only for t1.field = t2.field.
+TEST_F(HypergraphOptimizerTest, SargableJoinPredicateWithFunction) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2 WHERE t1.x = t2.x + 1", /*nullable=*/true);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+
+  // Add an index on t1.x to make the join predicate sargable.
+  t1->create_index(t1->field[0], /*column2=*/nullptr, /*unique=*/true);
+
+  // Set up sizes to make index access on t1 preferable.
+  t1->file->stats.records = 100000;
+  t1->file->stats.data_file_length = 1e7;
+  t2->file->stats.records = 100;
+  t2->file->stats.data_file_length = 1e5;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Expect NLJ(t2, EQ_REF(t1)). A (redundant?) filter is put on top of the
+  // index lookup to protect against inexact conversion from t2.x+1 to INT (see
+  // ref_lookup_subsumes_comparison()).
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
+  ASSERT_EQ(AccessPath::FILTER, root->nested_loop_join().inner->type);
+  EXPECT_EQ("(t1.x = (t2.x + 1))",
+            ItemToString(root->nested_loop_join().inner->filter().condition));
+  ASSERT_EQ(AccessPath::EQ_REF,
+            root->nested_loop_join().inner->filter().child->type);
+  EXPECT_STREQ(
+      "t1",
+      root->nested_loop_join().inner->filter().child->eq_ref().table->alias);
+}
+
+TEST_F(HypergraphOptimizerTest, SargableSubquery) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE t1.x = (SELECT 1 FROM t2)", /*nullable=*/true);
+
+  // Plan the subquery first.
+  {
+    Query_block *subquery =
+        query_block->first_inner_query_expression()->first_query_block();
+    ResolveQueryBlock(m_thd, subquery, /*nullable=*/true, &m_fake_tables);
+    string trace;
+    AccessPath *subquery_path =
+        FindBestQueryPlanAndFinalize(m_thd, subquery, &trace);
+    SCOPED_TRACE(trace);  // Prints out the trace on failure.
+    // Prints out the query plan on failure.
+    SCOPED_TRACE(PrintQueryPlan(0, subquery_path, subquery->join,
+                                /*is_root_of_join=*/true));
+    EXPECT_EQ(AccessPath::TABLE_SCAN, subquery_path->type);
+  }
+
+  // Add an index on t1.x to make the predicate sargable.
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->create_index(t1->field[0], /*column2=*/nullptr, /*unique=*/true);
+
+  // Set up sizes to make index lookup preferable.
+  t1->file->stats.records = 100000;
+  t1->file->stats.data_file_length = 1e7;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Expect an index lookup with a (redundant?) filter on top.
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ("(t1.x = (select #2))", ItemToString(root->filter().condition));
+  ASSERT_EQ(AccessPath::EQ_REF, root->filter().child->type);
+  EXPECT_EQ("(select #2)",
+            ItemToString(root->filter().child->eq_ref().ref->items[0]));
+  EXPECT_STREQ("t1", root->filter().child->eq_ref().table->alias);
+}
+
+TEST_F(HypergraphOptimizerTest, SargableOuterReference) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE (SELECT t2.y FROM t2 WHERE t2.x = t1.x)",
+      /*nullable=*/true);
+
+  Query_block *subquery =
+      query_block->first_inner_query_expression()->first_query_block();
+  ResolveQueryBlock(m_thd, subquery, /*nullable=*/true, &m_fake_tables);
+
+  // Add an index on t2.x to make the predicate in the subquery sargable.
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+  t2->create_index(t2->field[0], /*column2=*/nullptr, /*unique=*/true);
+  t2->file->stats.records = 100000;
+  t2->file->stats.data_file_length = 1e7;
+
+  string trace;
+  AccessPath *subquery_path = FindBestQueryPlan(m_thd, subquery, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, subquery_path, subquery->join,
+                              /*is_root_of_join=*/true));
+
+  // Expect the subquery to become an index lookup using the outer reference as
+  // a constant value.
+  ASSERT_EQ(AccessPath::EQ_REF, subquery_path->type);
+  EXPECT_STREQ("t2", subquery_path->eq_ref().table->alias);
+  EXPECT_EQ("t1.x", ItemToString(subquery_path->eq_ref().ref->items[0]));
+  EXPECT_TRUE(subquery_path->eq_ref().ref->items[0]->is_outer_reference());
+}
+
+TEST_F(HypergraphOptimizerTest, SargableHyperpredicate) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2, t3 WHERE t1.x = t2.x + t3.x AND t2.y = t3.y",
+      /*nullable=*/true);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+  Fake_TABLE *t3 = m_fake_tables["t3"];
+
+  // Add an index on t1.x to make the join predicate sargable.
+  t1->create_index(t1->field[0], /*column2=*/nullptr, /*unique=*/true);
+
+  // Set up sizes to make index access on t1 preferable.
+  t1->file->stats.records = 100000;
+  t1->file->stats.data_file_length = 1e7;
+  t2->file->stats.records = 100;
+  t2->file->stats.data_file_length = 1e5;
+  t3->file->stats.records = 200;
+  t3->file->stats.data_file_length = 2e5;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Expect the join predicate t1.x = t2.x + t3.x to be sargable and result in
+  // an index lookup, giving this plan: NLJ(HJ(t3, t2), FILTER(EQ_REF(t1)))
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
+  EXPECT_EQ(AccessPath::HASH_JOIN, root->nested_loop_join().outer->type);
+
+  AccessPath *inner = root->nested_loop_join().inner;
+  ASSERT_EQ(AccessPath::FILTER, inner->type);
+  EXPECT_EQ("(t1.x = (t2.x + t3.x))", ItemToString(inner->filter().condition));
+
+  AccessPath *index_path = inner->filter().child;
+  ASSERT_EQ(AccessPath::EQ_REF, index_path->type);
+  EXPECT_STREQ("t1", index_path->eq_ref().table->alias);
+  EXPECT_EQ("(t2.x + t3.x)", ItemToString(index_path->eq_ref().ref->items[0]));
+}
+
 TEST_F(HypergraphOptimizerTest, AntiJoinGetsSameEstimateWithAndWithoutIndex) {
   double ref_output_rows = 0.0;
   for (bool has_index : {false, true}) {
@@ -3224,6 +3378,45 @@ TEST_F(HypergraphOptimizerTest, SemijoinToInnerWithSargable) {
   EXPECT_STREQ("t3", root->hash_join().inner->table_scan().table->alias);
 }
 
+TEST_F(HypergraphOptimizerTest, SemijoinToInnerWithDegenerateJoinCondition) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT 1 FROM t1 WHERE 1 IN (SELECT t2.x FROM t2)",
+                      /*nullable=*/false);
+
+  // Make the tables big so that building a hash table of one of them looks
+  // expensive.
+  m_fake_tables["t1"]->file->stats.records = 1000000;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e8;
+  m_fake_tables["t2"]->file->stats.records = 1000000;
+  m_fake_tables["t2"]->file->stats.data_file_length = 1e8;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Expect a nested-loop inner join using a limit on t2 to be preferred to a
+  // hash semijoin.
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
+
+  const AccessPath *outer = root->nested_loop_join().outer;
+  ASSERT_EQ(AccessPath::LIMIT_OFFSET, outer->type);
+  EXPECT_EQ(0, outer->limit_offset().offset);
+  EXPECT_EQ(1, outer->limit_offset().limit);
+  ASSERT_EQ(AccessPath::FILTER, outer->limit_offset().child->type);
+  ASSERT_EQ(AccessPath::TABLE_SCAN,
+            outer->limit_offset().child->filter().child->type);
+  EXPECT_STREQ(
+      "t2",
+      outer->limit_offset().child->filter().child->table_scan().table->alias);
+
+  const AccessPath *inner = root->nested_loop_join().inner;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, inner->type);
+  EXPECT_STREQ("t1", inner->table_scan().table->alias);
+}
+
 /*
   Test a query with two multiple equalities on overlapping, but not identical,
   sets of tables, and where there is a hyperpredicate that references all of the
@@ -3408,6 +3601,92 @@ TEST_F(HypergraphOptimizerTest, MultiPredicateHashJoin) {
 
     ClearFakeTables();
   }
+}
+
+TEST_F(HypergraphOptimizerTest, HashJoinWithEquijoinHyperpredicate) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2, t3 WHERE t1.x = t2.x + t3.x AND t2.y = t3.y",
+      /*nullable=*/true);
+
+  // Sizes that make t1 HJ (t2 HJ t3) the preferred join order.
+  m_fake_tables["t1"]->file->stats.records = 100000;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1000e6;
+  m_fake_tables["t2"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.data_file_length = 100e6;
+  m_fake_tables["t3"]->file->stats.records = 10;
+  m_fake_tables["t3"]->file->stats.data_file_length = 10e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The topmost path should be a HASH_JOIN with an equijoin predicate.
+  // Previously, the hyperpredicate would be an "extra" condition, not an
+  // equijoin condition.
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
+  RelationalExpression *expr = root->hash_join().join_predicate->expr;
+  EXPECT_EQ("(t1.x = (t2.x + t3.x))", ItemsToString(expr->equijoin_conditions));
+  EXPECT_EQ("(none)", ItemsToString(expr->join_conditions));
+
+  AccessPath *outer = root->hash_join().outer;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, outer->type);
+  EXPECT_STREQ("t1", outer->table_scan().table->alias);
+
+  AccessPath *inner = root->hash_join().inner;
+  ASSERT_EQ(AccessPath::HASH_JOIN, inner->type);
+  RelationalExpression *inner_expr = inner->hash_join().join_predicate->expr;
+  EXPECT_EQ("(t2.y = t3.y)", ItemsToString(inner_expr->equijoin_conditions));
+  EXPECT_EQ("(none)", ItemsToString(inner_expr->join_conditions));
+
+  ASSERT_EQ(AccessPath::TABLE_SCAN, inner->hash_join().outer->type);
+  ASSERT_EQ(AccessPath::TABLE_SCAN, inner->hash_join().inner->type);
+  EXPECT_STREQ("t2", inner->hash_join().outer->table_scan().table->alias);
+  EXPECT_STREQ("t3", inner->hash_join().inner->table_scan().table->alias);
+}
+
+TEST_F(HypergraphOptimizerTest, HashJoinWithNonEquijoinHyperpredicate) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 LEFT JOIN t2 JOIN t3 ON t2.y=t3.y ON t1.x+t2.x=t3.x",
+      /*nullable=*/true);
+
+  // Sizes that make t1 HJ (t2 HJ t3) the preferred join order.
+  m_fake_tables["t1"]->file->stats.records = 100000;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1000e6;
+  m_fake_tables["t2"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.data_file_length = 100e6;
+  m_fake_tables["t3"]->file->stats.records = 10;
+  m_fake_tables["t3"]->file->stats.data_file_length = 10e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The topmost path should be a HASH_JOIN with a non-equijoin hyperpredicate.
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
+  RelationalExpression *expr = root->hash_join().join_predicate->expr;
+  EXPECT_EQ("(none)", ItemsToString(expr->equijoin_conditions));
+  EXPECT_EQ("((t1.x + t2.x) = t3.x)", ItemsToString(expr->join_conditions));
+
+  AccessPath *outer = root->hash_join().outer;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, outer->type);
+  EXPECT_STREQ("t1", outer->table_scan().table->alias);
+
+  AccessPath *inner = root->hash_join().inner;
+  ASSERT_EQ(AccessPath::HASH_JOIN, inner->type);
+  RelationalExpression *inner_expr = inner->hash_join().join_predicate->expr;
+  EXPECT_EQ("(t2.y = t3.y)", ItemsToString(inner_expr->equijoin_conditions));
+  EXPECT_EQ("(none)", ItemsToString(inner_expr->join_conditions));
+
+  ASSERT_EQ(AccessPath::TABLE_SCAN, inner->hash_join().outer->type);
+  ASSERT_EQ(AccessPath::TABLE_SCAN, inner->hash_join().inner->type);
+  EXPECT_STREQ("t2", inner->hash_join().outer->table_scan().table->alias);
+  EXPECT_STREQ("t3", inner->hash_join().inner->table_scan().table->alias);
 }
 
 TEST_F(HypergraphOptimizerTest, HashJoinWithSubqueryPredicate) {

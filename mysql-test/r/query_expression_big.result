@@ -8,13 +8,13 @@
 # spill to disk actually happened.
 #
 # We have four scenarios we exercise:
-# 1. internal_tmp_mem_storage_engine == TempTable with default settings
-#    Here we see spill to disk when doing the updating.
+# 1. internal_tmp_mem_storage_engine == TempTable with tmp_table_size set  
+#    to 11MB. Here we see spill to disk when doing the updating.
 # 2. internal_tmp_mem_storage_engine == HEAP
 #    Here there is no spill to disk so quite fast.
 # 3. internal_tmp_mem_storage_engine == TempTable with a small setting
 #    Here we see spill to disk when writing the initial tmp table. This case
-#    is expected to be slower than case 1, since more less work is
+#    is expected to be slower than case 1, since less work is done
 #    before we need to move to the slower disk based storage (well, InnoDB,
 #    what actually goes to disk is another matter...)
 # 4. internal_tmp_mem_storage_engine == TempTable with a large setting
@@ -37,8 +37,9 @@ SELECT COUNT(*) FROM t;
 COUNT(*)
 131072
 CREATE TABLE timings(id INT AUTO_INCREMENT PRIMARY KEY, t FLOAT);
-# This will spill to disk with default TempTable size while
-# reading right table. 3rd fastest.
+# This will spill to disk while reading right table. 3rd fastest.
+set max_heap_table_size=11*1024*1024;
+set tmp_table_size = @@max_heap_table_size;
 SELECT COUNT(*) FROM (SELECT i,d,c FROM t INTERSECT SELECT i,d,c FROM t) derived;
 COUNT(*)
 65536
@@ -50,7 +51,7 @@ EXPLAIN
             -> Table scan on t  (...)
             -> Table scan on t  (...)
 
-EXPLAIN ANALYZE SELECT COUNT(*) FROM (SELECT i,d,c FROM t INTERSECT SELECT i,d,c FROM t) derived
+set max_heap_table_size=11*1024*1024; set tmp_table_size = @@max_heap_table_size; EXPLAIN ANALYZE SELECT COUNT(*) FROM (SELECT i,d,c FROM t INTERSECT SELECT i,d,c FROM t) derived
 # Should not spill to disk. Fastest or 2nd fastest.
 set internal_tmp_mem_storage_engine = MEMORY;
 SELECT COUNT(*) FROM (SELECT i,d,c FROM t INTERSECT SELECT i,d,c FROM t) derived;
@@ -104,8 +105,9 @@ set tmp_table_size = default;
 set internal_tmp_mem_storage_engine = default;
 DROP TABLE timings;
 CREATE TABLE timings(id INT AUTO_INCREMENT PRIMARY KEY, t FLOAT);
-# This will spill to disk with default TempTable size while
-# reading right table. 3rd fastest.
+# This will spill to disk while reading right table. 3rd fastest.
+set max_heap_table_size=11*1024*1024;
+set tmp_table_size = @@max_heap_table_size;
 SELECT COUNT(*) FROM (SELECT i,d,c FROM t EXCEPT SELECT i,d,c FROM t) derived;
 COUNT(*)
 0
@@ -117,7 +119,7 @@ EXPLAIN
             -> Table scan on t  (...)
             -> Table scan on t  (...)
 
-EXPLAIN ANALYZE SELECT COUNT(*) FROM (SELECT i,d,c FROM t EXCEPT SELECT i,d,c FROM t) derived
+set max_heap_table_size=11*1024*1024; set tmp_table_size = @@max_heap_table_size; EXPLAIN ANALYZE SELECT COUNT(*) FROM (SELECT i,d,c FROM t EXCEPT SELECT i,d,c FROM t) derived
 # Should not spill to disk. Fastest or 2nd fastest.
 set internal_tmp_mem_storage_engine = MEMORY;
 SELECT COUNT(*) FROM (SELECT i,d,c FROM t EXCEPT SELECT i,d,c FROM t) derived;

@@ -74,6 +74,8 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_group_membership_with_primary_mode",
       "router_select_metadata_v2_gr",
       "router_update_last_check_in_v2",
+      "router_select_router_options",
+      "router_select_router_options_view",
     ],
     options);
 

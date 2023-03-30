@@ -13,7 +13,7 @@ if (!`select locate('batched_key_access', @@global.optimizer_switch) > 0`)
   skip Need batched_key_access;
 }
 
---source ../../include/elide_costs_and_rows.inc
+--source ../../include/elide_costs.inc
 
 set @@global.optimizer_switch='batched_key_access=on';
 

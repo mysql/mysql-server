@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -256,10 +256,10 @@ class Function_impl : public Routine_impl, public Function {
   void set_sql_data_access(enum_sql_data_access sda) override {
     Routine_impl::set_sql_data_access(sda);
   }
-  virtual const String_type &external_language() const override {
+  const String_type &external_language() const override {
     return Routine_impl::external_language();
   }
-  virtual void set_external_language(const String_type &el) override {
+  void set_external_language(const String_type &el) override {
     Routine_impl::set_external_language(el);
   }
   View::enum_security_type security_type() const override {

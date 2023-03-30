@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,17 @@
 
 #include "mysqlrouter/connection_pool.h"
 
+#include <openssl/bio.h>
+#include <openssl/ssl.h>
+
 #include "mysql/harness/net_ts/buffer.h"
+#include "mysql/harness/net_ts/impl/poll.h"
+#include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/net_ts/socket.h"
+
+#include "mysqlrouter/classic_protocol_codec.h"
+#include "mysqlrouter/classic_protocol_frame.h"
+#include "mysqlrouter/classic_protocol_message.h"
 
 void PooledConnection::async_recv_message() {
   // for classic we may receive a ERROR for shutdown. Ignore
@@ -65,6 +74,54 @@ void PooledConnection::async_idle(std::chrono::milliseconds idle_timeout) {
     }
 
     if (conn_) {
+      // try a best effort approach to send a COM_QUIT to the server before
+      // closing.
+      namespace cl = classic_protocol;
+      using Msg = cl::message::client::Quit;
+      using Frm = cl::frame::Frame<Msg>;
+
+      constexpr Frm frm{0 /* seq-id */, {}};
+      std::array<std::byte, cl::Codec<Frm>(frm, {}).size()> quit_msg{};
+      auto enc_res = cl::Codec<Frm>(frm, {}).encode(net::buffer(quit_msg));
+      assert(enc_res);
+
+      auto fd = conn_->native_handle();
+
+      if (auto *s = ssl().get()) {
+        // encrypt the COM_QUIT message and append the TLS shutdown-alert.
+        (void)SSL_write(s, quit_msg.data(), quit_msg.size());
+        (void)SSL_shutdown(s);
+
+        auto *bio = SSL_get_wbio(s);
+
+        std::vector<uint8_t> wbuf(BIO_pending(bio));
+        const auto read_res = BIO_read(bio, wbuf.data(), wbuf.size());
+
+        assert(read_res > 0);
+
+        if (read_res > 0) {
+          (void)net::impl::socket::write(fd, wbuf.data(), wbuf.size());
+        }
+
+      } else {
+        (void)net::impl::socket::write(fd, quit_msg.data(), quit_msg.size());
+      }
+
+      auto shutdown_res = net::impl::socket::shutdown(
+          fd, static_cast<int>(net::socket_base::shutdown_both));
+      if (shutdown_res) {
+        using namespace std::chrono_literals;
+
+        // if shutdown fails, the other side already closed the socket.
+        //
+        // otherwise, wait a bit to make sure that the quit-msg left the router
+        // before closing the socket.
+
+        // wait max 1ms.
+        std::array<net::impl::poll::poll_fd, 1> fds{{{fd, POLLIN, 0}}};
+        net::impl::poll::poll(fds.data(), fds.size(), 1ms);
+      }
+
       // connection can be closed.
       (void)conn_->close();  // will cancel the async_read()
 

@@ -99,7 +99,8 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_check_member_state", "router_select_members_count",
       "router_select_group_replication_primary_member",
       "router_select_group_membership_with_primary_mode",
-      "router_set_gr_consistency_level", "router_set_session_options"
+      "router_set_gr_consistency_level", "router_set_session_options",
+      "router_select_router_options"
     ],
     options);
 

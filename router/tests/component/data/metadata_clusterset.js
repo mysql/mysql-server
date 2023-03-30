@@ -14,12 +14,13 @@ if (mysqld.global.update_last_check_in_count === undefined) {
 
 var options = {
   cluster_type: "gr",
-  metadata_schema_version: [2, 1, 0],
+  metadata_schema_version: [2, 2, 0],
   clusterset_present: 1,
   bootstrap_target_type: "clusterset",
   clusterset_target_cluster_id: mysqld.global.target_cluster_id,
   view_id: mysqld.global.view_id,
   clusterset_data: mysqld.global.clusterset_data,
+  router_cs_options: mysqld.global.router_cs_options,
   router_options: mysqld.global.router_options,
   clusterset_simulate_cluster_not_found:
       mysqld.global.simulate_cluster_not_found,
@@ -38,8 +39,9 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_replication_group_name",
       "router_show_cipher_status",
       "router_select_cluster_instances_v2_gr",
+      "router_select_router_options_view",
       "router_commit",
-      "router_router_options",
+      "router_router_select_cs_options",
       "router_rollback",
 
       "select_port",

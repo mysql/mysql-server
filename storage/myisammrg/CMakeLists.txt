@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2023, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -51,4 +51,6 @@ IF(MY_COMPILER_IS_GNU)
   ADD_COMPILE_FLAGS(${MYISAMMRG_SOURCES} COMPILE_FLAGS "-Wno-class-memaccess")
 ENDIF()
 
-MYSQL_ADD_PLUGIN(myisammrg ${MYISAMMRG_SOURCES} STORAGE_ENGINE MANDATORY)
+MYSQL_ADD_PLUGIN(myisammrg ${MYISAMMRG_SOURCES}
+  STORAGE_ENGINE MANDATORY
+  LINK_LIBRARIES extra::rapidjson)

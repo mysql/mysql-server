@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -149,6 +149,7 @@ add_harness_plugin(routing_plugin
  REQUIRES routing
  DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
  )
+TARGET_LINK_LIBRARIES(routing_plugin PRIVATE extra::rapidjson)
 
 GENERATE_EXPORT_HEADER(routing_plugin
   EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/routing_plugin_export.h)

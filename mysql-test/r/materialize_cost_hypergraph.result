@@ -12,7 +12,7 @@ EXPLAIN
     -> Table scan on <union temporary>  (cost=1.28..3.43 rows=6)
         -> Union materialize with deduplication  (cost=0.85..0.85 rows=6)
             -> Table scan on t1  (cost=0.05..0.25 rows=5)
-            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+            -> Rows fetched before execution  (cost=0..0 rows=1)
 
 EXPLAIN FORMAT=TREE SELECT * FROM (SELECT i FROM t1 UNION SELECT 7) d1
 ORDER BY i;
@@ -21,13 +21,13 @@ EXPLAIN
     -> Table scan on d1  (cost=1.28..3.43 rows=6)
         -> Union materialize with deduplication  (cost=0.85..0.85 rows=6)
             -> Table scan on t1  (cost=0.05..0.25 rows=5)
-            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+            -> Rows fetched before execution  (cost=0..0 rows=1)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY i;
 EXPLAIN
 -> Sort: i  (cost=8.45..8.45 rows=10)
     -> Table scan on <union temporary>  (cost=1.76..4.12 rows=10)
-        -> Union materialize with deduplication  (cost=1.50..1.50 rows=10)
+        -> Union materialize with deduplication  (cost=1.5..1.5 rows=10)
             -> Table scan on t1  (cost=0.05..0.25 rows=5)
             -> Table scan on t1  (cost=0.05..0.25 rows=5)
 
@@ -36,7 +36,7 @@ d1 ORDER BY i;
 EXPLAIN
 -> Sort: d1.i  (cost=8.45..8.45 rows=10)
     -> Table scan on d1  (cost=1.76..4.12 rows=10)
-        -> Union materialize with deduplication  (cost=1.50..1.50 rows=10)
+        -> Union materialize with deduplication  (cost=1.5..1.5 rows=10)
             -> Table scan on t1  (cost=0.05..0.25 rows=5)
             -> Table scan on t1  (cost=0.05..0.25 rows=5)
 
