@@ -80,4 +80,5 @@ ADD_CONVENIENCE_LIBRARY(ndbapi
 	    trp_buffer.cpp)
 
 
-NDB_ADD_TEST(SectionIterators-t SectionIterators.cpp NdbApiSignal.cpp)
+NDB_ADD_TEST(SectionIterators-t SectionIterators.cpp NdbApiSignal.cpp
+  LIBS ndbgeneral ndbportlib)
