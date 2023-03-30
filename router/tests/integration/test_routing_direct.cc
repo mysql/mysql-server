@@ -3305,6 +3305,109 @@ TEST_P(ConnectionTest, classic_protocol_unknown_command) {
 }
 
 /**
+ * check max-connection errors are properly forwarded to the client.
+ *
+ * There are two scenarios:
+ *
+ * 1. if there is NO SUPER connection, then max-connection fails after
+ *    authentication as a SUPER connection would still be allowed.
+ * 2. If there is a SUPER connection, then max-connection fails at greeting
+ *    as neither SUPER nor normal connections are allowed.
+ */
+TEST_P(ConnectionTest, classic_protocol_server_greeting_error) {
+  SCOPED_TRACE("// set max-connections = 1, globally");
+  {
+    MysqlClient admin_cli;
+
+    auto admin_account = SharedServer::admin_account();
+
+    admin_cli.username(admin_account.username);
+    admin_cli.password(admin_account.password);
+
+    ASSERT_NO_ERROR(admin_cli.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam())));
+
+    ASSERT_NO_ERROR(admin_cli.query("SET GLOBAL max_connections = 1"));
+  }
+
+  Scope_guard restore_at_end{[this]() {
+    MysqlClient admin_cli;
+
+    auto admin_account = SharedServer::admin_account();
+
+    admin_cli.username(admin_account.username);
+    admin_cli.password(admin_account.password);
+
+    ASSERT_NO_ERROR(admin_cli.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam())));
+
+    ASSERT_NO_ERROR(admin_cli.query("SET GLOBAL max_connections = DEFAULT"));
+  }};
+
+  {
+    SCOPED_TRACE("// connecting to server");
+
+    auto account = SharedServer::native_password_account();
+
+    MysqlClient cli;  // keep it open
+    {
+      cli.username(account.username);
+      cli.password(account.password);
+
+      auto connect_res = cli.connect(shared_router()->host(),
+                                     shared_router()->port(GetParam()));
+      ASSERT_NO_ERROR(connect_res);
+    }
+
+    // fails at auth as the a SUPER account could still connect
+    SCOPED_TRACE("// connecting to server");
+    {
+      MysqlClient cli2;
+
+      cli2.username(account.username);
+      cli2.password(account.password);
+
+      auto connect_res = cli2.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam()));
+      ASSERT_ERROR(connect_res);
+      EXPECT_EQ(connect_res.error().value(), 1040)  // max-connections reached
+          << connect_res.error();
+    }
+
+    SCOPED_TRACE("// connecting to server as SUPER user");
+    MysqlClient cli_super;  // keep it open
+    {
+      auto admin_account = SharedServer::admin_account();
+
+      cli_super.username(admin_account.username);
+      cli_super.password(admin_account.password);
+
+      auto connect_res = cli_super.connect(shared_router()->host(),
+                                           shared_router()->port(GetParam()));
+      ASSERT_NO_ERROR(connect_res);
+    }
+
+    // fails at greeting, as one SUPER-connection and ${max_connections}
+    // user-connections are connected.
+    SCOPED_TRACE("// connecting to server");
+    {
+      MysqlClient cli2;
+
+      cli2.username(account.username);
+      cli2.password(account.password);
+
+      auto connect_res = cli2.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam()));
+      ASSERT_ERROR(connect_res);
+      EXPECT_EQ(connect_res.error().value(), 1040)  // max-connections reached
+          << connect_res.error();
+    }
+  }
+
+  SCOPED_TRACE("// reset again");  // before the Scope_guard fires.
+}
+
+/**
  * check that server doesn't report "Aborted Clients".
  */
 TEST_P(ConnectionTest, classic_protocol_quit_no_aborted_connections) {

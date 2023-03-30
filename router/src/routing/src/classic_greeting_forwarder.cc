@@ -417,17 +417,17 @@ ServerGreetor::server_greeting_error() {
   }
 
   stage(Stage::Error);
-  if (!in_handshake_) {
-    on_error_({msg.error_code(), std::string(msg.message()),
-               std::string(msg.sql_state())});
 
-    discard_current_msg(src_channel, src_protocol);
+  // the message arrived before the handshake started and is therefore in
+  // in 3.21 format which has no "sql-state".
+  //
+  // 08004 is 'server rejected connection'
+  on_error_(
+      {msg.error_code(), std::string(msg.message()), std::string("08004")});
 
-    return Result::Again;
-  }
+  discard_current_msg(src_channel, src_protocol);
 
-  // forward the packet and close the connection.
-  return forward_server_to_client();
+  return Result::Again;
 }
 
 // called after server connection is established.
@@ -1126,10 +1126,6 @@ stdx::expected<Processor::Result, std::error_code> ServerGreetor::auth_error() {
   }
 
   stage(Stage::Error);
-
-  if (in_handshake_) {
-    return forward_server_to_client();
-  }
 
   on_error_({msg.error_code(), std::string(msg.message()),
              std::string(msg.sql_state())});
