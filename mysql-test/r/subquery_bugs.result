@@ -853,7 +853,7 @@ DROP TABLE t1;
 CREATE TABLE t1(a DATETIME(2));
 INSERT INTO t1 VALUES(NOW(2)),(NOW(2));
 SELECT STD(IS_FREE_LOCK(0x2ADA5C38)),1 FROM t1 WHERE a+(EXISTS(SELECT 1));
-ERROR 42000: Incorrect user-level lock name '*\xDA\8'.
+ERROR 42000: Incorrect user-level lock name '*\xDA\8'. The name is empty, NULL, or can not be expressed in the current character-set.
 DROP TABLE t1;
 #
 # Bug#29668446 REGRESSION: CRASH IN DO_DIV_MOD()

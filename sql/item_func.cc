@@ -5307,7 +5307,11 @@ static bool check_and_convert_ull_name(char *buff, const String *org_name) {
   if (well_formed_error_pos || cannot_convert_error_pos ||
       from_end_pos < org_name->ptr() + org_name->length()) {
     ErrConvString err(org_name);
-    my_error(ER_USER_LOCK_WRONG_NAME, MYF(0), err.ptr());
+    if (well_formed_error_pos || cannot_convert_error_pos)
+      my_error(ER_USER_LOCK_WRONG_NAME, MYF(0), err.ptr());
+    else
+      my_error(ER_USER_LOCK_OVERLONG_NAME, MYF(0), err.ptr(),
+               (int)NAME_CHAR_LEN);
     return true;
   }
 
