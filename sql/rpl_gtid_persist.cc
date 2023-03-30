@@ -384,14 +384,7 @@ int Gtid_table_persistor::save(const Gtid_set *gtid_set, bool compress) {
   THD *thd = current_thd;
 
   if (table_access_ctx.init(&thd, &table, true)) {
-    error = 1;
-    /*
-      Gtid table is not ready to be used, so failed to
-      open it. Ignore the error.
-    */
-    thd->clear_error();
-    if (!thd->get_stmt_da()->is_set())
-      thd->get_stmt_da()->set_ok_status(0, 0, nullptr);
+    error = ret = 1;
     goto end;
   }
 

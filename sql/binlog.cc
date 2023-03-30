@@ -7267,9 +7267,9 @@ int MYSQL_BIN_LOG::rotate_and_purge(THD *thd, bool force_rotate) {
   bool check_purge = false;
 
   /*
-    FLUSH BINARY LOGS command should ignore 'read-only' and 'super_read_only'
-    options so that it can update 'mysql.gtid_executed' replication repository
-    table.
+    FLUSH BINARY LOGS command should ignore 'read-only', 'super_read_only' and
+    the transaction READ ONLY mode options so that it can update
+    'mysql.gtid_executed' replication repository table.
   */
   thd->set_skip_readonly_check();
   /*

@@ -1,0 +1,114 @@
+# ==== Purpose ====
+#
+# Test the server behaviour when 'READ ONLY' transaction mode is enabled for a
+# session and the binary log has to be rotated.
+#
+# ==== Requirements ====
+#
+# R1. If session transaction read only mode is enabled and binlog rotation is
+#     triggered then it MUST succeed.
+#
+# ==== Implementation ====
+#
+# 1) Create a table
+# 2) Set 'SESSION TRANSACTION READ ONLY'
+# 3) Execute 'SET GLOBAL BINLOG_CHECKSUM = CRC32' and assert that binary log
+#    was rotated..
+# 4) Try executing an INSERT in READ ONLY transaction mode, it should fail with
+#    below error
+# 5) SET SESSION TRANSACTION READ WRITE and execute an INSERT.
+# 6) Set 'SESSION TRANSACTION READ ONLY'
+# 7) Execute 'FLUSH BINARY LOGS', verify that gtid_executed table was updated
+#    and assert that binary log was rotated.
+# 8) SET SESSION TRANSACTION READ WRITE and drop the table
+# 9) Disable the clone gtid persister thread, in order to make sure that
+#    mysql.gtid_executed table is updated only via flush logs.
+# 10)Verify that we report any error which might occur while accessing
+#    or modifying gtid_executed table.
+#
+# ==== References ====
+#
+# Bug#35041573:Server diagnostics area error
+#
+
+--source include/have_log_bin.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+#Clean the table before starting the test.
+RESET MASTER;
+
+CALL mtr.add_suppression("Unable to create a new binlog file.");
+CALL mtr.add_suppression("Error persisting GTIDs to table");
+
+# 1) Create a table
+CREATE TABLE t0(c0 int);
+
+# 2) Set 'SESSION TRANSACTION READ ONLY'
+SET SESSION TRANSACTION READ ONLY;
+
+--let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.1/data/*binlog*.0*
+--source include/rpl_log_file_max_number.inc
+--let $max_log_file_before_set_checksum = $log_file_max_number
+
+# 3) Execute 'SET GLOBAL BINLOG_CHECKSUM = CRC32' and assert that binary log
+#    was rotated.
+SET GLOBAL BINLOG_CHECKSUM = CRC32;
+
+--source include/rpl_log_file_max_number.inc
+--let $max_log_file_after_set_checksum = $log_file_max_number
+--let $assert_text = 'SET GLOBAL BINLOG_CHECKSUM = CRC32' rotated the binlog with 'TRANSACTION READ ONLY'
+--let $assert_cond = $max_log_file_after_set_checksum = $max_log_file_before_set_checksum + 1
+--source include/assert.inc
+
+# 4) Try executing an INSERT in READ ONLY transaction mode, it should fail with
+#    below error
+
+--error ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
+INSERT INTO t0 VALUES(10);
+
+# 5) SET SESSION TRANSACTION READ WRITE and execute an INSERT.
+SET SESSION TRANSACTION READ WRITE;
+
+# This is to create new GTIDs to be written to gtid_executed table.
+INSERT INTO  t0 VALUES(10);
+
+--source include/rpl_log_file_max_number.inc
+--let $max_log_file_before_flush = $log_file_max_number
+
+# 6) Set 'SESSION TRANSACTION READ ONLY'
+SET SESSION TRANSACTION READ ONLY;
+
+# 7) Execute 'FLUSH BINARY LOGS', verify that gtid_executed table was updated
+#    and assert that binary log was rotated.
+FLUSH BINARY LOGS;
+
+--let $wait_condition= SELECT count(*) = 1 FROM mysql.gtid_executed WHERE interval_end = 4
+--source include/wait_condition.inc
+
+--source include/rpl_log_file_max_number.inc
+--let $max_log_file_after_flush = $log_file_max_number
+--let $assert_text = 'FLUSH BINARY LOGS' rotated the binlog with 'TRANSACTION READ ONLY'
+--let $assert_cond = $max_log_file_after_flush = $max_log_file_before_flush + 1
+--source include/assert.inc
+
+# 8) SET SESSION TRANSACTION READ WRITE and drop the table
+SET SESSION TRANSACTION READ WRITE;
+DROP TABLE t0;
+
+# 9) Disable the clone gtid persister thread, in order to make sure that
+#    mysql.gtid_executed table is updated only via flush logs.
+--let $debug_point = disable_gtid_background_persister
+--source include/add_debug_point.inc
+
+# 10) Verify that we report any error which might occur while accessing
+#    or modifying gtid_executed table.
+
+ALTER TABLE mysql.gtid_executed DROP COLUMN interval_end;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+FLUSH BINARY LOGS;
+
+# Restore the table gtid_executed
+
+ALTER TABLE mysql.gtid_executed ADD  interval_end BIGINT NOT NULL COMMENT 'Last number of interval.' AFTER interval_start;
+--source include/remove_debug_point.inc

@@ -656,6 +656,7 @@ THD::THD(bool enable_plugins)
       ha_data(PSI_NOT_INSTRUMENTED, ha_data.initial_capacity),
       binlog_row_event_extra_data(nullptr),
       skip_readonly_check(false),
+      skip_transaction_read_only_check(false),
       binlog_unsafe_warning_flags(0),
       binlog_table_maps(0),
       binlog_accessed_db_names(nullptr),

@@ -403,7 +403,15 @@ int thd_sql_command(const MYSQL_THD thd) { return (int)thd->lex->sql_command; }
 
 int thd_tx_isolation(const MYSQL_THD thd) { return (int)thd->tx_isolation; }
 
-int thd_tx_is_read_only(const MYSQL_THD thd) { return (int)thd->tx_read_only; }
+int thd_tx_is_read_only(const MYSQL_THD thd) {
+  // If the transaction is marked to be skipped read-only  then we ignore
+  // the value of tx_read_only variable and treat the transaction as
+  // a normal read-write trx.
+  if (thd->tx_read_only && thd->is_cmd_skip_transaction_read_only())
+    return 0;
+  else
+    return (int)thd->tx_read_only;
+}
 
 int thd_tx_priority(const MYSQL_THD thd) {
   return (thd->thd_tx_priority != 0 ? thd->thd_tx_priority : thd->tx_priority);

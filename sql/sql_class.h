@@ -1820,6 +1820,12 @@ class THD : public MDL_context_owner,
     'read_only' and 'super_read_only' options.
   */
   bool skip_readonly_check;
+
+  /*
+    Indicates that the command which is under execution should ignore the
+    read only transaction mode.
+  */
+  bool skip_transaction_read_only_check;
   /**
     Indicate if the current statement should be discarded
     instead of written to the binlog.
@@ -1884,12 +1890,28 @@ class THD : public MDL_context_owner,
  public:
   const NET *get_net() const { return &net; }
 
-  void set_skip_readonly_check() { skip_readonly_check = true; }
-
+  void set_skip_readonly_check() {
+    skip_readonly_check = true;
+    // Make a transaction skip the read only check set via the command
+    // SET SESSION TRANSACTION READ ONLY
+    set_skip_transaction_read_only_check();
+  }
+  void set_skip_transaction_read_only_check() {
+    skip_transaction_read_only_check = true;
+  }
   bool is_cmd_skip_readonly() const { return skip_readonly_check; }
 
+  bool is_cmd_skip_transaction_read_only() const {
+    return skip_transaction_read_only_check;
+  }
   void reset_skip_readonly_check() {
     if (skip_readonly_check) skip_readonly_check = false;
+    reset_skip_transaction_read_only_check();
+  }
+
+  void reset_skip_transaction_read_only_check() {
+    if (skip_transaction_read_only_check)
+      skip_transaction_read_only_check = false;
   }
 
   void issue_unsafe_warnings();

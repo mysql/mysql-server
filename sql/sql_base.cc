@@ -2881,7 +2881,8 @@ bool open_table(THD *thd, Table_ref *table_list, Open_table_context *ot_ctx) {
     Note that we allow write locks on log tables as otherwise logging
     to general/slow log would be disabled in read only transactions.
   */
-  if (table_list->mdl_request.is_write_lock_request() && thd->tx_read_only &&
+  if (table_list->mdl_request.is_write_lock_request() &&
+      (thd->tx_read_only && !thd->is_cmd_skip_transaction_read_only()) &&
       !(flags & (MYSQL_LOCK_LOG_TABLE | MYSQL_OPEN_HAS_MDL_LOCK))) {
     my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
     return true;

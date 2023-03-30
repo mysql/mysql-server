@@ -1,0 +1,26 @@
+RESET MASTER;
+CALL mtr.add_suppression("Unable to create a new binlog file.");
+CALL mtr.add_suppression("Error persisting GTIDs to table");
+CREATE TABLE t0(c0 int);
+SET SESSION TRANSACTION READ ONLY;
+include/rpl_log_file_max_number.inc
+SET GLOBAL BINLOG_CHECKSUM = CRC32;
+include/rpl_log_file_max_number.inc
+include/assert.inc ['SET GLOBAL BINLOG_CHECKSUM = CRC32' rotated the binlog with 'TRANSACTION READ ONLY']
+INSERT INTO t0 VALUES(10);
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+SET SESSION TRANSACTION READ WRITE;
+INSERT INTO  t0 VALUES(10);
+include/rpl_log_file_max_number.inc
+SET SESSION TRANSACTION READ ONLY;
+FLUSH BINARY LOGS;
+include/rpl_log_file_max_number.inc
+include/assert.inc ['FLUSH BINARY LOGS' rotated the binlog with 'TRANSACTION READ ONLY']
+SET SESSION TRANSACTION READ WRITE;
+DROP TABLE t0;
+# Adding debug point 'disable_gtid_background_persister' to @@GLOBAL.debug
+ALTER TABLE mysql.gtid_executed DROP COLUMN interval_end;
+FLUSH BINARY LOGS;
+ERROR HY000: Column count of mysql.gtid_executed is wrong. Expected 3, found 2. The table is probably corrupted
+ALTER TABLE mysql.gtid_executed ADD  interval_end BIGINT NOT NULL COMMENT 'Last number of interval.' AFTER interval_start;
+# Removing debug point 'disable_gtid_background_persister' from @@GLOBAL.debug
