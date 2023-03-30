@@ -114,6 +114,11 @@ constexpr const unsigned int kDefaultSslSessionCacheSize{1024};
  */
 constexpr const std::chrono::seconds kDefaultSslSessionCacheTimeout{300};
 
+/**
+ * Default Connect Retry timeout.
+ */
+constexpr const std::chrono::seconds kDefaultConnectRetryTimeout{7};
+
 /** @brief Modes supported by Routing plugin */
 enum class RoutingMode {
   kUndefined = 0,

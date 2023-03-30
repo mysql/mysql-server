@@ -404,10 +404,6 @@ ServerGreetor::server_greeting() {
  */
 stdx::expected<Processor::Result, std::error_code>
 ServerGreetor::server_greeting_error() {
-  if (auto &tr = tracer()) {
-    tr.trace(Tracer::Event().stage("server::greeting::error"));
-  }
-
   // don't increment the error-counter
   connection()->client_greeting_sent(true);
 
@@ -421,6 +417,11 @@ ServerGreetor::server_greeting_error() {
   if (!msg_res) return recv_client_failed(msg_res.error());
 
   auto msg = *msg_res;
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("server::greeting::error: " +
+                                   std::to_string(msg.error_code())));
+  }
 
   if (auto *ev = trace_event_server_greeting_) {
     trace_span_end(ev, TraceEvent::StatusCode::kError);
@@ -1322,11 +1323,26 @@ ServerFirstConnector::server_greeted() {
     auto *src_channel = socket_splicer->client_channel();
     auto *src_protocol = connection()->client_protocol();
 
+    auto ec = reconnect_error();
+
+    if (connect_error_is_transient(ec) &&
+        std::chrono::steady_clock::now() <
+            started_ + connection()->context().connect_retry_timeout()) {
+      stage(Stage::Connect);
+
+      connection()->connect_timer().expires_after(kConnectRetryInterval);
+      connection()->connect_timer().async_wait([this](std::error_code ec) {
+        if (ec) return;
+
+        connection()->resume();
+      });
+
+      return Result::Suspend;
+    }
+
     stage(Stage::Error);
 
     if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
-      auto ec = reconnect_error();
-
       // RouterRoutingTest.RoutingTooManyServerConnections expects this
       // message.
       log_debug(
@@ -2039,7 +2055,8 @@ ServerFirstAuthenticator::auth_error() {
   auto msg = *msg_res;
 
   if (auto &tr = tracer()) {
-    tr.trace(Tracer::Event().stage("server::auth::error"));
+    tr.trace(Tracer::Event().stage("server::auth::error: " +
+                                   std::to_string(msg.error_code())));
   }
 
   stage(Stage::Error);  // close the server connection after the Error msg was

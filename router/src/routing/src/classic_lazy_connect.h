@@ -27,7 +27,7 @@
 
 #include <system_error>
 
-#include "processor.h"
+#include "forwarding_processor.h"
 
 /**
  * attach a server connection and initialize it.
@@ -43,7 +43,7 @@
  *
  * - the client's cleartext password must be known.
  */
-class LazyConnector : public Processor {
+class LazyConnector : public ForwardingProcessor {
  public:
   /**
    * create a lazy-connector.
@@ -62,7 +62,7 @@ class LazyConnector : public Processor {
       std::function<void(const classic_protocol::message::server::Error &err)>
           on_error,
       TraceEvent *parent_event)
-      : Processor(conn),
+      : ForwardingProcessor(conn),
         in_handshake_{in_handshake},
         on_error_(std::move(on_error)),
         parent_event_(parent_event) {}
@@ -107,6 +107,12 @@ class LazyConnector : public Processor {
 
   std::function<void(const classic_protocol::message::server::Error &err)>
       on_error_;
+
+  bool retry_connect_{false};
+
+  // start timepoint to calculate the connect-retry-timeout.
+  std::chrono::steady_clock::time_point started_{
+      std::chrono::steady_clock::now()};
 
   TraceEvent *parent_event_{};
   TraceEvent *trace_event_connect_{};

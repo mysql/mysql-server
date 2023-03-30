@@ -169,6 +169,10 @@ class ServerFirstConnector : public ForwardingProcessor {
   stdx::expected<Result, std::error_code> server_greeted();
 
   Stage stage_{Stage::Connect};
+
+  // start timepoint to calculate the connect-retry-timeout.
+  std::chrono::steady_clock::time_point started_{
+      std::chrono::steady_clock::now()};
 };
 
 /**

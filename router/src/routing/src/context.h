@@ -111,6 +111,10 @@ class MySQLRoutingContext {
                                      1000};
   }
 
+  std::chrono::milliseconds connect_retry_timeout() const {
+    return routing_config_.connect_retry_timeout;
+  }
+
   const mysql_harness::TCPAddress &get_bind_address() const {
     return routing_config_.bind_address;
   }

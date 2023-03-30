@@ -598,6 +598,7 @@ class SharedRouter {
                         SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
                        {"client_ssl_cert",
                         SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
+                       {"connect_retry_timeout", "0"},
                    })
           .section("routing:x_" + param.testname,
                    {

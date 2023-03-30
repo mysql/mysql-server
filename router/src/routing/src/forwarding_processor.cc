@@ -33,6 +33,7 @@
 #include "classic_forwarder.h"
 #include "classic_frame.h"
 #include "classic_lazy_connect.h"
+#include "mysqld_error.h"  // ER_...
 #include "mysqlrouter/connection_pool_component.h"
 
 stdx::expected<Processor::Result, std::error_code>
@@ -162,4 +163,9 @@ ForwardingProcessor::reconnect_send_error_msg(
   if (!send_res) return send_client_failed(send_res.error());
 
   return Result::SendToClient;
+}
+
+bool ForwardingProcessor::connect_error_is_transient(
+    const classic_protocol::message::server::Error &err) {
+  return err.error_code() == ER_CON_COUNT_ERROR;  // 1040
 }

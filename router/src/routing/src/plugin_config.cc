@@ -512,6 +512,12 @@ RoutingPluginConfig::RoutingPluginConfig(
               get_option(section, "connection_sharing_delay",
                          DoubleOption{0})));
 
+  static_assert(mysql_harness::str_in_collection(routing_supported_options,
+                                                 "connect_retry_timeout"));
+  connect_retry_timeout =
+      get_option(section, "connect_retry_timeout",
+                 mysql_harness::MilliSecondsOption{0, 3600});
+
   using namespace std::string_literals;
 
   // either bind_address or socket needs to be set, or both
@@ -589,6 +595,8 @@ std::string RoutingPluginConfig::get_default(const std::string &option) const {
        std::to_string(routing::kDefaultSslSessionCacheSize)},
       {"server_ssl_session_cache_timeout",
        std::to_string(routing::kDefaultSslSessionCacheTimeout.count())},
+      {"connect_retry_timeout",
+       std::to_string(routing::kDefaultConnectRetryTimeout.count())},
   };
 
   const auto it = defaults.find(option);

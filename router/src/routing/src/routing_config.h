@@ -86,6 +86,10 @@ class RoutingConfig {
   bool server_ssl_session_cache_mode{true};
   size_t server_ssl_session_cache_size{};
   unsigned int server_ssl_session_cache_timeout{};
+
+  std::chrono::milliseconds
+      connect_retry_timeout{};  //!< timeout of retrying after a transient
+                                //!< connect-failure.
 };
 
 #endif  // ROUTING_CONFIG_INCLUDED

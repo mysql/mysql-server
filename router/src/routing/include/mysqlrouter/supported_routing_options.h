@@ -28,7 +28,7 @@
 #include <array>
 #include <string_view>
 
-static constexpr std::array<const char *, 37> routing_supported_options{
+static constexpr std::array<const char *, 38> routing_supported_options{
     "protocol",
     "destinations",
     "bind_port",
@@ -68,6 +68,7 @@ static constexpr std::array<const char *, 37> routing_supported_options{
     "server_ssl_session_cache_mode",
     "server_ssl_session_cache_size",
     "server_ssl_session_cache_timeout",
+    "connect_retry_timeout",
 };
 
 #endif /* MYSQLROUTER_ROUTING_SUPPORTED_ROUTING_INCLUDED */

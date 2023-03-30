@@ -24,8 +24,10 @@
 
 #include "classic_lazy_connect.h"
 
+#include <chrono>
 #include <deque>
 #include <memory>
+#include <ratio>
 #include <sstream>
 
 #include "classic_change_user_sender.h"
@@ -41,6 +43,8 @@
 #include "mysqlrouter/classic_protocol_message.h"
 
 IMPORT_LOG_FUNCTIONS()
+
+using namespace std::chrono_literals;
 
 /**
  * capture the system-variables.
@@ -256,7 +260,31 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::connected() {
     connection()->push_processor(std::make_unique<ServerGreetor>(
         connection(), in_handshake_,
         [this](const classic_protocol::message::server::Error &err) {
-          on_error_(err);
+          if (connect_error_is_transient(err) &&
+              (connection()->client_protocol()->password().has_value() ||
+               !connection()
+                    ->server_protocol()
+                    ->server_greeting()
+                    .has_value()) &&
+              std::chrono::steady_clock::now() <
+                  started_ + connection()->context().connect_retry_timeout()) {
+            // the error is transient.
+            //
+            // try to reconnect as long as the connect-timeout hasn't been
+            // reached yet.
+
+            // only try to reconnect, if
+            //
+            // 1. the connect failed in the server-greeting
+            // 2. the client's password is known as otherwise client would
+            // receive the auth-switch several times as part of the auth
+            // handshake.
+
+            retry_connect_ = true;
+          } else {
+            // propagate the error up to the caller.
+            on_error_(err);
+          }
         },
         trace_event_authenticate_));
   }
@@ -277,7 +305,22 @@ LazyConnector::authenticated() {
       trace_span_end(ev, TraceEvent::StatusCode::kError);
     }
 
+    if (retry_connect_) {
+      retry_connect_ = false;
+
+      stage(Stage::Connect);
+      connection()->connect_timer().expires_after(kConnectRetryInterval);
+      connection()->connect_timer().async_wait([this](std::error_code ec) {
+        if (ec) return;
+
+        connection()->resume();
+      });
+
+      return Result::Suspend;
+    }
+
     stage(Stage::Done);
+    return Result::Again;
   } else {
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("connect::authenticate::ok"));

@@ -448,6 +448,7 @@ class SharedRouter {
               {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
               {"connection_sharing", "1"},
               {"connection_sharing_delay", "0"},
+              {"connect_retry_timeout", "0"},
           });
     }
 
