@@ -3251,6 +3251,246 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, forbidden_statements_if_sharing) {
   }
 }
 
+/**
+ * check max-connection errors are properly forwarded to the client at connect.
+ *
+ * There are two scenarios:
+ *
+ * 1. if there is NO SUPER connection, then max-connection fails after
+ *    authentication as a SUPER connection would still be allowed.
+ * 2. If there is a SUPER connection, then max-connection fails at greeting
+ *    as neither SUPER nor normal connections are allowed.
+ */
+TEST_P(ShareConnectionTinyPoolOneServerTest,
+       classic_protocol_server_greeting_error) {
+  SCOPED_TRACE("// set max-connections = 1, globally");
+  {
+    MysqlClient admin_cli;
+
+    auto admin_account = SharedServer::admin_account();
+
+    admin_cli.username(admin_account.username);
+    admin_cli.password(admin_account.password);
+
+    ASSERT_NO_ERROR(admin_cli.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam())));
+
+    ASSERT_NO_ERROR(admin_cli.query("SET GLOBAL max_connections = 1"));
+  }
+
+  // close all connections that are currently in the pool to get a stable
+  // baseline.
+  for (auto &srv : shared_servers()) {
+    srv->close_all_connections();  // reset the router's connection-pool
+  }
+  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+
+  Scope_guard restore_at_end{[this]() {
+    MysqlClient admin_cli;
+
+    auto admin_account = SharedServer::admin_account();
+
+    admin_cli.username(admin_account.username);
+    admin_cli.password(admin_account.password);
+
+    ASSERT_NO_ERROR(admin_cli.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam())));
+
+    ASSERT_NO_ERROR(admin_cli.query("SET GLOBAL max_connections = DEFAULT"));
+  }};
+
+  SCOPED_TRACE("// testing");
+  {
+    SCOPED_TRACE("// connecting, keep open and block sharing");
+
+    auto account = SharedServer::native_empty_password_account();
+
+    MysqlClient cli;  // keep it open
+    {
+      cli.username(account.username);
+      cli.password(account.password);
+
+      auto connect_res = cli.connect(shared_router()->host(),
+                                     shared_router()->port(GetParam()));
+      ASSERT_NO_ERROR(connect_res);
+
+      // block sharing
+      ASSERT_NO_ERROR(cli.query("BEGIN"));
+    }
+
+    // fails at auth as the a SUPER account could still connect
+    SCOPED_TRACE("// connect, fail with 'max-connections reached'");
+    {
+      MysqlClient cli2;
+
+      cli2.username(account.username);
+      cli2.password(account.password);
+
+      auto connect_res = cli2.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam()));
+      ASSERT_ERROR(connect_res);
+      EXPECT_EQ(connect_res.error().value(), 1040)  // max-connections reached
+          << connect_res.error();
+    }
+
+    SCOPED_TRACE("// connect as SUPER user, keep open, block sharing");
+    MysqlClient cli_super;  // keep it open
+    {
+      auto admin_account = SharedServer::admin_account();
+
+      cli_super.username(admin_account.username);
+      cli_super.password(admin_account.password);
+
+      auto connect_res = cli_super.connect(shared_router()->host(),
+                                           shared_router()->port(GetParam()));
+      ASSERT_NO_ERROR(connect_res);
+
+      // block sharing
+      ASSERT_NO_ERROR(cli_super.query("BEGIN"));
+    }
+
+    // fails at connect at greeting, as SUPER and max_connections are connected.
+    SCOPED_TRACE("// connect, fail with 'max-connections reached'");
+    {
+      MysqlClient cli2;
+
+      cli2.username(account.username);
+      cli2.password(account.password);
+
+      auto connect_res = cli2.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam()));
+      ASSERT_ERROR(connect_res);
+      EXPECT_EQ(connect_res.error().value(), 1040)  // max-connections reached
+          << connect_res.error();
+    }
+
+    // closing the super connection would make it end up in the pool, but the
+    // scope-guard needs to to be closed to open its own connection.
+    cli_super.query("KILL CONNECTION_ID()");
+  }
+
+  SCOPED_TRACE("// cleanup");
+
+  // close all connections that are currently in the pool to get a stable
+  // baseline.
+  for (auto &srv : shared_servers()) {
+    srv->close_all_connections();  // reset the router's connection-pool
+  }
+  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+
+  // calls Scope_guard
+}
+
+/**
+ * check max-connection errors are properly forwarded to the client after query.
+ *
+ * There are two scenarios:
+ *
+ * 1. if there is NO SUPER connection, then max-connection fails after
+ *    authentication as a SUPER connection would still be allowed.
+ * 2. If there is a SUPER connection, then max-connection fails at greeting
+ *    as neither SUPER nor normal connections are allowed.
+ */
+TEST_P(ShareConnectionTinyPoolOneServerTest,
+       classic_protocol_server_greeting_error_at_query) {
+  const bool can_share = GetParam().can_share();
+
+  SCOPED_TRACE("// set max-connections = 1, globally");
+  {
+    MysqlClient admin_cli;
+
+    auto admin_account = SharedServer::admin_account();
+
+    admin_cli.username(admin_account.username);
+    admin_cli.password(admin_account.password);
+
+    ASSERT_NO_ERROR(admin_cli.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam())));
+
+    ASSERT_NO_ERROR(admin_cli.query("SET GLOBAL max_connections = 1"));
+  }
+
+  // close all connections that are currently in the pool to get a stable
+  // baseline.
+  for (auto &srv : shared_servers()) {
+    srv->close_all_connections();  // reset the router's connection-pool
+  }
+  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+
+  Scope_guard restore_at_end{[this]() {
+    MysqlClient admin_cli;
+
+    auto admin_account = SharedServer::admin_account();
+
+    admin_cli.username(admin_account.username);
+    admin_cli.password(admin_account.password);
+
+    ASSERT_NO_ERROR(admin_cli.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam())));
+
+    ASSERT_NO_ERROR(admin_cli.query("SET GLOBAL max_connections = DEFAULT"));
+  }};
+
+  SCOPED_TRACE("// testing");
+  {
+    SCOPED_TRACE("// connecting, keep open and block sharing");
+
+    auto account = SharedServer::native_empty_password_account();
+
+    MysqlClient cli1;  // keep it open
+    {
+      cli1.username(account.username);
+      cli1.password(account.password);
+
+      auto connect_res = cli1.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam()));
+      ASSERT_NO_ERROR(connect_res);
+    }
+
+    if (can_share) {
+      // wait until the connection is pooled.
+      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+    }
+
+    SCOPED_TRACE("// connect, fail with 'max-connections reached'");
+    {
+      MysqlClient cli2;
+
+      cli2.username(account.username);
+      cli2.password(account.password);
+
+      auto connect_res = cli2.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam()));
+      if (can_share) {
+        ASSERT_NO_ERROR(connect_res);
+
+        // block the connection.
+        ASSERT_NO_ERROR(cli2.query("BEGIN"));
+
+        // trigger a reconnect on the earlier connection should fail with
+        // "max-connections"
+        auto cmd_res = cli1.query("DO 1");
+        ASSERT_ERROR(cmd_res);
+        EXPECT_EQ(cmd_res.error().value(), 1040);
+      } else {
+        ASSERT_ERROR(connect_res);
+        EXPECT_EQ(connect_res.error().value(), 1040);
+      }
+    }
+  }
+
+  SCOPED_TRACE("// cleanup");
+
+  // close all connections that are currently in the pool to get a stable
+  // baseline.
+  for (auto &srv : shared_servers()) {
+    srv->close_all_connections();  // reset the router's connection-pool
+  }
+  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+
+  // calls Scope_guard
+}
+
 INSTANTIATE_TEST_SUITE_P(Spec, ShareConnectionTinyPoolOneServerTest,
                          ::testing::ValuesIn(share_connection_params),
                          [](auto &info) {
