@@ -1810,7 +1810,6 @@ struct TABLE {
     class JOIN_TAB *join_tab{nullptr};
     class QEP_TAB *qep_tab{nullptr};
     thr_lock_type lock_type{TL_UNLOCK}; /* How table is used */
-    thr_locked_row_action locked_row_action{THR_DEFAULT};
     bool not_exists_optimize{false};
     /*
       true <=> range optimizer found that there is no rows satisfying
