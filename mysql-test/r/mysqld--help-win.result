@@ -145,7 +145,8 @@ The following options may be given as the first argument:
  replayed in a deterministic manner using SQL. If
  NDBCLUSTER is enabled and binlog-format is MIXED, the
  format switches to row-based and back implicitly for each
- query accessing an NDBCLUSTER table.
+ query accessing an NDBCLUSTER table. This option is
+ deprecated and will be removed in a future version.
  --binlog-group-commit-sync-delay=# 
  The number of microseconds the server waits for the
  binary log group commit sync queue to fill before

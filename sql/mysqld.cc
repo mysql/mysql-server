@@ -10375,6 +10375,7 @@ bool mysqld_get_one_option(int optid,
       break;
     case OPT_BINLOG_FORMAT:
       binlog_format_used = true;
+      LogErr(WARNING_LEVEL, ER_DEPRECATE_MSG_NO_REPLACEMENT, "binlog_format");
       break;
     case OPT_BINLOG_MAX_FLUSH_QUEUE_TIME:
       push_deprecated_warn_no_replacement(nullptr,
