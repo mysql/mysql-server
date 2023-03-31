@@ -93,7 +93,9 @@ TEST_F(QueryRestTableTests, basic_empty_request_throws) {
   object.schema_object = "obj";
 
   EXPECT_THROW(
-      sut_->query_entries(&mock_session_, object, 0, 25, "my.url", "c2", true),
+      sut_->query_entries(&mock_session_, object,
+                          mrs::database::ObjectFieldFilter::from_object(object),
+                          0, 25, "my.url", "c2", true),
       std::invalid_argument);
 }
 
@@ -122,7 +124,9 @@ TEST_F(QueryRestTableTests, basic_two_request_without_result) {
                                          "FROM `schema`.`obj`  LIMIT 0,26"),
                                    _, _));
 
-  sut_->query_entries(&mock_session_, object, 0, 25, "my.url", "c2", true);
+  sut_->query_entries(&mock_session_, object,
+                      mrs::database::ObjectFieldFilter::from_object(object), 0,
+                      25, "my.url", "c2", true);
 }
 
 TEST_F(QueryRestTableTests, basic_two_request_without_result_and_no_links) {
@@ -147,5 +151,7 @@ TEST_F(QueryRestTableTests, basic_two_request_without_result_and_no_links) {
                                          "FROM `schema`.`obj`  LIMIT 0,26"),
                                    _, _));
 
-  sut_->query_entries(&mock_session_, object, 0, 25, "my.url", "", true);
+  sut_->query_entries(&mock_session_, object,
+                      mrs::database::ObjectFieldFilter::from_object(object), 0,
+                      25, "my.url", "", true);
 }

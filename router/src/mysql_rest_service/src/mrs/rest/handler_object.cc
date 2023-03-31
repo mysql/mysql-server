@@ -24,9 +24,12 @@
 
 #include "mrs/rest/handler_object.h"
 
+#include <algorithm>
+#include <set>
 #include <string>
 #include <string_view>
 #include <tuple>
+#include <vector>
 
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/string_utils.h"
@@ -37,6 +40,7 @@
 #include "helper/json/to_sqlstring.h"
 #include "helper/json/to_string.h"
 #include "helper/media_detector.h"
+#include "mrs/database/helper/object_query.h"
 #include "mrs/database/query_rest_sp_media.h"
 #include "mrs/database/query_rest_table.h"
 #include "mrs/database/query_rest_table_delete.h"
@@ -233,29 +237,14 @@ void HandlerObject::authorization(rest::RequestContext *ctxt) {
   throw_unauthorize_when_check_auth_fails(ctxt);
 }
 
-static bool is_or_filter(std::vector<std::string> &filter) {
-  if (filter.empty()) return true;
-  if (filter[0].length() > 0) return filter[0][0] != '!';
-
-  return true;
-}
-
-static void fix_and_filter(std::vector<std::string> &filter) {
-  for (auto &s : filter) {
-    if (s.empty()) continue;
-    if (s[0] == '!') s.erase(s.begin());
-  }
-}
-
 HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
   auto &requests_uri = ctxt->request->get_uri();
   mysqlrouter::sqlstring pk_value =
       rest_param_to_sql_value(get_path_after_object_name(requests_uri));
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
-  auto columns = route_->get_cached_columnes();
-  std::vector<std::string> filter_columns;
   const auto &object = route_->get_cached_object();
+  database::ObjectFieldFilter field_filter;
 
   Url uri_param(requests_uri);
 
@@ -263,32 +252,22 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
   auto it_raw = uri_param.is_query_parameter("raw");
 
   if (it_f) {
-    auto filter_columns = mysql_harness::split_string(
+    auto filter = mysql_harness::split_string(
         uri_param.get_query_parameter("f"), ',', false);
-    if (is_or_filter(filter_columns)) {
-      // Or filter
-      columns.erase(std::remove_if(columns.begin(), columns.end(),
-                                   [&filter_columns](auto &item) {
-                                     return !helper::container::has(
-                                         filter_columns, item.name);
-                                   }),
-                    columns.end());
-    } else {
-      // And filter
-      fix_and_filter(filter_columns);
-      columns.erase(std::remove_if(columns.begin(), columns.end(),
-                                   [&filter_columns](auto &item) {
-                                     return helper::container::has(
-                                         filter_columns, item.name);
-                                   }),
-                    columns.end());
+
+    try {
+      field_filter =
+          database::ObjectFieldFilter::from_url_filter(object, filter);
+    } catch (const std::exception &e) {
+      throw http::Error(HttpStatusCode::BadRequest, e.what());
     }
+  } else {
+    field_filter = database::ObjectFieldFilter::from_object(object);
   }
 
   std::string raw_value = it_raw ? uri_param.get_query_parameter("raw") : "";
 
-  if (columns.empty()) throw http::Error(HttpStatusCode::BadRequest);
-  if (!raw_value.empty() && columns.size() != 1) {
+  if (!raw_value.empty() && field_filter.num_included_fields() != 1) {
     throw http::Error(HttpStatusCode::BadRequest);
   }
 
@@ -306,11 +285,11 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
               : nullptr;
 
       rest.query_entries(
-          session.get(), object, offset, limit, route_->get_rest_url(),
-          route_->get_cached_primary().name, route_->get_on_page() == limit,
-          route_->get_user_row_ownership(), row_ownershop_user_id,
-          route_->get_group_row_ownership(), ctxt->user.groups,
-          uri_param.get_query_parameter("q"));
+          session.get(), object, field_filter, offset, limit,
+          route_->get_rest_url(), route_->get_cached_primary().name,
+          route_->get_on_page() == limit, route_->get_user_row_ownership(),
+          row_ownershop_user_id, route_->get_group_row_ownership(),
+          ctxt->user.groups, uri_param.get_query_parameter("q"));
 
       Counter<kEntityCounterRestReturnedItems>::increment(rest.items);
 
@@ -321,7 +300,7 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
 
     database::QueryRestSPMedia rest;
 
-    rest.query_entries(session.get(), columns[0].name,
+    rest.query_entries(session.get(), field_filter.get_first_included(),
                        route_->get_schema_name(), route_->get_object_name(),
                        limit, offset);
 
@@ -335,7 +314,7 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
   if (!route_->get_cached_primary().name.empty()) {
     if (raw_value.empty()) {
       database::QueryRestTableSingleRow rest;
-      rest.query_entries(session.get(), object,
+      rest.query_entries(session.get(), object, field_filter,
                          route_->get_cached_primary().name, pk_value,
                          route_->get_rest_url());
 
@@ -347,7 +326,7 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
 
     database::QueryRestSPMedia rest;
 
-    rest.query_entries(session.get(), columns[0].name,
+    rest.query_entries(session.get(), field_filter.get_first_included(),
                        route_->get_schema_name(), route_->get_object_name(),
                        route_->get_cached_primary().name, pk_value);
 
@@ -450,9 +429,9 @@ HttpResult HandlerObject::handle_post(
   if (!route_->get_cached_primary().name.empty()) {
     database::QueryRestTableSingleRow fetch_one;
 
-    fetch_one.query_entries(session.get(), object,
-                            route_->get_cached_primary().name, pk_value,
-                            route_->get_rest_url());
+    fetch_one.query_entries(
+        session.get(), object, database::ObjectFieldFilter::from_object(object),
+        route_->get_cached_primary().name, pk_value, route_->get_rest_url());
     Counter<kEntityCounterRestReturnedItems>::increment(fetch_one.items);
 
     return std::move(fetch_one.response);
@@ -595,8 +574,9 @@ HttpResult HandlerObject::handle_put([
   if (!route_->get_cached_primary().name.empty()) {
     database::QueryRestTableSingleRow fetch_one;
 
-    fetch_one.query_entries(session.get(), object, pk, pk_value,
-                            route_->get_rest_url());
+    fetch_one.query_entries(session.get(), object,
+                            database::ObjectFieldFilter::from_object(object),
+                            pk, pk_value, route_->get_rest_url());
 
     Counter<kEntityCounterRestAffectedItems>::increment(fetch_one.items);
     return std::move(fetch_one.response);

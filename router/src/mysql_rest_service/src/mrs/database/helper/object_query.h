@@ -25,14 +25,34 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_OBJECT_QUERY_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_OBJECT_QUERY_H_
 
+#include <set>
 #include <string>
+#include <vector>
 #include "mrs/database/entry/object.h"
 #include "mysqlrouter/utils_sqlstring.h"
 
 namespace mrs {
 namespace database {
 
-mysqlrouter::sqlstring build_sql_json_object(const entry::Object &object);
+class ObjectFieldFilter {
+ public:
+  static ObjectFieldFilter from_url_filter(
+      const entry::Object &object, const std::vector<std::string> &filter);
+  static ObjectFieldFilter from_object(const entry::Object &object);
+
+  bool is_included(const std::string &field) const;
+  size_t num_included_fields() const;
+  std::string get_first_included() const;
+
+ private:
+  std::set<std::string> m_filter;
+  bool m_exclusive;
+
+  bool is_parent_included(const std::string &field) const;
+};
+
+mysqlrouter::sqlstring build_sql_json_object(
+    const entry::Object &object, const ObjectFieldFilter &field_filter);
 
 }  // namespace database
 }  // namespace mrs

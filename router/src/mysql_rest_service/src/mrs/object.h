@@ -31,7 +31,6 @@
 #include "mysqlrouter/http_server_component.h"
 
 #include "collector/mysql_cache_manager.h"
-#include "helper/mysql_column.h"
 #include "mrs/database/entry/db_object.h"
 #include "mrs/database/entry/object.h"
 #include "mrs/interface/handler_factory.h"

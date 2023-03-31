@@ -38,6 +38,7 @@ namespace rest {
 
 using HttpResult = Handler::HttpResult;
 
+// TODO(alfredo) - update this
 HandlerMetadata::HandlerMetadata(Route *route,
                                  mrs::interface::AuthorizeManager *auth_manager)
     : Handler(route->get_rest_canonical_url(),

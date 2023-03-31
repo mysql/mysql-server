@@ -25,11 +25,12 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_REST_FETCH_ONE_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_REST_FETCH_ONE_H_
 
+#include <set>
 #include <string>
 #include <vector>
 
-#include "helper/mysql_column.h"
 #include "mrs/database/entry/object.h"
+#include "mrs/database/helper/object_query.h"
 #include "mrs/database/helper/query.h"
 
 namespace mrs {
@@ -42,11 +43,13 @@ class QueryRestTableSingleRow : private QueryLog {
 
  public:
   virtual void query_entries(MySQLSession *session, const Object &object,
+                             const ObjectFieldFilter &field_filter,
                              const std::string &primary_key,
                              const mysqlrouter::sqlstring &pri_value,
                              const std::string &url_route);
 
   virtual void query_last_inserted(MySQLSession *session, const Object &object,
+                                   const ObjectFieldFilter &field_filter,
                                    const std::string &primary_key,
                                    const std::string &url_route);
 
@@ -55,10 +58,12 @@ class QueryRestTableSingleRow : private QueryLog {
 
  private:
   void on_row(const Row &r) override;
-  void build_query(const Object &object, const std::string &primary_key,
+  void build_query(const Object &object, const ObjectFieldFilter &field_filter,
+                   const std::string &primary_key,
                    const mysqlrouter::sqlstring &pri_value,
                    const std::string &url_route);
   void build_query_last_inserted(const Object &object,
+                                 const ObjectFieldFilter &field_filter,
                                  const std::string &primary_key,
                                  const std::string &url_route);
 };
