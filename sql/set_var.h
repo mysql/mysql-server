@@ -846,6 +846,11 @@ class System_variable_tracker final {
     return m_cache.value().m_cached_is_sensitive;
   }
 
+  bool cached_is_applied_as_command_line() const {
+    if (!m_cache.has_value()) my_abort();
+    return m_cache.value().m_cached_is_applied_as_command_line;
+  }
+
   /** Number of system variable elements to preallocate. */
   static constexpr size_t SYSTEM_VARIABLE_PREALLOC = 200;
 
@@ -893,6 +898,7 @@ class System_variable_tracker final {
   struct Cache {
     SHOW_TYPE m_cached_show_type;
     bool m_cached_is_sensitive;
+    bool m_cached_is_applied_as_command_line;
   };
   mutable std::optional<Cache> m_cache;
 

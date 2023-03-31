@@ -9980,6 +9980,9 @@ ER_EXPLAIN_INTO_IMPLICIT_FORMAT_NOT_SUPPORTED 0A000
 ER_EXPLAIN_INTO_FORMAT_NOT_SUPPORTED 0A000
   eng "EXPLAIN INTO does not support FORMAT=%s."
 
+ER_NULL_CANT_BE_PERSISTED_FOR_READONLY
+  eng "Trying to persist a NULL into a variable '%-.192s' that's settable only on command line is not supported"
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

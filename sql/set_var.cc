@@ -1288,7 +1288,9 @@ void System_variable_tracker::cache_metadata(THD *thd, sys_var *v) const {
   if (m_cache.has_value()) {
     return;
   }
-  m_cache = Cache{v->show_type(), v->is_sensitive()};
+  m_cache = Cache{
+      v->show_type(), v->is_sensitive(),
+      v->is_persist_readonly() || v->is_readonly() || v->is_parse_early()};
   if (v->is_sensitive()) {
     thd->lex->set_rewrite_required();
   }
@@ -1442,6 +1444,69 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
   it.rewind();
   while ((var = it++)) {
     if ((error = var->check(thd))) goto err;
+
+    set_var *setvar = dynamic_cast<set_var *>(var);
+    if (setvar &&
+        (setvar->type == OPT_PERSIST || setvar->type == OPT_PERSIST_ONLY) &&
+        setvar->m_var_tracker.cached_is_applied_as_command_line()) {
+      /*
+        There are certain variables that can process NULL as a default value
+        TODO: there should be no exceptions!
+      */
+      static const std::set<std::string> exceptions = {"basedir",
+                                                       "character_sets_dir",
+                                                       "ft_stopword_file",
+                                                       "lc_messages_dir",
+                                                       "plugin_dir",
+                                                       "relay_log",
+                                                       "relay_log_info_file",
+                                                       "replica_load_tmpdir",
+                                                       "socket",
+                                                       "tmpdir",
+                                                       "init_file",
+                                                       "admin_ssl_ca",
+                                                       "admin_ssl_capath",
+                                                       "admin_ssl_cert",
+                                                       "admin_ssl_cipher",
+                                                       "admin_tls_ciphersuites",
+                                                       "admin_ssl_key",
+                                                       "admin_ssl_crl",
+                                                       "admin_ssl_crlpath",
+                                                       "ssl_ca",
+                                                       "ssl_capath",
+                                                       "ssl_cert",
+                                                       "ssl_cipher",
+                                                       "tls_ciphersuites",
+                                                       "ssl_key",
+                                                       "ssl_crl",
+                                                       "ssl_crlpath"};
+
+      if (setvar->value && setvar->value->is_null() &&
+          exceptions.find(setvar->m_var_tracker.get_var_name()) ==
+              exceptions.end()) {
+        /* an explicit NULL value */
+        my_error(ER_NULL_CANT_BE_PERSISTED_FOR_READONLY, MYF(0),
+                 setvar->m_var_tracker.get_var_name());
+        error = 1;
+        goto err;
+      } else if (!setvar->value &&
+                 setvar->m_var_tracker.cached_show_type() == SHOW_CHAR_PTR &&
+                 exceptions.find(setvar->m_var_tracker.get_var_name()) ==
+                     exceptions.end()) {
+        /* SET = DEFAULT for a CHARPTR variable, check the default value */
+        auto f = [&error, thd](const System_variable_tracker &, sys_var *lvar) {
+          assert(lvar->show_type() == SHOW_CHAR_PTR);
+          char *ptr = (char *)(intptr)lvar->get_option()->def_value;
+          if (!ptr) {
+            my_error(ER_NULL_CANT_BE_PERSISTED_FOR_READONLY, MYF(0),
+                     lvar->name.str);
+            error = 1;
+          }
+        };
+        setvar->m_var_tracker.access_system_variable(thd, f);
+        if (error) goto err;
+      }
+    }
   }
   if ((error = thd->is_error())) goto err;
 

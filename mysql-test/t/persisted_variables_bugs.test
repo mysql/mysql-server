@@ -551,4 +551,19 @@ SET GLOBAL replica_preserve_commit_order = DEFAULT;
 UNINSTALL COMPONENT "file://component_test_sys_var_service";
 
 
+--echo #
+--echo # Bug #34897517: Can't set report_host to NULL
+--echo #
+
+--error ER_NULL_CANT_BE_PERSISTED_FOR_READONLY
+SET PERSIST_ONLY report_host = NULL;
+
+--error ER_NULL_CANT_BE_PERSISTED_FOR_READONLY
+SET PERSIST_ONLY report_host = DEFAULT;
+
+SET PERSIST ssl_crl = NULL;
+RESET PERSIST ssl_crl;
+SET GLOBAL ssl_crl = DEFAULT;
+
+
 --echo # End of the 8.0 tests

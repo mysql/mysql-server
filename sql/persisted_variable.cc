@@ -391,6 +391,7 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
       String bool_str;
       if (setvar->value) {
         res = setvar->value->val_str(&str);
+        if (setvar->value->is_null()) is_null = true;
         if (system_var->get_var_type() == GET_BOOL) {
           if (res == nullptr ||
               check_boolean_value(res->c_ptr_quick(), bool_str)) {

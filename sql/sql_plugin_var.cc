@@ -183,6 +183,45 @@ SHOW_TYPE pluginvar_show_type(SYS_VAR *plugin_var) {
   }
 }
 
+const void *pluginvar_default_value(SYS_VAR *plugin_var) {
+  switch (plugin_var->flags & (PLUGIN_VAR_TYPEMASK | PLUGIN_VAR_THDLOCAL)) {
+    case PLUGIN_VAR_INT:
+      return &((sysvar_uint_t *)plugin_var)->def_val;
+    case PLUGIN_VAR_LONG:
+      return &((sysvar_ulong_t *)plugin_var)->def_val;
+    case PLUGIN_VAR_LONGLONG:
+      return &((sysvar_ulonglong_t *)plugin_var)->def_val;
+    case PLUGIN_VAR_ENUM:
+      return &((sysvar_enum_t *)plugin_var)->def_val;
+    case PLUGIN_VAR_SET:
+      return &((sysvar_set_t *)plugin_var)->def_val;
+    case PLUGIN_VAR_BOOL:
+      return &((sysvar_bool_t *)plugin_var)->def_val;
+    case PLUGIN_VAR_STR:
+      return &((sysvar_str_t *)plugin_var)->def_val;
+    case PLUGIN_VAR_DOUBLE:
+      return &((sysvar_double_t *)plugin_var)->def_val;
+    case PLUGIN_VAR_INT | PLUGIN_VAR_THDLOCAL:
+      return &((thdvar_uint_t *)plugin_var)->def_val;
+    case PLUGIN_VAR_LONG | PLUGIN_VAR_THDLOCAL:
+      return &((thdvar_ulong_t *)plugin_var)->def_val;
+    case PLUGIN_VAR_LONGLONG | PLUGIN_VAR_THDLOCAL:
+      return &((thdvar_ulonglong_t *)plugin_var)->def_val;
+    case PLUGIN_VAR_ENUM | PLUGIN_VAR_THDLOCAL:
+      return &((thdvar_enum_t *)plugin_var)->def_val;
+    case PLUGIN_VAR_SET | PLUGIN_VAR_THDLOCAL:
+      return &((thdvar_set_t *)plugin_var)->def_val;
+    case PLUGIN_VAR_BOOL | PLUGIN_VAR_THDLOCAL:
+      return &((thdvar_bool_t *)plugin_var)->def_val;
+    case PLUGIN_VAR_STR | PLUGIN_VAR_THDLOCAL:
+      return &((thdvar_str_t *)plugin_var)->def_val;
+    case PLUGIN_VAR_DOUBLE | PLUGIN_VAR_THDLOCAL:
+      return &((thdvar_double_t *)plugin_var)->def_val;
+    default:
+      return nullptr;
+  }
+}
+
 /*
   returns a pointer to the memory which holds the thd-local variable or
   a pointer to the global variable if thd==null.
@@ -366,60 +405,7 @@ bool sys_var_pluginvar::global_update(THD *thd, set_var *var) {
   void *tgt = real_value_ptr(thd, var->type);
   const void *src = &var->save_result;
 
-  if (!var->value) {
-    switch (plugin_var->flags & (PLUGIN_VAR_TYPEMASK | PLUGIN_VAR_THDLOCAL)) {
-      case PLUGIN_VAR_INT:
-        src = &((sysvar_uint_t *)plugin_var)->def_val;
-        break;
-      case PLUGIN_VAR_LONG:
-        src = &((sysvar_ulong_t *)plugin_var)->def_val;
-        break;
-      case PLUGIN_VAR_LONGLONG:
-        src = &((sysvar_ulonglong_t *)plugin_var)->def_val;
-        break;
-      case PLUGIN_VAR_ENUM:
-        src = &((sysvar_enum_t *)plugin_var)->def_val;
-        break;
-      case PLUGIN_VAR_SET:
-        src = &((sysvar_set_t *)plugin_var)->def_val;
-        break;
-      case PLUGIN_VAR_BOOL:
-        src = &((sysvar_bool_t *)plugin_var)->def_val;
-        break;
-      case PLUGIN_VAR_STR:
-        src = &((sysvar_str_t *)plugin_var)->def_val;
-        break;
-      case PLUGIN_VAR_DOUBLE:
-        src = &((sysvar_double_t *)plugin_var)->def_val;
-        break;
-      case PLUGIN_VAR_INT | PLUGIN_VAR_THDLOCAL:
-        src = &((thdvar_uint_t *)plugin_var)->def_val;
-        break;
-      case PLUGIN_VAR_LONG | PLUGIN_VAR_THDLOCAL:
-        src = &((thdvar_ulong_t *)plugin_var)->def_val;
-        break;
-      case PLUGIN_VAR_LONGLONG | PLUGIN_VAR_THDLOCAL:
-        src = &((thdvar_ulonglong_t *)plugin_var)->def_val;
-        break;
-      case PLUGIN_VAR_ENUM | PLUGIN_VAR_THDLOCAL:
-        src = &((thdvar_enum_t *)plugin_var)->def_val;
-        break;
-      case PLUGIN_VAR_SET | PLUGIN_VAR_THDLOCAL:
-        src = &((thdvar_set_t *)plugin_var)->def_val;
-        break;
-      case PLUGIN_VAR_BOOL | PLUGIN_VAR_THDLOCAL:
-        src = &((thdvar_bool_t *)plugin_var)->def_val;
-        break;
-      case PLUGIN_VAR_STR | PLUGIN_VAR_THDLOCAL:
-        src = &((thdvar_str_t *)plugin_var)->def_val;
-        break;
-      case PLUGIN_VAR_DOUBLE | PLUGIN_VAR_THDLOCAL:
-        src = &((thdvar_double_t *)plugin_var)->def_val;
-        break;
-      default:
-        assert(0);
-    }
-  }
+  if (!var->value) src = pluginvar_default_value(plugin_var);
 
   if ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR &&
       plugin_var->flags & PLUGIN_VAR_MEMALLOC) {

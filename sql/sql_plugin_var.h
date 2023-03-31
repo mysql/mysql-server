@@ -141,6 +141,7 @@ void update_func_str(THD *, SYS_VAR *, void *tgt, const void *save);
 void update_func_double(THD *, SYS_VAR *, void *tgt, const void *save);
 
 SHOW_TYPE pluginvar_show_type(SYS_VAR *plugin_var);
+const void *pluginvar_default_value(SYS_VAR *plugin_var);
 
 int item_value_type(st_mysql_value *value);
 const char *item_val_str(st_mysql_value *value, char *buffer, int *length);
@@ -248,7 +249,8 @@ class sys_var_pluginvar : public sys_var {
                         : (plugin_var_arg->flags & PLUGIN_VAR_RQCMDARG
                                ? REQUIRED_ARG
                                : REQUIRED_ARG))),
-            pluginvar_show_type(plugin_var_arg), 0, nullptr,
+            pluginvar_show_type(plugin_var_arg),
+            (intptr)pluginvar_default_value(plugin_var_arg), nullptr,
             VARIABLE_NOT_IN_BINLOG,
             (plugin_var_arg->flags & PLUGIN_VAR_NODEFAULT) ? on_check_pluginvar
                                                            : nullptr,
