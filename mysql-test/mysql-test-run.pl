@@ -721,6 +721,7 @@ sub main {
     secondary_engine_offload_count_report_init();
     # Create virtual environment
     create_virtual_env($bindir);
+    reserve_secondary_ports();
   }
 
   if ($opt_summary_report) {
