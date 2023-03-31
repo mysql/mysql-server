@@ -5443,21 +5443,13 @@ bool JOIN::init_planner_arrays() {
     tab->table_ref = tl;
     tab->set_table(table);
     const int err = tl->fetch_number_of_rows();
-
-    // Initialize the cost model for the table
-    table->init_cost_model(cost_model());
-
-    DBUG_EXECUTE_IF("bug11747970_raise_error", {
-      if (!err) {
-        my_error(ER_UNKNOWN_ERROR, MYF(0));
-        return true;
-      }
-    });
-
     if (err) {
       table->file->print_error(err, MYF(0));
       return true;
     }
+    // Initialize the cost model for the table.
+    table->init_cost_model(cost_model());
+
     all_table_map |= tl->map();
     tab->set_join(this);
 

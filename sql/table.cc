@@ -4180,6 +4180,7 @@ void TABLE::reset() {
   set_keyread(false);
   no_keyread = false;
   all_partitions_pruned_away = false;
+  reginfo.join_tab = nullptr;
   reginfo.not_exists_optimize = false;
   reginfo.impossible_range = false;
   m_record_buffer = Record_buffer{0, 0, nullptr};
@@ -6579,12 +6580,11 @@ int Table_ref::fetch_number_of_rows(ha_rows fallback_estimate) {
                  // Recursive reference is never a const table
                  fallback_estimate);
   } else {
-    if (const int error =
-            table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
-        error) {
+    int error = table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+    DBUG_EXECUTE_IF("bug35208539_raise_error", error = HA_ERR_GENERIC;);
+    if (error) {
       return error;
     }
-
     // Some information schema tables have zero as estimate, which can lead
     // to completely wild plans. Add a placeholder to make sure we have
     // _something_ to work with.
