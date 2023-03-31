@@ -3329,6 +3329,38 @@ TEST_P(ShareConnectionTest, classic_protocol_show_errors_after_connect) {
   }
 }
 
+/**
+ * check 'USE' via COM_QUERY changes schema and doesn't block sharing.
+ */
+TEST_P(ShareConnectionTest, classic_protocol_use_schema_via_query) {
+  SCOPED_TRACE("// connecting to server");
+  MysqlClient cli;
+
+  auto account = SharedServer::native_empty_password_account();
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  const bool can_share = GetParam().can_share();
+
+  ASSERT_NO_ERROR(cli.query("USE testing"));
+
+  if (can_share) {
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+  }
+
+  {
+    auto cmd_res = query_one_result(cli, "SELECT USER(), SCHEMA()");
+    ASSERT_NO_ERROR(cmd_res);
+
+    EXPECT_THAT(*cmd_res, ElementsAre(ElementsAre(
+                              account.username + "@localhost", "testing")));
+  }
+}
+
 class Checker {
  public:
   virtual ~Checker() = default;
