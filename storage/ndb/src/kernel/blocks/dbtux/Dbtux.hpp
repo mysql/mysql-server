@@ -652,7 +652,7 @@ private:
                     TreeEnt ent,
                     Uint32 count,
                     Uint32 *outputBuffer);
-  void readTablePk(TreeEnt ent, Uint32* pkData, unsigned& pkSize);
+  void readTableHashKey(TreeEnt ent, Uint32* pkData, unsigned& pkSize);
   void unpackBound(Uint32* const outputBuffer,
                    const ScanBound& bound,
                    KeyBoundC& searchBound);

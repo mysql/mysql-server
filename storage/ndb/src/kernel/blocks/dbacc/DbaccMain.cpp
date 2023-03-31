@@ -4100,6 +4100,7 @@ Dbacc::getElement(const AccKeyReq* signal,
           bool found;
           if (! searchLocalKey) 
 	  {
+            // We read the key for cmp_key() usage -> no xfrm
             const bool xfrm = false;
             Uint32 len = readTablePk(localkey.m_page_no,
                                      localkey.m_page_idx,

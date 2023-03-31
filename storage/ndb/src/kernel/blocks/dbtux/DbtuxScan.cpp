@@ -838,7 +838,7 @@ Dbtux::continue_scan(Signal *signal,
       ndbassert(!m_is_query_block);
       const TreeEnt ent = scan.m_scanEnt;
       // read tuple key
-      readTablePk(ent, pkData, pkSize);
+      readTableHashKey(ent, pkData, pkSize);
       // get read lock or exclusive lock
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;
@@ -1703,7 +1703,6 @@ Dbtux::scanCheck(ScanOp& scan, TreeEnt ent)
                                   keyAttrs32,
                                   count,
                                   outputBuffer,
-                                  false,
                                   tupVersion);
     thrjamDebug(c_ctx.jamBuffer);
     thrjamLineDebug(c_ctx.jamBuffer, count);

@@ -9960,32 +9960,6 @@ Dblqh::nr_delete_complete(Signal* signal, Nr_op_info* op)
   }
 }
 
-Uint32
-Dblqh::readPrimaryKeys(Uint32 opPtrI, Uint32 * dst, bool xfrm)
-{
-  TcConnectionrecPtr regTcPtr;  
-  Uint64 Tmp[MAX_KEY_SIZE_IN_WORDS >> 1];
-
-  jamEntry();
-  regTcPtr.i = opPtrI;
-  ndbrequire(tcConnect_pool.getValidPtr(regTcPtr));
-
-  Uint32 tableId = regTcPtr.p->tableref;
-  Uint32 keyLen = regTcPtr.p->primKeyLen;
-  Uint32 * tmp = xfrm ? (Uint32*)Tmp : dst;
-
-  copy(tmp, regTcPtr.p->keyInfoIVal);
-  
-  if (xfrm)
-  {
-    jam();
-    Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
-    return xfrm_key_hash(tableId, (Uint32*)Tmp, dst, ~0, keyPartLen);
-  }
-  
-  return keyLen;
-}
-
 /**
  * getKeyInfoWordOrZero
  * Get given word of KeyInfo, or zero if it's not available
@@ -17661,6 +17635,31 @@ Dblqh::keyinfoLab(const Uint32 * src,
 }//Dblqh::keyinfoLab()
 
 Uint32
+Dblqh::readPrimaryKeys(Uint32 opPtrI, Uint32 *dst, bool xfrm_hash)
+{
+  TcConnectionrecPtr regTcPtr;
+  Uint64 Tmp[MAX_KEY_SIZE_IN_WORDS >> 1];
+
+  jamEntry();
+  regTcPtr.i = opPtrI;
+  ndbrequire(tcConnect_pool.getValidPtr(regTcPtr));
+
+  const Uint32 tableId = regTcPtr.p->tableref;
+  const Uint32 keyLen = regTcPtr.p->primKeyLen;
+  Uint32 *buf = xfrm_hash ? (Uint32*)Tmp : dst;
+
+  copy(buf, regTcPtr.p->keyInfoIVal);
+
+  if (xfrm_hash)
+  {
+    jam();
+    Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
+    return xfrm_key_hash(tableId, (Uint32*)Tmp, dst, ~0, keyPartLen);
+  }
+  return keyLen;
+}
+
+Uint32
 Dblqh::readPrimaryKeys(ScanRecord *scanP, TcConnectionrec *tcConP, Uint32 *dst)
 {
   Uint32 tableId = prim_tab_fragptr.p->tabRef;
@@ -17673,7 +17672,7 @@ Dblqh::readPrimaryKeys(ScanRecord *scanP, TcConnectionrec *tcConP, Uint32 *dst)
     jamDebug();
     fragPageId = c_tup->get_current_frag_page_id();
   }
-  int ret = c_tup->accReadPk(fragPageId, pageIndex, dst, false);
+  int ret = c_tup->accReadPk(fragPageId, pageIndex, dst, /*xfrm=*/false);
   jamEntry();
   if(0)
     g_eventLogger->info(
