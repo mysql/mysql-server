@@ -67,7 +67,8 @@ void QueryEntryObject::query_entries(MySQLSession *session,
       "   ON db_schema_id=db_schema.id"
       "  JOIN mysql_rest_service_metadata.object"
       "   ON object.db_object_id=db_object.id"
-      "  WHERE db_schema.name=? AND db_object.name=? LIMIT 1)";
+      "  WHERE db_schema.name=? AND db_object.name=?"
+      " LIMIT 1)";
   query_ << schema << schema_object;
 
   execute(session);
