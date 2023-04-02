@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1645,7 +1645,7 @@ private:
   void lookup_cleanup(Ptr<Request>, Ptr<TreeNode>);
 
   Uint32 handle_special_hash(Uint32 tableId, Uint32 dstHash[4],
-                             const Uint64* src,
+                             const Uint32* src,
                              Uint32 srcLen,       // Len in #32bit words
                              const struct KeyDescriptor* desc);
 

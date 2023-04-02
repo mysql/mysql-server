@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4652,9 +4652,8 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_entry> ptr)
       Ptr<GlobalPage> gptr;
       pe.m_this->m_global_page_pool.getPtr(gptr, pe.m_real_page_i);
       Uint32 hash_result[4];      
-      /* NOTE: Assuming "data" is 64 bit aligned as required by 'md5_hash' */
       md5_hash(hash_result,
-               (Uint64*)gptr.p->data, sizeof(gptr.p->data)/sizeof(Uint32));
+               gptr.p->data, sizeof(gptr.p->data)/sizeof(Uint32));
       out.print(" md5=%08x%08x%08x%08x",
                 hash_result[0], hash_result[1],
                 hash_result[2], hash_result[3]);

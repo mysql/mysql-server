@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -491,7 +491,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
       lockReq->tableId = scan.m_tableId;
       lockReq->fragId = frag.fragmentId;
       lockReq->fragPtrI = RNIL; // no cached frag ptr yet
-      lockReq->hashValue = md5_hash((Uint64*)pkData, pkSize);
+      lockReq->hashValue = md5_hash(pkData, pkSize);
       lockReq->page_id = key_mm.m_page_no;
       lockReq->page_idx = key_mm.m_page_idx;
       lockReq->transId1 = scan.m_transId1;

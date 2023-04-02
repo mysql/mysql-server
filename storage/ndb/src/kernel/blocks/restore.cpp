@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3293,7 +3293,7 @@ Restore::execute_operation(Signal *signal,
     }
     else
     {
-      req->hashValue = md5_hash((Uint64*)key_start, keyLen);
+      req->hashValue = md5_hash(key_start, keyLen);
     }
   }
   LqhKeyReq::setNoDiskFlag(tmp, 1);
@@ -3385,13 +3385,13 @@ Uint32
 Restore::calculate_hash(Uint32 tableId, const Uint32 *src)
 {
   jam();
-  Uint64 Tmp[(MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1];
+  Uint32 tmp[MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY];
   Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
-  Uint32 keyLen = xfrm_key(tableId, src, (Uint32*)Tmp, sizeof(Tmp) >> 2, 
+  Uint32 keyLen = xfrm_key(tableId, src, tmp, sizeof(tmp) >> 2,
 			   keyPartLen);
   ndbrequire(keyLen);
   
-  return md5_hash(Tmp, keyLen);
+  return md5_hash(tmp, keyLen);
 }
 
 void

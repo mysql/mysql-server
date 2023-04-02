@@ -505,21 +505,12 @@ Ndb::computeHash(Uint32 *retval,
     if (buf == NULL)
     {
       bufLen = sumlen;
-      bufLen += sizeof(Uint64); /* add space for potential alignment */
       buf = malloc(bufLen);
       if (unlikely(buf == NULL))
         return 4000;
       malloced_buf = buf; /* Remember to free */
-      assert(bufLen > sumlen);
     }
-
-    /* Get 64-bit aligned ptr required for hashing */
     assert(bufLen != 0);
-    UintPtr org = UintPtr(buf);
-    UintPtr use = (org + 7) & ~(UintPtr)7;
-
-    buf = (void*)use;
-    bufLen -= Uint32(use - org);
 
     if (likely(sumlen <= bufLen))
       break;
@@ -572,10 +563,9 @@ Ndb::computeHash(Uint32 *retval,
     }
   }
   len = Uint32(UintPtr(pos) - UintPtr(buf));
-  assert((len & 3) == 0);
 
   Uint32 values[4];
-  md5_hash(values, (const Uint64*)buf, len >> 2);
+  md5_hash(values, (const char*)buf, len);
   
   if (retval)
   {
@@ -636,22 +626,12 @@ Ndb::computeHash(Uint32 *retval,
      * the Distr key.
      */
     bufLen = keyRec->m_keyLenInWords << 2;
-    bufLen += sizeof(Uint64); /* add space for potential alignment */
     buf = malloc(bufLen);
     if (unlikely(buf == 0))
       return 4000;
     malloced_buf = buf; /* Remember to free */
   }
-
-  {
-    /* Get 64-bit aligned address as required for hashing */
-    assert(bufLen != 0);
-    UintPtr org = UintPtr(buf);
-    UintPtr use = (org + 7) & ~(UintPtr)7;
-
-    buf = (void*)use;
-    bufLen -= Uint32(use - org);
-  }
+  assert(bufLen != 0);
 
   pos= (char*) buf;
 
@@ -731,10 +711,9 @@ Ndb::computeHash(Uint32 *retval,
     pos += len;
   }
   len = Uint32(UintPtr(pos) - UintPtr(buf));
-  assert((len & 3) == 0);
 
   Uint32 values[4];
-  md5_hash(values, (const Uint64*)buf, len >> 2);
+  md5_hash(values, (const char*)buf, len);
   
   if (retval)
   {
@@ -933,28 +912,10 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
       NdbTableImpl* impl = &NdbTableImpl::getImpl(*table);
       Uint32 hashValue;
       {
-	Uint32 buf[4];
-        const Uint32 MaxKeySizeInLongWords= (NDB_MAX_KEY_SIZE + 7) / 8;
-        Uint64 tmp[ MaxKeySizeInLongWords ];
-
-        if (keyLen >= sizeof(tmp))
-        {
-          theError.code = 4207;
-          DBUG_RETURN(NULL);
-        }
-	if((UintPtr(keyData) & 7) == 0 && (keyLen & 3) == 0)
-	{
-	  md5_hash(buf, (const Uint64*)keyData, keyLen >> 2);
-	}
-	else
-	{
-          tmp[keyLen/8] = 0;    // Zero out any 64-bit padding
-	  memcpy(tmp, keyData, keyLen);
-	  md5_hash(buf, tmp, (keyLen+3) >> 2);	  
-	}
-	hashValue= buf[1];
+        Uint32 values[4];
+        md5_hash(values, keyData, keyLen);
+        hashValue= values[1];
       }
-      
       const Uint16 *nodes;
       Uint32 cnt= impl->get_nodes(table->getPartitionId(hashValue),  &nodes);
       nodeId = theImpl->select_node(impl, nodes, cnt);
