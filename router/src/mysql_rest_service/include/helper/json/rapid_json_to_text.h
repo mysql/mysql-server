@@ -35,11 +35,12 @@
 namespace helper {
 namespace json {
 
-template <typename JsonValue>
+template <template <typename> typename Writer = rapidjson::Writer,
+          typename JsonValue>
 void rapid_json_to_text(JsonValue *json_value, std::string &text_value) {
   rapidjson::StringBuffer json_buf;
   {
-    rapidjson::Writer<rapidjson::StringBuffer> json_writer(json_buf);
+    Writer<rapidjson::StringBuffer> json_writer(json_buf);
 
     json_value->Accept(json_writer);
   }

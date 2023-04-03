@@ -40,10 +40,19 @@ namespace mrs_client {
 
 using Headers = std::vector<std::pair<std::string, std::string>>;
 
+inline std::string find_in_headers(const Headers &h, const std::string &key) {
+  for (const auto &[k, v] : h) {
+    if (k == key) return v;
+  }
+
+  return {};
+}
+
 struct Result {
   HttpStatusCode::key_type status;
   Headers headers;
   std::string body;
+  bool ok{false};
 };
 
 class HttpClientRequest {

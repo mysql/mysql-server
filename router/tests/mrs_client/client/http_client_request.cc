@@ -74,12 +74,16 @@ Result HttpClientRequest::do_request(HttpMethod::type type,
       this};
 
   auto &oheaders = http_request.get_output_headers();
+  auto &obuff = http_request.get_output_buffer();
+
   for (const auto &kv : one_shot_headers_) {
     oheaders.add(kv.first.c_str(), kv.second.c_str());
   }
   if (session_) session_->fill_request_headers(&oheaders);
 
   one_shot_headers_.clear();
+
+  obuff.add(body.c_str(), body.length());
   connection_->make_request_sync(&http_request, type, path);
 
   if (http_request.error_code()) {

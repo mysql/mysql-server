@@ -22,13 +22,16 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <vector>
 
 #include "helper/json/rapid_json_to_text.h"
 #include "helper/json/text_to.h"
+#include "helper/string/contains.h"
 #include "mysql/harness/arg_handler.h"
+#include "mysql/harness/filesystem.h"
 #include "mysql/harness/string_utils.h"
 #include "mysql/harness/tls_context.h"
 #include "mysqlrouter/http_client.h"
@@ -39,12 +42,15 @@
 #include "configuration/application_configuration.h"
 
 #include <rapidjson/pointer.h>
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/schema.h>
 
 using mrs_client::HttpClientRequest;
 using mrs_client::HttpClientSession;
 using mrs_client::Result;
 using mrs_client::Url;
 using Display = http_client::ApplicationDisplay;
+using Request = http_client::Request;
 
 const int kHelpScreenWidth = 1024;
 const int kHelpScreenIdent = 4;
@@ -62,6 +68,13 @@ static bool display_type_convert(const std::string &value,
       {"body", &Display::body},
       {"result", &Display::result},
       {"title", &Display::title}};
+
+  if ("all" == value) {
+    for (auto &[key, value] : allowed_values) {
+      d.*(value) = true;
+    }
+    return true;
+  }
 
   for (auto &[key, value] : allowed_values) {
     d.*(value) = false;
@@ -115,6 +128,21 @@ static bool authentication_type_convert(
   return true;
 }
 
+static bool response_type_convert(std::string value,
+                                  http_client::ResponseType *out_at = nullptr) {
+  using namespace http_client;
+  const static std::map<std::string, ResponseType> map{
+      {"json", ResponseType::kJson}, {"raw", ResponseType::kRaw}};
+
+  mysql_harness::lower(value);
+  auto it = map.find(value);
+
+  if (map.end() == it) return false;
+  if (out_at) *out_at = it->second;
+
+  return true;
+}
+
 static void print_usage() {
   std::cout << "# Usage" << std::endl;
   auto out = g_cmd_handler.usage_lines(g_executable, {}, kHelpScreenWidth);
@@ -139,8 +167,7 @@ static void verify_required_arguments() {
   }
 }
 
-static void present_results(const std::string &json_ptr, const Result &result,
-                            const Display &display) {
+static void print_results(const Result &result, const Display &display) {
   if (display.status) {
     if (display.title) std::cout << "Status: ";
     std::cout << HttpStatusCode::get_default_status_text(result.status) << "("
@@ -158,25 +185,11 @@ static void present_results(const std::string &json_ptr, const Result &result,
     std::string body = result.body;
     if (display.title) std::cout << "Body: ";
 
-    if (!json_ptr.empty()) {
-      auto doc = helper::json::text_to_document(result.body);
-      auto ptr = rapidjson::GetValueByPointer(
-          doc, rapidjson::Pointer(json_ptr.c_str()));
-      if (nullptr == ptr) {
-        // TODO(lkotula): Move the extraction of the pointer outside this
-        // function (Shouldn't be in review)
-        g_configuration.expected_status = -1;
-      } else {
-        helper::json::rapid_json_to_text(ptr, body);
-      }
-    }
     std::cout << body << std::endl;
   }
 
   if (display.result) {
-    std::cout << ((g_configuration.expected_status == result.status) ? "OK"
-                                                                     : "FAILED")
-              << std::endl;
+    std::cout << (result.ok ? "OK" : "FAILED") << std::endl;
   }
 }
 
@@ -221,6 +234,11 @@ std::vector<CmdOption> g_options{
        if (!authentication_type_convert(value, &g_configuration.authentication))
          throw std::invalid_argument(
              "Invalid parameter for authentication type.");
+
+       if (g_configuration.authentication !=
+           http_client::AuthenticationType::kNone) {
+         g_configuration.response_type = http_client::ResponseType::kRaw;
+       }
      },
      [](const std::string &) {
        if (cnf_should_execute_authentication_flow()) {
@@ -228,6 +246,19 @@ std::vector<CmdOption> g_options{
            throw std::invalid_argument(
                "User name is required (password optional), when executing "
                "authentication flow.");
+       }
+     }},
+
+    {{"--payload"},
+     "Set the request body for POST, PUT requests.",
+     CmdOptionValueReq::required,
+     "meta_payload",
+     [](const std::string &value) { g_configuration.payload = value; },
+     [](const std::string &) {
+       if (g_configuration.request != HttpMethod::Post &&
+           g_configuration.request != HttpMethod::Put) {
+         throw std::invalid_argument(
+             "'Payload' may only be used with POST and PUT request type.");
        }
      }},
 
@@ -257,16 +288,28 @@ std::vector<CmdOption> g_options{
      }},
 
     {{"--json-pointer", "-j"},
-     "Print only value selected by pointer.",
+     "Print only values selected by pointers. Multiple pointer should be "
+     "separated by comma.",
      CmdOptionValueReq::required,
      "meta_json_pointer",
-     [](const std::string &value) { g_configuration.json_pointer = value; },
+     [](const std::string &value) {
+       g_configuration.json_pointer =
+           mysql_harness::split_string(value, ',', false);
+     },
      [](const std::string &) {
        if (cnf_should_execute_authentication_flow()) {
          throw std::invalid_argument(
              "Json pointer can't be used while executing authentication "
              "flow.");
        }
+
+       if (g_configuration.response_type != http_client::ResponseType::kJson) {
+         throw std::invalid_argument(
+             "Json pointer can only be used with JSON responses.");
+       }
+
+       if (g_configuration.json_pointer.empty())
+         throw std::invalid_argument("There is no valid json-pointer.");
      }},
     {{"--expected-status"},
      "Specify allowed status code. Default is OK(200).",
@@ -281,9 +324,9 @@ std::vector<CmdOption> g_options{
      }},
 
     {{"--display"},
-     "What should be presented as output: VALUES=VALUE[,VALUE[....]]"
-     "where VALUE can be: BODY, HEADER, STATUS, RESULT. By default its set to "
-     "RESULT.",
+     "What should be presented as output: VALUES=(all|VALUE[,VALUE[....]])"
+     "where VALUE can be: TITLE, BODY, HEADER, STATUS, RESULT. By default its "
+     "set to RESULT.",
      CmdOptionValueReq::required,
      "meta_display",
      [](const std::string &value) {
@@ -306,12 +349,53 @@ std::vector<CmdOption> g_options{
        if (!http_client::Request::convert(value, &g_configuration.request))
          throw std::invalid_argument("Invalid parameter for request type.");
      }},
+
+    {{"--response-type", "-r"},
+     "Define expected response type by the server.\n"
+     "By default its JSON, where allowed values are: JSON,RAW.",
+     CmdOptionValueReq::required,
+     "type",
+     [](const std::string &value) {
+       if (!response_type_convert(value, &g_configuration.response_type))
+         throw std::invalid_argument("Invalid parameter for response type.");
+     },
+     [](const std::string &) {
+       if (cnf_should_execute_authentication_flow()) {
+         throw std::invalid_argument(
+             "Response type, shoudn't be used with authentication flow.");
+       }
+     }},
+
+    {{"--json-schema"},
+     "Specify a file that contains JSON schema, which should be used for "
+     "response validation.\n",
+     CmdOptionValueReq::required,
+     "json_schema",
+     [](const std::string &value) { g_configuration.json_schema_file = value; },
+     [](const std::string &) {
+       if (cnf_should_execute_authentication_flow()) {
+         throw std::invalid_argument(
+             "Response type, shoudn't be used with authentication flow.");
+       }
+
+       if (g_configuration.response_type != http_client::ResponseType::kJson) {
+         throw std::invalid_argument(
+             "Json schema can only be used with JSON responses.");
+       }
+
+       mysql_harness::Path path{g_configuration.json_schema_file};
+       if (!path.is_regular()) {
+         throw std::invalid_argument("Json schema file, doesn't exists.");
+       }
+     }},
+
 };
 
 static Result execute_http_flow(HttpClientRequest &request, const Url &url) {
   switch (g_configuration.authentication) {
     case http_client::AuthenticationType::kNone:
-      return request.do_request(g_configuration.request, url.get_request(), {});
+      return request.do_request(g_configuration.request, url.get_request(),
+                                g_configuration.payload);
 
     case http_client::AuthenticationType::kBasic: {
       mrs_client::BasicAuthentication b;
@@ -326,6 +410,72 @@ static Result execute_http_flow(HttpClientRequest &request, const Url &url) {
   }
 
   return {};
+}
+
+rapidjson::SchemaDocument get_json_schema() {
+  std::ifstream in{g_configuration.json_schema_file};
+  std::ostringstream sstr;
+
+  sstr << in.rdbuf();
+  rapidjson::Document doc;
+  if (doc.Parse(sstr.str().c_str()).HasParseError()) {
+    throw std::runtime_error("JSON schema is not valid.");
+  }
+
+  return rapidjson::SchemaDocument{doc};
+}
+
+static std::string get_pointer_string(const rapidjson::Pointer &pointer) {
+  rapidjson::StringBuffer buff;
+  pointer.StringifyUriFragment(buff);
+  return {buff.GetString(), buff.GetSize()};
+}
+
+static void validate_result(Result &result) {
+  result.ok = g_configuration.expected_status == result.status;
+
+  if (!result.ok) return;
+
+  if (g_configuration.response_type != http_client::ResponseType::kJson) return;
+
+  auto content_type =
+      mrs_client::find_in_headers(result.headers, "Content-Type");
+  // application/problem+json
+  // application/json
+  if (!helper::contains(content_type, "json")) {
+    result.ok = false;
+    std::cerr << "ERROR: expected that content-type points to JSON.\n";
+    return;
+  }
+
+  rapidjson::Document doc = helper::json::text_to_document(result.body);
+
+  if (!g_configuration.json_schema_file.empty()) {
+    auto schema = get_json_schema();
+    rapidjson::SchemaValidator v(schema);
+    if (!doc.Accept(v)) {
+      std::cerr << "JSON validation location "
+                << get_pointer_string(v.GetInvalidDocumentPointer())
+                << " failed requirement: '" << v.GetInvalidSchemaKeyword()
+                << "' at meta schema location '"
+                << get_pointer_string(v.GetInvalidSchemaPointer()) << "'";
+      result.ok = false;
+      return;
+    }
+  }
+
+  if (!g_configuration.json_pointer.empty()) {
+    auto v = rapidjson::GetValueByPointer(
+        doc, rapidjson::Pointer(g_configuration.json_pointer[0].c_str()));
+    if (!v) {
+      result.ok = false;
+      std::cerr << "ERROR: JSON pointer points to not existing node.\n";
+      return;
+    }
+    if (v != &doc) doc.CopyFrom(*v, doc.GetAllocator());
+  }
+
+  helper::json::rapid_json_to_text<rapidjson::PrettyWriter>(&doc, result.body);
 }
 
 int main(int argc, char *argv[]) {
@@ -359,10 +509,9 @@ int main(int argc, char *argv[]) {
     HttpClientRequest request{&ctx, &session, &url};
 
     auto result = execute_http_flow(request, url);
-    auto result_ok = g_configuration.expected_status == result.status;
+    validate_result(result);
 
-    present_results(g_configuration.json_pointer, result,
-                    result_ok ? display : Display::display_all());
+    print_results(result, result.ok ? display : Display::display_all());
   } catch (const std::exception &e) {
     std::cerr << "ERROR: " << e.what() << std::endl << std::endl;
     print_usage();
