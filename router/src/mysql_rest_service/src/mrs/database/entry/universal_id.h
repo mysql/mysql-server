@@ -89,6 +89,13 @@ struct UniversalId {
     memcpy(uid->raw, binray, k_size);
   }
 
+  static void from_raw_zero_on_null(UniversalId *uid, const char *binray) {
+    if (binray)
+      memcpy(uid->raw, binray, k_size);
+    else
+      memset(uid->raw, 0, k_size);
+  }
+
   static void from_raw_optional(std::optional<UniversalId> *uid,
                                 const char *binray) {
     if (binray) {

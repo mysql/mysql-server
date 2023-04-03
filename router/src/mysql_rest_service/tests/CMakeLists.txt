@@ -48,11 +48,14 @@ add_test_file(test_rest_mrs_plugin.cc
     ./test_rest_mrs_user_manager.cc
     ./test_rest_user_entry.cc
     ./test_mrs_query_entries_db_object.cc
+    ./test_mrs_query_entries_object.cc
     ./test_mrs_user_cache.cc
     ./test_mrs_route_object.cc
     ./test_mrs_route_manager.cc
     ./test_mrs_route_schema_rest.cc
     ./test_mrs_route_static_file.cc
+    ./test_mrs_object_query.cc
+    ./test_mrs_object_post.cc
     ./test_handler_object.cc
   LIB_DEPENDS mysql_rest_service test-helpers
   )

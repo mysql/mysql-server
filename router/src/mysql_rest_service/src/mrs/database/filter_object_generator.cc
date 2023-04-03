@@ -129,6 +129,10 @@ std::string to_string(Value *value) {
   return r.result;
 }
 
+FilterObjectGenerator::FilterObjectGenerator(
+    std::shared_ptr<database::entry::Object> object, bool joins_allowed)
+    : object_metadata_(object), joins_allowed_(joins_allowed) {}
+
 std::string FilterObjectGenerator::get_result() const {
   return where_ + order_;
 }
@@ -354,8 +358,12 @@ void FilterObjectGenerator::parse_wmember(const char *name, Value *value) {
   if (parse_complex_object(name, value)) return;
   if (parse_simple_object(value)) return;
   log_debug("fallback");
+
+  std::string dbname = resolve_field_name(name);
+
   // TODO(lkotula): array of ComplectValues (Shouldn't be in review)
-  where_ += " "s + name + "=" + to_string<tosString, tosNumber, tosDate>(value);
+  where_ +=
+      " "s + dbname + "=" + to_string<tosString, tosNumber, tosDate>(value);
   argument_.pop_back();
 }
 
@@ -412,6 +420,22 @@ void FilterObjectGenerator::prase_order(Object object) {
     order_ += asc ? " ASC" : " DESC";
   }
   has_order_ = true;
+}
+
+std::string FilterObjectGenerator::resolve_field_name(const char *name) const {
+  if (object_metadata_) {
+    for (const auto &field : object_metadata_->fields) {
+      if (field->name.compare(name) == 0) {
+        if (joins_allowed_)
+          return mysqlrouter::sqlstring("!.!")
+                 << field->source->table_alias << field->db_name;
+        else
+          return mysqlrouter::sqlstring("!") << field->db_name;
+      }
+    }
+  }
+  // TODO(alfredo) filter on nested fields
+  throw std::runtime_error("Cannot filter on field "s + name);
 }
 
 }  // namespace database

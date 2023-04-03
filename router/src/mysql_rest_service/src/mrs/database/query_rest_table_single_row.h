@@ -25,6 +25,7 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_REST_FETCH_ONE_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_REST_FETCH_ONE_H_
 
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -42,30 +43,32 @@ class QueryRestTableSingleRow : private QueryLog {
   using ObjectField = entry::ObjectField;
 
  public:
-  virtual void query_entries(MySQLSession *session, const Object &object,
+  virtual void query_entries(MySQLSession *session,
+                             std::shared_ptr<database::entry::Object> object,
                              const ObjectFieldFilter &field_filter,
                              const std::string &primary_key,
                              const mysqlrouter::sqlstring &pri_value,
                              const std::string &url_route);
 
-  virtual void query_last_inserted(MySQLSession *session, const Object &object,
-                                   const ObjectFieldFilter &field_filter,
-                                   const std::string &primary_key,
-                                   const std::string &url_route);
+  virtual void query_last_inserted(
+      MySQLSession *session, std::shared_ptr<database::entry::Object> object,
+      const ObjectFieldFilter &field_filter, const std::string &primary_key,
+      const std::string &url_route);
 
   std::string response;
   uint64_t items;
 
  private:
   void on_row(const Row &r) override;
-  void build_query(const Object &object, const ObjectFieldFilter &field_filter,
+  void build_query(std::shared_ptr<database::entry::Object> object,
+                   const ObjectFieldFilter &field_filter,
                    const std::string &primary_key,
                    const mysqlrouter::sqlstring &pri_value,
                    const std::string &url_route);
-  void build_query_last_inserted(const Object &object,
-                                 const ObjectFieldFilter &field_filter,
-                                 const std::string &primary_key,
-                                 const std::string &url_route);
+  void build_query_last_inserted(
+      std::shared_ptr<database::entry::Object> object,
+      const ObjectFieldFilter &field_filter, const std::string &primary_key,
+      const std::string &url_route);
 };
 
 }  // namespace database

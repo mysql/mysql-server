@@ -26,6 +26,7 @@
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_FILTER_OBJECT_GENERATOR_H_
 
 #include <list>
+#include <memory>
 #include <string>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
@@ -33,6 +34,7 @@
 #endif
 
 #include <rapidjson/document.h>
+#include "mrs/database/entry/object.h"
 
 namespace mrs {
 namespace database {
@@ -44,6 +46,8 @@ class FilterObjectGenerator {
   using Value = const Document::ValueType;
 
  public:
+  FilterObjectGenerator(std::shared_ptr<database::entry::Object> object,
+                        bool joins_allowed);
   void parse(const Document &doc);
   std::string get_result() const;
   bool has_order() const;
@@ -58,9 +62,12 @@ class FilterObjectGenerator {
   void parse_asof(Value *value);
   void parse_wmember(const char *name, Value *value);
   void parse_match(Value *value);
+  std::string resolve_field_name(const char *name) const;
 
   void reset();
 
+  std::shared_ptr<database::entry::Object> object_metadata_;
+  bool joins_allowed_{false};
   bool has_filter_{false};
   bool has_order_{false};
   std::string where_;

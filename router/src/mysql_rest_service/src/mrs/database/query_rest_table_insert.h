@@ -25,15 +25,20 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_REST_INSERT_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_REST_INSERT_H_
 
+#include <memory>
 #include <string>
 #include <string_view>
 
+#include "mrs/database/helper/object_insert.h"
 #include "mrs/database/helper/query.h"
 
 namespace mrs {
 namespace database {
 
 class QueryRestObjectInsert : private QueryLog {
+ public:
+  using Object = entry::Object;
+
  private:
   template <typename K, typename V>
   class It {
@@ -69,16 +74,53 @@ class QueryRestObjectInsert : private QueryLog {
   }
 
  public:
+  // XXX delme
   template <typename KeysIt, typename ValuesIt>
   void execute_insert(MySQLSession *session, const std::string &schema,
                       const std::string &object, const KeysIt &kit,
                       const ValuesIt &vit) {
-    query_ = {"INSERT INTO !.!(!) VALUES(?)"};
+    query_ = {"INSERT INTO !.!(!) VALUES   (?)"};
     query_ << schema << object << kit << vit;
     execute(session);
     affected = 1;
   }
 
+  JsonInsertBuilder::PrimaryKeyColumnValues execute_insert(
+      MySQLSession *session, std::shared_ptr<Object> object,
+      const rapidjson::Document &json_doc) {
+    JsonInsertBuilder ib(object);
+    JsonInsertBuilder::PrimaryKeyColumnValues pk;
+
+    ib.process(json_doc);
+
+    session->execute("START TRANSACTION");
+    try {
+      query_ = ib.insert();
+      execute(session);
+
+      pk = ib.fixed_primary_key_values();
+      auto auto_inc_column = ib.column_for_last_insert_id();
+      if (!auto_inc_column.empty()) {
+        auto value = (*session->query_one("SELECT LAST_INSERT_ID()"))[0];
+
+        pk[auto_inc_column] = value;
+      }
+
+      for (auto insert : ib.additional_inserts(pk)) {
+        query_ = std::move(insert);
+        execute(session);
+      }
+
+      session->execute("COMMIT");
+    } catch (...) {
+      session->execute("ROLLBACK");
+      throw;
+    }
+
+    return pk;
+  }
+
+  // XXX delme
   template <typename KeysIt, typename ValuesIt>
   bool update(MySQLSession *session, const std::string &schema,
               const std::string &object, const KeysIt &kit, const ValuesIt &vit,

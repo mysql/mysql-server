@@ -25,6 +25,7 @@
 #ifndef ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_ENTRY_OBJECT_H_
 #define ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_ENTRY_OBJECT_H_
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -39,50 +40,83 @@ namespace mrs {
 namespace database {
 namespace entry {
 
-class ObjectField {
+class FieldSource {
+ public:
+  virtual ~FieldSource() = default;
+
+  std::string schema;
+  std::string table;
+
+  std::string table_alias;
+
+  Operation::ValueType crud_operations;
+
+  inline bool create_allowed() const {
+    return crud_operations & Operation::Values::valueCreate;
+  }
+
+  inline bool read_allowed() const {
+    return crud_operations & Operation::Values::valueRead;
+  }
+
+  inline bool update_allowed() const {
+    return crud_operations & Operation::Values::valueUpdate;
+  }
+
+  inline bool delete_allowed() const {
+    return crud_operations & Operation::Values::valueDelete;
+  }
+
+  inline std::string table_key() const { return schema + "." + table; }
+};
+
+// the root table where all the joins and sub-selects start
+class BaseTable : public FieldSource {
+ public:
+};
+
+class ObjectField;
+
+// tables that are joined to the root table or others
+class JoinedTable : public FieldSource {
  public:
   using ColumnMapping = std::vector<std::pair<std::string, std::string>>;
 
-  struct Reference {
-    entry::UniversalId id;
-    std::string schema_name;
-    std::string object_name;
-    ColumnMapping column_mapping;
-    std::optional<entry::UniversalId> reduce_to_field_id;
-    bool to_many;
-    bool unnest;
-    Operation::ValueType crud_operations;
+  std::shared_ptr<entry::ObjectField> reduce_to_field;
 
-    std::vector<std::shared_ptr<ObjectField>> fields;
+  ColumnMapping column_mapping;
+  bool to_many = false;
+  bool unnest = false;
+};
 
-    std::string table_alias;
+class Object;
 
-    const ObjectField &reduced_to_field() const {
-      if (!reduce_to_field_id) throw std::logic_error("invalid access");
-
-      for (const auto &f : fields) {
-        if (f->id == *reduce_to_field_id) return *f;
-      }
-
-      throw std::logic_error("bad metadata");
-    }
-  };
-
-  entry::UniversalId id;
-  std::optional<entry::UniversalId> parent_reference_id;
+class ObjectField {
+ public:
   std::string name;
+  int position;
   std::string db_name;
-  bool enabled;
-  bool allow_filtering;
+  std::string db_datatype;
+  bool db_auto_inc = false;
+  bool db_not_null = false;
+  bool db_is_primary = false;
+  bool db_is_unique = false;
+  bool db_is_generated = false;
+  bool enabled = true;
+  bool allow_filtering = true;
+  bool no_check = false;
 
-  std::optional<Reference> reference;
+  std::shared_ptr<FieldSource> source;
+  std::shared_ptr<Object> nested_object;
 };
 
 class Object {
  public:
-  std::string schema;
-  std::string schema_object;
+  std::string name;
+  std::weak_ptr<Object> parent;
 
+  // if more than 1 table, they're all to be joined together
+  std::vector<std::shared_ptr<FieldSource>> base_tables;
   std::vector<std::shared_ptr<ObjectField>> fields;
 };
 

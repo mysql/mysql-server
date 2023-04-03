@@ -50,8 +50,9 @@ namespace mrs {
 namespace database {
 
 void QueryRestTableSingleRow::query_entries(
-    MySQLSession *session, const Object &object,
-    const ObjectFieldFilter &field_filter, const std::string &primary_key,
+    MySQLSession *session, std::shared_ptr<database::entry::Object> object,
+    const ObjectFieldFilter &field_filter,
+    [[maybe_unused]] const std::string &primary_key,
     const mysqlrouter::sqlstring &pri_value, const std::string &url_route) {
   response = "";
   items = 0;
@@ -61,7 +62,7 @@ void QueryRestTableSingleRow::query_entries(
 }
 
 void QueryRestTableSingleRow::query_last_inserted(
-    MySQLSession *session, const Object &object,
+    MySQLSession *session, std::shared_ptr<database::entry::Object> object,
     const ObjectFieldFilter &field_filter, const std::string &primary_key,
     const std::string &url_route) {
   response = "";
@@ -80,30 +81,34 @@ void QueryRestTableSingleRow::on_row(const Row &r) {
 }
 
 void QueryRestTableSingleRow::build_query(
-    const Object &object, const ObjectFieldFilter &field_filter,
-    const std::string &primary_key, const mysqlrouter::sqlstring &pri_value,
-    const std::string &url_route) {
+    std::shared_ptr<database::entry::Object> object,
+    const ObjectFieldFilter &field_filter, const std::string &primary_key,
+    const mysqlrouter::sqlstring &pri_value, const std::string &url_route) {
   query_ =
       "SELECT JSON_OBJECT(?,'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', "
-      "'href', CONCAT(?,'/',?)))) FROM !.! t WHERE !=?;";
+      "'href', CONCAT(?,'/',?)))) FROM ? WHERE !=?;";
 
-  query_ << build_sql_json_object(object, field_filter) << url_route
-         << pri_value;
-  query_ << object.schema << object.schema_object << primary_key << pri_value;
+  JsonQueryBuilder qb(field_filter);
+  qb.process_object(object);
+
+  query_ << qb.select_items() << url_route << pri_value << qb.from_clause()
+         << primary_key << pri_value;
 }
 
 void QueryRestTableSingleRow::build_query_last_inserted(
-    const Object &object, const ObjectFieldFilter &field_filter,
-    const std::string &primary_key, const std::string &url_route) {
+    std::shared_ptr<database::entry::Object> object,
+    const ObjectFieldFilter &field_filter, const std::string &primary_key,
+    const std::string &url_route) {
   query_ =
       "SELECT JSON_OBJECT(?,'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', "
-      "'href', CONCAT(?,'/',!)))) FROM !.! WHERE !=!;";
+      "'href', CONCAT(?,'/',!)))) FROM ? WHERE !=!;";
+
+  JsonQueryBuilder qb(field_filter);
+  qb.process_object(object);
 
   static mysqlrouter::sqlstring last_inserted{"LAST_INSERT_ID()"};
-  query_ << build_sql_json_object(object, field_filter) << url_route
-         << last_inserted;
-  query_ << object.schema << object.schema_object << primary_key
-         << last_inserted;
+  query_ << qb.select_items() << url_route << last_inserted << qb.from_clause()
+         << primary_key << last_inserted;
 }
 
 }  // namespace database

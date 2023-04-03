@@ -475,6 +475,32 @@ sqlstring &sqlstring::append(const std::string &s) {
   return *this;
 }
 
+sqlstring &sqlstring::append_preformatted(const sqlstring &s) {
+  if (!_format_string_left.empty())
+    throw std::invalid_argument(
+        "cannot append to a sqlstring with escapes left");
+  if (!s._format_string_left.empty())
+    throw std::invalid_argument("cannot append a sqlstring with escapes left");
+
+  _formatted.append(s._formatted);
+
+  return *this;
+}
+
+sqlstring &sqlstring::append_preformatted_sep(const std::string &separator,
+                                              const sqlstring &s) {
+  if (!_format_string_left.empty())
+    throw std::invalid_argument(
+        "cannot append to a sqlstring with escapes left");
+  if (!s._format_string_left.empty())
+    throw std::invalid_argument("cannot append a sqlstring with escapes left");
+
+  if (!_formatted.empty()) _formatted.append(separator);
+  _formatted.append(s._formatted);
+
+  return *this;
+}
+
 sqlstring::operator std::string() const {
   return _formatted + _format_string_left;
 }
@@ -512,7 +538,7 @@ sqlstring &sqlstring::operator<<(const std::nullptr_t) {
     throw std::invalid_argument(
         "Error formatting SQL query: invalid escape for numeric argument");
 
-  append("NULL");
+  append(std::string("NULL"));
   append(consume_until_next_escape());
 
   return *this;

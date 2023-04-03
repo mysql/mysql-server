@@ -243,8 +243,9 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
       rest_param_to_sql_value(get_path_after_object_name(requests_uri));
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
-  const auto &object = route_->get_cached_object();
+  auto object = route_->get_cached_object();
   database::ObjectFieldFilter field_filter;
+  std::optional<std::string> target_field;
 
   Url uri_param(requests_uri);
 
@@ -257,17 +258,19 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
 
     try {
       field_filter =
-          database::ObjectFieldFilter::from_url_filter(object, filter);
+          database::ObjectFieldFilter::from_url_filter(*object, filter);
     } catch (const std::exception &e) {
       throw http::Error(HttpStatusCode::BadRequest, e.what());
     }
+
+    if (filter.size() == 1) target_field = filter.front();
   } else {
-    field_filter = database::ObjectFieldFilter::from_object(object);
+    field_filter = database::ObjectFieldFilter::from_object(*object);
   }
 
   std::string raw_value = it_raw ? uri_param.get_query_parameter("raw") : "";
 
-  if (!raw_value.empty() && field_filter.num_included_fields() != 1) {
+  if (!raw_value.empty() && !target_field.has_value()) {
     throw http::Error(HttpStatusCode::BadRequest);
   }
 
@@ -300,9 +303,8 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
 
     database::QueryRestSPMedia rest;
 
-    rest.query_entries(session.get(), field_filter.get_first_included(),
-                       route_->get_schema_name(), route_->get_object_name(),
-                       limit, offset);
+    rest.query_entries(session.get(), *target_field, route_->get_schema_name(),
+                       route_->get_object_name(), limit, offset);
 
     helper::MediaDetector md;
     auto detected_type = md.detect(rest.response);
@@ -326,8 +328,8 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
 
     database::QueryRestSPMedia rest;
 
-    rest.query_entries(session.get(), field_filter.get_first_included(),
-                       route_->get_schema_name(), route_->get_object_name(),
+    rest.query_entries(session.get(), *target_field, route_->get_schema_name(),
+                       route_->get_object_name(),
                        route_->get_cached_primary().name, pk_value);
 
     helper::MediaDetector md;
@@ -347,7 +349,7 @@ HttpResult HandlerObject::handle_post(
   using namespace helper::json::sql;
   rapidjson::Document json_doc;
   database::QueryRestObjectInsert insert;
-  const auto &object = route_->get_cached_object();
+  auto object = route_->get_cached_object();
 
   // std::optional<mysqlrouter::sqlstring> expected_pk_value;
   auto last_path = get_path_after_object_name(ctxt->request->get_uri());
@@ -378,6 +380,8 @@ HttpResult HandlerObject::handle_post(
                          rapidjson::Value(), json_doc.GetAllocator());
   }
 
+#if 0
+  // XXX do PK check, specially row ownership
   mysqlrouter::sqlstring pk_value{"?"};
   auto it = json_doc.FindMember(route_->get_cached_primary().name.c_str());
   if (it != json_doc.MemberEnd()) {
@@ -395,7 +399,12 @@ HttpResult HandlerObject::handle_post(
     const static mysqlrouter::sqlstring k_last_insert{"LAST_INSERT_ID()"};
     pk_value << k_last_insert;
   }
+#endif
 
+  auto session =
+      get_session(ctxt->sql_session_cache.get(), route_->get_cache());
+  auto pk = insert.execute_insert(session.get(), object, json_doc);
+#if 0
   auto json_obj = json_doc.GetObject();
   std::vector<sqlstring> values;
   values.reserve(json_obj.MemberCount());
@@ -424,14 +433,19 @@ HttpResult HandlerObject::handle_post(
   insert.execute_insert(session.get(), route_->get_schema_name(),
                         route_->get_object_name(), keys_iterators,
                         values_iterators);
+#endif
   Counter<kEntityCounterRestAffectedItems>::increment();
 
-  if (!route_->get_cached_primary().name.empty()) {
+  if (!pk.empty()) {
     database::QueryRestTableSingleRow fetch_one;
 
-    fetch_one.query_entries(
-        session.get(), object, database::ObjectFieldFilter::from_object(object),
-        route_->get_cached_primary().name, pk_value, route_->get_rest_url());
+    // XXX handle composite keys
+    assert(pk.size() == 1);
+
+    fetch_one.query_entries(session.get(), object,
+                            database::ObjectFieldFilter::from_object(*object),
+                            pk.begin()->first, pk.begin()->second,
+                            route_->get_rest_url());
     Counter<kEntityCounterRestReturnedItems>::increment(fetch_one.items);
 
     return std::move(fetch_one.response);
@@ -461,12 +475,12 @@ HttpResult HandlerObject::handle_delete(rest::RequestContext *ctxt) {
     throw http::Error(
         HttpStatusCode::BadRequest,
         "To delete entries in the object, use only 'filter' selector.");
+  auto object = route_->get_cached_object();
 
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
   mrs::database::QueryRestObjectDelete d;
-  d.execute_delete(session.get(), route_->get_schema_name(),
-                   route_->get_object_name(), query);
+  d.execute_delete(session.get(), object, query);
 
   helper::json::SerializerToText stt;
   {
@@ -504,7 +518,7 @@ HttpResult HandlerObject::handle_put([
 
   rapidjson::Document json_doc;
   database::QueryRestObjectInsert insert;
-  const auto &object = route_->get_cached_object();
+  auto object = route_->get_cached_object();
 
   json_doc.Parse((const char *)document.data(), document.size());
 
@@ -575,7 +589,7 @@ HttpResult HandlerObject::handle_put([
     database::QueryRestTableSingleRow fetch_one;
 
     fetch_one.query_entries(session.get(), object,
-                            database::ObjectFieldFilter::from_object(object),
+                            database::ObjectFieldFilter::from_object(*object),
                             pk, pk_value, route_->get_rest_url());
 
     Counter<kEntityCounterRestAffectedItems>::increment(fetch_one.items);

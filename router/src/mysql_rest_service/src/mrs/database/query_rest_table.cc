@@ -41,7 +41,7 @@ namespace mrs {
 namespace database {
 
 void QueryRestTable::query_entries(
-    MySQLSession *session, const Object &object,
+    MySQLSession *session, std::shared_ptr<database::entry::Object> object,
     const ObjectFieldFilter &field_filter, const uint32_t offset,
     const uint32_t limit, const std::string &url_route,
     const std::string &primary, const bool is_default_limit,
@@ -191,10 +191,11 @@ const mysqlrouter::sqlstring &QueryRestTable::build_where(
   return where_;
 }
 
-void extend_where(mysqlrouter::sqlstring &where, const std::string &query) {
+void extend_where(std::shared_ptr<database::entry::Object> object,
+                  mysqlrouter::sqlstring &where, const std::string &query) {
   using namespace std::literals::string_literals;
   if (query.empty()) return;
-  FilterObjectGenerator fog;
+  FilterObjectGenerator fog(object, true);
   fog.parse(helper::json::text_to_document(query));
   auto result = fog.get_result();
   if (result.empty()) return;
@@ -208,18 +209,22 @@ void extend_where(mysqlrouter::sqlstring &where, const std::string &query) {
 }
 
 void QueryRestTable::build_query(
-    const Object &object, const ObjectFieldFilter &field_filter,
-    const uint32_t offset, const uint32_t limit, const std::string &url,
-    const std::string &primary, const RowUserOwnership &row_user,
-    UserId *user_id, const std::vector<RowGroupOwnership> &row_groups,
+    std::shared_ptr<database::entry::Object> object,
+    const ObjectFieldFilter &field_filter, const uint32_t offset,
+    const uint32_t limit, const std::string &url, const std::string &primary,
+    const RowUserOwnership &row_user, UserId *user_id,
+    const std::vector<RowGroupOwnership> &row_groups,
     const std::set<UniversalId> &user_groups, const std::string &query) {
   auto where = build_where(row_user, user_id, row_groups, user_groups);
-  extend_where(where, query);
+  extend_where(object, where, query);
 
-  query_ =
-      mysqlrouter::sqlstring("SELECT JSON_OBJECT(?, ?) FROM !.! t ? LIMIT ?,?");
-  query_ << build_sql_json_object(object, field_filter);
+  JsonQueryBuilder qb(field_filter);
 
+  qb.process_object(object);
+
+  query_ = mysqlrouter::sqlstring(
+      "SELECT JSON_OBJECT(?, ?) as doc FROM ? ? LIMIT ?,?");
+  query_ << qb.select_items();
   if (primary.empty()) {
     static mysqlrouter::sqlstring empty_links{"'links', JSON_ARRAY()"};
     query_ << empty_links;
@@ -230,8 +235,8 @@ void QueryRestTable::build_query(
     fmt << url << primary;
     query_ << fmt;
   }
-
-  query_ << object.schema << object.schema_object << where << offset << limit;
+  query_ << qb.from_clause();
+  query_ << where << offset << limit;
 }
 
 }  // namespace database
