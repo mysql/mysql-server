@@ -321,7 +321,7 @@ static stdx::flags<StmtClassifier> classify(const std::string &stmt,
         last = tkn;
       }
 
-      if (first.id == SET_SYM) {
+      if (first.id == SET_SYM || first.id == USE_SYM) {
         if (!classified) {
           return StmtClassifier::NoStateChangeIgnoreTracker;
         } else {
