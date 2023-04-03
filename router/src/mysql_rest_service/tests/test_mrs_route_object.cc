@@ -146,8 +146,8 @@ class RouteObjectTests : public Test {
 };
 
 TEST_F(RouteObjectTests, validate_route_generic_parameters) {
-  const mrs::UniversalId kServiceId{{33}};
-  const mrs::UniversalId kSchemaId{{44}};
+  const mrs::UniversalId kServiceId{33};
+  const mrs::UniversalId kSchemaId{44};
   auto pe = make_test_data(kServiceId, kSchemaId, "/ser", "/sch", "/obj");
   make_sut(pe);
 
@@ -208,8 +208,8 @@ TEST_F(RouteObjectTests, validate_route_generic_parameters) {
 }
 
 TEST_F(RouteObjectTests, validate_route_parameters_after_update) {
-  const mrs::UniversalId kServiceId{{33}};
-  const mrs::UniversalId kSchemaId{{44}};
+  const mrs::UniversalId kServiceId{33};
+  const mrs::UniversalId kSchemaId{44};
   const uint64_t kNewInPage = 1232;
   const auto kNewFormat = EntryDbObject::formatItem;
   const auto kNewOperation = Operation::valueUpdate;
@@ -237,7 +237,7 @@ TEST_F(RouteObjectTests, validate_route_parameters_after_update) {
   pe.row_security.user_ownership_enforced = true;
   pe.row_security.user_ownership_column = "name";
   pe.row_group_security.push_back(RowGroupOwnership{
-      mrs::UniversalId{{101}}, "group_name", 0, RowGroupOwnership::kHigher});
+      mrs::UniversalId{101}, "group_name", 0, RowGroupOwnership::kHigher});
 
   sut_->update(&pe, mock_route_schema_);
   EXPECT_EQ("http://abc.de/mrs/sakila/metadata-catalog/city",
@@ -297,8 +297,8 @@ TEST_F(RouteObjectTests, validate_route_parameters_after_update) {
 }
 
 TEST_F(RouteObjectTests, route_turnon_on_deactivated_route_does_nothing) {
-  const mrs::UniversalId kServiceId{{22}};
-  const mrs::UniversalId kSchemaId{{11}};
+  const mrs::UniversalId kServiceId{22};
+  const mrs::UniversalId kSchemaId{11};
   auto pe = make_test_data(kServiceId, kSchemaId, "/a", "/b", "/c");
   pe.active = false;
   make_sut(pe);
@@ -308,8 +308,8 @@ TEST_F(RouteObjectTests, route_turnon_on_deactivated_route_does_nothing) {
 
 TEST_F(RouteObjectTests,
        route_turnon_on_activated_table_route_registers_the_request_handler) {
-  const mrs::UniversalId kServiceId{{22}};
-  const mrs::UniversalId kSchemaId{{11}};
+  const mrs::UniversalId kServiceId{22};
+  const mrs::UniversalId kSchemaId{11};
   auto pe = make_test_data(kServiceId, kSchemaId, "/a", "/b", "/c");
   make_sut(pe);
   EXPECT_CALL(*mock_handler_factory_,
@@ -322,8 +322,8 @@ TEST_F(RouteObjectTests,
 }
 
 TEST_F(RouteObjectTests, second_activation_recreates_handler) {
-  const mrs::UniversalId kServiceId{{22}};
-  const mrs::UniversalId kSchemaId{{11}};
+  const mrs::UniversalId kServiceId{22};
+  const mrs::UniversalId kSchemaId{11};
   auto pe = make_test_data(kServiceId, kSchemaId, "/a", "/b", "/c");
   make_sut(pe);
 
@@ -345,8 +345,8 @@ TEST_F(RouteObjectTests, second_activation_recreates_handler) {
 }
 
 TEST_F(RouteObjectTests, get_cached_columns) {
-  const mrs::UniversalId kServiceId{{22}};
-  const mrs::UniversalId kSchemaId{{11}};
+  const mrs::UniversalId kServiceId{22};
+  const mrs::UniversalId kSchemaId{11};
   auto pe = make_test_data(kServiceId, kSchemaId, "/a", "/b", "/c");
   make_sut(pe);
 

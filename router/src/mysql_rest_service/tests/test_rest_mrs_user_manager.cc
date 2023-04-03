@@ -136,7 +136,7 @@ class UserManagerFixture : public Test {
 };
 
 TEST_F(UserManagerFixture, fetch_user_from_database) {
-  const mrs::UniversalId k_app_id{{2}};
+  const mrs::UniversalId k_app_id{2};
   SqlSessionCache cache{nullptr, &session_};
   UserManager um{false, mrs::UniversalId{3}};
 
@@ -163,7 +163,7 @@ TEST_F(UserManagerFixture, fetch_user_from_database) {
 }
 
 TEST_F(UserManagerFixture, fetch_user_from_database_once) {
-  const mrs::UniversalId k_app_id{{2}};
+  const mrs::UniversalId k_app_id{2};
   SqlSessionCache cache{nullptr, &session_};
   UserManager um{false, mrs::UniversalId{3}};
 
@@ -216,7 +216,7 @@ TEST_F(UserManagerFixture, fetch_user_from_database_once) {
  */
 TEST_F(UserManagerFixture, fetch_user_from_db_and_update) {
   using namespace std::string_literals;
-  const mrs::UniversalId k_app_id{{2}};
+  const mrs::UniversalId k_app_id{2};
   SqlSessionCache cache{nullptr, &session_};
   UserManager um{false, mrs::UniversalId{3}};
 
@@ -248,6 +248,6 @@ TEST_F(UserManagerFixture, fetch_user_from_db_and_update) {
   ASSERT_TRUE(user.has_user_id);
   ASSERT_EQ(k_user_4000040400004_id, user.user_id);
   ASSERT_EQ(1, user.privileges.size());
-  ASSERT_EQ(mrs::UniversalId{{1}}, user.privileges[0].service_id);
+  ASSERT_EQ(mrs::UniversalId{1}, user.privileges[0].service_id);
   ASSERT_EQ(2, user.privileges[0].crud);
 }
