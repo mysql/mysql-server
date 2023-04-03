@@ -39,11 +39,11 @@ namespace helper {
  * Additionally the function is marked as static, in case when other
  * compilation unit would like to define its own conversion `way`.
  */
-static std::string to_string(const Column &cd) {
+/*static std::string to_string(const Column &cd) {
   mysqlrouter::sqlstring fmt{"?, !"};
   fmt << cd.name << cd.name;
   return fmt.str();
-}
+}*/
 
 }  // namespace helper
 
