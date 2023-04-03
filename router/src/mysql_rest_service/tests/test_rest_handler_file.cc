@@ -113,7 +113,7 @@ class RestHandlerFileTests : public Test {
 TEST_F(RestHandlerFileTests, etag_matches_do_not_send_the_file) {
   const std::string k_path = "/schema/file1";
   const std::string k_tag = "tag1";
-  const mrs::UniversalId k_file_id{{110}};
+  const mrs::UniversalId k_file_id{110};
 
   make_sut(k_file_id, k_path, k_tag);
   EXPECT_CALL(mock_input_headers, get(StrEq("If-None-Match")))
@@ -134,7 +134,7 @@ TEST_F(RestHandlerFileTests, etag_matches_do_not_send_the_file) {
 TEST_F(RestHandlerFileTests, handle_delete_not_supported) {
   const std::string k_path = "/schema/file1";
   const std::string k_tag = "tag1";
-  const mrs::UniversalId k_file_id{{110}};
+  const mrs::UniversalId k_file_id{110};
 
   make_sut(k_file_id, k_path, k_tag);
   ASSERT_THROW(sut_->handle_delete(&request_context_), mrs::http::Error);
@@ -144,7 +144,7 @@ TEST_F(RestHandlerFileTests, handle_delete_not_supported) {
 TEST_F(RestHandlerFileTests, handle_put_not_supported) {
   const std::string k_path = "/schema/file1";
   const std::string k_tag = "tag1";
-  const mrs::UniversalId k_file_id{{110}};
+  const mrs::UniversalId k_file_id{110};
 
   make_sut(k_file_id, k_path, k_tag);
   ASSERT_THROW(sut_->handle_put(&request_context_), mrs::http::Error);
@@ -154,7 +154,7 @@ TEST_F(RestHandlerFileTests, handle_put_not_supported) {
 TEST_F(RestHandlerFileTests, handle_post_not_supported) {
   const std::string k_path = "/schema/file1";
   const std::string k_tag = "tag1";
-  const mrs::UniversalId k_file_id{{110}};
+  const mrs::UniversalId k_file_id{110};
 
   make_sut(k_file_id, k_path, k_tag);
   ASSERT_THROW(sut_->handle_post(&request_context_, {}), mrs::http::Error);
@@ -202,14 +202,14 @@ TEST_P(RestHandlerDifferentFilesTests, fetch_file) {
 }
 
 const Request k_file_to_fetch_param[] = {
-    {mrs::UniversalId{{1}}, "/schema/file.jpg", nullptr, MediaType::typeJpg},
-    {mrs::UniversalId{{1}}, "/schema/file.js", nullptr, MediaType::typeJs},
-    {mrs::UniversalId{{2}}, "/schema/file.mjs", nullptr, MediaType::typeJs},
-    {mrs::UniversalId{{2}}, "/schema/file.html", nullptr, MediaType::typeHtml},
-    {mrs::UniversalId{{2}}, "/schema/file.htm", nullptr, MediaType::typeHtml},
-    {mrs::UniversalId{{2}}, "/schema/file.css", nullptr, MediaType::typeCss},
-    {mrs::UniversalId{{2}}, "/schema/file.map", nullptr, MediaType::typePlain},
-    {mrs::UniversalId{{3}}, "/schema/file.gif", nullptr, MediaType::typeGif}};
+    {mrs::UniversalId{1}, "/schema/file.jpg", nullptr, MediaType::typeJpg},
+    {mrs::UniversalId{1}, "/schema/file.js", nullptr, MediaType::typeJs},
+    {mrs::UniversalId{2}, "/schema/file.mjs", nullptr, MediaType::typeJs},
+    {mrs::UniversalId{2}, "/schema/file.html", nullptr, MediaType::typeHtml},
+    {mrs::UniversalId{2}, "/schema/file.htm", nullptr, MediaType::typeHtml},
+    {mrs::UniversalId{2}, "/schema/file.css", nullptr, MediaType::typeCss},
+    {mrs::UniversalId{2}, "/schema/file.map", nullptr, MediaType::typePlain},
+    {mrs::UniversalId{3}, "/schema/file.gif", nullptr, MediaType::typeGif}};
 
 INSTANTIATE_TEST_SUITE_P(files_to_fetch, RestHandlerDifferentFilesTests,
                          ::testing::ValuesIn(k_file_to_fetch_param));

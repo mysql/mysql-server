@@ -109,8 +109,8 @@ class RouteStaticFileTests : public Test {
 };
 
 TEST_F(RouteStaticFileTests, validate_route_generic_parameters) {
-  const mrs::UniversalId kServiceId{{33}};
-  const mrs::UniversalId kSchemaId{{44}};
+  const mrs::UniversalId kServiceId{33};
+  const mrs::UniversalId kSchemaId{44};
   auto pe = make_test_data(kServiceId, kSchemaId, "/ser", "/sch", "/obj");
   make_sut(pe);
 
@@ -137,8 +137,8 @@ TEST_F(RouteStaticFileTests, validate_route_generic_parameters) {
 }
 
 TEST_F(RouteStaticFileTests, validate_route_parameters_after_update) {
-  const mrs::UniversalId kServiceId{{33}};
-  const mrs::UniversalId kSchemaId{{44}};
+  const mrs::UniversalId kServiceId{33};
+  const mrs::UniversalId kSchemaId{44};
   const std::string kNewHost = "abc.de";
   const std::string kNewServicePath = "/mrs";
   const std::string kNewSchemaPath = "/sakila";
@@ -182,8 +182,8 @@ TEST_F(RouteStaticFileTests, validate_route_parameters_after_update) {
 }
 
 TEST_F(RouteStaticFileTests, route_turnon_on_deactivated_route_does_nothing) {
-  const mrs::UniversalId kServiceId{{22}};
-  const mrs::UniversalId kSchemaId{{11}};
+  const mrs::UniversalId kServiceId{22};
+  const mrs::UniversalId kSchemaId{11};
   auto pe = make_test_data(kServiceId, kSchemaId, "/a", "/b", "/c");
   pe.active = false;
   make_sut(pe);
@@ -193,8 +193,8 @@ TEST_F(RouteStaticFileTests, route_turnon_on_deactivated_route_does_nothing) {
 
 TEST_F(RouteStaticFileTests,
        route_turnon_on_activated_table_route_registers_the_request_handler) {
-  const mrs::UniversalId kServiceId{{22}};
-  const mrs::UniversalId kSchemaId{{11}};
+  const mrs::UniversalId kServiceId{22};
+  const mrs::UniversalId kSchemaId{11};
   auto pe = make_test_data(kServiceId, kSchemaId, "/a", "/b", "/c");
   make_sut(pe);
   //  EXPECT_CALL(create_object_metadata_handler(sut_.get(),
@@ -205,8 +205,8 @@ TEST_F(RouteStaticFileTests,
 }
 
 TEST_F(RouteStaticFileTests, second_activation_recreates_handler) {
-  const mrs::UniversalId kServiceId{{22}};
-  const mrs::UniversalId kSchemaId{{11}};
+  const mrs::UniversalId kServiceId{22};
+  const mrs::UniversalId kSchemaId{11};
   auto pe = make_test_data(kServiceId, kSchemaId, "/a", "/b", "/c");
   make_sut(pe);
 
@@ -230,8 +230,8 @@ TEST_F(RouteStaticFileTests, second_activation_recreates_handler) {
 }
 
 TEST_F(RouteStaticFileTests, get_cached_columns) {
-  const mrs::UniversalId kServiceId{{22}};
-  const mrs::UniversalId kSchemaId{{11}};
+  const mrs::UniversalId kServiceId{22};
+  const mrs::UniversalId kSchemaId{11};
   auto pe = make_test_data(kServiceId, kSchemaId, "/a", "/b", "/c");
   make_sut(pe);
 
