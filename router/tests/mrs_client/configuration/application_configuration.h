@@ -33,6 +33,7 @@ namespace http_client {
 
 enum class AuthenticationType { kNone, kBasic, kScram, kOauth2 };
 enum class SessionType { kCookie, kJWT };
+enum class ResponseType { kJson, kRaw };
 
 struct ApplicationDisplay {
   bool status{false};
@@ -54,14 +55,16 @@ struct ApplicationConfiguration {
   std::string path;
   std::string user;
   std::string password;
-  std::string json_pointer;
+  std::vector<std::string> json_pointer;
   AuthenticationType authentication{AuthenticationType::kNone};
   Request::Type request{HttpMethod::Get};
   std::string session_file;
+  std::string json_schema_file;
   std::string payload;
   bool help{false};
   ApplicationDisplay display;
   SessionType session_type{SessionType::kCookie};
+  ResponseType response_type{ResponseType::kJson};
   HttpStatusCode::key_type expected_status{HttpStatusCode::Ok};
 };
 

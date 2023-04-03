@@ -31,14 +31,6 @@
 
 namespace mrs_client {
 
-std::string find_in_headers(const Headers &h, const std::string &key) {
-  for (const auto &[k, v] : h) {
-    if (k == key) return v;
-  }
-
-  return {};
-}
-
 static void authenticate(HttpClientRequest &request, const std::string &user,
                          const std::string &password) {
   HttpAuthMethodBasic basic;

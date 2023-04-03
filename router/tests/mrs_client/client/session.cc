@@ -27,17 +27,8 @@
 #include <cstring>
 #include <fstream>
 
+#include "helper/string/contains.h"
 #include "mysql/harness/string_utils.h"
-
-namespace {
-
-bool starts_with(const std::string &str, const std::string &start) {
-  if (str.length() < start.length()) return false;
-
-  return 0 == strncmp(str.c_str(), start.c_str(), start.length());
-}
-
-}  // namespace
 
 namespace mrs_client {
 
@@ -91,9 +82,9 @@ void HttpClientSession::session_load() {
     throw std::runtime_error("The session file, can't be opened.");
 
   for (std::string line; std::getline(s, line);) {
-    if (starts_with(line, k_header))
+    if (helper::starts_with(line, k_header))
       add_header(line.c_str() + k_header.length());
-    else if (starts_with(line, k_cookie))
+    else if (helper::starts_with(line, k_cookie))
       add_cookie(line.c_str() + k_header.length());
   }
 }

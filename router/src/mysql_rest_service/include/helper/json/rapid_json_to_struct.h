@@ -48,42 +48,82 @@ class RapidReaderHandlerToStruct
     : public rapidjson::BaseReaderHandler<
           rapidjson::UTF8<>, RapidReaderHandlerToStruct<UserResult>> {
  public:
+  using Handler = RapidReaderHandlerToStruct<UserResult>;
   using Parent =
       rapidjson::BaseReaderHandler<rapidjson::UTF8<>,
                                    RapidReaderHandlerToStruct<UserResult>>;
   using Ch = typename Parent::Ch;
-  RapidReaderHandlerToStruct() {}
+  RapidReaderHandlerToStruct(const std::string &separator = ".")
+      : separator_{separator} {}
   virtual ~RapidReaderHandlerToStruct() = default;
 
   using Result = UserResult;
   const UserResult &get_result() { return result_; }
 
- public:  // template overwrites methods from `rapidjson::BaseReaderHandler`
-  virtual bool Null() { return true; }
-  virtual bool Bool(bool) { return true; }
+  virtual bool on_new_value() {
+    auto &pk = get_parent_key();
+    if (pk.is_array) {
+      key_.name = std::to_string(pk.array_idx++);
+      key_.level = level_;
 
-  virtual bool String(const Ch *, rapidjson::SizeType, bool) { return true; }
+      return true;
+    }
+    return false;
+  }
+
+ public:  // template overwrites methods from `rapidjson::BaseReaderHandler`
+  virtual bool Null() {
+    on_new_value();
+    return true;
+  }
+
+  virtual bool Bool(bool) {
+    on_new_value();
+    return true;
+  }
+
+  virtual bool String(const Ch *, rapidjson::SizeType, bool) {
+    on_new_value();
+    return true;
+  }
 
   // Ignoring following methods because, parser should be configured to call
   // "RawNumber" method.
-  virtual bool Int(int) { return true; }
+  virtual bool Int(int) {
+    on_new_value();
+    return true;
+  }
 
-  virtual bool Uint(unsigned) { return true; }
+  virtual bool Uint(unsigned) {
+    on_new_value();
+    return true;
+  }
 
-  virtual bool Int64(int64_t) { return true; }
+  virtual bool Int64(int64_t) {
+    on_new_value();
+    return true;
+  }
 
-  virtual bool Uint64(uint64_t) { return true; }
+  virtual bool Uint64(uint64_t) {
+    on_new_value();
+    return true;
+  }
 
-  virtual bool Double(double) { return true; }
+  virtual bool Double(double) {
+    on_new_value();
+    return true;
+  }
 
   /// enabled via kParseNumbersAsStringsFlag, string is not null-terminated (use
   /// length)
-  virtual bool RawNumber(const Ch *, rapidjson::SizeType, bool) { return true; }
+  virtual bool RawNumber(const Ch *, rapidjson::SizeType, bool) {
+    on_new_value();
+    return true;
+  }
 
   bool StartObject() {
-    if (!key_.name.empty()) {
-      keys_.push_back(key_);
-    }
+    on_new_value();
+    keys_.push_back(key_);
     ++level_;
     return true;
   }
@@ -92,7 +132,9 @@ class RapidReaderHandlerToStruct
     --level_;
     if (!keys_.empty()) {
       auto &b = keys_.back();
-      if (level_ == b.level) keys_.pop_back();
+      if (level_ == b.level) {
+        keys_.pop_back();
+      }
     }
 
     return true;
@@ -106,6 +148,12 @@ class RapidReaderHandlerToStruct
 
   // Ignore arrays
   bool StartArray() {
+    on_new_value();
+    auto k = key_;
+    k.is_array = true;
+    k.array_idx = 1;
+    keys_.push_back(k);
+
     ++level_;
     ++arrays_;
     return true;
@@ -116,7 +164,9 @@ class RapidReaderHandlerToStruct
     --arrays_;
     if (!keys_.empty()) {
       auto &b = keys_.back();
-      if (level_ == b.level) keys_.pop_back();
+      if (level_ == b.level) {
+        keys_.pop_back();
+      }
     }
     return true;
   }
@@ -126,20 +176,37 @@ class RapidReaderHandlerToStruct
 
   bool is_object_path() { return level_ > 0 && arrays_ == 0; }
   bool is_array_value() { return arrays_ > 0; }
+  int get_level() const { return level_; }
 
   std::string get_current_key() const {
     std::string result;
     for (const auto &key : keys_) {
-      result += key.name + ".";
+      // Skip first elemnt if its an array
+      if (key.name.empty()) continue;
+
+      result += key.name + separator_;
     }
     return result + key_.name;
   }
+  const std::string separator_;
 
  private:
   struct KeyValue {
     std::string name;
+    bool is_array{false};
+    int array_idx{0};
     int level;
   };
+
+  KeyValue &get_parent_key() {
+    if (keys_.empty()) {
+      static KeyValue k_empty;
+      return k_empty;
+    }
+
+    return keys_.back();
+  }
+
   std::list<KeyValue> keys_;
   KeyValue key_;
   int level_{0};
