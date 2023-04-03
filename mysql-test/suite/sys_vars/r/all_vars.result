@@ -169,6 +169,8 @@ temptable_use_mmap
 temptable_use_mmap
 terminology_use_previous
 terminology_use_previous
+tls_certificates_enforced_validation
+tls_certificates_enforced_validation
 tls_ciphersuites
 tls_ciphersuites
 use_secondary_engine

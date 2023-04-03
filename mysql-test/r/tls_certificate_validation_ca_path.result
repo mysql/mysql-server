@@ -1,0 +1,6 @@
+#
+# WL#13470: Add X509 certificate sanity checks in server
+#
+include/assert_grep.inc ["Check for TLS warning in the server log"]
+# Restart server with defaults
+# restart:

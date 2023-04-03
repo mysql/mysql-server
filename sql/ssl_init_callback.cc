@@ -38,6 +38,8 @@ std::string mysql_admin_channel("mysql_admin");
 
 /** SSL context options */
 
+bool opt_tls_certificates_enforced_validation{false};
+
 /* Related to client server connection port */
 static const char *opt_ssl_ca = nullptr;
 static const char *opt_ssl_key = nullptr;

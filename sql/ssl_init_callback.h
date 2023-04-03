@@ -32,6 +32,7 @@ extern std::atomic_bool g_admin_ssl_configured;
 
 extern std::string mysql_main_channel;
 extern std::string mysql_admin_channel;
+extern bool opt_tls_certificates_enforced_validation;
 
 /** helper class to deal with optionally empty strings */
 class OptionalString {

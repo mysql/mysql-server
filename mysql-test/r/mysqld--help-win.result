@@ -1591,6 +1591,11 @@ The following options may be given as the first argument:
  Define threads usage for handling queries, one of
  one-thread-per-connection, no-threads, loaded-dynamically
  --thread-stack=#    The stack size for each thread
+ --tls-certificates-enforced-validation 
+ If set to TRUE, server stops execution at the start up in
+ case of invalid certificates When ALTER INSTANCE RELOAD
+ TLS executed, new certficates will not be used if
+ validation fails.
  --tls-ciphersuites=name 
  --tmp-table-size=#  If an internal in-memory temporary table in the MEMORY or
  TempTable storage engine exceeds this size, MySQL will

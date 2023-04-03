@@ -247,6 +247,7 @@ enum enum_ssl_init_error {
   SSL_FIPS_MODE_FAILED,
   SSL_INITERR_ECDHFAIL,
   SSL_INITERR_X509_VERIFY_PARAM,
+  SSL_INITERR_INVALID_CERTIFICATES,
   SSL_INITERR_LASTERR
 };
 const char *sslGetErrString(enum enum_ssl_init_error err);

@@ -28,6 +28,8 @@ if (!$crllen)
 
 --disable_query_log
 call mtr.add_suppression(".*Password salt for user.*");
+call mtr.add_suppression("Server certificate .* verification has failed. Check logs for more details");
+call mtr.add_suppression("Failed to validate certificate .*");
 --enable_query_log
 
 --disable_query_log

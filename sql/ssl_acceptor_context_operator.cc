@@ -67,14 +67,22 @@ bool TLS_channel::singleton_init(Ssl_acceptor_context_container **out,
     in auto-generation, bad key material explicitly specified or
     auto-generation disabled explcitly while SSL is still on.
   */
-  Ssl_acceptor_context_data *news =
-      new Ssl_acceptor_context_data(channel, use_ssl_arg, callbacks);
+  enum enum_ssl_init_error error = SSL_INITERR_NOERROR;
+  Ssl_acceptor_context_data *news = new Ssl_acceptor_context_data(
+      channel, use_ssl_arg, callbacks, true, &error);
   Ssl_acceptor_context_container *new_container =
       new Ssl_acceptor_context_container(news);
   if (news == nullptr || new_container == nullptr) {
     LogErr(WARNING_LEVEL, ER_SSL_LIBRARY_ERROR,
            "Error initializing the SSL context system structure");
     if (new_container) delete new_container;
+    return true;
+  }
+
+  if (opt_tls_certificates_enforced_validation &&
+      error != SSL_INITERR_NOERROR) {
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_VALIDATE_CERTIFICATES_SERVER_EXIT);
+    delete new_container;
     return true;
   }
 

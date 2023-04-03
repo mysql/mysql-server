@@ -1,4 +1,5 @@
-call mtr.add_suppression("Server SSL certificate doesn't verify");
+call mtr.add_suppression("Failed to validate certificate .*");
+call mtr.add_suppression("Server certificate .* verification has failed. Check logs for more details");
 # Test clients with and without CRL lists
 ############ Test mysql ##############
 # Test mysql connecting to a server with a certificate revoked by -crl
