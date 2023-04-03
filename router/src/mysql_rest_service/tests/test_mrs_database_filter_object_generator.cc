@@ -42,6 +42,8 @@ class FilterObjectsTest : public Test {
     return result;
   }
 
+  FilterObjectsTest() : sut_({}, false) {}
+
   FilterObjectGenerator sut_;
 };
 

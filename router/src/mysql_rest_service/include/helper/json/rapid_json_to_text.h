@@ -50,6 +50,18 @@ void rapid_json_to_text(JsonValue *json_value, std::string &text_value) {
   text_value.assign(json_buf.GetString(), json_buf.GetLength());
 }
 
+template <template <typename> typename Writer = Writer, typename JsonValue>
+void append_rapid_json_to_text(JsonValue *json_value, std::string &text_value) {
+  rapidjson::StringBuffer json_buf;
+  {
+    Writer<rapidjson::StringBuffer> json_writer(json_buf);
+
+    json_value->Accept(json_writer);
+  }
+
+  text_value.append(json_buf.GetString(), json_buf.GetLength());
+}
+
 }  // namespace json
 }  // namespace helper
 

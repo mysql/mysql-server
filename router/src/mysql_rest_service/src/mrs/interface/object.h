@@ -48,7 +48,7 @@ class Object {
   using Handler = mrs::interface::RestHandler;
   using RouteSchema = mrs::interface::ObjectSchema;
   using RouteSchemaPtr = std::shared_ptr<RouteSchema>;
-  using EntryObject = database::entry::Object;
+  using EntryObject = std::shared_ptr<database::entry::Object>;
   using Column = helper::Column;
   using RowUserOwnership = database::entry::RowUserOwnership;
   using VectorOfRowGroupOwnership =
@@ -84,7 +84,7 @@ class Object {
     return empty;
   }
   virtual const Fields &get_parameters() = 0;
-  virtual const EntryObject &get_cached_object() = 0;
+  virtual EntryObject get_cached_object() = 0;
   virtual const std::vector<Column> &get_cached_columnes() = 0;
   virtual const Column &get_cached_primary() = 0;
   virtual uint32_t get_on_page() = 0;

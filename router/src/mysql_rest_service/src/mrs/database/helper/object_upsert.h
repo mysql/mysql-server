@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,45 +22,29 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_REST_DELETE_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_REST_DELETE_H_
+#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_OBJECT_UPSERT_H_
+#define ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_OBJECT_UPSERT_H_
 
+#ifdef RAPIDJSON_NO_SIZETYPEDEFINE
+#include "my_rapidjson_size_t.h"
+#endif
+
+#include <rapidjson/document.h>
 #include <memory>
-#include <stdexcept>
+#include <set>
 #include <string>
-#include <string_view>
-
-#include "helper/json/text_to.h"
+#include <vector>
 #include "mrs/database/entry/object.h"
-#include "mrs/database/filter_object_generator.h"
-#include "mrs/database/helper/query.h"
+#include "mysqlrouter/utils_sqlstring.h"
 
 namespace mrs {
 namespace database {
 
-class QueryRestObjectDelete : private QueryLog {
- public:
-  bool execute_delete(MySQLSession *session,
-                      std::shared_ptr<entry::Object> object,
-                      const std::string &filter) {
-    FilterObjectGenerator fog(object, false);
-    fog.parse(helper::json::text_to_document(filter));
-    auto result = fog.get_result();
-    if (result.empty())
-      throw std::runtime_error("Filter must contain valid JSON object.");
-    if (fog.has_order())
-      throw std::runtime_error(
-          "Filter must not contain ordering informations.");
-    query_ = {"DELETE FROM !.! WHERE ?"};
-    query_ << object->base_tables.front()->schema
-           << object->base_tables.front()->table
-           << mysqlrouter::sqlstring(result.c_str());
-    execute(session);
-    return true;
-  }
-};
+std::vector<mysqlrouter::sqlstring> build_upsert_json_object(
+    std::shared_ptr<database::entry::Object> object,
+    const rapidjson::Document &json_doc);
 
 }  // namespace database
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_REST_DELETE_H_
+#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_OBJECT_UPSERT_H_

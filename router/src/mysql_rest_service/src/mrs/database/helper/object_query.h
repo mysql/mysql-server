@@ -22,9 +22,10 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_OBJECT_QUERY_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_OBJECT_QUERY_H_
+#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_OBJECT_QUERY_H_
+#define ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_OBJECT_QUERY_H_
 
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -40,21 +41,78 @@ class ObjectFieldFilter {
       const entry::Object &object, const std::vector<std::string> &filter);
   static ObjectFieldFilter from_object(const entry::Object &object);
 
-  bool is_included(const std::string &field) const;
-  size_t num_included_fields() const;
-  std::string get_first_included() const;
+  bool is_included(const std::string &prefix, const std::string &field) const;
 
  private:
   std::set<std::string> m_filter;
-  bool m_exclusive;
+  bool m_exclusive = true;
 
-  bool is_parent_included(const std::string &field) const;
+  bool is_parent_included(const std::string &prefix) const;
 };
 
-mysqlrouter::sqlstring build_sql_json_object(
-    const entry::Object &object, const ObjectFieldFilter &field_filter);
+class JsonQueryBuilder {
+ public:
+  explicit JsonQueryBuilder(const ObjectFieldFilter &filter)
+      : m_filter(filter) {}
+
+  void process_object(std::shared_ptr<entry::Object> object) {
+    process_object(object, "");
+  }
+
+  mysqlrouter::sqlstring query() const {
+    mysqlrouter::sqlstring q{"SELECT JSON_OBJECT(?) FROM ?"};
+
+    q << select_items() << from_clause();
+
+    return q;
+  }
+
+  const mysqlrouter::sqlstring &select_items() const { return m_select_items; }
+  mysqlrouter::sqlstring from_clause() const;
+
+ private:
+  const ObjectFieldFilter &m_filter;
+  std::string m_path_prefix;
+  mysqlrouter::sqlstring m_select_items;
+  std::vector<std::shared_ptr<entry::FieldSource>> m_base_tables;
+  std::vector<std::shared_ptr<entry::FieldSource>> m_joined_tables;
+
+  void process_object(std::shared_ptr<entry::Object> object,
+                      const std::string &path_prefix);
+
+  mysqlrouter::sqlstring subquery_value(
+      const std::string &base_table_name) const;
+
+  mysqlrouter::sqlstring subquery_object(
+      const std::string &base_table_name) const;
+
+  mysqlrouter::sqlstring subquery_object_array(
+      const std::string &base_table_name) const;
+
+  mysqlrouter::sqlstring subquery_array(
+      const std::string &base_table_name) const;
+
+  mysqlrouter::sqlstring make_subselect_where(
+      const std::string &base_table_name,
+      std::shared_ptr<entry::JoinedTable> ref) const;
+
+  mysqlrouter::sqlstring make_subquery(
+      std::shared_ptr<entry::FieldSource> base_table,
+      const entry::ObjectField &field) const;
+
+  void add_field(std::shared_ptr<entry::FieldSource> base_table,
+                 const entry::ObjectField &field);
+
+  void add_field_value(std::shared_ptr<entry::FieldSource> base_table,
+                       const entry::ObjectField &field);
+
+  void add_joined_table(std::shared_ptr<entry::FieldSource> table);
+
+  mysqlrouter::sqlstring join_condition(const entry::FieldSource &base_table,
+                                        const entry::JoinedTable &table) const;
+};
 
 }  // namespace database
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_OBJECT_QUERY_H_
+#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_OBJECT_QUERY_H_

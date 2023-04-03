@@ -176,14 +176,14 @@ void Object::cache_object() {
   cached_object_ = object->object;
 }
 
-const Object::EntryObject &Object::get_cached_object() {
+Object::EntryObject Object::get_cached_object() {
   // TODO(alfredo) is this caching needed or should this just be queried
   // together with pe_?
-  if (!cached_object_.has_value()) {
+  if (!cached_object_) {
     cache_object();
   }
 
-  return *cached_object_;
+  return cached_object_;
 }
 
 void Object::cache_columns() {

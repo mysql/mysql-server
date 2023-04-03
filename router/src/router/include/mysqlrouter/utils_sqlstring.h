@@ -186,6 +186,12 @@ class ROUTER_LIB_EXPORT sqlstring {
   //! replaces a ? or ! with the content of the other string verbatim
   sqlstring &operator<<(const sqlstring &);
 
+  //! appends a pre-formatted sqlstring to a pre-formatted sqlstring
+  sqlstring &append_preformatted(const sqlstring &s);
+
+  sqlstring &append_preformatted_sep(const std::string &separator,
+                                     const sqlstring &s);
+
   /**
    * Replace `?` or `!` with multiple values.
    *

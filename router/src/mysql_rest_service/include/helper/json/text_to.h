@@ -67,6 +67,11 @@ inline bool text_to(rapidjson::Document *doc, const std::string &str) {
   return !doc->HasParseError();
 }
 
+inline bool text_to(rapidjson::Document *doc, const char *str) {
+  doc->Parse(str);
+  return !doc->HasParseError();
+}
+
 inline bool text_to(rapidjson::Document::Object *obj, const std::string &str) {
   rapidjson::Document doc;
 

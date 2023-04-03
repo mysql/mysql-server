@@ -54,7 +54,8 @@ class QueryRestTable : private QueryLog {
   using VectorOfRowGroupOwnershp = std::vector<RowGroupOwnership>;
 
  public:
-  virtual void query_entries(MySQLSession *session, const Object &object,
+  virtual void query_entries(MySQLSession *session,
+                             std::shared_ptr<database::entry::Object> object,
                              const ObjectFieldFilter &field_filter,
                              const uint32_t offset, const uint32_t limit,
                              const std::string &url, const std::string &primary,
@@ -79,10 +80,11 @@ class QueryRestTable : private QueryLog {
       const std::vector<RowGroupOwnership> &row_groups,
       const std::set<UniversalId> &user_groups);
 
-  void build_query(const Object &object, const ObjectFieldFilter &field_filter,
-                   const uint32_t offset, const uint32_t limit,
-                   const std::string &url, const std::string &primary,
-                   const RowUserOwnership &user_row, UserId *user_id,
+  void build_query(std::shared_ptr<database::entry::Object> object,
+                   const ObjectFieldFilter &field_filter, const uint32_t offset,
+                   const uint32_t limit, const std::string &url,
+                   const std::string &primary, const RowUserOwnership &user_row,
+                   UserId *user_id,
                    const std::vector<RowGroupOwnership> &row_groups,
                    const std::set<UniversalId> &user_groups,
                    const std::string &query);

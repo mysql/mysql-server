@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2023, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,47 +22,14 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_QUERY_ENTRIES_OBJECT_H_
-#define ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_QUERY_ENTRIES_OBJECT_H_
-
-#include <map>
-#include <memory>
-#include <string>
-#include <tuple>
-#include <vector>
-
 #include "mrs/database/entry/object.h"
-#include "mrs/database/helper/query.h"
 
 namespace mrs {
 namespace database {
+namespace entry {
 
-class QueryEntryObject : private Query {
- public:
-  using Object = entry::Object;
+FieldSource *JoinedTable::base_table() const {}
 
- public:
-  virtual void query_entries(MySQLSession *session, const std::string &schema,
-                             const std::string &schema_object);
-
-  std::shared_ptr<Object> object;
-
- private:
-  void on_row(const Row &r) override;
-
-  void on_reference_row(const Row &r);
-  void on_field_row(const Row &r);
-
-  bool m_loading_references;
-
-  std::map<entry::UniversalId, std::shared_ptr<entry::FieldSource>> m_tables;
-  std::map<entry::UniversalId, std::shared_ptr<entry::Object>> m_objects;
-  std::map<entry::UniversalId, std::vector<std::shared_ptr<entry::JoinedTable>>>
-      m_pending_reduce_to_field;
-  int m_alias_count = 0;
-};
-
+}  // namespace entry
 }  // namespace database
 }  // namespace mrs
-
-#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_QUERY_ENTRIES_OBJECT_H_
