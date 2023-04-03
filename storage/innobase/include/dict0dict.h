@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define dict0dict_h
 
 #include <set>
+#include <vector>
 
 #include <deque>
 #include "data0data.h"
@@ -1287,9 +1288,9 @@ class DDTableBuffer {
   has to delete the returned std::string object by ut::delete_
   @param[in]    id      table id
   @param[out]   version table dynamic metadata version
-  @return the metadata saved in a string object, if nothing, the
-  string would be of length 0 */
-  std::string *get(table_id_t id, uint64_t *version);
+  @return the metadata saved in a vector object, if nothing, the
+  vector would be empty */
+  std::vector<byte> get(table_id_t id, uint64_t *version);
 
  private:
   /** Initialize m_index, the in-memory clustered index of the table
