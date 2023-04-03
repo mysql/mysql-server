@@ -8,6 +8,8 @@ create table ti (b int auto_increment, a int, primary key (a,b)) engine= innodb;
 ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
 create table ti (b int auto_increment, a int, primary key (b,a)) engine= innodb;
 set @@binlog_format=statement;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 *** no warning when autoincrement is the first in PK
 insert into ti set b=null, a=1;
 show warnings;

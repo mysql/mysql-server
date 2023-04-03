@@ -1,3 +1,7 @@
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (a int not null);
 insert into t1 values (1);
@@ -977,6 +981,8 @@ DROP VIEW  view_target2;
 DROP VIEW  view_target3;
 DROP USER  user20989@localhost;
 DROP DATABASE meow;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 #
 # Bug#28836669: Only first set of duplicate columns are reported for INSERT
 #

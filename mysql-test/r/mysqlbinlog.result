@@ -1032,6 +1032,8 @@ set timestamp= default;
 FLUSH LOGS;
 Bug#31611 Security risk with BINLOG statement
 SET BINLOG_FORMAT='ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE DATABASE mysqltest1;
 CREATE USER untrusted@localhost;
 GRANT SELECT ON mysqltest1.* TO untrusted@localhost;
@@ -1056,6 +1058,8 @@ DROP USER untrusted@localhost;
 Bug#32580 mysqlbinlog cannot read binlog event with user variables
 USE test;
 SET BINLOG_FORMAT = STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 FLUSH LOGS;
 CREATE TABLE t1 (a_real FLOAT, an_int INT, a_decimal DECIMAL(5,2), a_string CHAR(32));
 SET @a_real = rand(20) * 1000;

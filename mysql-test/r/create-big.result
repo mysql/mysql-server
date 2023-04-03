@@ -1,3 +1,9 @@
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 drop table if exists t1,t2,t3,t4,t5;
 set debug_sync='RESET';
 set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
@@ -280,3 +286,5 @@ ERROR HY000: Too long enumeration/set value for column col2.
 DROP TABLE t1;
 CREATE TABLE t1 (col SET('1234560123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789'));
 ERROR HY000: Too long enumeration/set value for column col.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

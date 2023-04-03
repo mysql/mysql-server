@@ -4701,6 +4701,8 @@ include/assert.inc [sync_master_info should have source PERSISTED in P_S.variabl
 include/assert.inc [sync_master_info should be 123456 in P_S.persisted_variables]
 include/assert.inc [sync_master_info should not exist in the persist file]
 SET PERSIST binlog_format = 'row';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 RESET PERSIST binlog_format;
 sysvar:
 - name=log_slow_replica_statements
@@ -5511,6 +5513,8 @@ include/assert.inc [sync_master_info should have source PERSISTED in P_S.variabl
 include/assert.inc [sync_master_info should be 123456 in P_S.persisted_variables]
 include/assert.inc [sync_master_info should have value 123456 in the persist file]
 SET PERSIST binlog_format = 'row';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 RESET PERSIST binlog_format;
 sysvar:
 - name=log_slow_replica_statements

@@ -68,10 +68,14 @@ SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
 @@global.max_join_size;
 @@global.optimizer_trace_offset	@@global.activate_all_roles_on_login	@@global.auto_increment_increment	@@global.auto_increment_offset	@@global.binlog_error_action	@@global.binlog_format	@@global.cte_max_recursion_depth	@@global.eq_range_index_dive_limit	@@global.innodb_monitor_disable	@@global.histogram_generation_max_mem_size	@@global.innodb_max_dirty_pages_pct	@@global.init_connect	@@global.max_join_size
 -1	0	1	1	ABORT_SERVER	###	1000	200	NULL	20000000	90.000000		18446744073709551615
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET PERSIST optimizer_trace_offset = default;
 SET PERSIST activate_all_roles_on_login= ON;
 SET PERSIST auto_increment_increment= 4, auto_increment_offset= 2;
 SET PERSIST binlog_error_action= IGNORE_ERROR, binlog_format= ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET PERSIST cte_max_recursion_depth= 4294967295, eq_range_index_dive_limit= 4294967295;
 SET PERSIST innodb_monitor_disable='latch';
 SET PERSIST innodb_max_dirty_pages_pct= 97.3;
@@ -86,6 +90,8 @@ SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
 @@global.max_join_size;
 @@global.optimizer_trace_offset	@@global.activate_all_roles_on_login	@@global.auto_increment_increment	@@global.auto_increment_offset	@@global.binlog_error_action	@@global.binlog_format	@@global.cte_max_recursion_depth	@@global.eq_range_index_dive_limit	@@global.innodb_monitor_disable	@@global.innodb_max_dirty_pages_pct	@@global.init_connect	@@global.max_join_size
 -1	1	4	2	IGNORE_ERROR	###	4294967295	4294967295	latch	97.300000	SET autocommit=0	18446744073709551615
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 activate_all_roles_on_login	ON
@@ -111,6 +117,8 @@ SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
 @@global.max_join_size;
 @@global.optimizer_trace_offset	@@global.activate_all_roles_on_login	@@global.auto_increment_increment	@@global.auto_increment_offset	@@global.binlog_error_action	@@global.binlog_format	@@global.cte_max_recursion_depth	@@global.eq_range_index_dive_limit	@@global.innodb_monitor_disable	@@global.innodb_max_dirty_pages_pct	@@global.init_connect	@@global.max_join_size
 -1	1	4	2	IGNORE_ERROR	###	4294967295	4294967295	latch	97.300000	SET autocommit=0	18446744073709551615
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 activate_all_roles_on_login	ON
@@ -135,6 +143,7 @@ innodb_monitor_disable = default,
 innodb_max_dirty_pages_pct = default, init_connect = default,
 max_join_size = default;
 Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warning	1230	Default value is not defined for this set option. Please specify correct counter or module name.
 #
 # Bug #27629719: SET PERSIST STORES TRUNCATED TIMESTAMPS

@@ -7,6 +7,8 @@ SET @@BINLOG_FORMAT = ROW;
 SELECT @@BINLOG_FORMAT;
 @@BINLOG_FORMAT
 ROW
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 **** Partition RANGE testing ****
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), 
 bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, 

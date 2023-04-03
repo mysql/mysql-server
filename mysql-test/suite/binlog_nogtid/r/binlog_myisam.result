@@ -1,4 +1,6 @@
 SET BINLOG_FORMAT=MIXED;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 RESET MASTER;
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=INNODB;
 INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4),(5,5),(6,6);
@@ -11,6 +13,8 @@ BEGIN;
 UPDATE t1 SET b = a * a WHERE a > 3;
 COMMIT;
 SET BINLOG_FORMAT=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 BEGIN;
 UPDATE t1 SET b = 1*a WHERE a > 1;
@@ -30,6 +34,8 @@ BEGIN;
 UPDATE t1 SET b = 4*a WHERE a > 4;
 COMMIT;
 SET BINLOG_FORMAT=MIXED;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 BEGIN;
 UPDATE t1 SET b = 1*a WHERE a > 1;
@@ -47,6 +53,8 @@ BEGIN;
 UPDATE t1 SET b = 4*a WHERE a > 4;
 COMMIT;
 SET BINLOG_FORMAT='ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 BEGIN;
 UPDATE t1 SET b = 1*a WHERE a > 1;

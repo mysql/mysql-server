@@ -1,3 +1,7 @@
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 ERROR 42000: Unknown storage engine 'EXAMPLE'
 INSTALL PLUGIN example SONAME 'ha_example.so';
@@ -240,6 +244,8 @@ UNINSTALL PLUGIN example;
 DROP USER bug51770@localhost;
 INSTALL PLUGIN example SONAME '../ha_example.so';
 ERROR HY000: No paths allowed for shared library
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 #
 # Bug #28534414: NEGATIVE NUMBERS IN PLUGIN VARIABLES
 #                NOT DISPLAYED CORRECTLY

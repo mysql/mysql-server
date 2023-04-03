@@ -1,5 +1,9 @@
 SET @old_binlog_format=@@binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET BINLOG_FORMAT='ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 RESET MASTER;
 CREATE TABLE t1 (a INT) ENGINE=MyISAM;
 CREATE TABLE t2 (a INT) ENGINE=MyISAM;
@@ -51,6 +55,8 @@ binlog.000001	#	Query	#	#	COMMIT
 binlog.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t1
 DROP TABLE t1,t2;
 SET BINLOG_FORMAT='STATEMENT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 RESET MASTER;
 CREATE TABLE t1 (a INT) ENGINE=MyISAM;
 CREATE TABLE t2 (a INT) ENGINE=MyISAM;
@@ -100,3 +106,5 @@ binlog.000001	#	Query	#	#	COMMIT
 binlog.000001	#	Query	#	#	use `test`; TRUNCATE TABLE t1
 DROP TABLE t1,t2;
 SET BINLOG_FORMAT=@old_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

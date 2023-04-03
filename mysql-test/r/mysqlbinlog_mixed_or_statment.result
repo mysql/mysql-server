@@ -1,3 +1,9 @@
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 #
 # Bug#18913551 - LOCK TABLES USES INCORRECT LOCK FOR IMPLICITLY USED
 #                TABLES.
@@ -24,3 +30,5 @@ SET @@global.concurrent_insert= @org_concurrent_insert;
 DROP TABLE t1;
 DROP VIEW v1;
 DROP FUNCTION f1;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

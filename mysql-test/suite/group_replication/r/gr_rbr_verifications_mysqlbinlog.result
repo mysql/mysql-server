@@ -13,6 +13,8 @@ include/start_and_bootstrap_group_replication.inc
 # Set binlog format on server2.
 [connection server2]
 SET SESSION BINLOG_FORMAT= "ROW";
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 # Create a table t1 without PK on server2(master)
 # and add data to it.
@@ -65,6 +67,8 @@ drop table t2;
 drop table tc3;
 drop table tp3;
 SET SESSION BINLOG_FORMAT= DEFAULT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 [connection server1]
 drop table t1;
 drop table t2;

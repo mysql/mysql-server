@@ -58,6 +58,9 @@ SET PERSIST_ONLY binlog_error_action = @@GLOBAL.binlog_error_action;
 SET PERSIST_ONLY binlog_expire_logs_auto_purge = @@GLOBAL.binlog_expire_logs_auto_purge;
 SET PERSIST_ONLY binlog_expire_logs_seconds = @@GLOBAL.binlog_expire_logs_seconds;
 SET PERSIST_ONLY binlog_format = @@GLOBAL.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY binlog_group_commit_sync_delay = @@GLOBAL.binlog_group_commit_sync_delay;
 SET PERSIST_ONLY binlog_group_commit_sync_no_delay_count = @@GLOBAL.binlog_group_commit_sync_no_delay_count;
 SET PERSIST_ONLY binlog_gtid_simple_recovery = @@GLOBAL.binlog_gtid_simple_recovery;

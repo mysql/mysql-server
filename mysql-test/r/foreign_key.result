@@ -1,4 +1,6 @@
 SET @saved_binlog_format= @@SESSION.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 drop table if exists t_34455;
 create table t_34455 (
 a int not null,
@@ -821,7 +823,11 @@ fk
 NULL
 connection default;
 SET @saved_binlog_format= @@SESSION.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET @@SESSION.binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT fk FROM source;;
 connection con1;
 # Wait until CREATE TABLE is blocked by con1 because of row locks.
@@ -839,6 +845,8 @@ COMMIT;
 connection default;
 # Reap CREATE TABLE
 SET SESSION binlog_format= @saved_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP TABLES child, source;
 # 3.2) CREATE TABLE ... SELECT should upgrade SU lock on parent to X
 #      before commit (i.e eventually X lock should be acquired).
@@ -849,6 +857,8 @@ pk
 1
 connection default;
 SET @@SESSION.binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;;
 connection con1;
 # Wait until CREATE TABLE is blocked by con1 and then resume it.
@@ -856,6 +866,8 @@ COMMIT;
 connection default;
 # Reap CREATE TABLE
 SET SESSION binlog_format= @saved_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 # 3.3) CREATE TABLE ... SELECT for existing table should not acquire
 #      any locks on parent table.
 connection con1;
@@ -863,10 +875,14 @@ CREATE TABLE parent2 (pk INT PRIMARY KEY);
 LOCK TABLE parent2 WRITE;
 connection default;
 SET @@SESSION.binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE IF NOT EXISTS child (fk INT, FOREIGN KEY (fk) REFERENCES parent2(pk)) SELECT NULL AS fk;
 Warnings:
 Note	1050	Table 'child' already exists
 SET SESSION binlog_format= @saved_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 connection con1;
 UNLOCK TABLES;
 connection default;
@@ -879,9 +895,13 @@ LOCK TABLE parent WRITE;
 connection default;
 SET @@lock_wait_timeout= 1;
 SET @@SESSION.binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET SESSION binlog_format= @saved_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET @@lock_wait_timeout= @old_lock_wait_timeout;
 connection con1;
 UNLOCK TABLES;
@@ -894,9 +914,13 @@ pk
 connection default;
 SET @@lock_wait_timeout= 1;
 SET @@SESSION.binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET SESSION binlog_format= @saved_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET @@lock_wait_timeout= @old_lock_wait_timeout;
 connection con1;
 COMMIT;
@@ -906,8 +930,12 @@ DROP TABLE parent;
 #      acquire X on child table.
 SET FOREIGN_KEY_CHECKS=0;
 SET @@SESSION.binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
 SET SESSION binlog_format= @saved_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET FOREIGN_KEY_CHECKS=1;
 connection con1;
 BEGIN;
@@ -958,9 +986,15 @@ SELECT * FROM parent;
 pk
 connection con1;
 SET @saved_binlog_format= @@SESSION.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET @@SESSION.binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE) SELECT NULL AS fk;
 SET SESSION binlog_format= @saved_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 connection default;
 LOCK TABLE parent WRITE;
 connection con1;

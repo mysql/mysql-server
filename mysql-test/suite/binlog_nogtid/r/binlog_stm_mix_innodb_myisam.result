@@ -724,6 +724,8 @@ drop table t1,t2,t3,t4,t5;
 drop function bug27417;
 end of tests
 set @@session.binlog_format=statement;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 create temporary table tt (a int unique);
 create table ti (a int) engine=innodb;
 reset master;
@@ -974,4 +976,7 @@ drop trigger trg_del_t2;
 drop table t1,t2,t3,t4,t5,tt;
 drop function bug27417;
 set @@session.binlog_format=@@global.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 end of tests

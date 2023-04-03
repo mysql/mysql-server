@@ -1,3 +1,9 @@
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 RESET MASTER;
 SET NAMES gbk;
 CREATE TABLE t1 (
@@ -26,3 +32,5 @@ hex(f1)
 DROP PROCEDURE p1;
 DROP TABLE t1;
 DROP TABLE t2;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

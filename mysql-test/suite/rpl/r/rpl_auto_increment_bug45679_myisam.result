@@ -6,6 +6,8 @@ Note	####	Storing MySQL user name or password information in the connection meta
 call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
 create table tm (b int auto_increment, a int, primary key (a,b)) engine= myisam;
 set @@binlog_format=statement;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 *** autoincrement field is not the first in PK warning must be there: ***
 insert into tm set b=null, a=1;
 Warnings:
@@ -31,6 +33,8 @@ Level	Code	Message
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT into autoincrement field which is not the first part in the composed primary key is unsafe.
 set @@binlog_format=mixed;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 insert into tm set b=null, a=2;
 include/sync_slave_sql_with_master.inc
 drop table tm;

@@ -539,6 +539,8 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET d = 10 WHERE b = 10 LIMIT 5;
 SET @binlog_handler_update= IF(@@global.log_bin AND @@global.binlog_format != 'STATEMENT', 1, 0);
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SELECT VARIABLE_VALUE + @binlog_handler_update FROM performance_schema.session_status WHERE VARIABLE_NAME = 'HANDLER_UPDATE';
 VARIABLE_VALUE + @binlog_handler_update
 1

@@ -1,3 +1,7 @@
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='subquery_materialization_cost_based=off';
@@ -13532,3 +13536,5 @@ f1	f2
 14:51:13	S
 DROP TABLE t1, t2;
 set optimizer_switch=default;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
