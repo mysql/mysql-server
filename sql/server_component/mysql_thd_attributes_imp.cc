@@ -50,6 +50,17 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
         *((bool *)inout_pvalue) = t->is_server_upgrade_thread();
       } else if (!strcmp(name, "is_init_file_thread")) {
         *((bool *)inout_pvalue) = t->is_init_file_system_thread();
+      } else if (!strcmp(name, "db")) {
+        if (t->db().str == nullptr) return true;
+        String *res = new String[1];
+        res->copy(t->db().str, t->db().length, &my_charset_utf8mb3_bin);
+        *((my_h_string *)inout_pvalue) = (my_h_string)res;
+      } else if (!strcmp(name, "examined_row_count")) {
+        *((ulonglong *)inout_pvalue) = t->get_examined_row_count();
+      } else if (!strcmp(name, "row_count_func")) {
+        *((longlong *)inout_pvalue) = t->get_row_count_func();
+      } else if (!strcmp(name, "sent_row_count")) {
+        *((ulonglong *)inout_pvalue) = t->get_sent_row_count();
       } else
         return true; /* invalid option */
     }
