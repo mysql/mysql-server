@@ -51,6 +51,8 @@ using mrs_client::Result;
 using mrs_client::Url;
 using Display = http_client::ApplicationDisplay;
 using Request = http_client::Request;
+template <typename T>
+using PrettyWriter = rapidjson::PrettyWriter<T>;
 
 const int kHelpScreenWidth = 1024;
 const int kHelpScreenIdent = 4;
@@ -475,7 +477,7 @@ static void validate_result(Result &result) {
     if (v != &doc) doc.CopyFrom(*v, doc.GetAllocator());
   }
 
-  helper::json::rapid_json_to_text<rapidjson::PrettyWriter>(&doc, result.body);
+  helper::json::rapid_json_to_text<PrettyWriter>(&doc, result.body);
 }
 
 int main(int argc, char *argv[]) {
