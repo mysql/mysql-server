@@ -43,33 +43,62 @@ StmtParamAppendDataForwarder::process() {
 
 stdx::expected<Processor::Result, std::error_code>
 StmtParamAppendDataForwarder::command() {
+  auto *src_channel = connection()->socket_splicer()->client_channel();
+  auto *src_protocol = connection()->client_protocol();
+
   if (auto &tr = tracer()) {
-    tr.trace(Tracer::Event().stage("stmt_param_append_data::command"));
+    // NOTE: as the recv_msg<> of StmtExecute is only called when the tracer is
+    // enabled, handle it the same way with StmtParamAppendData.
+    //
+    auto msg_res = ClassicFrame::recv_msg<
+        classic_protocol::borrowed::message::client::StmtParamAppendData>(
+        src_channel, src_protocol);
+    if (!msg_res) {
+      // discard the recv'ed message as there is ...
+      //
+      // - no server connection to send it to
+      // - and therefore no prepared statement that could be closed on the
+      // server.
+      //
+      // StmtParamAppendData also has no way to report errors.
+      stage(Stage::Done);
+
+      discard_current_msg(src_channel, src_protocol);
+
+      return Result::Again;
+    }
+
+    auto msg = *msg_res;
+
+    tr.trace(
+        Tracer::Event().stage("stmt_param_append_data::command: stmt-id: " +
+                              std::to_string(msg.statement_id()) +
+                              ", param-id: " + std::to_string(msg.param_id())));
+
+    // track that this parameter was already sent.
+    auto it = src_protocol->prepared_statements().find(msg.statement_id());
+    if (it != src_protocol->prepared_statements().end()) {
+      // found
+      if (msg.param_id() < it->second.parameters.size()) {
+        it->second.parameters[msg.param_id()].param_already_sent = true;
+      }
+    }
   }
 
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
-    auto *src_channel = connection()->socket_splicer()->client_channel();
-    auto *src_protocol = connection()->client_protocol();
-
     auto frame_res =
         ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
     if (!frame_res) return recv_client_failed(frame_res.error());
 
     stage(Stage::Done);
 
-    // discard the recv'ed message as there is ...
-    //
-    // - no server connection to send it to
-    // - and therefore no prepared statement that could be closed on the server.
-    //
-    // StmtParamAppendData also has no way to report errors.
     discard_current_msg(src_channel, src_protocol);
 
     return Result::Again;
-  } else {
-    stage(Stage::Done);
-
-    return forward_client_to_server();
   }
+
+  stage(Stage::Done);
+
+  return forward_client_to_server();
 }

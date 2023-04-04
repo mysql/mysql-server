@@ -2408,7 +2408,7 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
           }
           types.emplace_back(type_res->value(), name_res->value());
         } else {
-          types.emplace_back(type_res->value());
+          types.emplace_back(type_res->value(), "");
         }
       }
     } else {
@@ -2430,7 +2430,15 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
         ++byte_pos;
       }
 
-      if (!(nullbits[byte_pos] & (1 << bit_pos))) {
+      // if the data was sent via COM_STMT_SEND_LONG_DATA, there will be no data
+      // for
+      const auto param_already_sent =
+          n < metadata_res->size() ? (*metadata_res)[n].param_already_sent
+                                   : false;
+
+      if (param_already_sent) {
+        values.emplace_back("");  // empty
+      } else if (!(nullbits[byte_pos] & (1 << bit_pos))) {
         stdx::expected<size_t, std::error_code> field_size_res(
             stdx::make_unexpected(
                 make_error_code(std::errc::invalid_argument)));
@@ -2449,8 +2457,9 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
           case field_type::NewDecimal:
           case field_type::Geometry: {
             auto string_field_size_res = accu.template step<bw::VarInt>();
-            if (!accu.result())
+            if (!accu.result()) {
               return stdx::make_unexpected(accu.result().error());
+            }
 
             field_size_res = string_field_size_res->value();
           } break;
@@ -2459,8 +2468,9 @@ class Codec<borrowable::message::client::StmtExecute<Borrowed>>
           case field_type::Timestamp:
           case field_type::Time: {
             auto time_field_size_res = accu.template step<bw::FixedInt<1>>();
-            if (!accu.result())
+            if (!accu.result()) {
               return stdx::make_unexpected(accu.result().error());
+            }
 
             field_size_res = time_field_size_res->value();
           } break;

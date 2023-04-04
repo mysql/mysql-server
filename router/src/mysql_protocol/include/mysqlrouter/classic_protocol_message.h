@@ -1084,15 +1084,22 @@ class StmtExecute {
 
     ParamDef(uint16_t type_and_flags_) : type_and_flags(type_and_flags_) {}
 
-    ParamDef(uint16_t type_and_flags_, string_type name_)
-        : type_and_flags(type_and_flags_), name(std::move(name_)) {}
+    ParamDef(uint16_t type_and_flags_, string_type name_,
+             bool param_already_sent_ = false)
+        : type_and_flags(type_and_flags_),
+          name(std::move(name_)),
+          param_already_sent(param_already_sent_) {}
 
     friend bool operator==(const ParamDef &lhs, const ParamDef &rhs) {
       return lhs.type_and_flags == rhs.type_and_flags && lhs.name == rhs.name;
     }
 
     uint16_t type_and_flags{};
+
     string_type name;
+
+    // param already send via stmt_param_append_data
+    bool param_already_sent{false};
   };
 
   /**

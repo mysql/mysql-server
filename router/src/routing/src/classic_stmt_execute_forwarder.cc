@@ -238,6 +238,16 @@ StmtExecuteForwarder::forward() {
 
   discard_current_msg(src_channel, src_protocol);
 
+  // reset the "param-already-sent" flag for the next time the statement is
+  // executed. It will be set by the stmt_param_append
+  auto stmt_it =
+      src_protocol->prepared_statements().find(msg_res->statement_id());
+  if (stmt_it != src_protocol->prepared_statements().end()) {
+    for (auto &param : stmt_it->second.parameters) {
+      param.param_already_sent = false;
+    }
+  }
+
   stage(Stage::ForwardDone);
   return Result::SendToServer;
 }

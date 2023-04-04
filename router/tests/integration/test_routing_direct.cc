@@ -2171,17 +2171,20 @@ TEST_P(ConnectionTest, classic_protocol_prepare_execute) {
   ASSERT_NO_ERROR(
       cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
 
+  SCOPED_TRACE("// prepare");
   auto res = cli.prepare("SELECT ?");
   ASSERT_NO_ERROR(res);
 
   auto stmt = std::move(res.value());
 
+  SCOPED_TRACE("// bind_params");
   std::array<MYSQL_BIND, 1> params{
       NullParam{},
   };
   ASSERT_NO_ERROR(stmt.bind_params(params));
 
-  // execute again to trigger a StmtExecute with new-params-bound = 1.
+  SCOPED_TRACE(
+      "// execute again to trigger a StmtExecute with new-params-bound = 1.");
   {
     auto exec_res = stmt.execute();
     ASSERT_NO_ERROR(exec_res);
@@ -2191,7 +2194,8 @@ TEST_P(ConnectionTest, classic_protocol_prepare_execute) {
     }
   }
 
-  // execute again to trigger a StmtExecute with new-params-bound = 0.
+  SCOPED_TRACE(
+      "// execute again to trigger a StmtExecute with new-params-bound = 0.");
   {
     auto exec_res = stmt.execute();
     ASSERT_NO_ERROR(exec_res);
@@ -2307,7 +2311,7 @@ TEST_P(ConnectionTest, classic_protocol_prepare_append_data_execute) {
   };
   {
     auto bind_res = stmt.bind_params(params);
-    EXPECT_TRUE(bind_res) << bind_res.error();
+    ASSERT_NO_ERROR(bind_res) << bind_res.error();
   }
 
   // a..b..c..d
@@ -2315,30 +2319,30 @@ TEST_P(ConnectionTest, classic_protocol_prepare_append_data_execute) {
   // longdata: c_string with len
   {
     auto append_res = stmt.append_param_data(0, "a", 1);
-    EXPECT_TRUE(append_res) << append_res.error();
+    ASSERT_NO_ERROR(append_res);
   }
 
   // longdata: string_view
   {
     auto append_res = stmt.append_param_data(0, "b"sv);
-    EXPECT_TRUE(append_res) << append_res.error();
+    ASSERT_NO_ERROR(append_res);
   }
 
   // longdata: string_view from std::string
   {
     auto append_res = stmt.append_param_data(0, std::string("c"));
-    EXPECT_TRUE(append_res) << append_res.error();
+    ASSERT_NO_ERROR(append_res);
   }
 
   // longdata: string_view from c-string
   {
     auto append_res = stmt.append_param_data(0, "d");
-    EXPECT_TRUE(append_res) << append_res.error();
+    ASSERT_NO_ERROR(append_res);
   }
 
   {
     auto exec_res = stmt.execute();
-    EXPECT_TRUE(exec_res) << exec_res.error();
+    ASSERT_NO_ERROR(exec_res);
 
     // may contain multi-resultset
     size_t results{0};
@@ -2371,7 +2375,7 @@ TEST_P(ConnectionTest, classic_protocol_prepare_append_data_execute) {
   // execute again
   {
     auto exec_res = stmt.execute();
-    EXPECT_TRUE(exec_res) << exec_res.error();
+    ASSERT_NO_ERROR(exec_res);
   }
 }
 

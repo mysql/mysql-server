@@ -1465,30 +1465,30 @@ TEST_P(ReuseConnectionTest, classic_protocol_prepare_append_data_execute) {
   // longdata: c_string with len
   {
     auto append_res = stmt.append_param_data(0, "a", 1);
-    EXPECT_NO_ERROR(append_res) << append_res.error();
+    ASSERT_NO_ERROR(append_res);
   }
 
   // longdata: string_view
   {
     auto append_res = stmt.append_param_data(0, "b"sv);
-    EXPECT_NO_ERROR(append_res) << append_res.error();
+    ASSERT_NO_ERROR(append_res);
   }
 
   // longdata: string_view from std::string
   {
     auto append_res = stmt.append_param_data(0, std::string("c"));
-    EXPECT_NO_ERROR(append_res) << append_res.error();
+    ASSERT_NO_ERROR(append_res);
   }
 
   // longdata: string_view from c-string
   {
     auto append_res = stmt.append_param_data(0, "d");
-    EXPECT_NO_ERROR(append_res) << append_res.error();
+    ASSERT_NO_ERROR(append_res);
   }
 
   {
     auto exec_res = stmt.execute();
-    EXPECT_NO_ERROR(exec_res) << exec_res.error();
+    ASSERT_NO_ERROR(exec_res) << exec_res.error();
 
     // may contain multi-resultset
     size_t results{0};
@@ -1521,7 +1521,7 @@ TEST_P(ReuseConnectionTest, classic_protocol_prepare_append_data_execute) {
   // execute again
   {
     auto exec_res = stmt.execute();
-    EXPECT_NO_ERROR(exec_res) << exec_res.error();
+    ASSERT_NO_ERROR(exec_res);
   }
 }
 
