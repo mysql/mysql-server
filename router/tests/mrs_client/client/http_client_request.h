@@ -74,7 +74,7 @@ class HttpClientRequest {
 
   Url *url_;
   IOContext *context_;
-  TlsClientContext ctx_tls_;
+  TlsClientContext ctx_tls_{TlsVerify::NONE};
   HttpClientSession *session_{};
   HttpMethod::type type_;
   std::unique_ptr<HttpClientConnectionBase> connection_;
