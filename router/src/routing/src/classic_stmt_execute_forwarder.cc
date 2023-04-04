@@ -30,6 +30,7 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqld_error.h"  // mysql-server error-codes
+#include "mysqlrouter/classic_protocol_codec_error.h"
 
 stdx::expected<Processor::Result, std::error_code>
 StmtExecuteForwarder::process() {
@@ -69,7 +70,32 @@ StmtExecuteForwarder::command() {
     auto msg_res = ClassicFrame::recv_msg<
         classic_protocol::borrowed::message::client::StmtExecute>(src_channel,
                                                                   src_protocol);
-    if (!msg_res) return recv_client_failed(msg_res.error());
+    if (!msg_res) {
+      auto ec = msg_res.error();
+
+      // parse errors are invalid input.
+      if (ec.category() ==
+          make_error_code(classic_protocol::codec_errc::invalid_input)
+              .category()) {
+        auto send_res =
+            ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+                src_channel, src_protocol,
+                {ER_MALFORMED_PACKET, "Malformed packet", "HY000"});
+        if (!send_res) return send_client_failed(send_res.error());
+
+        const auto &recv_buf = src_channel->recv_plain_view();
+
+        tr.trace(Tracer::Event().stage("stmt_execute::command:\n" +
+                                       mysql_harness::hexify(recv_buf)));
+
+        discard_current_msg(src_channel, src_protocol);
+
+        stage(Stage::Done);
+        return Result::SendToClient;
+      }
+
+      return recv_client_failed(msg_res.error());
+    }
 
     const auto &recv_buf = src_channel->recv_plain_view();
 
