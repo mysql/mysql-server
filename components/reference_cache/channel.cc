@@ -292,7 +292,6 @@ bool channel_imp::service_notification(const char **services,
     }
   }
 
-  bool updated = false;
   mysql_rwlock_rdlock(&LOCK_channels);
   auto release_guard =
       create_scope_guard([&] { mysql_rwlock_unlock(&LOCK_channels); });
@@ -322,7 +321,6 @@ bool channel_imp::service_notification(const char **services,
 
     for (auto channel_iterator = channel_range.first;
          channel_iterator != channel_range.second; ++channel_iterator) {
-      updated = true;
       for (auto &one_implementation : service_iterator.second) {
         auto key = channel_iterator->second->m_service_names.find(
             Service_name_entry{service_iterator.first.c_str(), 0});
@@ -354,79 +352,73 @@ bool channel_imp::service_notification(const char **services,
   }
 
   release_guard.rollback();
-  if (updated) {
-    /*
-      At this point, a service load/unload operation is in progress
-      and at least one channel's ignore list has been updated.
-      Further,
-      - There is no lock on reference caching channels.
-        This will allow reference caching caches to reload
-        new ignore list.
-      - There is no lock on service registry. This will
-        allow reference caching caches to release existing
-        reference and acquire them again.
+  /*
+    At this point, a service load/unload operation is in progress.
+    Further,
+    - There is no lock on reference caching channels.
+      This will allow reference caching caches to reload
+      new ignore list.
+    - There is no lock on service registry. This will
+      allow reference caching caches to release existing
+      reference and acquire them again.
 
-      If there are reference caches created from such channel(s),
-      we should provide them an opportunity to refresh their
-      service references. If this happens *before* we continue
-      with rest of the unload operation, there is good chance of
-      it succeeding.
+    If there are reference caches created from such channel(s),
+    we should provide them an opportunity to refresh their
+    service references. If this happens *before* we continue
+    with rest of the unload operation, there is good chance of
+    it succeeding.
 
-      If unload fails, services provided by these component remain
-      in the ignore lists of corresponding channels. Thus, trying
-      to unload them again at a later point is likely to succeed.
+    If unload fails, services provided by these component remain
+    in the ignore lists of corresponding channels. Thus, trying
+    to unload them again at a later point is likely to succeed.
 
-      Note that this will not impact unload operations of services
-      which are not served by reference caching component.
-    */
-    my_service<SERVICE_TYPE(registry_query)> query("registry_query",
-                                                   mysql_service_registry);
-    if (query.is_valid()) {
-      my_h_service_iterator iter;
-      std::string service_name =
-          unload ? "dynamic_loader_services_unload_notification"
-                 : "dynamic_loader_services_loaded_notification";
-      if (!query->create(service_name.c_str(), &iter)) {
-        while (!query->is_valid(iter)) {
-          const char *implementation_name;
+    Note that this will not impact unload operations of services
+    which are not served by reference caching component.
+  */
+  my_service<SERVICE_TYPE(registry_query)> query("registry_query",
+                                                 mysql_service_registry);
+  if (query.is_valid()) {
+    my_h_service_iterator iter;
+    std::string service_name =
+        unload ? "dynamic_loader_services_unload_notification"
+               : "dynamic_loader_services_loaded_notification";
+    if (!query->create(service_name.c_str(), &iter)) {
+      while (!query->is_valid(iter)) {
+        const char *implementation_name;
 
-          // can't get the name
-          if (query->get(iter, &implementation_name)) break;
+        // can't get the name
+        if (query->get(iter, &implementation_name)) break;
 
-          if (strncmp(implementation_name, service_name.c_str(),
-                      service_name.length())) {
-            break;
-          }
-
-          // not self
-          const char *dot = strchr(implementation_name, '.');
-          if (dot != nullptr && ++dot != nullptr) {
-            if (!strncmp(dot, "reference_caching",
-                         (size_t)(sizeof("reference_caching") - 1))) {
-              if (query->next(iter)) break;
-              continue;
-            }
-          }
-
-          if (unload) {
-            my_service<SERVICE_TYPE(
-                dynamic_loader_services_unload_notification)>
-                unload_notification(implementation_name,
-                                    mysql_service_registry);
-            if (unload_notification.is_valid())
-              (void)unload_notification->notify(services, count);
-          } else {
-            my_service<SERVICE_TYPE(
-                dynamic_loader_services_loaded_notification)>
-                load_notification(implementation_name, mysql_service_registry);
-            if (load_notification.is_valid())
-              (void)load_notification->notify(services, count);
-          }
-
-          if (query->next(iter)) break;
+        if (strncmp(implementation_name, service_name.c_str(),
+                    service_name.length())) {
+          break;
         }
-        query->release(iter);
+
+        // not self
+        const char *dot = strchr(implementation_name, '.');
+        if (dot != nullptr && ++dot != nullptr) {
+          if (!strncmp(dot, "reference_caching",
+                       (size_t)(sizeof("reference_caching") - 1))) {
+            if (query->next(iter)) break;
+            continue;
+          }
+        }
+
+        if (unload) {
+          my_service<SERVICE_TYPE(dynamic_loader_services_unload_notification)>
+              unload_notification(implementation_name, mysql_service_registry);
+          if (unload_notification.is_valid())
+            (void)unload_notification->notify(services, count);
+        } else {
+          my_service<SERVICE_TYPE(dynamic_loader_services_loaded_notification)>
+              load_notification(implementation_name, mysql_service_registry);
+          if (load_notification.is_valid())
+            (void)load_notification->notify(services, count);
+        }
+
+        if (query->next(iter)) break;
       }
+      query->release(iter);
     }
   }
   return false;

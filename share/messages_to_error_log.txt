@@ -12267,6 +12267,12 @@ ER_SERVER_CERT_VERIFY_FAILED
 ER_WARN_CERTIFICATE_ERROR_STRING
   eng "Failed to validate certificate %s because %s"
 
+ER_WARN_SCHEDULED_TASK_RUN_FAILED
+   eng "Scheduled run of task %s failed"
+
+ER_AUDIT_LOG_INVALID_FLUSH_INTERVAL_VALUE
+   eng "Invalid flush interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

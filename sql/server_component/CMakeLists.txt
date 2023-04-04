@@ -75,6 +75,7 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   dynamic_loader_service_notification_imp.cc
   event_tracking_information.cc
   mysql_stored_program_imp.cc
+  mysql_simple_error_log_imp.cc
   )
 
 # This static library is used to build mysqld binary and in some unit test cases
