@@ -15,11 +15,13 @@
 
 --let $mrs_add_db_object=table1
 --let $mrs_add_db_object_path=/t1
+--let $mrs_add_db_object_auto_register_columns=1
 --let $mrs_add_db_object_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
 --source ../include/mrs_add_db_object.inc
 
 --let $mrs_add_db_object=table2
 --let $mrs_add_db_object_path=/t2
+--let $mrs_add_db_object_auto_register_columns=1
 --source ../include/mrs_add_db_object.inc
 
 --sleep 4
