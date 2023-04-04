@@ -63,6 +63,20 @@ eval  INSERT INTO mysql_rest_service_metadata.db_object(
              
 --let $_path=`SELECT CONCAT(s.url_context_root, db.request_path, o.request_path) FROM mysql_rest_service_metadata.db_object as o JOIN mysql_rest_service_metadata.db_schema as db on db.id=o.db_schema_id JOIN mysql_rest_service_metadata.service as s ON  s.id = db.service_id  WHERE o.id=$mrs_sql_id_variable;`
 --echo # Registred DB_OBJECT at path: $_path
+
+if ($mrs_add_db_object_auto_register_columns)
+{
+    if (!$mrs_sql_id_variable_ob)
+    {
+      --let $mrs_sql_id_variable_ob=@object_id
+    }
+    --let $_schema_name=`SELECT name FROM mysql_rest_service_metadata.db_schema WHERE id=$mrs_schema_id_sql_variable`
+    eval SET $mrs_sql_id_variable_ob=mysql_rest_service_metadata.get_sequence_id();
+    eval INSERT INTO mysql_rest_service_metadata.object(id, db_object_id) VALUES($mrs_sql_id_variable_ob, $mrs_sql_id_variable);
+    eval INSERT INTO mysql_rest_service_metadata.object_field(id, name, db_name, object_id, enabled)
+           SELECT mysql_rest_service_metadata.get_sequence_id(), z.cname, z.cname, $mrs_sql_id_variable_ob, true
+           FROM (SELECT COLUMN_NAME as cname FROM information_schema.columns where TABLE_SCHEMA="$_schema_name" and TABLE_NAME="$mrs_add_db_object") as z;
+}
 --enable_query_log
 --enable_result_log
 
@@ -78,5 +92,6 @@ eval  INSERT INTO mysql_rest_service_metadata.db_object(
 --let $mrs_add_db_object_op=
 --let $mrs_add_db_object_format=
 --let $mrs_add_db_object_custom_values=
+--let $mrs_add_db_object_auto_register_columns=
 
 

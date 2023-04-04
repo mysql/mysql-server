@@ -3069,3 +3069,10 @@ GRANT SELECT, INSERT ON `mysql_rest_service_metadata`.`router_session`
 GRANT EXECUTE ON FUNCTION `mysql_rest_service_metadata`.`get_sequence_id`
 	TO 'mysql_rest_service_admin', 'mysql_rest_service_schema_admin', 'mysql_rest_service_meta_provider', 'mysql_rest_service_data_provider';
 
+
+# -----------------------------------------------------
+# Temporary changes (should be removed in review)
+create table mysql_rest_service_metadata.object_field(id BINARY(16) primary key, object_id BINARY(16),parent_reference_id BINARY(16), represents_reference_id BINARY(16), name varchar(255), db_name varchar(255), enabled boolean, allow_filtering boolean);
+create table mysql_rest_service_metadata.object_reference(id BINARY(16), reduce_to_value_of_field_id BINARY(16), reference_mapping json, unnest boolean, crud_operations TEXT);
+create table mysql_rest_service_metadata.object(id BINARY(16), db_object_id BINARY(16));
+
