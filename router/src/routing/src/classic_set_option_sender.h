@@ -22,21 +22,20 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_CLASSIC_STMT_SET_OPTION_FORWARDER_INCLUDED
-#define ROUTING_CLASSIC_STMT_SET_OPTION_FORWARDER_INCLUDED
+#ifndef ROUTING_CLASSIC_SET_OPTION_SENDER_INCLUDED
+#define ROUTING_CLASSIC_SET_OPTION_SENDER_INCLUDED
 
-#include "forwarding_processor.h"
+#include "processor.h"
 
-class SetOptionForwarder : public ForwardingProcessor {
+class SetOptionSender : public Processor {
  public:
-  using ForwardingProcessor::ForwardingProcessor;
+  SetOptionSender(MysqlRoutingClassicConnectionBase *conn, uint16_t option)
+      : Processor(conn), option_{option} {}
 
   enum class Stage {
     Command,
-    Connect,
-    Connected,
     Response,
-    Ok,
+    Eof,
     Error,
     Done,
   };
@@ -48,15 +47,13 @@ class SetOptionForwarder : public ForwardingProcessor {
 
  private:
   stdx::expected<Result, std::error_code> command();
-  stdx::expected<Result, std::error_code> connect();
-  stdx::expected<Result, std::error_code> connected();
   stdx::expected<Result, std::error_code> response();
-  stdx::expected<Result, std::error_code> ok();
+  stdx::expected<Result, std::error_code> eof();
   stdx::expected<Result, std::error_code> error();
 
   Stage stage_{Stage::Command};
 
-  uint16_t option_value_{};
+  uint16_t option_;
 };
 
 #endif
