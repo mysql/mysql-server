@@ -53,6 +53,8 @@ Result BasicAuthentication::do_basic_flow_with_session(
 
   auto result = request.do_request(HttpMethod::Get, url, {});
 
+  if (result.status == HttpStatusCode::NotFound) return result;
+
   if (result.status != HttpStatusCode::TemporaryRedirect)
     throw std::runtime_error(
         "Expected redirection flow, received other status code.");

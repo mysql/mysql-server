@@ -25,9 +25,13 @@
 #ifndef ROUTER_TESTS_HTTP_CLIENT_HTTPCLIENT_CONFIGURATION_H_
 #define ROUTER_TESTS_HTTP_CLIENT_HTTPCLIENT_CONFIGURATION_H_
 
+#include <chrono>
+#include <optional>
 #include <string>
 
 #include "configuration/request.h"
+
+using Seconds = std::chrono::seconds;
 
 namespace http_client {
 
@@ -66,6 +70,7 @@ struct ApplicationConfiguration {
   SessionType session_type{SessionType::kCookie};
   ResponseType response_type{ResponseType::kJson};
   HttpStatusCode::key_type expected_status{HttpStatusCode::Ok};
+  std::optional<Seconds> wait_until_found;
 };
 
 }  // namespace http_client
