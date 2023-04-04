@@ -22,9 +22,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <thread>
 #include <vector>
 
 #include "helper/json/rapid_json_to_text.h"
@@ -264,6 +266,23 @@ std::vector<CmdOption> g_options{
        }
      }},
 
+    {{"--wait-until-found"},
+     "In case when the request fails with code 'NOT-FOUND', this means that"
+     "mysqlrouter might not fetch the data. The refresh timeout is configurable"
+     "in router. Value for this parameter, specifies number of seconds, how "
+     "long the tool should wait"
+     "until the object becomes available.",
+     CmdOptionValueReq::required,
+     "meta_wait",
+     [](const std::string &value) {
+       auto i = atoi(value.c_str());
+       if (i <= 0)
+         throw std::invalid_argument(
+             "Wait timeout should be greater than zero.");
+       g_configuration.wait_until_found = Seconds(i);
+     },
+     [](const std::string &) {}},
+
     {{"--path"},
      "Overwrite the path specified in URL. Using this parameter, user may "
      "split the URL on host part specified in --url and path.",
@@ -393,25 +412,46 @@ std::vector<CmdOption> g_options{
 
 };
 
-static Result execute_http_flow(HttpClientRequest &request, const Url &url) {
-  switch (g_configuration.authentication) {
-    case http_client::AuthenticationType::kNone:
-      return request.do_request(g_configuration.request, url.get_request(),
-                                g_configuration.payload);
+template <typename Duration>
+bool should_retry(Duration start, const Result &r) {
+  auto not_found = r.status == HttpStatusCode::NotFound;
 
-    case http_client::AuthenticationType::kBasic: {
-      mrs_client::BasicAuthentication b;
-      return b.do_basic_flow_with_session(request, g_configuration.url,
-                                          g_configuration.user,
-                                          g_configuration.password);
-    }
-
-    default: {
-      assert(false && "Not implemented");
+  if (g_configuration.wait_until_found.has_value() && not_found) {
+    auto current = Duration::clock::now();
+    if ((current - start) < g_configuration.wait_until_found.value()) {
+      std::this_thread::sleep_for(Seconds(1));
+      return true;
     }
   }
 
-  return {};
+  return false;
+}
+
+static Result execute_http_flow(HttpClientRequest &request, const Url &url) {
+  auto start = std::chrono::steady_clock::now();
+  Result r;
+
+  do {
+    switch (g_configuration.authentication) {
+      case http_client::AuthenticationType::kNone: {
+        r = request.do_request(g_configuration.request, url.get_request(),
+                               g_configuration.payload);
+      } break;
+
+      case http_client::AuthenticationType::kBasic: {
+        mrs_client::BasicAuthentication b;
+        r = b.do_basic_flow_with_session(request, g_configuration.url,
+                                         g_configuration.user,
+                                         g_configuration.password);
+      } break;
+
+      default: {
+        assert(false && "Not implemented");
+      }
+    }
+  } while (should_retry(start, r));
+
+  return r;
 }
 
 rapidjson::SchemaDocument get_json_schema() {
@@ -514,11 +554,13 @@ int main(int argc, char *argv[]) {
     validate_result(result);
 
     print_results(result, result.ok ? display : Display::display_all());
+
+    return result.ok ? EXIT_SUCCESS : EXIT_FAILURE;
   } catch (const std::exception &e) {
     std::cerr << "ERROR: " << e.what() << std::endl << std::endl;
     print_usage();
-    return -1;
+    return EXIT_FAILURE;
   }
 
-  return 0;
+  return EXIT_SUCCESS;
 }
