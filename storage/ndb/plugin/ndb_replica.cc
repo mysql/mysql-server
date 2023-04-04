@@ -31,8 +31,10 @@
 #include <utility>
 
 #include "my_dbug.h"
+#include "ndbapi/Ndb.hpp"
 #include "sql/replication.h"  // Binlog_relay_IO_observer
 #include "storage/ndb/include/ndb_types.h"
+#include "storage/ndb/plugin/ndb_conflict.h"
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_plugin_reference.h"
 
@@ -43,7 +45,7 @@ Ndb_replica::Channel::Channel(std::string channel_name, Uint32 own_server_id,
       m_channel_stats(channel_stats) {
   ndb_log_info("Creating Ndb_replica::Channel: '%s'", m_channel_name.c_str());
   // Update the published channel stats when channel is created. Otherwise the
-  // stats (which are now zero) will not be published untli first commit.
+  // stats (which are now zero) will not be published until first commit.
   copyout_channel_stats();
 }
 
@@ -179,15 +181,84 @@ void Ndb_replica::Channel::update_api_stats(
   }
 }
 
-void Ndb_replica::Channel::copyout_channel_stats() const {
+void Ndb_replica::Channel::copyout_channel_stats() {
   DBUG_TRACE;
+
+  // Protects reading of the instances global variables should more than one
+  // applier attempt to copyout the channel state at the same time
+  std::lock_guard<std::mutex> lock(m_global_mutex);
+
+  // 1) Update this channels info with latest values, this is done for all
+  // channels and these stats can then be queried without any lock. For example
+  // from the p_s.ndb_replication_applier_status table
+  m_info.max_rep_epoch = m_max_rep_epoch.value;
+
+  // NdbApi statistics
+  m_info.api_wait_exec_complete_count =
+      m_total_api_stats[Ndb::WaitExecCompleteCount];
+  m_info.api_wait_scan_result_count =
+      m_total_api_stats[Ndb::WaitScanResultCount];
+  m_info.api_wait_meta_request_count =
+      m_total_api_stats[Ndb::WaitMetaRequestCount];
+  m_info.api_wait_nanos_count = m_total_api_stats[Ndb::WaitNanosCount];
+  m_info.api_bytes_sent_count = m_total_api_stats[Ndb::BytesSentCount];
+  m_info.api_bytes_received_count = m_total_api_stats[Ndb::BytesRecvdCount];
+  m_info.api_trans_start_count = m_total_api_stats[Ndb::TransStartCount];
+  m_info.api_trans_commit_count = m_total_api_stats[Ndb::TransCommitCount];
+  m_info.api_trans_abort_count = m_total_api_stats[Ndb::TransAbortCount];
+  m_info.api_trans_close_count = m_total_api_stats[Ndb::TransCloseCount];
+  m_info.api_pk_op_count = m_total_api_stats[Ndb::PkOpCount];
+  m_info.api_uk_op_count = m_total_api_stats[Ndb::UkOpCount];
+  m_info.api_table_scan_count = m_total_api_stats[Ndb::TableScanCount];
+  m_info.api_range_scan_count = m_total_api_stats[Ndb::RangeScanCount];
+  m_info.api_pruned_scan_count = m_total_api_stats[Ndb::PrunedScanCount];
+  m_info.api_scan_batch_count = m_total_api_stats[Ndb::ScanBatchCount];
+  m_info.api_read_row_count = m_total_api_stats[Ndb::ReadRowCount];
+  m_info.api_trans_local_read_row_count =
+      m_total_api_stats[Ndb::TransLocalReadRowCount];
+  m_info.api_adaptive_send_forced_count =
+      m_total_api_stats[Ndb::ForcedSendsCount];
+  m_info.api_adaptive_send_unforced_count =
+      m_total_api_stats[Ndb::UnforcedSendsCount];
+  m_info.api_adaptive_send_deferred_count =
+      m_total_api_stats[Ndb::DeferredSendsCount];
+
+  // Conflict violation counters
+  m_info.conflict_fn_max = total_violation_counters[CFT_NDB_MAX];
+  m_info.conflict_fn_old = total_violation_counters[CFT_NDB_OLD];
+  m_info.conflict_fn_max_del_win =
+      total_violation_counters[CFT_NDB_MAX_DEL_WIN];
+  m_info.conflict_fn_max_ins = total_violation_counters[CFT_NDB_MAX_INS];
+  m_info.conflict_fn_del_win_ins =
+      total_violation_counters[CFT_NDB_MAX_DEL_WIN_INS];
+  m_info.conflict_fn_epoch = total_violation_counters[CFT_NDB_EPOCH];
+  m_info.conflict_fn_epoch_trans =
+      total_violation_counters[CFT_NDB_EPOCH_TRANS];
+  m_info.conflict_fn_epoch2 = total_violation_counters[CFT_NDB_EPOCH2];
+  m_info.conflict_fn_epoch2_trans =
+      total_violation_counters[CFT_NDB_EPOCH2_TRANS];
+
+  // Other conflict counters
+  m_info.conflict_trans_row_conflict_count = total_trans_row_conflict_count;
+  m_info.conflict_trans_row_reject_count = total_trans_row_reject_count;
+  m_info.conflict_trans_in_conflict_count = total_trans_in_conflict_count;
+  m_info.conflict_trans_detect_iter_count = total_trans_detect_iter_count;
+  m_info.conflict_trans_conflict_commit_count =
+      total_trans_conflict_commit_count;
+  m_info.conflict_epoch_delete_delete_count = total_delete_delete_count;
+  m_info.conflict_reflected_op_prepare_count = total_reflect_op_prepare_count;
+  m_info.conflict_reflected_op_discard_count = total_reflect_op_discard_count;
+  m_info.conflict_refresh_op_count = total_refresh_op_count;
+  m_info.conflict_last_conflict_epoch = m_last_conflicted_epoch;
+  m_info.conflict_last_stable_epoch = m_last_stable_epoch;
+
   if (!m_channel_stats) {
     // Pointer for where to publish stats has not been setup for channel
     return;
   }
 
-  // Copy out global counters and values
-  std::lock_guard<std::mutex> lock(m_global_mutex);
+  // 2) Update the default channels stats with latest value. These values are
+  // then read without any lock. For example using SHOW GLOBAL STATUS
 
   // Epoch related variables
   m_channel_stats->max_rep_epoch = m_max_rep_epoch.value;
@@ -213,9 +284,18 @@ void Ndb_replica::Channel::copyout_channel_stats() const {
   m_channel_stats->api_stats = m_total_api_stats;
 }
 
+const Ndb_replica::Channel_info &Ndb_replica::Channel::get_channel_info_ref()
+    const {
+  DBUG_TRACE;
+  // Return reference to info for this channel whose values can then be read
+  // without locks since using atomic variables
+  return m_info;
+}
+
 extern Ndb_replica::Channel_stats g_default_channel_stats;
 
-bool Ndb_replica::start_channel(std::string channel_name, Uint32 server_id) {
+bool Ndb_replica::start_channel(const std::string &channel_name,
+                                Uint32 server_id) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("channel_name: '%s'", channel_name.c_str()));
   DBUG_PRINT("enter", ("server_id: %d", server_id));
@@ -247,7 +327,7 @@ bool Ndb_replica::start_channel(std::string channel_name, Uint32 server_id) {
   return res.second;
 }
 
-bool Ndb_replica::stop_channel(std::string channel_name) {
+bool Ndb_replica::stop_channel(const std::string &channel_name) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("channel_name: '%s'", channel_name.c_str()));
 
@@ -263,7 +343,7 @@ bool Ndb_replica::stop_channel(std::string channel_name) {
   return true;
 }
 
-bool Ndb_replica::reset_channel(std::string channel_name) {
+bool Ndb_replica::reset_channel(const std::string &channel_name) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("channel_name: '%s'", channel_name.c_str()));
 
@@ -277,7 +357,7 @@ bool Ndb_replica::reset_channel(std::string channel_name) {
 }
 
 Ndb_replica::ChannelPtr Ndb_replica::get_channel(
-    std::string channel_name) const {
+    const std::string &channel_name) const {
   std::lock_guard<std::mutex> lock_channels(m_mutex);
   const auto channel = m_channels.find(channel_name);
   if (channel == m_channels.end()) {
@@ -417,4 +497,11 @@ void Ndb_replica::deinit() {
 
   // Destroy the Ndb_replica instance
   ndb_replica.reset();
+}
+
+void Ndb_replica::get_channel_list(std::vector<ChannelPtr> &list) const {
+  std::lock_guard<std::mutex> lock_channels(m_mutex);
+  for (const auto &entry : m_channels) {
+    list.emplace_back(entry.second);
+  }
 }

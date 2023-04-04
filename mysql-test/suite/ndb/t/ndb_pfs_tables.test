@@ -9,9 +9,14 @@
 SHOW TABLES IN performance_schema LIKE 'ndb%';
 SHOW CREATE TABLE performance_schema.ndb_sync_pending_objects;
 SHOW CREATE TABLE performance_schema.ndb_sync_excluded_objects;
+SHOW CREATE TABLE performance_schema.ndb_replication_applier_status;
 SELECT * FROM performance_schema.ndb_sync_pending_objects;
 SELECT * FROM performance_schema.ndb_sync_excluded_objects;
+SELECT * FROM performance_schema.ndb_replication_applier_status;
 --error ER_TABLEACCESS_DENIED_ERROR
 INSERT INTO performance_schema.ndb_sync_pending_objects VALUES('test','t1','TABLE');
 --error ER_TABLEACCESS_DENIED_ERROR
 INSERT INTO performance_schema.ndb_sync_excluded_objects VALUES('test','t1','TABLE','Excluded');
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.ndb_replication_applier_status
+  (CHANNEL_NAME) VALUES('test');

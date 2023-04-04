@@ -29,6 +29,7 @@ TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE
 information_schema	ndb_transid_mysql_connection_map	SYSTEM VIEW	NULL
 mysql	ndb_apply_status	BASE TABLE	ndbcluster
 mysql	ndb_binlog_index	BASE TABLE	InnoDB
+performance_schema	ndb_replication_applier_status	BASE TABLE	PERFORMANCE_SCHEMA
 performance_schema	ndb_sync_excluded_objects	BASE TABLE	PERFORMANCE_SCHEMA
 performance_schema	ndb_sync_pending_objects	BASE TABLE	PERFORMANCE_SCHEMA
 

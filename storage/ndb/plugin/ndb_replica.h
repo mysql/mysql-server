@@ -46,7 +46,9 @@ class Ndb_replica {
   static constexpr size_t NUM_VIOLATION_COUNTERS = 10;
   static constexpr size_t NUM_API_STATS = 24;
 
-  // Stats that can be observed for an individual Ndb_replica::Channel
+  // Stats that can be observed for an individual Ndb_replica::Channel, this
+  // is only used for the global status which represent the default channel (ie.
+  // channel with name "") which always exist
   struct Channel_stats {
     /* Cumulative counter values */
     std::array<Uint64, NUM_VIOLATION_COUNTERS> violation_count{};
@@ -75,6 +77,58 @@ class Ndb_replica {
     std::array<Uint64, NUM_API_STATS> api_stats{};
   };
 
+  // Channel info for a Ndb_replica::Channel, this is used for all channels.
+  struct Channel_info {
+    std::atomic_uint64_t max_rep_epoch;
+
+    // NdbApi statistics
+    std::atomic_uint64_t api_wait_exec_complete_count;
+    std::atomic_uint64_t api_wait_scan_result_count;
+    std::atomic_uint64_t api_wait_meta_request_count;
+    std::atomic_uint64_t api_wait_nanos_count;
+    std::atomic_uint64_t api_bytes_sent_count;
+    std::atomic_uint64_t api_bytes_received_count;
+    std::atomic_uint64_t api_trans_start_count;
+    std::atomic_uint64_t api_trans_commit_count;
+    std::atomic_uint64_t api_trans_abort_count;
+    std::atomic_uint64_t api_trans_close_count;
+    std::atomic_uint64_t api_pk_op_count;
+    std::atomic_uint64_t api_uk_op_count;
+    std::atomic_uint64_t api_table_scan_count;
+    std::atomic_uint64_t api_range_scan_count;
+    std::atomic_uint64_t api_pruned_scan_count;
+    std::atomic_uint64_t api_scan_batch_count;
+    std::atomic_uint64_t api_read_row_count;
+    std::atomic_uint64_t api_trans_local_read_row_count;
+    std::atomic_uint64_t api_adaptive_send_forced_count;
+    std::atomic_uint64_t api_adaptive_send_unforced_count;
+    std::atomic_uint64_t api_adaptive_send_deferred_count;
+
+    // Conflict violation counters
+    std::atomic_uint64_t conflict_fn_max;
+    std::atomic_uint64_t conflict_fn_old;
+    std::atomic_uint64_t conflict_fn_max_del_win;
+    std::atomic_uint64_t conflict_fn_max_ins;
+    std::atomic_uint64_t conflict_fn_del_win_ins;
+    std::atomic_uint64_t conflict_fn_epoch;
+    std::atomic_uint64_t conflict_fn_epoch_trans;
+    std::atomic_uint64_t conflict_fn_epoch2;
+    std::atomic_uint64_t conflict_fn_epoch2_trans;
+
+    // Other conflict counters
+    std::atomic_uint64_t conflict_trans_row_conflict_count;
+    std::atomic_uint64_t conflict_trans_row_reject_count;
+    std::atomic_uint64_t conflict_trans_in_conflict_count;
+    std::atomic_uint64_t conflict_trans_detect_iter_count;
+    std::atomic_uint64_t conflict_trans_conflict_commit_count;
+    std::atomic_uint64_t conflict_epoch_delete_delete_count;
+    std::atomic_uint64_t conflict_reflected_op_prepare_count;
+    std::atomic_uint64_t conflict_reflected_op_discard_count;
+    std::atomic_uint64_t conflict_refresh_op_count;
+    std::atomic_uint64_t conflict_last_conflict_epoch;
+    std::atomic_uint64_t conflict_last_stable_epoch;
+  };
+
   using Start_channel_func = std::function<bool()>;
 
   Ndb_replica(Start_channel_func func, Channel_stats *default_channel_stats)
@@ -86,7 +140,10 @@ class Ndb_replica {
     const std::string m_channel_name;
     const Uint32 m_own_server_id;
     std::atomic<Uint32> m_applier_id_counter{0};
-    // Pointer to instance where stats will be published
+    // The public info for this Channel
+    Ndb_replica::Channel_info m_info;
+    // Pointer to instance where stats will be published, used only for default
+    // channel (i.e name = "")
     Ndb_replica::Channel_stats *const m_channel_stats;
     // Protects the Channel's global state
     mutable std::mutex m_global_mutex;
@@ -242,14 +299,16 @@ class Ndb_replica {
     void update_api_stats(
         const std::array<Uint64, Ndb_replica::NUM_API_STATS> &diff);
 
-    void copyout_channel_stats() const;
+    void copyout_channel_stats();
+
+    const Ndb_replica::Channel_info &get_channel_info_ref() const;
   };
   using ChannelPtr = std::shared_ptr<Channel>;
 
-  bool start_channel(std::string channel_name, Uint32 server_id);
-  bool stop_channel(std::string channel_name);
-  bool reset_channel(std::string channel_name);
-  ChannelPtr get_channel(std::string channel_name) const;
+  bool start_channel(const std::string &channel_name, Uint32 server_id);
+  bool stop_channel(const std::string &channel_name);
+  bool reset_channel(const std::string &channel_name);
+  ChannelPtr get_channel(const std::string &channel_name) const;
 
   std::size_t num_started_channels() const;
 
@@ -269,6 +328,12 @@ class Ndb_replica {
    */
   static void deinit();
 
+  /**
+     @brief Populate list with pointers to all channels
+     @param list The list to populate
+   */
+  void get_channel_list(std::vector<ChannelPtr> &list) const;
+
  private:
   Start_channel_func const m_start_channel_func;
   Channel_stats *const m_default_channel_stats;
@@ -277,7 +342,8 @@ class Ndb_replica {
   mutable std::mutex m_mutex;
 
   // The list of started channels. Using a reference counting shared_ptr to
-  // avoid destroying the state before Ndb_applier has released it.
+  // avoid destroying the state before Ndb_applier or any P_S tables has
+  // released it.
   std::unordered_map<std::string, ChannelPtr> m_channels;
 };
 

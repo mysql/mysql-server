@@ -1,5 +1,6 @@
 SHOW TABLES IN performance_schema LIKE 'ndb%';
 Tables_in_performance_schema (ndb%)
+ndb_replication_applier_status
 ndb_sync_excluded_objects
 ndb_sync_pending_objects
 SHOW CREATE TABLE performance_schema.ndb_sync_pending_objects;
@@ -17,11 +18,63 @@ ndb_sync_excluded_objects	CREATE TABLE `ndb_sync_excluded_objects` (
   `TYPE` enum('LOGFILE GROUP','TABLESPACE','SCHEMA','TABLE') NOT NULL,
   `REASON` varchar(256) NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE performance_schema.ndb_replication_applier_status;
+Table	Create Table
+ndb_replication_applier_status	CREATE TABLE `ndb_replication_applier_status` (
+  `CHANNEL_NAME` char(64) NOT NULL,
+  `MAX_REPLICATED_EPOCH` bigint unsigned NOT NULL,
+  `API_WAIT_EXEC_COMPLETE_COUNT` bigint unsigned NOT NULL,
+  `API_WAIT_SCAN_RESULT_COUNT` bigint unsigned NOT NULL,
+  `API_WAIT_META_REQUEST_COUNT` bigint unsigned NOT NULL,
+  `API_WAIT_NANOS_COUNT` bigint unsigned NOT NULL,
+  `API_BYTES_SENT_COUNT` bigint unsigned NOT NULL,
+  `API_BYTES_RECEIVED_COUNT` bigint unsigned NOT NULL,
+  `API_TRANS_START_COUNT` bigint unsigned NOT NULL,
+  `API_TRANS_COMMIT_COUNT` bigint unsigned NOT NULL,
+  `API_TRANS_ABORT_COUNT` bigint unsigned NOT NULL,
+  `API_TRANS_CLOSE_COUNT` bigint unsigned NOT NULL,
+  `API_PK_OP_COUNT` bigint unsigned NOT NULL,
+  `API_UK_OP_COUNT` bigint unsigned NOT NULL,
+  `API_TABLE_SCAN_COUNT` bigint unsigned NOT NULL,
+  `API_RANGE_SCAN_COUNT` bigint unsigned NOT NULL,
+  `API_PRUNED_SCAN_COUNT` bigint unsigned NOT NULL,
+  `API_SCAN_BATCH_COUNT` bigint unsigned NOT NULL,
+  `API_READ_ROW_COUNT` bigint unsigned NOT NULL,
+  `API_TRANS_LOCAL_READ_ROW_COUNT` bigint unsigned NOT NULL,
+  `API_ADAPTIVE_SEND_FORCED_COUNT` bigint unsigned NOT NULL,
+  `API_ADAPTIVE_SEND_UNFORCED_COUNT` bigint unsigned NOT NULL,
+  `API_ADAPTIVE_SEND_DEFERRED_COUNT` bigint unsigned NOT NULL,
+  `CONFLICT_FN_MAX` bigint unsigned NOT NULL,
+  `CONFLICT_FN_OLD` bigint unsigned NOT NULL,
+  `CONFLICT_FN_MAX_DEL_WIN` bigint unsigned NOT NULL,
+  `CONFLICT_FN_MAX_INS` bigint unsigned NOT NULL,
+  `CONFLICT_FN_MAX_DEL_WIN_INS` bigint unsigned NOT NULL,
+  `CONFLICT_FN_EPOCH` bigint unsigned NOT NULL,
+  `CONFLICT_FN_EPOCH_TRANS` bigint unsigned NOT NULL,
+  `CONFLICT_FN_EPOCH2` bigint unsigned NOT NULL,
+  `CONFLICT_FN_EPOCH2_TRANS` bigint unsigned NOT NULL,
+  `CONFLICT_TRANS_ROW_CONFLICT_COUNT` bigint unsigned NOT NULL,
+  `CONFLICT_TRANS_ROW_REJECT_COUNT` bigint unsigned NOT NULL,
+  `CONFLICT_TRANS_REJECT_COUNT` bigint unsigned NOT NULL,
+  `CONFLICT_TRANS_DETECT_ITER_COUNT` bigint unsigned NOT NULL,
+  `CONFLICT_TRANS_CONFLICT_COMMIT_COUNT` bigint unsigned NOT NULL,
+  `CONFLICT_EPOCH_DELETE_DELETE_COUNT` bigint unsigned NOT NULL,
+  `CONFLICT_REFLECTED_OP_PREPARE_COUNT` bigint unsigned NOT NULL,
+  `CONFLICT_REFLECTED_OP_DISCARD_COUNT` bigint unsigned NOT NULL,
+  `CONFLICT_REFRESH_OP_COUNT` bigint unsigned NOT NULL,
+  `CONFLICT_LAST_CONFLICT_EPOCH` bigint unsigned NOT NULL,
+  `CONFLICT_LAST_STABLE_EPOCH` bigint unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM performance_schema.ndb_sync_pending_objects;
 SCHEMA_NAME	NAME	TYPE
 SELECT * FROM performance_schema.ndb_sync_excluded_objects;
 SCHEMA_NAME	NAME	TYPE	REASON
+SELECT * FROM performance_schema.ndb_replication_applier_status;
+CHANNEL_NAME	MAX_REPLICATED_EPOCH	API_WAIT_EXEC_COMPLETE_COUNT	API_WAIT_SCAN_RESULT_COUNT	API_WAIT_META_REQUEST_COUNT	API_WAIT_NANOS_COUNT	API_BYTES_SENT_COUNT	API_BYTES_RECEIVED_COUNT	API_TRANS_START_COUNT	API_TRANS_COMMIT_COUNT	API_TRANS_ABORT_COUNT	API_TRANS_CLOSE_COUNT	API_PK_OP_COUNT	API_UK_OP_COUNT	API_TABLE_SCAN_COUNT	API_RANGE_SCAN_COUNT	API_PRUNED_SCAN_COUNT	API_SCAN_BATCH_COUNT	API_READ_ROW_COUNT	API_TRANS_LOCAL_READ_ROW_COUNT	API_ADAPTIVE_SEND_FORCED_COUNT	API_ADAPTIVE_SEND_UNFORCED_COUNT	API_ADAPTIVE_SEND_DEFERRED_COUNT	CONFLICT_FN_MAX	CONFLICT_FN_OLD	CONFLICT_FN_MAX_DEL_WIN	CONFLICT_FN_MAX_INS	CONFLICT_FN_MAX_DEL_WIN_INS	CONFLICT_FN_EPOCH	CONFLICT_FN_EPOCH_TRANS	CONFLICT_FN_EPOCH2	CONFLICT_FN_EPOCH2_TRANS	CONFLICT_TRANS_ROW_CONFLICT_COUNT	CONFLICT_TRANS_ROW_REJECT_COUNT	CONFLICT_TRANS_REJECT_COUNT	CONFLICT_TRANS_DETECT_ITER_COUNT	CONFLICT_TRANS_CONFLICT_COMMIT_COUNT	CONFLICT_EPOCH_DELETE_DELETE_COUNT	CONFLICT_REFLECTED_OP_PREPARE_COUNT	CONFLICT_REFLECTED_OP_DISCARD_COUNT	CONFLICT_REFRESH_OP_COUNT	CONFLICT_LAST_CONFLICT_EPOCH	CONFLICT_LAST_STABLE_EPOCH
 INSERT INTO performance_schema.ndb_sync_pending_objects VALUES('test','t1','TABLE');
 ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'ndb_sync_pending_objects'
 INSERT INTO performance_schema.ndb_sync_excluded_objects VALUES('test','t1','TABLE','Excluded');
 ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'ndb_sync_excluded_objects'
+INSERT INTO performance_schema.ndb_replication_applier_status
+(CHANNEL_NAME) VALUES('test');
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'ndb_replication_applier_status'

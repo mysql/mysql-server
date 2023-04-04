@@ -1,0 +1,61 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+# Show that replication applier status is empty on source
+SELECT COUNT(CHANNEL_NAME)
+FROM performance_schema.ndb_replication_applier_status
+WHERE CHANNEL_NAME = "";
+COUNT(CHANNEL_NAME)
+0
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b VARCHAR(32)
+) engine=ndb;
+INSERT INTO t1 VALUES (1, "row 1");
+include/rpl/sync_to_replica.inc
+[connection slave]
+# Show that replication applier status have one row on replica
+SELECT CHANNEL_NAME
+FROM performance_schema.ndb_replication_applier_status
+WHERE CHANNEL_NAME = "";
+CHANNEL_NAME
+
+# Show some columns that should be not zero
+SELECT API_BYTES_SENT_COUNT != 0, API_BYTES_RECEIVED_COUNT != 0
+FROM performance_schema.ndb_replication_applier_status;
+API_BYTES_SENT_COUNT != 0	1
+API_BYTES_RECEIVED_COUNT != 0	1
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	row 1
+include/rpl/stop_all_replicas.inc
+# Show that replication applier status have one row on replica
+SELECT CHANNEL_NAME
+FROM performance_schema.ndb_replication_applier_status
+WHERE CHANNEL_NAME = "";
+CHANNEL_NAME
+
+include/rpl/start_all_replicas.inc
+include/rpl/stop_all_replicas.inc
+[connection slave]
+include/rpl/reset_replica.inc
+# Show that replication applier status have no rows
+SELECT COUNT(CHANNEL_NAME)
+FROM performance_schema.ndb_replication_applier_status
+WHERE CHANNEL_NAME = "";
+COUNT(CHANNEL_NAME)
+0
+DROP TABLE t1;
+include/rpl/start_all_replicas.inc
+# Show that replication applier status have one row on replica
+SELECT CHANNEL_NAME
+FROM performance_schema.ndb_replication_applier_status
+WHERE CHANNEL_NAME = "";
+CHANNEL_NAME
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc
