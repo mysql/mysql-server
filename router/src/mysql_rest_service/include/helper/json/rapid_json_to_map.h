@@ -49,6 +49,8 @@ class RapidReaderHandlerToMapOfSimpleValues
  public:
   using Map = std::map<std::string, std::string>;
   using Result = Map;
+  constexpr static rapidjson::ParseFlag k_parse_flags{
+      rapidjson::kParseNumbersAsStringsFlag};
 
   RapidReaderHandlerToMapOfSimpleValues(int allowed_levels = 1)
       : allowed_levels_{allowed_levels} {}
@@ -176,6 +178,9 @@ class ExtractSubObjectHandler
   using Ch = typename Base::Ch;
 
  public:
+  constexpr static rapidjson::ParseFlag k_parse_flags{
+      rapidjson::kParseNumbersAsStringsFlag};
+
   using Result = typename SubHandler::Result;
 
   ExtractSubObjectHandler(const std::string &key, SubHandler &sub_handler)

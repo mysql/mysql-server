@@ -48,6 +48,9 @@ class RapidReaderHandlerToStruct
     : public rapidjson::BaseReaderHandler<
           rapidjson::UTF8<>, RapidReaderHandlerToStruct<UserResult>> {
  public:
+  constexpr static rapidjson::ParseFlag k_parse_flags{
+      rapidjson::kParseNumbersAsStringsFlag};
+
   using Handler = RapidReaderHandlerToStruct<UserResult>;
   using Parent =
       rapidjson::BaseReaderHandler<rapidjson::UTF8<>,
@@ -61,6 +64,7 @@ class RapidReaderHandlerToStruct
   const UserResult &get_result() { return result_; }
 
   virtual bool on_new_value() {
+    ++values_processed_;
     auto &pk = get_parent_key();
     if (pk.is_array) {
       key_.name = std::to_string(pk.array_idx++);
@@ -87,8 +91,6 @@ class RapidReaderHandlerToStruct
     return true;
   }
 
-  // Ignoring following methods because, parser should be configured to call
-  // "RawNumber" method.
   virtual bool Int(int) {
     on_new_value();
     return true;
@@ -114,6 +116,10 @@ class RapidReaderHandlerToStruct
     return true;
   }
 
+  virtual void empty_object() {}
+
+  virtual void empty_array() {}
+
   /// enabled via kParseNumbersAsStringsFlag, string is not null-terminated (use
   /// length)
   virtual bool RawNumber(const Ch *, rapidjson::SizeType, bool) {
@@ -123,7 +129,9 @@ class RapidReaderHandlerToStruct
 
   bool StartObject() {
     on_new_value();
-    keys_.push_back(key_);
+    auto k = key_;
+    k.processed = values_processed_;
+    keys_.push_back(k);
     ++level_;
     return true;
   }
@@ -134,6 +142,7 @@ class RapidReaderHandlerToStruct
       auto &b = keys_.back();
       if (level_ == b.level) {
         keys_.pop_back();
+        if (b.processed == values_processed_) empty_object();
       }
     }
 
@@ -152,6 +161,7 @@ class RapidReaderHandlerToStruct
     auto k = key_;
     k.is_array = true;
     k.array_idx = 1;
+    k.processed = values_processed_;
     keys_.push_back(k);
 
     ++level_;
@@ -166,6 +176,7 @@ class RapidReaderHandlerToStruct
       auto &b = keys_.back();
       if (level_ == b.level) {
         keys_.pop_back();
+        if (b.processed == values_processed_) empty_array();
       }
     }
     return true;
@@ -188,16 +199,27 @@ class RapidReaderHandlerToStruct
     }
     return result + key_.name;
   }
+
   const std::string separator_;
 
- private:
   struct KeyValue {
     std::string name;
     bool is_array{false};
     int array_idx{0};
     int level;
+    bool leaf{false};
+    uint64_t processed{0};
   };
 
+  std::list<KeyValue> get_keys() const {
+    auto keys = keys_;
+    auto key = key_;
+    key.leaf = true;
+    keys.push_back(key);
+    return keys;
+  }
+
+ private:
   KeyValue &get_parent_key() {
     if (keys_.empty()) {
       static KeyValue k_empty;
@@ -207,6 +229,7 @@ class RapidReaderHandlerToStruct
     return keys_.back();
   }
 
+  uint64_t values_processed_{0};
   std::list<KeyValue> keys_;
   KeyValue key_;
   int level_{0};

@@ -42,6 +42,7 @@
 #include "client/http_client_request.h"
 #include "client/session.h"
 #include "configuration/application_configuration.h"
+#include "json/json_copy_pointers.h"
 
 #include <rapidjson/pointer.h>
 #include <rapidjson/prettywriter.h>
@@ -507,14 +508,18 @@ static void validate_result(Result &result) {
   }
 
   if (!g_configuration.json_pointer.empty()) {
-    auto v = rapidjson::GetValueByPointer(
-        doc, rapidjson::Pointer(g_configuration.json_pointer[0].c_str()));
-    if (!v) {
+    json::JsonCopyPointers jcp{g_configuration.json_pointer};
+    doc.Accept(jcp);
+    auto not_matched = jcp.get_not_matched_pointers();
+    if (jcp.get_document().IsNull() || !not_matched.empty()) {
       result.ok = false;
       std::cerr << "ERROR: JSON pointer points to not existing node.\n";
+      for (auto &s : not_matched) {
+        std::cerr << "ERROR: Problem with pointer: " << s << std::endl;
+      }
       return;
     }
-    if (v != &doc) doc.CopyFrom(*v, doc.GetAllocator());
+    doc.CopyFrom(jcp.get_document(), doc.GetAllocator());
   }
 
   helper::json::rapid_json_to_text<PrettyWriter>(&doc, result.body);
