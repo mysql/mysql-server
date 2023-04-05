@@ -138,6 +138,7 @@ struct mysql_event_general
   MYSQL_LEX_CSTRING              general_sql_command;
   MYSQL_LEX_CSTRING              general_external_user;
   MYSQL_LEX_CSTRING              general_ip;
+  MYSQL_LEX_CSTRING              general_database;
   unsigned long long             general_examined_row_count;
   unsigned long long             general_affected_row_count;
   unsigned long long             general_return_row_count;
