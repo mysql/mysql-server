@@ -156,6 +156,7 @@ ClassicFrame::recv_msg<
 
         return params;
       });
+  if (!decode_res) return stdx::make_unexpected(decode_res.error());
 
   return decode_res->second;
 }
