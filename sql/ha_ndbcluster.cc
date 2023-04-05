@@ -1110,7 +1110,7 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
         my_snprintf(msg, sizeof(msg), "Executing extra operations for "
                     "conflict handling hit Ndb error %d '%s'",
                     nonMaskedError.code, nonMaskedError.message);
-        push_warning_printf(current_thd, Sql_condition::SL_ERROR,
+        push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                             ER_EXCEPTIONS_WRITE_ERROR,
                             ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
         /* Slave will stop replication. */
