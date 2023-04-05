@@ -2448,7 +2448,9 @@ dberr_t row_update_for_mysql(const byte *mysql_rec, row_prebuilt_t *prebuilt) {
   if (prebuilt->table->is_intrinsic()) {
     return (row_del_upd_for_mysql_using_cursor(prebuilt));
   } else {
-    ut_a(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW);
+    ut_a(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW ||
+         (dict_table_get_n_v_cols(prebuilt->table) > 0 &&
+          prebuilt->read_just_key));
     return (row_update_for_mysql_using_upd_graph(mysql_rec, prebuilt));
   }
 }
