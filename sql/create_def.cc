@@ -327,7 +327,6 @@ void Unique_symbol_map::insert(const std::string &symbol_line) {
       "_VInfreq_?",  // special label (exception handler?) for Intel compiler
       "?_E",         // vector deleting destructor
       "<lambda_",    // anything that is lambda-related
-      "??$forward",  // std::forward template instantiations
   };
   if (symbol_line.find("External") == std::string::npos) {
     return;
@@ -372,16 +371,23 @@ void Unique_symbol_map::insert(const std::string &symbol_line) {
   }
   // Extract the actual symbol name we care about and check it's not on list of
   // compiler's symbols.
-  std::string &symbol = columns[index + 1];
+  auto &symbol = columns[index + 1];
   for (auto &compiler_symbol : compiler_symbols) {
     if (symbol.find(compiler_symbol) != std::string::npos) {
       return;
     }
   }
+
   // Check if we have function or data.
   if (symbol_line.find("notype () ") == std::string::npos) {
     symbol.append(" DATA");
   }
+
+  // Check if this is a function inside the std namespace
+  if (symbol_line.find(" __cdecl std::") != std::string::npos) {
+    return;
+  }
+
   // Check if this symbol was seen before.
   auto res = m_symbols_seen.emplace(symbol);
   if (res.second) {
