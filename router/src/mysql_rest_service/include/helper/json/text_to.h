@@ -59,9 +59,7 @@ bool text_to(Handler *handler, const Container &c) {
       reinterpret_cast<const char *>(&*c.begin()), c.size()};
   rapidjson::Reader read;
 
-  return !read.Parse<rapidjson::kParseNumbersAsStringsFlag>(memory_stream,
-                                                            *handler)
-              .IsError();
+  return !read.Parse<Handler::k_parse_flags>(memory_stream, *handler).IsError();
 }
 
 inline bool text_to(rapidjson::Document *doc, const std::string &str) {
