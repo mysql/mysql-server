@@ -826,6 +826,30 @@ WHERE pedcompralote IN (SELECT cod FROM t2 WHERE ped=1779);
 
 DROP TABLE t1, t2;
 
+--echo # outer query has DEFAULT: verify it is handled correctly
+CREATE TABLE t(i INT DEFAULT 5);
+INSERT INTO t VALUES (4);
+
+let $query =
+SELECT DEFAULT(i) AS def,
+       5 + DEFAULT(i) AS def2,
+       i AS any_v,
+       (SELECT i FROM t) AS subquery,
+       SUM(i) AS summ
+FROM t;
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+eval $query;
+
+SET SQL_MODE='';
+
+eval $query;
+eval EXPLAIN $query;
+
+SET SQL_MODE=default;
+
+DROP TABLE t;
+
 --echo #
 --echo # 6.  S U B Q U E R Y   I N   H A V I N G   C L A U S E
 --echo #
@@ -2392,6 +2416,24 @@ FROM t AS t1,
      (SELECT 1 FROM t) AS t2,
      t AS t3
 ORDER BY ROW_NUMBER() OVER (ORDER BY -t3.x);
+
+SET SQL_MODE=default;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#35150085 Wrong item name in result set after transform
+--echo #
+
+SET SQL_MODE='';
+
+CREATE TABLE t(i INT);
+INSERT INTO t VALUES (4);
+
+SELECT i AS i1,  # used to get renamed to i2
+       i AS i2,
+       (SELECT i FROM t) AS subquery,
+       SUM(i) AS summ
+FROM t;
 
 SET SQL_MODE=default;
 DROP TABLE t;

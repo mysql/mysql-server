@@ -87,7 +87,6 @@
 #include "template_utils.h"
 #include "typelib.h"
 #include "unsafe_string_append.h"
-
 using std::max;
 using std::min;
 using std::string;
@@ -6145,7 +6144,57 @@ Item *Item_field::equal_fields_propagator(uchar *arg) {
 Item *Item_field::replace_item_field(uchar *arg) {
   auto *info = pointer_cast<Item::Item_field_replacement *>(arg);
 
-  if (field == info->m_target) {
+  if (field == info->m_target &&
+      info->m_default_value !=
+          Item::Item_field_replacement::Mode::DEFAULT_VALUE) {
+    if (info->m_curr_block == info->m_trans_block) return info->m_item;
+
+    // The field is an outer reference, so we cannot reuse transformed query
+    // block's Item_field; make a new one for this query block
+    THD *const thd = current_thd;
+    Item_field *outer_field = new (thd->mem_root) Item_field(thd, info->m_item);
+    if (outer_field == nullptr) return nullptr; /* purecov: inspected */
+    outer_field->depended_from = info->m_trans_block;
+    outer_field->context = &info->m_curr_block->context;
+    return outer_field;
+  }
+
+  return this;
+}
+
+bool Item_default_value::collect_item_field_or_view_ref_processor(uchar *argp) {
+  Collect_item_fields_or_view_refs *info =
+      pointer_cast<Collect_item_fields_or_view_refs *>(argp);
+  if (info->is_stopped(this)) return false;
+
+  List_iterator<Item> item_list_it(*info->m_item_fields_or_view_refs);
+  Item *curr_item;
+  while ((curr_item = item_list_it++)) {
+    if (this->eq(curr_item, true)) return false; /* Already in the set. */
+  }
+  info->m_item_fields_or_view_refs->push_back(this);
+  return false;
+}
+
+/**
+  If this default value is the target of replacement, replace it
+  with the info object's item or, if the item is found inside a subquery, the
+  target is an outer reference, so we create a new \c Item_field, mark it
+  accordingly and replace with that instead.
+
+  @param argp  An info object of type Item::Item_field_replacement.
+  @returns the resulting item, replaced or not, or nullptr if error
+*/
+
+Item *Item_default_value::replace_item_field(uchar *argp) {
+  auto *info = pointer_cast<Item::Item_field_replacement *>(argp);
+  if (info->m_default_value == Item::Item_field_replacement::Mode::CONFLATE)
+    return Item_field::Item::replace_item_field(argp);
+
+  Item_field *f = down_cast<Item_field *>(this->arg->real_item());
+  if (f->field == info->m_target &&
+      info->m_default_value ==
+          Item::Item_field_replacement::Mode::DEFAULT_VALUE) {
     if (info->m_curr_block == info->m_trans_block) return info->m_item;
 
     // The field is an outer reference, so we cannot reuse transformed query
