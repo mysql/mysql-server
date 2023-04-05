@@ -3286,17 +3286,45 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
   ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
 
   Scope_guard restore_at_end{[this]() {
-    MysqlClient admin_cli;
+    auto reset_globals = [this]() -> stdx::expected<void, MysqlError> {
+      auto admin_account = SharedServer::admin_account();
 
-    auto admin_account = SharedServer::admin_account();
+      MysqlClient admin_cli;
 
-    admin_cli.username(admin_account.username);
-    admin_cli.password(admin_account.password);
+      admin_cli.username(admin_account.username);
+      admin_cli.password(admin_account.password);
 
-    ASSERT_NO_ERROR(admin_cli.connect(shared_router()->host(),
-                                      shared_router()->port(GetParam())));
+      auto connect_res = admin_cli.connect(shared_router()->host(),
+                                           shared_router()->port(GetParam()));
+      if (!connect_res) return stdx::make_unexpected(connect_res.error());
 
-    ASSERT_NO_ERROR(admin_cli.query("SET GLOBAL max_connections = DEFAULT"));
+      auto query_res = admin_cli.query("SET GLOBAL max_connections = DEFAULT");
+      if (!query_res) return stdx::make_unexpected(query_res.error());
+
+      return {};
+    };
+
+    // it may take a while until the last connection of the test is closed
+    // before this admin connection can be opened to reset the globals again.
+    auto end_time = std::chrono::steady_clock::now() + 1s;
+
+    while (true) {
+      auto reset_res = reset_globals();
+      if (!reset_res) {
+        auto ec = reset_res.error();
+
+        // wait a bit until all connections are closed.
+        //
+        // 1040 is Too many connections.
+        if (ec.value() == 1040 && std::chrono::steady_clock::now() < end_time) {
+          std::this_thread::sleep_for(20ms);
+          continue;
+        }
+      }
+
+      ASSERT_NO_ERROR(reset_res);
+      break;
+    }
   }};
 
   SCOPED_TRACE("// testing");
