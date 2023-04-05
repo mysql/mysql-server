@@ -461,6 +461,7 @@ DROP DATABASE db1;
 DROP DATABASE db2;
 DROP DATABASE db3;
 DROP DATABASE db1_1gb;
+WARNING: mysqlpump is deprecated and will be removed in a future version. Use mysqldump instead.
 SHOW VARIABLES LIKE "master_info_repository";
 Variable_name	Value
 master_info_repository	TABLE

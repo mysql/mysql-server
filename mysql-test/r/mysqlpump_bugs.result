@@ -2,10 +2,12 @@
 # Bug#23102944: MYSQLPUMP LEAKS MEMORY IN CASE OF ERRORS.
 #
 # testing a failed connection: must not crash
+WARNING: mysqlpump is deprecated and will be removed in a future version. Use mysqldump instead.
 mysqlpump: Got error: 2005: Unknown MySQL server host 'non_existent_ghost' (errno) while connecting to the MySQL server
 mysqlpump: [ERROR] (11) 
 Dump process encountered error and will not continue.
 # testing an invalid option: must not crash
+WARNING: mysqlpump is deprecated and will be removed in a future version. Use mysqldump instead.
 mysqlpump: [ERROR] unknown variable 'parallelism=3'.
 mysqlpump: [ERROR] (7) Error during handling options
 Dump process encountered error and will not continue.
