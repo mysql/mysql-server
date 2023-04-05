@@ -905,14 +905,11 @@ static inline int check_completed_operations_pre_commit(
         /* Slave will roll back and retry entire transaction. */
         ERR_RETURN(nonMaskedError);
       } else {
-        char msg[FN_REFLEN];
-        snprintf(msg, sizeof(msg),
-                 "Executing extra operations for "
-                 "conflict handling hit Ndb error %d '%s'",
-                 nonMaskedError.code, nonMaskedError.message);
-        push_warning_printf(
-            current_thd, Sql_condition::SL_ERROR, ER_EXCEPTIONS_WRITE_ERROR,
-            ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
+        thd_ndb->push_ndb_error_warning(nonMaskedError);
+        thd_ndb->push_warning(
+            ER_EXCEPTIONS_WRITE_ERROR,
+            ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR),
+            "Failed executing extra operations for conflict handling");
         /* Slave will stop replication. */
         return ER_EXCEPTIONS_WRITE_ERROR;
       }
