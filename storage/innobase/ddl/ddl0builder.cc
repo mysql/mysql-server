@@ -661,9 +661,16 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
 
     m_thread_ctxs.push_back(thread_ctx);
 
-    if (!thread_ctx->m_aligned_buffer.allocate(buffer_size.second)) {
+    thread_ctx->m_aligned_buffer =
+        ut::make_unique_aligned<byte[]>(ut::make_psi_memory_key(mem_key_ddl),
+                                        UNIV_SECTOR_SIZE, buffer_size.second);
+
+    if (!thread_ctx->m_aligned_buffer) {
       return DB_OUT_OF_MEMORY;
     }
+
+    thread_ctx->m_io_buffer = {thread_ctx->m_aligned_buffer.get(),
+                               buffer_size.second};
 
     if (is_spatial_index()) {
       thread_ctx->m_rtree_inserter = ut::new_withkey<RTree_inserter>(
@@ -1511,7 +1518,7 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
 
     thread_ctx->m_offsets.push_back(file.m_size);
 
-    auto io_buffer = thread_ctx->m_aligned_buffer.io_buffer();
+    auto io_buffer = thread_ctx->m_io_buffer;
 
     err = key_buffer->serialize(io_buffer, persistor);
 
