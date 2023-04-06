@@ -29,6 +29,7 @@
 #include <ndb_limits.h>
 #include <ErrorReporter.hpp>
 #include <NdbOut.hpp>
+#include "debugger/EventLogger.hpp"
 #include "Pool.hpp"
 
 #define JAM_FILE_ID 274

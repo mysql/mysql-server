@@ -50,13 +50,12 @@
 // primary key is stored in TUP
 #include "../dbtup/Dbtup.hpp"
 #include "../dbacc/Dbacc.hpp"
-#include "../dbtux/Dbtux.hpp"
-#include "../backup/Backup.hpp"
 #include "../restore.hpp"
 
 #include "TransientPool.hpp"
 #include "TransientSlotPool.hpp"
 
+class Backup;
 class Dbacc;
 class Dbtup;
 class Dbtux;

@@ -31,6 +31,7 @@ Name:          Ndb.cpp
 
 #include "API.hpp"
 #include <md5_hash.hpp>
+#include "my_config.h"
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
 #include <ndb_limits.h>

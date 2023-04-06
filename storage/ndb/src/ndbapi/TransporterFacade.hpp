@@ -38,6 +38,7 @@
 #include "trp_buffer.hpp"
 #include "my_thread.h"
 #include "NdbApiSignal.hpp"
+#include "transporter/TransporterCallback.hpp"
 
 class ClusterMgr;
 class ArbitMgr;

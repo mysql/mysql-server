@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "ndb_config.h"
 #include "util/require.h"
 #include <ndb_global.h>
 
@@ -349,6 +350,18 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
   }
   theMultiTransporterMutex = NdbMutex_Create();
   DBUG_VOID_RETURN;
+}
+
+Uint32 TransporterRegistry::get_total_spintime() const
+{
+   assert(receiveHandle != nullptr);
+   return receiveHandle->m_total_spintime;
+}
+
+void TransporterRegistry::reset_total_spintime() const
+{
+  assert(receiveHandle != nullptr);
+  receiveHandle->m_total_spintime = 0;
 }
 
 void TransporterRegistry::set_mgm_handle(NdbMgmHandle h)

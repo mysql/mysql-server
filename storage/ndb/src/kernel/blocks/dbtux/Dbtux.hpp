@@ -36,7 +36,6 @@
 
 // big brother
 #include <dbtup/Dbtup.hpp>
-#include <dblqh/Dblqh.hpp>
 #include <dbacc/Dbacc.hpp>
 
 // packed index keys and bounds
@@ -71,6 +70,7 @@
 
 class Configuration;
 struct mt_BuildIndxCtx;
+class Dblqh;
 
 class Dbtux : public SimulatedBlock {
   friend class Dbqtux;

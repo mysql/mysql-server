@@ -23,6 +23,7 @@
 */
 
 
+#include "ndb_config.h"
 #include "util/require.h"
 #include <TransporterRegistry.hpp>
 #include <TransporterCallback.hpp>

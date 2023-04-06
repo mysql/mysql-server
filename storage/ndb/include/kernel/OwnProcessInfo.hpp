@@ -25,6 +25,8 @@
 #ifndef NDB_OWNPROCESSINFO_HPP
 #define NDB_OWNPROCESSINFO_HPP
 
+#include "ndb_types.h"
+
 class ProcessInfo;
 
 void setOwnProcessInfoAngelPid(Uint32);

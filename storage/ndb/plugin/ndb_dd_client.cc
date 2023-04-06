@@ -29,6 +29,7 @@
 #include <iostream>
 
 #include "my_dbug.h"
+#include "my_psi_config.h"         // HAVE_PSI_SP_INTERFACE
 #include "sql/auth/auth_common.h"  // check_readonly()
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dd.h"

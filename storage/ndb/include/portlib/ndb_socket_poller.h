@@ -25,6 +25,7 @@
 #ifndef NDB_SOCKET_POLLER_H
 #define NDB_SOCKET_POLLER_H
 
+#include <assert.h>
 #include "portlib/ndb_socket.h"
 
 /*

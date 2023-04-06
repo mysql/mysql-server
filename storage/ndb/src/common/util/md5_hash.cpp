@@ -24,6 +24,7 @@
 
 
 #include "md5_hash.hpp"
+#include "my_config.h"
 
 #include <string.h>       // memcpy()
 #include <my_compiler.h>  // likely

@@ -36,6 +36,9 @@
 #ifndef TransporterRegistry_H
 #define TransporterRegistry_H
 
+#include <assert.h>
+#include "ndb_config.h"
+
 #if defined(HAVE_EPOLL_CREATE)
 #include <sys/epoll.h>
 #endif
@@ -191,7 +194,9 @@ struct TransporterReceiveData
   ndb_socket_poller m_socket_poller;
 };
 
-#include "TransporterCallback.hpp"
+class TransporterCallback;
+class TransporterReceiveHandle;
+class TransporterSendBufferHandle;
 
 /**
  * @class TransporterRegistry
@@ -733,16 +738,9 @@ public:
     assert(receiveHandle != nullptr);
     update_connections(* receiveHandle);
   }
-  inline Uint32 get_total_spintime()
-  {
-    assert(receiveHandle != nullptr);
-    return receiveHandle->m_total_spintime;
-  }
-  inline void reset_total_spintime()
-  {
-    assert(receiveHandle != nullptr);
-    receiveHandle->m_total_spintime = 0;
-  }
+
+  Uint32 get_total_spintime() const;
+  void reset_total_spintime() const;
 
   TrpId getTransporterIndex(Transporter* t);
   void set_recv_thread_idx(Transporter* t, Uint32 recv_thread_idx);

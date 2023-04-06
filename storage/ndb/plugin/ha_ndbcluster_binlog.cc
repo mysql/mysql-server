@@ -27,6 +27,7 @@
 #include <unordered_map>
 
 #include "m_string.h"
+#include "my_config.h"  // WORDS_BIGENDIAN
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "mysql/plugin.h"

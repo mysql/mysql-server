@@ -26,6 +26,10 @@
 #define NDB_PROCESSINFO_HPP
 
 
+#include <stddef.h>  // size_t
+#include "ndb_types.h"
+#include "portlib/ndb_socket.h"  // socklen_t
+
 /* Forward Declarations */
 class ProcessInfoRep;
 

@@ -35,6 +35,7 @@
 #include <sstream>
 #include <string>
 
+#include "my_config.h"  // WORDS_BIGENDIAN
 #include "my_dbug.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/strings/m_ctype.h"

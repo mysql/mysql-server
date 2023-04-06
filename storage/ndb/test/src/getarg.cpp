@@ -22,9 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <ndb_global.h>
-
+#include "my_config.h"
 #include <time.h>
-
 #include "getarg.h"
 
 #ifndef HAVE_STRLCPY

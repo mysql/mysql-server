@@ -23,6 +23,8 @@
 #ifndef NDBD_HPP
 #define NDBD_HPP
 
+#include <stddef.h> // size_t
+
 #define JAM_FILE_ID 218
 
 
