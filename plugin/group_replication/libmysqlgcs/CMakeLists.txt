@@ -140,7 +140,9 @@ SET(GCS_SOURCES
   ${BUNDLED_LZ4_PATH}/xxhash.c # required by gcs_message_stage_split
   src/bindings/xcom/gcs_message_stage_split.cc
   src/bindings/xcom/gcs_xcom_synode.cc
-  src/bindings/xcom/gcs_xcom_expels_in_progress.cc)
+  src/bindings/xcom/gcs_xcom_expels_in_progress.cc
+  src/bindings/xcom/gcs_xcom_statistics_manager.cc
+  src/bindings/xcom/gcs_xcom_statistics_storage_impl.cc)
 
 ### Configuration ###
 

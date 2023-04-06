@@ -14,6 +14,8 @@ include/rpl_sync.inc
 ############################################################
 # 02. Lock table t1 on server2 to block a future update.
 [connection server_2]
+include/assert.inc ['There were 0 transactions with group_replication_consistency=BEFORE']
+include/assert.inc ['There was no wait time on transactions with group_replication_consistency=BEFORE']
 LOCK table t1 READ;
 
 ############################################################
@@ -78,14 +80,23 @@ include/assert.inc ['There is a 99 in table t2']
 include/rpl_sync.inc
 [connection server2]
 include/assert.inc ['There is a 2 in table t2']
+include/assert.inc ['There were 2 transactions with group_replication_consistency=BEFORE']
+include/assert.inc ['There was wait time on transactions with group_replication_consistency=BEFORE']
+include/assert.inc ['There was 1 data messages sent']
 [connection server1]
 include/assert.inc ['There is a 1 in table t1']
 include/assert.inc ['There is a 99 in table t2']
 include/assert.inc ['There is a 2 in table t2']
+include/assert.inc ['There were 0 transactions with group_replication_consistency=BEFORE']
+include/assert.inc ['There was no wait time on transactions with group_replication_consistency=BEFORE']
+include/assert.inc ['There were 4 data messages sent']
 [connection server3]
 include/assert.inc ['There is a 1 in table t1']
 include/assert.inc ['There is a 99 in table t2']
 include/assert.inc ['There is a 2 in table t2']
+include/assert.inc ['There were 0 transactions with group_replication_consistency=BEFORE']
+include/assert.inc ['There was no wait time on transactions with group_replication_consistency=BEFORE']
+include/assert.inc ['There were no data messages sent']
 include/diff_tables.inc [server1:t1, server2:t1, server3:t1]
 include/diff_tables.inc [server1:t2, server2:t2, server3:t2]
 

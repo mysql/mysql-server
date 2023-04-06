@@ -39,6 +39,16 @@ CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
 --echo # 02. Lock table t1 on server2 to block a future update.
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
+
+# Assert consistency options metrics.
+--let $assert_text= 'There were 0 transactions with group_replication_consistency=BEFORE'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_before_begin_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There was no wait time on transactions with group_replication_consistency=BEFORE'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_before_begin_time_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
 LOCK table t1 READ;
 
 
@@ -157,6 +167,20 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t2 WHERE c1=2, count, 1] = 1
 --source include/assert.inc
 
+# Assert consistency options metrics.
+--let $assert_text= 'There were 2 transactions with group_replication_consistency=BEFORE'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_before_begin_count", VARIABLE_VALUE, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= 'There was wait time on transactions with group_replication_consistency=BEFORE'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_before_begin_time_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'There was 1 data messages sent'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_data_messages_sent_count", VARIABLE_VALUE, 1] = 1
+--source include/assert.inc
+
+
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --let $assert_text= 'There is a 1 in table t1'
@@ -171,6 +195,19 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t2 WHERE c1=2, count, 1] = 1
 --source include/assert.inc
 
+# Assert consistency options metrics.
+--let $assert_text= 'There were 0 transactions with group_replication_consistency=BEFORE'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_before_begin_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There was no wait time on transactions with group_replication_consistency=BEFORE'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_before_begin_time_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There were 4 data messages sent'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_data_messages_sent_count", VARIABLE_VALUE, 1] = 4
+--source include/assert.inc
+
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 --let $assert_text= 'There is a 1 in table t1'
@@ -183,6 +220,19 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 
 --let $assert_text= 'There is a 2 in table t2'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t2 WHERE c1=2, count, 1] = 1
+--source include/assert.inc
+
+# Assert consistency options metrics.
+--let $assert_text= 'There were 0 transactions with group_replication_consistency=BEFORE'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_before_begin_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There was no wait time on transactions with group_replication_consistency=BEFORE'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_before_begin_time_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There were no data messages sent'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_data_messages_sent_count", VARIABLE_VALUE, 1] = 0
 --source include/assert.inc
 
 --let $diff_tables=server1:t1, server2:t1, server3:t1

@@ -260,6 +260,27 @@ class Plugin_gcs_message {
   explicit Plugin_gcs_message(enum_cargo_type cargo_type);
 
   /**
+    Return the time at which the message contained in the buffer was sent.
+    @see Metrics_handler::get_current_time()
+
+    @note The method
+      static uint64_t get_sent_timestamp(const unsigned char *buffer,
+                                         size_t length);
+    must be implemented on all children classes in order to allow read
+    the sent timestamp without requiring a object creation and complete
+    message deserialization.
+
+    @param[in] buffer                       the buffer to decode from.
+    @param[in] length                       the buffer length
+    @param[in] timestamp_payload_item_type  the payload item type of the
+                                            timestamp.
+
+    @return the time on which the message was sent.
+  */
+  static int64_t get_sent_timestamp(const unsigned char *buffer, size_t length,
+                                    const uint16 timestamp_payload_item_type);
+
+  /**
     Encodes the header of this instance into the buffer.
 
     @param[out] buffer the buffer to encode to.
@@ -399,8 +420,8 @@ class Plugin_gcs_message {
     @param[out] type   the type of the payload item
     @param[out] value  the value of the payload item
   */
-  void decode_payload_item_int8(const unsigned char **buffer, uint16 *type,
-                                uint64 *value);
+  static void decode_payload_item_int8(const unsigned char **buffer,
+                                       uint16 *type, uint64 *value);
 
   /**
     Encodes the given payload item (type, length and value) into the buffer as

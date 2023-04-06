@@ -22,6 +22,7 @@
 
 #include "plugin/group_replication/include/plugin_messages/group_validation_message.h"
 #include "my_dbug.h"
+#include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
 
 Group_validation_message::Group_validation_message(bool has_channels,
                                                    uint member_weight_arg)
@@ -80,4 +81,14 @@ void Group_validation_message::encode_payload(
 
   uint16 member_weight_aux = (uint16)member_weight;
   encode_payload_item_int2(buffer, PIT_MEMBER_WEIGHT, member_weight_aux);
+
+  encode_payload_item_int8(buffer, PIT_SENT_TIMESTAMP,
+                           Metrics_handler::get_current_time());
+}
+
+uint64_t Group_validation_message::get_sent_timestamp(
+    const unsigned char *buffer, size_t length) {
+  DBUG_TRACE;
+  return Plugin_gcs_message::get_sent_timestamp(buffer, length,
+                                                PIT_SENT_TIMESTAMP);
 }

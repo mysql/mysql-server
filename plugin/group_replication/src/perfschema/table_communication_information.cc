@@ -15,6 +15,7 @@
 
 #include <mysql/psi/mysql_mutex.h>
 #include "my_time.h"
+#include "sql-common/json_dom.h"
 
 #include <iterator>
 #include <tuple>
@@ -40,6 +41,8 @@ namespace perfschema {
   A row in the replication_group_communication_information table.
 */
 struct Replication_group_communication_information {
+  // Json_wrapper suspicious_per_node;
+  std::string suspicious_per_node;
   uint32_t write_concurrency{0};
   Member_version mysql_version{0x00000};
   unsigned long single_writer_capable{0};
@@ -125,6 +128,50 @@ bool Replication_group_communication_information_table_handle::
           local_member_info->get_allow_single_leader());
     }
   }
+
+  // Retrieve all active group nodes, get the number of suspicious from
+  // GCS and cross both informations in order to produce a JSON string
+  // that maps UUIDs from the servers and their suspicious
+  std::list<Gcs_node_suspicious> suspicious_list;
+  gcs_module->get_suspicious_count(suspicious_list);
+
+  auto all_active_members = group_member_mgr->get_all_members();
+
+  std::stringstream json_str;
+  json_str << "{";
+  // Foreach active member in the group...
+  for (const auto &active_member : *all_active_members) {
+    uint64_t number_of_suspicious = 0;
+
+    auto find_node_in_suspicious_list = [&](Gcs_node_suspicious &elem) {
+      return active_member->get_gcs_member_id().get_member_id().compare(
+                 elem.m_node_address) == 0;
+    };
+
+    //...find out if the node is the suspicious list using the GCS ID
+    auto found_active_member =
+        std::find_if(suspicious_list.begin(), suspicious_list.end(),
+                     find_node_in_suspicious_list);
+
+    // Save the number of suspicious. It is 0, if the node is not in the list.
+    if (found_active_member != suspicious_list.end())
+      number_of_suspicious = (*found_active_member).m_node_suspicious_count;
+
+    json_str << "\"";
+    json_str << active_member->get_uuid().c_str();
+    json_str << "\":";
+    json_str << number_of_suspicious;
+    json_str << ",";
+  }
+  json_str.seekp(-1, json_str.cur);
+  json_str << "}";
+
+  row.suspicious_per_node.assign(json_str.str());
+
+  for (auto active_member_info : *all_active_members) {
+    delete active_member_info;
+  }
+  delete all_active_members;
 
   return OK;
 }
@@ -238,6 +285,11 @@ int Pfs_table_communication_information::read_column_value(
           field, {t->row.single_writer_capable, false});
       break;
     }
+    case 5: {  // MEMBER_FAILURE_SUSPICIONS_COUNT
+      column_blob_service->set(field, t->row.suspicious_per_node.c_str(),
+                               t->row.suspicious_per_node.size());
+      break;
+    }
   }
   return 0;
 }
@@ -273,7 +325,11 @@ bool Pfs_table_communication_information::init() {
       "WRITE_CONSENSUS_LEADERS_ACTUAL LONGTEXT not null, "
       "WRITE_CONSENSUS_SINGLE_LEADER_CAPABLE BOOLEAN not null COMMENT 'What "
       "the option group_replication_paxos_single_leader was set to at the time "
-      "this member joined the group. '";
+      "this member joined the group. ',"
+      " MEMBER_FAILURE_SUSPICIONS_COUNT LONGTEXT "
+      "not null COMMENT 'A list of pairs between a group member address and "
+      "the number "
+      "of times the local node has seen it as suspected'";
   m_share.m_ref_length =
       sizeof Replication_group_communication_information_table_handle::
           current_pos;

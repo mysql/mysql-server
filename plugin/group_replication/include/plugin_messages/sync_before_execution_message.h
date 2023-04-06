@@ -41,8 +41,11 @@ class Sync_before_execution_message : public Plugin_gcs_message {
     // Length of the payload item: 4 bytes
     PIT_MY_THREAD_ID = 1,
 
+    // Length of the payload item: 8 bytes
+    PIT_SENT_TIMESTAMP = 2,
+
     // No valid type codes can appear after this one.
-    PIT_MAX = 2
+    PIT_MAX = 3
   };
 
   /**
@@ -62,6 +65,18 @@ class Sync_before_execution_message : public Plugin_gcs_message {
   ~Sync_before_execution_message() override;
 
   my_thread_id get_thread_id();
+
+  /**
+    Return the time at which the message contained in the buffer was sent.
+    @see Metrics_handler::get_current_time()
+
+    @param[in] buffer            the buffer to decode from.
+    @param[in] length            the buffer length
+
+    @return the time on which the message was sent.
+  */
+  static uint64_t get_sent_timestamp(const unsigned char *buffer,
+                                     size_t length);
 
  protected:
   /*

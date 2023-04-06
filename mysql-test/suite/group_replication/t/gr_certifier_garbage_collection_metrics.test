@@ -1,0 +1,106 @@
+###############################################################################
+# This test verifies certification info garbage collection metrics.
+#
+# Test:
+# 0. The test requires two servers: M1.
+# 1. Verify certification info garbage collection metrics are 0.
+# 2. Start Group Replication and verify certification info
+#    garbage collection metrics are incremented.
+# 3. Run some transactions on the group to increase the time
+#    spent on garbage collection.
+# 4. Wait for the next garbage collection run and collect
+#    the metrics.
+# 5. Stop Group Replication and validate that the metrics are
+#    available.
+# 6. Cleanup
+###############################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Verify certification info garbage collection metrics are 0.
+--let $assert_text= 'There were 0 certification info garbage collection runs'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_certification_garbage_collector_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+--let $assert_text= 'There was no time spent on certification info garbage collection'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_certification_garbage_collector_time_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Start Group Replication and verify certification info
+--echo #    garbage collection metrics are incremented.
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $assert_text= 'There is 1 certification info garbage collection runs'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_certification_garbage_collector_count", VARIABLE_VALUE, 1] = 1
+--source include/assert.inc
+
+# Since the certification info was empty, the time spent may be 0.
+--let $assert_text= 'There was time spent on certification info garbage collection'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_certification_garbage_collector_time_sum", VARIABLE_VALUE, 1] >= 0
+--source include/assert.inc
+--let $certification_garbage_collector_time_sum_02= `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_certification_garbage_collector_time_sum"`
+
+
+--echo
+--echo ############################################################
+--echo # 3. Run some transactions on the group to increase the time
+--echo #    spent on garbage collection.
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT UNIQUE KEY NOT NULL, c3 INT UNIQUE KEY NOT NULL);
+--disable_query_log
+--let $cnt=1000
+while($cnt)
+{
+    --eval INSERT INTO t1 VALUES ($cnt, $cnt, $cnt)
+    --dec $cnt
+}
+--enable_query_log
+
+--let $assert_text= 'Count_transactions_rows_validating must be equal to 3000'
+--let $assert_cond= [SELECT Count_transactions_rows_validating FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)] = 3000
+--source include/assert.inc
+
+
+
+--echo
+--echo ############################################################
+--echo # 4. Wait for the next garbage collection run and collect
+--echo #    the metrics.
+--let $wait_timeout= 150
+--let $wait_condition= SELECT Count_transactions_rows_validating=3 FROM performance_schema.replication_group_member_stats WHERE member_id IN (SELECT @@server_uuid)
+--source include/wait_condition.inc
+
+--let $assert_text= 'There are 2 certification info garbage collection runs'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_certification_garbage_collector_count", VARIABLE_VALUE, 1] = 2
+--source include/assert.inc
+--let $assert_text= 'There was time spent on certification info garbage collection'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_certification_garbage_collector_time_sum", VARIABLE_VALUE, 1] > $certification_garbage_collector_time_sum_02
+--source include/assert.inc
+--let $certification_garbage_collector_time_sum_04= `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_certification_garbage_collector_time_sum"`
+
+
+--echo
+--echo ############################################################
+--echo # 5. Stop Group Replication and validate that the metrics are
+--echo #    available.
+--source include/stop_group_replication.inc
+
+--let $assert_text= 'There are certification info garbage collection runs'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_certification_garbage_collector_count", VARIABLE_VALUE, 1] >= 2
+--source include/assert.inc
+--let $assert_text= 'There was time spent on certification info garbage collection'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_certification_garbage_collector_time_sum", VARIABLE_VALUE, 1] >= $certification_garbage_collector_time_sum_04
+--source include/assert.inc
+
+
+--echo
+--echo #################################################################
+--echo # 6. Cleanup
+DROP TABLE t1;
+--source include/group_replication_end.inc

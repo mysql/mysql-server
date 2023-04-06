@@ -451,8 +451,8 @@ class Gcs_operations {
 
  private:
   /**
-    Internal function that configures the debug options that shall be used by
-    GCS.
+    Internal function that configures the debug options that shall be used
+    by GCS.
   */
   enum enum_gcs_error do_set_debug_options(std::string &debug_options) const;
   Gcs_group_management_interface *get_gcs_group_manager() const;
@@ -485,6 +485,85 @@ class Gcs_operations {
   Checkable_rwlock *gcs_operations_lock;
   /** Lock for the list of waiters on a view change */
   Checkable_rwlock *view_observers_lock;
+
+  /*
+    Metrics concurrency control and cached values to be provided
+    when the member does not belong to a group.
+  */
+ public:
+  /**
+    @see Gcs_statistics_interface::get_all_sucessful_proposal_rounds()
+  */
+  uint64_t get_all_consensus_proposals_count();
+
+  /**
+    @see Gcs_statistics_interface::get_all_empty_proposal_rounds()
+  */
+  uint64_t get_empty_consensus_proposals_count();
+
+  /**
+    @see Gcs_statistics_interface::get_all_bytes_sent()
+  */
+  uint64_t get_consensus_bytes_sent_sum();
+
+  /**
+    @see Gcs_statistics_interface::get_all_message_bytes_received()
+  */
+  uint64_t get_consensus_bytes_received_sum();
+
+  /**
+    @see Gcs_statistics_interface::get_cumulative_proposal_time()
+  */
+  uint64_t get_all_consensus_time_sum();
+
+  /**
+    @see Gcs_statistics_interface::get_all_full_proposal_count()
+  */
+  uint64_t get_extended_consensus_count();
+
+  /**
+    @see Gcs_statistics_interface::get_all_messages_sent()
+  */
+  uint64_t get_total_messages_sent_count();
+
+  /**
+    @see Gcs_statistics_interface::get_last_proposal_round_time()
+  */
+  uint64_t get_last_consensus_end_timestamp();
+
+  /**
+   * @see Gcs_statistics_interface::get_suspicious_count()
+   */
+  void get_suspicious_count(std::list<Gcs_node_suspicious> &node_suspicious);
+
+ private:
+  /**
+    Helper method that retrieves the binding implementation of the
+    Statistics interface.
+
+    @return A valid reference to a gcs_statistics_interface implementation.
+            nullptr, in case of error or GCS interface not initialized.
+  */
+  Gcs_statistics_interface *get_statistics_interface();
+
+  /**
+    Reset the metrics cache.
+  */
+  void metrics_cache_reset();
+
+  /**
+    Update the metrics cache with the current GCS values.
+  */
+  void metrics_cache_update();
+
+  std::atomic<uint64_t> m_all_consensus_proposals_count{0};
+  std::atomic<uint64_t> m_empty_consensus_proposals_count{0};
+  std::atomic<uint64_t> m_consensus_bytes_sent_sum{0};
+  std::atomic<uint64_t> m_consensus_bytes_received_sum{0};
+  std::atomic<uint64_t> m_all_consensus_time_sum{0};
+  std::atomic<uint64_t> m_extended_consensus_count{0};
+  std::atomic<uint64_t> m_total_messages_sent_count{0};
+  std::atomic<uint64_t> m_last_consensus_end_timestamp{0};
 };
 
 #endif /* GCS_OPERATIONS_INCLUDE */

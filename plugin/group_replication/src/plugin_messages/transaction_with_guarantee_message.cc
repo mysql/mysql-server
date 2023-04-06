@@ -22,11 +22,15 @@
 
 #include "plugin/group_replication/include/plugin_messages/transaction_with_guarantee_message.h"
 #include "my_dbug.h"
+#include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_message.h"
 
 const uint64_t
     Transaction_with_guarantee_message::s_consistency_level_pit_size =
         Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE + 1;
+
+const uint64_t Transaction_with_guarantee_message::s_sent_timestamp_pit_size =
+    Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE + 8;
 
 Transaction_with_guarantee_message::Transaction_with_guarantee_message(
     uint64_t payload_capacity,
@@ -42,8 +46,9 @@ Transaction_with_guarantee_message::Transaction_with_guarantee_message(
   const uint64_t headers_size =
       Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE +
       Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE;
-  const uint64_t message_capacity =
-      headers_size + payload_capacity + s_consistency_level_pit_size;
+  const uint64_t message_capacity = headers_size + payload_capacity +
+                                    s_consistency_level_pit_size +
+                                    s_sent_timestamp_pit_size;
   m_gcs_message_data = new Gcs_message_data(0, message_capacity);
 
   std::vector<unsigned char> buffer;
@@ -95,6 +100,15 @@ Transaction_with_guarantee_message::get_message_data_and_reset() {
   m_gcs_message_data->append_to_payload(&buffer.front(),
                                         s_consistency_level_pit_size);
 
+  /*
+    Add the PIT_SENT_TIMESTAMP to the Gcs_message_data.
+  */
+  buffer.clear();
+  encode_payload_item_int8(&buffer, PIT_SENT_TIMESTAMP,
+                           Metrics_handler::get_current_time());
+  m_gcs_message_data->append_to_payload(&buffer.front(),
+                                        s_sent_timestamp_pit_size);
+
   Gcs_message_data *result = m_gcs_message_data;
   m_gcs_message_data = nullptr;
   return result;
@@ -133,4 +147,11 @@ Transaction_with_guarantee_message::decode_and_get_consistency_level(
   assert(consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
 
   return consistency_level;
+}
+
+uint64_t Transaction_with_guarantee_message::get_sent_timestamp(
+    const unsigned char *buffer, size_t length) {
+  DBUG_TRACE;
+  return Plugin_gcs_message::get_sent_timestamp(buffer, length,
+                                                PIT_SENT_TIMESTAMP);
 }

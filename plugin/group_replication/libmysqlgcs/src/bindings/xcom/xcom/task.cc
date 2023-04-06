@@ -381,6 +381,22 @@ static int task_queue_full(task_queue *q) { return q->curn >= MAXTASKS; }
 
 #endif
 
+unsigned long long int get_time_since_the_epoch() {
+#ifdef _WIN32
+  return std::chrono::duration_cast<std::chrono::microseconds>(
+             std::chrono::system_clock::now().time_since_epoch())
+      .count();
+#else
+  struct timeval t;
+  /*
+  The following loop is here because gettimeofday may fail on some systems
+  */
+  while (gettimeofday(&t, nullptr) != 0) {
+  }
+  return (static_cast<unsigned long long int>(t.tv_sec) * 1000000 + t.tv_usec);
+#endif /* _WIN32 */
+}
+
 #define FIX_POS(i) q->x[i]->heap_pos = (i)
 /* #define TASK_SWAP(x,y) { task_env *tmp = (x); (x) = (y); (y) = (tmp); } */
 #define TASK_SWAP(i, j)      \
@@ -970,6 +986,7 @@ int task_read(connection_descriptor const *con, void *buf, int n, int64_t *ret,
   FINALLY
   receive_count++;
   if (*ret > 0) receive_bytes += (uint64_t)(*ret);
+  cfg_app_get_storage_statistics()->add_bytes_received(*ret);
   TASK_END;
 }
 
@@ -1073,6 +1090,7 @@ int task_write(connection_descriptor const *con, void *_buf, uint32_t n,
   FINALLY
   send_count++;
   send_bytes += ep->total;
+  cfg_app_get_storage_statistics()->add_bytes_sent(ep->total);
   TASK_END;
 }
 

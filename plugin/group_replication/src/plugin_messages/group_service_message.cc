@@ -23,6 +23,7 @@
 #include "plugin/group_replication/include/plugin_messages/group_service_message.h"
 #include <string.h>
 #include "my_dbug.h"
+#include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
 
 Group_service_message::Group_service_message()
     : Plugin_gcs_message(CT_MESSAGE_SERVICE_MESSAGE),
@@ -88,6 +89,9 @@ void Group_service_message::encode_payload(std::vector<uchar> *buffer) const {
     buffer->insert(buffer->end(), m_data.begin(), m_data.end());
     /* purecov: end */
   }
+
+  encode_payload_item_int8(buffer, PIT_SENT_TIMESTAMP,
+                           Metrics_handler::get_current_time());
 }
 
 void Group_service_message::decode_payload(const uchar *buffer, const uchar *) {
@@ -115,4 +119,11 @@ bool Group_service_message::set_tag(const char *tag) {
     return false;
   }
   return true;
+}
+
+uint64_t Group_service_message::get_sent_timestamp(const unsigned char *buffer,
+                                                   size_t length) {
+  DBUG_TRACE;
+  return Plugin_gcs_message::get_sent_timestamp(buffer, length,
+                                                PIT_SENT_TIMESTAMP);
 }

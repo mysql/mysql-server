@@ -391,11 +391,15 @@ enum_gcs_error Gcs_xcom_interface::initialize(
     Proceed with initialization
     ---------------------------------------------------------------
   */
+  // Initalize statistic storage
+  m_stats_mgr = new Gcs_xcom_statistics_manager_interface_impl();
+  m_xcom_stats_storage = new Gcs_xcom_statistics_storage_impl(m_stats_mgr);
 
   // initialize xcom's data structures to pass configuration
   // from the application
   m_gcs_xcom_app_cfg.init();
   m_gcs_xcom_app_cfg.set_network_namespace_manager(m_netns_manager);
+  m_gcs_xcom_app_cfg.set_statists_storage_implementation(m_xcom_stats_storage);
   this->clean_group_interfaces();
   m_socket_util = new My_xp_socket_util_impl();
 
@@ -684,6 +688,12 @@ enum_gcs_error Gcs_xcom_interface::finalize() {
   delete m_socket_util;
   m_socket_util = nullptr;
 
+  delete m_stats_mgr;
+  m_stats_mgr = nullptr;
+
+  delete m_xcom_stats_storage;
+  m_xcom_stats_storage = nullptr;
+
   ::get_network_management_interface()->remove_all_network_provider();
   Gcs_xcom_utils::deinit_net();
 
@@ -761,7 +771,7 @@ gcs_xcom_group_interfaces *Gcs_xcom_interface::get_group_interfaces(
     group_interface = new gcs_xcom_group_interfaces();
     m_group_interfaces[group_identifier.get_group_id()] = group_interface;
 
-    Gcs_xcom_statistics *stats = new Gcs_xcom_statistics();
+    Gcs_xcom_statistics *stats = new Gcs_xcom_statistics(m_stats_mgr);
 
     group_interface->statistics_interface = stats;
 
@@ -772,7 +782,7 @@ gcs_xcom_group_interfaces *Gcs_xcom_interface::get_group_interfaces(
         net_manager_for_communication = ::get_network_management_interface();
 
     auto *xcom_communication = new Gcs_xcom_communication(
-        stats, s_xcom_proxy, vce, gcs_engine, group_identifier,
+        m_stats_mgr, s_xcom_proxy, vce, gcs_engine, group_identifier,
         std::move(net_manager_for_communication));
     group_interface->communication_interface = xcom_communication;
 
@@ -788,7 +798,7 @@ gcs_xcom_group_interfaces *Gcs_xcom_interface::get_group_interfaces(
     Gcs_xcom_control *xcom_control = new Gcs_xcom_control(
         m_node_address, m_xcom_peers, group_identifier, s_xcom_proxy,
         xcom_group_management, gcs_engine, se, vce, m_boot, m_socket_util,
-        std::move(net_manager_for_control));
+        std::move(net_manager_for_control), m_stats_mgr);
     group_interface->control_interface = xcom_control;
 
     xcom_control->set_join_behavior(

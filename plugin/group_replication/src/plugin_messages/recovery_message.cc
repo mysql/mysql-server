@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/plugin_messages/recovery_message.h"
+#include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
 
 #include "my_dbug.h"
 
@@ -63,4 +64,14 @@ void Recovery_message::encode_payload(
 
   encode_payload_item_string(buffer, PIT_MEMBER_UUID, member_uuid.c_str(),
                              member_uuid.length());
+
+  encode_payload_item_int8(buffer, PIT_SENT_TIMESTAMP,
+                           Metrics_handler::get_current_time());
+}
+
+uint64_t Recovery_message::get_sent_timestamp(const unsigned char *buffer,
+                                              size_t length) {
+  DBUG_TRACE;
+  return Plugin_gcs_message::get_sent_timestamp(buffer, length,
+                                                PIT_SENT_TIMESTAMP);
 }

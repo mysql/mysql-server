@@ -56,12 +56,12 @@
 using std::map;
 
 Gcs_xcom_communication::Gcs_xcom_communication(
-    Gcs_xcom_statistics_updater *stats, Gcs_xcom_proxy *proxy,
+    Gcs_xcom_statistics_manager_interface *stats, Gcs_xcom_proxy *proxy,
     Gcs_xcom_view_change_control_interface *view_control,
     Gcs_xcom_engine *gcs_engine, Gcs_group_identifier const &group_id,
     std::unique_ptr<Network_provider_management_interface> comms_mgmt)
     : event_listeners(),
-      stats(stats),
+      m_stats(stats),
       m_xcom_proxy(proxy),
       m_view_control(view_control),
       m_msg_pipeline(),
@@ -104,10 +104,6 @@ enum_gcs_error Gcs_xcom_communication::send_message(
 
   message_result = this->do_send_message(message_to_send, &message_length,
                                          Cargo_type::CT_USER_DATA);
-
-  if (message_result == GCS_OK) {
-    this->stats->update_message_sent(message_length);
-  }
 
   return message_result;
 }
@@ -211,9 +207,6 @@ void Gcs_xcom_communication::notify_received_message(
     ++callback_it;
   }
 
-  stats->update_message_received(
-      (long)(message->get_message_data().get_header_length() +
-             message->get_message_data().get_payload_length()));
   MYSQL_GCS_LOG_TRACE("Delivered message from origin= %s",
                       message->get_origin().get_member_id().c_str())
 }

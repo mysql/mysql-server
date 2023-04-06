@@ -22,62 +22,49 @@
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_statistics_interface.h"
 
-/* purecov: begin deadcode */
-using std::max;
-using std::min;
-
-Gcs_xcom_statistics::Gcs_xcom_statistics()
-    : total_messages_sent(0),
-      total_bytes_sent(0),
-      total_messages_received(0),
-      total_bytes_received(0),
-      min_message_length(0),
-      max_message_length(0),
-      last_message_timestamp(0) {}
+Gcs_xcom_statistics::Gcs_xcom_statistics(
+    Gcs_xcom_statistics_manager_interface *stats_mgr)
+    : m_stats_mgr(stats_mgr) {}
 
 Gcs_xcom_statistics::~Gcs_xcom_statistics() = default;
 
-long Gcs_xcom_statistics::get_total_messages_sent() {
-  return total_messages_sent;
+uint64_t Gcs_xcom_statistics::get_all_sucessful_proposal_rounds() const {
+  return m_stats_mgr->get_count_var_value(kSucessfulProposalRounds);
 }
 
-long Gcs_xcom_statistics::get_total_bytes_sent() { return total_bytes_sent; }
-
-long Gcs_xcom_statistics::get_total_messages_received() {
-  return total_messages_received;
+uint64_t Gcs_xcom_statistics::get_all_empty_proposal_rounds() const {
+  return m_stats_mgr->get_count_var_value(kEmptyProposalRounds);
 }
 
-long Gcs_xcom_statistics::get_total_bytes_received() {
-  return total_bytes_received;
+uint64_t Gcs_xcom_statistics::get_all_bytes_sent() const {
+  return m_stats_mgr->get_sum_var_value(kBytesSent);
 }
 
-long Gcs_xcom_statistics::get_min_message_length() {
-  return min_message_length;
+void Gcs_xcom_statistics::get_suspicious_count(
+    std::list<Gcs_node_suspicious> &suspicious_out) const {
+  auto suspicious = m_stats_mgr->get_all_suspicious();
+
+  suspicious_out.insert(suspicious_out.begin(),
+                        std::make_move_iterator(suspicious.begin()),
+                        std::make_move_iterator(suspicious.end()));
 }
 
-long Gcs_xcom_statistics::get_max_message_length() {
-  return max_message_length;
+uint64_t Gcs_xcom_statistics::get_all_full_proposal_count() const {
+  return m_stats_mgr->get_count_var_value(kFullProposalCount);
 }
 
-long Gcs_xcom_statistics::get_last_message_timestamp() {
-  return last_message_timestamp;
-}
-/* purecov: end*/
-
-void Gcs_xcom_statistics::update_message_sent(
-    unsigned long long message_length) {
-  total_messages_sent++;
-  total_bytes_sent += message_length;
+uint64_t Gcs_xcom_statistics::get_all_messages_sent() const {
+  return m_stats_mgr->get_count_var_value(kMessagesSent);
 }
 
-void Gcs_xcom_statistics::update_message_received(long message_length) {
-  max_message_length = max(max_message_length, message_length);
+uint64_t Gcs_xcom_statistics::get_all_message_bytes_received() const {
+  return m_stats_mgr->get_sum_var_value(kMessageBytesReceived);
+}
 
-  // Make the first initialization of min_message_length here
-  if (min_message_length == 0) min_message_length = message_length;
+unsigned long long Gcs_xcom_statistics::get_cumulative_proposal_time() const {
+  return m_stats_mgr->get_timestamp_var_value(kCumulativeProposalTime);
+}
 
-  min_message_length = min(min_message_length, message_length);
-
-  total_messages_received++;
-  total_bytes_received += message_length;
+unsigned long long Gcs_xcom_statistics::get_last_proposal_round_time() const {
+  return m_stats_mgr->get_timestamp_var_value(kLastProposalRoundTime);
 }

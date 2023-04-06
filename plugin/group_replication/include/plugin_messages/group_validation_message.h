@@ -35,6 +35,7 @@ class Group_validation_message : public Plugin_gcs_message {
     PIT_VALIDATION_TYPE = 1,     // The validation type, length: 2 bytes
     PIT_VALIDATION_CHANNEL = 2,  // The member has channel flag, length: 1 bytes
     PIT_MEMBER_WEIGHT = 3,       // The member weight, length: 2 bytes
+    PIT_SENT_TIMESTAMP = 4,      // Length: 8 bytes
     PIT_MAX  // No valid type codes can appear after this one
   };
 
@@ -74,6 +75,18 @@ class Group_validation_message : public Plugin_gcs_message {
     @return The member weight
   */
   uint get_member_weight() const;
+
+  /**
+    Return the time at which the message contained in the buffer was sent.
+    @see Metrics_handler::get_current_time()
+
+    @param[in] buffer            the buffer to decode from.
+    @param[in] length            the buffer length
+
+    @return the time on which the message was sent.
+  */
+  static uint64_t get_sent_timestamp(const unsigned char *buffer,
+                                     size_t length);
 
  protected:
   /**

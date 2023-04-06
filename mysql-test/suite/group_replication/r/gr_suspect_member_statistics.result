@@ -1,0 +1,135 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# 1. Create a group replication setup with 3 members
+# 2. Set the group_replication_member_expel_timeout parameter to 15
+#    seconds
+[connection server1]
+SET GLOBAL group_replication_member_expel_timeout = 15;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+@@GLOBAL.group_replication_member_expel_timeout
+15
+[connection server2]
+SET GLOBAL group_replication_member_expel_timeout = 15;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+@@GLOBAL.group_replication_member_expel_timeout
+15
+[connection server3]
+SET GLOBAL group_replication_member_expel_timeout = 15;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+@@GLOBAL.group_replication_member_expel_timeout
+15
+#
+# 3. In a loop, crash server 3 and it will restart
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+# Restarting server 3
+include/rpl_reconnect.inc
+#
+# 4. Then check if server 3 is still in the group
+[connection server1]
+#
+# 4.1 Check if we have 1 suspicious of server 3
+include/assert.inc ['Number of UNREACHEABLES seen must be 1']
+#
+# 5. 15 seconds later, server 3 should still be in the group as UNREACHABLE
+[connection server2]
+#
+# 6. Server 3 should have been expelled from the group
+[connection server1]
+[connection server2]
+#
+# 7. Restart GR on server 3
+[connection server3]
+include/start_group_replication.inc
+#
+# 8. Server 3 should be back in the group
+[connection server1]
+[connection server2]
+[connection server3]
+#
+# 8,1. Server 3 should have not seen any suspicious
+include/assert.inc ['Number of UNREACHEABLES seen must be 0']
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+# Restarting server 3
+include/rpl_reconnect.inc
+#
+# 4. Then check if server 3 is still in the group
+[connection server1]
+#
+# 4.1 Check if we have 1 suspicious of server 3
+include/assert.inc ['Number of UNREACHEABLES seen must be 2']
+#
+# 5. 15 seconds later, server 3 should still be in the group as UNREACHABLE
+[connection server2]
+#
+# 6. Server 3 should have been expelled from the group
+[connection server1]
+[connection server2]
+#
+# 7. Restart GR on server 3
+[connection server3]
+include/start_group_replication.inc
+#
+# 8. Server 3 should be back in the group
+[connection server1]
+[connection server2]
+[connection server3]
+#
+# 8,1. Server 3 should have not seen any suspicious
+include/assert.inc ['Number of UNREACHEABLES seen must be 0']
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+# Restarting server 3
+include/rpl_reconnect.inc
+#
+# 4. Then check if server 3 is still in the group
+[connection server1]
+#
+# 4.1 Check if we have 1 suspicious of server 3
+include/assert.inc ['Number of UNREACHEABLES seen must be 3']
+#
+# 5. 15 seconds later, server 3 should still be in the group as UNREACHABLE
+[connection server2]
+#
+# 6. Server 3 should have been expelled from the group
+[connection server1]
+[connection server2]
+#
+# 7. Restart GR on server 3
+[connection server3]
+include/start_group_replication.inc
+#
+# 8. Server 3 should be back in the group
+[connection server1]
+[connection server2]
+[connection server3]
+#
+# 8,1. Server 3 should have not seen any suspicious
+include/assert.inc ['Number of UNREACHEABLES seen must be 0']
+[connection server2]
+#
+# 9. Crash server 2 and repeat the whole process that was done for
+#    server 3
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+include/rpl_reconnect.inc
+[connection server1]
+include/assert.inc ['Number of UNREACHEABLES seen must be 1']
+[connection server3]
+[connection server1]
+[connection server3]
+#
+# 10. Rejoin server 2 to the group
+[connection server2]
+include/start_group_replication.inc
+#
+# 11. Then check if server 2 back still to the group
+[connection server1]
+#
+# 11.1 On server 1, Check if we have 2 suspicious of server 3 and 1 for server 2
+include/assert.inc ['Number of UNREACHEABLES seen must be 1']
+include/assert.inc ['Number of UNREACHEABLES seen must be 3']
+[connection server2]
+[connection server3]
+include/group_replication_end.inc

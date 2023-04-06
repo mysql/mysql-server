@@ -136,6 +136,35 @@ void Plugin_gcs_message::get_first_payload_item_raw_data(
   *payload_item_data = slider;
 }
 
+int64_t Plugin_gcs_message::get_sent_timestamp(
+    const unsigned char *buffer, size_t length,
+    const uint16 timestamp_payload_item_type) {
+  DBUG_TRACE;
+  const unsigned char *slider = buffer + WIRE_FIXED_HEADER_SIZE;
+  const unsigned char *end = buffer + length;
+  uint16 payload_item_type = 0;
+  unsigned long long payload_item_length = 0;
+
+  while (slider + Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE <= end) {
+    // Read payload item header to find payload item length.
+    decode_payload_item_type_and_length(&slider, &payload_item_type,
+                                        &payload_item_length);
+
+    if (timestamp_payload_item_type == payload_item_type) {
+      if (slider + payload_item_length <= end) {
+        uint64 sent_timestamp = uint8korr(slider);
+        assert(0 != sent_timestamp);
+        return sent_timestamp;
+      }
+    }
+
+    // Seek to next payload item.
+    slider += payload_item_length;
+  }
+
+  return 0;
+}
+
 void Plugin_gcs_message::encode_payload_item_type_and_length(
     std::vector<unsigned char> *buffer, uint16 payload_item_type,
     unsigned long long payload_item_length) const {

@@ -25,6 +25,7 @@
 #include <mysql/components/services/log_builtins.h>
 #include "plugin/group_replication/include/consistency_manager.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
 #include "plugin/group_replication/include/plugin_messages/sync_before_execution_message.h"
 #include "plugin/group_replication/include/plugin_messages/transaction_prepared_message.h"
 #include "plugin/group_replication/include/plugin_psi.h"
@@ -44,7 +45,8 @@ Transaction_consistency_info::Transaction_consistency_info(
       m_members_that_must_prepare_the_transaction(
           members_that_must_prepare_the_transaction),
       m_transaction_prepared_locally(local_transaction),
-      m_transaction_prepared_remotely(false) {
+      m_transaction_prepared_remotely(false),
+      m_begin_timestamp(Metrics_handler::get_current_time()) {
   DBUG_TRACE;
   assert(m_consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
   assert(nullptr != m_members_that_must_prepare_the_transaction);
@@ -210,6 +212,12 @@ int Transaction_consistency_info::handle_remote_prepare(
         /* purecov: end */
       }
 
+      if (m_local_transaction) {
+        const auto end_timestamp = Metrics_handler::get_current_time();
+        metrics_handler->add_transaction_consistency_after_termination(
+            m_begin_timestamp, end_timestamp);
+      }
+
       return CONSISTENCY_INFO_OUTCOME_COMMIT;
     }
   }
@@ -241,6 +249,10 @@ int Transaction_consistency_info::handle_member_leave(
        m_transaction_prepared_remotely, error));
 
   return error;
+}
+
+uint64_t Transaction_consistency_info::get_begin_timestamp() const {
+  return m_begin_timestamp;
 }
 
 Transaction_consistency_manager::Transaction_consistency_manager()
@@ -330,6 +342,10 @@ int Transaction_consistency_manager::after_certification(
   if (transaction_info->is_local_transaction() &&
       transaction_info->is_a_single_member_group()) {
     transactions_latch->releaseTicket(transaction_info->get_thread_id());
+    const auto end_timestamp = Metrics_handler::get_current_time();
+    metrics_handler->add_transaction_consistency_after_termination(
+        transaction_info->get_begin_timestamp(), end_timestamp);
+
     delete transaction_info;
     m_map_lock->unlock();
     return 0;
@@ -674,6 +690,7 @@ int Transaction_consistency_manager::transaction_begin_sync_before_execution(
     enum_group_replication_consistency_level consistency_level [[maybe_unused]],
     ulong timeout, const THD *thd) const {
   DBUG_TRACE;
+  int error{0};
   assert(GROUP_REPLICATION_CONSISTENCY_BEFORE == consistency_level ||
          GROUP_REPLICATION_CONSISTENCY_BEFORE_AND_AFTER == consistency_level);
   DBUG_PRINT("info", ("thread_id: %d; consistency_level: %d", thread_id,
@@ -682,6 +699,8 @@ int Transaction_consistency_manager::transaction_begin_sync_before_execution(
   if (m_plugin_stopping) {
     return ER_GRP_TRX_CONSISTENCY_BEGIN_NOT_ALLOWED;
   }
+
+  const auto begin_timestamp = Metrics_handler::get_current_time();
 
   if (transactions_latch->registerTicket(thread_id)) {
     /* purecov: begin inspected */
@@ -735,11 +754,15 @@ int Transaction_consistency_manager::transaction_begin_sync_before_execution(
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_TRX_WAIT_FOR_GROUP_GTID_EXECUTED,
                  thread_id);
-    return ER_GRP_TRX_CONSISTENCY_BEFORE;
+    error = ER_GRP_TRX_CONSISTENCY_BEFORE;
     /* purecov: end */
   }
 
-  return 0;
+  const auto end_timestamp = Metrics_handler::get_current_time();
+  metrics_handler->add_transaction_consistency_before_begin(begin_timestamp,
+                                                            end_timestamp);
+
+  return error;
 }
 
 int Transaction_consistency_manager::handle_sync_before_execution_message(
@@ -764,6 +787,7 @@ int Transaction_consistency_manager::
     transaction_begin_sync_prepared_transactions(my_thread_id thread_id,
                                                  ulong timeout) {
   DBUG_TRACE;
+  int error{0};
   Transaction_consistency_manager_key key(0, 0);
 
   // Take a read lock to check queue size.
@@ -789,6 +813,8 @@ int Transaction_consistency_manager::
 
   DBUG_PRINT("info", ("thread_id: %d", thread_id));
 
+  const auto begin_timestamp = Metrics_handler::get_current_time();
+
   if (transactions_latch->registerTicket(thread_id)) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL,
@@ -813,11 +839,15 @@ int Transaction_consistency_manager::
     remove_prepared_transaction(key);
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_WAIT_FOR_DEPENDENCIES_FAILED,
                  thread_id);
-    return ER_GRP_TRX_CONSISTENCY_AFTER_ON_TRX_BEGIN;
+    error = ER_GRP_TRX_CONSISTENCY_AFTER_ON_TRX_BEGIN;
     /* purecov: end */
   }
 
-  return 0;
+  const uint64_t end_timestamp = Metrics_handler::get_current_time();
+  metrics_handler->add_transaction_consistency_after_sync(begin_timestamp,
+                                                          end_timestamp);
+
+  return error;
 }
 
 bool Transaction_consistency_manager::has_local_prepared_transactions() {

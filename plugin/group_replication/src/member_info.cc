@@ -403,7 +403,6 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
       case PIT_CONFLICT_DETECTION_ENABLE:
         if (slider + payload_item_length <= end) {
           unsigned char conflict_detection_enable_aux = *slider;
-          slider += payload_item_length;
           conflict_detection_enable =
               (conflict_detection_enable_aux == '1') ? true : false;
         }
@@ -412,7 +411,6 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
       case PIT_MEMBER_WEIGHT:
         if (slider + payload_item_length <= end) {
           uint16 member_weight_aux = uint2korr(slider);
-          slider += payload_item_length;
           member_weight = (uint)member_weight_aux;
         }
         break;
@@ -420,7 +418,6 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
       case PIT_LOWER_CASE_TABLE_NAME:
         if (slider + payload_item_length <= end) {
           uint16 lower_case_table_names_aux = uint2korr(slider);
-          slider += payload_item_length;
           lower_case_table_names =
               static_cast<uint>(lower_case_table_names_aux);
         }
@@ -429,7 +426,6 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
       case PIT_GROUP_ACTION_RUNNING:
         if (slider + payload_item_length <= end) {
           unsigned char is_action_running_aux = *slider;
-          slider += payload_item_length;
           group_action_running = (is_action_running_aux == '1') ? true : false;
         }
         break;
@@ -437,7 +433,6 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
       case PIT_PRIMARY_ELECTION_RUNNING:
         if (slider + payload_item_length <= end) {
           unsigned char is_election_running_aux = *slider;
-          slider += payload_item_length;
           primary_election_running =
               (is_election_running_aux == '1') ? true : false;
         }
@@ -452,7 +447,6 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
       case PIT_DEFAULT_TABLE_ENCRYPTION:
         if (slider + payload_item_length <= end) {
           unsigned char default_table_encryption_aux = *slider;
-          slider += payload_item_length;
           default_table_encryption =
               (default_table_encryption_aux == '1') ? true : false;
         }
@@ -461,28 +455,24 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
         if (slider + payload_item_length <= end) {
           purged_gtid_set.assign(reinterpret_cast<const char *>(slider),
                                  static_cast<size_t>(payload_item_length));
-          slider += payload_item_length;
         }
         break;
       case PIT_RECOVERY_ENDPOINTS:
         if (slider + payload_item_length <= end) {
           recovery_endpoints.assign(reinterpret_cast<const char *>(slider),
                                     static_cast<size_t>(payload_item_length));
-          slider += payload_item_length;
         }
         break;
       case PIT_VIEW_CHANGE_UUID:
         if (slider + payload_item_length <= end) {
           m_view_change_uuid.assign(reinterpret_cast<const char *>(slider),
                                     static_cast<size_t>(payload_item_length));
-          slider += payload_item_length;
         }
         break;
 
       case PIT_ALLOW_SINGLE_LEADER:
         if (slider + payload_item_length <= end) {
           unsigned char allow_single_leader_aux = *slider;
-          slider += payload_item_length;
           m_allow_single_leader =
               (allow_single_leader_aux == '1') ? true : false;
         }
@@ -492,7 +482,6 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
           m_group_action_running_name.assign(
               reinterpret_cast<const char *>(slider),
               static_cast<size_t>(payload_item_length));
-          slider += payload_item_length;
         }
         break;
       case PIT_GROUP_ACTION_RUNNING_DESCRIPTION:
@@ -500,10 +489,12 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
           m_group_action_running_description.assign(
               reinterpret_cast<const char *>(slider),
               static_cast<size_t>(payload_item_length));
-          slider += payload_item_length;
         }
         break;
     }
+
+    // Seek to next payload item.
+    slider += payload_item_length;
   }
 }
 
@@ -1558,10 +1549,10 @@ bool Group_member_info_manager_message::get_pit_data(
         *pit_length = payload_item_length;
         return false;
       }
-      slider += payload_item_length;
-    } else {
-      slider += payload_item_length;
     }
+
+    // Seek to next payload item.
+    slider += payload_item_length;
   }
 
   return true;

@@ -103,6 +103,35 @@ UNLOCK TABLES;
 --reap
 SET @@SESSION.group_replication_consistency= DEFAULT;
 
+# Assert consistency options metrics.
+--let $assert_text= 'There was 1 transaction with group_replication_consistency=BEFORE'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_before_begin_count", VARIABLE_VALUE, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There was wait time on transactions with group_replication_consistency=BEFORE'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_before_begin_time_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'There was 1 transaction with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_termination_count", VARIABLE_VALUE, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There was wait time on transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_termination_time_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'There were 0 transactions that waited for transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_sync_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There was no wait time for transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_sync_time_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There was 1 data messages sent'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_data_messages_sent_count", VARIABLE_VALUE, 1] = 1
+--source include/assert.inc
+
 
 --echo
 --echo ############################################################
@@ -140,6 +169,35 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_after_applier_prepare';
 --source include/rpl_connection.inc
 # Get transaction T3 outcome.
 --reap
+
+# Assert consistency options metrics.
+--let $assert_text= 'There was 1 transaction that waited for transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_sync_count", VARIABLE_VALUE, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There was wait time for transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_sync_time_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'There were 0 transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_termination_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There was no wait time on transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_termination_time_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There were 0 transactions with group_replication_consistency=BEFORE'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_before_begin_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There was no wait time on transactions with group_replication_consistency=BEFORE'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_before_begin_time_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There were 3 data messages sent'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_data_messages_sent_count", VARIABLE_VALUE, 1] = 3
+--source include/assert.inc
 
 
 --echo

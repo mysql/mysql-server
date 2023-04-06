@@ -42,6 +42,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_networking.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_notification.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_state_exchange.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_statistics_manager.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/include/network_management_interface.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_set.h"
@@ -387,6 +388,7 @@ class Gcs_xcom_control : public Gcs_control_interface {
     @param[in] socket_util Reference to a socket utility
     @param[in] comms_operation_interface an unique_ptr to a
                                           Network_provider_operations_interface
+    @param[in] stats_mgr Reference to statistics storage
   */
 
   explicit Gcs_xcom_control(
@@ -399,7 +401,8 @@ class Gcs_xcom_control : public Gcs_control_interface {
       Gcs_xcom_view_change_control_interface *view_control, bool boot,
       My_xp_socket_util *socket_util,
       std::unique_ptr<Network_provider_operations_interface>
-          comms_operation_interface);
+          comms_operation_interface,
+      Gcs_xcom_statistics_manager_interface *stats_mgr);
 
   ~Gcs_xcom_control() override;
 
@@ -784,6 +787,9 @@ class Gcs_xcom_control : public Gcs_control_interface {
 
   std::unique_ptr<Network_provider_operations_interface>
       m_comms_operation_interface;
+
+  // Reference to the statistics manager interface
+  Gcs_xcom_statistics_manager_interface *m_stats_mgr;
 
  protected:
   /*

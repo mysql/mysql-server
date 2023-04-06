@@ -1,0 +1,185 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Verify that metrics are 0.
+[connection server1]
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_all_consensus_proposals_count	0
+Gr_all_consensus_time_sum	0
+Gr_certification_garbage_collector_count	0
+Gr_certification_garbage_collector_time_sum	0
+Gr_consensus_bytes_received_sum	0
+Gr_consensus_bytes_sent_sum	0
+Gr_control_messages_sent_bytes_sum	0
+Gr_control_messages_sent_count	0
+Gr_control_messages_sent_roundtrip_time_sum	0
+Gr_data_messages_sent_bytes_sum	0
+Gr_data_messages_sent_count	0
+Gr_data_messages_sent_roundtrip_time_sum	0
+Gr_empty_consensus_proposals_count	0
+Gr_extended_consensus_count	0
+Gr_last_consensus_end_timestamp	
+Gr_total_messages_sent_count	0
+Gr_transactions_consistency_after_sync_count	0
+Gr_transactions_consistency_after_sync_time_sum	0
+Gr_transactions_consistency_after_termination_count	0
+Gr_transactions_consistency_after_termination_time_sum	0
+Gr_transactions_consistency_before_begin_count	0
+Gr_transactions_consistency_before_begin_time_sum	0
+
+############################################################
+# 2. Start Group Replication and verify that control messages
+#    metrics are incremented.
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc ['There were bytes accounted to sent control messages']
+include/assert.inc ['There was time accounted to sent control messages']
+
+############################################################
+# 3. Join server2 to the group.
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 4. Execute transactions on server1 and validate data metrics
+#    on both servers.
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
+INSERT INTO t1 VALUES (1);
+SET @@SESSION.group_replication_consistency= 'BEFORE';
+INSERT INTO t1 VALUES (2);
+SET @@SESSION.group_replication_consistency= 'AFTER';
+INSERT INTO t1 VALUES (3);
+SET @@SESSION.group_replication_consistency= 'BEFORE_AND_AFTER';
+INSERT INTO t1 VALUES (4);
+SET @@SESSION.group_replication_consistency= default;
+DROP TABLE t1;
+include/assert.inc ['There were 6 data messages sent']
+include/assert.inc ['There were bytes accounted to sent data messages']
+include/assert.inc ['There was time accounted to sent data messages']
+include/assert.inc ['There were 2 transactions with group_replication_consistency=BEFORE']
+include/assert.inc ['There was wait time on transactions with group_replication_consistency=BEFORE']
+include/assert.inc ['There were 2 transactions with group_replication_consistency=AFTER']
+include/assert.inc ['There was wait time on transactions with group_replication_consistency=AFTER']
+include/assert.inc ['There were 0 transactions that waited for transactions with group_replication_consistency=AFTER']
+include/assert.inc ['There was no wait time for transactions with group_replication_consistency=AFTER']
+[connection server2]
+include/assert.inc ['There were 0 data messages sent']
+include/assert.inc ['There were no bytes accounted to sent data messages']
+include/assert.inc ['There was no time accounted to sent data messages']
+include/assert.inc ['There were 0 transactions with group_replication_consistency=BEFORE']
+include/assert.inc ['There was no wait time on transactions with group_replication_consistency=BEFORE']
+include/assert.inc ['There were 0 transactions with group_replication_consistency=AFTER']
+include/assert.inc ['There was no wait time on transactions with group_replication_consistency=AFTER']
+include/assert.inc ['There were 0 transactions that waited for transactions with group_replication_consistency=AFTER']
+include/assert.inc ['There was no wait time for transactions with group_replication_consistency=AFTER']
+
+############################################################
+# 5. Validate that GCS metrics are greater than 0.
+[connection server1]
+include/assert.inc ['Gr_all_consensus_proposals_count is greater than 0']
+include/assert.inc ['Gr_all_consensus_time_sum is greater than 0']
+include/assert.inc ['Gr_consensus_bytes_received_sum is greater than 0']
+include/assert.inc ['Gr_consensus_bytes_sent_sum is greater than 0']
+include/assert.inc ['Gr_total_messages_sent_count is greater than 0']
+include/assert.inc ['Gr_last_consensus_end_timestamp is not empty']
+[connection server2]
+include/assert.inc ['Gr_all_consensus_proposals_count is greater than 0']
+include/assert.inc ['Gr_all_consensus_time_sum is greater than 0']
+include/assert.inc ['Gr_consensus_bytes_received_sum is greater than 0']
+include/assert.inc ['Gr_consensus_bytes_sent_sum is greater than 0']
+include/assert.inc ['Gr_total_messages_sent_count is greater than 0']
+include/assert.inc ['Gr_last_consensus_end_timestamp is not empty']
+
+############################################################
+# 6. Stop Group Replication and validate that metrics are
+#    available.
+[connection server1]
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_count' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%\_count';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_data_messages_sent_count	6
+Gr_transactions_consistency_after_sync_count	0
+Gr_transactions_consistency_after_termination_count	2
+Gr_transactions_consistency_before_begin_count	2
+include/stop_group_replication.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_count' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%\_count';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_data_messages_sent_count	6
+Gr_transactions_consistency_after_sync_count	0
+Gr_transactions_consistency_after_termination_count	2
+Gr_transactions_consistency_before_begin_count	2
+include/assert.inc ['Gr_all_consensus_proposals_count is greater than 0']
+include/assert.inc ['Gr_all_consensus_time_sum is greater than 0']
+include/assert.inc ['Gr_consensus_bytes_received_sum is greater than 0']
+include/assert.inc ['Gr_consensus_bytes_sent_sum is greater than 0']
+include/assert.inc ['Gr_total_messages_sent_count is greater than 0']
+include/assert.inc ['Gr_last_consensus_end_timestamp is not empty']
+[connection server2]
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_%' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_data_messages_sent_bytes_sum	0
+Gr_data_messages_sent_count	0
+Gr_data_messages_sent_roundtrip_time_sum	0
+Gr_transactions_consistency_after_sync_count	0
+Gr_transactions_consistency_after_sync_time_sum	0
+Gr_transactions_consistency_after_termination_count	0
+Gr_transactions_consistency_after_termination_time_sum	0
+Gr_transactions_consistency_before_begin_count	0
+Gr_transactions_consistency_before_begin_time_sum	0
+include/stop_group_replication.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_%' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_data_messages_sent_bytes_sum	0
+Gr_data_messages_sent_count	0
+Gr_data_messages_sent_roundtrip_time_sum	0
+Gr_transactions_consistency_after_sync_count	0
+Gr_transactions_consistency_after_sync_time_sum	0
+Gr_transactions_consistency_after_termination_count	0
+Gr_transactions_consistency_after_termination_time_sum	0
+Gr_transactions_consistency_before_begin_count	0
+Gr_transactions_consistency_before_begin_time_sum	0
+include/assert.inc ['Gr_all_consensus_proposals_count is greater than 0']
+include/assert.inc ['Gr_all_consensus_time_sum is greater than 0']
+include/assert.inc ['Gr_consensus_bytes_received_sum is greater than 0']
+include/assert.inc ['Gr_consensus_bytes_sent_sum is greater than 0']
+include/assert.inc ['Gr_total_messages_sent_count is greater than 0']
+include/assert.inc ['Gr_last_consensus_end_timestamp is not empty']
+
+#################################################################
+# 7. Restart Stop Group Replication and validate that metrics were
+#    reset.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_%' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_data_messages_sent_bytes_sum	0
+Gr_data_messages_sent_count	0
+Gr_data_messages_sent_roundtrip_time_sum	0
+Gr_transactions_consistency_after_sync_count	0
+Gr_transactions_consistency_after_sync_time_sum	0
+Gr_transactions_consistency_after_termination_count	0
+Gr_transactions_consistency_after_termination_time_sum	0
+Gr_transactions_consistency_before_begin_count	0
+Gr_transactions_consistency_before_begin_time_sum	0
+[connection server2]
+include/start_group_replication.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_%' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%';
+VARIABLE_NAME	VARIABLE_VALUE
+Gr_data_messages_sent_bytes_sum	0
+Gr_data_messages_sent_count	0
+Gr_data_messages_sent_roundtrip_time_sum	0
+Gr_transactions_consistency_after_sync_count	0
+Gr_transactions_consistency_after_sync_time_sum	0
+Gr_transactions_consistency_after_termination_count	0
+Gr_transactions_consistency_after_termination_time_sum	0
+Gr_transactions_consistency_before_begin_count	0
+Gr_transactions_consistency_before_begin_time_sum	0
+
+#################################################################
+# 8. Cleanup
+include/group_replication_end.inc

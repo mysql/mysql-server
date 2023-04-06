@@ -59,12 +59,6 @@ class mock_gcs_xcom_view_change_control_interface
   MOCK_METHOD0(is_finalized, bool());
 };
 
-class mock_gcs_xcom_statistics_updater : public Gcs_xcom_statistics_updater {
- public:
-  MOCK_METHOD1(update_message_sent, void(unsigned long long message_length));
-  MOCK_METHOD1(update_message_received, void(long message_length));
-};
-
 class mock_gcs_communication_event_listener
     : public Gcs_communication_event_listener {
  public:
@@ -185,6 +179,37 @@ class mock_gcs_network_provider_management_interface
   MOCK_METHOD1(remove_network_provider, void(enum_transport_protocol));
 };
 
+class Mock_gcs_xcom_statistics_manager
+    : public Gcs_xcom_statistics_manager_interface {
+  MOCK_METHOD(uint64_t, get_sum_var_value,
+              (Gcs_cumulative_statistics_enum to_get), (const, override));
+  MOCK_METHOD(void, set_sum_var_value,
+              (Gcs_cumulative_statistics_enum to_set, uint64_t to_add),
+              (override));
+
+  // COUNT VARS
+  MOCK_METHOD(uint64_t, get_count_var_value,
+              (Gcs_counter_statistics_enum to_get), (const, override));
+  MOCK_METHOD(void, set_count_var_value, (Gcs_counter_statistics_enum to_set),
+              (override));
+
+  // TIMESTAMP VALUES
+  MOCK_METHOD(unsigned long long, get_timestamp_var_value,
+              (Gcs_time_statistics_enum to_get), (const, override));
+  MOCK_METHOD(void, set_timestamp_var_value,
+              (Gcs_time_statistics_enum to_set, unsigned long long new_value),
+              (override));
+  MOCK_METHOD(void, set_sum_timestamp_var_value,
+              (Gcs_time_statistics_enum to_set, unsigned long long to_add),
+              (override));
+
+  // ALL OTHER VARS
+  MOCK_METHOD(std::vector<Gcs_node_suspicious>, get_all_suspicious, (),
+              (const, override));
+  MOCK_METHOD(void, add_suspicious_for_a_node, (std::string node_id),
+              (override));
+};
+
 class XComCommunicationTest : public GcsBaseTest {
  protected:
   void SetUp() override {
@@ -197,7 +222,7 @@ class XComCommunicationTest : public GcsBaseTest {
     mock_xcom_address = new Gcs_xcom_node_address("127.0.0.1:12345");
     static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface())
         ->set_node_address(mock_xcom_address->get_member_address());
-    mock_stats = new mock_gcs_xcom_statistics_updater();
+    mock_stats = new Mock_gcs_xcom_statistics_manager();
     mock_proxy = new mock_gcs_xcom_proxy();
     mock_vce = new mock_gcs_xcom_view_change_control_interface();
     net_mgr_interface =
@@ -236,7 +261,7 @@ class XComCommunicationTest : public GcsBaseTest {
   }
 
   Gcs_xcom_communication *xcom_comm_if;
-  mock_gcs_xcom_statistics_updater *mock_stats;
+  Mock_gcs_xcom_statistics_manager *mock_stats;
   mock_gcs_xcom_proxy *mock_proxy;
   mock_gcs_xcom_view_change_control_interface *mock_vce;
   Gcs_xcom_node_address *mock_xcom_address;
@@ -305,7 +330,6 @@ TEST_F(XComCommunicationTest, SendMessageTest) {
   EXPECT_CALL(*mock_proxy, xcom_client_send_data(_, _))
       .Times(1)
       .WillOnce(Invoke(&mock_xcom_client_send_data));
-  EXPECT_CALL(*mock_stats, update_message_sent(_)).Times(1);
   EXPECT_CALL(*mock_vce, belongs_to_group()).Times(1).WillOnce(Return(true));
 
   std::string test_header("header");
@@ -332,7 +356,6 @@ TEST_F(XComCommunicationTest, ReceiveMessageTest) {
 
   // Test Expectations
   EXPECT_CALL(ev_listener, on_message_received(_)).Times(1);
-  EXPECT_CALL(*mock_stats, update_message_received(_)).Times(1);
 
   // Test
   std::string test_header("header");
@@ -371,7 +394,6 @@ TEST_F(XComCommunicationTest, ReceiveMessageTest) {
   EXPECT_CALL(*mock_proxy, xcom_client_send_data(_, _))
       .Times(1)
       .WillOnce(Invoke(&mock_xcom_client_send_data));
-  EXPECT_CALL(*mock_stats, update_message_sent(_)).Times(1);
   enum_gcs_error message_result = xcom_comm_if->send_message(
       Gcs_message(member_id, group_id, new Gcs_message_data(0, 0)));
   ASSERT_EQ(GCS_OK, message_result);
@@ -402,8 +424,6 @@ TEST_F(XComCommunicationTest, BufferMessageTest) {
 
   // Test Expectations
   EXPECT_CALL(ev_listener, on_message_received(_)).Times(1);
-
-  EXPECT_CALL(*mock_stats, update_message_received(_)).Times(1);
 
   // Set up the environment.
   std::string test_header("header");
@@ -443,7 +463,6 @@ TEST_F(XComCommunicationTest, BufferMessageTest) {
   EXPECT_CALL(*mock_proxy, xcom_client_send_data(_, _))
       .Times(1)
       .WillOnce(Invoke(&mock_xcom_client_send_data));
-  EXPECT_CALL(*mock_stats, update_message_sent(_)).Times(1);
   enum_gcs_error message_result = xcom_comm_if->send_message(
       Gcs_message(member_id, group_id, new Gcs_message_data(0, 0)));
   ASSERT_EQ(GCS_OK, message_result);

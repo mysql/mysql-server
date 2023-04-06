@@ -39,6 +39,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_proxy.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_state_exchange.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_statistics_interface.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_statistics_manager.h"
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/include/network_management_interface.h"
 
@@ -219,7 +220,7 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
   */
 
   explicit Gcs_xcom_communication(
-      Gcs_xcom_statistics_updater *stats, Gcs_xcom_proxy *proxy,
+      Gcs_xcom_statistics_manager_interface *stats, Gcs_xcom_proxy *proxy,
       Gcs_xcom_view_change_control_interface *view_control,
       Gcs_xcom_engine *gcs_engine, Gcs_group_identifier const &group_id,
       std::unique_ptr<Network_provider_management_interface> comms_mgmt);
@@ -303,7 +304,7 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
   std::map<int, const Gcs_communication_event_listener &> event_listeners;
 
   // Reference to the stats updater interface
-  Gcs_xcom_statistics_updater *stats;
+  Gcs_xcom_statistics_manager_interface *m_stats;
 
   // Reference to the xcom proxy interface
   Gcs_xcom_proxy *m_xcom_proxy;

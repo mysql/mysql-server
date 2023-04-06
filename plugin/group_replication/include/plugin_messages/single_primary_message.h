@@ -46,8 +46,11 @@ class Single_primary_message : public Plugin_gcs_message {
     // The election mode: 2 bytes
     PIT_SINGLE_PRIMARY_ELECTION_MODE = 3,
 
+    // Length of the payload item: 8 bytes
+    PIT_SENT_TIMESTAMP = 4,
+
     // No valid type codes can appear after this one.
-    PIT_MAX = 4
+    PIT_MAX = 5
   };
 
   /**
@@ -121,6 +124,18 @@ class Single_primary_message : public Plugin_gcs_message {
     @return the election mode associated to this message
   */
   enum_primary_election_mode get_election_mode();
+
+  /**
+    Return the time at which the message contained in the buffer was sent.
+    @see Metrics_handler::get_current_time()
+
+    @param[in] buffer            the buffer to decode from.
+    @param[in] length            the buffer length
+
+    @return the time on which the message was sent.
+  */
+  static uint64_t get_sent_timestamp(const unsigned char *buffer,
+                                     size_t length);
 
  protected:
   /**

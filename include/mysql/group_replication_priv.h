@@ -240,4 +240,20 @@ bool is_server_restarting_after_clone();
 */
 bool is_server_data_dropped();
 
+/**
+  Copy to datetime_str parameter the date in the format
+  'YYYY-MM-DD hh:mm:ss.ffffff' of the moment in time
+  represented by micro-seconds elapsed since the Epoch,
+  1970-01-01 00:00:00 +0000 (UTC).
+
+  @param[in]  microseconds_since_epoch  micro-seconds since Epoch.
+  @param[out] datetime_str              The string pointer to print at. This
+                                        function is guaranteed not to write
+                                        more than MAX_DATE_STRING_REP_LENGTH
+                                        characters.
+  @param[in]  decimal_precision         decimal precision, in the range 0..6
+*/
+void microseconds_to_datetime_str(uint64_t microseconds_since_epoch,
+                                  char *datetime_str, uint decimal_precision);
+
 #endif /* GROUP_REPLICATION_PRIV_INCLUDE */

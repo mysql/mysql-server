@@ -242,6 +242,11 @@ enum enum_gcs_error Gcs_operations::join(
     return GCS_OK;
   };);
 
+  /*
+    Reset metrics cached values before join a group.
+  */
+  metrics_cache_reset();
+
   error = gcs_control->join();
 
   gcs_operations_lock->unlock();
@@ -295,6 +300,12 @@ Gcs_operations::enum_leave_state Gcs_operations::leave(
         gcs_interface->get_control_session(group_id);
 
     if (gcs_control != nullptr) {
+      /*
+        Update metrics cached values so that them can be queried while
+        the member does not belong to a group.
+      */
+      metrics_cache_update();
+
       if (!gcs_control->leave()) {
         state = NOW_LEAVING;
         leave_coordination_leaving = true;
@@ -433,10 +444,10 @@ enum enum_gcs_error Gcs_operations::send_message(
     /* purecov: end */
   }
 
+  Gcs_member_identifier origin = gcs_control->get_local_member_identifier();
   std::vector<uchar> message_data;
   message.encode(&message_data);
 
-  Gcs_member_identifier origin = gcs_control->get_local_member_identifier();
   Gcs_message gcs_message(origin, new Gcs_message_data(0, message_data.size()));
 
   // message use memory key being tracked for connection limits,
@@ -827,4 +838,165 @@ bool Gcs_operations::is_initialized() {
   bool ret = nullptr != gcs_interface;
   gcs_operations_lock->unlock();
   return ret;
+}
+
+Gcs_statistics_interface *Gcs_operations::get_statistics_interface() {
+  DBUG_TRACE;
+  gcs_operations_lock->assert_some_lock();
+
+  if (gcs_interface != nullptr && gcs_interface->is_initialized()) {
+    std::string group_name(get_group_name_var());
+    Gcs_group_identifier group_id(group_name);
+    return gcs_interface->get_statistics(group_id);
+  }
+
+  return nullptr;
+}
+
+void Gcs_operations::metrics_cache_reset() {
+  DBUG_TRACE;
+  m_all_consensus_proposals_count.store(0);
+  m_empty_consensus_proposals_count.store(0);
+  m_consensus_bytes_sent_sum.store(0);
+  m_consensus_bytes_received_sum.store(0);
+  m_all_consensus_time_sum.store(0);
+  m_extended_consensus_count.store(0);
+  m_total_messages_sent_count.store(0);
+  m_last_consensus_end_timestamp.store(0);
+}
+
+void Gcs_operations::metrics_cache_update() {
+  DBUG_TRACE;
+  gcs_operations_lock->assert_some_lock();
+
+  Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
+  if (gcs_statistics != nullptr) {
+    m_all_consensus_proposals_count.store(
+        gcs_statistics->get_all_sucessful_proposal_rounds());
+    m_empty_consensus_proposals_count.store(
+        gcs_statistics->get_all_empty_proposal_rounds());
+    m_consensus_bytes_sent_sum.store(gcs_statistics->get_all_bytes_sent());
+    m_consensus_bytes_received_sum.store(
+        gcs_statistics->get_all_message_bytes_received());
+    m_all_consensus_time_sum.store(
+        static_cast<uint64_t>(gcs_statistics->get_cumulative_proposal_time()));
+    m_extended_consensus_count.store(
+        gcs_statistics->get_all_full_proposal_count());
+    m_total_messages_sent_count.store(gcs_statistics->get_all_messages_sent());
+    m_last_consensus_end_timestamp.store(
+        static_cast<uint64_t>(gcs_statistics->get_last_proposal_round_time()));
+  }
+}
+
+uint64_t Gcs_operations::get_all_consensus_proposals_count() {
+  DBUG_TRACE;
+  Checkable_rwlock::Guard g(*gcs_operations_lock, Checkable_rwlock::READ_LOCK);
+
+  Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
+  if (gcs_statistics != nullptr) {
+    m_all_consensus_proposals_count.store(
+        gcs_statistics->get_all_sucessful_proposal_rounds());
+  }
+
+  return m_all_consensus_proposals_count.load();
+}
+
+uint64_t Gcs_operations::get_empty_consensus_proposals_count() {
+  DBUG_TRACE;
+  Checkable_rwlock::Guard g(*gcs_operations_lock, Checkable_rwlock::READ_LOCK);
+
+  Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
+  if (gcs_statistics != nullptr) {
+    m_empty_consensus_proposals_count.store(
+        gcs_statistics->get_all_empty_proposal_rounds());
+  }
+
+  return m_empty_consensus_proposals_count.load();
+}
+
+uint64_t Gcs_operations::get_consensus_bytes_sent_sum() {
+  DBUG_TRACE;
+  Checkable_rwlock::Guard g(*gcs_operations_lock, Checkable_rwlock::READ_LOCK);
+
+  Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
+  if (gcs_statistics != nullptr) {
+    m_consensus_bytes_sent_sum.store(gcs_statistics->get_all_bytes_sent());
+  }
+
+  return m_consensus_bytes_sent_sum.load();
+}
+
+uint64_t Gcs_operations::get_consensus_bytes_received_sum() {
+  DBUG_TRACE;
+  Checkable_rwlock::Guard g(*gcs_operations_lock, Checkable_rwlock::READ_LOCK);
+
+  Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
+  if (gcs_statistics != nullptr) {
+    m_consensus_bytes_received_sum.store(
+        gcs_statistics->get_all_message_bytes_received());
+  }
+
+  return m_consensus_bytes_received_sum.load();
+}
+
+uint64_t Gcs_operations::get_all_consensus_time_sum() {
+  DBUG_TRACE;
+  Checkable_rwlock::Guard g(*gcs_operations_lock, Checkable_rwlock::READ_LOCK);
+
+  Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
+  if (gcs_statistics != nullptr) {
+    m_all_consensus_time_sum.store(
+        static_cast<uint64_t>(gcs_statistics->get_cumulative_proposal_time()));
+  }
+
+  return m_all_consensus_time_sum.load();
+}
+
+uint64_t Gcs_operations::get_extended_consensus_count() {
+  DBUG_TRACE;
+  Checkable_rwlock::Guard g(*gcs_operations_lock, Checkable_rwlock::READ_LOCK);
+
+  Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
+  if (gcs_statistics != nullptr) {
+    m_extended_consensus_count.store(
+        gcs_statistics->get_all_full_proposal_count());
+  }
+
+  return m_extended_consensus_count.load();
+}
+
+uint64_t Gcs_operations::get_total_messages_sent_count() {
+  DBUG_TRACE;
+  Checkable_rwlock::Guard g(*gcs_operations_lock, Checkable_rwlock::READ_LOCK);
+
+  Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
+  if (gcs_statistics != nullptr) {
+    m_total_messages_sent_count.store(gcs_statistics->get_all_messages_sent());
+  }
+
+  return m_total_messages_sent_count.load();
+}
+
+uint64_t Gcs_operations::get_last_consensus_end_timestamp() {
+  DBUG_TRACE;
+  Checkable_rwlock::Guard g(*gcs_operations_lock, Checkable_rwlock::READ_LOCK);
+
+  Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
+  if (gcs_statistics != nullptr) {
+    m_last_consensus_end_timestamp.store(
+        static_cast<uint64_t>(gcs_statistics->get_last_proposal_round_time()));
+  }
+
+  return m_last_consensus_end_timestamp.load();
+}
+
+void Gcs_operations::get_suspicious_count(
+    std::list<Gcs_node_suspicious> &node_suspicious) {
+  DBUG_TRACE;
+  Checkable_rwlock::Guard g(*gcs_operations_lock, Checkable_rwlock::READ_LOCK);
+
+  Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
+  if (gcs_statistics != nullptr) {
+    gcs_statistics->get_suspicious_count(node_suspicious);
+  }
 }

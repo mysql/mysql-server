@@ -31,6 +31,7 @@
 #include "plugin/group_replication/include/certifier.h"
 #include "plugin/group_replication/include/observer_trans.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
 #include "plugin/group_replication/include/services/system_variable/get_system_variable.h"
 
 const std::string Certifier::GTID_EXTRACTED_NAME = "gtid_extracted";
@@ -1377,6 +1378,9 @@ int Certifier::stable_set_handle() {
     return 0;
   }
 
+  /* Start garbage collection duration. */
+  const auto garbage_collection_begin = Metrics_handler::get_current_time();
+
   Data_packet *packet = nullptr;
   int error = 0;
 
@@ -1477,6 +1481,11 @@ int Certifier::stable_set_handle() {
 
   if (!error) {
     garbage_collect();
+
+    /* Update garbage collection metrics. */
+    const auto garbage_collection_end = Metrics_handler::get_current_time();
+    metrics_handler->add_garbage_collection_run(garbage_collection_begin,
+                                                garbage_collection_end);
   }
 
   return error;
@@ -1734,6 +1743,9 @@ void Gtid_Executed_Message::encode_payload(
 
   encode_payload_item_type_and_length(buffer, PIT_GTID_EXECUTED, data.size());
   buffer->insert(buffer->end(), data.begin(), data.end());
+
+  encode_payload_item_int8(buffer, PIT_SENT_TIMESTAMP,
+                           Metrics_handler::get_current_time());
 }
 
 void Gtid_Executed_Message::decode_payload(const unsigned char *buffer,
@@ -1747,4 +1759,11 @@ void Gtid_Executed_Message::decode_payload(const unsigned char *buffer,
                                       &payload_item_length);
   data.clear();
   data.insert(data.end(), slider, slider + payload_item_length);
+}
+
+uint64_t Gtid_Executed_Message::get_sent_timestamp(const unsigned char *buffer,
+                                                   size_t length) {
+  DBUG_TRACE;
+  return Plugin_gcs_message::get_sent_timestamp(buffer, length,
+                                                PIT_SENT_TIMESTAMP);
 }

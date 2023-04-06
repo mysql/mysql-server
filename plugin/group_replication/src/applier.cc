@@ -36,6 +36,7 @@
 #include "plugin/group_replication/include/applier.h"
 #include "plugin/group_replication/include/leave_group_on_failure.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
 #include "plugin/group_replication/include/plugin_messages/single_primary_message.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
@@ -268,6 +269,9 @@ int Applier_module::apply_view_change_packet(
     Format_description_log_event *fde_evt, Continuation *cont) {
   int error = 0;
 
+  /* Start garbage collection duration. */
+  const auto garbage_collection_begin = Metrics_handler::get_current_time();
+
   Gtid_set *group_executed_set = nullptr;
   Sid_map *sid_map = nullptr;
   if (!view_change_packet->group_executed_set.empty()) {
@@ -294,6 +298,11 @@ int Applier_module::apply_view_change_packet(
     delete sid_map;
     delete group_executed_set;
   }
+
+  /* Update garbage collection metrics. */
+  const auto garbage_collection_end = Metrics_handler::get_current_time();
+  metrics_handler->add_garbage_collection_run(garbage_collection_begin,
+                                              garbage_collection_end);
 
   View_change_log_event *view_change_event =
       new View_change_log_event(view_change_packet->view_id.c_str());

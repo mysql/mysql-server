@@ -50,6 +50,13 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_after_applier_prepare';
 UNLOCK TABLES;
 [connection server_2_1]
 SET @@SESSION.group_replication_consistency= DEFAULT;
+include/assert.inc ['There was 1 transaction with group_replication_consistency=BEFORE']
+include/assert.inc ['There was wait time on transactions with group_replication_consistency=BEFORE']
+include/assert.inc ['There was 1 transaction with group_replication_consistency=AFTER']
+include/assert.inc ['There was wait time on transactions with group_replication_consistency=AFTER']
+include/assert.inc ['There were 0 transactions that waited for transactions with group_replication_consistency=AFTER']
+include/assert.inc ['There was no wait time for transactions with group_replication_consistency=AFTER']
+include/assert.inc ['There was 1 data messages sent']
 
 ############################################################
 # 08. Wait until T2 reaches prepare on server1.
@@ -71,6 +78,13 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_after_applier_prepare';
 [connection server_1_1]
 count
 1
+include/assert.inc ['There was 1 transaction that waited for transactions with group_replication_consistency=AFTER']
+include/assert.inc ['There was wait time for transactions with group_replication_consistency=AFTER']
+include/assert.inc ['There were 0 transactions with group_replication_consistency=AFTER']
+include/assert.inc ['There was no wait time on transactions with group_replication_consistency=AFTER']
+include/assert.inc ['There were 0 transactions with group_replication_consistency=BEFORE']
+include/assert.inc ['There was no wait time on transactions with group_replication_consistency=BEFORE']
+include/assert.inc ['There were 3 data messages sent']
 
 ############################################################
 # 11. Validate data.

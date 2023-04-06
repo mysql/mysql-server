@@ -178,6 +178,11 @@ SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
 --let $group_replication_member_id = $member_id
 --source include/gr_wait_for_member_state.inc
 
+# Validate that metrics are reset after automatic rejoin.
+# Only transaction related metrics are shown since those are the
+# ones that do not change due to background tasks.
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_%' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%';
+
 --echo
 --echo ####
 --echo # 6) Cleanup.

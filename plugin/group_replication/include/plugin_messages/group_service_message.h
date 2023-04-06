@@ -42,8 +42,12 @@ class Group_service_message : public Plugin_gcs_message {
     // Length of the payload item: variable
     PIT_DATA = 2,
 
+    // Length of the payload item: 8 bytes
+    PIT_SENT_TIMESTAMP = 3,
+
     // No valid type codes can appear after this one.
-    PIT_MAX = 3
+    // message was sent.
+    PIT_MAX = 4
   };
 
   /**
@@ -112,6 +116,18 @@ class Group_service_message : public Plugin_gcs_message {
      @return length of the string that identifies content of message
   */
   size_t get_tag_length() { return m_tag.length(); }
+
+  /**
+    Return the time at which the message contained in the buffer was sent.
+    @see Metrics_handler::get_current_time()
+
+    @param[in] buffer            the buffer to decode from.
+    @param[in] length            the buffer length
+
+    @return the time on which the message was sent.
+  */
+  static uint64_t get_sent_timestamp(const unsigned char *buffer,
+                                     size_t length);
 
  protected:
   /**

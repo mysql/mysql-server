@@ -231,6 +231,15 @@ class Transaction_consistency_info {
   int handle_member_leave(
       const std::vector<Gcs_member_identifier> &leaving_members);
 
+  /**
+    Return the time at which the wait for the transaction prepare
+    acknowledge from others members did start.
+    @see Metrics_handler::get_current_time()
+
+    @return the wait for remote transaction acknowledge begin time.
+  */
+  uint64_t get_begin_timestamp() const;
+
  private:
   my_thread_id m_thread_id;
   const bool m_local_transaction;
@@ -244,6 +253,7 @@ class Transaction_consistency_info {
       m_members_that_must_prepare_the_transaction_lock;
   bool m_transaction_prepared_locally;
   bool m_transaction_prepared_remotely;
+  const uint64_t m_begin_timestamp;
 };
 
 typedef std::pair<rpl_sidno, rpl_gno> Transaction_consistency_manager_key;

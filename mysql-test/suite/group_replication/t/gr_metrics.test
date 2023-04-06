@@ -1,0 +1,292 @@
+###############################################################################
+# This test verifies Group Replication messages metrics.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Verify that metrics are 0.
+# 2. Start Group Replication and verify that control messages
+#    metrics are incremented.
+# 3. Join server2 to the group.
+# 4. Execute transactions on server1 and validate data metrics
+#    on both servers.
+# 5. Validate that GCS metrics are greater than 0.
+# 6. Stop Group Replication and validate that metrics are
+#    available.
+# 7. Restart Stop Group Replication and validate that metrics were
+#    reset.
+# 8. Cleanup
+###############################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Verify that metrics are 0.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_%';
+
+
+--echo
+--echo ############################################################
+--echo # 2. Start Group Replication and verify that control messages
+--echo #    metrics are incremented.
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $wait_condition= SELECT VARIABLE_VALUE>0 FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_control_messages_sent_count"
+--source include/wait_condition.inc
+
+--let $assert_text= 'There were bytes accounted to sent control messages'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_control_messages_sent_bytes_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'There was time accounted to sent control messages'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_control_messages_sent_roundtrip_time_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Join server2 to the group.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Execute transactions on server1 and validate data metrics
+--echo #    on both servers.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
+INSERT INTO t1 VALUES (1);
+SET @@SESSION.group_replication_consistency= 'BEFORE';
+INSERT INTO t1 VALUES (2);
+SET @@SESSION.group_replication_consistency= 'AFTER';
+INSERT INTO t1 VALUES (3);
+SET @@SESSION.group_replication_consistency= 'BEFORE_AND_AFTER';
+INSERT INTO t1 VALUES (4);
+SET @@SESSION.group_replication_consistency= default;
+DROP TABLE t1;
+
+--let $assert_text= 'There were 6 data messages sent'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_data_messages_sent_count", VARIABLE_VALUE, 1] = 6
+--source include/assert.inc
+
+--let $assert_text= 'There were bytes accounted to sent data messages'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_data_messages_sent_bytes_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'There was time accounted to sent data messages'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_data_messages_sent_roundtrip_time_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'There were 2 transactions with group_replication_consistency=BEFORE'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_before_begin_count", VARIABLE_VALUE, 1] = 2
+--source include/assert.inc
+--let $assert_text= 'There was wait time on transactions with group_replication_consistency=BEFORE'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_before_begin_time_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'There were 2 transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_termination_count", VARIABLE_VALUE, 1] = 2
+--source include/assert.inc
+--let $assert_text= 'There was wait time on transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_termination_time_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'There were 0 transactions that waited for transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_sync_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+--let $assert_text= 'There was no wait time for transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_sync_time_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'There were 0 data messages sent'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_data_messages_sent_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There were no bytes accounted to sent data messages'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_data_messages_sent_bytes_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There was no time accounted to sent data messages'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_data_messages_sent_roundtrip_time_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There were 0 transactions with group_replication_consistency=BEFORE'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_before_begin_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+--let $assert_text= 'There was no wait time on transactions with group_replication_consistency=BEFORE'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_before_begin_time_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There were 0 transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_termination_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+--let $assert_text= 'There was no wait time on transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_termination_time_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There were 0 transactions that waited for transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_sync_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+--let $assert_text= 'There was no wait time for transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_sync_time_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Validate that GCS metrics are greater than 0.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Gr_all_consensus_proposals_count is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_all_consensus_proposals_count", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_all_consensus_time_sum is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_all_consensus_time_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_consensus_bytes_received_sum is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_consensus_bytes_received_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_consensus_bytes_sent_sum is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_consensus_bytes_sent_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_total_messages_sent_count is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_total_messages_sent_count", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_last_consensus_end_timestamp is not empty'
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_last_consensus_end_timestamp", VARIABLE_VALUE, 1]" <> ""
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Gr_all_consensus_proposals_count is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_all_consensus_proposals_count", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_all_consensus_time_sum is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_all_consensus_time_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_consensus_bytes_received_sum is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_consensus_bytes_received_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_consensus_bytes_sent_sum is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_consensus_bytes_sent_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_total_messages_sent_count is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_total_messages_sent_count", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_last_consensus_end_timestamp is not empty'
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_last_consensus_end_timestamp", VARIABLE_VALUE, 1]" <> ""
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Stop Group Replication and validate that metrics are
+--echo #    available.
+# Only transaction related metrics are shown since those are the
+# ones that do not change due to background tasks.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_count' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%\_count';
+--source include/stop_group_replication.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_count' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%\_count';
+
+# Validate that GCS metrics are greater than 0.
+--let $assert_text= 'Gr_all_consensus_proposals_count is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_all_consensus_proposals_count", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_all_consensus_time_sum is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_all_consensus_time_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_consensus_bytes_received_sum is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_consensus_bytes_received_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_consensus_bytes_sent_sum is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_consensus_bytes_sent_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_total_messages_sent_count is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_total_messages_sent_count", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_last_consensus_end_timestamp is not empty'
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_last_consensus_end_timestamp", VARIABLE_VALUE, 1]" <> ""
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_%' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%';
+--source include/stop_group_replication.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_%' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%';
+
+# Validate that GCS metrics are greater than 0.
+--let $assert_text= 'Gr_all_consensus_proposals_count is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_all_consensus_proposals_count", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_all_consensus_time_sum is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_all_consensus_time_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_consensus_bytes_received_sum is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_consensus_bytes_received_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_consensus_bytes_sent_sum is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_consensus_bytes_sent_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_total_messages_sent_count is greater than 0'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_total_messages_sent_count", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'Gr_last_consensus_end_timestamp is not empty'
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_last_consensus_end_timestamp", VARIABLE_VALUE, 1]" <> ""
+--source include/assert.inc
+
+
+--echo
+--echo #################################################################
+--echo # 7. Restart Stop Group Replication and validate that metrics were
+--echo #    reset.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_%' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'Gr\_data\_messages\_sent\_%' OR VARIABLE_NAME LIKE 'Gr\_transactions\_consistency\_%';
+
+
+--echo
+--echo #################################################################
+--echo # 8. Cleanup
+--source include/group_replication_end.inc

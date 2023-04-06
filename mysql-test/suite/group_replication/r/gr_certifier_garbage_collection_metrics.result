@@ -1,0 +1,41 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Verify certification info garbage collection metrics are 0.
+include/assert.inc ['There were 0 certification info garbage collection runs']
+include/assert.inc ['There was no time spent on certification info garbage collection']
+
+############################################################
+# 2. Start Group Replication and verify certification info
+#    garbage collection metrics are incremented.
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc ['There is 1 certification info garbage collection runs']
+include/assert.inc ['There was time spent on certification info garbage collection']
+
+############################################################
+# 3. Run some transactions on the group to increase the time
+#    spent on garbage collection.
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT UNIQUE KEY NOT NULL, c3 INT UNIQUE KEY NOT NULL);
+include/assert.inc ['Count_transactions_rows_validating must be equal to 3000']
+
+############################################################
+# 4. Wait for the next garbage collection run and collect
+#    the metrics.
+include/assert.inc ['There are 2 certification info garbage collection runs']
+include/assert.inc ['There was time spent on certification info garbage collection']
+
+############################################################
+# 5. Stop Group Replication and validate that the metrics are
+#    available.
+include/stop_group_replication.inc
+include/assert.inc ['There are certification info garbage collection runs']
+include/assert.inc ['There was time spent on certification info garbage collection']
+
+#################################################################
+# 6. Cleanup
+DROP TABLE t1;
+include/group_replication_end.inc

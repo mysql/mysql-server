@@ -1392,6 +1392,7 @@ int local_server(task_arg arg) {
       /* Take ownership of the tail of the list, otherwise we lose it when we
          free ep->request. */
       ep->next_request = xcom_input_request_extract_next(ep->request);
+
       unchecked_replace_pax_msg(&ep->request_pax_msg,
                                 pax_msg_new_0(null_synode));
       assert(ep->request_pax_msg->refcnt == 1);
@@ -1737,6 +1738,9 @@ static void push_msg_3p(site_def const *site, pax_machine *p, pax_msg *msg,
   if (wait_forced_config) {
     force_pax_machine(p, 1);
   }
+
+  // Forced to do a 3p PAXOS. Adding it to the statistics.
+  cfg_app_get_storage_statistics()->add_three_phase_paxos();
 
   assert(msgno.msgno != 0);
   prepare_push_3p(site, p, msg, msgno, msg_type);
@@ -2360,6 +2364,7 @@ static int proposer_task(task_arg arg) {
   size_t nr_batched_app_data;
   int remote_retry;
   synode_allocation_type synode_allocation;
+  uint64_t start_propose_clock;
   ENV_INIT
   END_ENV_INIT
   END_ENV;
@@ -2404,6 +2409,10 @@ static int proposer_task(task_arg arg) {
         !is_view(ep->client_msg->p->a->body.c_t)) {
       ep->size = app_data_size(ep->client_msg->p->a);
       ep->nr_batched_app_data = 1;
+
+      // Add an extra message in statistics
+      cfg_app_get_storage_statistics()->add_message();
+
       while (AUTOBATCH && ep->size <= MAX_BATCH_SIZE &&
              ep->nr_batched_app_data <= MAX_BATCH_APP_DATA &&
              !link_empty(&prop_input_queue
@@ -2415,6 +2424,10 @@ static int proposer_task(task_arg arg) {
         atmp = tmp->p->a;
         ep->size += app_data_size(atmp);
         ep->nr_batched_app_data++;
+
+        // Add an extra message in statistics
+        cfg_app_get_storage_statistics()->add_message();
+
         /* Abort batching if config or too big batch */
         if (is_config(atmp->body.c_t) || is_view(atmp->body.c_t) ||
             ep->nr_batched_app_data > MAX_BATCH_APP_DATA ||
@@ -2434,10 +2447,15 @@ static int proposer_task(task_arg arg) {
         IFDBG(D_NONE, FN; PTREXP(ep->client_msg->p->a); STRLIT("extracted ");
               SYCEXP(ep->client_msg->p->a->app_key));
       }
+    } else {
+      // Add an extra message in statistics for control messages like
+      // Views and COnfigurations.
+      cfg_app_get_storage_statistics()->add_message();
     }
 
     ep->start_propose = task_now();
     ep->delay = 0.0;
+    ep->start_propose_clock = get_time_since_the_epoch();
 
     assert(!ep->client_msg->p->a->chosen);
 
@@ -2610,8 +2628,17 @@ static int proposer_task(task_arg arg) {
   next : {
     double now = task_now();
     double used = now - ep->start_propose;
+
+    auto proposal_end_time = get_time_since_the_epoch();
+    auto time_to_propose = proposal_end_time - ep->start_propose_clock;
+
     add_to_filter(used);
     prop_finished++;
+    // Add sucessfull proposal round
+    cfg_app_get_storage_statistics()->add_sucessful_paxos_round();
+    cfg_app_get_storage_statistics()->set_last_proposal_time(proposal_end_time);
+    cfg_app_get_storage_statistics()->add_proposal_time(time_to_propose);
+
     IFDBG(D_NONE, FN; STRLIT("completed ep->msgno "); SYCEXP(ep->msgno);
           NDBG(used, f); NDBG(median_time(), f);
           STRLIT("seconds since last push "); NDBG(now - ep->start_push, f););

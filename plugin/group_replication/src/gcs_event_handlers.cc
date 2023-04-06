@@ -38,6 +38,7 @@
 #include "plugin/group_replication/include/pipeline_stats.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/member_actions_handler.h"
+#include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_invocation_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/remote_clone_handler.h"
 #include "plugin/group_replication/include/plugin_messages/group_action_message.h"
@@ -76,7 +77,9 @@ Plugin_gcs_events_handler::~Plugin_gcs_events_handler() {
 
 void Plugin_gcs_events_handler::on_message_received(
     const Gcs_message &message) const {
-  Plugin_gcs_message::enum_cargo_type message_type =
+  metrics_handler->add_message_sent(message);
+
+  const Plugin_gcs_message::enum_cargo_type message_type =
       Plugin_gcs_message::get_cargo_type(
           message.get_message_data().get_payload());
 

@@ -86,6 +86,8 @@ SET(GCS_XCOM_TESTS
   xcom/gcs_xcom_network_provider
   xcom/gcs_xcom_network_provider_manager
   xcom/gcs_xcom_xcom_single_writer
+  xcom/gcs_xcom_statistics_manager
+  xcom/gcs_xcom_statistics_storage_impl
 )
 
 # When binding using IPv6 the way XCom does (dual stack IPv4/IPv6), it

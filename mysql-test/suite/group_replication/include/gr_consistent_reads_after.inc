@@ -47,9 +47,31 @@
 --echo # 01. Create two tables on the group.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+# Assert consistency options metrics.
+--let $assert_text= 'There were 0 transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_termination_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+--let $assert_text= 'There was no wait time on transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_termination_time_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
 SET @@SESSION.group_replication_consistency= 'AFTER';
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
+
+# Assert consistency options metrics.
+--let $assert_text= 'There were 2 transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_termination_count", VARIABLE_VALUE, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= 'There was wait time on transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_termination_time_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+--let $_consistency_after_termination_time_sum_02= `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_termination_time_sum"`
+
+--let $assert_text= 'There were 2 data messages sent'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_data_messages_sent_count", VARIABLE_VALUE, 1] = 2
+--source include/assert.inc
 
 
 --echo
@@ -142,6 +164,19 @@ if ($set_gtid_next)
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t2 WHERE c1=1, count, 1] = 1
 --source include/assert.inc
 
+# Assert consistency options metrics.
+--let $assert_text= 'There were 3 transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_termination_count", VARIABLE_VALUE, 1] = 3
+--source include/assert.inc
+
+--let $assert_text= 'There was wait time on transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_termination_time_sum", VARIABLE_VALUE, 1] > $_consistency_after_termination_time_sum_02
+--source include/assert.inc
+
+--let $assert_text= 'There were 3 data messages sent'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_data_messages_sent_count", VARIABLE_VALUE, 1] = 3
+--source include/assert.inc
+
 
 --echo
 --echo ############################################################
@@ -149,6 +184,19 @@ if ($set_gtid_next)
 --echo #     committed, new transactions are held.
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
+# Assert consistency options metrics.
+--let $assert_text= 'There were 0 transactions that waited for transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_sync_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There was no wait time for transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_sync_time_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There were no data messages sent'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_data_messages_sent_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
 --send SELECT COUNT(*) AS count FROM t2 WHERE c1=1
 
 # server_2_1 is waiting for T1 to commit
@@ -179,12 +227,41 @@ SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_after_applier_prepare';
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t2 WHERE c1=1, count, 1] = 1
 --source include/assert.inc
 
+# Assert consistency options metrics.
+--let $assert_text= 'There was 1 transaction that waited for transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_sync_count", VARIABLE_VALUE, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There was wait time for transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_sync_time_sum", VARIABLE_VALUE, 1] > 0
+--source include/assert.inc
+
+--let $assert_text= 'There were 0 transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_termination_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There was no wait time on transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_termination_time_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There were no data messages sent'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_data_messages_sent_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
 
 --echo
 --echo ############################################################
 --echo # 10. Clean up.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+# Assert consistency options metrics.
+--let $assert_text= 'There were 0 transactions that waited for transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_sync_count", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+--let $assert_text= 'There was no wait time for transactions with group_replication_consistency=AFTER'
+--let $assert_cond= [SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME="Gr_transactions_consistency_after_sync_time_sum", VARIABLE_VALUE, 1] = 0
+--source include/assert.inc
+
 DROP TABLE t1;
 DROP TABLE t2;
 SET @@SESSION.group_replication_consistency= DEFAULT;

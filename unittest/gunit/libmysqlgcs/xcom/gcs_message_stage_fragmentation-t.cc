@@ -29,13 +29,9 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_communication_interface.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/network_provider_manager.h"
 
-namespace gcs_message_stage_fragmentation_unittest {
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_statistics_manager.h"
 
-class Mock_gcs_xcom_statistics_updater : public Gcs_xcom_statistics_updater {
- public:
-  MOCK_METHOD1(update_message_sent, void(unsigned long long message_length));
-  MOCK_METHOD1(update_message_received, void(long message_length));
-};
+namespace gcs_message_stage_fragmentation_unittest {
 
 bool mock_xcom_client_send_data(unsigned long long, char *data) {
   std::free(data);
@@ -188,12 +184,43 @@ class Mock_gcs_network_provider_management_interface
   MOCK_METHOD1(remove_network_provider, void(enum_transport_protocol));
 };
 
+class Mock_gcs_xcom_statistics_manager
+    : public Gcs_xcom_statistics_manager_interface {
+  MOCK_METHOD(uint64_t, get_sum_var_value,
+              (Gcs_cumulative_statistics_enum to_get), (const, override));
+  MOCK_METHOD(void, set_sum_var_value,
+              (Gcs_cumulative_statistics_enum to_set, uint64_t to_add),
+              (override));
+
+  // COUNT VARS
+  MOCK_METHOD(uint64_t, get_count_var_value,
+              (Gcs_counter_statistics_enum to_get), (const, override));
+  MOCK_METHOD(void, set_count_var_value, (Gcs_counter_statistics_enum to_set),
+              (override));
+
+  // TIMESTAMP VALUES
+  MOCK_METHOD(unsigned long long, get_timestamp_var_value,
+              (Gcs_time_statistics_enum to_get), (const, override));
+  MOCK_METHOD(void, set_timestamp_var_value,
+              (Gcs_time_statistics_enum to_set, unsigned long long new_value),
+              (override));
+  MOCK_METHOD(void, set_sum_timestamp_var_value,
+              (Gcs_time_statistics_enum to_set, unsigned long long to_add),
+              (override));
+
+  // ALL OTHER VARS
+  MOCK_METHOD(std::vector<Gcs_node_suspicious>, get_all_suspicious, (),
+              (const, override));
+  MOCK_METHOD(void, add_suspicious_for_a_node, (std::string node_id),
+              (override));
+};
+
 class GcsMessageStageFragmentationTest : public GcsBaseTest {
  protected:
   Gcs_xcom_engine m_engine;
   Gcs_group_identifier m_mock_gid{"mock_group"};
   Gcs_xcom_node_address m_mock_xcom_address{"127.0.0.1:12345"};
-  Mock_gcs_xcom_statistics_updater m_mock_stats;
+  Mock_gcs_xcom_statistics_manager m_mock_stats;
   Mock_gcs_xcom_proxy m_mock_proxy;
   Mock_gcs_xcom_view_change_control_interface m_mock_vce;
 

@@ -1,0 +1,239 @@
+#######################################################################################
+#
+# In a group of 3 servers, we crash several servers and bring them back on to
+# check if .
+# Test :
+# 0. This test requires 3 servers
+# 1. Create a group replication setup with 3 members
+# 2. Set the group_replication_member_expel_timeout parameter to 15 seconds
+# 3. In a loop, crash server 3 and it will restart
+# 4. Then check if server 3 is still in the group
+# 4.1 Check if we have 1 suspicious of server 3
+# 5. 15 seconds later, server 3 should still be in the group as UNREACHABLE
+# 6. Server 3 should have been expelled from the group
+# 7. Restart GR on server 3
+# 8. Server 3 should be back in the group
+# 8,1. Server 3 should have not seen any suspicious
+# 9. Crash server 2 and repeat the whole process that was done for server 3
+# 10. Rejoin server 2 to the group
+# 11. Then check if server 2 back still to the group
+# 11.1 On server 1, Check if we have 2 suspicious of server 3 and 1 for server 2
+#######################################################################################
+# Don't test this under valgrind, memory leaks will occur
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--source include/force_restart.inc
+--source include/group_replication.inc
+
+
+--echo #
+--echo # 1. Create a group replication setup with 3 members
+--echo # 2. Set the group_replication_member_expel_timeout parameter to 15
+--echo #    seconds
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_member_expel_timeout = 15;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_member_expel_timeout = 15;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+--let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_member_expel_timeout = 15;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+--let $member3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+
+--echo #
+--echo # 3. In a loop, crash server 3 and it will restart
+
+--let $number_of_restarts_of_server_3 = 1
+while ($number_of_restarts_of_server_3 < 4) {
+
+    --let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+    --let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+    --let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name
+    --replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+    --source include/kill_and_restart_mysqld.inc
+
+    --echo # Restarting server 3
+    # Needed as we are not using rpl_restart_server.inc
+    --let $rpl_server_number= 3
+    --source include/rpl_reconnect.inc
+
+    --echo #
+    --echo # 4. Then check if server 3 is still in the group
+    --let $rpl_connection_name= server1
+    --source include/rpl_connection.inc
+    let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+    --source include/wait_condition.inc
+    let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
+    --source include/wait_condition.inc
+
+    --echo #
+    --echo # 4.1 Check if we have 1 suspicious of server 3
+    --let $all_count_fails_json= query_get_value(SELECT member_failure_suspicions_count FROM performance_schema.replication_group_communication_information, member_failure_suspicions_count, 1)
+    --let $json_value_query = `SELECT CONCAT('$.', '"$member3_uuid"')`
+    --replace_result $all_count_fails_json JSON_RESULT $json_value_query JSON_QUERY
+    --let $json_number_of_failues_extracted = `SELECT JSON_EXTRACT('$all_count_fails_json', '$json_value_query')`
+
+    --let $assert_text= 'Number of UNREACHEABLES seen must be $number_of_restarts_of_server_3'
+    --let $assert_cond= "$json_number_of_failues_extracted" = "$number_of_restarts_of_server_3"
+    --source include/assert.inc
+
+    --echo #
+    --echo # 5. 15 seconds later, server 3 should still be in the group as UNREACHABLE
+    --let $rpl_connection_name= server2
+    --source include/rpl_connection.inc
+    let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+    --source include/wait_condition.inc
+    let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
+    --source include/wait_condition.inc
+
+    --echo #
+    --echo # 6. Server 3 should have been expelled from the group
+    --let $rpl_connection_name= server1
+    --source include/rpl_connection.inc
+    let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members;
+    --source include/wait_condition.inc
+
+    --let $rpl_connection_name= server2
+    --source include/rpl_connection.inc
+    let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members;
+    --source include/wait_condition.inc
+
+    --echo #
+    --echo # 7. Restart GR on server 3
+    --let $rpl_connection_name= server3
+    --source include/rpl_connection.inc
+    --source include/start_group_replication.inc
+
+    --echo #
+    --echo # 8. Server 3 should be back in the group
+    --let $rpl_connection_name= server1
+    --source include/rpl_connection.inc
+    let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+    --source include/wait_condition.inc
+
+    --let $rpl_connection_name= server2
+    --source include/rpl_connection.inc
+    let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+    --source include/wait_condition.inc
+
+    --let $rpl_connection_name= server3
+    --source include/rpl_connection.inc
+    let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+    --source include/wait_condition.inc
+
+    --echo #
+    --echo # 8,1. Server 3 should have not seen any suspicious
+    --let $all_count_fails_json= query_get_value(SELECT member_failure_suspicions_count FROM performance_schema.replication_group_communication_information, member_failure_suspicions_count, 1)
+    --let $json_value_query = `SELECT CONCAT('$.', '"$member3_uuid"')`
+    --replace_result $all_count_fails_json JSON_RESULT $json_value_query JSON_QUERY
+    --let $json_number_of_failues_extracted = `SELECT JSON_EXTRACT('$all_count_fails_json', '$json_value_query')`
+
+    --let $assert_text= 'Number of UNREACHEABLES seen must be 0'
+    --let $assert_cond= "$json_number_of_failues_extracted" = "0"
+    --source include/assert.inc
+
+    --inc $number_of_restarts_of_server_3
+}
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--echo #
+--echo # 9. Crash server 2 and repeat the whole process that was done for
+--echo #    server 3
+--let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name
+--replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/kill_and_restart_mysqld.inc
+
+# Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
+--source include/wait_condition.inc
+
+--let $all_count_fails_json= query_get_value(SELECT member_failure_suspicions_count FROM performance_schema.replication_group_communication_information, member_failure_suspicions_count, 1)
+
+--let $json_value_query = `SELECT CONCAT('$.', '"$member2_uuid"')`
+--let $json_number_of_failues_extracted = `SELECT JSON_EXTRACT('$all_count_fails_json', '$json_value_query')`
+
+--let $assert_text= 'Number of UNREACHEABLES seen must be 1'
+--let $assert_cond= "$json_number_of_failues_extracted" = "1"
+--source include/assert.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members;
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members;
+--source include/wait_condition.inc
+
+--echo #
+--echo # 10. Rejoin server 2 to the group
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo #
+--echo # 11. Then check if server 2 back still to the group
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+
+--echo #
+--echo # 11.1 On server 1, Check if we have 2 suspicious of server 3 and 1 for server 2
+
+--let $all_count_fails_json= query_get_value(SELECT member_failure_suspicions_count FROM performance_schema.replication_group_communication_information, member_failure_suspicions_count, 1)
+
+--let $json_value_query = `SELECT CONCAT('$.', '"$member2_uuid"')`
+--let $json_number_of_failues_extracted = `SELECT JSON_EXTRACT('$all_count_fails_json', '$json_value_query')`
+
+--let $assert_text= 'Number of UNREACHEABLES seen must be 1'
+--let $assert_cond= "$json_number_of_failues_extracted" = "1"
+--source include/assert.inc
+
+--let $json_value_query = `SELECT CONCAT('$.', '"$member3_uuid"')`
+--let $json_number_of_failues_extracted = `SELECT JSON_EXTRACT('$all_count_fails_json', '$json_value_query')`
+
+--let $assert_text= 'Number of UNREACHEABLES seen must be 3'
+--let $assert_cond= "$json_number_of_failues_extracted" = "3"
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+
+--source include/group_replication_end.inc

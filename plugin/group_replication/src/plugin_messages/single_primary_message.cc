@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/plugin_messages/single_primary_message.h"
+#include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
 
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -72,7 +73,6 @@ void Single_primary_message::decode_payload(const unsigned char *buffer,
           assert(single_primary_message_type ==
                  SINGLE_PRIMARY_PRIMARY_ELECTION);
           primary_uuid.assign(slider, slider + payload_item_length);
-          slider += payload_item_length;
         }
         break;
 
@@ -82,9 +82,11 @@ void Single_primary_message::decode_payload(const unsigned char *buffer,
                  SINGLE_PRIMARY_PRIMARY_ELECTION);
           uint16 election_mode_aux = uint2korr(slider);
           election_mode = (enum_primary_election_mode)election_mode_aux;
-          slider += payload_item_length;
         }
     }
+
+    // Seek to next payload item.
+    slider += payload_item_length;
   }
 }
 
@@ -105,6 +107,9 @@ void Single_primary_message::encode_payload(
     encode_payload_item_int2(buffer, PIT_SINGLE_PRIMARY_ELECTION_MODE,
                              election_mode);
   }
+
+  encode_payload_item_int8(buffer, PIT_SENT_TIMESTAMP,
+                           Metrics_handler::get_current_time());
 }
 
 std::string &Single_primary_message::get_primary_uuid() {
@@ -115,4 +120,11 @@ std::string &Single_primary_message::get_primary_uuid() {
 enum_primary_election_mode Single_primary_message::get_election_mode() {
   assert(single_primary_message_type == SINGLE_PRIMARY_PRIMARY_ELECTION);
   return election_mode;
+}
+
+uint64_t Single_primary_message::get_sent_timestamp(const unsigned char *buffer,
+                                                    size_t length) {
+  DBUG_TRACE;
+  return Plugin_gcs_message::get_sent_timestamp(buffer, length,
+                                                PIT_SENT_TIMESTAMP);
 }

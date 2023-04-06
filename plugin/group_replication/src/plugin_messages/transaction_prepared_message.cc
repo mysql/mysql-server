@@ -22,6 +22,7 @@
 
 #include "plugin/group_replication/include/plugin_messages/transaction_prepared_message.h"
 #include "my_dbug.h"
+#include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
 
 Transaction_prepared_message::Transaction_prepared_message(const rpl_sid *sid,
                                                            rpl_gno gno)
@@ -54,6 +55,9 @@ void Transaction_prepared_message::encode_payload(
     encode_payload_item_bytes(buffer, PIT_TRANSACTION_PREPARED_SID, m_sid.bytes,
                               m_sid.BYTE_LENGTH);
   }
+
+  encode_payload_item_int8(buffer, PIT_SENT_TIMESTAMP,
+                           Metrics_handler::get_current_time());
 }
 
 void Transaction_prepared_message::decode_payload(const unsigned char *buffer,
@@ -77,10 +81,12 @@ void Transaction_prepared_message::decode_payload(const unsigned char *buffer,
         if (slider + payload_item_length <= end) {
           memcpy(m_sid.bytes, slider, payload_item_length);
           m_sid_specified = true;
-          slider += payload_item_length;
         }
         break;
     }
+
+    // Seek to next payload item.
+    slider += payload_item_length;
   }
 }
 
@@ -89,3 +95,10 @@ const rpl_sid *Transaction_prepared_message::get_sid() {
 }
 
 rpl_gno Transaction_prepared_message::get_gno() { return m_gno; }
+
+uint64_t Transaction_prepared_message::get_sent_timestamp(
+    const unsigned char *buffer, size_t length) {
+  DBUG_TRACE;
+  return Plugin_gcs_message::get_sent_timestamp(buffer, length,
+                                                PIT_SENT_TIMESTAMP);
+}

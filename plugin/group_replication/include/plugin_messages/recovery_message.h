@@ -42,8 +42,11 @@ class Recovery_message : public Plugin_gcs_message {
     // Length of the payload item: variable
     PIT_MEMBER_UUID = 2,
 
+    // Length of the payload item: 8 bytes
+    PIT_SENT_TIMESTAMP = 3,
+
     // No valid type codes can appear after this one.
-    PIT_MAX = 3
+    PIT_MAX = 4
   };
 
   /**
@@ -88,6 +91,18 @@ class Recovery_message : public Plugin_gcs_message {
 
   /** Returns this message sender's uuid */
   const std::string &get_member_uuid() { return member_uuid; }
+
+  /**
+    Return the time at which the message contained in the buffer was sent.
+    @see Metrics_handler::get_current_time()
+
+    @param[in] buffer            the buffer to decode from.
+    @param[in] length            the buffer length
+
+    @return the time on which the message was sent.
+  */
+  static uint64_t get_sent_timestamp(const unsigned char *buffer,
+                                     size_t length);
 
  protected:
   /**

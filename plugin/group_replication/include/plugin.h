@@ -56,6 +56,7 @@
 class Autorejoin_thread;
 class Transaction_consistency_manager;
 class Member_actions_handler;
+class Metrics_handler;
 class Consensus_leaders_handler;
 class Mysql_thread;
 
@@ -117,6 +118,7 @@ struct gr_modules {
     MESSAGE_SERVICE_HANDLER,
     BINLOG_DUMP_THREAD_KILL,
     MEMBER_ACTIONS_HANDLER,
+    METRICS_HANDLER,
     NUM_MODULES
   };
   using mask = std::bitset<NUM_MODULES>;
@@ -172,6 +174,7 @@ extern Primary_election_handler *primary_election_handler;
 extern Autorejoin_thread *autorejoin_module;
 extern Message_service_handler *message_service_handler;
 extern Member_actions_handler *member_actions_handler;
+extern Metrics_handler *metrics_handler;
 extern Mysql_thread *mysql_thread_handler;
 extern Mysql_thread *mysql_thread_handler_read_only_mode;
 extern Server_services_references *server_services_references_module;

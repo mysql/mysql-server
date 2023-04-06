@@ -125,7 +125,8 @@ Gcs_xcom_control::Gcs_xcom_control(
     Gcs_xcom_view_change_control_interface *view_control, bool boot,
     My_xp_socket_util *socket_util,
     std::unique_ptr<Network_provider_operations_interface>
-        comms_operation_interface)
+        comms_operation_interface,
+    Gcs_xcom_statistics_manager_interface *stats_mgr)
     : m_gid(nullptr),
       m_gid_hash(0),
       m_xcom_proxy(xcom_proxy),
@@ -142,6 +143,7 @@ Gcs_xcom_control::Gcs_xcom_control(
       m_suspicions_processing_thread(),
       m_sock_probe_interface(nullptr),
       m_comms_operation_interface(std::move(comms_operation_interface)),
+      m_stats_mgr(stats_mgr),
       m_xcom_running(false),
       m_leave_view_requested(false),
       m_leave_view_delivered(false),
@@ -1264,6 +1266,11 @@ bool Gcs_xcom_control::xcom_receive_local_view(synode_no const config_id,
             MYSQL_GCS_LOG_TRACE("My node_id is (%d) Non-member node considered "
                                 "suspicious in the cluster: %s",
                                 node_no, (*it)->get_member_id().c_str());)
+
+    // Register suspicious per node, for statistical purposes
+    for (auto &&suspect_member_id : unreachable) {
+      m_stats_mgr->add_suspicious_for_a_node(suspect_member_id.get_member_id());
+    }
 
     // always notify local views
     for (callback_it = event_listeners.begin();

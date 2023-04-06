@@ -32,6 +32,8 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "my_systime.h"
+#include "my_time.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/my_loglevel.h"
@@ -55,6 +57,7 @@
 #include "sql/sql_plugin_ref.h"
 #include "sql/ssl_init_callback.h"
 #include "sql/system_variables.h"  // System_variables
+#include "sql/tztime.h"            // my_tz_UTC
 #include "string_with_len.h"
 
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
@@ -694,4 +697,14 @@ bool is_group_replication_member_secondary() {
 
   srv_registry->release(gr_status_service_handler);
   return is_a_secondary;
+}
+
+void microseconds_to_datetime_str(uint64_t microseconds_since_epoch,
+                                  char *datetime_str, uint decimal_precision) {
+  my_timeval time_value;
+  my_micro_time_to_timeval(microseconds_since_epoch, &time_value);
+
+  MYSQL_TIME mysql_time;
+  my_tz_UTC->gmt_sec_to_TIME(&mysql_time, time_value);
+  my_datetime_to_str(mysql_time, datetime_str, decimal_precision);
 }

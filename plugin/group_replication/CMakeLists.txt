@@ -67,6 +67,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/plugin_handlers/group_partition_handling.cc
   src/plugin_handlers/member_actions_handler.cc
   src/plugin_handlers/member_actions_handler_configuration.cc
+  src/plugin_handlers/metrics_handler.cc
   src/plugin_handlers/offline_mode_handler.cc
   src/plugin_handlers/primary_election_invocation_handler.cc
   src/plugin_handlers/primary_election_primary_process.cc
@@ -91,6 +92,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/plugin_observers/group_transaction_observation_manager.cc
   src/plugin_variables/recovery_endpoints.cc
   src/plugin_psi.cc
+  src/plugin_status_variables.cc
   src/plugin_utils.cc
   src/ps_information.cc
   src/recovery.cc

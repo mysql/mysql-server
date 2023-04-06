@@ -48,8 +48,10 @@ class Group_action_message : public Plugin_gcs_message {
     PIT_ACTION_TRANSACTION_MONITOR_TIMEOUT = 6,
     // The action initiator information: 4 bytes
     PIT_ACTION_INITIATOR = 7,
+    // Length of the payload item: 8 bytes
+    PIT_SENT_TIMESTAMP = 8,
     // No valid type codes can appear after this one.
-    PIT_MAX = 8
+    PIT_MAX = 9
   };
 
   /** Enum for the types of message / actions */
@@ -205,6 +207,18 @@ class Group_action_message : public Plugin_gcs_message {
     @return the running_transactions_timeout value
    */
   int32 get_transaction_monitor_timeout();
+
+  /**
+    Return the time at which the message contained in the buffer was sent.
+    @see Metrics_handler::get_current_time()
+
+    @param[in] buffer            the buffer to decode from.
+    @param[in] length            the buffer length
+
+    @return the time on which the message was sent.
+  */
+  static uint64_t get_sent_timestamp(const unsigned char *buffer,
+                                     size_t length);
 
  protected:
   /**

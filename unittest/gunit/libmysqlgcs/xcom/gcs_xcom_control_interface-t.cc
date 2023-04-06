@@ -480,6 +480,38 @@ class mock_gcs_network_provider_operations_interface
                void(enum_transport_protocol provider_key));
 };
 
+class Mock_gcs_xcom_statistics_manager
+    : public Gcs_xcom_statistics_manager_interface {
+ public:
+  MOCK_METHOD(uint64_t, get_sum_var_value,
+              (Gcs_cumulative_statistics_enum to_get), (const, override));
+  MOCK_METHOD(void, set_sum_var_value,
+              (Gcs_cumulative_statistics_enum to_set, uint64_t to_add),
+              (override));
+
+  // COUNT VARS
+  MOCK_METHOD(uint64_t, get_count_var_value,
+              (Gcs_counter_statistics_enum to_get), (const, override));
+  MOCK_METHOD(void, set_count_var_value, (Gcs_counter_statistics_enum to_set),
+              (override));
+
+  // TIMESTAMP VALUES
+  MOCK_METHOD(unsigned long long, get_timestamp_var_value,
+              (Gcs_time_statistics_enum to_get), (const, override));
+  MOCK_METHOD(void, set_timestamp_var_value,
+              (Gcs_time_statistics_enum to_set, unsigned long long new_value),
+              (override));
+  MOCK_METHOD(void, set_sum_timestamp_var_value,
+              (Gcs_time_statistics_enum to_set, unsigned long long to_add),
+              (override));
+
+  // ALL OTHER VARS
+  MOCK_METHOD(std::vector<Gcs_node_suspicious>, get_all_suspicious, (),
+              (const, override));
+  MOCK_METHOD(void, add_suspicious_for_a_node, (std::string node_id),
+              (override));
+};
+
 class mock_gcs_xcom_control : public Gcs_xcom_control {
  public:
   mock_gcs_xcom_control(
@@ -491,11 +523,12 @@ class mock_gcs_xcom_control : public Gcs_xcom_control {
       Gcs_xcom_state_exchange_interface *state_exchange,
       Gcs_xcom_view_change_control_interface *view_control, bool boot,
       My_xp_socket_util *socket_util,
-      std::unique_ptr<Network_provider_operations_interface> network_ops)
+      std::unique_ptr<Network_provider_operations_interface> network_ops,
+      Gcs_xcom_statistics_manager_interface *stats_mgr)
       : Gcs_xcom_control(xcom_node_address, xcom_peers, group_identifier,
                          xcom_proxy, xcom_group_management, gcs_engine,
                          state_exchange, view_control, boot, socket_util,
-                         std::move(network_ops)) {}
+                         std::move(network_ops), stats_mgr) {}
 
   enum_gcs_error join() override { return join(nullptr); }
 
@@ -588,10 +621,12 @@ class XComControlTest : public GcsBaseTest {
         std::make_unique<mock_gcs_network_provider_operations_interface>();
     mock_net_ops = mock_net_ops_for_interface.get();
 
+    mock_stats_mgr = new NiceMock<Mock_gcs_xcom_statistics_manager>();
+
     xcom_control_if = new NiceMock<mock_gcs_xcom_control>(
         xcom_node_address, peers, *group_id, &proxy, xcom_group_mgm,
         &gcs_engine, mock_se, mock_vce, true, mock_socket_util,
-        std::move(mock_net_ops_for_interface));
+        std::move(mock_net_ops_for_interface), mock_stats_mgr);
     extern_xcom_control_if = xcom_control_if;
   }
 
@@ -611,6 +646,8 @@ class XComControlTest : public GcsBaseTest {
 
     m_wait_called_mutex.destroy();
     m_wait_called_cond.destroy();
+
+    delete mock_stats_mgr;
   }
 
   Gcs_xcom_node_address *xcom_node_address;
@@ -628,6 +665,7 @@ class XComControlTest : public GcsBaseTest {
   mock_gcs_network_provider_operations_interface *mock_net_ops;
   std::unique_ptr<mock_gcs_network_provider_operations_interface>
       mock_net_ops_for_interface;
+  NiceMock<Mock_gcs_xcom_statistics_manager> *mock_stats_mgr;
 
   bool m_wait_called;
   My_xp_mutex_impl m_wait_called_mutex;
@@ -1257,6 +1295,7 @@ TEST_F(XComControlTest, FailedNodeRemovalTest) {
   EXPECT_CALL(proxy, delete_node_address(_, _)).Times(4);
   EXPECT_CALL(mock_ev_listener, on_view_changed(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _)).Times(3);
+  EXPECT_CALL(*mock_stats_mgr, add_suspicious_for_a_node(_)).Times(1);
 
   // Get suspicions manager and enable majority
   Gcs_suspicions_manager *mgr = xcom_control_if->get_suspicions_manager();

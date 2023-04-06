@@ -36,6 +36,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_input_queue.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_connection.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/statistics/include/statistics_storage_interface.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
@@ -1084,6 +1085,15 @@ class Gcs_xcom_app_cfg {
    * @param ns_mgr a reference to a Network_namespace_manager implementation
    */
   void set_network_namespace_manager(Network_namespace_manager *ns_mgr);
+
+  /**
+   * @brief Set XCom's.
+   *  statists storage implementation
+   *
+   * @param stats_storage
+   */
+  void set_statists_storage_implementation(
+      Xcom_statistics_storage_interface *stats_storage);
 
   /**
     Must be called when XCom is not engaged anymore.

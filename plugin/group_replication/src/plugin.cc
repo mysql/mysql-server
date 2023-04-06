@@ -41,6 +41,8 @@
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/consensus_leaders_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/member_actions_handler.h"
+#include "plugin/group_replication/include/plugin_handlers/metrics_handler.h"
+#include "plugin/group_replication/include/plugin_status_variables.h"
 #include "plugin/group_replication/include/plugin_variables.h"
 #include "plugin/group_replication/include/plugin_variables/recovery_endpoints.h"
 #include "plugin/group_replication/include/services/message_service/message_service.h"
@@ -135,6 +137,7 @@ Mysql_thread *mysql_thread_handler = nullptr;
 Mysql_thread *mysql_thread_handler_read_only_mode = nullptr;
 /** Module with the acquired server services on plugin install */
 Server_services_references *server_services_references_module = nullptr;
+Metrics_handler *metrics_handler{nullptr};
 
 Plugin_gcs_events_handler *events_handler = nullptr;
 Plugin_gcs_view_modification_notifier *view_change_notifier = nullptr;
@@ -1452,6 +1455,13 @@ int initialize_plugin_modules(gr_modules::mask modules_to_init) {
         ov.components_stop_timeout_var);
   }
 
+  /*
+    Metrics handler.
+  */
+  if (modules_to_init[gr_modules::METRICS_HANDLER]) {
+    metrics_handler->reset();
+  }
+
   return ret;
 }
 
@@ -1696,6 +1706,7 @@ bool attempt_rejoin() {
   modules_mask.set(gr_modules::MESSAGE_SERVICE_HANDLER, true);
   modules_mask.set(gr_modules::BINLOG_DUMP_THREAD_KILL, true);
   modules_mask.set(gr_modules::RECOVERY_MODULE, true);
+  modules_mask.set(gr_modules::METRICS_HANDLER, true);
 
   /*
     Before leaving the group we need to terminate services that
@@ -1982,6 +1993,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   );
 
   shared_plugin_stop_lock = new Shared_writelock(lv.plugin_stop_lock);
+  metrics_handler = new Metrics_handler();
   transactions_latch = new Wait_ticket<my_thread_id>();
   transaction_consistency_manager = new Transaction_consistency_manager();
   advertised_recovery_endpoints = new Advertised_recovery_endpoints();
@@ -2223,6 +2235,8 @@ int plugin_group_replication_deinit(void *p) {
   transaction_consistency_manager = nullptr;
   delete transactions_latch;
   transactions_latch = nullptr;
+  delete metrics_handler;
+  metrics_handler = nullptr;
 
   mysql_mutex_destroy(&lv.force_members_running_mutex);
   mysql_mutex_destroy(&lv.plugin_applier_module_initialize_terminate_mutex);
@@ -5326,6 +5340,82 @@ static int show_primary_member(MYSQL_THD, SHOW_VAR *var, char *buff) {
 
 static SHOW_VAR group_replication_status_vars[] = {
     {"group_replication_primary_member", (char *)&show_primary_member,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Gr_control_messages_sent_count",
+     (char *)&Plugin_status_variables::get_control_messages_sent_count,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Gr_data_messages_sent_count",
+     (char *)&Plugin_status_variables::get_data_messages_sent_count, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Gr_control_messages_sent_bytes_sum",
+     (char *)&Plugin_status_variables::get_control_messages_sent_bytes_sum,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Gr_data_messages_sent_bytes_sum",
+     (char *)&Plugin_status_variables::get_data_messages_sent_bytes_sum,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Gr_control_messages_sent_roundtrip_time_sum",
+     (char *)&Plugin_status_variables::
+         get_control_messages_sent_roundtrip_time_sum,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Gr_data_messages_sent_roundtrip_time_sum",
+     (char
+          *)&Plugin_status_variables::get_data_messages_sent_roundtrip_time_sum,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Gr_transactions_consistency_before_begin_count",
+     (char *)&Plugin_status_variables::
+         get_transactions_consistency_before_begin_count,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Gr_transactions_consistency_before_begin_time_sum",
+     (char *)&Plugin_status_variables::
+         get_transactions_consistency_before_begin_time_sum,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Gr_transactions_consistency_after_termination_count",
+     (char *)&Plugin_status_variables::
+         get_transactions_consistency_after_termination_count,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Gr_transactions_consistency_after_termination_time_sum",
+     (char *)&Plugin_status_variables::
+         get_transactions_consistency_after_termination_time_sum,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Gr_transactions_consistency_after_sync_count",
+     (char *)&Plugin_status_variables::
+         get_transactions_consistency_after_sync_count,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Gr_transactions_consistency_after_sync_time_sum",
+     (char *)&Plugin_status_variables::
+         get_transactions_consistency_after_sync_time_sum,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Gr_certification_garbage_collector_count",
+     (char
+          *)&Plugin_status_variables::get_certification_garbage_collector_count,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Gr_certification_garbage_collector_time_sum",
+     (char *)&Plugin_status_variables::
+         get_certification_garbage_collector_time_sum,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Gr_all_consensus_proposals_count",
+     (char *)&Plugin_status_variables::get_all_consensus_proposals_count,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Gr_empty_consensus_proposals_count",
+     (char *)&Plugin_status_variables::get_empty_consensus_proposals_count,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Gr_consensus_bytes_sent_sum",
+     (char *)&Plugin_status_variables::get_consensus_bytes_sent_sum, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Gr_consensus_bytes_received_sum",
+     (char *)&Plugin_status_variables::get_consensus_bytes_received_sum,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Gr_all_consensus_time_sum",
+     (char *)&Plugin_status_variables::get_all_consensus_time_sum, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Gr_extended_consensus_count",
+     (char *)&Plugin_status_variables::get_extended_consensus_count, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Gr_total_messages_sent_count",
+     (char *)&Plugin_status_variables::get_total_messages_sent_count, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Gr_last_consensus_end_timestamp",
+     (char *)&Plugin_status_variables::get_last_consensus_end_timestamp,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {nullptr, nullptr, SHOW_LONG, SHOW_SCOPE_GLOBAL},
 };
