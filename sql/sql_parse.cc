@@ -4243,6 +4243,12 @@ int mysql_execute_command(THD *thd, bool first_level) {
       if (trans_begin(thd, lex->start_transaction_opt)) goto error;
       my_ok(thd);
       break;
+    case SQLCOM_SCHED:
+      if (ha_sched_trans(thd, lex->sched_transaction_type,
+                         lex->sched_transaction_args)) goto error;
+      if (trans_begin(thd)) goto error;
+      my_ok(thd);
+      break;
     case SQLCOM_COMMIT: {
       assert(thd->lock == nullptr ||
              thd->locked_tables_mode == LTM_LOCK_TABLES);

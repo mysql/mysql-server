@@ -1384,6 +1384,7 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> BULK_SYM                   1201  /* MYSQL */
 %token<lexer.keyword> URL_SYM                    1202   /* MYSQL */
 %token<lexer.keyword> GENERATE_SYM               1203   /* MYSQL */
+%token<lexer.keyword> SCHED_SYM                  1204
 
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
@@ -2382,6 +2383,7 @@ simple_statement:
         | revoke                        { $$= nullptr; }
         | rollback                      { $$= nullptr; }
         | savepoint                     { $$= nullptr; }
+        | schedule                      { $$= nullptr; }
         | select_stmt
         | set                           { $$= nullptr; CONTEXTUALIZE($1); }
         | set_resource_group_stmt
@@ -9366,6 +9368,34 @@ start_transaction_option:
         | READ_SYM WRITE_SYM
           {
             $$= MYSQL_START_TRANS_OPT_READ_WRITE;
+          }
+        ;
+
+schedule:
+          SCHED_SYM TRANSACTION_SYM NUM opt_sched_transaction_arg_list
+          {
+            Lex->sql_command= SQLCOM_SCHED;
+
+            int error;
+            longlong trx_typ= my_strtoll10($3.str, nullptr, &error);
+            MYSQL_YYABORT_UNLESS(error <= 0);
+            Lex->sched_transaction_type= trx_typ;
+          }
+        ;
+
+opt_sched_transaction_arg_list:
+          /* empty */ {}
+        | sched_transaction_arg_list {}
+        ;
+
+sched_transaction_arg_list:
+        literal
+          {
+            Lex->sched_transaction_args.push_back($1);
+          }
+        | sched_transaction_arg_list ',' literal
+          {
+            Lex->sched_transaction_args.push_back($3);
           }
         ;
 

@@ -1476,6 +1476,9 @@ typedef void (*drop_database_t)(handlerton *hton, char *path);
 
 typedef int (*panic_t)(handlerton *hton, enum ha_panic_function flag);
 
+typedef int (*sched_trans_t)(handlerton *hton, THD *thd, uint typ,
+                             const std::vector<Item *> &args);
+
 typedef int (*start_consistent_snapshot_t)(handlerton *hton, THD *thd);
 
 /**
@@ -2644,6 +2647,7 @@ struct handlerton {
   create_t create;
   drop_database_t drop_database;
   panic_t panic;
+  sched_trans_t sched_trans;
   start_consistent_snapshot_t start_consistent_snapshot;
   flush_logs_t flush_logs;
   show_status_t show_status;
@@ -7185,6 +7189,7 @@ int ha_resize_key_cache(KEY_CACHE *key_cache);
 int ha_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache);
 
 /* transactions: interface to handlerton functions */
+int ha_sched_trans(THD *thd, uint typ, const std::vector<Item *> &args);
 int ha_start_consistent_snapshot(THD *thd);
 int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock = false);
 int ha_commit_attachable(THD *thd);

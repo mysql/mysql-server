@@ -2359,6 +2359,35 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv) {
   return error;
 }
 
+struct sched_trans_handlerton_arg {
+  bool warn;
+  uint typ;
+  std::vector<Item *> args;
+};
+
+static bool sched_trans_handlerton(THD *thd, plugin_ref plugin, void *arg) {
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+  if (hton->sched_trans) {
+    struct sched_trans_handlerton_arg *a = (struct sched_trans_handlerton_arg *)arg;
+    hton->sched_trans(hton, thd, a->typ, a->args);
+    a->warn = false;
+  }
+  return false;
+}
+
+int ha_sched_trans(THD *thd, uint typ, const std::vector<Item *> &args) {
+  struct sched_trans_handlerton_arg arg;
+  arg.warn = true;
+  arg.typ = typ;
+  arg.args = args;
+  plugin_foreach(thd, sched_trans_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, &arg);
+  if (arg.warn)
+    push_warning(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
+                 "This MySQL server does not support any "
+                 "transaction scheduling capable storage engine");
+  return 0;
+}
+
 static bool snapshot_handlerton(THD *thd, plugin_ref plugin, void *arg) {
   handlerton *hton = plugin_data<handlerton *>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->start_consistent_snapshot) {
