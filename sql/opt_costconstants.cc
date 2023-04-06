@@ -264,7 +264,7 @@ const SE_cost_constants *Cost_model_constants::get_se_cost_constants(
   assert(table->file != nullptr);
   assert(table->file->ht != nullptr);
 
-  static SE_cost_constants default_cost;
+  static const SE_cost_constants default_cost;
 
   /*
     We do not see data for new htons loaded by the current session,

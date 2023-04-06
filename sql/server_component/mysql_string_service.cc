@@ -168,8 +168,8 @@ DEFINE_BOOL_METHOD(mysql_string_imp::convert_to_buffer,
     CHARSET_INFO *cs =
         get_charset_by_csname(charset_name, MY_CS_PRIMARY, MYF(0));
     if (cs == nullptr) return true;
-    size_t len = my_convert(out_buffer, length - 1, cs, str->ptr(),
-                            str->length(), str->charset(), &error);
+    const size_t len = my_convert(out_buffer, length - 1, cs, str->ptr(),
+                                  str->length(), str->charset(), &error);
     out_buffer[len] = '\0';
 
     return false;
@@ -212,8 +212,9 @@ DEFINE_BOOL_METHOD(mysql_string_imp::convert_to_buffer_v2,
     uint error;
     const CHARSET_INFO *dest_cs = from_api(dest_charset);
     String *src = from_api(src_string);
-    size_t len = my_convert(dest_buffer, dest_length - 1, dest_cs, src->ptr(),
-                            src->length(), src->charset(), &error);
+    const size_t len =
+        my_convert(dest_buffer, dest_length - 1, dest_cs, src->ptr(),
+                   src->length(), src->charset(), &error);
     dest_buffer[len] = 0;
 
     return false;
@@ -240,7 +241,7 @@ DEFINE_BOOL_METHOD(mysql_string_imp::get_char,
     String *str = reinterpret_cast<String *>(string);
     if (str == nullptr || index >= str->length()) return true;
     my_charset_conv_mb_wc mb_wc = (str->charset())->cset->mb_wc;
-    int ret = str->charpos(index);
+    const int ret = str->charpos(index);
     if (ret < 0) return true;
     const char *ptr = (str->ptr() + ret);
     if ((*mb_wc)(str->charset(), out_char, pointer_cast<const uchar *>(ptr),

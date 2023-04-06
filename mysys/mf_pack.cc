@@ -93,7 +93,7 @@ size_t cleanup_dirname(char *to, const char *from) {
   {
     const char *dev_pos = strrchr(from_ptr, FN_DEVCHAR);
     if (dev_pos != nullptr) { /* Skip device part */
-      size_t length = (dev_pos - from_ptr) + 1;
+      const size_t length = (dev_pos - from_ptr) + 1;
       start = my_stpnmov(buff, from_ptr, length);
       from_ptr += length;
     }
@@ -101,7 +101,7 @@ size_t cleanup_dirname(char *to, const char *from) {
 #endif
 
   parent[0] = FN_LIBCHAR;
-  size_t length = my_stpcpy(parent + 1, FN_PARENTDIR) - parent;
+  const size_t length = my_stpcpy(parent + 1, FN_PARENTDIR) - parent;
   const char *end = start + FN_REFLEN;
   for (pos = start; pos < end && ((*pos = *from_ptr++) != 0); pos++) {
 #ifdef _WIN32

@@ -668,9 +668,9 @@ static void banner() {
   // built-in API test: test "well-known" lookups
 #if !defined(NDEBUG)
   {
-    int wellknown = log_bi->wellknown_by_type(LOG_ITEM_LOG_LABEL);
+    const int wellknown = log_bi->wellknown_by_type(LOG_ITEM_LOG_LABEL);
     const char *label_key = log_bi->wellknown_get_name(wellknown);
-    int wellagain =
+    const int wellagain =
         log_bi->wellknown_by_name(label_key, log_bs->length(label_key));
 
     assert(wellknown == wellagain);

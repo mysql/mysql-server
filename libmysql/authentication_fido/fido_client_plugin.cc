@@ -191,7 +191,7 @@ static bool do_registration() {
 #ifndef NDEBUG
   if (is_fido_testing) {
     const char *dummy = "\nSIGNATURE \nAUHENDATA \nCERT      ";
-    size_t sz = strlen(dummy);
+    const size_t sz = strlen(dummy);
     memcpy(registration_challenge, dummy, sz);
     /* dummy challenge response for testing */
     registration_challenge_response = new unsigned char[sz + 1];

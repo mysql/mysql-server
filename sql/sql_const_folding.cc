@@ -501,7 +501,7 @@ static bool analyze_decimal_field_constant(THD *thd, const Item_field *f,
     } break;
     case REAL_RESULT: {
       my_decimal val_dec;
-      double v = (*const_val)->val_real();
+      const double v = (*const_val)->val_real();
       err = double2decimal(v, &val_dec);
 
       if (err & E_DEC_OVERFLOW) {
@@ -863,8 +863,8 @@ static bool analyze_timestamp_field_constant(THD *thd, const Item_field *f,
               false, MYSQL_TIMESTAMP_DATETIME);
 
           /* '1970-01-01 00:00:01.[000000]' */
-          MYSQL_TIME min_timestamp = my_time_set(1970, 1, 1, 0, 0, 1, 0, false,
-                                                 MYSQL_TIMESTAMP_DATETIME);
+          const MYSQL_TIME min_timestamp = my_time_set(
+              1970, 1, 1, 0, 0, 1, 0, false, MYSQL_TIMESTAMP_DATETIME);
 
           // We store in UTC, so use as is
           const longlong max_t =

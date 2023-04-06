@@ -202,7 +202,7 @@ static enum_field_types get_real_blob_type(const Item *arg) {
   same way as items of a different type.
 */
 static enum_field_types get_normalized_field_type(const Item *arg) {
-  enum_field_types ft = arg->data_type();
+  const enum_field_types ft = arg->data_type();
   switch (ft) {
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_BLOB:
@@ -307,7 +307,7 @@ static bool json_is_valid(Item **args, uint arg_idx, String *value,
                           bool require_str_or_json, bool *valid) {
   Item *const arg_item = args[arg_idx];
 
-  enum_field_types field_type = get_normalized_field_type(arg_item);
+  const enum_field_types field_type = get_normalized_field_type(arg_item);
 
   if (!is_convertible_to_json(arg_item)) {
     if (require_str_or_json) {
@@ -821,7 +821,7 @@ static bool contains_wr(const THD *thd, const Json_wrapper &doc_wrapper,
 
     if (containee_wr.type() != enum_json_type::J_ARRAY) {
       // auto-wrap scalar or object in an array for uniform treatment later
-      Json_wrapper scalar = containee_wr;
+      const Json_wrapper scalar = containee_wr;
       Json_array_ptr array(new (std::nothrow) Json_array());
       if (array == nullptr || array->append_alias(scalar.clone_dom()))
         return true; /* purecov: inspected */
@@ -1431,7 +1431,7 @@ bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_TIME: {
-      longlong dt = arg->val_temporal_by_field_type();
+      const longlong dt = arg->val_temporal_by_field_type();
       if (current_thd->is_error()) return true;
       if (arg->null_value) return false;
 
@@ -1472,8 +1472,9 @@ bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
       String *swkb = arg->val_str(tmp);
       if (current_thd->is_error()) return true;
       if (arg->null_value) return false;
-      bool retval = geometry_to_json(wr, swkb, calling_function, INT_MAX32,
-                                     false, false, false, &geometry_srid);
+      const bool retval =
+          geometry_to_json(wr, swkb, calling_function, INT_MAX32, false, false,
+                           false, &geometry_srid);
 
       /**
         Scalar processing is irrelevant. Geometry types are converted
@@ -2600,7 +2601,7 @@ bool Item_func_json_array::val_json(Json_wrapper *wr) {
   try {
     Json_array *arr = new (std::nothrow) Json_array();
     if (!arr) return error_json(); /* purecov: inspected */
-    Json_wrapper docw(arr);
+    const Json_wrapper docw(arr);
 
     for (uint32 i = 0; i < arg_count; ++i) {
       Json_wrapper valuew;
@@ -2643,8 +2644,8 @@ bool Item_func_json_row_object::val_json(Json_wrapper *wr) {
         arguments come in pairs. we have already verified that there
         are an even number of args.
       */
-      uint32 key_idx = i++;
-      uint32 value_idx = i;
+      const uint32 key_idx = i++;
+      const uint32 value_idx = i;
 
       // key
       Item *key_item = args[key_idx];
@@ -2657,7 +2658,7 @@ bool Item_func_json_row_object::val_json(Json_wrapper *wr) {
                                       &safep, &safe_length))
         return error_json();
 
-      std::string key(safep, safe_length);
+      const std::string key(safep, safe_length);
 
       // value
       Json_wrapper valuew;
@@ -2771,7 +2772,7 @@ static bool find_matches(const Json_wrapper &wrapper, String *path,
 
       // Evaluate the LIKE node on the JSON string.
       const char *data = wrapper.get_data();
-      uint len = static_cast<uint>(wrapper.get_data_length());
+      const uint len = static_cast<uint>(wrapper.get_data_length());
       source_string->set_str_with_copy(data, len, &my_charset_utf8mb4_bin);
       if (like_node->val_int()) {
         // Got a match with the LIKE node. Save the path of the JSON string.
@@ -2994,7 +2995,7 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr) {
   assert(fixed == 1);
 
   Json_wrapper wrapper;
-  uint32 path_count = arg_count - 1;
+  const uint32 path_count = arg_count - 1;
   null_value = false;
 
   // Should we collect binary or logical diffs? We'll see later...
@@ -3630,7 +3631,7 @@ bool Item_func_array_cast::fix_fields(THD *thd, Item **ref) {
   }
 
   if (m_result_array == nullptr) {
-    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    const Prepared_stmt_arena_holder ps_arena_holder(thd);
     m_result_array.reset(::new (thd->mem_root) Json_array);
     if (m_result_array == nullptr) return true;
   }
@@ -3983,7 +3984,7 @@ longlong Item_func_member_of::val_int() {
       return arr->binary_search(doc_a.to_dom());
     } else {
       for (uint i = 0; i < doc_b.length(); i++) {
-        Json_wrapper elt = doc_b[i];
+        const Json_wrapper elt = doc_b[i];
         if (!doc_a.compare(elt)) return true;
       }
     }
@@ -4075,7 +4076,7 @@ bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
   bool err = false;
   switch (field->result_type()) {
     case INT_RESULT: {
-      longlong value =
+      const longlong value =
           w->coerce_int(field->field_name, cr_error, &err, nullptr);
 
       // If the Json_wrapper holds a numeric value, grab the signedness from it.
@@ -4145,7 +4146,7 @@ bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
       break;
     }
     case REAL_RESULT: {
-      double value = w->coerce_real(field->field_name, cr_error, &err);
+      const double value = w->coerce_real(field->field_name, cr_error, &err);
       if (!err && (field->store(value) >= TYPE_WARN_OUT_OF_RANGE)) err = true;
       break;
     }
@@ -4260,7 +4261,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       const int64_t value =
           cs->cset->strtoll10(cs, start, &end_of_number, &error);
       if (end_of_number != end_of_string) {
-        ErrConvString err(string_value);
+        const ErrConvString err(string_value);
         my_error(ER_TRUNCATED_WRONG_VALUE, MYF(0),
                  unsigned_flag ? "INTEGER UNSIGNED" : "INTEGER SIGNED",
                  err.ptr());
@@ -4299,7 +4300,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       const int64_t value =
           cs->cset->strtoll10(cs, start, &end_of_number, &error);
       if (end_of_number != end_of_string) {
-        ErrConvString err(string_value);
+        const ErrConvString err(string_value);
         my_error(ER_TRUNCATED_WRONG_VALUE, MYF(0), "YEAR", err.ptr());
         return nullptr;
       }
@@ -4450,7 +4451,7 @@ bool Item_func_json_value::fix_fields(THD *thd, Item **ref) {
   if (m_on_empty == Json_on_response_type::DEFAULT &&
       m_default_empty == nullptr) {
     assert(args[2]->basic_const_item());
-    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    const Prepared_stmt_arena_holder ps_arena_holder(thd);
     m_default_empty = create_json_value_default(thd, args[2]);
     if (m_default_empty == nullptr) return true;
   }
@@ -4458,7 +4459,7 @@ bool Item_func_json_value::fix_fields(THD *thd, Item **ref) {
   if (m_on_error == Json_on_response_type::DEFAULT &&
       m_default_error == nullptr) {
     assert(args[3]->basic_const_item());
-    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    const Prepared_stmt_arena_holder ps_arena_holder(thd);
     m_default_error = create_json_value_default(thd, args[3]);
     if (m_default_error == nullptr) return true;
   }
@@ -5232,7 +5233,7 @@ double Item_func_json_value::extract_real_value() {
   if (return_default != nullptr) return return_default->real_default;
 
   bool err = false;
-  double value = wr.coerce_real(func_name(), CE_IGNORE, &err);
+  const double value = wr.coerce_real(func_name(), CE_IGNORE, &err);
   if (!err) {
     if (data_type() == MYSQL_TYPE_FLOAT) {
       // Remove any extra (double) precision.

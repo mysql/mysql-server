@@ -47,7 +47,7 @@ bool query_rewritten(const std::string &query, std::string *rewritten_query) {
      - Path enclosed in single quotes.
      - Use of ungreedy patterns to get correct grouping.
   */
-  std::regex directory_option(
+  const std::regex directory_option(
       "\\s*,?\\s*(DATA|INDEX)\\s+DIRECTORY\\s*?=?\\s*?[\"'][^\"']+?[\"']\\s*,?"
       "\\s*",
       std::regex::icase | std::regex::nosubs);
@@ -56,7 +56,7 @@ bool query_rewritten(const std::string &query, std::string *rewritten_query) {
   /*
     Replace ENCRYPTION option.
   */
-  std::regex encryption_option(
+  const std::regex encryption_option(
       "\\s*,?\\s*ENCRYPTION\\s*?=?\\s*?[\"'][NY]?[\"']\\s*,?\\s*",
       std::regex::icase | std::regex::nosubs);
   *rewritten_query =

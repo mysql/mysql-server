@@ -146,7 +146,7 @@ DEFINE_METHOD(log_service_error, log_service_imp::parse_log_line,
   if (j_code > 0)
     err_code_num = j_code;
   else if (j_sym != nullptr) {
-    std::string error_symbol_with_terminator(j_sym, j_sym_len);
+    const std::string error_symbol_with_terminator(j_sym, j_sym_len);
     err_code_num =
         log_bi->errcode_by_errsymbol(error_symbol_with_terminator.c_str());
   }
@@ -259,7 +259,7 @@ DEFINE_METHOD(int, log_service_imp::run, (void *instance, log_line *ll)) {
                 esc_buff[esc_len++] = '\\';
                 esc_buff[esc_len++] = *(inp_readpos++);
               } else if (((unsigned char)*inp_readpos) <= 0x1f) {
-                size_t esc_have = sizeof(esc_buff) - esc_len - 1;
+                const size_t esc_have = sizeof(esc_buff) - esc_len - 1;
                 size_t esc_want;
                 esc_want = log_bs->substitute(
                     &esc_buff[esc_len], esc_have, "\\u%04x",

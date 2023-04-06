@@ -2169,7 +2169,7 @@ class Item_func_udf_float final : public Item_udf_func {
     return (longlong)rint(Item_func_udf_float::val_real());
   }
   my_decimal *val_decimal(my_decimal *dec_buf) override {
-    double res = val_real();
+    const double res = val_real();
     if (null_value) return nullptr;
     double2my_decimal(E_DEC_FATAL_ERROR, res, dec_buf);
     return dec_buf;

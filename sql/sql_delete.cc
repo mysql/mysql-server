@@ -259,8 +259,10 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
   const bool using_limit = limit != HA_POS_ERROR;
 
   if (limit == 0 && thd->lex->is_explain()) {
-    Modification_plan plan(thd, MT_DELETE, table, "LIMIT is zero", true, 0);
-    bool err = explain_single_table_modification(thd, thd, &plan, query_block);
+    const Modification_plan plan(thd, MT_DELETE, table, "LIMIT is zero", true,
+                                 0);
+    const bool err =
+        explain_single_table_modification(thd, thd, &plan, query_block);
     return err;
   }
 
@@ -324,10 +326,10 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
     ha_rows const maybe_deleted = table->file->stats.records;
 
-    Modification_plan plan(thd, MT_DELETE, table, "Deleting all rows", false,
-                           maybe_deleted);
+    const Modification_plan plan(thd, MT_DELETE, table, "Deleting all rows",
+                                 false, maybe_deleted);
     if (lex->is_explain()) {
-      bool err =
+      const bool err =
           explain_single_table_modification(thd, thd, &plan, query_block);
       return err;
     }
@@ -370,9 +372,9 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       no_rows = true;
 
       if (lex->is_explain()) {
-        Modification_plan plan(thd, MT_DELETE, table, "Impossible WHERE", true,
-                               0);
-        bool err =
+        const Modification_plan plan(thd, MT_DELETE, table, "Impossible WHERE",
+                                     true, 0);
+        const bool err =
             explain_single_table_modification(thd, thd, &plan, query_block);
         return err;
       }
@@ -391,10 +393,10 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     if (table->all_partitions_pruned_away) {
       no_rows = true;
       if (lex->is_explain()) {
-        Modification_plan plan(thd, MT_DELETE, table,
-                               "No matching rows after partition pruning", true,
-                               0);
-        bool err =
+        const Modification_plan plan(thd, MT_DELETE, table,
+                                     "No matching rows after partition pruning",
+                                     true, 0);
+        const bool err =
             explain_single_table_modification(thd, thd, &plan, query_block);
         return err;
       }
@@ -421,7 +423,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     wrapper.add_utf8_table(delete_table_ref);
 
     if (!no_rows && conds != nullptr) {
-      Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
+      const Key_map keys_to_use(Key_map::ALL_BITS);
+      Key_map needed_reg_dummy;
       MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
                              thd->variables.range_alloc_block_size);
       no_rows = test_quick_select(
@@ -435,9 +438,9 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
 
     if (no_rows) {
       if (lex->is_explain()) {
-        Modification_plan plan(thd, MT_DELETE, table, "Impossible WHERE", true,
-                               0);
-        bool err =
+        const Modification_plan plan(thd, MT_DELETE, table, "Impossible WHERE",
+                                     true, 0);
+        const bool err =
             explain_single_table_modification(thd, thd, &plan, query_block);
         return err;
       }
@@ -491,12 +494,13 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       delete_table_ref->fetch_number_of_rows();
       rows = table->file->stats.records;
     }
-    Modification_plan plan(thd, MT_DELETE, table, type, range_scan, conds,
-                           usable_index, limit, false, need_sort, false, rows);
+    const Modification_plan plan(thd, MT_DELETE, table, type, range_scan, conds,
+                                 usable_index, limit, false, need_sort, false,
+                                 rows);
     DEBUG_SYNC(thd, "planned_single_delete");
 
     if (lex->is_explain()) {
-      bool err =
+      const bool err =
           explain_single_table_modification(thd, thd, &plan, query_block);
       return err;
     }
@@ -662,7 +666,7 @@ cleanup:
         we replicate statement-based; otherwise, 'ha_delete_row()' was used to
         delete specific rows which we might log row-based.
       */
-      int log_result =
+      const int log_result =
           thd->binlog_query(query_type, thd->query().str, thd->query().length,
                             transactional_table, false, false, errcode);
 
@@ -698,16 +702,16 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_prepare(trace, "delete_preparation");
   trace_prepare.add_select_number(select->select_number);
-  Opt_trace_array trace_steps(trace, "steps");
+  const Opt_trace_array trace_steps(trace, "steps");
 
   apply_semijoin = multitable;
 
   if (select->setup_tables(thd, table_list, false))
     return true; /* purecov: inspected */
 
-  ulong want_privilege_saved = thd->want_privilege;
+  const ulong want_privilege_saved = thd->want_privilege;
   thd->want_privilege = SELECT_ACL;
-  enum enum_mark_columns mark_used_columns_saved = thd->mark_used_columns;
+  const enum enum_mark_columns mark_used_columns_saved = thd->mark_used_columns;
   thd->mark_used_columns = MARK_COLUMNS_READ;
 
   if (select->derived_table_count || select->table_func_count) {
@@ -784,7 +788,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
     if (!select->m_table_nest.empty())
       propagate_nullability(&select->m_table_nest, false);
 
-    Prepared_stmt_arena_holder ps_holder(thd);
+    const Prepared_stmt_arena_holder ps_holder(thd);
     result = new (thd->mem_root) Query_result_delete;
     if (result == nullptr) return true; /* purecov: inspected */
 
@@ -889,9 +893,9 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
 bool Sql_cmd_delete::execute_inner(THD *thd) {
   if (is_empty_query()) {
     if (lex->is_explain()) {
-      Modification_plan plan(thd, MT_DELETE, /*table_arg=*/nullptr,
-                             "No matching rows after partition pruning", true,
-                             0);
+      const Modification_plan plan(thd, MT_DELETE, /*table_arg=*/nullptr,
+                                   "No matching rows after partition pruning",
+                                   true, 0);
       return explain_single_table_modification(thd, thd, &plan,
                                                lex->query_block);
     }

@@ -419,7 +419,8 @@ static LF_SLIST *my_lsearch(std::atomic<LF_SLIST *> *head,
                             uint32 hashnr, const uchar *key, uint keylen,
                             LF_PINS *pins) {
   CURSOR cursor;
-  int res = my_lfind(head, cmp_func, cs, hashnr, key, keylen, &cursor, pins);
+  const int res =
+      my_lfind(head, cmp_func, cs, hashnr, key, keylen, &cursor, pins);
   if (res) {
     lf_pin(pins, 2, cursor.curr);
   }
@@ -736,7 +737,7 @@ void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
                            lf_hash_match_func *match, uint rand_val,
                            void *match_arg) {
   /* Convert random value to valid hash value. */
-  uint hashnr = (rand_val & INT_MAX32);
+  const uint hashnr = (rand_val & INT_MAX32);
   uint bucket;
   uint32 rev_hashnr;
   std::atomic<LF_SLIST *> *el;
@@ -808,7 +809,7 @@ static const uchar *dummy_key = pointer_cast<const uchar *>("");
 */
 static int initialize_bucket(LF_HASH *hash, std::atomic<LF_SLIST *> *node,
                              uint bucket, LF_PINS *pins) {
-  uint parent = my_clear_highest_bit(bucket);
+  const uint parent = my_clear_highest_bit(bucket);
   LF_SLIST *dummy =
       (LF_SLIST *)my_malloc(key_memory_lf_slist, sizeof(LF_SLIST), MYF(MY_WME));
   if (unlikely(!dummy)) {

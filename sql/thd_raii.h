@@ -134,7 +134,7 @@ class Implicit_substatement_state_guard {
       return;
     }
 
-    bool disable_gtid_and_spco =
+    const bool disable_gtid_and_spco =
         (mode != enum_implicit_substatement_guard_mode ::
                      ENABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
     m_thd->is_operating_substatement_implicitly = disable_gtid_and_spco;

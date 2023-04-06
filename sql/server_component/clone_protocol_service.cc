@@ -144,7 +144,7 @@ using Releaser = dd::cache::Dictionary_client::Auto_releaser;
 DEFINE_METHOD(int, mysql_clone_get_charsets,
               (THD * thd, Mysql_Clone_Values &char_sets)) {
   auto dc = dd::get_dd_client(thd);
-  Releaser releaser(dc);
+  const Releaser releaser(dc);
 
   /* Character set with collation */
   DD_Objs<dd::Collation> dd_charsets;
@@ -214,7 +214,7 @@ static int get_utf8_config(THD *thd, std::string config_name,
     mysql_mutex_unlock(&LOCK_global_system_variables);
   };
 
-  System_variable_tracker sv =
+  const System_variable_tracker sv =
       System_variable_tracker::make_tracker(config_name);
   if (sv.access_system_variable(thd, f, Suppress_not_found_error::YES)) {
     my_error(ER_INTERNAL_ERROR, MYF(0),
@@ -716,7 +716,7 @@ DEFINE_METHOD(int, mysql_clone_send_response,
     return 0;
   }
 
-  int err = static_cast<int>(net->last_errno);
+  const int err = static_cast<int>(net->last_errno);
 
   assert(err != 0);
   return err;

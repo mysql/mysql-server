@@ -304,7 +304,7 @@ static void usage(void) {
 extern "C" {
 static bool get_one_option(int optid, const struct my_option *opt,
                            char *argument) {
-  int orig_what_to_do = what_to_do;
+  const int orig_what_to_do = what_to_do;
 
   switch (optid) {
     case 'a':
@@ -395,7 +395,7 @@ static int get_options(int *argc, char ***argv, MEM_ROOT *alloc) {
   my_getopt_use_args_separator = false;
 
   if (!what_to_do) {
-    size_t pnlen = strlen(my_progname);
+    const size_t pnlen = strlen(my_progname);
 
     if (pnlen < 6) /* name too short */
       what_to_do = DO_CHECK;

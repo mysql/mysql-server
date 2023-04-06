@@ -449,8 +449,8 @@ static log_service_error log_error_read_backtrace_loop(const char *log_file,
     - the parse function suggests we stop (LOG_SERVICE_MISC_ERROR)
   */
   do {
-    size_t processed = (size_t)(line_start - chunk);
-    size_t rest = size - processed;
+    const size_t processed = (size_t)(line_start - chunk);
+    const size_t rest = size - processed;
 
     // Find EOL ('\n'). If last line is partial, skip it.
     if ((line_end = (char *)memchr(line_start, '\n', rest)) == nullptr) break;

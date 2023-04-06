@@ -205,7 +205,7 @@ void my_thread_global_end() {
   set_timespec(&abstime, my_thread_end_wait_time);
   mysql_mutex_lock(&THR_LOCK_threads);
   while (THR_thread_count > 0) {
-    int error =
+    const int error =
         mysql_cond_timedwait(&THR_COND_threads, &THR_LOCK_threads, &abstime);
     if (is_timeout(error)) {
 #ifndef _WIN32

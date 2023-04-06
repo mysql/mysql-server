@@ -287,7 +287,7 @@ inline uint get_enum_pack_length(int elements) {
 }
 
 inline uint get_set_pack_length(int elements) {
-  uint len = (elements + 7) / 8;
+  const uint len = (elements + 7) / 8;
   return len > 4 ? 8 : len;
 }
 
@@ -1423,7 +1423,7 @@ class Field {
   }
   longlong val_int_offset(ptrdiff_t row_offset) {
     ptr += row_offset;
-    longlong tmp = val_int();
+    const longlong tmp = val_int();
     ptr -= row_offset;
     return tmp;
   }
@@ -3016,7 +3016,7 @@ class Field_timestampf : public Field_temporal_with_date_and_timef {
   uint32 pack_length() const final { return my_timestamp_binary_length(dec); }
   uint pack_length_from_metadata(uint field_metadata) const final {
     DBUG_TRACE;
-    uint tmp = my_timestamp_binary_length(field_metadata);
+    const uint tmp = my_timestamp_binary_length(field_metadata);
     return tmp;
   }
 
@@ -3253,7 +3253,7 @@ class Field_timef final : public Field_time_common {
   uint32 pack_length() const final { return my_time_binary_length(dec); }
   uint pack_length_from_metadata(uint field_metadata) const final {
     DBUG_TRACE;
-    uint tmp = my_time_binary_length(field_metadata);
+    const uint tmp = my_time_binary_length(field_metadata);
     return tmp;
   }
   uint row_pack_length() const final { return pack_length(); }
@@ -3378,7 +3378,7 @@ class Field_datetimef : public Field_temporal_with_date_and_timef {
   uint32 pack_length() const final { return my_datetime_binary_length(dec); }
   uint pack_length_from_metadata(uint field_metadata) const final {
     DBUG_TRACE;
-    uint tmp = my_datetime_binary_length(field_metadata);
+    const uint tmp = my_datetime_binary_length(field_metadata);
     return tmp;
   }
   bool zero_pack() const final { return true; }

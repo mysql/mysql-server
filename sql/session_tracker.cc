@@ -283,19 +283,20 @@ class Session_gtids_ctx_encoder_string : public Session_gtids_ctx_encoder {
         These are constants in this class and will both be encoded using
         only 1 byte.
       */
-      ulonglong tracker_type_enclen =
+      const ulonglong tracker_type_enclen =
           1 /* net_length_size((ulonglong)SESSION_TRACK_GTIDS); */;
-      ulonglong encoding_spec_enclen =
+      const ulonglong encoding_spec_enclen =
           1 /* net_length_size(encoding_specification()); */;
-      ulonglong gtids_string_len =
+      const ulonglong gtids_string_len =
           state->get_string_length(&Gtid_set::default_string_format);
-      ulonglong gtids_string_len_enclen = net_length_size(gtids_string_len);
-      ulonglong entity_len =
+      const ulonglong gtids_string_len_enclen =
+          net_length_size(gtids_string_len);
+      const ulonglong entity_len =
           encoding_spec_enclen + gtids_string_len_enclen + gtids_string_len;
-      ulonglong entity_len_enclen = net_length_size(entity_len);
-      ulonglong total_enclen = tracker_type_enclen + entity_len_enclen +
-                               encoding_spec_enclen + gtids_string_len_enclen +
-                               gtids_string_len;
+      const ulonglong entity_len_enclen = net_length_size(entity_len);
+      const ulonglong total_enclen = tracker_type_enclen + entity_len_enclen +
+                                     encoding_spec_enclen +
+                                     gtids_string_len_enclen + gtids_string_len;
 
       /* prepare the buffer */
       uchar *to = (uchar *)buf.prep_append(total_enclen, EXTRA_ALLOC);
@@ -988,7 +989,7 @@ bool Transaction_state_tracker::store(THD *thd, String &buf) {
 
   if ((thd->variables.session_track_transaction_info == TX_TRACK_CHISTICS) &&
       (tx_changed & TX_CHG_CHISTICS)) {
-    bool is_xa =
+    const bool is_xa =
         !thd->get_transaction()->xid_state()->has_state(XID_STATE::XA_NOTR);
 
     // worst case: READ UNCOMMITTED + READ WRITE + CONSISTENT SNAPSHOT
@@ -1083,10 +1084,10 @@ bool Transaction_state_tracker::store(THD *thd, String &buf) {
           Unfortunately, we can't re-use tx_isolation_names /
           tx_isolation_typelib as it hyphenates its items.
         */
-        LEX_CSTRING isol[] = {{STRING_WITH_LEN("READ UNCOMMITTED")},
-                              {STRING_WITH_LEN("READ COMMITTED")},
-                              {STRING_WITH_LEN("REPEATABLE READ")},
-                              {STRING_WITH_LEN("SERIALIZABLE")}};
+        const LEX_CSTRING isol[] = {{STRING_WITH_LEN("READ UNCOMMITTED")},
+                                    {STRING_WITH_LEN("READ COMMITTED")},
+                                    {STRING_WITH_LEN("REPEATABLE READ")},
+                                    {STRING_WITH_LEN("SERIALIZABLE")}};
 
         tx.append(STRING_WITH_LEN("SET TRANSACTION ISOLATION LEVEL "));
         tx.append(isol[tx_isol_level - 1].str, isol[tx_isol_level - 1].length);
@@ -1250,7 +1251,7 @@ void Transaction_state_tracker::reset() {
 enum_tx_state Transaction_state_tracker::calc_trx_state(thr_lock_type l,
                                                         bool has_trx) {
   enum_tx_state s;
-  bool read = (l <= TL_READ_NO_INSERT);
+  const bool read = (l <= TL_READ_NO_INSERT);
 
   if (read)
     s = has_trx ? TX_READ_TRX : TX_READ_UNSAFE;

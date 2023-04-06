@@ -309,7 +309,7 @@ bool Table_ref::resolve_derived(THD *thd, bool apply_semijoin) {
   if (is_derived() && derived->m_lateral_deps)
     query_block->end_lateral_table = this;
 
-  Context_handler ctx_handler(thd);
+  const Context_handler ctx_handler(thd);
 
 #ifndef NDEBUG    // CTEs, derived tables can have outer references
   if (is_view())  // but views cannot.
@@ -604,7 +604,7 @@ static Item *parse_expression(THD *thd, Item *item, Query_block *query_block) {
   // If not, error ER_NO_ACCESS_TO_NATIVE_FCT is reported.
   // Since we are cloning a condition here, we set it unconditionally
   // to avoid the errors.
-  bool parsing_system_view_saved = thd->parsing_system_view;
+  const bool parsing_system_view_saved = thd->parsing_system_view;
   thd->parsing_system_view = true;
 
   // Set the correct query block to parse the item. In some cases, like
@@ -637,7 +637,7 @@ static Item *parse_expression(THD *thd, Item *item, Query_block *query_block) {
   }
 
   // Get a newly created item from parser
-  bool result = parse_sql(thd, &parser_state, nullptr);
+  const bool result = parse_sql(thd, &parser_state, nullptr);
 
   thd->lex->reparse_derived_table_condition = false;
   // lex_end() would try to destroy sphead if set. So we reset it.
@@ -668,15 +668,15 @@ static Item *parse_expression(THD *thd, Item *item, Query_block *query_block) {
   resolved item if resolving was successful else nullptr.
 */
 Item *resolve_expression(THD *thd, Item *item, Query_block *query_block) {
-  ulong save_old_privilege = thd->want_privilege;
+  const ulong save_old_privilege = thd->want_privilege;
   thd->want_privilege = 0;
   Query_block *saved_current_query_block = thd->lex->current_query_block();
   thd->lex->set_current_query_block(query_block);
-  nesting_map save_allow_sum_func = thd->lex->allow_sum_func;
+  const nesting_map save_allow_sum_func = thd->lex->allow_sum_func;
   thd->lex->allow_sum_func |= static_cast<nesting_map>(1)
                               << thd->lex->current_query_block()->nest_level;
 
-  bool ret = item->fix_fields(thd, &item);
+  const bool ret = item->fix_fields(thd, &item);
   // Restore original state back
   thd->want_privilege = save_old_privilege;
   thd->lex->set_current_query_block(saved_current_query_block);
@@ -799,7 +799,7 @@ bool Table_ref::setup_materialized_derived_tmp_table(THD *thd)
   DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
 
   Opt_trace_context *const trace = &thd->opt_trace;
-  Opt_trace_object trace_wrapper(trace);
+  const Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_derived(trace, is_view() ? "view" : "derived");
   trace_derived.add_utf8_table(this)
       .add("select#", derived->first_query_block()->select_number)
@@ -819,7 +819,7 @@ bool Table_ref::setup_materialized_derived_tmp_table(THD *thd)
 
   if (table == nullptr) {
     // Create the result table for the materialization
-    ulonglong create_options =
+    const ulonglong create_options =
         derived->first_query_block()->active_options() | TMP_TABLE_ALL_COLUMNS;
 
     if (m_derived_column_names) {
@@ -840,10 +840,10 @@ bool Table_ref::setup_materialized_derived_tmp_table(THD *thd)
     // will happen on that table, and is not set here.) create_result_table()
     // will figure out whether it wants to create it as the primary key or just
     // a regular index.
-    bool is_distinct = derived->can_materialize_directly_into_result() &&
-                       derived->has_top_level_distinct();
+    const bool is_distinct = derived->can_materialize_directly_into_result() &&
+                             derived->has_top_level_distinct();
 
-    bool rc = derived_result->create_result_table(
+    const bool rc = derived_result->create_result_table(
         thd, *derived->get_unit_column_types(), is_distinct, create_options,
         alias, false, false);
 
@@ -894,7 +894,7 @@ bool Query_expression::check_materialized_derived_query_blocks(THD *thd_arg) {
 
     // Set all selected fields to be read:
     // @todo Do not set fields that are not referenced from outer query
-    Column_privilege_tracker tracker(thd_arg, SELECT_ACL);
+    const Column_privilege_tracker tracker(thd_arg, SELECT_ACL);
     Mark_field mf(MARK_COLUMNS_READ);
     for (Item *item : sl->fields) {
       if (item->walk(&Item::check_column_privileges, enum_walk::PREFIX,
@@ -921,7 +921,7 @@ bool Table_ref::setup_table_function(THD *thd) {
   DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
 
   Opt_trace_context *const trace = &thd->opt_trace;
-  Opt_trace_object trace_wrapper(trace);
+  const Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_derived(trace, "table_function");
   const char *func_name;
   uint func_name_len;
@@ -953,7 +953,7 @@ bool Table_ref::setup_table_function(THD *thd) {
 
   const char *saved_where = thd->where;
   thd->where = "a table function argument";
-  enum_mark_columns saved_mark = thd->mark_used_columns;
+  const enum_mark_columns saved_mark = thd->mark_used_columns;
   thd->mark_used_columns = MARK_COLUMNS_READ;
   if (table_function->init_args()) return true;
 
@@ -1018,7 +1018,7 @@ bool Table_ref::can_push_condition_to_derived(THD *thd) {
   false otherwise
 */
 bool Condition_pushdown::make_cond_for_derived() {
-  Opt_trace_object trace_wrapper(trace);
+  const Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_cond(trace, "condition_pushdown_to_derived");
   trace_cond.add_utf8_table(m_derived_table);
   trace_cond.add("original_condition", m_cond_to_check);
@@ -1043,7 +1043,7 @@ bool Condition_pushdown::make_cond_for_derived() {
   trace_cond.add("remaining_condition", m_remainder_cond);
   if (m_cond_to_push == nullptr) return false;
 
-  Opt_trace_array trace_steps(trace, "pushdown_to_query_blocks");
+  const Opt_trace_array trace_steps(trace, "pushdown_to_query_blocks");
   Item *orig_cond_to_push = m_cond_to_push;
   for (Query_block *qb = derived_query_expression->first_query_block();
        qb != nullptr; qb = qb->next_query_block()) {
@@ -1520,7 +1520,7 @@ bool Condition_pushdown::attach_cond_to_derived(Item *derived_cond,
                                                 bool having) {
   Query_block *saved_query_block = thd->lex->current_query_block();
   thd->lex->set_current_query_block(m_query_block);
-  bool fix_having = m_query_block->having_fix_field;
+  const bool fix_having = m_query_block->having_fix_field;
 
   derived_cond = and_items(derived_cond, cond_to_attach);
   // Need to call setup_ftfuncs() if we are going to push

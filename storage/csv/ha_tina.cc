@@ -608,7 +608,7 @@ int ha_tina::chain_append() {
   else {
     /* We set up for the next position */
     if ((size_t)(chain_ptr - chain) == (chain_size - 1)) {
-      my_off_t location = chain_ptr - chain;
+      const my_off_t location = chain_ptr - chain;
       chain_size += DEFAULT_CHAIN_LENGTH;
       if (chain_alloced) {
         /* Must cast since my_malloc unlike malloc doesn't have a void ptr */
@@ -772,7 +772,7 @@ int ha_tina::find_current_row(uchar *buf) {
     }
 
     if (read_all || bitmap_is_set(table->read_set, (*field)->field_index())) {
-      bool is_enum = ((*field)->real_type() == MYSQL_TYPE_ENUM);
+      const bool is_enum = ((*field)->real_type() == MYSQL_TYPE_ENUM);
       /*
         Here CHECK_FIELD_WARN checks that all values in the csv file are valid
         which is normally the case, if they were written  by
@@ -787,7 +787,7 @@ int ha_tina::find_current_row(uchar *buf) {
       }
       if ((*field)->is_flag_set(BLOB_FLAG)) {
         Field_blob *blob_field = down_cast<Field_blob *>(*field);
-        size_t length = blob_field->get_length();
+        const size_t length = blob_field->get_length();
         // BLOB data is not stored inside buffer. It only contains a
         // pointer to it. Copy the BLOB data into a separate memory
         // area so that it is not overwritten by subsequent calls to
@@ -1272,8 +1272,8 @@ int ha_tina::rnd_end() {
     /* write the file with updated info */
     while ((file_buffer_start != (my_off_t)-1))  // while not end of file
     {
-      bool in_hole = get_write_pos(&write_end, ptr);
-      my_off_t write_length = write_end - write_begin;
+      const bool in_hole = get_write_pos(&write_end, ptr);
+      const my_off_t write_length = write_end - write_begin;
 
       /* if there is something to write, write it */
       if (write_length) {

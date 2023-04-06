@@ -848,7 +848,8 @@ bool Explain_setop_result::explain_table_name() {
       m_query_term->m_children.back()->query_block();
   ;
   // # characters needed to print select_number of last select
-  int last_length = (int)log10((double)last_query_block->select_number) + 1;
+  const int last_length =
+      (int)log10((double)last_query_block->select_number) + 1;
 
   char table_name_buffer[NAME_LEN];
   const char *op_type;
@@ -1018,7 +1019,7 @@ bool Explain_table_base::explain_extra_common(int range_scan_type, uint keyno) {
       }
     }
     if (pushed_root == table) {
-      uint pushed_count = table->file->number_of_pushed_joins();
+      const uint pushed_count = table->file->number_of_pushed_joins();
       len = snprintf(buf, sizeof(buf) - 1, "Parent of %d pushed join@%d",
                      pushed_count, pushed_id);
     } else {
@@ -1551,7 +1552,7 @@ bool Explain_join::explain_rows_and_filtered() {
             : 0.0f);
 
     // Print cost-related info
-    double prefix_rows = pos->prefix_rowcount;
+    const double prefix_rows = pos->prefix_rowcount;
     ulonglong prefix_rows_ull =
         static_cast<ulonglong>(std::min(prefix_rows, ULLONG_MAX_DOUBLE));
     fmt->entry()->col_prefix_rows.set(prefix_rows_ull);
@@ -1562,7 +1563,7 @@ bool Explain_join::explain_rows_and_filtered() {
     fmt->entry()->col_prefix_cost.set(pos->prefix_cost);
     // Calculate amount of data from this table per query
     char data_size_str[32];
-    double data_size = prefix_rows * tab->table()->s->rec_buff_length;
+    const double data_size = prefix_rows * tab->table()->s->rec_buff_length;
     human_readable_num_bytes(data_size_str, sizeof(data_size_str), data_size);
     fmt->entry()->col_data_size_query.set(data_size_str);
   }
@@ -1797,7 +1798,7 @@ bool Explain_table::explain_rows_and_filtered() {
       fmt->entry()->mod_type == MT_REPLACE)
     return false;
 
-  ha_rows examined_rows =
+  const ha_rows examined_rows =
       query_thd->query_plan.get_modification_plan()->examined_rows;
   fmt->entry()->col_rows.set(static_cast<long long>(examined_rows));
 
@@ -2006,10 +2007,10 @@ bool explain_query_specification(THD *explain_thd, const THD *query_thd,
                                  enum_parsing_context ctx) {
   Query_block *query_block = query_term->query_block();
   Opt_trace_context *const trace = &explain_thd->opt_trace;
-  Opt_trace_object trace_wrapper(trace);
+  const Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_exec(trace, "join_explain");
   trace_exec.add_select_number(query_block->select_number);
-  Opt_trace_array trace_steps(trace, "steps");
+  const Opt_trace_array trace_steps(trace, "steps");
   JOIN *join = query_block->join;
   const bool other = (query_thd != explain_thd);
 

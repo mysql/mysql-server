@@ -206,7 +206,7 @@ static THD *init_new_thd(Channel_info *channel_info) {
       increment slow_launch_threads counter if it took more than
       slow_launch_time seconds to create the pthread.
     */
-    ulonglong launch_time =
+    const ulonglong launch_time =
         thd->start_utime - channel_info->get_prior_thr_create_utime();
     if (launch_time >= slow_launch_time * 1000000ULL)
       Per_thread_connection_handler::slow_launch_threads++;
@@ -291,7 +291,8 @@ static void *handle_connection(void *arg) {
 #endif /* HAVE_PSI_THREAD_INTERFACE */
     mysql_thread_set_psi_id(thd->thread_id());
     mysql_thread_set_psi_THD(thd);
-    MYSQL_SOCKET socket = thd->get_protocol_classic()->get_vio()->mysql_socket;
+    const MYSQL_SOCKET socket =
+        thd->get_protocol_classic()->get_vio()->mysql_socket;
     mysql_socket_set_thread_owner(socket);
     thd_manager->add_thd(thd);
 
@@ -367,7 +368,7 @@ void Per_thread_connection_handler::modify_thread_cache_size(
   if (thread_cache_size == 0) {
     mysql_cond_broadcast(&COND_thread_cache);
   } else {
-    ulong num_threads = blocked_pthread_count - thread_cache_size;
+    const ulong num_threads = blocked_pthread_count - thread_cache_size;
     for (ulong i = 0; i < num_threads; i++)
       mysql_cond_signal(&COND_thread_cache);
   }

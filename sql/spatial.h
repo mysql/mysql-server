@@ -103,8 +103,8 @@ struct MBR {
   }
   void add_xy(point_xy p) { add_xy(p.x, p.y); }
   void add_xy(const char *px, const char *py) {
-    double x = float8get(px);
-    double y = float8get(py);
+    const double x = float8get(px);
+    const double y = float8get(py);
     add_xy(x, y);
   }
   void add_mbr(const MBR *mbr) {
@@ -174,7 +174,7 @@ struct MBR {
       *mbr, and that both geometries and their intersection are of the
       same dimension.
     */
-    int d = dimension();
+    const int d = dimension();
     assert(d >= 0 && d <= 2);
 
     if (d != mbr->dimension() || d == 0 || contains(mbr) || within(mbr))
@@ -604,7 +604,7 @@ class Geometry {
                                    const char *wkb, uint32 len, String *res,
                                    bool init);
   bool as_wkt(String *wkt, wkb_parser *wkb) const {
-    uint32 len = (uint)get_class_info()->m_name.length;
+    const uint32 len = (uint)get_class_info()->m_name.length;
     if (wkt->reserve(len + 2, 512)) return true;
     if (get_type() == wkb_geometrycollection)
       wkt->append("GEOMETRYCOLLECTION");
@@ -921,7 +921,7 @@ class Geometry {
   char get_dimension() const { return static_cast<char>(m_flags.dim) + 1; }
 
   Geometry::wkbType get_geotype() const {
-    char gt = static_cast<char>(m_flags.geotype);
+    const char gt = static_cast<char>(m_flags.geotype);
     return static_cast<Geometry::wkbType>(gt);
   }
 
@@ -1082,7 +1082,7 @@ inline void set_byte_order(void *p0, Geometry::wkbByteOrder bo) {
  */
 inline Geometry::wkbType get_wkb_geotype(const void *p0) {
   const char *p = static_cast<const char *>(p0);
-  uint32 gt = uint4korr(p);
+  const uint32 gt = uint4korr(p);
   assert(Geometry::is_valid_geotype(gt));
   return static_cast<Geometry::wkbType>(gt);
 }

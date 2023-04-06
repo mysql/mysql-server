@@ -146,7 +146,7 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
 
     if (orig_field->has_insert_default_constant_expression()) {
       /* Get the value from default_values */
-      ptrdiff_t diff = orig_field->table->default_values_offset();
+      const ptrdiff_t diff = orig_field->table->default_values_offset();
       orig_field->move_field_offset(diff);  // Points now at default_values
       if (!orig_field->is_real_null()) {
         StringBuffer<MAX_FIELD_WIDTH> tmp(charset);
@@ -437,7 +437,7 @@ bool Create_field::init(
       /* change FLOAT(precision) to FLOAT or DOUBLE */
       allowed_type_modifier = AUTO_INCREMENT_FLAG;
       if (display_width_in_codepoints && !fld_decimals) {
-        size_t tmp_length = m_max_display_width_in_codepoints;
+        const size_t tmp_length = m_max_display_width_in_codepoints;
         if (tmp_length > PRECISION_FOR_DOUBLE) {
           my_error(ER_WRONG_FIELD_SPEC, MYF(0), fld_name);
           return true;
@@ -716,8 +716,9 @@ size_t Create_field::max_display_width_in_bytes() const {
     // MAX_LONG_BLOB_WIDTH if the character set is multi-byte. So we must
     // ensure that we never return a value greater than
     // MAX_LONG_BLOB_WIDTH.
-    std::int64_t display_width = max_display_width_in_codepoints() *
-                                 static_cast<std::int64_t>(charset->mbmaxlen);
+    const std::int64_t display_width =
+        max_display_width_in_codepoints() *
+        static_cast<std::int64_t>(charset->mbmaxlen);
     return static_cast<size_t>(std::min(
         display_width, static_cast<std::int64_t>(Field::MAX_LONG_BLOB_WIDTH)));
   }

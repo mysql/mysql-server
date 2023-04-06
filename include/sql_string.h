@@ -563,17 +563,17 @@ class String {
   /* Inline (general) functions used by the protocol functions */
 
   char *prep_append(size_t arg_length, size_t step_alloc) {
-    size_t new_length = arg_length + m_length;
+    const size_t new_length = arg_length + m_length;
     if (new_length > m_alloced_length) {
       if (mem_realloc(new_length + step_alloc)) return nullptr;
     }
-    size_t old_length = m_length;
+    const size_t old_length = m_length;
     m_length += arg_length;
     return m_ptr + old_length; /* Area to use */
   }
 
   bool append(const char *s, size_t arg_length, size_t step_alloc) {
-    size_t new_length = arg_length + m_length;
+    const size_t new_length = arg_length + m_length;
     if (new_length > m_alloced_length &&
         mem_realloc_exp(new_length + step_alloc))
       return true;

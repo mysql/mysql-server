@@ -204,7 +204,7 @@ static bool scan_donor_list(const std::string &donor_list,
         entry_len = comma_pos - begin_pos;
       }
 
-      std::string entry = donor_list.substr(begin_pos, entry_len);
+      const std::string entry = donor_list.substr(begin_pos, entry_len);
       auto colon_pos = entry.find(":");
 
       /* Bad entry if no separator is found or found in beginning. */
@@ -314,7 +314,7 @@ static int check_donor_addr_format(MYSQL_THD thd, SYS_VAR *var [[maybe_unused]],
     /* purecov: end */
   }
 
-  std::string addrs(addrs_cstring);
+  const std::string addrs(addrs_cstring);
 
   Donor_Callback callback = [](std::string, uint32_t) { return (false); };
 

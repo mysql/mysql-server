@@ -197,8 +197,8 @@ static size_t my_mbstou16s(const CHARSET_INFO *cs, const uchar *from,
 void my_win_console_write(const CHARSET_INFO *cs, const char *data,
                           size_t datalen) {
   static wchar_t u16buf[MAX_CONSOLE_LINE_SIZE + 1];
-  size_t nchars = my_mbstou16s(cs, (const uchar *)data, datalen, u16buf,
-                               sizeof(u16buf) / sizeof(u16buf[0]));
+  const size_t nchars = my_mbstou16s(cs, (const uchar *)data, datalen, u16buf,
+                                     sizeof(u16buf) / sizeof(u16buf[0]));
   DWORD nwritten;
   WriteConsoleW(GetStdHandle(STD_OUTPUT_HANDLE), u16buf, (DWORD)nchars,
                 &nwritten, NULL);
@@ -214,7 +214,7 @@ void my_win_console_write(const CHARSET_INFO *cs, const char *data,
   @param c   Character (single byte)
 */
 void my_win_console_putc(const CHARSET_INFO *cs, int c) {
-  char ch = (char)c;
+  const char ch = (char)c;
   my_win_console_write(cs, &ch, 1);
 }
 
@@ -234,7 +234,7 @@ void my_win_console_fputs(const CHARSET_INFO *cs, const char *data) {
 void my_win_console_vfprintf(const CHARSET_INFO *cs, const char *fmt,
                              va_list args) {
   static char buff[MAX_CONSOLE_LINE_SIZE + 1];
-  size_t len = vsnprintf(buff, sizeof(buff) - 1, fmt, args);
+  const size_t len = vsnprintf(buff, sizeof(buff) - 1, fmt, args);
   my_win_console_write(cs, buff, len);
 }
 
@@ -255,15 +255,16 @@ int my_win_translate_command_line_args(const CHARSET_INFO *cs, int *argc,
   char **av;
   wchar_t *command_line = GetCommandLineW();
   wchar_t **wargs = CommandLineToArgvW(command_line, &ac);
-  size_t nbytes = (ac + 1) * sizeof(char *);
+  const size_t nbytes = (ac + 1) * sizeof(char *);
 
   /* Allocate new command line parameter */
   av = (char **)my_once_alloc(nbytes, MYF(MY_ZEROFILL));
 
   for (i = 0; i < ac; i++) {
     uint dummy_errors;
-    size_t arg_len = wcslen(wargs[i]);
-    size_t len, alloced_len = arg_len * cs->mbmaxlen + 1;
+    const size_t arg_len = wcslen(wargs[i]);
+    size_t len;
+    const size_t alloced_len = arg_len * cs->mbmaxlen + 1;
     av[i] = (char *)my_once_alloc(alloced_len, MYF(0));
     len = my_convert(av[i], alloced_len, cs, (const char *)wargs[i],
                      arg_len * sizeof(wchar_t), &my_charset_utf16le_bin,

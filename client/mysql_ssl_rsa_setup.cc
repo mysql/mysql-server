@@ -416,8 +416,8 @@ static bool check_suffix() {
 int main(int argc, char *argv[]) {
   int ret_val = 0;
   int sec_level = security_level();
-  Sql_string_t openssl_check("openssl version");
-  bool save_skip_unknown = my_getopt_skip_unknown;
+  const Sql_string_t openssl_check("openssl version");
+  const bool save_skip_unknown = my_getopt_skip_unknown;
   MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
 
   MY_INIT(argv[0]);
@@ -439,8 +439,8 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  MY_MODE file_creation_mode = get_file_perm(USER_READ | USER_WRITE);
-  MY_MODE saved_umask = umask(~(file_creation_mode));
+  const MY_MODE file_creation_mode = get_file_perm(USER_READ | USER_WRITE);
+  const MY_MODE saved_umask = umask(~(file_creation_mode));
 
   defaults_argv = argv;
   my_getopt_use_args_separator = false;
@@ -545,7 +545,7 @@ int main(int argc, char *argv[]) {
       info << "Certificate files are present in given dir. Skipping generation."
            << endl;
     } else {
-      Sql_string_t empty_string("");
+      const Sql_string_t empty_string("");
       X509_key x509_key(suffix_string);
       X509_cert x509_cert;
       X509v3_ext_writer x509v3_ext_writer;

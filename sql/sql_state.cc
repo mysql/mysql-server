@@ -59,7 +59,7 @@ int mysql_symbol_to_errno(const char *error_symbol) {
   if (0 == native_strncasecmp("MY-", error_symbol, 3)) {
     // ... but only if there is a message registered for that number!
     char *last;
-    int errcode = (int)strtol(&error_symbol[3], &last, 10);
+    const int errcode = (int)strtol(&error_symbol[3], &last, 10);
     if ((*last == '\0') &&
         (((errcode >= EE_ERROR_FIRST) && (errcode <= EE_ERROR_LAST)) ||
          (mysql_errno_to_builtin(errcode) >= 0)))

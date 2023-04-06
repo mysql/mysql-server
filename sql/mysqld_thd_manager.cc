@@ -307,7 +307,7 @@ void Global_THD_manager::do_for_all_thd_copy(Do_THD_Impl *func) {
 }
 
 void Global_THD_manager::do_for_all_thd(Do_THD_Impl *func) {
-  Do_THD doit(func);
+  const Do_THD doit(func);
   for (int i = 0; i < NUM_PARTITIONS; i++) {
     MUTEX_LOCK(lock, &LOCK_thd_list[i]);
     std::for_each(thd_list[i].begin(), thd_list[i].end(), doit);
@@ -315,7 +315,7 @@ void Global_THD_manager::do_for_all_thd(Do_THD_Impl *func) {
 }
 
 THD_ptr Global_THD_manager::find_thd(Find_THD_Impl *func) {
-  Find_THD find_thd(func);
+  const Find_THD find_thd(func);
   for (int i = 0; i < NUM_PARTITIONS; i++) {
     MUTEX_LOCK(lock, &LOCK_thd_list[i]);
     THD_array::const_iterator it =
@@ -332,7 +332,7 @@ THD_ptr Global_THD_manager::find_thd(Find_THD_Impl *func) {
 // Optimized version of the above function for when we know
 // the thread_id of the THD we are looking for.
 THD_ptr Global_THD_manager::find_thd(Find_thd_with_id *func) {
-  Find_THD find_thd(func);
+  const Find_THD find_thd(func);
   // Since we know the thread_id, we can check the correct
   // partition directly.
   const int partition = thd_partition(func->m_thread_id);

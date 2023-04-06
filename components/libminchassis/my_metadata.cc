@@ -62,7 +62,7 @@ bool my_metadata::set_value(const char *name, const char *value) {
     my_string key_str = name;
     my_string value_str = value;
 
-    my_unordered_string_to_string_map::iterator it = data.find(key_str);
+    const my_unordered_string_to_string_map::iterator it = data.find(key_str);
     if (it != data.end()) {
       it->second = value_str;
     } else {
@@ -88,7 +88,7 @@ bool my_metadata::set_value(const char *name, const char *value) {
 */
 bool my_metadata::get_value(const char *name, const char **value) {
   try {
-    my_unordered_string_to_string_map::const_iterator iter =
+    const my_unordered_string_to_string_map::const_iterator iter =
         data.find(my_string(name));
     if (iter == data.end()) {
       return true;

@@ -343,7 +343,7 @@ void reset_mqh(THD *thd, LEX_USER *lu, bool get_them = false) {
   DEBUG_SYNC(thd, "in_reset_mqh_flush_privileges");
   if (lu)  // for GRANT
   {
-    size_t temp_len = lu->user.length + lu->host.length + 2;
+    const size_t temp_len = lu->user.length + lu->host.length + 2;
     char temp_user[USER_HOST_BUFF_SIZE];
 
     memcpy(temp_user, lu->user.str, lu->user.length);
@@ -759,7 +759,7 @@ void end_connection(THD *thd) {
   if (net->error && net->vio != nullptr) {
     if (!thd->killed) {
       Security_context *sctx = thd->security_context();
-      LEX_CSTRING sctx_user = sctx->user();
+      const LEX_CSTRING sctx_user = sctx->user();
       LogErr(
           INFORMATION_LEVEL, ER_ABORTING_USER_CONNECTION, thd->thread_id(),
           (thd->db().str ? thd->db().str : "unconnected"),
@@ -783,14 +783,14 @@ static void prepare_new_connection_state(THD *thd) {
       thd->get_protocol()->has_client_capability(
           CLIENT_ZSTD_COMPRESSION_ALGORITHM)) {
     net->compress = true;  // Use compression
-    enum enum_compression_algorithm algorithm = get_compression_algorithm(
+    const enum enum_compression_algorithm algorithm = get_compression_algorithm(
         thd->get_protocol()->get_compression_algorithm());
     NET_SERVER *server_extn = static_cast<NET_SERVER *>(net->extension);
     if (server_extn != nullptr)
       mysql_compress_context_init(&server_extn->compress_ctx, algorithm,
                                   thd->get_protocol()->get_compression_level());
     if (net->extension == nullptr) {
-      LEX_CSTRING sctx_user = sctx->user();
+      const LEX_CSTRING sctx_user = sctx->user();
       Host_errors errors;
       my_error(ER_NEW_ABORTING_CONNECTION, MYF(0), thd->thread_id(),
                thd->db().str ? thd->db().str : "unconnected",
@@ -839,7 +839,7 @@ static void prepare_new_connection_state(THD *thd) {
     if (thd->is_error()) {
       Host_errors errors;
       ulong packet_length;
-      LEX_CSTRING sctx_user = sctx->user();
+      const LEX_CSTRING sctx_user = sctx->user();
       Diagnostics_area *da = thd->get_stmt_da();
       const char *user = sctx_user.str ? sctx_user.str : "unauthenticated";
       const char *what = "init_connect command failed";

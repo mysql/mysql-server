@@ -72,7 +72,7 @@
 /** Prints an error message supplied and attaches GetLastError with formatted
  * message. */
 void error(std::string message) {
-  DWORD last_error = GetLastError();
+  const DWORD last_error = GetLastError();
   std::cerr << "Error during generating .def file: " << message << "\n"
             << "Last OS error code: " << last_error
             << ", msg: " << std::system_category().message((int)last_error)
@@ -414,7 +414,7 @@ class Resp_file {
     std::ofstream rspFile(get_name().c_str());
     rspFile << "/symbols \n";
     for (int i = 0; i < arguments_count; ++i) {
-      std::string input(arguments[i]);
+      const std::string input(arguments[i]);
       if (input.size() > 4 && (input.substr(input.size() - 4) == ".lib" ||
                                input.substr(input.size() - 4) == ".obj")) {
         rspFile << "\"" << input << "\"\n";

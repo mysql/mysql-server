@@ -337,7 +337,7 @@ void mysql_dynamic_loader_imp::init() {
 void mysql_dynamic_loader_imp::deinit() {
   /* Leave scope and lock before destroying it. */
   {
-    minimal_chassis::rwlock_scoped_lock lock(
+    const minimal_chassis::rwlock_scoped_lock lock(
         &mysql_dynamic_loader_imp::LOCK_dynamic_loader, true, __FILE__,
         __LINE__);
 
@@ -402,7 +402,7 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::load,
   try {
     /* Acquire write lock for entire process, possibly this could be
       optimized, but must be done with care. */
-    minimal_chassis::rwlock_scoped_lock lock(
+    const minimal_chassis::rwlock_scoped_lock lock(
         &mysql_dynamic_loader_imp::LOCK_dynamic_loader, true, __FILE__,
         __LINE__);
 
@@ -448,7 +448,7 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::load,
 DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::unload,
                    (const char *urns[], int component_count)) {
   try {
-    minimal_chassis::rwlock_scoped_lock lock(
+    const minimal_chassis::rwlock_scoped_lock lock(
         &mysql_dynamic_loader_imp::LOCK_dynamic_loader, true, __FILE__,
         __LINE__);
 
@@ -673,7 +673,7 @@ bool mysql_dynamic_loader_imp::load_do_load_component_by_scheme(
 
   /* First load all components. */
   for (int it = 0; it < component_count; ++it) {
-    my_string urn(urns[it]);
+    const my_string urn(urns[it]);
 
     SERVICE_TYPE(dynamic_loader_scheme) * scheme_service;
 
@@ -1004,7 +1004,7 @@ bool mysql_dynamic_loader_imp::unload_do_list_components(const char *urns[],
 
   /* Lookup for components by URNs specified. */
   for (int it = 0; it < component_count; ++it) {
-    my_string urn = my_string(urns[it]);
+    const my_string urn = my_string(urns[it]);
     my_component_registry::iterator component_it =
         mysql_dynamic_loader_imp::components_list.find(urn.c_str());
     /* Return error if any component is not loaded. */

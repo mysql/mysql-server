@@ -38,8 +38,8 @@ DEFINE_BOOL_METHOD(mysql_audit_print_service_double_data_source_imp::get,
 
   if (EQUALS("query_time")) {
     if (!thd->start_utime) return true;
-    ulonglong current_utime = my_micro_time();
-    ulonglong query_utime = (current_utime - thd->start_utime);
+    const ulonglong current_utime = my_micro_time();
+    const ulonglong query_utime = (current_utime - thd->start_utime);
     *out = static_cast<double>(query_utime) / 1000000.0;
   } else if (EQUALS("rows_sent")) {
     *out = static_cast<double>(thd->get_sent_row_count());

@@ -4598,7 +4598,7 @@ class handler {
      @returns true if it was started.
   */
   bool end_psi_batch_mode_if_started() {
-    bool rc = m_psi_batch_mode;
+    const bool rc = m_psi_batch_mode;
     if (rc) end_psi_batch_mode();
     return rc;
   }
@@ -5401,7 +5401,7 @@ class handler {
   virtual int index_read_map(uchar *buf, const uchar *key,
                              key_part_map keypart_map,
                              enum ha_rkey_function find_flag) {
-    uint key_len = calculate_key_len(table, active_index, keypart_map);
+    const uint key_len = calculate_key_len(table, active_index, keypart_map);
     return index_read(buf, key, key_len, find_flag);
   }
   /**
@@ -5439,7 +5439,7 @@ class handler {
   */
   virtual int index_read_last_map(uchar *buf, const uchar *key,
                                   key_part_map keypart_map) {
-    uint key_len = calculate_key_len(table, active_index, keypart_map);
+    const uint key_len = calculate_key_len(table, active_index, keypart_map);
     return index_read_last(buf, key, key_len);
   }
 

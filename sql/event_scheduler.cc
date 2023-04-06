@@ -726,7 +726,7 @@ error:
 
 bool Event_scheduler::is_running() {
   LOCK_DATA();
-  bool ret = (state == RUNNING);
+  const bool ret = (state == RUNNING);
   UNLOCK_DATA();
   return ret;
 }

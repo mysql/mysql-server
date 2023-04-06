@@ -625,7 +625,7 @@ extern "C" char *lookup(UDF_INIT *, UDF_ARGS *args, char *result,
   memcpy(name_buff, args->args[0], length);
   name_buff[length] = 0;
   {
-    std::lock_guard<std::mutex> lock(*LOCK_hostname);
+    const std::lock_guard<std::mutex> lock(*LOCK_hostname);
     if (!(hostent = gethostbyname((char *)name_buff))) {
       *null_value = 1;
       return nullptr;
@@ -700,7 +700,7 @@ extern "C" char *reverse_lookup(UDF_INIT *, UDF_ARGS *args, char *result,
     return nullptr;
   }
   {
-    std::lock_guard<std::mutex> lock(*LOCK_hostname);
+    const std::lock_guard<std::mutex> lock(*LOCK_hostname);
     if (!(hp = gethostbyaddr((char *)&taddr, sizeof(taddr), AF_INET))) {
       *null_value = 1;
       return nullptr;
@@ -787,8 +787,8 @@ extern "C" void avgcost_add(UDF_INIT *initid, UDF_ARGS *args, unsigned char *,
                             unsigned char *) {
   if (args->args[0] && args->args[1]) {
     struct avgcost_data *data = (struct avgcost_data *)initid->ptr;
-    long long quantity = *((long long *)args->args[0]);
-    long long newquantity = data->totalquantity + quantity;
+    const long long quantity = *((long long *)args->args[0]);
+    const long long newquantity = data->totalquantity + quantity;
     double price = *((double *)args->args[1]);
 
     data->count++;
@@ -934,7 +934,7 @@ extern "C" void my_median_add(UDF_INIT *initid, UDF_ARGS *args, unsigned char *,
       static_cast<My_median_data *>(static_cast<void *>(initid->ptr));
   if (args->args[0]) {
     void *arg0 = args->args[0];
-    long long number = *(static_cast<long long *>(arg0));
+    const long long number = *(static_cast<long long *>(arg0));
     data->vec.push_back(number);
   }
 }

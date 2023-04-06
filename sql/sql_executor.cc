@@ -185,7 +185,7 @@ bool JOIN::create_intermediate_table(
     when there is ORDER BY or GROUP BY or aggregate/window functions, because
     in all these cases we need all result rows.
   */
-  ha_rows tmp_rows_limit =
+  const ha_rows tmp_rows_limit =
       ((order.empty() || skip_sort_order) && tmp_table_group.empty() &&
        !windowing && !query_block->with_sum_func)
           ? m_select_limit
@@ -195,7 +195,7 @@ bool JOIN::create_intermediate_table(
       new (thd->mem_root) Temp_table_param(thd->mem_root, tmp_table_param);
   tab->tmp_table_param->skip_create_table = true;
 
-  bool distinct_arg =
+  const bool distinct_arg =
       select_distinct &&
       // GROUP BY is absent or has been done in a previous step
       group_list.empty() &&
@@ -472,7 +472,7 @@ static bool update_const_equal_items(THD *thd, Item *cond, JOIN_TAB *tab) {
              down_cast<Item_func *>(cond)->functype() ==
                  Item_func::MULT_EQUAL_FUNC) {
     Item_equal *item_equal = (Item_equal *)cond;
-    bool contained_const = item_equal->const_arg() != nullptr;
+    const bool contained_const = item_equal->const_arg() != nullptr;
     if (item_equal->update_const(thd)) return true;
     if (!contained_const && item_equal->const_arg()) {
       /* Update keys for range analysis */
@@ -519,7 +519,7 @@ void setup_tmptable_write_func(QEP_TAB *tab, Opt_trace_object *trace) {
   JOIN *join = tab->join();
   TABLE *table = tab->table();
   Temp_table_param *const tmp_tbl = tab->tmp_table_param;
-  uint phase = tab->ref_item_slice;
+  const uint phase = tab->ref_item_slice;
   const char *description = nullptr;
   assert(table);
 
@@ -941,7 +941,7 @@ void ConvertItemsToCopy(const mem_root_deque<Item *> &items, Field **fields,
 /// @returns true if 'item' is a join condition for a join involving the given
 ///   table (both equi-join and non-equi-join condition).
 static bool IsJoinCondition(const Item *item, const QEP_TAB *qep_tab) {
-  table_map used_tables = item->used_tables();
+  const table_map used_tables = item->used_tables();
   if ((~qep_tab->table_ref->map() & used_tables) != 0) {
     // This is a join condition (either equi-join or non-equi-join).
     return true;
@@ -984,7 +984,7 @@ static bool CheckIfFieldsAvailableForCond(Item *item, table_map build_tables,
     }
     return true;
   } else {
-    table_map used_tables = item->used_tables();
+    const table_map used_tables = item->used_tables();
     return (Overlaps(used_tables, build_tables) &&
             Overlaps(used_tables, probe_tables) &&
             IsSubset(used_tables, build_tables | probe_tables));
@@ -1004,9 +1004,9 @@ static void AttachSemiJoinCondition(Item *join_cond,
                                     QEP_TAB *current_table,
                                     qep_tab_map left_tables,
                                     plan_idx semi_join_table_idx) {
-  table_map build_table_map = ConvertQepTabMapToTableMap(
+  const table_map build_table_map = ConvertQepTabMapToTableMap(
       current_table->join(), current_table->idx_map());
-  table_map probe_table_map =
+  const table_map probe_table_map =
       ConvertQepTabMapToTableMap(current_table->join(), left_tables);
   if (CheckIfFieldsAvailableForCond(join_cond, build_table_map,
                                     probe_table_map)) {
@@ -1302,7 +1302,7 @@ static Substructure FindSubstructure(
   QEP_TAB *qep_tab = &qep_tabs[this_idx];
   bool is_outer_join =
       qep_tab->last_inner() != NO_PLAN_IDX && qep_tab->last_inner() < last_idx;
-  plan_idx outer_join_end =
+  const plan_idx outer_join_end =
       qep_tab->last_inner() + 1;  // Only valid if is_outer_join.
 
   // See if this table marks the end of the left side of a semijoin.
@@ -1762,8 +1762,8 @@ AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
                        qep_tab->table()->visible_field_ptr(),
                        &sjm->table_param);
 
-    int join_start = sjm->inner_table_index;
-    int join_end = join_start + sjm->table_count;
+    const int join_start = sjm->inner_table_index;
+    const int join_end = join_start + sjm->table_count;
 
     // Handle this subquery as a we would a completely separate join,
     // even though the tables are part of the same JOIN object
@@ -1808,7 +1808,7 @@ AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
     subtree_path = PossiblyAttachFilter(subtree_path, not_null_conditions, thd,
                                         &conditions_depend_on_outer_tables);
 
-    bool copy_items_in_materialize =
+    const bool copy_items_in_materialize =
         true;  // We never have windowing functions within semijoins.
     table_path = NewMaterializeAccessPath(
         thd,
@@ -1852,7 +1852,8 @@ AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
 void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
                               const POSITION *pos, bool is_after_filter,
                               AccessPath *path) {
-  double num_rows_after_filtering = pos->rows_fetched * pos->filter_effect;
+  const double num_rows_after_filtering =
+      pos->rows_fetched * pos->filter_effect;
   if (is_after_filter) {
     path->set_num_output_rows(num_rows_after_filtering);
   } else {
@@ -1861,7 +1862,7 @@ void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
 
   // Note that we don't try to adjust for the filtering here;
   // we estimate the same cost as the table itself.
-  double cost =
+  const double cost =
       pos->read_cost + cost_model.row_evaluate_cost(num_rows_after_filtering);
   if (pos->prefix_rowcount <= 0.0) {
     path->cost = cost;
@@ -1897,11 +1898,11 @@ void SetCostOnNestedLoopAccessPath(const Cost_model_server &cost_model,
 
   // Mirrors set_prefix_join_cost(), even though the cost calculation doesn't
   // make a lot of sense.
-  double inner_expected_rows_before_filter =
+  const double inner_expected_rows_before_filter =
       pos_inner->filter_effect > 0.0
           ? (inner->num_output_rows() / pos_inner->filter_effect)
           : 0.0;
-  double joined_rows =
+  const double joined_rows =
       outer->num_output_rows() * inner_expected_rows_before_filter;
   path->set_num_output_rows(joined_rows * pos_inner->filter_effect);
   path->cost = outer->cost + pos_inner->read_cost +
@@ -1925,7 +1926,8 @@ void SetCostOnHashJoinAccessPath(const Cost_model_server &cost_model,
 
   // Mirrors set_prefix_join_cost(), even though the cost calculation doesn't
   // make a lot of sense.
-  double joined_rows = outer->num_output_rows() * inner->num_output_rows();
+  const double joined_rows =
+      outer->num_output_rows() * inner->num_output_rows();
   path->set_num_output_rows(joined_rows * pos_outer->filter_effect);
   path->cost = inner->cost + pos_outer->read_cost +
                cost_model.row_evaluate_cost(joined_rows);
@@ -1956,9 +1958,9 @@ static AccessPath *CreateHashJoinAccessPath(
     qep_tab_map build_tables, AccessPath *probe_path, qep_tab_map probe_tables,
     JoinType join_type, vector<Item *> *join_conditions,
     table_map *conditions_depend_on_outer_tables) {
-  table_map left_table_map =
+  const table_map left_table_map =
       ConvertQepTabMapToTableMap(qep_tab->join(), probe_tables);
-  table_map right_table_map =
+  const table_map right_table_map =
       ConvertQepTabMapToTableMap(qep_tab->join(), build_tables);
 
   // Move out equi-join conditions and non-equi-join conditions, so we can
@@ -2406,7 +2408,7 @@ AccessPath *ConnectJoins(plan_idx upper_first_idx, plan_idx first_idx,
 
     bool add_limit_1;
     plan_idx substructure_end;
-    Substructure substructure =
+    const Substructure substructure =
         FindSubstructure(qep_tabs, first_idx, i, last_idx, calling_context,
                          &add_limit_1, &substructure_end, unhandled_duplicates);
 
@@ -2422,8 +2424,8 @@ AccessPath *ConnectJoins(plan_idx upper_first_idx, plan_idx first_idx,
     QEP_TAB *qep_tab = &qep_tabs[i];
     if (substructure == Substructure::OUTER_JOIN ||
         substructure == Substructure::SEMIJOIN) {
-      qep_tab_map left_tables = TablesBetween(first_idx, i);
-      qep_tab_map right_tables = TablesBetween(i, substructure_end);
+      const qep_tab_map left_tables = TablesBetween(first_idx, i);
+      const qep_tab_map right_tables = TablesBetween(i, substructure_end);
 
       // Outer or semijoin, consisting of a subtree (possibly of only one
       // table), so we send the entire subtree down to a recursive invocation
@@ -2702,7 +2704,7 @@ AccessPath *ConnectJoins(plan_idx upper_first_idx, plan_idx first_idx,
 
     AccessPath *table_path = GetTableAccessPath(thd, qep_tab, qep_tabs);
 
-    qep_tab_map right_tables = qep_tab->idx_map();
+    const qep_tab_map right_tables = qep_tab->idx_map();
     qep_tab_map left_tables = 0;
 
     // Get the left side tables of this join.
@@ -2761,7 +2763,7 @@ AccessPath *ConnectJoins(plan_idx upper_first_idx, plan_idx first_idx,
     }
 
     if (!qep_tab->condition_is_pushed_to_sort()) {  // See the comment on #2.
-      double expected_rows = table_path->num_output_rows();
+      const double expected_rows = table_path->num_output_rows();
       table_path = PossiblyAttachFilter(table_path, predicates_below_join, thd,
                                         conditions_depend_on_outer_tables);
       POSITION *pos = qep_tab->position();
@@ -3145,7 +3147,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
 
         // Switch to the right slice if applicable, so that we fetch out the
         // correct items from order_arg.
-        Switch_ref_item_slice slice_switch(this, qep_tab->ref_item_slice);
+        const Switch_ref_item_slice slice_switch(this, qep_tab->ref_item_slice);
         dup_filesort = new (thd->mem_root) Filesort(
             thd, {qep_tab->table()}, /*keep_buffers=*/false, order,
             HA_POS_ERROR, /*remove_duplicates=*/true, force_sort_rowids,
@@ -3866,7 +3868,7 @@ static bool cmp_field_value(Field *field, ptrdiff_t diff) {
     // Fetch the JSON value on the right side of the comparison.
     Json_wrapper right_wrapper;
     json_field->move_field_offset(diff);
-    bool err = json_field->val_json(&right_wrapper);
+    const bool err = json_field->val_json(&right_wrapper);
     json_field->move_field_offset(-diff);
     if (err) return true; /* purecov: inspected */
 
@@ -3894,7 +3896,7 @@ static bool cmp_field_value(Field *field, ptrdiff_t diff) {
 
 static bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1) {
   DBUG_TRACE;
-  ptrdiff_t diff = rec1 - rec0;
+  const ptrdiff_t diff = rec1 - rec0;
 
   for (ORDER *grp = group; grp; grp = grp->next) {
     Field *field = grp->field_in_tmp_table;
@@ -3913,7 +3915,7 @@ static bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1) {
 
 static bool table_rec_cmp(TABLE *table) {
   DBUG_TRACE;
-  ptrdiff_t diff = table->record[1] - table->record[0];
+  const ptrdiff_t diff = table->record[1] - table->record[0];
   Field **fields = table->visible_field_ptr();
 
   for (uint i = 0; i < table->visible_field_count(); i++) {
@@ -4051,7 +4053,7 @@ bool check_unique_constraint(TABLE *table) {
 }
 
 bool construct_lookup(THD *thd, TABLE *table, Index_lookup *ref) {
-  enum enum_check_fields save_check_for_truncated_fields =
+  const enum enum_check_fields save_check_for_truncated_fields =
       thd->check_for_truncated_fields;
   thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;
   my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);

@@ -423,7 +423,7 @@ struct st_mysql_client_plugin *mysql_load_plugin_v(MYSQL *mysql,
   struct st_mysql_client_plugin *plugin;
   const char *plugindir;
   const CHARSET_INFO *cs = nullptr;
-  size_t len = (name ? strlen(name) : 0);
+  const size_t len = (name ? strlen(name) : 0);
   int well_formed_error;
   size_t res = 0;
 #ifdef _WIN32

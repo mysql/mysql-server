@@ -154,7 +154,7 @@ class Database_rewrite {
       std::size_t ibuffer_capacity{0};
 
       // RAII objects
-      Buffer_realloc_manager ibuffer_dealloc_guard(&ibuffer);
+      const Buffer_realloc_manager ibuffer_dealloc_guard(&ibuffer);
 
       // stream to decompress events
       using Buffer_istream_t =
@@ -408,7 +408,7 @@ class Database_rewrite {
           In case the new database name is longer than the old database
           length, it will reallocate the buffer.
         */
-        uint8 common_header_len = fde.common_header_len;
+        const uint8 common_header_len = fde.common_header_len;
         uint8 query_header_len =
             fde.post_header_len[binary_log::QUERY_EVENT - 1];
         const unsigned char *ptr = buffer;
@@ -509,7 +509,7 @@ class Database_rewrite {
     if (the_data_size != data_size) {
       unsigned char *to_tail_ptr = the_buffer + offset_dbname + to.size();
       unsigned char *from_tail_ptr = the_buffer + offset_dbname + from.size();
-      size_t to_tail_size = data_size - (offset_dbname + from.size());
+      const size_t to_tail_size = data_size - (offset_dbname + from.size());
 
       // move the tail (so we do not risk overwriting it)
       memmove(to_tail_ptr, from_tail_ptr, to_tail_size);
@@ -946,7 +946,7 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
                                                     const uchar *block,
                                                     size_t block_len,
                                                     uint file_id) {
-  size_t full_len = target_dir_name_len + blen + 9 + 9 + 1;
+  const size_t full_len = target_dir_name_len + blen + 9 + 9 + 1;
   Exit_status retval = OK_CONTINUE;
   char *fname, *ptr;
   File file;
@@ -1371,7 +1371,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
                                  const char *logname,
                                  bool skip_pos_check = false) {
   char ll_buff[21];
-  Log_event_type ev_type = ev->get_type_code();
+  const Log_event_type ev_type = ev->get_type_code();
   DBUG_TRACE;
   Exit_status retval = OK_CONTINUE;
   IO_CACHE *const head = &print_event_info->head_cache;
@@ -1438,15 +1438,15 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         break;
       case binary_log::QUERY_EVENT: {
         Query_log_event *qle = (Query_log_event *)ev;
-        bool parent_query_skips =
+        const bool parent_query_skips =
             !qle->is_trans_keyword() && shall_skip_database(qle->db);
-        bool ends_group = ((Query_log_event *)ev)->ends_group();
-        bool starts_group = ((Query_log_event *)ev)->starts_group();
+        const bool ends_group = ((Query_log_event *)ev)->ends_group();
+        const bool starts_group = ((Query_log_event *)ev)->starts_group();
 
         for (size_t i = 0; i < buff_ev->size(); i++) {
           buff_event_info pop_event_array = buff_ev->at(i);
           Log_event *temp_event = pop_event_array.event;
-          my_off_t temp_log_pos = pop_event_array.event_pos;
+          const my_off_t temp_log_pos = pop_event_array.event_pos;
           print_event_info->hexdump_from = (opt_hexdump ? temp_log_pos : 0);
           if (!parent_query_skips)
             temp_event->print(result_file, print_event_info);
@@ -1639,7 +1639,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
               new_ev->get_table_id());
         }
 
-        bool skip_event = (ignored_map != nullptr);
+        const bool skip_event = (ignored_map != nullptr);
         /*
           end of statement check:
           i) destroy/free ignored maps
@@ -2457,7 +2457,7 @@ static Exit_status dump_multiple_logs(int argc, char **argv) {
   print_event_info.immediate_server_version = UNDEFINED_SERVER_VERSION;
 
   // Dump all logs.
-  my_off_t save_stop_position = stop_position;
+  const my_off_t save_stop_position = stop_position;
   stop_position = ~(my_off_t)0;
   for (int i = 0; i < argc; i++) {
     if (i == argc - 1)  // last log, --stop-position applies
@@ -2720,9 +2720,10 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       ROTATE_EVENT or FORMAT_DESCRIPTION_EVENT
     */
 
-    Log_event_type type = (Log_event_type)rpl.buffer[1 + EVENT_TYPE_OFFSET];
+    const Log_event_type type =
+        (Log_event_type)rpl.buffer[1 + EVENT_TYPE_OFFSET];
     Log_event *ev = nullptr;
-    Destroy_log_event_guard del(&ev);
+    const Destroy_log_event_guard del(&ev);
     event_len = rpl.size - 1;
     if (!(event_buf = (unsigned char *)my_malloc(key_memory_log_event,
                                                  event_len + 1, MYF(0)))) {
@@ -2944,7 +2945,8 @@ class Mysqlbinlog_event_data_istream : public Binlog_event_data_istream {
     */
     if (m_multi_binlog_magic &&
         memcmp(m_header, BINLOG_MAGIC, BINLOG_MAGIC_SIZE) == 0) {
-      size_t header_len = LOG_EVENT_MINIMAL_HEADER_LEN - BINLOG_MAGIC_SIZE;
+      const size_t header_len =
+          LOG_EVENT_MINIMAL_HEADER_LEN - BINLOG_MAGIC_SIZE;
 
       // Remove BINLOG_MAGIC from m_header
       memmove(m_header, m_header + BINLOG_MAGIC_SIZE, header_len);
@@ -2964,7 +2966,7 @@ class Stdin_binlog_istream : public Basic_seekable_istream,
                              public Stdin_istream {
  public:
   ssize_t read(unsigned char *buffer, size_t length) override {
-    longlong ret = Stdin_istream::read(buffer, length);
+    const longlong ret = Stdin_istream::read(buffer, length);
     if (ret > 0) m_position += ret;
     return ret;
   }
@@ -3242,10 +3244,10 @@ inline void gtid_client_cleanup() {
            false if OK
 */
 inline bool gtid_client_init() {
-  bool res = (!(global_sid_lock = new Checkable_rwlock) ||
-              !(global_sid_map = new Sid_map(global_sid_lock)) ||
-              !(gtid_set_excluded = new Gtid_set(global_sid_map)) ||
-              !(gtid_set_included = new Gtid_set(global_sid_map)));
+  const bool res = (!(global_sid_lock = new Checkable_rwlock) ||
+                    !(global_sid_map = new Sid_map(global_sid_lock)) ||
+                    !(gtid_set_excluded = new Gtid_set(global_sid_map)) ||
+                    !(gtid_set_included = new Gtid_set(global_sid_map)));
   if (res) {
     gtid_client_cleanup();
   }

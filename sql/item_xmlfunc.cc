@@ -991,7 +991,7 @@ static int my_xpath_keyword(MY_XPATH *x,
                             struct my_xpath_keyword_names_st *keyword_names,
                             const char *beg, const char *end) {
   struct my_xpath_keyword_names_st *k;
-  size_t length = end - beg;
+  const size_t length = end - beg;
   for (k = keyword_names; k->name; k++) {
     if (length == k->length && !native_strncasecmp(beg, k->name, length)) {
       x->extra = k->extra;
@@ -1143,7 +1143,7 @@ static MY_XPATH_FUNC my_func_names[] = {
 */
 static MY_XPATH_FUNC *my_xpath_function(const char *beg, const char *end) {
   MY_XPATH_FUNC *k, *function_names;
-  size_t length = end - beg;
+  const size_t length = end - beg;
   switch (length) {
     case 1:
       return nullptr;
@@ -1316,7 +1316,7 @@ static int my_xpath_parse_term(MY_XPATH *xpath, int term) {
     0 - failure
 */
 static int my_xpath_parse_AxisName(MY_XPATH *xpath) {
-  int rc = my_xpath_parse_term(xpath, MY_XPATH_LEX_AXIS);
+  const int rc = my_xpath_parse_term(xpath, MY_XPATH_LEX_AXIS);
   xpath->axis = xpath->extra;
   return rc;
 }
@@ -1374,8 +1374,8 @@ static int my_xpath_parse_LocationPath(MY_XPATH *xpath) {
   Item_nodeset_func *context = xpath->context;
 
   if (!xpath->context) xpath->context = xpath->rootelement;
-  int rc = my_xpath_parse_RelativeLocationPath(xpath) ||
-           my_xpath_parse_AbsoluteLocationPath(xpath);
+  const int rc = my_xpath_parse_RelativeLocationPath(xpath) ||
+                 my_xpath_parse_AbsoluteLocationPath(xpath);
 
   xpath->item = xpath->context;
   xpath->context = context;
@@ -1869,7 +1869,7 @@ static int my_xpath_parse_AndExpr(MY_XPATH *xpath) {
     0 - failure
 */
 static int my_xpath_parse_ne(MY_XPATH *xpath) {
-  MY_XPATH_LEX prevtok = xpath->prevtok;
+  const MY_XPATH_LEX prevtok = xpath->prevtok;
   if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_EXCL)) return 0;
   if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_EQ)) {
     /* Unget the exclamation mark */
@@ -1897,7 +1897,7 @@ static int my_xpath_parse_EqualityExpr(MY_XPATH *xpath) {
   operator_context = xpath->lasttok;
   while (my_xpath_parse_EqualityOperator(xpath)) {
     Item *prev = xpath->item;
-    int oper = xpath->extra;
+    const int oper = xpath->extra;
     if (!my_xpath_parse_RelationalExpr(xpath)) {
       xpath->error = 1;
       return 0;
@@ -1950,7 +1950,7 @@ static int my_xpath_parse_RelationalExpr(MY_XPATH *xpath) {
   operator_context = xpath->lasttok;
   while (my_xpath_parse_RelationalOperator(xpath)) {
     Item *prev = xpath->item;
-    int oper = xpath->extra;
+    const int oper = xpath->extra;
 
     if (!my_xpath_parse_AdditiveExpr(xpath)) {
       xpath->error = 1;
@@ -1985,7 +1985,7 @@ static int my_xpath_parse_AdditiveExpr(MY_XPATH *xpath) {
   if (!my_xpath_parse_MultiplicativeExpr(xpath)) return 0;
 
   while (my_xpath_parse_AdditiveOperator(xpath)) {
-    int oper = xpath->prevtok.term;
+    const int oper = xpath->prevtok.term;
     Item *prev = xpath->item;
     if (!my_xpath_parse_MultiplicativeExpr(xpath)) {
       xpath->error = 1;
@@ -2026,7 +2026,7 @@ static int my_xpath_parse_MultiplicativeExpr(MY_XPATH *xpath) {
   if (!my_xpath_parse_UnaryExpr(xpath)) return 0;
 
   while (my_xpath_parse_MultiplicativeOperator(xpath)) {
-    int oper = xpath->prevtok.term;
+    const int oper = xpath->prevtok.term;
     Item *prev = xpath->item;
     if (!my_xpath_parse_UnaryExpr(xpath)) {
       xpath->error = 1;
@@ -2195,7 +2195,7 @@ static int my_xpath_parse_VariableReference(MY_XPATH *xpath) {
        !my_xpath_parse_term(xpath, MY_XPATH_LEX_IDENT)))
     return 0;
 
-  size_t name_length = xpath->prevtok.end - xpath->prevtok.beg;
+  const size_t name_length = xpath->prevtok.end - xpath->prevtok.beg;
   const char *name_str = xpath->prevtok.beg;
 
   if (user_var)
@@ -2240,7 +2240,7 @@ static int my_xpath_parse_VariableReference(MY_XPATH *xpath) {
 static int my_xpath_parse_NodeTest_QName(MY_XPATH *xpath) {
   if (!my_xpath_parse_QName(xpath)) return 0;
   assert(xpath->context);
-  size_t len = xpath->prevtok.end - xpath->prevtok.beg;
+  const size_t len = xpath->prevtok.end - xpath->prevtok.beg;
   xpath->context =
       nametestfunc(xpath, xpath->axis, xpath->context, xpath->prevtok.beg, len);
   return 1;
@@ -2320,7 +2320,7 @@ bool Item_xml_str_func::parse_xpath(Item *xpath_expr) {
   xpath.debug = 0;
   xpath.pxml = &pxml;
 
-  int rc = my_xpath_parse(&xpath, xp->ptr(), xp->ptr() + xp->length());
+  const int rc = my_xpath_parse(&xpath, xp->ptr(), xp->ptr() + xp->length());
 
   if (!rc) {
     size_t clen = xpath.query.end - xpath.lasttok.beg;
@@ -2536,7 +2536,7 @@ String *Item_func_xml_update::val_str(String *str) {
 
   tmp_value.length(0);
   tmp_value.set_charset(collation.collation);
-  uint offs = node->type == MY_XML_NODE_TAG ? 1 : 0;
+  const uint offs = node->type == MY_XML_NODE_TAG ? 1 : 0;
   tmp_value.append(res->ptr(), node->beg - res->ptr() - offs);
   tmp_value.append(rep->ptr(), rep->length());
   const char *end = node->tagend + offs;

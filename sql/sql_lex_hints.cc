@@ -134,8 +134,8 @@ void my_hint_parser_error(THD *thd [[maybe_unused]], Hint_scanner *scanner,
 
 void Hint_scanner::syntax_warning(const char *msg) const {
   /* Push an error into the error stack */
-  ErrConvString err(raw_yytext, input_buf_end - raw_yytext,
-                    thd->variables.character_set_client);
+  const ErrConvString err(raw_yytext, input_buf_end - raw_yytext,
+                          thd->variables.character_set_client);
 
   push_warning_printf(thd, Sql_condition::SL_WARNING, ER_PARSE_ERROR,
                       ER_THD(thd, ER_PARSE_ERROR), msg, err.ptr(),

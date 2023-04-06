@@ -320,7 +320,8 @@ class TC_LOG_MMAP : public TC_LOG {
     }
 
     /* found! store xid there and mark the page dirty */
-    ulong cookie = (ulong)((uchar *)p->ptr - data_arg);  // can never be zero
+    const ulong cookie =
+        (ulong)((uchar *)p->ptr - data_arg);  // can never be zero
     *p->ptr++ = xid;
     p->free--;
     p->state = PS_DIRTY;

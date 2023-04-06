@@ -580,7 +580,7 @@ static int initialize_plugin(char *, size_t, int, va_list) {
   g_logger_client = new Ldap_logger();
 
   const char *opt = getenv("AUTHENTICATION_LDAP_CLIENT_LOG");
-  int opt_val = opt ? atoi(opt) : 0;
+  const int opt_val = opt ? atoi(opt) : 0;
   if (opt && opt_val > 0 && opt_val < 6) {
     g_logger_client->set_log_level(static_cast<ldap_log_level>(opt_val));
   }

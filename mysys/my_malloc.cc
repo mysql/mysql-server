@@ -215,7 +215,7 @@ void init_malloc_pointers() {
   HMODULE hlib = LoadLibraryEx(jemalloc_dll_name, NULL,
                                LOAD_LIBRARY_SEARCH_APPLICATION_DIR);
   if (NULL == hlib) {
-    DWORD err = GetLastError();
+    const DWORD err = GetLastError();
     if (ERROR_MOD_NOT_FOUND == err) {
       // Normal behaviour: not finding the jemalloc dll means
       // we don't want to use it.
@@ -546,7 +546,7 @@ void *my_memdup(PSI_memory_key key, const void *from, size_t length,
 
 char *my_strdup(PSI_memory_key key, const char *from, myf my_flags) {
   char *ptr;
-  size_t length = strlen(from) + 1;
+  const size_t length = strlen(from) + 1;
   if ((ptr = (char *)my_malloc(key, length, my_flags)))
     memcpy(ptr, from, length);
   return ptr;

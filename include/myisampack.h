@@ -109,60 +109,60 @@ static inline longlong mi_sint8korr(const uchar *A) {
 
 #define mi_int2store(T, A)                      \
   {                                             \
-    uint def_temp = (uint)(A);                  \
+    const uint def_temp = (uint)(A);            \
     ((uchar *)(T))[1] = (uchar)(def_temp);      \
     ((uchar *)(T))[0] = (uchar)(def_temp >> 8); \
   }
 #define mi_int3store(T, A)                       \
   { /*lint -save -e734 */                        \
-    ulong def_temp = (ulong)(A);                 \
+    const ulong def_temp = (ulong)(A);           \
     ((uchar *)(T))[2] = (uchar)(def_temp);       \
     ((uchar *)(T))[1] = (uchar)(def_temp >> 8);  \
     ((uchar *)(T))[0] = (uchar)(def_temp >> 16); \
                               /*lint -restore */}
 #define mi_int4store(T, A)                       \
   {                                              \
-    ulong def_temp = (ulong)(A);                 \
+    const ulong def_temp = (ulong)(A);           \
     ((uchar *)(T))[3] = (uchar)(def_temp);       \
     ((uchar *)(T))[2] = (uchar)(def_temp >> 8);  \
     ((uchar *)(T))[1] = (uchar)(def_temp >> 16); \
     ((uchar *)(T))[0] = (uchar)(def_temp >> 24); \
   }
-#define mi_int5store(T, A)                                       \
-  {                                                              \
-    ulong def_temp = (ulong)(A), def_temp2 = (ulong)((A) >> 32); \
-    ((uchar *)(T))[4] = (uchar)(def_temp);                       \
-    ((uchar *)(T))[3] = (uchar)(def_temp >> 8);                  \
-    ((uchar *)(T))[2] = (uchar)(def_temp >> 16);                 \
-    ((uchar *)(T))[1] = (uchar)(def_temp >> 24);                 \
-    ((uchar *)(T))[0] = (uchar)(def_temp2);                      \
+#define mi_int5store(T, A)                                             \
+  {                                                                    \
+    const ulong def_temp = (ulong)(A), def_temp2 = (ulong)((A) >> 32); \
+    ((uchar *)(T))[4] = (uchar)(def_temp);                             \
+    ((uchar *)(T))[3] = (uchar)(def_temp >> 8);                        \
+    ((uchar *)(T))[2] = (uchar)(def_temp >> 16);                       \
+    ((uchar *)(T))[1] = (uchar)(def_temp >> 24);                       \
+    ((uchar *)(T))[0] = (uchar)(def_temp2);                            \
   }
-#define mi_int6store(T, A)                                       \
-  {                                                              \
-    ulong def_temp = (ulong)(A), def_temp2 = (ulong)((A) >> 32); \
-    ((uchar *)(T))[5] = (uchar)(def_temp);                       \
-    ((uchar *)(T))[4] = (uchar)(def_temp >> 8);                  \
-    ((uchar *)(T))[3] = (uchar)(def_temp >> 16);                 \
-    ((uchar *)(T))[2] = (uchar)(def_temp >> 24);                 \
-    ((uchar *)(T))[1] = (uchar)(def_temp2);                      \
-    ((uchar *)(T))[0] = (uchar)(def_temp2 >> 8);                 \
+#define mi_int6store(T, A)                                             \
+  {                                                                    \
+    const ulong def_temp = (ulong)(A), def_temp2 = (ulong)((A) >> 32); \
+    ((uchar *)(T))[5] = (uchar)(def_temp);                             \
+    ((uchar *)(T))[4] = (uchar)(def_temp >> 8);                        \
+    ((uchar *)(T))[3] = (uchar)(def_temp >> 16);                       \
+    ((uchar *)(T))[2] = (uchar)(def_temp >> 24);                       \
+    ((uchar *)(T))[1] = (uchar)(def_temp2);                            \
+    ((uchar *)(T))[0] = (uchar)(def_temp2 >> 8);                       \
   }
-#define mi_int7store(T, A)                                       \
-  {                                                              \
-    ulong def_temp = (ulong)(A), def_temp2 = (ulong)((A) >> 32); \
-    ((uchar *)(T))[6] = (uchar)(def_temp);                       \
-    ((uchar *)(T))[5] = (uchar)(def_temp >> 8);                  \
-    ((uchar *)(T))[4] = (uchar)(def_temp >> 16);                 \
-    ((uchar *)(T))[3] = (uchar)(def_temp >> 24);                 \
-    ((uchar *)(T))[2] = (uchar)(def_temp2);                      \
-    ((uchar *)(T))[1] = (uchar)(def_temp2 >> 8);                 \
-    ((uchar *)(T))[0] = (uchar)(def_temp2 >> 16);                \
+#define mi_int7store(T, A)                                             \
+  {                                                                    \
+    const ulong def_temp = (ulong)(A), def_temp2 = (ulong)((A) >> 32); \
+    ((uchar *)(T))[6] = (uchar)(def_temp);                             \
+    ((uchar *)(T))[5] = (uchar)(def_temp >> 8);                        \
+    ((uchar *)(T))[4] = (uchar)(def_temp >> 16);                       \
+    ((uchar *)(T))[3] = (uchar)(def_temp >> 24);                       \
+    ((uchar *)(T))[2] = (uchar)(def_temp2);                            \
+    ((uchar *)(T))[1] = (uchar)(def_temp2 >> 8);                       \
+    ((uchar *)(T))[0] = (uchar)(def_temp2 >> 16);                      \
   }
-#define mi_int8store(T, A)                                        \
-  {                                                               \
-    ulong def_temp3 = (ulong)(A), def_temp4 = (ulong)((A) >> 32); \
-    mi_int4store((uchar *)(T) + 0, def_temp4);                    \
-    mi_int4store((uchar *)(T) + 4, def_temp3);                    \
+#define mi_int8store(T, A)                                              \
+  {                                                                     \
+    const ulong def_temp3 = (ulong)(A), def_temp4 = (ulong)((A) >> 32); \
+    mi_int4store((uchar *)(T) + 0, def_temp4);                          \
+    mi_int4store((uchar *)(T) + 4, def_temp3);                          \
   }
 
 #ifdef WORDS_BIGENDIAN

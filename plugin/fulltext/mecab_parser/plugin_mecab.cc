@@ -289,7 +289,7 @@ static int mecab_parser_parse(MYSQL_FTPARSER_PARAM *param) {
   /* Allocate a new string with '\0' in the end to avoid
   valgrind error "Invalid read of size 1" in mecab. */
   assert(param->length >= 0);
-  int doc_length = param->length;
+  const int doc_length = param->length;
   char *doc = reinterpret_cast<char *>(malloc(doc_length + 1));
 
   if (doc == NULL) {

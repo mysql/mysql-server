@@ -1003,7 +1003,7 @@ uint arglist_length(const PT_item_list *args) {
 bool check_argcount_bounds(THD *, LEX_STRING function_name,
                            PT_item_list *item_list, uint min_argcount,
                            uint max_argcount) {
-  uint argcount = arglist_length(item_list);
+  const uint argcount = arglist_length(item_list);
   if (argcount < min_argcount || argcount > max_argcount) {
     my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), function_name.str);
     return true;
@@ -1180,7 +1180,7 @@ Item *Create_udf_func::create(THD *thd, udf_func *udf,
   assert((udf->type == UDFTYPE_FUNCTION) || (udf->type == UDFTYPE_AGGREGATE));
 
   Item *func = nullptr;
-  POS pos{};
+  const POS pos{};
 
   switch (udf->returns) {
     case STRING_RESULT:
@@ -1896,7 +1896,7 @@ static bool validate_cast_type_and_extract_length(
       return false;
     case ITEM_CAST_TIME:
     case ITEM_CAST_DATETIME: {
-      uint dec = c_dec ? strtoul(c_dec, nullptr, 10) : 0;
+      const uint dec = c_dec ? strtoul(c_dec, nullptr, 10) : 0;
       if (dec > DATETIME_MAX_DECIMALS) {
         my_error(ER_TOO_BIG_PRECISION, MYF(0), dec, "CAST",
                  DATETIME_MAX_DECIMALS);
@@ -2229,7 +2229,7 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
     const char *typestr = (type == MYSQL_TYPE_DATE)
                               ? "DATE"
                               : (type == MYSQL_TYPE_TIME) ? "TIME" : "DATETIME";
-    ErrConvString err(str, length, thd->variables.character_set_client);
+    const ErrConvString err(str, length, thd->variables.character_set_client);
     my_error(ER_WRONG_VALUE, MYF(0), typestr, err.ptr());
   }
   return nullptr;

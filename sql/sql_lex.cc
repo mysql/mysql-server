@@ -273,7 +273,7 @@ void Lex_input_stream::body_utf8_start(THD *thd, const char *begin_ptr) {
   assert(begin_ptr);
   assert(m_cpp_buf <= begin_ptr && begin_ptr <= m_cpp_buf + m_buf_length);
 
-  size_t body_utf8_length =
+  const size_t body_utf8_length =
       (m_buf_length / thd->variables.character_set_client->mbminlen) *
       my_charset_utf8mb3_bin.mbmaxlen;
 
@@ -313,7 +313,7 @@ void Lex_input_stream::body_utf8_append(const char *ptr, const char *end_ptr) {
 
   if (m_cpp_utf8_processed_ptr >= ptr) return;
 
-  size_t bytes_to_copy = ptr - m_cpp_utf8_processed_ptr;
+  const size_t bytes_to_copy = ptr - m_cpp_utf8_processed_ptr;
 
   memcpy(m_body_utf8_ptr, m_cpp_utf8_processed_ptr, bytes_to_copy);
   m_body_utf8_ptr += bytes_to_copy;
@@ -635,7 +635,7 @@ Query_block *LEX::new_query(Query_block *curr_query_block) {
 
   Name_resolution_context *outer_context = current_context();
 
-  enum_parsing_context parsing_place =
+  const enum_parsing_context parsing_place =
       curr_query_block != nullptr ? curr_query_block->parsing_place : CTX_NONE;
 
   Query_expression *const new_query_expression = create_query_expr_and_block(
@@ -870,7 +870,7 @@ static bool consume_optimizer_hints(Lex_input_stream *lip) {
                               lip->get_end_of_query() - lip->get_ptr(),
                               lip->m_digest);
     PT_hint_list *hint_list = nullptr;
-    int rc = my_hint_parser_parse(lip->m_thd, &hint_scanner, &hint_list);
+    const int rc = my_hint_parser_parse(lip->m_thd, &hint_scanner, &hint_list);
     if (rc == 2) return true;  // Bison's internal OOM error
     if (rc == 1) {
       /*
@@ -1521,7 +1521,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
               if (my_mbmaxlenlen(cs) < 2) break;
               [[fallthrough]];
             default:
-              int l =
+              const int l =
                   my_ismbchar(cs, lip->get_ptr() - 1, lip->get_end_of_query());
               if (l == 0) {
                 state = MY_LEX_CHAR;
@@ -1614,7 +1614,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
         yylval->lex_str.str = const_cast<char *>(lip->get_ptr());
         yylval->lex_str.length = 1;
         c = lip->yyGet();  // should be '.'
-        if (uchar next_c = lip->yyPeek(); ident_map[next_c]) {
+        if (const uchar next_c = lip->yyPeek(); ident_map[next_c]) {
           lip->next_state =
               MY_LEX_IDENT_START;  // Next is an ident (not a keyword)
           if (next_c == '$')       // We got .$ident
@@ -1718,7 +1718,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
       case MY_LEX_USER_VARIABLE_DELIMITER:  // Found quote char
       {
         uint double_quotes = 0;
-        char quote_char = c;  // Used char
+        const char quote_char = c;  // Used char
         for (;;) {
           c = lip->yyGet();
           if (c == 0) {
@@ -2707,7 +2707,7 @@ void Query_block::print_limit(const THD *thd, String *str,
   Item_subselect *item = unit->item;
 
   if (item && unit->global_parameters() == this) {
-    Item_subselect::subs_type subs_type = item->substype();
+    const Item_subselect::subs_type subs_type = item->substype();
     if (subs_type == Item_subselect::EXISTS_SUBS ||
         subs_type == Item_subselect::IN_SUBS ||
         subs_type == Item_subselect::ALL_SUBS)
@@ -3245,7 +3245,7 @@ void Query_block::print_delete_options(String *str) {
 
 void Query_block::print_insert_options(String *str) {
   if (get_table_list()) {
-    int type = static_cast<int>(get_table_list()->lock_descriptor().type);
+    const int type = static_cast<int>(get_table_list()->lock_descriptor().type);
 
     // Lock option
     if (type == static_cast<int>(TL_WRITE_LOW_PRIORITY))
@@ -4601,7 +4601,7 @@ Subquery_strategy Query_block::subquery_strategy(const THD *thd) const {
     return Subquery_strategy::SUBQ_MATERIALIZATION;
 
   if (opt_hints_qb) {
-    Subquery_strategy strategy = opt_hints_qb->subquery_strategy();
+    const Subquery_strategy strategy = opt_hints_qb->subquery_strategy();
     if (strategy != Subquery_strategy::UNSPECIFIED) return strategy;
   }
 
@@ -4620,13 +4620,13 @@ bool Query_block::semijoin_enabled(const THD *thd) const {
 }
 
 void Query_block::update_semijoin_strategies(THD *thd) {
-  uint sj_strategy_mask =
+  const uint sj_strategy_mask =
       OPTIMIZER_SWITCH_FIRSTMATCH | OPTIMIZER_SWITCH_LOOSE_SCAN |
       OPTIMIZER_SWITCH_MATERIALIZATION | OPTIMIZER_SWITCH_DUPSWEEDOUT;
 
-  uint opt_switches = thd->variables.optimizer_switch & sj_strategy_mask;
+  const uint opt_switches = thd->variables.optimizer_switch & sj_strategy_mask;
 
-  bool is_secondary_engine_optimization =
+  const bool is_secondary_engine_optimization =
       parent_lex->m_sql_cmd != nullptr &&
       parent_lex->m_sql_cmd->using_secondary_storage_engine();
 
@@ -4834,8 +4834,8 @@ bool Query_block::walk(Item_processor processor, enum_walk walk, uchar *arg) {
   @retval NULL If not found.
 */
 Table_ref *Query_block::find_table_by_name(const Table_ident *ident) {
-  LEX_CSTRING db_name = ident->db;
-  LEX_CSTRING table_name = ident->table;
+  const LEX_CSTRING db_name = ident->db;
+  const LEX_CSTRING table_name = ident->table;
 
   for (Table_ref *table = m_table_list.first; table;
        table = table->next_local) {
@@ -4917,7 +4917,7 @@ bool Query_options::merge(const Query_options &a, const Query_options &b) {
 
 bool Query_options::save_to(Parse_context *pc) {
   LEX *lex = pc->thd->lex;
-  ulonglong options = query_spec_options;
+  const ulonglong options = query_spec_options;
   if (pc->select->validate_base_options(lex, options)) return true;
   pc->select->set_base_options(options);
 
@@ -5005,7 +5005,7 @@ static void unsafe_mixed_statement(LEX::enum_stmt_accessed_table a,
                                    LEX::enum_stmt_accessed_table b,
                                    uint condition) {
   int type = 0;
-  int index = (1U << a) | (1U << b);
+  const int index = (1U << a) | (1U << b);
 
   for (type = 0; type < 256; type++) {
     if ((type & index) == index) {

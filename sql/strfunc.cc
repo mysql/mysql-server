@@ -83,8 +83,8 @@ ulonglong find_set(const TYPELIB *lib, const char *str, size_t length,
         for (; pos != end && *pos != field_separator; pos++)
           ;
       var_len = (uint)(pos - start);
-      uint find = cs ? find_type2(lib, start, var_len, cs)
-                     : find_type(lib, start, var_len, false);
+      const uint find = cs ? find_type2(lib, start, var_len, cs)
+                           : find_type(lib, start, var_len, false);
       if (!find && *err_len == 0)  // report the first error with length > 0
       {
         *err_pos = start;

@@ -136,7 +136,7 @@ bool Json_path_leg::is_autowrap() const {
         will also match a non-array which is auto-wrapped in a
         single-element array.
       */
-      Array_range range = get_array_range(1);
+      const Array_range range = get_array_range(1);
       return range.m_begin < range.m_end;
     }
     default:
@@ -151,11 +151,12 @@ Json_path_leg::Array_range Json_path_leg::get_array_range(
   assert(m_leg_type == jpl_array_range);
 
   // Get the beginning of the range.
-  size_t begin = first_array_index(array_length).position();
+  const size_t begin = first_array_index(array_length).position();
 
   // Get the (exclusive) end of the range.
-  Json_array_index last = last_array_index(array_length);
-  size_t end = last.within_bounds() ? last.position() + 1 : last.position();
+  const Json_array_index last = last_array_index(array_length);
+  const size_t end =
+      last.within_bounds() ? last.position() + 1 : last.position();
 
   return {begin, end};
 }
@@ -404,8 +405,9 @@ static bool parse_array_index(Stream *stream, uint32 *array_index,
 
   const char *endp;
   int err;
-  ulonglong idx = my_strntoull(&my_charset_utf8mb4_bin, stream->position(),
-                               stream->remaining(), 10, &endp, &err);
+  const ulonglong idx =
+      my_strntoull(&my_charset_utf8mb4_bin, stream->position(),
+                   stream->remaining(), 10, &endp, &err);
   if (err != 0 || idx > UINT_MAX32) {
     return true;
   }
@@ -725,7 +727,7 @@ static bool is_ecmascript_identifier(const std::string &name) {
   unsigned codepoint;
 
   while (input_stream.Tell() < name.length()) {
-    bool first_codepoint = (input_stream.Tell() == 0);
+    const bool first_codepoint = (input_stream.Tell() == 0);
     if (!rapidjson::UTF8<char>::Decode(input_stream, &codepoint)) return false;
 
     // a unicode letter

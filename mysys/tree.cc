@@ -219,7 +219,8 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size,
     }
   }
   if (element == &tree->null_element) {
-    uint alloc_size = sizeof(TREE_ELEMENT) + key_size + tree->size_of_element;
+    const uint alloc_size =
+        sizeof(TREE_ELEMENT) + key_size + tree->size_of_element;
     tree->allocated += alloc_size;
 
     if (tree->memory_limit && tree->elements_in_tree &&

@@ -2707,7 +2707,7 @@ static bool add_line(String &buffer, char *line, size_t line_length,
 
       // comment to end of line
       if (preserve_comments) {
-        bool started_with_nothing = !buffer.length();
+        const bool started_with_nothing = !buffer.length();
 
         buffer.append(pos);
 
@@ -3263,7 +3263,7 @@ static int mysql_store_result_for_lazy(MYSQL_RES **result) {
 
 static void print_help_item(MYSQL_ROW *cur, int num_name, int num_cat,
                             char *last_char) {
-  char ccat = (*cur)[num_cat][0];
+  const char ccat = (*cur)[num_cat][0];
   if (*last_char != ccat) {
     put_info(ccat == 'Y' ? "categories:" : "topics:", INFO_INFO);
     *last_char = ccat;
@@ -3304,8 +3304,8 @@ static int com_server_help(String *buffer [[maybe_unused]],
     return error;
 
   if (result) {
-    unsigned int num_fields = mysql_num_fields(result);
-    uint64_t num_rows = mysql_num_rows(result);
+    const unsigned int num_fields = mysql_num_fields(result);
+    const uint64_t num_rows = mysql_num_rows(result);
     mysql_fetch_fields(result);
     if (num_fields == 3 && num_rows == 1) {
       if (!(cur = mysql_fetch_row(result))) {
@@ -3495,7 +3495,7 @@ static int com_go_impl(String *buffer, char *line [[maybe_unused]]) {
 
   do {
     char *pos;
-    bool batchmode = (status.batch && verbose <= 1);
+    const bool batchmode = (status.batch && verbose <= 1);
     buff[0] = 0;
 
     if (quick) {
@@ -3657,7 +3657,7 @@ static void end_tee() {
 
 static int com_ego(String *buffer, char *line) {
   int result;
-  bool oldvertical = vertical;
+  const bool oldvertical = vertical;
   vertical = true;
   result = com_go(buffer, line);
   vertical = oldvertical;
@@ -3795,10 +3795,10 @@ static void print_table_data(MYSQL_RES *result) {
     mysql_field_seek(result, 0);
     (void)tee_fputs("|", PAGER);
     for (uint off = 0; (field = mysql_fetch_field(result)); off++) {
-      size_t name_length = strlen(field->name);
-      size_t numcells = charset_info->cset->numcells(charset_info, field->name,
-                                                     field->name + name_length);
-      size_t display_length = field->max_length + name_length - numcells;
+      const size_t name_length = strlen(field->name);
+      const size_t numcells = charset_info->cset->numcells(
+          charset_info, field->name, field->name + name_length);
+      const size_t display_length = field->max_length + name_length - numcells;
       tee_fprintf(PAGER, " %-*s |",
                   min<int>((int)display_length, MAX_COLUMN_LENGTH),
                   field->name);
@@ -4025,7 +4025,7 @@ static void print_table_data_vertically(MYSQL_RES *result) {
   MYSQL_FIELD *field;
 
   while ((field = mysql_fetch_field(result))) {
-    uint length = field->name_length;
+    const uint length = field->name_length;
     if (length > max_length) max_length = length;
     field->max_length = length;
   }
@@ -4067,7 +4067,7 @@ static void print_warnings() {
   uint64_t num_rows;
 
   /* Save current error before calling "show warnings" */
-  uint error = mysql_errno(&mysql);
+  const uint error = mysql_errno(&mysql);
 
   /* Get the warnings */
   query = "show warnings";
@@ -4116,7 +4116,7 @@ static void safe_put_field(const char *pos, ulong length) {
   if (!pos)
     tee_fputs("NULL", PAGER);
   else {
-    int flags =
+    const int flags =
         MY_PRINT_MB | (opt_raw_data ? 0 : (MY_PRINT_ESC_0 | MY_PRINT_CTRL));
     /* Can't use tee_fputs(), it stops with NUL characters. */
     tee_write(PAGER, pos, length, flags);
@@ -4334,7 +4334,7 @@ static int com_print(String *buffer, char *line [[maybe_unused]]) {
 /* ARGSUSED */
 static int com_connect(String *buffer, char *line) {
   char *tmp, buff[256];
-  bool save_rehash = opt_rehash;
+  const bool save_rehash = opt_rehash;
   int error;
 
   memset(buff, 0, sizeof(buff));
@@ -4558,7 +4558,7 @@ static int normalize_dbname(const char *line, char *buff, uint buff_size) {
       (res = mysql_use_result(&mysql))) {
     MYSQL_ROW row = mysql_fetch_row(res);
     if (row && row[0]) {
-      size_t len = strlen(row[0]);
+      const size_t len = strlen(row[0]);
       /* Make sure there is enough room to store the dbname. */
       if ((len > buff_size) || !memcpy(buff, row[0], len)) {
         mysql_free_result(res);
@@ -5133,7 +5133,8 @@ static const char *server_version_string(MYSQL *con) {
       MYSQL_ROW cur = mysql_fetch_row(result);
       if (cur && cur[0]) {
         /* version, space, comment, \0 */
-        size_t len = strlen(mysql_get_server_info(con)) + strlen(cur[0]) + 2;
+        const size_t len =
+            strlen(mysql_get_server_info(con)) + strlen(cur[0]) + 2;
 
         if ((server_version =
                  (char *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(MY_WME)))) {
@@ -5245,7 +5246,7 @@ static void remove_cntrl(String *buffer) {
 */
 void tee_write(FILE *file, const char *s, size_t slen, int flags) {
 #ifdef _WIN32
-  bool is_console = my_win_is_console_cached(file);
+  const bool is_console = my_win_is_console_cached(file);
 #endif
   const char *se;
   for (se = s + slen; s < se; s++) {
@@ -5410,8 +5411,8 @@ static void mysql_end_timer(ulong start_time, char *buff) {
 }
 
 static const char *construct_prompt() {
-  processed_prompt.mem_free();    // Erase the old prompt
-  time_t lclock = time(nullptr);  // Get the date struct
+  processed_prompt.mem_free();          // Erase the old prompt
+  const time_t lclock = time(nullptr);  // Get the date struct
   struct tm *t = localtime(&lclock);
 
   /* parse thru the settings for the prompt */

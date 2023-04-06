@@ -210,7 +210,7 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
        materialization exists, reuse this object.
   */
   if (!sql_cmd->is_prepared()) {
-    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    const Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     result_materialize = new (thd->mem_root) Query_result_materialize(result);
     if (result_materialize == nullptr) return true;
@@ -230,7 +230,7 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
   thd->m_statement_psi = nullptr;
   DBUG_EXECUTE_IF("bug33218625_kill_injection", thd->killed = THD::KILL_QUERY;);
 
-  bool rc = mysql_execute_command(thd);
+  const bool rc = mysql_execute_command(thd);
 
   thd->m_digest = parent_digest;
   DEBUG_SYNC(thd, "after_table_close");

@@ -286,7 +286,7 @@ int log_sink_trad(void *instance [[maybe_unused]], log_line *ll) {
 
     {
       char internal_buff[LOG_BUFF_MAX];
-      size_t buff_size = sizeof(internal_buff);
+      const size_t buff_size = sizeof(internal_buff);
       char *buff_line = internal_buff;
       size_t len;
 

@@ -214,7 +214,7 @@ bool channel_imp::ignore_list_remove(std::string &service_implementation) {
   auto release_guard =
       create_scope_guard([&] { mysql_rwlock_unlock(&m_lock); });
   if (m_has_ignore_list) {
-    bool ret = m_ignore_list.erase(service_implementation) == 0;
+    const bool ret = m_ignore_list.erase(service_implementation) == 0;
     if (!ret) initialize_service_counts();
     m_has_ignore_list = m_ignore_list.size() > 0;
     return ret;

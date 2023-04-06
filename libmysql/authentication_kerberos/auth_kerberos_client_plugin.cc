@@ -216,7 +216,7 @@ static int kerberos_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 static int initialize_plugin(char *, size_t, int, va_list) {
   g_logger_client = new Logger_client();
   const char *opt = getenv("AUTHENTICATION_KERBEROS_CLIENT_LOG");
-  int opt_val = opt ? atoi(opt) : 0;
+  const int opt_val = opt ? atoi(opt) : 0;
   if (opt && opt_val > 0 && opt_val < 6) {
     g_logger_client->set_log_level(static_cast<log_client_level>(opt_val));
   }

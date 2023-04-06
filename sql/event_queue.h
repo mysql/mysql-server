@@ -88,8 +88,8 @@ struct Event_queue_less {
 
     if (right->m_status == Event_parse_data::DISABLED) return 1;
 
-    my_time_t lhs = left->m_execute_at;
-    my_time_t rhs = right->m_execute_at;
+    const my_time_t lhs = left->m_execute_at;
+    const my_time_t rhs = right->m_execute_at;
     return (lhs < rhs ? -1 : (lhs > rhs ? 1 : 0));
   }
 };

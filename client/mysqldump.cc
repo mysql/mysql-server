@@ -1256,8 +1256,8 @@ static char *my_case_str(char *str, size_t str_len, const char *token,
                          size_t token_len) {
   my_match_t match;
 
-  uint status = my_charset_latin1.coll->strstr(&my_charset_latin1, str, str_len,
-                                               token, token_len, &match, 1);
+  const uint status = my_charset_latin1.coll->strstr(
+      &my_charset_latin1, str, str_len, token, token_len, &match, 1);
 
   return status ? str + match.end : nullptr;
 }
@@ -1789,7 +1789,7 @@ static bool test_if_special_chars(const char *str) {
 */
 static char *quote_name(char *name, char *buff, bool force) {
   char *to = buff;
-  char qtype = ansi_quotes_mode ? '"' : '`';
+  const char qtype = ansi_quotes_mode ? '"' : '`';
 
   if (!force && !opt_quoted && !test_if_special_chars(name)) return name;
   *to++ = qtype;
@@ -3428,7 +3428,7 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
 static int dump_triggers_for_table(char *table_name, char *db_name) {
   char name_buff[NAME_LEN * 4 + 3];
   char query_buff[QUERY_LENGTH];
-  bool old_ansi_quotes_mode = ansi_quotes_mode;
+  const bool old_ansi_quotes_mode = ansi_quotes_mode;
   MYSQL_RES *show_triggers_rs;
   MYSQL_ROW row;
   FILE *sql_file = md_result_file;
@@ -3520,7 +3520,7 @@ static bool dump_column_statistics_for_table(char *table_name, char *db_name) {
   char name_buff[NAME_LEN * 4 + 3];
   char column_buffer[NAME_LEN * 4 + 3];
   char query_buff[QUERY_LENGTH * 3 / 2];
-  bool old_ansi_quotes_mode = ansi_quotes_mode;
+  const bool old_ansi_quotes_mode = ansi_quotes_mode;
   char *quoted_table;
   MYSQL_RES *column_statistics_rs;
   MYSQL_ROW row;
@@ -3921,7 +3921,7 @@ static void dump_table(char *table, char *db) {
 
       for (i = 0; i < mysql_num_fields(res); i++) {
         int is_blob;
-        ulong length = lengths[i];
+        const ulong length = lengths[i];
 
         if (!(field = mysql_fetch_field(res)))
           die(EX_CONSCHECK, "Not enough fields from table %s! Aborting.\n",
@@ -4635,7 +4635,7 @@ static int dump_all_tables_in_db(char *database) {
   char hash_key[2 * NAME_LEN + 2]; /* "db.tablename" */
   char *afterdot;
   bool general_log_table_exists = false, slow_log_table_exists = false;
-  int using_mysql_db = !my_strcasecmp(charset_info, database, "mysql");
+  const int using_mysql_db = !my_strcasecmp(charset_info, database, "mysql");
   bool real_columns[MAX_FIELDS];
 
   DBUG_TRACE;
@@ -4867,7 +4867,7 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root) {
   if (mysql_query_with_error_report(mysql, nullptr, query)) return NullS;
 
   if ((table_res = mysql_store_result(mysql))) {
-    uint64_t num_rows = mysql_num_rows(table_res);
+    const uint64_t num_rows = mysql_num_rows(table_res);
     if (num_rows > 0) {
       ulong *lengths;
       /*
@@ -5997,7 +5997,7 @@ int main(int argc, char **argv) {
     // that escaped name will be not longer than NAME_LEN*2 + 2 bytes long.
     int argument;
     for (argument = 0; argument < argc; argument++) {
-      size_t argument_length = strlen(argv[argument]);
+      const size_t argument_length = strlen(argv[argument]);
       if (argument_length > NAME_LEN) {
         die(EX_CONSCHECK,
             "[ERROR] Argument '%s' is too long, it cannot be "

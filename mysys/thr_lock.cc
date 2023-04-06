@@ -415,7 +415,7 @@ static enum enum_thr_lock_result wait_for_lock(struct st_lock_list *wait,
 
   set_timespec(&wait_timeout, lock_wait_timeout);
   while (!is_killed_hook(nullptr) || in_wait_list) {
-    int rc =
+    const int rc =
         mysql_cond_timedwait(data->cond, &data->lock->mutex, &wait_timeout);
     /*
       We must break the wait if one of the following occurs:
@@ -732,7 +732,7 @@ static inline void free_all_read_locks(THR_LOCK *lock,
 
 void thr_unlock(THR_LOCK_DATA *data) {
   THR_LOCK *lock = data->lock;
-  enum thr_lock_type lock_type = data->type;
+  const enum thr_lock_type lock_type = data->type;
   DBUG_TRACE;
   DBUG_PRINT("lock", ("data: %p  thread: 0x%x  lock: %p", data,
                       data->owner->thread_id, lock));
@@ -903,7 +903,7 @@ enum enum_thr_lock_result thr_multi_lock(THR_LOCK_DATA **data, uint count,
   if (count > 1) sort_locks(data, count);
   /* lock everything */
   for (pos = data, end = data + count; pos < end; pos++) {
-    enum enum_thr_lock_result result =
+    const enum enum_thr_lock_result result =
         thr_lock(*pos, owner, (*pos)->type, lock_wait_timeout);
     if (result != THR_LOCK_SUCCESS) { /* Aborted */
       thr_multi_unlock(data, (uint)(pos - data));

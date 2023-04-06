@@ -158,7 +158,7 @@ char *octet2hex(char *to, const char *str, uint len) {
 static void hex2octet(uint8 *to, const char *str, uint len) {
   const char *str_end = str + len;
   while (str < str_end) {
-    char tmp = char_val(*str++);
+    const char tmp = char_val(*str++);
     *to++ = (tmp << 4) | char_val(*str++);
   }
 }

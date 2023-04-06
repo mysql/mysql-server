@@ -141,14 +141,14 @@ static void die(const char *file, int line, const char *expr) {
 
 #define myquery(RES)      \
   {                       \
-    int r = (RES);        \
+    const int r = (RES);  \
     if (r) myerror(NULL); \
     DIE_UNLESS(r == 0);   \
   }
 
 #define myquery2(L_MYSQL, RES)      \
   {                                 \
-    int r = (RES);                  \
+    const int r = (RES);            \
     if (r) myerror2(L_MYSQL, NULL); \
     DIE_UNLESS(r == 0);             \
   }

@@ -68,7 +68,7 @@ int (*ptr_f)(int *) = stack_direction_f;
 NO_INLINE
 int initialize_stack_direction() {
   int a;
-  int retval = ptr_f(&a);
+  const int retval = ptr_f(&a);
   if (retval == 0) {
     stack_direction = -1;
   } else {

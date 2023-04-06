@@ -316,7 +316,7 @@ class Window {
     See #m_tmp_pos
   */
   void save_pos(Window_retrieve_cached_row_reason reason) {
-    int reason_index = static_cast<int>(reason);
+    const int reason_index = static_cast<int>(reason);
     m_tmp_pos.m_rowno = m_frame_buffer_positions[reason_index].m_rowno;
     std::memcpy(m_tmp_pos.m_position,
                 m_frame_buffer_positions[reason_index].m_position,
@@ -327,7 +327,7 @@ class Window {
     See #m_tmp_pos
   */
   void restore_pos(Window_retrieve_cached_row_reason reason) {
-    int reason_index = static_cast<int>(reason);
+    const int reason_index = static_cast<int>(reason);
     m_frame_buffer_positions[reason_index].m_rowno = m_tmp_pos.m_rowno;
     std::memcpy(m_frame_buffer_positions[reason_index].m_position,
                 m_tmp_pos.m_position, frame_buffer()->file->ref_length);
@@ -338,8 +338,8 @@ class Window {
   */
   void copy_pos(Window_retrieve_cached_row_reason from_reason,
                 Window_retrieve_cached_row_reason to_reason) {
-    int from_index = static_cast<int>(from_reason);
-    int to_index = static_cast<int>(to_reason);
+    const int from_index = static_cast<int>(from_reason);
+    const int to_index = static_cast<int>(to_reason);
     m_frame_buffer_positions[to_index].m_rowno =
         m_frame_buffer_positions[from_index].m_rowno;
 

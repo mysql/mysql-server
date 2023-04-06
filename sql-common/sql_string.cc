@@ -50,7 +50,7 @@ PSI_memory_key key_memory_String_value;
 *****************************************************************************/
 
 bool String::real_alloc(size_t length) {
-  size_t arg_length = ALIGN_SIZE(length + 1);
+  const size_t arg_length = ALIGN_SIZE(length + 1);
   assert(arg_length > length);
   if (arg_length <= length) return true; /* Overflow */
   m_length = 0;
@@ -101,7 +101,7 @@ bool String::real_alloc(size_t length) {
    allocation length exceeded allowed limit (4GB) for String Class.
 */
 bool String::mem_realloc(size_t alloc_length, bool force_on_heap) {
-  size_t len = ALIGN_SIZE(alloc_length + 1);
+  const size_t len = ALIGN_SIZE(alloc_length + 1);
   assert(len > alloc_length);
   if (len <= alloc_length) return true; /* Overflow */
 
@@ -172,8 +172,8 @@ bool String::mem_realloc_exp(size_t alloc_length) {
 }
 
 bool String::set_int(longlong num, bool unsigned_flag, const CHARSET_INFO *cs) {
-  uint l = 20 * cs->mbmaxlen + 1;
-  int base = unsigned_flag ? 10 : -10;
+  const uint l = 20 * cs->mbmaxlen + 1;
+  const int base = unsigned_flag ? 10 : -10;
 
   if (alloc(l)) return true;
   m_length = (uint32)(cs->cset->longlong10_to_str)(cs, m_ptr, l, base, num);
@@ -186,11 +186,11 @@ bool String::set_real(double num, uint decimals, const CHARSET_INFO *cs) {
   uint dummy_errors;
 
   if (decimals >= DECIMAL_NOT_SPECIFIED) {
-    size_t len =
+    const size_t len =
         my_gcvt(num, MY_GCVT_ARG_DOUBLE, MAX_DOUBLE_STR_LENGTH, buff, nullptr);
     return copy(buff, len, &my_charset_latin1, cs, &dummy_errors);
   }
-  size_t len = my_fcvt(num, decimals, buff, nullptr);
+  const size_t len = my_fcvt(num, decimals, buff, nullptr);
   return copy(buff, len, &my_charset_latin1, cs, &dummy_errors);
 }
 
@@ -311,7 +311,7 @@ bool String::copy_aligned(const char *str, size_t arg_length, size_t offset,
   offset = cs->mbminlen - offset; /* How many zeros we should prepend */
   assert(offset && offset != cs->mbminlen);
 
-  size_t aligned_length = arg_length + offset;
+  const size_t aligned_length = arg_length + offset;
   if (alloc(aligned_length)) return true;
 
   /*
@@ -331,7 +331,7 @@ bool String::copy_aligned(const char *str, size_t arg_length, size_t offset,
 bool String::set_or_copy_aligned(const char *str, size_t arg_length,
                                  const CHARSET_INFO *cs) {
   /* How many bytes are in incomplete character */
-  size_t offset = (arg_length % cs->mbminlen);
+  const size_t offset = (arg_length % cs->mbminlen);
 
   if (!offset) /* All characters are complete, just copy */
   {
@@ -366,7 +366,7 @@ bool String::copy(const char *str, size_t arg_length,
     *errors = 0;
     return copy_aligned(str, arg_length, offset, to_cs);
   }
-  size_t new_length = to_cs->mbmaxlen * arg_length;
+  const size_t new_length = to_cs->mbmaxlen * arg_length;
   if (alloc(new_length)) return true;
   m_length = copy_and_convert(m_ptr, new_length, to_cs, str, arg_length,
                               from_cs, errors);
@@ -438,7 +438,7 @@ bool String::append(const char *s, size_t arg_length) {
     For an ASCII incompatible string, e.g. UCS-2, we need to convert
   */
   if (m_charset->mbminlen > 1) {
-    size_t add_length = arg_length * m_charset->mbmaxlen;
+    const size_t add_length = arg_length * m_charset->mbmaxlen;
     uint dummy_errors;
     if (mem_realloc(m_length + add_length)) return true;
     m_length += copy_and_convert(m_ptr + m_length, add_length, m_charset, s,
@@ -594,14 +594,14 @@ int String::strrstr(const String &s, size_t offset) const {
 }
 
 String String::substr(int offset, int count) const {
-  int original_count = this->numchars();
+  const int original_count = this->numchars();
   if (offset > original_count) {
     offset = original_count;
   }
   if (offset + count > original_count) {
     count = original_count - offset;
   }
-  size_t bytes_offset = this->charpos(offset);
+  const size_t bytes_offset = this->charpos(offset);
 
   return String(this->m_ptr + bytes_offset,
                 this->charpos(offset + count) - bytes_offset, this->m_charset);
@@ -618,7 +618,8 @@ bool String::replace(size_t offset, size_t arg_length, const String &to) {
 
 bool String::replace(size_t offset, size_t arg_length, const char *to,
                      size_t to_length) {
-  long diff = static_cast<long>(to_length) - static_cast<long>(arg_length);
+  const long diff =
+      static_cast<long>(to_length) - static_cast<long>(arg_length);
   if (offset + arg_length <= m_length) {
     if (diff < 0) {
       if (to_length) memcpy(m_ptr + offset, to, to_length);
@@ -652,7 +653,7 @@ void qs_append(const char *str_in, size_t len, String *str) {
 
 void qs_append(double d, size_t len, String *str) {
   char *buff = &((*str)[str->length()]);
-  int written = my_gcvt(d, MY_GCVT_ARG_DOUBLE, len, buff, nullptr);
+  const int written = my_gcvt(d, MY_GCVT_ARG_DOUBLE, len, buff, nullptr);
   str->length(str->length() + written);
 }
 
@@ -708,10 +709,10 @@ int sortcmp(const String *s, const String *t, const CHARSET_INFO *cs) {
 */
 
 int stringcmp(const String *s, const String *t) {
-  size_t s_len = s->length();
-  size_t t_len = t->length();
-  size_t len = min(s_len, t_len);
-  int cmp = (len == 0) ? 0 : memcmp(s->ptr(), t->ptr(), len);
+  const size_t s_len = s->length();
+  const size_t t_len = t->length();
+  const size_t len = min(s_len, t_len);
+  const int cmp = (len == 0) ? 0 : memcmp(s->ptr(), t->ptr(), len);
   return (cmp) ? cmp : static_cast<int>(s_len) - static_cast<int>(t_len);
 }
 
@@ -820,7 +821,7 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs, char *to,
           INSERT INTO t1 (ucs2_column) VALUES (0x01);
           0x01 -> 0x0001
         */
-        uint pad_length = to_cs->mbminlen - from_offset;
+        const uint pad_length = to_cs->mbminlen - from_offset;
         memset(to, 0, pad_length);
         memmove(to + pad_length, from, from_offset);
         /*
@@ -885,7 +886,7 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs, char *to,
           res > min_length - to_cs->mbmaxlen) {
         const char *from_end = from + min(res + to_cs->mbmaxlen, from_length);
 
-        size_t extra = to_cs->cset->well_formed_len(
+        const size_t extra = to_cs->cset->well_formed_len(
             to_cs, *from_end_pos, from_end, 1, &well_formed_error);
 
         well_formed_error = (res + extra < min_length);
@@ -951,7 +952,7 @@ void String::print(String *str) const {
   if (str->reserve(m_length)) return;
 
   for (; st < end; st++) {
-    uchar c = *st;
+    const uchar c = *st;
     switch (c) {
       case '\\':
         str->append(STRING_WITH_LEN("\\\\"));

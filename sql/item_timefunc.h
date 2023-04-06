@@ -149,7 +149,7 @@ class Item_func_month final : public Item_func {
     return (double)Item_func_month::val_int();
   }
   String *val_str(String *str) override {
-    longlong nr = val_int();
+    const longlong nr = val_int();
     if (null_value) return nullptr;
     str->set(nr, collation.collation);
     return str;

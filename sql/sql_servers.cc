@@ -695,7 +695,7 @@ bool Sql_cmd_create_server::execute(THD *thd) {
 
   int error;
   {
-    Disable_binlog_guard binlog_guard(thd);
+    const Disable_binlog_guard binlog_guard(thd);
     table->use_all_columns();
     empty_record(table);
 
@@ -765,7 +765,7 @@ bool Sql_cmd_alter_server::execute(THD *thd) {
 
   int error;
   {
-    Disable_binlog_guard binlog_guard(thd);
+    const Disable_binlog_guard binlog_guard(thd);
     table->use_all_columns();
 
     /* set the field that's the PK to the value we're looking for */
@@ -828,7 +828,7 @@ bool Sql_cmd_drop_server::execute(THD *thd) {
   int error;
   mysql_rwlock_wrlock(&THR_LOCK_servers);
   {
-    Disable_binlog_guard binlog_guard(thd);
+    const Disable_binlog_guard binlog_guard(thd);
     table->use_all_columns();
 
     /* set the field that's the PK to the value we're looking for */

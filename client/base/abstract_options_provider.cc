@@ -146,7 +146,7 @@ void Abstract_options_provider::notify_option_name_changed(I_option *source,
     this->m_name_usage.erase(this->m_name_usage.find(old_name));
   }
 
-  string new_name = source->get_my_option().name;
+  const string new_name = source->get_my_option().name;
 
   // Try to find existing option with that name.
   map<string, I_option *>::iterator name_item =
@@ -178,7 +178,7 @@ void Abstract_options_provider::notify_option_optid_changed(I_option *source,
     this->m_optid_usage.erase(this->m_optid_usage.find(old_optid));
   }
 
-  uint32 new_optid = source->get_my_option().id;
+  const uint32 new_optid = source->get_my_option().id;
 
   // Try to find existing option with that optid.
   map<uint32, I_option *>::iterator optid_item =
@@ -186,7 +186,7 @@ void Abstract_options_provider::notify_option_optid_changed(I_option *source,
 
   // Report error if already used.
   if (optid_item != this->m_optid_usage.end()) {
-    string name = source->get_my_option().name;
+    const string name = source->get_my_option().name;
 
     std::cerr << "Cannot register new option \"" << name
               << "\" as it collides with existing one with following name \""

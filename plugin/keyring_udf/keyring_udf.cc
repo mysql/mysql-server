@@ -263,7 +263,7 @@ static bool validate_run_time(UDF_ARGS *args, int to_validate) {
 
   if (to_validate & VALIDATE_KEY_LENGTH) {
     if (args->args[2] == nullptr) return true;
-    long long key_length = *reinterpret_cast<long long *>(args->args[2]);
+    const long long key_length = *reinterpret_cast<long long *>(args->args[2]);
 
     if (key_length > MAX_KEYRING_UDF_KEY_TEXT_LENGTH) return true;
   }
@@ -277,7 +277,8 @@ static bool keyring_udf_func_init(
     const std::optional<size_t> max_lenth_to_return,
     const size_t size_of_memory_to_allocate) {
   initid->ptr = nullptr;
-  uint expected_arg_count = get_args_count_from_validation_request(to_validate);
+  const uint expected_arg_count =
+      get_args_count_from_validation_request(to_validate);
 
   if (validate_compile_time(args, expected_arg_count, to_validate, message))
     return true;
@@ -371,7 +372,7 @@ static bool fetch(const char *function_name, char *key_id, char **a_key,
   unsigned char *key = nullptr;
   char *key_type = nullptr;
 
-  int retval = keyring_operations_helper::read_secret(
+  const int retval = keyring_operations_helper::read_secret(
       keyring_reader_service, key_id, current_user.c_str(), &key, &key_len,
       &key_type, PSI_INSTRUMENT_ME);
   if (retval == -1) {
@@ -648,7 +649,7 @@ long long keyring_key_generate(UDF_INIT *, UDF_ARGS *args, unsigned char *,
 
   char *key_id = args->args[0];
   char *key_type = args->args[1];
-  long long key_length = *reinterpret_cast<long long *>(args->args[2]);
+  const long long key_length = *reinterpret_cast<long long *>(args->args[2]);
 
   if (keyring_generator_service->generate(key_id, current_user.c_str(),
                                           key_type, key_length) != 0) {

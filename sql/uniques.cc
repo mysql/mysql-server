@@ -201,7 +201,7 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
     merge_chunk->set_buffer(
         strpos, strpos + (sort_buffer.size() / (chunk_array.size())));
     merge_chunk->set_max_keys(maxcount);
-    uint bytes_read = uniq_read_to_buffer(from_file, merge_chunk, param);
+    const uint bytes_read = uniq_read_to_buffer(from_file, merge_chunk, param);
 
     if (static_cast<int>(bytes_read) == -1) return -1; /* purecov: inspected */
 
@@ -604,7 +604,7 @@ double Unique::get_use_cost(uint nkeys, uint key_size,
             ceil(((double)key_size) * last_tree_elems / IO_SIZE);
 
   /* Cost of merge */
-  double merge_cost =
+  const double merge_cost =
       get_merge_many_buffs_cost(n_full_trees, max_elements_in_tree,
                                 last_tree_elems, key_size, cost_model);
   if (merge_cost < 0.0) return merge_cost;
@@ -732,7 +732,7 @@ static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
       merge_buffer_size < (ulong)(key_length * (end - begin + 1)))
     return true;
 
-  Merge_chunk_compare_context compare_context = {compare, compare_arg};
+  const Merge_chunk_compare_context compare_context = {compare, compare_arg};
   Priority_queue<Merge_chunk *,
                  std::vector<Merge_chunk *, Malloc_allocator<Merge_chunk *>>,
                  Merge_chunk_less>
@@ -743,10 +743,10 @@ static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
   /* we need space for one key when a piece of merge buffer is re-read */
   merge_buffer_size -= key_length;
   uchar *save_key_buff = merge_buffer + merge_buffer_size;
-  uint max_key_count_per_piece =
+  const uint max_key_count_per_piece =
       (uint)(merge_buffer_size / (end - begin) / key_length);
   /* if piece_size is aligned reuse_freed_buffer will always hit */
-  size_t piece_size = max_key_count_per_piece * key_length;
+  const size_t piece_size = max_key_count_per_piece * key_length;
   uint bytes_read; /* to hold return value of uniq_read_to_buffer */
   Merge_chunk *top;
   int res = 1;
@@ -973,7 +973,7 @@ bool Unique_on_insert::unique_add(void *ptr) {
   if (key->store((const char *)ptr, m_size, &my_charset_bin) != TYPE_OK)
     return true; /* purecov: inspected */
   if (!check_unique_constraint(m_table)) return true;
-  uint res = m_table->file->ha_write_row(m_table->record[0]);
+  const uint res = m_table->file->ha_write_row(m_table->record[0]);
   if (res) {
     bool dup = false;
     if (res == HA_ERR_FOUND_DUPP_KEY) return true;

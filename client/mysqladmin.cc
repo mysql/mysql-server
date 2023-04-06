@@ -477,7 +477,7 @@ int main(int argc, char *argv[]) {
       The following just determines the exit-code we'll give.
     */
 
-    unsigned int err = mysql_errno(&mysql);
+    const unsigned int err = mysql_errno(&mysql);
     if (err >= CR_MIN_ERROR && err <= CR_MAX_ERROR)
       error = 1;
     else {
@@ -1031,7 +1031,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
 
         if (typed_password[0]) {
 #ifdef _WIN32
-          size_t pw_len = strlen(typed_password);
+          const size_t pw_len = strlen(typed_password);
           if (pw_len > 1 && typed_password[0] == '\'' &&
               typed_password[pw_len - 1] == '\'')
             printf(

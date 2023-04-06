@@ -1069,7 +1069,7 @@ int fill_optimizer_trace_info(THD *thd, Table_ref *tables, Item *);
 */
 #define OPT_TRACE_TRANSFORM(trace, object_level0, object_level1, \
                             select_number, from, to)             \
-  Opt_trace_object object_level0(trace);                         \
+  const Opt_trace_object object_level0(trace);                   \
   Opt_trace_object object_level1(trace, "transformation");       \
   object_level1.add_select_number(select_number);                \
   object_level1.add_alnum("from", from).add_alnum("to", to);

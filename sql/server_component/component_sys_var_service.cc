@@ -316,7 +316,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
           down_cast<Sql_cmd_install_component *>(thd->lex->m_sql_cmd);
       /* and has a SET list */
       if (c->m_arg_list && c->m_arg_list_size > 1) {
-        int saved_opt_count = c->m_arg_list_size;
+        const int saved_opt_count = c->m_arg_list_size;
         argv = &c->m_arg_list;
         argc = &c->m_arg_list_size;
         opt_error =
@@ -430,7 +430,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
           }
         } err_to_warning;
         thd->push_internal_handler(&err_to_warning);
-        bool error =
+        const bool error =
             pv->set_persisted_options(true, com_sys_var_name, com_sys_var_len);
         thd->pop_internal_handler();
         mysql_mutex_unlock(&LOCK_plugin);
@@ -590,7 +590,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
     sys_var_pluginvar *sv_pluginvar =
         reinterpret_cast<sys_var_pluginvar *>(sysvar);
 
-    int var_flags = sv_pluginvar->plugin_var->flags;
+    const int var_flags = sv_pluginvar->plugin_var->flags;
     if (((var_flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR) &&
         (var_flags & PLUGIN_VAR_MEMALLOC)) {
       char **value_addr = *(char ***)(sv_pluginvar->plugin_var + 1);

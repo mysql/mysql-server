@@ -256,10 +256,10 @@ my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT ctx,
       } else if (!strcmp(name, "external_user")) {
         *((MYSQL_LEX_CSTRING *)inout_pvalue) = ctx->external_user();
       } else if (!strcmp(name, "privilege_super")) {
-        bool checked = ctx->check_access(SUPER_ACL);
+        const bool checked = ctx->check_access(SUPER_ACL);
         *((my_svc_bool *)inout_pvalue) = checked ? MY_SVC_TRUE : MY_SVC_FALSE;
       } else if (!strcmp(name, "privilege_execute")) {
-        bool checked = ctx->check_access(EXECUTE_ACL);
+        const bool checked = ctx->check_access(EXECUTE_ACL);
         *((my_svc_bool *)inout_pvalue) = checked ? MY_SVC_TRUE : MY_SVC_FALSE;
       } else if (!strcmp(name, "is_skip_grants_user")) {
         *((bool *)inout_pvalue) = ctx->is_skip_grants_user();
@@ -322,14 +322,14 @@ my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT ctx,
       LEX_CSTRING *value = (LEX_CSTRING *)pvalue;
       ctx->assign_proxy_user(value->str, value->length);
     } else if (!strcmp(name, "privilege_super")) {
-      my_svc_bool value = *(my_svc_bool *)pvalue;
+      const my_svc_bool value = *(my_svc_bool *)pvalue;
       if (value)
         ctx->set_master_access(ctx->master_access() | (SUPER_ACL));
       else
         ctx->set_master_access(ctx->master_access() & ~(SUPER_ACL));
 
     } else if (!strcmp(name, "privilege_execute")) {
-      my_svc_bool value = *(my_svc_bool *)pvalue;
+      const my_svc_bool value = *(my_svc_bool *)pvalue;
       if (value)
         ctx->set_master_access(ctx->master_access() | (EXECUTE_ACL));
       else

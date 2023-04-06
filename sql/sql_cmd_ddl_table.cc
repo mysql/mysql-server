@@ -356,7 +356,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
 
     Query_result_create *result;
     if (!query_expression->is_prepared()) {
-      Prepared_stmt_arena_holder ps_arena_holder(thd);
+      const Prepared_stmt_arena_holder ps_arena_holder(thd);
       result = new (thd->mem_root)
           Query_result_create(create_table, &query_block->fields,
                               lex->duplicates, query_expression_tables);
@@ -392,7 +392,8 @@ bool Sql_cmd_create_table::execute(THD *thd) {
     result->set_two_fields(&create_info, &alter_info);
 
     // For objects acquired during table creation.
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::cache::Dictionary_client::Auto_releaser releaser(
+        thd->dd_client());
 
     Ignore_error_handler ignore_handler;
     Strict_error_handler strict_handler;

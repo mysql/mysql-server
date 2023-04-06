@@ -552,7 +552,7 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid) {
   hFile = CreateFile(name, GENERIC_WRITE, 0, 0, CREATE_ALWAYS,
                      FILE_ATTRIBUTE_NORMAL, 0);
   if (hFile) {
-    MINIDUMP_TYPE mdt =
+    const MINIDUMP_TYPE mdt =
         (MINIDUMP_TYPE)(MiniDumpNormal | MiniDumpWithThreadInfo |
                         MiniDumpWithProcessThreadData);
     /* Create minidump, use info only if same process. */
@@ -787,7 +787,7 @@ void my_safe_print_system_time() {
   char hrs_buf[3] = "00";
   char mins_buf[3] = "00";
   char secs_buf[3] = "00";
-  int base = 10;
+  const int base = 10;
 #ifdef _WIN32
   SYSTEMTIME utc_time;
   long hrs, mins, secs;

@@ -137,8 +137,8 @@ bool populate_dynamic_privilege_caches(THD *thd, Table_ref *tablelst) {
 
       my_caseup_str(system_charset_info, priv);
       LEX_CSTRING str_priv = {priv, strlen(priv)};
-      LEX_CSTRING str_user = {user, strlen(user)};
-      LEX_CSTRING str_host = {host, strlen(host)};
+      const LEX_CSTRING str_user = {user, strlen(user)};
+      const LEX_CSTRING str_host = {host, strlen(host)};
       Update_dynamic_privilege_table no_update;
       if (grant_dynamic_privilege(str_priv, str_user, str_host,
                                   (*with_grant_option == 'Y' ? true : false),

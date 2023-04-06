@@ -101,7 +101,7 @@ int my_sync(File fd, myf my_flags) {
   } while (res == -1 && errno == EINTR);
 
   if (res) {
-    int er = errno;
+    const int er = errno;
     set_my_errno(er);
     if (!er) set_my_errno(-1); /* Unknown error */
     if (after_sync_wait) (*after_sync_wait)();

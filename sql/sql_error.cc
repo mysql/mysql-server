@@ -205,7 +205,7 @@ using std::min;
 */
 
 static void copy_string(MEM_ROOT *mem_root, String *dst, const String *src) {
-  size_t len = src->length();
+  const size_t len = src->length();
   if (len) {
     char *copy = (char *)mem_root->Alloc(len + 1);
     if (copy) {
@@ -790,7 +790,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show) {
   }
 
   /* Statement failed, retrieve the error information for propagation. */
-  uint sql_errno = new_stmt_da.mysql_errno();
+  const uint sql_errno = new_stmt_da.mysql_errno();
   const char *message = new_stmt_da.message_text();
   const char *sqlstate = new_stmt_da.returned_sqlstate();
 
@@ -965,7 +965,7 @@ bool is_sqlstate_valid(const LEX_STRING *sqlstate) {
   if (sqlstate->length != 5) return false;
 
   for (int i = 0; i < 5; ++i) {
-    char c = sqlstate->str[i];
+    const char c = sqlstate->str[i];
 
     if ((c < '0' || '9' < c) && (c < 'A' || 'Z' < c)) return false;
   }
@@ -1084,8 +1084,8 @@ void check_deprecated_datetime_format(THD *thd, const CHARSET_INFO *cs,
              (unsigned int)status.m_deprecation.m_delim_seen & 0xff);
   }
 
-  ErrConvString argument(status.m_deprecation.m_arg,
-                         strlen(status.m_deprecation.m_arg), cs);
+  const ErrConvString argument(status.m_deprecation.m_arg,
+                               strlen(status.m_deprecation.m_arg), cs);
   char warn_buff[MYSQL_ERRMSG_SIZE];
   CHARSET_INFO *sys_cs = system_charset_info;
 

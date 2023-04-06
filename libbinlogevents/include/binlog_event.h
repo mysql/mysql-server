@@ -212,9 +212,9 @@ inline void do_server_version_split(const char *version,
 inline uint32_t do_server_version_int(const char *version) {
   unsigned char version_split[3];
   do_server_version_split(version, version_split);
-  uint32_t ret = static_cast<uint32_t>(version_split[0]) * 10000 +
-                 static_cast<uint32_t>(version_split[1]) * 100 +
-                 static_cast<uint32_t>(version_split[2]);
+  const uint32_t ret = static_cast<uint32_t>(version_split[0]) * 10000 +
+                       static_cast<uint32_t>(version_split[1]) * 100 +
+                       static_cast<uint32_t>(version_split[2]);
   return ret;
 }
 

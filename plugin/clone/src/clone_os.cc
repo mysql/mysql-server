@@ -141,7 +141,7 @@ static int read_from_file(Ha_clone_file from_file, uchar *buffer,
   if (ret_size == -1 || ret_size == 0) {
     char errbuf[MYSYS_STRERROR_SIZE];
 
-    int error = ER_ERROR_ON_READ;
+    const int error = ER_ERROR_ON_READ;
 
     my_error(error, MYF(0), src_name, errno,
              my_strerror(errbuf, sizeof(errbuf), errno));

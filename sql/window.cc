@@ -547,7 +547,7 @@ bool Window::before_or_after_frame(bool before) {
     infinity = WBT_UNBOUNDED_FOLLOWING;
   }
 
-  enum enum_window_border_type border_type = border->m_border_type;
+  const enum enum_window_border_type border_type = border->m_border_type;
 
   if (border_type == infinity) return false;  // all rows included
 
@@ -1102,7 +1102,7 @@ bool Window::setup_windows1(THD *thd, Query_block *select,
     We can encounter aggregate functions in the ORDER BY and PARTITION clauses
     of window function, so make sure we allow it:
   */
-  nesting_map save_allow_sum_func = thd->lex->allow_sum_func;
+  const nesting_map save_allow_sum_func = thd->lex->allow_sum_func;
   thd->lex->allow_sum_func |= (nesting_map)1 << select->nest_level;
 
   for (Window &w : *windows) {

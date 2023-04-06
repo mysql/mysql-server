@@ -857,11 +857,11 @@ bool Multi_factor_auth_info::init_registration(THD *thd, uint nth_factor) {
   }
   srv_registry->release(h_reg_svc);
 
-  size_t user_name_len = thd->security_context()->user().length +
-                         thd->security_context()->host().length;
+  const size_t user_name_len = thd->security_context()->user().length +
+                               thd->security_context()->host().length;
 
   /* append user name to random challenge(32bit salt + RP id). */
-  size_t buflen =
+  const size_t buflen =
       plugin_buf_len + user_name_len + net_length_size(user_name_len);
   unsigned char *buf = new unsigned char[buflen];
   unsigned char *pos = buf;

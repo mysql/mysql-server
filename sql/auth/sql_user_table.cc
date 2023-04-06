@@ -512,7 +512,7 @@ void commit_and_close_mysql_tables(THD *thd) {
     trans_rollback_implicit(thd);
   } else {
 #ifndef NDEBUG
-    bool res =
+    const bool res =
 #endif
         /*
           In @@autocommit=0 mode we have both statement and multi-statement
@@ -820,7 +820,7 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
   ulong priv, store_rights;
   bool old_row_exists = false;
   int error;
-  char what = (revoke_grant) ? 'N' : 'Y';
+  const char what = (revoke_grant) ? 'N' : 'Y';
   uchar user_key[MAX_KEY_LENGTH];
   Acl_table_intact table_intact(thd);
   DBUG_TRACE;
@@ -1995,8 +1995,8 @@ int open_grant_tables(THD *thd, Table_ref *tables, bool *transactional_tables) {
       tables[i].updating = false;
   }
 
-  uint flags = MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
-               MYSQL_OPEN_IGNORE_FLUSH;
+  const uint flags = MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
+                     MYSQL_OPEN_IGNORE_FLUSH;
   if (open_and_lock_tables(thd, tables,
                            flags)) {  // This should never happen
     thd->mdl_context.release_transactional_locks();

@@ -1840,7 +1840,7 @@ bool sp_head::setup_trigger_fields(THD *thd, Table_trigger_field_support *tfs,
 
       if (!need_fix_fields || f->fixed) continue;
 
-      Prepared_stmt_arena_holder ps_arena_holder(thd);
+      const Prepared_stmt_arena_holder ps_arena_holder(thd);
 
       if (f->fix_fields(thd, nullptr)) return true;
     }
@@ -2433,8 +2433,8 @@ bool sp_head::execute_trigger(THD *thd, const LEX_CSTRING &db_name,
   DBUG_PRINT("info", ("trigger %s", m_name.str));
 
   Security_context *save_ctx = nullptr;
-  LEX_CSTRING definer_user = {m_definer_user.str, m_definer_user.length};
-  LEX_CSTRING definer_host = {m_definer_host.str, m_definer_host.length};
+  const LEX_CSTRING definer_user = {m_definer_user.str, m_definer_user.length};
+  const LEX_CSTRING definer_host = {m_definer_host.str, m_definer_host.length};
 
   /*
     While parsing CREATE TRIGGER statement or loading trigger metadata from
@@ -2982,9 +2982,9 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
     If not inside a procedure and a function printing warning
     messages.
   */
-  bool need_binlog_call = mysql_bin_log.is_open() &&
-                          (thd->variables.option_bits & OPTION_BIN_LOG) &&
-                          !thd->is_current_stmt_binlog_format_row();
+  const bool need_binlog_call = mysql_bin_log.is_open() &&
+                                (thd->variables.option_bits & OPTION_BIN_LOG) &&
+                                !thd->is_current_stmt_binlog_format_row();
   if (need_binlog_call && thd->sp_runtime_ctx == nullptr &&
       !thd->binlog_evt_union.do_union)
     thd->issue_unsafe_warnings();
@@ -3367,7 +3367,7 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
     This will be fixed by introducing of proper invalidation mechanism
     once new TDC is ready.
   */
-  Prepared_stmt_arena_holder ps_arena_holder(thd);
+  const Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   for (SP_TABLE *stab : m_sptabs_sorted) {
     if (stab->temp || stab->lock_type == TL_IGNORE) continue;
@@ -3444,8 +3444,8 @@ bool sp_head::check_show_access(THD *thd, bool *full_access) {
 
 bool sp_head::set_security_ctx(THD *thd, Security_context **save_ctx) {
   *save_ctx = nullptr;
-  LEX_CSTRING definer_user = {m_definer_user.str, m_definer_user.length};
-  LEX_CSTRING definer_host = {m_definer_host.str, m_definer_host.length};
+  const LEX_CSTRING definer_user = {m_definer_user.str, m_definer_user.length};
+  const LEX_CSTRING definer_host = {m_definer_host.str, m_definer_host.length};
 
   if (m_chistics->suid != SP_IS_NOT_SUID &&
       m_security_ctx.change_security_context(thd, definer_user, definer_host,

@@ -80,7 +80,7 @@ void Mysql::Tools::Base::Options::Help_options::print_usage() {
     copyright = ORACLE_WELCOME_COPYRIGHT_NOTICE(COPYRIGHT_NOTICE_CURRENT_YEAR);
   } else {
 #define FIRST_YEAR_CONSTANT "$first_year$"
-    string first_year_constant_str = FIRST_YEAR_CONSTANT;
+    const string first_year_constant_str = FIRST_YEAR_CONSTANT;
 
     copyright = ORACLE_WELCOME_COPYRIGHT_NOTICE(FIRST_YEAR_CONSTANT);
     copyright =

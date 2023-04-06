@@ -486,7 +486,7 @@ static ulong get_ps_param_len(enum enum_field_types, uchar *, ulong, ulong *,
   @return true if memory could not be allocated, false on success
 */
 static bool ensure_packet_capacity(size_t length, String *packet) {
-  size_t packet_length = packet->length();
+  const size_t packet_length = packet->length();
   /*
      The +9 comes from that strings of length longer than 16M require
      9 bytes to be stored (see net_store_length).
@@ -506,7 +506,7 @@ static bool ensure_packet_capacity(size_t length, String *packet) {
 static inline bool net_store_data(const uchar *from, size_t length,
                                   String *packet) {
   if (ensure_packet_capacity(length, packet)) return true;
-  size_t packet_length = packet->length();
+  const size_t packet_length = packet->length();
   uchar *to = net_store_length((uchar *)packet->ptr() + packet_length, length);
   if (length > 0) memcpy(to, from, length);
   packet->length((uint)(to + length - (uchar *)packet->ptr()));
@@ -554,7 +554,7 @@ bool Protocol_classic::net_store_data_with_conversion(
     const CHARSET_INFO *to_cs) {
   uint dummy_errors;
   /* Calculate maximum possible result length */
-  size_t conv_length = to_cs->mbmaxlen * length / from_cs->mbminlen;
+  const size_t conv_length = to_cs->mbmaxlen * length / from_cs->mbminlen;
   if (conv_length > 250) {
     /*
       For strings with conv_length greater than 250 bytes
@@ -573,8 +573,8 @@ bool Protocol_classic::net_store_data_with_conversion(
                            convert.length(), packet));
   }
 
-  size_t packet_length = packet->length();
-  size_t new_length = packet_length + conv_length + 1;
+  const size_t packet_length = packet->length();
+  const size_t new_length = packet_length + conv_length + 1;
 
   if (new_length > packet->alloced_length() && packet->mem_realloc(new_length))
     return true;
@@ -658,7 +658,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
 
   DBUG_PRINT("enter", ("sql_errno: %d  err: %s", sql_errno, err));
 
-  bool error = net_send_error_packet(
+  const bool error = net_send_error_packet(
       net, sql_errno, err, mysql_errno_to_sqlstate(sql_errno), false, 0,
       global_system_variables.character_set_results);
 
@@ -917,7 +917,7 @@ static bool net_send_ok(THD *thd, uint server_status, uint statement_warn_count,
     pos += 2;
 
     /* warning count: we can only return up to 65535 warnings in two bytes. */
-    uint tmp = min(statement_warn_count, 65535U);
+    const uint tmp = min(statement_warn_count, 65535U);
     int2store(pos, tmp);
     pos += 2;
   } else if (net->return_status)  // For 4.0 protocol
@@ -1093,7 +1093,7 @@ static bool write_eof_packet(THD *thd, NET *net, uint server_status,
       Don't send warn count during SP execution, as the warn_list
       is cleared between substatements, and mysqltest gets confused
     */
-    uint tmp = min(statement_warn_count, 65535U);
+    const uint tmp = min(statement_warn_count, 65535U);
     buff[0] = 254;
     int2store(buff + 1, tmp);
     /*
@@ -2719,7 +2719,7 @@ static bool parse_query_bind_params(
 
     /* Then comes the types byte. If set, new types are provided */
     if (!packet_left) return true;
-    bool has_new_types = static_cast<bool>(*read_pos++);
+    const bool has_new_types = static_cast<bool>(*read_pos++);
     if (!has_new_types && !stmt_data) return true;
 
     --packet_left;
@@ -2729,7 +2729,7 @@ static bool parse_query_bind_params(
       for (uint i = 0; i < param_count; ++i) {
         if (packet_left < 2) return true;
 
-        ushort type_code = sint2korr(read_pos);
+        const ushort type_code = sint2korr(read_pos);
         read_pos += 2;
         packet_left -= 2;
 
@@ -2780,7 +2780,7 @@ static bool parse_query_bind_params(
       /* check if the packet contains more parameters than expected */
       if (!has_new_types && i >= stmt_data->m_param_count) return true;
 
-      enum enum_field_types type =
+      const enum enum_field_types type =
           has_new_types ? params[i].type
                         : stmt_data->m_param_array[i]->data_type_source();
       if (type == MYSQL_TYPE_BOOL)
@@ -2956,7 +2956,8 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
       /*
         We have name + wildcard in packet, separated by endzero
       */
-      ulong len = strend((char *)input_raw_packet) - (char *)input_raw_packet;
+      const ulong len =
+          strend((char *)input_raw_packet) - (char *)input_raw_packet;
 
       if (len >= input_packet_length || len > NAME_LEN) goto malformed;
 
@@ -2991,7 +2992,7 @@ bool Protocol_classic::create_command(COM_DATA *com_data,
 int Protocol_classic::get_command(COM_DATA *com_data,
                                   enum_server_command *cmd) {
   // read packet from the network
-  if (int rc = read_packet()) return rc;
+  if (const int rc = read_packet()) return rc;
 
   /*
     'input_packet_length' contains length of data, as it was stored in packet
@@ -3526,7 +3527,7 @@ bool Protocol_text::store_decimal(const my_decimal *d, uint prec, uint dec) {
   if (pos == nullptr) return true;
 
   int string_length = DECIMAL_MAX_STR_LENGTH + 1;
-  int error [[maybe_unused]] =
+  const int error [[maybe_unused]] =
       decimal2string(d, pos + 1, &string_length, prec, dec);
 
   // decimal2string() can only fail with E_DEC_TRUNCATED or E_DEC_OVERFLOW.
@@ -3792,7 +3793,8 @@ void Protocol_binary::start_row() {
 
 bool Protocol_binary::store_null() {
   if (send_metadata) return Protocol_text::store_null();
-  uint offset = (field_pos + 2) / 8 + 1, bit = (1 << ((field_pos + 2) & 7));
+  const uint offset = (field_pos + 2) / 8 + 1,
+             bit = (1 << ((field_pos + 2) & 7));
   /* Room for this as it's allocated in prepare_for_send */
   char *to = packet->ptr() + offset;
   *to = (char)((uchar)*to | (uchar)bit);
@@ -4089,7 +4091,7 @@ static ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP: {
-      ulong param_length =
+      const ulong param_length =
           get_param_length(packet, packet_left_len, header_len);
       /* in case of error ret is 0 and header size is 0 */
       *err = ((param_length == 0 && *header_len == 0) ||

@@ -623,7 +623,8 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
         read_info.end_io_cache();
         /* If the file was not empty, wrote_create_file is true */
         if (lf_info.logged_data_file) {
-          int errcode = query_error_code(thd, killed_status == THD::NOT_KILLED);
+          const int errcode =
+              query_error_code(thd, killed_status == THD::NOT_KILLED);
 
           /* since there is already an error, the possible error of
              writing binary log will be ignored */
@@ -667,7 +668,8 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
       */
       read_info.end_io_cache();
       if (lf_info.logged_data_file) {
-        int errcode = query_error_code(thd, killed_status == THD::NOT_KILLED);
+        const int errcode =
+            query_error_code(thd, killed_status == THD::NOT_KILLED);
         error = write_execute_load_query_log_event(
             thd, table_list->db, table_list->table_name, is_concurrent,
             handle_duplicates, transactional_table, errcode);
@@ -797,7 +799,8 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
       break;
     }
 
-    Autoinc_field_has_explicit_non_null_value_reset_guard after_each_row(table);
+    const Autoinc_field_has_explicit_non_null_value_reset_guard after_each_row(
+        table);
 
     for (Item *item : m_opt_fields_or_vars) {
       // Skip hidden generated columns.
@@ -953,7 +956,8 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
       break;
     }
 
-    Autoinc_field_has_explicit_non_null_value_reset_guard after_each_row(table);
+    const Autoinc_field_has_explicit_non_null_value_reset_guard after_each_row(
+        table);
 
     auto it = m_opt_fields_or_vars.begin();
     for (; it != m_opt_fields_or_vars.end(); ++it) {
@@ -1181,7 +1185,8 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
       break;
     }
 
-    Autoinc_field_has_explicit_non_null_value_reset_guard after_each_row(table);
+    const Autoinc_field_has_explicit_non_null_value_reset_guard after_each_row(
+        table);
 
     auto it = m_opt_fields_or_vars.begin();
     Item *item = nullptr;
@@ -1432,7 +1437,7 @@ READ_INFO::~READ_INFO() {
   do {                                                  \
     len = my_mbcharlen((cs), (chr));                    \
     if (len == 0 && my_mbmaxlenlen((cs)) == 2) {        \
-      int chr1 = GET;                                   \
+      const int chr1 = GET;                             \
       if (chr1 != my_b_EOF) {                           \
         len = my_mbcharlen_2((cs), (chr), chr1);        \
         /* Character is gb18030 or invalid (len = 0) */ \
@@ -2121,7 +2126,7 @@ found_eof:
 bool Sql_cmd_load_table::execute(THD *thd) {
   LEX *const lex = thd->lex;
 
-  uint privilege =
+  const uint privilege =
       (lex->duplicates == DUP_REPLACE ? INSERT_ACL | DELETE_ACL : INSERT_ACL) |
       (m_is_local_file ? 0 : FILE_ACL);
 
@@ -2146,7 +2151,7 @@ bool Sql_cmd_load_table::execute(THD *thd) {
   lex->using_hypergraph_optimizer =
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
 
-  bool res = execute_inner(thd, lex->duplicates);
+  const bool res = execute_inner(thd, lex->duplicates);
 
   /* Pop ignore / strict error handler */
   if (thd->lex->is_ignore() || thd->is_strict_mode())

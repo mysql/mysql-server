@@ -63,7 +63,7 @@ Sql_cmd *PT_handler_close::make_cmd(THD *thd) {
     return nullptr;
   }
 
-  LEX_CSTRING db = {any_db, strlen(any_db)};
+  const LEX_CSTRING db = {any_db, strlen(any_db)};
   auto table =
       new (thd->mem_root) Table_ident(thd->get_protocol(), db, m_table, false);
   if (table == nullptr ||
@@ -92,7 +92,7 @@ bool PT_handler_read_base::contextualize(Parse_context *pc) {
   select->select_limit = one;
   select->offset_limit = nullptr;
 
-  LEX_CSTRING db = {any_db, strlen(any_db)};
+  const LEX_CSTRING db = {any_db, strlen(any_db)};
   auto table =
       new (pc->mem_root) Table_ident(thd->get_protocol(), db, m_table, false);
   if (table == nullptr ||

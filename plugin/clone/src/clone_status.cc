@@ -355,7 +355,7 @@ int Status_pfs::read_column_value(PSI_field *field, uint32_t index) {
 
   /* Return NULL if cursor is positioned at beginning or end. */
   auto row_index = get_position();
-  bool is_null = (row_index == 0 || row_index > S_NUM_ROWS);
+  const bool is_null = (row_index == 0 || row_index > S_NUM_ROWS);
 
   switch (index) {
     case 0: /* ID: Clone ID */
@@ -397,7 +397,7 @@ int Status_pfs::read_column_value(PSI_field *field, uint32_t index) {
           field, is_null ? nullptr : m_data.m_error_mesg);
       break;
     case 9: /* BINLOG_FILE */ {
-      size_t dir_len = dirname_length(m_data.m_binlog_file);
+      const size_t dir_len = dirname_length(m_data.m_binlog_file);
       mysql_pfscol_string->set_varchar_utf8mb4(
           field, is_null ? nullptr : m_data.m_binlog_file + dir_len);
     } break;
@@ -526,7 +526,7 @@ void Status_pfs::Data::read() {
 }
 
 void Status_pfs::Data::recover() {
-  std::string file_name(CLONE_RECOVERY_FILE);
+  const std::string file_name(CLONE_RECOVERY_FILE);
   std::ifstream recovery_file;
   recovery_file.open(file_name, std::ifstream::in);
   if (!recovery_file.is_open()) {
@@ -633,7 +633,7 @@ int Progress_pfs::read_column_value(PSI_field *field, uint32_t index) {
 
   /* Return NULL if cursor is positioned at beginning or end. */
   auto row_index = get_position();
-  bool is_null = (row_index == 0 || row_index > S_NUM_ROWS);
+  const bool is_null = (row_index == 0 || row_index > S_NUM_ROWS);
 
   switch (index) {
     case 0: /* ID: Clone ID */

@@ -54,7 +54,7 @@ void *sql_calloc(size_t size) {
 }
 
 char *sql_strdup(const char *str) {
-  size_t len = strlen(str) + 1;
+  const size_t len = strlen(str) + 1;
   char *pos;
   if ((pos = (char *)(*THR_MALLOC)->Alloc(len))) memcpy(pos, str, len);
   return pos;

@@ -229,7 +229,7 @@ Field *create_tmp_field_from_field(THD *thd, const Field *org_field,
 */
 
 static Field *create_tmp_field_from_item(Item *item, TABLE *table) {
-  bool maybe_null = item->is_nullable();
+  const bool maybe_null = item->is_nullable();
   Field *new_field = nullptr;
 
   switch (item->result_type()) {
@@ -364,7 +364,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
                         bool make_copy_field) {
   DBUG_TRACE;
   Field *result = nullptr;
-  Item::Type orig_type = type;
+  const Item::Type orig_type = type;
   Item *orig_item = nullptr;
 
   // If we are optimizing twice (due to being in the hypergraph optimizer
@@ -382,7 +382,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
     type = Item::FIELD_ITEM;
   }
 
-  bool is_wf =
+  const bool is_wf =
       type == Item::SUM_FUNC_ITEM && item->real_item()->m_is_window_function;
 
   switch (type) {
@@ -515,7 +515,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
 */
 
 static void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps) {
-  uint field_count = table->s->fields;
+  const uint field_count = table->s->fields;
   bitmap_init(&table->def_read_set, (my_bitmap_map *)bitmaps, field_count);
   bitmap_init(&table->tmp_set,
               (my_bitmap_map *)(bitmaps + bitmap_buffer_size(field_count)),
@@ -1441,7 +1441,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
     else
       null_count++;
   }
-  uint hidden_null_pack_length =
+  const uint hidden_null_pack_length =
       (hidden_null_count + 7 + hidden_uneven_bit_length) / 8;
   share->null_bytes = (hidden_null_pack_length +
                        (null_count + total_uneven_bit_length + 7) / 8);
@@ -1508,7 +1508,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
       /*
         Get the value from default_values.
       */
-      ptrdiff_t diff = orig_field->table->default_values_offset();
+      const ptrdiff_t diff = orig_field->table->default_values_offset();
       Field *f_in_record0 = orig_field->table->field[orig_field->field_index()];
       if (f_in_record0->is_real_null(diff))
         field->set_null();
@@ -2176,7 +2176,7 @@ static bool alloc_record_buffers(THD *thd, TABLE *table) {
     allows to exclude "myisam.h" from include files.
   */
   const int TMP_TABLE_UNIQUE_HASH_LENGTH = 4;
-  uint alloc_length =
+  const uint alloc_length =
       ALIGN_SIZE(share->reclength + TMP_TABLE_UNIQUE_HASH_LENGTH + 1);
   share->rec_buff_length = alloc_length;
   /*
@@ -2403,8 +2403,8 @@ bool instantiate_tmp_table(THD *thd, TABLE *table) {
 
   Opt_trace_context *const trace = &thd->opt_trace;
   if (unlikely(trace->is_started())) {
-    Opt_trace_object wrapper(trace);
-    Opt_trace_object convert(trace, "creating_tmp_table");
+    const Opt_trace_object wrapper(trace);
+    const Opt_trace_object convert(trace, "creating_tmp_table");
     trace_tmp_table(trace, table);
   }
   return false;
@@ -2705,7 +2705,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
 
         if (unlikely(thd->opt_trace.is_started())) {
           Opt_trace_context *trace = &thd->opt_trace;
-          Opt_trace_object wrapper(trace);
+          const Opt_trace_object wrapper(trace);
           Opt_trace_object convert(trace, "converting_tmp_table_to_ondisk");
           assert(error == HA_ERR_RECORD_FILE_FULL);
           convert.add_alnum("cause", "memory_table_size_exceeded");

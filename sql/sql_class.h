@@ -2936,7 +2936,7 @@ class THD : public MDL_context_owner,
   /** Check if clone network Vio is active. */
   inline bool check_clone_vio() {
     mysql_mutex_lock(&LOCK_thd_data);
-    bool is_active = (clone_vio != nullptr);
+    const bool is_active = (clone_vio != nullptr);
     mysql_mutex_unlock(&LOCK_thd_data);
     return (is_active);
   }
@@ -4145,7 +4145,7 @@ class THD : public MDL_context_owner,
     Protected with the LOCK_thd_query mutex.
   */
   void set_query(const char *query_arg, size_t query_length_arg) {
-    LEX_CSTRING tmp = {query_arg, query_length_arg};
+    const LEX_CSTRING tmp = {query_arg, query_length_arg};
     set_query(tmp);
   }
   void set_query(LEX_CSTRING query_arg);

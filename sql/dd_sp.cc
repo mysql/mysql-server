@@ -142,7 +142,7 @@ static void prepare_type_string_from_dd_param(THD *thd,
   if (param->data_type() == dd::enum_column_types::ENUM ||
       param->data_type() == dd::enum_column_types::SET) {
     // Allocate space for interval.
-    size_t interval_parts = param->elements_count();
+    const size_t interval_parts = param->elements_count();
 
     interval = static_cast<TYPELIB *>(thd->mem_root->Alloc(sizeof(TYPELIB)));
     interval->type_names = static_cast<const char **>(

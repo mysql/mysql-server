@@ -84,7 +84,7 @@ bool Sql_check_constraint_spec::pre_validate() {
 
 void Sql_check_constraint_spec::print_expr(THD *thd, String &out) {
   out.length(0);
-  Sql_mode_parse_guard parse_guard(thd);
+  const Sql_mode_parse_guard parse_guard(thd);
   auto flags = enum_query_type(QT_NO_DB | QT_NO_TABLE | QT_FORCE_INTRODUCERS);
   check_expr->print(thd, &out, flags);
 }

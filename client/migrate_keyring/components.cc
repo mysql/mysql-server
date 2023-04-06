@@ -67,7 +67,7 @@ Keyring_component_load::Keyring_component_load(const std::string component_name,
   log_debug << "Loading: " << component_path_ << std::endl;
 
   const char *urn[] = {component_path_.c_str()};
-  bool load_status = dynamic_loader_->load(urn, 1);
+  const bool load_status = dynamic_loader_->load(urn, 1);
   if (load_status)
     log_error << "Failed to load " << type_ << " keyring: " << component_path_
               << std::endl;
@@ -81,7 +81,7 @@ Keyring_component_load::~Keyring_component_load() {
   if (ok_) {
     const char *urn[] = {component_path_.c_str()};
     log_debug << "Unloading: " << component_path_ << std::endl;
-    bool load_status = dynamic_loader_->unload(urn, 1);
+    const bool load_status = dynamic_loader_->unload(urn, 1);
     if (load_status)
       log_error << "Failed to unload " << type_
                 << " keyring: " << component_path_ << std::endl;
@@ -108,7 +108,7 @@ Keyring_services::Keyring_services(const std::string implementation_name,
   if (keyring_load_service_->load(
           Options::s_component_dir,
           instance_path.length() ? instance_path.c_str() : nullptr) != 0) {
-    std::string message("Failed to initialize keyring");
+    const std::string message("Failed to initialize keyring");
     log_error << message << std::endl;
     return;
   }
@@ -199,14 +199,14 @@ Keyring_migrate::Keyring_migrate(Source_keyring_services &src,
 bool Keyring_migrate::lock_source_keyring() {
   if (Options::s_online_migration == false) return true;
   if (!mysql_connection_.ok()) return false;
-  std::string lock_statement("SET GLOBAL KEYRING_OPERATIONS=0");
+  const std::string lock_statement("SET GLOBAL KEYRING_OPERATIONS=0");
   return mysql_connection_.execute(lock_statement);
 }
 
 bool Keyring_migrate::unlock_source_keyring() {
   if (Options::s_online_migration == false || !mysql_connection_.ok())
     return true;
-  std::string unlock_statement("SET GLOBAL KEYRING_OPERATIONS=1");
+  const std::string unlock_statement("SET GLOBAL KEYRING_OPERATIONS=1");
   return mysql_connection_.execute(unlock_statement);
 }
 
@@ -240,8 +240,8 @@ bool Keyring_migrate::migrate_keys() {
       break;
     }
 
-    std::unique_ptr<char[]> data_id(new char[data_id_length + 1]);
-    std::unique_ptr<char[]> auth_id(new char[auth_id_length + 1]);
+    const std::unique_ptr<char[]> data_id(new char[data_id_length + 1]);
+    const std::unique_ptr<char[]> auth_id(new char[auth_id_length + 1]);
 
     if (data_id.get() == nullptr || auth_id.get() == nullptr) {
       log_error << "Failed to allocated required memory for data_id and auth_id"
@@ -260,7 +260,8 @@ bool Keyring_migrate::migrate_keys() {
 
     /* Fetch key details */
     my_h_keyring_reader_object reader_object = nullptr;
-    bool status = reader->init(data_id.get(), auth_id.get(), &reader_object);
+    const bool status =
+        reader->init(data_id.get(), auth_id.get(), &reader_object);
 
     if (status == true) {
       log_error << "Keyring reported error" << std::endl;
@@ -304,8 +305,10 @@ bool Keyring_migrate::migrate_keys() {
       continue;
     }
 
-    std::unique_ptr<unsigned char[]> data_buffer(new unsigned char[data_size]);
-    std::unique_ptr<char[]> data_type_buffer(new char[data_type_size + 1]);
+    const std::unique_ptr<unsigned char[]> data_buffer(
+        new unsigned char[data_size]);
+    const std::unique_ptr<char[]> data_type_buffer(
+        new char[data_type_size + 1]);
 
     if (data_buffer.get() == nullptr || data_type_buffer.get() == nullptr) {
       log_error << "Failed to allocated required memory for data pointed by "
@@ -331,7 +334,7 @@ bool Keyring_migrate::migrate_keys() {
 
     /* Write to destination keyring */
     if (data_size > 0 && data_type_size > 0) {
-      bool write_status =
+      const bool write_status =
           writer->store(data_id.get(), auth_id.get(), data_buffer.get(),
                         data_size, data_type_buffer.get());
       memset(data_buffer.get(), 0, data_size);

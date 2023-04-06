@@ -173,7 +173,7 @@ int check_if_legal_tablename(const char *name) {
   @return true if the drive exists, false otherwise.
 */
 static bool does_drive_exists(char drive_letter) {
-  DWORD drive_mask = GetLogicalDrives();
+  const DWORD drive_mask = GetLogicalDrives();
   drive_letter = toupper(drive_letter);
 
   return (drive_letter >= 'A' && drive_letter <= 'Z') &&

@@ -86,7 +86,7 @@ bool real_open_cached_file(IO_CACHE *cache) {
 void close_cached_file(IO_CACHE *cache) {
   DBUG_TRACE;
   if (my_b_inited(cache)) {
-    File file = cache->file;
+    const File file = cache->file;
     cache->file = -1; /* Don't flush data */
     (void)end_io_cache(cache);
     if (file >= 0) {

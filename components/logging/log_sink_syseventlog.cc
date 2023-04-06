@@ -303,7 +303,7 @@ static int var_update_tag(const char *tag) {
     new_ident = log_bs->strndup(PREFIX, log_bs->length(PREFIX));
   else {
     // prefix + '-' + '\0' + tag
-    size_t l = log_bs->length(PREFIX) + 1 + 1 + log_bs->length(tag);
+    const size_t l = log_bs->length(PREFIX) + 1 + 1 + log_bs->length(tag);
 
     new_ident = (char *)log_bs->malloc(l);
     if (new_ident != nullptr)

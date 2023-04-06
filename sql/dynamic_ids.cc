@@ -52,7 +52,7 @@ bool Server_ids::unpack_dynamic_ids(char *param_dynamic_ids) {
     if (token == nullptr)
       return true;
     else {
-      ulong val = atol(token);
+      const ulong val = atol(token);
       dynamic_ids.insert_unique(val);
     }
   }

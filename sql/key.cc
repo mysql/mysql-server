@@ -154,7 +154,7 @@ void key_copy(uchar *to_key, const uchar *from_record, const KEY *key_info,
       length = min<uint>(key_length, key_part->length);
       Field *field = key_part->field;
       const CHARSET_INFO *cs = field->charset();
-      size_t bytes = field->get_key_image(to_key, length, Field::itRAW);
+      const size_t bytes = field->get_key_image(to_key, length, Field::itRAW);
       if (bytes < length)
         cs->cset->fill(cs, (char *)to_key + bytes, length - bytes, ' ');
     }
@@ -195,7 +195,7 @@ void key_restore(uchar *to_record, const uchar *from_key, const KEY *key_info,
     if (key_part->type == HA_KEYTYPE_BIT) {
       Field_bit *field = (Field_bit *)(key_part->field);
       if (field->bit_len) {
-        uchar bits =
+        const uchar bits =
             *(from_key + key_part->length - field->pack_length_in_rec() - 1);
         set_rec_bits(
             bits,
@@ -213,7 +213,7 @@ void key_restore(uchar *to_record, const uchar *from_key, const KEY *key_info,
         Maybe this branch is to be removed, but now we
         have to ignore GCov compaining.
       */
-      uint blob_length = uint2korr(from_key);
+      const uint blob_length = uint2korr(from_key);
       Field_blob *field = (Field_blob *)key_part->field;
       from_key += HA_KEY_BLOB_LENGTH;
       key_length -= HA_KEY_BLOB_LENGTH;
@@ -223,7 +223,7 @@ void key_restore(uchar *to_record, const uchar *from_key, const KEY *key_info,
     } else if (key_part->key_part_flag & HA_VAR_LENGTH_PART) {
       Field *field = key_part->field;
       my_bitmap_map *old_map;
-      ptrdiff_t ptrdiff = to_record - field->table->record[0];
+      const ptrdiff_t ptrdiff = to_record - field->table->record[0];
       field->move_field_offset(ptrdiff);
       key_length -= HA_KEY_BLOB_LENGTH;
       length = min<uint>(key_length, key_part->length);
@@ -268,14 +268,13 @@ bool key_cmp_if_same(const TABLE *table, const uchar *key, uint idx,
   uint store_length;
   KEY_PART_INFO *key_part;
   const uchar *key_end = key + key_length;
-  ;
 
   for (key_part = table->key_info[idx].key_part; key < key_end;
        key_part++, key += store_length) {
     store_length = key_part->store_length;
 
     if (key_part->null_bit) {
-      bool key_is_null =
+      const bool key_is_null =
           table->record[0][key_part->null_offset] & key_part->null_bit;
       if (*key != (key_is_null ? 1 : 0)) return true;
       if (*key) continue;
@@ -286,7 +285,7 @@ bool key_cmp_if_same(const TABLE *table, const uchar *key, uint idx,
         !(key_part->key_part_flag &
           (HA_BLOB_PART | HA_VAR_LENGTH_PART | HA_BIT_PART))) {
       // We can use memcpy.
-      uint length = min((uint)(key_end - key), store_length);
+      const uint length = min((uint)(key_end - key), store_length);
       if (memcmp(key, table->record[0] + key_part->offset, length)) return true;
     } else {
       // Use the regular comparison function.
@@ -335,14 +334,15 @@ void field_unpack(String *to, Field *field, uint max_length, bool prefix_key) {
         which can break a multi-byte characters in the middle.
         Align, returning not more than "char_length" characters.
       */
-      size_t charpos, char_length = max_length / cs->mbmaxlen;
+      size_t charpos;
+      const size_t char_length = max_length / cs->mbmaxlen;
       if ((charpos = my_charpos(cs, tmp.ptr(), tmp.ptr() + tmp.length(),
                                 char_length)) < tmp.length())
         tmp.length(charpos);
     }
     if (max_length < field->pack_length())
       tmp.length(min(tmp.length(), static_cast<size_t>(max_length)));
-    ErrConvString err(&tmp);
+    const ErrConvString err(&tmp);
     to->append(err.ptr());
   } else
     to->append(STRING_WITH_LEN("???"));
@@ -450,11 +450,11 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length) {
   for (const uchar *end = key + key_length; key < end;
        key += store_length, key_part++) {
     int cmp;
-    int res = (key_part->key_part_flag & HA_REVERSE_SORT) ? -1 : 1;
+    const int res = (key_part->key_part_flag & HA_REVERSE_SORT) ? -1 : 1;
     store_length = key_part->store_length;
     if (key_part->null_bit) {
       /* This key part allows null values; NULL is lower than everything */
-      bool field_is_null = key_part->field->is_null();
+      const bool field_is_null = key_part->field->is_null();
       if (*key)  // If range key is null
       {
         /* the range is expecting a null value */
@@ -504,7 +504,7 @@ int key_cmp2(KEY_PART_INFO *key_part, const uchar *key1, uint key1_length,
   /* Compare all the subkeys (if it is a composite key) */
   for (const uchar *end = key1 + key1_length; key1 < end;
        key1 += store_length, key2 += store_length, key_part++) {
-    int res = (key_part->key_part_flag & HA_REVERSE_SORT) ? -1 : 1;
+    const int res = (key_part->key_part_flag & HA_REVERSE_SORT) ? -1 : 1;
     store_length = key_part->store_length;
     /* This key part allows null values; NULL is lower than everything */
     if (key_part->null_bit) {
@@ -584,7 +584,7 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
   uint key_parts, key_part_num;
   KEY_PART_INFO *key_part = key_info->key_part;
   uchar *rec0 = key_part->field->field_ptr() - key_part->offset;
-  ptrdiff_t first_diff = first_rec - rec0, sec_diff = second_rec - rec0;
+  const ptrdiff_t first_diff = first_rec - rec0, sec_diff = second_rec - rec0;
   int result = 0;
   Field *field;
   DBUG_TRACE;
@@ -601,7 +601,8 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
     /* loop over every key part */
     do {
       // 1 - ASCENDING order, -1 - DESCENDING
-      int sort_order = (key_part->key_part_flag & HA_REVERSE_SORT) ? -1 : 1;
+      const int sort_order =
+          (key_part->key_part_flag & HA_REVERSE_SORT) ? -1 : 1;
 
       field = key_part->field;
 
@@ -611,8 +612,8 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
 
       if (key_part->null_bit) {
         /* The key_part can contain NULL values */
-        bool first_is_null = field->is_real_null(first_diff);
-        bool sec_is_null = field->is_real_null(sec_diff);
+        const bool first_is_null = field->is_real_null(first_diff);
+        const bool sec_is_null = field->is_real_null(sec_diff);
         /*
           NULL is smaller then everything so if first is NULL and the other
           not then we know that we should return -1 and for the opposite

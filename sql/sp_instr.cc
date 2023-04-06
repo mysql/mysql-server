@@ -310,7 +310,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
     It's merged with the saved parent's value at the exit of this func.
   */
 
-  unsigned int parent_unsafe_rollback_flags =
+  const unsigned int parent_unsafe_rollback_flags =
       thd->get_transaction()->get_unsafe_rollback_flags(Transaction_ctx::STMT);
   thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
 
@@ -386,8 +386,8 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
       Opt_trace_start ots(thd, m_lex->query_tables, SQLCOM_SELECT,
                           &m_lex->var_list, nullptr, 0, this,
                           thd->variables.character_set_client);
-      Opt_trace_object trace_command(&thd->opt_trace);
-      Opt_trace_array trace_command_steps(&thd->opt_trace, "steps");
+      const Opt_trace_object trace_command(&thd->opt_trace);
+      const Opt_trace_array trace_command_steps(&thd->opt_trace, "steps");
 
       /*
         Check whenever we have access to tables for this statement
@@ -501,8 +501,9 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
     STMT_EXECUTED means the statement has been prepared and executed before,
     but some error occurred during table open or execution).
   */
-  bool reprepare_error = error && thd->is_error() &&
-                         thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE;
+  const bool reprepare_error =
+      error && thd->is_error() &&
+      thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE;
 
   // Unless there is an error, execution must have started (and completed)
   assert(error || m_lex->is_exec_started());
@@ -575,7 +576,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
     initiated. Also set the statement query arena to the lex mem_root.
   */
   MEM_ROOT *execution_mem_root = thd->mem_root;
-  Query_arena parse_arena(&m_lex_mem_root, thd->stmt_arena->get_state());
+  const Query_arena parse_arena(&m_lex_mem_root, thd->stmt_arena->get_state());
 
   thd->mem_root = &m_lex_mem_root;
   thd->stmt_arena->set_query_arena(parse_arena);
@@ -723,7 +724,7 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
 
     thd->push_reprepare_observer(stmt_reprepare_observer);
 
-    bool rc = reset_lex_and_exec_core(thd, nextp, open_tables);
+    const bool rc = reset_lex_and_exec_core(thd, nextp, open_tables);
 
     thd->pop_reprepare_observer();
 
@@ -813,7 +814,7 @@ void sp_lex_instr::cleanup_before_parsing(THD *thd) {
 }
 
 void sp_lex_instr::get_query(String *sql_query) const {
-  LEX_CSTRING expr_query = get_expr_query();
+  const LEX_CSTRING expr_query = get_expr_query();
 
   if (!expr_query.str) {
     sql_query->length(0);
@@ -969,7 +970,7 @@ bool sp_instr_stmt::exec_core(THD *thd, uint *nextp) {
 
   assert(lex->m_sql_cmd == nullptr || lex->m_sql_cmd->is_part_of_sp());
 
-  bool rc = mysql_execute_command(thd);
+  const bool rc = mysql_execute_command(thd);
 
   lex->set_sp_current_parsing_ctx(nullptr);
   lex->sphead = nullptr;
@@ -1044,7 +1045,7 @@ bool sp_instr_set_trigger_field::exec_core(THD *thd, uint *nextp) {
   */
   if (thd->is_strict_mode() && !thd->lex->is_ignore())
     thd->push_internal_handler(&strict_handler);
-  bool error = m_trigger_field->set_value(thd, &m_value_item);
+  const bool error = m_trigger_field->set_value(thd, &m_value_item);
   if (thd->is_strict_mode() && !thd->lex->is_ignore())
     thd->pop_internal_handler();
   return error;

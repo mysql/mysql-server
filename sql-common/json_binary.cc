@@ -968,8 +968,9 @@ static Value parse_scalar(uint8 type, const char *data, size_t len) {
       if (len < 1) return err(); /* purecov: inspected */
 
       // The type is encoded as a uint8 that maps to an enum_field_types.
-      uint8 type_byte = static_cast<uint8>(*data);
-      enum_field_types field_type = static_cast<enum_field_types>(type_byte);
+      const uint8 type_byte = static_cast<uint8>(*data);
+      const enum_field_types field_type =
+          static_cast<enum_field_types>(type_byte);
 
       // Then there's the length of the value.
       uint32 val_len;
@@ -1097,7 +1098,7 @@ Value Value::element(size_t pos) const {
   const auto entry_size = value_entry_size(m_large);
   const auto entry_offset = value_entry_offset(pos);
 
-  uint8 type = m_data[entry_offset];
+  const uint8 type = m_data[entry_offset];
 
   /*
     Check if this is an inlined scalar value. If so, return it.
@@ -1111,7 +1112,8 @@ Value Value::element(size_t pos) const {
     Otherwise, it's a non-inlined value, and the offset to where the value
     is stored, can be found right after the type byte in the entry.
   */
-  uint32 value_offset = read_offset_or_size(m_data + entry_offset + 1, m_large);
+  const uint32 value_offset =
+      read_offset_or_size(m_data + entry_offset + 1, m_large);
 
   if (m_length < value_offset || value_offset < entry_offset + entry_size)
     return err(); /* purecov: inspected */
@@ -1166,7 +1168,7 @@ Value Value::key(size_t pos) const {
   returns ERROR
 */
 Value Value::lookup(const char *key, size_t length) const {
-  size_t index = lookup_index(key, length);
+  const size_t index = lookup_index(key, length);
   if (index == element_count()) return err();
   return element(index);
 }
@@ -1192,20 +1194,21 @@ size_t Value::lookup_index(const char *key, size_t length) const {
 
   while (lo < hi) {
     // Find the entry in the middle of the search interval.
-    size_t idx = (lo + hi) / 2;
-    size_t entry_offset = first_entry_offset + idx * entry_size;
+    const size_t idx = (lo + hi) / 2;
+    const size_t entry_offset = first_entry_offset + idx * entry_size;
 
     // Keys are ordered on length, so check length first.
-    size_t key_len = uint2korr(m_data + entry_offset + offset_size);
+    const size_t key_len = uint2korr(m_data + entry_offset + offset_size);
     if (length > key_len) {
       lo = idx + 1;
     } else if (length < key_len) {
       hi = idx;
     } else {
       // The keys had the same length, so compare their contents.
-      size_t key_offset = read_offset_or_size(m_data + entry_offset, m_large);
+      const size_t key_offset =
+          read_offset_or_size(m_data + entry_offset, m_large);
 
-      int cmp = memcmp(key, m_data + key_offset, key_len);
+      const int cmp = memcmp(key, m_data + key_offset, key_len);
       if (cmp > 0)
         lo = idx + 1;
       else if (cmp < 0)
@@ -1353,7 +1356,7 @@ bool Value::element_offsets(size_t pos, size_t *start, size_t *end,
     case JSONB_TYPE_LARGE_OBJECT:
     case JSONB_TYPE_SMALL_ARRAY:
     case JSONB_TYPE_LARGE_ARRAY: {
-      Value v = element(pos);
+      const Value v = element(pos);
       if (v.type() == ERROR) return true;
       val_end = (v.m_data - this->m_data) + v.m_length;
     } break;
@@ -1387,7 +1390,7 @@ bool Value::first_value_offset(size_t *offset) const {
     return false;
   }
 
-  Value key = this->key(m_element_count - 1);
+  const Value key = this->key(m_element_count - 1);
   if (key.type() == ERROR) return true;
 
   *offset = key.get_data() + key.get_data_length() - m_data;
@@ -2103,7 +2106,7 @@ int Value::eq(const Value &val) const {
 bool Value::to_std_string(std::string *buffer,
                           const JsonDocumentDepthHandler &depth_handler) const {
   buffer->clear();
-  Json_wrapper wrapper(*this);
+  const Json_wrapper wrapper(*this);
   StringBuffer<STRING_BUFFER_USUAL_SIZE> string_buffer;
   bool formatting_failed =
       wrapper.to_string(&string_buffer, false, "to_std_string", depth_handler);
@@ -2115,7 +2118,7 @@ bool Value::to_std_string(std::string *buffer,
 bool Value::to_pretty_std_string(
     std::string *buffer, const JsonDocumentDepthHandler &depth_handler) const {
   buffer->clear();
-  Json_wrapper wrapper(*this);
+  const Json_wrapper wrapper(*this);
   StringBuffer<STRING_BUFFER_USUAL_SIZE> string_buffer;
   bool formatting_failed = wrapper.to_pretty_string(
       &string_buffer, "to_pretty_std_string", depth_handler);

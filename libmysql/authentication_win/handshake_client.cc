@@ -181,7 +181,7 @@ int Handshake_client::write_packet(Blob &data) {
   // Write second part if it is present.
   if (len2) {
     data[254] = saved_byte;
-    Blob data2(data.ptr() + 254, len2);
+    const Blob data2(data.ptr() + 254, len2);
     DBUG_PRINT("info", ("Sending second part of data"));
     DBUG_DUMP("info", data2.ptr(), data2.len());
     ret = m_con.write(data2);
@@ -441,7 +441,7 @@ int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 
   // Read initial packet from server containing service name.
 
-  Blob service_name = con.read();
+  const Blob service_name = con.read();
 
   if (con.error() || service_name.is_null()) {
     ERROR_LOG(ERROR, ("Error reading initial packet"));

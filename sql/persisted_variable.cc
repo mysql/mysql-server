@@ -199,7 +199,7 @@ std::string tolower_varname(const char *name) {
 
 st_persist_var::st_persist_var() {
   if (current_thd) {
-    my_timeval tv =
+    const my_timeval tv =
         current_thd->query_start_timeval_trunc(DATETIME_MAX_DECIMALS);
     timestamp = tv.m_tv_sec * 1000000ULL + tv.m_tv_usec;
   } else
@@ -208,7 +208,7 @@ st_persist_var::st_persist_var() {
 }
 
 st_persist_var::st_persist_var(THD *thd) {
-  my_timeval tv = thd->query_start_timeval_trunc(DATETIME_MAX_DECIMALS);
+  const my_timeval tv = thd->query_start_timeval_trunc(DATETIME_MAX_DECIMALS);
   timestamp = tv.m_tv_sec * 1000000ULL + tv.m_tv_usec;
   user = thd->security_context()->user().str;
   host = thd->security_context()->host().str;
@@ -351,7 +351,7 @@ Persisted_variables_cache *Persisted_variables_cache::get_instance() {
 */
 static bool check_boolean_value(const char *value, String &bool_str) {
   bool ret = false;
-  bool result = get_bool_argument(value, &ret);
+  const bool result = get_bool_argument(value, &ret);
   if (ret) return true;
   if (result) {
     bool_str = String("ON", system_charset_info);
@@ -434,7 +434,7 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
 
     auto assign_value = [&](const char *name) -> bool {
       struct st_persist_var tmp_var(thd);
-      bool is_sensitive = system_var->is_sensitive();
+      const bool is_sensitive = system_var->is_sensitive();
 
       if (is_sensitive && !m_keyring_support_available) {
         if (!opt_persist_sensitive_variables_in_plaintext) {
@@ -675,7 +675,7 @@ bool Persisted_variables_cache::write_persist_file_v2(String &dest,
                                                       bool &clean_up) {
   clean_up = false;
   Json_object main_json_object;
-  string key_version("Version");
+  const string key_version("Version");
   Json_int value_version(static_cast<int>(File_version::VERSION_V2));
   main_json_object.add_clone(key_version.c_str(), &value_version);
 
@@ -938,7 +938,8 @@ bool Persisted_variables_cache::set_persisted_options(
     bool plugin_options, const char *target_var_name,
     int target_var_name_length) {
   THD *thd;
-  bool result = false, new_thd = false;
+  const bool result = false;
+  bool new_thd = false;
   const std::vector<std::string> priv_list = {
       "ENCRYPTION_KEY_ADMIN", "ROLE_ADMIN",          "SYSTEM_VARIABLES_ADMIN",
       "AUDIT_ADMIN",          "TELEMETRY_LOG_ADMIN", "CONNECTION_ADMIN"};
@@ -2093,7 +2094,7 @@ bool Persisted_variables_cache::append_read_only_variables(
    reasd only options to be appendded
   */
   if (my_args.size()) {
-    unsigned int extra_args = (arg_separator_added == false) ? 2 : 1;
+    const unsigned int extra_args = (arg_separator_added == false) ? 2 : 1;
     char **res = new (&alloc) char *[my_args.size() + *argc + extra_args];
     if (res == nullptr) goto err;
     memset(res, 0, (sizeof(char *) * (my_args.size() + *argc + extra_args)));
@@ -2149,7 +2150,7 @@ bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
                                                           const char *name,
                                                           bool if_exists) {
   bool result = false, found = false;
-  bool reset_all = (name ? 0 : 1);
+  const bool reset_all = (name ? 0 : 1);
   /* update on m_persisted_dynamic_variables/m_persisted_static_variables must
    * be thread safe */
   lock();
@@ -2446,7 +2447,7 @@ bool Persisted_variables_cache::get_file_encryption_key(
       return retval;
 
     /* encrypt file key */
-    size_t encrypted_key_length =
+    const size_t encrypted_key_length =
         (file_key_length / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
     std::unique_ptr<unsigned char[]> encrypted_key =
         std::make_unique<unsigned char[]>(encrypted_key_length);
@@ -2470,8 +2471,8 @@ bool Persisted_variables_cache::get_file_encryption_key(
     retval = false;
   } else {
     /* File key exists, decrypt it */
-    std::string unhex_key = from_hex(m_key_info.m_file_key);
-    std::string unhex_iv = from_hex(m_key_info.m_file_key_iv);
+    const std::string unhex_key = from_hex(m_key_info.m_file_key);
+    const std::string unhex_iv = from_hex(m_key_info.m_file_key_iv);
 
     std::unique_ptr<unsigned char[]> decrypted_file_key =
         std::make_unique<unsigned char[]>(unhex_key.length());
@@ -2540,7 +2541,8 @@ Persisted_variables_cache::encrypt_sensitive_variables() {
   /* Encrypt sensitive variables */
   unsigned char iv[16];
   if (my_rand_buffer(iv, sizeof(iv))) return retval;
-  size_t data_len = (str.length() / MY_AES_BLOCK_SIZE + 1) * MY_AES_BLOCK_SIZE;
+  const size_t data_len =
+      (str.length() / MY_AES_BLOCK_SIZE + 1) * MY_AES_BLOCK_SIZE;
   std::unique_ptr<unsigned char[]> encrypted_buffer =
       std::make_unique<unsigned char[]>(data_len);
   if (encrypted_buffer.get() == nullptr) return retval;
@@ -2586,8 +2588,8 @@ Persisted_variables_cache::decrypt_sensitive_variables() {
   if (get_file_encryption_key(file_key, file_key_length, false)) return retval;
 
   /* Convert from hex to binary */
-  std::string unhex_iv = from_hex(m_iv);
-  std::string unhex_data = from_hex(m_sensitive_variables_blob);
+  const std::string unhex_iv = from_hex(m_iv);
+  const std::string unhex_data = from_hex(m_sensitive_variables_blob);
 
   /* Decrypt the blob */
   std::unique_ptr<unsigned char[]> decrypted_data =

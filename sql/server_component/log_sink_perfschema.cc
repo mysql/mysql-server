@@ -935,7 +935,7 @@ DEFINE_METHOD(log_service_error, log_sink_perfschema_imp::event_add,
                const char *error_code, uint error_code_length,
                const char *subsys, uint subsys_length, const char *message,
                uint message_length)) {
-  log_service_error ret = LOG_SERVICE_ARGUMENT_TOO_LONG;
+  const log_service_error ret = LOG_SERVICE_ARGUMENT_TOO_LONG;
 
   log_sink_pfs_event e;
   memset(&e, 0, sizeof(log_sink_pfs_event));

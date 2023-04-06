@@ -162,7 +162,7 @@ sp_pcontext *sp_pcontext::push_context(THD *thd,
 sp_pcontext *sp_pcontext::pop_context() {
   m_parent->m_max_var_index += m_max_var_index;
 
-  uint submax = max_cursor_index();
+  const uint submax = max_cursor_index();
   if (submax > m_parent->m_max_cursor_index)
     m_parent->m_max_cursor_index = submax;
 

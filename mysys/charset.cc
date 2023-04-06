@@ -416,7 +416,7 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info, char *to,
   const char *end = nullptr;
   const char *to_end = to_start + (to_length ? to_length - 1 : 2 * length);
   bool overflow = false;
-  bool use_mb_flag = use_mb(charset_info);
+  const bool use_mb_flag = use_mb(charset_info);
   for (end = from + length; from < end; from++) {
     char escape = 0;
     int tmp_length = 0;
@@ -542,7 +542,7 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info, char *to,
   const char *end = nullptr;
   const char *to_end = to_start + (to_length ? to_length - 1 : 2 * length);
   bool overflow = false;
-  bool use_mb_flag = use_mb(charset_info);
+  const bool use_mb_flag = use_mb(charset_info);
   for (end = from + length; from < end; from++) {
     int tmp_length = 0;
     if (use_mb_flag && (tmp_length = my_ismbchar(charset_info, from, end))) {

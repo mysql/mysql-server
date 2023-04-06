@@ -34,7 +34,7 @@ bool client_query_attributes::push_param(const char *name, const char *value) {
   if (count >= max_count) return true;
   names[count] = my_strdup(PSI_NOT_INSTRUMENTED, name, MYF(0));
   memset(&values[count], 0, sizeof(MYSQL_BIND));
-  unsigned val_len = strlen(value);
+  const unsigned val_len = strlen(value);
   values[count].buffer = my_malloc(PSI_NOT_INSTRUMENTED, val_len + 1, MYF(0));
   if (val_len) memcpy(values[count].buffer, value, val_len);
   ((unsigned char *)values[count].buffer)[val_len] = 0;
@@ -47,7 +47,7 @@ bool client_query_attributes::push_param(const char *name, const char *value) {
 int client_query_attributes::set_params(MYSQL *mysql) {
   if (count == 0) return 0;
 
-  int rc = mysql_bind_param(mysql, count, values, names);
+  const int rc = mysql_bind_param(mysql, count, values, names);
   return rc;
 }
 

@@ -79,7 +79,7 @@ class Dns_srv_data {
   void clear() { data_.clear(); }
   void add(const std::string &host, unsigned port, unsigned priority,
            unsigned weight) {
-    dns_entry_data_t::iterator list = data_.find(priority);
+    const dns_entry_data_t::iterator list = data_.find(priority);
     if (list == data_.cend())
       data_.emplace(priority,
                     dns_entry_list_t(1, Dns_entry(host, port, weight)));
@@ -100,7 +100,7 @@ class Dns_srv_data {
     unsigned long sum = 0;
     for (Dns_entry &elt : list) elt.add_weight_sum(sum);
 
-    unsigned long draw = (std::rand() * 1UL * sum) / RAND_MAX;
+    const unsigned long draw = (std::rand() * 1UL * sum) / RAND_MAX;
 
     dns_entry_list_t::const_iterator iter = list.cbegin();
     while (iter->weight_sum() < draw) iter++;

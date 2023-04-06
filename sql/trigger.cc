@@ -117,7 +117,7 @@ static bool construct_definer_value(MEM_ROOT *mem_root, LEX_CSTRING *definer,
                                     const LEX_CSTRING &definer_user,
                                     const LEX_CSTRING &definer_host) {
   char definer_buf[USER_HOST_BUFF_SIZE];
-  size_t definer_len =
+  const size_t definer_len =
       strxmov(definer_buf, definer_user.str, "@", definer_host.str, NullS) -
       definer_buf;
 
@@ -252,7 +252,7 @@ Trigger *Trigger::create_from_parser(THD *thd, TABLE *subject_table,
 
   // Create a new Trigger instance.
 
-  my_timeval created_timestamp_not_set = {0, 0};
+  const my_timeval created_timestamp_not_set = {0, 0};
   Trigger *t = new (&subject_table->mem_root) Trigger(
       trigger_name, &subject_table->mem_root, subject_table->s->db,
       subject_table->s->table_name, definition, definition_utf8,
@@ -431,7 +431,7 @@ bool Trigger::create_full_trigger_definition(
 */
 
 bool Trigger::parse(THD *thd, bool is_upgrade) {
-  sql_mode_t sql_mode_saved = thd->variables.sql_mode;
+  const sql_mode_t sql_mode_saved = thd->variables.sql_mode;
   thd->variables.sql_mode = m_sql_mode;
 
   Parser_state parser_state;
@@ -470,7 +470,7 @@ bool Trigger::parse(THD *thd, bool is_upgrade) {
   thd->lex = &lex;
   lex_start(thd);
 
-  LEX_CSTRING current_db_name_saved = thd->db();
+  const LEX_CSTRING current_db_name_saved = thd->db();
   thd->reset_db(m_db_name);
 
   Deprecated_trigger_syntax_handler error_handler;

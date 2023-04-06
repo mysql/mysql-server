@@ -33,7 +33,7 @@
 
 #ifdef _WIN32
 inline unsigned long long my_double2ulonglong(double d) {
-  double t = d - (double)0x8000000000000000ULL;
+  const double t = d - (double)0x8000000000000000ULL;
 
   if (t >= 0) return ((unsigned long long)t) + 0x8000000000000000ULL;
   return (unsigned long long)d;

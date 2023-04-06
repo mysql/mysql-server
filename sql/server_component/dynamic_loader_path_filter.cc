@@ -112,9 +112,9 @@ bool mysql_dynamic_loader_scheme_file_path_filter_imp::
   /* Offset by "://" */
   file += 3;
 
-  size_t plugin_dir_len = strlen(opt_plugin_dir);
-  size_t input_path_len = strlen(file);
-  LEX_CSTRING dl_cstr = {file, input_path_len};
+  const size_t plugin_dir_len = strlen(opt_plugin_dir);
+  const size_t input_path_len = strlen(file);
+  const LEX_CSTRING dl_cstr = {file, input_path_len};
   if (check_valid_path(file, input_path_len) ||
       check_string_char_length(dl_cstr, "", NAME_CHAR_LEN, system_charset_info,
                                true) ||

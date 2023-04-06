@@ -483,7 +483,7 @@ class Item_exists_subselect : public Item_subselect {
   Item *truth_transformer(THD *, enum Bool_test test) override;
   bool translate(bool &null_v, bool v);
   void apply_is_true() override {
-    bool had_is = with_is_op();
+    const bool had_is = with_is_op();
     truth_transformer(nullptr, BOOL_IS_TRUE);
     if (!had_is && value_transform == BOOL_IS_TRUE)
       implicit_is_op = true;  // needn't be written by EXPLAIN

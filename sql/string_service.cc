@@ -53,7 +53,7 @@ int mysql_string_convert_to_char_ptr(mysql_string_handle string_handle,
                                      char *buffer, unsigned int buffer_size,
                                      int *error) {
   String *str = (String *)string_handle;
-  int len =
+  const int len =
       (int)my_convert(buffer, buffer_size - 1, &my_charset_utf8mb3_general_ci,
                       str->ptr(), str->length(), str->charset(), (uint *)error);
   buffer[len] = '\0';

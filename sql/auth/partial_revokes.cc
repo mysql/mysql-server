@@ -228,7 +228,7 @@ void DB_restrictions::remove(const ulong revoke_privs) {
 */
 void DB_restrictions::remove(const ulong remove_restrictions,
                              ulong &restriction_mask) const noexcept {
-  ulong mask = restriction_mask ^ remove_restrictions;
+  const ulong mask = restriction_mask ^ remove_restrictions;
   restriction_mask = restriction_mask & mask;
 }
 
@@ -364,7 +364,7 @@ Restrictions_aggregator_factory::create(THD *thd, const ACL_USER *acl_user,
   */
   if (mysqld_partial_revokes() == false || acl_user == nullptr)
     return aggregator;
-  enum_sql_command command = thd->lex->sql_command;
+  const enum_sql_command command = thd->lex->sql_command;
   const Security_context *security_context = thd->security_context();
   /* Fetch grantor Auth_id */
   const Auth_id grantor = fetch_grantor(security_context);
@@ -461,7 +461,7 @@ Auth_id Restrictions_aggregator_factory::fetch_grantor(
   // Fetch the grantor auth_id from security context on master
   grantor_user = sctx->priv_user();
   grantor_host = sctx->priv_host();
-  Auth_id grantor(grantor_user, grantor_host);
+  const Auth_id grantor(grantor_user, grantor_host);
   return grantor;
 }
 
@@ -475,10 +475,11 @@ Auth_id Restrictions_aggregator_factory::fetch_grantor(
 Auth_id Restrictions_aggregator_factory::fetch_grantee(
     const ACL_USER *acl_user) {
   // Fetch the grantee auth_id
-  std::string grantee_user(acl_user->user != nullptr ? acl_user->user : "");
-  std::string grantee_host(
+  const std::string grantee_user(acl_user->user != nullptr ? acl_user->user
+                                                           : "");
+  const std::string grantee_host(
       acl_user->host.get_host() != nullptr ? acl_user->host.get_host() : "");
-  Auth_id grantee(grantee_user, grantee_host);
+  const Auth_id grantee(grantee_user, grantee_host);
   return grantee;
 }
 
@@ -671,7 +672,7 @@ bool DB_restrictions_aggregator::check_db_access_and_restrictions_collision(
     const std::string &db_name) noexcept {
   if (grantee_db_access & grantee_restrictions) {
     // find out the least significant bit(lsb)
-    ulong lsb = grantee_db_access & ~(grantee_db_access - 1);
+    const ulong lsb = grantee_db_access & ~(grantee_db_access - 1);
     // find out the position of the lsb
     size_t index = static_cast<size_t>(std::log2(lsb));
     my_error(ER_PARTIAL_REVOKE_AND_DB_GRANT_BOTH_EXISTS, MYF(0),
@@ -850,7 +851,7 @@ ulong DB_restrictions_aggregator::get_grantee_db_access(
     const std::string &db_name) const {
   ulong db_access;
   if (m_sctx && m_sctx->get_num_active_roles() > 0) {
-    LEX_CSTRING db = {db_name.c_str(), db_name.length()};
+    const LEX_CSTRING db = {db_name.c_str(), db_name.length()};
     db_access = m_sctx->db_acl(db, false);
   } else {
     db_access = acl_get(current_thd, m_grantee.host().c_str(),
@@ -873,7 +874,7 @@ ulong DB_restrictions_aggregator::get_grantee_db_access(
 void DB_restrictions_aggregator::get_grantee_db_access(
     const std::string &db_name, ulong &access) const {
   if (m_sctx && m_sctx->get_num_active_roles() > 0) {
-    LEX_CSTRING db = {db_name.c_str(), db_name.length()};
+    const LEX_CSTRING db = {db_name.c_str(), db_name.length()};
     access = m_sctx->db_acl(db, false);
   }
 }

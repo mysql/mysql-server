@@ -727,7 +727,7 @@ static int socket_event_listen(my_socket fd) {
 
   result = select((int)(fd + 1), &readfds, &writefds, &exceptfds, nullptr);
   if (result < 0) {
-    DWORD error_code = WSAGetLastError();
+    const DWORD error_code = WSAGetLastError();
     verbose_msg("Cannot determine the status due to error :%lu\n", error_code);
   }
   return result;
@@ -760,7 +760,7 @@ static MYSQL_ROW async_mysql_fetch_row_wrapper(MYSQL_RES *res) {
   AsyncTimer t(__func__);
   while (mysql_fetch_row_nonblocking(res, &row) == NET_ASYNC_NOT_READY) {
     t.check();
-    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
+    const int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return nullptr;
   }
   return row;
@@ -772,7 +772,7 @@ static MYSQL_RES *async_mysql_store_result_wrapper(MYSQL *mysql) {
   while (mysql_store_result_nonblocking(mysql, &mysql_result) ==
          NET_ASYNC_NOT_READY) {
     t.check();
-    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
+    const int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return nullptr;
   }
   return mysql_result;
@@ -785,7 +785,7 @@ static int async_mysql_real_query_wrapper(MYSQL *mysql, const char *query,
   while ((status = mysql_real_query_nonblocking(mysql, query, length)) ==
          NET_ASYNC_NOT_READY) {
     t.check();
-    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
+    const int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return 1;
   }
   if (status == NET_ASYNC_ERROR) {
@@ -801,7 +801,7 @@ static int async_mysql_send_query_wrapper(MYSQL *mysql, const char *query,
   while ((status = mysql_send_query_nonblocking(mysql, query, length)) ==
          NET_ASYNC_NOT_READY) {
     t.check();
-    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
+    const int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return 1;
   }
   if (status == NET_ASYNC_ERROR) {
@@ -816,7 +816,7 @@ static bool async_mysql_read_query_result_wrapper(MYSQL *mysql) {
   while ((status = (*mysql->methods->read_query_result_nonblocking)(mysql)) ==
          NET_ASYNC_NOT_READY) {
     t.check();
-    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
+    const int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return true;
   }
   if (status == NET_ASYNC_ERROR) {
@@ -831,7 +831,7 @@ static int async_mysql_next_result_wrapper(MYSQL *mysql) {
   while ((status = mysql_next_result_nonblocking(mysql)) ==
          NET_ASYNC_NOT_READY) {
     t.check();
-    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
+    const int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return 1;
   }
   if (status == NET_ASYNC_ERROR)
@@ -865,7 +865,7 @@ static int async_mysql_query_wrapper(MYSQL *mysql, const char *query) {
   while ((status = mysql_real_query_nonblocking(mysql, query, strlen(query))) ==
          NET_ASYNC_NOT_READY) {
     t.check();
-    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
+    const int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return 1;
   }
   if (status == NET_ASYNC_ERROR) {
@@ -879,7 +879,8 @@ static void async_mysql_free_result_wrapper(MYSQL_RES *result) {
   while (mysql_free_result_nonblocking(result) == NET_ASYNC_NOT_READY) {
     t.check();
     MYSQL *mysql = result->handle;
-    int listen_result = socket_event_listen(mysql_get_socket_descriptor(mysql));
+    const int listen_result =
+        socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (listen_result == -1) return;
   }
   return;
@@ -1064,7 +1065,7 @@ static void show_query(MYSQL *mysql, const char *query) {
     MYSQL_ROW row;
     unsigned int i;
     unsigned int row_num = 0;
-    unsigned int num_fields = mysql_num_fields(res);
+    const unsigned int num_fields = mysql_num_fields(res);
     MYSQL_FIELD *fields = mysql_fetch_fields(res);
 
     fprintf(stderr, "=== %s ===\n", query);
@@ -1122,7 +1123,7 @@ static void show_warnings_before_error(MYSQL *mysql) {
   } else {
     MYSQL_ROW row;
     unsigned int row_num = 0;
-    unsigned int num_fields = mysql_num_fields(res);
+    const unsigned int num_fields = mysql_num_fields(res);
 
     fprintf(stderr, "\nWarnings from just before the error:\n");
     while ((row = mysql_fetch_row_wrapper(res))) {
@@ -1308,7 +1309,7 @@ void handle_error(struct st_command *command, std::uint32_t err_errno,
 
   DBUG_PRINT("info", ("Expected errors count: %zu", expected_errors->count()));
 
-  int i = match_expected_error(command, err_errno, err_sqlstate);
+  const int i = match_expected_error(command, err_errno, err_sqlstate);
 
   if (i >= 0) {
     if (!disable_result_log) {
@@ -1370,7 +1371,7 @@ void handle_no_error(struct st_command *command) {
   DBUG_TRACE;
 
   if (expected_errors->count()) {
-    int index = match_expected_error(command, 0, "00000");
+    const int index = match_expected_error(command, 0, "00000");
     if (index == -1) {
       if (expected_errors->count() == 1) {
         die("Query '%s' succeeded, should have failed with error '%s'",
@@ -1389,7 +1390,7 @@ void handle_no_error(struct st_command *command) {
 /// @param error Error code
 static void save_error_code(std::uint32_t error) {
   char error_value[10];
-  size_t error_length = std::snprintf(error_value, 10, "%u", error);
+  const size_t error_length = std::snprintf(error_value, 10, "%u", error);
   error_value[error_length > 9 ? 9 : error_length] = '0';
   const char *var_name = "__error";
   var_set(var_name, var_name + 7, error_value, error_value + error_length);
@@ -1417,7 +1418,7 @@ static void handle_command_error(struct st_command *command,
   }
 
   if (expected_errors->count()) {
-    int index = match_expected_error(command, error, nullptr);
+    const int index = match_expected_error(command, error, nullptr);
     if (index == -1) {
       if (error != 0) {
         if (expected_errors->count() == 1) {
@@ -1921,7 +1922,7 @@ static bool is_diff_clean_except_hypergraph(DYNAMIC_STRING *ds) {
       line_end = end;
     }
 
-    size_t line_length = line_end - ptr;
+    const size_t line_length = line_end - ptr;
     if (state == LOOKING_FOR_FIRST_HUNK) {
       if (line_length < 2) {
         // Malformed diff, give up.
@@ -2237,7 +2238,8 @@ static void check_result() {
         die("Failed to copy '%s' to '%s', errno: %d", log_file.file_name(),
             reject_file, errno);
 
-      bool ignored_diff = show_diff(nullptr, result_file_name, reject_file);
+      const bool ignored_diff =
+          show_diff(nullptr, result_file_name, reject_file);
       if (ignored_diff) {
         abort_not_supported_test(
             "Hypergraph optimizer did not support all queries.");
@@ -2480,11 +2482,11 @@ static void var_set_errno(int sql_errno) {
 /// enabled warnings.
 static void update_disabled_enabled_warnings_list_var() {
   // Update '$DISABLED_WARNINGS_LIST' variable
-  std::string disabled_warning_list = disabled_warnings->warnings_list();
+  const std::string disabled_warning_list = disabled_warnings->warnings_list();
   var_set_string("DISABLED_WARNINGS_LIST", disabled_warning_list.c_str());
 
   // Update '$ENABLED_WARNINGS_LIST' variable
-  std::string enabled_warning_list = enabled_warnings->warnings_list();
+  const std::string enabled_warning_list = enabled_warnings->warnings_list();
   var_set_string("ENABLED_WARNINGS_LIST", enabled_warning_list.c_str());
 }
 
@@ -2565,8 +2567,8 @@ void revert_properties() {
 /* Operands available in if or while conditions */
 enum block_op { EQ_OP, NE_OP, GT_OP, GE_OP, LT_OP, LE_OP, ILLEG_OP };
 static enum block_op find_operand(const char *start) {
-  char first = *start;
-  char next = *(start + 1);
+  const char first = *start;
+  const char next = *(start + 1);
   if (first == '=' && next == '=') return EQ_OP;
   if (first == '!' && next == '=') return NE_OP;
   if (first == '>' && next == '=') return GE_OP;
@@ -2619,7 +2621,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
 
   while (my_isspace(charset_info, *end_ptr) && end_ptr < expr_end) end_ptr++;
   if (end_ptr != expr_end) {
-    enum block_op operand = find_operand(end_ptr);
+    const enum block_op operand = find_operand(end_ptr);
     if (operand != ILLEG_OP && backtick_lhs)
       die("LHS of expression must be variable");
     else
@@ -2664,7 +2666,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
         size_t len = lengths[i];
 
         if (glob_replace_regex) {
-          size_t orig_len = len;
+          const size_t orig_len = len;
           // Regex replace
           if (!multi_reg_replace(glob_replace_regex, (char *)val, &len)) {
             val = glob_replace_regex->buf;
@@ -2789,15 +2791,15 @@ static void var_set_convert_error(struct st_command *command, VAR *var) {
 
   // If the string is an error string , it starts with 'E' as is the norm
   if (*first == 'E') {
-    std::string error_name(first, int(last - first));
-    int error = get_errcode_from_name(error_name);
+    const std::string error_name(first, int(last - first));
+    const int error = get_errcode_from_name(error_name);
     if (error == -1) die("Unknown SQL error name '%s'.", error_name.c_str());
     char str[100];
     std::sprintf(str, "%d", error);
     eval_expr(var, str, nullptr);
   } else if (my_isdigit(charset_info, *first)) {
     // Error number argument
-    long int err = std::strtol(first, &last, 0);
+    const long int err = std::strtol(first, &last, 0);
     const char *err_name = get_errname_from_code(err);
     eval_expr(var, err_name, nullptr);
   } else {
@@ -2875,7 +2877,7 @@ static void var_set_escape(struct st_command *command, VAR *dst) {
         while (*p != '\0' && *p != ',' && *p != '\n' && *p != '\r') ++p;
         // Find ,
         if (*p == ',') {
-          size_t char_len = p - char_start;
+          const size_t char_len = p - char_start;
           ++p;
           // Find .*$
           char *text_start = p;
@@ -2883,7 +2885,7 @@ static void var_set_escape(struct st_command *command, VAR *dst) {
           // Find )
           --p;
           if (*p == ')') {
-            size_t text_len = p - text_start;
+            const size_t text_len = p - text_start;
             return std::make_tuple(std::string(char_start, char_len),
                                    std::string(text_start, text_len), false);
           }
@@ -3016,7 +3018,7 @@ static void var_set_query_get_value(struct st_command *command, VAR *var) {
   {
     /* Find column number from the given column name */
     uint i;
-    uint num_fields = mysql_num_fields(res);
+    const uint num_fields = mysql_num_fields(res);
     MYSQL_FIELD *fields = mysql_fetch_fields(res);
 
     for (i = 0; i < num_fields; i++) {
@@ -3139,10 +3141,10 @@ void eval_expr(VAR *v, const char *p, const char **p_end, bool open_end,
   }
 
 NO_EVAL : {
-  size_t new_val_len =
+  const size_t new_val_len =
       (p_end && *p_end) ? static_cast<size_t>(*p_end - p) : std::strlen(p);
   if (new_val_len + 1 >= v->alloced_len) {
-    static size_t MIN_VAR_ALLOC = 32;
+    static const size_t MIN_VAR_ALLOC = 32;
     v->alloced_len =
         (new_val_len < MIN_VAR_ALLOC - 1) ? MIN_VAR_ALLOC : new_val_len + 1;
     if (!(v->str_val =
@@ -3868,9 +3870,8 @@ static int recursive_copy(DYNAMIC_STRING *ds_source,
       Storing the length of source and destination
       directory paths so it can be reused.
     */
-    size_t source_dir_length = ds_source->length;
-    size_t destination_dir_length = ds_destination->length;
-    ;
+    const size_t source_dir_length = ds_source->length;
+    const size_t destination_dir_length = ds_destination->length;
 
     for (uint i = 0; i < src_dir_info->number_off_files; i++) {
       ds_source->length = source_dir_length;
@@ -4325,7 +4326,7 @@ void do_force_rmdir(struct st_command *command, DYNAMIC_STRING *ds_dirname) {
 
   if (dir_info && dir_info->number_off_files > 2) {
     /* Storing the length of the path to the file, so it can be reused */
-    size_t length = ds_dirname->length;
+    const size_t length = ds_dirname->length;
 
     /* Delete the directory recursively */
     for (uint i = 0; i < dir_info->number_off_files; i++) {
@@ -4349,7 +4350,7 @@ void do_force_rmdir(struct st_command *command, DYNAMIC_STRING *ds_dirname) {
   }
 
   my_dirend(dir_info);
-  int error = rmdir(dir_name) != 0;
+  const int error = rmdir(dir_name) != 0;
   set_my_errno(errno);
   handle_command_error(command, error);
 }
@@ -4911,7 +4912,7 @@ static void do_perl(struct st_command *command) {
     if (!error) my_delete(temp_file_path, MYF(0));
 
     /* Check for error code that indicates perl could not be started */
-    int exstat = WEXITSTATUS(error);
+    const int exstat = WEXITSTATUS(error);
 #ifdef _WIN32
     if (exstat == 1) /* Text must begin 'perl not found' as mtr looks for it */
       abort_not_supported_test("perl not found in path or did not start");
@@ -4962,7 +4963,7 @@ static int do_echo(struct st_command *command) {
 }
 
 static void do_wait_for_slave_to_stop(struct st_command *c [[maybe_unused]]) {
-  static int SLAVE_POLL_INTERVAL = 300000;
+  static const int SLAVE_POLL_INTERVAL = 300000;
   MYSQL *mysql = &cur_con->mysql;
   for (;;) {
     MYSQL_RES *res = nullptr;
@@ -4998,7 +4999,7 @@ static void do_sync_with_master2(struct st_command *command, long offset) {
   MYSQL_ROW row;
   MYSQL *mysql = &cur_con->mysql;
   char query_buf[FN_REFLEN + 128];
-  int timeout = 300; /* seconds */
+  const int timeout = 300; /* seconds */
 
   if (!master_pos.file[0])
     die("Calling 'sync_with_master' without calling 'save_master_pos'");
@@ -5726,7 +5727,7 @@ static void abort_process(int pid, const char *path [[maybe_unused]]) {
     /* If running in a debugger, send a break, otherwise terminate. */
     if (CheckRemoteDebuggerPresent(proc, &is_debugged) && is_debugged) {
       if (!DebugBreakProcess(proc)) {
-        DWORD err = GetLastError();
+        const DWORD err = GetLastError();
         verbose_msg("DebugBreakProcess failed: %lu\n", err);
       } else
         verbose_msg("DebugBreakProcess succeeded!\n");
@@ -5736,7 +5737,7 @@ static void abort_process(int pid, const char *path [[maybe_unused]]) {
       (void)kill_process(pid);
     }
   } else {
-    DWORD err = GetLastError();
+    const DWORD err = GetLastError();
     verbose_msg("OpenProcess failed: %lu\n", err);
   }
 #else
@@ -5804,7 +5805,7 @@ static void do_shutdown_server(struct st_command *command) {
 
   my_close(fd, MYF(0));
 
-  int pid = std::atoi(buff);
+  const int pid = std::atoi(buff);
   if (pid == 0) die("Pidfile didn't contain a valid number");
 
   int error = 0;
@@ -5981,7 +5982,7 @@ static void get_warning_codes(struct st_command *command,
 
     // Check if a warning name is a valid symbolic error name.
     if (warning.front() == 'E' || warning.front() == 'W') {
-      int warning_code = get_errcode_from_name(warning);
+      const int warning_code = get_errcode_from_name(warning);
       if (warning_code == -1)
         die("Unknown SQL error name '%s'.", warning.c_str());
       if (command->type == Q_DISABLE_WARNINGS)
@@ -6038,7 +6039,8 @@ static bool parse_warning_list_argument(struct st_command *command) {
   // argument to a disable_warnings or a enable_warnings command.
   // Filter this keyword from the argument string and save only the
   // list of warnings.
-  bool once_prop = check_and_filter_once_property(ds_property, &warn_argument);
+  const bool once_prop =
+      check_and_filter_once_property(ds_property, &warn_argument);
 
   // Free all the DYNAMIC_STRING objects created
   free_dynamic_strings(&ds_warnings, &ds_property);
@@ -6208,14 +6210,14 @@ static void do_error(struct st_command *command) {
     // Checking for both server error names as well as client error names.
     else if (error.front() == 'C' || error.front() == 'E') {
       // Code to handle --error <error_string>.
-      int error_code = get_errcode_from_name(error);
+      const int error_code = get_errcode_from_name(error);
       if (error_code == -1) die("Unknown SQL error name '%s'.", error.c_str());
       expected_errors->add_error(error_code, ERR_ERRNO);
     } else if (error.front() == 'c' || error.front() == 'e') {
       die("The error name definition must start with an uppercase C or E.");
     } else {
       // Check that the string passed to error command contains only digits.
-      int error_code = get_int_val(error.c_str());
+      const int error_code = get_int_val(error.c_str());
       if (error_code == -1)
         die("Invalid argument '%s' to 'error' command, the argument may "
             "consist of either symbolic error names or error codes.",
@@ -6628,7 +6630,7 @@ static void do_connect(struct st_command *command) {
   bool con_ssl = false, con_compress = false;
   bool con_pipe = false, con_shm = false, con_cleartext_enable = false;
   struct st_connection *con_slot;
-  uint save_opt_ssl_mode = opt_ssl_mode;
+  const uint save_opt_ssl_mode = opt_ssl_mode;
 
   static DYNAMIC_STRING ds_connection_name;
   static DYNAMIC_STRING ds_host;
@@ -6715,7 +6717,7 @@ static void do_connect(struct st_command *command) {
     char *end = con_options;
     while (*end && !my_isspace(charset_info, *end)) end++;
 
-    size_t con_option_len = end - con_options;
+    const size_t con_option_len = end - con_options;
     char cur_con_option[10] = {};
     strmake(cur_con_option, con_options, con_option_len);
 
@@ -7038,7 +7040,7 @@ static void do_block(enum block_cmd cmd, struct st_command *command) {
     /* If there was nothing past the variable, skip condition part */
     if (curr_ptr == expr_end) goto NO_COMPARE;
 
-    enum block_op operand = find_operand(curr_ptr);
+    const enum block_op operand = find_operand(curr_ptr);
     if (operand == ILLEG_OP)
       die("Found junk '%.*s' after $variable in condition",
           (int)(expr_end - curr_ptr), curr_ptr);
@@ -7122,7 +7124,7 @@ static void do_block(enum block_cmd cmd, struct st_command *command) {
     while (my_isspace(charset_info, *endptr)) endptr++;
 
     if (*endptr != '\0') {
-      enum block_op operand = find_operand(endptr);
+      const enum block_op operand = find_operand(endptr);
       if (operand == ILLEG_OP)
         die("Found junk '%s' in %s() condition", endptr, cmd_name);
       else
@@ -7426,7 +7428,7 @@ static int read_line(char *buf, int size) {
         charlen = my_mbcharlen(charset_info, (unsigned char)c);
       else {
         if (!(charlen = my_mbcharlen(charset_info, (unsigned char)c))) {
-          int c1 = my_getc(cur_file->file);
+          const int c1 = my_getc(cur_file->file);
           if (c1 == EOF) {
             *p++ = c;
             goto found_eof;
@@ -7885,7 +7887,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
                            char *argument) {
   if (opt_test_ssl_fips_mode) {
     char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
-    int fips_test = test_ssl_fips_mode(ssl_err_string);
+    const int fips_test = test_ssl_fips_mode(ssl_err_string);
     fprintf(stdout, "--test-ssl-fips-mode %d %s\n", fips_test,
             fips_test == 0 ? ssl_err_string : "Success");
     exit(0);
@@ -8122,7 +8124,7 @@ void init_win_path_patterns() {
       "$MASTER_MYSOCK",  "$MYSQL_SHAREDIR", "$MYSQL_CHARSETSDIR",
       "$MYSQL_LIBDIR",   "./test/",         ".ibd",
       ".\\ibdata",       ".\\ibtmp",        ".\\undo"};
-  int num_paths = sizeof(paths) / sizeof(char *);
+  const int num_paths = sizeof(paths) / sizeof(char *);
   int i;
   char *p;
 
@@ -8260,7 +8262,7 @@ static void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD *field,
 
 static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res) {
   MYSQL_ROW row;
-  uint num_fields = mysql_num_fields(res);
+  const uint num_fields = mysql_num_fields(res);
   MYSQL_FIELD *fields = mysql_fetch_fields(res);
   ulong *lengths;
 
@@ -8299,7 +8301,7 @@ static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
 
   /* Allocate data for the result of each field */
   for (i = 0; i < num_fields; i++) {
-    size_t max_length = fields[i].max_length + 1;
+    const size_t max_length = fields[i].max_length + 1;
     my_bind[i].buffer_type = MYSQL_TYPE_STRING;
     my_bind[i].buffer =
         my_malloc(PSI_NOT_INSTRUMENTED, max_length, MYF(MY_WME | MY_FAE));
@@ -8488,7 +8490,7 @@ static bool handle_one_warning(DYNAMIC_STRING *ds, std::string warning) {
   std::stringstream warn_msg(warning);
 
   while (std::getline(warn_msg, error_code, '\t')) {
-    int errcode = get_int_val(error_code.c_str());
+    const int errcode = get_int_val(error_code.c_str());
     if (errcode != -1) {
       if (disabled_warnings->count()) {
         // Print the warning if it doesn't match with any of the
@@ -8637,7 +8639,7 @@ static void run_query_normal(struct st_connection *cn,
     if (!disable_result_log) {
       if (res) {
         MYSQL_FIELD *fields = mysql_fetch_fields(res);
-        std::uint32_t num_fields = mysql_num_fields(res);
+        const std::uint32_t num_fields = mysql_num_fields(res);
 
         if (display_metadata) append_metadata(ds, fields, num_fields);
 
@@ -8795,7 +8797,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
       if ((res = mysql_stmt_result_metadata(stmt)) != nullptr) {
         // Take the column count from meta info
         MYSQL_FIELD *fields = mysql_fetch_fields(res);
-        std::uint32_t num_fields = mysql_num_fields(res);
+        const std::uint32_t num_fields = mysql_num_fields(res);
 
         if (display_metadata) append_metadata(ds, fields, num_fields);
 
@@ -8935,7 +8937,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
   const char *query;
   size_t query_len;
   bool view_created = false, sp_created = false;
-  bool complete_query =
+  const bool complete_query =
       ((flags & QUERY_SEND_FLAG) && (flags & QUERY_REAP_FLAG));
   DBUG_TRACE;
   dynstr_set(&ds_result, "");
@@ -9129,7 +9131,7 @@ static void display_opt_trace(struct st_connection *cn,
   if (!disable_query_log && opt_trace_protocol_enabled && !cn->pending &&
       !expected_errors->count() &&
       search_protocol_re(&opt_trace_re, command->query)) {
-    st_command save_command = *command;
+    const st_command save_command = *command;
     DYNAMIC_STRING query_str;
     init_dynamic_string(&query_str,
                         "SELECT trace FROM information_schema.optimizer_trace"
@@ -9155,7 +9157,7 @@ static void run_explain(struct st_connection *cn, struct st_command *command,
                         int flags, bool json) {
   if ((flags & QUERY_REAP_FLAG) && !expected_errors->count() &&
       search_protocol_re(&explain_re, command->query)) {
-    st_command save_command = *command;
+    const st_command save_command = *command;
     DYNAMIC_STRING query_str;
     DYNAMIC_STRING ds_warning_messages;
 
@@ -9235,7 +9237,7 @@ static void mark_progress(Logfile *progress_file, int line) {
   std::string str_progress;
 
   // Milliseconds since start
-  std::string str_timer = std::to_string(timer);
+  const std::string str_timer = std::to_string(timer);
   str_progress.append(str_timer);
   str_progress.append("\t");
 
@@ -9349,7 +9351,7 @@ static void handle_wait_stacktrace_request_event() {
 
   // Suspend the thread running the test
   if (SuspendThread(mysqltest_thread) == static_cast<DWORD>(-1)) {
-    DWORD error = GetLastError();
+    const DWORD error = GetLastError();
     CloseHandle(mysqltest_thread);
     die("Error suspending thread, err = %lu.\n", error);
   }
@@ -9359,7 +9361,7 @@ static void handle_wait_stacktrace_request_event() {
   test_thread_ctx.ContextFlags = CONTEXT_FULL;
 
   if (GetThreadContext(mysqltest_thread, &test_thread_ctx) == FALSE) {
-    DWORD error = GetLastError();
+    const DWORD error = GetLastError();
     CloseHandle(mysqltest_thread);
     die("Error while fetching thread conext information, err = %lu.\n", error);
   }
@@ -9376,7 +9378,7 @@ static void handle_wait_stacktrace_request_event() {
 
   // Resume the suspended test thread
   if (ResumeThread(mysqltest_thread) == static_cast<DWORD>(-1)) {
-    DWORD error = GetLastError();
+    const DWORD error = GetLastError();
     CloseHandle(mysqltest_thread);
     die("Error resuming thread, err = %lu.\n", error);
   }
@@ -9387,7 +9389,8 @@ static void handle_wait_stacktrace_request_event() {
 /// Thread waiting for timeout event to occur. If the event occurs,
 /// this method will trigger signal_handler() function.
 static void wait_stacktrace_request_event() {
-  DWORD wait_res = WaitForSingleObject(stacktrace_request_event, INFINITE);
+  const DWORD wait_res =
+      WaitForSingleObject(stacktrace_request_event, INFINITE);
   switch (wait_res) {
     case WAIT_OBJECT_0:
       handle_wait_stacktrace_request_event();
@@ -9661,7 +9664,7 @@ int main(int argc, char **argv) {
   set_current_connection(con);
 
   if (opt_hypergraph) {
-    int error = mysql_query_wrapper(
+    const int error = mysql_query_wrapper(
         &con->mysql, "SET optimizer_switch='hypergraph_optimizer=on';");
     if (error != 0) {
       die("--hypergraph was given, but the server does not support the "
@@ -9934,7 +9937,7 @@ int main(int argc, char **argv) {
           [[fallthrough]];
         case Q_QUERY:
         case Q_REAP: {
-          bool old_display_result_vertically = display_result_vertically;
+          const bool old_display_result_vertically = display_result_vertically;
           /* Default is full query, both reap and send  */
           int flags = QUERY_REAP_FLAG | QUERY_SEND_FLAG;
 
@@ -10324,7 +10327,7 @@ int main(int argc, char **argv) {
 void timer_output(void) {
   if (timer_file) {
     char buf[32], *end;
-    ulonglong timer = timer_now() - timer_start;
+    const ulonglong timer = timer_now() - timer_start;
     end = longlong10_to_str(timer, buf, 10);
     str_to_file(timer_file, buf, (int)(end - buf));
     /* Timer has been written to the file, don't use it anymore */
@@ -10476,7 +10479,7 @@ void replace_numeric_round_append(int round, DYNAMIC_STRING *result,
       case 'E':
         if (isdigit(*(from + size + 1))) {
           char *end;
-          double val = strtod(from, &end);
+          const double val = strtod(from, &end);
           if (end != nullptr) {
             const char *format = (val < 1e10 && val > -1e10) ? "%.*f" : "%.*e";
             char buf[40];
@@ -10658,7 +10661,7 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING *ds, const char *str,
 
 #define PARSE_REGEX_ARG     \
   while (p < expr_end) {    \
-    char c = *p;            \
+    const char c = *p;      \
     if (c == '/') {         \
       if (last_c == '\\') { \
         buf_p[-1] = '/';    \
@@ -10687,7 +10690,7 @@ static struct st_replace_regex *init_replace_regex(const char *expr) {
   const char *expr_end;
   const char *p;
   char *buf_p;
-  size_t expr_len = std::strlen(expr);
+  const size_t expr_len = std::strlen(expr);
   char last_c = 0;
   struct st_regex reg;
 
@@ -11282,7 +11285,7 @@ int insert_pointer_name(POINTER_ARRAY *pa, char *name) {
                                         MYF(MY_WME))))
       return 1;
     if (new_pos != pa->str) {
-      ptrdiff_t diff = new_pos - pa->str;
+      const ptrdiff_t diff = new_pos - pa->str;
       for (i = 0; i < pa->typelib.count; i++)
         pa->typelib.type_names[i] = pa->typelib.type_names[i] + diff;
       pa->str = new_pos;
@@ -11340,7 +11343,7 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
   }
 
   if (glob_replace_regex) {
-    size_t orig_len = len;
+    const size_t orig_len = len;
     // Regex replace
     if (!multi_reg_replace(glob_replace_regex, const_cast<char *>(val), &len)) {
       val = glob_replace_regex->buf;

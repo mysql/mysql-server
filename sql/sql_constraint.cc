@@ -200,9 +200,9 @@ bool Enforce_constraint_type_resolver::resolve_constraint_type(
   // CHECK constraint.
   if (is_check_constraint(src_table, alter_constraint->name)) {
     type = Alter_constraint_enforcement::Type::CHECK_CONSTRAINT;
-    ulonglong check_cons_flag = alter_constraint->is_enforced
-                                    ? Alter_info::ENFORCE_CHECK_CONSTRAINT
-                                    : Alter_info::SUSPEND_CHECK_CONSTRAINT;
+    const ulonglong check_cons_flag =
+        alter_constraint->is_enforced ? Alter_info::ENFORCE_CHECK_CONSTRAINT
+                                      : Alter_info::SUSPEND_CHECK_CONSTRAINT;
     m_flags |= ((m_alter_info->flags ^ check_cons_flag) & check_cons_flag);
   }
 

@@ -389,7 +389,7 @@ bool Sql_cmd_discard_import_tablespace::execute(THD *thd) {
     it is the case.
     TODO: this design is obsolete and will be removed.
   */
-  enum_log_table_type table_kind =
+  const enum_log_table_type table_kind =
       query_logger.check_if_log_table(table_list, false);
 
   if (table_kind != QUERY_LOG_NONE) {

@@ -130,7 +130,7 @@ Channel_info *Named_pipe_listener::listen_for_connection_event() {
         NMPWAIT_USE_DEFAULT_WAIT, mp_sa_pipe_security);
     mysql_rwlock_unlock(&LOCK_named_pipe_full_access_group);
     if (m_pipe_handle == INVALID_HANDLE_VALUE) {
-      DWORD last_error_num = GetLastError();
+      const DWORD last_error_num = GetLastError();
       FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS |
                         FORMAT_MESSAGE_MAX_WIDTH_MASK,
                     NULL, last_error_num,
@@ -156,7 +156,7 @@ Channel_info *Named_pipe_listener::listen_for_connection_event() {
       mp_sa_pipe_security);
   mysql_rwlock_unlock(&LOCK_named_pipe_full_access_group);
   if (m_pipe_handle == INVALID_HANDLE_VALUE) {
-    DWORD last_error_num = GetLastError();
+    const DWORD last_error_num = GetLastError();
     FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS |
                       FORMAT_MESSAGE_MAX_WIDTH_MASK,
                   NULL, last_error_num,
@@ -215,7 +215,7 @@ bool Named_pipe_listener::update_named_pipe_full_access_group(
                                    &dacl_present_in_descriptor, &pdacl,
                                    &dacl_defaulted) ||
         !dacl_present_in_descriptor) {
-      DWORD last_error_num = GetLastError();
+      const DWORD last_error_num = GetLastError();
       FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
                     NULL, last_error_num,
                     MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
@@ -225,7 +225,7 @@ bool Named_pipe_listener::update_named_pipe_full_access_group(
                   "GetSecurityDescriptorDacl failed", last_error_msg);
       return true;
     }
-    DWORD res =
+    const DWORD res =
         SetSecurityInfo(m_pipe_handle, SE_KERNEL_OBJECT,
                         DACL_SECURITY_INFORMATION, NULL, NULL, pdacl, NULL);
     if (res != ERROR_SUCCESS) {

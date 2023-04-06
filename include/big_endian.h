@@ -68,7 +68,7 @@ static inline longlong sint8korr(const uchar *A) {
 }
 
 static inline void int2store(uchar *T, uint16 A) {
-  uint def_temp = A;
+  const uint def_temp = A;
   *(T) = (uchar)(def_temp);
   *(T + 1) = (uchar)(def_temp >> 8);
 }
@@ -91,7 +91,7 @@ static inline void int7store(uchar *T, ulonglong A) {
 }
 
 static inline void int8store(uchar *T, ulonglong A) {
-  uint def_temp = (uint)A, def_temp2 = (uint)(A >> 32);
+  const uint def_temp = (uint)A, def_temp2 = (uint)(A >> 32);
   int4store(T, def_temp);
   int4store(T + 4, def_temp2);
 }

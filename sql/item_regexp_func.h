@@ -112,9 +112,9 @@ class Item_func_regexp : public Item_func {
 
   /// The value of the `position` argument, or its default if absent.
   std::optional<int> position() const {
-    int the_index = pos_arg_pos();
+    const int the_index = pos_arg_pos();
     if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
-      int value = args[the_index]->val_int();
+      const int value = args[the_index]->val_int();
       /*
         Note: Item::null_value() can't be trusted alone here; there are cases
         (for the DATE data type in particular) where we can have it set
@@ -131,9 +131,9 @@ class Item_func_regexp : public Item_func {
 
   /// The value of the `occurrence` argument, or its default if absent.
   std::optional<int> occurrence() const {
-    int the_index = occ_arg_pos();
+    const int the_index = occ_arg_pos();
     if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
-      int value = args[the_index]->val_int();
+      const int value = args[the_index]->val_int();
       /*
         Note: Item::null_value() can't be trusted alone here; there are cases
         (for the DATE data type in particular) where we can have it set
@@ -150,7 +150,7 @@ class Item_func_regexp : public Item_func {
 
   /// The value of the `match_parameter` argument, or an empty string if absent.
   std::optional<std::string> match_parameter() const {
-    int the_index = match_arg_pos();
+    const int the_index = match_arg_pos();
     if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
       StringBuffer<5> buf;  // Longer match_parameter doesn't make sense.
       String *s = args[the_index]->val_str(&buf);
@@ -246,9 +246,9 @@ class Item_func_regexp_instr : public Item_func_regexp {
 
   /// The value of the `return_option` argument, or its default if absent.
   std::optional<int> return_option() const {
-    int the_index = retopt_arg_pos();
+    const int the_index = retopt_arg_pos();
     if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
-      int value = args[the_index]->val_int();
+      const int value = args[the_index]->val_int();
       if (args[the_index]->null_value)
         return std::optional<int>();
       else

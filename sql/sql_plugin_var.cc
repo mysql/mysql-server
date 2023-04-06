@@ -128,7 +128,7 @@ bool plugin_var_memalloc_session_update(THD *thd, SYS_VAR *var, char **dest,
   DBUG_TRACE;
 
   if (value) {
-    size_t length = strlen(value) + 1;
+    const size_t length = strlen(value) + 1;
     LIST *element;
     if (!(element = (LIST *)my_malloc(key_memory_THD_variables,
                                       sizeof(LIST) + length, MYF(MY_WME))))

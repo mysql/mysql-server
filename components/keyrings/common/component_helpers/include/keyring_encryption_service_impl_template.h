@@ -74,8 +74,8 @@ bool aes_get_encrypted_size_template(size_t input_length, const char *mode,
       return true;
     }
 
-    Aes_operation_context context(std::string{}, std::string{}, mode,
-                                  block_size);
+    const Aes_operation_context context(std::string{}, std::string{}, mode,
+                                        block_size);
     if (context.valid() == false) return true;
     *out_size = get_ciphertext_size(input_length, context.opmode());
     return false;

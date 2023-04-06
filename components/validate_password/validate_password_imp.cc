@@ -256,7 +256,7 @@ static int validate_dictionary_check(my_h_string password) {
   mysql_service_mysql_string_factory->destroy(lower_string_handle);
   int substr_pos = 0;
   int substr_length = length;
-  string_type password_str = string_type((const char *)buffer, length);
+  const string_type password_str = string_type((const char *)buffer, length);
   string_type password_substr;
   set_type::iterator itr;
   /*

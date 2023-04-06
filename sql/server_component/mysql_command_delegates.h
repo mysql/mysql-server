@@ -44,7 +44,7 @@ class Command_delegate {
   Command_delegate &operator=(Command_delegate &&) = default;
 
   const st_command_service_cbs *callbacks() const {
-    static st_command_service_cbs cbs = {
+    static const st_command_service_cbs cbs = {
         &Command_delegate::call_start_result_metadata,
         &Command_delegate::call_field_metadata,
         &Command_delegate::call_end_result_metadata,
@@ -309,7 +309,7 @@ class Command_delegate {
                                       uint warn_count) {
     assert(ctx);
     Command_delegate *self = static_cast<Command_delegate *>(ctx);
-    int tmp = self->end_result_metadata(server_status, warn_count);
+    const int tmp = self->end_result_metadata(server_status, warn_count);
     return tmp;
   }
 

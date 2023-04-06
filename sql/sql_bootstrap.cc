@@ -343,7 +343,7 @@ int read_bootstrap_query(char *query, size_t *query_length, MYSQL_FILE *input,
        error message.
     */
     if (query_len + len + 1 >= MAX_BOOTSTRAP_QUERY_SIZE) {
-      size_t new_len = MAX_BOOTSTRAP_QUERY_SIZE - query_len - 1;
+      const size_t new_len = MAX_BOOTSTRAP_QUERY_SIZE - query_len - 1;
       if ((new_len > 0) && (query_len < MAX_BOOTSTRAP_QUERY_SIZE)) {
         memcpy(query + query_len, line, new_len);
         query_len += new_len;
@@ -365,7 +365,7 @@ int read_bootstrap_query(char *query, size_t *query_length, MYSQL_FILE *input,
         Append the partial current line to the query,
         up to the delimiter.
       */
-      size_t partial_len = after_delimiter_index;
+      const size_t partial_len = after_delimiter_index;
       memcpy(query + query_len, line, partial_len);
       query_len += partial_len;
 
@@ -377,7 +377,7 @@ int read_bootstrap_query(char *query, size_t *query_length, MYSQL_FILE *input,
 
       if (remaining_line_index < len) {
         const char *remaining_line = &line[remaining_line_index];
-        size_t remaining_len = len - remaining_line_index;
+        const size_t remaining_len = len - remaining_line_index;
         assert(remaining_len + 1 < MAX_BOOTSTRAP_LINE_SIZE);
         /* Unput a partial line, including a terminating '\0' */
         memcpy(state->m_unget_buffer.get(), remaining_line, remaining_len + 1);

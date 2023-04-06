@@ -139,9 +139,9 @@ struct sql_digest_storage {
       as the thread producing the digest is executing concurrently,
       without any lock enforced.
     */
-    size_t byte_count_copy = m_token_array_length < from->m_byte_count
-                                 ? m_token_array_length
-                                 : from->m_byte_count;
+    const size_t byte_count_copy = m_token_array_length < from->m_byte_count
+                                       ? m_token_array_length
+                                       : from->m_byte_count;
 
     if (byte_count_copy > 0) {
       m_full = from->m_full;

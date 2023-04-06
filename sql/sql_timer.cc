@@ -199,7 +199,7 @@ static bool reap_timer(THD_timer_info *thd_timer, bool pending) {
     expiring. Otherwise, the timer notification function might be
     executing asynchronously in the context of a separate thread.
   */
-  bool unreachable = pending ? thd_timer->thread_id == 0 : true;
+  const bool unreachable = pending ? thd_timer->thread_id == 0 : true;
 
   thd_timer->thread_id = 0;
 

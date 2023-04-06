@@ -141,7 +141,7 @@ const char *Cursor::fetch_string(int fieldno) {
   if (field->is_null()) return nullptr;
   String value_buf;
   String *value = field->val_str(&value_buf);
-  size_t length = value->length();
+  const size_t length = value->length();
   char *res = new char[length + 1];
   strncpy(res, value->ptr(), length);
   res[length] = '\0';

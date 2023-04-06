@@ -50,7 +50,7 @@ DEFINE_BOOL_METHOD(Keyring_metadata_query_service_impl::init,
                     metadata_iterator)) {
   *metadata_iterator = nullptr;
   std::unique_ptr<config_vector> it;
-  bool retval =
+  const bool retval =
       keyring_metadata_query_init_template(it, *g_component_callbacks);
   if (retval == false)
     *metadata_iterator =
@@ -72,7 +72,7 @@ DEFINE_BOOL_METHOD(
     (my_h_keyring_component_metadata_iterator metadata_iterator)) {
   std::unique_ptr<config_vector> it;
   it.reset(reinterpret_cast<config_vector *>(metadata_iterator));
-  bool retval = keyring_metadata_query_is_valid_template(it);
+  const bool retval = keyring_metadata_query_is_valid_template(it);
   (void)it.release();
   return retval;
 }
@@ -82,7 +82,7 @@ DEFINE_BOOL_METHOD(
     (my_h_keyring_component_metadata_iterator metadata_iterator)) {
   std::unique_ptr<config_vector> it;
   it.reset(reinterpret_cast<config_vector *>(metadata_iterator));
-  bool retval = keyring_metadata_query_next_template(it);
+  const bool retval = keyring_metadata_query_next_template(it);
   (void)it.release();
   return retval;
 }
@@ -92,7 +92,7 @@ DEFINE_BOOL_METHOD(Keyring_metadata_query_service_impl::get_length,
                     size_t *key_buffer_length, size_t *value_buffer_length)) {
   std::unique_ptr<config_vector> it;
   it.reset(reinterpret_cast<config_vector *>(metadata_iterator));
-  bool retval = keyring_metadata_query_get_length_template(
+  const bool retval = keyring_metadata_query_get_length_template(
       it, key_buffer_length, value_buffer_length);
   (void)it.release();
   return retval;
@@ -104,7 +104,7 @@ DEFINE_BOOL_METHOD(Keyring_metadata_query_service_impl::get,
                     size_t value_buffer_len)) {
   std::unique_ptr<config_vector> it;
   it.reset(reinterpret_cast<config_vector *>(metadata_iterator));
-  bool retval = keyring_metadata_query_get_template(
+  const bool retval = keyring_metadata_query_get_template(
       key_buffer, key_buffer_len, value_buffer, value_buffer_len, it);
   (void)it.release();
   return retval;

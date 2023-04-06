@@ -308,7 +308,7 @@ static int check_min_connection_delay(MYSQL_THD thd [[maybe_unused]],
                                       void *save [[maybe_unused]],
                                       struct st_mysql_value *value) {
   long long new_value;
-  int64 existing_value = g_variables.max_connection_delay;
+  const int64 existing_value = g_variables.max_connection_delay;
   if (value->val_int(value, &new_value)) return 1; /* NULL value */
 
   if (new_value >= connection_control::MIN_DELAY &&
@@ -372,7 +372,7 @@ static int check_max_connection_delay(MYSQL_THD thd [[maybe_unused]],
                                       void *save [[maybe_unused]],
                                       struct st_mysql_value *value) {
   long long new_value;
-  int64 existing_value = g_variables.min_connection_delay;
+  const int64 existing_value = g_variables.min_connection_delay;
   if (value->val_int(value, &new_value)) return 1; /* NULL value */
 
   if (new_value >= connection_control::MIN_DELAY &&
@@ -438,7 +438,7 @@ static int show_delay_generated(MYSQL_THD thd [[maybe_unused]], SHOW_VAR *var,
   var->type = SHOW_LONGLONG;
   var->value = buff;
   longlong *value = reinterpret_cast<longlong *>(buff);
-  int64 current_val =
+  const int64 current_val =
       g_statistics.stats_array[STAT_CONNECTION_DELAY_TRIGGERED].load();
   *value = static_cast<longlong>(current_val);
   return 0;

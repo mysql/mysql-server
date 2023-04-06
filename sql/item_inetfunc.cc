@@ -77,7 +77,7 @@ longlong Item_func_inet_aton::val_int() {
   end = p + s->length();
   while (p < end) {
     c = *p++;
-    int digit = (int)(c - '0');
+    const int digit = (int)(c - '0');
     if (digit >= 0 && digit <= 9) {
       byte_result = byte_result * 10 + digit;
       if (byte_result > 255) goto err;  // Wrong address
@@ -131,7 +131,7 @@ String *Item_func_inet_ntoa::val_str(String *str) {
   assert(fixed);
   assert(arg_count == 1);
   null_value = true;
-  ulonglong n = (ulonglong)args[0]->val_int();
+  const ulonglong n = (ulonglong)args[0]->val_int();
 
   /*
     We do not know if args[0] is NULL until we have called
@@ -174,8 +174,8 @@ String *Item_func_inet_ntoa::val_str(String *str) {
     num[0] = (char)n1 + '0';
     num[1] = (char)n2 + '0';
     num[2] = (char)c + '0';
-    uint length = (n1 ? 4 : n2 ? 3 : 2);  // Remove pre-zero
-    uint dot_length = (p <= buf) ? 1 : 0;
+    const uint length = (n1 ? 4 : n2 ? 3 : 2);  // Remove pre-zero
+    const uint dot_length = (p <= buf) ? 1 : 0;
 
     str->append(num + 4 - length, length - dot_length, &my_charset_latin1);
   }
@@ -424,7 +424,7 @@ static bool str_to_ipv6(const char *str, int str_length,
   int group_value = 0;
 
   while (((p - str) < str_length) && *p) {
-    char c = *p++;
+    const char c = *p++;
 
     if (c == ':') {
       group_start_ptr = p;
@@ -528,7 +528,7 @@ static bool str_to_ipv6(const char *str, int str_length,
       return false;
     }
 
-    size_t bytes_to_move = dst - gap_ptr;
+    const size_t bytes_to_move = dst - gap_ptr;
 
     for (size_t i = 1; i <= bytes_to_move; ++i) {
       ipv6_bytes_end[-(static_cast<ssize_t>(i))] = gap_ptr[bytes_to_move - i];

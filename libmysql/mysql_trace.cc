@@ -157,7 +157,7 @@ void mysql_trace_trace(MYSQL *m, enum trace_event ev,
       by setting trace data pointer to NULL. Also, set reconnect
       flag to 0 in case plugin executes any queries.
     */
-    bool saved_reconnect_flag = m->reconnect;
+    const bool saved_reconnect_flag = m->reconnect;
 
     TRACE_DATA(m) = nullptr;
     m->reconnect = false;

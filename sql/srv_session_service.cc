@@ -120,7 +120,7 @@ Srv_session *srv_session_open_internal(srv_session_error_cb error_cb,
   session->get_thd()->thread_stack = reinterpret_cast<char *>(&stack_thd);
   session->get_thd()->store_globals();
 
-  bool result = session->open();
+  const bool result = session->open();
 
   session->get_thd()->restore_globals();
 

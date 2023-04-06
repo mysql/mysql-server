@@ -211,7 +211,7 @@ bool Connection_delay_event::remove_entry(const Sql_string &s) {
   if (searched_entry && searched_entry != MY_LF_ERRPTR) {
     searched_entry_info = *searched_entry;
     assert(searched_entry_info != nullptr);
-    int rc = lf_hash_delete(&m_entries, pins, s.c_str(), s.length());
+    const int rc = lf_hash_delete(&m_entries, pins, s.c_str(), s.length());
     lf_hash_search_unpin(pins);
     lf_hash_put_pins(pins);
     if (rc == 0) {
@@ -514,7 +514,7 @@ bool Connection_delay_action::notify_event(
     Error_handler *error_handler) {
   DBUG_TRACE;
   bool error = false;
-  unsigned int subclass = connection_event->event_subclass;
+  const unsigned int subclass = connection_event->event_subclass;
   Connection_event_observer *self = this;
 
   if (subclass != MYSQL_AUDIT_CONNECTION_CONNECT &&
@@ -523,7 +523,7 @@ bool Connection_delay_action::notify_event(
 
   RD_lock rd_lock(m_lock);
 
-  int64 threshold = this->get_threshold();
+  const int64 threshold = this->get_threshold();
 
   /* If feature was disabled, return */
   if (threshold <= DISABLE_THRESHOLD) return error;
@@ -550,7 +550,7 @@ bool Connection_delay_action::notify_event(
       have to consider current connection as well - Hence the usage
       of current_count + 1.
     */
-    ulonglong wait_time = get_wait_time((current_count + 1) - threshold);
+    const ulonglong wait_time = get_wait_time((current_count + 1) - threshold);
 
     if ((error = coordinator->notify_status_var(
              &self, STAT_CONNECTION_DELAY_TRIGGERED, ACTION_INC))) {
@@ -612,11 +612,11 @@ bool Connection_delay_action::notify_sys_var(
   bool error = true;
   Connection_event_observer *self = this;
 
-  WR_lock wr_lock(m_lock);
+  const WR_lock wr_lock(m_lock);
 
   switch (variable) {
     case OPT_FAILED_CONNECTIONS_THRESHOLD: {
-      int64 new_threshold = *(static_cast<int64 *>(new_value));
+      const int64 new_threshold = *(static_cast<int64 *>(new_value));
       assert(new_threshold >= DISABLE_THRESHOLD);
       set_threshold(new_threshold);
 
@@ -629,7 +629,7 @@ bool Connection_delay_action::notify_sys_var(
     }
     case OPT_MIN_CONNECTION_DELAY:
     case OPT_MAX_CONNECTION_DELAY: {
-      int64 new_delay = *(static_cast<int64 *>(new_value));
+      const int64 new_delay = *(static_cast<int64 *>(new_value));
       if ((error =
                set_delay(new_delay, (variable == OPT_MIN_CONNECTION_DELAY)))) {
         error_handler->handle_error(
@@ -658,7 +658,7 @@ void Connection_delay_action::init(
   assert(coordinator);
   bool retval;
   Connection_event_observer *subscriber = this;
-  WR_lock wr_lock(m_lock);
+  const WR_lock wr_lock(m_lock);
   retval = coordinator->register_event_subscriber(&subscriber, &m_sys_vars,
                                                   &m_stats_vars);
   assert(!retval);
@@ -735,7 +735,7 @@ void Connection_delay_action::fill_IS_table(THD *thd, Table_ref *tables,
   Security_context_wrapper sctx_wrapper(thd);
   if (!(sctx_wrapper.is_super_user() || sctx_wrapper.is_connection_admin()))
     return;
-  WR_lock wr_lock(m_lock);
+  const WR_lock wr_lock(m_lock);
   Sql_string eq_arg;
   if (cond != nullptr &&
       !get_equal_condition_argument(

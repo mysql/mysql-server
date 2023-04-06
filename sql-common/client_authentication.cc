@@ -178,7 +178,7 @@ static bool encrypt_RSA_public_key(const unsigned char *password,
 */
 
 int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
-  bool uses_password = mysql->passwd[0] != 0;
+  const bool uses_password = mysql->passwd[0] != 0;
   unsigned char encrypted_password[MAX_CIPHER_LENGTH];
   static char request_public_key = '\1';
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
@@ -439,11 +439,11 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
                                                          int *result) {
   DBUG_TRACE;
   net_async_status status = NET_ASYNC_NOT_READY;
-  bool uses_password = mysql->passwd[0] != 0;
+  const bool uses_password = mysql->passwd[0] != 0;
   static char request_public_key = '\1';
   bool got_public_key_from_server = false;
   int io_result;
-  bool connection_is_secure = (mysql_get_ssl_cipher(mysql) != nullptr);
+  const bool connection_is_secure = (mysql_get_ssl_cipher(mysql) != nullptr);
   unsigned char *pkt;
   unsigned int passwd_len =
       static_cast<unsigned int>(strlen(mysql->passwd) + 1);
@@ -617,7 +617,7 @@ static char perform_full_authentication = '\4';
     @retval CR_OK Authentication succeeded.
 */
 int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
-  bool uses_password = mysql->passwd[0] != 0;
+  const bool uses_password = mysql->passwd[0] != 0;
   unsigned char encrypted_password[MAX_CIPHER_LENGTH];
   // static char request_public_key= '\1';
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
@@ -807,12 +807,12 @@ err:
 net_async_status caching_sha2_password_auth_client_nonblocking(
     MYSQL_PLUGIN_VIO *vio, MYSQL *mysql, int *result) {
   DBUG_TRACE;
-  bool uses_password = mysql->passwd[0] != 0;
+  const bool uses_password = mysql->passwd[0] != 0;
   int io_result;
   net_async_status status = NET_ASYNC_NOT_READY;
-  bool connection_is_secure = is_secure_transport(mysql);
+  const bool connection_is_secure = is_secure_transport(mysql);
   bool got_public_key_from_server = false;
-  unsigned int passwd_len =
+  const unsigned int passwd_len =
       static_cast<unsigned int>(strlen(mysql->passwd) + 1);
   unsigned char *pkt;
   mysql_async_auth *ctx = ASYNC_DATA(mysql)->connect_context->auth_context;

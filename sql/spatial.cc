@@ -72,8 +72,8 @@ void *gis_wkb_realloc(void *p, size_t sz) {
 }
 
 int MBR::within(const MBR *mbr) const {
-  int dim1 = dimension();
-  int dim2 = mbr->dimension();
+  const int dim1 = dimension();
+  const int dim2 = mbr->dimension();
 
   assert(dim1 >= 0 && dim1 <= 2 && dim2 >= 0 && dim2 <= 2);
 
@@ -323,8 +323,7 @@ Geometry *Geometry::construct(Geometry_buffer *buffer, const char *data,
   uint32 geom_type;
   Geometry *result;
   wkbByteOrder bo;
-  String wkb_le;
-  uint32 srid_sz = has_srid ? SRID_SIZE : 0;
+  const uint32 srid_sz = has_srid ? SRID_SIZE : 0;
   // Check the GEOMETRY byte string is valid, which would at least have an
   // SRID, a WKB header, and 4 more bytes for object count or Point
   // coordinate.
@@ -918,7 +917,7 @@ Geometry *Geometry::create_from_wkb(THD *thd, Geometry_buffer *buffer,
   q_append((char)wkb_ndr, res);
   q_append(geom_type, res);
 
-  uint tret =
+  const uint tret =
       geom->init_from_wkb(thd, wkb + WKB_HEADER_SIZE, len - WKB_HEADER_SIZE,
                           ::get_byte_order(wkb), res);
 
@@ -969,7 +968,7 @@ bool Geometry::envelope(String *result) const {
     */
     if (get_type() != wkb_geometrycollection) return true;
 
-    uint32 num = uint4korr(get_cptr());
+    const uint32 num = uint4korr(get_cptr());
     if (num != 0) {
       GeomColl_component_counter counter;
       uint32 wkb_len = get_data_size();
@@ -987,7 +986,7 @@ bool Geometry::envelope(String *result) const {
 
   q_append(static_cast<char>(wkb_ndr), result);
 
-  int dim = mbr.dimension();
+  const int dim = mbr.dimension();
   if (dim < 0) return true;
 
   uint32 num_elems, num_elems2;
@@ -1105,7 +1104,7 @@ bool Geometry::get_mbr_for_points(MBR *mbr, wkb_parser *wkb,
 
 Geometry::Geometry(const Geometry &geo) {
 #if !defined(NDEBUG)
-  wkbType geotype = geo.get_geotype();
+  const wkbType geotype = geo.get_geotype();
 #endif
   assert(is_valid_geotype(geotype) &&
          ((geo.get_ptr() != nullptr && geo.get_nbytes() > 0) ||
@@ -1141,7 +1140,7 @@ Geometry::~Geometry() {
 #endif
     if (!is_bg_adapter()) return;
 
-    Geometry::wkbType gt = get_geotype();
+    const Geometry::wkbType gt = get_geotype();
 
     if (gt != Geometry::wkb_polygon) {
       if (get_ownmem() && m_ptr) {
@@ -1171,7 +1170,7 @@ Geometry &Geometry::operator=(const Geometry &rhs) {
   if (this == &rhs) return *this;
 
 #if !defined(NDEBUG)
-  Geometry::wkbType geotype = rhs.get_geotype();
+  const Geometry::wkbType geotype = rhs.get_geotype();
 #endif
   assert((is_bg_adapter() || rhs.is_bg_adapter()) &&
          m_flags.geotype == rhs.m_flags.geotype && is_valid_geotype(geotype));
@@ -1237,7 +1236,7 @@ Gis_point &Gis_point::operator=(const Gis_point &rhs) {
 
   if (m_owner == nullptr) m_owner = rhs.get_owner();
 
-  size_t plen = rhs.get_nbytes();
+  const size_t plen = rhs.get_nbytes();
 
   // May or may not have own memory. We allow assignment to a Gis_point
   // owning no memory because in BG, std::reverse is called to reverse a
@@ -1414,7 +1413,7 @@ bool Gis_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb) {
   if (check_stack_overrun(trs->thd(), STACK_MIN_SIZE, nullptr)) return true;
 
   uint32 n_points = 0;
-  uint32 np_pos = wkb->length();
+  const uint32 np_pos = wkb->length();
   Gis_point p(false);
 
   if (trs->check_next_symbol('(')) return true;
@@ -1808,7 +1807,7 @@ void Gis_polygon::to_wkb_unparsed() {
  */
 bool Gis_polygon_ring::set_ring_order(bool want_ccw) {
   assert(is_bg_adapter());
-  Gis_polygon_ring &ring = *this;
+  const Gis_polygon_ring &ring = *this;
   double x1, x2, y1, y2, minx = DBL_MAX, miny = DBL_MAX;
   size_t min_i = 0, prev_i, post_i, rsz = ring.size();
 
@@ -1897,7 +1896,7 @@ bool Gis_polygon_ring::set_ring_order(bool want_ccw) {
   y1 = ring[min_i].get<1>() - ring[prev_i].get<1>();
   x2 = ring[post_i].get<0>() - ring[min_i].get<0>();
   y2 = ring[post_i].get<1>() - ring[min_i].get<1>();
-  double sign = x1 * y2 - x2 * y1;
+  const double sign = x1 * y2 - x2 * y1;
 
   if (sign == 0) return true;  // Catches error: there is a spike in the ring.
 
@@ -1930,7 +1929,7 @@ bool Gis_polygon::set_polygon_ring_order() {
   assert(is_bg_adapter());
   if (outer().set_ring_order(true /* Ring order: CCW. */)) return true;
   Gis_polygon::inner_container_type::iterator itr;
-  Gis_polygon::inner_container_type &inns = inners();
+  const Gis_polygon::inner_container_type &inns = inners();
   for (itr = inns.begin(); itr != inns.end(); ++itr)
     if (itr->set_ring_order(false /* Ring order: CW. */)) return true;
 
@@ -2000,7 +1999,7 @@ bool Gis_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb) {
   if (check_stack_overrun(trs->thd(), STACK_MIN_SIZE, nullptr)) return true;
 
   uint32 n_linear_rings = 0;
-  uint32 lr_pos = wkb->length();
+  const uint32 lr_pos = wkb->length();
 
   if (trs->check_next_symbol('(')) return true;
   if (wkb->reserve(4, 512)) return true;
@@ -2153,8 +2152,8 @@ bool Gis_polygon::reverse_coordinates() {
     current_data_offset += 4;  // add linear ring header size to data offset.
 
     for (uint32 j = 0; j < num_of_points; j++) {
-      double x = float8get(get_cptr() + current_data_offset);
-      double y =
+      const double x = float8get(get_cptr() + current_data_offset);
+      const double y =
           float8get(get_cptr() + current_data_offset + SIZEOF_STORED_DOUBLE);
 
       float8store(get_cptr() + current_data_offset, y);
@@ -2183,12 +2182,12 @@ bool Gis_polygon::validate_coordinate_range(double srs_angular_unit,
   uint32 current_data_offset = 4;  // Add numRings header size to data offset.
 
   for (uint32 i = 0; i < numrings; i++) {
-    uint32 num_of_points = uint4korr(get_ucptr() + current_data_offset);
+    const uint32 num_of_points = uint4korr(get_ucptr() + current_data_offset);
     current_data_offset += 4;  // Add linear ring header size to data offset.
 
     for (uint32 j = 0; j < num_of_points; j++) {
-      double x = float8get(get_cptr() + current_data_offset);
-      double y =
+      const double x = float8get(get_cptr() + current_data_offset);
+      const double y =
           float8get(get_cptr() + current_data_offset + SIZEOF_STORED_DOUBLE);
 
       if (check_coordinate_range(x, y, srs_angular_unit, long_out_of_range,
@@ -2336,7 +2335,7 @@ bool Gis_multi_point::init_from_wkt(Gis_read_stream *trs, String *wkb) {
   if (check_stack_overrun(trs->thd(), STACK_MIN_SIZE, nullptr)) return true;
 
   uint32 n_points = 0;
-  uint32 np_pos = wkb->length();
+  const uint32 np_pos = wkb->length();
   Gis_point p(false);
 
   if (trs->check_next_symbol('(')) return true;
@@ -2536,7 +2535,7 @@ bool Gis_multi_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb) {
   if (check_stack_overrun(trs->thd(), STACK_MIN_SIZE, nullptr)) return true;
 
   uint32 n_line_strings = 0;
-  uint32 ls_pos = wkb->length();
+  const uint32 ls_pos = wkb->length();
 
   if (trs->check_next_symbol('(')) return true;
   if (wkb->reserve(4, 512)) return true;
@@ -2806,7 +2805,7 @@ bool Gis_multi_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb) {
   if (check_stack_overrun(trs->thd(), STACK_MIN_SIZE, nullptr)) return true;
 
   uint32 n_polygons = 0;
-  uint32 np_pos = wkb->length();
+  const uint32 np_pos = wkb->length();
   Gis_polygon p(false);
 
   if (trs->check_next_symbol('(')) return true;
@@ -3178,7 +3177,8 @@ Gis_geometry_collection::Gis_geometry_collection(gis::srid_t srid,
                                                  const String *gbuf,
                                                  String *gcbuf)
     : Geometry(nullptr, 0, Flags_t(wkb_geometrycollection, 0), srid) {
-  uint32 geo_len = gbuf ? gbuf->length() : 0, total_len = 0;
+  const uint32 geo_len = gbuf ? gbuf->length() : 0;
+  uint32 total_len = 0;
   assert((gbuf == nullptr || (gbuf->ptr() == nullptr && gbuf->length() == 0)) ||
          (gbuf->ptr() != nullptr && gbuf->length() > 0));
   total_len = geo_len + sizeof(uint32) /*NUM-objs*/ + SRID_SIZE +
@@ -3217,7 +3217,8 @@ Gis_geometry_collection::Gis_geometry_collection(Geometry *geo, String *gcbuf)
     : Geometry(nullptr, 0, Flags_t(wkb_geometrycollection, 0),
                geo->get_srid()) {
   assert(geo != nullptr && geo->get_ptr() != nullptr);
-  uint32 geo_len = geo->get_data_size(), total_len = 0;
+  const uint32 geo_len = geo->get_data_size();
+  uint32 total_len = 0;
   assert(geo_len != GET_SIZE_ERROR);
   total_len =
       geo_len + sizeof(uint32) /*NUM-objs*/ + SRID_SIZE + WKB_HEADER_SIZE * 2;
@@ -3292,7 +3293,7 @@ bool Gis_geometry_collection::init_from_wkt(Gis_read_stream *trs, String *wkb) {
   if (check_stack_overrun(trs->thd(), STACK_MIN_SIZE, nullptr)) return true;
 
   uint32 n_objects = 0;
-  uint32 no_pos = wkb->length();
+  const uint32 no_pos = wkb->length();
   Geometry_buffer buffer;
   Geometry *g;
 
@@ -3683,7 +3684,7 @@ const char *Point_stepper::operator()(const char *p) {
   // m_bo is latest byte order, which allows mixed byte orders in the same
   // wkb byte string.
   if (m_has_wkb_hdr) {
-    Geometry::wkbByteOrder bo = get_byte_order(p);
+    const Geometry::wkbByteOrder bo = get_byte_order(p);
 
     // The next one can be other geo types, in a geometry collection.
     m_geotype = get_wkb_geotype(p + 1);
@@ -3710,7 +3711,7 @@ const char *Linestring_stepper::operator()(const char *p) {
   // The m_bo is latest byte order, which allows mixed byte orders in the same
   // wkb byte string.
   if (m_has_wkb_hdr) {
-    Geometry::wkbByteOrder bo = get_byte_order(p);
+    const Geometry::wkbByteOrder bo = get_byte_order(p);
 
     // The next one can be other geo types, in a geometry collection.
     m_geotype = get_wkb_geotype(p + 1);
@@ -3742,7 +3743,7 @@ const char *Polygon_stepper::operator()(const char *p) {
   // m_bo is latest byte order, which allows mixed byte orders in the same
   // wkb byte string.
   assert(m_has_wkb_hdr);
-  Geometry::wkbByteOrder bo = get_byte_order(p);
+  const Geometry::wkbByteOrder bo = get_byte_order(p);
 
   // The next one can be other geo types, in a geometry collection.
   m_geotype = get_wkb_geotype(p + 1);
@@ -3802,7 +3803,7 @@ static inline void set_inner_rings(Geometry *g,
 void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
   const char *q = nullptr;
   size_t nbytes = 0;
-  Geometry::wkbType geotype = geom->get_geotype();
+  const Geometry::wkbType geotype = geom->get_geotype();
   Geometry::wkbByteOrder mybo = geom->get_byte_order();
   char dim = geom->get_dimension();
 
@@ -3817,7 +3818,7 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
       assert(false);
       break;
     case Geometry::wkb_linestring: {
-      uint32 npts = uint4korr(p);
+      const uint32 npts = uint4korr(p);
       p += sizeof(uint32);
       Point_stepper ptstep(dim, mybo, false);
       const char *first = nullptr, *last = nullptr;
@@ -3858,7 +3859,7 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
       break;
     }
     case Geometry::wkb_multipoint: {
-      uint32 npts = uint4korr(p);
+      const uint32 npts = uint4korr(p);
       p += sizeof(uint32);
 
       Geometry::wkbByteOrder bo = ::get_byte_order(p);
@@ -3889,7 +3890,7 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
       break;
     }
     case Geometry::wkb_multilinestring: {
-      uint32 nls = uint4korr(p);
+      const uint32 nls = uint4korr(p);
       p += sizeof(uint32);
 
       Geometry::wkbByteOrder bo = ::get_byte_order(p);
@@ -3926,7 +3927,7 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
         and we are calling this in methods like push_back, etc,
         thus m_geo_vect has the right number of rings.
        */
-      size_t nls = num_geoms;
+      const size_t nls = num_geoms;
       Linestring_stepper lsstep(dim, mybo, false);
 
       for (size_t i = 0; i < nls; i++) {
@@ -3949,7 +3950,7 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
       break;
     }
     case Geometry::wkb_polygon: {
-      uint32 nls = uint4korr(p);
+      const uint32 nls = uint4korr(p);
       const char *start = p;
 
       p += sizeof(uint32);
@@ -4018,7 +4019,7 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
       break;
     }
     case Geometry::wkb_multipolygon: {
-      uint32 nplgns = uint4korr(p);
+      const uint32 nplgns = uint4korr(p);
       p += sizeof(uint32);
 
       Geometry::wkbByteOrder bo = ::get_byte_order(p);

@@ -45,7 +45,7 @@ int main(int argc, const char **argv) {
     std::exit(2);
   }
 
-  DWORD pid = std::atoi(argv[1]);
+  const DWORD pid = std::atoi(argv[1]);
 
   if (std::strcmp(argv[2], "mysqltest") == 0) {
     char event_name[64];

@@ -454,11 +454,11 @@ int Partition_helper::ph_write_row(uchar *buf) {
   uint32 part_id;
   int error;
   longlong func_value;
-  bool have_auto_increment =
+  const bool have_auto_increment =
       m_table->next_number_field && buf == m_table->record[0];
   THD *thd = get_thd();
-  sql_mode_t saved_sql_mode = thd->variables.sql_mode;
-  bool saved_autoinc_field_has_expl_non_null_value =
+  const sql_mode_t saved_sql_mode = thd->variables.sql_mode;
+  const bool saved_autoinc_field_has_expl_non_null_value =
       m_table->autoinc_field_has_explicit_non_null_value;
 #ifndef NDEBUG
   my_bitmap_map *old_map;
@@ -726,7 +726,7 @@ void Partition_helper::get_auto_increment_first_field(
     this first one, we must exclusively lock the generator until the statement
     is done.
   */
-  int binlog_format = thd_binlog_format(thd);
+  const int binlog_format = thd_binlog_format(thd);
   if (!m_auto_increment_safe_stmt_log_lock &&
       thd->lex->sql_command != SQLCOM_INSERT &&
       binlog_format != BINLOG_FORMAT_UNSPEC &&
@@ -750,7 +750,7 @@ void Partition_helper::get_auto_increment_first_field(
 
 inline void Partition_helper::set_auto_increment_if_higher() {
   Field_num *field = static_cast<Field_num *>(m_table->found_next_number_field);
-  ulonglong nr =
+  const ulonglong nr =
       (field->is_unsigned() || field->val_int() > 0) ? field->val_int() : 0;
   lock_auto_increment();
   if (!m_part_share->auto_inc_initialized) {
@@ -770,7 +770,8 @@ void Partition_helper::ph_release_auto_increment() {
   if (m_table->s->next_number_keypart) {
     release_auto_increment_all_parts();
   } else if (m_handler->next_insert_id) {
-    ulonglong max_reserved = m_handler->auto_inc_interval_for_cur_row.maximum();
+    const ulonglong max_reserved =
+        m_handler->auto_inc_interval_for_cur_row.maximum();
     lock_auto_increment();
     m_part_share->release_auto_inc_if_possible(
         get_thd(), m_table->s, m_handler->next_insert_id, max_reserved);
@@ -802,8 +803,8 @@ void Partition_helper::ph_release_auto_increment() {
 uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array) {
   ulong nr1 = 1;
   ulong nr2 = 4;
-  bool use_51_hash = (*field_array)->table->part_info->key_algorithm ==
-                     enum_key_algorithm::KEY_ALGORITHM_51;
+  const bool use_51_hash = (*field_array)->table->part_info->key_algorithm ==
+                           enum_key_algorithm::KEY_ALGORITHM_51;
 
   do {
     Field *field = *field_array;
@@ -827,7 +828,7 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array) {
             continue;
           }
           /* Force this to my_hash_sort_bin, which was used in 5.1! */
-          uint len = field->pack_length();
+          const uint len = field->pack_length();
           uint64 tmp1 = nr1;
           uint64 tmp2 = nr2;
 
@@ -858,7 +859,7 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array) {
             continue;
           }
           /* Force this to my_hash_sort_bin, which was used in 5.1! */
-          uint len = field->pack_length();
+          const uint len = field->pack_length();
           uint64 tmp1 = nr1;
           uint64 tmp2 = nr2;
 
@@ -971,7 +972,7 @@ bool Partition_helper::print_partition_error(int error) {
 
 void Partition_helper::prepare_change_partitions() {
   List_iterator<partition_element> part_it(m_part_info->partitions);
-  uint num_subparts =
+  const uint num_subparts =
       m_part_info->is_sub_partitioned() ? m_part_info->num_subparts : 1;
   uint temp_partitions = m_part_info->temp_partitions.elements;
   bool first = true;
@@ -1093,7 +1094,7 @@ error:
 int Partition_helper::check_misplaced_rows(uint read_part_id, bool repair) {
   int result = 0;
   THD *thd = get_thd();
-  bool ignore = thd->lex->is_ignore();
+  const bool ignore = thd->lex->is_ignore();
   uint32 correct_part_id;
   longlong func_value;
   ha_rows num_misplaced_rows = 0;
@@ -1239,7 +1240,7 @@ int Partition_helper::check_misplaced_rows(uint read_part_id, bool repair) {
     }
   }
 
-  int tmp_result = rnd_end_in_part(read_part_id, true);
+  const int tmp_result = rnd_end_in_part(read_part_id, true);
   return result ? result : tmp_result;
 }
 
@@ -1928,8 +1929,8 @@ int Partition_helper::ph_index_first(uchar *buf) {
 int Partition_helper::ph_index_last(uchar *buf) {
   DBUG_TRACE;
 
-  int error = HA_ERR_END_OF_FILE;
-  uint part_id = m_part_info->get_first_used_partition();
+  const int error = HA_ERR_END_OF_FILE;
+  const uint part_id = m_part_info->get_first_used_partition();
   if (part_id == MY_BIT_NONE) {
     /* No partition to scan. */
     return error;
@@ -2154,8 +2155,8 @@ int Partition_helper::ph_read_range_first(const key_range *start_key,
                                           const key_range *end_key,
                                           bool eq_range_arg, bool sorted) {
   int error = HA_ERR_END_OF_FILE;
-  bool have_start_key = (start_key != nullptr);
-  uint part_id = m_part_info->get_first_used_partition();
+  const bool have_start_key = (start_key != nullptr);
+  const uint part_id = m_part_info->get_first_used_partition();
   DBUG_TRACE;
 
   if (part_id == MY_BIT_NONE) {
@@ -2252,7 +2253,7 @@ int Partition_helper::partition_scan_set_up(uchar *buf, bool idx_read_flag) {
       Verify this, also bitmap must have at least one bit set otherwise
       the result from this table is the empty set.
     */
-    uint start_part = m_part_info->get_first_used_partition();
+    const uint start_part = m_part_info->get_first_used_partition();
     if (start_part == MY_BIT_NONE) {
       DBUG_PRINT("info", ("scan with no partition to scan"));
       return HA_ERR_END_OF_FILE;
@@ -2660,7 +2661,7 @@ int Partition_helper::handle_ordered_index_scan_key_not_found() {
 
 int Partition_helper::handle_ordered_next(uchar *buf, bool is_next_same) {
   int error;
-  uint part_id = m_top_entry;
+  const uint part_id = m_top_entry;
   uchar *rec_buf = m_queue->empty() ? nullptr : m_queue->top() + m_rec_offset;
   uchar *read_buf;
   DBUG_TRACE;
@@ -2774,7 +2775,7 @@ int Partition_helper::handle_ordered_next(uchar *buf, bool is_next_same) {
 
 int Partition_helper::handle_ordered_prev(uchar *buf) {
   int error;
-  uint part_id = m_top_entry;
+  const uint part_id = m_top_entry;
   uchar *rec_buf = m_queue->empty() ? nullptr : m_queue->top() + m_rec_offset;
   uchar *read_buf;
   DBUG_TRACE;

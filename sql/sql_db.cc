@@ -153,7 +153,7 @@ bool get_default_db_collation(THD *thd, const char *db_name,
                               const CHARSET_INFO **collation) {
   // We must make sure the schema is released and unlocked in the right order.
   dd::Schema_MDL_locker mdl_handler(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch_obj = nullptr;
 
   if (mdl_handler.ensure_locked(db_name) ||
@@ -238,7 +238,7 @@ bool check_schema_readonly(THD *thd, const char *schema_name,
   }
 
   dd::Schema_MDL_locker mdl_handler(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch_obj = nullptr;
 
   if (mdl_handler.ensure_locked(schema_name) ||
@@ -266,7 +266,7 @@ bool check_schema_readonly(THD *thd, const char *schema_name,
 
 static bool write_db_cmd_to_binlog(THD *thd, const char *db, bool trx_cache) {
   if (mysql_bin_log.is_open()) {
-    int errcode = query_error_code(thd, true);
+    const int errcode = query_error_code(thd, true);
     Query_log_event qinfo(thd, thd->query().str, thd->query().length, trx_cache,
                           false, /* suppress_use */ true, errcode);
     /*
@@ -333,7 +333,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
     Use Auto_releaser to keep uncommitted object for database until
     trans_commit() call.
   */
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   // Reject creation of the system schema except for system threads.
   if (!thd->is_dd_system_thread() &&
@@ -388,7 +388,8 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   }
 
   bool store_in_dd = true;
-  bool if_not_exists = (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS);
+  const bool if_not_exists =
+      (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS);
   if (existing_schema != nullptr) {
     if (if_not_exists == false) {
       my_error(ER_DB_CREATE_EXISTS, MYF(0), db);
@@ -403,8 +404,8 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   /* Check directory */
   char path[FN_REFLEN + 16];
   bool was_truncated;
-  size_t path_len = build_table_filename(path, sizeof(path) - 1, db, "", "", 0,
-                                         &was_truncated);
+  const size_t path_len = build_table_filename(path, sizeof(path) - 1, db, "",
+                                               "", 0, &was_truncated);
   if (was_truncated) {
     my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path) - 1, path);
     return true;
@@ -417,7 +418,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   // the physical representation of the schema is not re-created since it
   // already exists.
   MY_STAT stat_info;
-  bool schema_dir_exists =
+  const bool schema_dir_exists =
       (mysql_file_stat(key_file_misc, path, &stat_info, MYF(0)) != nullptr);
   if (thd->is_dd_system_thread() &&
       (!opt_initialize || dd::upgrade_57::in_progress()) &&
@@ -535,7 +536,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
 
   if (lock_schema_name(thd, db)) return true;
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   dd::Schema *schema = nullptr;
   if (thd->dd_client()->acquire_for_modification(db, &schema)) return true;
 
@@ -719,7 +720,7 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
 
   DBUG_TRACE;
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   // Reject dropping the system schema except for system threads.
   if (!thd->is_dd_system_thread() &&
@@ -841,7 +842,7 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
 
       ha_drop_database(path);
       thd->clear_error(); /* @todo Do not ignore errors */
-      Disable_binlog_guard binlog_guard(thd);
+      const Disable_binlog_guard binlog_guard(thd);
       error = Events::drop_schema_events(thd, *schema);
       error = (error || sp_drop_db_routines(thd, *schema));
     }
@@ -1364,7 +1365,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
 
   // We must make sure the schema is released and unlocked in the right order.
   dd::Schema_MDL_locker mdl_handler(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *schema = nullptr;
 
   DBUG_TRACE;

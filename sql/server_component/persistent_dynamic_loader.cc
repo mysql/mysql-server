@@ -267,7 +267,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
 
       uint64 component_id =
           component_table->field[CT_FIELD_COMPONENT_ID]->val_int();
-      uint64 component_group_id =
+      const uint64 component_group_id =
           component_table->field[CT_FIELD_GROUP_ID]->val_int();
       String component_urn_str;
       component_table->field[CT_FIELD_COMPONENT_URN]->val_str(
@@ -379,7 +379,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
     MUTEX_LOCK(lock, &component_id_by_urn_mutex);
 
     /* We don't replicate INSTALL COMPONENT */
-    Disable_binlog_guard binlog_guard(thd);
+    const Disable_binlog_guard binlog_guard(thd);
 
     TABLE *component_table;
     auto guard_close_tables = create_scope_guard([&thd] {
@@ -418,7 +418,8 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
       component_table->field[CT_FIELD_COMPONENT_URN]->store(
           urns[i], strlen(urns[i]), system_charset);
 
-      int res = component_table->file->ha_write_row(component_table->record[0]);
+      const int res =
+          component_table->file->ha_write_row(component_table->record[0]);
       if (res != 0) {
         my_error(ER_COMPONENT_MANIPULATE_ROW_FAILED, MYF(0), urns[i], res);
         component_table->file->ha_release_auto_increment();
@@ -490,7 +491,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
     }
 
     /* We don't replicate UNINSTALL_COMPONENT */
-    Disable_binlog_guard binlog_guard(thd);
+    const Disable_binlog_guard binlog_guard(thd);
 
     /* Making component_id_by_urn copy so, that if any error occurs it will
        be restored
@@ -543,7 +544,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
       mysql_persistent_dynamic_loader_imp::component_id_by_urn.erase(it);
     }
 
-    bool result = dynamic_loader_srv->unload(urns, component_count);
+    const bool result = dynamic_loader_srv->unload(urns, component_count);
     if (result) {
       /* No need to specify error, underlying service implementation would add
         one. */

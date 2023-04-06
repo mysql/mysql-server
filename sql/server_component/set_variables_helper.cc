@@ -49,10 +49,10 @@ Set_variables_helper::~Set_variables_helper() {
 bool Set_variables_helper::add_variable(
     const char *prefix, size_t prefix_length, const char *suffix,
     size_t suffix_length, Item *variable_value, enum_var_type var_type) {
-  std::string_view prefix_v{prefix, prefix_length};
-  std::string_view suffix_v{suffix, suffix_length};
+  const std::string_view prefix_v{prefix, prefix_length};
+  const std::string_view suffix_v{suffix, suffix_length};
 
-  System_variable_tracker var_tracker =
+  const System_variable_tracker var_tracker =
       System_variable_tracker::make_tracker(prefix_v, suffix_v);
   if (var_tracker.access_system_variable(m_thd)) return true;
 
@@ -70,10 +70,10 @@ bool Set_variables_helper::check_variable_update_type(const char *prefix,
                                                       const char *suffix,
                                                       size_t suffix_length,
                                                       Item *variable_value) {
-  std::string_view prefix_v{prefix, prefix_length};
-  std::string_view suffix_v{suffix, suffix_length};
+  const std::string_view prefix_v{prefix, prefix_length};
+  const std::string_view suffix_v{suffix, suffix_length};
 
-  System_variable_tracker var_tracker =
+  const System_variable_tracker var_tracker =
       System_variable_tracker::make_tracker(prefix_v, suffix_v);
 
   auto f = [variable_value](const System_variable_tracker &,

@@ -95,7 +95,7 @@ double Cost_model_table::page_read_cost_index(uint index, double pages) const {
   assert(m_initialized);
   assert(pages >= 0.0);
 
-  double in_mem = m_table->file->index_in_memory_estimate(index);
+  const double in_mem = m_table->file->index_in_memory_estimate(index);
 
   const double pages_in_mem = pages * in_mem;
   const double pages_on_disk = pages - pages_in_mem;

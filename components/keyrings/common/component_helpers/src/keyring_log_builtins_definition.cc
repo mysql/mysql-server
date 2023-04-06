@@ -148,7 +148,7 @@ static log_item_data *kr_line_item_set_with_key(log_line *ll, log_item_type t,
   if ((ll == nullptr) || (ll->count >= LOG_ITEM_MAX)) return nullptr;
 
   log_item *li = &(ll->item[ll->count++]);
-  int c = log_item_wellknown_by_type(t);
+  const int c = log_item_wellknown_by_type(t);
 
   li->alloc = alloc;
   /*
@@ -300,18 +300,18 @@ DEFINE_METHOD(int, Log_builtins_keyring::line_submit, (log_line * ll)) {
 
     if (have_message) {
       char internal_buff[LOG_BUFF_MAX];
-      size_t buff_size = sizeof(internal_buff);
+      const size_t buff_size = sizeof(internal_buff);
       char *buff_line = internal_buff;
 
       const char format[] = "%Y-%m-%d %X";
-      time_t t(time(nullptr));
-      tm tm(*localtime(&t));
+      const time_t t(time(nullptr));
+      const tm tm(*localtime(&t));
 
       const size_t date_length{50};
-      std::unique_ptr<char[]> date{new char[date_length]};
+      const std::unique_ptr<char[]> date{new char[date_length]};
       strftime(date.get(), date_length, format, &tm);
 
-      std::string time_string = date.get();
+      const std::string time_string = date.get();
 
       (void)snprintf(buff_line, buff_size, "%s [%.*s] [MY-%06u] [Keyring] %.*s",
                      time_string.c_str(), (int)label_len, label, errcode,

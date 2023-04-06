@@ -489,7 +489,7 @@ void XID_STATE::store_xid_info(Protocol *protocol,
     xid_buf[0] = '0';
     xid_buf[1] = 'x';
 
-    size_t xid_str_len =
+    const size_t xid_str_len =
         bin_to_hex_str(xid_buf + 2, sizeof(xid_buf) - 2, m_xid.data,
                        m_xid.gtrid_length + m_xid.bqual_length) +
         2;
@@ -509,7 +509,7 @@ char *XID::xid_to_str(char *buf) const {
     /* is_next_dig is set if next character is a number */
     bool is_next_dig = false;
     if (i < XIDDATASIZE) {
-      char ch = data[i + 1];
+      const char ch = data[i + 1];
       is_next_dig = (ch >= '0' && ch <= '9');
     }
     if (i == gtrid_length) {
@@ -519,7 +519,7 @@ char *XID::xid_to_str(char *buf) const {
         *s++ = '\'';
       }
     }
-    uchar c = static_cast<uchar>(data[i]);
+    const uchar c = static_cast<uchar>(data[i]);
     if (c < 32 || c > 126) {
       *s++ = '\\';
       /*

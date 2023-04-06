@@ -134,13 +134,13 @@ void release_backup_lock(THD *thd) {
 
 bool acquire_exclusive_backup_lock(THD *thd, ulong lock_wait_timeout,
                                    bool for_trx) {
-  enum_mdl_duration duration = (for_trx ? MDL_TRANSACTION : MDL_EXPLICIT);
+  const enum_mdl_duration duration = (for_trx ? MDL_TRANSACTION : MDL_EXPLICIT);
   return acquire_mdl_for_backup(thd, MDL_SHARED, duration, lock_wait_timeout);
 }
 
 bool acquire_shared_backup_lock(THD *thd, ulong lock_wait_timeout,
                                 bool for_trx) {
-  enum_mdl_duration duration = (for_trx ? MDL_TRANSACTION : MDL_EXPLICIT);
+  const enum_mdl_duration duration = (for_trx ? MDL_TRANSACTION : MDL_EXPLICIT);
   return acquire_mdl_for_backup(thd, MDL_INTENTION_EXCLUSIVE, duration,
                                 lock_wait_timeout);
 }

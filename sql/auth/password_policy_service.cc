@@ -79,7 +79,7 @@ int my_validate_password_policy(const char *password,
   int res = 0;
 
   if (password) {
-    String tmp_str(password, password_len, &my_charset_utf8mb3_bin);
+    const String tmp_str(password, password_len, &my_charset_utf8mb3_bin);
     password_str = tmp_str;
   }
   if (!srv_registry->acquire("validate_password", &h_pv_svc)) {

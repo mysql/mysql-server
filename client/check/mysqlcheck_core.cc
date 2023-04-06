@@ -280,8 +280,8 @@ static void print_result() {
   prev_alter[0] = 0;
 
   while ((row = mysql_fetch_row(res))) {
-    int changed = strcmp(prev, row[0]);
-    bool status = !strcmp(row[2], "status");
+    const int changed = strcmp(prev, row[0]);
+    const bool status = !strcmp(row[2], "status");
 
     if (status) {
       /*

@@ -1150,7 +1150,7 @@ void Group_check::to_opt_trace(THD *thd) {
   if (fd.empty() && !whole_tables_fd) return;
   Opt_trace_context *ctx = &thd->opt_trace;
   if (!ctx->is_started()) return;
-  Opt_trace_object trace_wrapper(ctx);
+  const Opt_trace_object trace_wrapper(ctx);
   Opt_trace_object trace_fds(ctx, "functional_dependencies_of_GROUP_columns");
   to_opt_trace2(ctx, &trace_fds);
 }
@@ -1176,7 +1176,7 @@ void Group_check::to_opt_trace2(Opt_trace_context *ctx,
       parent->add("all_group_expressions", true);
   }
   if (!mat_tables.empty()) {
-    Opt_trace_array array(ctx, "searched_in_materialized_tables");
+    const Opt_trace_array array(ctx, "searched_in_materialized_tables");
     for (uint j = 0; j < mat_tables.size(); j++) {
       Opt_trace_object trace_wrapper(ctx);
       mat_tables.at(j)->to_opt_trace2(ctx, &trace_wrapper);

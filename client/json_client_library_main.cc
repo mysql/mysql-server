@@ -43,7 +43,7 @@ int main() {
 
   // Make sure Json_wrapper::seek is visible
   Json_wrapper_vector hits(PSI_NOT_INSTRUMENTED);
-  bool need_only_one{false};
+  const bool need_only_one{false};
   const char *json_path = R"($**."512")";
   Json_path path(PSI_NOT_INSTRUMENTED);
   size_t bad_index;
@@ -62,7 +62,7 @@ int main() {
 
   // Make sure Json_dom::parse is visible and error handling works
   {
-    std::string json{"[{\"key\":123},146]"};
+    const std::string json{"[{\"key\":123},146]"};
     Json_dom_ptr dom(Json_dom::parse(
         json.c_str(), json.length(),
         [](const char *, size_t) { assert(false); }, [] { assert(false); }));
@@ -70,7 +70,7 @@ int main() {
   }
 
   {
-    std::string json{
+    const std::string json{
         "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[["
         R"([[[[[[[[[[[[[[[[[[[[[[[[[[[[[[{"key":123}]]]]]]]]]]]]]]]]]]]]]]]]]])"
         "]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]"
@@ -86,7 +86,7 @@ int main() {
   }
 
   {
-    std::string json{"[&&"};
+    const std::string json{"[&&"};
     Json_dom_ptr dom(Json_dom::parse(
         json.c_str(), json.length(),
         [](const char *err_mesg, size_t err_code) {

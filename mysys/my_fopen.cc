@@ -131,7 +131,7 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags) {
     return nullptr;
   }
 
-  File fd = my_fileno(stream);
+  const File fd = my_fileno(stream);
   file_info::RegisterFilename(fd, filename,
                               file_info::OpenType::STREAM_BY_FOPEN);
 
@@ -174,11 +174,11 @@ FILE *my_freopen(const char *filename, const char *mode, FILE *stream) {
 int my_fclose(FILE *stream, myf MyFlags) {
   DBUG_TRACE;
 
-  File fd = my_fileno(stream);
+  const File fd = my_fileno(stream);
 
   // Store the filename before unregistering, so that it can be
   // reported if close() fails.
-  std::string fname = my_filename(fd);
+  const std::string fname = my_filename(fd);
 
   // Need to remove file_info entry first to avoid race with another
   // thread reusing this fd after it has been closed.

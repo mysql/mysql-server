@@ -122,7 +122,7 @@ static void *test_services(void *p [[maybe_unused]]) {
 static int test_services_plugin_init(void *p) {
   DBUG_TRACE;
 
-  int ret = 0;
+  const int ret = 0;
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
   struct test_services_context *con;
   my_thread_attr_t attr; /* Thread attributes */

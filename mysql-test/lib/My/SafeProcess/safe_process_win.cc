@@ -84,7 +84,7 @@ static void message(const char *fmt, ...) {
 }
 
 [[noreturn]] static void die(const char *fmt, ...) {
-  DWORD last_err = GetLastError();
+  const DWORD last_err = GetLastError();
 
   va_list args;
   std::fprintf(stderr, "%s: FATAL ERROR, ", safe_process_name);
@@ -165,7 +165,7 @@ void fix_file_append_flag_inheritance(DWORD std_handle) {
 }
 
 int main(int argc, const char **argv) {
-  DWORD pid = GetCurrentProcessId();
+  const DWORD pid = GetCurrentProcessId();
   sprintf(safe_process_name, "safe_process[%lu]", (unsigned long)pid);
 
   // Create an event for the signal handler
@@ -319,8 +319,8 @@ int main(int argc, const char **argv) {
   // new process group. Process groups also allow to kill process and its
   // descendants, subject to some restrictions (processes have to run within
   // the same console,and must not ignore CTRL_BREAK)
-  DWORD create_flags[] = {CREATE_BREAKAWAY_FROM_JOB, CREATE_NEW_PROCESS_GROUP,
-                          0};
+  const DWORD create_flags[] = {CREATE_BREAKAWAY_FROM_JOB,
+                                CREATE_NEW_PROCESS_GROUP, 0};
 
   BOOL jobobject_assigned = FALSE;
   BOOL process_created = FALSE;

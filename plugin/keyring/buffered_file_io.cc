@@ -147,7 +147,7 @@ bool Buffered_file_io::load_file_into_buffer(File file, Buffer *buffer) {
     return true;
 
   // get current file position (size of file)
-  my_off_t file_size = file_io.tell(file, MYF(MY_WME));
+  const my_off_t file_size = file_io.tell(file, MYF(MY_WME));
   if (file_size == ((my_off_t)-1)) return true;
 
   // we don't load if file's empty
@@ -236,7 +236,7 @@ bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists() {
   }
 
   // try opening or creating main keyring file
-  File keyring_file =
+  const File keyring_file =
       file_io.open(keyring_file_data_key, keyring_filename.c_str(),
                    O_RDWR | O_CREAT, MYF(MY_WME));
 
@@ -264,10 +264,10 @@ bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists() {
 */
 bool Buffered_file_io::check_if_keyring_file_can_be_opened_or_created() {
   // Check if the file exists
-  int file_exist = !my_access(keyring_filename.c_str(), F_OK);
+  const int file_exist = !my_access(keyring_filename.c_str(), F_OK);
 
   // try creating file or opening existing
-  File file = file_io.open(
+  const File file = file_io.open(
       keyring_file_data_key, keyring_filename.c_str(),
       file_exist && keyring_open_mode ? O_RDONLY : O_RDWR | O_CREAT,
       MYF(MY_WME));
@@ -278,7 +278,7 @@ bool Buffered_file_io::check_if_keyring_file_can_be_opened_or_created() {
     return true;
 
   // get local file position (i.e. file size), leave on error
-  my_off_t file_size = file_io.tell(file, MYF(MY_WME));
+  const my_off_t file_size = file_io.tell(file, MYF(MY_WME));
   if (((file_size == (my_off_t)-1)) || file_io.close(file, MYF(MY_WME)) < 0)
     return true;
 
@@ -383,7 +383,7 @@ bool Buffered_file_io::check_keyring_file_structure(File keyring_file) {
     return true;
 
   // determine current location (i.e. file size), leave on error
-  my_off_t file_size = file_io.tell(keyring_file, MYF(MY_WME));
+  const my_off_t file_size = file_io.tell(keyring_file, MYF(MY_WME));
   if (file_size == ((my_off_t)-1)) return true;
 
   // lets call all available rules to see if any checks out
@@ -404,12 +404,12 @@ bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object) {
   // media, where keyring file is written, is not replaced with some other media
   // before backup file is written. In case media was changed backup file
   // handler  becomes invalid
-  File backup_file =
+  const File backup_file =
       file_io.open(keyring_backup_file_data_key, get_backup_filename()->c_str(),
                    O_WRONLY | O_TRUNC | O_CREAT, MYF(MY_WME));
 
-  File keyring_file = file_io.open(keyring_file_data_key,
-                                   keyring_filename.c_str(), O_RDONLY, MYF(0));
+  const File keyring_file = file_io.open(
+      keyring_file_data_key, keyring_filename.c_str(), O_RDONLY, MYF(0));
 
   // backup file must be available
   if (backup_file < 0) {
@@ -502,7 +502,7 @@ bool Buffered_file_io::flush_to_storage(ISerialized_object *serialized_object) {
   assert(serialized_object->get_key_operation() != NONE);
 
   // open keyring file
-  File keyring_file =
+  const File keyring_file =
       file_io.open(keyring_file_data_key, keyring_filename.c_str(),
                    O_CREAT | O_RDWR, MYF(MY_WME));
 
@@ -549,10 +549,10 @@ ISerializer *Buffered_file_io::get_serializer() {
 bool Buffered_file_io::get_serialized_object(
     ISerialized_object **serialized_object) {
   // Check if the file exists
-  int file_exist = !my_access(keyring_filename.c_str(), F_OK);
+  const int file_exist = !my_access(keyring_filename.c_str(), F_OK);
 
   // try opening keyring file, leave on error
-  File file = file_io.open(
+  const File file = file_io.open(
       keyring_file_data_key, keyring_filename.c_str(),
       file_exist && keyring_open_mode ? O_RDONLY : O_RDWR | O_CREAT,
       MYF(MY_WME));

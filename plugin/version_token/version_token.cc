@@ -106,9 +106,8 @@ class atomic_boolean {
     @retval false the atomic boolean value is different from the argument value
   */
   bool is_set(bool value = true) {
-    int32 cmp = value ? m_true : m_false, actual_value;
-
-    actual_value = m_value.load();
+    const int32 cmp = value ? m_true : m_false;
+    const int32 actual_value = m_value.load();
 
     return actual_value == cmp;
   }
@@ -119,7 +118,7 @@ class atomic_boolean {
     @param new_value value to set
   */
   void set(bool new_value) {
-    int32 new_val = new_value ? m_true : m_false;
+    const int32 new_val = new_value ? m_true : m_false;
     m_value.store(new_val);
   }
 };
@@ -298,10 +297,10 @@ static int parse_vtokens(char *input, enum command type) {
   const char *separator = ";";
   int result = 0;
   THD *thd = current_thd;
-  ulonglong thd_session_number = THDVAR(thd, session_number);
-  ulonglong tmp_token_number = (ulonglong)session_number.load();
+  const ulonglong thd_session_number = THDVAR(thd, session_number);
+  const ulonglong tmp_token_number = (ulonglong)session_number.load();
 
-  bool vtokens_unchanged = (thd_session_number == tmp_token_number);
+  const bool vtokens_unchanged = (thd_session_number == tmp_token_number);
 
   token = my_strtok_r(input, separator, &lasts_token);
 
@@ -446,7 +445,7 @@ static int version_token_check(MYSQL_THD thd,
   const struct mysql_event_general *event_general =
       (const struct mysql_event_general *)event;
   const uchar *command = (const uchar *)event_general->general_command.str;
-  size_t length = event_general->general_command.length;
+  const size_t length = event_general->general_command.length;
 
   assert(event_class == MYSQL_AUDIT_GENERAL_CLASS);
 
@@ -665,7 +664,7 @@ PLUGIN_EXPORT char *version_tokens_set(UDF_INIT *, UDF_ARGS *args, char *result,
                                        unsigned long *length, unsigned char *,
                                        unsigned char *error) {
   char *hash_str;
-  int len = args->lengths[0];
+  const int len = args->lengths[0];
   int vtokens_count = 0;
   std::stringstream ss;
 
@@ -745,7 +744,7 @@ PLUGIN_EXPORT char *version_tokens_edit(UDF_INIT *, UDF_ARGS *args,
                                         char *result, unsigned long *length,
                                         unsigned char *, unsigned char *error) {
   char *hash_str;
-  int len = args->lengths[0];
+  const int len = args->lengths[0];
   std::stringstream ss;
   int vtokens_count = 0;
 
@@ -1013,9 +1012,9 @@ PLUGIN_EXPORT bool version_tokens_lock_shared_init(UDF_INIT *initid,
 PLUGIN_EXPORT long long version_tokens_lock_shared(UDF_INIT *, UDF_ARGS *args,
                                                    unsigned char *,
                                                    unsigned char *error) {
-  long long timeout = args->args[args->arg_count - 1] ?  // Null ?
-                          *((long long *)args->args[args->arg_count - 1])
-                                                      : -1;
+  const long long timeout = args->args[args->arg_count - 1] ?  // Null ?
+                                *((long long *)args->args[args->arg_count - 1])
+                                                            : -1;
 
   if (timeout < 0) {
     my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "timeout",
@@ -1041,9 +1040,9 @@ PLUGIN_EXPORT long long version_tokens_lock_exclusive(UDF_INIT *,
                                                       UDF_ARGS *args,
                                                       unsigned char *,
                                                       unsigned char *error) {
-  long long timeout = args->args[args->arg_count - 1] ?  // Null ?
-                          *((long long *)args->args[args->arg_count - 1])
-                                                      : -1;
+  const long long timeout = args->args[args->arg_count - 1] ?  // Null ?
+                                *((long long *)args->args[args->arg_count - 1])
+                                                            : -1;
 
   if (timeout < 0) {
     my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "timeout",

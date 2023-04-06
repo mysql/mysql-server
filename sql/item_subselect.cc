@@ -652,17 +652,17 @@ bool Item_subselect::exec(THD *thd) {
   const bool disable_trace =
       traced_before &&
       !trace->feature_enabled(Opt_trace_context::REPEATED_SUBSELECT);
-  Opt_trace_disable_I_S disable_trace_wrapper(trace, disable_trace);
+  const Opt_trace_disable_I_S disable_trace_wrapper(trace, disable_trace);
   traced_before = true;
 
-  Opt_trace_object trace_wrapper(trace);
+  const Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_exec(trace, "subselect_execution");
   trace_exec.add_select_number(unit->first_query_block()->select_number);
-  Opt_trace_array trace_steps(trace, "steps");
+  const Opt_trace_array trace_steps(trace, "steps");
 
   // subselect_hash_sj_engine creates its own iterators; it does not call
   // exec().
-  bool should_create_iterators =
+  const bool should_create_iterators =
       !(indexsubquery_engine != nullptr &&
         indexsubquery_engine->engine_type() ==
             subselect_indexsubquery_engine::HASH_SJ_ENGINE);
@@ -832,7 +832,7 @@ void Item_subselect::print(const THD *thd, String *str,
     str->append('(');
     if (query_type & QT_SUBSELECT_AS_ONLY_SELECT_NUMBER) {
       str->append("select #");
-      uint select_number = unit->first_query_block()->select_number;
+      const uint select_number = unit->first_query_block()->select_number;
       str->append_ulonglong(select_number);
     } else if (indexsubquery_engine != nullptr) {
       indexsubquery_engine->print(thd, str, query_type);
@@ -995,7 +995,7 @@ bool Query_result_max_min_subquery::send_data(
  */
 bool Query_result_max_min_subquery::cmp_real() {
   Item *maxmin = ((Item_singlerow_subselect *)item)->element_index(0);
-  double val1 = cache->val_real(), val2 = maxmin->val_real();
+  const double val1 = cache->val_real(), val2 = maxmin->val_real();
   /*
     If we're ignoring NULLs and the current maximum/minimum is NULL
     (must have been placed there as the first value iterated over) and
@@ -1019,7 +1019,7 @@ bool Query_result_max_min_subquery::cmp_real() {
 */
 bool Query_result_max_min_subquery::cmp_int() {
   Item *maxmin = ((Item_singlerow_subselect *)item)->element_index(0);
-  longlong val1 = cache->val_int(), val2 = maxmin->val_int();
+  const longlong val1 = cache->val_int(), val2 = maxmin->val_int();
   if (cache->null_value || maxmin->null_value)
     return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
   return (fmax) ? (val1 > val2) : (val1 < val2);
@@ -1503,7 +1503,7 @@ bool Item_exists_subselect::resolve_type(THD *thd) {
   max_length = 1;
   max_columns = unit_cols();
   if (strategy == Subquery_strategy::SUBQ_EXISTS) {
-    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    const Prepared_stmt_arena_holder ps_arena_holder(thd);
     /*
       We need only 1 row to determine existence if LIMIT is not 0.
       Note that if the subquery is "SELECT1 UNION SELECT2" then this is not
@@ -1578,7 +1578,7 @@ longlong Item_exists_subselect::val_int() { return val_bool(); }
 */
 
 String *Item_exists_subselect::val_str(String *str) {
-  longlong val = val_bool();
+  const longlong val = val_bool();
   if (null_value) return nullptr;
   str->set(val, &my_charset_bin);
   return str;
@@ -1595,7 +1595,7 @@ String *Item_exists_subselect::val_str(String *str) {
 */
 
 my_decimal *Item_exists_subselect::val_decimal(my_decimal *decimal_value) {
-  longlong val = val_bool();
+  const longlong val = val_bool();
   if (null_value) return nullptr;
   int2my_decimal(E_DEC_FATAL_ERROR, val, false, decimal_value);
   return decimal_value;
@@ -1978,8 +1978,8 @@ bool Item_in_subselect::single_value_in_to_exists_transformer(
       we do not check having_cond()->fixed, because Item_and (from and_items)
       or comparison function (from func->create) can't be fixed after creation
     */
-    Opt_trace_array having_trace(&thd->opt_trace,
-                                 "evaluating_constant_having_conditions");
+    const Opt_trace_array having_trace(&thd->opt_trace,
+                                       "evaluating_constant_having_conditions");
     if (select->having_cond()->fix_fields(thd, nullptr)) return true;
     select->having_fix_field = false;
   } else {
@@ -2017,8 +2017,8 @@ bool Item_in_subselect::single_value_in_to_exists_transformer(
           (from and_items) or comparison function (from func->create)
           can't be fixed after creation.
         */
-        Opt_trace_array having_trace(&thd->opt_trace,
-                                     "evaluating_constant_having_conditions");
+        const Opt_trace_array having_trace(
+            &thd->opt_trace, "evaluating_constant_having_conditions");
         if (select->having_cond()->fix_fields(thd, nullptr)) return true;
         select->having_fix_field = false;
         item = new Item_cond_or(item, new Item_func_isnull(orig_item));
@@ -2052,8 +2052,8 @@ bool Item_in_subselect::single_value_in_to_exists_transformer(
         No need to check query_block->where_cond()->fixed, because Item_and
         can't be fixed after creation.
       */
-      Opt_trace_array where_trace(&thd->opt_trace,
-                                  "evaluating_constant_where_conditions");
+      const Opt_trace_array where_trace(&thd->opt_trace,
+                                        "evaluating_constant_where_conditions");
       if (select->where_cond()->fix_fields(thd, nullptr)) return true;
     } else {
       if (unit->is_set_operation()) {
@@ -2082,8 +2082,8 @@ bool Item_in_subselect::single_value_in_to_exists_transformer(
           No need to check query_block->having_cond()->fixed, because comparison
           function (from func->create) can't be fixed after creation.
         */
-        Opt_trace_array having_trace(&thd->opt_trace,
-                                     "evaluating_constant_having_conditions");
+        const Opt_trace_array having_trace(
+            &thd->opt_trace, "evaluating_constant_having_conditions");
         if (select->having_cond()->fix_fields(thd, nullptr)) return true;
         select->having_fix_field = false;
       } else {
@@ -2120,7 +2120,7 @@ bool Item_in_subselect::single_value_in_to_exists_transformer(
 }
 
 bool Item_in_subselect::row_value_transformer(THD *thd, Query_block *select) {
-  uint cols_num = left_expr->cols();
+  const uint cols_num = left_expr->cols();
 
   DBUG_TRACE;
 
@@ -2187,8 +2187,8 @@ bool Item_in_subselect::row_value_in_to_exists_transformer(
     THD *thd, Query_block *select) {
   thd->lex->m_subquery_to_derived_is_impossible = true;
   Item_bool_func *having_item = nullptr;
-  uint cols_num = left_expr->cols();
-  bool is_having_used =
+  const uint cols_num = left_expr->cols();
+  const bool is_having_used =
       select->having_cond() != nullptr || select->is_explicitly_grouped() ||
       select->with_sum_func || !select->has_tables() || select->has_windows();
 
@@ -2355,8 +2355,8 @@ bool Item_in_subselect::row_value_in_to_exists_transformer(
     select->set_where_cond(and_items(select->where_cond(), where_item));
     select->where_cond()->apply_is_true();
     in2exists_info->added_to_where = true;
-    Opt_trace_array where_trace(&thd->opt_trace,
-                                "evaluating_constant_where_conditions");
+    const Opt_trace_array where_trace(&thd->opt_trace,
+                                      "evaluating_constant_where_conditions");
     if (select->where_cond()->fix_fields(thd, nullptr)) return true;
   }
   if (having_item != nullptr) {
@@ -2368,8 +2368,8 @@ bool Item_in_subselect::row_value_in_to_exists_transformer(
       argument (reference) to fix_fields()
     */
     select->having_fix_field = true;
-    Opt_trace_array having_trace(&thd->opt_trace,
-                                 "evaluating_constant_having_conditions");
+    const Opt_trace_array having_trace(&thd->opt_trace,
+                                       "evaluating_constant_having_conditions");
     if (select->having_cond()->fix_fields(thd, nullptr)) return true;
     select->having_fix_field = false;
   }
@@ -3083,12 +3083,12 @@ bool ExecuteExistsQuery(THD *thd, Query_expression *unit, RowIterator *iterator,
   });
 
   Opt_trace_context *const trace = &thd->opt_trace;
-  Opt_trace_object trace_wrapper(trace);
+  const Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_exec(trace, "join_execution");
   if (unit->is_simple()) {
     trace_exec.add_select_number(unit->first_query_block()->select_number);
   }
-  Opt_trace_array trace_steps(trace, "steps");
+  const Opt_trace_array trace_steps(trace, "steps");
 
   if (unit->ClearForExecution()) {
     return true;
@@ -3101,7 +3101,7 @@ bool ExecuteExistsQuery(THD *thd, Query_expression *unit, RowIterator *iterator,
   }
 
   // See if we can get at least one row.
-  int error = iterator->Read();
+  const int error = iterator->Read();
   if (error == 1 || thd->is_error()) {
     return true;
   }
@@ -3200,7 +3200,7 @@ void subselect_indexsubquery_engine::print(const THD *thd, String *str,
 bool SubqueryWithResult::change_query_result(THD *thd, Item_subselect *si,
                                              Query_result_subquery *res) {
   item = si;
-  int rc = unit->change_query_result(thd, res, result);
+  const int rc = unit->change_query_result(thd, res, result);
   result = res;
   return rc;
 }
@@ -3503,7 +3503,7 @@ void subselect_hash_sj_engine::cleanup() {
 }
 
 static int safe_index_read(TABLE *table, const Index_lookup &ref) {
-  int error = table->file->ha_index_read_map(
+  const int error = table->file->ha_index_read_map(
       table->record[0], ref.key_buff, make_prev_keypart_map(ref.key_parts),
       HA_READ_KEY_EXACT);
   if (error) return report_handler_error(table, error);
@@ -3559,7 +3559,7 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
 
       TableScanIterator scan(thd, table, /*expected_rows=*/-1.0,
                              /*examined_rows=*/nullptr);
-      int ret = scan.Read();
+      const int ret = scan.Read();
       if (ret == 1 || thd->is_error()) {
         return true;
       }

@@ -266,7 +266,7 @@ static void run_cmd(MYSQL_SESSION session, const std::string &query,
   com.com_query.query = query.c_str();
   com.com_query.length = query.length();
 
-  int fail = command_service_run_command(
+  const int fail = command_service_run_command(
       session, COM_QUERY, &com, &my_charset_utf8mb3_general_ci, &sql_cbs,
       CS_TEXT_REPRESENTATION, ctxt);
   if (fail) {

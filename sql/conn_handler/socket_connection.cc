@@ -410,7 +410,7 @@ class TCP_socket {
           dummy IPv6-socket. Do not instrument that socket by P_S.
         */
 
-        MYSQL_SOCKET s = mysql_socket_socket(0, AF_INET6, SOCK_STREAM, 0);
+        const MYSQL_SOCKET s = mysql_socket_socket(0, AF_INET6, SOCK_STREAM, 0);
         ipv6_available = mysql_socket_getfd(s) != INVALID_SOCKET;
         if (ipv6_available) mysql_socket_close(s);
       }
@@ -1073,15 +1073,15 @@ static bool handle_admin_socket(
   fd_set client_fds;
   FD_ZERO(&client_fds);
   FD_SET(mysql_socket_getfd(admin_socket), &client_fds);
-  int max_used_connection = mysql_socket_getfd(admin_socket);
+  const int max_used_connection = mysql_socket_getfd(admin_socket);
 #endif
 
   while (!connection_events_loop_aborted()) {
 #ifdef HAVE_POLL
-    int retval = poll(fds, NUMBER_OF_POLLED_FDS, -1);
+    const int retval = poll(fds, NUMBER_OF_POLLED_FDS, -1);
 #else
     fd_set read_fds = client_fds;
-    int retval = select(max_used_connection, &read_fds, 0, 0, 0);
+    const int retval = select(max_used_connection, &read_fds, 0, 0, 0);
 #endif
 
     if (retval < 0 && socket_errno != SOCKET_EINTR) {
@@ -1114,7 +1114,7 @@ static bool handle_admin_socket(
 #endif
 
     MYSQL_SOCKET connect_sock;
-    bool accept_retval = accept_connection(admin_socket, &connect_sock);
+    const bool accept_retval = accept_connection(admin_socket, &connect_sock);
 
 #ifdef HAVE_SETNS
     if (!network_namespace_for_listening_socket.empty() &&
@@ -1219,7 +1219,7 @@ static inline bool spawn_admin_thread(MYSQL_SOCKET admin_socket,
 
   if (arg_for_admin_socket_thread == nullptr) return true;
 
-  int ret = mysql_thread_create(
+  const int ret = mysql_thread_create(
       key_thread_handle_con_admin_sockets, &admin_socket_thread_id,
       &admin_socket_thread_attrib, admin_socket_thread,
       (void *)arg_for_admin_socket_thread);

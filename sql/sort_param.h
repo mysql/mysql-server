@@ -426,7 +426,7 @@ class Sort_param {
    */
   static uchar *get_start_of_payload(uint default_val, bool is_varlen,
                                      uchar *p) {
-    size_t offset = is_varlen ? uint4korr(p) : default_val;
+    const size_t offset = is_varlen ? uint4korr(p) : default_val;
     return p + offset;
   }
 

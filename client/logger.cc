@@ -33,11 +33,11 @@ using namespace std;
 
 ostream &operator<<(ostream &os, const Datetime &) {
   const char format[] = "%Y-%m-%d %X";
-  time_t t(time(nullptr));
-  tm tm(*localtime(&t));
+  const time_t t(time(nullptr));
+  const tm tm(*localtime(&t));
 
   const size_t date_length{50};
-  std::unique_ptr<char[]> date{new char[date_length]};
+  const std::unique_ptr<char[]> date{new char[date_length]};
   strftime(date.get(), date_length, format, &tm);
 
   os << date.get() << " ";
@@ -49,7 +49,7 @@ ostream &operator<<(ostream &os, const Gen_spaces &gen) {
 }
 
 int Log::Log_buff::sync() {
-  string sout(str());
+  const string sout(str());
   if (m_enabled && sout.length() > 0) {
     m_os << Datetime() << "[" << m_logc << "]"
          << Gen_spaces(8 - m_logc.length()) << sout;

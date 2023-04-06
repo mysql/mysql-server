@@ -54,7 +54,7 @@ int ha_compare_text(const CHARSET_INFO *charset_info, const uchar *a,
 
 static int compare_bin(const uchar *a, uint a_length, const uchar *b,
                        uint b_length, bool part_key, bool skip_end_space) {
-  uint length = std::min(a_length, b_length);
+  const uint length = std::min(a_length, b_length);
   const uchar *end = a + length;
   int flag;
 
@@ -141,7 +141,7 @@ int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
   *diff_pos = 0;
   for (; (int)key_length > 0; key_length = next_key_length, keyseg++) {
     const uchar *end;
-    uint piks = !(keyseg->flag & HA_NO_SORT);
+    const uint piks = !(keyseg->flag & HA_NO_SORT);
     (*diff_pos)++;
     diff_pos[1] = (uint)(b - orig_b);
 
@@ -176,8 +176,8 @@ int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
       case HA_KEYTYPE_TEXT: /* Ascii; Key is converted */
         if (keyseg->flag & HA_SPACE_PACK) {
           uint pack_length;
-          int a_length = get_key_length(&a);
-          int b_length = get_key_pack_length(&b, &pack_length);
+          const int a_length = get_key_length(&a);
+          const int b_length = get_key_pack_length(&b, &pack_length);
           next_key_length = key_length - b_length - pack_length;
 
           if (piks &&
@@ -189,7 +189,8 @@ int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
           b += b_length;
           break;
         } else {
-          uint length = (uint)(end - a), a_length = length, b_length = length;
+          const uint length = (uint)(end - a), a_length = length,
+                     b_length = length;
           if (piks &&
               (flag = ha_compare_text(
                    keyseg->charset, a, a_length, b, b_length,
@@ -203,8 +204,8 @@ int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
       case HA_KEYTYPE_BIT:
         if (keyseg->flag & HA_SPACE_PACK) {
           uint pack_length;
-          int a_length = get_key_length(&a);
-          int b_length = get_key_pack_length(&b, &pack_length);
+          const int a_length = get_key_length(&a);
+          const int b_length = get_key_pack_length(&b, &pack_length);
           next_key_length = key_length - b_length - pack_length;
 
           if (piks && (flag = compare_bin(a, a_length, b, b_length,
@@ -216,7 +217,7 @@ int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
           b += b_length;
           break;
         } else {
-          uint length = keyseg->length;
+          const uint length = keyseg->length;
           if (piks && (flag = compare_bin(a, length, b, length,
                                           (bool)((nextflag & SEARCH_PREFIX) &&
                                                  next_key_length <= 0),
@@ -229,8 +230,8 @@ int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
       case HA_KEYTYPE_VARTEXT1:
       case HA_KEYTYPE_VARTEXT2: {
         uint pack_length;
-        int a_length = get_key_length(&a);
-        int b_length = get_key_pack_length(&b, &pack_length);
+        const int a_length = get_key_length(&a);
+        const int b_length = get_key_pack_length(&b, &pack_length);
         next_key_length = key_length - b_length - pack_length;
 
         if (piks &&
@@ -245,8 +246,8 @@ int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
       case HA_KEYTYPE_VARBINARY1:
       case HA_KEYTYPE_VARBINARY2: {
         uint pack_length;
-        int a_length = get_key_length(&a);
-        int b_length = get_key_pack_length(&b, &pack_length);
+        const int a_length = get_key_length(&a);
+        const int b_length = get_key_pack_length(&b, &pack_length);
         next_key_length = key_length - b_length - pack_length;
 
         if (piks && (flag = compare_bin(a, a_length, b, b_length,
@@ -258,8 +259,8 @@ int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
         b += b_length;
       } break;
       case HA_KEYTYPE_INT8: {
-        int i_1 = static_cast<signed char>(*a);
-        int i_2 = static_cast<signed char>(*b);
+        const int i_1 = static_cast<signed char>(*a);
+        const int i_2 = static_cast<signed char>(*b);
         if (piks && (flag = CMP_NUM(i_1, i_2)))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a = end;

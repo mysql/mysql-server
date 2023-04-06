@@ -2538,7 +2538,7 @@ class Rows_applier_psi_stage {
     /* Estimate if need be. */
     if (estimated == 0) {
       assert(cursor > begin);
-      ulonglong avg_row_change_size = (cursor - begin) / m_n_rows_applied;
+      const ulonglong avg_row_change_size = (cursor - begin) / m_n_rows_applied;
       estimated = (end - begin) / avg_row_change_size;
       mysql_stage_set_work_estimated(m_progress, estimated);
     }

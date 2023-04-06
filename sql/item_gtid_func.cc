@@ -87,8 +87,8 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
 
   Gtid_set wait_for_gtid_set(global_sid_map, nullptr);
 
-  Checkable_rwlock::Guard global_sid_lock_guard(*global_sid_lock,
-                                                Checkable_rwlock::READ_LOCK);
+  const Checkable_rwlock::Guard global_sid_lock_guard(
+      *global_sid_lock, Checkable_rwlock::READ_LOCK);
   if (global_gtid_mode.get() == Gtid_mode::OFF) {
     my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
     return error_int();
@@ -326,7 +326,7 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str) {
   // compute sets while holding locks
   Gtid_set set1(&sid_map, charp1, &status);
   if (status == RETURN_STATUS_OK) {
-    Gtid_set set2(&sid_map, charp2, &status);
+    const Gtid_set set2(&sid_map, charp2, &status);
     size_t length;
     // subtract, save result, return result
     if (status == RETURN_STATUS_OK) {

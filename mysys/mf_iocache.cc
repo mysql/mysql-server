@@ -125,7 +125,7 @@ void setup_io_cache(IO_CACHE *info) {
 }
 
 static void init_functions(IO_CACHE *info) {
-  enum cache_type type = info->type;
+  const enum cache_type type = info->type;
   switch (type) {
     case READ_NET:
       /*
@@ -1185,7 +1185,8 @@ read_append_buffer:
 
   {
     /* First copy the data to Count */
-    size_t len_in_buff = (size_t)(info->write_pos - info->append_read_pos);
+    const size_t len_in_buff =
+        (size_t)(info->write_pos - info->append_read_pos);
     size_t copy_len;
     size_t transfer_len;
 
@@ -1276,7 +1277,7 @@ int _my_b_write(IO_CACHE *info, const uchar *Buffer, size_t Count) {
       MY_FNABP are not set.
     */
     DBUG_EXECUTE_IF("verify_mysql_encryption_file_write_bytes",
-                    size_t write_bytes = mysql_encryption_file_write(
+                    const size_t write_bytes = mysql_encryption_file_write(
                         info, Buffer, length, info->myflags);
                     assert(write_bytes == length););
 
@@ -1403,7 +1404,7 @@ int my_block_write(IO_CACHE *info, const uchar *Buffer, size_t Count,
   /* Check if we want to write inside the used part of the buffer.*/
   length = (size_t)(info->write_end - info->buffer);
   if (pos < info->pos_in_file + length) {
-    size_t offset = (size_t)(pos - info->pos_in_file);
+    const size_t offset = (size_t)(pos - info->pos_in_file);
     length -= offset;
     if (length > Count) length = Count;
     memcpy(info->buffer + offset, Buffer, length);
@@ -1429,7 +1430,7 @@ int my_block_write(IO_CACHE *info, const uchar *Buffer, size_t Count,
 int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock) {
   size_t length;
   my_off_t pos_in_file;
-  bool append_cache = (info->type == SEQ_READ_APPEND);
+  const bool append_cache = (info->type == SEQ_READ_APPEND);
   DBUG_TRACE;
   DBUG_PRINT("enter", ("cache: %p", info));
 
@@ -1645,7 +1646,7 @@ my_off_t mysql_encryption_file_seek(IO_CACHE *cache, my_off_t pos, int whence,
 
 size_t mysql_encryption_file_read(IO_CACHE *cache, uchar *buffer, size_t count,
                                   myf flags) {
-  size_t ret = mysql_file_read(cache->file, buffer, count, flags);
+  const size_t ret = mysql_file_read(cache->file, buffer, count, flags);
   if (ret != MY_FILE_ERROR && cache->m_decryptor != nullptr)
     cache->m_decryptor->decrypt(buffer, buffer, ret ? ret : count);
   return ret;

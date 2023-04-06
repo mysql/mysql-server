@@ -108,7 +108,7 @@ Ha_trx_info_list::Iterator::reference Ha_trx_info_list::Iterator::operator*()
 }
 
 Ha_trx_info_list::Iterator Ha_trx_info_list::Iterator::operator++(int) {
-  Iterator to_return{*this};
+  const Iterator to_return{*this};
   ++(*this);
   return to_return;
 }

@@ -43,7 +43,7 @@ Destination_keyring_component::Destination_keyring_component(
     my_service<SERVICE_TYPE(registry_registration)> registrator(
         "registry_registration", srv_registry);
     const char *urn[] = {component_path_.c_str()};
-    bool load_status = dynamic_loader_srv->load(urn, 1);
+    const bool load_status = dynamic_loader_srv->load(urn, 1);
     if (load_status == true) return;
     component_loaded_ = true;
   }
@@ -154,9 +154,9 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
   DBUG_TRACE;
 
   std::size_t found = std::string::npos;
-  string equal("=");
-  string so(".so");
-  string dll(".dll");
+  const string equal("=");
+  const string so(".so");
+  const string dll(".dll");
   const string compression_method("zlib,zstd,uncompressed");
 
   if (!source_plugin) {
@@ -486,7 +486,7 @@ bool Migrate_keyring::fetch_and_store_keys() {
          keep track of keys stored in successfully so that they can be
          removed in case of error.
         */
-        Key_info ki(key_id, user_id);
+        const Key_info ki(key_id, user_id);
         m_source_keys.push_back(ki);
       }
     }

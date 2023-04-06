@@ -173,9 +173,9 @@ bool Sql_cmd_create_srs::execute(THD *thd) {
       acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
     return true;
 
-  Disable_autocommit_guard dag(thd);
+  const Disable_autocommit_guard dag(thd);
   dd::cache::Dictionary_client *dd_client = thd->dd_client();
-  dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
+  const dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
   auto rollback_guard = create_scope_guard([thd]() {
     if (rollback(thd)) assert(false); /* purecov: deadcode */
   });
@@ -243,9 +243,9 @@ bool Sql_cmd_drop_srs::execute(THD *thd) {
       acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
     return true;
 
-  Disable_autocommit_guard dag(thd);
+  const Disable_autocommit_guard dag(thd);
   dd::cache::Dictionary_client *dd_client = thd->dd_client();
-  dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
+  const dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
   auto rollback_guard = create_scope_guard([thd]() {
     if (rollback(thd)) assert(false); /* purecov: deadcode */
   });

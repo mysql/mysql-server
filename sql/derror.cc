@@ -66,7 +66,7 @@ static const char *ERRMSG_FILE = "errmsg.sys";
 int mysql_errno_to_builtin(uint mysql_errno) {
   int offset = 0;  // Position where the current section starts in the array.
   int i;
-  int temp_errno = (int)mysql_errno;
+  const int temp_errno = (int)mysql_errno;
 
   for (i = 0; i < NUM_SECTIONS; i++) {
     if (temp_errno >= errmsg_section_start[i] &&
@@ -131,7 +131,7 @@ static const char *error_message_fetch(int mysql_errno) {
 
   {
     server_error *sqlstate_map = &error_names_array[1];
-    int i = mysql_errno_to_builtin(mysql_errno);
+    const int i = mysql_errno_to_builtin(mysql_errno);
 
     if (i >= 0) return sqlstate_map[i].text;
   }

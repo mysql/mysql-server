@@ -81,11 +81,11 @@ recv, END_SERVICE_IMPLEMENTATION();
 bool register_gr_message_service_recv() {
   DBUG_TRACE;
   SERVICE_TYPE(registry) *plugin_registry = mysql_plugin_registry_acquire();
-  my_service<SERVICE_TYPE(registry_registration)> reg("registry_registration",
-                                                      plugin_registry);
+  const my_service<SERVICE_TYPE(registry_registration)> reg(
+      "registry_registration", plugin_registry);
   using group_replication_message_service_recv_t =
       SERVICE_TYPE_NO_CONST(group_replication_message_service_recv);
-  bool result = reg->register_service(
+  const bool result = reg->register_service(
       "group_replication_message_service_recv.replication_observers_example",
       reinterpret_cast<my_h_service>(
           const_cast<group_replication_message_service_recv_t *>(
@@ -100,9 +100,9 @@ bool register_gr_message_service_recv() {
 bool unregister_gr_message_service_recv() {
   DBUG_TRACE;
   SERVICE_TYPE(registry) *plugin_registry = mysql_plugin_registry_acquire();
-  my_service<SERVICE_TYPE(registry_registration)> reg("registry_registration",
-                                                      plugin_registry);
-  bool result = reg->unregister(
+  const my_service<SERVICE_TYPE(registry_registration)> reg(
+      "registry_registration", plugin_registry);
+  const bool result = reg->unregister(
       "group_replication_message_service_recv.replication_observers_example");
 
   mysql_plugin_registry_release(plugin_registry);
@@ -128,10 +128,10 @@ char *GR_message_service_send_example::udf(UDF_INIT *, UDF_ARGS *args,
   DBUG_TRACE;
 
   SERVICE_TYPE(registry) *plugin_registry = mysql_plugin_registry_acquire();
-  my_service<SERVICE_TYPE(group_replication_message_service_send)> svc(
+  const my_service<SERVICE_TYPE(group_replication_message_service_send)> svc(
       "group_replication_message_service_send", plugin_registry);
-  my_service<SERVICE_TYPE(mysql_runtime_error)> svc_error("mysql_runtime_error",
-                                                          plugin_registry);
+  const my_service<SERVICE_TYPE(mysql_runtime_error)> svc_error(
+      "mysql_runtime_error", plugin_registry);
 
   if (svc.is_valid()) {
     const size_t payload_length = static_cast<size_t>(args->lengths[1]);
@@ -141,7 +141,7 @@ char *GR_message_service_send_example::udf(UDF_INIT *, UDF_ARGS *args,
     if (error) {
       const char *return_message =
           "Service failed sending message to the group.";
-      size_t return_length = strlen(return_message);
+      const size_t return_length = strlen(return_message);
       strcpy(result, return_message);
       *length = return_length;
       if (svc_error.is_valid()) {
@@ -150,14 +150,14 @@ char *GR_message_service_send_example::udf(UDF_INIT *, UDF_ARGS *args,
       }
     } else {
       const char *return_message = "The tag and message was sent to the group.";
-      size_t return_length = strlen(return_message);
+      const size_t return_length = strlen(return_message);
       strcpy(result, return_message);
       *length = return_length;
     }
   } else {
     const char *return_message =
         "No send service to propagate message to a group.";
-    size_t return_length = strlen(return_message);
+    const size_t return_length = strlen(return_message);
     strcpy(result, return_message);
     *length = return_length;
     if (svc_error.is_valid()) {
@@ -206,8 +206,8 @@ bool GR_message_service_send_example::register_example() {
   {
     /* We open a new scope so that udf_register is (automatically) destroyed
       before plugin_registry. */
-    my_service<SERVICE_TYPE(udf_registration)> udf_register("udf_registration",
-                                                            plugin_registry);
+    const my_service<SERVICE_TYPE(udf_registration)> udf_register(
+        "udf_registration", plugin_registry);
     if (udf_register.is_valid()) {
       error = udf_register->udf_register(
           send_udf_name.c_str(), Item_result::STRING_RESULT,
@@ -265,8 +265,8 @@ bool GR_message_service_send_example::unregister_example() {
   {
     /* We open a new scope so that udf_registry is (automatically) destroyed
       before plugin_registry. */
-    my_service<SERVICE_TYPE(udf_registration)> udf_registry("udf_registration",
-                                                            plugin_registry);
+    const my_service<SERVICE_TYPE(udf_registration)> udf_registry(
+        "udf_registration", plugin_registry);
     if (udf_registry.is_valid()) {
       int was_present;
       error = udf_registry->udf_unregister(send_udf_name.c_str(), &was_present);

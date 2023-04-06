@@ -118,8 +118,6 @@ class iterator {
 DEFINE_BOOL_METHOD(mysql_query_attributes_imp::create,
                    (MYSQL_THD hthd, const char *name,
                     mysqlh_query_attributes_iterator *out_iterator)) {
-  String name_val;
-
   mysql_query_attributes::iterator *iter =
       new mysql_query_attributes::iterator();
 
@@ -196,42 +194,42 @@ static String *query_parameter_val_str(const PS_PARAM *param,
     // the expected data types listed in the manual
     case MYSQL_TYPE_TINY:
       if (param->length == 1) {
-        int8 value = (int8)*param->value;
+        const int8 value = (int8)*param->value;
         str = new String[1];
         str->set_int(value, param->unsigned_type != 0, cs);
       }
       break;
     case MYSQL_TYPE_SHORT:
       if (param->length == 2) {
-        int16 value = sint2korr(param->value);
+        const int16 value = sint2korr(param->value);
         str = new String[1];
         str->set_int(value, param->unsigned_type != 0, cs);
       }
       break;
     case MYSQL_TYPE_LONG:
       if (param->length == 4) {
-        int32 value = sint4korr(param->value);
+        const int32 value = sint4korr(param->value);
         str = new String[1];
         str->set_int(value, param->unsigned_type != 0, cs);
       }
       break;
     case MYSQL_TYPE_LONGLONG:
       if (param->length == 8) {
-        longlong value = sint8korr(param->value);
+        const longlong value = sint8korr(param->value);
         str = new String[1];
         str->set_int(value, param->unsigned_type != 0, cs);
       }
       break;
     case MYSQL_TYPE_FLOAT:
       if (param->length == 4) {
-        float value = float4get(param->value);
+        const float value = float4get(param->value);
         str = new String[1];
         str->set_real(value, DECIMAL_NOT_SPECIFIED, cs);
       }
       break;
     case MYSQL_TYPE_DOUBLE:
       if (param->length == 8) {
-        double value = float8get(param->value);
+        const double value = float8get(param->value);
         str = new String[1];
         str->set_real(value, DECIMAL_NOT_SPECIFIED, cs);
       }

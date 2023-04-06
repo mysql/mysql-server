@@ -176,7 +176,7 @@ void monitor_log_msg(Monitor_log_msg_type type, LPCTSTR format, ...) {
   char buf[2048];
 
   va_start(args, format);
-  int len [[maybe_unused]] = vsnprintf(buf, sizeof(buf), format, args);
+  const int len [[maybe_unused]] = vsnprintf(buf, sizeof(buf), format, args);
   va_end(args);
 
   if (is_windows_service())
@@ -347,7 +347,7 @@ static bool get_and_set_service_status() {
         break;
       case 'T':
         // Read further to read the slow start timeout value.
-        ulong slow_start_timeout =
+        const ulong slow_start_timeout =
             strtoul(&service_msg.service_msg()[3], nullptr, 0);
         get_win_service_ptr()->SetSlowStarting(slow_start_timeout);
         break;
@@ -488,7 +488,7 @@ static int monitor_mysqld(LPSTR cmd_line) {
 
   if (is_windows_service()) {
     while (true) {
-      DWORD rv = WaitForMultipleObjects(
+      const DWORD rv = WaitForMultipleObjects(
           NUM_WAIT_HANDLES, (HANDLE *)event_handles, FALSE, INFINITE);
       if (rv == WAIT_FAILED) {
         monitor_log_msg(Monitor_log_msg_type::MONITOR_LOG_ERROR,

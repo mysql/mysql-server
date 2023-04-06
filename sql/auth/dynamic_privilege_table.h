@@ -51,7 +51,7 @@ class Update_dynamic_privilege_table {
                   bool grant_option,
                   Update_dynamic_privilege_table::Operation op) {
     if (m_no_update) return false;
-    LEX_CSTRING cstr_priv = {priv.c_str(), priv.length()};
+    const LEX_CSTRING cstr_priv = {priv.c_str(), priv.length()};
     return modify_dynamic_privileges_in_table(m_thd, m_table, auth_id,
                                               cstr_priv, grant_option,
                                               op == Operation::REVOKE);

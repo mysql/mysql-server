@@ -387,8 +387,6 @@ bool Sql_cmd_handler_read::execute(THD *thd) {
   TABLE *table, *backup_open_tables;
   MYSQL_LOCK *lock;
   Protocol *protocol = thd->get_protocol();
-  char buff[MAX_FIELD_WIDTH];
-  String buffer(buff, sizeof(buff), system_charset_info);
   int error, keyno = -1;
   uint num_rows;
   uchar *key = nullptr;
@@ -558,7 +556,7 @@ retry:
       Privilege check not needed since all columns are selected and checked
       by insert_fields().
     */
-    Column_privilege_tracker column_privilege(thd, 0);
+    const Column_privilege_tracker column_privilege(thd, 0);
 
     if (table->query_id != thd->query_id) cond->cleanup();  // File was reopened
     if ((!cond->fixed && cond->fix_fields(thd, &cond)) || cond->check_cols(1))
@@ -686,7 +684,7 @@ retry:
           Privilege check not needed since all columns are selected and checked
           by insert_fields().
         */
-        Column_privilege_tracker column_privilege(thd, 0);
+        const Column_privilege_tracker column_privilege(thd, 0);
 
         auto it_ke = m_key_expr->begin();
         key_part_map keypart_map;
@@ -703,7 +701,7 @@ retry:
             goto err;
           }
           old_map = dbug_tmp_use_all_columns(table, table->write_set);
-          type_conversion_status conv_status =
+          const type_conversion_status conv_status =
               item->save_in_field(key_part->field, true);
           dbug_tmp_restore_column_map(table->write_set, old_map);
           /*

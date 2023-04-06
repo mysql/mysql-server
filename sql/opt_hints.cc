@@ -133,7 +133,7 @@ Opt_hints *Opt_hints::find_by_name(const LEX_CSTRING *name_arg,
 void Opt_hints::print(const THD *thd, String *str, enum_query_type query_type) {
   for (uint i = 0; i < MAX_HINT_ENUM; i++) {
     if (opt_hint_info[i].irregular_hint) continue;
-    opt_hints_enum hint = static_cast<opt_hints_enum>(i);
+    const opt_hints_enum hint = static_cast<opt_hints_enum>(i);
     /*
        If printing a normalized query, also unresolved hints will be printed.
        (This is needed by query rewrite plugins which request
@@ -503,7 +503,7 @@ static bool set_join_hint_deps(JOIN *join,
   // Add dependencies that are related to non-hint tables
   for (uint i = 0; i < join->tables; i++) {
     JOIN_TAB *tab = &join->join_tab[i];
-    table_map dependent_tables =
+    const table_map dependent_tables =
         get_other_dep(type, hint_tab_map, tab->table_ref->map());
     update_nested_join_deps(join, tab, dependent_tables);
     tab->dependent |= dependent_tables;
@@ -647,7 +647,7 @@ bool Opt_hints_table::update_index_hint_maps(THD *thd, TABLE *tbl) {
   tbl->keys_in_use_for_query = tbl->keys_in_use_for_group_by =
       tbl->keys_in_use_for_order_by = usable_index_map;
 
-  bool force_index = is_force_index_hint(INDEX_HINT_ENUM);
+  const bool force_index = is_force_index_hint(INDEX_HINT_ENUM);
   tbl->force_index = (force_index || is_force_index_hint(JOIN_INDEX_HINT_ENUM));
   tbl->force_index_group =
       (force_index || is_force_index_hint(GROUP_INDEX_HINT_ENUM));
@@ -948,7 +948,7 @@ bool compound_hint_key_enabled(const TABLE *table, uint keyno,
 
 bool idx_merge_hint_state(THD *thd, const TABLE *table,
                           bool *use_cheapest_index_merge) {
-  bool force_index_merge =
+  const bool force_index_merge =
       hint_table_state(thd, table->pos_in_table_list, INDEX_MERGE_HINT_ENUM, 0);
   if (force_index_merge) {
     assert(table->pos_in_table_list->opt_hints_table);

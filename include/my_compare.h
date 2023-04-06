@@ -72,7 +72,7 @@ struct HA_KEYSEG /* Key-portion */
 
 static inline uint get_key_length(const uchar **key) {
   if (**key != 255) return *(*key)++;
-  uint length = mi_uint2korr((*key) + 1);
+  const uint length = mi_uint2korr((*key) + 1);
   (*key) += 3;
   return length;
 }

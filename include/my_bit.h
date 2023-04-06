@@ -54,7 +54,7 @@ static inline uint my_count_bits(ulonglong v) {
 #if SIZEOF_LONG_LONG > 4
   /* The following code is a bit faster on 16 bit machines than if we would
      only shift v */
-  ulong v2 = (ulong)(v >> 32);
+  const ulong v2 = (ulong)(v >> 32);
   return (uint)(uchar)(
       _my_bits_nbits[(uchar)v] + _my_bits_nbits[(uchar)(v >> 8)] +
       _my_bits_nbits[(uchar)(v >> 16)] + _my_bits_nbits[(uchar)(v >> 24)] +

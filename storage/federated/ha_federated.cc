@@ -569,7 +569,7 @@ static bool append_ident(String *string, const char *name, size_t length,
     uint clen = 0;
 
     for (const char *name_end = name + length; name < name_end; name += clen) {
-      char c = *name;
+      const char c = *name;
 
       if (!(clen = my_mbcharlen(system_charset_info, c))) goto err;
 
@@ -948,7 +948,7 @@ uint ha_federated::convert_row_to_internal_format(uchar *record, MYSQL_ROW row,
 
         if ((*field)->is_flag_set(BLOB_FLAG)) {
           Field_blob *blob_field = down_cast<Field_blob *>(*field);
-          size_t length = blob_field->get_length();
+          const size_t length = blob_field->get_length();
           // BLOB data is not stored inside record. It only contains a
           // pointer to it. Copy the BLOB data into a separate memory
           // area so that it is not overwritten by subsequent calls to
@@ -993,13 +993,13 @@ static bool emit_key_part_element(String *to, KEY_PART_INFO *part,
     if (to->append((char *)buff, (uint)(buf - buff))) return true;
   } else if (part->key_part_flag & HA_BLOB_PART) {
     String blob;
-    uint blob_length = uint2korr(ptr);
+    const uint blob_length = uint2korr(ptr);
     blob.set_quick((char *)ptr + HA_KEY_BLOB_LENGTH, blob_length,
                    &my_charset_bin);
     if (append_escaped(to, &blob)) return true;
   } else if (part->key_part_flag & HA_VAR_LENGTH_PART) {
     String varchar;
-    uint var_length = uint2korr(ptr);
+    const uint var_length = uint2korr(ptr);
     varchar.set_quick((char *)ptr + HA_KEY_BLOB_LENGTH, var_length,
                       &my_charset_bin);
     if (append_escaped(to, &varchar)) return true;
@@ -1265,7 +1265,7 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
                                          const key_range *end_key,
                                          bool from_records_in_range,
                                          bool eq_range_arg) {
-  bool both_not_null =
+  const bool both_not_null =
       (start_key != nullptr && end_key != nullptr) ? true : false;
   uchar *ptr;
   uint remainder, length;
@@ -1296,8 +1296,8 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
         length = ranges[i]->length, ptr = const_cast<uchar *>(ranges[i]->key);
          ; remainder--, key_part++) {
       Field *field = key_part->field;
-      uint store_length = key_part->store_length;
-      uint part_length = min(store_length, length);
+      const uint store_length = key_part->store_length;
+      const uint part_length = min(store_length, length);
       needs_quotes = field->str_needs_quotes();
       DBUG_DUMP("key, start of loop", ptr, length);
 
@@ -1756,7 +1756,7 @@ int ha_federated::write_row(uchar *) {
       if ((*field)->is_null())
         values_string.append(STRING_WITH_LEN(" NULL "));
       else {
-        bool needs_quote = (*field)->str_needs_quotes();
+        const bool needs_quote = (*field)->str_needs_quotes();
         (*field)->val_str(&insert_field_value_string);
         if (needs_quote) values_string.append(value_quote_char);
         insert_field_value_string.print(&values_string);
@@ -1989,7 +1989,7 @@ int ha_federated::update_row(const uchar *old_data, uchar *) {
     this? Because we only are updating one record, and LIMIT enforces
     this.
   */
-  bool has_a_primary_key = (table->s->primary_key != MAX_KEY);
+  const bool has_a_primary_key = (table->s->primary_key != MAX_KEY);
 
   /*
     buffers for following strings
@@ -2034,7 +2034,7 @@ int ha_federated::update_row(const uchar *old_data, uchar *) {
 
   for (Field **field = table->field; *field; field++) {
     if (bitmap_is_set(table->write_set, (*field)->field_index())) {
-      size_t field_name_length = strlen((*field)->field_name);
+      const size_t field_name_length = strlen((*field)->field_name);
       append_ident(&update_string, (*field)->field_name, field_name_length,
                    ident_quote_char);
       update_string.append(STRING_WITH_LEN(" = "));
@@ -2044,7 +2044,7 @@ int ha_federated::update_row(const uchar *old_data, uchar *) {
       else {
         /* otherwise = */
         my_bitmap_map *old_map = tmp_use_all_columns(table, table->read_set);
-        bool needs_quote = (*field)->str_needs_quotes();
+        const bool needs_quote = (*field)->str_needs_quotes();
         (*field)->val_str(&field_value);
         if (needs_quote) update_string.append(value_quote_char);
         field_value.print(&update_string);
@@ -2056,13 +2056,13 @@ int ha_federated::update_row(const uchar *old_data, uchar *) {
     }
 
     if (bitmap_is_set(table->read_set, (*field)->field_index())) {
-      size_t field_name_length = strlen((*field)->field_name);
+      const size_t field_name_length = strlen((*field)->field_name);
       append_ident(&where_string, (*field)->field_name, field_name_length,
                    ident_quote_char);
       if ((*field)->is_null_in_record(old_data))
         where_string.append(STRING_WITH_LEN(" IS NULL "));
       else {
-        bool needs_quote = (*field)->str_needs_quotes();
+        const bool needs_quote = (*field)->str_needs_quotes();
         where_string.append(STRING_WITH_LEN(" = "));
 
         const bool is_json = (*field)->type() == MYSQL_TYPE_JSON;
@@ -2150,7 +2150,7 @@ int ha_federated::delete_row(const uchar *) {
       if (cur_field->is_null()) {
         delete_string.append(STRING_WITH_LEN(" IS NULL "));
       } else {
-        bool needs_quote = cur_field->str_needs_quotes();
+        const bool needs_quote = cur_field->str_needs_quotes();
         delete_string.append(STRING_WITH_LEN(" = "));
 
         const bool is_json = (*field)->type() == MYSQL_TYPE_JSON;
@@ -2199,7 +2199,7 @@ int ha_federated::index_read_idx_map(uchar *buf, uint index, const uchar *key,
     uchar *dummy_arg = nullptr;
     position(dummy_arg);
   }
-  int error1 = index_end();
+  const int error1 = index_end();
   return error ? error : error1;
 }
 

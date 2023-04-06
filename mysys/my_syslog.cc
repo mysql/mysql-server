@@ -214,7 +214,7 @@ static int windows_eventlog_create_registry_entry(const char *key) {
   TCHAR szPath[MAX_PATH];
   DWORD dwTypes;
 
-  size_t l = sizeof(registry_prefix) + strlen(key) + 1;
+  const size_t l = sizeof(registry_prefix) + strlen(key) + 1;
   char *buff;
 
   int ret = 0;

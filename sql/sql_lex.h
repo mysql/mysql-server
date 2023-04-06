@@ -3028,7 +3028,7 @@ class Query_tables_list {
     bool unsafe = false;
 
     if (in_multi_stmt_transaction_mode) {
-      uint condition =
+      const uint condition =
           (binlog_direct ? BINLOG_DIRECT_ON : BINLOG_DIRECT_OFF) &
           (trx_cache_is_not_empty ? TRX_CACHE_NOT_EMPTY : TRX_CACHE_EMPTY) &
           (tx_isolation >= ISO_REPEATABLE_READ ? IL_GTE_REPEATABLE
@@ -3245,7 +3245,7 @@ class Lex_input_stream {
   */
   unsigned char yyGet() {
     assert(m_ptr <= m_end_of_query);
-    char c = *m_ptr++;
+    const char c = *m_ptr++;
     if (m_echo) *m_cpp_ptr++ = c;
     return c;
   }

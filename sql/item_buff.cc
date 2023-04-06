@@ -133,7 +133,7 @@ bool Cached_item_json::cmp() {
 
 bool Cached_item_real::cmp() {
   DBUG_TRACE;
-  double nr = item->val_real();
+  const double nr = item->val_real();
   DBUG_PRINT("info", ("old: %f, new: %f", value, nr));
   if (item->null_value) {
     if (null_value) return false;
@@ -149,7 +149,7 @@ bool Cached_item_real::cmp() {
 
 bool Cached_item_int::cmp() {
   DBUG_TRACE;
-  longlong nr = item->val_int();
+  const longlong nr = item->val_int();
   DBUG_PRINT("info", ("old: 0x%.16llx, new: 0x%.16llx", (ulonglong)value,
                       (ulonglong)nr));
   if (item->null_value) {
@@ -166,7 +166,7 @@ bool Cached_item_int::cmp() {
 
 bool Cached_item_temporal::cmp() {
   DBUG_TRACE;
-  longlong nr = item->val_temporal_by_field_type();
+  const longlong nr = item->val_temporal_by_field_type();
   DBUG_PRINT("info", ("old: %lld, new: %lld", value, nr));
   if (item->null_value) {
     if (null_value) return false;

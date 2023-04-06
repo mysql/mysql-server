@@ -724,9 +724,9 @@ static bool mysql_admin_table(
     transaction each time data-dictionary tables are closed after
     being updated.
   */
-  Disable_autocommit_guard autocommit_guard(thd);
+  const Disable_autocommit_guard autocommit_guard(thd);
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   Table_ref *table;
   Query_block *select = thd->lex->query_block;
@@ -734,11 +734,11 @@ static bool mysql_admin_table(
   Protocol *protocol = thd->get_protocol();
   LEX *lex = thd->lex;
   int result_code;
-  bool gtid_rollback_must_be_skipped =
+  const bool gtid_rollback_must_be_skipped =
       ((thd->variables.gtid_next.type == ASSIGNED_GTID ||
         thd->variables.gtid_next.type == ANONYMOUS_GTID) &&
        (!thd->skip_gtid_rollback));
-  bool ignore_grl_on_analyze = operator_func == &handler::ha_analyze;
+  const bool ignore_grl_on_analyze = operator_func == &handler::ha_analyze;
   DBUG_TRACE;
 
   mem_root_deque<Item *> field_list(thd->mem_root);
@@ -996,7 +996,7 @@ static bool mysql_admin_table(
       /* purecov: begin inspected */
       char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
       size_t length;
-      enum_sql_command save_sql_command = lex->sql_command;
+      const enum_sql_command save_sql_command = lex->sql_command;
       DBUG_PRINT("admin", ("sending error message"));
       protocol->start_row();
       protocol->store(table_name, system_charset_info);
@@ -1007,7 +1007,7 @@ static bool mysql_admin_table(
       protocol->store_string(buff, length, system_charset_info);
       {
         /* Prevent intermediate commits to invoke commit order */
-        Implicit_substatement_state_guard substatement_guard(
+        const Implicit_substatement_state_guard substatement_guard(
             thd, enum_implicit_substatement_guard_mode ::
                      DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
         trans_commit_stmt(thd, ignore_grl_on_analyze);
@@ -1103,7 +1103,7 @@ static bool mysql_admin_table(
 
         {
           // binlogging is done by caller if wanted
-          Disable_binlog_guard binlog_guard(thd);
+          const Disable_binlog_guard binlog_guard(thd);
           result_code = mysql_recreate_table(thd, table, false);
         }
         /*
@@ -1191,7 +1191,7 @@ static bool mysql_admin_table(
     switch (result_code) {
       case HA_ADMIN_NOT_IMPLEMENTED: {
         char buf[MYSQL_ERRMSG_SIZE];
-        size_t length =
+        const size_t length =
             snprintf(buf, sizeof(buf), ER_THD(thd, ER_CHECK_NOT_IMPLEMENTED),
                      operator_name);
         protocol->store_string(STRING_WITH_LEN("note"), system_charset_info);
@@ -1206,7 +1206,7 @@ static bool mysql_admin_table(
         tbl_name.append('.');
         tbl_name.append(String(table_name, system_charset_info));
 
-        size_t length =
+        const size_t length =
             snprintf(buf, sizeof(buf), ER_THD(thd, ER_BAD_TABLE_ERROR),
                      tbl_name.c_ptr());
         protocol->store_string(STRING_WITH_LEN("note"), system_charset_info);
@@ -1257,7 +1257,7 @@ static bool mysql_admin_table(
         save_flags = alter_info->flags;
         {
           /* Prevent intermediate commits to invoke commit order */
-          Implicit_substatement_state_guard substatement_guard(
+          const Implicit_substatement_state_guard substatement_guard(
               thd, enum_implicit_substatement_guard_mode ::
                        DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
           /*
@@ -1301,7 +1301,7 @@ static bool mysql_admin_table(
         table->next_local = table->next_global = nullptr;
         {
           // binlogging is done by caller if wanted
-          Disable_binlog_guard binlog_guard(thd);
+          const Disable_binlog_guard binlog_guard(thd);
           /* Don't forget to pre-open temporary tables. */
           result_code = (open_temporary_tables(thd, table) ||
                          mysql_recreate_table(thd, table, false));
@@ -1316,7 +1316,7 @@ static bool mysql_admin_table(
           thd->get_stmt_da()->reset_diagnostics_area();
         {
           /* Prevent intermediate commits to invoke commit order */
-          Implicit_substatement_state_guard substatement_guard(
+          const Implicit_substatement_state_guard substatement_guard(
               thd, enum_implicit_substatement_guard_mode ::
                        DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
           trans_commit_stmt(thd, ignore_grl_on_analyze);
@@ -1451,9 +1451,9 @@ static bool mysql_admin_table(
       default:  // Probably HA_ADMIN_INTERNAL_ERROR
       {
         char buf[MYSQL_ERRMSG_SIZE];
-        size_t length = snprintf(buf, sizeof(buf),
-                                 "Unknown - internal error %d during operation",
-                                 result_code);
+        const size_t length = snprintf(
+            buf, sizeof(buf), "Unknown - internal error %d during operation",
+            result_code);
         protocol->store_string(STRING_WITH_LEN("error"), system_charset_info);
         protocol->store_string(buf, length, system_charset_info);
         fatal_error = true;
@@ -1524,7 +1524,7 @@ static bool mysql_admin_table(
         ANALYZE TABLE and REPAIR TABLE command is getting executed,
         otherwise saving GTID and invoking commit order is disabled.
       */
-      Implicit_substatement_state_guard guard(thd, mode);
+      const Implicit_substatement_state_guard guard(thd, mode);
 
       if (trans_commit_stmt(thd, ignore_grl_on_analyze) ||
           trans_commit_implicit(thd, ignore_grl_on_analyze))
@@ -1915,7 +1915,7 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
 bool Sql_cmd_analyze_table::execute(THD *thd) {
   Table_ref *first_table = thd->lex->query_block->get_table_list();
   bool res = true;
-  thr_lock_type lock_type = TL_READ_NO_INSERT;
+  const thr_lock_type lock_type = TL_READ_NO_INSERT;
   DBUG_TRACE;
 
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table, false,
@@ -1953,7 +1953,7 @@ error:
 
 bool Sql_cmd_check_table::execute(THD *thd) {
   Table_ref *first_table = thd->lex->query_block->get_table_list();
-  thr_lock_type lock_type = TL_READ_NO_INSERT;
+  const thr_lock_type lock_type = TL_READ_NO_INSERT;
   bool res = true;
   DBUG_TRACE;
 
@@ -2174,7 +2174,7 @@ Sql_cmd_clone::Sql_cmd_clone(LEX_USER *user_info, ulong port,
 bool Sql_cmd_clone::execute(THD *thd) {
   DBUG_TRACE;
 
-  bool is_replace = (m_data_dir.str == nullptr);
+  const bool is_replace = (m_data_dir.str == nullptr);
 
   if (is_local()) {
     DBUG_PRINT("admin", ("CLONE type = local, DIR = %s", m_data_dir.str));
@@ -2255,7 +2255,7 @@ bool Sql_cmd_clone::execute(THD *thd) {
     if (err == ER_CLONE_DONOR) {
       const char *donor_mesg = nullptr;
       int donor_error = 0;
-      bool success =
+      const bool success =
           Clone_handler::get_donor_error(nullptr, donor_error, donor_mesg);
       if (success && donor_error != 0 && donor_mesg != nullptr) {
         char info_mesg[128];
@@ -2359,12 +2359,12 @@ bool Sql_cmd_clone::rewrite(THD *thd, String &rlb) {
   rlb.append(STRING_WITH_LEN("CLONE INSTANCE FROM "));
 
   /* Append user name. */
-  String user(m_user.str, m_user.length, system_charset_info);
+  const String user(m_user.str, m_user.length, system_charset_info);
   append_query_string(thd, system_charset_info, &user, &rlb);
 
   /* Append host name. */
   rlb.append(STRING_WITH_LEN("@"));
-  String host(m_host.str, m_host.length, system_charset_info);
+  const String host(m_host.str, m_host.length, system_charset_info);
   append_query_string(thd, system_charset_info, &host, &rlb);
 
   /* Append port number. */
@@ -2379,7 +2379,7 @@ bool Sql_cmd_clone::rewrite(THD *thd, String &rlb) {
   /* Append data directory clause. */
   if (m_data_dir.str != nullptr) {
     rlb.append(STRING_WITH_LEN(" DATA DIRECTORY = "));
-    String dir(m_data_dir.str, m_data_dir.length, system_charset_info);
+    const String dir(m_data_dir.str, m_data_dir.length, system_charset_info);
     append_query_string(thd, system_charset_info, &dir, &rlb);
   }
 
@@ -2398,7 +2398,7 @@ bool Sql_cmd_create_role::execute(THD *thd) {
   // TODO: Execution-time processing of the CREATE ROLE statement
   if (check_global_access(thd, CREATE_ROLE_ACL | CREATE_USER_ACL)) return true;
   /* Conditionally writes to binlog */
-  HA_CREATE_INFO create_info;
+  const HA_CREATE_INFO create_info;
   /*
     Roles must be locked for authentication by default.
     The below is a hack to make mysql_create_user() behave
@@ -2455,7 +2455,7 @@ bool Sql_cmd_drop_role::execute(THD *thd) {
 
     Thus we raise the flag (drop_role) in this case.
   */
-  bool on_create_user_priv =
+  const bool on_create_user_priv =
       thd->security_context()->check_access(CREATE_USER_ACL, "", true);
   if (check_global_access(thd, DROP_ROLE_ACL | CREATE_USER_ACL)) return true;
   if (mysql_drop_user(thd, const_cast<List<LEX_USER> &>(*roles), ignore_errors,
@@ -2526,7 +2526,8 @@ bool Sql_cmd_revoke_roles::execute(THD *thd) {
 bool Sql_cmd_alter_user_default_role::execute(THD *thd) {
   DBUG_TRACE;
 
-  bool ret = mysql_alter_or_clear_default_roles(thd, role_type, users, roles);
+  const bool ret =
+      mysql_alter_or_clear_default_roles(thd, role_type, users, roles);
   if (!ret) my_ok(thd);
 
   return ret;

@@ -62,8 +62,8 @@ bool Sql_cmd_install_component::execute(THD *thd) {
   if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
     return true;
 
-  Disable_autocommit_guard autocommit_guard(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const Disable_autocommit_guard autocommit_guard(thd);
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   DBUG_EXECUTE_IF("disable_rg_pfs_notifications", {
     auto name = "file://component_test_pfs_notification";
@@ -186,8 +186,8 @@ bool Sql_cmd_uninstall_component::execute(THD *thd) {
   if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
     return true;
 
-  Disable_autocommit_guard autocommit_guard(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const Disable_autocommit_guard autocommit_guard(thd);
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   std::vector<const char *> urns(m_urns.size());
   for (size_t i = 0; i < m_urns.size(); ++i) {

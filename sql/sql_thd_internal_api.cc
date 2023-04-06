@@ -257,7 +257,7 @@ LEX_CSTRING thd_query_unsafe(THD *thd) {
 
 size_t thd_query_safe(THD *thd, char *buf, size_t buflen) {
   mysql_mutex_lock(&thd->LOCK_thd_query);
-  LEX_CSTRING query_string = thd->query();
+  const LEX_CSTRING query_string = thd->query();
   size_t len = std::min(buflen - 1, query_string.length);
   if (len > 0) strncpy(buf, query_string.str, len);
   buf[len] = '\0';
@@ -328,8 +328,8 @@ bool is_mysql_datadir_path(const char *path) {
   char mysql_data_dir[FN_REFLEN], path_dir[FN_REFLEN];
   convert_dirname(path_dir, path, NullS);
   convert_dirname(mysql_data_dir, mysql_unpacked_real_data_home, NullS);
-  size_t mysql_data_home_len = dirname_length(mysql_data_dir);
-  size_t path_len = dirname_length(path_dir);
+  const size_t mysql_data_home_len = dirname_length(mysql_data_dir);
+  const size_t path_len = dirname_length(path_dir);
 
   if (path_len < mysql_data_home_len) return true;
 
@@ -350,8 +350,9 @@ int mysql_tmpfile_path(const char *path, const char *prefix) {
 #ifdef _WIN32
   mode |= O_TRUNC | O_SEQUENTIAL;
 #endif
-  File fd = mysql_file_create_temp(PSI_NOT_INSTRUMENTED, filename, path, prefix,
-                                   mode, UNLINK_FILE, MYF(MY_WME));
+  const File fd =
+      mysql_file_create_temp(PSI_NOT_INSTRUMENTED, filename, path, prefix, mode,
+                             UNLINK_FILE, MYF(MY_WME));
   return fd;
 }
 
@@ -395,7 +396,8 @@ void disable_resource_groups(const char *reason) {
   @returns true if current thread is a system thread else false.
 */
 static bool is_system_thread() {
-  ulonglong pfs_thread_id = PSI_THREAD_CALL(get_current_thread_internal_id)();
+  const ulonglong pfs_thread_id =
+      PSI_THREAD_CALL(get_current_thread_internal_id)();
   PSI_thread_attrs pfs_thread_attr;
   memset(&pfs_thread_attr, 0, sizeof(pfs_thread_attr));
   resourcegroups::Resource_group_mgr::instance()->get_thread_attributes(
@@ -418,7 +420,8 @@ bool bind_thread_to_sys_internal_resource_group() {
   res_grp_mgr->sys_internal_resource_group()->controller()->apply_control();
 
   // Update resource group name in PFS context.
-  ulonglong pfs_thread_id = PSI_THREAD_CALL(get_current_thread_internal_id)();
+  const ulonglong pfs_thread_id =
+      PSI_THREAD_CALL(get_current_thread_internal_id)();
   res_grp_mgr->set_res_grp_in_pfs(
       resourcegroups::SYS_INTERNAL_RESOURCE_GROUP_NAME,
       strlen(resourcegroups::SYS_INTERNAL_RESOURCE_GROUP_NAME), pfs_thread_id);

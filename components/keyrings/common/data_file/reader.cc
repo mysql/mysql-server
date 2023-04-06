@@ -49,7 +49,7 @@ File_reader::File_reader(const std::string &file, bool read_only,
 
     if (data.length() > 0) {
       /* Complete the operation if backup data is valid */
-      File_writer write_from_backup(file, data, true);
+      const File_writer write_from_backup(file, data, true);
       valid_ = write_from_backup.valid();
       if (!valid_) data.clear();
     } else {

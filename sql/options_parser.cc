@@ -212,10 +212,10 @@ result parse_options_string(String *str, char delimiter,
 
     key_value_separator_pos =
         str_copy.find(key_value_separator, substring_startpos);
-    size_t key_startpos = substring_startpos;
+    const size_t key_startpos = substring_startpos;
     size_t key_endpos = key_value_separator_pos - 1;
     size_t value_startpos = key_value_separator_pos + 1;
-    size_t value_endpos = substring_endpos;
+    const size_t value_endpos = substring_endpos;
 
     for (size_t j = key_value_separator_pos - 1; j >= substring_startpos; j--) {
       if (std::isspace(str_copy.at(j))) {

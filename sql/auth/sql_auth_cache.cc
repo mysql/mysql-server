@@ -663,7 +663,7 @@ int ACL_PROXY_USER::store_data_record(TABLE *table, const LEX_CSTRING &hostname,
                                                       system_charset_info))
     return true;
 
-  my_timeval tm = table->in_use->query_start_timeval_trunc(0);
+  const my_timeval tm = table->in_use->query_start_timeval_trunc(0);
   table->field[MYSQL_PROXIES_PRIV_TIMESTAMP]->store_timestamp(&tm);
 
   return false;
@@ -1052,7 +1052,7 @@ bool GRANT_TABLE::init(TABLE *col_privs) {
       GRANT_COLUMN *mem_check;
       /* As column name is a string, we don't have to supply a buffer */
       res = col_privs->field[4]->val_str(&column_name);
-      ulong priv = (ulong)col_privs->field[6]->val_int();
+      const ulong priv = (ulong)col_privs->field[6]->val_int();
       DBUG_EXECUTE_IF("mysql_grant_table_init_out_of_memory",
                       DBUG_SET("+d,simulate_out_of_memory"););
       if (!(mem_check = new (*THR_MALLOC)
@@ -1103,8 +1103,8 @@ void rebuild_cached_acl_users_for_name(void) {
   if (name_to_userlist) {
     name_to_userlist->clear();
   } else {
-    size_t size = sizeof(Name_to_userlist);
-    myf_t flags = MYF(MY_WME | ME_FATALERROR);
+    const size_t size = sizeof(Name_to_userlist);
+    const myf_t flags = MYF(MY_WME | ME_FATALERROR);
     void *bytes = my_malloc(key_memory_acl_cache, size, flags);
     name_to_userlist = new (bytes) Name_to_userlist();
   }
@@ -1251,7 +1251,7 @@ ACL_PROXY_USER *acl_find_proxy_user(const char *user, const char *host,
     return nullptr;
   }
 
-  bool find_any = check_proxy_users && !*authenticated_as;
+  const bool find_any = check_proxy_users && !*authenticated_as;
 
   if (!find_any) *proxy_used = true;
   for (ACL_PROXY_USER *proxy = acl_proxy_users->begin();
@@ -1589,7 +1589,7 @@ bool acl_getroot(THD *thd, Security_context *sctx, const char *user,
 
   if (acl_user && sctx->get_active_roles()->size() > 0) {
     sctx->checkout_access_maps();
-    ulong db_acl = db ? sctx->db_acl({db, strlen(db)}) : 0;
+    const ulong db_acl = db ? sctx->db_acl({db, strlen(db)}) : 0;
     sctx->cache_current_db_access(db_acl);
   }
   return res;
@@ -1702,7 +1702,7 @@ void notify_flush_event(THD *thd) {
 static bool reload_roles_cache(THD *thd, Table_ref *tablelst) {
   DBUG_TRACE;
   assert(tablelst);
-  sql_mode_t old_sql_mode = thd->variables.sql_mode;
+  const sql_mode_t old_sql_mode = thd->variables.sql_mode;
   thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
   /*
@@ -1829,9 +1829,9 @@ static bool acl_load(THD *thd, Table_ref *tables) {
   TABLE *table;
   unique_ptr_destroy_only<RowIterator> iterator;
   bool return_val = true;
-  bool check_no_resolve = specialflag & SPECIAL_NO_RESOLVE;
+  const bool check_no_resolve = specialflag & SPECIAL_NO_RESOLVE;
   char tmp_name[NAME_LEN + 1];
-  sql_mode_t old_sql_mode = thd->variables.sql_mode;
+  const sql_mode_t old_sql_mode = thd->variables.sql_mode;
   DBUG_TRACE;
 
   DBUG_EXECUTE_IF(
@@ -2002,10 +2002,10 @@ void acl_free(bool end /*= false*/) {
 
 bool check_engine_type_for_acl_table(THD *thd, bool mdl_locked) {
   Table_ref tables[ACL_TABLES::LAST_ENTRY];
-  uint flags = mdl_locked
-                   ? MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
-                         MYSQL_OPEN_IGNORE_FLUSH
-                   : MYSQL_LOCK_IGNORE_TIMEOUT;
+  const uint flags = mdl_locked
+                         ? MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
+                               MYSQL_OPEN_IGNORE_FLUSH
+                         : MYSQL_LOCK_IGNORE_TIMEOUT;
 
   /*
     Open the following ACL tables to check their consistency.
@@ -2015,7 +2015,7 @@ bool check_engine_type_for_acl_table(THD *thd, bool mdl_locked) {
   */
 
   acl_tables_setup_for_read(tables);
-  bool result = open_and_lock_tables(thd, tables, flags);
+  const bool result = open_and_lock_tables(thd, tables, flags);
 
   if (!result) {
     check_engine_type_for_acl_table(tables, false);
@@ -2099,13 +2099,13 @@ bool check_acl_tables_intact(THD *thd, Table_ref *tables) {
 bool check_acl_tables_intact(THD *thd, bool mdl_locked) {
   Table_ref tables[ACL_TABLES::LAST_ENTRY];
   Acl_ignore_error_handler acl_ignore_handler;
-  uint flags = mdl_locked
-                   ? MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
-                         MYSQL_OPEN_IGNORE_FLUSH
-                   : MYSQL_LOCK_IGNORE_TIMEOUT;
+  const uint flags = mdl_locked
+                         ? MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
+                               MYSQL_OPEN_IGNORE_FLUSH
+                         : MYSQL_LOCK_IGNORE_TIMEOUT;
 
   acl_tables_setup_for_read(tables);
-  bool result_acl = open_and_lock_tables(thd, tables, flags);
+  const bool result_acl = open_and_lock_tables(thd, tables, flags);
 
   thd->push_internal_handler(&acl_ignore_handler);
   if (!result_acl) {
@@ -2154,10 +2154,10 @@ bool is_expected_or_transient_error(THD *thd) {
 bool acl_reload(THD *thd, bool mdl_locked) {
   MEM_ROOT old_mem;
   bool return_val = true;
-  uint flags = mdl_locked
-                   ? MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
-                         MYSQL_OPEN_IGNORE_FLUSH
-                   : MYSQL_LOCK_IGNORE_TIMEOUT;
+  const uint flags = mdl_locked
+                         ? MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
+                               MYSQL_OPEN_IGNORE_FLUSH
+                         : MYSQL_LOCK_IGNORE_TIMEOUT;
   Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *old_acl_users = nullptr;
   Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *old_acl_dbs = nullptr;
   Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *old_acl_proxy_users =
@@ -2386,7 +2386,7 @@ static bool grant_load_procs_priv(TABLE *p_table) {
   MEM_ROOT *memex_ptr;
   bool return_val = true;
   int error;
-  bool check_no_resolve = specialflag & SPECIAL_NO_RESOLVE;
+  const bool check_no_resolve = specialflag & SPECIAL_NO_RESOLVE;
   MEM_ROOT **save_mem_root_ptr = THR_MALLOC;
   DBUG_TRACE;
   proc_priv_hash.reset(
@@ -2500,8 +2500,8 @@ static bool grant_load(THD *thd, Table_ref *tables) {
   bool return_val = true;
   int error;
   TABLE *t_table = nullptr, *c_table = nullptr;
-  bool check_no_resolve = specialflag & SPECIAL_NO_RESOLVE;
-  sql_mode_t old_sql_mode = thd->variables.sql_mode;
+  const bool check_no_resolve = specialflag & SPECIAL_NO_RESOLVE;
+  const sql_mode_t old_sql_mode = thd->variables.sql_mode;
   DBUG_TRACE;
 
   thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
@@ -2535,7 +2535,7 @@ static bool grant_load(THD *thd, Table_ref *tables) {
     else
       acl_print_ha_error(error);
   } else {
-    Swap_mem_root_guard guard(thd, &memex);
+    const Swap_mem_root_guard guard(thd, &memex);
     do {
       GRANT_TABLE *mem_check = new (thd->mem_root) GRANT_TABLE(t_table);
 
@@ -2644,10 +2644,10 @@ static bool grant_reload_procs_priv(Table_ref *table) {
 bool grant_reload(THD *thd, bool mdl_locked) {
   MEM_ROOT old_mem;
   bool return_val = true;
-  uint flags = mdl_locked
-                   ? MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
-                         MYSQL_OPEN_IGNORE_FLUSH
-                   : MYSQL_LOCK_IGNORE_TIMEOUT;
+  const uint flags = mdl_locked
+                         ? MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
+                               MYSQL_OPEN_IGNORE_FLUSH
+                         : MYSQL_LOCK_IGNORE_TIMEOUT;
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
 
   DBUG_TRACE;
@@ -3651,7 +3651,7 @@ uint32 global_password_reuse_interval = 0;
 bool reload_acl_caches(THD *thd, bool mdl_locked) {
   DBUG_TRACE;
   bool retval = true;
-  bool save_mdl_locked = mdl_locked;
+  const bool save_mdl_locked = mdl_locked;
   uint flags = MYSQL_LOCK_IGNORE_TIMEOUT;
 
   DBUG_EXECUTE_IF("wl14084_simulate_flush_privileges_timeout", flags = 0;);
@@ -3679,7 +3679,7 @@ bool reload_acl_caches(THD *thd, bool mdl_locked) {
       instead and make sure that proper cleanup is done in case we encounter
       an error.
     */
-    bool result = open_and_lock_tables(thd, tables, flags);
+    const bool result = open_and_lock_tables(thd, tables, flags);
     if (!result)
       close_thread_tables(thd);
     else {

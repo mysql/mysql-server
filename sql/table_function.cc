@@ -126,7 +126,7 @@ bool Table_function_json::init_json_table_col_lists(uint *nest_idx,
     This need to be set up once per statement, as it doesn't change between
     EXECUTE calls.
   */
-  Prepared_stmt_arena_holder ps_arena_holder(current_thd);
+  const Prepared_stmt_arena_holder ps_arena_holder(current_thd);
 
   while ((col = li++)) {
     String buffer;

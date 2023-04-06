@@ -336,7 +336,7 @@ class Protocol_local final : public Protocol {
   @param thd                thread handle
 */
 static inline void rewrite_query_if_needed(THD *thd) {
-  bool general =
+  const bool general =
       (opt_general_log && !(opt_general_log_raw || thd->slave_thread));
 
   if ((thd->sp_runtime_ctx == nullptr) &&
@@ -537,7 +537,7 @@ static bool set_parameter_value(Item_param *param, const uchar **pos,
   switch (param->data_type_source()) {
     case MYSQL_TYPE_TINY: {
       assert(len >= 1);
-      int8 value = (int8) * *pos;
+      const int8 value = (int8) * *pos;
       if (param->is_unsigned_actual())
         param->set_int((ulonglong)((uint8)value));
       else
@@ -546,7 +546,7 @@ static bool set_parameter_value(Item_param *param, const uchar **pos,
     }
     case MYSQL_TYPE_SHORT: {
       assert(len >= 2);
-      int16 value = sint2korr(*pos);
+      const int16 value = sint2korr(*pos);
       if (param->is_unsigned_actual())
         param->set_int((ulonglong)((uint16)value));
       else
@@ -555,7 +555,7 @@ static bool set_parameter_value(Item_param *param, const uchar **pos,
     }
     case MYSQL_TYPE_LONG: {
       assert(len >= 4);
-      int32 value = sint4korr(*pos);
+      const int32 value = sint4korr(*pos);
       if (param->is_unsigned_actual())
         param->set_int((ulonglong)((uint32)value));
       else
@@ -564,7 +564,7 @@ static bool set_parameter_value(Item_param *param, const uchar **pos,
     }
     case MYSQL_TYPE_LONGLONG: {
       assert(len >= 8);
-      longlong value = sint8korr(*pos);
+      const longlong value = sint8korr(*pos);
       if (param->is_unsigned_actual())
         param->set_int((ulonglong)value);
       else
@@ -573,13 +573,13 @@ static bool set_parameter_value(Item_param *param, const uchar **pos,
     }
     case MYSQL_TYPE_FLOAT: {
       assert(len >= 4);
-      float data = float4get(*pos);
+      const float data = float4get(*pos);
       param->set_double((double)data);
       break;
     }
     case MYSQL_TYPE_DOUBLE: {
       assert(len >= 8);
-      double data = float8get(*pos);
+      const double data = float8get(*pos);
       param->set_double(data);
       break;
     }
@@ -593,7 +593,7 @@ static bool set_parameter_value(Item_param *param, const uchar **pos,
       if (len >= 8) {
         const uchar *to = *pos;
         tm.neg = (bool)to[0];
-        uint day = (uint)sint4korr(to + 1);
+        const uint day = (uint)sint4korr(to + 1);
         tm.hour = (uint)to[5] + day * 24;
         tm.minute = (uint)to[6];
         tm.second = (uint)to[7];
@@ -803,7 +803,7 @@ bool Prepared_statement::insert_parameters(THD *thd, String *query,
         // Accept string values from client
         // @todo Validate string values, do not accept garbage in string
         if (param->data_type_actual() == MYSQL_TYPE_VARCHAR) {
-          longlong val = param->val_int();
+          const longlong val = param->val_int();
           if (param->unsigned_flag)
             param->set_int((ulonglong)val);
           else
@@ -828,7 +828,7 @@ bool Prepared_statement::insert_parameters(THD *thd, String *query,
       if (val == nullptr) return true;
       if (param->convert_value()) return true; /* out of memory */
 
-      size_t num_bytes = param->pos_in_query - length;
+      const size_t num_bytes = param->pos_in_query - length;
       if (query->length() + num_bytes + val->length() >
           std::numeric_limits<uint32>::max()) {
         my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysqld_stmt_execute");
@@ -965,7 +965,7 @@ bool Prepared_statement::insert_parameters_from_vars(THD *thd,
 
       if (param->convert_value()) goto error;
 
-      size_t num_bytes = param->pos_in_query - length;
+      const size_t num_bytes = param->pos_in_query - length;
       if (query->length() + num_bytes + val->length() >
           std::numeric_limits<uint32>::max())
         goto error;
@@ -1065,7 +1065,7 @@ static bool mysql_test_set_fields(THD *thd,
   if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     return true; /* purecov: inspected */
 
-  Prepared_stmt_arena_holder ps_arena_holder(thd);
+  const Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   while ((var = it++)) {
     if (var->light_check(thd)) return true; /* purecov: inspected */
@@ -1137,7 +1137,7 @@ bool Sql_cmd_create_table::prepare(THD *thd) {
     lex->using_hypergraph_optimizer =
         thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
 
-    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    const Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     Query_result *result = new (thd->mem_root)
         Query_result_create(create_table, &query_block->fields, lex->duplicates,
@@ -1146,7 +1146,7 @@ bool Sql_cmd_create_table::prepare(THD *thd) {
 
     bool link_to_local;
     lex->unlink_first_table(&link_to_local);
-    bool res = select_like_stmt_test(thd, result, SELECT_NO_UNLOCK);
+    const bool res = select_like_stmt_test(thd, result, SELECT_NO_UNLOCK);
     lex->link_first_table_back(create_table, link_to_local);
     if (res) return true;
   } else {
@@ -1203,7 +1203,7 @@ static bool mysql_test_create_view(THD *thd, Prepared_statement *stmt) {
   lex->context_analysis_only |= CONTEXT_ANALYSIS_ONLY_VIEW;
 
   {
-    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    const Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     res = select_like_stmt_test(thd, nullptr, 0);
     if (res) goto err;
@@ -1278,8 +1278,8 @@ bool Prepared_statement::prepare_query(THD *thd) {
                       thd->query().str, thd->query().length, nullptr,
                       thd->variables.character_set_client);
 
-  Opt_trace_object trace_command(&thd->opt_trace);
-  Opt_trace_array trace_command_steps(&thd->opt_trace, "steps");
+  const Opt_trace_object trace_command(&thd->opt_trace);
+  const Opt_trace_array trace_command_steps(&thd->opt_trace, "steps");
 
   if ((m_lex->keep_diagnostics == DA_KEEP_COUNTS) ||
       (m_lex->keep_diagnostics == DA_KEEP_DIAGNOSTICS)) {
@@ -1470,7 +1470,7 @@ const char *fieldtype2str(enum enum_field_types type);
 
 void Prepared_statement::trace_parameter_types(THD *thd) {
   if (m_param_count == 0) return;
-  Opt_trace_object anon(&thd->opt_trace);
+  const Opt_trace_object anon(&thd->opt_trace);
   Opt_trace_array typ(&thd->opt_trace, "statement_parameters");
   Item_param **end = m_param_array + m_param_count;
   char buf[50];
@@ -1552,7 +1552,7 @@ void mysqld_stmt_prepare(THD *thd, const char *query, uint length,
   DBUG_PRINT("prep_query", ("%s", query));
   assert(stmt != nullptr);
 
-  bool switch_protocol = thd->is_classic_protocol();
+  const bool switch_protocol = thd->is_classic_protocol();
   if (switch_protocol) {
     // set the current client capabilities before switching the protocol
     thd->protocol_binary->set_client_capabilities(
@@ -1890,7 +1890,7 @@ void mysqld_stmt_execute(THD *thd, Prepared_statement *stmt, bool has_new_types,
 #endif
   DBUG_PRINT("info", ("stmt: %p", stmt));
 
-  bool switch_protocol = thd->is_classic_protocol();
+  const bool switch_protocol = thd->is_classic_protocol();
   if (switch_protocol) {
     // set the current client capabilities before switching the protocol
     thd->protocol_binary->set_client_capabilities(
@@ -1914,7 +1914,7 @@ void mysqld_stmt_execute(THD *thd, Prepared_statement *stmt, bool has_new_types,
   expanded_query.set_charset(default_charset_info);
   // If no error happened while setting the parameters, execute statement.
   if (!stmt->set_parameters(thd, &expanded_query, has_new_types, parameters)) {
-    bool open_cursor = execute_flags & (ulong)CURSOR_TYPE_READ_ONLY;
+    const bool open_cursor = execute_flags & (ulong)CURSOR_TYPE_READ_ONLY;
     stmt->execute_loop(thd, &expanded_query, open_cursor);
   }
 
@@ -3774,7 +3774,7 @@ bool Ed_connection::execute_direct(Server_runnable *server_runnable) {
   m_thd->push_diagnostics_area(&m_diagnostics_area);
 
   Prepared_statement stmt(m_thd);
-  bool rc = stmt.execute_server_runnable(m_thd, server_runnable);
+  const bool rc = stmt.execute_server_runnable(m_thd, server_runnable);
   m_thd->send_statement_status();
 
   m_thd->pop_protocol();

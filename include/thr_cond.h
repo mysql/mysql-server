@@ -62,8 +62,8 @@ static DWORD get_milliseconds(const struct timespec *abstime) {
     Convert timespec to millis and subtract current time.
     my_getsystime() returns time in 100 ns units.
   */
-  ulonglong future = abstime->tv_sec * 1000 + abstime->tv_nsec / 1000000;
-  ulonglong now = my_getsystime() / 10000;
+  const ulonglong future = abstime->tv_sec * 1000 + abstime->tv_nsec / 1000000;
+  const ulonglong now = my_getsystime() / 10000;
   /* Don't allow the timeout to be negative. */
   if (future < now) return 0;
   return (DWORD)(future - now);
@@ -92,7 +92,7 @@ static inline int native_cond_timedwait(native_cond_t *cond,
                                         native_mutex_t *mutex,
                                         const struct timespec *abstime) {
 #ifdef _WIN32
-  DWORD timeout = get_milliseconds(abstime);
+  const DWORD timeout = get_milliseconds(abstime);
   if (!SleepConditionVariableCS(cond, mutex, timeout)) return ETIMEDOUT;
   return 0;
 #else

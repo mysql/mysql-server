@@ -535,10 +535,10 @@ struct MDL_key {
     end = strmake(start, name, NAME_LEN);
     m_object_name_length = static_cast<uint16>(end - start);
 
-    size_t col_len = strlen(column_name);
+    const size_t col_len = strlen(column_name);
     assert(col_len <= NAME_LEN);
     start = end + 1;
-    size_t remaining =
+    const size_t remaining =
         MAX_MDLKEY_LENGTH - m_db_name_length - m_object_name_length - 3;
     uint16 extra_length = 0;
 
@@ -710,9 +710,10 @@ struct MDL_key {
     m_object_name_length = m_length - m_db_name_length - 3;
   }
   void mdl_key_init(const MDL_key *rhs) {
-    uint16 copy_length = rhs->use_normalized_object_name()
-                             ? rhs->m_length + rhs->m_object_name_length + 1
-                             : rhs->m_length;
+    const uint16 copy_length =
+        rhs->use_normalized_object_name()
+            ? rhs->m_length + rhs->m_object_name_length + 1
+            : rhs->m_length;
     memcpy(m_ptr, rhs->m_ptr, copy_length);
     m_length = rhs->m_length;
     m_db_name_length = rhs->m_db_name_length;

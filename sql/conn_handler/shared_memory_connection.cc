@@ -239,7 +239,7 @@ Channel_info *Shared_mem_listener::listen_for_connection_event() {
                          connect_number_char, "_", NullS);
 
   const char *errmsg = NULL;
-  ulong smem_buffer_length = shared_memory_buffer_length + 4;
+  const ulong smem_buffer_length = shared_memory_buffer_length + 4;
 
   my_stpcpy(m_suffix_pos, "DATA");
   if ((m_handle_client_file_map =

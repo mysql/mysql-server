@@ -92,7 +92,7 @@ int srv_session_info_set_client_port(Srv_session *session, uint16_t port) {
   @param session  Session
 */
 LEX_CSTRING srv_session_info_get_current_db(Srv_session *session) {
-  static LEX_CSTRING empty = {nullptr, 0};
+  static const LEX_CSTRING empty = {nullptr, 0};
   return VALID_SESSION(session) ? session->get_current_database() : empty;
 }
 

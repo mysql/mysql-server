@@ -187,7 +187,8 @@ static void register_instruments() {
        "All the memory allocations for the reference cache component"},
   };
 
-  int count = static_cast<int>(sizeof(all_memory) / sizeof(PSI_memory_info));
+  const int count =
+      static_cast<int>(sizeof(all_memory) / sizeof(PSI_memory_info));
   PSI_MEMORY_CALL(register_memory)(PSI_category, all_memory, count);
 }
 

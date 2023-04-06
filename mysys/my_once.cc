@@ -97,7 +97,7 @@ void *my_once_alloc(size_t Size, myf MyFlags) {
 } /* my_once_alloc */
 
 char *my_once_strdup(const char *src, myf myflags) {
-  size_t len = strlen(src) + 1;
+  const size_t len = strlen(src) + 1;
   uchar *dst = static_cast<uchar *>(my_once_alloc(len, myflags));
   if (dst) memcpy(dst, src, len);
   return (char *)dst;

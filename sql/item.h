@@ -133,7 +133,7 @@ void item_init(void); /* Init item functions */
 
 static inline uint32 char_to_byte_length_safe(uint32 char_length_arg,
                                               uint32 mbmaxlen_arg) {
-  ulonglong tmp = ((ulonglong)char_length_arg) * mbmaxlen_arg;
+  const ulonglong tmp = ((ulonglong)char_length_arg) * mbmaxlen_arg;
   return (tmp > UINT_MAX32) ? (uint32)UINT_MAX32 : (uint32)tmp;
 }
 
@@ -3207,7 +3207,7 @@ class Item : public Parse_tree_node {
       Return MAX_DOUBLE_STR_LENGTH to prevent truncation of data without having
       to evaluate the value of the item.
     */
-    uint32 max_len =
+    const uint32 max_len =
         data_type() == MYSQL_TYPE_DOUBLE ? MAX_DOUBLE_STR_LENGTH : max_length;
     if (result_type() == STRING_RESULT)
       return max_len / collation.collation->mbmaxlen;
@@ -3898,15 +3898,15 @@ bool agg_item_charsets(DTCollation &c, const char *name, Item **items,
 inline bool agg_item_charsets_for_string_result(DTCollation &c,
                                                 const char *name, Item **items,
                                                 uint nitems, int item_sep = 1) {
-  uint flags = MY_COLL_ALLOW_SUPERSET_CONV | MY_COLL_ALLOW_COERCIBLE_CONV |
-               MY_COLL_ALLOW_NUMERIC_CONV;
+  const uint flags = MY_COLL_ALLOW_SUPERSET_CONV |
+                     MY_COLL_ALLOW_COERCIBLE_CONV | MY_COLL_ALLOW_NUMERIC_CONV;
   return agg_item_charsets(c, name, items, nitems, flags, item_sep, false);
 }
 inline bool agg_item_charsets_for_comparison(DTCollation &c, const char *name,
                                              Item **items, uint nitems,
                                              int item_sep = 1) {
-  uint flags = MY_COLL_ALLOW_SUPERSET_CONV | MY_COLL_ALLOW_COERCIBLE_CONV |
-               MY_COLL_DISALLOW_NONE;
+  const uint flags = MY_COLL_ALLOW_SUPERSET_CONV |
+                     MY_COLL_ALLOW_COERCIBLE_CONV | MY_COLL_DISALLOW_NONE;
   return agg_item_charsets(c, name, items, nitems, flags, item_sep, true);
 }
 
@@ -5941,7 +5941,7 @@ class Item_ref : public Item_ident {
   }
   bool get_time(MYSQL_TIME *ltime) override {
     assert(fixed);
-    bool result = ref_item()->get_time(ltime);
+    const bool result = ref_item()->get_time(ltime);
     null_value = ref_item()->null_value;
     return result;
   }
@@ -6311,7 +6311,7 @@ class Item_time_with_ref final : public Item_temporal_with_ref {
 class Item_metadata_copy final : public Item {
  public:
   explicit Item_metadata_copy(Item *item) {
-    bool nullable = item->is_nullable();
+    const bool nullable = item->is_nullable();
     null_value = nullable;
     set_nullable(nullable);
     decimals = item->decimals;
@@ -6661,7 +6661,7 @@ class Item_trigger_field final : public Item_field,
   }
 
   bool set_value(THD *thd, Item **it) {
-    bool ret = set_value(thd, nullptr, it);
+    const bool ret = set_value(thd, nullptr, it);
     if (!ret)
       bitmap_set_bit(triggers->get_subject_table()->fields_set_during_insert,
                      field_idx);

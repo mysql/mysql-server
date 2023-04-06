@@ -1857,7 +1857,7 @@ char ***get_remaining_argv() { return &remaining_argv; }
  */
 ulong sql_rnd_with_mutex() {
   mysql_mutex_lock(&LOCK_sql_rand);
-  ulong tmp =
+  const ulong tmp =
       (ulong)(my_rnd(&sql_rand) * 0xffffffff); /* make all bits random */
   mysql_mutex_unlock(&LOCK_sql_rand);
   return tmp;
@@ -2030,7 +2030,7 @@ const char *component_urns[] = {"file://component_reference_cache"};
   @retval true failure
 */
 static bool component_infrastructure_init() {
-  bool retval = false;
+  const bool retval = false;
   if (initialize_minimal_chassis(&srv_registry)) {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_BOOTSTRAP);
     return true;
@@ -2109,9 +2109,9 @@ static void server_component_deinit() { deinit_thd_store_service(); }
 static bool mysql_component_infrastructure_init() {
   server_component_init();
   /* We need a temporary THD during boot */
-  Auto_THD thd;
-  Disable_autocommit_guard autocommit_guard(thd.thd);
-  dd::cache::Dictionary_client::Auto_releaser scope_releaser(
+  const Auto_THD thd;
+  const Disable_autocommit_guard autocommit_guard(thd.thd);
+  const dd::cache::Dictionary_client::Auto_releaser scope_releaser(
       thd.thd->dd_client());
 
   server_component_init();
@@ -2468,7 +2468,7 @@ static void unireg_abort(int exit_code) {
 
   if (opt_help) usage();
 
-  bool daemon_launcher_quiet =
+  const bool daemon_launcher_quiet =
       (IF_WIN(false, opt_daemonize) && !mysqld::runtime::is_daemon() &&
        !is_help_or_validate_option());
 
@@ -2558,14 +2558,15 @@ void gtid_server_cleanup() {
 bool gtid_server_init() {
   global_gtid_mode.set(
       static_cast<Gtid_mode::value_type>(Gtid_mode::sysvar_mode));
-  bool res = (!(global_sid_lock = new Checkable_rwlock(
+  const bool res =
+      (!(global_sid_lock = new Checkable_rwlock(
 #ifdef HAVE_PSI_INTERFACE
-                    key_rwlock_global_sid_lock
+             key_rwlock_global_sid_lock
 #endif
-                    )) ||
-              !(global_sid_map = new Sid_map(global_sid_lock)) ||
-              !(gtid_state = new Gtid_state(global_sid_lock, global_sid_map)) ||
-              !(gtid_table_persistor = new Gtid_table_persistor()));
+             )) ||
+       !(global_sid_map = new Sid_map(global_sid_lock)) ||
+       !(gtid_state = new Gtid_state(global_sid_lock, global_sid_map)) ||
+       !(gtid_table_persistor = new Gtid_table_persistor()));
 
   if (res) {
     gtid_server_cleanup();
@@ -3103,8 +3104,6 @@ static bool check_bind_address_has_valid_value(
     return true;
 
   while (comma_separator != nullptr) {
-    Bind_address_info bind_address_info;
-    std::string address_value, network_namespace;
     /*
       Wildcard value is not allowed in case multi-addresses value specified
       for the option bind-address.
@@ -3242,7 +3241,7 @@ static bool network_init(void) {
 #ifdef _WIN32
   // Create named pipe
   if (opt_enable_named_pipe) {
-    std::string pipe_name = mysqld_unix_port ? mysqld_unix_port : "";
+    const std::string pipe_name = mysqld_unix_port ? mysqld_unix_port : "";
 
     named_pipe_listener = new (std::nothrow) Named_pipe_listener(&pipe_name);
     if (named_pipe_listener == NULL) return true;
@@ -3261,7 +3260,7 @@ static bool network_init(void) {
 
   // Setup shared_memory acceptor
   if (opt_enable_shared_memory) {
-    std::string shared_mem_base_name =
+    const std::string shared_mem_base_name =
         shared_memory_base_name ? shared_memory_base_name : "";
 
     Shared_mem_listener *shared_mem_listener =
@@ -3344,7 +3343,7 @@ void setup_conn_event_handler_threads() {
   handler_count = 0;
 
   if (opt_enable_named_pipe) {
-    int error = mysql_thread_create(
+    const int error = mysql_thread_create(
         key_thread_handle_con_namedpipes, &hThread, &connection_attrib,
         named_pipe_conn_event_handler, named_pipe_acceptor);
     if (!error)
@@ -3354,7 +3353,7 @@ void setup_conn_event_handler_threads() {
   }
 
   if (have_tcpip && !opt_disable_networking) {
-    int error = mysql_thread_create(
+    const int error = mysql_thread_create(
         key_thread_handle_con_sockets, &hThread, &connection_attrib,
         socket_conn_event_handler, mysqld_socket_acceptor);
     if (!error)
@@ -3364,7 +3363,7 @@ void setup_conn_event_handler_threads() {
   }
 
   if (opt_enable_shared_memory) {
-    int error = mysql_thread_create(
+    const int error = mysql_thread_create(
         key_thread_handle_con_sharedmem, &hThread, &connection_attrib,
         shared_mem_conn_event_handler, shared_mem_acceptor);
     if (!error)
@@ -4522,8 +4521,8 @@ static void init_sql_statement_names() {
   char *first_com = (char *)offsetof(System_status_var, com_stat[0]);
   char *last_com =
       (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_END]);
-  int record_size = (char *)offsetof(System_status_var, com_stat[1]) -
-                    (char *)offsetof(System_status_var, com_stat[0]);
+  const int record_size = (char *)offsetof(System_status_var, com_stat[1]) -
+                          (char *)offsetof(System_status_var, com_stat[0]);
   char *ptr;
   uint i;
   uint com_index;
@@ -4613,7 +4612,7 @@ static void init_com_statement_info() {
 bool parse_authentication_policy(char *val,
                                  std::vector<std::string> &policy_list) {
   std::string token;
-  std::string policy_val(val);
+  const std::string policy_val(val);
   std::stringstream policy_str(val);
   bool is_empty = false;
   /* count comma */
@@ -4744,7 +4743,8 @@ static inline const char *rpl_make_log_name(PSI_memory_key key, const char *opt,
     string, in case it is an empty string default name will be considered
   */
   const char *base = (opt && opt[0]) ? opt : def;
-  unsigned int options = MY_REPLACE_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH;
+  const unsigned int options =
+      MY_REPLACE_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH;
 
   /* mysql_real_data_home_ptr may be null if no value of datadir has been
      specified through command-line or througha cnf file. If that is the
@@ -5432,7 +5432,7 @@ static int init_ssl_communication() {
   */
   if (!opt_use_admin_ssl) g_admin_ssl_configured = true;
 
-  bool initialize_admin_tls =
+  const bool initialize_admin_tls =
       (!opt_initialize && (my_admin_bind_addr_str != nullptr))
           ? opt_use_admin_ssl
           : false;
@@ -5647,7 +5647,7 @@ err:
 
 static bool initialize_storage_engine(const char *se_name, const char *se_kind,
                                       plugin_ref *dest_plugin) {
-  LEX_CSTRING name = {se_name, strlen(se_name)};
+  const LEX_CSTRING name = {se_name, strlen(se_name)};
   plugin_ref plugin;
   handlerton *hton;
   if ((plugin = ha_resolve_by_name(nullptr, &name, false)))
@@ -5693,7 +5693,7 @@ static void setup_error_log() {
     Enable the error log file only if console option is not specified
     and --help is not used.
   */
-  bool log_errors_to_file = !is_help_or_validate_option() && !opt_console;
+  const bool log_errors_to_file = !is_help_or_validate_option() && !opt_console;
 #else
   /*
     Enable the error log file only if --log-error=filename or --log-error
@@ -6055,17 +6055,17 @@ failure:
 // or <directory_path>/icudt69b on Sparc
 static bool icu_data_directory_is_valid(const char *directory_path) {
   MY_STAT stat_info;
-  bool directory_exists = mysql_file_stat(key_file_misc, directory_path,
-                                          &stat_info, MYF(0)) != nullptr;
+  const bool directory_exists = mysql_file_stat(key_file_misc, directory_path,
+                                                &stat_info, MYF(0)) != nullptr;
   if (directory_exists) {
     char icudt_path[FN_REFLEN];
     fn_format(icudt_path, ICUDT_DIR, directory_path, "", 0);
-    bool icudt_dir_exists =
+    const bool icudt_dir_exists =
         mysql_file_stat(key_file_misc, icudt_path, &stat_info, MYF(0));
     if (icudt_dir_exists) {
       char icunames_path[FN_REFLEN];
       fn_format(icunames_path, "unames.icu", icudt_path, "", 0);
-      bool icu_unames_exists =
+      const bool icu_unames_exists =
           mysql_file_stat(key_file_misc, icunames_path, &stat_info, MYF(0));
       if (icu_unames_exists) {
         return true;
@@ -6081,13 +6081,13 @@ static char *get_icu_data_directory_in_build_dir(char *to) {
   char icudt_path[FN_REFLEN];
   fn_format(icudt_path, ICUDT_DIR, mysql_home, ".lnk", 0);
   MY_STAT stat_info;
-  bool icudt_lnk_exists =
+  const bool icudt_lnk_exists =
       mysql_file_stat(key_file_misc, icudt_path, &stat_info, MYF(0)) != nullptr;
   if (icudt_lnk_exists) {
-    File file = mysql_file_open(key_file_misc, icudt_path, O_RDONLY, 0);
+    const File file = mysql_file_open(key_file_misc, icudt_path, O_RDONLY, 0);
     if (file != -1) {
       char icudt_lnk_contents[FN_REFLEN];
-      size_t num_bytes_read =
+      const size_t num_bytes_read =
           mysql_file_read(file, reinterpret_cast<uchar *>(icudt_lnk_contents),
                           sizeof(icudt_lnk_contents), 0);
       mysql_file_close(file, 0);
@@ -6473,7 +6473,7 @@ static int init_server_components() {
       won't be visible to plugins.
     */
 #ifndef NDEBUG
-    int dummy =
+    const int dummy =
 #endif
         Log_resource::dummy_function_to_ensure_we_are_linked_into_the_server();
     assert(dummy == 1);
@@ -6556,7 +6556,7 @@ static int init_server_components() {
 
       /* If clone recovery fails, we rollback the files to previous
       dataset and attempt to restart server. */
-      int exit_code =
+      const int exit_code =
           clone_recovery_error ? MYSQLD_RESTART_EXIT : MYSQLD_ABORT_EXIT;
       unireg_abort(exit_code);
     }
@@ -6633,7 +6633,7 @@ static int init_server_components() {
     dd::init(dd::enum_dd_init_type::DD_POPULATE_UPGRADE) returned.
     So make its copy to call init_pfs_tables() with right argument value later.
   */
-  bool dd_upgrade_was_initiated = dd::upgrade_57::in_progress();
+  const bool dd_upgrade_was_initiated = dd::upgrade_57::in_progress();
 #endif
 
   if (!is_help_or_validate_option() && dd::upgrade_57::in_progress()) {
@@ -6744,7 +6744,7 @@ static int init_server_components() {
   Session_tracker session_track_system_variables_check;
   LEX_STRING var_list;
   char *tmp_str;
-  size_t len = strlen(global_system_variables.track_sysvars_ptr);
+  const size_t len = strlen(global_system_variables.track_sysvars_ptr);
   tmp_str = (char *)my_malloc(PSI_NOT_INSTRUMENTED, len * sizeof(char) + 2,
                               MYF(MY_WME));
   strcpy(tmp_str, global_system_variables.track_sysvars_ptr);
@@ -6760,7 +6760,7 @@ static int init_server_components() {
 
   // Validate the configuration if --validate-config was specified.
   if (opt_validate_config && (remaining_argc > 1)) {
-    bool saved_getopt_skip_unknown = my_getopt_skip_unknown;
+    const bool saved_getopt_skip_unknown = my_getopt_skip_unknown;
     struct my_option no_opts[] = {{nullptr, 0, nullptr, nullptr, nullptr,
                                    nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0,
                                    nullptr, 0, nullptr}};
@@ -6804,7 +6804,7 @@ static int init_server_components() {
 
   if (log_output_options & LOG_TABLE) {
     /* Fall back to log files if the csv engine is not loaded. */
-    LEX_CSTRING csv_name = {STRING_WITH_LEN("csv")};
+    const LEX_CSTRING csv_name = {STRING_WITH_LEN("csv")};
     if (!plugin_is_ready(csv_name, MYSQL_STORAGE_ENGINE_PLUGIN)) {
       LogErr(ERROR_LEVEL, ER_NO_CSV_NO_LOG_TABLES);
       log_output_options = (log_output_options & ~LOG_TABLE) | LOG_FILE;
@@ -6990,7 +6990,7 @@ extern "C" void *handle_shutdown_and_restart(void *) {
   my_thread_init();
   /* This call should create the message queue for this thread. */
   PeekMessage(&msg, NULL, 1, 65534, PM_NOREMOVE);
-  DWORD ret_code = WaitForMultipleObjects(
+  const DWORD ret_code = WaitForMultipleObjects(
       2, static_cast<HANDLE *>(event_handles), FALSE, INFINITE);
 
   if (ret_code == WAIT_OBJECT_0 || ret_code == WAIT_OBJECT_0 + 1) {
@@ -7851,7 +7851,7 @@ int mysqld_main(int argc, char **argv)
 
     char buf[32];
     snprintf(buf, sizeof(buf), "T %lu", slow_start_timeout);
-    Service_status_msg msg(buf);
+    const Service_status_msg msg(buf);
     send_service_status(msg);
   }
 #endif
@@ -7879,7 +7879,7 @@ int mysqld_main(int argc, char **argv)
     needs to do anything else.
   */
   global_sid_lock->wrlock();
-  int gtid_ret = gtid_state->init();
+  const int gtid_ret = gtid_state->init();
   global_sid_lock->unlock();
 
   if (gtid_ret) unireg_abort(MYSQLD_ABORT_EXIT);
@@ -8127,9 +8127,9 @@ int mysqld_main(int argc, char **argv)
 
   binlog_unsafe_map_init();
 
-  ReplicaInitializer replica_initializer(opt_initialize, opt_skip_replica_start,
-                                         rpl_channel_filters,
-                                         &opt_replica_skip_errors);
+  const ReplicaInitializer replica_initializer(
+      opt_initialize, opt_skip_replica_start, rpl_channel_filters,
+      &opt_replica_skip_errors);
 
 #ifdef WITH_LOCK_ORDER
   if (!opt_initialize) {
@@ -8222,7 +8222,7 @@ int mysqld_main(int argc, char **argv)
 
 #if defined(_WIN32)
   if (windows_service) {
-    Service_status_msg s("R");
+    const Service_status_msg s("R");
     send_service_status(s);
   }
 #endif
@@ -8350,7 +8350,7 @@ int mysql_service(void *) {
   }
 
   if (!mysqld_early_option) {
-    int res = start_monitor();
+    const int res = start_monitor();
     if (res != -1) {
       deinitialize_mysqld_monitor();
       return res;
@@ -8371,7 +8371,7 @@ int mysql_service(void *) {
 /* Quote string if it contains space, else copy */
 
 static char *add_quoted_string(char *to, const char *from, char *to_end) {
-  uint length = (uint)(to_end - to);
+  const uint length = (uint)(to_end - to);
 
   if (!strchr(from, ' ')) return strmake(to, from, length - 1);
   return strxnmov(to, length - 1, "\"", from, "\"", NullS);
@@ -8411,7 +8411,7 @@ static bool default_service_handling(char **argv, const char *servicename,
     */
     *pos++ = ' ';
     if ((opt_delim = strchr(extra_opt, '='))) {
-      size_t length = ++opt_delim - extra_opt;
+      const size_t length = ++opt_delim - extra_opt;
       pos = my_stpnmov(pos, extra_opt, length);
     } else
       opt_delim = extra_opt;
@@ -9423,7 +9423,7 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff) {
 #ifndef NDEBUG
 static int show_replica_rows_last_search_algorithm_used(THD *, SHOW_VAR *var,
                                                         char *buff) {
-  uint res = replica_rows_last_search_algorithm_used;
+  const uint res = replica_rows_last_search_algorithm_used;
   const char *s =
       ((res == Rows_log_event::ROW_LOOKUP_TABLE_SCAN)
            ? "TABLE_SCAN"
@@ -11243,7 +11243,7 @@ bool is_secure_file_path(const char *path) {
     /*
       The supplied file path might have been a file and not a directory.
     */
-    int length = (int)dirname_length(path);
+    const int length = (int)dirname_length(path);
     if (length >= FN_REFLEN) return false;
     memcpy(buff2, path, length);
     buff2[length] = '\0';
@@ -11626,7 +11626,7 @@ static void delete_pid_file(myf flags) {
 
   uchar buff[MAX_BIGINT_WIDTH + 1];
   /* Make sure that the pid file was created by the same process. */
-  size_t error = mysql_file_read(file, buff, sizeof(buff), flags);
+  const size_t error = mysql_file_read(file, buff, sizeof(buff), flags);
   mysql_file_close(file, flags);
   buff[sizeof(buff) - 1] = '\0';
   if (error != MY_FILE_ERROR && atol((char *)buff) == (long)getpid()) {

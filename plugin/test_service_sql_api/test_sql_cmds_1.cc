@@ -572,9 +572,9 @@ static void *test_session_thread(Test_data *tdata) {
 
   tdata->go();
 
-  int r = command_service_run_command(tdata->session, COM_QUERY, &cmd,
-                                      &my_charset_utf8mb3_general_ci, &sql_cbs,
-                                      CS_TEXT_REPRESENTATION, &cbdata);
+  const int r = command_service_run_command(
+      tdata->session, COM_QUERY, &cmd, &my_charset_utf8mb3_general_ci, &sql_cbs,
+      CS_TEXT_REPRESENTATION, &cbdata);
   WRITE_VAL("Killed run_command return value: %i\n", r);
 
   WRITE_VAL("thread shutdown: %i (%s)\n", cbdata.shutdown,

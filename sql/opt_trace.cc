@@ -460,7 +460,7 @@ void Opt_trace_stmt::set_query(const char *query, size_t length,
     return;
   }
   // We are taking a bit of space from 'trace_buffer'.
-  size_t available =
+  const size_t available =
       (trace_buffer.alloced_length() >= trace_buffer.get_allowed_mem_size())
           ? 0
           : (trace_buffer.get_allowed_mem_size() -
@@ -1088,7 +1088,7 @@ size_t Opt_trace_context::allowed_mem_size_for_current_stmt() const {
   }
   /* The current statement is in exactly one of the two lists above */
   mem_size -= pimpl->current_stmt_in_gen->alloced_length();
-  size_t rc =
+  const size_t rc =
       (mem_size <= pimpl->max_mem_size) ? (pimpl->max_mem_size - mem_size) : 0;
   DBUG_PRINT("opt", ("rc %llu max_mem_size %llu", (ulonglong)rc,
                      (ulonglong)pimpl->max_mem_size));

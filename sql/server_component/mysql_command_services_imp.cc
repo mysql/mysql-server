@@ -876,7 +876,7 @@ DEFINE_METHOD(int, mysql_command_services_imp::next_result, (MYSQL_H mysql_h)) {
     Mysql_handle *m_handle = reinterpret_cast<Mysql_handle *>(mysql_h);
     if (m_handle == nullptr) return true;
     /* more results? -1 = no, >0 = error, 0 = yes (keep looping) */
-    int ret = mysql_next_result(m_handle->mysql);
+    const int ret = mysql_next_result(m_handle->mysql);
     return ret;
   } catch (...) {
     mysql_components_handle_std_exception(__func__);

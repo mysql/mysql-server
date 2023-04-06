@@ -131,8 +131,8 @@ bool Json_writer::remove_element(const meta::Metadata &metadata,
 
   for (rapidjson::Value::ConstValueIterator it = elements.Begin();
        it != elements.End();) {
-    meta::Metadata current_metadata((*it)["data_id"].Get<std::string>(),
-                                    (*it)["user"].Get<std::string>());
+    const meta::Metadata current_metadata((*it)["data_id"].Get<std::string>(),
+                                          (*it)["user"].Get<std::string>());
     if (metadata == current_metadata) {
       it = elements.Erase(it);  // Erase will move iterator to next position
       retval = false;

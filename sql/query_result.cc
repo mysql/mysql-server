@@ -206,7 +206,7 @@ void Query_result_to_file::cleanup() {
 static File create_file(THD *thd, char *path, sql_exchange *exchange,
                         IO_CACHE *cache) {
   File file;
-  uint option = MY_UNPACK_FILENAME | MY_RELATIVE_PATH;
+  const uint option = MY_UNPACK_FILENAME | MY_RELATIVE_PATH;
 
   if (!dirname_length(exchange->file_name)) {
     strxnmov(path, FN_REFLEN - 1, mysql_real_data_home,

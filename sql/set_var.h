@@ -365,8 +365,8 @@ class sys_var {
   inline static bool set_and_truncate(char *dst, const char *string,
                                       size_t sizeof_dst) {
     if (dst == string) return false;
-    size_t string_length = strlen(string), length;
-    length = std::min(sizeof_dst - 1, string_length);
+    const size_t string_length = strlen(string);
+    const size_t length = std::min(sizeof_dst - 1, string_length);
     memcpy(dst, string, length);
     dst[length] = 0;
     return length < string_length;  // truncated

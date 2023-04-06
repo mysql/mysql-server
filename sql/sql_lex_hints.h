@@ -178,7 +178,7 @@ class Hint_scanner {
 
   int scan_ident() {
     for (;;) {
-      hint_lex_char_classes chr_class = peek_class();
+      const hint_lex_char_classes chr_class = peek_class();
       switch (chr_class) {
         case HINT_CHR_IDENT:
         case HINT_CHR_DIGIT:
@@ -341,7 +341,7 @@ class Hint_scanner {
 
   uchar get_byte() {
     assert(!eof());
-    char ret = *ptr;
+    const char ret = *ptr;
     yyleng++;
     ptr++;
     return ret;
@@ -376,7 +376,7 @@ class Hint_scanner {
   }
 
   bool skip_mb() {
-    size_t len = my_ismbchar(cs, ptr, input_buf_end);
+    const size_t len = my_ismbchar(cs, ptr, input_buf_end);
     if (len == 0) {
       ptr++;
       yyleng++;
@@ -468,7 +468,7 @@ class Hint_scanner {
 inline int my_hint_parser_lex(MY_HINT_PARSER_STYPE *yacc_yylval,
                               Hint_scanner *scanner) {
   auto yylval = reinterpret_cast<Lexer_yystype *>(yacc_yylval);
-  int ret = scanner->get_next_token();
+  const int ret = scanner->get_next_token();
   yylval->hint_string.str = scanner->yytext;
   yylval->hint_string.length = scanner->yyleng;
   return ret;

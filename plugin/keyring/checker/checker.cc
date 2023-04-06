@@ -109,7 +109,7 @@ Converter::Arch Checker::detect_architecture(File file, size_t file_size) {
     return native_arch;
 
   // determine detection order for candidates
-  Converter::Arch detection_order[] = {
+  const Converter::Arch detection_order[] = {
       Converter::Arch::LE_64, Converter::Arch::LE_32, Converter::Arch::BE_64,
       Converter::Arch::BE_32};
 

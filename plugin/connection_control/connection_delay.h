@@ -161,8 +161,8 @@ class Connection_delay_action : public Connection_event_observer,
   */
 
   bool set_delay(int64 new_value, bool min) {
-    int64 current_max = get_max_delay();
-    int64 current_min = get_min_delay();
+    const int64 current_max = get_max_delay();
+    const int64 current_min = get_min_delay();
 
     if (new_value < MIN_DELAY) return true;
 
@@ -203,9 +203,9 @@ class Connection_delay_action : public Connection_event_observer,
   */
 
   inline ulonglong get_wait_time(int64 count) {
-    int64 max_delay = get_max_delay();
-    int64 min_delay = get_min_delay();
-    int64 count_mili = count * 1000;
+    const int64 max_delay = get_max_delay();
+    const int64 min_delay = get_min_delay();
+    const int64 count_mili = count * 1000;
 
     /*
       if count < 0 (can happen in edge cases

@@ -65,10 +65,10 @@ KEY_CACHE
 zero_key_cache;  ///< @@nonexistent_cache.param->value_ptr() points here
 
 KEY_CACHE *get_key_cache(std::string_view cache_name) {
-  std::string_view name = cache_name.empty()
-                              ? std::string_view{default_key_cache_base.str,
-                                                 default_key_cache_base.length}
-                              : cache_name;
+  const std::string_view name =
+      cache_name.empty() ? std::string_view{default_key_cache_base.str,
+                                            default_key_cache_base.length}
+                         : cache_name;
   return pointer_cast<KEY_CACHE *>(find_named(&key_caches, name, nullptr));
 }
 

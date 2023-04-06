@@ -146,7 +146,7 @@ bool Compiled_in_command_iterator::begin(void) {
   } else {
     char password[GENERATED_PASSWORD_LENGTH + 1];
     char escaped_password[GENERATED_PASSWORD_LENGTH * 2 + 1];
-    ulong saved_verbosity = log_error_verbosity;
+    const ulong saved_verbosity = log_error_verbosity;
 
     if (generate_password(password, GENERATED_PASSWORD_LENGTH)) {
       LogErr(ERROR_LEVEL, ER_INIT_FAILED_TO_GENERATE_ROOT_PASSWORD);
@@ -224,7 +224,7 @@ void Compiled_in_command_iterator::end(void) {
 */
 bool initialize_create_data_directory(const char *data_home) {
   MY_DIR *dir;
-  int flags =
+  const int flags =
 #ifdef _WIN32
       0
 #else

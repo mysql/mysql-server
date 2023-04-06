@@ -151,7 +151,7 @@ void *lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx) {
     data = alloc + sizeof(void *);
     {
       /* alignment */
-      intptr mod = ((intptr)data) % array->size_of_element;
+      const intptr mod = ((intptr)data) % array->size_of_element;
       if (mod) {
         data += array->size_of_element - mod;
       }

@@ -85,14 +85,14 @@ OCI_config_file parse_oci_config_file(const std::string &oci_config,
   OCI_config_file result;
   while (std::getline(file, line)) {
     // generated config file may have spaces before and after '='
-    size_t pos = line.find(" = ");
+    const size_t pos = line.find(" = ");
     if (pos != std::string::npos) {
       line.erase(line.begin() + pos);
       line.erase(line.begin() + pos + 1);
     }
     // 'key= value' and 'key =value' are not accepted format
-    size_t pos_a = line.find("= ");
-    size_t pos_b = line.find(" =");
+    const size_t pos_a = line.find("= ");
+    const size_t pos_b = line.find(" =");
     if (pos_a != std::string::npos || pos_b != std::string::npos) {
       err_msg = "Config file: " + oci_config +
                 " has an invalid format near line: " + line +

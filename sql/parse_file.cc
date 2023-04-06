@@ -176,7 +176,7 @@ static bool read_escaped_string(const char *ptr, const char *eol,
   char *write_pos = str->str;
 
   for (; ptr < eol; ptr++, write_pos++) {
-    char c = *ptr;
+    const char c = *ptr;
     if (c == '\\') {
       ptr++;
       if (ptr >= eol) return true;

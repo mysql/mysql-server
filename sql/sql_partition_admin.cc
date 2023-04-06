@@ -85,9 +85,9 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd) {
     referenced from this structure will be modified.
     @todo move these into constructor...
   */
-  HA_CREATE_INFO create_info(*lex->create_info);
+  const HA_CREATE_INFO create_info(*lex->create_info);
   Alter_info alter_info(*m_alter_info, thd->mem_root);
-  ulong priv_needed = ALTER_ACL | DROP_ACL | INSERT_ACL | CREATE_ACL;
+  const ulong priv_needed = ALTER_ACL | DROP_ACL | INSERT_ACL | CREATE_ACL;
 
   DBUG_TRACE;
 
@@ -188,7 +188,7 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   Alter_table_ctx part_alter_ctx;  // Not used
   DBUG_TRACE;
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Table *part_table_def = nullptr;
   if (!part_table->s->tmp_table) {
     if (thd->dd_client()->acquire(part_table->s->db.str,
@@ -424,7 +424,7 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
     return true;
   }
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   dd::Table *part_table_def = nullptr;
   dd::Table *swap_table_def = nullptr;
 
@@ -452,8 +452,8 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
       dd::sdi::drop_all_for_table(thd, part_table_def)) {
     return true;
   }
-  int ha_error = part_handler->exchange_partition(swap_part_id, part_table_def,
-                                                  swap_table_def);
+  const int ha_error = part_handler->exchange_partition(
+      swap_part_id, part_table_def, swap_table_def);
 
   if (ha_error) {
     handlerton *hton = part_table->file->ht;
@@ -646,7 +646,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
     downgrade_mdl_guard.reset(ticket);
   }
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   dd::Table *table_def = nullptr;
 
   if (thd->dd_client()->acquire_for_modification<dd::Table>(

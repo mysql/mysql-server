@@ -93,7 +93,7 @@ bool modify_role_edges_in_table(THD *thd, TABLE *table,
       to_user.second.str, to_user.second.length, system_charset_info);
   table->field[MYSQL_ROLE_EDGES_FIELD_TO_USER]->store(
       to_user.first.str, to_user.first.length, system_charset_info);
-  char with_admin_option_char = with_admin_option ? 'Y' : 'N';
+  const char with_admin_option_char = with_admin_option ? 'Y' : 'N';
   table->field[MYSQL_ROLE_EDGES_FIELD_TO_WITH_ADMIN_OPT]->store(
       &with_admin_option_char, 1, system_charset_info, CHECK_FIELD_IGNORE);
 
@@ -239,8 +239,8 @@ bool populate_roles_caches(THD *thd, Table_ref *tablelst) {
           &tmp_mem,
           roles_edges_table->field[MYSQL_ROLE_EDGES_FIELD_TO_WITH_ADMIN_OPT]);
 
-      int from_user_len = from_user ? strlen(from_user) : 0;
-      int to_user_len = to_user ? strlen(to_user) : 0;
+      const int from_user_len = from_user ? strlen(from_user) : 0;
+      const int to_user_len = to_user ? strlen(to_user) : 0;
       if (from_user_len == 0 || to_user_len == 0) {
         LogErr(WARNING_LEVEL, ER_AUTHCACHE_ROLE_EDGES_IGNORED_EMPTY_NAME);
         continue;
@@ -293,10 +293,10 @@ bool populate_roles_caches(THD *thd, Table_ref *tablelst) {
       char *role_user = get_field(
           &tmp_mem,
           default_role_table->field[MYSQL_DEFAULT_ROLE_FIELD_ROLE_USER]);
-      int user_len = (user ? strlen(user) : 0);
-      int host_len = (host ? strlen(host) : 0);
-      int role_user_len = (role_user ? strlen(role_user) : 0);
-      int role_host_len = (role_host ? strlen(role_host) : 0);
+      const int user_len = (user ? strlen(user) : 0);
+      const int host_len = (host ? strlen(host) : 0);
+      const int role_user_len = (role_user ? strlen(role_user) : 0);
+      const int role_host_len = (role_host ? strlen(role_host) : 0);
 
       if (user_len == 0 || role_user_len == 0) {
         LogErr(WARNING_LEVEL, ER_AUTHCACHE_DEFAULT_ROLES_IGNORED_EMPTY_NAME);

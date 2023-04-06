@@ -387,7 +387,7 @@ void Event_queue::recalculate_activation_times(THD *thd) {
     Prevent InnoDB from automatically committing the InnoDB transaction after
     updating the data-dictionary table.
   */
-  Disable_autocommit_guard autocommit_guard(thd);
+  const Disable_autocommit_guard autocommit_guard(thd);
 
   /*
     The disabled elements are moved to the end during the `fix`.
@@ -396,8 +396,8 @@ void Event_queue::recalculate_activation_times(THD *thd) {
     have removed all. The queue has been ordered in a way the disabled
     events are at the end.
   */
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  Implicit_substatement_state_guard substatement_guard(thd);
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const Implicit_substatement_state_guard substatement_guard(thd);
   std::vector<std::unique_ptr<Event_queue_element>> events_to_drop;
   for (size_t i = queue.size(); i > 0; i--) {
     Event_queue_element *element = queue[i - 1];

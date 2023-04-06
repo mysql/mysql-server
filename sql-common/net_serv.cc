@@ -242,7 +242,7 @@ bool net_realloc(NET *net, size_t length) {
 #ifdef MYSQL_SERVER
   net->buff = net->write_pos = buff;
 #else
-  size_t cur_pos_offset = NET_ASYNC_DATA(net)->cur_pos - net->buff;
+  const size_t cur_pos_offset = NET_ASYNC_DATA(net)->cur_pos - net->buff;
   net->buff = net->write_pos = buff;
   NET_ASYNC_DATA(net)->cur_pos = net->buff + cur_pos_offset;
 #endif
@@ -537,11 +537,11 @@ static int begin_packet_write_state(NET *net, uchar command,
   }
   NET_ASYNC *net_async = NET_ASYNC_DATA(net);
   size_t total_len = packet_len + prefix_len;
-  bool include_command = (command < COM_END);
+  const bool include_command = (command < COM_END);
   if (include_command) {
     ++total_len;
   }
-  size_t packet_count = 1 + total_len / MAX_PACKET_LENGTH;
+  const size_t packet_count = 1 + total_len / MAX_PACKET_LENGTH;
   reset_packet_write_state(net);
 
   struct io_vec *vec;
@@ -662,7 +662,7 @@ static int begin_packet_write_state(NET *net, uchar command,
       Final iovec, the payload itself. Send however many bytes from
       packet we have left, and advance our packet pointer.
     */
-    size_t remaining_bytes = packet_size - bytes_queued;
+    const size_t remaining_bytes = packet_size - bytes_queued;
     (*vec).iov_base = const_cast<uchar *>(packet);
     (*vec).iov_len = remaining_bytes;
 
@@ -758,7 +758,7 @@ static net_async_status net_write_vector_nonblocking(NET *net, ssize_t *res) {
       }
       return NET_ASYNC_COMPLETE;
     }
-    size_t bytes_written = static_cast<size_t>(*res);
+    const size_t bytes_written = static_cast<size_t>(*res);
     vec->iov_len -= bytes_written;
     vec->iov_base = (char *)vec->iov_base + bytes_written;
 
@@ -902,9 +902,9 @@ bool net_write_command(NET *net, uchar command, const uchar *header,
   }
   int3store(buff, static_cast<uint>(length));
   buff[3] = (uchar)net->pkt_nr++;
-  bool rc = net_write_buff(net, buff, header_size) ||
-            (head_len && net_write_buff(net, header, head_len)) ||
-            net_write_buff(net, packet, len) || net_flush(net);
+  const bool rc = net_write_buff(net, buff, header_size) ||
+                  (head_len && net_write_buff(net, header, head_len)) ||
+                  net_write_buff(net, packet, len) || net_flush(net);
   return rc;
 }
 
@@ -990,7 +990,7 @@ static bool net_write_raw_loop(NET *net, const uchar *buf, size_t count) {
   unsigned int retry_count = 0;
 
   while (count) {
-    size_t sentcnt = vio_write(net->vio, buf, count);
+    const size_t sentcnt = vio_write(net->vio, buf, count);
 
     /* VIO_SOCKET_ERROR (-1) indicates an error. */
     if (sentcnt == VIO_SOCKET_ERROR) {
@@ -1354,7 +1354,7 @@ static bool net_read_raw_loop(NET *net, size_t count) {
   time_t start_time = 0;
   if (timeout_on_full_packet) start_time = time(&start_time);
   while (count) {
-    size_t recvcnt = vio_read(net->vio, buf, count);
+    const size_t recvcnt = vio_read(net->vio, buf, count);
 
     /* VIO_SOCKET_ERROR (-1) indicates an error. */
     if (recvcnt == VIO_SOCKET_ERROR) {
@@ -1843,9 +1843,9 @@ begin:
                       "net->where_b : %lu, multi_byte_packet : %u ",
                       buf_length, net->remain_in_buf, first_packet_offset,
                       start_of_packet, net->where_b, multi_byte_packet));
-  size_t remain_in_buf = buf_length - start_of_packet;
+  const size_t remain_in_buf = buf_length - start_of_packet;
   if (remain_in_buf >= NET_HEADER_SIZE) {
-    size_t read_length = uint3korr(net->buff + start_of_packet);
+    const size_t read_length = uint3korr(net->buff + start_of_packet);
     DBUG_PRINT("info", ("read_length : %zu", read_length));
     if (!read_length) {
       start_of_packet += NET_HEADER_SIZE; /* End of multi-byte packet */
@@ -1922,8 +1922,8 @@ static ulong net_read_update_offsets(NET *net, size_t start_of_packet,
   net->read_pos = net->buff + first_packet_offset + NET_HEADER_SIZE;
   net->buf_length = buf_length;
   net->remain_in_buf = (ulong)(buf_length - start_of_packet);
-  ulong len = ((ulong)(start_of_packet - first_packet_offset) -
-               NET_HEADER_SIZE - multi_byte_packet);
+  const ulong len = ((ulong)(start_of_packet - first_packet_offset) -
+                     NET_HEADER_SIZE - multi_byte_packet);
   if (net->remain_in_buf) {
     /*
       If multi byte packet is non-zero then there is a zero length
@@ -2165,7 +2165,7 @@ static void net_read_uncompressed_packet(NET *net, size_t &len) {
   len = net_read_packet(net, &complen);
   if (len == MAX_PACKET_LENGTH) {
     /* First packet of a multi-packet.  Concatenate the packets */
-    ulong save_pos = net->where_b;
+    const ulong save_pos = net->where_b;
     size_t total_length = 0;
     do {
       net->where_b += len;

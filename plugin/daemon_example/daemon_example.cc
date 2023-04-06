@@ -111,7 +111,7 @@ static int daemon_example_plugin_init(void *p) {
   my_thread_attr_t attr; /* Thread attributes */
   char heartbeat_filename[FN_REFLEN];
   char buffer[HEART_STRING_BUFFER];
-  time_t result = time(nullptr);
+  const time_t result = time(nullptr);
   struct tm tm_tmp;
 
   struct st_plugin_int *plugin = (struct st_plugin_int *)p;
@@ -168,7 +168,7 @@ static int daemon_example_plugin_deinit(void *p) {
   struct st_plugin_int *plugin = (struct st_plugin_int *)p;
   struct mysql_heartbeat_context *con =
       (struct mysql_heartbeat_context *)plugin->data;
-  time_t result = time(nullptr);
+  const time_t result = time(nullptr);
   struct tm tm_tmp;
   void *dummy_retval;
 

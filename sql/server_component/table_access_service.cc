@@ -816,31 +816,31 @@ size_t impl_add_table(Table_access api_ta, const char *schema_name,
                       size_t schema_name_length, const char *table_name,
                       size_t table_name_length, TA_lock_type api_lock_type) {
   Table_access_impl *ta = Table_access_impl::from_api(api_ta);
-  enum thr_lock_type lock_type = convert_lock_type(api_lock_type);
+  const enum thr_lock_type lock_type = convert_lock_type(api_lock_type);
   assert(ta != nullptr);
-  size_t result = ta->add_table(schema_name, schema_name_length, table_name,
-                                table_name_length, lock_type);
+  const size_t result = ta->add_table(schema_name, schema_name_length,
+                                      table_name, table_name_length, lock_type);
   return result;
 }
 
 int impl_begin(Table_access api_ta) {
   Table_access_impl *ta = Table_access_impl::from_api(api_ta);
   assert(ta != nullptr);
-  int result = ta->begin();
+  const int result = ta->begin();
   return result;
 }
 
 int impl_commit(Table_access api_ta) {
   Table_access_impl *ta = Table_access_impl::from_api(api_ta);
   assert(ta != nullptr);
-  int result = ta->commit();
+  const int result = ta->commit();
   return result;
 }
 
 int impl_rollback(Table_access api_ta) {
   Table_access_impl *ta = Table_access_impl::from_api(api_ta);
   assert(ta != nullptr);
-  int result = ta->rollback();
+  const int result = ta->rollback();
   return result;
 }
 
@@ -923,7 +923,7 @@ int impl_check_table_fields(Table_access /* api_ta */, TA_table api_table,
 
     /* For types that have a length. */
     if (has_length) {
-      size_t actual = actual_field->char_length();
+      const size_t actual = actual_field->char_length();
       if (actual != expected_field->m_length) {
         return 6;
       }
@@ -1046,7 +1046,7 @@ int impl_index_init(Table_access /* api_ta */, TA_table api_table,
   }
 
   // TODO: sort order ?
-  int result = table->file->ha_index_init(index, false);
+  const int result = table->file->ha_index_init(index, false);
 
   if (result == 0) {
     TA_key_impl *key = new TA_key_impl();
@@ -1079,9 +1079,9 @@ int impl_index_read_map(Table_access /* api_ta */, TA_table api_table,
             4 | b1111 = 15
     etc
   */
-  key_part_map map = make_prev_keypart_map(num_parts);
+  const key_part_map map = make_prev_keypart_map(num_parts);
 
-  uint key_len = calculate_key_len(table, key->m_key_index, map);
+  const uint key_len = calculate_key_len(table, key->m_key_index, map);
 
   key->key_copy(table->record[0], key_len);
 
@@ -1157,7 +1157,7 @@ int impl_index_end(Table_access /* api_ta */, TA_table api_table,
   assert(table != nullptr);
   TA_key_impl *key = TA_key_impl::from_api(api_key);
   assert(key != nullptr);
-  int result = table->file->ha_index_end();
+  const int result = table->file->ha_index_end();
   delete key;
   return result;
 }
@@ -1165,7 +1165,7 @@ int impl_index_end(Table_access /* api_ta */, TA_table api_table,
 int impl_rnd_init(Table_access /* api_ta */, TA_table api_table) {
   TABLE *table = TA_table_impl::from_api(api_table);
   assert(table != nullptr);
-  int result = table->file->ha_rnd_init(true);
+  const int result = table->file->ha_rnd_init(true);
 
   if (result == 0) {
     if (table->record[1]) {
@@ -1179,7 +1179,7 @@ int impl_rnd_init(Table_access /* api_ta */, TA_table api_table) {
 int impl_rnd_next(Table_access /* api_ta */, TA_table api_table) {
   TABLE *table = TA_table_impl::from_api(api_table);
   assert(table != nullptr);
-  int result = table->file->ha_rnd_next(table->record[0]);
+  const int result = table->file->ha_rnd_next(table->record[0]);
 
   if (result == 0) {
     if (table->record[1]) {
@@ -1193,28 +1193,29 @@ int impl_rnd_next(Table_access /* api_ta */, TA_table api_table) {
 int impl_rnd_end(Table_access /* api_ta */, TA_table api_table) {
   TABLE *table = TA_table_impl::from_api(api_table);
   assert(table != nullptr);
-  int result = table->file->ha_rnd_end();
+  const int result = table->file->ha_rnd_end();
   return result;
 }
 
 int impl_write_row(Table_access /* api_ta */, TA_table api_table) {
   TABLE *table = TA_table_impl::from_api(api_table);
   assert(table != nullptr);
-  int result = table->file->ha_write_row(table->record[0]);
+  const int result = table->file->ha_write_row(table->record[0]);
   return result;
 }
 
 int impl_update_row(Table_access /* api_ta */, TA_table api_table) {
   TABLE *table = TA_table_impl::from_api(api_table);
   assert(table != nullptr);
-  int result = table->file->ha_update_row(table->record[1], table->record[0]);
+  const int result =
+      table->file->ha_update_row(table->record[1], table->record[0]);
   return result;
 }
 
 int impl_delete_row(Table_access /* api_ta */, TA_table api_table) {
   TABLE *table = TA_table_impl::from_api(api_table);
   assert(table != nullptr);
-  int result = table->file->ha_delete_row(table->record[0]);
+  const int result = table->file->ha_delete_row(table->record[0]);
   return result;
 }
 

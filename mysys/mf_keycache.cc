@@ -2935,7 +2935,7 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
                                enum flush_type type) {
   int error;
   int last_errno = 0;
-  uint count = (uint)(end - cache);
+  const uint count = (uint)(end - cache);
 
   /* Don't lock the cache during the flush */
   mysql_mutex_unlock(&keycache->cache_lock);

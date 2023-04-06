@@ -1201,7 +1201,7 @@ bool Json_decimal::convert_from_binary(const char *bin, size_t len,
     int scale = bin[1];
 
     // The decimal value is encoded after the two precision/scale bytes.
-    size_t bin_size = my_decimal_get_binary_size(precision, scale);
+    const size_t bin_size = my_decimal_get_binary_size(precision, scale);
     error =
         (bin_size != len - 2) ||
         (binary2my_decimal(E_DEC_ERROR, pointer_cast<const uchar *>(bin) + 2,
@@ -1309,7 +1309,7 @@ void Json_wrapper_object_iterator::initialize_current_member() {
     m_current_member.second.set_alias();
   } else {
     assert(m_current_element_index < m_binary_value->element_count());
-    json_binary::Value key = m_binary_value->key(m_current_element_index);
+    const json_binary::Value key = m_binary_value->key(m_current_element_index);
     m_current_member.first = {key.get_data(), key.get_data_length()};
     // There is no DOM to destruct in the previous member when iterating over a
     // binary value, so just construct a new wrapper in its place.
@@ -1532,7 +1532,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
 
       if (buffer->append('[')) return true; /* purecov: inspected */
 
-      size_t array_len = wr.length();
+      const size_t array_len = wr.length();
       for (uint32 i = 0; i < array_len; ++i) {
         if (i > 0 && append_comma(buffer, pretty))
           return true; /* purecov: inspected */
@@ -1570,7 +1570,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     case enum_json_type::J_DOUBLE: {
       if (reserve(buffer, MY_GCVT_MAX_FIELD_WIDTH + 1))
         return true; /* purecov: inspected */
-      double d = wr.get_double();
+      const double d = wr.get_double();
       char *start = buffer->ptr() + buffer->length();
       size_t len = my_gcvt(d, MY_GCVT_ARG_DOUBLE, MY_GCVT_MAX_FIELD_WIDTH,
                            start, nullptr);
@@ -1663,7 +1663,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     }
     case enum_json_type::J_STRING: {
       const char *data = wr.get_data();
-      size_t length = wr.get_data_length();
+      const size_t length = wr.get_data_length();
 
       if (print_string(buffer, json_quoted, data, length))
         return true; /* purecov: inspected */
@@ -1736,7 +1736,7 @@ enum_json_type Json_wrapper::type() const {
     return m_dom.m_value->json_type();
   }
 
-  json_binary::Value::enum_type typ = m_value.type();
+  const json_binary::Value::enum_type typ = m_value.type();
 
   if (typ == json_binary::Value::OPAQUE) {
     const enum_field_types ftyp = m_value.field_type();

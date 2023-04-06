@@ -786,7 +786,7 @@ bool update_referencing_views_metadata(
   DBUG_TRACE;
   assert(table != nullptr);
 
-  bool error = update_referencing_views_metadata(
+  const bool error = update_referencing_views_metadata(
       thd, table->get_db_name(), table->get_table_name(), new_db,
       new_table_name, commit_dd_changes, uncommitted_tables);
   return error;
@@ -805,7 +805,7 @@ bool update_referencing_views_metadata(
   DBUG_TRACE;
   assert(db_name && table_name);
 
-  bool error = update_referencing_views_metadata(
+  const bool error = update_referencing_views_metadata(
       thd, db_name, table_name, nullptr, nullptr, commit_dd_changes,
       uncommitted_tables);
   return error;

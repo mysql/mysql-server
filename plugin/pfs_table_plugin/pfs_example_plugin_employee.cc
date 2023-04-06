@@ -314,7 +314,7 @@ ename_prepare_insert_row()
 {
   int result = 0;
   Ename_Table_Handle handle;
-  int array_size= sizeof(ename_array) / sizeof(ename_array[0]);
+  const int array_size= sizeof(ename_array) / sizeof(ename_array[0]);
 
   for (int i = 0; i < array_size; i++)
   {
@@ -343,7 +343,7 @@ esalary_prepare_insert_row()
 {
   int result = 0;
   Esalary_Table_Handle handle;
-  int array_size= sizeof(esalary_array) / sizeof(esalary_array[0]);
+  const int array_size= sizeof(esalary_array) / sizeof(esalary_array[0]);
 
   for (int i = 0; i < array_size; i++)
   {
@@ -375,7 +375,7 @@ machine_prepare_insert_row()
 {
   int result = 0;
   Machine_Table_Handle handle;
-  int array_size= sizeof(machine_array) / sizeof(machine_array[0]);
+  const int array_size= sizeof(machine_array) / sizeof(machine_array[0]);
 
   for (int i = 0; i < array_size; i++)
   {

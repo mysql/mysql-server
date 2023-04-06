@@ -223,7 +223,7 @@ bool Sql_cmd_call::execute_inner(THD *thd) {
     thd->server_status |= SERVER_MORE_RESULTS_EXISTS;
   }
 
-  ha_rows select_limit = thd->variables.select_limit;
+  const ha_rows select_limit = thd->variables.select_limit;
   thd->variables.select_limit = HA_POS_ERROR;
 
   /*
@@ -233,7 +233,7 @@ bool Sql_cmd_call::execute_inner(THD *thd) {
       into binlog.
     So just execute the statement.
   */
-  bool result = sp->execute_procedure(thd, proc_args);
+  const bool result = sp->execute_procedure(thd, proc_args);
 
   thd->variables.select_limit = select_limit;
 

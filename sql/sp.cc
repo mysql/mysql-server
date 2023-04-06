@@ -344,7 +344,7 @@ static enum_sp_return_code db_find_routine(THD *thd, enum_sp_type type,
 
   // Find routine in the data dictionary.
   enum_sp_return_code ret;
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Routine *routine = nullptr;
 
   bool error;
@@ -428,8 +428,8 @@ class Silence_deprecated_warning final : public Internal_error_handler {
 static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
                            Stored_program_creation_ctx *creation_ctx) {
   sp_head *sp;
-  sql_mode_t old_sql_mode = thd->variables.sql_mode;
-  ha_rows old_select_limit = thd->variables.select_limit;
+  const sql_mode_t old_sql_mode = thd->variables.sql_mode;
+  const ha_rows old_select_limit = thd->variables.select_limit;
   sp_rcontext *sp_runtime_ctx_saved = thd->sp_runtime_ctx;
   Silence_deprecated_warning warning_handler;
   Parser_state parser_state;
@@ -516,8 +516,8 @@ enum_sp_return_code db_load_routine(
   String defstr;
   defstr.set_charset(creation_ctx->get_client_cs());
 
-  LEX_CSTRING user = {definer_user, strlen(definer_user)};
-  LEX_CSTRING host = {definer_host, strlen(definer_host)};
+  const LEX_CSTRING user = {definer_user, strlen(definer_user)};
+  const LEX_CSTRING host = {definer_host, strlen(definer_host)};
 
   if (!create_string(thd, &defstr, type, nullptr, 0, sp_name, sp_name_len,
                      params, strlen(params), returns, strlen(returns), body,
@@ -605,7 +605,7 @@ static bool check_routine_already_exists(THD *thd, sp_head *sp,
                                          bool &already_exists) {
   assert(!already_exists);
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   bool error;
   const dd::Routine *sr;
   if (sp->m_type == enum_sp_type::FUNCTION)
@@ -658,7 +658,7 @@ static bool create_routine_precheck(THD *thd, sp_head *sp) {
         Note that this test is not perfect; one could use
         a non-deterministic read-only function in an update statement.
       */
-      enum enum_sp_data_access access =
+      const enum enum_sp_data_access access =
           (sp->m_chistics->daccess == SP_DEFAULT_ACCESS)
               ? static_cast<enum_sp_data_access>(SP_DEFAULT_ACCESS_MAPPING)
               : sp->m_chistics->daccess;
@@ -761,7 +761,7 @@ static bool sp_binlog_create_routine_stmt(THD *thd, sp_head *sp,
     This statement will be replicated as a statement, even when using
     row-based replication.
   */
-  Save_and_Restore_binlog_format_state binlog_format_state(thd);
+  const Save_and_Restore_binlog_format_state binlog_format_state(thd);
   if (write_bin_log(thd, true, log_query.c_ptr(), log_query.length(),
                     !already_exists))
     return true;
@@ -804,8 +804,8 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer,
   assert(!sp_already_exists);
 
   /* Grab an exclusive MDL lock. */
-  MDL_key::enum_mdl_namespace mdl_type = (sp->m_type == enum_sp_type::FUNCTION)
-                                             ? MDL_key::FUNCTION
+  const MDL_key::enum_mdl_namespace mdl_type =
+      (sp->m_type == enum_sp_type::FUNCTION) ? MDL_key::FUNCTION
                                              : MDL_key::PROCEDURE;
   if (lock_object_name(thd, mdl_type, sp->m_db.str, sp->m_name.str)) {
     my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(sp->m_type),
@@ -814,7 +814,7 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer,
   }
   DEBUG_SYNC(thd, "after_acquiring_mdl_lock_on_routine");
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *schema = nullptr;
 
   // Check whether routine with same name already exists.
@@ -862,7 +862,7 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer,
 
   // Update referencing views metadata.
   {
-    sp_name spname({sp->m_db.str, sp->m_db.length}, sp->m_name, false);
+    const sp_name spname({sp->m_db.str, sp->m_db.length}, sp->m_name, false);
     if (sp->m_type == enum_sp_type::FUNCTION &&
         update_referencing_views_metadata(thd, &spname)) {
       /* If this happens, an error should have been reported. */
@@ -932,14 +932,14 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type,
   assert(type == enum_sp_type::PROCEDURE || type == enum_sp_type::FUNCTION);
 
   /* Grab an exclusive MDL lock. */
-  MDL_key::enum_mdl_namespace mdl_type =
+  const MDL_key::enum_mdl_namespace mdl_type =
       (type == enum_sp_type::FUNCTION) ? MDL_key::FUNCTION : MDL_key::PROCEDURE;
   if (lock_object_name(thd, mdl_type, name->m_db.str, name->m_name.str))
     return SP_DROP_FAILED;
 
   DEBUG_SYNC(thd, "after_acquiring_mdl_lock_on_routine");
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Routine *routine = nullptr;
 
   bool error;
@@ -979,7 +979,7 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type,
       This statement will be replicated as a statement, even when using
       row-based replication.
     */
-    Save_and_Restore_binlog_format_state binlog_format_state(thd);
+    const Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
     if (write_bin_log(thd, true, thd->query().str, thd->query().length, true))
       goto err_with_rollback;
@@ -1062,7 +1062,7 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
   assert(type == enum_sp_type::PROCEDURE || type == enum_sp_type::FUNCTION);
 
   /* Grab an exclusive MDL lock. */
-  MDL_key::enum_mdl_namespace mdl_type =
+  const MDL_key::enum_mdl_namespace mdl_type =
       (type == enum_sp_type::FUNCTION) ? MDL_key::FUNCTION : MDL_key::PROCEDURE;
   if (lock_object_name(thd, mdl_type, name->m_db.str, name->m_name.str)) {
     my_error(ER_SP_CANT_ALTER, MYF(0), SP_TYPE_STRING(type), name->m_name.str);
@@ -1070,7 +1070,7 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
   }
 
   // Check if routine exists.
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   dd::Routine *routine = nullptr;
   bool error;
   if (type == enum_sp_type::FUNCTION)
@@ -1145,7 +1145,7 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
       This statement will be replicated as a statement, even when using
       row-based replication.
     */
-    Save_and_Restore_binlog_format_state binlog_format_state(thd);
+    const Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
     if (write_bin_log(thd, true, thd->query().str, thd->query().length, true))
       goto err_report_with_rollback;
@@ -1446,7 +1446,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
   cs_info = dd_get_mysql_charset(routine->schema_collation_id());
   protocol->store(cs_info->m_coll_name, system_charset_info);
 
-  bool err_status = protocol->end_row();
+  const bool err_status = protocol->end_row();
 
   if (!err_status) my_eof(thd);
 
@@ -1482,7 +1482,7 @@ bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name) {
   }
 
   // Find routine in data dictionary.
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Routine *routine = nullptr;
 
   bool error;
@@ -1602,7 +1602,7 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
     instance.
   */
 
-  ulong level = sp->m_last_cached_sp->m_recursion_level + 1;
+  const ulong level = sp->m_last_cached_sp->m_recursion_level + 1;
   if (level > depth) {
     recursion_level_error(thd, sp);
     return nullptr;
@@ -1957,10 +1957,10 @@ void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
 enum_sp_return_code sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
                                      bool lookup_only, sp_head **sp) {
   char qname_buff[NAME_LEN * 2 + 1 + 1];
-  sp_name name(rt, qname_buff);
-  enum_sp_type type = (rt->type() == Sroutine_hash_entry::FUNCTION)
-                          ? enum_sp_type::FUNCTION
-                          : enum_sp_type::PROCEDURE;
+  const sp_name name(rt, qname_buff);
+  const enum_sp_type type = (rt->type() == Sroutine_hash_entry::FUNCTION)
+                                ? enum_sp_type::FUNCTION
+                                : enum_sp_type::PROCEDURE;
 
 #ifndef NDEBUG
   MDL_key mdl_key;
@@ -2133,7 +2133,7 @@ static bool create_string(
     const char *returns, size_t returnslen, const char *body, size_t bodylen,
     st_sp_chistics *chistics, const LEX_CSTRING &definer_user,
     const LEX_CSTRING &definer_host, sql_mode_t sql_mode, bool if_not_exists) {
-  sql_mode_t old_sql_mode = thd->variables.sql_mode;
+  const sql_mode_t old_sql_mode = thd->variables.sql_mode;
   const bool is_sql = chistics->language.length == 0 ||
                       native_strcasecmp(chistics->language.str, "SQL") == 0;
 
@@ -2500,7 +2500,7 @@ bool sp_check_name(LEX_STRING *ident) {
     return true;
   }
 
-  LEX_CSTRING ident_cstr = {ident->str, ident->length};
+  const LEX_CSTRING ident_cstr = {ident->str, ident->length};
   if (check_string_char_length(ident_cstr, "", NAME_CHAR_LEN,
                                system_charset_info, true)) {
     my_error(ER_TOO_LONG_IDENT, MYF(0), ident->str);
@@ -2529,8 +2529,8 @@ Item *sp_prepare_func_item(THD *thd, Item **it_addr) {
     return *it_addr;
   }
 
-  Prepared_stmt_arena_holder ps_arena_holder(thd);
-  Prepare_error_tracker tracker(thd);
+  const Prepared_stmt_arena_holder ps_arena_holder(thd);
+  const Prepare_error_tracker tracker(thd);
 
   if ((*it_addr)->fix_fields(thd, it_addr) || (*it_addr)->check_cols(1)) {
     DBUG_PRINT("info", ("fix_fields() failed"));
@@ -2559,9 +2559,9 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr) {
   Item *expr_item;
   Strict_error_handler strict_handler(
       Strict_error_handler::ENABLE_SET_SELECT_STRICT_ERROR_HANDLER);
-  enum_check_fields save_check_for_truncated_fields =
+  const enum_check_fields save_check_for_truncated_fields =
       thd->check_for_truncated_fields;
-  unsigned int stmt_unsafe_rollback_flags =
+  const unsigned int stmt_unsafe_rollback_flags =
       thd->get_transaction()->get_unsafe_rollback_flags(Transaction_ctx::STMT);
 
   if (!*expr_item_ptr) goto error;

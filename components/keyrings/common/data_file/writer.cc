@@ -45,7 +45,7 @@ bool File_writer::write_data_to_file(const std::string &file,
                                      const std::string &data) {
   std::ofstream file_stream(file.c_str());
   if (!file_stream.is_open()) return false;
-  bool retval = !(file_stream.write(data.c_str(), data.length())).fail();
+  const bool retval = !(file_stream.write(data.c_str(), data.length())).fail();
   file_stream.close();
   return retval;
 }

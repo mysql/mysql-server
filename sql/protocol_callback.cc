@@ -372,8 +372,8 @@ bool Protocol_callback::end_result_metadata() {
 
   if (callbacks.end_result_metadata) {
     THD *t = current_thd;
-    uint status = t->server_status;
-    uint warn_count = t->get_stmt_da()->current_statement_cond_count();
+    const uint status = t->server_status;
+    const uint warn_count = t->get_stmt_da()->current_statement_cond_count();
 
     return callbacks.end_result_metadata(callbacks_ctx, status, warn_count);
   }

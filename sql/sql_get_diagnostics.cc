@@ -95,7 +95,7 @@ bool Sql_cmd_get_diagnostics::execute(THD *thd) {
   }
 
   /* Statement failed, retrieve the error information for propagation. */
-  uint sql_errno = new_stmt_da.mysql_errno();
+  const uint sql_errno = new_stmt_da.mysql_errno();
   const char *message = new_stmt_da.message_text();
   const char *sqlstate = new_stmt_da.returned_sqlstate();
 
@@ -190,7 +190,7 @@ Item *Statement_information_item::get_value(THD *thd,
       the number of errors and warnings within the Diagnostics Area.
     */
     case NUMBER: {
-      ulong count = da->cond_count();
+      const ulong count = da->cond_count();
       value = new (thd->mem_root) Item_uint(count);
       break;
     }

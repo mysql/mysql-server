@@ -57,18 +57,17 @@ Keyring_file_backend::Keyring_file_backend(const std::string keyring_file_name,
       valid_(false) {
   if (keyring_file_name_.length() == 0) return;
   std::string data;
-  output_vector elements;
   create_file_if_missing(keyring_file_name_);
   {
     /* Read the file */
-    File_reader file_reader(keyring_file_name_, read_only_, data);
+    const File_reader file_reader(keyring_file_name_, read_only_, data);
     if (!file_reader.valid()) return;
   }
 
   /* It is possible that file is empty and that's ok. */
   if (data.length()) {
     /* Read JSON data - format check */
-    Json_reader json_reader(data);
+    const Json_reader json_reader(data);
     if (!json_reader.valid()) return;
 
     /* Cache */
@@ -81,7 +80,7 @@ bool Keyring_file_backend::load_cache(
     keyring_common::operations::Keyring_operations<Keyring_file_backend>
         &operations) {
   if (json_writer_.num_elements() == 0) return false;
-  Json_reader json_reader(json_writer_.to_string());
+  const Json_reader json_reader(json_writer_.to_string());
   if (!json_reader.valid()) return true;
   if (json_reader.num_elements() != json_writer_.num_elements()) return true;
 
@@ -127,7 +126,7 @@ bool Keyring_file_backend::generate(const Metadata &metadata, Data &data,
                                     size_t length) {
   if (!metadata.valid()) return true;
 
-  std::unique_ptr<unsigned char[]> key(new unsigned char[length]);
+  const std::unique_ptr<unsigned char[]> key(new unsigned char[length]);
   if (!key) return true;
   if (!get_random_data(key, length)) return true;
 
@@ -140,7 +139,7 @@ bool Keyring_file_backend::generate(const Metadata &metadata, Data &data,
 
 bool Keyring_file_backend::write_to_file() {
   /* Get JSON string from cache and feed it to file writer */
-  File_writer file_writer(keyring_file_name_, json_writer_.to_string());
+  const File_writer file_writer(keyring_file_name_, json_writer_.to_string());
   return !file_writer.valid();
 }
 

@@ -100,7 +100,7 @@ int my_close(File fd, myf MyFlags) {
 
   // Save the filename before unregistering, in case we need to report
   // error from close()
-  std::string fname = my_filename(fd);
+  const std::string fname = my_filename(fd);
 
   // Need to remove file_info entry first to avoid race with another
   // thread reusing this fd after it has been closed.

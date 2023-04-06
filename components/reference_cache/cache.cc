@@ -44,7 +44,7 @@ bool cache_imp::destroy(cache_imp *cache) {
 }
 
 bool cache_imp::get(unsigned service_name_index, const my_h_service **out_ref) {
-  bool channel_is_valid = (m_cache_version == m_channel->version());
+  const bool channel_is_valid = (m_cache_version == m_channel->version());
 
   if (unlikely(service_name_index >= m_service_names.size())) {
     *out_ref = nullptr;

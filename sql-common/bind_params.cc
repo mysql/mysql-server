@@ -55,7 +55,7 @@
 */
 
 static bool my_realloc_str(NET *net, ulong length) {
-  ulong buf_length = (ulong)(net->write_pos - net->buff);
+  const ulong buf_length = (ulong)(net->write_pos - net->buff);
   bool res = false;
   DBUG_TRACE;
   if (buf_length + length > net->max_packet) {
@@ -96,7 +96,7 @@ constexpr int MAX_DATETIME_REP_LENGTH =
 /* Store type of parameter in network buffer. */
 
 static void store_param_type(unsigned char **pos, MYSQL_BIND *param) {
-  uint typecode = param->buffer_type | (param->is_unsigned ? 32768 : 0);
+  const uint typecode = param->buffer_type | (param->is_unsigned ? 32768 : 0);
   int2store(*pos, typecode);
   *pos += 2;
 }
@@ -122,37 +122,37 @@ static void store_param_tinyint(NET *net, MYSQL_BIND *param) {
 }
 
 static void store_param_short(NET *net, MYSQL_BIND *param) {
-  short value = *(short *)param->buffer;
+  const short value = *(short *)param->buffer;
   int2store(net->write_pos, value);
   net->write_pos += 2;
 }
 
 static void store_param_int32(NET *net, MYSQL_BIND *param) {
-  int32 value = *(int32 *)param->buffer;
+  const int32 value = *(int32 *)param->buffer;
   int4store(net->write_pos, value);
   net->write_pos += 4;
 }
 
 static void store_param_int64(NET *net, MYSQL_BIND *param) {
-  longlong value = *(longlong *)param->buffer;
+  const longlong value = *(longlong *)param->buffer;
   int8store(net->write_pos, value);
   net->write_pos += 8;
 }
 
 static void store_param_float(NET *net, MYSQL_BIND *param) {
-  float value = *(float *)param->buffer;
+  const float value = *(float *)param->buffer;
   float4store(net->write_pos, value);
   net->write_pos += 4;
 }
 
 static void store_param_double(NET *net, MYSQL_BIND *param) {
-  double value = *(double *)param->buffer;
+  const double value = *(double *)param->buffer;
   float8store(net->write_pos, value);
   net->write_pos += 8;
 }
 
 static void store_param_time(NET *net, MYSQL_BIND *param) {
-  MYSQL_TIME *tm = (MYSQL_TIME *)param->buffer;
+  const MYSQL_TIME *tm = (MYSQL_TIME *)param->buffer;
   uchar buff[MAX_TIME_REP_LENGTH], *pos;
   uint length;
 
@@ -189,7 +189,7 @@ static void net_store_datetime(NET *net, MYSQL_TIME *tm) {
   pos[6] = static_cast<std::uint8_t>(tm->second);
   int4store(pos + 7, static_cast<std::uint32_t>(tm->second_part));
   if (tm->time_type == MYSQL_TIMESTAMP_DATETIME_TZ) {
-    int tzd = tm->time_zone_displacement;
+    const int tzd = tm->time_zone_displacement;
     assert(tzd % SECS_PER_MIN == 0);
     assert(std::abs(tzd) <= MAX_TIME_ZONE_HOURS * SECS_PER_HOUR);
     int2store(pos + 11, static_cast<std::uint16_t>(tzd / SECS_PER_MIN));
@@ -205,7 +205,7 @@ static void net_store_datetime(NET *net, MYSQL_TIME *tm) {
 
   buff[0] = length_byte;
 
-  size_t buffer_length = length_byte + 1;
+  const size_t buffer_length = length_byte + 1;
   memcpy(net->write_pos, buff, buffer_length);
   net->write_pos += buffer_length;
 }
@@ -223,7 +223,7 @@ static void store_param_datetime(NET *net, MYSQL_BIND *param) {
 
 static void store_param_str(NET *net, MYSQL_BIND *param) {
   /* param->length is always set in mysql_stmt_bind_param */
-  ulong length = *param->length;
+  const ulong length = *param->length;
   uchar *to = net_store_length(net->write_pos, length);
   memcpy(to, param->buffer, length);
   net->write_pos = to + length;
@@ -244,7 +244,7 @@ static void store_param_str(NET *net, MYSQL_BIND *param) {
 
 static void store_param_null(NET *net, MYSQL_BIND *param,
                              my_off_t null_pos_ofs) {
-  uint pos = param->param_number;
+  const uint pos = param->param_number;
   net->buff[pos / 8 + null_pos_ofs] |= (uchar)(1 << (pos & 7));
 }
 
