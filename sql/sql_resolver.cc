@@ -6007,6 +6007,9 @@ bool Query_block::replace_item_in_expression(Item **expr, bool was_hidden,
   if (new_item == nullptr) return true;
   new_item->update_used_tables();
   if (new_item != *expr) {
+    // Save our original item name at this level
+    auto saved_item_name =
+        (*expr)->orig_name.is_set() ? (*expr)->orig_name : (*expr)->item_name;
     // Replace in base_ref_items
     for (size_t i = 0; i < fields.size(); i++) {
       if (base_ref_items[i] == *expr) {
@@ -6015,10 +6018,23 @@ bool Query_block::replace_item_in_expression(Item **expr, bool was_hidden,
       }
     }
     // Replace in fields
-    *expr = new_item;
+    const auto it = find(fields.begin(), fields.end(), new_item);
+    if (it == fields.end()) {
+      *expr = new_item;
+    } else {
+      // More than one occurrence of same replaced field, make another copy so
+      // we do not clobber the item_name (alias) of another occurrence in select
+      // list.
+      Item_field *f = down_cast<Item_field *>(new_item);
+      Item_field *cpy = new (parent_lex->thd->mem_root) Item_field(f->field);
+      if (cpy == nullptr) return true;
+      *expr = cpy;
+    }
+
     // Mark this expression as hidden if it was hidden in this query
     // block.
     (*expr)->hidden = was_hidden;
+    (*expr)->item_name = saved_item_name;
   }
   return false;
 }
@@ -6092,8 +6108,12 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
   Table_ref *tl = nullptr;
   Query_block *new_derived = nullptr;
   List<Item> item_fields_or_view_refs;
-  std::unordered_map<Field *, Item_field *> unique_fields;
   std::vector<Item_view_ref *> unique_view_refs;
+  std::unordered_map<Field *, Item_field *> unique_fields;
+  std::unordered_map<Field *, Item_field *> unique_default_values;
+  std::unordered_map<Field *, Item_field *> *field_classes[] = {
+      &unique_default_values, &unique_fields};
+
   /*
     In addition to adding the aggregates to the derived table's SELECT list,
     we need to add all referenced fields that will be needed in this query
@@ -6313,13 +6333,23 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
           lfi.remove();
       }
     }
-    // We now have all fields and view references; now find only unique ones.
+    // We now have all fields, default values and view references; now find only
+    // unique ones.
     lfi.init(item_fields_or_view_refs);
     while ((lf = lfi++)) {
       if (lf->type() == Item::FIELD_ITEM) {
         Item_field *f = down_cast<Item_field *>(lf);
         if (unique_fields.find(f->field) == unique_fields.end()) {
           unique_fields.emplace(std::pair<Field *, Item_field *>(f->field, f));
+        }
+      } else if (lf->type() == Item::DEFAULT_VALUE_ITEM) {
+        Item_default_value *dv = down_cast<Item_default_value *>(lf);
+        Item_field *lf_field =
+            down_cast<Item_field *>(dv->argument()->real_item());
+        if (unique_default_values.find(lf_field->field) ==
+            unique_default_values.end()) {
+          unique_default_values.emplace(
+              std::pair<Field *, Item_field *>(lf_field->field, dv));
         }
       } else {
         Item_view_ref *vr = down_cast<Item_view_ref *>(lf);
@@ -6340,11 +6370,13 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
       vr->depended_from = nullptr;
     }
 
-    for (auto pair : unique_fields) {
-      if (new_derived->add_item_to_list(pair.second)) return true;
-      if (baptize_item(thd, pair.second, &field_no)) return true;
-      if (update_context_to_derived(pair.second, new_derived)) return true;
-      pair.second->depended_from = nullptr;
+    for (auto field_class : field_classes) {
+      for (auto pair : *field_class) {
+        if (new_derived->add_item_to_list(pair.second)) return true;
+        if (baptize_item(thd, pair.second, &field_no)) return true;
+        if (update_context_to_derived(pair.second, new_derived)) return true;
+        pair.second->depended_from = nullptr;
+      }
     }
 
     if (new_derived->has_sj_candidates() &&
@@ -6454,7 +6486,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     */
     if (remove_aggregates(thd, new_derived)) return true;
 
-    // field_ptr now points to the first of the view references added to the
+    // field_ptr now points to the first of any view references added to the
     // select list of the derived table's query block. We now create new fields
     // for this block which will point to the corresponding item in the derived
     // table and then we substitute the new fields for the view refs.
@@ -6467,44 +6499,45 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
       }
       ++field_ptr;
     }
-    // field_ptr now points to the first of the fields added to the select list
-    // of the derived table's query block. We now create new fields for this
-    // block which will point to the corresponding fields moved to the derived
-    // table and then we substitute the new fields for the old ones.
-    for (auto pair : unique_fields) {
-      auto replaces_field = new (thd->mem_root) Item_field(*field_ptr);
-      if (replaces_field == nullptr) return true;
-      // replaces_field->set_orig_names();
-      // Get back our original item name at this level
-      replaces_field->item_name.set(pair.second->orig_name.ptr());
-      // don't want synthetic name rolled back
-      pair.second->orig_name.set(nullptr, 0);
-      // We can update context of the field moved into the derived table
-      // now that replaces_field has inherited the upper context
-      pair.second->context = &new_derived->context;
+    for (auto field_class : field_classes) {
+      // field_ptr now points to the first of the fields added to the select
+      // list of the derived table's query block. We now create new fields for
+      // this block which will point to the corresponding fields moved to the
+      // derived table and then we substitute the new fields for the old ones.
+      for (auto pair : *field_class) {
+        auto replaces_field = new (thd->mem_root) Item_field(*field_ptr);
+        if (replaces_field == nullptr) return true;
 
-      replaces_field->increment_ref_count();
+        // We can update context of the field moved into the derived table
+        // now that replaces_field has inherited the upper context
+        pair.second->context = &new_derived->context;
 
-      for (const auto &[expr, was_hidden] : contrib_exprs) {
-        Item_field *replacement = replaces_field;
-        // If this expression was hidden, we need to make a copy of the derived
-        // table field. The same derived table field cannot be marked both
-        // hidden and visible if the field replaces two different expressions
-        // in the transforming query block.
-        if (was_hidden) {
-          auto hidden_field = new (thd->mem_root) Item_field(*field_ptr);
-          if (hidden_field == nullptr) return true;
-          hidden_field->item_name.set(pair.second->orig_name.ptr());
-          pair.second->orig_name.set(nullptr, 0);
-          pair.second->context = &new_derived->context;
-          replacement = hidden_field;
+        replaces_field->increment_ref_count();
+
+        for (const auto &[expr, was_hidden] : contrib_exprs) {
+          Item_field *replacement = replaces_field;
+          // If this expression was hidden, we need to make a copy of the
+          // derived table field. The same derived table field cannot be marked
+          // both hidden and visible if the field replaces two different
+          // expressions in the transforming query block.
+          if (was_hidden) {
+            auto hidden_field = new (thd->mem_root) Item_field(*field_ptr);
+            if (hidden_field == nullptr) return true;
+            hidden_field->item_name.set(pair.second->orig_name.ptr());
+            pair.second->context = &new_derived->context;
+            replacement = hidden_field;
+          }
+          Item::Item_field_replacement info(
+              pair.first, replacement, this,
+              field_class == &unique_default_values
+                  ? Item::Item_field_replacement::Mode::DEFAULT_VALUE
+                  : Item::Item_field_replacement::Mode::FIELD);
+          if (replace_item_in_expression(expr, was_hidden, &info,
+                                         &Item::replace_item_field))
+            return true;
         }
-        Item::Item_field_replacement info(pair.first, replacement, this);
-        if (replace_item_in_expression(expr, was_hidden, &info,
-                                       &Item::replace_item_field))
-          return true;
+        ++field_ptr;
       }
-      ++field_ptr;
     }
 
     OPT_TRACE_TRANSFORM(&thd->opt_trace, trace_wrapper, trace_object,

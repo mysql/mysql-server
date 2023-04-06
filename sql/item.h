@@ -2594,6 +2594,7 @@ class Item : public Parse_tree_node {
 
     friend class Item_sum;
     friend class Item_field;
+    friend class Item_default_value;
     friend class Item_view_ref;
   };
 
@@ -3013,8 +3014,18 @@ class Item : public Parse_tree_node {
   struct Item_field_replacement : Item_replacement {
     Field *m_target;     ///< The field to be replaced
     Item_field *m_item;  ///< The replacement field
-    Item_field_replacement(Field *target, Item_field *item, Query_block *select)
-        : Item_replacement(select, select), m_target(target), m_item(item) {}
+    enum class Mode {
+      CONFLATE,      // include both Item_field and Item_default_value
+      FIELD,         // ignore Item_default_value
+      DEFAULT_VALUE  // ignore Item_field
+    };
+    Mode m_default_value;
+    Item_field_replacement(Field *target, Item_field *item, Query_block *select,
+                           Mode default_value = Mode::CONFLATE)
+        : Item_replacement(select, select),
+          m_target(target),
+          m_item(item),
+          m_default_value(default_value) {}
   };
 
   struct Item_view_ref_replacement : Item_replacement {
@@ -6406,6 +6417,8 @@ class Item_default_value final : public Item_field {
              enum_query_type query_type) const override;
   table_map used_tables() const override { return 0; }
   Item *get_tmp_table_item(THD *thd) override { return copy_or_same(thd); }
+  bool collect_item_field_or_view_ref_processor(uchar *arg) override;
+  Item *replace_item_field(uchar *) override;
 
   /*
     No additional privilege check for default values, as the walk() function
@@ -6425,6 +6438,7 @@ class Item_default_value final : public Item_field {
   }
 
   Item *transform(Item_transformer transformer, uchar *args) override;
+  Item *argument() const { return arg; }
 
  private:
   /// The argument for this function
