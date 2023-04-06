@@ -195,8 +195,11 @@ BEGIN
   --
   -- For "unauthenticated user", see Bug#30035699 "UNAUTHENTICATED USER" SHOWS UP IN CHECK-TESTCASE
   --
+  -- Also (in similar fashion as above) exclude all 'Daemon' threads, they will
+  -- not give consistent result either.
+  --
   SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST
-    WHERE COMMAND NOT IN ('Sleep')
+    WHERE COMMAND NOT IN ('Sleep', 'Daemon')
       AND USER NOT IN ('unauthenticated user','mysql.session', 'event_scheduler')
         ORDER BY COMMAND;
 
