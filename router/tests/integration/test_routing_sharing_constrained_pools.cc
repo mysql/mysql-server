@@ -1426,6 +1426,82 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, overlapping_connections) {
 }
 
 TEST_P(ShareConnectionTinyPoolOneServerTest,
+       classic_protocol_set_option_reconnect) {
+  RecordProperty(
+      "Description",
+      "check if the multi-statement flag is recovered after a reconnect");
+
+  SCOPED_TRACE("// ensure the pool is empty");
+  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+
+  const bool can_share = GetParam().can_share();
+
+  SCOPED_TRACE("// connecting to server");
+  MysqlClient cli;
+
+  auto account = SharedServer::native_empty_password_account();
+
+  cli.username(account.username);
+  cli.password(account.password);
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  if (can_share) {
+    // connection is in the pool
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+  }
+
+  SCOPED_TRACE("// enable multi-statement support on 1st connection.");
+  ASSERT_NO_ERROR(cli.set_server_option(MYSQL_OPTION_MULTI_STATEMENTS_ON));
+
+  if (can_share) {
+    // connection is in the pool
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+  }
+
+  SCOPED_TRACE("// verify multi-statement works");
+  {
+    auto query_res = cli.query("DO /* client[0] = PASS */ 1; DO 2");
+    ASSERT_NO_ERROR(query_res);
+
+    for (const auto &res [[maybe_unused]] : *query_res) {
+    }
+  }
+
+  if (can_share) {
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+  }
+
+  SCOPED_TRACE(
+      "// open a 2nd connection which should reuse the 1st connection.");
+  MysqlClient cli_blocker;
+  cli_blocker.username(account.username);
+  cli_blocker.password(account.password);
+
+  ASSERT_NO_ERROR(cli_blocker.connect(shared_router()->host(),
+                                      shared_router()->port(GetParam())));
+
+  {
+    auto query_res = cli_blocker.query("DO /* client[1] = FAIL */ 1; DO 2");
+    ASSERT_ERROR(query_res);
+  }
+
+  if (can_share) {
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+  }
+
+  SCOPED_TRACE("// the 1st connection still is multi-statement");
+  {
+    auto query_res = cli.query("DO /* client[0] = PASS */ 1; DO 2");
+    ASSERT_NO_ERROR(query_res);
+
+    for (const auto &res [[maybe_unused]] : *query_res) {
+    }
+  }
+}
+
+TEST_P(ShareConnectionTinyPoolOneServerTest,
        overlapping_connections_different_accounts) {
   for (auto &s : shared_servers()) {
     s->flush_privileges();  // reset the auth-cache

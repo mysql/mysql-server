@@ -70,6 +70,8 @@ class LazyConnector : public Processor {
     Authenticated,
     SetVars,
     SetVarsDone,
+    SetServerOption,
+    SetServerOptionDone,
     SetSchema,
     SetSchemaDone,
     FetchSysVars,
@@ -89,6 +91,8 @@ class LazyConnector : public Processor {
   stdx::expected<Processor::Result, std::error_code> authenticated();
   stdx::expected<Processor::Result, std::error_code> set_vars();
   stdx::expected<Processor::Result, std::error_code> set_vars_done();
+  stdx::expected<Processor::Result, std::error_code> set_server_option();
+  stdx::expected<Processor::Result, std::error_code> set_server_option_done();
   stdx::expected<Processor::Result, std::error_code> set_schema();
   stdx::expected<Processor::Result, std::error_code> set_schema_done();
   stdx::expected<Processor::Result, std::error_code> fetch_sys_vars();

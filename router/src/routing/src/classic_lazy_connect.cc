@@ -35,7 +35,9 @@
 #include "classic_init_schema_sender.h"
 #include "classic_query_sender.h"
 #include "classic_reset_connection_sender.h"
+#include "classic_set_option_sender.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql_com.h"
 #include "mysqlrouter/classic_protocol_message.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -139,6 +141,10 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::process() {
       return set_schema();
     case Stage::SetSchemaDone:
       return set_schema_done();
+    case Stage::SetServerOption:
+      return set_server_option();
+    case Stage::SetServerOptionDone:
+      return set_server_option_done();
     case Stage::SetVars:
       return set_vars();
     case Stage::SetVarsDone:
@@ -323,13 +329,41 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::set_vars() {
     connection()->push_processor(
         std::make_unique<QuerySender>(connection(), stmt));
   } else {
-    stage(Stage::FetchSysVars);
+    stage(Stage::SetServerOption);
   }
   return Result::Again;
 }
 
 stdx::expected<Processor::Result, std::error_code>
 LazyConnector::set_vars_done() {
+  stage(Stage::SetServerOption);
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+LazyConnector::set_server_option() {
+  auto *src_protocol = connection()->client_protocol();
+  auto *dst_protocol = connection()->server_protocol();
+
+  bool client_has_multi_statements = src_protocol->client_capabilities().test(
+      classic_protocol::capabilities::pos::multi_statements);
+  bool server_has_multi_statements = dst_protocol->client_capabilities().test(
+      classic_protocol::capabilities::pos::multi_statements);
+
+  stage(Stage::SetServerOptionDone);
+
+  if (client_has_multi_statements != server_has_multi_statements) {
+    connection()->push_processor(std::make_unique<SetOptionSender>(
+        connection(), client_has_multi_statements
+                          ? MYSQL_OPTION_MULTI_STATEMENTS_ON
+                          : MYSQL_OPTION_MULTI_STATEMENTS_OFF));
+  }
+
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+LazyConnector::set_server_option_done() {
   stage(Stage::FetchSysVars);
   return Result::Again;
 }

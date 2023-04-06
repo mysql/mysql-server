@@ -5646,6 +5646,14 @@ TEST_P(ShareConnectionTest, classic_protocol_prepare_reset) {
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_set_option) {
+  RecordProperty("Description",
+                 "check if enabling multi-statement at runtime is handled "
+                 "and sharing is allowed.");
+
+  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+
+  const bool can_share = GetParam().can_share();
+
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;
 
@@ -5655,7 +5663,105 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option) {
   ASSERT_NO_ERROR(
       cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
 
-  EXPECT_NO_ERROR(cli.set_server_option(MYSQL_OPTION_MULTI_STATEMENTS_ON));
+  if (can_share) {
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+  }
+
+  {
+    auto query_res = cli.query("DO 1; DO 2");
+    ASSERT_ERROR(query_res);
+  }
+
+  if (can_share) {
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+  }
+
+  ASSERT_NO_ERROR(cli.set_server_option(MYSQL_OPTION_MULTI_STATEMENTS_ON));
+
+  {
+    auto query_res = cli.query("DO 1; DO 2");
+    ASSERT_NO_ERROR(query_res);
+
+    for (const auto &res [[maybe_unused]] : *query_res) {
+    }
+  }
+
+  if (can_share) {
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+  }
+
+  EXPECT_NO_ERROR(cli.set_server_option(MYSQL_OPTION_MULTI_STATEMENTS_OFF));
+
+  if (can_share) {
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+  }
+
+  {
+    auto query_res = cli.query("DO 1; DO 2");
+    ASSERT_ERROR(query_res);
+  }
+}
+
+TEST_P(ShareConnectionTest, classic_protocol_set_option_at_connect) {
+  RecordProperty("Description",
+                 "check if the multi-statement flag is handled at handshake "
+                 "when sharing is allowed.");
+
+  SCOPED_TRACE("// ensure the pool is empty");
+  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 1s));
+
+  const bool can_share = GetParam().can_share();
+
+  SCOPED_TRACE("// connecting to server");
+  MysqlClient cli;
+
+  cli.username("root");
+  cli.password("");
+  cli.flags(CLIENT_MULTI_STATEMENTS);
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  if (can_share) {
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+  }
+
+  {
+    auto query_res = cli.query("DO 1; DO 2");
+    ASSERT_NO_ERROR(query_res);
+
+    for (const auto &res [[maybe_unused]] : *query_res) {
+    }
+  }
+
+  if (can_share) {
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+  }
+
+  ASSERT_NO_ERROR(cli.set_server_option(MYSQL_OPTION_MULTI_STATEMENTS_ON));
+
+  {
+    auto query_res = cli.query("DO 1; DO 2");
+    ASSERT_NO_ERROR(query_res);
+
+    for (const auto &res [[maybe_unused]] : *query_res) {
+    }
+  }
+
+  if (can_share) {
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
+  }
+
+  EXPECT_NO_ERROR(cli.set_server_option(MYSQL_OPTION_MULTI_STATEMENTS_OFF));
+
+  if (can_share) {
+    shared_router()->wait_for_idle_server_connections(1, 1s);
+  }
+
+  {
+    auto query_res = cli.query("DO 1; DO 2");
+    ASSERT_ERROR(query_res);
+  }
 }
 
 TEST_P(ShareConnectionTest, classic_protocol_set_option_fails) {
