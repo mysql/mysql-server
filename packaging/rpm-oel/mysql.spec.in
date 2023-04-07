@@ -70,6 +70,14 @@
 %{?el8:                          %global systemd 1}
 %{?el9:                          %global systemd 1}
 
+%if 0%{?rhel} == 6
+# Telemetry requires CURL >= 7.28.0
+# On EL6: CURL_VERSION (system) is 7.19
+%global telemetry 0
+%else
+%global telemetry 1
+%endif
+
 # Two workarounds on el6 and el7
 %if 0%{?rhel} == 6 || 0%{?rhel} == 7
 # - Avoid compiling Python 3 code with Python 2
@@ -1244,6 +1252,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_hashicorp.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_oci.so
 %endif # ssl_default
+%if 0%{?telemetry}
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_telemetry.so
+%endif # telemetry
 %attr(755, root, root) %{_libdir}/mysql/plugin/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
@@ -1337,6 +1348,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_hashicorp.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_oci.so
 %endif # ssl_default
+%if 0%{?telemetry}
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_telemetry.so
+%endif # telemetry
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_encrypted_file.so
@@ -1522,6 +1536,11 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1.8.0
 %endif # ssl_default
+%if 0%{?commercial}
+%if 0%{?telemetry}
+%attr(755, root, root) %{_libdir}/mysql/plugin/telemetry_client.so
+%endif # telemetry
+%endif # commercial
 
 %if 0%{?compatlib}
 %files libs-compat
@@ -1659,6 +1678,11 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_oci_client.so
 %endif # ssl_default
+%if 0%{?commercial}
+%if 0%{?telemetry}
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/telemetry_client.so
+%endif # telemetry
+%endif # commercial
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component1.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component2.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component3.so

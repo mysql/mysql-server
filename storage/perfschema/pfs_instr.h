@@ -71,6 +71,8 @@ class THD;
 #include "storage/perfschema/pfs_stat.h"
 #include "violite.h" /* enum_vio_type */
 
+#include <mysql/components/services/mysql_server_telemetry_traces_service.h>
+
 extern PFS_single_stat *thread_instr_class_waits_array_start;
 extern PFS_single_stat *thread_instr_class_waits_array_end;
 
@@ -727,6 +729,10 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice {
   /** Copy of g_telemetry. */
   telemetry_t *m_telemetry;
   telemetry_session_t *m_telemetry_session;
+
+#ifndef NDEBUG
+  bool m_debug_session_notified;
+#endif
 };
 
 void carry_global_memory_stat_alloc_delta(PFS_memory_stat_alloc_delta *delta,

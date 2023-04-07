@@ -4,6 +4,7 @@
 
 --source include/only_mts_replica_parallel_workers.inc
 --source include/have_server_telemetry_traces.inc
+--source include/have_no_telemetry_component.inc
 # Statement replication format needed for stmt to be visible to telemetry
 --source include/have_binlog_format_statement.inc
 --source include/not_parallel.inc

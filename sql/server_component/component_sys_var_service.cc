@@ -586,17 +586,18 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
        Freeing the value of string variables if they have PLUGIN_VAR_MEMALLOC
        flag enabled while registering variables.
     */
-    int var_flags =
-        reinterpret_cast<sys_var_pluginvar *>(sysvar)->plugin_var->flags;
+
+    sys_var_pluginvar *sv_pluginvar =
+        reinterpret_cast<sys_var_pluginvar *>(sysvar);
+
+    int var_flags = sv_pluginvar->plugin_var->flags;
     if (((var_flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR) &&
         (var_flags & PLUGIN_VAR_MEMALLOC)) {
-      char *var_value = **(
-          char ***)(reinterpret_cast<sys_var_pluginvar *>(sysvar)->plugin_var +
-                    1);
-      if (var_value) {
+      char **value_addr = *(char ***)(sv_pluginvar->plugin_var + 1);
+      char *var_value = *value_addr;
+      if (var_value != nullptr) {
         my_free(var_value);
-        **(char ***)(reinterpret_cast<sys_var_pluginvar *>(sysvar)->plugin_var +
-                     1) = nullptr;
+        *value_addr = nullptr;
       }
     }
 

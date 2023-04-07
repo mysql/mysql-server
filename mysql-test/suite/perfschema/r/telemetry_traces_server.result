@@ -604,7 +604,6 @@ END')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CREATE PROCEDURE `new_item`() SQL SECURITY INVOKER INSERT INTO t1 VALUES(100)')
 > tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CREATE PROCEDURE `new_item`() SQL SECURITY INVOKER INSERT INTO t1 VALUES(100)', query1='INSERT INTO t1 VALUES(100)', digest='(null)', app[], call[])
  tm_session_destroy: telemetry session ended, decrease refcount to 1
- tm_session_destroy: failed to get current THD
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT wrong FROM t1')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')

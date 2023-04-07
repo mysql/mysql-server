@@ -83,7 +83,7 @@ set @@persist_only.performance_schema_max_socket_classes=10;
 set @@persist_only.performance_schema_max_socket_instances=-1;
 set @@persist_only.performance_schema_max_sql_text_length=1024;
 set @@persist_only.performance_schema_max_stage_classes=250;
-set @@persist_only.performance_schema_max_statement_classes=202;
+set @@persist_only.performance_schema_max_statement_classes=256;
 set @@persist_only.performance_schema_max_statement_stack=10;
 set @@persist_only.performance_schema_max_table_handles=-1;
 set @@persist_only.performance_schema_max_table_instances=-1;
@@ -185,7 +185,7 @@ performance_schema_max_socket_classes	10
 performance_schema_max_socket_instances	-1
 performance_schema_max_sql_text_length	1024
 performance_schema_max_stage_classes	250
-performance_schema_max_statement_classes	202
+performance_schema_max_statement_classes	256
 performance_schema_max_statement_stack	10
 performance_schema_max_table_handles	-1
 performance_schema_max_table_instances	-1

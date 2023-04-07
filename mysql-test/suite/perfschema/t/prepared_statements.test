@@ -3,6 +3,11 @@
 # if the hypergraph optimizer is active.
 --source include/not_hypergraph.inc
 
+# Presence of a telemetry component can force
+# the prepared statements instrumentation,
+# changing tests results.
+--source include/have_no_telemetry_component.inc
+
 # Test for prepared statement instrumentation 
 
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled

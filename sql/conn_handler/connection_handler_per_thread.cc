@@ -316,6 +316,11 @@ static void *handle_connection(void *arg) {
     Connection_handler_manager::dec_connection_count();
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
+    /* Stop telemetry, while THD is still available. */
+    if (psi != nullptr) {
+      PSI_THREAD_CALL(abort_telemetry)(psi);
+    }
+
     /* Decouple THD and the thread instrumentation. */
     thd->set_psi(nullptr);
     mysql_thread_set_psi_THD(nullptr);

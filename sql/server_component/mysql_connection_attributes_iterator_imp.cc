@@ -66,7 +66,7 @@ std::tuple<const char *, size_t, bool> parse_length_encoded_string(
   // check if we're in the connection attributes string boundaries
   if (*str < connection_attributes || *str > connection_attributes +
                                                  connection_attributes_length -
-                                                 sizeof(size_t))
+                                                 sizeof(char))
     return std::make_tuple(nullptr, 0, false);
 
   // The first item of the string is the length of the attribute

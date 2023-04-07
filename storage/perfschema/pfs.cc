@@ -8045,7 +8045,8 @@ void pfs_digest_end_vc(PSI_digest_locker *locker,
 
     state->m_digest = digest;
 
-    const uint req_flags = STATE_FLAG_THREAD | STATE_FLAG_EVENT;
+    const uint req_flags =
+        STATE_FLAG_THREAD | STATE_FLAG_EVENT | STATE_FLAG_DIGEST;
 
     if ((state->m_pfs_flags & req_flags) == req_flags) {
       auto *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
@@ -8093,6 +8094,41 @@ PSI_prepared_stmt *pfs_create_prepared_stmt_vc(void *identity, uint stmt_id,
   if (sql_text_length > COL_INFO_SIZE) {
     sql_text_length = COL_INFO_SIZE;
   }
+
+  /*
+    IMPORTANT NOTE:
+
+    When:
+    - the performance schema is configured to _not_ instrument prepared
+      statements (m_pfs_flags == 0),
+    - a telemetry component is configured to _force_ instrumentation,
+      (m_collect_flags != 0), asking for prepared statements instrumentation.
+
+    prepared statements will be instrumented anyway,
+    and therefore will be visible in the performance schema.
+
+    This is an accepted side effect of telemetry.
+
+    Alternative 1, rejected:
+
+    Honor the performance schema configuration,
+    but do not honor the telemetry configuration.
+
+    Alternative 2, rejected:
+
+    Do not call create_prepared_stmt(),
+    but return a different instance of PFS_prepared_stmt just for telemetry.
+
+    This imply to adjust aggregation, and destroy prepared statements,
+    to account for this different instrumentation.
+
+    This will lead to CPU and MEMORY overhead comparable
+    to the performance schema instrumentation,
+    without the added benefits of seeing the prepared statement in
+    table performance_schema.PREPARED_STATEMENTS_INSTANCES.
+
+    Technically feasible if the side effect must be removed, but not desirable.
+  */
 
   PFS_prepared_stmt *pfs = create_prepared_stmt(
       identity, pfs_thread, pfs_program, pfs_stmt, stmt_id, stmt_name,

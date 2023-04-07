@@ -657,7 +657,9 @@ static int check_connection(THD *thd) {
   }
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_THREAD_CALL(notify_session_connect)(thd->get_psi());
+  if (auth_rc == 0) {
+    PSI_THREAD_CALL(notify_session_connect)(thd->get_psi());
+  }
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
   if (auth_rc == 0 && connect_errors != 0) {

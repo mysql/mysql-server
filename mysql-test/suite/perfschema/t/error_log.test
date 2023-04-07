@@ -129,6 +129,11 @@ SELECT prio,error_code,subsystem,data
 # MY-013884: Redo log has been resized. Depends on existing files.
 # MY-013908: Invalid systemd socket. Bit indeterministic.
 # MY-013930: systemd debug.
+# MY-014013: ER_NOTE_COMPONENT_SLOT_REGISTRATION_SUCCESS, depends on configuration
+# MY-000068: EE_UNKNOWN_OPTION, unknown option '--loose-lock_order', depends on configuration
+# MY-014047: ER_TELEMETRY_INFO, depends on configuration
+# MY-014048: ER_TELEMETRY_WARNING, depends on configuration
+# MY-014049: ER_TELEMETRY_ERROR, depends on configuration
 SELECT prio,error_code,subsystem
   FROM performance_schema.error_log
  WHERE logged>=@startup
@@ -140,7 +145,8 @@ SELECT prio,error_code,subsystem
                          "MY-013602", "MY-010069", "MY-013595", "MY-010108",
                          "MY-012363", "MY-011953", "MY-013623", "MY-013711",
                          "MY-013880", "MY-013881", "MY-013882", "MY-013883",
-                         "MY-013884", "MY-013908", "MY-013930")
+                         "MY-013884", "MY-013908", "MY-013930", "MY-014013",
+                         "MY-000068", "MY-014047", "MY-014048", "MY-014049")
  ORDER BY logged, error_code;
 
 --echo
@@ -162,6 +168,7 @@ SELECT prio,error_code,subsystem
 # MY-010159, MY-000067, MY-000000, MY-010108, MY-013602,MY-013595: see above
 # MY-013711: Manifest file RO check (variable part: path)
 # MY-013908: Invalid systemd socket. Bit indeterministic.
+# MY-000068: EE_UNKNOWN_OPTION, unknown option '--loose-lock_order', depends on configuration
 SELECT prio,error_code,subsystem,data
   FROM performance_schema.error_log
  WHERE logged>=@startup
@@ -170,7 +177,7 @@ SELECT prio,error_code,subsystem,data
                          "MY-010931", "MY-010116", "MY-011810", "MY-000000",
                          "MY-000067", "MY-010159", "MY-013595", "MY-013602",
                          "MY-010108", "MY-012363", "MY-013711", "MY-013908",
-                         "MY-013930" )
+                         "MY-013930", "MY-000068")
  ORDER BY logged;
 
 --echo

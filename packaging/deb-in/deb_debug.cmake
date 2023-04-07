@@ -209,6 +209,7 @@ usr/lib/mysql/plugin/debug/authentication_pam.so
 usr/lib/mysql/plugin/debug/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/debug/authentication_kerberos.so
 usr/lib/mysql/plugin/debug/authentication_ldap_simple.so
+usr/lib/mysql/plugin/debug/telemetry_client.so
 usr/lib/mysql/plugin/debug/data_masking.so
 usr/lib/mysql/plugin/debug/keyring_okv.so
 usr/lib/mysql/plugin/debug/keyring_encrypted_file.so
@@ -224,6 +225,7 @@ usr/lib/mysql/plugin/debug/component_enterprise_encryption.so
 usr/lib/mysql/plugin/debug/component_masking.so
 usr/lib/mysql/plugin/debug/component_masking_functions.so
 usr/lib/mysql/plugin/debug/component_scheduler.so
+usr/lib/mysql/plugin/debug/component_telemetry.so
 ")
   ENDIF()
   IF (DEB_AWS_SDK)

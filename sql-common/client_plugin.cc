@@ -73,6 +73,9 @@
 #include <mysql/plugin_trace.h>
 #endif
 
+#include <mysql/plugin_client_telemetry.h>
+struct st_mysql_client_plugin_TELEMETRY *client_telemetry_plugin;
+
 PSI_memory_key key_memory_root;
 PSI_memory_key key_memory_load_env_plugins;
 
@@ -116,6 +119,7 @@ static uint plugin_version[MYSQL_CLIENT_MAX_PLUGINS] = {
     0, /* these two are taken by Connector/C */
     MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
     MYSQL_CLIENT_TRACE_PLUGIN_INTERFACE_VERSION,
+    MYSQL_CLIENT_TELEMETRY_PLUGIN_INTERFACE_VERSION,
 };
 
 /*
@@ -209,6 +213,13 @@ static struct st_mysql_client_plugin *do_add_plugin(
   }
 #endif
 
+  if (plugin->type == MYSQL_CLIENT_TELEMETRY_PLUGIN &&
+      nullptr != client_telemetry_plugin) {
+    errmsg =
+        "Can not load another telemetry plugin while one is already loaded";
+    goto err1;
+  }
+
   /* Call the plugin initialization function, if any */
   if (plugin->init && plugin->init(errbuf, sizeof(errbuf), argc, args)) {
     errmsg = errbuf;
@@ -240,6 +251,10 @@ static struct st_mysql_client_plugin *do_add_plugin(
     trace_plugin = (struct st_mysql_client_plugin_TRACE *)plugin;
   }
 #endif
+
+  if (plugin->type == MYSQL_CLIENT_TELEMETRY_PLUGIN) {
+    client_telemetry_plugin = (struct st_mysql_client_plugin_TELEMETRY *)plugin;
+  }
 
   return plugin;
 

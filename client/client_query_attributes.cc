@@ -30,7 +30,7 @@
 
 client_query_attributes *global_attrs = nullptr;
 
-bool client_query_attributes::push_param(char *name, char *value) {
+bool client_query_attributes::push_param(const char *name, const char *value) {
   if (count >= max_count) return true;
   names[count] = my_strdup(PSI_NOT_INSTRUMENTED, name, MYF(0));
   memset(&values[count], 0, sizeof(MYSQL_BIND));

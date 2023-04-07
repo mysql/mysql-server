@@ -377,7 +377,14 @@ void Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event) {
   thd->m_statement_psi = MYSQL_START_STATEMENT(
       &state, event->get_psi_info()->m_key, event->dbname.str,
       event->dbname.length, thd->charset(), nullptr);
+
+  /*
+    Events from the scheduler 'spawn' in the server,
+    they have no parent session, hence no query attributes.
+  */
+  MYSQL_NOTIFY_STATEMENT_QUERY_ATTRIBUTES(thd->m_statement_psi, false);
 #endif
+
   /*
     We must make sure the schema is released and unlocked in the right
     order. Fail if we are unable to get a meta data lock on the schema
@@ -423,6 +430,13 @@ end:
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi = nullptr;
+#endif
+
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  thread = thd_get_psi(thd);
+  if (thread != nullptr) {
+    PSI_THREAD_CALL(abort_telemetry)(thread);
+  }
 #endif
 
   assert(thd->m_digest == nullptr);

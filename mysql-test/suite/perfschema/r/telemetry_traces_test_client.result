@@ -33,7 +33,7 @@ End of init
  tm_session_connect: client session started (user=root)
  tm_session_create: telemetry session started, increase refcount by user=root to 2
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
-> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='', query1='', digest='(null)', app[], call[])
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
  tm_session_disconnect: client session ended (user=root)
@@ -42,7 +42,7 @@ End of init
  tm_session_connect: client session started (user=root)
  tm_session_create: telemetry session started, increase refcount by user=root to 2
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
-> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='', query1='', digest='(null)', app[], call[])
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
  tm_session_disconnect: client session ended (user=root)
@@ -51,7 +51,7 @@ End of init
  tm_session_connect: client session started (user=root)
  tm_session_create: telemetry session started, increase refcount by user=root to 2
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
-> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='', query1='', digest='(null)', app[], call[])
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
  tm_session_disconnect: client session ended (user=root)
@@ -60,7 +60,7 @@ End of init
  tm_session_connect: client session started (user=root)
  tm_session_create: telemetry session started, increase refcount by user=root to 2
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
-> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='', query1='', digest='(null)', app[], call[])
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
  tm_session_disconnect: client session ended (user=root)
@@ -69,7 +69,7 @@ End of init
  tm_session_connect: client session started (user=root)
  tm_session_create: telemetry session started, increase refcount by user=root to 2
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
-> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='', query1='', digest='(null)', app[], call[])
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
  tm_session_disconnect: client session ended (user=root)
@@ -78,7 +78,7 @@ End of init
  tm_session_connect: client session started (user=root)
  tm_session_create: telemetry session started, increase refcount by user=root to 2
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
-> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='', query1='', digest='(null)', app[], call[])
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
  tm_session_disconnect: client session ended (user=root)
@@ -87,7 +87,7 @@ End of init
  tm_session_connect: client session started (user=root)
  tm_session_create: telemetry session started, increase refcount by user=root to 2
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
-> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='', query1='', digest='(null)', app[], call[])
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
  tm_session_disconnect: client session ended (user=root)
@@ -96,7 +96,7 @@ End of init
  tm_session_connect: client session started (user=root)
  tm_session_create: telemetry session started, increase refcount by user=root to 2
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
-> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='', query1='', digest='(null)', app[], call[])
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
  tm_session_disconnect: client session ended (user=root)

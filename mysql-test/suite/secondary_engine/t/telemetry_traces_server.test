@@ -1,4 +1,5 @@
 --source include/have_server_telemetry_traces.inc
+--source include/have_no_telemetry_component.inc
 --source include/no_ps_protocol.inc
 --source include/not_parallel.inc
 --source include/no_ps_protocol.inc

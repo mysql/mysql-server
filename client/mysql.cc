@@ -52,6 +52,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "my_io.h"
 #include "my_macros.h"
 #include "mysql/my_loglevel.h"
+#include "mysql/plugin_client_telemetry.h"
 #include "mysql/strings/int2str.h"
 #include "mysql/strings/m_ctype.h"
 #include "nulls.h"
@@ -138,6 +139,8 @@ static char *server_version = nullptr;
 #define DEFAULT_DELIMITER ";"
 
 #define MAX_BATCH_BUFFER_SIZE (1024L * 1024L * 1024L)
+
+client_query_attributes *telemetry_client_attrs = nullptr;
 
 /** default set of patterns used for history exclusion filter */
 const static std::string HI_DEFAULTS("*IDENTIFIED*:*PASSWORD*");
@@ -243,6 +246,9 @@ static const CHARSET_INFO *charset_info = &my_charset_latin1;
 static char *opt_fido_register_factor = nullptr;
 static char *opt_oci_config_file = nullptr;
 static char *opt_authentication_oci_client_config_profile = nullptr;
+
+static bool opt_tel_plugin = false;
+static const char *opt_tel_plugin_name = "telemetry_client";
 
 #include "authentication_kerberos_clientopt-vars.h"
 #include "caching_sha2_passwordopt-vars.h"
@@ -1350,6 +1356,7 @@ int main(int argc, char *argv[]) {
   completion_hash_init(&ht, 128);
   memset(&mysql, 0, sizeof(mysql));
   global_attrs = new client_query_attributes();
+
   if (sql_connect(current_host, current_db, current_user, opt_silent)) {
     quick = true;  // Avoid history
     status.exit_status = 1;
@@ -1380,6 +1387,25 @@ int main(int argc, char *argv[]) {
   put_info(glob_buffer.ptr(), INFO_INFO);
 
   put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"), INFO_INFO);
+
+  if (opt_tel_plugin) {
+    /* Load a telemetry plugin if required */
+    struct st_mysql_client_plugin *tel_plugin = mysql_load_plugin(
+        &mysql, opt_tel_plugin_name, MYSQL_CLIENT_TELEMETRY_PLUGIN, 3,
+        my_defaults_file, my_defaults_group_suffix, my_defaults_extra_file);
+    if (!tel_plugin) {
+      snprintf(glob_buffer.ptr(), glob_buffer.alloced_length(),
+               "Cannot load the client telemetry plugin <%s>.\n",
+               opt_tel_plugin_name);
+      put_info(glob_buffer.ptr(), INFO_ERROR);
+      return EXIT_FAILURE;
+    }
+
+    telemetry_client_attrs = new client_query_attributes();
+    snprintf(glob_buffer.ptr(), glob_buffer.alloced_length(),
+             "Telemetry plugin <%s> is loaded.\n", opt_tel_plugin_name);
+    put_info(glob_buffer.ptr(), INFO_INFO);
+  }
 
   if (!status.batch) {
     // history ignore patterns are initialized to default values
@@ -1457,6 +1483,9 @@ int main(int argc, char *argv[]) {
   }
 
   status.exit_status = read_and_execute(!status.batch);
+
+  mysql_client_plugin_deinit();
+
   if (opt_outfile) end_tee();
   mysql_end(0);
   return 0;  // Keep compiler happy
@@ -1520,6 +1549,10 @@ void mysql_end(int sig) {
   if (global_attrs != nullptr) {
     delete global_attrs;
     global_attrs = nullptr;
+  }
+  if (telemetry_client_attrs != nullptr) {
+    delete telemetry_client_attrs;
+    telemetry_client_attrs = nullptr;
   }
   exit(status.exit_status);
 }
@@ -1976,6 +2009,9 @@ static struct my_option my_long_options[] = {
      "is ~/.oci/config and %HOME/.oci/config on Windows.",
      &opt_oci_config_file, &opt_oci_config_file, nullptr, GET_STR, REQUIRED_ARG,
      0, 0, 0, nullptr, 0, nullptr},
+    {"telemetry-client", 0, "Load the telemetry_client plugin.",
+     &opt_tel_plugin, &opt_tel_plugin, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
 #include "authentication_kerberos_clientopt-longopts.h"
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
@@ -3098,6 +3134,10 @@ static int mysql_real_query_for_lazy(const char *buf, size_t length,
   for (uint retry = 0;; retry++) {
     error = 0;
 
+    if (telemetry_client_attrs != nullptr) {
+      telemetry_client_attrs->set_params(&mysql);
+    }
+
     if (set_params && global_attrs->set_params(&mysql)) break;
     if (!mysql_real_query(&mysql, buf, (ulong)length)) break;
     error = put_error(&mysql);
@@ -3108,6 +3148,11 @@ static int mysql_real_query_for_lazy(const char *buf, size_t length,
       break;
     if (reconnect()) break;
   }
+
+  if (telemetry_client_attrs != nullptr) {
+    telemetry_client_attrs->clear(connected ? &mysql : nullptr);
+  }
+
   if (set_params) global_attrs->clear(connected ? &mysql : nullptr);
   return error;
 }
@@ -3302,7 +3347,7 @@ static int com_charset(String *buffer [[maybe_unused]], char *line) {
           1  if fatal error
 */
 
-static int com_go(String *buffer, char *line [[maybe_unused]]) {
+static int com_go_impl(String *buffer, char *line [[maybe_unused]]) {
   char buff[200];             /* about 110 chars used so far */
   char time_buff[52 + 3 + 1]; /* time max + space&parens + NUL */
   MYSQL_RES *result;
@@ -3442,6 +3487,36 @@ end:
 
   executing_query = false;
   return error; /* New command follows */
+}
+
+static void telemetry_carrier_set(void *carrier_data, const char *key,
+                                  const char *value) {
+  client_query_attributes *qa =
+      reinterpret_cast<client_query_attributes *>(carrier_data);
+  assert(qa != nullptr);
+  qa->push_param(key, value);
+}
+
+static int com_go(String *buffer, char *line) {
+  int rc;
+  telemetry_span_t *span = nullptr;
+
+  if (client_telemetry_plugin) {
+    span = client_telemetry_plugin->start_span("client");
+
+    if (span != nullptr) {
+      client_telemetry_plugin->injector(span, telemetry_client_attrs,
+                                        telemetry_carrier_set);
+    }
+  }
+
+  rc = com_go_impl(buffer, line);
+
+  if (client_telemetry_plugin) {
+    client_telemetry_plugin->end_span(span);
+  }
+
+  return rc;
 }
 
 static void init_pager() {
