@@ -53,6 +53,16 @@ class MySQLRow {
     convert(out_field, in_value);
   }
 
+  template <typename FieldType>
+  void unserialize(FieldType *out_field, FieldType value_default) {
+    auto in_value = row_[field_index_++];
+
+    if (in_value)
+      convert(out_field, in_value);
+    else
+      *out_field = value_default;
+  }
+
   template <typename FieldType, typename Converter>
   void unserialize_with_converter(FieldType *out_field,
                                   const Converter &converter) {
@@ -137,11 +147,17 @@ class MySQLRow {
   }
 
   void convert(uint32_t *out_value, const char *in_value) {
-    *out_value = std::stoul(in_value);
+    if (in_value)
+      *out_value = std::stoul(in_value);
+    else
+      *out_value = 0;
   }
 
   void convert(int32_t *out_value, const char *in_value) {
-    *out_value = atoi(in_value);
+    if (in_value)
+      *out_value = atoi(in_value);
+    else
+      *out_value = 0;
   }
 
   void convert(uint64_t *out_value, const char *in_value) {

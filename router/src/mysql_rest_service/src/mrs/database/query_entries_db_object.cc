@@ -115,6 +115,7 @@ auto get_map_converter(Map *map, const typename Map::mapped_type value) {
 }
 
 void QueryEntryDbObject::on_row(const Row &row) {
+  const uint32_t k_on_page_default = 25;
   entries.emplace_back();
 
   static std::map<std::string, DbObject::PathType> path_types{
@@ -146,7 +147,7 @@ void QueryEntryDbObject::on_row(const Row &row) {
   mysql_row.unserialize(&entry.service_path);
   mysql_row.unserialize(&entry.schema_path);
   mysql_row.unserialize(&entry.object_path);
-  mysql_row.unserialize(&entry.on_page);
+  mysql_row.unserialize(&entry.on_page, k_on_page_default);
   mysql_row.unserialize(&entry.db_schema);
   mysql_row.unserialize(&entry.db_table);
 
