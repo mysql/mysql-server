@@ -98,6 +98,7 @@ if ($extra_keyring_file)
     --eval SET @variable_extra_config = CONCAT(@variable_extra_config,"keyring_path=$extra_keyring_file\n");
 }
 
+let $router_config_to_remove=$MYSQL_TMP_DIR/$extra_generated_file;
 output $MYSQL_TMP_DIR/$extra_generated_file;
 replace_result @variable_extra_config #@variable_extra_config;
 SELECT @variable_extra_config;
