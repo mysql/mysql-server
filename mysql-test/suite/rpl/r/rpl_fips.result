@@ -6,9 +6,22 @@ Note	####	Storing MySQL user name or password information in the connection meta
 CALL mtr.add_suppression("Failed to set up SSL because of the following *");
 CALL mtr.add_suppression("Replica SQL for channel '': Request to stop replica SQL Thread received while *");
 [on master]
-SET GLOBAL ssl_fips_mode=on;
+SET PERSIST_ONLY ssl_fips_mode=ON;
+Warnings:
+Warning	1287	'@@ssl_fips_mode' is deprecated and will be removed in a future release.
+[on slave]
+SET PERSIST_ONLY ssl_fips_mode=ON;
+Warnings:
+Warning	1287	'@@ssl_fips_mode' is deprecated and will be removed in a future release.
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=1]
+include/start_slave.inc
+[connection master]
+include/save_binlog_position.inc
+[on master]
 [on slave]
 include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=2]
 # R1: Set the ssl connection OFF
 CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 0;;
 Warnings:
@@ -46,5 +59,8 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl_reset.inc
 [on master]
-SET GLOBAL ssl_fips_mode=off;
+RESET PERSIST ssl_fips_mode;
+[on slave]
+RESET PERSIST ssl_fips_mode;
+[on master]
 include/rpl_end.inc

@@ -1,0 +1,30 @@
+# Copy Pre-8.0.34 format persisted variables file to data directory
+# Restart the server
+# Verify that persisted variable file was read properly: Should show 1 entry
+SELECT * FROM performance_schema.persisted_variables ORDER BY variable_name ASC;
+VARIABLE_NAME	VARIABLE_VALUE
+ssl_fips_mode	ON
+# Check the actual values
+SELECT @@global.ssl_fips_mode;
+@@global.ssl_fips_mode
+ON
+Warnings:
+Warning	1287	'@@ssl_fips_mode' is deprecated and will be removed in a future release.
+# Modify persisted variables
+SET PERSIST_ONLY ssl_fips_mode=ON;
+Warnings:
+Warning	1287	'@@ssl_fips_mode' is deprecated and will be removed in a future release.
+# Restart the server
+# Verify that persisted variable file was read properly: Should show 1 entry
+SELECT * FROM performance_schema.persisted_variables ORDER BY variable_name ASC;
+VARIABLE_NAME	VARIABLE_VALUE
+ssl_fips_mode	ON
+# Check the actual values
+SELECT @@global.ssl_fips_mode;
+@@global.ssl_fips_mode
+ON
+Warnings:
+Warning	1287	'@@ssl_fips_mode' is deprecated and will be removed in a future release.
+RESET PERSIST;
+# Remove old format persisted variables file
+# Cleanup: Restart with default options.

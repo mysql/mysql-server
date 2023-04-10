@@ -1,0 +1,1 @@
+{"Version": 2, "mysql_dynamic_variables": {"ssl_fips_mode": {"Value": "ON", "Metadata": {"Host": "localhost", "User": "root", "Timestamp": 1680175956013850}}}}

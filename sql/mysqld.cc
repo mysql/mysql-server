@@ -720,6 +720,7 @@ MySQL clients support the protocol:
 #include "my_time.h"
 #include "my_timer.h"  // my_timer_initialize
 #include "myisam.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/mysql_runtime_error_service.h"
@@ -734,7 +735,6 @@ MySQL clients support the protocol:
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_data_lock.h"
 #include "mysql/psi/psi_error.h"
@@ -758,8 +758,8 @@ MySQL clients support the protocol:
 #include "mysql_time.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
-#include "mysys_err.h"  // EXIT_OUT_OF_MEMORY
 #include "mysys/build_id.h"
+#include "mysys_err.h"  // EXIT_OUT_OF_MEMORY
 #include "pfs_thread_provider.h"
 #include "print_version.h"
 #include "scope_guard.h"                            // create_scope_guard()
@@ -803,21 +803,22 @@ MySQL clients support the protocol:
 #include "sql/mdl_context_backup.h"  // mdl_context_backup_manager
 #include "sql/my_decimal.h"
 #include "sql/mysqld_daemon.h"
-#include "sql/mysqld_thd_manager.h"     // Global_THD_manager
-#include "sql/opt_costconstantcache.h"  // delete_optimizer_cost_module
-#include "sql/range_optimizer/range_optimizer.h"  // range_optimizer_init
-#include "sql/options_mysqld.h"                   // OPT_THREAD_CACHE_SIZE
-#include "sql/partitioning/partition_handler.h"   // partitioning_init
-#include "sql/persisted_variable.h"               // Persisted_variables_cache
+#include "sql/mysqld_thd_manager.h"              // Global_THD_manager
+#include "sql/opt_costconstantcache.h"           // delete_optimizer_cost_module
+#include "sql/options_mysqld.h"                  // OPT_THREAD_CACHE_SIZE
+#include "sql/partitioning/partition_handler.h"  // partitioning_init
+#include "sql/persisted_variable.h"              // Persisted_variables_cache
 #include "sql/plugin_table.h"
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"  // key_memory_MYSQL_RELAY_LOG_index
 #include "sql/query_options.h"
+#include "sql/range_optimizer/range_optimizer.h"    // range_optimizer_init
 #include "sql/replication.h"                        // thd_enter_cond
 #include "sql/resourcegroups/resource_group_mgr.h"  // init, post_init
 #ifdef _WIN32
 #include "sql/restart_monitor_win.h"
 #endif
+#include "my_openssl_fips.h"  // OPENSSL_ERROR_LENGTH, set_fips_mode
 #include "sql/rpl_async_conn_failover_configuration_propagation.h"
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
@@ -828,11 +829,11 @@ MySQL clients support the protocol:
 #include "sql/rpl_injector.h"  // injector
 #include "sql/rpl_io_monitor.h"
 #include "sql/rpl_log_encryption.h"
-#include "sql/rpl_source.h"  // max_binlog_dump_events
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h"      // Multisource_info
-#include "sql/rpl_rli.h"      // Relay_log_info
 #include "sql/rpl_replica.h"  // replica_load_tmpdir
+#include "sql/rpl_rli.h"      // Relay_log_info
+#include "sql/rpl_source.h"   // max_binlog_dump_events
 #include "sql/rpl_trx_tracking.h"
 #include "sql/sd_notify.h"  // sd_notify_connect
 #include "sql/session_tracker.h"
@@ -882,7 +883,6 @@ MySQL clients support the protocol:
 #include "thr_mutex.h"
 #include "typelib.h"
 #include "violite.h"
-#include "my_openssl_fips.h"  // OPENSSL_ERROR_LENGTH, set_fips_mode
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "storage/perfschema/pfs_server.h"
@@ -5382,7 +5382,7 @@ static void my_openssl_free(void *ptr FILE_LINE_ARGS) {
 #endif  // !_WIN32
 }
 
-static void init_ssl() {
+static int init_ssl() {
 #if defined(HAVE_PSI_MEMORY_INTERFACE)
   static PSI_memory_info all_openssl_memory[] = {
       {&key_memory_openssl, "openssl_malloc", 0, 0,
@@ -5396,14 +5396,19 @@ static void init_ssl() {
     LogErr(WARNING_LEVEL, ER_SSL_MEMORY_INSTRUMENTATION_INIT_FAILED,
            "CRYPTO_set_mem_functions");
   ssl_start();
-}
-
-static int init_ssl_communication() {
   char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
   if (set_fips_mode(opt_ssl_fips_mode, ssl_err_string)) {
     LogErr(ERROR_LEVEL, ER_SSL_FIPS_MODE_ERROR, ssl_err_string);
     return 1;
   }
+
+  if (opt_ssl_fips_mode != SSL_FIPS_MODE_OFF)
+    LogErr(WARNING_LEVEL, ER_DEPRECATE_MSG_NO_REPLACEMENT, "--ssl-fips-mode");
+
+  return 0;
+}
+
+static int init_ssl_communication() {
   if (TLS_channel::singleton_init(&mysql_main, mysql_main_channel, opt_use_ssl,
                                   &server_main_callback, opt_initialize))
     return 1;
@@ -7525,7 +7530,10 @@ int mysqld_main(int argc, char **argv)
 #endif /* HAVE_PSI_INTERFACE */
 
   /* This limits ability to configure SSL library through config options */
-  init_ssl();
+  if (init_ssl()) {
+    flush_error_log_messages();
+    exit(MYSQLD_ABORT_EXIT);
+  }
 
   /* Set umask as early as possible */
   umask(((~my_umask) & 0666));
