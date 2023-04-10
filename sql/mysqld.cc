@@ -5393,7 +5393,7 @@ static void my_openssl_free(void *ptr FILE_LINE_ARGS) {
 #endif  // !_WIN32
 }
 
-static void init_ssl() {
+static int init_ssl() {
 #if defined(HAVE_PSI_MEMORY_INTERFACE)
   static PSI_memory_info all_openssl_memory[] = {
       {&key_memory_openssl, "openssl_malloc", 0, 0,
@@ -5407,14 +5407,19 @@ static void init_ssl() {
     LogErr(WARNING_LEVEL, ER_SSL_MEMORY_INSTRUMENTATION_INIT_FAILED,
            "CRYPTO_set_mem_functions");
   ssl_start();
-}
-
-static int init_ssl_communication() {
   char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
   if (set_fips_mode(opt_ssl_fips_mode, ssl_err_string)) {
     LogErr(ERROR_LEVEL, ER_SSL_FIPS_MODE_ERROR, ssl_err_string);
     return 1;
   }
+
+  if (opt_ssl_fips_mode != SSL_FIPS_MODE_OFF)
+    LogErr(WARNING_LEVEL, ER_DEPRECATE_MSG_NO_REPLACEMENT, "--ssl-fips-mode");
+
+  return 0;
+}
+
+static int init_ssl_communication() {
   if (TLS_channel::singleton_init(&mysql_main, mysql_main_channel, opt_use_ssl,
                                   &server_main_callback, opt_initialize))
     return 1;
@@ -7545,7 +7550,10 @@ int mysqld_main(int argc, char **argv)
 #endif /* HAVE_PSI_INTERFACE */
 
   /* This limits ability to configure SSL library through config options */
-  init_ssl();
+  if (init_ssl()) {
+    flush_error_log_messages();
+    exit(MYSQLD_ABORT_EXIT);
+  }
 
   /* Set umask as early as possible */
   umask(((~my_umask) & 0666));

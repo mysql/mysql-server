@@ -74,7 +74,7 @@ struct st_persist_var final {
   STRUCT st_persist_var_hash
 
   This structure has a custom hasher function used to make the unordered_set
-  to work with the default std::hash for userdefined types.
+  to work with the default std::hash for user defined types.
 */
 struct st_persist_var_hash {
   size_t operator()(const st_persist_var &pv) const { return pv.key.length(); }
@@ -247,6 +247,9 @@ class Persisted_variables_cache final {
 
   /** Helper to set source information for PARSE_EARLY variables */
   void set_parse_early_sources();
+
+  /** Helper function to handle changes in option type */
+  void handle_option_type_change();
 
  private:
   /* Helper functions for file IO */

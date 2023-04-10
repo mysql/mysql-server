@@ -27,16 +27,23 @@
 --echo #
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+
+--let $allow_rpl_inited= 1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --ssl-fips-mode=ON
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+
+# Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
 # create a user for replication that requires ssl encryption
 SET SESSION sql_log_bin= 0;
 CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
 GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
 SET SESSION sql_log_bin= 1;
-
-# set ssl fips mode
-SET @ssl_fips_mode_save= @@GLOBAL.ssl_fips_mode;
-SET @@GLOBAL.ssl_fips_mode= 'ON';
-
 
 --echo #
 --echo # 2. Start and bootstrap M1.
@@ -61,6 +68,17 @@ SHOW WARNINGS;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+--let $allow_rpl_inited= 1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --ssl-fips-mode=ON
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+
+# Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
 SET @group_replication_recovery_use_ssl_save= @@GLOBAL.group_replication_recovery_use_ssl;
 SET @group_replication_recovery_ssl_ca_save= @@GLOBAL.group_replication_recovery_ssl_ca;
 SET @group_replication_recovery_ssl_cert_save= @@GLOBAL.group_replication_recovery_ssl_cert;
@@ -80,10 +98,6 @@ SET GLOBAL group_replication_recovery_use_ssl= 1;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --eval SET GLOBAL group_replication_recovery_ssl_key= '$MYSQL_TEST_DIR/std_data/client-key.pem'
 
-# set ssl fips mode
-SET @ssl_fips_mode_save= @@GLOBAL.ssl_fips_mode;
-SET @@GLOBAL.ssl_fips_mode= 'ON';
-
 --source include/start_group_replication.inc
 
 --echo #
@@ -92,9 +106,6 @@ SET @@GLOBAL.ssl_fips_mode= 'ON';
 --let $assert_text= On the recovered member, the table should exist and have 1 elements;
 --let $assert_cond= [select count(*) from t1] = 2;
 --source include/assert.inc
-
-DROP TABLE t1;
---source include/rpl_sync.inc
 
 
 --echo #
@@ -124,7 +135,6 @@ SET GLOBAL group_replication_recovery_retry_count= 1;
 --echo #
 --echo # Clean up
 --echo #
-SET @@GLOBAL.ssl_fips_mode= @ssl_fips_mode_save;
 SET @@GLOBAL.group_replication_recovery_use_ssl= @group_replication_recovery_use_ssl_save;
 SET @@GLOBAL.group_replication_recovery_ssl_ca= @group_replication_recovery_ssl_ca_save;
 SET @@GLOBAL.group_replication_recovery_ssl_cert= @group_replication_recovery_ssl_cert_save;
@@ -134,9 +144,11 @@ SET @@GLOBAL.group_replication_recovery_retry_count= @group_replication_recovery
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-SET @@GLOBAL.ssl_fips_mode= @ssl_fips_mode_save;
 SET SESSION sql_log_bin= 0;
 DROP USER 'rec_ssl_user';
 SET SESSION sql_log_bin= 1;
 
+DROP TABLE t1;
+
 --source include/group_replication_end.inc
+--source include/force_restart.inc

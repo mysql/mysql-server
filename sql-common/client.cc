@@ -8663,7 +8663,10 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
                mysql->options.extension->tls_version)) == -1)
         return 1;
       break;
-    case MYSQL_OPT_SSL_FIPS_MODE: {
+    case MYSQL_OPT_SSL_FIPS_MODE: { /* This option is deprecated */
+      fprintf(stderr,
+              "WARNING: MYSQL_OPT_SSL_FIPS_MODE is deprecated and will be "
+              "removed in a future version.\n");
       char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
       ENSURE_EXTENSIONS_PRESENT(&mysql->options);
       mysql->options.extension->ssl_fips_mode =
@@ -8931,7 +8934,7 @@ int STDCALL mysql_get_option(MYSQL *mysql, enum mysql_option option,
       *(const_cast<uint *>(static_cast<const uint *>(arg))) =
           mysql->options.extension ? mysql->options.extension->ssl_mode : 0;
       break;
-    case MYSQL_OPT_SSL_FIPS_MODE:
+    case MYSQL_OPT_SSL_FIPS_MODE: /* This option is deprecated */
       *(const_cast<uint *>(static_cast<const uint *>(arg))) =
           mysql->options.extension ? mysql->options.extension->ssl_fips_mode
                                    : 0;

@@ -51,10 +51,6 @@ EOF
 --echo # Bug #33082255: SERVER EXIT TRYING TO SET FIPS MODE
 --echo #
 
---replace_regex /SSL fips mode error: Openssl is not fips enabled.*/SSL fips mode error: Openssl is not fips enabled: openssl error/
---error ER_DA_SSL_FIPS_MODE_ERROR
-SET @@global.ssl_fips_mode = 'ON';
-
 --echo ##Test: Start the server with SSL FIPS mode ON, server will throw error and abort.
 let $error_log = $MYSQLTEST_VARDIR/log/my_restart.err;
 --error 0,1

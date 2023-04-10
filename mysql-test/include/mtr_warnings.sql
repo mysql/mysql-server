@@ -369,6 +369,11 @@ INSERT INTO global_suppressions VALUES
  */
  ("Manifest file '.*' is not read-only. For better security, please make sure that the file is read-only."),
 
+ /*
+   --ssl-fips-mode
+ */
+ ("'--ssl-fips-mode' is deprecated and will be removed in a future release."),
+
  ("THE_LAST_SUPPRESSION");
 
 

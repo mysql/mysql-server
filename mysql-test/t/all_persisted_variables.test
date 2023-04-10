@@ -39,6 +39,7 @@
 call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Changing innodb_extend_and_initialize not supported on this platform.");
 call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
+<<<<<<< HEAD
 call mtr.add_suppression("CA certificate/certficates is invalid. Please check logs for more details.");
 call mtr.add_suppression("Failed to validate certificate .*");
 call mtr.add_suppression("Server certificate .* verification has failed. Check logs for more details");
@@ -50,7 +51,7 @@ let $total_global_vars=`SELECT COUNT(*)
    WHERE variable_name NOT LIKE 'ndb_%'
    AND variable_name NOT LIKE 'debug_%'
    AND variable_name NOT LIKE '%telemetry%'`;
-let $total_persistent_vars=449;
+let $total_persistent_vars=448;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global
