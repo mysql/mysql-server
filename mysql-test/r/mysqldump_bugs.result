@@ -229,4 +229,20 @@ DROP TABLE x1,x2,x3,x4,x5,x6,x7,x8;
 DROP TABLE x1,x2,x3,x4,x5,x6,x7,x8;
 USE test;
 DROP DATABASE b35208605;
+#
+# Bug #35205310: mysqldump SEGV
+#
+CREATE SCHEMA B35205310;
+USE B35205310;
+CREATE TABLE t1 (c0 CHAR);
+CREATE UNIQUE INDEX i1 ON t1 (c0, (TIME '-1:0:0'));
+USE test;
+# test: must recognize a functional index and use expression
+Warning: Couldn't read key column name or expression from table `t1`; position 2. Inspect the output from 'SHOW KEYS FROM `t1`. Records are probably not fully sorted.
+
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `B35205310` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+
+USE `B35205310`;
+DROP TABLE B35205310.t1;
+DROP DATABASE B35205310;
 # End of 8.0 tests

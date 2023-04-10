@@ -167,6 +167,21 @@ USE test;
 DROP DATABASE b35208605;
 remove_file $MYSQLTEST_VARDIR/tmp/b35208605.sql;
 
+--echo #
+--echo # Bug #35205310: mysqldump SEGV
+--echo #
+
+CREATE SCHEMA B35205310;
+USE B35205310;
+CREATE TABLE t1 (c0 CHAR);
+CREATE UNIQUE INDEX i1 ON t1 (c0, (TIME '-1:0:0'));
+USE test;
+
+--echo # test: must recognize a functional index and use expression
+--exec $MYSQL_DUMP --order-by-primary --skip-comments --compact --no-create-info --databases B35205310 2>&1
+
+DROP TABLE B35205310.t1;
+DROP DATABASE B35205310;
 
 --echo # End of 8.0 tests
 

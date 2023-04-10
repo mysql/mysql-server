@@ -5403,7 +5403,7 @@ static char *primary_key_fields(const char *table_name) {
   size_t result_length = 0;
   char *result = nullptr;
   char buff[NAME_LEN * 2 + 3];
-  char *quoted_field;
+  char *order_by_part;
 
   snprintf(show_keys_buff, sizeof(show_keys_buff), "SHOW KEYS FROM %s",
            table_name);
@@ -5423,31 +5423,67 @@ static char *primary_key_fields(const char *table_name) {
    * row, and UNIQUE keys come before others.  So we only need to check
    * the first key, not all keys.
    */
-  if ((row = mysql_fetch_row(res)) && atoi(row[1]) == 0) {
-    /* Key is unique */
-    do {
-      quoted_field = quote_name(row[4], buff, false);
-      result_length += strlen(quoted_field) + 1; /* + 1 for ',' or \0 */
-    } while ((row = mysql_fetch_row(res)) && atoi(row[3]) > 1);
+  while (nullptr != (row = mysql_fetch_row(res))) {
+    unsigned braces_length = 0;
+    if (!row[3] || !*row[3]) {
+      fprintf(stderr,
+              "Warning: Couldn't read key column index from table %s. "
+              "Inspect the output from 'SHOW KEYS FROM %s. "
+              "Records are probably not fully sorted.'\n",
+              table_name, table_name);
+      continue;
+    }
+    if (atoi(row[3]) < 1) break;
+    if (row[4] && *row[4]) order_by_part = quote_name(row[4], buff, false);
+#ifdef USABLE_EXPR_IN_SHOW_INDEX_BUG35273994
+    else if (mysql_num_fields(res) > 14 && row[14] &&
+             *row[14]) /* there's an Expression column */
+    {
+      order_by_part = row[14];
+      braces_length = 2;
+    }
+#endif
+    else {
+      fprintf(
+          stderr,
+          "Warning: Couldn't read key column name or expression from table %s;"
+          " position %d. Inspect the output from 'SHOW KEYS FROM %s."
+          " Records are probably not fully sorted.\n",
+          table_name, atoi(row[3]), table_name);
+      continue;
+    }
+    result_length +=
+        strlen(order_by_part) + braces_length + 1; /* + 1 for ',' or \0 */
   }
 
   /* Build the ORDER BY clause result */
   if (result_length) {
-    char *end;
     /* result (terminating \0 is already in result_length) */
-    result = static_cast<char *>(
+    char *end = result = static_cast<char *>(
         my_malloc(PSI_NOT_INSTRUMENTED, result_length + 10, MYF(MY_WME)));
     if (!result) {
       fprintf(stderr, "Error: Not enough memory to store ORDER BY clause\n");
       goto cleanup;
     }
     mysql_data_seek(res, 0);
-    row = mysql_fetch_row(res);
-    quoted_field = quote_name(row[4], buff, false);
-    end = my_stpcpy(result, quoted_field);
-    while ((row = mysql_fetch_row(res)) && atoi(row[3]) > 1) {
-      quoted_field = quote_name(row[4], buff, false);
-      end = strxmov(end, ",", quoted_field, NullS);
+    while (nullptr != (row = mysql_fetch_row(res))) {
+      unsigned braces_length = 0;
+      if (!row[3] || !*row[3]) continue;
+      if (atoi(row[3]) < 1) break;
+      if (row[4] && *row[4]) order_by_part = quote_name(row[4], buff, false);
+#ifdef USABLE_EXPR_IN_SHOW_INDEX_BUG35273994
+      else if (mysql_num_fields(res) > 14 && row[14] && *row[14]) {
+        order_by_part = row[14];
+        braces_length = 2;
+      }
+#endif
+      else
+        continue;
+      if (end != result) end = my_stpcpy(end, ",");
+      if (braces_length)
+        end = strxmov(end, "(", order_by_part, ")", NullS);
+      else
+        end = my_stpcpy(end, order_by_part);
     }
   }
 
