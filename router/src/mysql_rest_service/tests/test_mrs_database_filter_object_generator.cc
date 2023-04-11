@@ -115,7 +115,7 @@ TEST_F(FilterObjectsTest, match_field_complex_greater) {
 
 TEST_F(FilterObjectsTest, match_field_complex_between) {
   sut_.parse(json("{\"f1\":{\"$between\":[1,100]}}"));
-  ASSERT_EQ("  BETWEEN(f1, 1, 100) ", sut_.get_result());
+  ASSERT_EQ(" f1 BETWEEN 1 AND 100", sut_.get_result());
 }
 
 TEST_F(FilterObjectsTest, not_supported_match_field_complex_less_and_greater) {

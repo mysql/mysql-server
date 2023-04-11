@@ -30,8 +30,11 @@
 namespace helper {
 namespace container {
 
+inline std::string to_string(const std::string &result) { return result; }
+
 template <typename PairFirst, typename PairSecond>
 std::string to_string(const std::pair<PairFirst, PairSecond> &pair) {
+  using helper::container::to_string;
   using std::to_string;
   std::string result;
 
@@ -42,14 +45,16 @@ std::string to_string(const std::pair<PairFirst, PairSecond> &pair) {
 
 template <typename Container>
 std::string to_string(const Container &container) {
+  using helper::container::to_string;
   using std::to_string;
   std::string result;
-  bool first = false;
+  bool first = true;
   for (const auto &element : container) {
     if (!first) {
       result += ',';
     }
-    result += element;
+    result += to_string(element);
+    first = false;
   }
 
   return result;

@@ -43,7 +43,8 @@ class JsonCopyPointers : public helper::json::RapidReaderHandlerToStruct<bool> {
   using StringRefType = Value::StringRefType;
   constexpr static rapidjson::ParseFlag k_parse_flags{rapidjson::kParseNoFlags};
 
-  JsonCopyPointers(const Pointers &pointers = {}) {
+  JsonCopyPointers(const Pointers &pointers = {}, const bool exclusive = false)
+      : exclusive_{exclusive} {
     std::copy(pointers.begin(), pointers.end(), std::back_inserter(pointers_));
   }
 
@@ -157,7 +158,8 @@ class JsonCopyPointers : public helper::json::RapidReaderHandlerToStruct<bool> {
   template <typename V>
   void copy(const V &v) {
     const auto &keys = get_keys();
-    if (!match(keys)) return;
+    if (exclusive_ ^ !match(keys)) return;
+
     std::string path;
     jc_.cursor_reset();
     for (auto &k : keys) {
@@ -171,6 +173,7 @@ class JsonCopyPointers : public helper::json::RapidReaderHandlerToStruct<bool> {
     jc_.cursor_set_value(jv);
   }
 
+  bool exclusive_;
   rapidjson::Document doc_;
   JsonContainer jc_{&doc_};
   CustomPointers pointers_;

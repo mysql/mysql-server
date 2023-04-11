@@ -60,6 +60,7 @@ struct ApplicationConfiguration {
   std::string user;
   std::string password;
   std::vector<std::string> json_pointer;
+  std::vector<std::string> excluscive_json_pointer;
   AuthenticationType authentication{AuthenticationType::kNone};
   Request::Type request{HttpMethod::Get};
   std::string session_file;
