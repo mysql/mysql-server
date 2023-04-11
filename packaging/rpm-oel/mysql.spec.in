@@ -1879,9 +1879,9 @@ fi
 %{_bindir}/mysqlrouter
 %{_bindir}/mysqlrouter_bootstrap
 %{_bindir}/mysqlrouter_keyring
+%{_bindir}/mysqlrouter_mrs_client
 %{_bindir}/mysqlrouter_passwd
 %{_bindir}/mysqlrouter_plugin_info
-%{_bindir}/router_mrs_client
 %attr(644, root, root) %{_mandir}/man1/mysqlrouter.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlrouter_passwd.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlrouter_plugin_info.1*

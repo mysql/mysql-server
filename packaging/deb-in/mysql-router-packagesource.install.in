@@ -23,6 +23,7 @@
 usr/bin/mysqlrouter
 usr/bin/mysqlrouter_bootstrap
 usr/bin/mysqlrouter_keyring
+usr/bin/mysqlrouter_mrs_client
 usr/bin/mysqlrouter_plugin_info
 usr/bin/mysqlrouter_passwd
 usr/lib/mysqlrouter/plugin/connection_pool.so
