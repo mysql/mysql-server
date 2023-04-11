@@ -3902,6 +3902,7 @@ static void dump_table(char *table, char *db) {
     while ((row = mysql_fetch_row(res))) {
       uint i;
       ulong *lengths = mysql_fetch_lengths(res);
+      bool first_column = true;
       rownr++;
       if (!extended_insert && !opt_xml) {
         fputs(insert_pat.str, md_result_file);
@@ -3940,9 +3941,10 @@ static void dump_table(char *table, char *db) {
                 ? 1
                 : 0;
         if (extended_insert && !opt_xml) {
-          if (i == 0)
+          if (first_column) {
             dynstr_set_checked(&extended_row, "(");
-          else
+            first_column = false;
+          } else
             dynstr_append_checked(&extended_row, ",");
 
           if (row[i]) {
