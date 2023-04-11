@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-MYSQL_ADD_EXECUTABLE(router_mrs_client
+MYSQL_ADD_EXECUTABLE(mysqlrouter_mrs_client
   main.cc
   client/http_client_request.cc
   client/session.cc
@@ -35,12 +35,12 @@ MYSQL_ADD_EXECUTABLE(router_mrs_client
   mysql_rest_service_if
   )
 
-TARGET_INCLUDE_DIRECTORIES(router_mrs_client
+TARGET_INCLUDE_DIRECTORIES(mysqlrouter_mrs_client
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
-TARGET_LINK_LIBRARIES(router_mrs_client mysql_rest_service_if)
+TARGET_LINK_LIBRARIES(mysqlrouter_mrs_client mysql_rest_service_if)
 
 MY_INCLUDE_SYSTEM_DIRECTORIES(LIBEVENT)
 
