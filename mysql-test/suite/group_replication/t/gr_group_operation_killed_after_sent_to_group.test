@@ -1,0 +1,137 @@
+################################################################################
+# Validate that an UDF executed on M1 that changes the group to single primary
+# mode with M1 as primary, the group action after transmitted to the group will
+# not stop when connection is killed.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Create a disposable connection to server 1 and get
+#    connection ID.
+# 2. Enable debug point to block group action before send
+#    message to the group.
+# 3. Execute on server 1 change to single primary mode
+#    with server 1 being primary.
+# 4. Wait to server 1 reach debug point.
+# 5. Kill connection where is being executed a change of
+#    group mode.
+# 6. Remove debug point and unlock debug point.
+# 7. Reap connection, it will return lost connection to
+#     server.
+# 8. Wait for all stage from UDF to finish on server 1 and
+#    assert is primary.
+# 9. Wait for all stage from UDF to finish on server 2 and
+#    assert is primary.
+# 10. Clean up.
+################################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Create a disposable connection to server 1 and get
+--echo #    connection ID.
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+connect(server1_disconnect,localhost,root,,test,$SERVER_MYPORT_1,$SERVER_MYSOCK_1);
+
+--let $rpl_connection_name= server1_disconnect
+--source include/rpl_connection.inc
+
+--enable_reconnect
+
+--let $connection_id= `SELECT CONNECTION_ID()`
+
+--echo
+--echo ############################################################
+--echo # 2. Enable debug point to block group action before send
+--echo #    message to the group.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $debug_point=group_replication_coordinate_action_execution_after_sent_to_group
+--source include/add_debug_point.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Execute on server 1 change to single primary mode
+--echo #    with server 1 being primary.
+--let $rpl_connection_name= server1_disconnect
+--source include/rpl_connection.inc
+
+--replace_result $server1_uuid SERVER1_UUID
+--send_eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--echo
+--echo ############################################################
+--echo # 4. Wait to server 1 reach debug point.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+
+--echo
+--echo ############################################################
+--echo # 5. Kill connection where is being executed a change of
+--echo #    group mode.
+--replace_result $connection_id CONNECTION_ID
+--eval KILL QUERY $connection_id
+
+--echo
+--echo ############################################################
+--echo # 6. Remove debug point and unlock debug point.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $debug_point=group_replication_coordinate_action_execution_after_sent_to_group
+--source include/remove_debug_point.inc
+
+SET DEBUG_SYNC= 'now SIGNAL signal.action_continue';
+
+--echo
+--echo ############################################################
+--echo # 7. Reap connection, it will return lost connection to
+--echo #     server.
+
+--let $rpl_connection_name= server1_disconnect
+--source include/rpl_connection.inc
+
+--replace_result $server1_uuid SERVER1_UUID
+--reap
+
+--echo
+--echo ############################################################
+--echo # 8. Wait for all stage from UDF to finish on server 1 and
+--echo #    assert is primary.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
+--source include/wait_condition.inc
+
+--source include/gr_assert_primary_member.inc
+
+SET DEBUG_SYNC='RESET';
+
+--echo
+--echo ############################################################
+--echo # 9. Wait for all stage from UDF to finish on server 2 and
+--echo #    assert is primary.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%"
+--source include/wait_condition.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--echo
+--echo ############################################################
+--echo # 10. Clean up.
+--disconnect server1_disconnect
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication_end.inc

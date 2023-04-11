@@ -298,6 +298,14 @@ int Group_action_coordinator::coordinate_action_execution(
   Group_action_message *start_message = nullptr;
   Group_action_information *action_info = nullptr;
 
+#ifndef NDEBUG
+  DBUG_EXECUTE_IF("group_replication_coordinate_action_execution_start", {
+    const char act[] =
+        "now signal signal.start_waiting wait_for signal.start_continue";
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
+#endif
+
   if (action_proposed) {
     execution_info->set_execution_message(
         Group_action_diagnostics::GROUP_ACTION_LOG_ERROR,
@@ -328,6 +336,14 @@ int Group_action_coordinator::coordinate_action_execution(
     execution_info->set_execution_message(
         Group_action_diagnostics::GROUP_ACTION_LOG_ERROR,
         "A primary election is occurring in the group. Wait for it to end.");
+    error = 1;
+    goto end;
+  }
+
+  if (thread_killed()) {
+    execution_info->set_execution_message(
+        Group_action_diagnostics::GROUP_ACTION_LOG_ERROR,
+        "Thread was killed, action will be terminated.");
     error = 1;
     goto end;
   }
@@ -366,35 +382,26 @@ int Group_action_coordinator::coordinate_action_execution(
     /* purecov: end */
   }
 
+#ifndef NDEBUG
+  DBUG_EXECUTE_IF(
+      "group_replication_coordinate_action_execution_after_sent_to_group", {
+        const char act[] = "now wait_for signal.action_continue";
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      });
+#endif
+
   delete start_message;
 
+  // After this thread will start executing it won't rollback or can be killed,
+  // similar behavior to a transaction which also can't be rollback after
+  // commit.
   while (!local_action_terminating && !action_execution_error &&
-         !action_cancelled_on_termination && !thread_killed()) {
+         !action_cancelled_on_termination) {
     struct timespec abstime;
     set_timespec(&abstime, 1);
 
     mysql_cond_timedwait(&coordinator_process_condition,
                          &coordinator_process_lock, &abstime);
-  }
-
-  if (thread_killed()) {
-    local_action_killed = true;
-    // If it is not the local one running the method won't do anything
-    if (action_running) {
-      action->stop_action_execution(true);
-    }
-    while (!local_action_terminating && !action_execution_error) {
-      mysql_cond_wait(&coordinator_process_condition,
-                      &coordinator_process_lock);
-    }
-
-    if (Group_action::GROUP_ACTION_RESULT_KILLED !=
-            action_info->action_result &&
-        Group_action::GROUP_ACTION_RESULT_ERROR != action_info->action_result &&
-        !action_execution_error) {
-      execution_info->append_execution_message(
-          " Despite being killed, the operation was still completed.");
-    }
   }
 
   if (action_execution_error &&
