@@ -34,6 +34,7 @@
 #include "helper/container/to_string.h"
 #include "helper/json/rapid_json_interator.h"
 #include "helper/json/to_string.h"
+#include "mrs/interface/rest_error.h"
 
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/utils_sqlstring.h"
@@ -45,19 +46,20 @@ namespace database {
 
 using namespace std::string_literals;
 using Value = FilterObjectGenerator::Value;
+using RestError = mrs::interface::RestError;
 
 std::vector<std::string> get_array_of_string(Value *value) {
   if (value->IsString()) return {value->GetString()};
 
   if (!value->IsArray())
-    throw std::runtime_error(
+    throw RestError(
         "One of parameters must be a string or an array of strings");
 
   std::vector<std::string> result;
   auto array = value->GetArray();
   for (auto &v : helper::json::array_iterator(array)) {
     if (!v.IsString())
-      throw std::runtime_error("All values in array must be of type string.");
+      throw RestError("All values in array must be of type string.");
 
     result.push_back(v.GetString());
   }
@@ -122,7 +124,7 @@ std::string to_string(Value *value) {
   Result r(value);
   (r << ... << T());
 
-  if (r.result.empty()) throw std::runtime_error("Not supported type.");
+  if (r.result.empty()) throw RestError("Not supported type.");
 
   return r.result;
 }
@@ -139,8 +141,7 @@ void FilterObjectGenerator::reset() {
 }
 
 void FilterObjectGenerator::parse(const Document &doc) {
-  if (!doc.IsObject())
-    throw std::runtime_error("`FilterObject` must be a json object.");
+  if (!doc.IsObject()) throw RestError("`FilterObject` must be a json object.");
 
   reset();
 
@@ -155,7 +156,7 @@ void FilterObjectGenerator::parse_orderby_asof_wmember(Object object) {
       parse_asof(member.second);
     else if (k_order == member.first) {
       if (!member.second->IsObject())
-        throw std::runtime_error("`orderby` must be and json object.");
+        throw RestError("`orderby` must be and json object.");
       prase_order(member.second->GetObject());
     } else {
       if (!where_.empty()) where_ += " AND";
@@ -225,15 +226,14 @@ bool FilterObjectGenerator::parse_simple_object(Value *object) {
     where_ += argument + " IS NOT NULL";
   } else if ("$between"s == name) {
     if (!value->IsArray())
-      throw std::runtime_error("Between operator, requires an array field.");
+      throw RestError("Between operator, requires an array field.");
     if (value->Size() != 2)
-      throw std::runtime_error(
-          "Between field, requires array with size of two.");
+      throw RestError("Between field, requires array with size of two.");
     // TODO(lkotula): Support of NULL values with different types of `tos-es`
     // (Shouldn't be in review)
-    where_ += " BETWEEN(" + argument + ", " +
-              to_string<tosString, tosNumber, tosDate>(&(*value)[0]) + ", " +
-              to_string<tosString, tosNumber, tosDate>(&(*value)[1]) + ") ";
+    where_ += argument + " BETWEEN " +
+              to_string<tosString, tosNumber, tosDate>(&(*value)[0]) + " AND " +
+              to_string<tosString, tosNumber, tosDate>(&(*value)[1]);
   } else
     return false;
 
@@ -243,16 +243,16 @@ bool FilterObjectGenerator::parse_simple_object(Value *object) {
 void FilterObjectGenerator::parse_match(Value *value) {
   log_debug("Parser match");
   if (!value->IsObject())
-    throw std::runtime_error("Match operator, requires JSON object as value.");
+    throw RestError("Match operator, requires JSON object as value.");
   auto param = value->FindMember("$params");
   auto against = value->FindMember("$against");
 
   if (param == value->MemberEnd() || !param->value.IsArray())
-    throw std::runtime_error(
+    throw RestError(
         "Match operator, requires JSON array under \"$params\" key.");
 
   if (against == value->MemberEnd() || !against->value.IsObject())
-    throw std::runtime_error(
+    throw RestError(
         "Match operator, requires JSON object under \"$against\" key.");
 
   auto fields = get_array_of_string(&param->value);
@@ -262,15 +262,14 @@ void FilterObjectGenerator::parse_match(Value *value) {
 
   if (against_expr == against->value.MemberEnd() ||
       !against_expr->value.IsString()) {
-    throw std::runtime_error(
-        "Match operator, requires string value in \"$expr\" key.");
+    throw RestError("Match operator, requires string value in \"$expr\" key.");
   }
 
   mysqlrouter::sqlstring selected_modifier{""};
 
   if (against_mod != against->value.MemberEnd()) {
     if (!against_mod->value.IsString()) {
-      throw std::runtime_error(
+      throw RestError(
           "Match operator, optional value under \"modifier\" key must be a "
           "string.");
     }
@@ -281,7 +280,7 @@ void FilterObjectGenerator::parse_match(Value *value) {
 
     if (!allowed_values.count(against_mod->value.GetString())) {
       using namespace std::string_literals;
-      throw std::runtime_error(
+      throw RestError(
           "Match operator, optional value under \"modifier\" key must be a "
           "string set to one of: ["s +
           helper::container::to_string(allowed_values) + "]");
@@ -297,12 +296,12 @@ void FilterObjectGenerator::parse_match(Value *value) {
 void FilterObjectGenerator::parse_complex_and(Value *value) {
   log_debug("Parser complex_and");
   if (value->IsObject())
-    throw std::runtime_error(
+    throw RestError(
         "Simple operators are not supported for complex operations (just "
         "arrays).");
 
   if (!value->IsArray())
-    throw std::runtime_error("Complex operations requires and array argument.");
+    throw RestError("Complex operations requires and array argument.");
   auto arr = value->GetArray();
   bool first = true;
   for (auto &el : helper::json::array_iterator(arr)) {
@@ -310,8 +309,7 @@ void FilterObjectGenerator::parse_complex_and(Value *value) {
     first = false;
 
     if (!el.IsObject())
-      throw std::runtime_error(
-          "Complex expression, array element must be an object.");
+      throw RestError("Complex expression, array element must be an object.");
     where_ += "(";
     auto el_as_object = el.GetObject();
     for (auto member : helper::json::member_iterator(el_as_object)) {
@@ -323,12 +321,12 @@ void FilterObjectGenerator::parse_complex_and(Value *value) {
 void FilterObjectGenerator::parse_complex_or(Value *value) {
   log_debug("Parser complex_or");
   if (value->IsObject())
-    throw std::runtime_error(
+    throw RestError(
         "Simple operators are not supported for complex operations (just "
         "arrays).");
 
   if (!value->IsArray())
-    throw std::runtime_error("Complex operations requires and array argument.");
+    throw RestError("Complex operations requires and array argument.");
   auto arr = value->GetArray();
   bool first = true;
   for (auto &el : helper::json::array_iterator(arr)) {
@@ -336,8 +334,7 @@ void FilterObjectGenerator::parse_complex_or(Value *value) {
     first = false;
 
     if (!el.IsObject())
-      throw std::runtime_error(
-          "Complex expression, array element must be an object.");
+      throw RestError("Complex expression, array element must be an object.");
     where_ += "(";
     auto el_as_object = el.GetObject();
     for (auto member : helper::json::member_iterator(el_as_object)) {
@@ -364,7 +361,7 @@ void FilterObjectGenerator::parse_wmember(const char *name, Value *value) {
 
 void FilterObjectGenerator::parse_asof(Value * /*value*/) {
   log_debug("Parser asof");
-  throw std::runtime_error("`asof` attribute not supported.");
+  throw RestError("`asof` attribute not supported.");
 }
 
 void FilterObjectGenerator::prase_order(Object object) {
@@ -377,8 +374,7 @@ void FilterObjectGenerator::prase_order(Object object) {
   bool first = order_.empty();
 
   if (0 == object.MemberCount())
-    throw std::runtime_error(
-        "Wrong falue for `orderby`, requires object with fields.");
+    throw RestError("Wrong falue for `orderby`, requires object with fields.");
 
   for (auto member : helper::json::member_iterator(object)) {
     order_ += first ? " ORDER BY " : ", ";
@@ -393,11 +389,10 @@ void FilterObjectGenerator::prase_order(Object object) {
       static std::map<std::string, bool> allowed_values{
           {"1", true}, {"-1", false}, {"ASC", true}, {"DESC", false}};
       if (!helper::container::get_value(allowed_values, vstring, &asc))
-        throw std::runtime_error(kWrongValueForOrder);
+        throw RestError(kWrongValueForOrder);
     } else if (value->IsNumber()) {
       if (value->IsUint64()) {
-        if (value->GetUint64() != 1)
-          throw std::runtime_error(kWrongValueForOrder);
+        if (value->GetUint64() != 1) throw RestError(kWrongValueForOrder);
         asc = true;
       } else if (value->IsInt64()) {
         auto vint = value->GetInt64();
@@ -406,12 +401,12 @@ void FilterObjectGenerator::prase_order(Object object) {
         else if (vint == 1)
           asc = true;
         else
-          throw std::runtime_error(kWrongValueForOrder);
+          throw RestError(kWrongValueForOrder);
       } else {
-        throw std::runtime_error(kWrongTypeForOrder);
+        throw RestError(kWrongTypeForOrder);
       }
     } else {
-      throw std::runtime_error(kWrongTypeForOrder);
+      throw RestError(kWrongTypeForOrder);
     }
 
     order_ += asc ? " ASC" : " DESC";

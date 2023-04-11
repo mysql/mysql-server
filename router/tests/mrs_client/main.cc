@@ -29,8 +29,10 @@
 #include <thread>
 #include <vector>
 
+#include "helper/container/to_string.h"
 #include "helper/json/rapid_json_to_text.h"
 #include "helper/json/text_to.h"
+#include "helper/json/to_string.h"  //remove
 #include "helper/string/contains.h"
 #include "mysql/harness/arg_handler.h"
 #include "mysql/harness/filesystem.h"
@@ -47,6 +49,9 @@
 #include <rapidjson/pointer.h>
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/schema.h>
+
+#define HTTP_STATUS_ENTRY(X) \
+  { mysql_harness::make_lower(#X), HttpStatusCode::X, }
 
 using mrs_client::HttpClientRequest;
 using mrs_client::HttpClientSession;
@@ -83,6 +88,10 @@ static bool display_type_convert(const std::string &value,
 
   for (auto &[key, value] : allowed_values) {
     d.*(value) = false;
+  }
+
+  if ("none" == value) {
+    return true;
   }
 
   auto types = mysql_harness::split_string(value, ',', false);
@@ -138,6 +147,41 @@ static bool response_type_convert(std::string value,
   using namespace http_client;
   const static std::map<std::string, ResponseType> map{
       {"json", ResponseType::kJson}, {"raw", ResponseType::kRaw}};
+
+  mysql_harness::lower(value);
+  auto it = map.find(value);
+
+  if (map.end() == it) return false;
+  if (out_at) *out_at = it->second;
+
+  return true;
+}
+
+static const std::map<std::string, HttpStatusCode::key_type>
+    &get_status_code_map() {
+  const static std::map<std::string, HttpStatusCode::key_type> map{
+      HTTP_STATUS_ENTRY(Continue),
+      HTTP_STATUS_ENTRY(Ok),
+      HTTP_STATUS_ENTRY(MovedPermanently),
+      HTTP_STATUS_ENTRY(NotModified),
+      HTTP_STATUS_ENTRY(TemporaryRedirect),
+      HTTP_STATUS_ENTRY(PermanentRedirect),
+      HTTP_STATUS_ENTRY(BadRequest),
+      HTTP_STATUS_ENTRY(Unauthorized),
+      HTTP_STATUS_ENTRY(Forbidden),
+      HTTP_STATUS_ENTRY(NotFound),
+      HTTP_STATUS_ENTRY(MethodNotAllowed),
+      HTTP_STATUS_ENTRY(InternalError),
+      HTTP_STATUS_ENTRY(NotImplemented),
+  };
+  return map;
+}
+
+static bool status_code_convert(std::string value,
+                                HttpStatusCode::key_type *out_at = nullptr) {
+  using namespace http_client;
+
+  auto &map = get_status_code_map();
 
   mysql_harness::lower(value);
   auto it = map.find(value);
@@ -310,7 +354,8 @@ std::vector<CmdOption> g_options{
      }},
 
     {{"--json-pointer", "-j"},
-     "Print only values selected by pointers. Multiple pointer should be "
+     "Print only values selected by pointers (inclusive pointer). Multiple "
+     "pointer should be "
      "separated by comma.",
      CmdOptionValueReq::required,
      "meta_json_pointer",
@@ -333,20 +378,53 @@ std::vector<CmdOption> g_options{
        if (g_configuration.json_pointer.empty())
          throw std::invalid_argument("There is no valid json-pointer.");
      }},
+
+    {{"--exclude-json-pointer", "-e"},
+     "Print values that are not selected by the pointers(exclusive pointer). "
+     "Multiple pointer should be "
+     "separated by comma. Inclusive and exclusive pointers can't be used in "
+     "the same execution.",
+     CmdOptionValueReq::required,
+     "meta_exclude_json_pointer",
+     [](const std::string &value) {
+       g_configuration.excluscive_json_pointer =
+           mysql_harness::split_string(value, ',', false);
+     },
+     [](const std::string &) {
+       if (cnf_should_execute_authentication_flow()) {
+         throw std::invalid_argument(
+             "Json pointer can't be used while executing authentication "
+             "flow.");
+       }
+
+       if (g_configuration.response_type != http_client::ResponseType::kJson) {
+         throw std::invalid_argument(
+             "Json pointer can only be used with JSON responses.");
+       }
+
+       if (g_configuration.excluscive_json_pointer.empty())
+         throw std::invalid_argument("There is no valid json-pointer.");
+     }},
     {{"--expected-status"},
      "Specify allowed status code. Default is OK(200).",
      CmdOptionValueReq::required,
      "meta_status",
      [](const std::string &value) {
        g_configuration.expected_status = atoi(value.c_str());
-       if (0 == g_configuration.expected_status)
-         throw std::invalid_argument(
-             "Invalid value specified for 'expected-status', allowed values "
-             "are positive integers.");
+       if (0 == g_configuration.expected_status) {
+         if (!status_code_convert(value, &g_configuration.expected_status)) {
+           using namespace std::string_literals;
+           auto &map = get_status_code_map();
+           throw std::invalid_argument(
+               "Invalid value specified for 'expected-status', allowed values "
+               "are positive integers or predefined text/values: "s +
+               helper::container::to_string(map));
+         }
+       }
      }},
 
     {{"--display"},
-     "What should be presented as output: VALUES=(all|VALUE[,VALUE[....]])"
+     "What should be presented as output: VALUES=(none|all|VALUE[,VALUE[....]])"
      "where VALUE can be: TITLE, BODY, HEADER, STATUS, RESULT. By default its "
      "set to RESULT.",
      CmdOptionValueReq::required,
@@ -474,6 +552,13 @@ static std::string get_pointer_string(const rapidjson::Pointer &pointer) {
   return {buff.GetString(), buff.GetSize()};
 }
 
+json::JsonCopyPointers create_json_copier() {
+  if (!g_configuration.json_pointer.empty())
+    return json::JsonCopyPointers{g_configuration.json_pointer};
+
+  return json::JsonCopyPointers{g_configuration.excluscive_json_pointer, true};
+}
+
 static void validate_result(Result &result) {
   result.ok = g_configuration.expected_status == result.status;
 
@@ -507,11 +592,14 @@ static void validate_result(Result &result) {
     }
   }
 
-  if (!g_configuration.json_pointer.empty()) {
-    json::JsonCopyPointers jcp{g_configuration.json_pointer};
+  bool json_filter{false};
+  if (!g_configuration.json_pointer.empty() ||
+      !g_configuration.excluscive_json_pointer.empty()) {
+    json::JsonCopyPointers jcp = create_json_copier();
     doc.Accept(jcp);
+    json_filter = true;
     auto not_matched = jcp.get_not_matched_pointers();
-    if (jcp.get_document().IsNull() || !not_matched.empty()) {
+    if (!not_matched.empty()) {
       result.ok = false;
       std::cerr << "ERROR: JSON pointer points to not existing node.\n";
       for (auto &s : not_matched) {
@@ -523,6 +611,9 @@ static void validate_result(Result &result) {
   }
 
   helper::json::rapid_json_to_text<PrettyWriter>(&doc, result.body);
+
+  // the filter didn't select any object
+  if (json_filter && doc.IsNull()) result.body = "";
 }
 
 int main(int argc, char *argv[]) {

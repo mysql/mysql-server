@@ -36,6 +36,7 @@
 #include "mrs/authentication/www_authentication_handler.h"
 #include "mrs/http/error.h"
 #include "mrs/interface/object.h"
+#include "mrs/interface/rest_error.h"
 #include "mrs/rest/request_context.h"
 #include "mrs/router_observation_entities.h"
 
@@ -51,6 +52,7 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace rest {
 
+using RestError = mrs::interface::RestError;
 using AuthHandler = mrs::interface::AuthorizeManager::AuthorizeHandlerPtr;
 using AuthHandlers = mrs::interface::AuthorizeManager::AuthHandlers;
 using WwwAuthenticationHandler = mrs::authentication::WwwAuthenticationHandler;
@@ -201,6 +203,10 @@ void trace_error(const mysqlrouter::MySQLSession::Error &e) {
   log_debug("Catch: MySQLSession::Error code: %i", static_cast<int>(e.code()));
   log_debug("Catch: MySQLSession::Error message: %s", e.message().c_str());
   log_debug("Catch: MySQLSession::Error message: %s", e.what());
+}
+
+void trace_error(const RestError &e) {
+  log_debug("Catch: RestError message: %s", e.what());
 }
 
 void trace_error(const std::exception &e) {
@@ -433,6 +439,9 @@ class RestRequestHandler : public BaseRequestHandler {
     } catch (const mysqlrouter::MySQLSession::Error &e) {
       if (rest_handler_->get_options().debug.log_exceptions) trace_error(e);
       handle_error(&request_ctxt, e);
+    } catch (const RestError &e) {
+      if (rest_handler_->get_options().debug.log_exceptions) trace_error(e);
+      handle_error(&request_ctxt, e);
     } catch (const std::exception &e) {
       if (rest_handler_->get_options().debug.log_exceptions) trace_error(e);
       handle_error(&request_ctxt, e);
@@ -442,6 +451,10 @@ class RestRequestHandler : public BaseRequestHandler {
  private:
   static const http::Error &err_to_http_error(const http::Error &err) {
     return err;
+  }
+
+  static http::Error err_to_http_error(const RestError &err) {
+    return {HttpStatusCode::BadRequest, err.what()};
   }
 
   static http::Error err_to_http_error(const std::exception &) {
