@@ -1,0 +1,61 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Create a disposable connection to server 1 and get
+#    connection ID.
+[connection server1_disconnect]
+
+############################################################
+# 2. Enable debug point to block group action before send
+#    message to the group.
+[connection server1]
+# Adding debug point 'group_replication_coordinate_action_execution_after_sent_to_group' to @@GLOBAL.debug
+
+############################################################
+# 3. Execute on server 1 change to single primary mode
+#    with server 1 being primary.
+[connection server1_disconnect]
+SELECT group_replication_switch_to_single_primary_mode("SERVER1_UUID");
+
+############################################################
+# 4. Wait to server 1 reach debug point.
+[connection server1]
+
+############################################################
+# 5. Kill connection where is being executed a change of
+#    group mode.
+KILL QUERY CONNECTION_ID;
+
+############################################################
+# 6. Remove debug point and unlock debug point.
+[connection server1]
+# Removing debug point 'group_replication_coordinate_action_execution_after_sent_to_group' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'now SIGNAL signal.action_continue';
+
+############################################################
+# 7. Reap connection, it will return lost connection to
+#     server.
+[connection server1_disconnect]
+group_replication_switch_to_single_primary_mode("SERVER1_UUID")
+Mode switched to single-primary successfully.
+
+############################################################
+# 8. Wait for all stage from UDF to finish on server 1 and
+#    assert is primary.
+[connection server1]
+include/gr_assert_primary_member.inc
+SET DEBUG_SYNC='RESET';
+
+############################################################
+# 9. Wait for all stage from UDF to finish on server 2 and
+#    assert is primary.
+[connection server2]
+include/gr_assert_secondary_member.inc
+
+############################################################
+# 10. Clean up.
+include/group_replication_end.inc
