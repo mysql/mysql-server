@@ -132,6 +132,10 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
    */
   m_slowdown_limit = m_overload_limit * 6 / 10;
 
+  m_require_tls = conf->requireTls;
+  if(! isServer)
+    use_tls_client_auth();
+
   send_checksum_state.init();
 }
 
@@ -164,6 +168,7 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
   sockOptTcpMaxSeg = t->sockOptTcpMaxSeg;
   m_overload_limit = t->m_overload_limit;
   m_slowdown_limit = t->m_slowdown_limit;
+  if(! isServer) use_tls_client_auth();
   send_checksum_state.init();
 }
 

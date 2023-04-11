@@ -541,10 +541,11 @@ public:
     NodeId m_remote_nodeId;
     int m_s_service_port;			// signed port number
     const char *m_interface;
+    bool m_require_tls;
   };
   Vector<Transporter_interface> m_transporter_interface;
   void add_transporter_interface(NodeId remoteNodeId, const char *interf,
-		  		 int s_port);	// signed port. <0 is dynamic
+                                 int s_port, bool requireTls);
 
   int get_transporter_count() const;
   Transporter* get_transporter(TrpId id) const;

@@ -84,6 +84,8 @@ Transporter::Transporter(TransporterRegistry &t_reg,
     isMgmConnection(_isMgmConnection),
     m_connected(false),
     m_type(_type),
+    m_require_tls(false),
+    m_encrypted(false),
     reportFreq(4096),
     receiveCount(0),
     receiveSize(0),
@@ -161,6 +163,16 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   DBUG_VOID_RETURN;
 }
 
+void
+Transporter::use_tls_client_auth()
+{
+  delete m_socket_client;
+  SocketAuthTls * authTls =
+    new SocketAuthTls(& m_transporter_registry.m_tls_keys, m_require_tls);
+  m_socket_client= new SocketClient(authTls);
+  m_socket_client->set_connect_timeout(m_timeOutMillis);
+}
+
 Transporter::~Transporter()
 {
   delete m_socket_client;
@@ -199,6 +211,7 @@ Transporter::configure(const TransporterConfiguration* conf)
 {
   if (configure_derived(conf) &&
       conf->s_port == m_s_port &&
+      conf->requireTls == m_require_tls &&
       strcmp(conf->remoteHostName, remoteHostName) == 0 &&
       strcmp(conf->localHostName, localHostName) == 0 &&
       conf->remoteNodeId == remoteNodeId &&
@@ -335,12 +348,14 @@ Transporter::connect_client()
     m_socket_client->connect(secureSocket, remote_addr);
 
    /** Socket Authentication */
-    if(m_socket_client->authenticate(secureSocket) < SocketAuthSimple::AuthOk)
+    int auth = m_socket_client->authenticate(secureSocket);
+    if(auth < SocketAuthenticator::AuthOk)
     {
       DEBUG_FPRINTF((stderr, "Socket Authenticator failed\n"));
       DBUG_RETURN(false);
     }
-
+    g_eventLogger->debug("Transporter client auth result: %d [%s]", auth,
+                         SocketAuthenticator::error(auth));
   }
 
   DBUG_RETURN(connect_client(secureSocket));

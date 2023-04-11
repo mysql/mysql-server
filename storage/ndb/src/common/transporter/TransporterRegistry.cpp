@@ -3548,16 +3548,19 @@ TransporterRegistry::stop_clients()
 void
 TransporterRegistry::add_transporter_interface(NodeId remoteNodeId,
 					       const char *interf, 
-					       int s_port)
+					       int s_port, bool require_tls)
 {
   DBUG_ENTER("TransporterRegistry::add_transporter_interface");
   DBUG_PRINT("enter",("interface=%s, s_port= %d", interf, s_port));
   if (interf && strlen(interf) == 0)
     interf= nullptr;
 
+  // Iterate over m_transporter_interface. If an identical one
+  // already exists there, return without adding this one.
   for (unsigned i= 0; i < m_transporter_interface.size(); i++)
   {
     Transporter_interface &tmp= m_transporter_interface[i];
+    if (require_tls != tmp.m_require_tls) continue;
     if (s_port != tmp.m_s_service_port || tmp.m_s_service_port==0)
       continue;
     if (interf != nullptr && tmp.m_interface != nullptr &&
@@ -3570,10 +3573,12 @@ TransporterRegistry::add_transporter_interface(NodeId remoteNodeId,
       DBUG_VOID_RETURN; // found match, no need to insert
     }
   }
+
   Transporter_interface t;
   t.m_remote_nodeId= remoteNodeId;
   t.m_s_service_port= s_port;
   t.m_interface= interf;
+  t.m_require_tls= require_tls;
   m_transporter_interface.push_back(t);
   DBUG_PRINT("exit",("interface and port added"));
   DBUG_VOID_RETURN;
@@ -3597,8 +3602,7 @@ TransporterRegistry::start_service(SocketServer& socket_server)
     unsigned short port= (unsigned short)t.m_s_service_port;
     if(t.m_s_service_port<0)
       port= -t.m_s_service_port; // is a dynamic port
-    // FIXME, use t.m_require_tls in patch#4:
-    SocketAuthTls * auth = new SocketAuthTls(& m_tls_keys, false);
+    SocketAuthTls * auth = new SocketAuthTls(& m_tls_keys, t.m_require_tls);
     TransporterService *transporter_service = new TransporterService(auth);
     ndb_sockaddr addr;
     if (t.m_interface && Ndb_getAddr(&addr, t.m_interface))

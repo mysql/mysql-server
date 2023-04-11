@@ -162,10 +162,18 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     Uint32 bindInAddrAny = 0;
     iter.get(CFG_TCP_BIND_INADDR_ANY, &bindInAddrAny);
 
+    bool requireTls = false;
+    if(type == CONNECTION_TYPE_TCP && (nodeId1 != nodeId2))
+    {
+      Uint32 useTls= 0;
+      iter.get(CFG_TCP_REQUIRE_TLS, &useTls);
+      requireTls = useTls;
+    }
+
     if (nodeId == nodeIdServer && !conf.isMgmConnection) {
-      tr.add_transporter_interface(remoteNodeId, 
-				   !bindInAddrAny ? localHostName : "", 
-				   server_port);
+      tr.add_transporter_interface(remoteNodeId,
+				   !bindInAddrAny ? localHostName : "",
+                                   server_port, requireTls);
     }
     
     DBUG_PRINT("info", ("Transporter between this node %d and node %d using port %d, signalId %d, checksum %d,"
@@ -191,6 +199,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     conf.localHostName  = localHostName;
     conf.remoteHostName = remoteHostName;
     conf.serverNodeId   = nodeIdServer;
+    conf.requireTls     = requireTls;
 
     Uint32 spintime = 0;
     Uint32 shm_send_buffer_size = 2 * 1024 * 1024;
@@ -273,6 +282,8 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     loopback_conf.tcp.tcpRcvBufSize = 0;
     loopback_conf.tcp.tcpMaxsegSize = 256*1024;
     loopback_conf.tcp.tcpOverloadLimit = 768*1024;
+    loopback_conf.requireTls = false;
+
     if (!tr.configureTransporter(&loopback_conf))
     {
       g_eventLogger->info("Failed to configure Loopback Transporter");

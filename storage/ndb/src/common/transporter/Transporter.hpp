@@ -241,6 +241,7 @@ protected:
 
   virtual bool configure(const TransporterConfiguration* conf);
   virtual bool configure_derived(const TransporterConfiguration* conf) = 0;
+  void use_tls_client_auth();
 
   /**
    * Blocking, for max timeOut milli seconds
@@ -254,7 +255,7 @@ protected:
    * Blocking
    */
   virtual void disconnectImpl() = 0;
-  
+
   /**
    * Remote host name/and address
    */
@@ -317,6 +318,8 @@ protected:
   Uint32 m_timeOutMillis;
   bool m_connected;     // Are we connected
   TransporterType m_type;
+  bool m_require_tls;  // Configured mode
+  bool m_encrypted;    // Actual: true only if current connection is secure.
 
   /**
    * Statistics
