@@ -839,9 +839,6 @@ INCLUDE(fprofile)
 INCLUDE(gloves)
 INCLUDE(fido2)
 INCLUDE(win_jemalloc)
-INCLUDE(msvc_cppcheck)
-
-MSVC_CPPCHECK()
 
 IF(UNIX)
   OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
@@ -2078,6 +2075,8 @@ OPTION(MYSQL_MAINTAINER_MODE
        "MySQL maintainer-specific development environment" OFF)
 
 INCLUDE(maintainer)
+INCLUDE(msvc_cppcheck)
+DO_MSVC_CPPCHECK()
 
 IF(WITH_UNIT_TESTS)
   ENABLE_TESTING()
