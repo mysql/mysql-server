@@ -34,6 +34,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
+#include <iterator>
 
 #include "my_alloc.h"
 #include "my_compiler.h"
@@ -90,6 +91,7 @@ MEM_ROOT::Block *MEM_ROOT::AllocBlock(size_t wanted_length,
     if (m_error_handler) (m_error_handler)();
     return nullptr;
   }
+  TRASH(new_block, bytes_to_alloc);
   new_block->end = pointer_cast<char *>(new_block) + bytes_to_alloc;
 
   m_allocated_size += length;
@@ -200,6 +202,7 @@ void MEM_ROOT::ClearForReuse() {
   Block *start = m_current_block->prev;
   m_current_block->prev = nullptr;
   m_allocated_size = m_current_free_end - m_current_free_start;
+  TRASH(m_current_free_start, m_allocated_size);
 
   FreeBlocks(start);
 }
@@ -209,6 +212,7 @@ void MEM_ROOT::FreeBlocks(Block *start) {
   // touch it after we've started freeing.
   for (Block *block = start; block != nullptr;) {
     Block *prev = block->prev;
+    TRASH(block, std::distance(pointer_cast<char *>(block), block->end));
     my_free(block);
     block = prev;
   }
