@@ -33,8 +33,14 @@ std::string ResponseJsonTemplate::get_result() {
   return serializer_.get_result();
 }
 
-void ResponseJsonTemplate::begin(const std::string &url) {
-  assert(began_ == false);
+void ResponseJsonTemplate::flush() { serializer_.flush(); }
+
+void ResponseJsonTemplate::begin(const std::string &url,
+                                 const std::string &items_name) {
+  if (began_) {
+    json_root_items_ = JsonSerializer::Array();
+  }
+  //  assert(began_ == false);
   // Initialize data to be supplied to the template
   offset_ = 0;
   limit_ = std::numeric_limits<decltype(limit_)>::max();
@@ -42,17 +48,23 @@ void ResponseJsonTemplate::begin(const std::string &url) {
   url_ = url;
 
   // Start serialization, initialize internal state
+  if (!began_) {
+    json_root_ = serializer_.add_object();
+    pushed_documents_ = 0;
+  }
+  json_root_items_ = serializer_.member_add_array(items_name.c_str());
+
   began_ = true;
   has_more_ = false;
-  pushed_documents_ = 0;
-  json_root_ = serializer_.add_object();
-  json_root_items_ = serializer_.member_add_array("items");
 }
 
 void ResponseJsonTemplate::begin(uint32_t offset, uint32_t limit,
                                  bool is_default_limit,
                                  const std::string &url) {
-  assert(began_ == false);
+  if (began_) {
+    json_root_items_ = JsonSerializer::Array();
+  }
+  //  assert(began_ == false);
   // Initialize data to be supplied to the template
   offset_ = offset;
   limit_ = limit;
@@ -60,11 +72,13 @@ void ResponseJsonTemplate::begin(uint32_t offset, uint32_t limit,
   url_ = url;
 
   // Start serialization, initialize internal state
+  if (!began_) {
+    json_root_ = serializer_.add_object();
+    pushed_documents_ = 0;
+  }
+  json_root_items_ = serializer_.member_add_array("items");
   began_ = true;
   has_more_ = false;
-  pushed_documents_ = 0;
-  json_root_ = serializer_.add_object();
-  json_root_items_ = serializer_.member_add_array("items");
 }
 
 void ResponseJsonTemplate::end() {
@@ -107,6 +121,11 @@ void ResponseJsonTemplate::end() {
   }
   json_root_ = JsonSerializer::Object();
   began_ = false;
+}
+
+const char *not_null(const char *v) {
+  if (v) return v;
+  return "null";
 }
 
 bool ResponseJsonTemplate::push_json_document(

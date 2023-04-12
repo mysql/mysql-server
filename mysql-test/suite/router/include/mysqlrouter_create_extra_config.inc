@@ -24,6 +24,9 @@
 # --source include/mysqlrouter_restart.inc
 #
 
+--source test_dir.inc
+--let $SCHEMA_DIR=$TEST_DIR/../include/json_schema/
+
 --disable_query_log
 SET @variable_extra_config = "";
 

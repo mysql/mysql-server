@@ -204,12 +204,12 @@ HttpResult HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
     }
   }
 
-  for (auto &el : p) {
-    if (el.mode != mrs::database::entry::Field::modeIn)
-      throw http::Error(
-          HttpStatusCode::BadRequest,
-          "Only 'in' parameters allowed, '"s + el.name + "' is output.");
-  }
+  //  for (auto &el : p) {
+  //    if (el.mode != mrs::database::entry::Field::modeIn)
+  //      throw http::Error(
+  //          HttpStatusCode::BadRequest,
+  //          "Only 'in' parameters allowed, '"s + el.name + "' is output.");
+  //  }
 
   std::string result;
   std::vector<enum_field_types> variables;

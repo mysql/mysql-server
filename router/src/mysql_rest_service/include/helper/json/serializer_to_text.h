@@ -127,7 +127,10 @@ class SerializerToText {
   };
 
  public:
-  std::string get_result() { return value_.str(); }
+  std::string get_result() {
+    writer_.Flush();
+    return value_.str();
+  }
 
   Object add_object() { return Object(this); }
   Array add_array() { return Array(this); }
@@ -204,6 +207,8 @@ class SerializerToText {
 
     return *this;
   }
+
+  void flush() { writer_.Flush(); }
 
   Array member_add_array(const char *key) {
     writer_.Key(key);
