@@ -25,6 +25,8 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_REST_SP_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_REST_SP_H_
 
+#include <optional>
+#include <string>
 #include <vector>
 
 #include "helper/mysql_column.h"
@@ -36,6 +38,8 @@ namespace mrs {
 namespace database {
 
 class QueryRestSP : private QueryLog {
+  using Row = Query::Row;
+
  public:
   virtual void query_entries(MySQLSession *session, const std::string &schema,
                              const std::string &object, const std::string &url,
@@ -47,11 +51,19 @@ class QueryRestSP : private QueryLog {
   uint64_t items;
 
  private:
+  bool has_out_params_;
+  uint64_t items_in_resultset_;
+  uint64_t number_of_resultsets_;
   json::ResponseJsonTemplate response_template;
   std::vector<helper::Column> columns_;
   const char *ignore_column_{nullptr};
+  std::vector<std::optional<std::string>> flush_copy_;
+  std::string url_;
 
-  void on_row(const Query::Row &r) override;
+  bool flush(const bool is_last = false);
+  void push_cached();
+
+  void on_row(const Row &r) override;
   void on_metadata(unsigned int number, MYSQL_FIELD *fields) override;
 };
 

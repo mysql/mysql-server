@@ -39,7 +39,7 @@ class ResponseJsonTemplate {
   using JsonSerializer = helper::json::SerializerToText;
 
  public:
-  void begin(const std::string &url);
+  void begin(const std::string &url, const std::string &items_name);
   void begin(uint32_t offset, uint32_t limit, bool is_default_limit,
              const std::string &url);
   bool push_json_document(const char *document);
@@ -48,6 +48,7 @@ class ResponseJsonTemplate {
                           const char *ignore_column = nullptr);
   void end();
 
+  void flush();
   std::string get_result();
 
  private:

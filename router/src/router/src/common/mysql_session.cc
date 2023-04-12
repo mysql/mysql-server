@@ -647,7 +647,9 @@ void MySQLSession::prepare_execute(uint64_t ps_id,
       status = mysql_stmt_fetch(stmt);
       if (status == 1 || status == MYSQL_NO_DATA) break;
       for (unsigned int i = 0; i < nfields; i++) {
-        outrow[i] = reinterpret_cast<const char *>(my_bind[i].buffer);
+        outrow[i] = *my_bind[i].is_null
+                        ? nullptr
+                        : reinterpret_cast<const char *>(my_bind[i].buffer);
       }
       if (!processor(outrow)) break;
     }

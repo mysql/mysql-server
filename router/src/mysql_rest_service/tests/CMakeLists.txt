@@ -29,13 +29,14 @@ add_test_file(test_rest_mrs_plugin.cc
   EXTRA_SOURCES
     ./helper/set_http_component.cc
     ./test_authorize_manager.cc
-  	./test_helper_json.cc
-  	./test_collector_mysql_cache_manager.cc
-  	./test_database_rest_table.cc
-  	./test_database_entries.cc
-  	./test_mrs_database_rest_table_insert.cc
-  	./test_mrs_database_filter_object_generator.cc
-  	./test_helper_media_detector.cc
+    ./test_helper_json.cc
+    ./test_helper_response_json_template.cc
+    ./test_collector_mysql_cache_manager.cc
+    ./test_database_rest_table.cc
+    ./test_database_entries.cc
+    ./test_mrs_database_rest_table_insert.cc
+    ./test_mrs_database_filter_object_generator.cc
+    ./test_helper_media_detector.cc
     ./test_helper_plugin_monitor.cc
     ./test_helper_string.cc
     ./test_helper_jwt.cc

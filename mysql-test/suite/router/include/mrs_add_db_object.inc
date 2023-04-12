@@ -77,6 +77,17 @@ if (!$mrs_add_db_object_do_not_auto_register_columns)
            SELECT mysql_rest_service_metadata.get_sequence_id(), z.cname, z.cname, $mrs_sql_id_variable_ob, true
            FROM (SELECT COLUMN_NAME as cname FROM information_schema.columns where TABLE_SCHEMA="$_schema_name" and TABLE_NAME="$mrs_add_db_object") as z;
 }
+
+if ($mrs_add_db_object_type=="PROCEDURE")
+{
+    --let $_schema_name=`SELECT name FROM mysql_rest_service_metadata.db_schema WHERE id=$mrs_schema_id_sql_variable`
+
+    eval INSERT INTO `mysql_rest_service_metadata`.`field` (`id`, `db_object_id`, `position`, `name`, `bind_field_name`, `datatype`, `mode`)
+    SELECT mysql_rest_service_metadata.get_sequence_id(), $mrs_sql_id_variable, ORDINAL_POSITION, PARAMETER_NAME, PARAMETER_NAME, UPPER(DATA_TYPE), PARAMETER_MODE 
+     FROM information_schema.PARAMETERS
+     WHERE SPECIFIC_NAME="$mrs_add_db_object" and SPECIFIC_SCHEMA="$_schema_name";
+}
+
 --enable_query_log
 --enable_result_log
 
