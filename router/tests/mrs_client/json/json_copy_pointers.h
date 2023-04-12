@@ -60,38 +60,38 @@ class JsonCopyPointers : public helper::json::RapidReaderHandlerToStruct<bool> {
     return true;
   }
 
-  bool Bool(bool v) {
+  bool Bool(bool v) override {
     Handler::Bool(v);
 
     copy(v ? rapidjson::Type::kTrueType : rapidjson::Type::kFalseType);
     return true;
   }
 
-  virtual bool Int(int v) {
+  virtual bool Int(int v) override {
     Handler::Int(v);
     copy(v);
     return true;
   }
 
-  virtual bool Uint(unsigned v) {
+  virtual bool Uint(unsigned v) override {
     Handler::Uint(v);
     copy(v);
     return true;
   }
 
-  virtual bool Int64(int64_t v) {
+  virtual bool Int64(int64_t v) override {
     Handler::Int64(v);
     copy(v);
     return true;
   }
 
-  virtual bool Uint64(uint64_t v) {
+  virtual bool Uint64(uint64_t v) override {
     Handler::Uint64(v);
     copy(v);
     return true;
   }
 
-  virtual bool Double(double v) {
+  virtual bool Double(double v) override {
     Handler::Double(v);
     copy(v);
     return true;
