@@ -555,6 +555,15 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
   return (purge_queue);
 }
 
+/** Set cluster schedule.
+    TODO(accheng): cluster schedule is currently hardcoded. */
+void set_cluster_sched() {
+  /* First cluster is never run. */
+  for (uint32_t i = 1; i < trx_sys->cluster_sched.size(); i++) {
+    trx_sys->cluster_sched[i] = 1;
+  }
+}
+
 /** Creates the trx_sys instance and initializes purge_queue and mutex. */
 void trx_sys_create(void) {
   ut_ad(trx_sys == nullptr);
@@ -581,6 +590,17 @@ void trx_sys_create(void) {
   for (auto &shard : trx_sys->shards) {
     new (&shard) Trx_shard{};
   }
+
+  /* TODO(accheng): number of clusters is currently hardcoded. */
+  trx_sys->num_clusters = 1;
+
+  trx_sys->cluster_sched_idx = 0;
+
+  /* TODO(accheng): cluster length is currently hardcoded. */
+  trx_sys->cluster_sched = ut::new_arr_withkey<uint64_t>(
+    ut::make_psi_memory_key(mem_key_dict_stats_n_diff_on_level),
+    ut::Count{1000});
+  set_cluster_sched();
 
   new (&trx_sys->rsegs) Rsegs();
   trx_sys->rsegs.set_empty();
@@ -652,6 +672,8 @@ void trx_sys_close(void) {
   mutex_free(&trx_sys->mutex);
 
   trx_sys->rw_trx_ids.~trx_ids_t();
+
+  ut::delete_arr(trx_sys->n_diff_on_level);
 
   ut::free(trx_sys);
 

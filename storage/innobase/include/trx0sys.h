@@ -561,6 +561,18 @@ struct trx_sys_t {
   /** True if XA PREPARED trxs are found. */
   bool found_prepared_trx;
 
+  char pad8[ut::INNODB_CACHE_LINE_SIZE];
+
+  /* Number of distinct clusters. */
+  uint16_t num_clusters;
+
+  /* Index for cluster schedule (protected by trx_sys_mutex). */
+  uint32_t cluster_sched_idx;
+
+  /* Cluster schedule index cooresponding to clusters vector.
+     First value is a no-op cluster. */
+  std::vector<uint32_t, ut::allocator<uint32_t>> cluster_sched;
+
   /** @} */
 
   char pad_after[ut::INNODB_CACHE_LINE_SIZE];
