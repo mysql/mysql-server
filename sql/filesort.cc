@@ -1000,9 +1000,9 @@ static ha_rows read_all_rows(
 
     ++(*found_rows);
     num_total_records++;
-    if (pq)
-      pq->push(tables);
-    else {
+    if (pq != nullptr) {
+      if (pq->push(tables)) return HA_POS_ERROR;
+    } else {
       size_t key_length;
       bool out_of_mem_or_error = alloc_and_make_sortkey(
           param, fs_info, tables, &key_length, &longest_addon_so_far);
