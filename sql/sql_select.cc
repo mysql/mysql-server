@@ -372,10 +372,9 @@ static void set_external_engine_fail_reason(const LEX *lex,
       reason != nullptr) {
     for (Table_ref *ref = lex->query_tables; ref != nullptr;
          ref = ref->next_global) {
-      if (ref->table != nullptr && ref->table->file != nullptr &&
-          (ref->table->file->ht->flags & HTON_SUPPORTS_EXTERNAL_SOURCE) != 0 &&
-          ref->table->s->has_secondary_engine()) {
-        ref->table->file->set_external_table_offload_error(reason);
+      if (ref->is_external()) {
+        ref->table->get_primary_handler()->set_external_table_offload_error(
+            reason);
         break;
       }
     }
@@ -385,10 +384,8 @@ static void set_external_engine_fail_reason(const LEX *lex,
 static void external_engine_fail_reason(const LEX *lex) {
   for (Table_ref *ref = lex->query_tables; ref != nullptr;
        ref = ref->next_global) {
-    if (ref->table != nullptr && ref->table->file != nullptr &&
-        (ref->table->file->ht->flags & HTON_SUPPORTS_EXTERNAL_SOURCE) != 0 &&
-        ref->table->s->has_secondary_engine()) {
-      ref->table->file->external_table_offload_error();
+    if (ref->is_external()) {
+      ref->table->get_primary_handler()->external_table_offload_error();
       return;
     }
   }
@@ -665,9 +662,7 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
 
 static bool has_external_table(Table_ref *query_tables) {
   for (Table_ref *ref = query_tables; ref != nullptr; ref = ref->next_global) {
-    if (ref->table != nullptr && ref->table->file != nullptr &&
-        (ref->table->file->ht->flags & HTON_SUPPORTS_EXTERNAL_SOURCE) != 0 &&
-        ref->table->s->has_secondary_engine()) {
+    if (ref->is_external()) {
       return true;
     }
   }
@@ -684,8 +679,6 @@ bool Sql_cmd_dml::execute(THD *thd) {
   bool statement_timer_armed = false;
   bool error_handler_active = false;
 
-  // flag to denote if the query refers to an external table
-  bool is_external_table = false;
   // flag to determine if execution was not offloaded to the secondary engine
   // and ended up in the external engine in which case we throw an error.
   bool external_table_not_offloaded = false;
@@ -747,18 +740,18 @@ bool Sql_cmd_dml::execute(THD *thd) {
     }
   }
 
-  is_external_table = has_external_table(lex->query_tables);
-  if (lex->thd->variables.use_secondary_engine == SECONDARY_ENGINE_OFF &&
-      is_external_table) {
-    my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0),
-             "Query could not be offloaded to the secondary engine");
-    external_table_not_offloaded = true;
-    goto err;  // NOLINT
+  if (lex->thd->variables.use_secondary_engine == SECONDARY_ENGINE_OFF) {
+    if (has_external_table(lex->query_tables)) {
+      my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0),
+               "Query could not be offloaded to the secondary engine");
+      external_table_not_offloaded = true;
+      goto err;  // NOLINT
+    }
   } else if ((thd->secondary_engine_optimization() ==
                   Secondary_engine_optimization::PRIMARY_ONLY &&
               lex->thd->variables.use_secondary_engine !=
                   SECONDARY_ENGINE_FORCED) &&
-             is_external_table) {
+             has_external_table(lex->query_tables)) {
     // throw the propagated error from the external engine in case there is an
     // external table
     external_engine_fail_reason(lex);
@@ -855,9 +848,10 @@ err:
         assert(thd->get_stmt_da() != nullptr);
         // here we check if there is any table in an external engine to set the
         // error there as well.
-        if (is_external_table)
+        if (has_external_table(lex->query_tables)) {
           set_external_engine_fail_reason(lex,
                                           thd->get_stmt_da()->message_text());
+        }
         set_secondary_engine_fail_reason(lex,
                                          thd->get_stmt_da()->message_text());
       }

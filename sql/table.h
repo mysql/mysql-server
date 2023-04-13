@@ -2148,6 +2148,12 @@ struct TABLE {
   void update_covering_prefix_keys(Field *field, uint16 key_read_length,
                                    Key_map *covering_prefix_keys);
 
+  /**
+    Returns the primary engine handler for the table.
+    If none exist, nullptr is returned.
+  */
+  handler *get_primary_handler() const;
+
  private:
   /**
     Bitmap that tells which columns are eligible for partial update in an
@@ -3167,6 +3173,9 @@ class Table_ref {
 
   /// Returns true if a MATCH function references this table.
   bool is_fulltext_searched() const { return m_fulltext_searched; }
+
+  /// Is this table only available in an external storage engine?
+  bool is_external() const;
 
   /**
     Set table as readonly, ie it is neither updatable, insertable nor
