@@ -87,8 +87,10 @@ class QueryRestObjectInsert : private QueryLog {
 
   JsonInsertBuilder::PrimaryKeyColumnValues execute_insert(
       MySQLSession *session, std::shared_ptr<Object> object,
-      const rapidjson::Document &json_doc) {
-    JsonInsertBuilder ib(object);
+      const rapidjson::Document &json_doc,
+      const std::string &row_ownership_column,
+      const entry::AuthUser::UserId &requesting_user_id) {
+    JsonInsertBuilder ib(object, row_ownership_column, requesting_user_id);
     JsonInsertBuilder::PrimaryKeyColumnValues pk;
 
     ib.process(json_doc);
@@ -112,6 +114,8 @@ class QueryRestObjectInsert : private QueryLog {
       }
 
       session->execute("COMMIT");
+
+      affected = session->affected_rows();
     } catch (...) {
       session->execute("ROLLBACK");
       throw;

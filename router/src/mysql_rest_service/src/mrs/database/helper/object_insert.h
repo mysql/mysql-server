@@ -34,6 +34,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "mrs/database/entry/auth_user.h"
 #include "mrs/database/entry/object.h"
 #include "mysqlrouter/utils_sqlstring.h"
 
@@ -44,8 +45,13 @@ class JsonInsertBuilder {
  public:
   using PrimaryKeyColumnValues = std::map<std::string, mysqlrouter::sqlstring>;
 
-  explicit JsonInsertBuilder(std::shared_ptr<entry::Object> object)
-      : m_object(object) {}
+  explicit JsonInsertBuilder(
+      std::shared_ptr<entry::Object> object,
+      const std::string &row_ownership_column = {},
+      const entry::AuthUser::UserId &requesting_user_id = {})
+      : m_object(object),
+        m_row_ownership_column(row_ownership_column),
+        m_requesting_user_id(requesting_user_id) {}
 
   void process(const rapidjson::Value &doc);
 
@@ -58,28 +64,31 @@ class JsonInsertBuilder {
 
  private:
   std::shared_ptr<entry::Object> m_object;
+  std::string m_row_ownership_column;
+  entry::AuthUser::UserId m_requesting_user_id;
+
+  std::shared_ptr<entry::ObjectField> m_pk_field;
 
   struct TableRowData {
     std::shared_ptr<entry::FieldSource> source;
     mysqlrouter::sqlstring columns;
     mysqlrouter::sqlstring values;
   };
+  PrimaryKeyColumnValues m_predefined_pk_values;
 
   std::vector<TableRowData> m_rows;
 
   void process_object(std::shared_ptr<entry::Object> object,
-                      const rapidjson::Value &doc);
+                      const rapidjson::Value &doc,
+                      const std::string &path = "");
 
   std::shared_ptr<entry::ObjectField> get_field(const entry::Object &object,
                                                 const std::string &name);
 
   void on_table_field(const entry::ObjectField &field,
-                      const rapidjson::Value &value,
-                      std::map<std::string, TableRowData> *rows);
-
-  void check_scalar_field_value_for_insert(const entry::ObjectField &field,
-                                           const rapidjson::Value &value,
-                                           const std::string &path) const;
+                      const mysqlrouter::sqlstring &value,
+                      std::map<std::string, TableRowData> *rows,
+                      const std::string &path);
 
   std::shared_ptr<entry::BaseTable> get_base_table() const;
   std::vector<std::shared_ptr<entry::ObjectField>> get_base_table_fields()
