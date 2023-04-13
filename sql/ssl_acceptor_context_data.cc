@@ -64,7 +64,7 @@ static bool verify_individual_certificate(const char *ssl_cert,
                                           const char *ssl_capath,
                                           const char *crl,
                                           const char *crl_path) {
-  if (my_access(ssl_cert, F_OK) == -1) {
+  if (!ssl_cert || my_access(ssl_cert, F_OK) == -1) {
     /* Cert not present */
     return false;
   }

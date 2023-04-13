@@ -1595,7 +1595,7 @@ The following options may be given as the first argument:
  If set to TRUE, server stops execution at the start up in
  case of invalid certificates When ALTER INSTANCE RELOAD
  TLS executed, new certficates will not be used if
- validation fails.
+ validation fails. 
  --tls-ciphersuites=name 
  --tmp-table-size=#  If an internal in-memory temporary table in the MEMORY or
  TempTable storage engine exceeds this size, MySQL will
@@ -2071,6 +2071,7 @@ terminology-use-previous NONE
 thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 1048576
+tls-certificates-enforced-validation FALSE
 tls-ciphersuites (No default value)
 tmp-table-size 16777216
 transaction-alloc-block-size 8192
