@@ -2778,8 +2778,7 @@ void recv_recover_page_func(
 
   /* Make sure that committing mtr does not change the modification
   LSN values of page */
-
-  mtr.discard_modifications();
+  ut_a(mtr.get_log_mode() == MTR_LOG_NONE);
 
   mtr_commit(&mtr);
 
