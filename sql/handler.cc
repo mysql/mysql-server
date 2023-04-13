@@ -943,6 +943,17 @@ static bool closecon_handlerton(THD *thd, plugin_ref plugin, void *) {
   return false;
 }
 
+static bool reset_plugin_vars_handlerton(THD *thd, plugin_ref plugin, void *) {
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+  if (hton->reset_plugin_vars != nullptr) hton->reset_plugin_vars(thd);
+  return false;
+}
+
+void ha_reset_plugin_vars(THD *thd) {
+  plugin_foreach(thd, reset_plugin_vars_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN,
+                 nullptr);
+}
+
 /**
   @note
     don't bother to rollback here, it's done already

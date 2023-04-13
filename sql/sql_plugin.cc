@@ -3097,6 +3097,7 @@ void plugin_thdvar_cleanup(THD *thd, bool enable_plugins) {
   DBUG_TRACE;
 
   if (enable_plugins) {
+    ha_reset_plugin_vars(thd);
     MUTEX_LOCK(plugin_lock, &LOCK_plugin);
     unlock_variables(&thd->variables);
     size_t idx;

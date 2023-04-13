@@ -1350,6 +1350,13 @@ typedef void (*kill_connection_t)(handlerton *hton, THD *thd);
 typedef void (*pre_dd_shutdown_t)(handlerton *hton);
 
 /**
+  Some plugin session variables may require some special handling
+  upon clean up. Reset appropriately these variables before
+  ending the THD connection
+*/
+typedef void (*reset_plugin_vars_t)(THD *thd);
+
+/**
   sv points to a storage area, that was earlier passed
   to the savepoint_set call
 */
@@ -2695,6 +2702,7 @@ struct handlerton {
   close_connection_t close_connection;
   kill_connection_t kill_connection;
   pre_dd_shutdown_t pre_dd_shutdown;
+  reset_plugin_vars_t reset_plugin_vars;
   savepoint_set_t savepoint_set;
   savepoint_rollback_t savepoint_rollback;
   savepoint_rollback_can_release_mdl_t savepoint_rollback_can_release_mdl;
@@ -7254,6 +7262,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin);
 
 TYPELIB *ha_known_exts();
 int ha_panic(enum ha_panic_function flag);
+void ha_reset_plugin_vars(THD *thd);
 void ha_close_connection(THD *thd);
 void ha_kill_connection(THD *thd);
 /** Invoke handlerton::pre_dd_shutdown() on every storage engine plugin. */
