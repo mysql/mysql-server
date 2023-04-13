@@ -433,9 +433,11 @@ std::string FilterObjectGenerator::resolve_field_name(const char *name) const {
           return mysqlrouter::sqlstring("!") << field->db_name;
       }
     }
+    // TODO(alfredo) filter on nested fields
+    throw std::runtime_error("Cannot filter on field "s + name);
+  } else {
+    return name;
   }
-  // TODO(alfredo) filter on nested fields
-  throw std::runtime_error("Cannot filter on field "s + name);
 }
 
 }  // namespace database

@@ -75,22 +75,11 @@ class QueryRestObjectInsert : private QueryLog {
   }
 
  public:
-  // XXX delme
-  template <typename KeysIt, typename ValuesIt>
-  void execute_insert(MySQLSession *session, const std::string &schema,
-                      const std::string &object, const KeysIt &kit,
-                      const ValuesIt &vit) {
-    query_ = {"INSERT INTO !.!(!) VALUES   (?)"};
-    query_ << schema << object << kit << vit;
-    execute(session);
-    affected = 1;
-  }
-
-  PrimaryKeyColumnValues execute_insert(MySQLSession *session,
-                                        std::shared_ptr<Object> object,
-                                        const rapidjson::Document &json_doc,
-                                        const std::string &row_ownership_column,
-                                        rapidjson::Value requesting_user_id) {
+  PrimaryKeyColumnValues execute_insert(
+      MySQLSession *session, std::shared_ptr<Object> object,
+      const rapidjson::Document &json_doc,
+      const std::string &row_ownership_column = {},
+      rapidjson::Value requesting_user_id = {}) {
     JsonInsertBuilder ib(object, row_ownership_column,
                          std::move(requesting_user_id));
     PrimaryKeyColumnValues pk;
@@ -126,12 +115,12 @@ class QueryRestObjectInsert : private QueryLog {
     return pk;
   }
 
-  PrimaryKeyColumnValues execute_upsert(MySQLSession *session,
-                                        std::shared_ptr<Object> object,
-                                        const rapidjson::Document &json_doc,
-                                        const mysqlrouter::sqlstring &pk_value,
-                                        const std::string &row_ownership_column,
-                                        rapidjson::Value requesting_user_id) {
+  PrimaryKeyColumnValues execute_upsert(
+      MySQLSession *session, std::shared_ptr<Object> object,
+      const rapidjson::Document &json_doc,
+      const mysqlrouter::sqlstring &pk_value,
+      const std::string &row_ownership_column = {},
+      rapidjson::Value requesting_user_id = {}) {
     JsonInsertBuilder ib(object, pk_value, row_ownership_column,
                          std::move(requesting_user_id));
     PrimaryKeyColumnValues pk;

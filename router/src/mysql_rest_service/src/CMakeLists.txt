@@ -82,7 +82,6 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   mrs/database/helper/query_audit_log_maxid.cc
   mrs/database/helper/object_query.cc
   mrs/database/helper/object_insert.cc
-  mrs/database/helper/object_upsert.cc
   mrs/json/response_json_template.cc
   mrs/http/cookie.cc
   mrs/http/utilities.cc

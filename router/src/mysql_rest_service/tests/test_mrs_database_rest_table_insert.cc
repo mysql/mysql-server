@@ -28,6 +28,7 @@
 
 #include "mock/mock_session.h"
 #include "mrs/database/query_rest_table_insert.h"
+#include "test_mrs_object_utils.h"
 
 using namespace mrs::database;
 
@@ -49,49 +50,61 @@ auto from_container(C &c) {
 }
 
 TEST_F(DatabaseQueryInsertTest, insert_single_column) {
+  EXPECT_CALL(mock_session_, execute("START TRANSACTION"));
   EXPECT_CALL(
       mock_session_,
-      query("INSERT INTO `schema1`.`table1`(`column1`) VALUES('value1')", _,
+      query("INSERT INTO `schema1`.`table1` (`column1`) VALUES ('value1')", _,
             _));
-  std::vector<std::string> columns{"column1"};
-  std::vector<std::string> values{"value1"};
-  sut_.execute_insert(&mock_session_, "schema1", "table1",
-                      from_container(columns), from_container(values));
+  EXPECT_CALL(mock_session_, execute("COMMIT"));
+  EXPECT_CALL(mock_session_, affected_rows()).WillOnce(Return(1));
+
+  sut_.execute_insert(
+      &mock_session_,
+      make_simple_object("schema1", "table1", {{"column1", ""}}),
+      make_json(R"*({"column1":"value1"})*"), {}, {});
 }
 
 TEST_F(DatabaseQueryInsertTest, insert_multiple_columns) {
-  EXPECT_CALL(mock_session_, query("INSERT INTO `schema1`.`table1`(`column1`,"
-                                   "`column2`) VALUES('value1','value2')",
+  EXPECT_CALL(mock_session_, execute("START TRANSACTION"));
+  EXPECT_CALL(mock_session_, query("INSERT INTO `schema1`.`table1` (`column1`, "
+                                   "`column2`) VALUES ('value1', 'value2')",
                                    _, _));
-  std::vector<std::string> columns{"column1", "column2"};
-  std::vector<std::string> values{"value1", "value2"};
-  sut_.execute_insert(&mock_session_, "schema1", "table1",
-                      from_container(columns), from_container(values));
+  EXPECT_CALL(mock_session_, execute("COMMIT"));
+  EXPECT_CALL(mock_session_, affected_rows()).WillOnce(Return(1));
+  sut_.execute_insert(
+      &mock_session_,
+      make_simple_object("schema1", "table1",
+                         {{"column1", ""}, {"column2", ""}}),
+      make_json(R"*({"column1":"value1", "column2":"value2"})*"));
 }
 
 TEST_F(DatabaseQueryInsertTest, upinsert_single_column) {
+  EXPECT_CALL(mock_session_, execute("START TRANSACTION"));
   EXPECT_CALL(mock_session_,
-              query("UPDATE `schema1`.`table1` SET  `column1`='value1'"
-                    " WHERE `pk`='pk_value' ",
+              query("UPDATE `schema1`.`table1` SET `column1`='value1'"
+                    " WHERE `pk` = 'pk_value'",
                     _, _));
-  EXPECT_CALL(mock_session_, affected_rows()).WillOnce(Return(1));
-  std::vector<std::string> columns{"column1"};
-  std::vector<std::string> values{"value1"};
-  sut_.update(&mock_session_, "schema1", "table1", from_container(columns),
-              from_container(values), "pk",
-              (mysqlrouter::sqlstring{"?"} << "pk_value"), {}, {});
+  EXPECT_CALL(mock_session_, affected_rows()).WillRepeatedly(Return(1));
+  EXPECT_CALL(mock_session_, execute("COMMIT"));
+  sut_.execute_upsert(
+      &mock_session_,
+      make_simple_object("schema1", "table1", {{"pk", ""}, {"column1", ""}}),
+      make_json(R"*({"column1":"value1"})*"),
+      (mysqlrouter::sqlstring{"?"} << "pk_value"), {}, {});
 }
 
 TEST_F(DatabaseQueryInsertTest, upinsert_multiple_columns) {
+  EXPECT_CALL(mock_session_, execute("START TRANSACTION"));
   EXPECT_CALL(mock_session_,
-              query("UPDATE `schema1`.`table1` SET  `column1`='value1',"
-                    " `column2`='value2' WHERE "
-                    "`pk`='pk_value' ",
+              query("UPDATE `schema1`.`table1` SET `column1`='value1', "
+                    "`column2`='value2' WHERE `pk` = 'pk_value'",
                     _, _));
-  EXPECT_CALL(mock_session_, affected_rows()).WillOnce(Return(1));
-  std::vector<std::string> columns{"column1", "column2"};
-  std::vector<std::string> values{"value1", "value2"};
-  sut_.update(&mock_session_, "schema1", "table1", from_container(columns),
-              from_container(values), "pk",
-              (mysqlrouter::sqlstring{"?"} << "pk_value"), {}, {});
+  EXPECT_CALL(mock_session_, affected_rows()).WillRepeatedly(Return(1));
+  EXPECT_CALL(mock_session_, execute("COMMIT"));
+  sut_.execute_upsert(
+      &mock_session_,
+      make_simple_object("schema1", "table1",
+                         {{"pk", ""}, {"column1", ""}, {"column2", ""}}),
+      make_json(R"*({"column1":"value1", "column2":"value2"})*"),
+      (mysqlrouter::sqlstring{"?"} << "pk_value"), {}, {});
 }

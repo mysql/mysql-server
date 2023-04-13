@@ -27,8 +27,10 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
+#include "helper/json/text_to.h"
 #include "mrs/database/entry/object.h"
 
 using mrs::database::entry::BaseTable;
@@ -119,6 +121,25 @@ inline std::shared_ptr<ObjectField> add_object_field(
   object->fields.push_back(field);
 
   return field;
+}
+
+inline std::shared_ptr<Object> make_simple_object(
+    const std::string &schema, const std::string &table,
+    const std::vector<std::tuple<std::string, std::string>> &columns) {
+  auto t = make_table(schema, table);
+  auto o = make_object({}, {t});
+  for (const auto &c : columns) {
+    auto f = add_field(o, t, std::get<0>(c), std::get<0>(c));
+    f->db_datatype = std::get<1>(c);
+  }
+  o->fields[0]->db_is_primary = true;
+  return o;
+}
+
+inline rapidjson::Document make_json(const std::string &json) {
+  rapidjson::Document doc;
+  helper::json::text_to(&doc, json);
+  return doc;
 }
 
 inline void dump_object(std::shared_ptr<Object> object, int depth = 0) {

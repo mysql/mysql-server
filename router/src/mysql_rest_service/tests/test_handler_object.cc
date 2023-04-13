@@ -78,6 +78,20 @@ class HandleObjectTests : public Test {
         cached_columns_.emplace_back(a, "text");
       }
 
+      cached_object_ = std::make_shared<mrs::database::entry::Object>();
+      auto base_table = std::make_shared<mrs::database::entry::BaseTable>();
+      base_table->schema = schema;
+      base_table->table = object;
+      base_table->table_alias = "t";
+      cached_object_->base_tables.push_back(base_table);
+      for (auto &a : cached_columns) {
+        auto f = std::make_shared<mrs::database::entry::ObjectField>();
+        f->name = a;
+        f->db_datatype = "text";
+        f->source = base_table;
+        cached_object_->fields.push_back(f);
+      }
+
       expectSetup();
     }
 
@@ -105,6 +119,8 @@ class HandleObjectTests : public Test {
           .WillOnce(Return(ByMove(collector::MysqlCacheManager::CachedObject(
               nullptr, &parent_.mock_session))));
 
+      EXPECT_CALL(parent_.mock_route, get_cached_object())
+          .WillRepeatedly(Return(cached_object_));
       EXPECT_CALL(parent_.mock_route, get_cached_columnes())
           .WillRepeatedly(ReturnRef(cached_columns_));
       EXPECT_CALL(parent_.mock_route, get_cached_primary())
@@ -130,6 +146,7 @@ class HandleObjectTests : public Test {
     std::string rest_path_;
     std::string rest_url_;
     std::vector<helper::Column> cached_columns_;
+    std::shared_ptr<mrs::database::entry::Object> cached_object_;
   };
 
   HttpUri uri_{};

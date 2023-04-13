@@ -103,6 +103,8 @@ void JsonInsertBuilder::process_object(std::shared_ptr<entry::Object> object,
           "Unrecognized field '" + member_name + "' in JSON document");
     }
 
+    if (field->db_is_primary) found_pk_column = true;
+
     if (!m_row_ownership_column.empty() &&
         field->db_name == m_row_ownership_column) {
       found_row_ownership_column = true;
