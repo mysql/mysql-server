@@ -62,6 +62,7 @@ bool get_ranges_from_tree(MEM_ROOT *return_mem_root, TABLE *table,
       skip_records_in_range    Same value as JOIN_TAB::skip_records_in_range().
       cost_est                 Maximum cost. i.e. don't create read plans with
                                cost > cost_est.
+      ror_only                 true <=> consider only ROR scans.
       needed_reg               ptr to needed_reg argument
                                of test_quick_select().
 
@@ -82,7 +83,7 @@ AccessPath *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
                                  bool update_tbl_stats,
                                  enum_order interesting_order,
                                  bool skip_records_in_range, double cost_est,
-                                 Key_map *needed_reg);
+                                 bool ror_only, Key_map *needed_reg);
 
 /*
   Calculate estimate of number records that will be retrieved by a range

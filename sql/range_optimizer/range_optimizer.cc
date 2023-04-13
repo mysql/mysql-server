@@ -731,7 +731,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
                                        Opt_trace_context::RANGE_OPTIMIZER);
       AccessPath *range_path = get_key_scans_params(
           thd, &param, tree, false, true, interesting_order,
-          skip_records_in_range, best_cost, needed_reg);
+          skip_records_in_range, best_cost, /*ror_only=*/false, needed_reg);
 
       /* Get best 'range' plan and prepare data for making other plans */
       if (range_path) {
@@ -1083,7 +1083,8 @@ static AccessPath *get_best_disjunct_quick(
       Opt_trace_object trace_idx(trace);
       if (!(*cur_child = get_key_scans_params(
                 thd, param, *tree_it, true, false, ORDER_NOT_RELEVANT,
-                skip_records_in_range, read_cost, needed_reg))) {
+                skip_records_in_range, read_cost, /*ror_only=*/false,
+                needed_reg))) {
         /*
           One of index scans in this index_merge is more expensive than entire
           table read for another available option. The entire index_merge (and
@@ -1225,11 +1226,24 @@ static AccessPath *get_best_disjunct_quick(
     return imerge_path;
   }
 
-  AccessPath *roru = get_ror_union_path(
+  /* Collect best 'range' scan for each of disjuncts, and, while doing so,
+     consider only ROR scans. */
+  assert(imerge->trees.size() == n_child_scans);
+  for (size_t i = 0; i < n_child_scans; ++i) {
+    roru_read_plans[i] = get_key_scans_params(
+        thd, param, imerge->trees[i], true, false, ORDER_NOT_RELEVANT,
+        skip_records_in_range, read_cost, /*ror_only=*/true, needed_reg);
+  }
+
+  AccessPath *ror_union_path = get_ror_union_path(
       thd, param, table, index_merge_intersect_allowed, needed_fields, imerge,
       read_cost, force_index_merge, {roru_read_plans, n_child_scans},
-      range_scans, &trace_best_disjunct);
-  return (roru != nullptr) ? roru : imerge_path;
+      roru_read_plans, &trace_best_disjunct);
+
+  return (ror_union_path != nullptr &&
+          ror_union_path->cost <= imerge_path->cost)
+             ? ror_union_path
+             : imerge_path;
 }
 
 bool comparable_in_index(Item *cond_func, const Field *field,
