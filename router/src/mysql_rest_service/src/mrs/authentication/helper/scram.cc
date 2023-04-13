@@ -32,6 +32,7 @@
 #include "helper/json/rapid_json_to_struct.h"
 #include "helper/json/serializer_to_text.h"
 #include "helper/json/text_to.h"
+#include "helper/string/contains.h"
 #include "mrs/authentication/helper/http_result.h"
 
 #include "mysql/harness/string_utils.h"
@@ -237,7 +238,7 @@ class JsonAuthContinue
 
   bool RawNumber(const Ch *c, rapidjson::SizeType, bool) override {
     if (is_object_path()) return true;
-    if ("clientProof" != get_current_key()) return true;
+    if (!helper::starts_with(get_current_key(), "clientProof.")) return true;
 
     uint8_t v = static_cast<uint8_t>(as_int64(c));
     result_.client_proof.append(reinterpret_cast<char *>(&v), 1);
