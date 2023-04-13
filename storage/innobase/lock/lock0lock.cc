@@ -321,6 +321,23 @@ void lock_sys_create(
   lock_sys->prdt_hash = ut::new_<hash_table_t>(n_cells);
   lock_sys->prdt_page_hash = ut::new_<hash_table_t>(n_cells);
 
+  mutex_enter(&trx_sys->mutex);
+  uint16_t num_clusters = trx_sys->num_clusters;
+  mutex_exit(&trx_sys->mutex);
+
+  /* Number of sync rw-objects must be a power of 2. */
+  if (!ut_is_2pow(num_clusters)) {
+    num_clusters--;
+    num_clusters |= num_clusters >> 1;
+    num_clusters |= num_clusters >> 2;
+    num_clusters |= num_clusters >> 4;
+    num_clusters |= num_clusters >> 8;
+    num_clusters++;
+  }
+  lock_sys->cluster_hash = ut::new_<hash_table_t>(n_cells);
+  hash_create_sync_obj(
+    lock_sys->cluster_hash, LATCH_ID_HASH_TABLE_RW_LOCK, num_clusters);
+
   if (!srv_read_only_mode) {
     lock_latest_err_file = os_file_create_tmpfile();
     ut_a(lock_latest_err_file);
@@ -332,6 +349,63 @@ void lock_sys_create(
 @return	hashed value */
 static uint64_t lock_rec_lock_hash_value(const lock_t *lock) {
   return lock_rec_hash_value(lock->rec_lock.page_id);
+}
+
+/** Resize the cluster hash table.
+@param[in]	n_cells	number of slots in new hash table */
+void cluster_hash_resize(ulint n_cells) {
+  hash_table_t *old_hash;
+
+  old_hash = lock_sys->cluster_hash;
+  hash_lock_x_all(old_hash);
+  hash_table_t *table = ut::new_<hash_table_t>(n_cells);
+
+  mutex_enter(&trx_sys->mutex);
+  uint16_t num_clusters = trx_sys->num_clusters;
+  mutex_exit(&trx_sys->mutex);
+
+  /* Number of sync rw-objects must be a power of 2. */
+  if (!ut_is_2pow(num_clusters)) {
+    num_clusters--;
+    num_clusters |= num_clusters >> 1;
+    num_clusters |= num_clusters >> 2;
+    num_clusters |= num_clusters >> 4;
+    num_clusters |= num_clusters >> 8;
+    num_clusters++;
+  }
+  hash_create_sync_obj(
+    lock_sys->cluster_hash, LATCH_ID_HASH_TABLE_RW_LOCK, num_clusters);
+
+  HASH_MIGRATE(old_hash, table); // TODO(accheng): need to update this with new lock class!!
+                // lock_t, hash, lock_rec_lock_hash_value);
+
+  lock_sys->cluster_hash = table;
+  hash_unlock_x_all(old_hash);
+
+  /* Empty cluster hash table and free the memory heaps. */
+  ut_ad(old_hash->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
+  ut_ad(!old_hash->adaptive || btr_search_own_all(RW_LOCK_X));
+  ut_ad(old_hash->type == HASH_TABLE_SYNC_RW_LOCK);
+  ut_ad(old_hash->heap == nullptr);
+
+  for (size_t i = 0; i < old_hash->n_sync_obj; ++i) {
+    rw_lock_free(&old_hash->rw_locks[i]);
+  }
+
+  ut::free(old_hash->rw_locks);
+  old_hash->rw_locks = nullptr;
+
+  old_hash->n_sync_obj = 0;
+  old_hash->type = HASH_TABLE_SYNC_NONE;
+
+  /* Clear the hash table. */
+  size_t n = hash_get_n_cells(old_hash);
+
+  for (size_t i = 0; i < n; i++) {
+    hash_get_nth_cell(old_hash, i)->node = nullptr;
+  }
+  ut::delete_(old_hash);
+
 }
 
 /** Resize the lock hash tables.
@@ -385,6 +459,30 @@ void lock_sys_close(void) {
   ut::delete_(lock_sys->rec_hash);
   ut::delete_(lock_sys->prdt_hash);
   ut::delete_(lock_sys->prdt_page_hash);
+
+  /* Empty cluster hash table and free the memory heaps. */
+  ut_ad(lock_sys->cluster_hash->magic_n == hash_table_t::HASH_TABLE_MAGIC_N);
+  ut_ad(!lock_sys->cluster_hash->adaptive || btr_search_own_all(RW_LOCK_X));
+  ut_ad(lock_sys->cluster_hash->type == HASH_TABLE_SYNC_RW_LOCK);
+  ut_ad(lock_sys->cluster_hash->heap == nullptr);
+
+  for (size_t i = 0; i < lock_sys->cluster_hash->n_sync_obj; ++i) {
+    rw_lock_free(&lock_sys->cluster_hash->rw_locks[i]);
+  }
+
+  ut::free(lock_sys->cluster_hash->rw_locks);
+  lock_sys->cluster_hash->rw_locks = nullptr;
+
+  lock_sys->cluster_hash->n_sync_obj = 0;
+  lock_sys->cluster_hash->type = HASH_TABLE_SYNC_NONE;
+
+  /* Clear the hash table. */
+  size_t n = hash_get_n_cells(lock_sys->cluster_hash);
+
+  for (size_t i = 0; i < n; i++) {
+    hash_get_nth_cell(lock_sys->cluster_hash, i)->node = nullptr;
+  }
+  ut::delete_(lock_sys->cluster_hash);
 
   os_event_destroy(lock_sys->timeout_event);
 

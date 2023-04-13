@@ -1030,6 +1030,9 @@ struct lock_sys_t {
   /** The hash table of the predicate page (LOCK_PRD_PAGE) locks */
   hash_table_t *prdt_page_hash;
 
+  /* Hash table with rw locks for cluster locks. */
+  hash_table_t *cluster_hash;
+
   /** Padding to avoid false sharing of wait_mutex field */
   char pad2[ut::INNODB_CACHE_LINE_SIZE];
 

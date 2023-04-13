@@ -598,7 +598,7 @@ void trx_sys_create(void) {
 
   /* TODO(accheng): cluster length is currently hardcoded. */
   trx_sys->cluster_sched = ut::new_arr_withkey<uint64_t>(
-    ut::make_psi_memory_key(mem_key_dict_stats_n_diff_on_level),
+    ut::make_psi_memory_key(mem_key_trx_sys_t_cluster_sched),
     ut::Count{1000});
   set_cluster_sched();
 
