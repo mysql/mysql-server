@@ -242,7 +242,7 @@ TEST(MrsObjectPost, nested_1n_base_aipk) {
           sql.str());
 
       EXPECT_EQ("country_id", ib.column_for_last_insert_id());
-      EXPECT_EQ(0, ib.fixed_primary_key_values().size());
+      EXPECT_EQ(0, ib.predefined_primary_key_values().size());
       auto auto_inc_value = mysqlrouter::sqlstring("42");
 
       auto extra_sql = ib.additional_inserts({{"country_id", auto_inc_value}});
@@ -454,7 +454,7 @@ TEST(MrsObjectPost, nested_nm_base) {
                 sql.str());
 
       EXPECT_EQ("actor_id", ib.column_for_last_insert_id());
-      EXPECT_EQ(0, ib.fixed_primary_key_values().size());
+      EXPECT_EQ(0, ib.predefined_primary_key_values().size());
       auto auto_inc_value = mysqlrouter::sqlstring("42");
 
       auto extra_sql = ib.additional_inserts({{"actor_id", auto_inc_value}});

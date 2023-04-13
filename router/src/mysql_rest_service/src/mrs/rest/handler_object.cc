@@ -445,23 +445,8 @@ HttpResult HandlerObject::handle_delete(rest::RequestContext *ctxt) {
 // Update, with insert possibility
 HttpResult HandlerObject::handle_put([
     [maybe_unused]] rest::RequestContext *ctxt) {
-  auto &pk = route_->get_cached_primary().name;
   auto pk_value = rest_param_to_sql_value(
       get_path_after_object_name(ctxt->request->get_uri()));
-
-  if (pk_value.str().empty()) {
-    auto &ownershipt = route_->get_user_row_ownership();
-    bool is_pk_enforced = ownershipt.user_ownership_enforced
-                              ? ownershipt.user_ownership_column ==
-                                    route_->get_cached_primary().name
-                              : false;
-
-    if (!is_pk_enforced)
-      throw http::Error(HttpStatusCode::BadRequest,
-                        "Key value is required inside the URL.");
-
-    pk_value = to_sqlstring(ctxt->user.user_id);
-  }
 
   auto &input_buffer = ctxt->request->get_input_buffer();
   auto size = input_buffer.length();
@@ -490,58 +475,26 @@ HttpResult HandlerObject::handle_put([
   }
 
   auto json_obj = json_doc.GetObject();
-  FillOwnership fill_owner{route_->get_user_row_ownership(),
-                           ctxt->user.user_id};
-  std::vector<sqlstring> values = create_value_container(json_obj, fill_owner);
-  // TODO(lkotula): Step1. Remember column types and look at json-type.
-  // Step2. Choose best conversions for both types or return an error.(Shouldn't
-  // be in review)
-  auto keys_iterators = JsonKeyIterator::from_iterators(json_doc.MemberBegin(),
-                                                        json_doc.MemberEnd());
-  auto values_iterators = SqlValueIterator::from_container(values);
-
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
 
-  if (0 == insert.update(session.get(), route_->get_schema_name(),
-                         route_->get_object_name(), keys_iterators,
-                         values_iterators, route_->get_cached_primary().name,
-                         pk_value, {}, {})) {
-    if (!json_obj.HasMember(pk.c_str())) {
-      FillSpecificColumn fill_pk{pk, pk_value};
-      json_doc.AddMember(StringRef(pk.c_str(), pk.length()), rapidjson::Value(),
-                         json_doc.GetAllocator());
+  auto pk = insert.execute_upsert(
+      session.get(), object, json_doc, pk_value,
+      route_->get_user_row_ownership().user_ownership_enforced
+          ? route_->get_user_row_ownership().user_ownership_column
+          : "",
+      rapidjson::Value(ctxt->user.user_id.to_string().c_str(),
+                       json_doc.GetAllocator()));
 
-      values =
-          create_value_container(json_obj, fill_multiple(fill_owner, fill_pk));
-    }
-    keys_iterators = JsonKeyIterator::from_iterators(json_doc.MemberBegin(),
-                                                     json_doc.MemberEnd());
-    values_iterators = SqlValueIterator::from_container(values);
-    insert.execute_insert(session.get(), route_->get_schema_name(),
-                          route_->get_object_name(), keys_iterators,
-                          values_iterators);
-  }
   Counter<kEntityCounterRestAffectedItems>::increment(insert.affected);
-
-  // The ID of the JSON object was modified, fetch by new ID.
-  if (json_obj.HasMember(pk.c_str())) {
-    auto vit = values_iterators.first;
-    for (auto &member : json_obj) {
-      if (pk == member.name.GetString()) {
-        pk_value = *vit;
-        break;
-      }
-      ++vit;
-    }
-  }
 
   if (!route_->get_cached_primary().name.empty()) {
     database::QueryRestTableSingleRow fetch_one;
 
     fetch_one.query_entries(session.get(), object,
                             database::ObjectFieldFilter::from_object(*object),
-                            pk, pk_value, route_->get_rest_url());
+                            pk.begin()->first, pk.begin()->second,
+                            route_->get_rest_url());
 
     Counter<kEntityCounterRestAffectedItems>::increment(fetch_one.items);
     return std::move(fetch_one.response);
