@@ -80,7 +80,7 @@ void JsonInsertBuilder::process(const rapidjson::Document &doc) {
     log_error(
         "Object for table '%s' has no PRIMARY KEY defined in MRS metadata",
         m_object->base_tables.front()->table.c_str());
-    throw std::runtime_error("Configuration error in database");
+    throw std::runtime_error("Metadata configuration error");
   }
 
   process_object(m_object, doc);
@@ -120,6 +120,7 @@ void JsonInsertBuilder::process_object(std::shared_ptr<entry::Object> object,
     }
   }
 
+  bool pk_is_owner_id = m_row_ownership_column == m_pk_field->db_name;
   if (m_is_update) {
     if (!m_updated_pk_value.has_value() || m_updated_pk_value->str().empty()) {
       // PK value of the object to be updated MUST come with the request
@@ -127,7 +128,6 @@ void JsonInsertBuilder::process_object(std::shared_ptr<entry::Object> object,
       // PK column is also the row ownership column. This allows all tables with
       // row-level access control to be updated while taking the user id from
       // the session data
-      bool pk_is_owner_id = m_row_ownership_column == m_pk_field->db_name;
       if (!pk_is_owner_id)
         throw http::Error(HttpStatusCode::BadRequest,
                           "Key value is required inside the URL.");
@@ -139,7 +139,8 @@ void JsonInsertBuilder::process_object(std::shared_ptr<entry::Object> object,
       m_predefined_pk_values[m_pk_field->db_name] = *m_updated_pk_value;
     }
   } else {
-    if (path.empty() && !found_pk_column && !m_pk_field->db_auto_inc) {
+    if (path.empty() && !found_pk_column && !m_pk_field->db_auto_inc &&
+        !pk_is_owner_id) {
       throw http::Error(
           HttpStatusCode::BadRequest,
           "Inserted document must contain a primary key, it may be auto "
@@ -148,7 +149,7 @@ void JsonInsertBuilder::process_object(std::shared_ptr<entry::Object> object,
   }
 
   if (!m_row_ownership_column.empty() && !found_row_ownership_column) {
-    auto field = get_field(*object, m_row_ownership_column);
+    auto field = get_field_by_column_name(*object, m_row_ownership_column);
     if (!field) {
       log_error("Could not find metadata for row owner field '%s'",
                 m_row_ownership_column.c_str());
@@ -207,9 +208,14 @@ mysqlrouter::sqlstring JsonInsertBuilder::update() {
 
       mysqlrouter::sqlstring where;
       if (!m_row_ownership_column.empty()) {
-        where = mysqlrouter::sqlstring(" WHERE ! = ? AND ! = ?");
-        where << m_pk_field->db_name << *m_updated_pk_value;
-        where << m_row_ownership_column << m_requesting_user_id;
+        if (m_row_ownership_column == m_pk_field->db_name) {
+          where = mysqlrouter::sqlstring(" WHERE ! = ?");
+          where << m_row_ownership_column << m_requesting_user_id;
+        } else {
+          where = mysqlrouter::sqlstring(" WHERE ! = ? AND ! = ?");
+          where << m_pk_field->db_name << *m_updated_pk_value;
+          where << m_row_ownership_column << m_requesting_user_id;
+        }
       } else {
         where = mysqlrouter::sqlstring(" WHERE ! = ?");
         where << m_pk_field->db_name << *m_updated_pk_value;
@@ -265,6 +271,14 @@ std::shared_ptr<entry::ObjectField> JsonInsertBuilder::get_field(
     const entry::Object &object, const std::string &name) {
   for (const auto &f : object.fields) {
     if (f->name == name) return f;
+  }
+  return {};
+}
+
+std::shared_ptr<entry::ObjectField> JsonInsertBuilder::get_field_by_column_name(
+    const entry::Object &object, const std::string &db_name) {
+  for (const auto &f : object.fields) {
+    if (f->db_name == db_name) return f;
   }
   return {};
 }

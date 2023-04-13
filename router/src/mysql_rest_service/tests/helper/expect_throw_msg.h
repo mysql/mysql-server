@@ -77,4 +77,40 @@ struct String_msg {
 #define EXPECT_THROW_MSG(statement, expected_exception, msg) \
   TEST_THROW_MSG_(statement, expected_exception, msg, GTEST_NONFATAL_FAILURE_)
 
+#define EXPECT_HTTP_ERROR_(statement, sts, msg, fail)                  \
+  GTEST_AMBIGUOUS_ELSE_BLOCKER_                                        \
+  if (::testing::internal::String_msg gtest_msg = "") {                \
+    bool gtest_caught_expected = false;                                \
+    try {                                                              \
+      GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement);       \
+    } catch (mrs::http::Error const &ee) {                             \
+      if (ee.message == msg && ee.status == sts) {                     \
+        gtest_caught_expected = true;                                  \
+      } else {                                                         \
+        gtest_msg.value =                                              \
+            "Expected: " #statement " throws HTTP Error status=" +     \
+            std::to_string(sts) + " message=\"" + std::string(msg) +   \
+            "\".\n  Actual: status=" + std::to_string(ee.status) +     \
+            " message=\"" + ee.message + "\".";                        \
+        goto GTEST_CONCAT_TOKEN_(gtest_label_testthrowmsg_, __LINE__); \
+      }                                                                \
+    } catch (...) {                                                    \
+      gtest_msg.value = "Expected: " #statement                        \
+                        " throws an exception of type http::Error"     \
+                        ".\n  Actual: it throws a different type.";    \
+      goto GTEST_CONCAT_TOKEN_(gtest_label_testthrowmsg_, __LINE__);   \
+    }                                                                  \
+    if (!gtest_caught_expected) {                                      \
+      gtest_msg.value = "Expected: " #statement                        \
+                        " throws an exception of type http::Error"     \
+                        ".\n  Actual: it throws nothing.";             \
+      goto GTEST_CONCAT_TOKEN_(gtest_label_testthrowmsg_, __LINE__);   \
+    }                                                                  \
+  } else                                                               \
+    GTEST_CONCAT_TOKEN_(gtest_label_testthrowmsg_, __LINE__)           \
+        : fail(gtest_msg.value.c_str())
+
+#define EXPECT_HTTP_ERROR(statement, sts, msg) \
+  EXPECT_HTTP_ERROR_(statement, sts, msg, GTEST_NONFATAL_FAILURE_)
+
 #endif  // ROUTER_SRC_MYSQL_REST_SERVICE_TESTS_HELPER_EXPECT_THROW_MSG_H_
