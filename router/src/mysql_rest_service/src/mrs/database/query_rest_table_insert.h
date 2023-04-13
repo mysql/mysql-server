@@ -38,6 +38,7 @@ namespace database {
 class QueryRestObjectInsert : private QueryLog {
  public:
   using Object = entry::Object;
+  using PrimaryKeyColumnValues = JsonInsertBuilder::PrimaryKeyColumnValues;
 
  private:
   template <typename K, typename V>
@@ -85,14 +86,14 @@ class QueryRestObjectInsert : private QueryLog {
     affected = 1;
   }
 
-  JsonInsertBuilder::PrimaryKeyColumnValues execute_insert(
-      MySQLSession *session, std::shared_ptr<Object> object,
-      const rapidjson::Document &json_doc,
-      const std::string &row_ownership_column,
-      rapidjson::Value requesting_user_id) {
+  PrimaryKeyColumnValues execute_insert(MySQLSession *session,
+                                        std::shared_ptr<Object> object,
+                                        const rapidjson::Document &json_doc,
+                                        const std::string &row_ownership_column,
+                                        rapidjson::Value requesting_user_id) {
     JsonInsertBuilder ib(object, row_ownership_column,
                          std::move(requesting_user_id));
-    JsonInsertBuilder::PrimaryKeyColumnValues pk;
+    PrimaryKeyColumnValues pk;
 
     ib.process(json_doc);
 
@@ -101,7 +102,7 @@ class QueryRestObjectInsert : private QueryLog {
       query_ = ib.insert();
       execute(session);
 
-      pk = ib.fixed_primary_key_values();
+      pk = ib.predefined_primary_key_values();
       auto auto_inc_column = ib.column_for_last_insert_id();
       if (!auto_inc_column.empty()) {
         auto value = (*session->query_one("SELECT LAST_INSERT_ID()"))[0];
@@ -125,7 +126,49 @@ class QueryRestObjectInsert : private QueryLog {
     return pk;
   }
 
-  // XXX delme
+  PrimaryKeyColumnValues execute_upsert(MySQLSession *session,
+                                        std::shared_ptr<Object> object,
+                                        const rapidjson::Document &json_doc,
+                                        const mysqlrouter::sqlstring &pk_value,
+                                        const std::string &row_ownership_column,
+                                        rapidjson::Value requesting_user_id) {
+    JsonInsertBuilder ib(object, pk_value, row_ownership_column,
+                         std::move(requesting_user_id));
+    PrimaryKeyColumnValues pk;
+
+    ib.process(json_doc);
+
+    session->execute("START TRANSACTION");
+    try {
+      query_ = ib.update();
+      execute(session);
+      affected = session->affected_rows();
+
+      pk = ib.predefined_primary_key_values();
+
+      if (affected == 0) {
+        ib.insert();
+        execute(session);
+
+        auto auto_inc_column = ib.column_for_last_insert_id();
+        if (!auto_inc_column.empty()) {
+          auto value = (*session->query_one("SELECT LAST_INSERT_ID()"))[0];
+
+          pk[auto_inc_column] = value;
+        }
+      }
+
+      session->execute("COMMIT");
+
+      affected = session->affected_rows();
+    } catch (...) {
+      session->execute("ROLLBACK");
+      throw;
+    }
+
+    return pk;
+  }
+
   template <typename KeysIt, typename ValuesIt>
   bool update(MySQLSession *session, const std::string &schema,
               const std::string &object, const KeysIt &kit, const ValuesIt &vit,

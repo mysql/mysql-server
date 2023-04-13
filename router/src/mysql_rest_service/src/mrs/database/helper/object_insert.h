@@ -50,7 +50,18 @@ class JsonInsertBuilder {
                              rapidjson::Value requesting_user_id = {})
       : m_object(object),
         m_row_ownership_column(row_ownership_column),
-        m_requesting_user_id(std::move(requesting_user_id)) {}
+        m_requesting_user_id(std::move(requesting_user_id)),
+        m_is_update(false) {}
+
+  JsonInsertBuilder(std::shared_ptr<entry::Object> object,
+                    const mysqlrouter::sqlstring &updated_pk_value,
+                    const std::string &row_ownership_column = {},
+                    rapidjson::Value requesting_user_id = {})
+      : m_object(object),
+        m_row_ownership_column(row_ownership_column),
+        m_requesting_user_id(std::move(requesting_user_id)),
+        m_is_update(true),
+        m_updated_pk_value(updated_pk_value) {}
 
   void process(const rapidjson::Document &doc);
 
@@ -59,7 +70,9 @@ class JsonInsertBuilder {
       const PrimaryKeyColumnValues &base_primary_key) const;
 
   std::string column_for_last_insert_id() const;
-  PrimaryKeyColumnValues fixed_primary_key_values() const;
+  PrimaryKeyColumnValues predefined_primary_key_values() const;
+
+  mysqlrouter::sqlstring update();
 
  private:
   std::shared_ptr<entry::Object> m_object;
@@ -68,10 +81,13 @@ class JsonInsertBuilder {
 
   std::shared_ptr<entry::ObjectField> m_pk_field;
 
+  bool m_is_update = false;
+  std::optional<mysqlrouter::sqlstring> m_updated_pk_value;
+
   struct TableRowData {
     std::shared_ptr<entry::FieldSource> source;
-    mysqlrouter::sqlstring columns;
-    mysqlrouter::sqlstring values;
+    std::vector<mysqlrouter::sqlstring> columns;
+    std::vector<mysqlrouter::sqlstring> values;
   };
   PrimaryKeyColumnValues m_predefined_pk_values;
 
@@ -92,6 +108,10 @@ class JsonInsertBuilder {
   std::shared_ptr<entry::BaseTable> get_base_table() const;
   std::vector<std::shared_ptr<entry::ObjectField>> get_base_table_fields()
       const;
+
+  void validate_scalar_field_value_for_insert(const entry::ObjectField &field,
+                                              const rapidjson::Value &value,
+                                              const std::string &path) const;
 };
 
 }  // namespace database
