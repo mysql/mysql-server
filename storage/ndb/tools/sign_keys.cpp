@@ -52,6 +52,7 @@
 #include "util/NodeCertificate.hpp"
 #include "util/SocketServer.hpp"
 #include "util/TlsKeyErrors.h"
+#include "util/TlsKeyManager.hpp"
 
 /* On Win32 applink.c must be included in one compilation unit */
 #ifdef _WIN32
@@ -115,6 +116,7 @@ static struct my_option sign_keys_options[] =
   NdbStdOpt::connect_retries,
   NdbStdOpt::connect_retry_delay,
   NdbStdOpt::tls_search_path,
+  NdbStdOpt::mgm_tls,
   { "config-file", 'f', "Read cluster configuration from file",
     &opt_ndb_config_file, nullptr, nullptr, GET_STR, REQUIRED_ARG,
     0, 0, 0, nullptr, 0, nullptr },
@@ -438,7 +440,7 @@ Config * read_configuration(const char * config_file) {
   return parser.parseConfig(config_file);
 }
 
-Config * fetch_configuration() {
+Config * fetch_configuration(SSL_CTX * ctx) {
   ndb_mgm_configuration* conf = 0;
 
   NdbMgmHandle mgm = ndb_mgm_create_handle();
@@ -447,6 +449,7 @@ Config * fetch_configuration() {
     return nullptr;
   }
 
+  ndb_mgm_set_ssl_ctx(mgm, ctx);
   ndb_mgm_set_error_stream(mgm, stderr);
 
   if (ndb_mgm_set_connectstring(mgm, opt_ndb_connectstring)) {
@@ -457,7 +460,9 @@ Config * fetch_configuration() {
     goto noconnect;
   }
 
-  if(ndb_mgm_connect(mgm, opt_connect_retries - 1, opt_connect_retry_delay, 1))
+  if(ndb_mgm_connect_tls(mgm,
+                         opt_connect_retries - 1, opt_connect_retry_delay, 1,
+                         opt_mgm_tls))
   {
     ndberr << "Connect failed, code: " << ndb_mgm_get_latest_error(mgm)
            << ", msg: " << ndb_mgm_get_latest_error_msg(mgm) << endl;
@@ -880,6 +885,8 @@ const NodeCertificate * sign_key(const SigningRequest *, stack_st_X509 * CA,
 
 int main(int argc, char** argv) {
   PkiFile::PathName csr_file, ca_key_file, ca_cert_file;
+  TlsKeyManager keyManager;
+  SSL_CTX * ctx = nullptr;
   EVP_PKEY * ca_key = nullptr;
   stack_st_X509 * ca_certs = nullptr;
   int rs = 0;
@@ -895,6 +902,10 @@ int main(int argc, char** argv) {
 
   if (! check_options())
     return fatal_error_invalid_options();
+
+  /* Try to init TlsKeyManager. */
+  keyManager.init_mgm_client(opt_tls_search_path);
+  ctx = keyManager.ctx();
 
   /* Main search path and destination directory */
   TlsSearchPath * search_path = new TlsSearchPath(opt_tls_search_path);
@@ -1004,7 +1015,7 @@ int main(int argc, char** argv) {
 
   /* (6) Obtain cluster configuration from file or mgmd */
   Config * conf = opt_ndb_config_file ?
-    read_configuration(opt_ndb_config_file) : fetch_configuration();
+    read_configuration(opt_ndb_config_file) : fetch_configuration(ctx);
   if(conf == nullptr) return fatal_error_cannot_read_config();
 
   /* (7) Generate node keys and certificates for this host, per config */
