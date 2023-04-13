@@ -983,10 +983,10 @@ SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
 # -----------------------------------------------------
 START TRANSACTION;
 USE `mysql_rest_service_metadata`;
-INSERT INTO `mysql_rest_service_metadata`.`auth_vendor` (`id`, `name`, `validation_url`, `enabled`, `comments`) VALUES (0x30, 'MRS', 'NULL', 1, 'Built-in user management of MRS');
-INSERT INTO `mysql_rest_service_metadata`.`auth_vendor` (`id`, `name`, `validation_url`, `enabled`, `comments`) VALUES (0x31, 'MySQL Internal', 'NULL', 1, 'Provides basic authentication via MySQL Server accounts');
-INSERT INTO `mysql_rest_service_metadata`.`auth_vendor` (`id`, `name`, `validation_url`, `enabled`, `comments`) VALUES (0x32, 'Facebook', 'NULL', 1, 'Uses the Facebook Login OAuth2 service');
-INSERT INTO `mysql_rest_service_metadata`.`auth_vendor` (`id`, `name`, `validation_url`, `enabled`, `comments`) VALUES (0x34, 'Google', 'NULL', 1, 'Uses the Google OAuth2 service');
+INSERT INTO `mysql_rest_service_metadata`.`auth_vendor` (`id`, `name`, `validation_url`, `enabled`, `comments`) VALUES (0x30, 'MRS', NULL, 1, 'Built-in user management of MRS');
+INSERT INTO `mysql_rest_service_metadata`.`auth_vendor` (`id`, `name`, `validation_url`, `enabled`, `comments`) VALUES (0x31, 'MySQL Internal', NULL, 1, 'Provides basic authentication via MySQL Server accounts');
+INSERT INTO `mysql_rest_service_metadata`.`auth_vendor` (`id`, `name`, `validation_url`, `enabled`, `comments`) VALUES (0x32, 'Facebook', NULL, 1, 'Uses the Facebook Login OAuth2 service');
+INSERT INTO `mysql_rest_service_metadata`.`auth_vendor` (`id`, `name`, `validation_url`, `enabled`, `comments`) VALUES (0x34, 'Google', NULL, 1, 'Uses the Google OAuth2 service');
 
 COMMIT;
 

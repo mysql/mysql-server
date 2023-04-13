@@ -67,10 +67,16 @@ std::string Oauth2GoogleHandler::get_url_location(GenericSessionData *,
   if (requests_uri.get_query().length()) {
     uri += "?" + requests_uri.get_query();
   }
-  result += "?response_type=code&client_id=" + entry_.app_id +
-            "&scope=https://www.googleapis.com/auth/userinfo.email "
-            "https://www.googleapis.com/auth/userinfo.profile&redirect_uri=" +
-            uri;
+  auto scope = evhttp_encode_uri(
+      "https://www.googleapis.com/auth/userinfo.email "
+      "https://www.googleapis.com/auth/userinfo.profile");
+
+  result += "?response_type=code&client_id=" + entry_.app_id;
+  result += "&state=first";
+  result += "&scope=";
+  result += scope;
+  result += "&redirect_uri=" + uri;
+  free(scope);
   return result;
 }
 
@@ -84,9 +90,9 @@ std::string Oauth2GoogleHandler::get_url_direct_auth() const {
 std::string Oauth2GoogleHandler::get_url_validation(
     GenericSessionData *data) const {
   std::string result{entry_.url_validation.empty()
-                         ? "https://graph.facebook.com/me"
+                         ? "https://www.googleapis.com/oauth2/v3/userinfo"
                          : entry_.url_validation};
-  result += "?fields=id,name,email&access_token=" + data->access_token;
+  result += "?access_token=" + data->access_token;
   return result;
 }
 
@@ -110,10 +116,10 @@ RequestHandlerPtr Oauth2GoogleHandler::get_request_handler_access_token(
 
 RequestHandlerPtr Oauth2GoogleHandler::get_request_handler_verify_account(
     Session *session, GenericSessionData *) {
-  RequestHandler *result =
-      new RequestHandlerJsonSimpleObject{{{"id", &session->user.vendor_user_id},
-                                          {"name", &session->user.name},
-                                          {"email", &session->user.email}}};
+  RequestHandler *result = new RequestHandlerJsonSimpleObject{
+      {{"sub", &session->user.vendor_user_id},
+       {"name", &session->user.name},
+       {"email", &session->user.email}}};
 
   return RequestHandlerPtr{result};
 }
