@@ -153,7 +153,7 @@ void Decompressing_event_object_istream::set_grow_calculator(
 }
 
 bool Decompressing_event_object_istream::decode_from_buffer(
-    Buffer_ptr_t &buffer_ptr, Event_ptr_t &out) {
+    Buffer_view_t &buffer_view, Event_ptr_t &out) {
   DBUG_TRACE;
   auto fde = m_get_format_description_event();
   Variable_scope_guard disable_checksum_guard{fde.footer()->checksum_alg};
@@ -164,10 +164,10 @@ bool Decompressing_event_object_istream::decode_from_buffer(
   // the footer of the format_description_log_event.
   fde.footer()->checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_OFF;
   Log_event *ev{nullptr};
-  auto error = binlog_event_deserialize(buffer_ptr->data(), buffer_ptr->size(),
+  auto error = binlog_event_deserialize(buffer_view.data(), buffer_view.size(),
                                         &fde, m_verify_checksum, &ev);
   if (error != Binlog_read_error::SUCCESS) {
-    uint event_type = buffer_ptr->data()[EVENT_TYPE_OFFSET];
+    uint event_type = buffer_view.data()[EVENT_TYPE_OFFSET];
     error_stream(binlog_read_error_to_status(error))
         << "Failed decoding event of type "
         << Log_event::get_type_str(event_type) << " (" << event_type
@@ -197,7 +197,7 @@ Decompressing_event_object_istream::read_from_payload_stream(Event_ptr_t &out) {
   // Fetch a buffer from the stream
   Buffer_ptr_t buffer_ptr;
   if (*m_buffer_istream >> buffer_ptr) {
-    if (decode_from_buffer(buffer_ptr, out)) return Read_status::error;
+    if (decode_from_buffer(*buffer_ptr, out)) return Read_status::error;
     ++m_embedded_event_number;
     return Read_status::success;
   }

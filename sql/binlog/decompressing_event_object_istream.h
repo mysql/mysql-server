@@ -67,6 +67,7 @@ class Decompressing_event_object_istream {
  public:
   using Buffer_stream_t =
       binary_log::transaction::compression::Payload_event_buffer_istream;
+  using Buffer_view_t = Buffer_stream_t::Buffer_view_t;
   using Buffer_ptr_t = Buffer_stream_t::Buffer_ptr_t;
   using Event_ptr_t = std::shared_ptr<Log_event>;
   using Tple_ptr_t = std::shared_ptr<const Transaction_payload_log_event>;
@@ -280,7 +281,8 @@ class Decompressing_event_object_istream {
   ///
   /// @retval false success
   /// @retval true error
-  [[NODISCARD]] bool decode_from_buffer(Buffer_ptr_t &buffer, Event_ptr_t &out);
+  [[NODISCARD]] bool decode_from_buffer(Buffer_view_t &buffer,
+                                        Event_ptr_t &out);
 
   /// Status from read_from_payload_stream
   enum class Read_status { success, eof, error };

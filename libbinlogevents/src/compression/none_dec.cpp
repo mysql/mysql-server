@@ -29,7 +29,7 @@ namespace binary_log::transaction::compression {
 type None_dec::do_get_type_code() const { return type_code; }
 
 void None_dec::do_reset() {
-  m_input_data = 0;
+  m_input_data = nullptr;
   m_input_size = 0;
   m_input_position = 0;
 }
