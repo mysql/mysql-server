@@ -821,7 +821,8 @@ AccessPath *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
                                  bool update_tbl_stats,
                                  enum_order order_direction,
                                  bool skip_records_in_range,
-                                 const double cost_est, Key_map *needed_reg) {
+                                 const double cost_est, bool ror_only,
+                                 Key_map *needed_reg) {
   uint idx, best_idx = 0;
   SEL_ROOT *key, *key_to_read = nullptr;
   ha_rows best_records = 0; /* protected by key_to_read */
@@ -867,7 +868,10 @@ AccessPath *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
           thd, param, idx, read_index_only, key, update_tbl_stats,
           order_direction, skip_records_in_range, &mrr_flags, &buf_size, &cost,
           &is_ror_scan, &is_imerge_scan);
-
+      if (found_records != HA_POS_ERROR && ror_only && !is_ror_scan) {
+        trace_idx.add("chosen", false).add_alnum("cause", "not_rowid_ordered");
+        continue;
+      }
       if (!compound_hint_key_enabled(param->table, keynr,
                                      INDEX_MERGE_HINT_ENUM)) {
         trace_idx.add("chosen", false).add_alnum("cause", "index_merge_hint");
