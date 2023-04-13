@@ -220,7 +220,6 @@ void trx_purge_sys_mem_create() {
   new (&purge_sys->iter) purge_iter_t;
   new (&purge_sys->limit) purge_iter_t;
   new (&purge_sys->undo_trunc) undo::Truncate;
-  new (&purge_sys->thds) ut::unordered_set<THD *>;
   new (&purge_sys->rsegs_queue) std::vector<trx_rseg_t *>;
 #ifdef UNIV_DEBUG
   new (&purge_sys->done) purge_iter_t;
@@ -301,7 +300,6 @@ void trx_purge_sys_close() {
 
   ut::delete_(purge_sys->rseg_iter);
 
-  call_destructor(&purge_sys->thds);
   call_destructor(&purge_sys->undo_trunc);
   call_destructor(&purge_sys->rsegs_queue);
 

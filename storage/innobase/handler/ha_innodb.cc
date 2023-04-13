@@ -2778,13 +2778,7 @@ trx_t *innobase_trx_allocate(THD *thd) /*!< in: user thread handle */
   MONITOR_ATOMIC_INC(MONITOR_TRX_ALLOCATIONS);
   trx = trx_allocate_for_mysql();
 
-  rw_lock_s_lock(&purge_sys->latch, UT_LOCATION_HERE);
-
-  if (purge_sys->thds.find(thd) != purge_sys->thds.end()) {
-    trx->purge_sys_trx = true;
-  }
-
-  rw_lock_s_unlock(&purge_sys->latch);
+  trx->purge_sys_trx = purge_sys->is_this_a_purge_thread;
 
   trx->mysql_thd = thd;
 
