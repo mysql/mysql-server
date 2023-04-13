@@ -8,7 +8,7 @@ ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Could not open log
 SET debug = "-d,simulate_init_io_cache_failure";
 SET debug = "+d,simulate_allocate_failure";
 SHOW BINLOG EVENTS;
-ERROR HY000: Error when executing command SHOW BINLOG EVENTS: memory allocation failed reading log event
+ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Error reading Log_event at position 4: Failed decoding event: memory allocation failed reading log event
 SET debug = "-d,simulate_allocate_failure";
 SET debug = "+d,simulate_seek_failure";
 SHOW BINLOG EVENTS FROM START_POS;

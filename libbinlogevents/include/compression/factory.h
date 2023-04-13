@@ -20,16 +20,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef COMPRESSION_FACTORY_INCLUDED
-#define COMPRESSION_FACTORY_INCLUDED
+#ifndef LIBBINLOGEVENTS_COMPRESSION_FACTORY_
+#define LIBBINLOGEVENTS_COMPRESSION_FACTORY_
 
 #include <memory>
 #include "compressor.h"
 #include "decompressor.h"
 
-namespace binary_log {
-namespace transaction {
-namespace compression {
+namespace binary_log::transaction::compression {
 
 class Factory {
  public:
@@ -37,8 +35,6 @@ class Factory {
   static std::unique_ptr<Decompressor> build_decompressor(type t);
 };
 
-}  // namespace compression
-}  // namespace transaction
-}  // namespace binary_log
+}  // namespace binary_log::transaction::compression
 
-#endif
+#endif  // ifndef LIBBINLOGEVENTS_COMPRESSION_FACTORY_

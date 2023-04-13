@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2019, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,47 +20,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef BINLOG_TOOLS_ITERATORS_H
-#define BINLOG_TOOLS_ITERATORS_H
+#include "psi_memory_resource.h"
 
-#include <queue>
-#include "sql/binlog_reader.h"
+#include "my_sys.h"                              // my_malloc
+#include "storage/perfschema/pfs_instr_class.h"  // find_memory_class
 
-namespace binlog {
-namespace tools {
-
-class Iterator {
- protected:
-  std::queue<Log_event *> m_events;
-  Binlog_file_reader *m_binlog_reader;
-  bool m_verify_checksum;
-  bool m_copy_event_buffer;
-  int m_error_number;
-  std::string m_error_message;
-
- public:
-  Iterator(Binlog_file_reader *);
-  virtual ~Iterator();
-
-  virtual void unset_copy_event_buffer();
-  virtual void set_copy_event_buffer();
-
-  virtual void unset_verify_checksum();
-  virtual void set_verify_checksum();
-
-  virtual bool has_error();
-  virtual int get_error_number();
-  virtual std::string get_error_message();
-
-  virtual Log_event *begin();
-  virtual Log_event *end();
-  virtual Log_event *next();
-
- protected:
-  virtual Log_event *do_next();
-};
-
-}  // namespace tools
-}  // namespace binlog
-
-#endif
+mysqlns::resource::Memory_resource psi_memory_resource(PSI_memory_key key) {
+  return mysqlns::resource::Memory_resource(
+      [=](mysqlns::resource::Memory_resource::Size_t n)
+          -> mysqlns::resource::Memory_resource::Ptr_t {
+        return my_malloc(key, n, MYF(MY_WME | ME_FATALERROR));
+      },
+      my_free);
+}

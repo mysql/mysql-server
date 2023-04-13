@@ -1,10 +1,28 @@
+# ==== Purpose ====
 #
-# copy file segment
+# Copy a segment from one file to another file.
 #
-# $in_filename - name of the source binary log
-# $out_filename - name of the output binary log
-# $file_start_pos - file position start
-# $file_stop_pos - file position stop
+# ==== Usage ====
+#
+# --let $in_filename = FILENAME1
+# --let $out_filename = FILENAME2
+# --let $file_start_pos = NUMBER1
+# --let $file_stop_pos = NUMBER2
+# --source include/copy_file_segment.inc
+#
+# Parameters:
+#   $in_filename
+#     Name of file to copy from.
+#
+#   $out_filename
+#     Name of file to create.
+#
+#   $file_start_pos
+#     Start offset in $in_filename.  0 means beginning of file.
+#
+#   $file_stop_pos
+#     End offset in $in_filename.  This is exclusive.
+#     Example: if $file_stop_pos=$file_start_pos+1, one byte is copied.
 
 if (!$in_filename) {
   --die Please assign a file name to $in_filename!!

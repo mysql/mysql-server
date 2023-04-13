@@ -1,0 +1,111 @@
+# ==== Purpose ====
+#
+# Verify that mysqlbinlog generates an error and returns nonzero exit
+# code, when the binary log is corrupted.
+#
+# ==== Requirements ====
+#
+# R1. When a binary log file is corrupted, mysqlbinlog should generate
+#     an error and stop with a nonzero exit code.
+#
+# R2. In the special case where the format_description_log_event has
+#     the IN_USE flag set, and the binary log ends with a truncated
+#     event, mysqlbinlog should only print a commented message and
+#     return exit code zero.
+#
+# ==== Implementation ====
+#
+# 1. Use a debug symbol to produce a corrupted binary log file.
+# 2. Check that mysqlbinlog fails.
+# 3. Repeat the above to test both the active binary log file, and an
+#    inactive one.
+#
+# ==== References ====
+#
+# BUG#35083373: mysqlbinlog ignores errors in files having
+#               LOG_EVENT_BINLOG_IN_USE_F set
+
+--source include/have_debug.inc
+# No need to run the test serveral times
+--source include/have_binlog_format_row.inc
+
+--echo # Init: Clear binary logs from previous tests.
+RESET MASTER;
+
+--echo ==== R1: Error for corrupted file ====
+
+--echo # Create a corrupted binary log.
+--let $debug_point = set_query_log_event_size_to_5
+--source include/add_debug_point.inc
+CREATE TABLE t (a INT);
+--source include/remove_debug_point.inc
+
+--echo # Verify that mysqlbinlog fails
+--source include/save_binlog_position.inc
+--let $assert_command = $MYSQL_BINLOG --force-if-open $binlog_fullpath 2>&1
+--let $assert_regex = ERROR: Could not read entry at offset .*: Error in log format or read error 1..*ERROR: corrupted data in log event
+--let $assert_status = 1
+--source include/assert_command_output.inc
+
+--echo # Rotate and verify that mysqlbinlog still fails.
+FLUSH BINARY LOGS;
+--source include/assert_command_output.inc
+
+--echo # Clean up.
+DROP TABLE t;
+RESET MASTER;
+
+--echo ==== R2.1: No error for truncated file when IN_USE flag is set ====
+
+--echo # Create a truncated binary log.
+CREATE TABLE t (a INT);
+
+--source include/save_binlog_position.inc
+--let $in_filename = $binlog_fullpath
+--let $out_filename = $in_filename.tmp
+--let $file_start_pos = 0
+--let $ten = 10
+--expr $file_stop_pos = $binlog_position - $ten
+--source include/copy_file_segment.inc
+
+--let $dev_null = /dev/null
+--source include/check_windows.inc
+if ($have_windows) {
+  --let $dev_null = NUL
+}
+
+--let $assert_command = $MYSQL_BINLOG --force-if-open $out_filename 2>&1 > $dev_null
+--let $assert_regex = WARNING: File ends with a truncated event
+--let $assert_status = 0
+--source include/assert_command_output.inc
+
+--echo # Clean up.
+--remove_file $binlog_fullpath.tmp
+DROP TABLE t;
+RESET MASTER;
+
+--echo ==== R2.2: Error for truncated file when IN_USE flag is not set ====
+
+--echo # Create a truncated binary log.
+CREATE TABLE t (a INT);
+
+--source include/save_binlog_position.inc
+FLUSH BINARY LOGS;
+
+--let $in_filename = $binlog_fullpath
+--let $out_filename = $in_filename.tmp
+--let $file_start_pos = 0
+--let $ten = 10
+--expr $file_stop_pos = $binlog_position - $ten
+--source include/copy_file_segment.inc
+--echo # Rotate and verify that mysqlbinlog now fails.
+
+--let $assert_command = $MYSQL_BINLOG --force-if-open $binlog_fullpath.tmp 2>&1
+--let $assert_regex = ERROR: Could not read entry at offset .*: Error in log format or read error 1..*ERROR: binlog truncated in the middle of event; consider out of disk space
+--let $assert_status = 1
+--source include/assert_command_output.inc
+
+--echo # Clean up.
+--remove_file $binlog_fullpath.tmp
+DROP TABLE t;
+RESET MASTER;

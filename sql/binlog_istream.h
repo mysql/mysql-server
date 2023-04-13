@@ -76,8 +76,8 @@ class Binlog_read_error {
   Binlog_read_error() = default;
   Binlog_read_error(Error_type type) : m_type(type) {}
 
-  bool has_error() { return m_type != SUCCESS; }
-  bool has_fatal_error() { return m_type > READ_EOF; }
+  bool has_error() const { return m_type != SUCCESS; }
+  bool has_fatal_error() const { return m_type > READ_EOF; }
 
   /**
      Return the error encountered when reading events.

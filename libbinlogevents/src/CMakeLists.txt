@@ -24,12 +24,19 @@ SET(REPLICATION_SOURCES
   binary_log_funcs.cpp
   binlog_event.cpp
 
+  buffer/grow_calculator.cpp
+  buffer/grow_constraint.cpp
+  buffer/grow_status.cpp
+
   codecs/binary.cpp
   codecs/factory.cpp
 
   compression/base.cpp
+  compression/compressor.cpp
+  compression/decompressor.cpp
+  compression/decompress_status.cpp
   compression/factory.cpp
-  compression/iterator.cpp
+  compression/payload_event_buffer_istream.cpp
   compression/none_comp.cpp
   compression/none_dec.cpp
   compression/zstd_comp.cpp

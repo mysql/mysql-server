@@ -47,6 +47,7 @@ extern bool binlog_cache_is_reset;
 template <class ISTREAM, class OSTREAM>
 bool stream_copy(ISTREAM *istream, OSTREAM *ostream,
                  bool *ostream_error = nullptr) {
+  DBUG_TRACE;
   unsigned char *buffer = nullptr;
   my_off_t length = 0;
 
@@ -218,6 +219,7 @@ class Binlog_cache_storage : public Basic_ostream {
      @retval true  Error happens in either the istream or ostream.
   */
   bool copy_to(Basic_ostream *ostream, bool *ostream_error = nullptr) {
+    DBUG_TRACE;
     return stream_copy(&m_file, ostream, ostream_error);
   }
 

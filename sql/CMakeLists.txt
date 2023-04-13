@@ -479,7 +479,9 @@ SET(SQL_SHARED_SOURCES
   persisted_variable.cc
   protocol_classic.cc
   psi_memory_key.cc
+  psi_memory_resource.cc
   query_result.cc
+  raii/targeted_stringstream.cc
   range_optimizer/geometry_index_range_scan.cc
   range_optimizer/group_index_skip_scan.cc
   range_optimizer/group_index_skip_scan_plan.cc
@@ -997,7 +999,7 @@ SET(BINLOG_SOURCE
   binlog/group_commit/atomic_bgc_ticket.cc
   binlog/group_commit/atomic_bgc_ticket_guard.cc
   binlog/monitoring/context.cc
-  binlog/tools/iterators.cc
+  binlog/decompressing_event_object_istream.cc
   binlog.cc
   binlog_istream.cc
   binlog_ostream.cc

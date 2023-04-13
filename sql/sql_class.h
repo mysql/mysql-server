@@ -4725,7 +4725,7 @@ class THD : public MDL_context_owner,
   Event_reference_caching_cache *events_cache_{nullptr};
   Event_tracking_data_stack event_tracking_data_;
   bool audit_plugins_present;
-};
+};  // End of class THD
 
 /**
    Return lock_tables_mode for secondary engine.
