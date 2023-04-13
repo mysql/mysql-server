@@ -54,7 +54,7 @@ add_test_file(test_rest_mrs_plugin.cc
     ./test_mrs_route_schema_rest.cc
     ./test_mrs_route_static_file.cc
     ./test_mrs_object_query.cc
-    ./test_mrs_object_post.cc
+    ./test_mrs_object_insert.cc
     ./test_handler_object.cc
   LIB_DEPENDS mysql_rest_service test-helpers
   )

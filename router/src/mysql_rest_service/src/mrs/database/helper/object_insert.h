@@ -99,6 +99,8 @@ class JsonInsertBuilder {
 
   std::shared_ptr<entry::ObjectField> get_field(const entry::Object &object,
                                                 const std::string &name);
+  std::shared_ptr<entry::ObjectField> get_field_by_column_name(
+      const entry::Object &object, const std::string &db_name);
 
   void on_table_field(const entry::ObjectField &field,
                       const rapidjson::Value &value,
