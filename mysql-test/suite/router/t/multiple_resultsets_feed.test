@@ -72,7 +72,7 @@
 # "result" file. The general verification of the response is done by
 # JSON schema.
 exec $MRS_CLIENT_ARGS
-  --wait-until-found 60
+  --wait-until-found 60 -t PUT --payload "{}"
   --json-schema $SCHEMA_DIR/items_not_empty_unlimited.sch
   --json-pointer /links/*/href,/count,/items/*/name
   --path /svc/proc/one;
