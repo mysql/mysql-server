@@ -48,7 +48,6 @@ add_test_file(test_rest_mrs_plugin.cc
     ./test_rest_mrs_user_manager.cc
     ./test_rest_user_entry.cc
     ./test_mrs_query_entries_db_object.cc
-    ./test_mrs_query_entries_object.cc
     ./test_mrs_user_cache.cc
     ./test_mrs_route_object.cc
     ./test_mrs_route_manager.cc

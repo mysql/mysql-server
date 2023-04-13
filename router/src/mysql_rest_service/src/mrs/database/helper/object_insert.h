@@ -33,8 +33,8 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
-#include "mrs/database/entry/auth_user.h"
 #include "mrs/database/entry/object.h"
 #include "mysqlrouter/utils_sqlstring.h"
 
@@ -45,15 +45,14 @@ class JsonInsertBuilder {
  public:
   using PrimaryKeyColumnValues = std::map<std::string, mysqlrouter::sqlstring>;
 
-  explicit JsonInsertBuilder(
-      std::shared_ptr<entry::Object> object,
-      const std::string &row_ownership_column = {},
-      const entry::AuthUser::UserId &requesting_user_id = {})
+  explicit JsonInsertBuilder(std::shared_ptr<entry::Object> object,
+                             const std::string &row_ownership_column = {},
+                             rapidjson::Value requesting_user_id = {})
       : m_object(object),
         m_row_ownership_column(row_ownership_column),
-        m_requesting_user_id(requesting_user_id) {}
+        m_requesting_user_id(std::move(requesting_user_id)) {}
 
-  void process(const rapidjson::Value &doc);
+  void process(const rapidjson::Document &doc);
 
   mysqlrouter::sqlstring insert() const;
   std::vector<mysqlrouter::sqlstring> additional_inserts(
@@ -65,7 +64,7 @@ class JsonInsertBuilder {
  private:
   std::shared_ptr<entry::Object> m_object;
   std::string m_row_ownership_column;
-  entry::AuthUser::UserId m_requesting_user_id;
+  rapidjson::Value m_requesting_user_id;
 
   std::shared_ptr<entry::ObjectField> m_pk_field;
 
@@ -86,7 +85,7 @@ class JsonInsertBuilder {
                                                 const std::string &name);
 
   void on_table_field(const entry::ObjectField &field,
-                      const mysqlrouter::sqlstring &value,
+                      const rapidjson::Value &value,
                       std::map<std::string, TableRowData> *rows,
                       const std::string &path);
 

@@ -31,9 +31,10 @@
 #include <vector>
 #include "helper/json/to_sqlstring.h"
 #include "mrs/http/error.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysql/harness/utility/string.h"
 
-#include <iostream>
+IMPORT_LOG_FUNCTIONS()
 
 namespace mrs {
 namespace database {
@@ -52,7 +53,7 @@ namespace database {
 //        - create a join row
 //        - create a nested object and a join row
 
-void JsonInsertBuilder::process(const rapidjson::Value &doc) {
+void JsonInsertBuilder::process(const rapidjson::Document &doc) {
   assert(doc.IsObject());
 
   // do some validations
@@ -76,7 +77,6 @@ void JsonInsertBuilder::process(const rapidjson::Value &doc) {
 void JsonInsertBuilder::process_object(std::shared_ptr<entry::Object> object,
                                        const rapidjson::Value &doc,
                                        const std::string &path) {
-  using namespace helper::json::sql;  // NOLINT(build/namespaces)
   std::map<std::string, TableRowData> rows;
 
   bool found_pk_column = false;
@@ -91,22 +91,14 @@ void JsonInsertBuilder::process_object(std::shared_ptr<entry::Object> object,
           "Unrecognized field '" + member_name + "' in JSON document");
     }
 
-    if (path.empty() && field->db_is_primary) found_pk_column = true;
-
-    // TODO(alfredo) check value type
-    mysqlrouter::sqlstring tmp("?");
     if (!m_row_ownership_column.empty() &&
         field->db_name == m_row_ownership_column) {
       found_row_ownership_column = true;
-      tmp << m_requesting_user_id;
+
+      on_table_field(*field, m_requesting_user_id, &rows, path);
     } else {
-      tmp << member.value;
+      on_table_field(*field, member.value, &rows, path);
     }
-
-    if (path.empty() && field->db_is_primary)
-      m_predefined_pk_values[field->db_name] = tmp;
-
-    on_table_field(*field, tmp, &rows, path);
   }
 
   if (path.empty() && !found_pk_column && !m_pk_field->db_auto_inc) {
@@ -126,8 +118,7 @@ void JsonInsertBuilder::process_object(std::shared_ptr<entry::Object> object,
     }
 
     mysqlrouter::sqlstring tmp("?");
-    tmp << m_requesting_user_id;
-    on_table_field(*field, tmp, &rows, "");
+    on_table_field(*field, m_requesting_user_id, &rows, "");
   }
 
   for (auto &rit : rows) {
@@ -197,7 +188,7 @@ std::shared_ptr<entry::ObjectField> JsonInsertBuilder::get_field(
 }
 
 void JsonInsertBuilder::on_table_field(
-    const entry::ObjectField &field, const mysqlrouter::sqlstring &value,
+    const entry::ObjectField &field, const rapidjson::Value &value,
     std::map<std::string, TableRowData> *rows,
     [[maybe_unused]] const std::string &path) {
   if (field.nested_object) {
@@ -221,6 +212,8 @@ void JsonInsertBuilder::on_table_field(
     }
 #endif
   } else {
+    // TODO(alfredo) check value type
+
     // XXX handle columns that are part of a FK to the base table
     auto &row = (*rows)[field.source->table_alias];
 
@@ -230,7 +223,17 @@ void JsonInsertBuilder::on_table_field(
       tmp << field.db_name;
       row.columns.append_preformatted_sep(", ", tmp);
     }
-    row.values.append_preformatted_sep(", ", value);
+    {
+      using namespace helper::json::sql;  // NOLINT(build/namespaces)
+
+      mysqlrouter::sqlstring tmp("?");
+      tmp << value;
+      row.values.append_preformatted_sep(", ", tmp);
+
+      if (path.empty() && field.db_is_primary) {
+        m_predefined_pk_values[field.db_name] = tmp;
+      }
+    }
   }
 }
 

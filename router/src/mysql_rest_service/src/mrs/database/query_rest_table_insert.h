@@ -89,8 +89,9 @@ class QueryRestObjectInsert : private QueryLog {
       MySQLSession *session, std::shared_ptr<Object> object,
       const rapidjson::Document &json_doc,
       const std::string &row_ownership_column,
-      const entry::AuthUser::UserId &requesting_user_id) {
-    JsonInsertBuilder ib(object, row_ownership_column, requesting_user_id);
+      rapidjson::Value requesting_user_id) {
+    JsonInsertBuilder ib(object, row_ownership_column,
+                         std::move(requesting_user_id));
     JsonInsertBuilder::PrimaryKeyColumnValues pk;
 
     ib.process(json_doc);

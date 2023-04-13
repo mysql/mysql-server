@@ -383,7 +383,8 @@ HttpResult HandlerObject::handle_post(
       route_->get_user_row_ownership().user_ownership_enforced
           ? route_->get_user_row_ownership().user_ownership_column
           : "",
-      ctxt->user.user_id);
+      rapidjson::Value(ctxt->user.user_id.to_string().c_str(),
+                       json_doc.GetAllocator()));
 
   Counter<kEntityCounterRestAffectedItems>::increment();
 
