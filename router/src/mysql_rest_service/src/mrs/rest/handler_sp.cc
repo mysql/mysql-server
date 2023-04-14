@@ -33,6 +33,7 @@
 #include "helper/http/url.h"
 #include "helper/json/rapid_json_interator.h"
 #include "helper/json/text_to.h"
+#include "helper/json/to_sqlstring.h"
 #include "helper/json/to_string.h"
 #include "helper/media_detector.h"
 #include "mrs/database/query_rest_sp.h"
@@ -118,8 +119,104 @@ std::string to_string(rapidjson::Value *v) {
   return helper::json::to_string(v);
 }
 
+using DataType = mrs::database::entry::Field::DataType;
+enum DataTypeInText { kInteger, kFloat, kString };
+
+DataTypeInText get_type_inside_text(const std::string &value) {
+  using namespace helper::container;
+
+  auto it = value.begin();
+
+  if (it == value.end()) return kString;
+
+  if (has(std::string("+-"), *it)) {
+    ++it;
+  }
+
+  int numbers = 0;
+  while (it != value.end()) {
+    if (!(*it >= '0' && *it <= '9')) break;
+    ++it;
+    ++numbers;
+  }
+
+  if (it == value.end() && numbers) return kInteger;
+
+  if (!has(std::string("eE."), *it)) return kString;
+
+  if (*it == '.') {
+    while (it != value.end()) {
+      if (!(*it >= '0' && *it <= '9')) break;
+      ++numbers;
+      ++it;
+    }
+
+    if (it == value.end()) {
+      if (numbers)
+        return kFloat;
+      else
+        return kString;
+    }
+  }
+
+  if (!has(std::string("Ee"), *it)) return kString;
+  ++it;
+
+  if (it == value.end()) return kString;
+
+  if (!has(std::string("+-"), *it)) return kString;
+  ++it;
+
+  if (it == value.end()) return kString;
+
+  numbers = 0;
+  while (it != value.end()) {
+    if (!(*it >= '0' && *it <= '9')) break;
+    ++numbers;
+    ++it;
+  }
+
+  if (0 == numbers) return kString;
+
+  if (it != value.end()) return kString;
+
+  return kFloat;
+}
+
+mysqlrouter::sqlstring to_sqlstring(const std::string &value, DataType type) {
+  auto v = get_type_inside_text(value);
+  switch (type) {
+    case DataType::typeBoolean:
+      if (kInteger == v) return mysqlrouter::sqlstring{value.c_str()};
+      return mysqlrouter::sqlstring("?") << value;
+
+    case DataType::typeDouble:
+      if (kString == v) return mysqlrouter::sqlstring("?") << value;
+      return mysqlrouter::sqlstring{value.c_str()};
+
+    case DataType::typeInt:
+      if (kString == v) return mysqlrouter::sqlstring("?") << value;
+      return mysqlrouter::sqlstring{value.c_str()};
+
+    case DataType::typeLong:
+      if (kString == v) return mysqlrouter::sqlstring("?") << value;
+      return mysqlrouter::sqlstring{value.c_str()};
+
+    case DataType::typeString:
+      return mysqlrouter::sqlstring("?") << value;
+
+    case DataType::typeTimestamp:
+      return mysqlrouter::sqlstring("?") << value;
+      break;
+  }
+
+  assert(nullptr && "Shouldn't happen");
+  return {};
+}
+
 HttpResult HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
   using namespace std::string_literals;
+  using namespace helper::json::sql;
 
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
@@ -156,7 +253,9 @@ HttpResult HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
       if (it == doc.MemberEnd())
         throw http::Error(HttpStatusCode::BadRequest,
                           "Parameter not set:"s + el.name);
-      result += (mysqlrouter::sqlstring("?") << to_string(&it->value)).str();
+      mysqlrouter::sqlstring sql("?");
+      sql << it->value;
+      result += sql.str();
     } else {
       result += "?";
       variables.push_back(to_mysql_type(el.data_type));
@@ -225,7 +324,7 @@ HttpResult HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
       if (idx == -1)
         throw http::Error(HttpStatusCode::BadRequest,
                           "Parameter not set:"s + el.name);
-      result += (mysqlrouter::sqlstring("?") << values[idx]).str();
+      result += to_sqlstring(values[idx], el.data_type).str();
     } else {
       result += "?";
       variables.push_back(to_mysql_type(el.data_type));

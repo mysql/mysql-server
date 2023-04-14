@@ -34,15 +34,18 @@ namespace http_client {
 class Request {
  public:
   using Type = HttpMethod::type;
-
-  static bool convert(std::string value, Type *out_at = nullptr) {
+  const static std::map<std::string, Type> &get_map() {
     const static std::map<std::string, Type> map{
         {"get", HttpMethod::Get},
         {"post", HttpMethod::Post},
         {"put", HttpMethod::Put},
         {"delete", HttpMethod::Delete}};
+    return map;
+  }
 
+  static bool convert(std::string value, Type *out_at = nullptr) {
     mysql_harness::lower(value);
+    auto &map = get_map();
     auto it = map.find(value);
 
     if (map.end() == it) return false;
