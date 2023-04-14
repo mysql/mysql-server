@@ -1721,7 +1721,7 @@ collation-server utf8mb4_0900_ai_ci
 completion-type NO_CHAIN
 concurrent-insert AUTO
 connect-timeout 10
-connection-memory-chunk-size 8912
+connection-memory-chunk-size 8192
 connection-memory-limit 18446744073709551615
 console FALSE
 create-admin-listener-thread FALSE
