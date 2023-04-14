@@ -38,6 +38,7 @@ if (!$mrs_add_schema_options)
 
 --disable_query_log
 --disable_result_log
+
 eval SET $mrs_sql_id_variable=mysql_rest_service_metadata.get_sequence_id();
 eval  INSERT INTO mysql_rest_service_metadata.db_schema(
                id, service_id, name, request_path,
@@ -55,3 +56,4 @@ eval  INSERT INTO mysql_rest_service_metadata.db_schema(
 
 --let $mrs_add_host_name=
 --let $mrs_sql_id_variable=
+--let $mrs_service_id_sql_variable=

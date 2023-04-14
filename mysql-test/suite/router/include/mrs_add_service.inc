@@ -39,6 +39,13 @@ if (!$mrs_add_service_protocol)
 
 if ($mrs_add_host_name)
 {
+   --let $mrs_get_host_name=$mrs_add_host_name
+   --source mrs_get_host.inc
+}
+
+
+if (!$mrs_host_id)
+{
    --let $mrs_old_sql_id=$mrs_sql_id_variable
    --let $mrs_sql_id_variable=@temporary_host_id
    --source mrs_add_host.inc
