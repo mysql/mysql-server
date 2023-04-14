@@ -131,9 +131,9 @@ SELECT prio,error_code,subsystem,data
 # MY-013930: systemd debug.
 # MY-014013: ER_NOTE_COMPONENT_SLOT_REGISTRATION_SUCCESS, depends on configuration
 # MY-000068: EE_UNKNOWN_OPTION, unknown option '--loose-lock_order', depends on configuration
-# MY-014047: ER_TELEMETRY_INFO, depends on configuration
-# MY-014048: ER_TELEMETRY_WARNING, depends on configuration
-# MY-014049: ER_TELEMETRY_ERROR, depends on configuration
+# MY-014066: ER_TELEMETRY_INFO, depends on configuration
+# MY-014067: ER_TELEMETRY_WARNING, depends on configuration
+# MY-014068: ER_TELEMETRY_ERROR, depends on configuration
 SELECT prio,error_code,subsystem
   FROM performance_schema.error_log
  WHERE logged>=@startup
@@ -146,7 +146,7 @@ SELECT prio,error_code,subsystem
                          "MY-012363", "MY-011953", "MY-013623", "MY-013711",
                          "MY-013880", "MY-013881", "MY-013882", "MY-013883",
                          "MY-013884", "MY-013908", "MY-013930", "MY-014013",
-                         "MY-000068", "MY-014047", "MY-014048", "MY-014049")
+                         "MY-000068", "MY-014066", "MY-014067", "MY-014068")
  ORDER BY logged, error_code;
 
 --echo
