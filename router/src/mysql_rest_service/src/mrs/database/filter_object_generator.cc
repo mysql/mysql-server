@@ -199,35 +199,33 @@ bool FilterObjectGenerator::parse_simple_object(Value *object) {
 
   auto name = object->MemberBegin()->name.GetString();
   Value *value = &object->MemberBegin()->value;
-  auto &argument = argument_.back();
+  auto db_name = resolve_field_name(argument_.back().c_str());
 
   log_debug("parse_simple_object %i", static_cast<int>(value->GetType()));
   where_ += " ";
   if ("$eq"s == name) {
-    where_ +=
-        argument + " = " + to_string<tosString, tosNumber, tosDate>(value);
+    where_ += db_name + " = " + to_string<tosString, tosNumber, tosDate>(value);
   } else if ("$ne"s == name) {
     where_ +=
-        argument + " <> " + to_string<tosString, tosNumber, tosDate>(value);
+        db_name + " <> " + to_string<tosString, tosNumber, tosDate>(value);
   } else if ("$lt"s == name) {
-    where_ += argument + " < " + to_string<tosNumber, tosDate>(value);
+    where_ += db_name + " < " + to_string<tosNumber, tosDate>(value);
   } else if ("$lte"s == name) {
-    where_ += argument + " <= " + to_string<tosNumber, tosDate>(value);
+    where_ += db_name + " <= " + to_string<tosNumber, tosDate>(value);
   } else if ("$gt"s == name) {
-    where_ += argument + " > " + to_string<tosNumber, tosDate>(value);
+    where_ += db_name + " > " + to_string<tosNumber, tosDate>(value);
   } else if ("$gte"s == name) {
-    where_ += argument + " >= " + to_string<tosNumber, tosDate>(value);
+    where_ += db_name + " >= " + to_string<tosNumber, tosDate>(value);
   } else if ("$instr"s == name) {
-    where_ += "instr(" + argument + ", " + to_string<tosString>(value) + ")";
+    where_ += "instr(" + db_name + ", " + to_string<tosString>(value) + ")";
   } else if ("$ninstr"s == name) {
-    where_ +=
-        "not instr(" + argument + ", " + to_string<tosString>(value) + ")";
+    where_ += "not instr(" + db_name + ", " + to_string<tosString>(value) + ")";
   } else if ("$like"s == name) {
-    where_ += argument + " like " + to_string<tosString>(value);
+    where_ += db_name + " like " + to_string<tosString>(value);
   } else if ("$null"s == name) {
-    where_ += argument + " IS NULL";
+    where_ += db_name + " IS NULL";
   } else if ("$notnull"s == name) {
-    where_ += argument + " IS NOT NULL";
+    where_ += db_name + " IS NOT NULL";
   } else if ("$between"s == name) {
     if (!value->IsArray())
       throw RestError("Between operator, requires an array field.");
@@ -235,7 +233,7 @@ bool FilterObjectGenerator::parse_simple_object(Value *object) {
       throw RestError("Between field, requires array with size of two.");
     // TODO(lkotula): Support of NULL values with different types of `tos-es`
     // (Shouldn't be in review)
-    where_ += argument + " BETWEEN " +
+    where_ += db_name + " BETWEEN " +
               to_string<tosString, tosNumber, tosDate>(&(*value)[0]) + " AND " +
               to_string<tosString, tosNumber, tosDate>(&(*value)[1]);
   } else
