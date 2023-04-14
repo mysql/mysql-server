@@ -2623,3 +2623,11 @@ SELECT LPAD(a, ASCII(RANDOM_BYTES(1)) - 10, 'abc') FROM t;
 SET sql_mode = DEFAULT;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#35286970 QUOTE function doesn't work as expected
+--echo #              on tables that are utf16
+
+SELECT QUOTE(CAST(NULL AS CHAR CHARSET utf16));
+SELECT QUOTE(CAST(NULL AS CHAR CHARSET utf32));
+SELECT QUOTE(CAST(NULL AS CHAR CHARSET utf8mb4));

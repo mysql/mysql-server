@@ -471,8 +471,10 @@ class String {
 
   bool copy();                 // Alloc string if not allocated
   bool copy(const String &s);  // Allocate new string
-  // Allocate new string
   bool copy(const char *s, size_t arg_length, const CHARSET_INFO *cs);
+  bool copy(const char *s, size_t arg_length, const CHARSET_INFO *from_cs,
+            const CHARSET_INFO *to_cs, uint *errors);
+
   static bool needs_conversion(size_t arg_length, const CHARSET_INFO *cs_from,
                                const CHARSET_INFO *cs_to, size_t *offset);
   bool needs_conversion(const CHARSET_INFO *cs_to) const {
@@ -492,8 +494,6 @@ class String {
                     const CHARSET_INFO *cs);
   bool set_or_copy_aligned(const char *s, size_t arg_length,
                            const CHARSET_INFO *cs);
-  bool copy(const char *s, size_t arg_length, const CHARSET_INFO *csfrom,
-            const CHARSET_INFO *csto, uint *errors);
   bool append(const String &s);
   bool append(std::string_view s) { return append(s.data(), s.size()); }
   bool append(LEX_STRING *ls) { return append(ls->str, ls->length); }

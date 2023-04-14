@@ -3851,16 +3851,26 @@ String *Item_func_quote::val_str(String *str) {
   char *to;
   const char *from, *end, *start;
   String *arg = args[0]->val_str(str);
-  size_t arg_length, new_length;
-  if (!arg)  // Null argument
+  if (arg == nullptr)  // Null argument
   {
     /* Return the string 'NULL' */
-    str->copy(STRING_WITH_LEN("NULL"), collation.collation);
+    if (my_charset_is_ascii_based(collation.collation)) {
+      if (str->copy(STRING_WITH_LEN("NULL"), collation.collation))
+        return error_str();
+      null_value = false;
+      return str;
+    }
+    uint errors = 0;
+    if (str->copy(STRING_WITH_LEN("NULL"), &my_charset_latin1,
+                  collation.collation, &errors))
+      return error_str();
     null_value = false;
+    assert(errors == 0);
     return str;
   }
 
-  arg_length = arg->length();
+  size_t arg_length = arg->length();
+  size_t new_length;
 
   if (collation.collation->mbmaxlen == 1) {
     new_length = arg_length + 2; /* for beginning and ending ' signs */
