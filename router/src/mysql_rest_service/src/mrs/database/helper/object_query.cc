@@ -31,14 +31,111 @@
 #include "helper/string/contains.h"
 #include "mysql/harness/utility/string.h"
 
-#include <iostream>
-
 #include "mysql/harness/logging/logging.h"
 
 IMPORT_LOG_FUNCTIONS()
 
 namespace mrs {
 namespace database {
+
+mysqlrouter::sqlstring format_where_expr(
+    std::shared_ptr<database::entry::Table> table,
+    const std::string &table_name, const PrimaryKeyColumnValues &f) {
+  mysqlrouter::sqlstring s;
+
+  for (const auto &c : f) {
+    auto type = table->get_column(c.first)->type;
+
+    mysqlrouter::sqlstring col;
+    if (table_name.empty()) {
+      col = mysqlrouter::sqlstring("! = ?");
+    } else {
+      col = mysqlrouter::sqlstring("!.! = ?");
+      col << table_name;
+    }
+    if (type == entry::ColumnType::BOOLEAN) {
+      col << (mysqlrouter::sqlstring{"cast(! as BINARY)"} << c.first);
+    } else {
+      col << c.first;
+    }
+
+    col << c.second;
+
+    s.append_preformatted_sep(" AND ", col);
+  }
+
+  return s;
+}
+
+mysqlrouter::sqlstring format_where_expr(
+    std::shared_ptr<database::entry::Table> table,
+    const PrimaryKeyColumnValues &f) {
+  return format_where_expr(table, "", f);
+}
+
+mysqlrouter::sqlstring format_key_names(
+    std::shared_ptr<database::entry::Table> table) {
+  mysqlrouter::sqlstring s;
+  for (const auto &c : table->primary_key()) {
+    mysqlrouter::sqlstring col;
+    if (c->type == entry::ColumnType::BINARY)
+      col = mysqlrouter::sqlstring("TO_BASE64(!.!)");
+    else
+      col = mysqlrouter::sqlstring("!.!");
+    col << table->table_alias << c->name;
+
+    s.append_preformatted_sep(", ", col);
+  }
+  return s;
+}
+
+mysqlrouter::sqlstring format_key(std::shared_ptr<database::entry::Table> table,
+                                  const PrimaryKeyColumnValues &f) {
+  mysqlrouter::sqlstring s;
+  for (const auto &c : f) {
+    if (table->get_column(c.first)->type == entry::ColumnType::BINARY)
+      s.append_preformatted_sep(",", mysqlrouter::sqlstring("TO_BASE64(?)")
+                                         << c.second);
+    else
+      s.append_preformatted_sep(",", c.second);
+  }
+  return s;
+}
+
+mysqlrouter::sqlstring format_column_mapping(
+    const entry::JoinedTable::ColumnMapping &map) {
+  mysqlrouter::sqlstring s;
+
+  for (const auto &c : map) {
+    s.append_preformatted_sep(
+        " AND ", mysqlrouter::sqlstring("!.! = !.!")
+                     << c.first->table.lock()->table_alias << c.first->name
+                     << c.second->table.lock()->table_alias << c.second->name);
+  }
+
+  return s;
+}
+
+mysqlrouter::sqlstring format_left_join(const entry::Table &table,
+                                        const entry::JoinedTable &join) {
+  mysqlrouter::sqlstring s("LEFT JOIN !.! as ! ON ?");
+
+  s << table.schema << table.table << table.table_alias
+    << format_column_mapping(join.column_mapping);
+
+  return s;
+}
+
+void JsonQueryBuilder::process_object(std::shared_ptr<entry::Object> object) {
+  m_object = object;
+  process_object(object, "");
+
+  if (m_select_items.str().empty()) {
+    log_debug("%s produced empty query",
+              object->get_base_table()->table.c_str());
+    throw std::invalid_argument("Invalid object metadata");
+  }
+}
 
 void JsonQueryBuilder::process_object(std::shared_ptr<entry::Object> object,
                                       const std::string &path_prefix) {
@@ -48,79 +145,72 @@ void JsonQueryBuilder::process_object(std::shared_ptr<entry::Object> object,
   if (auto jtable =
           std::dynamic_pointer_cast<entry::JoinedTable>(m_base_tables.back());
       jtable && jtable->reduce_to_field) {
-    assert(object->fields.empty() ||
-           (object->fields.size() == 1 &&
-            object->fields[0] == jtable->reduce_to_field));
-    add_field_value(jtable, *jtable->reduce_to_field);
+    add_field_value(jtable->reduce_to_field);
     return;
   }
 
   for (const auto &f : object->fields) {
-    if (!f.get()) {
-      log_debug("While building field list, detected field not initialized.");
-      continue;
-    }
-    add_field(m_base_tables.back(), *f);
+    add_field(f);
   }
 }
 
-mysqlrouter::sqlstring JsonQueryBuilder::subquery_value(
-    const std::string &base_table_name) const {
-  mysqlrouter::sqlstring q{"(SELECT ? FROM ? WHERE ? LIMIT 1)"};
+mysqlrouter::sqlstring JsonQueryBuilder::subquery_value() const {
+  mysqlrouter::sqlstring q{"SELECT ? FROM ? WHERE ? LIMIT 1"};
 
   q << select_items() << from_clause()
-    << make_subselect_where(base_table_name,
-                            std::dynamic_pointer_cast<entry::JoinedTable>(
-                                m_base_tables.front()));
+    << make_subselect_where(std::dynamic_pointer_cast<entry::JoinedTable>(
+           m_base_tables.front()));
+
+  if (m_for_update) q.append_preformatted(" FOR UPDATE NOWAIT");
 
   return q;
 }
 
-mysqlrouter::sqlstring JsonQueryBuilder::subquery_object(
-    const std::string &base_table_name) const {
-  mysqlrouter::sqlstring q{"(SELECT JSON_OBJECT(?) FROM ? WHERE ? LIMIT 1)"};
+mysqlrouter::sqlstring JsonQueryBuilder::subquery_object() const {
+  mysqlrouter::sqlstring q{"SELECT JSON_OBJECT(?) FROM ? WHERE ? LIMIT 1"};
 
   q << select_items() << from_clause()
-    << make_subselect_where(base_table_name,
-                            std::dynamic_pointer_cast<entry::JoinedTable>(
-                                m_base_tables.front()));
+    << make_subselect_where(std::dynamic_pointer_cast<entry::JoinedTable>(
+           m_base_tables.front()));
+
+  if (m_for_update) q.append_preformatted(" FOR UPDATE NOWAIT");
 
   return q;
 }
 
-mysqlrouter::sqlstring JsonQueryBuilder::subquery_object_array(
-    const std::string &base_table_name) const {
+mysqlrouter::sqlstring JsonQueryBuilder::subquery_object_array() const {
   mysqlrouter::sqlstring q{
-      "(SELECT JSON_ARRAYAGG(JSON_OBJECT(?)) FROM ? WHERE ?)"};
+      "SELECT JSON_ARRAYAGG(JSON_OBJECT(?)) FROM ? WHERE ?"};
 
   q << select_items() << from_clause()
-    << make_subselect_where(base_table_name,
-                            std::dynamic_pointer_cast<entry::JoinedTable>(
-                                m_base_tables.front()));
+    << make_subselect_where(std::dynamic_pointer_cast<entry::JoinedTable>(
+           m_base_tables.front()));
+
+  if (m_for_update) q.append_preformatted(" FOR UPDATE NOWAIT");
 
   return q;
 }
 
-mysqlrouter::sqlstring JsonQueryBuilder::subquery_array(
-    const std::string &base_table_name) const {
-  mysqlrouter::sqlstring q{"(SELECT JSON_ARRAYAGG(?) FROM ? WHERE ?)"};
+mysqlrouter::sqlstring JsonQueryBuilder::subquery_array() const {
+  mysqlrouter::sqlstring q{"SELECT JSON_ARRAYAGG(?) FROM ? WHERE ?"};
 
   q << select_items() << from_clause()
-    << make_subselect_where(base_table_name,
-                            std::dynamic_pointer_cast<entry::JoinedTable>(
-                                m_base_tables.front()));
+    << make_subselect_where(std::dynamic_pointer_cast<entry::JoinedTable>(
+           m_base_tables.front()));
+
+  if (m_for_update) q.append_preformatted(" FOR UPDATE NOWAIT");
 
   return q;
 }
 
 mysqlrouter::sqlstring JsonQueryBuilder::make_subselect_where(
-    const std::string &base_table_name,
     std::shared_ptr<entry::JoinedTable> ref) const {
   mysqlrouter::sqlstring where_sql;
 
   for (const auto &c : ref->column_mapping) {
     auto tmp = mysqlrouter::sqlstring("!.! = !.!");
-    tmp << base_table_name << c.first << ref->table_alias << c.second;
+    tmp << c.first->table.lock()->table_alias << c.first->name
+        << c.second->table.lock()->table_alias << c.second->name;
     where_sql.append_preformatted_sep(" AND ", tmp);
   }
 
@@ -128,9 +218,8 @@ mysqlrouter::sqlstring JsonQueryBuilder::make_subselect_where(
 }
 
 mysqlrouter::sqlstring JsonQueryBuilder::make_subquery(
-    std::shared_ptr<entry::FieldSource> base_table,
-    const entry::ObjectField &field) const {
-  JsonQueryBuilder subquery(m_filter);
+    const entry::ReferenceField &field) const {
+  JsonQueryBuilder subquery(m_filter, m_for_update, m_for_checksum);
 
   subquery.process_object(
       field.nested_object,
@@ -140,71 +229,71 @@ mysqlrouter::sqlstring JsonQueryBuilder::make_subquery(
 
   auto nested_join =
       std::dynamic_pointer_cast<entry::JoinedTable>(nested_table);
+
+  mysqlrouter::sqlstring subq("(");
   if (nested_join->to_many) {
     if (nested_join->reduce_to_field)
-      return subquery.subquery_array(base_table->table_alias);
+      subq.append_preformatted(subquery.subquery_array());
     else
-      return subquery.subquery_object_array(base_table->table_alias);
+      subq.append_preformatted(subquery.subquery_object_array());
   } else {
     if (nested_join->reduce_to_field)
-      return subquery.subquery_value(base_table->table_alias);
+      subq.append_preformatted(subquery.subquery_value());
     else
-      return subquery.subquery_object(base_table->table_alias);
+      subq.append_preformatted(subquery.subquery_object());
   }
+  subq.append_preformatted(")");
+  return subq;
 }
 
-static mysqlrouter::sqlstring get_field_format(const std::string &data_type,
+static mysqlrouter::sqlstring get_field_format(entry::ColumnType type,
                                                bool value_only) {
-  if (helper::starts_with(data_type, "bit")) {
-    if (data_type.length() == 3 ||
-        helper::contains(data_type.c_str() + 3, "(1)"))
-      return {value_only ? "!.! is true" : "?, !.! is true"};
+  if (type == entry::ColumnType::BOOLEAN)
+    return {value_only ? "!.! is true" : "?, !.! is true"};
+  if (type == entry::ColumnType::BINARY)
     return {value_only ? "TO_BASE64(!.!)" : "?, TO_BASE64(!.!)"};
-  }
-  if (helper::starts_with(data_type, "binary") ||
-      helper::starts_with(data_type, "blob"))
-    return {value_only ? "TO_BASE64(!.!)" : "?, TO_BASE64(!.!)"};
-
   return {value_only ? "!.!" : "?, !.!"};
 }
 
-void JsonQueryBuilder::add_field(std::shared_ptr<entry::FieldSource> base_table,
-                                 const entry::ObjectField &field) {
-  if (!m_filter.is_included(m_path_prefix, field.name)) return;
+void JsonQueryBuilder::add_field(std::shared_ptr<entry::ObjectField> field) {
+  if (!m_filter.is_included(m_path_prefix, field->name)) return;
+  if (!field->enabled) return;
+  if (m_for_checksum && field->no_check) return;
 
-  if (!field.enabled) return;
-
-  if (field.nested_object) {
+  if (auto rfield = std::dynamic_pointer_cast<entry::ReferenceField>(field)) {
+    auto subquery = make_subquery(*rfield);
     auto item = mysqlrouter::sqlstring("?, ");
-    item << field.name;
+    item << rfield->name;
     m_select_items.append_preformatted_sep(", ", item);
-    m_select_items.append_preformatted(make_subquery(base_table, field));
-  } else {
-    auto item = get_field_format(field.db_datatype, false);
-    item << field.name << field.source->table_alias << field.db_name;
+    m_select_items.append_preformatted(subquery);
+
+  } else if (auto dfield = std::dynamic_pointer_cast<entry::DataField>(field)) {
+    auto item = get_field_format(dfield->source->type, false);
+    item << dfield->name << dfield->source->table.lock()->table_alias
+         << dfield->source->name;
     m_select_items.append_preformatted_sep(", ", item);
 
-    add_joined_table(field.source);
+    add_joined_table(dfield->source->table.lock());
   }
 }
 
 void JsonQueryBuilder::add_field_value(
-    std::shared_ptr<entry::FieldSource> base_table,
-    const entry::ObjectField &field) {
-  if (field.nested_object) {
-    m_select_items.append_preformatted_sep(", ",
-                                           make_subquery(base_table, field));
-  } else {
-    auto item = get_field_format(field.db_datatype, true);
-    item << field.source->table_alias << field.db_name;
+    std::shared_ptr<entry::ObjectField> field) {
+  if (m_for_checksum && field->no_check) return;
+
+  if (auto rfield = std::dynamic_pointer_cast<entry::ReferenceField>(field)) {
+    auto subquery = make_subquery(*rfield);
+    m_select_items.append_preformatted_sep(", ", subquery);
+  } else if (auto dfield = std::dynamic_pointer_cast<entry::DataField>(field)) {
+    auto item = get_field_format(dfield->source->type, true);
+    item << dfield->source->table.lock()->table_alias << dfield->source->name;
     m_select_items.append_preformatted_sep(", ", item);
 
-    add_joined_table(field.source);
+    add_joined_table(dfield->source->table.lock());
   }
 }
 
-void JsonQueryBuilder::add_joined_table(
-    std::shared_ptr<entry::FieldSource> table) {
+void JsonQueryBuilder::add_joined_table(std::shared_ptr<entry::Table> table) {
   if (std::find(m_base_tables.begin(), m_base_tables.end(), table) !=
       m_base_tables.end())
     return;
@@ -215,23 +304,19 @@ void JsonQueryBuilder::add_joined_table(
 }
 
 mysqlrouter::sqlstring JsonQueryBuilder::join_condition(
-    const entry::FieldSource &base_table,
     const entry::JoinedTable &table) const {
   mysqlrouter::sqlstring cond;
 
+  assert(!table.column_mapping.empty());
+
   for (const auto &c : table.column_mapping) {
     auto tmp = mysqlrouter::sqlstring("!.! = !.!");
-    tmp << base_table.table_alias << c.first << table.table_alias << c.second;
+    tmp << c.first->table.lock()->table_alias << c.first->name
+        << c.second->table.lock()->table_alias << c.second->name;
     cond.append_preformatted_sep(" AND ", tmp);
   }
 
   return cond;
-}
-
-mysqlrouter::sqlstring JsonQueryBuilder::get_reference_base_table_column(
-    const std::string &column_name) {
-  mysqlrouter::sqlstring ref{"!.!"};
-  return ref << m_base_tables.front()->table_alias << column_name;
 }
 
 mysqlrouter::sqlstring JsonQueryBuilder::from_clause() const {
@@ -243,9 +328,8 @@ mysqlrouter::sqlstring JsonQueryBuilder::from_clause() const {
     mysqlrouter::sqlstring join{" LEFT JOIN !.! as ! ON ?"};
     join << m_base_tables[i]->schema << m_base_tables[i]->table
          << m_base_tables[i]->table_alias
-         << join_condition(*m_base_tables[i - 1],
-                           *std::dynamic_pointer_cast<entry::JoinedTable>(
-                               m_base_tables[i]));
+         << join_condition(*std::dynamic_pointer_cast<entry::JoinedTable>(
+                m_base_tables[i]));
 
     from.append_preformatted(join);
   }
@@ -254,9 +338,8 @@ mysqlrouter::sqlstring JsonQueryBuilder::from_clause() const {
     mysqlrouter::sqlstring join{" LEFT JOIN !.! as ! ON ?"};
     join << m_joined_tables[i]->schema << m_joined_tables[i]->table
          << m_joined_tables[i]->table_alias
-         << join_condition(*m_base_tables.back(),
-                           *std::dynamic_pointer_cast<entry::JoinedTable>(
-                               m_joined_tables[i]));
+         << join_condition(*std::dynamic_pointer_cast<entry::JoinedTable>(
+                m_joined_tables[i]));
 
     from.append_preformatted(join);
   }
@@ -301,8 +384,6 @@ ObjectFieldFilter ObjectFieldFilter::from_url_filter(
   object_filter.m_exclusive = is_exclude_filter(filter);
 
   for (auto &f : filter) {
-    // XXX check if the field is valid
-
     if (object_filter.m_exclusive && !f.empty() && f[0] == '!') f.erase(0, 1);
     object_filter.m_filter.insert(f);
     // ensure parents of subfields are included too

@@ -34,7 +34,11 @@ add_test_file(test_rest_mrs_plugin.cc
     ./test_collector_mysql_cache_manager.cc
     ./test_database_rest_table.cc
     ./test_database_entries.cc
-    ./test_mrs_database_rest_table_insert.cc
+    ./test_mrs_database_rest_table.cc
+    ./test_mrs_database_rest_table_get.cc
+    ./test_mrs_database_rest_table_put.cc
+    ./test_mrs_database_rest_table_post.cc
+    ./test_mrs_database_rest_table_delete.cc
     ./test_mrs_database_filter_object_generator.cc
     ./test_helper_media_detector.cc
     ./test_helper_plugin_monitor.cc
@@ -53,8 +57,6 @@ add_test_file(test_rest_mrs_plugin.cc
     ./test_mrs_route_manager.cc
     ./test_mrs_route_schema_rest.cc
     ./test_mrs_route_static_file.cc
-    ./test_mrs_object_query.cc
-    ./test_mrs_object_insert.cc
     ./test_handler_object.cc
   LIB_DEPENDS mysql_rest_service test-helpers
   )

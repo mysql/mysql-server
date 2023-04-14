@@ -113,4 +113,7 @@ struct String_msg {
 #define EXPECT_HTTP_ERROR(statement, sts, msg) \
   EXPECT_HTTP_ERROR_(statement, sts, msg, GTEST_NONFATAL_FAILURE_)
 
+#define EXPECT_REST_ERROR(statement, msg) \
+  EXPECT_THROW_MSG(statement, mrs::interface::RestError, msg)
+
 #endif  // ROUTER_SRC_MYSQL_REST_SERVICE_TESTS_HELPER_EXPECT_THROW_MSG_H_

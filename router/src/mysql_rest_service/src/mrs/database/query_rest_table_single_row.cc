@@ -24,6 +24,8 @@
 
 #include "mrs/database/query_rest_table_single_row.h"
 #include <stdexcept>
+#include "helper/json/rapid_json_to_text.h"
+#include "mrs/database/helper/object_checksum.h"
 #include "mrs/database/helper/object_query.h"
 
 namespace helper {
@@ -51,22 +53,14 @@ namespace database {
 
 void QueryRestTableSingleRow::query_entries(
     MySQLSession *session, std::shared_ptr<database::entry::Object> object,
-    const ObjectFieldFilter &field_filter, const Column &primary_key,
-    const mysqlrouter::sqlstring &pri_value, const std::string &url_route) {
+    const ObjectFieldFilter &field_filter, const PrimaryKeyColumnValues &pk,
+    const std::string &url_route, bool compute_etag) {
+  object_ = object;
+  compute_etag_ = compute_etag;
+
   response = "";
   items = 0;
-  build_query(object, field_filter, primary_key, pri_value, url_route);
-
-  execute(session);
-}
-
-void QueryRestTableSingleRow::query_last_inserted(
-    MySQLSession *session, std::shared_ptr<database::entry::Object> object,
-    const ObjectFieldFilter &field_filter, const std::string &primary_key,
-    const std::string &url_route) {
-  response = "";
-  items = 0;
-  build_query_last_inserted(object, field_filter, primary_key, url_route);
+  build_query(object, field_filter, pk, url_route);
 
   execute(session);
 }
@@ -75,61 +69,34 @@ void QueryRestTableSingleRow::on_row(const ResultRow &r) {
   if (!response.empty())
     throw std::runtime_error(
         "Querying single row, from a table. Received multiple.");
-  response.append(r[0]);
+
+  if (compute_etag_) {
+    rapidjson::Document new_doc = compute_and_embed_etag(object_, r[0]);
+    assert(new_doc.IsObject());
+    helper::json::append_rapid_json_to_text(&new_doc, response);
+  } else {
+    response.append(r[0]);
+  }
   ++items;
 }
 
 void QueryRestTableSingleRow::build_query(
     std::shared_ptr<database::entry::Object> object,
-    const ObjectFieldFilter &field_filter, const Column &primary_key,
-    const mysqlrouter::sqlstring &pri_value, const std::string &url_route) {
+    const ObjectFieldFilter &field_filter, const PrimaryKeyColumnValues &pk,
+    const std::string &url_route) {
   JsonQueryBuilder qb(field_filter);
   qb.process_object(object);
 
   std::vector<mysqlrouter::sqlstring> fields;
-  if (!qb.select_items().is_empty()) fields.push_back(qb.select_items());
-  if (primary_key.type_json == helper::JsonType::kBlob)
-    fields.emplace_back(
-        "'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', "
-        "'href', CONCAT(?,'/',TO_BASE64(?))))");
-  else
-    fields.emplace_back(
-        "'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', "
-        "'href', CONCAT(?,'/',?)))");
-  fields.back() << url_route << pri_value;
-
-  query_ = "SELECT JSON_OBJECT(?) FROM ? WHERE !=?;";
-  query_ << fields << qb.from_clause();
-  bool is_bit_blob = (primary_key.type == MYSQL_TYPE_BIT &&
-                      primary_key.type_json == helper::JsonType::kBlob);
-  if (is_bit_blob) {
-    mysqlrouter::sqlstring column{"cast(! as BINARY)"};
-    column << qb.get_reference_base_table_column(primary_key.name);
-    query_ << column;
-  } else {
-    query_ << qb.get_reference_base_table_column(primary_key.name);
-  }
-  query_ << pri_value;
-}
-
-void QueryRestTableSingleRow::build_query_last_inserted(
-    std::shared_ptr<database::entry::Object> object,
-    const ObjectFieldFilter &field_filter, const std::string &primary_key,
-    const std::string &url_route) {
-  static mysqlrouter::sqlstring last_inserted{"LAST_INSERT_ID()"};
-  std::vector<mysqlrouter::sqlstring> fields;
-  JsonQueryBuilder qb(field_filter);
-
   if (!qb.select_items().is_empty()) fields.push_back(qb.select_items());
   fields.emplace_back(
-      "'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', 'href', "
-      "CONCAT(?,'/',!)))");
-  fields.back() << url_route << last_inserted;
-  query_ = "SELECT JSON_OBJECT(?,) FROM ? WHERE !=!;";
+      "'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', "
+      "'href', CONCAT(?,'/',CONCAT_WS(',',?))))");
+  fields.back() << url_route << format_key(object->get_base_table(), pk);
 
-  qb.process_object(object);
-
-  query_ << fields << qb.from_clause() << primary_key << last_inserted;
+  query_ = "SELECT JSON_OBJECT(?) FROM ? WHERE ?;";
+  query_ << fields << qb.from_clause()
+         << format_where_expr(object->get_base_table(), pk);
 }
 
 }  // namespace database

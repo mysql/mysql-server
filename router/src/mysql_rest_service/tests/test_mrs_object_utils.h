@@ -25,6 +25,11 @@
 #ifndef ROUTER_SRC_MYSQL_REST_SERVICE_TESTS_TEST_MRS_OBJECT_UTILS_H_
 #define ROUTER_SRC_MYSQL_REST_SERVICE_TESTS_TEST_MRS_OBJECT_UTILS_H_
 
+#ifdef RAPIDJSON_NO_SIZETYPEDEFINE
+#include "my_rapidjson_size_t.h"
+#endif
+
+#include <rapidjson/prettywriter.h>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -32,109 +37,379 @@
 #include <vector>
 #include "helper/json/text_to.h"
 #include "mrs/database/entry/object.h"
+#include "mrs/database/query_entries_object.h"
+#include "mrs/interface/rest_error.h"
+#include "mysqlrouter/mysql_session.h"
 
 using mrs::database::entry::BaseTable;
-using mrs::database::entry::FieldSource;
+using mrs::database::entry::Column;
+using mrs::database::entry::DataField;
+using mrs::database::entry::IdGenerationType;
 using mrs::database::entry::JoinedTable;
 using mrs::database::entry::Object;
 using mrs::database::entry::ObjectField;
+using mrs::database::entry::ReferenceField;
+using mrs::database::entry::Table;
 
-inline std::shared_ptr<BaseTable> make_table(const std::string &schema,
-                                             const std::string &table) {
-  auto tbl = std::make_shared<BaseTable>();
+using mrs::database::entry::Operation;
 
-  tbl->schema = schema;
-  tbl->table = table;
-  tbl->table_alias = "t";
+namespace FieldFlag {
+constexpr const int NOCHECK = 1 << 0;
+// constexpr const int NOUPDATE = 1 << 1;
 
-  return tbl;
-}
+constexpr const int PRIMARY = 1 << 4;
+constexpr const int UNIQUE = 1 << 5;
+constexpr const int AUTO_INC = 1 << 6;
+constexpr const int REV_UUID = 1 << 7;
+constexpr const int NOFILTER = 1 << 8;
+constexpr const int DISABLED = 1 << 9;
+}  // namespace FieldFlag
 
-inline std::shared_ptr<Object> make_object(
-    std::shared_ptr<Object> parent,
-    std::vector<std::shared_ptr<FieldSource>> tables) {
-  auto o = std::make_shared<Object>();
-  o->parent = parent;
-  o->base_tables = std::move(tables);
-  return o;
-}
+constexpr const Operation::ValueType kAllOperations =
+    Operation::Values::valueRead | Operation::Values::valueCreate |
+    Operation::Values::valueUpdate | Operation::Values::valueDelete;
 
-inline void set_reduce_field(std::shared_ptr<JoinedTable> table,
-                             const std::string &db_name) {
-  auto field = std::make_shared<ObjectField>();
-  field->db_name = db_name;
-  field->source = table;
-  table->reduce_to_field = field;
-}
+constexpr const Operation::ValueType kNoCreate =
+    Operation::Values::valueRead | Operation::Values::valueUpdate |
+    Operation::Values::valueDelete;
 
-inline std::shared_ptr<JoinedTable> make_join(
-    const std::string &schema, const std::string &table, int alias_num,
-    const JoinedTable::ColumnMapping &mapping, bool to_many, bool unnest) {
-  auto tbl = std::make_shared<JoinedTable>();
+constexpr const Operation::ValueType kNoUpdate =
+    Operation::Values::valueRead | Operation::Values::valueCreate |
+    Operation::Values::valueDelete;
 
-  tbl->schema = schema;
-  tbl->table = table;
-  tbl->table_alias = "t" + std::to_string(alias_num);
-  tbl->column_mapping = mapping;
-  tbl->to_many = to_many;
-  tbl->unnest = unnest;
+constexpr const Operation::ValueType kNoDelete =
+    Operation::Values::valueRead | Operation::Values::valueCreate |
+    Operation::Values::valueUpdate;
 
-  return tbl;
-}
+class DatabaseQueryTest : public testing::Test {
+ public:
+  std::unique_ptr<mysqlrouter::MySQLSession> m_;
 
-inline std::shared_ptr<ObjectField> add_field(
-    std::shared_ptr<Object> object, std::shared_ptr<FieldSource> source,
-    const std::string &name, const std::string &db_name) {
-  auto field = std::make_shared<ObjectField>();
-  field->source = source;
+  void SetUp() override { m_ = std::make_unique<mysqlrouter::MySQLSession>(); }
 
-  field->name = name;
-  field->db_name = db_name;
+  void TearDown() override {}
+};
 
-  object->fields.push_back(field);
+class ObjectBuilder {
+ public:
+  ObjectBuilder(const std::string &schema, const std::string &table,
+                Operation::ValueType allowed_crud = kAllOperations) {
+    m_object = std::make_shared<Object>();
+    m_table = std::make_shared<BaseTable>();
+    m_table->schema = schema;
+    m_table->table = table;
+    m_table->table_alias = "t";
+    m_table->crud_operations = allowed_crud | Operation::Values::valueRead;
 
-  return field;
-}
+    m_object->base_tables.push_back(m_table);
 
-inline std::shared_ptr<ObjectField> set_auto_inc(
-    std::shared_ptr<ObjectField> field) {
-  field->db_auto_inc = true;
-  return field;
-}
-
-inline std::shared_ptr<ObjectField> set_primary(
-    std::shared_ptr<ObjectField> field) {
-  field->db_is_primary = true;
-  return field;
-}
-
-inline std::shared_ptr<ObjectField> add_object_field(
-    std::shared_ptr<Object> object, std::shared_ptr<FieldSource> source,
-    const std::string &name, std::shared_ptr<Object> nested_object) {
-  auto field = std::make_shared<ObjectField>();
-  field->source = source;
-  field->nested_object = nested_object;
-
-  field->name = name;
-
-  nested_object->parent = object;
-  object->fields.push_back(field);
-
-  return field;
-}
-
-inline std::shared_ptr<Object> make_simple_object(
-    const std::string &schema, const std::string &table,
-    const std::vector<std::tuple<std::string, std::string>> &columns) {
-  auto t = make_table(schema, table);
-  auto o = make_object({}, {t});
-  for (const auto &c : columns) {
-    auto f = add_field(o, t, std::get<0>(c), std::get<0>(c));
-    f->db_datatype = std::get<1>(c);
+    m_serial = std::make_shared<int>(0);
   }
-  o->fields[0]->db_is_primary = true;
-  return o;
-}
+
+  ObjectBuilder(const std::string &table,
+                const std::vector<std::pair<std::string, std::string>> &mapping,
+                Operation::ValueType allowed_crud = kAllOperations) {
+    m_object = std::make_shared<Object>();
+    auto join = std::make_shared<JoinedTable>();
+    join->table = table;
+    join->crud_operations = allowed_crud | Operation::Values::valueRead;
+    m_column_mapping = mapping;
+    m_table = join;
+
+    m_object->base_tables.push_back(m_table);
+  }
+
+  ObjectBuilder &field(const std::string &name, int flags = 0) {
+    return field(name, name, "", flags);
+  }
+
+  ObjectBuilder &column(const std::string &name, int flags = 0) {
+    return field(name, name, "", flags | FieldFlag::DISABLED);
+  }
+
+  ObjectBuilder &column(const std::string &name, const std::string &db_type,
+                        int flags = 0) {
+    return field(name, name, db_type, flags | FieldFlag::DISABLED);
+  }
+
+  ObjectBuilder &field(const std::string &name, const std::string &db_name,
+                       const std::string &db_type = "", int flags = 0) {
+    auto field = std::make_shared<DataField>();
+    field->name = name;
+    field->enabled = (flags & FieldFlag::DISABLED) == 0;
+    field->allow_filtering = (flags & FieldFlag::NOFILTER) == 0;
+    field->no_check = (flags & FieldFlag::NOCHECK) != 0;
+
+    field->source = add_column(db_name, db_type, flags);
+
+    m_object->fields.push_back(field);
+
+    return *this;
+  }
+
+  ObjectBuilder &nest(const std::string &name, const ObjectBuilder &join,
+                      int flags = 0) {
+    assert(std::dynamic_pointer_cast<JoinedTable>(join.m_table));
+
+    nest_join(name, join, flags, false);
+
+    return *this;
+  }
+
+  ObjectBuilder &nest_list(const std::string &name, const ObjectBuilder &join,
+                           int flags = 0) {
+    assert(std::dynamic_pointer_cast<JoinedTable>(join.m_table));
+
+    nest_join(name, join, flags, true);
+
+    return *this;
+  }
+
+  ObjectBuilder &unnest(const ObjectBuilder &join) {
+    assert(std::dynamic_pointer_cast<JoinedTable>(join.m_table));
+
+    unnest_join(join, false);
+    return *this;
+  }
+
+  ObjectBuilder &unnest_list(const ObjectBuilder &join) {
+    assert(std::dynamic_pointer_cast<JoinedTable>(join.m_table));
+
+    unnest_join(join, true);
+    return *this;
+  }
+
+  ObjectBuilder &reduce_to_field(const std::string &name,
+                                 const ObjectBuilder &join,
+                                 const std::string &field_name) {
+    assert(std::dynamic_pointer_cast<JoinedTable>(join.m_table));
+
+    if (m_serial) fix_recursive(join.m_object);
+
+    auto j = std::dynamic_pointer_cast<JoinedTable>(join.m_table);
+    j->unnest = true;
+    j->to_many = true;
+    j->column_mapping = resolve_column_mapping(join, true);
+
+    auto field = std::dynamic_pointer_cast<DataField>(
+        join.m_object->get_field(field_name));
+    assert(field);
+
+    field->name = name;
+    m_object->fields.push_back(field);
+    m_object->base_tables.push_back(field->source->table.lock());
+
+    // auto j = nest_join(name, join, 0, false);
+
+    // j->reduce_to_field = join.m_object->get_field(field_name);
+
+    return *this;
+  }
+
+  ObjectBuilder &reduce_to_field(const ObjectBuilder &join,
+                                 const std::string &field_name) {
+    assert(std::dynamic_pointer_cast<JoinedTable>(join.m_table));
+
+    if (m_serial) fix_recursive(join.m_object);
+
+    auto j = std::dynamic_pointer_cast<JoinedTable>(join.m_table);
+    j->unnest = true;
+    j->to_many = true;  // XXX?
+    j->column_mapping = resolve_column_mapping(join, true);
+
+    for (auto t : join.m_object->base_tables) {
+      m_object->base_tables.push_back(t);
+    }
+
+    // for (auto f : join.m_object->fields) {
+    //   m_object->fields.push_back(f);
+    // }
+
+    j->reduce_to_field = join.m_object->get_field(field_name);
+    assert(j->reduce_to_field);
+
+    return *this;
+  }
+
+  ObjectBuilder &ref(std::shared_ptr<Table> *r) {
+    *r = m_table;
+    return *this;
+  }
+
+  ObjectBuilder &ref(std::shared_ptr<Object> *r) {
+    *r = m_object;
+    return *this;
+  }
+
+  std::shared_ptr<Object> root() const { return m_object; }
+
+  operator std::shared_ptr<Object>() const { return m_object; }
+
+#if 0
+  void dump(int depth = 0) const {
+    auto fmtbase = [](std::shared_ptr<Object> object) {
+      std::string r;
+      for (auto t : object->base_tables) {
+        r.append(t->table).append(", ");
+      }
+      r.pop_back();
+      r.pop_back();
+      return "[" + r + "]";
+    };
+
+    std::cout << std::string(depth * 2, ' ') << object->name << " <- "
+              << (!object->parent.expired() ? object->parent.lock()->name : " ")
+              << " base=" << fmtbase(object) << "\n";
+    auto fmt_source = [](std::shared_ptr<FieldSource> source) {
+      if (source) {
+        if (auto join = std::dynamic_pointer_cast<JoinedTable>(source); join)
+          return " [join=" + join->table + " " + join->table_alias +
+                 " to_many=" + (join->to_many ? "1" : "0") +
+                 " unnest=" + (join->unnest ? "1" : "0") + "]";
+        else
+          return " [base=" + source->table + " " + source->table_alias + "]";
+      }
+      return std::string("[]");
+    };
+
+    for (const auto &f : object->fields) {
+      std::cout << std::string(depth * 2, ' ')
+                << (f->nested_object ? "  = " : "  - ") << f->name << "\t"
+                << " col=" << f->db_name << fmt_source(f->source)
+                << "  type=" << f->db_datatype << " nn=" << f->db_not_null
+                << " pri=" << f->db_is_primary << " gen=" << f->db_is_generated
+                << " enabled=" << f->enabled << " filt=" << f->allow_filtering
+                << "\n";
+      if (f->nested_object) {
+        dump_object(f->nested_object, depth + 1);
+      }
+    }
+  }
+#endif
+
+ protected:
+  std::shared_ptr<Object> m_object;
+  std::shared_ptr<Table> m_table;
+  std::vector<std::pair<std::string, std::string>> m_column_mapping;
+  std::shared_ptr<int> m_serial;
+
+  std::shared_ptr<JoinedTable> nest_join(const std::string &name,
+                                         const ObjectBuilder &join, int flags,
+                                         bool to_many) {
+    if (m_serial) fix_recursive(join.m_object);
+
+    auto j = std::dynamic_pointer_cast<JoinedTable>(join.m_table);
+    j->unnest = false;
+    j->to_many = to_many;
+    j->column_mapping = resolve_column_mapping(join, to_many);
+
+    auto field = std::make_shared<ReferenceField>();
+    field->name = name;
+    field->no_check = (flags & FieldFlag::NOCHECK) != 0;
+    field->enabled = (flags & FieldFlag::DISABLED) == 0;
+    field->allow_filtering = (flags & FieldFlag::NOFILTER) == 0;
+
+    field->is_array = to_many;
+    field->nested_object = join.m_object;
+    m_object->fields.push_back(field);
+
+    return j;
+  }
+
+  std::shared_ptr<JoinedTable> unnest_join(const ObjectBuilder &join,
+                                           bool to_many) {
+    if (m_serial) fix_recursive(join.m_object);
+
+    auto j = std::dynamic_pointer_cast<JoinedTable>(join.m_table);
+    j->unnest = true;
+    j->to_many = to_many;
+    j->column_mapping = resolve_column_mapping(join, to_many);
+
+    for (auto t : join.m_object->base_tables) {
+      m_object->base_tables.push_back(t);
+    }
+    for (auto f : join.m_object->fields) {
+      m_object->fields.push_back(f);
+    }
+
+    return j;
+  }
+
+  JoinedTable::ColumnMapping resolve_column_mapping(const ObjectBuilder &join,
+                                                    bool to_many) {
+    JoinedTable::ColumnMapping mapping;
+
+    // to_many = 1:n, so if we have tbl1 - (1:n) - tbl2, the FK is at tbl2, so
+    // the base table is tbl2
+    // in a n:m relationship, the joiner table is the base table
+
+    for (const auto &c : join.m_column_mapping) {
+      auto base_table = (to_many ? join.m_table : m_table);
+      auto ref_table = (to_many ? m_table : join.m_table);
+      auto base_col = base_table->get_column(c.first);
+      auto ref_col = ref_table->get_column(c.second);
+
+      if (!base_col)
+        throw std::logic_error(c.first + " not found in " + base_table->table);
+      if (!ref_col)
+        throw std::logic_error(c.second + " not found in " + ref_table->table);
+
+      base_col->is_foreign = true;
+
+      mapping.emplace_back(base_col, ref_col);
+    }
+
+    return mapping;
+  }
+
+  void fix_recursive(std::shared_ptr<Object> o) {
+    for (const auto &table : o->base_tables) {
+      if (table->table_alias.empty()) {
+        table->table_alias = "t" + std::to_string(++*m_serial);
+      }
+      if (table->schema.empty()) {
+        table->schema = m_table->schema;
+      }
+    }
+    for (const auto &f : o->fields) {
+      if (auto rf = std::dynamic_pointer_cast<ReferenceField>(f); rf) {
+        fix_recursive(rf->nested_object);
+      } else if (auto df = std::dynamic_pointer_cast<DataField>(f); df) {
+        auto table = df->source->table.lock();
+        if (table->table_alias.empty()) {
+          table->table_alias = "t" + std::to_string(++*m_serial);
+        }
+        if (table->schema.empty()) {
+          table->schema = m_table->schema;
+        }
+      }
+    }
+  }
+
+  std::shared_ptr<Column> add_column(const std::string &name,
+                                     const std::string &type, int flags) {
+    auto column = std::make_shared<Column>();
+    column->table = m_table;
+    column->name = name;
+    column->datatype = type;
+    if (!type.empty())
+      column->type = mrs::database::column_datatype_to_type(type);
+    column->is_primary = (flags & FieldFlag::PRIMARY) != 0;
+    column->is_unique = (flags & FieldFlag::UNIQUE) != 0;
+    assert(!((flags & FieldFlag::AUTO_INC) && (flags & FieldFlag::REV_UUID)));
+    if (flags & FieldFlag::AUTO_INC)
+      column->id_generation =
+          mrs::database::entry::IdGenerationType::AUTO_INCREMENT;
+    else if (flags & FieldFlag::REV_UUID)
+      column->id_generation =
+          mrs::database::entry::IdGenerationType::REVERSE_UUID;
+    else
+      column->id_generation = mrs::database::entry::IdGenerationType::NONE;
+    m_table->columns.push_back(column);
+
+    return column;
+  }
+};
 
 inline rapidjson::Document make_json(const std::string &json) {
   rapidjson::Document doc;
@@ -142,44 +417,17 @@ inline rapidjson::Document make_json(const std::string &json) {
   return doc;
 }
 
-inline void dump_object(std::shared_ptr<Object> object, int depth = 0) {
-  auto fmtbase = [](std::shared_ptr<Object> object) {
-    std::string r;
-    for (auto t : object->base_tables) {
-      r.append(t->table).append(", ");
-    }
-    r.pop_back();
-    r.pop_back();
-    return "[" + r + "]";
-  };
+inline std::string pprint_json(const std::string &json) {
+  auto doc = make_json(json);
 
-  std::cout << std::string(depth * 2, ' ') << object->name << " <- "
-            << (!object->parent.expired() ? object->parent.lock()->name : " ")
-            << " base=" << fmtbase(object) << "\n";
-  auto fmt_source = [](std::shared_ptr<FieldSource> source) {
-    if (source) {
-      if (auto join = std::dynamic_pointer_cast<JoinedTable>(source); join)
-        return " [join=" + join->table + " " + join->table_alias +
-               " to_many=" + (join->to_many ? "1" : "0") +
-               " unnest=" + (join->unnest ? "1" : "0") + "]";
-      else
-        return " [base=" + source->table + " " + source->table_alias + "]";
-    }
-    return std::string("[]");
-  };
+  rapidjson::StringBuffer json_buf;
+  {
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> json_writer(json_buf);
 
-  for (const auto &f : object->fields) {
-    std::cout << std::string(depth * 2, ' ')
-              << (f->nested_object ? "  = " : "  - ") << f->name << "\t"
-              << " col=" << f->db_name << fmt_source(f->source)
-              << "  type=" << f->db_datatype << " nn=" << f->db_not_null
-              << " pri=" << f->db_is_primary << " gen=" << f->db_is_generated
-              << " enabled=" << f->enabled << " filt=" << f->allow_filtering
-              << "\n";
-    if (f->nested_object) {
-      dump_object(f->nested_object, depth + 1);
-    }
+    doc.Accept(json_writer);
   }
+
+  return std::string(json_buf.GetString(), json_buf.GetLength());
 }
 
 #endif  // ROUTER_SRC_MYSQL_REST_SERVICE_TESTS_TEST_MRS_OBJECT_UTILS_H_

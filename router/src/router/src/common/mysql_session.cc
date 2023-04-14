@@ -344,7 +344,8 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
                            const std::string &password,
                            const std::string &unix_socket,
                            const std::string &default_schema,
-                           int connect_timeout, int read_timeout) {
+                           int connect_timeout, int read_timeout,
+                           unsigned long extra_client_flags) {
   unsigned int protocol = MYSQL_PROTOCOL_TCP;
   connected_ = false;
 
@@ -364,7 +365,8 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
 
   const unsigned long client_flags =
       (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_PROTOCOL_41 |
-       CLIENT_MULTI_RESULTS);
+       CLIENT_MULTI_RESULTS | extra_client_flags);
+
   std::string endpoint_str = unix_socket.length() > 0
                                  ? unix_socket
                                  : host + ":" + std::to_string(port);
@@ -415,7 +417,8 @@ void MySQLSession::connect(const MySQLSession &other,
   connect(other.connect_params_.host, other.connect_params_.port, username,
           password, other.connect_params_.unix_socket,
           other.connect_params_.unix_socket, other.connect_timeout(),
-          other.read_timeout());
+          other.read_timeout(),
+          other.get_connection_parameters().conn_opts.extra_client_flags);
 }
 
 void MySQLSession::reset() {

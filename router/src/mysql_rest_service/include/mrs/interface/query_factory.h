@@ -89,8 +89,8 @@ class QueryFactory {
   virtual std::shared_ptr<database::QueryRestTable> create_query_table() = 0;
   virtual std::shared_ptr<database::QueryRestTableSingleRow>
   create_query_table_single_row() = 0;
-  virtual std::shared_ptr<database::QueryRestObjectInsert>
-  create_query_object_insert() = 0;
+  // virtual std::shared_ptr<database::QueryRestObjectInsert>
+  // create_query_object_insert() = 0;
   virtual std::shared_ptr<database::QueryRestSP> create_query_sp() = 0;
   virtual std::shared_ptr<database::QueryTableColumns>
   create_query_table_columns() = 0;

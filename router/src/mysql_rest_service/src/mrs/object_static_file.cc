@@ -147,11 +147,6 @@ const mrs::interface::Object::Fields &ObjectStaticFile::get_parameters() {
   return empty;
 }
 
-const Column &ObjectStaticFile::get_cached_primary() {
-  static Column empty;
-  return empty;
-}
-
 uint32_t ObjectStaticFile::get_on_page() { return 1; }
 
 bool ObjectStaticFile::requires_authentication() const {

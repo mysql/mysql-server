@@ -53,6 +53,7 @@ namespace mrs {
 namespace rest {
 
 using RestError = mrs::interface::RestError;
+using ETagMismatch = mrs::interface::ETagMismatch;
 using AuthHandler = mrs::interface::AuthorizeManager::AuthorizeHandlerPtr;
 using AuthHandlers = mrs::interface::AuthorizeManager::AuthHandlers;
 using WwwAuthenticationHandler = mrs::authentication::WwwAuthenticationHandler;
@@ -442,6 +443,9 @@ class RestRequestHandler : public BaseRequestHandler {
     } catch (const RestError &e) {
       if (rest_handler_->get_options().debug.log_exceptions) trace_error(e);
       handle_error(&request_ctxt, e);
+    } catch (const ETagMismatch &e) {
+      if (rest_handler_->get_options().debug.log_exceptions) trace_error(e);
+      handle_error(&request_ctxt, e);
     } catch (const std::exception &e) {
       if (rest_handler_->get_options().debug.log_exceptions) trace_error(e);
       handle_error(&request_ctxt, e);
@@ -455,6 +459,10 @@ class RestRequestHandler : public BaseRequestHandler {
 
   static http::Error err_to_http_error(const RestError &err) {
     return {HttpStatusCode::BadRequest, err.what()};
+  }
+
+  static http::Error err_to_http_error(const ETagMismatch &err) {
+    return {HttpStatusCode::PreconditionFailed, err.what()};
   }
 
   static http::Error err_to_http_error(const std::exception &) {

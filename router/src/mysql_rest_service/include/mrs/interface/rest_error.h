@@ -47,6 +47,11 @@ class RestError : public std::runtime_error {
  private:
 };
 
+class ETagMismatch : public std::runtime_error {
+ public:
+  ETagMismatch() : std::runtime_error("Precondition failed") {}
+};
+
 }  // namespace interface
 }  // namespace mrs
 

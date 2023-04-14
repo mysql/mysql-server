@@ -25,6 +25,7 @@
 #ifndef ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_OBJECT_QUERY_H_
 #define ROUTER_SRC_MYSQL_REST_SERVICE_SRC_MRS_DATABASE_HELPER_OBJECT_QUERY_H_
 
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -34,6 +35,27 @@
 
 namespace mrs {
 namespace database {
+
+using PrimaryKeyColumnValues = std::map<std::string, mysqlrouter::sqlstring>;
+
+mysqlrouter::sqlstring format_where_expr(
+    std::shared_ptr<database::entry::Table> table,
+    const std::string &table_name, const PrimaryKeyColumnValues &f);
+
+mysqlrouter::sqlstring format_where_expr(
+    std::shared_ptr<database::entry::Table> table,
+    const PrimaryKeyColumnValues &f);
+
+mysqlrouter::sqlstring format_key_names(
+    std::shared_ptr<database::entry::Table> table);
+mysqlrouter::sqlstring format_key(std::shared_ptr<database::entry::Table> table,
+                                  const PrimaryKeyColumnValues &f);
+
+mysqlrouter::sqlstring format_column_mapping(
+    const entry::JoinedTable::ColumnMapping &map);
+
+mysqlrouter::sqlstring format_left_join(const entry::Table &table,
+                                        const entry::JoinedTable &join);
 
 class ObjectFieldFilter {
  public:
@@ -52,67 +74,72 @@ class ObjectFieldFilter {
 
 class JsonQueryBuilder {
  public:
-  explicit JsonQueryBuilder(const ObjectFieldFilter &filter)
-      : m_filter(filter) {}
+  explicit JsonQueryBuilder(const ObjectFieldFilter &filter,
+                            bool for_update = false, bool for_checksum = false)
+      : m_filter(filter),
+        m_for_update(for_update),
+        m_for_checksum(for_checksum) {}
 
-  void process_object(std::shared_ptr<entry::Object> object) {
-    process_object(object, "");
-  }
+  void process_object(std::shared_ptr<entry::Object> object);
 
   mysqlrouter::sqlstring query() const {
     mysqlrouter::sqlstring q{"SELECT JSON_OBJECT(?) FROM ?"};
 
     q << select_items() << from_clause();
 
+    if (m_for_update) q.append_preformatted(" FOR UPDATE NOWAIT");
+
     return q;
   }
 
-  mysqlrouter::sqlstring get_reference_base_table_column(
-      const std::string &column_name);
+  mysqlrouter::sqlstring query_one(const PrimaryKeyColumnValues &pk) const {
+    mysqlrouter::sqlstring q{"SELECT JSON_OBJECT(?) FROM ? WHERE ?"};
+
+    q << select_items() << from_clause()
+      << format_where_expr(m_object->get_base_table(), pk);
+
+    if (m_for_update) q.append_preformatted(" FOR UPDATE NOWAIT");
+
+    return q;
+  }
 
   const mysqlrouter::sqlstring &select_items() const { return m_select_items; }
   mysqlrouter::sqlstring from_clause() const;
 
  private:
   const ObjectFieldFilter &m_filter;
+  std::shared_ptr<entry::Object> m_object;
   std::string m_path_prefix;
   mysqlrouter::sqlstring m_select_items;
-  std::vector<std::shared_ptr<entry::FieldSource>> m_base_tables;
-  std::vector<std::shared_ptr<entry::FieldSource>> m_joined_tables;
+  std::vector<std::shared_ptr<entry::Table>> m_base_tables;
+  std::vector<std::shared_ptr<entry::Table>> m_joined_tables;
+  bool m_for_update = false;
+  bool m_for_checksum = false;
 
   void process_object(std::shared_ptr<entry::Object> object,
                       const std::string &path_prefix);
 
-  mysqlrouter::sqlstring subquery_value(
-      const std::string &base_table_name) const;
+  mysqlrouter::sqlstring subquery_value() const;
 
-  mysqlrouter::sqlstring subquery_object(
-      const std::string &base_table_name) const;
+  mysqlrouter::sqlstring subquery_object() const;
 
-  mysqlrouter::sqlstring subquery_object_array(
-      const std::string &base_table_name) const;
+  mysqlrouter::sqlstring subquery_object_array() const;
 
-  mysqlrouter::sqlstring subquery_array(
-      const std::string &base_table_name) const;
+  mysqlrouter::sqlstring subquery_array() const;
 
   mysqlrouter::sqlstring make_subselect_where(
-      const std::string &base_table_name,
       std::shared_ptr<entry::JoinedTable> ref) const;
 
   mysqlrouter::sqlstring make_subquery(
-      std::shared_ptr<entry::FieldSource> base_table,
-      const entry::ObjectField &field) const;
+      const entry::ReferenceField &field) const;
 
-  void add_field(std::shared_ptr<entry::FieldSource> base_table,
-                 const entry::ObjectField &field);
+  void add_field(std::shared_ptr<entry::ObjectField> field);
 
-  void add_field_value(std::shared_ptr<entry::FieldSource> base_table,
-                       const entry::ObjectField &field);
+  void add_field_value(std::shared_ptr<entry::ObjectField> field);
 
-  void add_joined_table(std::shared_ptr<entry::FieldSource> table);
+  void add_joined_table(std::shared_ptr<entry::Table> table);
 
-  mysqlrouter::sqlstring join_condition(const entry::FieldSource &base_table,
-                                        const entry::JoinedTable &table) const;
+  mysqlrouter::sqlstring join_condition(const entry::JoinedTable &table) const;
 };
 
 }  // namespace database

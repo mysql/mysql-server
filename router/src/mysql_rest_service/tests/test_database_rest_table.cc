@@ -29,10 +29,10 @@
 #include "helper/make_shared_ptr.h"
 #include "mrs/database/entry/entry.h"
 #include "mrs/database/query_rest_table.h"
+#include "test_mrs_object_utils.h"
 
 #include "mock/mock_session.h"
 
-using helper::Column;
 using mrs::database::QueryRestTable;
 using testing::_;
 using testing::Invoke;
@@ -87,74 +87,71 @@ TEST(DbEntry, less) {
   ASSERT_TRUE((m[{key_rest, {6}}] == 12));
 }
 
-#if 0
 TEST_F(QueryRestTableTests, basic_empty_request_throws) {
-  Object object;
-  object.schema = "schema";
-  object.table = "obj";
+  auto object =
+      ObjectBuilder("schema", "obj").field("c2", FieldFlag::PRIMARY).root();
 
-  EXPECT_THROW(
-      sut_->query_entries(&mock_session_, object,
-                          mrs::database::ObjectFieldFilter::from_object(object),
-                          0, 25, "my.url", "c2", true),
-      std::invalid_argument);
+  EXPECT_THROW(sut_->query_entries(
+                   &mock_session_, object,
+                   mrs::database::ObjectFieldFilter::from_object(*object), 0,
+                   25, "my.url", true),
+               std::invalid_argument);
 }
 
 TEST_F(QueryRestTableTests, basic_two_request_without_result) {
-  Object object;
-  object.schema = "schema";
-  object.table = "obj";
+  auto object = ObjectBuilder("schema", "obj")
+                    .field("c1")
+                    .field("c2", FieldFlag::PRIMARY)
+                    .root();
 
-  auto f1 = std::make_shared<ObjectField>();
-  f1->name = "c1";
-  f1->db_column_name = "c1";
-  object.fields.push_back(f1);
-
-  auto f2 = std::make_shared<ObjectField>();
-  f1->name = "c2";
-  f1->db_column_name = "c2";
-  object.fields.push_back(f2);
-
-  std::vector<Column> columns{{"c1", "text"}, {"c2", "mediumint", true}};
-  EXPECT_CALL(mock_session_, query(StrEq("SELECT JSON_OBJECT("
-                                         "'c1',`c1`,"
-                                         "'c2',`c2`, "
-                                         "'links', JSON_ARRAY(JSON_OBJECT("
-                                         "'rel','self',"
-                                         "'href',CONCAT('my.url','/',`c2`)))) "
-                                         "FROM `schema`.`obj`  LIMIT 0,26"),
-                                   _, _));
+  EXPECT_CALL(
+      mock_session_,
+      query(
+          StrEq("SELECT JSON_SET(doc, '$._metadata', JSON_OBJECT('etag', "
+                "sha2(doc, 256)), '$.links', "
+                "JSON_ARRAY(JSON_OBJECT('rel','self','href',CONCAT('my.url','/"
+                "',`c2`)))) doc FROM (SELECT JSON_OBJECT('c1', `t`.`c1`, 'c2', "
+                "`t`.`c2`) as doc FROM `schema`.`obj` as `t`  LIMIT 0,26) tbl"),
+          _, _));
 
   sut_->query_entries(&mock_session_, object,
-                      mrs::database::ObjectFieldFilter::from_object(object), 0,
-                      25, "my.url", "c2", true);
+                      mrs::database::ObjectFieldFilter::from_object(*object), 0,
+                      25, "my.url", true);
 }
 
 TEST_F(QueryRestTableTests, basic_two_request_without_result_and_no_links) {
-  Object object;
-  object.schema = "schema";
-  object.table = "obj";
+  auto object = ObjectBuilder("schema", "obj").field("c1").field("c2").root();
 
-  auto f1 = std::make_shared<ObjectField>();
-  f1->name = "c1";
-  f1->db_column_name = "c1";
-  object.fields.push_back(f1);
-
-  auto f2 = std::make_shared<ObjectField>();
-  f1->name = "c2";
-  f1->db_column_name = "c2";
-  object.fields.push_back(f2);
-
-  EXPECT_CALL(mock_session_, query(StrEq("SELECT JSON_OBJECT("
-                                         "'c1',`c1`,"
-                                         "'c2',`c2`, "
-                                         "'links', JSON_ARRAY()) "
-                                         "FROM `schema`.`obj`  LIMIT 0,26"),
-                                   _, _));
+  EXPECT_CALL(
+      mock_session_,
+      query(StrEq("SELECT JSON_SET(doc, '$._metadata', JSON_OBJECT('etag', "
+                  "sha2(doc, 256)), '$.links', JSON_ARRAY()) doc FROM (SELECT "
+                  "JSON_OBJECT('c1', `t`.`c1`, 'c2', `t`.`c2`) as doc FROM "
+                  "`schema`.`obj` as `t`  LIMIT 0,26) tbl"),
+            _, _));
 
   sut_->query_entries(&mock_session_, object,
-                      mrs::database::ObjectFieldFilter::from_object(object), 0,
-                      25, "my.url", "", true);
+                      mrs::database::ObjectFieldFilter::from_object(*object), 0,
+                      25, "my.url", true);
 }
 
-#endif
+TEST_F(QueryRestTableTests, basic_query) {
+  auto root = ObjectBuilder("schema", "obj")
+                  .field("c1", FieldFlag::PRIMARY)
+                  .field("c2")
+                  .root();
+
+  EXPECT_CALL(
+      mock_session_,
+      query(
+          StrEq("SELECT JSON_SET(doc, '$._metadata', JSON_OBJECT('etag', "
+                "sha2(doc, 256)), '$.links', "
+                "JSON_ARRAY(JSON_OBJECT('rel','self','href',CONCAT('my.url','/"
+                "',`c1`)))) doc FROM (SELECT JSON_OBJECT('c1', `t`.`c1`, 'c2', "
+                "`t`.`c2`) as doc FROM `schema`.`obj` as `t`  LIMIT 0,26) tbl"),
+          _, _));
+
+  sut_->query_entries(&mock_session_, root,
+                      mrs::database::ObjectFieldFilter::from_object(*root), 0,
+                      25, "my.url", true);
+}

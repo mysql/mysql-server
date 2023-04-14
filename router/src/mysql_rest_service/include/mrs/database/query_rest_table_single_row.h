@@ -42,35 +42,28 @@ class QueryRestTableSingleRow : private QueryLog {
  public:
   using Object = entry::Object;
   using ObjectField = entry::ObjectField;
-  using Column = helper::Column;
+  using PrimaryKeyColumnValues = mrs::database::PrimaryKeyColumnValues;
 
  public:
   virtual void query_entries(MySQLSession *session,
                              std::shared_ptr<database::entry::Object> object,
                              const ObjectFieldFilter &field_filter,
-                             const Column &primary_key,
-                             const mysqlrouter::sqlstring &pri_value,
-                             const std::string &url_route);
-
-  virtual void query_last_inserted(
-      MySQLSession *session, std::shared_ptr<database::entry::Object> object,
-      const ObjectFieldFilter &field_filter, const std::string &primary_key,
-      const std::string &url_route);
+                             const PrimaryKeyColumnValues &pk,
+                             const std::string &url_route,
+                             bool compute_etag = false);
 
   std::string response;
   uint64_t items;
 
  private:
+  std::shared_ptr<database::entry::Object> object_;
+  bool compute_etag_ = false;
+
   void on_row(const ResultRow &r) override;
   void build_query(std::shared_ptr<database::entry::Object> object,
                    const ObjectFieldFilter &field_filter,
-                   const Column &primary_key,
-                   const mysqlrouter::sqlstring &pri_value,
+                   const PrimaryKeyColumnValues &pk,
                    const std::string &url_route);
-  void build_query_last_inserted(
-      std::shared_ptr<database::entry::Object> object,
-      const ObjectFieldFilter &field_filter, const std::string &primary_key,
-      const std::string &url_route);
 };
 
 }  // namespace database

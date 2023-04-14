@@ -29,6 +29,7 @@
 
 #include "my_rapidjson_size_t.h"
 
+#include <rapidjson/document.h>
 #include <rapidjson/ostreamwrapper.h>
 #include <rapidjson/writer.h>
 
@@ -202,6 +203,18 @@ class SerializerToText {
     }
 
     return *this;
+  }
+
+  SerializerToText &add_value(const rapidjson::Value &value) {
+    rapidjson::StringBuffer json_buf;
+    {
+      rapidjson::Writer<rapidjson::StringBuffer> json_writer(json_buf);
+
+      value.Accept(json_writer);
+    }
+
+    return add_value(json_buf.GetString(), json_buf.GetLength(),
+                     JsonType::kJson);
   }
 
   void flush() { writer_.Flush(); }
