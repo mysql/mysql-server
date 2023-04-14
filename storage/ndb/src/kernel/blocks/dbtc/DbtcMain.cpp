@@ -2847,7 +2847,8 @@ void Dbtc::initApiConnectRec(Signal* signal,
   UintR Ttransid0 = tcKeyReq->transId1;
   UintR Ttransid1 = tcKeyReq->transId2;
 
-  tc_clearbit(regApiPtr->m_flags, ApiConnectRecord::TF_EXEC_FLAG);
+  // Clear all ApiConnectRecord flags
+  regApiPtr->m_flags = 0;
   regApiPtr->returncode = 0;
   regApiPtr->returnsignal = RS_TCKEYCONF;
   ndbassert(regApiPtr->firstTcConnect == RNIL);
@@ -2859,8 +2860,6 @@ void Dbtc::initApiConnectRec(Signal* signal,
   regApiPtr->lqhkeyreqrec = 0;
   regApiPtr->tckeyrec = 0;
   regApiPtr->tcindxrec = 0;
-  tc_clearbit(regApiPtr->m_flags,
-              ApiConnectRecord::TF_COMMIT_ACK_MARKER_RECEIVED);
   regApiPtr->failureNr = TfailureNr;
   regApiPtr->transid[0] = Ttransid0;
   regApiPtr->transid[1] = Ttransid1;
@@ -2885,8 +2884,6 @@ void Dbtc::initApiConnectRec(Signal* signal,
   // FiredTriggers should have been released when previous transaction ended. 
   ndbrequire(regApiPtr->theFiredTriggers.isEmpty());
   // Index data
-  tc_clearbit(regApiPtr->m_flags,
-              ApiConnectRecord::TF_INDEX_OP_RETURN);
   regApiPtr->noIndexOp = 0;
   if(releaseIndexOperations)
   {
@@ -2898,10 +2895,6 @@ void Dbtc::initApiConnectRec(Signal* signal,
   }
   regApiPtr->immediateTriggerId = RNIL;
 
-  tc_clearbit(regApiPtr->m_flags,
-              ApiConnectRecord::TF_DEFERRED_CONSTRAINTS);
-  tc_clearbit(regApiPtr->m_flags,
-              ApiConnectRecord::TF_DISABLE_FK_CONSTRAINTS);
   c_counters.ctransCount++;
 
 #ifdef ERROR_INSERT
