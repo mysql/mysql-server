@@ -178,7 +178,7 @@ TEST(MrsObjectInsert, plain) {
     // INSERT
     {
       mrs::database::JsonInsertBuilder ib(root, "owner_id",
-                                          rapidjson::Value(123));
+                                          mysqlrouter::sqlstring("123"));
       ib.process(doc);
 
       auto sql = ib.insert();
@@ -193,7 +193,8 @@ TEST(MrsObjectInsert, plain) {
     // UPDATE
     {
       mrs::database::JsonInsertBuilder ib(root, mysqlrouter::sqlstring("123"),
-                                          "owner_id", rapidjson::Value(333));
+                                          "owner_id",
+                                          mysqlrouter::sqlstring("333"));
       ib.process(doc);
 
       auto sql = ib.update();
@@ -221,7 +222,7 @@ TEST(MrsObjectInsert, plain) {
     // INSERT
     {
       mrs::database::JsonInsertBuilder ib(root, "owner_id",
-                                          rapidjson::Value(123));
+                                          mysqlrouter::sqlstring("123"));
       ib.process(doc);
 
       auto sql = ib.insert();
@@ -237,7 +238,8 @@ TEST(MrsObjectInsert, plain) {
     // UPDATE
     {
       mrs::database::JsonInsertBuilder ib(root, mysqlrouter::sqlstring("123"),
-                                          "owner_id", rapidjson::Value(333));
+                                          "owner_id",
+                                          mysqlrouter::sqlstring("333"));
       ib.process(doc);
 
       auto sql = ib.update();
@@ -284,7 +286,7 @@ TEST(MrsObjectInsert, plain_not_autoinc) {
     // INSERT
     {
       mrs::database::JsonInsertBuilder ib(root, "actor_id",
-                                          rapidjson::Value(123));
+                                          mysqlrouter::sqlstring("123"));
       ib.process(doc);
 
       auto sql = ib.insert();
@@ -297,7 +299,8 @@ TEST(MrsObjectInsert, plain_not_autoinc) {
     // UPDATE
     {
       mrs::database::JsonInsertBuilder ib(root, mysqlrouter::sqlstring("123"),
-                                          "actor_id", rapidjson::Value(123));
+                                          "actor_id",
+                                          mysqlrouter::sqlstring("123"));
       ib.process(doc);
 
       auto sql = ib.update();
@@ -309,7 +312,8 @@ TEST(MrsObjectInsert, plain_not_autoinc) {
     // UPDATE wrong row
     {
       mrs::database::JsonInsertBuilder ib(root, mysqlrouter::sqlstring("333"),
-                                          "actor_id", rapidjson::Value(123));
+                                          "actor_id",
+                                          mysqlrouter::sqlstring("123"));
       ib.process(doc);
 
       auto sql = ib.update();
@@ -344,7 +348,7 @@ TEST(MrsObjectInsert, plain_not_autoinc) {
   // ensure ownership column can't be changed in request
   {
     mrs::database::JsonInsertBuilder ib(root, "actor_id",
-                                        rapidjson::Value(125));
+                                        mysqlrouter::sqlstring("125"));
     ib.process(doc);
 
     auto sql = ib.insert();
@@ -357,7 +361,8 @@ TEST(MrsObjectInsert, plain_not_autoinc) {
   // UPDATE
   {
     mrs::database::JsonInsertBuilder ib(root, mysqlrouter::sqlstring("333"),
-                                        "actor_id", rapidjson::Value(222));
+                                        "actor_id",
+                                        mysqlrouter::sqlstring("222"));
     ib.process(doc);
 
     auto sql = ib.update();

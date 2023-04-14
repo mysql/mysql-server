@@ -47,7 +47,7 @@ class JsonInsertBuilder {
 
   explicit JsonInsertBuilder(std::shared_ptr<entry::Object> object,
                              const std::string &row_ownership_column = {},
-                             rapidjson::Value requesting_user_id = {})
+                             mysqlrouter::sqlstring requesting_user_id = {})
       : m_object(object),
         m_row_ownership_column(row_ownership_column),
         m_requesting_user_id(std::move(requesting_user_id)),
@@ -56,7 +56,7 @@ class JsonInsertBuilder {
   JsonInsertBuilder(std::shared_ptr<entry::Object> object,
                     const mysqlrouter::sqlstring &updated_pk_value,
                     const std::string &row_ownership_column = {},
-                    rapidjson::Value requesting_user_id = {})
+                    mysqlrouter::sqlstring requesting_user_id = {})
       : m_object(object),
         m_row_ownership_column(row_ownership_column),
         m_requesting_user_id(std::move(requesting_user_id)),
@@ -77,7 +77,7 @@ class JsonInsertBuilder {
  private:
   std::shared_ptr<entry::Object> m_object;
   std::string m_row_ownership_column;
-  rapidjson::Value m_requesting_user_id;
+  mysqlrouter::sqlstring m_requesting_user_id;
 
   std::shared_ptr<entry::ObjectField> m_pk_field;
 
@@ -106,6 +106,11 @@ class JsonInsertBuilder {
                       const rapidjson::Value &value,
                       std::map<std::string, TableRowData> *rows,
                       const std::string &path);
+
+  void add_row_value(const entry::ObjectField &field,
+                     const mysqlrouter::sqlstring &value,
+                     std::map<std::string, TableRowData> *rows,
+                     const std::string &field_path);
 
   std::shared_ptr<entry::BaseTable> get_base_table() const;
   std::vector<std::shared_ptr<entry::ObjectField>> get_base_table_fields()

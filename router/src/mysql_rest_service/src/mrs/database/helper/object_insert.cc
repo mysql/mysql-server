@@ -110,11 +110,9 @@ void JsonInsertBuilder::process_object(std::shared_ptr<entry::Object> object,
       found_row_ownership_column = true;
 
       if (field->db_is_primary) {
-        auto tmp = mysqlrouter::sqlstring("?");
-        tmp << m_requesting_user_id;
-        m_predefined_pk_values[field->db_name] = tmp;
+        m_predefined_pk_values[field->db_name] = m_requesting_user_id;
       }
-      on_table_field(*field, m_requesting_user_id, &rows, path);
+      add_row_value(*field, m_requesting_user_id, &rows, path);
     } else {
       on_table_field(*field, member.value, &rows, path);
     }
@@ -157,8 +155,7 @@ void JsonInsertBuilder::process_object(std::shared_ptr<entry::Object> object,
                         "Could not find metadata for field");
     }
 
-    mysqlrouter::sqlstring tmp("?");
-    on_table_field(*field, m_requesting_user_id, &rows, "");
+    add_row_value(*field, m_requesting_user_id, &rows, "");
   }
 
   for (auto &rit : rows) {
@@ -209,12 +206,13 @@ mysqlrouter::sqlstring JsonInsertBuilder::update() {
       mysqlrouter::sqlstring where;
       if (!m_row_ownership_column.empty()) {
         if (m_row_ownership_column == m_pk_field->db_name) {
-          where = mysqlrouter::sqlstring(" WHERE ! = ?");
-          where << m_row_ownership_column << m_requesting_user_id;
+          where = mysqlrouter::sqlstring(" WHERE ! = ");
+          where << m_row_ownership_column;
+          where.append_preformatted(m_requesting_user_id);
         } else {
-          where = mysqlrouter::sqlstring(" WHERE ! = ? AND ! = ?");
+          where = mysqlrouter::sqlstring(" WHERE ! = ? AND ! = ");
           where << m_pk_field->db_name << *m_updated_pk_value;
-          where << m_row_ownership_column << m_requesting_user_id;
+          where.append_preformatted(m_requesting_user_id);
         }
       } else {
         where = mysqlrouter::sqlstring(" WHERE ! = ?");
@@ -310,24 +308,32 @@ void JsonInsertBuilder::on_table_field(
   } else {
     validate_scalar_field_value_for_insert(field, value, path);
 
-    // XXX handle columns that are part of a FK to the base table
-    auto &row = (*rows)[field.source->table_alias];
+    mysqlrouter::sqlstring tmp("?");
+    tmp << value;
 
-    row.source = field.source;
-    {
-      mysqlrouter::sqlstring tmp("!");
-      tmp << field.db_name;
-      row.columns.emplace_back(std::move(tmp));
-    }
-    {
-      mysqlrouter::sqlstring tmp("?");
-      tmp << value;
-      row.values.emplace_back(std::move(tmp));
+    add_row_value(field, tmp, rows, path);
+  }
+}
 
-      if (path.empty() && field.db_is_primary) {
-        m_predefined_pk_values[field.db_name] = tmp;
-      }
+void JsonInsertBuilder::add_row_value(const entry::ObjectField &field,
+                                      const mysqlrouter::sqlstring &value,
+                                      std::map<std::string, TableRowData> *rows,
+                                      const std::string &field_path) {
+  // XXX handle columns that are part of a FK to the base table
+  auto &row = (*rows)[field.source->table_alias];
+
+  row.source = field.source;
+  {
+    mysqlrouter::sqlstring tmp("!");
+    tmp << field.db_name;
+    row.columns.emplace_back(std::move(tmp));
+  }
+  {
+    if (field_path.empty() && field.db_is_primary) {
+      m_predefined_pk_values[field.db_name] = value;
     }
+
+    row.values.emplace_back(value);
   }
 }
 
