@@ -79,7 +79,7 @@ class QueryRestObjectInsert : private QueryLog {
       MySQLSession *session, std::shared_ptr<Object> object,
       const rapidjson::Document &json_doc,
       const std::string &row_ownership_column = {},
-      rapidjson::Value requesting_user_id = {}) {
+      mysqlrouter::sqlstring requesting_user_id = {}) {
     JsonInsertBuilder ib(object, row_ownership_column,
                          std::move(requesting_user_id));
     PrimaryKeyColumnValues pk;
@@ -120,7 +120,7 @@ class QueryRestObjectInsert : private QueryLog {
       const rapidjson::Document &json_doc,
       const mysqlrouter::sqlstring &pk_value,
       const std::string &row_ownership_column = {},
-      rapidjson::Value requesting_user_id = {}) {
+      mysqlrouter::sqlstring requesting_user_id = {}) {
     JsonInsertBuilder ib(object, pk_value, row_ownership_column,
                          std::move(requesting_user_id));
     PrimaryKeyColumnValues pk;
