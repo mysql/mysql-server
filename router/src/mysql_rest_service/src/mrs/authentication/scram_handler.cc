@@ -204,14 +204,18 @@ static std::string get_session_cookie_key_name(const UniversalId id) {
   return "session_"s + id.to_string();
 }
 
+const char *to_string(const bool b) { return b ? "yes" : "no"; }
+
 SaslResult ScramHandler::client_response(RequestContext &ctxt, Session *session,
                                          AuthUser *out_user,
                                          const std::string &auth_data,
                                          const bool is_json) {
-  log_debug("ScramHandler::client_response auth_data=%s", auth_data.c_str());
+  log_debug("ScramHandler::client_response is_json=%s auth_data=%s ",
+            to_string(is_json), auth_data.c_str());
   auto session_data = session->get_data<ScramSessionData>();
-  if (!session_data->scram || session_data->scram->is_json() != is_json)
+  if (!session_data->scram || session_data->scram->is_json() != is_json) {
     return SaslResult(get_problem_description(HttpStatusCode::Unauthorized));
+  }
 
   auto auth_continue = session_data->scram->set_continue(auth_data);
   if (!auth_continue.session.empty() &&

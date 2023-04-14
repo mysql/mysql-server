@@ -51,6 +51,7 @@ class QueryRestSP : private QueryLog {
   uint64_t items;
 
  private:
+  bool items_started_;
   bool has_out_params_;
   uint64_t items_in_resultset_;
   uint64_t number_of_resultsets_;

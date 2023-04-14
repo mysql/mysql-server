@@ -83,7 +83,22 @@ if ($mrs_add_db_object_type=="PROCEDURE")
     --let $_schema_name=`SELECT name FROM mysql_rest_service_metadata.db_schema WHERE id=$mrs_schema_id_sql_variable`
 
     eval INSERT INTO `mysql_rest_service_metadata`.`field` (`id`, `db_object_id`, `position`, `name`, `bind_field_name`, `datatype`, `mode`)
-    SELECT mysql_rest_service_metadata.get_sequence_id(), $mrs_sql_id_variable, ORDINAL_POSITION, PARAMETER_NAME, PARAMETER_NAME, UPPER(DATA_TYPE), PARAMETER_MODE 
+    SELECT mysql_rest_service_metadata.get_sequence_id(), $mrs_sql_id_variable, ORDINAL_POSITION, PARAMETER_NAME, PARAMETER_NAME,
+    case 
+      when DATA_TYPE like "%int%" then "INT"
+      when DATA_TYPE like "%tinyint(1)%" then "BOOLEAN"
+      when DATA_TYPE like "%char%" then "STRING"
+      when DATA_TYPE like "%text%" then "STRING"
+      when DATA_TYPE like "%json%" then "JSON"
+      when DATA_TYPE like "%time%" then "TIMESTAMP"
+      when DATA_TYPE like "%date%" then "TIMESTAMP"
+      when DATA_TYPE like "%year%" then "TIMESTAMP"
+      when DATA_TYPE like "%float%" then "DOUBLE"
+      when DATA_TYPE like "%double%" then "DOUBLE"
+      when DATA_TYPE like "%bit%" then "INT"
+      when DATA_TYPE like "%decimal%" then "DOUBLE"
+    end, 
+    PARAMETER_MODE 
      FROM information_schema.PARAMETERS
      WHERE SPECIFIC_NAME="$mrs_add_db_object" and SPECIFIC_SCHEMA="$_schema_name";
 }

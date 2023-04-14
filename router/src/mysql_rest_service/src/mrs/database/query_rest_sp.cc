@@ -31,6 +31,7 @@ void QueryRestSP::query_entries(
     MySQLSession *session, const std::string &schema, const std::string &object,
     const std::string &url, const std::string &ignore_column,
     const mysqlrouter::sqlstring &values, std::vector<enum_field_types> pt) {
+  items_started_ = false;
   items = 0;
   number_of_resultsets_ = 0;
   items_in_resultset_ = 0;
@@ -50,9 +51,10 @@ void QueryRestSP::query_entries(
 }
 
 bool QueryRestSP::flush(const bool is_last) {
-  if (0 == items_in_resultset_) return true;
+  if (0 == items_in_resultset_ && !(is_last && !items_started_)) return true;
   if (items_in_resultset_ > 1) return false;
 
+  items_started_ = true;
   if (is_last && has_out_params_) {
     response_template.begin(url_, "itemsOut");
     push_cached();
@@ -71,12 +73,14 @@ bool QueryRestSP::flush(const bool is_last) {
 }
 
 void QueryRestSP::push_cached() {
-  Row r;
-  r.reserve(flush_copy_.size());
-  for (auto &item : flush_copy_) {
-    r.push_back(item ? item.value().c_str() : nullptr);
+  if (items_in_resultset_) {
+    Row r;
+    r.reserve(flush_copy_.size());
+    for (auto &item : flush_copy_) {
+      r.push_back(item ? item.value().c_str() : nullptr);
+    }
+    response_template.push_json_document(r, columns_, ignore_column_);
   }
-  response_template.push_json_document(r, columns_, ignore_column_);
 }
 
 void QueryRestSP::on_row(const Row &r) {

@@ -40,6 +40,7 @@ enum class SessionType { kCookie, kJWT };
 enum class ResponseType { kJson, kRaw };
 
 struct ApplicationDisplay {
+  bool request{true};
   bool status{false};
   bool header{false};
   bool body{true};
@@ -47,7 +48,7 @@ struct ApplicationDisplay {
   bool title{false};
 
   static ApplicationDisplay display_all() {
-    ApplicationDisplay result = {true, true, true, true, true};
+    ApplicationDisplay result = {true, true, true, true, true, true};
     return result;
   }
 };

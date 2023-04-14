@@ -1,0 +1,281 @@
+# Validate handling of procedures, configured to generate a FEED response.
+#
+# Check handling of invalid: URL parameters, methods, payloads.
+# Validate the handling of input/output parameters.
+#
+#
+--source include/have_router.inc
+
+--source ../include/predefined_setup/configure_router_mrs_root.inc
+--source ../include/schema/procedures_schema.sql
+
+--let $mrs_host_and_port=127.0.0.1:$extra_http_port
+--let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port --display REQUEST,BODY,RESULT
+
+
+## Test starts here
+--echo
+--echo
+--echo ## I. Achive the faulty state by altering valid object
+--echo #
+--echo # 1. Create db_schema (null in items_on_page), create db_object
+--echo #    assigned to the schema (2 in items_on_page). Validate that
+--echo #    the object returns two items in signle REST request.
+--echo # 2. Alter the db_objects items_on_page to contain null, this way
+--echo #    the object doesn't have any value and must use application
+--echo #    default. Validate that (application default is 25) the object
+--echo #    returns twenty five items in signle REST request.
+--echo #
+--echo ## II. Achive the faulty state at db_object creation
+--echo #
+--echo # 1. Create faulty object (items_on_page = null) on previous defined
+--echo #    schema and validate that application default is used.
+--echo #
+
+# The test uses HOST to have only paths in HREF fields.
+--let $mrs_add_service_path="/svc"
+--let $mrs_add_host_name=""
+--source ../include/mrs_add_service.inc
+
+--let $mrs_add_schema=proc_schema
+--let $mrs_add_schema_path=/proc
+--let $mrs_add_schema_items_on_page=NULL
+--source ../include/mrs_add_schema.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=proc_do_nothing
+--let $mrs_add_db_object_path=/nothing
+--source ../include/mrs_add_db_object.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=proc_sum
+--let $mrs_add_db_object_path=/sum
+--source ../include/mrs_add_db_object.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=proc_sum_out
+--let $mrs_add_db_object_path=/sum_out
+--source ../include/mrs_add_db_object.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=proc_concat
+--let $mrs_add_db_object_path=/concat
+--source ../include/mrs_add_db_object.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=proc_concat_out
+--let $mrs_add_db_object_path=/concat_out
+--source ../include/mrs_add_db_object.inc
+
+
+
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_char
+--let $mrs_add_db_object_path=/move_char
+--source ../include/mrs_add_db_object.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_date
+--let $mrs_add_db_object_path=/move_date
+--source ../include/mrs_add_db_object.inc
+
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_year
+--let $mrs_add_db_object_path=/move_year
+--source ../include/mrs_add_db_object.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_time
+--let $mrs_add_db_object_path=/move_time
+--source ../include/mrs_add_db_object.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_bit
+--let $mrs_add_db_object_path=/move_bit
+--source ../include/mrs_add_db_object.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_tinyint1
+--let $mrs_add_db_object_path=/move_tinyint1
+--source ../include/mrs_add_db_object.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_tinyint8
+--let $mrs_add_db_object_path=/move_tinyint8
+--source ../include/mrs_add_db_object.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_decimal
+--let $mrs_add_db_object_path=/move_decimal
+--source ../include/mrs_add_db_object.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_float
+--let $mrs_add_db_object_path=/move_float
+--source ../include/mrs_add_db_object.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=move_double
+--let $mrs_add_db_object_path=/move_double
+--source ../include/mrs_add_db_object.inc
+
+
+--echo
+--echo #
+--echo # I.1
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing
+  --wait-until-found 60;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing -t POST
+  --expected-status Forbidden;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing -t DELETE
+  --expected-status Forbidden;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing -t PUT
+  --expected-status BadRequest;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing -t PUT
+  --payload 10
+  --expected-status BadRequest;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing -t PUT
+  --payload '{"not-existing-param":20}'
+  --expected-status BadRequest;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing?not-existing-param=10
+  --expected-status BadRequest;
+
+echo ############;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/sum?a=10\&b=20;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/sum_out?a=10\&b=20;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/concat?a=10\&b=20;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/concat_out?a=10\&b=20;
+
+echo ############;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/nothing
+  -t PUT --payload '{}';
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/sum
+  -t PUT --payload '{"a":10,"b":20}';
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/sum_out
+  -t PUT --payload '{"a":10, "b":20}';
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/concat
+  -t PUT --payload '{"a":10,"b":20}';
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/concat_out
+  -t PUT --payload '{"a":10,"b":20}';
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/concat
+  -t PUT --payload '{"a":"10","b":"20"}';
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/concat_out
+  -t PUT --payload '{"a":"10","b":"20"}';
+
+echo ######;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_char?a=10;
+
+#exec $MRS_CLIENT_ARGS
+#  --path /svc/proc/move_date?a="1920-12-11";
+#
+#exec $MRS_CLIENT_ARGS
+#  --path /svc/proc/move_year?a="1920-12-11";
+#
+#exec $MRS_CLIENT_ARGS
+#  --path /svc/proc/move_time?a="12:34:12";
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_bit?a=1;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_tinyint1?a=1;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_tinyint8?a=10;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_decimal?a=10;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_float?a=10;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_double?a=10;
+
+echo ######;
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_char
+  -t PUT --payload '{"a":10}';
+
+#exec $MRS_CLIENT_ARGS
+#  --path /svc/proc/move_date
+#  -t PUT --payload '{"a":"1920-12-11"}';
+#
+#exec $MRS_CLIENT_ARGS
+#  --path /svc/proc/move_year
+#  -t PUT --payload '{"a":"1920-12-11"}';
+#
+#exec $MRS_CLIENT_ARGS
+#  --path /svc/proc/move_time
+#  -t PUT --payload '{"a":"12:34:12"}';
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_bit
+  -t PUT --payload '{"a":1}';
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_tinyint1
+  -t PUT --payload '{"a":1}';
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_tinyint8
+  -t PUT --payload '{"a":10}';
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_decimal
+  -t PUT --payload '{"a":10}';
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_float
+  -t PUT --payload '{"a":10}';
+
+exec $MRS_CLIENT_ARGS
+  --path /svc/proc/move_double
+  -t PUT --payload '{"a":10}';
+
+# Cleanup
+DROP SCHEMA proc_schema;
+--source ../include/mrs_cleanup.inc

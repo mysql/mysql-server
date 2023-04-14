@@ -74,11 +74,9 @@ static bool display_type_convert(const std::string &value,
   using Display = http_client::ApplicationDisplay;
   using MemberBool = bool Display::*;
   static std::map<std::string, MemberBool> allowed_values{
-      {"status", &Display::status},
-      {"header", &Display::header},
-      {"body", &Display::body},
-      {"result", &Display::result},
-      {"title", &Display::title}};
+      {"request", &Display::request}, {"status", &Display::status},
+      {"header", &Display::header},   {"body", &Display::body},
+      {"result", &Display::result},   {"title", &Display::title}};
 
   if ("all" == value) {
     for (auto &[key, value] : allowed_values) {
@@ -218,6 +216,26 @@ static void verify_required_arguments() {
 }
 
 static void print_results(const Result &result, const Display &display) {
+  if (display.request) {
+    if (display.title) std::cout << "Request: ";
+    std::string rt{"unknown"};
+    for (auto &pk : Request::get_map()) {
+      if (pk.second == g_configuration.request) {
+        rt = pk.first;
+        break;
+      }
+    }
+    mysql_harness::upper(rt);
+    auto path = g_configuration.path;
+    if (path.empty()) path = "/";
+
+    std::cout << rt << " " << path;
+    if (g_configuration.payload.length() > 0) {
+      std::cout << " (payload-size:"
+                << std::to_string(g_configuration.payload.length()) << ")";
+    }
+    std::cout << std::endl;
+  }
   if (display.status) {
     if (display.title) std::cout << "Status: ";
     std::cout << HttpStatusCode::get_default_status_text(result.status) << "("
@@ -426,8 +444,9 @@ std::vector<CmdOption> g_options{
 
     {{"--display"},
      "What should be presented as output: VALUES=(none|all|VALUE[,VALUE[....]])"
-     "where VALUE can be: TITLE, BODY, HEADER, STATUS, RESULT. By default its "
-     "set to RESULT.",
+     "where VALUE can be: REQUEST, TITLE, BODY, HEADER, STATUS, RESULT. By "
+     "default its "
+     "set to BODY,RESULT.",
      CmdOptionValueReq::required,
      "meta_display",
      [](const std::string &value) {

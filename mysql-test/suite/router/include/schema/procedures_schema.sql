@@ -79,6 +79,82 @@ BEGIN
     SET v=(select min(id) from `proc_schema`.`dummy_data`);
 END;$$
 
+CREATE PROCEDURE `proc_schema`.`proc_do_nothing` ()
+BEGIN
+END;$$
+
+
+CREATE PROCEDURE `proc_schema`.`proc_sum` (a integer, b integer)
+BEGIN
+  SELECT a + b as result;
+END;$$
+
+CREATE PROCEDURE `proc_schema`.`proc_concat` (a TEXT, b TEXT)
+BEGIN
+  SELECT CONCAT(a,b) as result;
+END;$$
+
+CREATE PROCEDURE `proc_schema`.`proc_sum_out` (a integer, b integer, OUT result INTEGER)
+BEGIN
+  SET result = (SELECT a + b as result);
+END;$$
+
+CREATE PROCEDURE `proc_schema`.`proc_concat_out` (a TEXT, b TEXT, OUT result TEXT)
+BEGIN
+  SET result = (SELECT CONCAT(a,b) as result);
+END;$$
+
+CREATE PROCEDURE `proc_schema`.`move_char` (a VARCHAR(20), OUT result VARCHAR(20))
+BEGIN
+  SET result = CONCAT(a," appended");
+END;$$
+
+CREATE PROCEDURE `proc_schema`.`move_date` (a DATE, OUT result DATE)
+BEGIN
+  SET result = a;
+END;$$
+
+CREATE PROCEDURE `proc_schema`.`move_year` (a YEAR, OUT result YEAR)
+BEGIN
+  SET result = a;
+END;$$
+
+CREATE PROCEDURE `proc_schema`.`move_time` (a TIME, OUT result TIME)
+BEGIN
+  SET result = a;
+END;$$
+
+CREATE PROCEDURE `proc_schema`.`move_bit` (a BIT(1), OUT result BIT(1))
+BEGIN
+  SET result = a;
+END;$$
+
+CREATE PROCEDURE `proc_schema`.`move_tinyint1` (a TINYINT(1), OUT result TINYINT(1))
+BEGIN
+  SET result = a+1;
+END;$$
+
+CREATE PROCEDURE `proc_schema`.`move_tinyint8` (a TINYINT(8), OUT result TINYINT(8))
+BEGIN
+  SET result = a+1;
+END;$$
+
+CREATE PROCEDURE `proc_schema`.`move_decimal` (a DECIMAL, OUT result DECIMAL)
+BEGIN
+  SET result = a+1;
+END;$$
+
+CREATE PROCEDURE `proc_schema`.`move_float` (a FLOAT, OUT result FLOAT)
+BEGIN
+  SET result = a+1;
+END;$$
+
+CREATE PROCEDURE `proc_schema`.`move_double` (a DOUBLE, OUT result DOUBLE)
+BEGIN
+  SET result = a+1;
+END;$$
+
+
 --enable_query_log
 --enable_result_log
 
