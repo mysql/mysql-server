@@ -290,7 +290,6 @@ private:
   int setup(const class NdbColumnImpl* anAttrInfo, char* aValue);
   int setup(Uint32 byteSize, char* aValue);
                                 /* Set up attributes and buffers        */
-  bool copyoutRequired() const; /* Need to copy data to application     */
 
   Uint64        theStorage[4];  /* The data storage here if <= 32 bytes */
   Uint64*       theStorageX;    /* The data storage here if >  32 bytes */
@@ -430,13 +429,6 @@ char*
 NdbRecAttr::aRef() const
 {
   return (char*)theRef; 
-}
-
-inline
-bool
-NdbRecAttr::copyoutRequired() const
-{
-  return theRef != theValue && theValue != 0;
 }
 
 inline

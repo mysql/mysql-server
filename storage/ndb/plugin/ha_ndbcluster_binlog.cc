@@ -5332,10 +5332,13 @@ NdbEventOperation *Ndb_binlog_client::create_event_op_in_NDB(
         Field *f = table->field[map.get_field_for_column(j)];
         if (is_ndb_compatible_type(f)) {
           DBUG_PRINT("info", ("%s compatible", col_name));
-          attr0.rec = op->getValue(col_name, (char *)f->field_ptr());
-          attr1.rec =
-              op->getPreValue(col_name, (f->field_ptr() - table->record[0]) +
-                                            (char *)table->record[1]);
+          char *const ptr0 = (char *)f->field_ptr();
+          attr0.rec = op->getValue(col_name, ptr0);
+          assert(attr0.rec->aRef() == ptr0);  // uses provided ptr
+          char *const ptr1 =
+              (f->field_ptr() - table->record[0]) + (char *)table->record[1];
+          attr1.rec = op->getPreValue(col_name, ptr1);
+          assert(attr1.rec->aRef() == ptr1);  // uses provided ptr
         } else if (!f->is_flag_set(BLOB_FLAG)) {
           DBUG_PRINT("info", ("%s non compatible", col_name));
           attr0.rec = op->getValue(col_name);
