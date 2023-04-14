@@ -28,11 +28,12 @@
 #include <map>
 #include <stdexcept>
 
+#include "helper/json/rapid_json_to_text.h"
 #include "helper/json/text_to.h"
 #include "mrs/database/filter_object_generator.h"
+#include "mrs/database/helper/object_checksum.h"
 #include "mrs/database/helper/object_query.h"
 #include "mrs/json/response_json_template.h"
-
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/utility/string.h"
 
@@ -49,13 +50,13 @@ void QueryRestTable::query_entries(
     MySQLSession *session, std::shared_ptr<database::entry::Object> object,
     const ObjectFieldFilter &field_filter, const uint32_t offset,
     const uint32_t limit, const std::string &url_route,
-    const std::string &primary, const bool is_default_limit,
-    const RowUserOwnership &row_user, UserId *user_id,
-    const VectorOfRowGroupOwnershp &row_groups,
-    const std::set<UniversalId> &user_groups, const std::string &q) {
+    const bool is_default_limit, const ObjectRowOwnership &row_ownership,
+    const std::string &q, const bool compute_etag) {
+  object_ = object;
+  compute_etag_ = compute_etag;
+
   items = 0;
-  build_query(object, field_filter, offset, limit + 1, url_route, primary,
-              row_user, user_id, row_groups, user_groups, q);
+  build_query(field_filter, offset, limit + 1, url_route, row_ownership, q);
 
   serializer_->begin(offset, limit, is_default_limit, url_route);
   execute(session);
@@ -65,8 +66,148 @@ void QueryRestTable::query_entries(
 }
 
 void QueryRestTable::on_row(const ResultRow &r) {
-  serializer_->push_json_document(r[0]);
+  // TODO(alfredo) - check if it's worth reserving space in the queried document
+  // and just overwriting the etag value here
+
+  if (compute_etag_) {
+    rapidjson::Document new_doc = compute_and_embed_etag(object_, r[0]);
+    if (new_doc.IsObject()) {
+      // TODO(alfredo) better way for this?
+      std::string tmp;
+      helper::json::append_rapid_json_to_text(&new_doc, tmp);
+      serializer_->push_json_document(tmp.c_str());
+    } else {
+      serializer_->push_json_document(r[0]);
+    }
+  } else {
+    serializer_->push_json_document(r[0]);
+  }
   ++items;
+}
+
+const mysqlrouter::sqlstring &QueryRestTable::build_where(
+    const ObjectRowOwnership &row_ownership) {
+  using MatchLevel = entry::RowGroupOwnership::MatchLevel;
+  static std::map<MatchLevel, mysqlrouter::sqlstring> operations{
+      {MatchLevel::kHigher, ">"},
+      {MatchLevel::kEqualOrHigher, ">="},
+      {MatchLevel::kEqual, "="},
+      {MatchLevel::kLowerOrEqual, "<="},
+      {MatchLevel::kLower, "<"}};
+
+  static std::string empty;
+  auto &user_ownership_column =
+      row_ownership.enabled() ? row_ownership.owner_column_name() : empty;
+
+  if (user_ownership_column.empty() && row_ownership.row_groups().empty())
+    return mysqlrouter::sqlstring::empty;
+
+  where_.reset("WHERE !");
+  if (row_ownership.row_groups().empty()) {
+    if (!row_ownership.enabled()) {
+      where_.reset("WHERE ! is NULL");
+
+      where_ << user_ownership_column;
+      return where_;
+    }
+
+    where_.reset(
+        "WHERE (! IN (WITH RECURSIVE cte As ("
+        "SELECT a.id as id FROM mysql_rest_service_metadata.mrs_user a WHERE "
+        "a.id = ? "
+        "UNION ALL "
+        "SELECT h.user_id as id FROM "
+        "mysql_rest_service_metadata.mrs_user_hierarchy as h "
+        "JOIN cte c ON c.id=h.reporting_to_user_id"
+        ") SELECT * FROM cte) OR ! is NULL)");
+
+    where_ << user_ownership_column << row_ownership.owner_user_id()
+           << user_ownership_column;
+
+    return where_;
+  }
+
+  if (user_ownership_column.empty()) {
+    std::string query{"WHERE ("};
+    for (size_t i = 0; i < row_ownership.row_groups().size(); ++i) {
+      query +=
+          " ! in (WITH RECURSIVE cte AS("
+          "SELECT user_group_id, parent_group_id, level FROM "
+          "mysql_rest_service_metadata.mrs_user_group_hierarchy WHERE "
+          "user_group_id in (?) AND group_hierarchy_type_id=? "
+          "UNION ALL "
+          "SELECT p.user_group_id, p.parent_group_id, p.level "
+          "FROM mysql_rest_service_metadata.mrs_user_group_hierarchy as p JOIN "
+          "cte on p.user_group_id = cte.parent_group_id AND "
+          "group_hierarchy_type_id=? ) "
+          "SELECT parent_group_id FROM cte  WHERE level ! ? ) OR ";
+    }
+
+    query += "(";
+    for (size_t i = 0; i < row_ownership.row_groups().size(); ++i) {
+      query += i != 0 ? "AND ! is NULL " : "! is NULL ";
+    }
+    query += ")) ";
+
+    where_.reset(query.c_str());
+
+    for (auto &group : row_ownership.row_groups()) {
+      where_ << group.row_group_ownership_column << row_ownership.user_groups()
+             << group.hierarhy_id << group.hierarhy_id
+             << operations[group.match] << group.level;
+    }
+
+    for (auto &group : row_ownership.row_groups()) {
+      where_ << group.row_group_ownership_column;
+    }
+
+    return where_;
+  }
+
+  std::string query{
+      "WHERE (! IN (WITH RECURSIVE cte As ("
+      "SELECT a.id as id FROM mysql_rest_service_metadata.mrs_user a WHERE"
+      "a.id = ? "
+      "UNION ALL "
+      "SELECT h.user_id as id FROM "
+      "mysql_rest_service_metadata.mrs_user_hierarchy as h "
+      "JOIN cte c ON c.id=h.reporting_to_user_id"
+      ") SELECT * FROM cte) OR "};
+
+  for (size_t i = 0; i < row_ownership.row_groups().size(); ++i) {
+    query +=
+        " ! in (WITH RECURSIVE cte AS("
+        "SELECT user_group_id, parent_group_id, level FROM "
+        "mysql_rest_service_metadata.mrs_user_group_hierarchy WHERE "
+        "user_group_id in (?) AND group_hierarchy_type_id=? "
+        "UNION ALL "
+        "SELECT p.user_group_id, p.parent_group_id, p.level "
+        "FROM mysql_rest_service_metadata.mrs_user_group_hierarchy as p JOIN "
+        "cte on p.user_group_id = cte.parent_group_id AND "
+        "group_hierarchy_type_id=? ) "
+        "SELECT parent_group_id FROM cte  WHERE level ! ? ) OR ";
+  }
+
+  query += "( ! is NULL ";
+  for (size_t i = 0; i < row_ownership.row_groups().size(); ++i) {
+    query += "AND ! is NULL ";
+  }
+  query += ")) ";
+  where_.reset(query.c_str());
+  where_ << row_ownership.owner_column_name() << row_ownership.owner_user_id();
+
+  for (auto &group : row_ownership.row_groups()) {
+    where_ << group.row_group_ownership_column << row_ownership.user_groups()
+           << group.hierarhy_id << group.hierarhy_id << operations[group.match]
+           << group.level;
+  }
+
+  where_ << user_ownership_column;
+  for (auto &group : row_ownership.row_groups()) {
+    where_ << group.row_group_ownership_column;
+  }
+
+  return where_;
 }
 
 const mysqlrouter::sqlstring &QueryRestTable::build_where(
@@ -213,19 +354,17 @@ void extend_where(std::shared_ptr<database::entry::Object> object,
   where = r;
 }
 
-void QueryRestTable::build_query(
-    std::shared_ptr<database::entry::Object> object,
-    const ObjectFieldFilter &field_filter, const uint32_t offset,
-    const uint32_t limit, const std::string &url, const std::string &primary,
-    const RowUserOwnership &row_user, UserId *user_id,
-    const std::vector<RowGroupOwnership> &row_groups,
-    const std::set<UniversalId> &user_groups, const std::string &query) {
-  auto where = build_where(row_user, user_id, row_groups, user_groups);
-  extend_where(object, where, query);
+void QueryRestTable::build_query(const ObjectFieldFilter &field_filter,
+                                 const uint32_t offset, const uint32_t limit,
+                                 const std::string &url,
+                                 const ObjectRowOwnership &row_ownership,
+                                 const std::string &query) {
+  auto where = build_where(row_ownership);
+  extend_where(object_, where, query);
 
   JsonQueryBuilder qb(field_filter);
 
-  qb.process_object(object);
+  qb.process_object(object_);
 
   query_ =
       mysqlrouter::sqlstring("SELECT JSON_OBJECT(?) as doc FROM ? ? LIMIT ?,?");
@@ -234,14 +373,17 @@ void QueryRestTable::build_query(
   if (!qb.select_items().is_empty())
     json_object_fields.push_back(qb.select_items());
 
-  if (primary.empty()) {
+  auto pk_columns = format_key_names(object_->get_base_table());
+
+  if (pk_columns.is_empty()) {
     static mysqlrouter::sqlstring empty_links{"'links', JSON_ARRAY()"};
     json_object_fields.push_back(empty_links);
   } else {
     mysqlrouter::sqlstring fmt{
         "'links', "
-        "JSON_ARRAY(JSON_OBJECT('rel','self','href',CONCAT(?,'/',!)))"};
-    fmt << url << qb.get_reference_base_table_column(primary);
+        "JSON_ARRAY(JSON_OBJECT('rel','self','href',CONCAT(?,'/',"
+        "CONCAT_WS(',',?))))"};
+    fmt << url << pk_columns;
     json_object_fields.push_back(fmt);
   }
 

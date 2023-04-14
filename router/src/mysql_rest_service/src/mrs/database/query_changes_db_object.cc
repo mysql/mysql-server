@@ -24,6 +24,7 @@
 
 #include "mrs/database/query_changes_db_object.h"
 
+#include <utility>
 #include "helper/mysql_row.h"
 
 #include "mrs/database/query_entries_audit_log.h"

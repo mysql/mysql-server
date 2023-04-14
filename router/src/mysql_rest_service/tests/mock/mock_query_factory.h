@@ -64,8 +64,8 @@ class MockQueryFactory : public mrs::interface::QueryFactory {
               create_query_table, (), (override));
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryRestTableSingleRow>,
               create_query_table_single_row, (), (override));
-  MOCK_METHOD(std::shared_ptr<mrs::database::QueryRestObjectInsert>,
-              create_query_object_insert, (), (override));
+  // MOCK_METHOD(std::shared_ptr<mrs::database::QueryRestObjectInsert>,
+  //             create_query_object_insert, (), (override));
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryRestSP>, create_query_sp, (),
               (override));
   MOCK_METHOD(std::shared_ptr<mrs::database::QueryTableColumns>,

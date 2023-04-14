@@ -40,7 +40,7 @@ class Query {
  public:
   virtual ~Query() = default;
 
-  void execute(MySQLSession *session);
+  virtual void execute(MySQLSession *session);
   virtual void query(MySQLSession *session, const std::string &q);
   virtual void prepare_and_execute(MySQLSession *session, const std::string &q,
                                    std::vector<enum_field_types> pt);

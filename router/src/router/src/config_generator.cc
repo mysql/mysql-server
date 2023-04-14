@@ -311,8 +311,12 @@ void ConfigGenerator::init(
 bool ConfigGenerator::check_target(
     const std::map<std::string, std::string> &bootstrap_options,
     bool allow_no_metadata) {
-  schema_version_ =
-      mysqlrouter::get_metadata_schema_version(mysql_, allow_no_metadata);
+  try {
+    schema_version_ = mysqlrouter::get_metadata_schema_version(mysql_);
+  } catch (const metadata_missing &) {
+    if (allow_no_metadata) return false;
+    throw;
+  }
 
   if (schema_version_ == mysqlrouter::kUpgradeInProgressMetadataVersion) {
     throw std::runtime_error(

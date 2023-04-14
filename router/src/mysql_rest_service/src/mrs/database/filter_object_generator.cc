@@ -423,12 +423,16 @@ void FilterObjectGenerator::prase_order(Object object) {
 std::string FilterObjectGenerator::resolve_field_name(const char *name) const {
   if (object_metadata_) {
     for (const auto &field : object_metadata_->fields) {
-      if (field->name.compare(name) == 0) {
-        if (joins_allowed_)
-          return mysqlrouter::sqlstring("!.!")
-                 << field->source->table_alias << field->db_name;
-        else
-          return mysqlrouter::sqlstring("!") << field->db_name;
+      if (auto dfield = std::dynamic_pointer_cast<entry::DataField>(field);
+          dfield) {
+        if (dfield->name.compare(name) == 0) {
+          if (joins_allowed_)
+            return mysqlrouter::sqlstring("!.!")
+                   << dfield->source->table.lock()->table_alias
+                   << dfield->source->name;
+          else
+            return mysqlrouter::sqlstring("!") << dfield->source->name;
+        }
       }
     }
     // TODO(alfredo) filter on nested fields
@@ -439,5 +443,4 @@ std::string FilterObjectGenerator::resolve_field_name(const char *name) const {
 }
 
 }  // namespace database
-
 }  // namespace mrs

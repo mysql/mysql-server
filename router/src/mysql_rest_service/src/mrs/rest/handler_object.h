@@ -25,8 +25,12 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_OBJECT_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_REST_HANDLER_OBJECT_H_
 
+#include <memory>
 #include <string>
+#include <vector>
 
+#include "mrs/database/helper/object_query.h"
+#include "mrs/database/helper/object_row_ownership.h"
 #include "mrs/interface/object.h"
 #include "mrs/rest/handler.h"
 
@@ -60,8 +64,15 @@ class HandlerObject : public Handler {
   Route *route_;
 
  private:
-  std::string get_path_after_object_name(HttpUri &requests_uri);
+  mrs::database::PrimaryKeyColumnValues get_rest_pk_parameter(
+      std::shared_ptr<database::entry::Object> object,
+      const HttpUri &requests_uri);
+  std::string get_path_after_object_name(const HttpUri &requests_uri);
   std::string get_rest_query_parameter(HttpUri &requests_uri);
+
+  mrs::database::ObjectRowOwnership row_ownership_info(
+      rest::RequestContext *ctxt,
+      std::shared_ptr<database::entry::Object> object) const;
 };
 
 }  // namespace rest

@@ -187,7 +187,6 @@ Object::EntryObject Object::get_cached_object() {
 }
 
 void Object::cache_columns() {
-  cached_primary_column_ = {};
   auto table_columns = query_factory_->create_query_table_columns();
   auto session = cache_->get_instance(collector::kMySQLConnectionUserdata);
   table_columns->query_entries(session.get(), schema_name_, object_name_);
@@ -208,13 +207,6 @@ void Object::cache_columns() {
     if (c.is_primary) return false;
     return container::any_of(internal_columns, c.name);
   });
-
-  for (auto &column : cached_columns_) {
-    if (column.is_primary) {
-      cached_primary_column_ = column;
-      break;
-    }
-  }
 }
 
 const std::vector<Column> &Object::get_cached_columnes() {
@@ -244,14 +236,6 @@ UniversalId Object::get_service_id() const { return pe_.service_id; }
 
 bool Object::has_access(const Access access) const {
   return access & pe_.operation;
-}
-
-const Object::Column &Object::get_cached_primary() {
-  if (cached_columns_.empty()) {
-    cache_columns();
-  }
-
-  return cached_primary_column_;
 }
 
 uint32_t Object::get_on_page() { return pe_.on_page; }

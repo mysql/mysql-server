@@ -24,15 +24,16 @@
 
 #include "mrs/database/query_entries_object.h"
 
+#include <algorithm>
 #include <string>
 #include <utility>
 #include "helper/json/text_to.h"
 #include "helper/mysql_row.h"
 #include "mrs/interface/rest_error.h"
+#include "mysql/harness/logging/logging.h"
+#include "mysql/harness/string_utils.h"
 
 #include "mysqld_error.h"
-
-#include "mysql/harness/logging/logging.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -49,8 +50,6 @@ void QueryEntryObject::query_entries(MySQLSession *session,
   base_table->schema = schema_name;
   base_table->table = object_name;
   base_table->table_alias = "t";
-  // XXX base_table->crud_operations
-  m_tables[entry::UniversalId{}] = base_table;
 
   object = std::make_shared<Object>();
   object->base_tables.push_back(base_table);
@@ -59,7 +58,11 @@ void QueryEntryObject::query_entries(MySQLSession *session,
   entry::UniversalId object_id;
   {
     mysqlrouter::sqlstring q{
-        "SELECT object.id FROM mysql_rest_service_metadata.object"
+        "SELECT object.id, db_object.object_type,"
+        " CAST(db_object.crud_operations AS UNSIGNED)"
+        "  FROM mysql_rest_service_metadata.object"
+        "  JOIN mysql_rest_service_metadata.db_object"
+        "    ON object.db_object_id = db_object.id"
         "  WHERE object.db_object_id=?"};
     q << db_object_id;
 
@@ -68,7 +71,10 @@ void QueryEntryObject::query_entries(MySQLSession *session,
     if (nullptr == res.get()) return;
 
     entry::UniversalId::from_raw(&object_id, (*res)[0]);
+    base_table->crud_operations = std::stoi((*res)[2]);
   }
+
+  m_tables[entry::UniversalId{}] = base_table;
 
   m_loading_references = true;
   query_ =
@@ -77,10 +83,10 @@ void QueryEntryObject::query_entries(MySQLSession *session,
       " object_reference.reduce_to_value_of_field_id,"
       " object_reference.reference_mapping->>'$.referenced_schema',"
       " object_reference.reference_mapping->>'$.referenced_table',"
-      " object_reference.reference_mapping->'$.column_mapping',"
       " object_reference.reference_mapping->'$.to_many',"
+      " object_reference.reference_mapping->'$.column_mapping',"
       " object_reference.unnest,"
-      " object_reference.crud_operations"
+      " CAST(object_reference.crud_operations AS UNSIGNED)"
       " FROM mysql_rest_service_metadata.object_field"
       " JOIN mysql_rest_service_metadata.object_reference"
       "  ON object_field.represents_reference_id = object_reference.id"
@@ -98,14 +104,15 @@ void QueryEntryObject::query_entries(MySQLSession *session,
       " object_field.position,"
       " object_field.db_column->>'$.name',"
       " object_field.db_column->>'$.datatype',"
-      " object_field.db_column->>'$.auto_inc',"
+      " object_field.db_column->>'$.id_generation',"
       " object_field.db_column->>'$.not_null',"
       " object_field.db_column->>'$.is_primary',"
       " object_field.db_column->>'$.is_unique',"
       " object_field.db_column->>'$.is_generated',"
       " object_field.enabled,"
       " object_field.allow_filtering,"
-      " object_field.no_check"
+      " object_field.no_check,"
+      " object_field.no_update"
       " FROM mysql_rest_service_metadata.object_field"
       " WHERE object_field.object_id = ?"
       " ORDER BY object_field.represents_reference_id";
@@ -114,6 +121,48 @@ void QueryEntryObject::query_entries(MySQLSession *session,
   execute(session);
 
   assert(m_pending_reduce_to_field.empty());
+
+  // post-processing... re-order object fields, resolve placeholders
+  for (const auto &o : m_objects) {
+    auto object = o.second;
+    std::sort(
+        object->fields.begin(), object->fields.end(),
+        [](const auto &a, const auto &b) { return a->position > b->position; });
+  }
+  for (const auto &t : m_tables) {
+    auto table = t.second;
+    auto join = std::dynamic_pointer_cast<entry::JoinedTable>(table);
+    if (join && join->enabled) {
+      entry::JoinedTable::ColumnMapping fixed_mapping;
+      for (const auto &c : join->column_mapping) {
+        auto ltable = c.first->table.lock();
+        auto rtable = c.second->table.lock();
+        auto lcolumn = ltable->get_column(c.first->name);
+        auto rcolumn = rtable->get_column(c.second->name);
+
+        if (!lcolumn)
+          throw std::runtime_error("Invalid column " + ltable->table + "." +
+                                   c.first->name + " in column_mapping");
+
+        if (!rcolumn)
+          throw std::runtime_error("Invalid column " + rtable->table + "." +
+                                   c.second->name + " in column_mapping");
+
+        if (join->to_many)
+          rcolumn->is_foreign = true;
+        else
+          lcolumn->is_foreign = true;
+
+        fixed_mapping.emplace_back(lcolumn, rcolumn);
+      }
+
+      join->column_mapping = fixed_mapping;
+    }
+  }
+
+  // TODO(alfredo) - do some sanity checks
+  // - are there PKs defined
+  // - are there more than 1 row-owner-id or generated columns defined
 }
 
 void QueryEntryObject::on_row(const ResultRow &r) {
@@ -126,6 +175,10 @@ void QueryEntryObject::on_row(const ResultRow &r) {
 void QueryEntryObject::on_reference_row(const ResultRow &r) {
   class ColumnMappingConverter {
    public:
+    explicit ColumnMappingConverter(
+        std::shared_ptr<entry::JoinedTable> ref_table)
+        : ref_table_(ref_table) {}
+
     void operator()(entry::JoinedTable::ColumnMapping *out,
                     const char *value) const {
       if (nullptr == value) {
@@ -151,9 +204,17 @@ void QueryEntryObject::on_reference_row(const ResultRow &r) {
               "Column 'metadata', element must contain 'ref' field with string "
               "value.");
 
-        out->emplace_back(col["base"].GetString(), col["ref"].GetString());
+        auto lplaceholder = std::make_shared<entry::Column>();
+        lplaceholder->name = col["base"].GetString();
+        auto rplaceholder = std::make_shared<entry::Column>();
+        rplaceholder->name = col["ref"].GetString();
+        rplaceholder->table = ref_table_;
+        out->emplace_back(lplaceholder, rplaceholder);
       }
     }
+
+   private:
+    std::shared_ptr<entry::JoinedTable> ref_table_;
   };
 
   auto reference = std::make_shared<entry::JoinedTable>();
@@ -167,9 +228,9 @@ void QueryEntryObject::on_reference_row(const ResultRow &r) {
                                  entry::UniversalId::from_raw_optional);
   row.unserialize(&reference->schema);
   row.unserialize(&reference->table);
-  row.unserialize_with_converter(&reference->column_mapping,
-                                 ColumnMappingConverter{});
   row.unserialize(&reference->to_many);
+  row.unserialize_with_converter(&reference->column_mapping,
+                                 ColumnMappingConverter{reference});
   row.unserialize(&reference->unnest);
   row.unserialize(&reference->crud_operations);
 
@@ -182,8 +243,11 @@ void QueryEntryObject::on_reference_row(const ResultRow &r) {
   reference->table_alias = "t" + std::to_string(++m_alias_count);
   m_tables[reference_id] = reference;
 
-  if (reduce_to_field_id)
+  if (reduce_to_field_id) {
     m_pending_reduce_to_field[*reduce_to_field_id].push_back(reference);
+
+    m_objects[{}]->uses_reduce_to = true;
+  }
 
   auto object = std::make_shared<Object>();
   object->name = reference->table_key();
@@ -191,13 +255,28 @@ void QueryEntryObject::on_reference_row(const ResultRow &r) {
   m_objects[reference_id] = object;
 }
 
-// regular
-// unnest 1:1
-// unnest 1:n
-// unnest n:m
-
 void QueryEntryObject::on_field_row(const ResultRow &r) {
-  auto field = std::make_shared<entry::ObjectField>();
+  class IdGenerationTypeConverter {
+   public:
+    void operator()(entry::IdGenerationType *out, const char *value) const {
+      if (nullptr == value) {
+        *out = entry::IdGenerationType::NONE;
+        return;
+      }
+
+      if (strcasecmp(value, "auto_inc") == 0) {
+        *out = entry::IdGenerationType::AUTO_INCREMENT;
+      } else if (strcasecmp(value, "rev_uuid") == 0) {
+        *out = entry::IdGenerationType::REVERSE_UUID;
+      } else if (strcasecmp(value, "null") == 0) {
+        *out = entry::IdGenerationType::NONE;
+      } else {
+        throw std::runtime_error("bad metadata");
+      }
+    }
+  };
+
+  std::shared_ptr<entry::ObjectField> field;
 
   helper::MySQLRow row(r, metadata_, no_od_metadata_);
 
@@ -210,26 +289,8 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
                                  entry::UniversalId::from_raw_zero_on_null);
   row.unserialize_with_converter(&represents_reference_id,
                                  entry::UniversalId::from_raw_optional);
-  row.unserialize(&field->name);
-  row.unserialize(&field->position);
-  row.unserialize(&field->db_name);
-  row.unserialize(&field->db_datatype);
-  row.unserialize(&field->db_auto_inc);
-  row.unserialize(&field->db_not_null);
-  row.unserialize(&field->db_is_primary);
-  row.unserialize(&field->db_is_unique);
-  row.unserialize(&field->db_is_generated);
-  row.unserialize(&field->enabled);
-  row.unserialize(&field->allow_filtering);
-  row.unserialize(&field->no_check);
 
-  if (auto refs = m_pending_reduce_to_field.find(field_id);
-      refs != m_pending_reduce_to_field.end()) {
-    for (auto ref : refs->second) ref->reduce_to_field = field;
-    m_pending_reduce_to_field.erase(refs);
-  }
-
-  std::shared_ptr<Object> parent_object = m_objects[parent_reference_id];
+  auto parent_object = m_objects[parent_reference_id];
   if (!parent_object) {
     log_debug("No parent_object found, refereed by parent_reference_id:%s",
               to_string(parent_reference_id).c_str());
@@ -238,19 +299,41 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
 
   auto table = m_tables[parent_reference_id];
   if (!table) {
-    log_debug("No table found, refereed by parent_reference_id:%s",
+    log_debug("No table found, referenced by parent_reference_id:%s",
               to_string(parent_reference_id).c_str());
     return;
   }
 
   if (represents_reference_id) {
-    std::shared_ptr<entry::FieldSource> reference =
-        m_tables.at(*represents_reference_id);
+    auto ofield = std::make_shared<entry::ReferenceField>();
+    field = ofield;
+
+    row.unserialize(&ofield->name);
+    row.unserialize(&ofield->position);
+    row.skip(7);
+    row.unserialize(&ofield->enabled);
+    row.unserialize(&ofield->allow_filtering);
+    row.unserialize(&ofield->no_check);
+    row.unserialize(&ofield->no_update);
+
+    auto reference = m_tables.at(*represents_reference_id);
 
     bool unnest = false;
     if (auto join = std::dynamic_pointer_cast<entry::JoinedTable>(reference);
         join) {
+      if (!ofield->enabled) {
+        join->enabled = false;
+      }
+
       unnest = join->unnest;
+
+      if (join->to_many) {
+        ofield->is_array = true;
+      }
+
+      for (const auto &c : join->column_mapping) {
+        c.first->table = table;
+      }
     }
 
     // if the represented reference is unnested, the field itself is just a
@@ -268,15 +351,110 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
       }
       m_objects[*represents_reference_id] = parent_object;
     } else {
-      field->nested_object = m_objects[*represents_reference_id];
-      field->nested_object->parent = parent_object;
+      ofield->nested_object = m_objects[*represents_reference_id];
 
       parent_object->fields.push_back(field);
     }
   } else {
-    field->source = table;
+    auto dfield = std::make_shared<entry::DataField>();
+    field = dfield;
+
+    row.unserialize(&dfield->name);
+    row.unserialize(&dfield->position);
+
+    auto column = std::make_shared<entry::Column>();
+    row.unserialize(&column->name);
+    row.unserialize(&column->datatype);
+    column->type = column_datatype_to_type(column->datatype);
+    row.unserialize_with_converter(&column->id_generation,
+                                   IdGenerationTypeConverter());
+    row.unserialize(&column->not_null);
+    row.unserialize(&column->is_primary);
+    row.unserialize(&column->is_unique);
+    row.unserialize(&column->is_generated);
+    row.unserialize(&dfield->enabled);
+    row.unserialize(&dfield->allow_filtering);
+    row.unserialize(&dfield->no_check);
+
+    dfield->source = column;
+    column->table = table;
+
+    table->columns.push_back(column);
     parent_object->fields.push_back(field);
   }
+
+  if (auto it = m_pending_reduce_to_field.find(field_id);
+      it != m_pending_reduce_to_field.end()) {
+    for (const auto &table : it->second) {
+      table->reduce_to_field = field;
+    }
+    m_pending_reduce_to_field.erase(it);
+  }
+}
+
+static std::map<std::string, entry::ColumnType> k_datatype_map{
+    {"TINYINT", entry::ColumnType::INTEGER},
+    {"SMALLINT", entry::ColumnType::INTEGER},
+    {"MEDIUMINT", entry::ColumnType::INTEGER},
+    {"INT", entry::ColumnType::INTEGER},
+    {"BIGINT", entry::ColumnType::INTEGER},
+    {"FLOAT", entry::ColumnType::DOUBLE},
+    {"REAL", entry::ColumnType::DOUBLE},
+    {"DOUBLE", entry::ColumnType::DOUBLE},
+    {"DECIMAL", entry::ColumnType::DOUBLE},
+    {"CHAR", entry::ColumnType::STRING},
+    {"NCHAR", entry::ColumnType::STRING},
+    {"VARCHAR", entry::ColumnType::STRING},
+    {"NVARCHAR", entry::ColumnType::STRING},
+    {"BINARY", entry::ColumnType::BINARY},
+    {"VARBINARY", entry::ColumnType::BINARY},
+    {"TINYTEXT", entry::ColumnType::STRING},
+    {"TEXT", entry::ColumnType::STRING},
+    {"MEDIUMTEXT", entry::ColumnType::STRING},
+    {"LONGTEXT", entry::ColumnType::STRING},
+    {"TINYBLOB", entry::ColumnType::BINARY},
+    {"BLOB", entry::ColumnType::BINARY},
+    {"MEDIUMBLOB", entry::ColumnType::BINARY},
+    {"LONGBLOB", entry::ColumnType::BINARY},
+    {"JSON", entry::ColumnType::STRING},
+    {"DATETIME", entry::ColumnType::STRING},
+    {"DATE", entry::ColumnType::STRING},
+    {"TIME", entry::ColumnType::STRING},
+    {"YEAR", entry::ColumnType::INTEGER},
+    {"TIMESTAMP", entry::ColumnType::STRING},
+    {"GEOMETRY", entry::ColumnType::BINARY},
+    {"POINT", entry::ColumnType::BINARY},
+    {"LINESTRING", entry::ColumnType::BINARY},
+    {"POLYGON", entry::ColumnType::BINARY},
+    {"GEOMETRYCOLLECTION", entry::ColumnType::BINARY},
+    {"MULTIPOINT", entry::ColumnType::BINARY},
+    {"MULTILINESTRING", entry::ColumnType::BINARY},
+    {"MULTIPOLYGON", entry::ColumnType::BINARY},
+    {"BIT", entry::ColumnType::BINARY},
+    {"BOOLEAN", entry::ColumnType::BOOLEAN},
+    {"ENUM", entry::ColumnType::STRING},
+    {"SET", entry::ColumnType::STRING}};
+
+entry::ColumnType column_datatype_to_type(const std::string &datatype) {
+  auto spc = datatype.find(' ');
+  auto p = datatype.find('(');
+
+  p = std::min(spc, p);
+  if (p != std::string::npos) {
+    if (auto it = k_datatype_map.find(
+            mysql_harness::make_upper(datatype.substr(0, p)));
+        it != k_datatype_map.end()) {
+      if (it->second == entry::ColumnType::BINARY &&
+          mysql_harness::make_upper(datatype.substr(0, spc)) == "BIT(1)")
+        return entry::ColumnType::BOOLEAN;
+      return it->second;
+    }
+  } else {
+    if (auto it = k_datatype_map.find(mysql_harness::make_upper(datatype));
+        it != k_datatype_map.end())
+      return it->second;
+  }
+  throw std::runtime_error("Unknown datatype " + datatype);
 }
 
 }  // namespace database

@@ -55,11 +55,12 @@ void QueryRestSPMedia::query_entries(MySQLSession *session,
                                      const std::string &column,
                                      const std::string &schema,
                                      const std::string &object,
-                                     const std::string &primary,
-                                     const std::string &primary_value) {
+                                     const PrimaryKeyColumnValues &pk) {
+  assert(0);
   items = 0;
-  query_ = {"SELECT ! FROM !.! WHERE !=?"};
-  query_ << column << schema << object << primary << primary_value;
+  query_ = {"SELECT ! FROM !.! WHERE ?"};
+  // query_ << column << schema << object
+  //        << format_where_expr(object->get_base_table(), pk);
   auto result = session->query_one(
       query_, [this](auto no, auto fields) { on_metadata(no, fields); });
 
@@ -73,6 +74,7 @@ void QueryRestSPMedia::query_entries(MySQLSession *session,
 void QueryRestSPMedia::query_entries(
     MySQLSession *session, const std::string &column, const std::string &schema,
     const std::string &object, const uint32_t limit, const uint32_t offset) {
+  assert(0);
   items = 0;
   query_ = {"SELECT ! FROM !.! LIMIT ?,?"};
   query_ << column << schema << object << offset << limit;

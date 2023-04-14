@@ -40,7 +40,6 @@
 #include "mrs/database/query_rest_sp.h"
 #include "mrs/database/query_rest_sp_media.h"
 #include "mrs/database/query_rest_table.h"
-#include "mrs/database/query_rest_table_insert.h"
 #include "mrs/database/query_rest_table_single_row.h"
 #include "mrs/database/query_user_groups.h"
 
@@ -120,10 +119,10 @@ QueryFactory::create_query_table_single_row() {
   return std::make_shared<QueryRestTableSingleRow>();
 }
 
-std::shared_ptr<QueryRestObjectInsert>
-QueryFactory::create_query_object_insert() {
-  return std::make_shared<QueryRestObjectInsert>();
-}
+// std::shared_ptr<QueryRestObjectInsert>
+// QueryFactory::create_query_object_insert() {
+//   return std::make_shared<QueryRestObjectInsert>();
+// }
 
 std::shared_ptr<QueryRestSP> QueryFactory::create_query_sp() {
   return std::make_shared<QueryRestSP>();

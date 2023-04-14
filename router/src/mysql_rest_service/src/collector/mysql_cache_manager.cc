@@ -128,6 +128,7 @@ MysqlCacheManager::MysqlCacheCallbacks::new_connection_params() {
   result.conn_opts.password = configuration_.mysql_password_;
   result.conn_opts.host = node.host_;
   result.conn_opts.port = node.port_;
+  result.conn_opts.extra_client_flags = CLIENT_FOUND_ROWS;
 
   result.ssl_opts.ssl_mode = configuration_.ssl_.ssl_mode_;
   result.ssl_opts.ca = configuration_.ssl_.ssl_ca_file_;

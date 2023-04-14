@@ -35,6 +35,7 @@
 #include "mrs/database/entry/row_group_ownership.h"
 #include "mrs/database/entry/row_user_ownership.h"
 #include "mrs/database/helper/object_query.h"
+#include "mrs/database/helper/object_row_ownership.h"
 #include "mrs/database/helper/query.h"
 #include "mrs/database/json_template.h"
 
@@ -55,39 +56,35 @@ class QueryRestTable : private QueryLog {
   QueryRestTable();
 
  public:
-  virtual void query_entries(MySQLSession *session,
-                             std::shared_ptr<database::entry::Object> object,
-                             const ObjectFieldFilter &field_filter,
-                             const uint32_t offset, const uint32_t limit,
-                             const std::string &url, const std::string &primary,
-                             const bool is_default_limit,
-                             const RowUserOwnership &user_ownership = {},
-                             UserId *user_id = nullptr,
-                             const VectorOfRowGroupOwnershp &row_groups = {},
-                             const std::set<UniversalId> &user_groups = {},
-                             const std::string &query = {});
+  virtual void query_entries(
+      MySQLSession *session, std::shared_ptr<database::entry::Object> object,
+      const ObjectFieldFilter &field_filter, const uint32_t offset,
+      const uint32_t limit, const std::string &url, const bool is_default_limit,
+      const ObjectRowOwnership &row_ownership = {},
+      const std::string &query = {}, const bool compute_etag = false);
 
   std::string response;
   uint64_t items;
 
  private:
   std::unique_ptr<database::JsonTemplate> serializer_;
+  std::shared_ptr<database::entry::Object> object_;
+  bool compute_etag_ = false;
   mysqlrouter::sqlstring where_;
 
   void on_row(const ResultRow &r) override;
+
+  const mysqlrouter::sqlstring &build_where(
+      const ObjectRowOwnership &row_ownership);
 
   const mysqlrouter::sqlstring &build_where(
       const RowUserOwnership &row_user, UserId *user_id,
       const std::vector<RowGroupOwnership> &row_groups,
       const std::set<UniversalId> &user_groups);
 
-  void build_query(std::shared_ptr<database::entry::Object> object,
-                   const ObjectFieldFilter &field_filter, const uint32_t offset,
+  void build_query(const ObjectFieldFilter &field_filter, const uint32_t offset,
                    const uint32_t limit, const std::string &url,
-                   const std::string &primary, const RowUserOwnership &user_row,
-                   UserId *user_id,
-                   const std::vector<RowGroupOwnership> &row_groups,
-                   const std::set<UniversalId> &user_groups,
+                   const ObjectRowOwnership &row_ownership,
                    const std::string &query);
 };
 

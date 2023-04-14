@@ -25,8 +25,10 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_REST_SP_MEDIA_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_REST_SP_MEDIA_H_
 
+#include <string>
 #include <vector>
 
+#include "mrs/database/helper/object_query.h"
 #include "mrs/database/helper/query.h"
 
 namespace mrs {
@@ -41,8 +43,7 @@ class QueryRestSPMedia : private QueryLog {
   virtual void query_entries(MySQLSession *session, const std::string &column,
                              const std::string &schema,
                              const std::string &object,
-                             const std::string &primary,
-                             const std::string &primary_value);
+                             const PrimaryKeyColumnValues &pk);
 
   virtual void query_entries(MySQLSession *session, const std::string &column,
                              const std::string &schema,

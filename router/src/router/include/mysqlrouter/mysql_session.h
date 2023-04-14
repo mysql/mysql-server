@@ -168,6 +168,7 @@ class ROUTER_LIB_EXPORT MySQLSession {
   static const char kSslModeRequired[];
   static const char kSslModeVerifyCa[];
   static const char kSslModeVerifyIdentity[];
+      unsigned long extra_client_flags = 0;
   //
   // mysql_option's
   //
@@ -429,7 +430,8 @@ class ROUTER_LIB_EXPORT MySQLSession {
                        const std::string &unix_socket,
                        const std::string &default_schema,
                        int connect_timeout = kDefaultConnectTimeout,
-                       int read_timeout = kDefaultReadTimeout);  // throws Error
+                       int read_timeout = kDefaultReadTimeout,
+                       unsigned long extra_client_flags = 0);  // throws Error
   virtual void disconnect();
 
   /**

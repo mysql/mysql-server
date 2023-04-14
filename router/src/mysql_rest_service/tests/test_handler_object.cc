@@ -35,8 +35,8 @@
 #include "mock/mock_mysqlcachemanager.h"
 #include "mock/mock_object.h"
 #include "mock/mock_session.h"
+#include "test_mrs_object_utils.h"
 
-using mrs::interface::Object;
 using testing::_;
 using testing::ByMove;
 using testing::Invoke;
@@ -59,8 +59,9 @@ class HandleObjectTests : public Test {
    public:
     GeneralExceptations(
         HandleObjectTests &parent,
-        const Object::RowUserOwnership &user_row_ownership,
-        const Object::VectorOfRowGroupOwnership &group_row_ownership,
+        const mrs::interface::Object::RowUserOwnership &user_row_ownership,
+        const mrs::interface::Object::VectorOfRowGroupOwnership
+            &group_row_ownership,
         const std::string &cached_primary, const std::string &schema,
         const std::string &object, const std::string &rest_path,
         const std::string &rest_url,
@@ -78,20 +79,11 @@ class HandleObjectTests : public Test {
         cached_columns_.emplace_back(a, "text");
       }
 
-      cached_object_ = std::make_shared<mrs::database::entry::Object>();
-      auto base_table = std::make_shared<mrs::database::entry::BaseTable>();
-      base_table->schema = schema;
-      base_table->table = object;
-      base_table->table_alias = "t";
-      cached_object_->base_tables.push_back(base_table);
-      for (auto &a : cached_columns_) {
-        auto f = std::make_shared<mrs::database::entry::ObjectField>();
-        f->name = a.name;
-        f->db_name = a.name;
-        f->db_datatype = "text";
-        f->source = base_table;
-        cached_object_->fields.push_back(f);
+      auto builder = ObjectBuilder(schema, object);
+      for (auto &a : cached_columns) {
+        builder.field(a, a, "text");
       }
+      cached_object_ = builder.root();
 
       expectSetup();
     }
@@ -124,8 +116,6 @@ class HandleObjectTests : public Test {
           .WillRepeatedly(Return(cached_object_));
       EXPECT_CALL(parent_.mock_route, get_cached_columnes())
           .WillRepeatedly(ReturnRef(cached_columns_));
-      EXPECT_CALL(parent_.mock_route, get_cached_primary())
-          .WillRepeatedly(ReturnRef(cached_primary_));
 
       EXPECT_CALL(parent_.mock_route, get_on_page()).WillRepeatedly(Return(25));
       EXPECT_CALL(parent_.mock_route, get_user_row_ownership())
@@ -139,8 +129,8 @@ class HandleObjectTests : public Test {
     }
 
     HandleObjectTests &parent_;
-    Object::RowUserOwnership user_row_ownership_;
-    Object::VectorOfRowGroupOwnership group_row_ownership_;
+    mrs::interface::Object::RowUserOwnership user_row_ownership_;
+    mrs::interface::Object::VectorOfRowGroupOwnership group_row_ownership_;
     helper::Column cached_primary_;
     std::string schema_;
     std::string object_;
@@ -160,8 +150,10 @@ class HandleObjectTests : public Test {
 };
 
 TEST_F(HandleObjectTests, fetch_object_feed) {
-  const Object::RowUserOwnership k_user_row_ownership{false, ""};
-  const Object::VectorOfRowGroupOwnership k_group_row_ownership{};
+  const mrs::interface::Object::RowUserOwnership k_user_row_ownership{false,
+                                                                      ""};
+  const mrs::interface::Object::VectorOfRowGroupOwnership
+      k_group_row_ownership{};
   const std::string k_cached_primary{"column1"};
   GeneralExceptations expectations{*this,
                                    k_user_row_ownership,
@@ -187,8 +179,10 @@ TEST_F(HandleObjectTests, fetch_object_feed) {
 }
 
 TEST_F(HandleObjectTests, fetch_object_single) {
-  const Object::RowUserOwnership k_user_row_ownership{false, ""};
-  const Object::VectorOfRowGroupOwnership k_group_row_ownership{};
+  const mrs::interface::Object::RowUserOwnership k_user_row_ownership{false,
+                                                                      ""};
+  const mrs::interface::Object::VectorOfRowGroupOwnership
+      k_group_row_ownership{};
   const std::string k_cached_primary{"column1"};
   GeneralExceptations expectations{*this,
                                    k_user_row_ownership,
@@ -214,8 +208,10 @@ TEST_F(HandleObjectTests, fetch_object_single) {
 }
 
 TEST_F(HandleObjectTests, delete_single_object_throws_without_filter) {
-  const Object::RowUserOwnership k_user_row_ownership{false, ""};
-  const Object::VectorOfRowGroupOwnership k_group_row_ownership{};
+  const mrs::interface::Object::RowUserOwnership k_user_row_ownership{false,
+                                                                      ""};
+  const mrs::interface::Object::VectorOfRowGroupOwnership
+      k_group_row_ownership{};
   const std::string k_cached_primary{"column1"};
   GeneralExceptations expectations{*this,
                                    k_user_row_ownership,
@@ -240,8 +236,10 @@ TEST_F(HandleObjectTests, delete_single_object_throws_without_filter) {
 }
 
 TEST_F(HandleObjectTests, delete_single_object) {
-  const Object::RowUserOwnership k_user_row_ownership{false, ""};
-  const Object::VectorOfRowGroupOwnership k_group_row_ownership{};
+  const mrs::interface::Object::RowUserOwnership k_user_row_ownership{false,
+                                                                      ""};
+  const mrs::interface::Object::VectorOfRowGroupOwnership
+      k_group_row_ownership{};
   const std::string k_cached_primary{"column1"};
   GeneralExceptations expectations{*this,
                                    k_user_row_ownership,

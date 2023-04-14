@@ -40,23 +40,50 @@ namespace mrs {
 namespace database {
 namespace entry {
 
-class FieldSource {
+class Table;
+
+enum class IdGenerationType {
+  NONE,            // not auto-generated
+  AUTO_INCREMENT,  // auto-increment by mysql
+  REVERSE_UUID     // pre-generate as UUID_TO_BIN(UUID(), 1)
+};
+
+enum class ColumnType { UNKNOWN, INTEGER, DOUBLE, BOOLEAN, STRING, BINARY };
+
+class Column {
  public:
-  virtual ~FieldSource() = default;
+  std::weak_ptr<Table> table;
+  std::string name;
+  std::string datatype;
+  ColumnType type = ColumnType::UNKNOWN;
+  IdGenerationType id_generation = IdGenerationType::NONE;
+  bool not_null = false;
+  bool is_primary = false;
+  bool is_unique = false;
+  bool is_generated = false;
+
+  bool is_foreign = false;
+
+  bool is_auto_generated_id() const {
+    return id_generation != IdGenerationType::NONE;
+  }
+};
+
+class Table {
+ public:
+  virtual ~Table() = default;
 
   std::string schema;
   std::string table;
 
   std::string table_alias;
 
+  std::vector<std::shared_ptr<Column>> columns;
+
   Operation::ValueType crud_operations;
 
   inline bool create_allowed() const {
     return crud_operations & Operation::Values::valueCreate;
-  }
-
-  inline bool read_allowed() const {
-    return crud_operations & Operation::Values::valueRead;
   }
 
   inline bool update_allowed() const {
@@ -68,56 +95,104 @@ class FieldSource {
   }
 
   inline std::string table_key() const { return schema + "." + table; }
+
+  std::shared_ptr<Column> get_column(const std::string &name) const {
+    for (const auto &c : columns) {
+      if (c->name == name) return c;
+    }
+    return {};
+  }
+
+  std::vector<std::shared_ptr<Column>> primary_key() const {
+    std::vector<std::shared_ptr<Column>> cols;
+    for (const auto &c : columns)
+      if (c->is_primary) cols.push_back(c);
+    return cols;
+  }
 };
 
 // the root table where all the joins and sub-selects start
-class BaseTable : public FieldSource {
+class BaseTable : public Table {
  public:
 };
 
 class ObjectField;
 
 // tables that are joined to the root table or others
-class JoinedTable : public FieldSource {
+class JoinedTable : public Table {
  public:
-  using ColumnMapping = std::vector<std::pair<std::string, std::string>>;
+  using ColumnMapping =
+      std::vector<std::pair<std::shared_ptr<Column>, std::shared_ptr<Column>>>;
 
-  std::shared_ptr<entry::ObjectField> reduce_to_field;
+  std::shared_ptr<ObjectField> reduce_to_field;
 
   ColumnMapping column_mapping;
   bool to_many = false;
   bool unnest = false;
+
+  bool enabled = true;  // is field that references the table is enabled
 };
 
 class Object;
 
 class ObjectField {
  public:
-  std::string name;
-  int position;
-  std::string db_name;
-  std::string db_datatype;
-  bool db_auto_inc = false;
-  bool db_not_null = false;
-  bool db_is_primary = false;
-  bool db_is_unique = false;
-  bool db_is_generated = false;
-  bool enabled = true;
-  bool allow_filtering = true;
-  bool no_check = false;
+  virtual ~ObjectField() = default;
 
-  std::shared_ptr<FieldSource> source;
-  std::shared_ptr<Object> nested_object;
+  std::string name;
+  int position = 0;
+  bool enabled = true;  // include in the returned JSON object
+  bool allow_filtering = true;
+  bool no_check = false;   // exclude from ETag checksum calculation
+  bool no_update = false;  // disallow updates to this field
+};
+
+class DataField : public ObjectField {
+ public:
+  std::shared_ptr<Column> source;
 };
 
 class Object {
  public:
   std::string name;
-  std::weak_ptr<Object> parent;
 
   // if more than 1 table, they're all to be joined together
-  std::vector<std::shared_ptr<FieldSource>> base_tables;
+  std::vector<std::shared_ptr<Table>> base_tables;
   std::vector<std::shared_ptr<ObjectField>> fields;
+
+  bool uses_reduce_to = false;
+
+  inline std::shared_ptr<ObjectField> get_field(const std::string &name) const {
+    for (const auto &f : fields) {
+      if (f->name == name) return f;
+    }
+    return {};
+  }
+
+  inline std::shared_ptr<DataField> get_column_field(
+      const std::string &column_name) const {
+    for (const auto &f : fields) {
+      if (auto df = std::dynamic_pointer_cast<DataField>(f); df) {
+        if (df->source->name == column_name) return df;
+      }
+    }
+    return {};
+  }
+
+  inline std::shared_ptr<BaseTable> get_base_table() const {
+    return std::dynamic_pointer_cast<BaseTable>(base_tables.front());
+  }
+};
+
+class ReferenceField : public ObjectField {
+ public:
+  bool is_array = false;
+  std::shared_ptr<Object> nested_object;
+
+  std::shared_ptr<JoinedTable> ref_table() const {
+    return std::dynamic_pointer_cast<JoinedTable>(
+        nested_object->base_tables.front());
+  }
 };
 
 }  // namespace entry
