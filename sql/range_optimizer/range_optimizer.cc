@@ -1233,6 +1233,7 @@ static AccessPath *get_best_disjunct_quick(
     roru_read_plans[i] = get_key_scans_params(
         thd, param, imerge->trees[i], true, false, ORDER_NOT_RELEVANT,
         skip_records_in_range, read_cost, /*ror_only=*/true, needed_reg);
+    if (roru_read_plans[i] == nullptr) return imerge_path;
   }
 
   AccessPath *ror_union_path = get_ror_union_path(
