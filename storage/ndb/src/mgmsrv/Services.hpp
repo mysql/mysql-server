@@ -50,6 +50,8 @@ private:
   int m_stopSelf; // -1 is restart, 0 do nothing, 1 stop
   NdbMutex *m_mutex;
 
+  unsigned int m_sessionAuthLevel {0};
+
   // for listing sessions and other fun:
   Parser_t::Context *m_ctx;
   Uint64 m_session_id;
@@ -73,6 +75,10 @@ public:
   void runSession() override;
 
   static const unsigned SOCKET_TIMEOUT = 30000;
+
+  int checkAuth(struct CmdAuth *) const;
+  void reportAuthFailure(int code);
+  int on_verify(int, struct x509_store_ctx_st *);
 
   void getConfig(Parser_t::Context &ctx, const class Properties &args, bool v2);
   void getConfig_v1(Parser_t::Context &ctx, const class Properties &args);
@@ -160,7 +166,7 @@ public:
     m_mgmsrv(mgm),
     m_next_session_id(1) {}
 
-  SocketServer::Session * newSession(ndb_socket_t socket) override{
+  SocketServer::Session * newSession(ndb_socket_t socket) override {
     return new MgmApiSession(m_mgmsrv, socket, m_next_session_id++);
   }
 };
