@@ -2111,6 +2111,54 @@ int runTestStartTls(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runTestRequireTls(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Create a configuration file in the working directory */
+  NDBT_Workingdir wd("test_tls");
+  BaseString cfg_path = path(wd.path(), "config.ini", nullptr);
+  Properties config = ConfigFactory::create();
+  ConfigFactory::put(config, "ndb_mgmd", 1, "RequireTls", "true");
+  CHECK(ConfigFactory::write_config_ini(config, cfg_path.c_str()));
+
+  /* Create keys in test_tls, and initialize our own TLS context */
+  TlsKeyManager tls_km;
+  bool k = sign_tls_keys(wd);
+  CHECK(k);
+  tls_km.init(wd.path(), 0, NODE_TYPE_API, true);
+  CHECK(tls_km.ctx());
+
+  /* Start a management server that will require TLS */
+  Mgmd mgmd(1);
+  NdbProcess::Args mgmdArgs;
+  mgmd.common_args(mgmdArgs, wd.path());
+  mgmdArgs.add("--ndb-tls-search-path=", wd.path());
+  CHECK(mgmd.start(wd.path(), mgmdArgs));     // Start management node
+  sleep(1);                                   // Wait for confirmed config
+
+  /* Our management client */
+  NdbMgmHandle handle = ndb_mgm_create_handle();
+  ndb_mgm_set_connectstring(handle, mgmd.connectstring(config).c_str());
+  ndb_mgm_set_ssl_ctx(handle, tls_km.ctx());
+
+  int r = ndb_mgm_connect(handle, 3, 5, 1);   // Connect to management node
+  CHECK(r == 0);
+
+  ndb_mgm_severity sev = { NDB_MGM_EVENT_SEVERITY_ON, 1 };
+  r = ndb_mgm_get_clusterlog_severity_filter(handle, &sev, 1);
+  CHECK(r < 1);                               // COMMAND IS NOT YET ALLOWED
+  int err = ndb_mgm_get_latest_error(handle);
+  CHECK(err == NDB_MGM_AUTH_REQUIRES_TLS);
+
+  r = ndb_mgm_start_tls(handle);
+  printf("ndb_mgm_start_tls(): %d\n", r);     // START TLS
+  CHECK(r == 0);
+
+  r = ndb_mgm_get_clusterlog_severity_filter(handle, &sev, 1);
+  CHECK(r == 1);                              // NOW COMMAND IS ALLOWED
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testMgmd);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 
@@ -2239,6 +2287,11 @@ TESTCASE("NdbdWithCertificate", "Test data node startup with certificate")
 TESTCASE("StartTls", "Test START TLS in MGM protocol")
 {
   INITIALIZER(runTestStartTls);
+}
+
+TESTCASE("RequireTls", "Test MGM server that requires TLS")
+{
+  INITIALIZER(runTestRequireTls);
 }
 
 #endif

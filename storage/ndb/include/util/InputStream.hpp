@@ -80,4 +80,19 @@ public:
   ~SocketInputStream() override {}
 };
 
+/* RewindInputStream takes an existing stream plus one line of null-terminated
+ * buffered data read using gets(). When reading from the RewindInputStream,
+ * the first line requested will come from the buffered line. Subsequent
+ * read requests will come from the source stream.
+ */
+class RewindInputStream : public InputStream {
+  InputStream & m_stream;
+  const char * m_buf;
+  bool m_first;
+public:
+  RewindInputStream(InputStream & s, const char * buf) :
+    m_stream(s), m_buf(buf), m_first(true) {}
+  char* gets(char * buf, int bufLen) override;
+};
+
 #endif

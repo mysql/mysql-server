@@ -27,6 +27,7 @@
 #include "ndb_global.h"
 
 #include "InputStream.hpp"
+#include "util/cstrbuf.h"
 
 FileInputStream Stdin(stdin);
 
@@ -86,4 +87,19 @@ SecureSocketInputStream::gets(char * buf, int bufLen) {
   }
 
   return buf;
+}
+
+char *
+RewindInputStream::gets(char * buf, int bufLen) {
+
+  if(m_first) {
+    m_first = false;
+    cstrbuf buffer({buf, buf + bufLen});
+    buffer.append(m_buf);
+    buffer.append("\n");
+    require(! buffer.is_truncated());
+    return buf;
+  }
+
+  return m_stream.gets(buf, bufLen);
 }

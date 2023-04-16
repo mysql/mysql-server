@@ -72,6 +72,14 @@ extern "C" {
         Connecting node should retry. */
     NDB_MGM_ALLOCID_CONFIG_RETRY = 1103,
 
+    /* Authorization failures.  Server did not allow command. */
+    /** Generic authorization failure. */
+    NDB_MGM_NOT_AUTHORIZED = 1501,
+    /** Command requires TLS */
+    NDB_MGM_AUTH_REQUIRES_TLS = 1502,
+    /** Command requires TLS client certificate */
+    NDB_MGM_AUTH_REQUIRES_CLIENT_CERT = 1503,
+
     /* Service errors - Start/Stop Node or System */
     /** Start failed */
     NDB_MGM_START_FAILED = 2001,

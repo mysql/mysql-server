@@ -469,6 +469,37 @@ ndb_mgm_get_latest_error_msg(const NdbMgmHandle h)
 }
 
 
+static const Properties *
+handle_authorization_failure(NdbMgmHandle handle, InputStream & in)
+{
+  /* Read the failure details and set the internal error conditions. */
+  handle->last_error = NDB_MGM_NOT_AUTHORIZED;
+
+  const ParserRow<ParserDummy> details[] = {
+    MGM_CMD("Authorization failed",  nullptr, ""),
+    MGM_ARG("Error", String, Mandatory, "Error message"),
+    MGM_END()
+  };
+
+  Parser_t::Context ctx;
+  ParserDummy session(handle->socket);
+  Parser_t parser(details, in);
+  const Properties * reply = parser.parse(ctx, session);
+
+  const char * reason = nullptr;
+  if(reply && reply->get("Error", &reason))
+  {
+    if(strcmp(reason, "Requires TLS Client Certificate") == 0)
+      handle->last_error = NDB_MGM_AUTH_REQUIRES_CLIENT_CERT;
+    else if(strcmp(reason, "Requires TLS") == 0)
+      handle->last_error = NDB_MGM_AUTH_REQUIRES_TLS;
+  }
+
+  delete reply;
+  return nullptr;
+}
+
+
 /*
   ndb_mgm_call
 
@@ -605,6 +636,14 @@ ndb_mgm_call(NdbMgmHandle handle,
         CHECK_TIMEDOUT_RET(handle, in, out, NULL, cmd);
 	DBUG_RETURN(NULL);
       }
+
+      /* Check for Authorization failure */
+      if(strcmp(ctx.m_tokenBuffer, "Authorization failed") == 0)
+      {
+        RewindInputStream str(in, ctx.m_tokenBuffer);
+        DBUG_RETURN(handle_authorization_failure(handle, str));
+      }
+
       /**
        * Print some info about why the parser returns NULL
        */
@@ -1326,6 +1365,12 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
     SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
     DBUG_RETURN(NULL);
   }
+  if(strcmp("Authorization failed", buf) == 0)
+  {
+    RewindInputStream str(in, buf);
+    (void) handle_authorization_failure(handle, str);
+    DBUG_RETURN(nullptr);
+  }
   if(strcmp("node status\n", buf) != 0) {
     CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     ndbout << in.timedout() << " " << out.timedout() << buf << endl;
@@ -1568,6 +1613,12 @@ ndb_mgm_get_status3(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
     CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
     DBUG_RETURN(NULL);
+  }
+  if(strcmp("Authorization failed", buf) == 0)
+  {
+    RewindInputStream str(in, buf);
+    (void) handle_authorization_failure(handle, str);
+    DBUG_RETURN(nullptr);
   }
   if(strcmp("node status\n", buf) != 0) {
     CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
@@ -3627,6 +3678,7 @@ ndb_mgm_check_connection(NdbMgmHandle handle)
   DBUG_ENTER("ndb_mgm_check_connection");
   CHECK_HANDLE(handle, -1);
   CHECK_CONNECTED(handle, -1);
+  /* Treated as bootstrap command; cannot result in authorization failure */
   SecureSocketOutputStream out(handle->socket, handle->timeout);
   SecureSocketInputStream in(handle->socket, handle->timeout);
   char buf[32];
@@ -3844,6 +3896,7 @@ int ndb_mgm_end_session(NdbMgmHandle handle)
   s_output.println("%s", end_session_str);
   s_output.println("%s", "");
 
+  /* Treated as bootstrap command; cannot result in authorization failure */
   SecureSocketInputStream in(handle->socket, handle->timeout);
   char buf[32];
   in.gets(buf, sizeof(buf));
