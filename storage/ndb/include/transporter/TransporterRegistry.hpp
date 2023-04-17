@@ -261,26 +261,20 @@ public:
                       bool& close_with_reset,
                       bool& log_failure);
 
-  bool connect_server(ndb_socket_t sockfd, BaseString & msg,
-                      bool & close_with_reset, bool & log_failure) {
-    NdbSocket sock(sockfd, NdbSocket::From::Existing);
-    return connect_server(sock, msg, close_with_reset, log_failure);
-  }
-
   bool connect_client(NdbMgmHandle *h);
 
   /**
    * Given a hostname and port, creates a NdbMgmHandle, turns it into
    * a transporter, and returns the socket.
    */
-  ndb_socket_t connect_ndb_mgmd(const char* server_name,
-                                unsigned short server_port);
+  NdbSocket connect_ndb_mgmd(const char* server_name,
+                             unsigned short server_port);
 
   /**
    * Given a connected NdbMgmHandle, turns it into a transporter
    * and returns the socket.
    */
-  ndb_socket_t connect_ndb_mgmd(NdbMgmHandle *h);
+  NdbSocket connect_ndb_mgmd(NdbMgmHandle *h);
 
   /**
    * Manage allTransporters and theNodeIdTransporters when using

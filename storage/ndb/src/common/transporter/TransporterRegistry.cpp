@@ -3724,7 +3724,8 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h)
   }
   require(!t->isMultiTransporter());
   require(!t->isPartOfMultiTransporter());
-  bool res = t->connect_client(connect_ndb_mgmd(h));
+  NdbSocket secureSocket = connect_ndb_mgmd(h);
+  bool res = t->connect_client(secureSocket);
   if (res == true)
   {
     DEBUG_FPRINTF((stderr, "(%u)performStates[%u] = DISCONNECTING,"
@@ -3776,55 +3777,52 @@ bool TransporterRegistry::report_dynamic_ports(NdbMgmHandle h) const
  * Given a connected NdbMgmHandle, turns it into a transporter
  * and returns the socket.
  */
-ndb_socket_t TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
+NdbSocket TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 {
-  ndb_socket_t sockfd;
-
   DBUG_ENTER("TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle)");
 
   if ( h==nullptr || *h == nullptr )
   {
     g_eventLogger->error("Mgm handle is NULL (%s:%d)", __FILE__, __LINE__);
-    DBUG_RETURN(sockfd);
+    DBUG_RETURN(NdbSocket{});  // an invalid socket, newly created on the stack
   }
 
   if (!report_dynamic_ports(*h))
   {
     ndb_mgm_destroy_handle(h);
-    DBUG_RETURN(sockfd);
+    DBUG_RETURN(NdbSocket{});  // an invalid socket, newly created on the stack
   }
 
   /**
    * convert_to_transporter also disposes of the handle (i.e. we don't leak
-   * memory here.
+   * memory here).
    */
   DBUG_PRINT("info", ("Converting handle to transporter"));
-  sockfd= ndb_mgm_convert_to_transporter(h);
-  if (!ndb_socket_valid(sockfd))
+  NdbSocket socket = ndb_mgm_convert_to_transporter(h);
+  if (! socket.is_valid())
   {
     g_eventLogger->error("Failed to convert to transporter (%s: %d)",
                          __FILE__, __LINE__);
     ndb_mgm_destroy_handle(h);
   }
-  DBUG_RETURN(sockfd);
+  DBUG_RETURN(socket);
 }
 
 /**
  * Given a SocketClient, creates a NdbMgmHandle, turns it into a transporter
  * and returns the socket.
  */
-ndb_socket_t
+NdbSocket
 TransporterRegistry::connect_ndb_mgmd(const char* server_name,
                                       unsigned short server_port)
 {
   NdbMgmHandle h= ndb_mgm_create_handle();
-  ndb_socket_t s;
 
   DBUG_ENTER("TransporterRegistry::connect_ndb_mgmd(SocketClient)");
 
   if ( h == nullptr )
   {
-    DBUG_RETURN(s);
+    DBUG_RETURN(NdbSocket());
   }
 
   /**
@@ -3845,7 +3843,7 @@ TransporterRegistry::connect_ndb_mgmd(const char* server_name,
   {
     DBUG_PRINT("info", ("connection to mgmd failed"));
     ndb_mgm_destroy_handle(&h);
-    DBUG_RETURN(s);
+    DBUG_RETURN(NdbSocket());
   }
 
   DBUG_RETURN(connect_ndb_mgmd(&h));

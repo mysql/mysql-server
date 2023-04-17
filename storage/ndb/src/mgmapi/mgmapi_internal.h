@@ -26,6 +26,7 @@
 #define MGMAPI_INTERNAL_H
 
 #include "portlib/ndb_socket.h"
+#include "util/NdbSocket.h"
 
 
 /**
@@ -86,11 +87,10 @@ int ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
  * Convert connection to transporter
  * @param   handle    NDB management handle.
  *
- * @return socket
- *
  * @note the socket is now able to be used as a transporter connection
+ * @note the management handle is no longer valid after this call
  */
-ndb_socket_t ndb_mgm_convert_to_transporter(NdbMgmHandle *handle);
+NdbSocket ndb_mgm_convert_to_transporter(NdbMgmHandle *handle);
 
 int ndb_mgm_disconnect_quiet(NdbMgmHandle handle);
 
