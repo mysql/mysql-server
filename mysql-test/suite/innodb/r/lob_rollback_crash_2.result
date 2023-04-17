@@ -17,3 +17,20 @@ ERROR HY000: Lost connection to MySQL server during query
 SELECT * FROM t1;
 f1	f2
 DROP TABLE t1;
+#
+# Bug#35052419: Assertion failure: lob0lob.cc:905:ref_t::page_no(field_ref) == FIL_NULL
+#
+SET GLOBAL innodb_file_per_table='on';
+create table t1(i int primary key,
+a geometry not null SRID 0, spatial index(a)) row_format=dynamic engine=innodb;
+start transaction;
+insert into t1 values(1, st_geomfromtext(concat('multilinestring(',repeat('(-4286 -5983,52762 -5983,52762 79876,-4286 79876,-4286 -5983),', 100),'(-4286  -5983,52762 -5983,52762 79876,-4286 79876,-4286 -5983))')));
+SET DEBUG = '+d,crash_almost_end_of_lob_rollback_0';
+rollback;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+SET GLOBAL innodb_file_per_table=default;

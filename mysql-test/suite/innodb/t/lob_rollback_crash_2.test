@@ -28,3 +28,33 @@ ROLLBACK;
 
 SELECT * FROM t1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#35052419: Assertion failure: lob0lob.cc:905:ref_t::page_no(field_ref) == FIL_NULL
+--echo #
+
+--disable_warnings
+eval SET GLOBAL innodb_file_per_table='on';
+--enable_warnings
+
+create table t1(i int primary key,
+a geometry not null SRID 0, spatial index(a)) row_format=dynamic engine=innodb;
+
+start transaction;
+
+insert into t1 values(1, st_geomfromtext(concat('multilinestring(',repeat('(-4286 -5983,52762 -5983,52762 79876,-4286 79876,-4286 -5983),', 100),'(-4286  -5983,52762 -5983,52762 79876,-4286 79876,-4286 -5983))')));
+
+SET DEBUG = '+d,crash_almost_end_of_lob_rollback_0';
+--source include/expect_crash.inc
+
+--error CR_SERVER_LOST
+rollback;
+
+--source include/start_mysqld.inc
+
+check table t1;
+drop table t1;
+
+--disable_warnings
+SET GLOBAL innodb_file_per_table=default;
+--enable_warnings
