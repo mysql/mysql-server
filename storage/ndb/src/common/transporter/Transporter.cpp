@@ -278,10 +278,19 @@ tls_error(int code)
 }
 
 bool
+Transporter::connect_client_mgm(int port)
+{
+  require(!isPartOfMultiTransporter());
+  NdbSocket secureSocket =
+    m_transporter_registry.connect_ndb_mgmd(remoteHostName, port);
+  return connect_client(secureSocket);
+}
+
+
+bool
 Transporter::connect_client()
 {
   NdbSocket secureSocket;
-  ndb_socket_t sockfd;
   DBUG_ENTER("Transporter::connect_client");
 
   require(!isMultiTransporter());
@@ -302,9 +311,7 @@ Transporter::connect_client()
 
   if(isMgmConnection)
   {
-    require(!isPartOfMultiTransporter());
-    sockfd= m_transporter_registry.connect_ndb_mgmd(remoteHostName, port);
-    secureSocket.init_from_new(sockfd);
+    return connect_client_mgm(port);
   }
   else
   {

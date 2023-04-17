@@ -3743,36 +3743,28 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
   DBUG_RETURN(res);
 }
 
-ndb_socket_t
-ndb_mgm_convert_to_transporter(NdbMgmHandle *handle)
+void
+ndb_mgm_convert_to_transporter(NdbMgmHandle *handle, NdbSocket *s)
 {
-  DBUG_ENTER("ndb_mgm_convert_to_transporter");
-  ndb_socket_t s;
-
   if(handle == nullptr)
   {
     SET_ERROR(*handle, NDB_MGM_ILLEGAL_SERVER_HANDLE, "");
-    ndb_socket_invalidate(&s);
-    DBUG_RETURN(s);
+    return;
   }
 
   if ((*handle)->connected != 1)
   {
     SET_ERROR(*handle, NDB_MGM_SERVER_NOT_CONNECTED , "");
-    ndb_socket_invalidate(&s);
-    DBUG_RETURN(s);
+    return;
   }
 
-  (*handle)->connected= 0;   // we pretend we're disconnected
-  s= (*handle)->socket.ndb_socket();
-
-  SocketOutputStream s_output(s, (*handle)->timeout);
+  NdbSocket::transfer(*s, (*handle)->socket);
+  SecureSocketOutputStream s_output(*s, (*handle)->timeout);
   s_output.println("transporter connect");
   s_output.println("%s", "");
 
+  (*handle)->connected= 0;   // The handle no longer owns the connection
   ndb_mgm_destroy_handle(handle); // set connected=0, so won't disconnect
-
-  DBUG_RETURN(s);
 }
 
 extern "C"

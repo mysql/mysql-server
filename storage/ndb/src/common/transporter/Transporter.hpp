@@ -133,6 +133,7 @@ public:
     NdbSocket socket(fd, NdbSocket::From::Existing);
     return connect_client(socket);
   }
+  bool connect_client_mgm(int);
   bool connect_server(NdbSocket & socket, BaseString& errormsg);
 
   /**

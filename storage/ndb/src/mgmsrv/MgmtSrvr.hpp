@@ -359,7 +359,7 @@ public:
   int getConnectionDbParameter(int node1, int node2, int param,
 			       int *value, BaseString& msg);
 
-  bool transporter_connect(ndb_socket_t sockfd,
+  bool transporter_connect(NdbSocket & socket,
                            BaseString& errormsg,
                            bool& close_with_reset,
                            bool& log_failure);

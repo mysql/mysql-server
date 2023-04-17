@@ -342,6 +342,10 @@ public:
 
   NdbMgmHandle handle() { return m_mgmd_client.handle(); }
 
+  void convert_to_transporter(NdbSocket * sock) {
+    m_mgmd_client.convert_to_transporter(sock);
+  }
+
 private:
 
   bool get_section_string(const Properties& config,
@@ -2024,6 +2028,7 @@ runTestNdbdWithCert(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(ndbd.wait_started(handle));
 
   CHECK(mgmd.stop());
+  CHECK(ndbd.stop());
   return NDBT_OK;
 }
 
@@ -2081,6 +2086,11 @@ int runTestStartTls(NDBT_Context* ctx, NDBT_Step* step)
   /* And run another command. */
   struct ndb_mgm_cluster_state *state = ndb_mgm_get_status(mgmd.handle());
   CHECK(state != nullptr);
+
+  /* Now convert the socket to a transporter */
+  NdbSocket s;
+  mgmd.convert_to_transporter(&s);
+  CHECK(s.is_valid());
 
   return NDBT_OK;
 }

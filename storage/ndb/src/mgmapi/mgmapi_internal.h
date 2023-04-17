@@ -85,12 +85,12 @@ int ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
 /**
  * Convert connection to transporter
  * @param   handle    NDB management handle.
- *
- * @return socket
+ * @param   s         Transporter socket.
  *
  * @note the socket is now able to be used as a transporter connection
+ * @note the management handle is no longer valid after this call
  */
-ndb_socket_t ndb_mgm_convert_to_transporter(NdbMgmHandle *handle);
+void ndb_mgm_convert_to_transporter(NdbMgmHandle *handle, class NdbSocket * s);
 
 int ndb_mgm_disconnect_quiet(NdbMgmHandle handle);
 

@@ -104,6 +104,10 @@ public:
     return m_handle;
   }
 
+  void convert_to_transporter(NdbSocket * s) {
+    ndb_mgm_convert_to_transporter(& m_handle, s);
+  }
+
   ndb_socket_t socket(void) const {
     return _ndb_mgm_get_socket(m_handle);
   }
