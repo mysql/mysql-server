@@ -143,6 +143,7 @@ FragmentedSectionIterator::checkInvariants()
   assert( rangeRemain <= rangeLen );
 
   /* Can only have a null readptr if nothing is left */
+  assert( (lastReadPtr != nullptr) || (lastReadAvail == 0));
   assert( (lastReadPtr != nullptr) || (rangeRemain == 0));
 
   /* If we have a non-null readptr and some remaining
@@ -158,7 +159,17 @@ FragmentedSectionIterator::checkInvariants()
 void FragmentedSectionIterator::moveToPos(Uint32 pos)
 {
   assert(pos <= realIterWords);
-
+  if (realIterWords == 0)
+  {
+    /**
+     * Iterator is empty, 'realIterator' could even be nullptr.
+     * We are allowed to position at the end only. (With nothing available)
+     */
+    assert(pos == 0);
+    assert(lastReadTotal == 0 && lastReadAvail == 0);
+    assert(realCurrPos == 0);
+    return;
+  }
   if (pos < realCurrPos)
   {
     /* Need to reset, and advance from the start */
@@ -169,25 +180,19 @@ void FragmentedSectionIterator::moveToPos(Uint32 pos)
     lastReadAvail= 0;
   }
 
-  if ((lastReadPtr == nullptr) &&
-      (realIterWords != 0) &&
-      (pos != realIterWords)) {
-    lastReadPtr= realIterator->getNextWords(lastReadTotal);
-    lastReadAvail = lastReadTotal;
-  }
-
-  if (pos == realCurrPos) {
-    lastReadAvail = lastReadTotal;
-    return;
-  }
-
   /* Advance until we get a chunk which contains the pos */
   while (pos >= realCurrPos + lastReadTotal)
   {
     realCurrPos+= lastReadTotal;
     lastReadPtr= realIterator->getNextWords(lastReadTotal);
-    assert(lastReadPtr != nullptr);
     lastReadAvail = lastReadTotal;
+    if (lastReadPtr == nullptr)
+    {
+      // Advanced past the end
+      assert(pos == realIterWords && realCurrPos == realIterWords);
+      assert(lastReadAvail == 0);
+      return;
+    }
   }
 
   const Uint32 chunkOffset= pos - realCurrPos;
