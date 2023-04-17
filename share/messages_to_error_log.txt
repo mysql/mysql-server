@@ -12159,9 +12159,6 @@ ER_AUTHENTICATION_OCI_TOKEN_NOT_VERIFIED
 ER_AUTHENTICATION_OCI_DOWNLOAD_IDDP_PUBLIC_KEY
   eng "Could not download IDDP Public key. Please check if security token provided by '%s' for '%s'@'%s' is valid."
 
-ER_AUTHENTICATION_OCI_NO_MATCHING_GROUPS_IN_TOKEN
-  eng "None of the groups extracted from security token matches any of the entries from authentication string."
-
 ER_SYS_VAR_REGISTRATION
   eng "Cannot register variable '%s'. Please check if it is not already registered by another component."
 
