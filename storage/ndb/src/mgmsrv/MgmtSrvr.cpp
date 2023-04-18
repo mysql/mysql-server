@@ -592,7 +592,7 @@ MgmtSrvr::start()
 
   /* Configure TlsKeyManager */
   require(m_tls_search_path);
-  theFacade->mgm_configure_tls(m_tls_search_path);
+  theFacade->mgm_configure_tls(m_tls_search_path, m_client_tls_req);
 
   /* Start transporter */
   if(!start_transporter(m_local_config))
@@ -1330,7 +1330,8 @@ int MgmtSrvr::sendStopMgmd(NodeId nodeId,
   if ( h && connect_string.length() > 0 )
   {
     ndb_mgm_set_connectstring(h,connect_string.c_str());
-    if(ndb_mgm_connect(h,1,0,0))
+    ndb_mgm_set_ssl_ctx(h, ssl_ctx());
+    if(ndb_mgm_connect_tls(h,1,0,0, m_client_tls_req))
     {
       DBUG_PRINT("info",("failed ndb_mgm_connect"));
       ndb_mgm_destroy_handle(&h);
@@ -5186,7 +5187,8 @@ bool MgmtSrvr::connect_to_self()
              m_port);
   ndb_mgm_set_connectstring(mgm_handle, buf.c_str());
 
-  if(ndb_mgm_connect(mgm_handle, 0, 0, 0) < 0)
+  ndb_mgm_set_ssl_ctx(mgm_handle, ssl_ctx());
+  if(ndb_mgm_connect_tls(mgm_handle, 0, 0, 0, m_client_tls_req) < 0)
   {
     g_eventLogger->warning("%d %s",
                            ndb_mgm_get_latest_error(mgm_handle),

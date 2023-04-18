@@ -514,10 +514,11 @@ TransporterRegistry::init(TransporterReceiveHandle& recvhandle)
 
 bool
 TransporterRegistry::init_tls(const char * searchPath, int nodeType,
-                              bool isPrimary)
+                              bool isPrimary, int mgmReqLevel)
 {
   require(localNodeId);
   m_tls_keys.init(searchPath, localNodeId, nodeType, isPrimary);
+  m_mgm_tls_req = mgmReqLevel;
   return m_tls_keys.ctx();
 }
 
@@ -3433,8 +3434,11 @@ TransporterRegistry::start_clients_thread()
                                 "dynamic port",
                                 nodeId));
 
-	    if(!ndb_mgm_is_connected(m_mgm_handle))
-	      ndb_mgm_connect(m_mgm_handle, 0, 0, 0);
+            if(! ndb_mgm_is_connected(m_mgm_handle))
+            {
+              ndb_mgm_set_ssl_ctx(m_mgm_handle, m_tls_keys.ctx());
+              ndb_mgm_connect_tls(m_mgm_handle, 0, 0, 0, m_mgm_tls_req);
+            }
 
 	    if(ndb_mgm_is_connected(m_mgm_handle))
 	    {

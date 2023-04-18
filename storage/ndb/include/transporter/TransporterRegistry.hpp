@@ -238,7 +238,8 @@ public:
    * Initialize TLS context. Cannot be called prior to init(NodeId).
    * Returns true on success.
    */
-  bool init_tls(const char * search_path, int node_type, bool is_primary);
+  bool init_tls(const char * search_path, int node_type,
+                bool is_primary, int mgm_tls_requirement_level);
 
   /**
      Perform handshaking of a client connection to accept it
@@ -572,6 +573,7 @@ private:
   Uint32 nTCPTransporters;
   Uint32 nSHMTransporters;
   TlsKeyManager m_tls_keys;
+  int m_mgm_tls_req;
 
 #ifdef ERROR_INSERT
   NodeBitmask m_blocked;

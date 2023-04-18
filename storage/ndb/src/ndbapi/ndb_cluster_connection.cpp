@@ -946,7 +946,14 @@ Ndb_cluster_connection_impl::configure_tls(const char * searchPath)
 {
   bool isPrimary = ! (bool) m_main_connection;
   m_tls_search_path = strdup(searchPath);
-  m_transporter_facade->api_configure_tls(m_tls_search_path, isPrimary);
+
+  /* A later patch will make mgm_level configurable */
+  static constexpr int mgm_level = CLIENT_TLS_RELAXED;
+
+  m_config_retriever->init_mgm_tls(m_tls_search_path, ::Node::Type::Client,
+                                   mgm_level);
+  m_transporter_facade->api_configure_tls(m_tls_search_path, isPrimary,
+                                          mgm_level);
 }
 
 void

@@ -73,14 +73,14 @@ public:
   int start_instance(NodeId, const ndb_mgm_configuration*);
   void stop_instance();
 
-  void configure_tls(const char *, int type, bool primary);
-  void api_configure_tls(const char * searchPath, bool primary)
+  void configure_tls(const char *, int type, bool primary, int mgmLevel);
+  void api_configure_tls(const char * searchPath, bool primary, int mgmLevel)
   {
-    configure_tls(searchPath, NODE_TYPE_API, primary);
+    configure_tls(searchPath, NODE_TYPE_API, primary, mgmLevel);
   }
-  void mgm_configure_tls(const char * searchPath)
+  void mgm_configure_tls(const char * searchPath, int mgmLevel)
   {
-    configure_tls(searchPath, NODE_TYPE_MGM, true);
+    configure_tls(searchPath, NODE_TYPE_MGM, true, mgmLevel);
   }
 
   /*
@@ -611,6 +611,7 @@ private:
   const char * m_tls_search_path;
   int m_tls_node_type;
   bool m_tls_primary_api;
+  int m_mgm_tls_level;
 };
 
 inline

@@ -463,6 +463,10 @@ private:
   bool m_require_tls { false }; // ... and as MGM server.
   bool m_require_cert { false };
 
+  struct ssl_ctx_st * ssl_ctx() {
+    return theFacade->get_registry()->getTlsKeyManager()->ctx();
+  }
+
   bool m_need_restart;
 
   ndb_sockaddr m_connect_address[MAX_NODES];
