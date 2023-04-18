@@ -29,7 +29,8 @@ if (!$mrs_add_service_path)
 
 if (!$mrs_add_service_options)
 {
-  --let $mrs_add_service_options=NULL
+  #--let $mrs_add_service_options=NULL
+  --let $mrs_add_service_options='{"logging":{"exceptions":true}}'
 }
 
 if (!$mrs_add_service_protocol)
@@ -55,7 +56,7 @@ if (!$mrs_host_id)
 
 --disable_query_log
 --disable_result_log
-eval  SET $mrs_sql_id_variable=mysql_rest_service_metadata.get_sequence_id();
+eval SET $mrs_sql_id_variable=mysql_rest_service_metadata.get_sequence_id();
 eval INSERT INTO mysql_rest_service_metadata.service(id, url_host_id, url_context_root, url_protocol, options $mrs_add_service_custom_fields)
   VALUES($mrs_sql_id_variable, unhex("$mrs_host_id"),  $mrs_add_service_path, $mrs_add_service_protocol, $mrs_add_service_options $mrs_add_service_custom_values);
   

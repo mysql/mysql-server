@@ -1,6 +1,6 @@
 {
   "type":"object",
-  "required":["itemsOut","limit","offset","count", "links"],
+  "required":["itemsOut","count", "links"],
   "properties": {
      "links" : {
        "type" : "array",
@@ -8,8 +8,6 @@
        "maxItems":1,
        "Items": [{"type":"object", "required":["rel", "href"]}]},
      "count" : {"type" : "number", "minimum":1},
-     "offset" : {"type" : "number", "minumum":0, "maximum":0},
-     "limit" : {"type" : "number", "minumum":4294967295, "maximum":4294967295},
      "itemsOut" : {
         "type" : "array",
         "minItems":1,

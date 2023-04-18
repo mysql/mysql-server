@@ -85,11 +85,6 @@
 --source ../include/mrs_add_schema.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
---let $mrs_add_db_object=proc_do_nothing
---let $mrs_add_db_object_path=/nothing
---source ../include/mrs_add_db_object.inc
-
---let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=proc_sum
 --let $mrs_add_db_object_path=/sum
 --source ../include/mrs_add_db_object.inc
@@ -158,6 +153,11 @@
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=move_double
 --let $mrs_add_db_object_path=/move_double
+--source ../include/mrs_add_db_object.inc
+
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=proc_do_nothing
+--let $mrs_add_db_object_path=/nothing
 --source ../include/mrs_add_db_object.inc
 
 # Wait until MySQLRouter fetches db-object.

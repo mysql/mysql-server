@@ -2,6 +2,8 @@
 # MySQL Rest Service, server accounts configured.
 # mysqlrouter_keyring
 #  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
 # Generating config into generated_router_1.cnf
 #  * https
 #  * MySQL Rest Service
@@ -69,7 +71,6 @@
 # 10. Verify if intput DOUBLE value is the same at output of stored procedure
 # Registred SERVICE at path: /svc
 # Registred DB_SCHEMA at path: /svc/proc
-# Registred DB_OBJECT at path: /svc/proc/nothing
 # Registred DB_OBJECT at path: /svc/proc/sum
 # Registred DB_OBJECT at path: /svc/proc/sum_out
 # Registred DB_OBJECT at path: /svc/proc/concat
@@ -84,6 +85,7 @@
 # Registred DB_OBJECT at path: /svc/proc/move_decimal
 # Registred DB_OBJECT at path: /svc/proc/move_float
 # Registred DB_OBJECT at path: /svc/proc/move_double
+# Registred DB_OBJECT at path: /svc/proc/nothing
 GET /svc/proc/nothing
 {
     "items": [],

@@ -18,6 +18,10 @@
 --let $keyring_set_path_and_value=root password ""
 --source ../mysqlrouter_keyring.inc
 
+--let $keyring_operation=set
+--let $keyring_set_path_and_value=rest-user jwt_secret "secret12345"
+--source ../mysqlrouter_keyring.inc
+
 --let $extra_http_port=`SELECT $ROUTER_PORT + 1`
 --let $extra_http_enable_ssl=1
 --let $extra_mrs_meta_user=root

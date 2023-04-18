@@ -27,7 +27,7 @@
 
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t1 --wait-until-found=60  --request-type post --payload '{"id":1010}'
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t1
---exec $MRS_CLIENT_ARGS --path /svc/basic/t1/1 --display all
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1/1
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t1/20
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t1/2 --expected-status 404
 
@@ -35,3 +35,7 @@
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t2/1
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t2/2
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t2/200 --expected-status 404
+
+# Cleanup
+DROP SCHEMA basic_schema;
+--source ../include/mrs_cleanup.inc
