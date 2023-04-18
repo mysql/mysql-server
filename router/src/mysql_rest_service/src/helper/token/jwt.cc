@@ -28,13 +28,17 @@
 #include <vector>
 
 #include "helper/container/generic.h"
+#include "helper/error.h"
 #include "helper/json/rapid_json_interator.h"
 #include "helper/json/text_to.h"
 #include "helper/json/to_string.h"
 #include "helper/token/jwt.h"
 
+#include "mysql/harness/logging/logging.h"
 #include "mysql/harness/string_utils.h"
 #include "mysqlrouter/base64.h"
+
+IMPORT_LOG_FUNCTIONS()
 
 namespace helper {
 
@@ -48,10 +52,11 @@ std::vector<uint8_t> as_array(const std::string &s) {
 
 using Base64NoPadd =
     Base64Base<Base64Alphabet::Base64Url, Base64Endianess::BIG, false, '='>;
-bool Jwt::parse(const std::string &token, JwtHolder *out) {
+void Jwt::parse(const std::string &token, JwtHolder *out) {
   auto parts = mysql_harness::split_string(token, '.');
 
-  if (!(parts.size() > 1 && parts.size() < 4)) return false;
+  if (!(parts.size() > 1 && parts.size() < 4))
+    throw Error("Invalid number of parts ", std::to_string(parts.size()));
 
   try {
     out->parts[0] = parts[0];
@@ -64,11 +69,9 @@ bool Jwt::parse(const std::string &token, JwtHolder *out) {
     if (parts.size() == 3) {
       out->signature = as_string(Base64NoPadd::decode(parts[2]));
     }
-  } catch (const std::exception &e) {
-    return false;
+  } catch (const std::exception &) {
+    throw Error("Exception while decoding JWT base64 parts");
   }
-
-  return true;
 }
 
 const std::string kHeaderClaimAlgorithm{"alg"};
@@ -77,15 +80,21 @@ const std::string kHeaderClaimType{"typ"};
 Jwt Jwt::create(const JwtHolder &holder) {
   Jwt result;
 
-  if (!helper::json::text_to(&result.header_, holder.header)) return {};
+  if (!helper::json::text_to(&result.header_, holder.header))
+    throw Error("JWT header is not JSON");
   auto header_keys = get_payload_names(result.header_);
-  if (!helper::json::text_to(&result.payload_, holder.payload)) return {};
+  if (!helper::json::text_to(&result.payload_, holder.payload))
+    throw Error("JWT payload is not JSON");
 
   header_keys = get_payload_names(result.header_);
-  if (!helper::container::has(header_keys, kHeaderClaimAlgorithm)) return {};
-  if (!helper::container::has(header_keys, kHeaderClaimType)) return {};
+  if (!helper::container::has(header_keys, kHeaderClaimAlgorithm))
+    throw Error("JWT header doesn't specifies the algorithm");
+  if (!helper::container::has(header_keys, kHeaderClaimType))
+    throw Error("JWT header doesn't specifies the type");
 
-  if (result.get_header_claim_type() != "JWT") return {};
+  if (result.get_header_claim_type() != "JWT")
+    throw Error("JWT header type is not supported \"",
+                result.get_header_claim_type(), "\"");
 
   result.holder_ = holder;
   result.signature_ = holder.signature;

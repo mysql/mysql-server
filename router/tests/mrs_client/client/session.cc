@@ -32,6 +32,9 @@
 
 namespace mrs_client {
 
+const static std::string k_lineStartHeader{"header "};
+const static std::string k_lineStartCookie{"cookie "};
+
 HttpClientSession::HttpClientSession() { session_load(); }
 
 HttpClientSession::HttpClientSession(const std::string &session_file)
@@ -68,29 +71,63 @@ void HttpClientSession::analyze_response_headers(HttpHeaders *h) {
 
 void HttpClientSession::session_store() {
   if (session_file_.empty()) return;
+  std::ofstream of(session_file_);
+  if (!of.is_open()) {
+    throw std::runtime_error("Can't write to session file.");
+  }
+
+  for (const auto &kv : cookies_) {
+    of << k_lineStartCookie << kv.first << ":" << kv.second << std::endl;
+  }
+
+  for (const auto &kv : headers_) {
+    of << k_lineStartHeader << kv.first << ":" << kv.second << std::endl;
+  }
 }
 
 void HttpClientSession::session_load() {
-  const static std::string k_header{"header "};
-  const static std::string k_cookie{"cookie "};
-
   if (session_file_.empty()) return;
 
   std::ifstream s(session_file_);
 
-  if (!s.is_open())
-    throw std::runtime_error("The session file, can't be opened.");
+  if (!s.is_open()) return;
 
   for (std::string line; std::getline(s, line);) {
-    if (helper::starts_with(line, k_header))
-      add_header(line.c_str() + k_header.length());
-    else if (helper::starts_with(line, k_cookie))
-      add_cookie(line.c_str() + k_header.length());
+    if (helper::starts_with(line, k_lineStartHeader))
+      add_header(&line[0] + k_lineStartHeader.length());
+    else if (helper::starts_with(line, k_lineStartCookie))
+      add_cookie(&line[0] + k_lineStartHeader.length());
   }
 }
 
-void HttpClientSession::add_header(const char *) {}
+static bool find_character(char *&c, char search_for) {
+  char *it = c;
+  while (*it) {
+    if (*it == search_for) {
+      c = it;
+      return true;
+    }
+    ++it;
+  }
+  return false;
+}
 
-void HttpClientSession::add_cookie(const char *) {}
+void HttpClientSession::add_header(char *header_entry) {
+  auto entry = header_entry;
+  if (!find_character(entry, ':')) {
+    return;
+  }
+  *entry = 0;
+  headers_[header_entry] = entry + 1;
+}
+
+void HttpClientSession::add_cookie(char *cookie_entry) {
+  auto entry = cookie_entry;
+  if (!find_character(entry, ':')) {
+    return;
+  }
+  *entry = 0;
+  cookies_[cookie_entry] = entry + 1;
+}
 
 }  // namespace mrs_client

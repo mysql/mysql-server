@@ -64,7 +64,8 @@ void HttpClientRequest::add_header(const char *name, const char *value) {
 
 Result HttpClientRequest::do_request(HttpMethod::type type,
                                      const std::string &path,
-                                     const std::string &body [[maybe_unused]]) {
+                                     const std::string &body,
+                                     bool set_new_cookies) {
   HttpRequestImpl http_request{
       [](HttpRequestImpl *impl, void *ctxt) {
         auto This = reinterpret_cast<HttpClientRequest *>(ctxt);
@@ -90,7 +91,7 @@ Result HttpClientRequest::do_request(HttpMethod::type type,
     throw std::runtime_error("Can't connect to remote endpoint");
   }
 
-  if (session_)
+  if (session_ && set_new_cookies)
     session_->analyze_response_headers(&http_request.get_input_headers());
 
   auto code =

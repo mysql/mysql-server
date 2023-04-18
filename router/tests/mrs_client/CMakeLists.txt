@@ -24,7 +24,7 @@ MYSQL_ADD_EXECUTABLE(mysqlrouter_mrs_client
   main.cc
   client/http_client_request.cc
   client/session.cc
-  client/basic_authentication.cc
+  client/authentication.cc
   configuration/url.cc
   COMPONENT Test
   LINK_LIBRARIES

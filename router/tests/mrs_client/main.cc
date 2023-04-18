@@ -41,7 +41,7 @@
 #include "mysql/harness/tls_context.h"
 #include "mysqlrouter/http_client.h"
 
-#include "client/basic_authentication.h"
+#include "client/authentication.h"
 #include "client/http_client_request.h"
 #include "client/session.h"
 #include "configuration/application_configuration.h"
@@ -128,7 +128,7 @@ static bool authentication_type_convert(
   const static std::map<std::string, AuthenticationType> map{
       {"none", AuthenticationType::kNone},
       {"basic", AuthenticationType::kBasic},
-      {"scram", AuthenticationType::kBasic},
+      {"scram_get", AuthenticationType::kScramGet},
       {"oauth2_f", AuthenticationType::kOauth2}};
 
   mysql_harness::lower(value);
@@ -295,7 +295,7 @@ std::vector<CmdOption> g_options{
      [](const std::string &value) { g_configuration.password = value; }},
     {{"--authentication", "-a"},
      "Execute authentication flow on given endpoint. Allowed values: "
-     "NONE,BASIC,SCRAM,OAUTH2_F",
+     "NONE,BASIC,SCRAM_GET,OAUTH2_F",
      CmdOptionValueReq::required,
      "meta_auth",
      [](const std::string &value) {
@@ -529,6 +529,7 @@ bool should_retry(Duration start, const Result &r) {
 static Result execute_http_flow(HttpClientRequest &request, const Url &url) {
   auto start = std::chrono::steady_clock::now();
   Result r;
+  mrs_client::Authentication b;
 
   do {
     switch (g_configuration.authentication) {
@@ -538,10 +539,14 @@ static Result execute_http_flow(HttpClientRequest &request, const Url &url) {
       } break;
 
       case http_client::AuthenticationType::kBasic: {
-        mrs_client::BasicAuthentication b;
-        r = b.do_basic_flow_with_session(request, g_configuration.url,
-                                         g_configuration.user,
-                                         g_configuration.password);
+        r = b.do_basic_flow(request, url.get_request(), g_configuration.user,
+                            g_configuration.password,
+                            g_configuration.session_type);
+      } break;
+      case http_client::AuthenticationType::kScramGet: {
+        r = b.do_scram_flow(request, url.get_request(), g_configuration.user,
+                            g_configuration.password,
+                            g_configuration.session_type);
       } break;
 
       default: {
