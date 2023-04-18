@@ -167,6 +167,7 @@ class ROUTER_LIB_EXPORT sqlstring {
 
   operator std::string() const;
   std::string str() const;
+  bool is_empty() const;
 
   //! modifies formatting options
   sqlstring &operator<<(const sqlstringformat);
