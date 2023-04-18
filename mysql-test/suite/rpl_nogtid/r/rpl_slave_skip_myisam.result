@@ -10,6 +10,8 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 include/wait_for_slave_to_stop.inc
 **** On Master ****
 SET SESSION BINLOG_FORMAT='ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (a INT, b INT) ENGINE=MyISAM;
 CREATE TABLE t2 (c INT, d INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,1),(2,4),(3,9);
@@ -74,6 +76,8 @@ Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 SET SESSION BINLOG_FORMAT=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET @foo = 12;
 INSERT INTO t1 VALUES(@foo, 2*@foo);
 include/show_binlog_events.inc
@@ -95,6 +99,8 @@ include/wait_for_slave_to_start.inc
 DROP TABLE t1, t2;
 include/sync_slave_sql_with_master.inc
 SET SESSION BINLOG_FORMAT='ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET AUTOCOMMIT=0;
 CREATE TABLE t1 (a INT, b VARCHAR(20)) ENGINE=myisam;
 CREATE TABLE t2 (a INT, b VARCHAR(20)) ENGINE=myisam;
@@ -159,6 +165,8 @@ include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 *** On Master ***
 SET SESSION BINLOG_FORMAT=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/rpl_bug28618.dat' INTO TABLE t10 FIELDS TERMINATED BY '|';
 SELECT * FROM t10 ORDER BY a;
 a	b

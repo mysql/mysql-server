@@ -88,7 +88,11 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 set @sav_binlog_format=  @@session.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set @@session.binlog_format= mixed;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 insert into t1 values (1,1),(2,2);
 insert into t2 values (1,1),(4,4);
 reset master;
@@ -119,6 +123,8 @@ binlog.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 binlog.000001	#	Query	#	#	COMMIT
 drop table t1, t2;
 set @@session.binlog_format= @sav_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 # Bug#31640267: Assertion `trans_safe || updated_rows == 0 || thd->get_transaction()
 CREATE TABLE t1 (
 pk int NOT NULL,

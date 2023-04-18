@@ -2,14 +2,24 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
 set @saved_global_binlog_format = @@global.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set @saved_local_binlog_format = @@session.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET GLOBAL BINLOG_FORMAT = STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION BINLOG_FORMAT = STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (a INT);
 CREATE TABLE t2 LIKE t1;
 select @@SESSION.BINLOG_FORMAT;
 @@SESSION.BINLOG_FORMAT
 STATEMENT
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(1);
 INSERT INTO t2 VALUES(2);
 #
@@ -42,6 +52,8 @@ RELEASE_LOCK('Bug#34306')
 #
 # con2
 SET SESSION BINLOG_FORMAT = 'ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 # con1
 SELECT GET_LOCK('Bug#34306', 120);
 GET_LOCK('Bug#34306', 120)
@@ -85,4 +97,8 @@ binlog.000001	#	Query	#	#	COMMIT
 DROP TABLE t1;
 DROP TABLE t2;
 SET GLOBAL BINLOG_FORMAT = @saved_global_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION BINLOG_FORMAT = @saved_local_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

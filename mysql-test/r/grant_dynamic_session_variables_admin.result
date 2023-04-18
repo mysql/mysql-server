@@ -63,6 +63,8 @@ SET SESSION auto_increment_increment = DEFAULT;
 SET SESSION auto_increment_offset = DEFAULT;
 SET SESSION binlog_direct_non_transactional_updates = DEFAULT;
 SET SESSION binlog_format = DEFAULT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION binlog_row_image = DEFAULT;
 SET SESSION binlog_row_value_options = DEFAULT;
 SET SESSION binlog_rows_query_log_events = DEFAULT;
@@ -105,6 +107,8 @@ SET SESSION auto_increment_increment = DEFAULT;
 SET SESSION auto_increment_offset = DEFAULT;
 SET SESSION binlog_direct_non_transactional_updates = DEFAULT;
 SET SESSION binlog_format = DEFAULT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION binlog_row_image = DEFAULT;
 SET SESSION binlog_row_value_options = DEFAULT;
 SET SESSION binlog_rows_query_log_events = DEFAULT;
@@ -149,6 +153,8 @@ SET SESSION auto_increment_increment = DEFAULT;
 SET SESSION auto_increment_offset = DEFAULT;
 SET SESSION binlog_direct_non_transactional_updates = DEFAULT;
 SET SESSION binlog_format = DEFAULT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION binlog_row_image = DEFAULT;
 SET SESSION binlog_row_value_options = DEFAULT;
 SET SESSION binlog_rows_query_log_events = DEFAULT;

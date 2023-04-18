@@ -24,21 +24,37 @@ include/start_slave_io.inc
 #
 include/stop_slave_sql.inc
 set @saved_binlog_format=@@global.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET @@global.binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@global.binlog_format is set to STATEMENT]
 SET @@global.binlog_format=ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@global.binlog_format is set to ROW]
 SET @@global.binlog_format=MIXED;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@global.binlog_format is set to MIXED]
 include/start_slave_sql.inc
 include/stop_slave.inc
 SET @@global.binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@global.binlog_format is set to STATEMENT]
 SET @@global.binlog_format=ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@global.binlog_format is set to ROW]
 SET @@global.binlog_format=MIXED;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@global.binlog_format is set to MIXED]
 set global binlog_format=@saved_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/assert.inc [assert that @@global.binlog_format is set to @saved_binlog_format]
 include/start_slave.inc
 [connection master]

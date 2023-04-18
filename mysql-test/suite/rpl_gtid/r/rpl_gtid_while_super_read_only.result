@@ -41,9 +41,13 @@ include/gtid_step_assert.inc [count=2, only_count=1]
 [connection slave]
 include/stop_slave.inc
 SET @@global.binlog_format = STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/start_slave.inc
 [connection master]
 SET SESSION BINLOG_FORMAT = STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TEMPORARY TABLE t2(i INT);
 include/sync_slave_sql_with_master.inc
 [connection slave]
@@ -68,6 +72,8 @@ include/gtid_step_assert.inc [count=0, only_count=0]
 [connection slave]
 include/stop_slave.inc
 SET @@global.binlog_format = STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/start_slave.inc
 [connection master]
 CREATE TEMPORARY TABLE t3(i INT);
@@ -94,6 +100,8 @@ include/gtid_step_assert.inc [count=3, only_count=1]
 ####    in super_read_only mode.
 SET @@global.super_read_only = 0;
 SET @@session.binlog_format = STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 CREATE TEMPORARY TABLE t1 (a INT);
 include/gtid_step_reset.inc
 include/save_binlog_position.inc

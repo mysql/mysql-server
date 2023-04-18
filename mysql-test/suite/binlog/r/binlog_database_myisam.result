@@ -1,4 +1,6 @@
 set binlog_format=statement;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 # 'DROP TABLE IF EXISTS <deleted table>' are binlogged
 # for each table in SEs not supporting atomic DDL which
@@ -29,6 +31,8 @@ binlog.000001	#	Query	#	#	use `testing_1`; DROP TABLE IF EXISTS `t1` /* generate
 # Cleanup.
 DROP DATABASE testing_1;
 set binlog_format=mixed;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 # 'DROP TABLE IF EXISTS <deleted table>' are binlogged
 # for each table in SEs not supporting atomic DDL which
@@ -59,6 +63,8 @@ binlog.000001	#	Query	#	#	use `testing_1`; DROP TABLE IF EXISTS `t1` /* generate
 # Cleanup.
 DROP DATABASE testing_1;
 set binlog_format='row';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 
 # 'DROP TABLE IF EXISTS <deleted table>' are binlogged
 # for each table in SEs not supporting atomic DDL which

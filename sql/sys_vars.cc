@@ -1420,11 +1420,12 @@ static Sys_var_enum Sys_binlog_format(
     "SQL statements for most statements, and row format for statements that "
     "cannot be replayed in a deterministic manner using SQL. If NDBCLUSTER "
     "is enabled and binlog-format is MIXED, the format switches to row-based "
-    "and back implicitly for each query accessing an NDBCLUSTER table.",
+    "and back implicitly for each query accessing an NDBCLUSTER table."
+    " This option is deprecated and will be removed in a future version.",
     SESSION_VAR(binlog_format), CMD_LINE(REQUIRED_ARG, OPT_BINLOG_FORMAT),
     binlog_format_names, DEFAULT(BINLOG_FORMAT_ROW), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(binlog_format_check),
-    ON_UPDATE(fix_binlog_format_after_update));
+    ON_UPDATE(fix_binlog_format_after_update), DEPRECATED_VAR(""));
 
 static const char *rbr_exec_mode_names[] = {"STRICT", "IDEMPOTENT", nullptr};
 static Sys_var_enum rbr_exec_mode(

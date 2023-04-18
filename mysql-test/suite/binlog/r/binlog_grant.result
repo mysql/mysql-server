@@ -1,5 +1,7 @@
 reset master;
 set @saved_binlog_format = @@global.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 create user mysqltest_1@localhost;
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
@@ -13,7 +15,11 @@ ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABL
 **** Variable BINLOG_FORMAT ****
 [root]
 set global binlog_format = 'row';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set session binlog_format = 'row';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 [plain]
 set global binlog_format = 'row';
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
@@ -21,6 +27,8 @@ set session binlog_format = 'row';
 ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
 **** Clean up ****
 set global binlog_format = @saved_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 drop user mysqltest_1@localhost;
 CREATE USER 'mysqltest_1'@'localhost';
 GRANT REPLICATION CLIENT ON *.* TO 'mysqltest_1'@'localhost';

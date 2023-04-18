@@ -22,7 +22,11 @@ CALL query_rewrite.flush_rewrite_rules();
 # SKIP_QUERY_REWRITE privilege
 #
 SET @saved_binlog_format=@@global.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET SESSION binlog_format = 'STATEMENT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 CREATE USER 'replication_applier'@'localhost';
@@ -84,6 +88,8 @@ DROP USER 'replication_applier'@'localhost';
 SET GLOBAL rewriter_enabled_for_threads_without_privilege_checks = DEFAULT;
 DROP TABLE test.t1;
 SET GLOBAL binlog_format=@saved_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/sync_slave_sql_with_master.inc
 SET GLOBAL rewriter_enabled_for_threads_without_privilege_checks = DEFAULT;
 Warnings:

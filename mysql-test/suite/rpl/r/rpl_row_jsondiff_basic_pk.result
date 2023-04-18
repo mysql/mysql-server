@@ -19,20 +19,36 @@ include/rpl_stop_slaves.inc
 include/begin_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/rpl_start_slaves.inc
 ######## INITIALIZE ########
 include/rpl_for_each_server_stmt.inc [SET @@SESSION.BINLOG_ROW_IMAGE = MINIMAL;
@@ -780,19 +796,35 @@ include/rpl_stop_slaves.inc
 include/end_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/rpl_start_slaves.inc
 include/rpl_end.inc

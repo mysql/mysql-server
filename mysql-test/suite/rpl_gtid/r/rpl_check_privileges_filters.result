@@ -17,6 +17,8 @@ CREATE DATABASE db1;
 USE db1;
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
 SET @@SESSION.binlog_format='statement';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1_wl15032';
@@ -34,6 +36,8 @@ CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
 include/start_slave.inc
 [connection master]
 SET @@SESSION.binlog_format='SAVED_BINLOG_FORMAT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP DATABASE db1;
 USE test;
 include/sync_slave_sql_with_master.inc
@@ -47,6 +51,8 @@ CREATE DATABASE db1;
 USE db1;
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
 SET @@SESSION.binlog_format='ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1_wl15032';
@@ -64,6 +70,8 @@ CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
 include/start_slave.inc
 [connection master]
 SET @@SESSION.binlog_format='SAVED_BINLOG_FORMAT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP DATABASE db1;
 USE test;
 include/sync_slave_sql_with_master.inc
@@ -119,6 +127,8 @@ CREATE DATABASE db1;
 USE db1;
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
 SET @@SESSION.binlog_format='statement';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1_wl15032';
@@ -144,6 +154,8 @@ CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
 include/start_slave.inc
 [connection master]
 SET @@SESSION.binlog_format='SAVED_BINLOG_FORMAT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 DROP DATABASE db1;
 USE test;
 include/sync_slave_sql_with_master.inc
@@ -163,8 +175,12 @@ include/start_slave.inc
 [connection master]
 USE db1_wl15032;
 SET SESSION binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 SET SESSION binlog_format=ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 USE test;
 include/sync_slave_sql_with_master.inc
@@ -190,8 +206,12 @@ CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE = (test.tload);
 include/start_slave.inc
 [connection master]
 SET SESSION binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 SET SESSION binlog_format=ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 include/sync_slave_sql_with_master.inc
 include/assert.inc [table is empty on the secondary]
@@ -222,9 +242,13 @@ COMMIT;
 SET GTID_NEXT=AUTOMATIC;
 [connection master]
 SET SESSION binlog_format=STATEMENT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET GTID_NEXT='00000000-0000-0000-0000-000000000000:1';
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 SET SESSION binlog_format=ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET GTID_NEXT='00000000-0000-0000-0000-000000000000:2';
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
 SET GTID_NEXT=AUTOMATIC;

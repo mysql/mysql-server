@@ -3,6 +3,8 @@
 SET @start_binlog_row_value_options = @@global.binlog_row_value_options;
 SET @start_binlog_row_image = @@global.binlog_row_image;
 SET @start_binlog_format = @@global.binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 # Default value
 SELECT @start_binlog_row_value_options;
 @start_binlog_row_value_options
@@ -14,7 +16,11 @@ SELECT @start_binlog_row_value_options;
 SET SESSION binlog_row_image = MINIMAL;
 SET GLOBAL binlog_row_image = MINIMAL;
 SET SESSION binlog_format = 'ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET GLOBAL binlog_format = 'ROW';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 # Test
 SELECT @@global.binlog_row_value_options;
 @@global.binlog_row_value_options
@@ -96,6 +102,7 @@ SET SESSION sql_log_bin = 1;
 # warning for statement
 SET SESSION binlog_format = statement;
 Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
 SET @@session.binlog_row_value_options = '';
 SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
@@ -108,11 +115,15 @@ Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=P
 
 # no warning for mixed or row
 SET SESSION binlog_format = mixed;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET @@session.binlog_row_value_options = '';
 SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
 SET @@binlog_row_value_options = '';
 SET @@binlog_row_value_options = 'PARTIAL_JSON';
 SET SESSION binlog_format = 'row';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET @@session.binlog_row_value_options = '';
 SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
 SET @@binlog_row_value_options = '';
@@ -167,6 +178,7 @@ SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
 # warning for statement
 SET GLOBAL binlog_format = statement;
 Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
 SET @@global.binlog_row_value_options = '';
 SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
@@ -175,9 +187,13 @@ Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=P
 
 # no warning for mixed or row
 SET GLOBAL binlog_format = mixed;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET @@global.binlog_row_value_options = '';
 SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
 SET GLOBAL binlog_format = 'row';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET @@global.binlog_row_value_options = '';
 SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
 
@@ -223,6 +239,7 @@ SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
 # warning for statement
 SET PERSIST binlog_format = statement;
 Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
 SET @@persist.binlog_row_value_options = '';
 SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
@@ -231,9 +248,13 @@ Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=P
 
 # no warning for mixed or row
 SET PERSIST binlog_format = mixed;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET @@persist.binlog_row_value_options = '';
 SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
 SET PERSIST binlog_format = 'row';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 SET @@persist.binlog_row_value_options = '';
 SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
 
@@ -348,4 +369,6 @@ DROP PROCEDURE sp4;
 SET @@global.binlog_row_value_options = @start_binlog_row_value_options;
 SET @@global.binlog_row_image = @start_binlog_row_image;
 SET @@global.binlog_format = @start_binlog_format;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 RESET PERSIST;

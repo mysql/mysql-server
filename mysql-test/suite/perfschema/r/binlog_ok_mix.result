@@ -1,4 +1,6 @@
 set binlog_format=mixed;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 RESET MASTER;
 drop database if exists my_local_db;
 create database my_local_db;

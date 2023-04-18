@@ -1,3 +1,9 @@
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 #
 # Bug#18742916 : MYSQLBINLOG --RAW DOES NOT CHECK FOR ERRORS
 #
@@ -13,3 +19,5 @@ INSERT INTO T1 VALUES(@a);
 DROP TABLE T1;
 
 End of tests
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

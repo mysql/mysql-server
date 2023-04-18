@@ -10,6 +10,8 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY);
 # Step 1 - XA + SBR = warning
 #
 SET SESSION binlog_format = 'STATEMENT';
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 XA START 'a';
 SET @one = (SELECT SUBSTRING('11', 1, 1));
 INSERT INTO t1 VALUES (@one);
@@ -24,6 +26,8 @@ XA END 'a';
 XA PREPARE 'a';
 XA COMMIT 'a';
 SET SESSION binlog_format = DEFAULT;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 #
 # Step 2 - XA + MIXED != deadlock
 #

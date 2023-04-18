@@ -1,3 +1,9 @@
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 #
 # Test how do we handle locking in various cases when
 # we read data from InnoDB tables.
@@ -630,3 +636,5 @@ commit;
 # Switching to connection 'default'.
 # Clean-up.
 drop tables t1, t2;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

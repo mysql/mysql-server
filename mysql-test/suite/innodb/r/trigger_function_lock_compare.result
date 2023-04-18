@@ -2,6 +2,10 @@
 # BUG#32636792: IN THE TRIGGER, INSERT INTO SELECT LOCKS THE SELECTED
 #               ROWS, EVEN READ-COMMITTED
 #
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 ########## BINLOG FORMAT: ROW ###########
 # Query: SELECT id FROM t1 WHERE val = 'a' INTO @v1
 # Isolation level: READ UNCOMMITTED
@@ -302,6 +306,8 @@ include/assert.inc [Locks taken in trigger should always be stronger or equal to
 # Comparing locks taken for the above query in regular case and when inside a function.
 include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
 
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 ########## BINLOG FORMAT: STATEMENT ###########
 # Query: SELECT id FROM t1 WHERE val = 'a' INTO @v1
 # Isolation level: REPEATABLE READ
@@ -440,6 +446,8 @@ include/assert.inc [Locks taken in trigger should always be stronger or equal to
 # Comparing locks taken for the above query in regular case and when inside a function.
 include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
 
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 ########## BINLOG FORMAT: ROW ###########
 # Query: INSERT INTO t2 SELECT id+100,val FROM t1
 # Isolation level: READ UNCOMMITTED
@@ -504,6 +512,8 @@ include/assert.inc [Locks taken in trigger should always be stronger or equal to
 # Comparing locks taken for the above query in regular case and when inside a function.
 include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
 
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 ########## BINLOG FORMAT: STATEMENT ###########
 # Query: INSERT INTO t2 SELECT id+100,val FROM t1
 # Isolation level: REPEATABLE READ
@@ -532,3 +542,5 @@ include/assert.inc [Locks taken in trigger should always be stronger or equal to
 # Comparing locks taken for the above query in regular case and when inside a function.
 include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
 
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.

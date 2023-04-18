@@ -1,4 +1,6 @@
 set binlog_format=mixed;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set session transaction isolation level repeatable read;
 create table t1(a int not null)
 engine=innodb
@@ -12,6 +14,8 @@ select * from t1 where a=3 lock in share mode;
 a
 3
 set binlog_format=mixed;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 set session transaction isolation level repeatable read;
 set autocommit=0;
 update t1 set a=10 where a=5;
@@ -46,6 +50,8 @@ drop table t1;
 SET SESSION AUTOCOMMIT = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 set binlog_format=mixed;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 # Switch to connection con1
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(256))
 ENGINE = InnoDB
