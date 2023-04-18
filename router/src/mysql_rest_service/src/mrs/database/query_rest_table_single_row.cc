@@ -84,31 +84,38 @@ void QueryRestTableSingleRow::build_query(
     std::shared_ptr<database::entry::Object> object,
     const ObjectFieldFilter &field_filter, const std::string &primary_key,
     const mysqlrouter::sqlstring &pri_value, const std::string &url_route) {
-  query_ =
-      "SELECT JSON_OBJECT(?,'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', "
-      "'href', CONCAT(?,'/',?)))) FROM ? WHERE !=?;";
-
   JsonQueryBuilder qb(field_filter);
   qb.process_object(object);
 
-  query_ << qb.select_items() << url_route << pri_value << qb.from_clause()
-         << primary_key << pri_value;
+  std::vector<mysqlrouter::sqlstring> fields;
+  if (!qb.select_items().is_empty()) fields.push_back(qb.select_items());
+  fields.emplace_back(
+      "'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', "
+      "'href', CONCAT(?,'/',?)))");
+  fields.back() << url_route << pri_value;
+
+  query_ = "SELECT JSON_OBJECT(?) FROM ? WHERE !=?;";
+  query_ << fields << qb.from_clause() << primary_key << pri_value;
 }
 
 void QueryRestTableSingleRow::build_query_last_inserted(
     std::shared_ptr<database::entry::Object> object,
     const ObjectFieldFilter &field_filter, const std::string &primary_key,
     const std::string &url_route) {
-  query_ =
-      "SELECT JSON_OBJECT(?,'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', "
-      "'href', CONCAT(?,'/',!)))) FROM ? WHERE !=!;";
-
+  static mysqlrouter::sqlstring last_inserted{"LAST_INSERT_ID()"};
+  std::vector<mysqlrouter::sqlstring> fields;
   JsonQueryBuilder qb(field_filter);
+
+  if (!qb.select_items().is_empty()) fields.push_back(qb.select_items());
+  fields.emplace_back(
+      "'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', 'href', "
+      "CONCAT(?,'/',!)))");
+  fields.back() << url_route << last_inserted;
+  query_ = "SELECT JSON_OBJECT(?,) FROM ? WHERE !=!;";
+
   qb.process_object(object);
 
-  static mysqlrouter::sqlstring last_inserted{"LAST_INSERT_ID()"};
-  query_ << qb.select_items() << url_route << last_inserted << qb.from_clause()
-         << primary_key << last_inserted;
+  query_ << fields << qb.from_clause() << primary_key << last_inserted;
 }
 
 }  // namespace database

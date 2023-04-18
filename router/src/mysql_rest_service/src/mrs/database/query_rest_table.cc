@@ -222,19 +222,22 @@ void QueryRestTable::build_query(
 
   qb.process_object(object);
 
-  query_ = mysqlrouter::sqlstring(
-      "SELECT JSON_OBJECT(?, ?) as doc FROM ? ? LIMIT ?,?");
-  query_ << qb.select_items();
+  query_ =
+      mysqlrouter::sqlstring("SELECT JSON_OBJECT(?) as doc FROM ? ? LIMIT ?,?");
+  std::vector<mysqlrouter::sqlstring> json_object_fields;
+  if (!qb.select_items().is_empty())
+    json_object_fields.push_back(qb.select_items());
   if (primary.empty()) {
     static mysqlrouter::sqlstring empty_links{"'links', JSON_ARRAY()"};
-    query_ << empty_links;
+    json_object_fields.push_back(empty_links);
   } else {
     mysqlrouter::sqlstring fmt{
         "'links', "
         "JSON_ARRAY(JSON_OBJECT('rel','self','href',CONCAT(?,'/',!)))"};
     fmt << url << primary;
-    query_ << fmt;
+    json_object_fields.push_back(fmt);
   }
+  query_ << json_object_fields;
   query_ << qb.from_clause();
   query_ << where << offset << limit;
 }

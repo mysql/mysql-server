@@ -40,6 +40,17 @@ namespace database {
 void QueryEntryObject::query_entries(MySQLSession *session,
                                      const std::string &schema,
                                      const std::string &schema_object) {
+  auto base_table = std::make_shared<entry::BaseTable>();
+  base_table->schema = schema;
+  base_table->table = schema_object;
+  base_table->table_alias = "t";
+  // XXX base_table->crud_operations
+  m_tables[entry::UniversalId{}] = base_table;
+
+  object = std::make_shared<Object>();
+  object->base_tables.push_back(base_table);
+  m_objects[entry::UniversalId{}] = object;
+
   entry::UniversalId object_id;
   {
     mysqlrouter::sqlstring q{
@@ -52,19 +63,11 @@ void QueryEntryObject::query_entries(MySQLSession *session,
     q << schema << schema_object;
 
     auto res = query_one(session, q.str());
+
+    if (nullptr == res.get()) return;
+
     entry::UniversalId::from_raw(&object_id, (*res)[0]);
   }
-
-  auto base_table = std::make_shared<entry::BaseTable>();
-  base_table->schema = schema;
-  base_table->table = schema_object;
-  base_table->table_alias = "t";
-  // XXX base_table->crud_operations
-  m_tables[entry::UniversalId{}] = base_table;
-
-  object = std::make_shared<Object>();
-  object->base_tables.push_back(base_table);
-  m_objects[entry::UniversalId{}] = object;
 
   m_loading_references = true;
   query_ =
