@@ -57,3 +57,4 @@ eval  INSERT INTO mysql_rest_service_metadata.db_schema(
 --let $mrs_add_host_name=
 --let $mrs_sql_id_variable=
 --let $mrs_service_id_sql_variable=
+--let $mrs_add_schema_auth=

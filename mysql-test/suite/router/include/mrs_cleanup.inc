@@ -7,3 +7,13 @@ if ($router_config_to_remove)
 {
   --remove_file $router_config_to_remove
 }
+
+if ($keyring_master_file)
+{
+--remove_file $keyring_master_file
+}
+
+if ($restart_router_id)
+{
+--force-rmdir $MYSQL_TMP_DIR/router.$restart_router_id/data/
+}
