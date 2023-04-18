@@ -255,8 +255,9 @@ class Last_used_gtid_tracker_ctx {
    Set the last used GTID the session.
 
    @param[in]  gtid  the used gtid.
+   @param[in]  sid   the used sid.
   */
-  void set_last_used_gtid(const Gtid &gtid);
+  void set_last_used_gtid(const Gtid &gtid, const rpl_sid &sid);
 
   /**
    Get the last used GTID the session.
@@ -265,8 +266,16 @@ class Last_used_gtid_tracker_ctx {
   */
   void get_last_used_gtid(Gtid &gtid);
 
+  /**
+   Get the last used SID of the session.
+
+   @param[out]  sid the used sid.
+  */
+  void get_last_used_sid(rpl_sid &sid);
+
  private:
   std::unique_ptr<Gtid> m_last_used_gtid;
+  rpl_sid m_last_used_sid;
 };
 
 class Transaction_compression_ctx {

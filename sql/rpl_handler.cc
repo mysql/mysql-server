@@ -816,6 +816,9 @@ int Trans_delegate::after_commit(THD *thd, bool all) {
   param.gtid_info.sidno = gtid.sidno;
   param.gtid_info.gno = gtid.gno;
 
+  thd->rpl_thd_ctx.last_used_gtid_tracker_ctx().get_last_used_sid(
+      param.gtid_info.sid);
+
   bool is_real_trans =
       (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
   if (is_real_trans) param.flags |= TRANS_IS_REAL_TRANS;

@@ -195,13 +195,19 @@ Last_used_gtid_tracker_ctx::Last_used_gtid_tracker_ctx() {
 
 Last_used_gtid_tracker_ctx::~Last_used_gtid_tracker_ctx() = default;
 
-void Last_used_gtid_tracker_ctx::set_last_used_gtid(const Gtid &gtid) {
+void Last_used_gtid_tracker_ctx::set_last_used_gtid(const Gtid &gtid,
+                                                    const rpl_sid &sid) {
   (*m_last_used_gtid).set(gtid.sidno, gtid.gno);
+  m_last_used_sid.copy_from(sid);
 }
 
 void Last_used_gtid_tracker_ctx::get_last_used_gtid(Gtid &gtid) {
   gtid.sidno = (*m_last_used_gtid).sidno;
   gtid.gno = (*m_last_used_gtid).gno;
+}
+
+void Last_used_gtid_tracker_ctx::get_last_used_sid(rpl_sid &sid) {
+  m_last_used_sid.copy_to(sid.bytes);
 }
 
 Transaction_compression_ctx::Transaction_compression_ctx(PSI_memory_key key)
