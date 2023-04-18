@@ -1229,11 +1229,15 @@ static AccessPath *get_best_disjunct_quick(
   /* Collect best 'range' scan for each of disjuncts, and, while doing so,
      consider only ROR scans. */
   assert(imerge->trees.size() == n_child_scans);
-  for (size_t i = 0; i < n_child_scans; ++i) {
-    roru_read_plans[i] = get_key_scans_params(
-        thd, param, imerge->trees[i], true, false, ORDER_NOT_RELEVANT,
-        skip_records_in_range, read_cost, /*ror_only=*/true, needed_reg);
-    if (roru_read_plans[i] == nullptr) return imerge_path;
+  {
+    Opt_trace_array to_merge_ror(trace, "indexes_to_merge_in_rowid_order");
+    for (size_t i = 0; i < n_child_scans; ++i) {
+      Opt_trace_object trace_idx(trace);
+      roru_read_plans[i] = get_key_scans_params(
+          thd, param, imerge->trees[i], true, false, ORDER_NOT_RELEVANT,
+          skip_records_in_range, read_cost, /*ror_only=*/true, needed_reg);
+      if (roru_read_plans[i] == nullptr) return imerge_path;
+    }
   }
 
   AccessPath *ror_union_path = get_ror_union_path(
