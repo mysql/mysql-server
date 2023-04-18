@@ -46,7 +46,7 @@ class Jwt {
  public:
   Jwt() {}
 
-  static bool parse(const std::string &token, JwtHolder *out);
+  static void parse(const std::string &token, JwtHolder *out);
   static Jwt create(const JwtHolder &holder);
   static Jwt create(const std::string &algoritym, Document &payload);
 

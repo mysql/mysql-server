@@ -67,7 +67,9 @@ class HttpClientRequest {
 
   void add_header(const char *name, const char *value);
   Result do_request(HttpMethod::type type, const std::string &path,
-                    const std::string &body);
+                    const std::string &body, bool set_new_cookies = true);
+
+  HttpClientSession *get_session() { return session_; }
 
  private:
   void create_request();

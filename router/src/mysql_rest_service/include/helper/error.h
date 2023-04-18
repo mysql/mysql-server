@@ -22,21 +22,20 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_TESTS_MRS_CLIENT_BASIC_AUTHENTICATION_H_
-#define ROUTER_TESTS_MRS_CLIENT_BASIC_AUTHENTICATION_H_
+#ifndef ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_HELPER_ERROR_H_
+#define ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_HELPER_ERROR_H_
 
-#include "client/http_client_request.h"
+#include <stdexcept>
 
-namespace mrs_client {
+namespace helper {
 
-class BasicAuthentication {
+class Error : public std::runtime_error {
  public:
-  Result do_basic_flow_with_session(HttpClientRequest &request,
-                                    const std::string &url,
-                                    const std::string &user,
-                                    const std::string &password);
+  template <typename... T>
+  Error(std::string value, const T &... t)
+      : std::runtime_error((value + ... + t)) {}
 };
 
-}  // namespace mrs_client
+}  // namespace helper
 
-#endif  // ROUTER_TESTS_MRS_CLIENT_BASIC_AUTHENTICATION_H_
+#endif  // ROUTER_SRC_MYSQL_REST_SERVICE_INCLUDE_HELPER_ERROR_H_

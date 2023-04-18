@@ -95,11 +95,15 @@ static Jwt get_bearer_token_jwt(const HttpHeaders &headers) {
 
   JwtHolder holder;
 
-  if (!helper::Jwt::parse(value, &holder)) return {};
+  try {
+    helper::Jwt::parse(value, &holder);
 
-  auto jwt = helper::Jwt::create(holder);
-
-  return jwt;
+    auto jwt = helper::Jwt::create(holder);
+    return jwt;
+  } catch (const std::exception &e) {
+    log_debug("JWT failure: %s.", e.what());
+  }
+  return {};
 }
 
 static std::string get_session_cookie_key_name(

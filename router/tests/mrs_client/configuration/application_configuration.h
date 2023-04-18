@@ -29,14 +29,15 @@
 #include <optional>
 #include <string>
 
+#include "client/session_type.h"
 #include "configuration/request.h"
 
 using Seconds = std::chrono::seconds;
 
 namespace http_client {
 
-enum class AuthenticationType { kNone, kBasic, kScram, kOauth2 };
-enum class SessionType { kCookie, kJWT };
+using namespace mrs_client;
+enum class AuthenticationType { kNone, kBasic, kScramGet, kOauth2 };
 enum class ResponseType { kJson, kRaw };
 
 struct ApplicationDisplay {

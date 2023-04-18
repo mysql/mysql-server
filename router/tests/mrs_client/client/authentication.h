@@ -22,37 +22,24 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_TESTS_HTTP_CLIENT_HTTPCLIENT_SESSION_H_
-#define ROUTER_TESTS_HTTP_CLIENT_HTTPCLIENT_SESSION_H_
+#ifndef ROUTER_TESTS_MRS_CLIENT_BASIC_AUTHENTICATION_H_
+#define ROUTER_TESTS_MRS_CLIENT_BASIC_AUTHENTICATION_H_
 
-#include <map>
-#include <string>
-
-#include "mysqlrouter/http_request.h"
+#include "client/http_client_request.h"
+#include "client/session_type.h"
 
 namespace mrs_client {
 
-class HttpClientSession {
+class Authentication {
  public:
-  HttpClientSession();
-  HttpClientSession(const std::string &session_file);
-  ~HttpClientSession();
-
-  void fill_request_headers(HttpHeaders *headers) const;
-  void analyze_response_headers(HttpHeaders *headers);
-
-  void add_header(char *entry);
-  void add_cookie(char *entry);
-
- private:
-  void session_load();
-  void session_store();
-
-  std::string session_file_;
-  std::map<std::string, std::string> headers_;
-  std::map<std::string, std::string> cookies_;
+  Result do_basic_flow(HttpClientRequest &request, std::string url,
+                       const std::string &user, const std::string &password,
+                       const SessionType st);
+  Result do_scram_flow(HttpClientRequest &request, std::string url,
+                       const std::string &user, const std::string &password,
+                       const SessionType st);
 };
 
 }  // namespace mrs_client
 
-#endif  // ROUTER_TESTS_HTTP_CLIENT_HTTPCLIENT_SESSION_H_
+#endif  // ROUTER_TESTS_MRS_CLIENT_BASIC_AUTHENTICATION_H_
