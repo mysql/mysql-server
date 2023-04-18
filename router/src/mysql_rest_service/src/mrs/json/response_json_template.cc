@@ -45,6 +45,7 @@ void ResponseJsonTemplate::begin(const std::string &url,
   offset_ = 0;
   limit_ = std::numeric_limits<decltype(limit_)>::max();
   is_default_limit_ = true;
+  limit_not_set_ = true;
   url_ = url;
 
   // Start serialization, initialize internal state
@@ -69,6 +70,7 @@ void ResponseJsonTemplate::begin(uint32_t offset, uint32_t limit,
   offset_ = offset;
   limit_ = limit;
   is_default_limit_ = is_default_limit;
+  limit_not_set_ = false;
   url_ = url;
 
   // Start serialization, initialize internal state
@@ -84,10 +86,12 @@ void ResponseJsonTemplate::begin(uint32_t offset, uint32_t limit,
 void ResponseJsonTemplate::end() {
   assert(began_ == true);
   json_root_items_ = JsonSerializer::Array();
-  json_root_->member_add_value("limit", limit_);
-  json_root_->member_add_value("offset", offset_);
-  json_root_->member_add_value("hasMore", has_more_,
-                               helper::ColumnJsonTypes::kBool);
+  if (!limit_not_set_) {
+    json_root_->member_add_value("limit", limit_);
+    json_root_->member_add_value("offset", offset_);
+    json_root_->member_add_value("hasMore", has_more_,
+                                 helper::ColumnJsonTypes::kBool);
+  }
   json_root_->member_add_value("count", std::min(limit_, pushed_documents_));
   {
     auto array_links = serializer_.member_add_array("links");
@@ -104,7 +108,7 @@ void ResponseJsonTemplate::end() {
           .member_add_value("href", url_next);
     }
 
-    if (offset_) {
+    if (offset_ && !limit_not_set_) {
       auto url_prev =
           url_ + "/?offset=" +
           std::to_string(offset_ >= limit_ ? offset_ - limit_ : 0) +

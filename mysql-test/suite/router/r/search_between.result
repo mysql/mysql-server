@@ -30,6 +30,7 @@
 
 #
 # I.1
+GET /svc/test_between/table?q={"id":{"$between":{}}}
 {
     "message": "Between operator, requires an array field.",
     "status": 400
@@ -38,6 +39,7 @@ OK
 
 #
 # I.2
+GET /svc/test_between/table?q={"id":{"$between":[]}}
 {
     "message": "Between field, requires array with size of two.",
     "status": 400
@@ -46,6 +48,7 @@ OK
 
 #
 # I.3
+GET /svc/test_between/table?q={"id":{"$between":[1]}}
 {
     "message": "Between field, requires array with size of two.",
     "status": 400
@@ -54,6 +57,7 @@ OK
 
 #
 # I.4
+GET /svc/test_between/table?q={"id":{"$between":[1,2,3]}}
 {
     "message": "Between field, requires array with size of two.",
     "status": 400
@@ -62,6 +66,7 @@ OK
 
 #
 # II.1
+GET /svc/test_between/table?q={"id":{"$between":[1,10]}}
 {
     "items": [
         {
@@ -114,6 +119,7 @@ OK
 
 #
 # II.2
+GET /svc/test_between/table?q={"$or":[{"id":{"$between":[1,2]}},{"comment":"ome string"}]}
 {
     "items": [
         {

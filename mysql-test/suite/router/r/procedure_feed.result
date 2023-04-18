@@ -87,9 +87,6 @@
 GET /svc/proc/nothing
 {
     "items": [],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 0,
     "links": [
         {
@@ -159,9 +156,6 @@ OK
 GET /svc/proc/nothing
 {
     "items": [],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 0,
     "links": [
         {
@@ -181,9 +175,6 @@ GET /svc/proc/sum?a=10&b=20
             "result": 30
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -203,9 +194,6 @@ GET /svc/proc/sum_out?a=10&b=20
             "result": 30
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -225,9 +213,6 @@ GET /svc/proc/concat?a=10&b=20
             "result": "1020"
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -247,9 +232,6 @@ GET /svc/proc/concat_out?a=10&b=20
             "result": "1020"
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -265,9 +247,6 @@ OK
 PUT /svc/proc/nothing (payload-size:2)
 {
     "items": [],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 0,
     "links": [
         {
@@ -287,9 +266,6 @@ PUT /svc/proc/sum (payload-size:15)
             "result": 30
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -309,9 +285,6 @@ PUT /svc/proc/sum_out (payload-size:16)
             "result": 30
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -331,9 +304,6 @@ PUT /svc/proc/concat (payload-size:15)
             "result": "1020"
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -353,9 +323,6 @@ PUT /svc/proc/concat_out (payload-size:15)
             "result": "1020"
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -375,9 +342,6 @@ PUT /svc/proc/concat (payload-size:19)
             "result": "1020"
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -397,9 +361,6 @@ PUT /svc/proc/concat_out (payload-size:19)
             "result": "1020"
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -419,9 +380,6 @@ GET /svc/proc/move_char?a=10
             "result": "10 appended"
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -453,9 +411,6 @@ GET /svc/proc/move_bit?a=1
             "result": true
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -475,9 +430,6 @@ GET /svc/proc/move_tinyint1?a=1
             "result": 2
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -497,9 +449,6 @@ GET /svc/proc/move_tinyint8?a=10
             "result": 11
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -519,9 +468,6 @@ GET /svc/proc/move_decimal?a=10
             "result": 11
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -541,9 +487,6 @@ GET /svc/proc/move_float?a=10
             "result": 11
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -563,9 +506,6 @@ GET /svc/proc/move_double?a=10
             "result": 11
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -585,9 +525,6 @@ PUT /svc/proc/move_char (payload-size:8)
             "result": "10 appended"
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -619,9 +556,6 @@ PUT /svc/proc/move_bit (payload-size:7)
             "result": true
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -641,9 +575,6 @@ PUT /svc/proc/move_tinyint1 (payload-size:7)
             "result": 2
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -663,9 +594,6 @@ PUT /svc/proc/move_tinyint8 (payload-size:8)
             "result": 11
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -685,9 +613,6 @@ PUT /svc/proc/move_decimal (payload-size:8)
             "result": 11
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -707,9 +632,6 @@ PUT /svc/proc/move_float (payload-size:8)
             "result": 11
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
@@ -729,9 +651,6 @@ PUT /svc/proc/move_double (payload-size:8)
             "result": 11
         }
     ],
-    "limit": 4294967295,
-    "offset": 0,
-    "hasMore": false,
     "count": 1,
     "links": [
         {
