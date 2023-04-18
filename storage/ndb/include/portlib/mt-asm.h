@@ -144,6 +144,15 @@ xcng(volatile unsigned * addr, int val)
   return prev;
 }
 
+#elif defined(__s390x__)
+#define NDB_HAVE_MB
+#define NDB_HAVE_RMB
+#define NDB_HAVE_WMB
+
+#define mb()   { asm volatile("" : : : "memory"); }
+#define rmb()  mb()
+#define wmb()  mb()
+
 #elif defined(__aarch64__)
 #include <atomic>
 #define NDB_HAVE_MB
