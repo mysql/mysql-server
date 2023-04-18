@@ -507,6 +507,12 @@ sqlstring::operator std::string() const {
 
 std::string sqlstring::str() const { return _formatted + _format_string_left; }
 
+bool sqlstring::is_empty() const {
+  if (!_formatted.empty()) return false;
+
+  return _format_string_left.empty();
+}
+
 void sqlstring::reset(const char *format_string, const sqlstringformat format) {
   _formatted.resize(0);
   _format_string_left = format_string;
