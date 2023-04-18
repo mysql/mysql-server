@@ -9302,9 +9302,34 @@ longlong Item_func_internal_avg_row_length::val_int() {
 longlong Item_func_internal_dpt::val_int() {
   DBUG_TRACE;
 
-  ulonglong result = get_table_statistics(
-      args, arg_count, dd::info_schema::enum_table_stats_type::DPT,
-      &null_value);
+  ulonglong result = 0;
+  // Read tables.options
+  String option;
+  String *option_ptr;
+
+  if ((option_ptr = args[8]->val_str(&option)) == nullptr) {
+    return 0;
+  }
+
+  // Read required values from properties
+  std::unique_ptr<dd::Properties> p(
+      dd::Properties::parse_properties(option_ptr->c_ptr_safe()));
+
+  // Warn if the property string is corrupt.
+  if (!p.get()) {
+    LogErr(WARNING_LEVEL, ER_WARN_PROPERTY_STRING_PARSE_FAILED,
+           option_ptr->c_ptr_safe());
+    if (DBUG_EVALUATE_IF("continue_on_property_string_parse_failure", 0, 1))
+      assert(false);
+    return 0;
+  }
+
+  if (p->exists("dpt")) {
+    uint opt_value = 0;
+    p->get("dpt", &opt_value);
+    result = opt_value;
+  }
+
   return result;
 }
 

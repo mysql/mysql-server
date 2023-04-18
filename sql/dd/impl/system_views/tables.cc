@@ -110,7 +110,8 @@ Tables::Tables() {
                          "  tbl.se_private_id, tbl.hidden != 'Visible', "
                          "  ts.se_private_data,"
                          "  COALESCE(stat.dpt, 0),"
-                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0)))");
+                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0),"
+                         "  tbl.options))");
   m_target_def.add_field(FIELD_DATA_LENGTH, "DATA_LENGTH",
                          "IF (tbl.type = 'VIEW', NULL,"
                          "INTERNAL_DATA_LENGTH(sch.name, tbl.name,"

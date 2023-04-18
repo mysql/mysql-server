@@ -3865,6 +3865,7 @@ class ha_statistics {
         records(0),
         deleted(0),
         mean_rec_length(0),
+        dpt(0),
         create_time(0),
         check_time(0),
         update_time(0),
