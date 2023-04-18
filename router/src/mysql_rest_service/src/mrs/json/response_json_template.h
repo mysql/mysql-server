@@ -58,6 +58,7 @@ class ResponseJsonTemplate {
   uint32_t offset_;
   uint32_t limit_;
   bool is_default_limit_;
+  bool limit_not_set_{false};
   std::string url_;
 
   // Needed for serialization of json document

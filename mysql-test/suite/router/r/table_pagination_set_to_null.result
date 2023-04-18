@@ -31,6 +31,7 @@
 #
 # I.1
 # Registred DB_OBJECT at path: /svc/paging/m2
+GET /svc/paging/m2
 {
     "limit": 2,
     "offset": 0,
@@ -44,6 +45,7 @@ OK
 UPDATE `mysql_rest_service_metadata`.`db_object`
   SET request_path="/m25", items_per_page=NULL
 WHERE request_path="/m2";
+GET /svc/paging/m25
 {
     "limit": 25,
     "offset": 0,
@@ -55,6 +57,7 @@ OK
 #
 # II.1
 # Registred DB_OBJECT at path: /svc/paging/l101
+GET /svc/paging/l101
 {
     "limit": 25,
     "offset": 0,
