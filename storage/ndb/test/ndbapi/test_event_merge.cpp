@@ -1181,7 +1181,9 @@ createeventop(Run& r)
     Data (&d)[2] = g_rec_ev->data;
     if (! c.isblob()) {
       chkdb((r.ev_ra[0][i] = r.evt_op->getValue(c.name, (char*)d[0].ptr[i].v)) != 0);
+      reqrc(r.ev_ra[0][i]->aRef() == (char*)d[0].ptr[i].v); // uses ptr
       chkdb((r.ev_ra[1][i] = r.evt_op->getPreValue(c.name, (char*)d[1].ptr[i].v)) != 0);
+      reqrc(r.ev_ra[1][i]->aRef() == (char*)d[1].ptr[i].v); // uses ptr
     } else {
       chkdb((r.ev_bh[0][i] = r.evt_op->getBlobHandle(c.name)) != 0);
       chkdb((r.ev_bh[1][i] = r.evt_op->getPreBlobHandle(c.name)) != 0);
