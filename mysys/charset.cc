@@ -75,12 +75,6 @@
 
 extern CHARSET_INFO my_charset_cp932_japanese_ci;
 
-bool my_charset_same(const CHARSET_INFO *cs1, const CHARSET_INFO *cs2) {
-  assert(0 != strcmp(cs1->csname, "utf8"));
-  assert(0 != strcmp(cs2->csname, "utf8"));
-  return ((cs1 == cs2) || !strcmp(cs1->csname, cs2->csname));
-}
-
 namespace {
 
 class Mysys_charset_loader : public MY_CHARSET_LOADER {

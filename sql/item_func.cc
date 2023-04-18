@@ -258,19 +258,17 @@ bool simplify_string_args(THD *thd, const DTCollation &c, Item **args,
   @returns string pointer if success, NULL if error or NULL value
 */
 
-String *eval_string_arg(const CHARSET_INFO *to_cs, Item *arg, String *buffer) {
-  StringBuffer<STRING_BUFFER_USUAL_SIZE> local_string(nullptr, 0, to_cs);
-
+String *eval_string_arg_noinline(const CHARSET_INFO *to_cs, Item *arg,
+                                 String *buffer) {
   size_t offset;
   const bool convert =
       String::needs_conversion(0, arg->collation.collation, to_cs, &offset);
-  String *res = arg->val_str(convert ? &local_string : buffer);
 
-  // Return immediately if argument is a NULL value, or there was an error
-  if (res == nullptr) {
-    return nullptr;
-  }
   if (convert) {
+    StringBuffer<STRING_BUFFER_USUAL_SIZE> local_string(nullptr, 0, to_cs);
+    String *res = arg->val_str(&local_string);
+    // Return immediately if argument is a NULL value, or there was an error
+    if (res == nullptr) return nullptr;
     /*
       String must be converted from source character set. It has been built
       in the "local_string" buffer and will be copied with conversion into the
@@ -285,6 +283,10 @@ String *eval_string_arg(const CHARSET_INFO *to_cs, Item *arg, String *buffer) {
     }
     return buffer;
   }
+  String *res = arg->val_str(buffer);
+  // Return immediately if argument is a NULL value, or there was an error
+  if (res == nullptr) return nullptr;
+
   // If source is a binary string, the string may have to be validated:
   if (to_cs != &my_charset_bin && arg->collation.collation == &my_charset_bin &&
       !res->is_valid_string(to_cs)) {

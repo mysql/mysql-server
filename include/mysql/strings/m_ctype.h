@@ -30,9 +30,11 @@
 
 #include <sys/types.h>
 
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <deque>
 
 #include "mysql/attribute.h"
@@ -511,6 +513,12 @@ MYSQL_STRINGS_EXPORT bool my_charset_is_ascii_based(const CHARSET_INFO *cs);
 */
 inline bool my_charset_is_ascii_based(const CHARSET_INFO *cs) {
   return (cs->state & MY_CS_NONASCII) == 0;
+}
+
+inline bool my_charset_same(const CHARSET_INFO *cs1, const CHARSET_INFO *cs2) {
+  assert(0 != strcmp(cs1->csname, "utf8"));
+  assert(0 != strcmp(cs2->csname, "utf8"));
+  return ((cs1 == cs2) || !strcmp(cs1->csname, cs2->csname));
 }
 
 MYSQL_STRINGS_EXPORT unsigned my_charset_repertoire(const CHARSET_INFO *cs);
