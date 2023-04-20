@@ -1245,10 +1245,15 @@ static AccessPath *get_best_disjunct_quick(
       read_cost, force_index_merge, {roru_read_plans, n_child_scans},
       roru_read_plans, &trace_best_disjunct);
 
-  return (ror_union_path != nullptr &&
-          ror_union_path->cost <= imerge_path->cost)
-             ? ror_union_path
-             : imerge_path;
+  if (ror_union_path == nullptr) {
+    // No ROR-union plan found.
+    return imerge_path;
+  }
+  if (imerge_path != nullptr && imerge_path->cost < ror_union_path->cost) {
+    // The best sort-union is cheaper than the best ROR-union.
+    return imerge_path;
+  }
+  return ror_union_path;
 }
 
 bool comparable_in_index(Item *cond_func, const Field *field,
