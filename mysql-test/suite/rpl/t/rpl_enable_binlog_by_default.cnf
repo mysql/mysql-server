@@ -6,7 +6,6 @@
 #!run-slave-sh
 # --log-bin and --relay-log options are not configured on slave.
 
-master-retry-count=         10
 
 
 [ENV]

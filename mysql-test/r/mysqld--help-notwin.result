@@ -1817,7 +1817,7 @@ lower-case-table-names 1
 mandatory-roles 
 master-info-file master.info
 master-info-repository TABLE
-master-retry-count 86400
+master-retry-count 10
 master-verify-checksum FALSE
 max-allowed-packet 67108864
 max-binlog-cache-size 18446744073709547520

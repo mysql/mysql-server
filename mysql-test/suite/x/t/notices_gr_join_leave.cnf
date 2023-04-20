@@ -13,7 +13,6 @@ gtid-mode=                  on
 report-host=                127.0.0.1
 report-user=                root
 
-master-retry-count=         10
 skip-replica-start
 
 loose-group_replication_start_on_boot= OFF

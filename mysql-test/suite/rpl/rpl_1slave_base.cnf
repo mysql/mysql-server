@@ -31,7 +31,6 @@ relay-log=                  slave-relay-bin
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2
 
-master-retry-count=         10
 
 # Values reported by source when a replica has connected and shows up
 # in SHOW REPLICAS.

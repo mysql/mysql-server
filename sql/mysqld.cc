@@ -9133,7 +9133,7 @@ struct my_option my_long_options[] = {
      "This option is deprecated and will be removed in a future version. "
      "Use 'CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT = <num>' instead.",
      &master_retry_count, &master_retry_count, nullptr, GET_ULONG, REQUIRED_ARG,
-     3600 * 24, 0, 0, nullptr, 0, nullptr},
+     10, 0, 0, nullptr, 0, nullptr},
     {"max-binlog-dump-events", 0,
      "Option used by mysql-test for debugging and testing of replication.",
      &max_binlog_dump_events, &max_binlog_dump_events, nullptr, GET_INT,

@@ -24,7 +24,6 @@ bind-address=               ::
 log-bin=                    slave-bin
 relay-log=                  slave-relay-bin
 
-master-retry-count=         10
 
 # Values reported by slave when it connect to master
 # and shows up in SHOW SLAVE STATUS;
