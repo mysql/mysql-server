@@ -440,7 +440,8 @@ class ROUTER_LIB_EXPORT MySQLSession {
     return query(stmt, processor, [](unsigned, MYSQL_FIELD *) {});
   }
 
-  std::unique_ptr<MySQLSession::ResultRow> query_one(const std::string &stmt) {
+  virtual std::unique_ptr<MySQLSession::ResultRow> query_one(
+      const std::string &stmt) {
     return query_one(stmt, [](unsigned, MYSQL_FIELD *) {});
   }
 

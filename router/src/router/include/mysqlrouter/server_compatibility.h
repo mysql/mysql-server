@@ -27,7 +27,9 @@
 
 #include "mysqlrouter/router_export.h"
 
-#include "dim.h"
+namespace mysqlrouter {
+class MySQLSession;
+}
 
 ROUTER_LIB_EXPORT void check_version_compatibility(
     mysqlrouter::MySQLSession *session);
