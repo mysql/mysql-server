@@ -84,9 +84,10 @@ class HandleObjectTests : public Test {
       base_table->table = object;
       base_table->table_alias = "t";
       cached_object_->base_tables.push_back(base_table);
-      for (auto &a : cached_columns) {
+      for (auto &a : cached_columns_) {
         auto f = std::make_shared<mrs::database::entry::ObjectField>();
-        f->name = a;
+        f->name = a.name;
+        f->db_name = a.name;
         f->db_datatype = "text";
         f->source = base_table;
         cached_object_->fields.push_back(f);
@@ -175,11 +176,12 @@ TEST_F(HandleObjectTests, fetch_object_feed) {
   RequestContext ctxt{&mock_request_};
   HandlerObject object{&mock_route, &mock_auth_manager};
 
-  EXPECT_CALL(mock_session,
-              query(StartsWith("SELECT "
-                               "JSON_OBJECT('column1',`column1`,'column2',`"
-                               "column2`,'column3',`column3`, 'links'"),
-                    _, _));
+  EXPECT_CALL(
+      mock_session,
+      query(StartsWith("SELECT "
+                       "JSON_OBJECT('column1', `t`.`column1`, 'column2', `t`.`"
+                       "column2`, 'column3', `t`.`column3`,'links'"),
+            _, _));
 
   object.handle_get(&ctxt);
 }
@@ -201,11 +203,12 @@ TEST_F(HandleObjectTests, fetch_object_single) {
   RequestContext ctxt{&mock_request_};
   HandlerObject object{&mock_route, &mock_auth_manager};
 
-  EXPECT_CALL(mock_session,
-              query(StartsWith("SELECT "
-                               "JSON_OBJECT('column1',`column1`,'column2',`"
-                               "column2`,'column3',`column3`, 'links'"),
-                    _, _));
+  EXPECT_CALL(
+      mock_session,
+      query(StartsWith("SELECT "
+                       "JSON_OBJECT('column1', `t`.`column1`, 'column2', `t`.`"
+                       "column2`, 'column3', `t`.`column3`,'links'"),
+            _, _));
 
   object.handle_get(&ctxt);
 }

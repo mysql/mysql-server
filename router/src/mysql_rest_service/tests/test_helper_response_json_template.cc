@@ -39,7 +39,7 @@ TEST(ResponseJson, single_items_list) {
   sut.begin("url", "items");
   sut.end();
   ASSERT_EQ(
-      "{\"items\":[],\"limit\":4294967295,\"offset\":0,\"hasMore\":false,"
+      "{\"items\":[],"
       "\"count\":0,\"links\":[{\"rel\":\"self\",\"href\":\"url/\"}]}",
       sut.get_result());
 }
@@ -51,8 +51,7 @@ TEST(ResponseJson, multiple_items_list) {
   sut.begin("url", "items3");
   sut.end();
   ASSERT_EQ(
-      "{\"items\":[],\"items2\":[],\"items3\":[],\"limit\":4294967295,"
-      "\"offset\":0,\"hasMore\":false,"
+      "{\"items\":[],\"items2\":[],\"items3\":[],"
       "\"count\":0,\"links\":[{\"rel\":\"self\",\"href\":\"url/\"}]}",
       sut.get_result());
 }
@@ -64,8 +63,7 @@ TEST(ResponseJson, single_items_list_not_empty) {
   sut.push_json_document("{\"a2\":2}");
   sut.end();
   ASSERT_EQ(
-      "{\"items\":[{\"a1\":1},{\"a2\":2}],\"limit\":4294967295,\"offset\":0,"
-      "\"hasMore\":false,"
+      "{\"items\":[{\"a1\":1},{\"a2\":2}],"
       "\"count\":2,\"links\":[{\"rel\":\"self\",\"href\":\"url/\"}]}",
       sut.get_result());
 }
@@ -80,8 +78,7 @@ TEST(ResponseJson, multiple_items_list_not_empty) {
   sut.push_json_document("{\"a3\":3}");
   sut.end();
   ASSERT_EQ(
-      "{\"items\":[],\"items2\":[],\"items3\":[],\"limit\":4294967295,"
-      "\"offset\":0,\"hasMore\":false,"
-      "\"count\":0,\"links\":[{\"rel\":\"self\",\"href\":\"url/\"}]}",
+      "{\"items\":[{\"a1\":1}],\"items2\":[{\"a2\":2}],\"items3\":[{\"a3\":3}],"
+      "\"count\":3,\"links\":[{\"rel\":\"self\",\"href\":\"url/\"}]}",
       sut.get_result());
 }
