@@ -52,6 +52,8 @@ class MockMySQLSession : public collector::CountedMySQLSession {
                const FieldValidator &),
               (override));
   MOCK_METHOD(std::unique_ptr<MySQLSession::ResultRow>, query_one,
+              (const std::string &), (override));
+  MOCK_METHOD(std::unique_ptr<MySQLSession::ResultRow>, query_one,
               (const std::string &, const FieldValidator &), (override));
 
   MOCK_METHOD(uint64_t, last_insert_id, (), (override, noexcept));

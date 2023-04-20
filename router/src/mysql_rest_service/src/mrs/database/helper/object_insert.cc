@@ -211,7 +211,8 @@ mysqlrouter::sqlstring JsonInsertBuilder::update() {
           where.append_preformatted(m_requesting_user_id);
         } else {
           where = mysqlrouter::sqlstring(" WHERE ! = ? AND ! = ");
-          where << m_pk_field->db_name << *m_updated_pk_value;
+          where << m_pk_field->db_name << *m_updated_pk_value
+                << m_row_ownership_column;
           where.append_preformatted(m_requesting_user_id);
         }
       } else {
