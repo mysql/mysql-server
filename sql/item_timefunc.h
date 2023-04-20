@@ -423,6 +423,12 @@ class Item_func_unix_timestamp final : public Item_timeval_func {
   bool check_valid_arguments_processor(uchar *) override {
     return !has_timestamp_args();
   }
+
+  table_map get_initial_pseudo_tables() const override {
+    if (arg_count == 0) return INNER_TABLE_BIT;
+    return 0;
+  }
+
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
     collation.set_numeric();

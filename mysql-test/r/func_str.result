@@ -5798,3 +5798,24 @@ NULL
 SELECT QUOTE(CAST(NULL AS CHAR CHARSET utf8mb4));
 QUOTE(CAST(NULL AS CHAR CHARSET utf8mb4))
 NULL
+#
+# Bug#35174730 push_packet_overflow_warning(THD*, const char*):
+#              Assertion `is_nullable()' failed
+SET sql_mode="";
+CREATE TABLE t1 (
+c1 date NOT NULL,
+c2 datetime NOT NULL,
+KEY(c2)
+);
+INSERT INTO t1 VALUES
+('2004-01-22','1900-01-01 23:32:52');
+SELECT
+1
+FROM t1
+WHERE REPEAT(
+INSTR(t1.c1, t1.c2),
+CONCAT( ~ UNIX_TIMESTAMP()))
+;
+1
+DROP TABLE t1;
+SET sql_mode = DEFAULT;

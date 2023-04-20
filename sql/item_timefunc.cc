@@ -1675,7 +1675,8 @@ bool Item_func_unix_timestamp::val_timeval(my_timeval *tm) {
   if (arg_count == 0) {
     tm->m_tv_sec = current_thd->query_start_in_secs();
     tm->m_tv_usec = 0;
-    return false;  // no args: null_value is set in constructor and is always 0.
+    // no args: null_value is set in constructor and is always false.
+    return false;
   }
   int warnings = 0;
   return (null_value = args[0]->get_timeval(tm, &warnings));
