@@ -12114,15 +12114,6 @@ ER_CHECK_TABLE_MIN_REC_FLAG_SET
 ER_CHECK_TABLE_MIN_REC_FLAG_NOT_SET
    eng "Minimum record flag is not set to first rec on page '%lu' at level '%lu' for index '%s' of table '%s'."
 
-ER_LANGUAGE_COMPONENT_INFO
-  eng "%s"
-
-ER_LANGUAGE_COMPONENT_WARNING
-  eng "%s"
-
-ER_LANGUAGE_COMPONENT_ERROR
-  eng "%s"
-
 ER_NOTE_COMPONENT_SLOT_REGISTRATION_SUCCESS
   eng "Successfully registered slot '%d' for component '%s'."
 
@@ -12228,6 +12219,9 @@ ER_COMPONENT_MASKING_CANNOT_ACCESS_TABLE
 ER_REDUCED_DBLWR_FILE_CORRUPTED
   eng "Cannot recover from detect_only doublewrite buffer as page %u from batch doublewrite file is corrupted."
 
+ER_REDUCED_DBLWR_PAGE_FOUND
+  eng "Database page corruption of tablespace %s space_id: %u page_num: %u. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode."
+
 ER_CONN_INIT_CONNECT_IGNORED_MFA
   eng "init_connect variable is ignored for user: %s host: %s due to multi-factor registration required sandboxing"
 
@@ -12237,8 +12231,14 @@ ER_SECONDARY_ENGINE_DDL_FAILED
 ER_THREAD_POOL_CONNECTION_REPORT
    eng "TP conn (port: managed(delta), active, opened, closed, added, dropped): %s"
 
-ER_REDUCED_DBLWR_PAGE_FOUND
-  eng "Database page corruption of tablespace %s space_id: %u page_num: %u. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode."
+ER_LANGUAGE_COMPONENT_INFO
+  eng "%s"
+
+ER_LANGUAGE_COMPONENT_WARNING
+  eng "%s"
+
+ER_LANGUAGE_COMPONENT_ERROR
+  eng "%s"
 
 ER_IB_BULK_FLUSHER_PUNCH_HOLE
   eng "bulkflusher: Failed to punch hole: table=%s, index=%s, space_id=%zu, page_no=%zu, disk_page_size=%zu, hole_size=%zu, file=%s, err=%zu"
