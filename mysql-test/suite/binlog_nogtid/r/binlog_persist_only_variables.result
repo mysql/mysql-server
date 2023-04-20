@@ -273,6 +273,9 @@ Warning	1287	'@@sync_master_info' is deprecated and will be removed in a future 
 Warning	1287	'@@sync_master_info' is deprecated and will be removed in a future release. Please use sync_source_info instead.
 SET PERSIST_ONLY sync_relay_log = @@GLOBAL.sync_relay_log;
 SET PERSIST_ONLY sync_relay_log_info = @@GLOBAL.sync_relay_log_info;
+Warnings:
+Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
+Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY sync_source_info = @@GLOBAL.sync_source_info;
 
 include/assert.inc [Expect 101 persisted variables in persisted_variables table.]

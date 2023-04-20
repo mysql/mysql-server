@@ -1535,6 +1535,8 @@ The following options may be given as the first argument:
  --sync-relay-log-info=# 
  Synchronously flush relay log info to disk after every
  #th transaction. Use 0 to disable synchronous flushing
+ This variable is deprecated and will be removed in a
+ future version.
  --sync-source-info=# 
  Synchronize replication receiver positions to disk
  periodically, after the specified number of events. Use 0
