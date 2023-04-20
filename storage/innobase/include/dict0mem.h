@@ -2844,6 +2844,13 @@ class Persister {
   virtual ulint read(PersistentTableMetadata &metadata, const byte *buffer,
                      ulint size, bool *corrupt) const = 0;
 
+  /** Aggregate metadata entries into a single metadata instance, considering
+  version numbers
+  @param[in,out] metadata        metadata object to be modified
+  @param[in]     new_entry       metadata entry from logs */
+  virtual void aggregate(PersistentTableMetadata &metadata,
+                         const PersistentTableMetadata &new_entry) const = 0;
+
   /** Write MLOG_TABLE_DYNAMIC_META for persistent dynamic
   metadata of table
   @param[in]    id              Table id
@@ -2883,6 +2890,9 @@ class CorruptedIndexPersister : public Persister {
   is complete and we get everything, 0 if the buffer is incompleted */
   ulint read(PersistentTableMetadata &metadata, const byte *buffer, ulint size,
              bool *corrupt) const override;
+
+  void aggregate(PersistentTableMetadata &metadata,
+                 const PersistentTableMetadata &new_entry) const override;
 
  private:
   /** The length of index_id_t we will write */
@@ -2926,6 +2936,9 @@ class AutoIncPersister : public Persister {
   is complete and we get everything, 0 if the buffer is incomplete */
   ulint read(PersistentTableMetadata &metadata, const byte *buffer, ulint size,
              bool *corrupt) const override;
+
+  void aggregate(PersistentTableMetadata &metadata,
+                 const PersistentTableMetadata &new_entry) const override;
 };
 
 /** Container of persisters used in the system. Currently we don't need

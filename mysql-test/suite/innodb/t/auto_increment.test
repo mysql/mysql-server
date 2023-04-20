@@ -2375,3 +2375,23 @@ ALTER TABLE `t1` MODIFY `id` INT NOT NULL AUTO_INCREMENT;
 
 SHOW CREATE TABLE `t1`;
 DROP TABLE t1;
+
+#
+# Bug#34752625 Persistent Table Metadata from various versions is not aggregated properly
+#
+
+CREATE TABLE t1 (id int NOT NULL AUTO_INCREMENT PRIMARY KEY);
+set global innodb_checkpoint_disabled=1;
+INSERT INTO t1 VALUES (110000);
+INSERT INTO t1 VALUES ();
+SHOW CREATE TABLE t1;
+DELETE FROM t1;
+ALTER TABLE t1 AUTO_INCREMENT=100000;
+INSERT INTO t1 VALUES ();
+# expecting the new lower value, 100001
+SHOW CREATE TABLE t1;
+--source include/kill_mysqld.inc
+--source include/start_mysqld.inc
+# expecting the new lower value again, 100001
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
