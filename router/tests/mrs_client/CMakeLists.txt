@@ -42,5 +42,4 @@ TARGET_INCLUDE_DIRECTORIES(mysqlrouter_mrs_client
 
 TARGET_LINK_LIBRARIES(mysqlrouter_mrs_client mysql_rest_service_if)
 
-MY_INCLUDE_SYSTEM_DIRECTORIES(LIBEVENT)
 

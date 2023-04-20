@@ -83,4 +83,11 @@ std::unique_ptr<MySQLSession::ResultRow> CountedMySQLSession::query_one(
   return MySQLSession::query_one(query, validator);
 }
 
+std::unique_ptr<MySQLSession::ResultRow> CountedMySQLSession::query_one(
+    const std::string &query) {
+  // It calls query_one with two arguments. There is no need to count this
+  // call.
+  return MySQLSession::query_one(query);
+}
+
 }  // namespace collector

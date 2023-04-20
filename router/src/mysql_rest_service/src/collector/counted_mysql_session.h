@@ -38,22 +38,22 @@ class CountedMySQLSession : public mysqlrouter::MySQLSession {
                    const std::string &db) override;
   void reset() override;
   uint64_t prepare(const std::string &query) override;
-  void prepare_execute(
-      uint64_t ps_id, std::vector<enum_field_types> pt,
-      const RowProcessor &processor,
-      const FieldValidator &validator = null_field_validator) override;
+  void prepare_execute(uint64_t ps_id, std::vector<enum_field_types> pt,
+                       const RowProcessor &processor,
+                       const FieldValidator &validator) override;
   void prepare_remove(uint64_t ps_id) override;
 
   void execute(
       const std::string &query) override;  // throws Error, std::logic_error
 
   void query(const std::string &query, const RowProcessor &processor,
-             const FieldValidator &validator = null_field_validator)
+             const FieldValidator &validator)
       override;  // throws Error, std::logic_error
   std::unique_ptr<MySQLSession::ResultRow> query_one(
       const std::string &query,
-      const FieldValidator &validator =
-          null_field_validator) override;  // throws Error
+      const FieldValidator &validator) override;  // throws Error
+  std::unique_ptr<MySQLSession::ResultRow> query_one(
+      const std::string &query) override;  // throws Error
 };
 
 }  // namespace collector
