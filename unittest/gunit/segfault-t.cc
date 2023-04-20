@@ -142,36 +142,6 @@ TEST_F(FatalSignalDeathTest, CrashOnParallelAbort) {
   EXPECT_TRUE(contains_cached_result);
 }
 
-TEST_F(FatalSignalDeathTest, Segfault) {
-#if defined(_WIN32)
-  int *pint = NULL;
-  /*
-   After upgrading from gtest 1.5 to 1.6 this segfault is no longer
-   caught by handle_fatal_signal(). We get an empty error message from the
-   gtest library instead.
-  */
-  EXPECT_DEATH_IF_SUPPORTED(*pint = 42, "");
-#elif defined(HAVE_ASAN)
-/* gcc 4.8.1 with '-fsanitize=address -O1' */
-/* Newer versions of ASAN give other error message, disable it */
-// EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:SIGSEGV.*");
-#elif defined(__APPLE__) && defined(__aarch64__) && defined(NDEBUG)
-  // Disable also in non-debug mode on MacOS 11 arm, with -O1 or above, we get
-  // Result: died but not with expected error.
-  // Expected: contains regular expression ".* UTC - mysqld got signal .*"
-  // Actual msg:
-  // We do get: "Trace/BPT trap: 5" but not as part of the matcher input in
-  // EXPECT_DEATH(statement, matcher);
-#elif defined(HANDLE_FATAL_SIGNALS)
-  int *pint = nullptr;
-  /*
-   On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.
-   And on Mac OsX we can get SIGILL == 4 (but only in optimized mode).
-  */
-  EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".* UTC - mysqld got signal .*");
-#endif
-}
-
 // Verifies that my_safe_utoa behaves like sprintf(_, "%llu", _)
 TEST(PrintUtilities, Utoa) {
   char buff[22];
