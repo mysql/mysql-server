@@ -350,13 +350,21 @@ stdx::expected<void, std::error_code> TlsServerContext::load_key_and_cert(
   // internal pointer, don't free
   if (X509 *x509 = SSL_CTX_get0_certificate(ssl_ctx_.get())) {
     auto key_size_res = get_rsa_key_size(x509);
-    if (!key_size_res) return stdx::make_unexpected(key_size_res.error());
+    if (!key_size_res) {
+      auto ec = key_size_res.error();
 
-    const auto key_size = *key_size_res;
+      if (ec != TlsCertErrc::kNoRSACert) {
+        return stdx::make_unexpected(key_size_res.error());
+      }
 
-    if (key_size < kMinRsaKeySize) {
-      return stdx::make_unexpected(
-          make_error_code(TlsCertErrc::kRSAKeySizeToSmall));
+      // if it isn't a RSA Key ... just continue.
+    } else {
+      const auto key_size = *key_size_res;
+
+      if (key_size < kMinRsaKeySize) {
+        return stdx::make_unexpected(
+            make_error_code(TlsCertErrc::kRSAKeySizeToSmall));
+      }
     }
   } else {
     // doesn't exist
