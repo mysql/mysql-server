@@ -90,12 +90,21 @@ class Cell_calculator {
   /** Calculation mode. */
   Mode m_mode;
 
+  /** True if the key is of type double or float */
+  bool m_is_floating_point;
+
   /** True if the cell is right-padded with spaces (CHAR column). */
   bool m_is_space_padded;
 
   /** Length in number of characters.
    * Only used in CHARSET_AND_CHAR_LENGTH mode. */
   uint32_t m_char_length;
+
+  /** This value is to be used for hashing 0 value for approximate types such as
+   * float or double. Specifically, for such types we don't want to have
+   * separate hash entries for 0.0 and -0.0. */
+  static const size_t s_zero_hash;
+  static size_t zero_hash();
 };
 
 /* Implementation of inlined methods. */
@@ -103,6 +112,8 @@ class Cell_calculator {
 inline Cell_calculator::Cell_calculator(const KEY_PART_INFO &mysql_key_part)
     : m_mysql_field(mysql_key_part.field),
       m_cs(field_charset(*m_mysql_field)),
+      m_is_floating_point(m_mysql_field->key_type() == HA_KEYTYPE_FLOAT ||
+                          m_mysql_field->key_type() == HA_KEYTYPE_DOUBLE),
       m_is_space_padded(m_mysql_field->key_type() == HA_KEYTYPE_TEXT),
       m_char_length(0) {
   /* Mimic hp_hashnr() from storage/heap/hp_hash.c. */
@@ -128,6 +139,8 @@ inline Cell_calculator::Cell_calculator(const KEY_PART_INFO &mysql_key_part)
 inline Cell_calculator::Cell_calculator(const Field *mysql_field)
     : m_mysql_field(mysql_field),
       m_cs(field_charset(*m_mysql_field)),
+      m_is_floating_point(m_mysql_field->key_type() == HA_KEYTYPE_FLOAT ||
+                          m_mysql_field->key_type() == HA_KEYTYPE_DOUBLE),
       m_is_space_padded(m_mysql_field->key_type() == HA_KEYTYPE_TEXT),
       m_char_length(0) {
   /* Mimic hp_hashnr() from storage/heap/hp_hash.c. */
@@ -166,6 +179,16 @@ inline size_t Cell_calculator::hash(const Cell &cell) const {
   }
 
   auto data_length = cell.data_length();
+  auto data = cell.data();
+
+  /* For approximate types, 0.0 and -0.0 may have different bit patterns. Treat
+   * all such patterns as belonging to a single value. */
+  if (m_is_floating_point) {
+    const double val = data_length == 4 ? float4get(data) : float8get(data);
+    if (val == 0.0) return s_zero_hash;
+    return murmur3_32(data, data_length, 0);
+  }
+
   /*
    * If the collation of field to calculate hash is with PAD_SPACE attribute,
    * empty string '' and space ' ' will be calculated as different hash values,
@@ -173,8 +196,6 @@ inline size_t Cell_calculator::hash(const Cell &cell) const {
    * with cs for space ' '. But actually, for collations with PAD_SPACE
    * attribute empty string '' should be equal with space ' '. Do not return
    * hash value 0 if data_length == 0. */
-
-  auto data = cell.data();
 
   size_t length = 0;
 
@@ -283,6 +304,18 @@ inline int Cell_calculator::compare(const Cell &lhs, const Cell &rhs) const {
 
   return m_cs->coll->strnncollsp(m_cs, lhs_data, lhs_length, rhs_data,
                                  rhs_length);
+}
+
+/**
+   Convenience function to get the hash value of 0.0.
+*/
+inline size_t Cell_calculator::zero_hash() {
+  // It's ok to have a common hash value for both 0.0 of type float and 0.0 of
+  // type double. Use (double)0.0 for the same.
+  uchar float_data[8];
+
+  float8store(float_data, 0.0);
+  return murmur3_32(float_data, 8, 0);
 }
 
 } /* namespace temptable */

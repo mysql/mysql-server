@@ -39,6 +39,8 @@ TempTable Row implementation. */
 
 namespace temptable {
 
+const size_t Cell_calculator::s_zero_hash = Cell_calculator::zero_hash();
+
 #ifndef NDEBUG
 int Row::compare(const Row &lhs, const Row &rhs, const Columns &columns,
                  Field **mysql_fields) {

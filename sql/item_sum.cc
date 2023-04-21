@@ -933,7 +933,8 @@ bool Item_sum::wf_common_init() {
     @retval > 0       if key1 > key2
 */
 
-static int simple_str_key_cmp(const void *arg, const void *a, const void *b) {
+static int simple_generic_key_cmp(const void *arg, const void *a,
+                                  const void *b) {
   const Field *f = pointer_cast<const Field *>(arg);
   const uchar *key1 = pointer_cast<const uchar *>(a);
   const uchar *key2 = pointer_cast<const uchar *>(b);
@@ -1107,20 +1108,23 @@ bool Aggregator_distinct::setup(THD *thd) {
       void *cmp_arg;
       Field **field = table->field;
       Field **field_end = field + table->s->fields;
-      bool all_binary = true;
+      bool use_binary_compare = true;
 
       for (tree_key_length = 0; field < field_end; ++field) {
         Field *f = *field;
         enum enum_field_types type = f->type();
         tree_key_length += f->pack_length();
-        if ((type == MYSQL_TYPE_VARCHAR) ||
+        // For double or float, some values (such as 0.0) have different bit
+        // patterns (0.0 and -0.0). In such cases, avoid raw binary comparisons.
+        if ((type == MYSQL_TYPE_FLOAT || type == MYSQL_TYPE_DOUBLE ||
+             type == MYSQL_TYPE_VARCHAR) ||
             (!f->binary() &&
              (type == MYSQL_TYPE_STRING || type == MYSQL_TYPE_VAR_STRING))) {
-          all_binary = false;
+          use_binary_compare = false;
           break;
         }
       }
-      if (all_binary) {
+      if (use_binary_compare) {
         cmp_arg = (void *)&tree_key_length;
         compare_key = simple_raw_key_cmp;
       } else {
@@ -1131,7 +1135,7 @@ bool Aggregator_distinct::setup(THD *thd) {
             compare method that can take advantage of not having to worry
             about other fields.
           */
-          compare_key = simple_str_key_cmp;
+          compare_key = simple_generic_key_cmp;
           cmp_arg = (void *)table->field[0];
           /* tree_key_length has been set already */
         } else {
@@ -1207,14 +1211,20 @@ bool Aggregator_distinct::setup(THD *thd) {
 
     /*
       Unique handles all unique elements in a tree until they can't fit
-      in.  Then the tree is dumped to the temporary file. We can use
-      simple_raw_key_cmp because the table contains numbers only; decimals
-      are converted to binary representation as well.
+      in.  Then the tree is dumped to the temporary file. Since the table
+      contains numbers only, we can use simple_raw_key_cmp, unless it's an
+      approximate type (see comments above).  Decimals are converted to binary
+      representation as well.
     */
-    tree = new (thd->mem_root)
-        Unique(simple_raw_key_cmp, &tree_key_length, tree_key_length,
-               item_sum->ram_limitation(thd));
-
+    if (field_type == MYSQL_TYPE_FLOAT || field_type == MYSQL_TYPE_DOUBLE) {
+      tree = new (thd->mem_root)
+          Unique(simple_generic_key_cmp, table->field[0], tree_key_length,
+                 item_sum->ram_limitation(thd));
+    } else {
+      tree = new (thd->mem_root)
+          Unique(simple_raw_key_cmp, &tree_key_length, tree_key_length,
+                 item_sum->ram_limitation(thd));
+    }
     return tree == nullptr;
   }
 }
