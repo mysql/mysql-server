@@ -338,3 +338,19 @@ int ndbd_exit_string(int err_no, char *str, unsigned int size)
   }
   return -1;
 }
+
+/**
+ * Function to check if an Error is a software error (based on its
+ * ndbd_exit_classification)
+ * Currently only the errors with ndbd_exit_classification XIE (internal_error)
+ * are considered as 'software error'
+ */
+int ndbd_is_software_error(int faultId)
+{
+  int i = 0;
+  while (errArray[i].faultId != faultId && errArray[i].faultId != 0)
+  {
+    i++;
+  }
+  return errArray[i].classification == XIE;
+}
