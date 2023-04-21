@@ -271,7 +271,27 @@ ErrorReporter::handleError(int messageID,
 			   const char* objRef,
 			   NdbShutdownType nst)
 {
-  ndb_print_stacktrace();
+
+  /**
+   * Print the stack trace on stdout only for software errors.
+   * When the shutdown is provoked in a controlled way rather than a
+   * software crash stack trace is not printed.
+   *
+   * For the NDBD_EXIT_OS_SIGNAL_RECEIVED error code, although it is a
+   * software error (ndbd_exit_classification XIE), stack trace is not
+   * printed because it is already done in the Unix signal handler case.
+   */
+  if(ndbd_is_software_error(messageID))
+  {
+    if (nst != NST_ErrorHandlerSignal)
+    {
+      /**
+       * Show stack trace of thread hitting problem - already done in
+       * Unix signal handler case
+       */
+      ndb_print_stacktrace();
+    }
+  }
 
   if(messageID == NDBD_EXIT_ERROR_INSERT)
   {
