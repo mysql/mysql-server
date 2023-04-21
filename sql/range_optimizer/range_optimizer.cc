@@ -1402,6 +1402,9 @@ int index_next_different(bool is_index_scan, handler *file,
                          KEY_PART_INFO *key_part, uchar *record,
                          const uchar *group_prefix, uint group_prefix_len,
                          uint group_key_parts) {
+  // In order to find next different key value, the old end_range should be
+  // cleared.
+  file->set_end_range(nullptr, handler::RANGE_SCAN_ASC);
   if (is_index_scan) {
     int result = 0;
 
