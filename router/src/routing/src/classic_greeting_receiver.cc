@@ -43,6 +43,7 @@
 #include "classic_greeting_forwarder.h"
 #include "classic_lazy_connect.h"
 #include "harness_assert.h"
+#include "hexify.h"
 #include "mysql/harness/logging/logger.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/socket.h"
@@ -51,6 +52,8 @@
 #include "mysqld_error.h"  // mysql-server error-codes
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/connection_base.h"
+#include "openssl_msg.h"
+#include "openssl_version.h"
 #include "processor.h"
 #include "sql/server_component/mysql_command_services_imp.h"
 #include "tracer.h"
@@ -78,37 +81,6 @@ template <class T>
 std::vector<T> vector_splice(std::vector<T> v, const std::vector<T> &other) {
   v.insert(v.end(), other.begin(), other.end());
   return v;
-}
-
-static void ssl_info_cb(const SSL *ssl, int where, int ret) {
-  auto *conn = reinterpret_cast<MysqlRoutingClassicConnectionBase *>(
-      SSL_get_app_data(ssl));
-
-  auto &tr = conn->tracer();
-  if (!tr) return;
-
-  if ((where & SSL_CB_LOOP) != 0) {
-    tr.trace(
-        Tracer::Event().stage("tls::state: "s + SSL_state_string_long(ssl)));
-  } else if ((where & SSL_CB_ALERT) != 0) {
-    tr.trace(Tracer::Event().stage("tls::alert: "s +
-                                   SSL_alert_type_string_long(ret) + "::"s +
-                                   SSL_alert_desc_string_long(ret)));
-  } else if ((where & SSL_CB_EXIT) != 0) {
-    if (ret == 0) {
-      tr.trace(Tracer::Event().stage(
-          "tls::state: "s + SSL_state_string_long(ssl) + " <failed>"s));
-    } else if (ret < 0) {
-      switch (SSL_get_error(ssl, ret)) {
-        case SSL_ERROR_WANT_READ:
-        case SSL_ERROR_WANT_WRITE:
-          break;
-        default:
-          tr.trace(Tracer::Event().stage("tls"s + SSL_state_string_long(ssl) +
-                                         " <error>"s));
-      }
-    }
-  }
 }
 
 stdx::expected<Processor::Result, std::error_code> ClientGreetor::process() {
@@ -420,6 +392,35 @@ ClientGreetor::client_greeting() {
   }
 }
 
+static void ssl_msg_cb(int write_p, int version, int content_type,
+                       const void *buf, size_t len, SSL *ssl [[maybe_unused]],
+                       void *arg) {
+  auto *conn = reinterpret_cast<MysqlRoutingClassicConnectionBase *>(arg);
+
+  auto &tr = conn->tracer();
+  if (!tr) return;
+
+  if (content_type == SSL3_RT_HEADER) return;
+#ifdef SSL3_RT_INNER_CONTENT_TYPE
+  if (content_type == SSL3_RT_INNER_CONTENT_TYPE) return;
+#endif
+
+  tr.trace(Tracer::Event().stage(
+      "tls::" + std::string(write_p == 0 ? "client" : "server") +
+      "::msg: " + openssl_msg_version_to_string(version).value_or("") + " " +
+      openssl_msg_content_type_to_string(content_type).value_or("") + "::" +
+      openssl_msg_content_to_string(
+          content_type, static_cast<const unsigned char *>(buf), len)
+          .value_or("")
+#if 0
+      +
+      "\n" +
+      mysql_harness::hexify(
+          std::string_view(static_cast<const char *>(buf), len))
+#endif
+          ));
+}
+
 stdx::expected<Processor::Result, std::error_code>
 ClientGreetor::tls_accept_init() {
   auto *socket_splicer = connection()->socket_splicer();
@@ -437,7 +438,9 @@ ClientGreetor::tls_accept_init() {
   src_channel->init_ssl(ssl_ctx);
 
   SSL_set_app_data(src_channel->ssl(), connection());
-  SSL_set_info_callback(src_channel->ssl(), ssl_info_cb);
+
+  SSL_set_msg_callback(src_channel->ssl(), ssl_msg_cb);
+  SSL_set_msg_callback_arg(src_channel->ssl(), connection());
 
   stage(Stage::TlsAccept);
   return Result::Again;
@@ -477,9 +480,13 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::tls_accept() {
 
   if (auto &tr = tracer()) {
     auto *ssl = client_channel->ssl();
+
     std::ostringstream oss;
     oss << "tls::accept::ok: " << SSL_get_version(ssl);
     oss << " using " << SSL_get_cipher_name(ssl);
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(3, 0, 0)
+    oss << " and " << OBJ_nid2ln(SSL_get_negotiated_group(ssl));
+#endif
 
     if (SSL_session_reused(ssl) != 0) {
       oss << ", session_reused";

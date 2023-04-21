@@ -116,6 +116,8 @@ ADD_LIBRARY(routing SHARED
 
   sql_value.cc
   show_warnings_parser.cc
+
+  openssl_msg.cc
 )
 
 TARGET_LINK_LIBRARIES(routing
