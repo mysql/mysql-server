@@ -11,6 +11,8 @@ SET GLOBAL binlog_transaction_compression = ON;
 * 2. Replicate data
 ******************************************************
 SET binlog_format = ROW;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
 [connection master]
 create table t1 (a int key, b int) engine innodb;
 create table t2 (a int key, b int) engine innodb;
