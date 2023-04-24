@@ -766,11 +766,11 @@ NdbIndexScanOperation::getDistKeyFromRange(const NdbRecord *key_record,
                                            const char *row,
                                            Uint32* distKey)
 {
-  const Uint32 MaxKeySizeInLongWords= (NDB_MAX_KEY_SIZE + 7) / 8; 
-  // Note: xfrm:ed key can/will be bigger than MaxKeySizeInLongWords
-  Uint64 tmp[ MaxKeySizeInLongWords * MAX_XFRM_MULTIPLY ];
-  char* tmpshrink = (char*)tmp;
-  Uint32 tmplen = (Uint32)sizeof(tmp);
+  // Note: xfrm:ed key can/will be bigger than MAX_KEY_SIZE_IN_WORDS
+  Uint32 xfrmbuf[MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
+  char shrinkbuf[NDB_MAX_KEY_SIZE];
+  char* tmpshrink = shrinkbuf;
+  Uint32 tmplen = (Uint32)sizeof(shrinkbuf);
   
   /* This can't work for User Defined partitioning */
   assert(key_record->table->m_fragmentType != 
@@ -815,7 +815,7 @@ NdbIndexScanOperation::getDistKeyFromRange(const NdbRecord *key_record,
   
   Uint32 hashValue;
   int ret = Ndb::computeHash(&hashValue, result_record->table,
-                             ptrs, tmpshrink, tmplen);
+                             ptrs, xfrmbuf, sizeof(xfrmbuf));
   if (ret == 0)
   {
     *distKey = hashValue;

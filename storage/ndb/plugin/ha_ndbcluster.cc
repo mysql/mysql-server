@@ -7603,7 +7603,7 @@ NdbTransaction *ha_ndbcluster::start_transaction_row(
 
   Ndb *ndb = m_thd_ndb->ndb;
 
-  Uint64 tmp[(MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY) >> 1];
+  Uint32 tmp[MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
   char *buf = (char *)&tmp[0];
   trans =
       ndb->startTransaction(ndb_record, (const char *)record, buf, sizeof(tmp));
@@ -7631,7 +7631,7 @@ NdbTransaction *ha_ndbcluster::start_transaction_key(uint index_num,
   Ndb *ndb = m_thd_ndb->ndb;
   const NdbRecord *key_rec = m_index[index_num].ndb_unique_record_key;
 
-  Uint64 tmp[(MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY) >> 1];
+  Uint32 tmp[MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
   char *buf = (char *)&tmp[0];
   trans =
       ndb->startTransaction(key_rec, (const char *)key_data, buf, sizeof(tmp));
@@ -14779,7 +14779,7 @@ uint32 ha_ndbcluster::calculate_key_hash_value(Field **field_array) {
   struct Ndb::Key_part_ptr *key_data_ptr = &key_data[0];
   Uint32 i = 0;
   int ret_val;
-  Uint64 tmp[(MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY) >> 1];
+  Uint32 tmp[MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
   void *buf = (void *)&tmp[0];
   DBUG_TRACE;
 
