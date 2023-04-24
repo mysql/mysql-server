@@ -37,8 +37,8 @@ namespace database {
 
 class ObjectFieldFilter {
  public:
-  static ObjectFieldFilter from_url_filter(
-      const entry::Object &object, const std::vector<std::string> &filter);
+  static ObjectFieldFilter from_url_filter(const entry::Object &object,
+                                           std::vector<std::string> filter);
   static ObjectFieldFilter from_object(const entry::Object &object);
 
   bool is_included(const std::string &prefix, const std::string &field) const;
