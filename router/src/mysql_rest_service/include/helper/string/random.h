@@ -25,6 +25,8 @@
 #ifndef ROUTER_SRC_HELPER_STRING_RANDOM_H_
 #define ROUTER_SRC_HELPER_STRING_RANDOM_H_
 
+#include <algorithm>
+
 namespace helper {
 
 /**
