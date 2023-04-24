@@ -265,14 +265,15 @@ void insert_parents(const std::string &f, std::set<std::string> *filter) {
 }  // namespace
 
 ObjectFieldFilter ObjectFieldFilter::from_url_filter(
-    const entry::Object &, const std::vector<std::string> &filter) {
+    const entry::Object &, std::vector<std::string> filter) {
   ObjectFieldFilter object_filter;
 
   object_filter.m_exclusive = is_exclude_filter(filter);
 
-  for (const auto &f : filter) {
+  for (auto &f : filter) {
     // XXX check if the field is valid
 
+    if (object_filter.m_exclusive && !f.empty() && f[0] == '!') f.erase(0, 1);
     object_filter.m_filter.insert(f);
     // ensure parents of subfields are included too
     if (!object_filter.m_exclusive) insert_parents(f, &object_filter.m_filter);
