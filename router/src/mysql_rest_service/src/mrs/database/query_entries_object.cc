@@ -28,21 +28,19 @@
 #include <utility>
 #include "helper/json/text_to.h"
 #include "helper/mysql_row.h"
-#include "mysql/harness/logging/logging.h"
 
 #include "mysqld_error.h"
-
-IMPORT_LOG_FUNCTIONS()
 
 namespace mrs {
 namespace database {
 
 void QueryEntryObject::query_entries(MySQLSession *session,
-                                     const std::string &schema,
-                                     const std::string &schema_object) {
+                                     const std::string &schema_name,
+                                     const std::string &object_name,
+                                     const UniversalId &db_object_id) {
   auto base_table = std::make_shared<entry::BaseTable>();
-  base_table->schema = schema;
-  base_table->table = schema_object;
+  base_table->schema = schema_name;
+  base_table->table = object_name;
   base_table->table_alias = "t";
   // XXX base_table->crud_operations
   m_tables[entry::UniversalId{}] = base_table;
@@ -54,13 +52,9 @@ void QueryEntryObject::query_entries(MySQLSession *session,
   entry::UniversalId object_id;
   {
     mysqlrouter::sqlstring q{
-        "SELECT object.id FROM mysql_rest_service_metadata.db_object"
-        "  JOIN mysql_rest_service_metadata.db_schema"
-        "   ON db_schema_id=db_schema.id"
-        "  JOIN mysql_rest_service_metadata.object"
-        "   ON object.db_object_id=db_object.id"
-        "  WHERE db_schema.name=? AND db_object.name=?"};
-    q << schema << schema_object;
+        "SELECT object.id FROM mysql_rest_service_metadata.object"
+        "  WHERE object.db_object_id=?"};
+    q << db_object_id;
 
     auto res = query_one(session, q.str());
 
