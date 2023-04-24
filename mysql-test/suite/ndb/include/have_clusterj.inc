@@ -1,3 +1,4 @@
+let MYSQL_BASE_VERSION=`SELECT SUBSTRING_INDEX(VERSION(), ".", 2)`;
 --perl
 use strict;
 
@@ -38,21 +39,22 @@ my $clusterj_jar = my_find_file($bindir,
                                 [ "storage/ndb/clusterj", 
                                   "share/java",
                                   "share/mysql/java",
-                                  "share/mysql-8.0/java",
+                                  "share/mysql-$ENV{MYSQL_BASE_VERSION}/java",
                                   "lib/java"
                                 ],
                                 "clusterj-$version.jar",
                                 NOT_REQUIRED);
 
-my $clusterj_test_jar = my_find_file($bindir,
-                                     [ "storage/ndb/clusterj/clusterj-test",
-                                       "share/java",
-                                       "share/mysql/java",
-                                       "share/mysql-8.0/java",
-                                       "lib/java"
-                                     ],
-                                     "clusterj-test-$version.jar",
-                                     NOT_REQUIRED);
+my $clusterj_test_jar =
+  my_find_file($bindir,
+               [ "storage/ndb/clusterj/clusterj-test",
+                 "share/java",
+                 "share/mysql/java",
+                 "share/mysql-$ENV{MYSQL_BASE_VERSION}/java",
+                 "lib/java"
+               ],
+               "clusterj-test-$version.jar",
+               NOT_REQUIRED);
 
 # The expected installation locations are lib, lib/mysql, lib64/mysql, lib/x86_64-linux-gnu
 my $ndbclient_lib = my_find_file($bindir,
