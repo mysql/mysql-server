@@ -1,0 +1,711 @@
+--source include/have_lowercase0.inc
+--source include/have_innodb_16k.inc
+
+--echo # Simple repro of bug #34790366
+--echo # Note that we have removed the assert as we can have enum elements of 0 length
+--echo # Previously it was failing for ucs-2, utf-16 and utf-32 charsets, which are tested in this script
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+--echo # ucs2:
+create table t1 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=ucs2;
+insert into t1 values (1, 'ab', 'pq');
+insert into t1 values (NULL, NULL, NULL);
+
+alter table t1 drop column c2, drop column c3, algorithm=instant;
+
+select * from t1;
+check table t1;
+
+create table t2 like t1;
+
+alter table t2 discard tablespace;
+
+flush table t1 for export;
+--copy_file $MYSQLD_DATADIR/test/t1.cfg $MYSQLD_DATADIR/test/src.cfg
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/test/src.ibd
+
+--copy_file $MYSQLD_DATADIR/test/t1.cfg $MYSQLD_DATADIR/test/t2.cfg
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/test/t2.ibd
+unlock table;
+
+alter table t2 import tablespace;
+
+select * from t2;
+check table t2;
+
+drop table t1;
+drop table t2;
+
+--let $charset = ucs2
+--source suite/innodb/include/bug34790366.inc
+
+--echo # utf16:
+create table t1 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=utf16;
+insert into t1 values (1, 'ab', 'pq');
+insert into t1 values (NULL, NULL, NULL);
+
+alter table t1 drop column c2, drop column c3, algorithm=instant;
+
+select * from t1;
+check table t1;
+
+create table t2 like t1;
+
+alter table t2 discard tablespace;
+
+flush table t1 for export;
+--copy_file $MYSQLD_DATADIR/test/t1.cfg $MYSQLD_DATADIR/test/src.cfg
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/test/src.ibd
+
+--copy_file $MYSQLD_DATADIR/test/t1.cfg $MYSQLD_DATADIR/test/t2.cfg
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/test/t2.ibd
+unlock table;
+
+alter table t2 import tablespace;
+
+select * from t2;
+check table t2;
+
+drop table t1;
+drop table t2;
+
+--let $charset = utf16
+--source suite/innodb/include/bug34790366.inc
+
+--echo # utf32:
+create table t1 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=utf32;
+insert into t1 values (1, 'ab', 'pq');
+insert into t1 values (NULL, NULL, NULL);
+
+alter table t1 drop column c2, drop column c3, algorithm=instant;
+
+select * from t1;
+check table t1;
+
+create table t2 like t1;
+
+alter table t2 discard tablespace;
+
+flush table t1 for export;
+--copy_file $MYSQLD_DATADIR/test/t1.cfg $MYSQLD_DATADIR/test/src.cfg
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/test/src.ibd
+
+--copy_file $MYSQLD_DATADIR/test/t1.cfg $MYSQLD_DATADIR/test/t2.cfg
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/test/t2.ibd
+unlock table;
+
+alter table t2 import tablespace;
+
+select * from t2;
+check table t2;
+
+drop table t1;
+drop table t2;
+
+--let $charset = utf32
+--source suite/innodb/include/bug34790366.inc
+
+--echo # upgrade scenario:
+# # Following tables are created in 8.0.33
+# # armscii8:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=armscii8;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/armscii8.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/armscii8.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # ascii:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=ascii;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/ascii.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/ascii.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # big5:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=big5;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/big5.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/big5.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # binary:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=binary;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/binary.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/binary.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # cp1250:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=cp1250;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/cp1250.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/cp1250.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # cp1251:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=cp1251;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/cp1251.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/cp1251.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # cp1256:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=cp1256;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/cp1256.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/cp1256.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # cp1257:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=cp1257;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/cp1257.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/cp1257.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # cp850:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=cp850;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/cp850.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/cp850.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # cp852:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=cp852;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/cp852.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/cp852.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # cp866:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=cp866;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/cp866.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/cp866.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # cp932:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=cp932;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/cp932.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/cp932.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # dec8:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=dec8;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/dec8.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/dec8.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # eucjpms:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=eucjpms;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/eucjpms.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/eucjpms.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # euckr:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=euckr;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/euckr.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/euckr.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # gb18030:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=gb18030;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/gb18030.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/gb18030.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # gb2312:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=gb2312;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/gb2312.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/gb2312.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # gbk:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=gbk;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/gbk.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/gbk.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # geostd8:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=geostd8;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/geostd8.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/geostd8.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # greek:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=greek;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/greek.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/greek.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # hebrew:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=hebrew;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/hebrew.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/hebrew.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # hp8:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=hp8;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/hp8.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/hp8.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # keybcs2:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=keybcs2;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/keybcs2.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/keybcs2.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # koi8r:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=koi8r;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/koi8r.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/koi8r.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # koi8u:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=koi8u;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/koi8u.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/koi8u.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # latin1:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=latin1;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/latin1.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/latin1.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # latin2:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=latin2;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/latin2.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/latin2.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # latin5:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=latin5;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/latin5.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/latin5.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # latin7:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=latin7;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/latin7.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/latin7.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # macce:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=macce;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/macce.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/macce.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # macroman:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=macroman;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/macroman.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/macroman.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # sjis:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=sjis;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/sjis.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/sjis.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # swe7:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=swe7;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/swe7.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/swe7.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # tis620:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=tis620;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/tis620.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/tis620.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # ujis:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=ujis;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/ujis.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/ujis.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # utf16le:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=utf16le;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/utf16le.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/utf16le.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # utf8mb3:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=utf8mb3;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/utf8mb3.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/utf8mb3.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # utf8mb4:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=utf8mb4;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/utf8mb4.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/utf8mb4.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # END OF commands run. The following are not run as they hit the assert:
+# # ucs2:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=ucs2;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/ucs2.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/ucs2.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # utf16:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=utf16;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/utf16.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/utf16.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+# # utf32:
+# CREATE TABLE t1 (c1 INT, c2 SET('ab', 'cd'), c3 ENUM('pq', 'rs')) CHARSET=utf32;
+# INSERT INTO t1 VALUES (1, 'ab', 'pq');
+# INSERT INTO t1 VALUES (NULL, NULL, NULL);
+#
+# ALTER TABLE t1 DROP COLUMN c2, DROP COLUMN c3, ALGORITHM=INSTANT;
+# INSERT INTO t1 VALUES (10);
+#
+# FLUSH TABLE t1 FOR EXPORT;
+# --copy_file $MYSQLD_DATADIR/test/t1.cfg old_instant_drop_enum/utf32.cfg
+# --copy_file $MYSQLD_DATADIR/test/t1.ibd old_instant_drop_enum/utf32.ibd
+# UNLOCK TABLE;
+#
+# DROP TABLE t1;
+
+--echo # copy and unzip ibd/cfg files
+--copy_file $MYSQLTEST_VARDIR/std_data/instant_ddl/old_instant_drop_enum.zip $MYSQL_TMP_DIR/old_instant_drop_enum.zip
+--file_exists $MYSQL_TMP_DIR/old_instant_drop_enum.zip
+--exec unzip -qo $MYSQL_TMP_DIR/old_instant_drop_enum.zip -d $MYSQL_TMP_DIR
+--echo # listing files unzipped:
+--list_files $MYSQL_TMP_DIR/old_instant_drop_enum/
+
+--echo # Note: we skip character sets 'ucs2', 'utf16', 'utf32' and 'utf16le'
+--echo # Skip 'ucs2', 'utf16' and 'utf32' - they cause bug in older version hence we cannot import them
+--echo # Skip 'utf16le' - due to the bug, cfg file is corrupt. Import is prevented in older version and newer version
+
+--let $i = 1
+while ($i <= 37) {
+  let $charset = query_get_value(SHOW CHARSET WHERE CHARSET != 'ucs2' AND CHARSET != 'utf16' AND CHARSET != 'utf16le'AND CHARSET != 'utf32', Charset, $i);
+
+  --echo # $charset:
+  --copy_file $MYSQL_TMP_DIR/old_instant_drop_enum/$charset.cfg $MYSQLD_DATADIR/test/src.cfg
+  --copy_file $MYSQL_TMP_DIR/old_instant_drop_enum/$charset.ibd $MYSQLD_DATADIR/test/src.ibd
+  --source suite/innodb/include/bug34790366.inc
+
+  inc $i;
+}
+
+--force-rmdir $MYSQL_TMP_DIR/old_instant_drop_enum
+--remove_file $MYSQL_TMP_DIR/old_instant_drop_enum.zip
+--echo # END

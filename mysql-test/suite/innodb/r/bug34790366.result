@@ -1,0 +1,3189 @@
+# Simple repro of bug #34790366
+# Note that we have removed the assert as we can have enum elements of 0 length
+# Previously it was failing for ucs-2, utf-16 and utf-32 charsets, which are tested in this script
+# ucs2:
+create table t1 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+insert into t1 values (1, 'ab', 'pq');
+insert into t1 values (NULL, NULL, NULL);
+alter table t1 drop column c2, drop column c3, algorithm=instant;
+select * from t1;
+c1
+1
+NULL
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+create table t2 like t1;
+alter table t2 discard tablespace;
+flush table t1 for export;
+unlock table;
+alter table t2 import tablespace;
+select * from t2;
+c1
+1
+NULL
+check table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+drop table t1;
+drop table t2;
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=ucs2;;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=ucs2;;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=ucs2;;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=ucs2;;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=ucs2;;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=ucs2;;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# utf16:
+create table t1 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=utf16;
+insert into t1 values (1, 'ab', 'pq');
+insert into t1 values (NULL, NULL, NULL);
+alter table t1 drop column c2, drop column c3, algorithm=instant;
+select * from t1;
+c1
+1
+NULL
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+create table t2 like t1;
+alter table t2 discard tablespace;
+flush table t1 for export;
+unlock table;
+alter table t2 import tablespace;
+select * from t2;
+c1
+1
+NULL
+check table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+drop table t1;
+drop table t2;
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=utf16;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=utf16;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=utf16;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=utf16;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=utf16;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=utf16;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# utf32:
+create table t1 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=utf32;
+insert into t1 values (1, 'ab', 'pq');
+insert into t1 values (NULL, NULL, NULL);
+alter table t1 drop column c2, drop column c3, algorithm=instant;
+select * from t1;
+c1
+1
+NULL
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+create table t2 like t1;
+alter table t2 discard tablespace;
+flush table t1 for export;
+unlock table;
+alter table t2 import tablespace;
+select * from t2;
+c1
+1
+NULL
+check table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+drop table t1;
+drop table t2;
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=utf32;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=utf32;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=utf32;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=utf32;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=utf32;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=utf32;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# upgrade scenario:
+# copy and unzip ibd/cfg files
+# listing files unzipped:
+armscii8.cfg
+armscii8.ibd
+ascii.cfg
+ascii.ibd
+big5.cfg
+big5.ibd
+binary.cfg
+binary.ibd
+cp1250.cfg
+cp1250.ibd
+cp1251.cfg
+cp1251.ibd
+cp1256.cfg
+cp1256.ibd
+cp1257.cfg
+cp1257.ibd
+cp850.cfg
+cp850.ibd
+cp852.cfg
+cp852.ibd
+cp866.cfg
+cp866.ibd
+cp932.cfg
+cp932.ibd
+dec8.cfg
+dec8.ibd
+eucjpms.cfg
+eucjpms.ibd
+euckr.cfg
+euckr.ibd
+gb18030.cfg
+gb18030.ibd
+gb2312.cfg
+gb2312.ibd
+gbk.cfg
+gbk.ibd
+geostd8.cfg
+geostd8.ibd
+greek.cfg
+greek.ibd
+hebrew.cfg
+hebrew.ibd
+hp8.cfg
+hp8.ibd
+keybcs2.cfg
+keybcs2.ibd
+koi8r.cfg
+koi8r.ibd
+koi8u.cfg
+koi8u.ibd
+latin1.cfg
+latin1.ibd
+latin2.cfg
+latin2.ibd
+latin5.cfg
+latin5.ibd
+latin7.cfg
+latin7.ibd
+macce.cfg
+macce.ibd
+macroman.cfg
+macroman.ibd
+sjis.cfg
+sjis.ibd
+swe7.cfg
+swe7.ibd
+tis620.cfg
+tis620.ibd
+ujis.cfg
+ujis.ibd
+utf16le.cfg
+utf16le.ibd
+utf8mb3.cfg
+utf8mb3.ibd
+utf8mb4.cfg
+utf8mb4.ibd
+# Note: we skip character sets 'ucs2', 'utf16', 'utf32' and 'utf16le'
+# Skip 'ucs2', 'utf16' and 'utf32' - they cause bug in older version hence we cannot import them
+# Skip 'utf16le' - due to the bug, cfg file is corrupt. Import is prevented in older version and newer version
+# armscii8:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=armscii8;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=armscii8;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=armscii8;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=armscii8;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=armscii8;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=armscii8;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# ascii:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=ascii;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=ascii;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=ascii;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=ascii;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=ascii;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=ascii;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# big5:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=big5;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=big5;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=big5;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=big5;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=big5;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=big5;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# binary:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=binary;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=binary;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=binary;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=binary;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=binary;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=binary;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# cp1250:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=cp1250;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=cp1250;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=cp1250;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=cp1250;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=cp1250;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=cp1250;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# cp1251:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=cp1251;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=cp1251;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=cp1251;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=cp1251;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=cp1251;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=cp1251;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# cp1256:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=cp1256;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=cp1256;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=cp1256;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=cp1256;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=cp1256;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=cp1256;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# cp1257:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=cp1257;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=cp1257;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=cp1257;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=cp1257;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=cp1257;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=cp1257;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# cp850:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=cp850;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=cp850;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=cp850;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=cp850;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=cp850;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=cp850;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# cp852:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=cp852;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=cp852;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=cp852;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=cp852;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=cp852;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=cp852;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# cp866:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=cp866;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=cp866;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=cp866;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=cp866;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=cp866;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=cp866;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# cp932:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=cp932;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=cp932;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=cp932;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=cp932;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=cp932;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=cp932;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# dec8:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=dec8;;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=dec8;;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=dec8;;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=dec8;;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=dec8;;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=dec8;;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# eucjpms:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=eucjpms;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=eucjpms;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=eucjpms;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=eucjpms;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=eucjpms;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=eucjpms;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# euckr:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=euckr;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=euckr;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=euckr;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=euckr;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=euckr;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=euckr;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# gb18030:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=gb18030;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=gb18030;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=gb18030;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=gb18030;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=gb18030;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=gb18030;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# gb2312:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=gb2312;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=gb2312;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=gb2312;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=gb2312;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=gb2312;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=gb2312;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# gbk:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=gbk;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=gbk;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=gbk;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=gbk;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=gbk;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=gbk;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# geostd8:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=geostd8;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=geostd8;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=geostd8;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=geostd8;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=geostd8;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=geostd8;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# greek:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=greek;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=greek;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=greek;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=greek;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=greek;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=greek;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# hebrew:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=hebrew;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=hebrew;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=hebrew;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=hebrew;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=hebrew;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=hebrew;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# hp8:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=hp8;;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=hp8;;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=hp8;;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=hp8;;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=hp8;;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=hp8;;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# keybcs2:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=keybcs2;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=keybcs2;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=keybcs2;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=keybcs2;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=keybcs2;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=keybcs2;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# koi8r:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=koi8r;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=koi8r;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=koi8r;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=koi8r;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=koi8r;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=koi8r;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# koi8u:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=koi8u;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=koi8u;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=koi8u;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=koi8u;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=koi8u;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=koi8u;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# latin1:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=latin1;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=latin1;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=latin1;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=latin1;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=latin1;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=latin1;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# latin2:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=latin2;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=latin2;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=latin2;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=latin2;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=latin2;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=latin2;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# latin5:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=latin5;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=latin5;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=latin5;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=latin5;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=latin5;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=latin5;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# latin7:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=latin7;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=latin7;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=latin7;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=latin7;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=latin7;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=latin7;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# macce:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=macce;;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=macce;;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=macce;;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=macce;;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=macce;;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=macce;;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# macroman:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=macroman;;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=macroman;;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=macroman;;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=macroman;;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=macroman;;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=macroman;;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# sjis:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=sjis;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=sjis;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=sjis;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=sjis;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=sjis;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=sjis;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# swe7:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=swe7;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=swe7;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=swe7;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=swe7;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=swe7;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=swe7;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# tis620:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=tis620;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=tis620;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=tis620;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=tis620;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=tis620;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=tis620;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# ujis:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=ujis;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=ujis;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=ujis;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=ujis;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=ujis;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=ujis;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# utf8mb3:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=utf8mb3;;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=utf8mb3;;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=utf8mb3;;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=utf8mb3;;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=utf8mb3;;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=utf8mb3;;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# utf8mb4:
+# check src files are present
+# prep for test
+create table t3 (c1 int) charset=utf8mb4;;
+create table t4 (c1 int, c2 set('ab', 'cd'), c3 enum('pq', 'rs')) charset=utf8mb4;;
+create table t5 (c1 int, c2 set('ab', 'cd', 'ef'), c3 enum('pq', 'rs', 'tu')) charset=utf8mb4;;
+create table t6 (c1 int, c2 set('ab'), c3 enum('pq')) charset=utf8mb4;;
+create table t7 (c1 int, c2 set('ab', '22'), c3 enum('pq', 'tu')) charset=utf8mb4;;
+create table t8 (c1 int, c2 set('ab', 'cd'), c3 enum('rs', 'tu')) charset=utf8mb4;;
+alter table t4 drop column c2, drop column c3, algorithm=instant;
+alter table t5 drop column c2, drop column c3, algorithm=instant;
+alter table t6 drop column c2, drop column c3, algorithm=instant;
+alter table t7 drop column c2, drop column c3, algorithm=instant;
+alter table t8 drop column c2, drop column c3, algorithm=instant;
+alter table t3 discard tablespace;
+alter table t4 discard tablespace;
+alter table t5 discard tablespace;
+alter table t6 discard tablespace;
+alter table t7 discard tablespace;
+alter table t8 discard tablespace;
+# prep cfg and ibd
+# do test
+alter table t3 import tablespace;
+alter table t4 import tablespace;
+alter table t5 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t6 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t7 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p4_c2 in target table doesn't match with CFG.
+alter table t8 import tablespace;
+ERROR HY000: DD metadata for INSTANT DROP column !hidden!_dropped_v1_p5_c3 in target table doesn't match with CFG.
+select * from t3;
+c1
+1
+NULL
+10
+check table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+select * from t4;
+c1
+1
+NULL
+10
+check table t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Failed import check table reports corrupt
+check table t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Error	Tablespace has been discarded for table 't5'
+test.t5	check	error	Corrupt
+check table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	Error	Tablespace has been discarded for table 't6'
+test.t6	check	error	Corrupt
+check table t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	Error	Tablespace has been discarded for table 't7'
+test.t7	check	error	Corrupt
+check table t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	Error	Tablespace has been discarded for table 't8'
+test.t8	check	error	Corrupt
+# cleanup
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop table t7;
+drop table t8;
+# import failed, delete tablespace file:
+# files cleanup
+# END

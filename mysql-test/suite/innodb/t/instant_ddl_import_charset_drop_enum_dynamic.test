@@ -1,0 +1,20 @@
+#######################################################################
+# Test script to test EXPORT/IMPORT for tables having INSTANT DROP on
+# ENUM/SET columns for various different character sets
+# Test for DYNAMIC row format only
+#######################################################################
+
+--echo # Run test on all combinations of character sets for DYNAMIC row format
+
+--let $i = 1
+while ($i <= 41) {
+  let $character_set = query_get_value(SHOW CHARSET, Charset, $i);
+
+  --let $row_format = DYNAMIC
+  --echo # [$character_set:$row_format]
+  --source suite/innodb/include/instant_ddl_import_charset_drop_enum.inc
+
+  inc $i;
+}
+
+--echo # End

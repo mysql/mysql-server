@@ -8372,8 +8372,8 @@ ER_IB_MSG_945
 ER_IB_MSG_946
   eng "%s"
 
-ER_IB_MSG_947
-  eng "%s"
+ER_IB_IMPORT_INDEX_METADATA_READ_FAILED
+  eng "IO Error: %s"
 
 ER_IB_MSG_948
   eng "%s"
@@ -8573,8 +8573,8 @@ ER_IB_MSG_1012
 ER_IB_MSG_1013
   eng "%s"
 
-ER_IB_MSG_1014
-  eng "%s"
+ER_IB_IMPORT_START_CFG_NAME
+  eng "Writing table metadata to '%s'"
 
 ER_IB_MSG_1015
   eng "%s"

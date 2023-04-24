@@ -3107,8 +3107,8 @@ static dberr_t row_import_cfg_read_string(
                     (void)fseek(file, 0L, SEEK_END););
 
     if (fread(row, 1, row_len, file) != row_len) {
-      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                  strerror(errno), "while reading index fields.");
+      ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                           "while reading index fields.");
 
       return (DB_IO_ERROR);
     }
@@ -3147,8 +3147,7 @@ static dberr_t row_import_cfg_read_string(
     dberr_t err = row_import_cfg_read_string(file, name, len);
 
     if (err != DB_SUCCESS) {
-      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                  strerror(errno), "while parsing table name.");
+      ib::send_errno_error(thd, ER_IO_READ_ERROR, "while parsing table name.");
 
       return (err);
     }
@@ -3159,12 +3158,12 @@ static dberr_t row_import_cfg_read_string(
 
 /** Read the index names and root page numbers of the indexes and set the
  values. Row format [root_page_no, len of str, str ... ]
- @return DB_SUCCESS or error code. */
-[[nodiscard]] static dberr_t row_import_read_index_data(
-    FILE *file,      /*!< in: File to read from */
-    THD *thd,        /*!< in: session */
-    row_import *cfg) /*!< in/out: meta-data read */
-{
+  @param[in] file       File to read from
+  @param[in] thd        Session handle
+  @param[in,out] cfg    Meta-data read
+  @return DB_SUCCESS or error code. */
+[[nodiscard]] static dberr_t row_import_read_index_data(FILE *file, THD *thd,
+                                                        row_import *cfg) {
   byte *ptr;
   row_index_t *cfg_index;
   byte row[sizeof(space_index_t) + sizeof(uint32_t) * 9];
@@ -3194,25 +3193,15 @@ static dberr_t row_import_cfg_read_string(
                     (void)fseek(file, 0L, SEEK_END););
 
     /* Read the index data. */
-    size_t n_bytes = fread(row, 1, sizeof(row), file);
+    if (const auto n_bytes = fread(row, 1, sizeof(row), file);
+        n_bytes != sizeof(row)) {
+      std::ostringstream msg;
+      msg << "while reading index meta-data, expected to read " << sizeof(row)
+          << " bytes but read only " << n_bytes << " bytes";
 
-    /* Trigger EOF */
-    DBUG_EXECUTE_IF("ib_import_io_read_error",
-                    (void)fseek(file, 0L, SEEK_END););
+      ib::send_errno_error(thd, ER_IO_READ_ERROR, msg.str());
 
-    if (n_bytes != sizeof(row)) {
-      char msg[BUFSIZ];
-
-      snprintf(msg, sizeof(msg),
-               "while reading index meta-data, expected"
-               " to read %lu bytes but read only %lu"
-               " bytes",
-               (ulong)sizeof(row), (ulong)n_bytes);
-
-      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                  strerror(errno), msg);
-
-      ib::error(ER_IB_MSG_947) << "IO Error: " << msg;
+      ib::error(ER_IB_IMPORT_INDEX_METADATA_READ_FAILED) << msg.str().c_str();
 
       return (DB_IO_ERROR);
     }
@@ -3281,8 +3270,7 @@ static dberr_t row_import_cfg_read_string(
     err = row_import_cfg_read_string(file, cfg_index->m_name, len);
 
     if (err != DB_SUCCESS) {
-      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                  strerror(errno), "while parsing index name.");
+      ib::send_errno_error(thd, ER_IO_READ_ERROR, "while parsing index name.");
 
       return (err);
     }
@@ -3312,8 +3300,8 @@ static dberr_t row_import_read_indexes(
 
   /* Read the number of indexes. */
   if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
-    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                strerror(errno), "while reading number of indexes.");
+    ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                         "while reading number of indexes.");
 
     return (DB_IO_ERROR);
   }
@@ -3321,17 +3309,16 @@ static dberr_t row_import_read_indexes(
   cfg->m_n_indexes = mach_read_from_4(row);
 
   if (cfg->m_n_indexes == 0) {
-    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                strerror(errno), "Number of indexes in meta-data file is 0");
+    ib_senderrf(thd, IB_LOG_LEVEL_ERROR,
+                ER_INNODB_IMPORT_WRONG_NUMBER_OF_INDEXES_ZERO);
 
     return (DB_CORRUPTION);
 
   } else if (cfg->m_n_indexes > 1024) {
     // FIXME: What is the upper limit? */
-    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                strerror(errno),
-                "Number of indexes in meta-data file is too high: %lu",
-                (ulong)cfg->m_n_indexes);
+    ib_senderrf(thd, IB_LOG_LEVEL_ERROR,
+                ER_INNODB_IMPORT_WRONG_NUMBER_OF_INDEXES_TOO_HIGH,
+                ulonglong{cfg->m_n_indexes});
     cfg->m_n_indexes = 0;
 
     return (DB_CORRUPTION);
@@ -3465,8 +3452,8 @@ static dberr_t row_import_read_dropped_col_metadata(dd::Table *table_def,
 
   /* Read column's v_added, v_dropped, phy_pos  */
   if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
-    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                strerror(errno), "while reading dropped column meta-data.");
+    ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                         "while reading dropped column meta-data.");
     return (DB_IO_ERROR);
   }
 
@@ -3508,8 +3495,8 @@ static dberr_t row_import_read_dropped_col_metadata(dd::Table *table_def,
 
     /* Read element count */
     if (fread(_row, 1, sizeof(_row), file) != sizeof(_row)) {
-      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                  strerror(errno), "while reading dropped column meta-data.");
+      ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                           "while reading dropped column meta-data.");
       return (DB_IO_ERROR);
     }
     size_t n_elem = mach_read_from_4(_row);
@@ -3517,34 +3504,40 @@ static dberr_t row_import_read_dropped_col_metadata(dd::Table *table_def,
     for (size_t i = 0; i < n_elem; i++) {
       /* Read element name length */
       if (fread(_row, 1, sizeof(_row), file) != sizeof(_row)) {
-        ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                    strerror(errno), "while reading dropped column meta-data.");
+        ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                             "while reading dropped column meta-data.");
         return (DB_IO_ERROR);
       }
-      uint32_t len = mach_read_from_4(_row);
 
-      if (len == 0) {
-        ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                    strerror(errno),
-                    "Enum element name length %lu, is invalid for column %s",
-                    (ulong)len, col_name);
+      /* Element names' length is (len_with_null - 1) */
+      const uint32_t len_with_null = mach_read_from_4(_row);
 
-        return (DB_CORRUPTION);
-      }
-
-      /* Read element name */
-      byte *elem_name =
-          ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{len});
-      dberr_t err = row_import_cfg_read_string(file, elem_name, len);
-      if (err != DB_SUCCESS) {
-        ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                    strerror(errno),
-                    "Error reading Enum element name for column %s", col_name);
+      if (len_with_null == 0) {
+        ib_senderrf(thd, IB_LOG_LEVEL_ERROR,
+                    ER_INNODB_IMPORT_WRONG_DROPPED_ENUM_LENGTH,
+                    ulong{len_with_null}, col_name);
 
         return (DB_CORRUPTION);
       }
-      enum_names.push_back((const char *)elem_name);
-      ut::delete_arr(elem_name);
+
+      /* Read element name: non-ASCII, can't use string functions like strlen */
+      ut::vector<byte> elem_name(len_with_null);
+
+      if (fread(elem_name.data(), elem_name.size(), 1, file) != 1) {
+        std::ostringstream msg;
+        msg << "Error reading Enum/Set element name for column " << col_name;
+
+        ib::send_errno_error(thd, ER_IO_READ_ERROR, msg.str());
+
+        return DB_CORRUPTION;
+      } else if (elem_name.back() != '\0') {
+        ib_senderrf(thd, IB_LOG_LEVEL_ERROR,
+                    ER_INNODB_IMPORT_ENUM_NULL_TERMINATOR_MISSING, col_name);
+
+        return DB_CORRUPTION;
+      }
+      enum_names.push_back(dd::String_type((const char *)elem_name.data(),
+                                           elem_name.size() - 1));
     }
   }
 
@@ -3589,30 +3582,34 @@ static dberr_t row_import_read_dropped_col_metadata(dd::Table *table_def,
       if (enum_names.size() == 0) {
         ut_ad(col->type() != dd::enum_column_types::ENUM &&
               col->type() != dd::enum_column_types::SET);
+        return col->type() != dd::enum_column_types::ENUM &&
+               col->type() != dd::enum_column_types::SET;
+      }
+
+      const auto &elements = col->elements();
+      if (enum_names.size() != elements.size()) {
         return false;
       }
 
       size_t i = 0;
-      for (const auto &elem : col->elements()) {
-        if (enum_names[i++].compare(elem->name()) != 0) {
-          return true;
+      for (const auto &elem : elements) {
+        if (i == enum_names.size() || enum_names[i++] != elem->name()) {
+          return false;
         }
       }
 
-      return false;
+      return true;
     };
 
     if (err || new_column->is_nullable() != is_nullable ||
         new_column->is_unsigned() != is_unsigned ||
         new_column->char_length() != char_length ||
+        (uint32_t)(new_column->type()) != col_type ||
         new_column->numeric_scale() != numeric_scale ||
         new_column->collation_id() != collation_id ||
-        match_enum_values(new_column)) {
-      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                  strerror(errno),
-                  "DD metadata for INSTNAT DROP column %s in"
-                  " target table doesn't match with CFG.",
-                  col_name);
+        !match_enum_values(new_column)) {
+      ib_senderrf(thd, IB_LOG_LEVEL_ERROR,
+                  ER_INNODB_IMPORT_DROP_COL_METADATA_MISMATCH, col_name);
       return DB_ERROR;
     }
 
@@ -3652,7 +3649,7 @@ static dberr_t row_import_read_dropped_col_metadata(dd::Table *table_def,
       (dd::enum_column_types)col_type == dd::enum_column_types::SET) {
     for (auto &name : enum_names) {
       auto *elem_obj = new_column->add_element();
-      elem_obj->set_name(name.c_str());
+      elem_obj->set_name(name);
     }
   }
 
@@ -3711,8 +3708,8 @@ dict_col_t structure, along with the column name.
                     (void)fseek(file, 0L, SEEK_END););
 
     if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
-      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                  strerror(errno), "while reading table column meta-data.");
+      ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                           "while reading table column meta-data.");
 
       return (DB_IO_ERROR);
     }
@@ -3745,9 +3742,10 @@ dict_col_t structure, along with the column name.
 
     /* FIXME: What is the maximum column name length? */
     if (len == 0 || len > 128) {
-      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                  strerror(errno), "Column name length %lu, is invalid",
-                  (ulong)len);
+      std::ostringstream msg;
+      msg << "Column name length " << len << ", is invalid";
+
+      ib::send_errno_error(thd, ER_IO_READ_ERROR, msg.str());
 
       return (DB_CORRUPTION);
     }
@@ -3768,8 +3766,8 @@ dict_col_t structure, along with the column name.
     err = row_import_cfg_read_string(file, cfg->m_col_names[i], len);
 
     if (err != DB_SUCCESS) {
-      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                  strerror(errno), "while parsing table column name.");
+      ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                           "while parsing table column name.");
 
       return (err);
     }
@@ -3780,9 +3778,9 @@ dict_col_t structure, along with the column name.
 
       /* Read column's v_added, v_dropped, phy_pos  */
       if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
-        ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                    strerror(errno),
-                    "while reading table column INSTANT meta-data.");
+        ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                             "while reading table column INSTANT meta-data.");
+
         return (DB_IO_ERROR);
       }
 
@@ -3818,10 +3816,9 @@ dict_col_t structure, along with the column name.
       err = row_import_read_default_values(file, col, &cfg->m_heap, &read);
 
       if (err != DB_SUCCESS) {
-        ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                    strerror(errno),
-                    "while reading table column"
-                    " default value.");
+        ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                             "while reading table column default value.");
+
         return (err);
       }
 
@@ -3849,9 +3846,8 @@ dict_col_t structure, along with the column name.
 
   /* Read the hostname where the tablespace was exported. */
   if (fread(value, 1, sizeof(value), file) != sizeof(value)) {
-    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                strerror(errno),
-                "while reading meta-data export hostname length.");
+    ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                         "while reading meta-data export hostname length.");
 
     return (DB_IO_ERROR);
   }
@@ -3873,8 +3869,8 @@ dict_col_t structure, along with the column name.
   dberr_t err = row_import_cfg_read_string(file, cfg->m_hostname, len);
 
   if (err != DB_SUCCESS) {
-    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                strerror(errno), "while parsing export hostname.");
+    ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                         "while parsing export hostname.");
 
     return (err);
   }
@@ -3885,8 +3881,8 @@ dict_col_t structure, along with the column name.
 
   /* Read the table name of tablespace that was exported. */
   if (fread(value, 1, sizeof(value), file) != sizeof(value)) {
-    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                strerror(errno), "while reading meta-data table name length.");
+    ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                         "while reading meta-data table name length.");
 
     return (DB_IO_ERROR);
   }
@@ -3908,8 +3904,7 @@ dict_col_t structure, along with the column name.
   err = row_import_cfg_read_string(file, cfg->m_table_name, len);
 
   if (err != DB_SUCCESS) {
-    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                strerror(errno), "while parsing table name.");
+    ib::send_errno_error(thd, ER_IO_READ_ERROR, "while parsing table name.");
 
     return (err);
   }
@@ -3927,8 +3922,7 @@ dict_col_t structure, along with the column name.
 
   /* Read the autoinc value. */
   if (fread(row, 1, sizeof(uint64_t), file) != sizeof(uint64_t)) {
-    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                strerror(errno), "while reading autoinc value.");
+    ib::send_errno_error(thd, ER_IO_READ_ERROR, "while reading autoinc value.");
 
     return (DB_IO_ERROR);
   }
@@ -3941,8 +3935,8 @@ dict_col_t structure, along with the column name.
 
   /* Read the tablespace page size. */
   if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
-    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                strerror(errno), "while reading meta-data header.");
+    ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                         "while reading meta-data header.");
 
     return (DB_IO_ERROR);
   }
@@ -3980,10 +3974,10 @@ dict_col_t structure, along with the column name.
   if (cfg->m_version >= IB_EXPORT_CFG_VERSION_V5) {
     /* Read the nullable field before first instant column */
     if (fread(value, 1, sizeof(value), file) != sizeof(value)) {
-      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                  strerror(errno),
-                  "while reading meta-data nullable column"
-                  " before first instant column.");
+      ib::send_errno_error(
+          thd, ER_IO_READ_ERROR,
+          "while reading meta-data nullable column before first "
+          "instant column.");
 
       return (DB_IO_ERROR);
     }
@@ -3998,8 +3992,8 @@ dict_col_t structure, along with the column name.
 
     /* Read column's count for the table  */
     if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
-      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                  strerror(errno), "while reading table column counts.");
+      ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                           "while reading table column counts.");
       return (DB_IO_ERROR);
     }
 
@@ -4035,8 +4029,8 @@ file.
 
   /* Read the tablespace flags */
   if (fread(value, 1, sizeof(value), file) != sizeof(value)) {
-    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                strerror(errno), "while reading meta-data tablespace flags.");
+    ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                         "while reading meta-data tablespace flags.");
 
     return DB_IO_ERROR;
   }
@@ -4048,8 +4042,8 @@ file.
   if (cfg->m_version >= IB_EXPORT_CFG_VERSION_V6) {
     /* Read the compression type info. */
     if (fread(value, 1, sizeof(uint8_t), file) != sizeof(uint8_t)) {
-      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                  strerror(errno), "while reading compression type info.");
+      ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                           "while reading compression type info.");
 
       return DB_IO_ERROR;
     }
@@ -4106,8 +4100,8 @@ Read the contents of the @<tablespace@>.cfg file.
                   (void)fseek(file, 0L, SEEK_END););
 
   if (fread(&row, 1, sizeof(row), file) != sizeof(row)) {
-    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                strerror(errno), "while reading meta-data version.");
+    ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                         "while reading meta-data version.");
 
     return (DB_IO_ERROR);
   }
@@ -4170,15 +4164,12 @@ Read the contents of the @<tablename@>.cfg file.
   FILE *file = fopen(name, "rb");
 
   if (file == nullptr) {
-    char msg[BUFSIZ];
-
-    snprintf(msg, sizeof(msg),
-             "Error opening '%s', will attempt to import"
-             " without schema verification",
-             name);
+    std::ostringstream msg;
+    msg << "Error opening '" << name
+        << "', will attempt to import without schema verification";
 
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_READ_ERROR, errno,
-                strerror(errno), msg);
+                strerror(errno), msg.str().c_str());
 
     cfg.m_missing = true;
 
@@ -4208,16 +4199,16 @@ static dberr_t row_import_read_encryption_data(row_import &cfg, FILE *file,
   lint elen;
 
   if (fread(&row, 1, sizeof(row), file) != sizeof(row)) {
-    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                strerror(errno), "while reading encrypton key size.");
+    ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                         "while reading encrypton key size.");
 
     return (DB_IO_ERROR);
   }
 
   key_size = mach_read_from_4(row);
   if (key_size != Encryption::KEY_LEN) {
-    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                strerror(errno), "while parsing encryption key size.");
+    ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                         "while parsing encryption key size.");
 
     return (DB_IO_ERROR);
   }
@@ -4254,8 +4245,8 @@ static dberr_t row_import_read_encryption_data(row_import &cfg, FILE *file,
                         Encryption::KEY_LEN, my_aes_256_ecb, nullptr, false);
 
   if (elen == MY_AES_BAD_DATA) {
-    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                strerror(errno), "while decrypt encryption key.");
+    ib::send_errno_error(thd, ER_IO_READ_ERROR,
+                         "while decrypt encryption key.");
 
     return (DB_IO_ERROR);
   }
@@ -4265,8 +4256,7 @@ static dberr_t row_import_read_encryption_data(row_import &cfg, FILE *file,
                         Encryption::KEY_LEN, my_aes_256_ecb, nullptr, false);
 
   if (elen == MY_AES_BAD_DATA) {
-    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                strerror(errno), "while decrypt encryption iv.");
+    ib::send_errno_error(thd, ER_IO_READ_ERROR, "while decrypt encryption iv.");
 
     return (DB_IO_ERROR);
   }
