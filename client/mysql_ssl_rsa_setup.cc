@@ -37,6 +37,7 @@
 #include <sstream>
 #include <string>
 
+#include "client/client_priv.h"
 #include "client/logger.h"
 #include "client/path.h"
 #ifdef _WIN32
@@ -422,6 +423,8 @@ int main(int argc, char *argv[]) {
   MY_INIT(argv[0]);
   DBUG_TRACE;
   DBUG_PROCESS(argv[0]);
+
+  CLIENT_WARN_DEPRECATED("mysql_ssl_rsa_setup", "the mysqld server");
 
   /* Parse options : Command Line/Config file */
 
