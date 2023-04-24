@@ -313,7 +313,6 @@ bool ConfigGenerator::check_target(
     bool allow_no_metadata) {
   schema_version_ =
       mysqlrouter::get_metadata_schema_version(mysql_, allow_no_metadata);
-  if (schema_version_.major == 0) return false;
 
   if (schema_version_ == mysqlrouter::kUpgradeInProgressMetadataVersion) {
     throw std::runtime_error(
@@ -1376,10 +1375,10 @@ std::string ConfigGenerator::bootstrap_deployment(
   auto cluster_info =
       standalone_target_ ? ClusterInfo{} : metadata_->fetch_metadata_servers();
 
-  auto conf_options = standalone_target_ ? ExistingConfigOptions{}
-                                         : get_options_from_config_if_it_exists(
-                                               config_file_path.str(),
-                                               cluster_info, force);
+  auto conf_options = standalone_target_
+                          ? ExistingConfigOptions{}
+                          : get_options_from_config_if_it_exists(
+                                config_file_path.str(), cluster_info, force);
 
   // if user provided --account, override username with it
   conf_options.username =
@@ -1465,17 +1464,17 @@ std::string ConfigGenerator::bootstrap_deployment(
   }
 
   // return bootstrap report (several lines of human-readable text)
-    const std::string cluster_type_name =
-        standalone_target_ ? "" : [](auto cluster_type) {
-          switch (cluster_type) {
-            case ClusterType::RS_V2:
-              return "InnoDB ReplicaSet";
-            case ClusterType::GR_CS:
-              return "ClusterSet";
-            default:
-              return "InnoDB Cluster";
-          }
-        }(metadata_->get_type());
+  const std::string cluster_type_name =
+      standalone_target_ ? "" : [](auto cluster_type) {
+        switch (cluster_type) {
+          case ClusterType::RS_V2:
+            return "InnoDB ReplicaSet";
+          case ClusterType::GR_CS:
+            return "ClusterSet";
+          default:
+            return "InnoDB Cluster";
+        }
+      }(metadata_->get_type());
 
   return get_bootstrap_report_text(
       program_name, config_file_path.str(), router_name, cluster_info.name,
