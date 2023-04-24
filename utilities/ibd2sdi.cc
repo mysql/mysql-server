@@ -906,17 +906,31 @@ bool tablespace_creator::create() {
 
       ut_ad(first_page_num == 0);
 
-      page_no_t pages = static_cast<page_no_t>(size / page_size.physical());
+      const auto max_tablespace_size = uint64_t{page_size.physical()} *
+                                       std::numeric_limits<page_no_t>::max();
+
+      if (!(size < max_tablespace_size)) {
+        ib::error()
+            << "Tablespace file reaches max permissible size for page size "
+            << page_size.physical() << ", and crosses the limit by "
+            << size - max_tablespace_size << " bytes";
+        return true;
+      }
+
+      const auto pages = static_cast<page_no_t>(size / page_size.physical());
+      const auto computed_size = uint64_t{pages} * page_size.physical();
 
       DBUG_EXECUTE_IF("ib_partial_page", size++;);
 
-      if (pages * page_size.physical() != size) {
+      if (computed_size != size) {
         ib::warn() << "There is a partial page at the"
-                   << " end, of size " << size - (pages * page_size.physical())
+                   << " end, of size " << size - computed_size
                    << ". This partial page is ignored";
       }
 
+      ib::dbug() << "Total Size in the file: " << size;
       ib::dbug() << "Total Number of pages in the file: " << pages;
+      ib::dbug() << "Physical Page size in the file: " << page_size.physical();
 
       ib_file_t ibd_file;
       ibd_file.first_page_num = first_page_num;
