@@ -921,7 +921,6 @@ byte *btr_copy_externally_stored_field_func(
 
   if (extern_len == 0) {
     /* The lob has already been purged. */
-    ut_ad(ref_t::page_no(field_ref) == FIL_NULL);
     *len = 0;
     return (buf);
   }
