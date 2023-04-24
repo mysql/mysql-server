@@ -42,7 +42,8 @@ class MySQLRow {
   using Row = mysqlrouter::MySQLSession::Row;
 
  public:
-  MySQLRow(const Row &row) : row_{row} {}
+  MySQLRow(const Row &row, MYSQL_FIELD *fields = nullptr, unsigned number = 0)
+      : row_{row}, fields_{fields}, no_of_fields_{number} {}
 
   void skip(uint32_t to_skip = 1) { field_index_ += to_skip; }
 
@@ -128,6 +129,14 @@ class MySQLRow {
       return;
     }
 
+    if (fields_) {
+      if (field_index_ < no_of_fields_) {
+        if (fields_[field_index_].type == MYSQL_TYPE_BIT) {
+          *out_value = in_value[0] != 0;
+          return;
+        }
+      }
+    }
     if (isalpha(in_value[0])) {
       static std::map<std::string, bool> conversion{
           {"false", false}, {"FALSE", false}, {"true", true}, {"TRUE", true}};
@@ -182,8 +191,11 @@ class MySQLRow {
 
   //  void convert(void * /*out_value*/, const char * /*in_value*/) {}
 
+ public:
   uint32_t field_index_{0};
   const Row &row_;
+  MYSQL_FIELD *fields_;
+  unsigned no_of_fields_;
 };
 
 }  // namespace helper

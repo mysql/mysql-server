@@ -190,7 +190,7 @@ void QueryEntryObject::on_reference_row(const Row &r) {
 void QueryEntryObject::on_field_row(const Row &r) {
   auto field = std::make_shared<entry::ObjectField>();
 
-  helper::MySQLRow row(r);
+  helper::MySQLRow row(r, metadata_, no_od_metadata_);
 
   entry::UniversalId field_id;
   entry::UniversalId parent_reference_id;

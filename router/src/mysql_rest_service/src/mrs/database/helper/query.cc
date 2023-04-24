@@ -110,8 +110,10 @@ void Query::prepare_and_execute(MySQLSession *session, const std::string &q,
 
 void Query::on_row([[maybe_unused]] const Row &r) {}
 
-void Query::on_metadata([[maybe_unused]] unsigned number,
-                        [[maybe_unused]] MYSQL_FIELD *fields) {}
+void Query::on_metadata(unsigned number, MYSQL_FIELD *fields) {
+  metadata_ = fields;
+  no_od_metadata_ = number;
+}
 
 }  // namespace database
 
