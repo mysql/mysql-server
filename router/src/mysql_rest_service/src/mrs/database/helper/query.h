@@ -52,6 +52,8 @@ class Query {
   virtual void on_metadata(unsigned number, MYSQL_FIELD *fields);
 
   mysqlrouter::sqlstring query_;
+  MYSQL_FIELD *metadata_{nullptr};
+  unsigned no_od_metadata_{0};
 };
 
 class QueryLog : public Query {
