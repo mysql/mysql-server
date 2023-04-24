@@ -1289,7 +1289,7 @@ const CodecParam<classic_protocol::message::client::StmtExecute>
         {"cap_query_attributes_one_param",
          {
              1,     // stmt-id
-             0x10,  // flags
+             0x08,  // flags
              1,     // iteration_count
              true,  // new-params bound
              {{classic_protocol::field_type::String, "abc"}},  // types
@@ -1300,7 +1300,7 @@ const CodecParam<classic_protocol::message::client::StmtExecute>
              // serialized
              0x17,                    // cmd
              0x01, 0x00, 0x00, 0x00,  // stmt-id
-             0x10,                    // flags: param-count-available
+             0x08,                    // flags: param-count-available
              0x01, 0x00, 0x00, 0x00,  // iteration-count
              0x01,                    // param-count
              0x00,                    // null-bitmap
@@ -1312,7 +1312,7 @@ const CodecParam<classic_protocol::message::client::StmtExecute>
         {"cap_query_attributes_null_param",
          {
              1,     // stmt-id
-             0x10,  // flags
+             0x08,  // flags
              1,     // iteration_count
              true,  // new-params bound
              {{classic_protocol::field_type::String, "abc"}},  // types
@@ -1323,7 +1323,7 @@ const CodecParam<classic_protocol::message::client::StmtExecute>
              // serialized
              0x17,                    // cmd
              0x01, 0x00, 0x00, 0x00,  // stmt-id
-             0x10,                    // flags: param-count-available
+             0x08,                    // flags: param-count-available
              0x01, 0x00, 0x00, 0x00,  // iteration-count
              0x01,                    // param-count
              0x01,                    // null-bitmap: data[0]: NULL
@@ -1334,7 +1334,7 @@ const CodecParam<classic_protocol::message::client::StmtExecute>
         {"cap_query_attributes_8_params",
          {
              1,     // stmt-id
-             0x10,  // flags
+             0x08,  // flags
              1,     // iteration_count
              true,  // new-params bound
              {
@@ -1361,7 +1361,7 @@ const CodecParam<classic_protocol::message::client::StmtExecute>
              // serialized
              0x17,                          // cmd
              0x01, 0x00, 0x00, 0x00,        // stmt-id
-             0x10,                          // flags: param-count-available
+             0x08,                          // flags: param-count-available
              0x01, 0x00, 0x00, 0x00,        // iteration-count
              0x08,                          // param-count
              0x00,                          // null-bitmap
@@ -1396,7 +1396,7 @@ const CodecParam<classic_protocol::message::client::StmtExecute>
         {"cap_query_attributes_9_params",
          {
              1,     // stmt-id
-             0x10,  // flags
+             0x08,  // flags
              1,     // iteration_count
              true,  // new-params bound
              {
@@ -1425,7 +1425,7 @@ const CodecParam<classic_protocol::message::client::StmtExecute>
              // serialized
              0x17,                    // cmd
              0x01, 0x00, 0x00, 0x00,  // stmt-id
-             0x10,                    // flags: param-count-available
+             0x08,                    // flags: param-count-available
              0x01, 0x00, 0x00, 0x00,  // iteration-count
              0x09,                    // param-count
              0x40, 0x00,              // null-bitmap: data[6]: NULL

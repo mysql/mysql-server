@@ -209,17 +209,16 @@ constexpr value_type session_state_changed{1 << pos::session_state_changed};
 namespace cursor {
 namespace pos {
 using value_type = uint8_t;
-constexpr value_type no_cursor{0};
-constexpr value_type read_only{1};
-constexpr value_type for_update{2};
-constexpr value_type scrollable{3};
-constexpr value_type param_count_available{4};
+constexpr value_type read_only{0};
+constexpr value_type for_update{1};
+constexpr value_type scrollable{2};
+constexpr value_type param_count_available{3};
 
 constexpr value_type _bitset_size{param_count_available + 1};
 }  // namespace pos
 using value_type = std::bitset<pos::_bitset_size>;
 
-constexpr value_type no_cursor{1 << pos::no_cursor};
+constexpr value_type no_cursor{0};
 constexpr value_type read_only{1 << pos::read_only};
 constexpr value_type for_update{1 << pos::for_update};
 constexpr value_type scrollable{1 << pos::scrollable};
