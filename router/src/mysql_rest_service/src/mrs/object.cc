@@ -171,7 +171,7 @@ void Object::update_variables() {
 void Object::cache_object() {
   auto object = query_factory_->create_query_object();
   auto session = cache_->get_instance(collector::kMySQLConnectionMetadata);
-  object->query_entries(session.get(), schema_name_, object_name_);
+  object->query_entries(session.get(), schema_name_, object_name_, pe_.id);
 
   cached_object_ = object->object;
 }

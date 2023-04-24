@@ -37,13 +37,16 @@
 namespace mrs {
 namespace database {
 
-class QueryEntryObject : private Query {
+class QueryEntryObject : private QueryLog {
  public:
   using Object = entry::Object;
+  using UniversalId = entry::UniversalId;
 
  public:
-  virtual void query_entries(MySQLSession *session, const std::string &schema,
-                             const std::string &schema_object);
+  virtual void query_entries(MySQLSession *session,
+                             const std::string &schema_name,
+                             const std::string &object_name,
+                             const UniversalId &db_object_id);
 
   std::shared_ptr<Object> object;
 
