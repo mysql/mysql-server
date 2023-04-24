@@ -31,6 +31,37 @@ INSERT INTO `basic_schema`.`table2` (`name`, `comments`, `date`)
   ("4th row", "This row was inserted as forth row.", "1977-01-21"),
   ("5th row", "", "2021-03-01"),
   ("6th row", "...", "2023-01-21");
+  
+CREATE TABLE IF NOT EXISTS `basic_schema`.`table3` (
+  `id` INTEGER NOT NULL AUTO_INCREMENT,
+  `cvarchar` VARCHAR(255) NOT NULL,
+  `ctext` TEXT NULL,
+  `cdatetime` DATETIME NOT NULL,
+  `ctimestamp` TIMESTAMP NOT NULL,
+  `cdate` DATE NOT NULL,
+  `ctime` TIME NOT NULL,
+  `cyear` YEAR NOT NULL,
+  `csmallint` SMALLINT,
+  `cbigint` BIGINT,
+  `cbin` BINARY(3),
+  `cfloat` FLOAT,
+  `cdouble` DOUBLE,
+  `cdecimal` DECIMAL(5,2),
+  `cenum` ENUM('value1','value2','value3'),
+  `cset` SET('value1','value2','value3'),
+  PRIMARY KEY (`id`));
+
+INSERT INTO `basic_schema`.`table3` 
+  VALUES(1, "first row", "numeric zeros", "2020-12-01 12:01:50", "2020-12-01 12:01:50",
+  "2020-12-01", "12:01:50", "2020",
+  0, 0, 0, 0, 0, 0, "value1", ""),
+  (2, "second row", "numeric min", "2020-12-02 12:02:50", "2020-12-02 12:02:50",
+  "2020-12-02", "12:02:50", "2021",
+    -32768, -9223372036854775808, 0, -999.9999, -999.9999, -999.99, "value1", "value1"),
+  (3, "thrid row", "numeric max", "2020-12-03 12:03:50", "2020-12-03 12:03:50",
+  "2020-12-03", "12:03:50", "2022",
+    32767, 9223372036854775807, b'111', 999.9999, 999.9999, 999.99, "value3", "value1,value2,value3");
+
 
 DROP procedure IF EXISTS `procedure1`;
 
