@@ -133,6 +133,40 @@ CREATE TABLE wl13292(a INT PRIMARY KEY);
 
 DROP TABLE wl13292;
 
+--echo #
+--echo # Bug#35208605: Mysqldump table with virtual column wrong syntax
+--echo #
+
+CREATE DATABASE b35208605;
+USE b35208605;
+CREATE TABLE x1 (c0 BLOB AS ('a') VIRTUAL, c1 INT);
+INSERT INTO x1(c1) VALUES (1);
+CREATE TABLE x2 (c1 INT, c0 BLOB AS ('a') VIRTUAL);
+INSERT INTO x2(c1) VALUES (1);
+CREATE TABLE x3 (c0 BLOB AS ('a') VIRTUAL INVISIBLE, c1 INT);
+INSERT INTO x3(c1) VALUES (1);
+CREATE TABLE x4 (c1 INT, c0 BLOB AS ('a') VIRTUAL INVISIBLE);
+INSERT INTO x4(c1) VALUES (1);
+CREATE TABLE x5 (c0 BLOB AS ('a') STORED, c1 INT);
+INSERT INTO x5(c1) VALUES (1);
+CREATE TABLE x6 (c1 INT, c0 BLOB AS ('a') STORED);
+INSERT INTO x6(c1) VALUES (1);
+CREATE TABLE x7 (c0 BLOB AS ('a') STORED INVISIBLE, c1 INT);
+INSERT INTO x7(c1) VALUES (1);
+CREATE TABLE x8 (c1 INT, c0 BLOB AS ('a') STORED INVISIBLE);
+INSERT INTO x8(c1) VALUES (1);
+
+--echo # Test: all INSERTs must be valid SQL
+--exec $MYSQL_DUMP --skip-comments --compact --result-file=$MYSQLTEST_VARDIR/tmp/b35208605.sql b35208605 2>&1
+DROP TABLE x1,x2,x3,x4,x5,x6,x7,x8;
+--echo # Test: Must apply OK
+--exec $MYSQL b35208605 < $MYSQLTEST_VARDIR/tmp/b35208605.sql 2>&1
+
+DROP TABLE x1,x2,x3,x4,x5,x6,x7,x8;
+USE test;
+DROP DATABASE b35208605;
+remove_file $MYSQLTEST_VARDIR/tmp/b35208605.sql;
+
 
 --echo # End of 8.0 tests
 
