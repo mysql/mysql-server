@@ -1,0 +1,3093 @@
+# Run test on all combinations of character sets for DYNAMIC row format
+# [armscii8:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET armscii8,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET armscii8,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET armscii8,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET armscii8,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET armscii8 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET armscii8 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET armscii8 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET armscii8 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET armscii8 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET armscii8 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET armscii8 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET armscii8 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=armscii8, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=armscii8, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET armscii8,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET armscii8,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET armscii8,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET armscii8,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET armscii8 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET armscii8 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET armscii8 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET armscii8 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET armscii8 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET armscii8 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET armscii8 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET armscii8 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=armscii8, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [ascii:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET ascii,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET ascii,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET ascii,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET ascii,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ascii DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET ascii DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ascii DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET ascii DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ascii NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET ascii NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ascii NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET ascii NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=ascii, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=ascii, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET ascii,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET ascii,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET ascii,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET ascii,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ascii DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET ascii DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ascii DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET ascii DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ascii NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET ascii NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ascii NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET ascii NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=ascii, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [big5:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET big5,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET big5,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET big5,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET big5,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET big5 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET big5 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET big5 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET big5 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET big5 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET big5 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET big5 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET big5 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=big5, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=big5, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET big5,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET big5,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET big5,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET big5,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET big5 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET big5 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET big5 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET big5 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET big5 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET big5 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET big5 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET big5 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=big5, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [binary:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET binary,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET binary,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET binary,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET binary,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET binary DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET binary DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET binary DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET binary DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET binary NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET binary NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET binary NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET binary NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=binary, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=binary, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET binary,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET binary,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET binary,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET binary,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET binary DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET binary DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET binary DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET binary DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET binary NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET binary NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET binary NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET binary NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=binary, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [cp1250:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp1250,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET cp1250,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp1250,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET cp1250,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1250 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1250 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1250 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET cp1250 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1250 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1250 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1250 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1250 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=cp1250, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=cp1250, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp1250,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET cp1250,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp1250,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET cp1250,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1250 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1250 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1250 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET cp1250 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1250 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1250 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1250 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1250 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=cp1250, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [cp1251:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp1251,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET cp1251,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp1251,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET cp1251,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1251 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1251 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1251 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET cp1251 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1251 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1251 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1251 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1251 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=cp1251, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=cp1251, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp1251,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET cp1251,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp1251,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET cp1251,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1251 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1251 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1251 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET cp1251 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1251 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1251 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1251 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1251 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=cp1251, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [cp1256:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp1256,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET cp1256,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp1256,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET cp1256,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1256 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1256 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1256 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET cp1256 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1256 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1256 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1256 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1256 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=cp1256, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=cp1256, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp1256,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET cp1256,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp1256,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET cp1256,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1256 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1256 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1256 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET cp1256 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1256 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1256 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1256 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1256 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=cp1256, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [cp1257:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp1257,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET cp1257,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp1257,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET cp1257,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1257 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1257 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1257 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET cp1257 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1257 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1257 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1257 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1257 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=cp1257, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=cp1257, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp1257,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET cp1257,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp1257,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET cp1257,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1257 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1257 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1257 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET cp1257 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1257 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1257 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp1257 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp1257 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=cp1257, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [cp850:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp850,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET cp850,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp850,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET cp850,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp850 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp850 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp850 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET cp850 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp850 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp850 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp850 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp850 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=cp850, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=cp850, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp850,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET cp850,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp850,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET cp850,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp850 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp850 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp850 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET cp850 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp850 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp850 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp850 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp850 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=cp850, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [cp852:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp852,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET cp852,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp852,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET cp852,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp852 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp852 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp852 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET cp852 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp852 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp852 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp852 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp852 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=cp852, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=cp852, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp852,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET cp852,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp852,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET cp852,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp852 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp852 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp852 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET cp852 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp852 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp852 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp852 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp852 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=cp852, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [cp866:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp866,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET cp866,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp866,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET cp866,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp866 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp866 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp866 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET cp866 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp866 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp866 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp866 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp866 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=cp866, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=cp866, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp866,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET cp866,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp866,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET cp866,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp866 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp866 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp866 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET cp866 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp866 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp866 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp866 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp866 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=cp866, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [cp932:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp932,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET cp932,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp932,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET cp932,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp932 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp932 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp932 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET cp932 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp932 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp932 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp932 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp932 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=cp932, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=cp932, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp932,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET cp932,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET cp932,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET cp932,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp932 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp932 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp932 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET cp932 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp932 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp932 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET cp932 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET cp932 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=cp932, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [dec8:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET dec8,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET dec8,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET dec8,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET dec8,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET dec8 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET dec8 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET dec8 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET dec8 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET dec8 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET dec8 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET dec8 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET dec8 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=dec8, ROW_FORMAT=DYNAMIC;;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=dec8, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET dec8,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET dec8,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET dec8,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET dec8,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET dec8 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET dec8 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET dec8 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET dec8 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET dec8 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET dec8 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET dec8 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET dec8 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=dec8, ROW_FORMAT=DYNAMIC;;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [eucjpms:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET eucjpms,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET eucjpms,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET eucjpms,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET eucjpms,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET eucjpms DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET eucjpms DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET eucjpms DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET eucjpms DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET eucjpms NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET eucjpms NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET eucjpms NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET eucjpms NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=eucjpms, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=eucjpms, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET eucjpms,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET eucjpms,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET eucjpms,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET eucjpms,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET eucjpms DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET eucjpms DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET eucjpms DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET eucjpms DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET eucjpms NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET eucjpms NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET eucjpms NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET eucjpms NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=eucjpms, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [euckr:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET euckr,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET euckr,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET euckr,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET euckr,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET euckr DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET euckr DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET euckr DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET euckr DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET euckr NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET euckr NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET euckr NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET euckr NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=euckr, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=euckr, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET euckr,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET euckr,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET euckr,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET euckr,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET euckr DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET euckr DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET euckr DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET euckr DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET euckr NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET euckr NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET euckr NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET euckr NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=euckr, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [gb18030:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET gb18030,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET gb18030,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET gb18030,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET gb18030,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gb18030 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET gb18030 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gb18030 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET gb18030 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gb18030 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET gb18030 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gb18030 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET gb18030 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=gb18030, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=gb18030, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET gb18030,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET gb18030,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET gb18030,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET gb18030,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gb18030 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET gb18030 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gb18030 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET gb18030 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gb18030 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET gb18030 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gb18030 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET gb18030 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=gb18030, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [gb2312:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET gb2312,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET gb2312,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET gb2312,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET gb2312,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gb2312 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET gb2312 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gb2312 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET gb2312 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gb2312 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET gb2312 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gb2312 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET gb2312 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=gb2312, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=gb2312, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET gb2312,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET gb2312,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET gb2312,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET gb2312,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gb2312 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET gb2312 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gb2312 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET gb2312 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gb2312 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET gb2312 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gb2312 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET gb2312 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=gb2312, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [gbk:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET gbk,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET gbk,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET gbk,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET gbk,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gbk DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET gbk DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gbk DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET gbk DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gbk NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET gbk NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gbk NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET gbk NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=gbk, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=gbk, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET gbk,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET gbk,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET gbk,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET gbk,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gbk DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET gbk DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gbk DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET gbk DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gbk NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET gbk NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET gbk NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET gbk NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=gbk, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [geostd8:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET geostd8,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET geostd8,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET geostd8,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET geostd8,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET geostd8 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET geostd8 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET geostd8 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET geostd8 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET geostd8 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET geostd8 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET geostd8 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET geostd8 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=geostd8, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=geostd8, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET geostd8,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET geostd8,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET geostd8,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET geostd8,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET geostd8 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET geostd8 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET geostd8 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET geostd8 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET geostd8 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET geostd8 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET geostd8 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET geostd8 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=geostd8, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [greek:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET greek,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET greek,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET greek,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET greek,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET greek DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET greek DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET greek DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET greek DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET greek NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET greek NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET greek NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET greek NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=greek, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=greek, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET greek,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET greek,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET greek,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET greek,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET greek DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET greek DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET greek DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET greek DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET greek NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET greek NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET greek NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET greek NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=greek, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [hebrew:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET hebrew,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET hebrew,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET hebrew,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET hebrew,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET hebrew DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET hebrew DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET hebrew DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET hebrew DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET hebrew NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET hebrew NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET hebrew NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET hebrew NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=hebrew, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=hebrew, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET hebrew,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET hebrew,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET hebrew,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET hebrew,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET hebrew DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET hebrew DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET hebrew DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET hebrew DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET hebrew NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET hebrew NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET hebrew NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET hebrew NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=hebrew, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [hp8:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET hp8,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET hp8,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET hp8,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET hp8,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET hp8 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET hp8 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET hp8 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET hp8 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET hp8 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET hp8 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET hp8 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET hp8 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=hp8, ROW_FORMAT=DYNAMIC;;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=hp8, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET hp8,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET hp8,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET hp8,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET hp8,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET hp8 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET hp8 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET hp8 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET hp8 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET hp8 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET hp8 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET hp8 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET hp8 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=hp8, ROW_FORMAT=DYNAMIC;;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [keybcs2:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET keybcs2,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET keybcs2,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET keybcs2,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET keybcs2,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET keybcs2 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET keybcs2 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET keybcs2 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET keybcs2 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET keybcs2 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET keybcs2 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET keybcs2 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET keybcs2 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=keybcs2, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=keybcs2, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET keybcs2,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET keybcs2,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET keybcs2,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET keybcs2,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET keybcs2 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET keybcs2 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET keybcs2 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET keybcs2 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET keybcs2 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET keybcs2 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET keybcs2 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET keybcs2 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=keybcs2, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [koi8r:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET koi8r,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET koi8r,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET koi8r,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET koi8r,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET koi8r DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET koi8r DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET koi8r DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET koi8r DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET koi8r NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET koi8r NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET koi8r NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET koi8r NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=koi8r, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=koi8r, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET koi8r,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET koi8r,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET koi8r,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET koi8r,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET koi8r DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET koi8r DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET koi8r DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET koi8r DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET koi8r NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET koi8r NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET koi8r NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET koi8r NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=koi8r, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [koi8u:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET koi8u,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET koi8u,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET koi8u,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET koi8u,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET koi8u DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET koi8u DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET koi8u DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET koi8u DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET koi8u NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET koi8u NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET koi8u NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET koi8u NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=koi8u, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=koi8u, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET koi8u,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET koi8u,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET koi8u,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET koi8u,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET koi8u DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET koi8u DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET koi8u DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET koi8u DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET koi8u NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET koi8u NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET koi8u NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET koi8u NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=koi8u, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [latin1:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET latin1,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET latin1,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET latin1,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET latin1,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin1 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin1 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin1 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET latin1 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin1 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin1 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin1 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin1 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=latin1, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=latin1, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET latin1,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET latin1,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET latin1,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET latin1,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin1 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin1 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin1 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET latin1 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin1 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin1 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin1 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin1 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=latin1, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [latin2:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET latin2,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET latin2,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET latin2,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET latin2,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin2 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin2 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin2 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET latin2 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin2 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin2 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin2 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin2 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=latin2, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=latin2, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET latin2,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET latin2,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET latin2,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET latin2,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin2 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin2 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin2 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET latin2 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin2 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin2 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin2 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin2 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=latin2, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [latin5:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET latin5,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET latin5,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET latin5,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET latin5,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin5 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin5 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin5 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET latin5 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin5 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin5 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin5 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin5 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=latin5, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=latin5, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET latin5,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET latin5,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET latin5,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET latin5,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin5 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin5 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin5 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET latin5 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin5 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin5 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin5 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin5 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=latin5, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [latin7:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET latin7,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET latin7,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET latin7,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET latin7,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin7 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin7 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin7 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET latin7 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin7 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin7 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin7 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin7 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=latin7, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=latin7, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET latin7,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET latin7,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET latin7,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET latin7,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin7 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin7 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin7 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET latin7 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin7 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin7 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET latin7 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET latin7 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=latin7, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [macce:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET macce,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET macce,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET macce,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET macce,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET macce DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET macce DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET macce DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET macce DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET macce NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET macce NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET macce NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET macce NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=macce, ROW_FORMAT=DYNAMIC;;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=macce, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET macce,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET macce,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET macce,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET macce,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET macce DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET macce DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET macce DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET macce DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET macce NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET macce NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET macce NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET macce NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=macce, ROW_FORMAT=DYNAMIC;;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [macroman:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET macroman,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET macroman,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET macroman,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET macroman,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET macroman DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET macroman DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET macroman DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET macroman DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET macroman NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET macroman NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET macroman NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET macroman NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=macroman, ROW_FORMAT=DYNAMIC;;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=macroman, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET macroman,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET macroman,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET macroman,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET macroman,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET macroman DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET macroman DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET macroman DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET macroman DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET macroman NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET macroman NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET macroman NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET macroman NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=macroman, ROW_FORMAT=DYNAMIC;;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [sjis:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET sjis,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET sjis,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET sjis,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET sjis,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET sjis DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET sjis DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET sjis DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET sjis DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET sjis NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET sjis NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET sjis NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET sjis NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=sjis, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=sjis, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET sjis,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET sjis,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET sjis,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET sjis,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET sjis DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET sjis DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET sjis DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET sjis DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET sjis NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET sjis NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET sjis NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET sjis NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=sjis, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [swe7:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET swe7,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET swe7,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET swe7,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET swe7,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET swe7 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET swe7 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET swe7 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET swe7 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET swe7 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET swe7 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET swe7 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET swe7 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=swe7, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=swe7, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET swe7,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET swe7,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET swe7,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET swe7,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET swe7 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET swe7 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET swe7 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET swe7 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET swe7 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET swe7 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET swe7 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET swe7 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=swe7, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [tis620:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET tis620,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET tis620,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET tis620,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET tis620,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET tis620 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET tis620 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET tis620 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET tis620 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET tis620 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET tis620 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET tis620 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET tis620 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=tis620, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=tis620, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET tis620,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET tis620,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET tis620,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET tis620,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET tis620 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET tis620 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET tis620 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET tis620 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET tis620 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET tis620 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET tis620 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET tis620 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=tis620, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [ucs2:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET ucs2,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET ucs2,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET ucs2,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET ucs2,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ucs2 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET ucs2 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ucs2 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET ucs2 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ucs2 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET ucs2 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ucs2 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET ucs2 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=ucs2, ROW_FORMAT=DYNAMIC;;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=ucs2, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET ucs2,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET ucs2,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET ucs2,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET ucs2,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ucs2 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET ucs2 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ucs2 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET ucs2 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ucs2 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET ucs2 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ucs2 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET ucs2 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=ucs2, ROW_FORMAT=DYNAMIC;;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [ujis:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET ujis,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET ujis,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET ujis,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET ujis,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ujis DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET ujis DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ujis DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET ujis DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ujis NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET ujis NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ujis NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET ujis NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=ujis, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=ujis, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET ujis,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET ujis,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET ujis,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET ujis,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ujis DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET ujis DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ujis DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET ujis DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ujis NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET ujis NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET ujis NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET ujis NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=ujis, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [utf16:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf16,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET utf16,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf16,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET utf16,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf16 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf16 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf16 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET utf16 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf16 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf16 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf16 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf16 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=utf16, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=utf16, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf16,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET utf16,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf16,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET utf16,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf16 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf16 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf16 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET utf16 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf16 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf16 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf16 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf16 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=utf16, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [utf16le:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf16le,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET utf16le,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf16le,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET utf16le,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf16le DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf16le DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf16le DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET utf16le DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf16le NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf16le NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf16le NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf16le NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=utf16le, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=utf16le, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf16le,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET utf16le,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf16le,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET utf16le,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf16le DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf16le DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf16le DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET utf16le DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf16le NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf16le NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf16le NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf16le NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=utf16le, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [utf32:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf32,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET utf32,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf32,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET utf32,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf32 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf32 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf32 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET utf32 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf32 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf32 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf32 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf32 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=utf32, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=utf32, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf32,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET utf32,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf32,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET utf32,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf32 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf32 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf32 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET utf32 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf32 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf32 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf32 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf32 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=utf32, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [utf8mb3:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf8mb3,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET utf8mb3,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf8mb3,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET utf8mb3,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf8mb3 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf8mb3 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf8mb3 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET utf8mb3 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf8mb3 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf8mb3 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf8mb3 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf8mb3 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=utf8mb3, ROW_FORMAT=DYNAMIC;;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=utf8mb3, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf8mb3,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET utf8mb3,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf8mb3,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET utf8mb3,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf8mb3 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf8mb3 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf8mb3 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET utf8mb3 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf8mb3 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf8mb3 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf8mb3 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf8mb3 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=utf8mb3, ROW_FORMAT=DYNAMIC;;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# [utf8mb4:DYNAMIC]
+CREATE TABLE t1 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf8mb4,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET utf8mb4,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf8mb4,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET utf8mb4,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf8mb4 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf8mb4 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf8mb4 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET utf8mb4 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf8mb4 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf8mb4 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf8mb4 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf8mb4 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=utf8mb4, ROW_FORMAT=DYNAMIC;;
+INSERT INTO t1 VALUES (1, 'A', 'P', 'A', 'P', 'B', 'Q', 'B', 'Q', 'c', 'r', 'c', 'r');
+INSERT INTO t1 VALUES (2, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT);
+INSERT INTO t1 VALUES (3, NULL, NULL, NULL, NULL, '', '', '', '', '', '', '', '');
+INSERT INTO t1 VALUES (4, 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's', 'd', 's');
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c2drop	c3drop	c4	c5	c4drop	c5drop	c6	c7	c6drop	c7drop
+1	A	P	A	P	B	Q	B	Q	c	r	c	r
+2	NULL	NULL	NULL	NULL					d	s	d	s
+3	NULL	NULL	NULL	NULL								
+4	d	s	d	s	d	s	d	s	d	s	d	s
+ALTER TABLE t1 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+# Table being exported:
+SELECT * FROM t1 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+CREATE TABLE t3 CHARACTER SET=utf8mb4, ROW_FORMAT=DYNAMIC AS SELECT * FROM t1 ORDER BY c1;;
+ALTER TABLE t3 ADD PRIMARY KEY (c1);
+ALTER TABLE t3 DISCARD TABLESPACE;
+CREATE TABLE t4 (  c1 INT NOT NULL,  c2 ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf8mb4,  c3 SET ('P', 'Q', 'r', 's') CHARACTER SET utf8mb4,  c2drop ENUM ('A', 'B', 'c', 'd') CHARACTER SET utf8mb4,  c3drop SET ('P', 'Q', 'r', 's') CHARACTER SET utf8mb4,  c4 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf8mb4 DEFAULT '',  c5 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf8mb4 DEFAULT '',  c4drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf8mb4 DEFAULT '',  c5drop SET('P', 'Q', 'r', 's', '') CHARACTER SET utf8mb4 DEFAULT '',  c6 ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf8mb4 NOT NULL DEFAULT 'd',  c7 SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf8mb4 NOT NULL DEFAULT 's',  c6drop ENUM ('A', 'B', 'c', 'd', '') CHARACTER SET utf8mb4 NOT NULL DEFAULT'd',  c7drop SET ('P', 'Q', 'r', 's', '') CHARACTER SET utf8mb4 NOT NULL DEFAULT 's',  PRIMARY KEY(c1)) CHARACTER SET=utf8mb4, ROW_FORMAT=DYNAMIC;;
+ALTER TABLE t4 DROP COLUMN c2drop, DROP COLUMN c3drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c4drop, DROP COLUMN c5drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DROP COLUMN c6drop, DROP COLUMN c7drop, ALGORITHM=INSTANT;
+ALTER TABLE t4 DISCARD TABLESPACE;
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+ALTER TABLE t3 IMPORT TABLESPACE;
+ALTER TABLE t4 IMPORT TABLESPACE;
+# Table with LIKE after IMPORT:
+SELECT * FROM t2 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# Table with SELECT * after IMPORT:
+SELECT * FROM t3 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Table with same modification history:
+SELECT * FROM t4 ORDER BY c1;
+c1	c2	c3	c4	c5	c6	c7
+1	A	P	B	Q	c	r
+2	NULL	NULL			d	s
+3	NULL	NULL				
+4	d	s	d	s	d	s
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+# End

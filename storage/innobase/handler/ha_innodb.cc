@@ -23851,20 +23851,7 @@ void ha_innobase::mv_key_capacity(uint *num_keys, size_t *keys_length) const {
       static_cast<uint32_t>(free_space), min_mv_key_length, num_keys);
 }
 
-/** Use this when the args are passed to the format string from
- messages_to_clients.txt directly as is.
-
- Push a warning message to the client, it is a wrapper around:
-
- void push_warning_printf(
-         THD *thd, Sql_condition::enum_condition_level level,
-         uint code, const char *format, ...);
- */
-void ib_senderrf(THD *thd,             /*!< in/out: session */
-                 ib_log_level_t level, /*!< in: warning level */
-                 uint32_t code,        /*!< MySQL error code */
-                 ...)                  /*!< Args */
-{
+void ib_senderrf(THD *thd, ib_log_level_t level, uint32_t code, ...) {
   va_list args;
   char *str = nullptr;
   const char *format = innobase_get_err_msg(code);

@@ -332,11 +332,37 @@ void ib_errf(THD *thd,             /*!< in/out: session */
  void push_warning_printf(
          THD *thd, Sql_condition::enum_warning_level level,
          uint code, const char *format, ...);
- */
-void ib_senderrf(THD *thd,             /*!< in/out: session */
-                 ib_log_level_t level, /*!< in: warning level */
-                 uint32_t code,        /*!< MySQL error code */
-                 ...);                 /*!< Args */
+
+ @param[in,out]  thd    session
+ @param[in]      level  warning level
+ @param[in]      code   MySQL error code
+ @param[in]      ...    Args */
+void ib_senderrf(THD *thd, ib_log_level_t level, uint32_t code, ...);
+
+namespace ib {
+/** Sends an error to the client about low-level `errno` causing high-level
+  `err` in the specified `context`. It is a helper to be used when a low-level
+  IO operation has failed and set `errno`.
+  @param[in]  thd  The connection thread to which to send the error
+  @param[in]  err  The high-level error code in InnoDB caused by low-level errno
+  @param[in]  context  The human-readable string explaining what was going on */
+inline void send_errno_error(THD *thd, int err, const std::string &context) {
+  ib_senderrf(thd, IB_LOG_LEVEL_ERROR, err, errno, strerror(errno),
+              context.c_str());
+}
+
+/** Sends a warning to the client about low-level `errno` causing high-level
+  `err` in the specified `context`. It is a helper to be used when a low-level
+  IO operation has failed and set `errno`.
+  @param[in]  thd  The connection thread to which to send the warning
+  @param[in]  err  The high-level error code in InnoDB caused by low-level errno
+  @param[in]  context  The human-readable string explaining what was going on */
+inline void send_errno_warn(THD *thd, int err, const std::string &context) {
+  ib_senderrf(thd, IB_LOG_LEVEL_WARN, err, errno, strerror(errno),
+              context.c_str());
+}
+
+}  // namespace ib
 
 extern const char *TROUBLESHOOTING_MSG;
 extern const char *TROUBLESHOOT_DATADICT_MSG;
