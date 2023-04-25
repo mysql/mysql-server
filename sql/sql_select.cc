@@ -366,8 +366,7 @@ static const char *get_secondary_engine_fail_reason(const LEX *lex) {
   return nullptr;
 }
 
-static void set_external_engine_fail_reason(const LEX *lex,
-                                            const char *reason) {
+void set_external_engine_fail_reason(const LEX *lex, const char *reason) {
   if (lex->thd->variables.use_secondary_engine != SECONDARY_ENGINE_FORCED &&
       reason != nullptr) {
     for (Table_ref *ref = lex->query_tables; ref != nullptr;
@@ -660,7 +659,7 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
   return false;
 }
 
-static bool has_external_table(Table_ref *query_tables) {
+bool has_external_table(Table_ref *query_tables) {
   for (Table_ref *ref = query_tables; ref != nullptr; ref = ref->next_global) {
     if (ref->is_external()) {
       return true;
