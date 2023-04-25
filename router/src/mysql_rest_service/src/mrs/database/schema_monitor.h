@@ -56,7 +56,11 @@ class SchemaMonitor {
   void run();
   bool wait_until_next_refresh();
 
-  class Waitable : public WaitableMonitor<void *> {};
+  class Waitable : public WaitableMonitor<void *> {
+   public:
+    using Parent = WaitableMonitor<void *>;
+    using Parent::WaitableMonitor;
+  };
 
   std::thread monitor_thread_;
   const mrs::Configuration configuration_;

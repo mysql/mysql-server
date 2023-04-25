@@ -141,8 +141,8 @@ class RapidReaderHandlerToStruct
     if (!keys_.empty()) {
       auto &b = keys_.back();
       if (level_ == b.level) {
-        keys_.pop_back();
         if (b.processed == values_processed_) empty_object();
+        keys_.pop_back();
       }
     }
 
@@ -175,8 +175,8 @@ class RapidReaderHandlerToStruct
     if (!keys_.empty()) {
       auto &b = keys_.back();
       if (level_ == b.level) {
-        keys_.pop_back();
         if (b.processed == values_processed_) empty_array();
+        keys_.pop_back();
       }
     }
     return true;
