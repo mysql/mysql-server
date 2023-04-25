@@ -3,16 +3,6 @@
 # unsafe system function like rand(), LIMIT clause.
 --source include/not_binlog_format_statement.inc
 
-# The test fails with log_bin ON and binlog_format=ROW due to Bug#22841208.
-# Temporarily, overriding binlog_format to MIXED when log_bin is ON.
-if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
-{
-  --disable_query_log
-  SET @saved_binlog_format= @@SESSION.binlog_format;
-  SET SESSION binlog_format= MIXED;
-  --enable_query_log
-}
-
 # 
 # Run subquery_sj.inc with all of the so-called 6.0 features.
 #
@@ -22,10 +12,3 @@ set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,
 --source include/subquery_sj.inc
 
 set optimizer_switch=default;
-
-if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
-{
-  --disable_query_log
-  SET SESSION binlog_format= @saved_binlog_format;
-  --enable_query_log
-}
