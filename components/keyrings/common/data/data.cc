@@ -88,7 +88,7 @@ void Data::set_type(Type type) {
 }
 
 /** Comparison */
-bool Data::operator==(const Data &other) {
+bool Data::operator==(const Data &other) const {
   return data_ == other.data_ && type_ == other.type_ && valid_ == other.valid_;
 }
 

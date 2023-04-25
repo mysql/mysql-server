@@ -48,7 +48,7 @@ private:
 
 public:
   /* Constructor */
-  ListNode<T>(T *t) : next(0), item(t), signalinfo(0)
+  ListNode(T *t) : next(0), item(t), signalinfo(0)
   {
     note[0] = '\0';
   }
@@ -72,14 +72,14 @@ private:
   ListNode<T> * head;
   
 public:
-  SharedList<T>() : head(0)
+  SharedList() : head(0)
   {
     int i = uv_mutex_init(& lock);
     assert(i == 0);
   }
   
   
-  ~SharedList<T>()
+  ~SharedList()
   {
     uv_mutex_destroy(& lock);
   }

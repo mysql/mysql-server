@@ -42,8 +42,13 @@ class Shared_spin_lock_test : public ::testing::Test {
 TEST_F(Shared_spin_lock_test, Lock_unlock_test) {
   lock::Shared_spin_lock lock1;
   lock::Shared_spin_lock lock2;
-  std::atomic_flag t1_sync{true};
-  std::atomic_flag t2_sync{true};
+  std::atomic_flag t1_sync;
+  std::atomic_flag t2_sync;
+
+  // Workaround for Visual Studio. error C2440:
+  // 'initializing': cannot convert from 'bool' to 'std::atomic_flag'
+  (void)atomic_flag_test_and_set(&t1_sync);
+  (void)atomic_flag_test_and_set(&t2_sync);
 
   lock1.try_exclusive();
   lock2.acquire_shared();
@@ -149,7 +154,10 @@ TEST_F(Shared_spin_lock_test, Lock_unlock_test) {
 
 TEST_F(Shared_spin_lock_test, Starvation_test) {
   lock::Shared_spin_lock lock;
-  std::atomic_flag sync{true};
+  std::atomic_flag sync;
+
+  // Workaround for Visual Studio, see above.
+  (void)atomic_flag_test_and_set(&sync);
 
   lock.acquire_shared();
   EXPECT_EQ(lock.acquire_exclusive().is_shared_acquisition(),
@@ -193,8 +201,12 @@ TEST_F(Shared_spin_lock_test, Starvation_test) {
 
 TEST_F(Shared_spin_lock_test, Sentry_class_test) {
   lock::Shared_spin_lock lock1;
-  std::atomic_flag t1_sync{true};
-  std::atomic_flag t2_sync{true};
+  std::atomic_flag t1_sync;
+  std::atomic_flag t2_sync;
+
+  // Workaround for Visual Studio, see above.
+  (void)atomic_flag_test_and_set(&t1_sync);
+  (void)atomic_flag_test_and_set(&t2_sync);
 
   std::thread t1([&]() -> void {
     lock::Shared_spin_lock::Guard sentry1{

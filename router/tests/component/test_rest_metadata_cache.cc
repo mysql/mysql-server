@@ -50,7 +50,6 @@
 using namespace std::chrono_literals;
 
 static const std::string http_auth_realm_name("somerealm");
-static const std::string http_auth_backend_name("somebackend");
 
 // init_keyring() creates it
 static const std::string keyring_username("mysql_router1_user");

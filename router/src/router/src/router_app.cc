@@ -74,7 +74,6 @@
 #include <unistd.h>
 #include <csignal>
 const char dir_sep = '/';
-const std::string path_sep = ":";
 #else
 #include <process.h>
 #include <windows.h>
@@ -85,7 +84,6 @@ const std::string path_sep = ":";
 #include "mysqlrouter/windows/service_operations.h"
 #define strtok_r strtok_s
 const char dir_sep = '\\';
-const std::string path_sep = ";";
 #endif
 
 IMPORT_LOG_FUNCTIONS()

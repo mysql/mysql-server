@@ -1016,11 +1016,12 @@ Log_event::enum_skip_reason Log_event::do_shall_skip(Relay_log_info *rli) {
     - Other events will decrease the counter unless OPTION_BEGIN is
       set.
   */
-  DBUG_PRINT("info", ("ev->server_id=%lu, ::server_id=%lu,"
-                      " rli->replicate_same_server_id=%d,"
-                      " rli->replica_skip_counter=%d",
-                      (ulong)server_id, (ulong)::server_id,
-                      rli->replicate_same_server_id, rli->slave_skip_counter));
+  DBUG_PRINT("info",
+             ("ev->server_id=%lu, ::server_id=%lu,"
+              " rli->replicate_same_server_id=%d,"
+              " rli->replica_skip_counter=%d",
+              (ulong)server_id, (ulong)::server_id,
+              rli->replicate_same_server_id, rli->slave_skip_counter.load()));
   if ((server_id == ::server_id && !rli->replicate_same_server_id) ||
       (rli->slave_skip_counter == 1 && rli->is_in_group()))
     return EVENT_SKIP_IGNORE;
@@ -7899,7 +7900,8 @@ int Rows_log_event::unpack_current_row(const Relay_log_info *const rli,
           // A table view for generated columns that need to be updated on the
           // replica, excluding columns for functional indexes
           this->m_table,
-          [=](TABLE const *table, size_t column_index) -> bool {
+          [is_after_image, this](TABLE const *table,
+                                 size_t column_index) -> bool {
             auto field = table->field[column_index];
             if (field->is_field_for_functional_index())  // Always exclude
                                                          // functional indexes

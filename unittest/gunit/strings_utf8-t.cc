@@ -574,6 +574,18 @@ class StringsUTF8mb4_900Test : public ::testing::Test {
                pointer_cast<const uchar *>(b), strlen(b)) == 0;
   }
 
+#if defined(__cpp_char8_t) && __cpp_char8_t
+  bool equals(const char *a, const char8_t *b) {
+    return equals(a, pointer_cast<const char *>(b));
+  }
+  bool equals(const char8_t *a, const char *b) {
+    return equals(pointer_cast<const char *>(a), b);
+  }
+  bool equals(const char8_t *a, const char8_t *b) {
+    return equals(pointer_cast<const char *>(a), pointer_cast<const char *>(b));
+  }
+#endif
+
  private:
   CHARSET_INFO *m_charset;
 };
@@ -663,6 +675,13 @@ static bool uca_wildcmp(const CHARSET_INFO *cs, const char *str,
   return !cs->coll->wildcmp(cs, str, str_end, pattern, pattern_end, '\\', '_',
                             '%');
 }
+
+#if defined(__cpp_char8_t) && __cpp_char8_t
+static bool uca_wildcmp(const CHARSET_INFO *cs, const char *str,
+                        const char8_t *pattern) {
+  return uca_wildcmp(cs, str, pointer_cast<const char *>(pattern));
+}
+#endif
 
 TEST(UCAWildCmpTest, UCA900WildCmp) {
   CHARSET_INFO *cs = get_charset_by_name("utf8mb4_0900_ai_ci", MYF(0));
@@ -765,6 +784,15 @@ static bool test_well_formed_copy_nchars(const CHARSET_INFO *to_cs,
 
   return well_formed;
 }
+
+#if defined(__cpp_char8_t) && __cpp_char8_t
+static bool test_well_formed_copy_nchars(const CHARSET_INFO *to_cs,
+                                         const CHARSET_INFO *from_cs,
+                                         const char8_t *input_str) {
+  return test_well_formed_copy_nchars(to_cs, from_cs,
+                                      pointer_cast<const char *>(input_str));
+}
+#endif
 
 TEST(WellFormedCopy, TooLongWellFormed) {
   EXPECT_TRUE(test_well_formed_copy_nchars(

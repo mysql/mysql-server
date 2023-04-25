@@ -62,7 +62,7 @@ class Data {
 
   void set_type(Type type);
 
-  bool operator==(const Data &other);
+  bool operator==(const Data &other) const;
 
  protected:
   void set_validity();

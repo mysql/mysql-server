@@ -789,6 +789,33 @@ IF(WITH_DEFAULT_COMPILER_OPTIONS)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/compiler_options.cmake)
 ENDIF()
 
+OPTION(WITH_EXPERIMENTAL_CPP20
+  "Build with -std=c++20, note: this is experimental" OFF)
+
+IF(WITH_EXPERIMENTAL_CPP20)
+  IF(MY_COMPILER_IS_GNU)
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
+      MESSAGE(FATAL_ERROR "GCC 10 or newer is required for -std=c++20")
+    ENDIF()
+  ELSEIF(MY_COMPILER_IS_CLANG)
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11.0)
+      MESSAGE(FATAL_ERROR "Clang 11 or newer is required for -std=c++20")
+    ENDIF()
+  ENDIF()
+  IF(UNIX)
+    STRING(REPLACE "-std=c++17" "-std=c++20"
+      CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  ELSE()
+    FOREACH(flag
+        CMAKE_CXX_FLAGS_MINSIZEREL
+        CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
+        CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT
+        )
+      STRING(REPLACE "/std:c++17" "/std:c++20" ${flag} "${${flag}}")
+    ENDFOREACH()
+  ENDIF()
+ENDIF()
+
 # Assume, for now at least, that we want build-id for all kinds of Linux builds.
 IF(LINUX)
   OPTION(WITH_BUILD_ID "Add --build-id=sha1 to all executables." ON)

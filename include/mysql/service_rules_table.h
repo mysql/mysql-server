@@ -113,7 +113,7 @@ class Cursor {
     Equality operator. The only cursors that are equal are past-the-end
     cursors.
   */
-  bool operator==(const Cursor &other) {
+  bool operator==(const Cursor &other) const {
     return (m_is_finished == other.m_is_finished);
   }
 

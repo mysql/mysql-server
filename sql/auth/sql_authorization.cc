@@ -230,6 +230,16 @@ opt_always_activate_roles_on_login is set to true.
 
  */
 
+bool operator==(const Role_id &a, const std::string &b) {
+  std::string tmp;
+  a.auth_str(&tmp);
+  return tmp == b;
+}
+
+bool operator==(const std::pair<Role_id, bool> &a, const std::string &b) {
+  return a.first == b;
+}
+
 /**
   Class to handle sanity checks for GRANT ... AS ... statement
 */
@@ -7429,16 +7439,6 @@ Sctx_ptr<Security_context> Security_context_factory::create() {
       if (ptr->has_executed_drop_policy()) delete ptr;
     }
   });
-}
-
-bool operator==(const Role_id &a, const std::string &b) {
-  std::string tmp;
-  a.auth_str(&tmp);
-  return tmp == b;
-}
-
-bool operator==(const std::pair<Role_id, bool> &a, const std::string &b) {
-  return a.first == b;
 }
 
 bool operator==(const Role_id &a, const Auth_id_ref &b) {

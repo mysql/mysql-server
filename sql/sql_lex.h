@@ -32,6 +32,7 @@
 #include <sys/types.h>  // TODO: replace with cstdint
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <functional>
 #include <map>
@@ -2866,8 +2867,10 @@ class Query_tables_list {
     @retval nonzero if the statement is a row injection
   */
   inline bool is_stmt_row_injection() const {
-    return binlog_stmt_flags &
-           (1U << (BINLOG_STMT_UNSAFE_COUNT + BINLOG_STMT_TYPE_ROW_INJECTION));
+    constexpr uint32_t shift =
+        static_cast<uint32_t>(BINLOG_STMT_UNSAFE_COUNT) +
+        static_cast<uint32_t>(BINLOG_STMT_TYPE_ROW_INJECTION);
+    return binlog_stmt_flags & (1U << shift);
   }
 
   /**
@@ -2876,10 +2879,11 @@ class Query_tables_list {
     the slave SQL thread.
   */
   inline void set_stmt_row_injection() {
+    constexpr uint32_t shift =
+        static_cast<uint32_t>(BINLOG_STMT_UNSAFE_COUNT) +
+        static_cast<uint32_t>(BINLOG_STMT_TYPE_ROW_INJECTION);
     DBUG_TRACE;
-    binlog_stmt_flags |=
-        (1U << (BINLOG_STMT_UNSAFE_COUNT + BINLOG_STMT_TYPE_ROW_INJECTION));
-    return;
+    binlog_stmt_flags |= (1U << shift);
   }
 
   enum enum_stmt_accessed_table {

@@ -40,6 +40,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef sync0rw_h
 #define sync0rw_h
 
+#include <atomic>
+#include <cstdint>
+
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
 #include "os0event.h"
@@ -384,7 +387,20 @@ struct rw_lock_t
   std::atomic<bool> recursive;
 
   /** number of granted SX locks. */
-  volatile ulint sx_recursive;
+  std::atomic<uint64_t> sx_recursive;
+
+  void decrement_sx_recursive() {
+    auto old_value = sx_recursive.load(std::memory_order_relaxed);
+    auto new_value = old_value - 1;
+    sx_recursive.store(new_value, std::memory_order_relaxed);
+  }
+
+  uint64_t increment_sx_recursive() {
+    auto old_value = sx_recursive.load(std::memory_order_relaxed);
+    auto new_value = old_value + 1;
+    sx_recursive.store(new_value, std::memory_order_relaxed);
+    return old_value;
+  }
 
   /** Thread id of writer thread. Is only guaranteed to have non-stale value if
   recursive flag is set, otherwise it may contain native thread ID of a

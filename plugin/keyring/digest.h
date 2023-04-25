@@ -40,7 +40,7 @@ class Digest {
   ~Digest();
 
   void assign(const char *value);
-  bool operator==(const Digest &digest);
+  bool operator==(const Digest &digest) const;
   Digest &operator=(const Digest &digest);
   void compute(uchar *memory, size_t memory_size);
 

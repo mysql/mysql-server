@@ -129,6 +129,31 @@ IF(HAS_WARN_FLAG)
   LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "${HAS_WARN_FLAG}")
 ENDIF()
 
+# typedef int8_t UBool; results in
+# error: return type of virtual UBool xxx::operator==(const xxx&) is not bool
+IF(CMAKE_CXX_FLAGS MATCHES "-std=c..20")
+  STRING(REPLACE "-std=c++20" "-std=c++17" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+ENDIF()
+
+IF(WIN32)
+  # In case we have switched on c++20 elsewhere
+  FOREACH(flag
+      CMAKE_CXX_FLAGS_MINSIZEREL
+      CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
+      CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT
+      )
+    IF("${${flag}}" MATCHES "/std:c..20")
+      STRING(REPLACE "/std:c++20" "/std:c++17" ${flag} "${${flag}}")
+    ENDIF()
+  ENDFOREACH()
+ENDIF()
+
+# warning: arithmetic between different enumeration types is deprecated
+MY_CHECK_CXX_COMPILER_WARNING("-Wdeprecated-enum-enum-conversion" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "${HAS_WARN_FLAG}")
+ENDIF()
+
 IF(WIN32)
   ADD_DEFINITIONS(
     -DU_STATIC_IMPLEMENTATION=1

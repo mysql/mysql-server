@@ -4614,7 +4614,7 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
           LogErr(INFORMATION_LEVEL, ER_RPL_MTA_STATISTICS,
                  rli->get_for_channel_str(),
                  static_cast<unsigned long>(my_now - rli->mts_last_online_stat),
-                 rli->mts_events_assigned, rli->mts_wq_overrun_cnt,
+                 rli->mts_events_assigned, rli->mts_wq_overrun_cnt.load(),
                  rli->mts_wq_overfill_cnt, rli->wq_size_waits_cnt,
                  rli->mts_total_wait_overlap.load(),
                  rli->mts_wq_no_underrun_cnt, rli->mts_total_wait_worker_avail);
@@ -6850,7 +6850,7 @@ static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited) {
        "found (count) workers occupied = %lu "
        "waited when workers occupied = %llu",
        rli->mts_events_assigned, diff_timespec(&stats_end, &rli->stats_begin),
-       rli->mts_wq_overrun_cnt, rli->mts_wq_overfill_cnt,
+       rli->mts_wq_overrun_cnt.load(), rli->mts_wq_overfill_cnt,
        rli->wq_size_waits_cnt, rli->mts_total_wait_overlap.load(),
        rli->mts_wq_no_underrun_cnt, rli->mts_total_wait_worker_avail));
 

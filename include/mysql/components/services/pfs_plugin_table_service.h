@@ -410,22 +410,21 @@ typedef void (*close_table_t)(PSI_table_handle *handle);
  plugin/component.
 */
 struct PFS_engine_table_proxy {
-  rnd_next_t rnd_next;
-  rnd_init_t rnd_init;
-  rnd_pos_t rnd_pos;
-  index_init_t index_init;
-  index_read_t index_read;
-  index_next_t index_next;
-  read_column_value_t read_column_value;
-  reset_position_t reset_position;
-  write_column_value_t write_column_value;
-  write_row_values_t write_row_values;
-  update_column_value_t update_column_value;
-  update_row_values_t update_row_values;
-  delete_row_values_t delete_row_values;
-  open_table_t open_table;
-  close_table_t close_table;
-  PFS_engine_table_proxy() = default;
+  rnd_next_t rnd_next{nullptr};
+  rnd_init_t rnd_init{nullptr};
+  rnd_pos_t rnd_pos{nullptr};
+  index_init_t index_init{nullptr};
+  index_read_t index_read{nullptr};
+  index_next_t index_next{nullptr};
+  read_column_value_t read_column_value{nullptr};
+  reset_position_t reset_position{nullptr};
+  write_column_value_t write_column_value{nullptr};
+  write_row_values_t write_row_values{nullptr};
+  update_column_value_t update_column_value{nullptr};
+  update_row_values_t update_row_values{nullptr};
+  delete_row_values_t delete_row_values{nullptr};
+  open_table_t open_table{nullptr};
+  close_table_t close_table{nullptr};
 };
 typedef struct PFS_engine_table_proxy PFS_engine_table_proxy;
 

@@ -22,6 +22,8 @@
 
 /* Simple unit tests for thread id partitioned rwlocks. */
 
+#include <atomic>
+
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
@@ -57,7 +59,7 @@ TEST(PartitionedRwlock, InitDestroy) {
 class Reader_thread : public Thread {
  public:
   void init(uint thread_id, Partitioned_rwlock *rwlock,
-            volatile uint *shared_counter) {
+            std::atomic<uint> *shared_counter) {
     m_thread_id = thread_id;
     m_rwlock = rwlock;
     m_shared_counter = shared_counter;
@@ -76,12 +78,12 @@ class Reader_thread : public Thread {
  private:
   uint m_thread_id;
   Partitioned_rwlock *m_rwlock;
-  volatile uint *m_shared_counter;
+  std::atomic<uint> *m_shared_counter;
 };
 
 class Writer_thread : public Thread {
  public:
-  Writer_thread(Partitioned_rwlock *rwlock, volatile uint *shared_counter)
+  Writer_thread(Partitioned_rwlock *rwlock, std::atomic<uint> *shared_counter)
       : m_rwlock(rwlock), m_shared_counter(shared_counter) {}
   void run() override {
     for (uint i = 0; i < 1000; ++i) {
@@ -98,7 +100,7 @@ class Writer_thread : public Thread {
 
  private:
   Partitioned_rwlock *m_rwlock;
-  volatile uint *m_shared_counter;
+  std::atomic<uint> *m_shared_counter;
 };
 
 /**
@@ -110,7 +112,7 @@ TEST(PartitionedRwlock, Concurrent) {
   const uint PARTS_NUM = 32;
 
   Partitioned_rwlock rwlock;
-  volatile uint shared_counter = 0;
+  std::atomic<uint> shared_counter = 0;
   rwlock.init(PARTS_NUM
 #ifdef HAVE_PSI_INTERFACE
               ,

@@ -66,7 +66,7 @@ static bool st_mtime_eq(const struct stat &a, const struct stat &b) {
 #endif
 }
 
-bool FileModified::operator==(const FileModified &b) {
+bool FileModified::operator==(const FileModified &b) const {
   // ignores atime, ctime, dev and rdev
   return (meta_.res.first == b.meta_.res.first) &&
          (meta_.res.second.st_size == b.meta_.res.second.st_size) &&

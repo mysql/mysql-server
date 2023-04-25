@@ -430,7 +430,7 @@ static inline void rw_lock_sx_unlock_func(IF_DEBUG(ulint pass, )
   ut_ad(rw_lock_get_sx_lock_count(lock));
   ut_ad(lock->sx_recursive > 0);
 
-  --lock->sx_recursive;
+  lock->decrement_sx_recursive();
 
   ut_d(rw_lock_remove_debug_info(lock, pass, RW_LOCK_SX));
 

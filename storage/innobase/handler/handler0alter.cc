@@ -6137,7 +6137,8 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
 
   DEBUG_SYNC(m_user_thd, "innodb_inplace_alter_table_enter");
 
-  auto all_ok = [=]() -> bool {
+  auto all_ok = [this]() -> bool {
+    (void)this;
     DEBUG_SYNC(m_user_thd, "innodb_after_inplace_alter_table");
     return false;
   };

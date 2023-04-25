@@ -517,7 +517,7 @@ bool rw_lock_sx_lock_low(rw_lock_t *lock, ulint pass, ut::Location location) {
     /* Decrement occurred: we are the SX lock owner. */
     rw_lock_set_writer_id_and_recursion_flag(lock, !pass);
 
-    lock->sx_recursive = 1;
+    lock->sx_recursive.store(1, std::memory_order_relaxed);
 
   } else {
     /* Decrement failed: It already has an X or SX lock by this
@@ -527,7 +527,7 @@ bool rw_lock_sx_lock_low(rw_lock_t *lock, ulint pass, ut::Location location) {
         lock->writer_thread.load(std::memory_order_relaxed) ==
             std::this_thread::get_id()) {
       /* This thread owns an X or SX lock */
-      if (lock->sx_recursive++ == 0) {
+      if (lock->increment_sx_recursive() == 0) {
         /* This thread is making first SX-lock request
         and it must be holding at least one X-lock here
         because:

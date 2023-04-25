@@ -273,8 +273,10 @@ void Relay_log_info::init_workers(ulong n_workers) {
     Parallel slave parameters initialization is done regardless
     whether the feature is or going to be active or not.
   */
-  mts_groups_assigned = mts_events_assigned = pending_jobs = wq_size_waits_cnt =
-      0;
+  mts_groups_assigned = 0;
+  mts_events_assigned = 0;
+  pending_jobs = 0;
+  wq_size_waits_cnt = 0;
   mts_wq_excess_cnt = mts_wq_no_underrun_cnt = mts_wq_overfill_cnt = 0;
   mts_total_wait_overlap = 0;
   mts_total_wait_worker_avail = 0;
@@ -670,7 +672,7 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
     int cmp_result = 0;
 
     DBUG_PRINT("info", ("init_abort_pos_wait: %ld  abort_pos_wait: %ld",
-                        init_abort_pos_wait, abort_pos_wait));
+                        init_abort_pos_wait, abort_pos_wait.load()));
     DBUG_PRINT("info", ("group_source_log_name: '%s'  pos: %lu",
                         group_master_log_name, (ulong)group_master_log_pos));
 
@@ -846,7 +848,7 @@ int Relay_log_info::wait_for_gtid_set(THD *thd, const Gtid_set *wait_gtid_set,
   while (!thd->killed && init_abort_pos_wait == abort_pos_wait &&
          slave_running) {
     DBUG_PRINT("info", ("init_abort_pos_wait: %ld  abort_pos_wait: %ld",
-                        init_abort_pos_wait, abort_pos_wait));
+                        init_abort_pos_wait, abort_pos_wait.load()));
 
     // wait for master update, with optional timeout.
 

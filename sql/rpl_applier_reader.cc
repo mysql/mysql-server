@@ -522,7 +522,7 @@ void Rpl_applier_reader::debug_print_next_event_positions() {
   DBUG_PRINT(
       "info",
       ("assertion skip %u file pos %llu event relay log pos %llu file %s\n",
-       m_rli->slave_skip_counter, m_relaylog_file_reader.position(),
+       m_rli->slave_skip_counter.load(), m_relaylog_file_reader.position(),
        m_rli->get_event_relay_log_pos(), m_rli->get_event_relay_log_name()));
 
   /* This is an assertion which sometimes fails, let's try to track it */

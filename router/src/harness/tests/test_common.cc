@@ -68,7 +68,9 @@ TEST(TestCommon, SerialComma) {
   using mysql_harness::serial_comma;
 
   auto expect_output = [](int count, const std::string &expect) {
-    constexpr int primes[]{2, 3, 5, 7, 11};
+    // Was constexpr, but Visual Studio said
+    // error C2101 '&' on constant
+    int primes[]{2, 3, 5, 7, 11};
 
     std::string res = "Primes are ";
     res += serial_comma(&primes[0], &primes[count]);

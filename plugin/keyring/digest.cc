@@ -56,7 +56,7 @@ void Digest::assign(const char *value) {
   is_empty = false;
 }
 
-bool Digest::operator==(const Digest &digest) {
+bool Digest::operator==(const Digest &digest) const {
   return this->is_empty == digest.is_empty && this->length == digest.length &&
          memcmp(this->value, digest.value, this->length) == 0;
 }

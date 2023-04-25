@@ -480,8 +480,8 @@ struct dict_col_default_t {
   /** Length of default value */
   size_t len;
 
-  bool operator==(const dict_col_default_t &other);
-  bool operator!=(const dict_col_default_t &other);
+  bool operator==(const dict_col_default_t &other) const;
+  bool operator!=(const dict_col_default_t &other) const;
 };
 
 /** Data structure for a column in a table */

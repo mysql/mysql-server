@@ -23,6 +23,8 @@
 #ifndef LOG_BUILTINS_FILTER_H
 #define LOG_BUILTINS_FILTER_H
 
+#include <atomic>
+
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
@@ -138,10 +140,27 @@ typedef struct _log_filter_rule {
   ulong flags;
 
   /** how often did this rule match? */
-  volatile int32 match_count;
+  std::atomic<int32> match_count;
 
   /** lock an individual rule (to update state keeping) */
   mysql_rwlock_t rule_lock;
+
+  _log_filter_rule &operator=(const _log_filter_rule &other) {
+    if (this == &other) return *this;
+    id = other.id;
+    jump = other.jump;
+    match = other.match;
+    cond = other.cond;
+    verb = other.verb;
+    aux = other.aux;
+    throttle_window_end = other.throttle_window_end;
+    throttle_window_size = other.throttle_window_size;
+    throttle_matches = other.throttle_matches;
+    flags = other.flags;
+    match_count = other.match_count.load();
+    rule_lock = other.rule_lock;
+    return *this;
+  }
 } log_filter_rule;
 
 #define LOG_FILTER_RULE_MAX 512

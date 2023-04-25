@@ -44,7 +44,6 @@
  * Constants that are used throughout the test cases.
  */
 const unsigned kRouterId = 2;
-const std::string replication_group_id = "0000-0000-0001";
 const std::string kDefaultMetadataHost = "127.0.0.1";  // 127.0.0.1
 const std::string kDefaultMetadataUser = "admin";      // admin
 const std::string kDefaultMetadataPassword = "";       //

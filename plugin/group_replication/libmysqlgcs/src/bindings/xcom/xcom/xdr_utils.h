@@ -55,9 +55,6 @@ extern "C" u_long xdr_sizeof(xdrproc_t, void *);
     x->name##_array_len = 0;   \
   }
 
-#define in_range(x, name, n) \
-  (((int)n) >= 0 && ((int)n) < ((int)(x).name##_array_len))
-
 /**
     Resize an array
  */

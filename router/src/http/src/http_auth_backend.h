@@ -86,7 +86,7 @@ class FileModified {
   /**
    * check if two FileModified's are equal.
    */
-  bool operator==(const FileModified &b);
+  bool operator==(const FileModified &b) const;
 
  private:
   FileMeta meta_;

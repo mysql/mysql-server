@@ -350,11 +350,15 @@ int Slave_worker::init_worker(Relay_log_info *rli, ulong i) {
   server_version = version_product(rli->slave_version_split);
   bitmap_shifted = 0;
   workers = c_rli->workers;  // shallow copying is sufficient
-  wq_empty_waits = wq_size_waits_cnt = groups_done = events_done = curr_jobs =
-      0;
+  wq_empty_waits = 0;
+  wq_size_waits_cnt = 0;
+  groups_done = 0;
+  events_done = 0;
+  curr_jobs = 0;
   usage_partition = 0;
   end_group_sets_max_dbs = false;
-  gaq_index = last_group_done_index = c_rli->gaq->capacity;  // out of range
+  gaq_index = c_rli->gaq->capacity;              // out of range
+  last_group_done_index = c_rli->gaq->capacity;  // out of range
   last_groups_assigned_index = 0;
   assert(!jobs.inited_queue);
   jobs.avail = 0;

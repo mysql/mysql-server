@@ -118,6 +118,18 @@ int compare_through_strxfrm(CHARSET_INFO *cs, const char *a, const char *b) {
   }
 }
 
+#if defined(__cpp_char8_t) && __cpp_char8_t
+int compare_through_strxfrm(CHARSET_INFO *cs, const char *a, const char8_t *b) {
+  return compare_through_strxfrm(cs, a, pointer_cast<const char *>(b));
+}
+
+int compare_through_strxfrm(CHARSET_INFO *cs, const char8_t *a,
+                            const char8_t *b) {
+  return compare_through_strxfrm(cs, pointer_cast<const char *>(a),
+                                 pointer_cast<const char *>(b));
+}
+#endif
+
 }  // namespace
 
 #if !defined(NDEBUG)
@@ -2253,6 +2265,12 @@ uint64 hash(CHARSET_INFO *cs, const char *str) {
                       &nr2);
   return nr1;
 }
+
+#if defined(__cpp_char8_t) && __cpp_char8_t
+uint64 hash(CHARSET_INFO *cs, const char8_t *str) {
+  return hash(cs, pointer_cast<const char *>(str));
+}
+#endif
 
 /*
   NOTE: In this entire test, there's an infinitesimal chance

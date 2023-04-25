@@ -166,28 +166,11 @@ class execution_context {
   }
 
   // 13.7.3 [async.exec.ctx.ops]
-  void notify_fork(fork_event e) {
-    // prepare is in reverse
-    if (e == fork_event::prepare) {
-      std::for_each(services_.rbegin(), services_.rend(),
-                    [e](auto &svc) { svc.ptr_->notify_fork(e); });
-    } else {
-      std::for_each(services_.begin(), services_.end(),
-                    [e](auto &svc) { svc.ptr_->notify_fork(e); });
-    }
-  }
+  void notify_fork(fork_event e);
 
  protected:
   // 13.7.4 [async.exec.ctx.protected]
-  void shutdown() noexcept {
-    // shutdown in reverse insert-order
-    std::for_each(services_.rbegin(), services_.rend(), [](auto &svc) {
-      if (svc.active_) {
-        svc.ptr_->shutdown();
-        svc.active_ = false;
-      }
-    });
-  }
+  void shutdown() noexcept;
 
   void destroy() noexcept {
     // destroy in reverse insert-order
@@ -933,6 +916,29 @@ bool operator!=(const strand<Executor> &a, const strand<Executor> &b) {
 // 13.26 [async.use.future] - not implemented
 
 // 13.27 [async.packaged.task.spec] - not implemented
+
+// 13.7.3 [async.exec.ctx.ops]
+inline void execution_context::notify_fork(fork_event e) {
+  // prepare is in reverse
+  if (e == fork_event::prepare) {
+    std::for_each(services_.rbegin(), services_.rend(),
+                  [e](auto &svc) { svc.ptr_->notify_fork(e); });
+  } else {
+    std::for_each(services_.begin(), services_.end(),
+                  [e](auto &svc) { svc.ptr_->notify_fork(e); });
+  }
+}
+
+// 13.7.4 [async.exec.ctx.protected]
+inline void execution_context::shutdown() noexcept {
+  // shutdown in reverse insert-order
+  std::for_each(services_.rbegin(), services_.rend(), [](auto &svc) {
+    if (svc.active_) {
+      svc.ptr_->shutdown();
+      svc.active_ = false;
+    }
+  });
+}
 
 }  // namespace net
 

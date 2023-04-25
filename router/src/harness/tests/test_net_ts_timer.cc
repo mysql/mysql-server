@@ -134,7 +134,7 @@ TYPED_TEST(NetTS_timer, timer_expires_after_async_short) {
   EXPECT_GE(clock_type::now() - before, wait_duration);
 }
 
-#if !defined(__cpp_lib_chrono) || __cpp_lib_chrono < 201907L
+#if !defined(__cpp_lib_chrono) || __cpp_lib_chrono < 201611L
 // __cpp_lib_chrono is defined in c++17 and later
 //
 // operator<< is defined in <chrono> with C++20

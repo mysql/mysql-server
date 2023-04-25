@@ -534,7 +534,7 @@ class Slave_worker : public Relay_log_info {
   ulong wq_empty_waits;            // how many times got idle
   ulong events_done;               // how many events (statements) processed
   ulong groups_done;               // how many groups (transactions) processed
-  volatile int curr_jobs;          // number of active  assignments
+  std::atomic<int> curr_jobs;      // number of active  assignments
   // number of partitions allocated to the worker at point in time
   long usage_partition;
   // symmetric to rli->mts_end_group_sets_max_dbs

@@ -124,7 +124,7 @@ static log_filter_rule *log_builtins_filter_rule_init(
     log_filter_ruleset *ruleset) {
   log_filter_rule *r = &ruleset->rule[ruleset->count];
 
-  memset(r, 0, sizeof(log_filter_rule));
+  new (r) log_filter_rule{};
 
   r->id = ++filter_rule_uuid;
   r->throttle_window_size =
@@ -205,7 +205,7 @@ static log_filter_ruleset *log_builtins_filter_ruleset_new(log_filter_tag *tag,
       (log_filter_ruleset *)my_malloc(0, sizeof(log_filter_ruleset), MYF(0));
 
   if (ruleset != nullptr) {
-    memset(ruleset, 0, sizeof(log_filter_ruleset));
+    new (ruleset) log_filter_ruleset{};
     ruleset->tag = tag;
     ruleset->alloc = (count < 1) ? LOG_FILTER_RULE_MAX : count;
 
@@ -1034,7 +1034,7 @@ DEFINE_METHOD(int, log_builtins_filter_imp::filter_ruleset_move,
 
   for (rule_index = 0; rule_index < from->count; rule_index++) {
     to->rule[rule_index] = from->rule[rule_index];
-    memset(&from->rule[rule_index], 0, sizeof(log_filter_rule));
+    new (&from->rule[rule_index]) log_filter_rule{};
   }
 
   to->count = from->count;

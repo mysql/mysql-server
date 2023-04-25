@@ -328,7 +328,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 
     // Prepare transaction (the transaction is NOT yet sent to NDB)
     cb->connection->executeAsynchPrepare(Commit, &callback, cb);
-    m_transactions++;
+    m_transactions.fetch_add(1, std::memory_order_relaxed);
   }
   ndbout_c("Unable to recover from errors. Exiting...");
   asynchExitHandler();
@@ -362,7 +362,7 @@ void BackupRestore::cback(int result, restore_callback_t *cb)
      */
     m_ndb->closeTransaction(cb->connection);
     delete cb->tup;
-    m_transactions--;
+    m_transactions.fetch_sub(1, std::memory_order_relaxed);
   }
 }
 
@@ -457,7 +457,7 @@ BackupRestore::endOfTuples()
   m_ndb->sendPreparedTransactions(0);
 
   // Poll all transactions
-  m_ndb->pollNdb(3000, m_transactions);
+  m_ndb->pollNdb(3000, m_transactions.load(std::memory_order_relaxed));
 
   // Close all transactions
   //  for (int i = 0; i < nPreparedTransactions; i++) 

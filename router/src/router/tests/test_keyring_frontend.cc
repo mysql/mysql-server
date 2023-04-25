@@ -113,7 +113,7 @@ static std::string format_desc_opt(const Option &opt) {
   auto val = opt.arg;
   return join(std::accumulate(
                   opt.opts.begin(), opt.opts.end(), std::vector<std::string>(),
-                  [&val](std::vector<std::string> &acc, std::string cur) {
+                  [&val](std::vector<std::string> acc, std::string cur) {
                     acc.push_back(cur + (val.empty() ? "" : " " + val));
 
                     return acc;

@@ -128,7 +128,7 @@ class AsyncCall {
 template<typename T>
 class ReturnValueHandler {
 public:
-  ReturnValueHandler<T>()                                    {}
+  ReturnValueHandler()                                       {}
   void wrapReturnValueAs(Envelope * e)                       { assert(false); }
   Local<Value> getJsValue(Isolate * isolate, T value) {
     return toJS(isolate, value);
@@ -141,7 +141,7 @@ class ReturnValueHandler<T*> {
 private:
   Envelope * envelope;
 public:
-  ReturnValueHandler<T *>() : envelope(0)                     {}
+  ReturnValueHandler() :      envelope(0)                     {}
   void wrapReturnValueAs(Envelope * e)                        { envelope = e; }
   Local<Value> getJsValue(Isolate * isolate, T * objPtr) {
     return envelope->wrap(objPtr);
@@ -158,7 +158,7 @@ class AsyncCall_Returning : public AsyncCall,
 {
 protected:
   /* Protected Constructor Chain */
-  AsyncCall_Returning<RETURN_TYPE>(Isolate * isol, Local<Function> jsCallback) :
+  AsyncCall_Returning(Isolate * isol, Local<Function> jsCallback) :
     AsyncCall(isol, jsCallback), ReturnValueHandler<RETURN_TYPE>(), error(0)  {}
     
 public:
@@ -167,15 +167,15 @@ public:
   RETURN_TYPE return_val;
 
   /* Constructors */
-  AsyncCall_Returning<RETURN_TYPE>(Isolate * isol, Local<Value> jsCallback) :
+  AsyncCall_Returning(Isolate * isol, Local<Value> jsCallback) :
     AsyncCall(isol, jsCallback), ReturnValueHandler<RETURN_TYPE>(), error(0)  {}
 
-  AsyncCall_Returning<RETURN_TYPE>(Isolate * isol, Local<Value> jsCallback, RETURN_TYPE rv) :
+  AsyncCall_Returning(Isolate * isol, Local<Value> jsCallback, RETURN_TYPE rv) :
     AsyncCall(isol, jsCallback), ReturnValueHandler<RETURN_TYPE>(), error(0),
     return_val(rv)                                                          {}
 
   /* Destructor */
-  virtual ~AsyncCall_Returning<RETURN_TYPE>() override {
+  virtual ~AsyncCall_Returning() override {
     if(error) delete error;
   }
 
@@ -219,7 +219,7 @@ public:
   errorHandler_fn_t errorHandler;
 
   /* Constructor */
-  NativeMethodCall<R, C>(const Arguments &args, int callback_idx) :
+  NativeMethodCall(const Arguments &args, int callback_idx) :
     AsyncCall_Returning<R>(args.GetIsolate(), args[callback_idx]),
     errorHandler(0)
   {
@@ -235,9 +235,9 @@ public:
   
 protected:
   /* Alternative constructor used only by AsyncAsyncCall */
-  NativeMethodCall<R, C>(C * obj, 
-                         Local<Function> jsCallback,
-                         errorHandler_fn_t errHandler) :
+  NativeMethodCall(C * obj,
+                   Local<Function> jsCallback,
+                   errorHandler_fn_t errHandler) :
     AsyncCall_Returning<R>(v8::Isolate::GetCurrent(), jsCallback),
     native_obj(obj),
     errorHandler(errHandler)                                {}
@@ -252,8 +252,8 @@ public:
   typedef NativeCodeError * (*errorHandler_fn_t)(R, C *);
 
   /* Constructor */
-  AsyncAsyncCall<R, C>(C * obj, Local<Function> jsCallback,
-                       errorHandler_fn_t errHandler) :
+  AsyncAsyncCall(C * obj, Local<Function> jsCallback,
+                 errorHandler_fn_t errHandler) :
     NativeMethodCall<R, C>(obj, jsCallback, errHandler)     {}
   
   /* Methods */
@@ -271,7 +271,7 @@ public:
   C * native_obj;
   
   /* Constructor */
-  NativeVoidMethodCall<C>(const Arguments &args, int callback_idx) :
+  NativeVoidMethodCall(const Arguments &args, int callback_idx) :
     AsyncCall_Returning<int>(args.GetIsolate(), args[callback_idx], 1)
   {
     native_obj = unwrapPointer<C *>(args.Holder());
@@ -297,7 +297,7 @@ public:
   JsValueConverter<A7> arg7converter;       A7 arg7;
 
   /* Constructor */
-  Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>(const Arguments &args) :
+  Call_8_(const Arguments &args) :
     arg0converter(args[0]),
     arg1converter(args[1]),
     arg2converter(args[2]),
@@ -333,7 +333,7 @@ public:
   JsValueConverter<A6> arg6converter;       A6 arg6;
 
   /* Constructor */
-  Call_7_<A0, A1, A2, A3, A4, A5, A6>(const Arguments &args) :
+  Call_7_(const Arguments &args) :
     arg0converter(args[0]),
     arg1converter(args[1]),
     arg2converter(args[2]),
@@ -366,7 +366,7 @@ public:
   JsValueConverter<A5> arg5converter;       A5 arg5;
 
   /* Constructor */
-  Call_6_<A0, A1, A2, A3, A4, A5>(const Arguments &args) :
+  Call_6_(const Arguments &args) :
     arg0converter(args[0]),
     arg1converter(args[1]),
     arg2converter(args[2]),
@@ -395,7 +395,7 @@ public:
   JsValueConverter<A4> arg4converter;       A4 arg4;
 
   /* Constructor */
-  Call_5_<A0, A1, A2, A3, A4>(const Arguments &args) :
+  Call_5_(const Arguments &args) :
     arg0converter(args[0]),
     arg1converter(args[1]),
     arg2converter(args[2]),
@@ -421,7 +421,7 @@ public:
   JsValueConverter<A3> arg3converter;       A3 arg3;
 
   /* Constructor */
-  Call_4_<A0, A1, A2, A3>(const Arguments &args) :
+  Call_4_(const Arguments &args) :
     arg0converter(args[0]),
     arg1converter(args[1]),
     arg2converter(args[2]),
@@ -444,7 +444,7 @@ public:
   JsValueConverter<A2> arg2converter;       A2 arg2;
 
   /* Constructor */
-  Call_3_<A0, A1, A2>(const Arguments &args) :
+  Call_3_(const Arguments &args) :
     arg0converter(args[0]),
     arg1converter(args[1]),
     arg2converter(args[2])
@@ -464,7 +464,7 @@ public:
   JsValueConverter<A1> arg1converter;       A1 arg1;
 
   /* Constructor */
-  Call_2_<A0, A1>(const Arguments &args) :
+  Call_2_(const Arguments &args) :
     arg0converter(args[0]),
     arg1converter(args[1])
   {
@@ -481,7 +481,7 @@ public:
   JsValueConverter<A0> arg0converter;       A0 arg0;
 
   /* Constructor */
-  Call_1_<A0>(const Arguments &args) :
+  Call_1_(const Arguments &args) :
     arg0converter(args[0])
   {
     arg0 = arg0converter.toC();

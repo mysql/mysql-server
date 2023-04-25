@@ -4744,7 +4744,7 @@ static bool load_encryption_from_header(fil_space_t *space) {
 
 static const std::string enc("ENCRYPTION");
 static const std::string dec("DECRYPTION");
-static const std::string none("NONE");
+[[maybe_unused]] static const std::string none("NONE");
 
 static inline const std::string &get_encryption_op_str(
     Encryption::Progress op) {

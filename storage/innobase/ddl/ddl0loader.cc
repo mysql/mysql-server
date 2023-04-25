@@ -309,7 +309,7 @@ dberr_t Loader::load() noexcept {
   std::vector<std::thread> threads{};
 
   if (!sync) {
-    auto fn = [=](PSI_thread_seqnum seqnum) -> dberr_t {
+    auto fn = [this](PSI_thread_seqnum seqnum) -> dberr_t {
 #ifdef UNIV_PFS_THREAD
       Runnable runnable{ddl_thread_key, seqnum};
 #else

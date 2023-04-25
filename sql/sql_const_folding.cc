@@ -724,11 +724,12 @@ static bool analyze_year_field_constant(THD *thd, Item **const_val,
     case REAL_RESULT:
     case INT_RESULT: {
       const double year = (*const_val)->val_real();
-      if (year > Field_year::MAX_YEAR) {
+      if (year > static_cast<double>(Field_year::MAX_YEAR)) {
         *place = RP_OUTSIDE_HIGH;
       } else if (year < 0.0) {
         *place = RP_OUTSIDE_LOW;
-      } else if (year > 0.0 && year < Field_year::MIN_YEAR) {
+      } else if (year > 0.0 &&
+                 year < static_cast<double>(Field_year::MIN_YEAR)) {
         /*
           These values can be given as constants, but are not allowed to be
           stored in the field, so an = or <> comparison can be folded. For

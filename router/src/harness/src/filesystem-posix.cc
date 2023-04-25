@@ -52,7 +52,6 @@
 #include "mysql/harness/stdx/expected.h"
 
 namespace {
-const std::string dirsep("/");
 const std::string extsep(".");
 }  // namespace
 

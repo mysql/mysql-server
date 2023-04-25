@@ -926,8 +926,8 @@ class Relay_log_info : public Rpl_info {
     skipping one or more events in the master log that have caused
     errors, and have been manually applied by DBA already.
   */
-  volatile uint32 slave_skip_counter;
-  volatile ulong abort_pos_wait; /* Incremented on change master */
+  std::atomic<uint32> slave_skip_counter;
+  std::atomic<ulong> abort_pos_wait; /* Incremented on change master */
   mysql_mutex_t log_space_lock;
   mysql_cond_t log_space_cond;
 
@@ -1182,7 +1182,7 @@ class Relay_log_info : public Rpl_info {
   */
   bool workers_array_initialized;
 
-  volatile ulong pending_jobs;
+  std::atomic<ulong> pending_jobs;
   mysql_mutex_t pending_jobs_lock;
   mysql_cond_t pending_jobs_cond;
   mysql_mutex_t exit_count_lock;  // mutex of worker exit count
@@ -1222,7 +1222,7 @@ class Relay_log_info : public Rpl_info {
      are experiencing and is used as a parameter to compute a nap time for
      Coordinator in order to avoid reaching WQ limits.
   */
-  volatile long mts_wq_excess_cnt;
+  std::atomic<long> mts_wq_excess_cnt;
   long mts_worker_underrun_level;   // % of WQ size at which W is considered
                                     // hungry
   ulong mts_coordinator_basic_nap;  // C sleeps to avoid WQs overrun
@@ -1274,7 +1274,7 @@ class Relay_log_info : public Rpl_info {
   */
   ulonglong mts_events_assigned;  // number of events (statements) scheduled
   ulonglong mts_groups_assigned;  // number of groups (transactions) scheduled
-  volatile ulong
+  std::atomic<ulong>
       mts_wq_overrun_cnt;   // counter of all mts_wq_excess_cnt increments
   ulong wq_size_waits_cnt;  // number of times C slept due to WQ:s oversize
   /*

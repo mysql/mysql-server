@@ -27,6 +27,8 @@
 
 #include "consumer.hpp"
 
+#include <atomic>
+#include <cstdint>
 #include <functional>
 
 struct restore_callback_t {
@@ -93,7 +95,6 @@ public:
     m_no_upgrade = false;
     m_tableChangesMask = 0;
     m_preserve_trailing_spaces = false;
-    m_transactions = 0;
     m_pk_update_warning_count = 0;
     m_cache.m_old_table = 0;
     m_disable_indexes = false;
@@ -262,7 +263,8 @@ public:
   char m_instance_name[INSTANCE_ID_LEN];
 
   Uint32 m_parallelism;
-  volatile Uint32 m_transactions;
+  std::atomic<uint32_t> m_transactions{0};
+  static_assert(decltype(m_transactions)::is_always_lock_free);
 
   restore_callback_t *m_callback;
   restore_callback_t *m_free_callback;
