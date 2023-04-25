@@ -2229,7 +2229,7 @@ static void server_components_init_wait() {
 */
 class Set_kill_conn : public Do_THD_Impl {
  private:
-  int m_dump_thread_count;
+  uint m_dump_thread_count;
   bool m_kill_dump_threads_flag;
 
  public:
@@ -2237,7 +2237,7 @@ class Set_kill_conn : public Do_THD_Impl {
 
   void set_dump_thread_flag() { m_kill_dump_threads_flag = true; }
 
-  int get_dump_thread_count() const { return m_dump_thread_count; }
+  uint get_dump_thread_count() const { return m_dump_thread_count; }
 
   void operator()(THD *killing_thd) override {
     DBUG_PRINT("quit", ("Informing thread %u that it's time to die",
@@ -2379,7 +2379,7 @@ static void close_connections(void) {
   LogErr(INFORMATION_LEVEL, ER_SHUTTING_DOWN_REPLICA_THREADS);
   end_slave();
 
-  if (set_kill_conn.get_dump_thread_count()) {
+  if ((dump_thread_count = set_kill_conn.get_dump_thread_count())) {
     /*
       Replication dump thread should be terminated after the clients are
       terminated. Wait for few more seconds for other sessions to end.
