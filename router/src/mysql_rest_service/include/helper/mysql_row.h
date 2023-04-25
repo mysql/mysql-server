@@ -42,7 +42,7 @@ class MySQLRow {
   using Row = mysqlrouter::MySQLSession::Row;
 
  public:
-  MySQLRow(const Row &row, MYSQL_FIELD *fields = nullptr, unsigned number = 0)
+  MySQLRow(const Row &row, MYSQL_FIELD *fields, unsigned number)
       : row_{row}, fields_{fields}, no_of_fields_{number} {}
 
   void skip(uint32_t to_skip = 1) { field_index_ += to_skip; }
@@ -51,7 +51,7 @@ class MySQLRow {
   void unserialize(FieldType *out_field) {
     auto in_value = row_[field_index_++];
 
-    convert(out_field, in_value);
+    convert(field_index_ - 1, out_field, in_value);
   }
 
   template <typename FieldType>
@@ -59,7 +59,7 @@ class MySQLRow {
     auto in_value = row_[field_index_++];
 
     if (in_value)
-      convert(out_field, in_value);
+      convert(field_index_ - 1, out_field, in_value);
     else
       *out_field = value_default;
   }
@@ -104,7 +104,7 @@ class MySQLRow {
 
     if (in_value) {
       FieldType out_value;
-      convert(&out_value, in_value);
+      convert(field_index_ - 1, &out_value, in_value);
       *out_field = std::move(out_value);
     }
   }
@@ -117,21 +117,21 @@ class MySQLRow {
 
     if (in_value) {
       FieldType out_value;
-      convert(&out_value, in_value);
+      convert(field_index_ - 1, &out_value, in_value);
       *out_field = std::move(out_value);
     }
   }
 
  private:
-  void convert(bool *out_value, const char *in_value) {
+  void convert(unsigned field_index, bool *out_value, const char *in_value) {
     if (!in_value) {
       *out_value = {};
       return;
     }
 
     if (fields_) {
-      if (field_index_ < no_of_fields_) {
-        if (fields_[field_index_].type == MYSQL_TYPE_BIT) {
+      if (field_index < no_of_fields_) {
+        if (fields_[field_index].type == MYSQL_TYPE_BIT) {
           *out_value = *reinterpret_cast<const uint8_t *>(in_value) != 0;
           return;
         }
@@ -148,33 +148,38 @@ class MySQLRow {
     *out_value = atoi(in_value);
   }
 
-  void convert(std::string *out_value, const char *in_value) {
+  void convert([[maybe_unused]] unsigned field_index, std::string *out_value,
+               const char *in_value) {
     if (in_value)
       *out_value = in_value;
     else
       *out_value = "";
   }
 
-  void convert(uint32_t *out_value, const char *in_value) {
+  void convert([[maybe_unused]] unsigned field_index, uint32_t *out_value,
+               const char *in_value) {
     if (in_value)
       *out_value = std::stoul(in_value);
     else
       *out_value = 0;
   }
 
-  void convert(int32_t *out_value, const char *in_value) {
+  void convert([[maybe_unused]] unsigned field_index, int32_t *out_value,
+               const char *in_value) {
     if (in_value)
       *out_value = atoi(in_value);
     else
       *out_value = 0;
   }
 
-  void convert(uint64_t *out_value, const char *in_value) {
+  void convert([[maybe_unused]] unsigned field_index, uint64_t *out_value,
+               const char *in_value) {
     char *out_value_end;
     *out_value = strtoull(in_value, &out_value_end, 10);
   }
 
-  void convert(std::vector<uint64_t> *out_value, const char *v) {
+  void convert([[maybe_unused]] unsigned field_index,
+               std::vector<uint64_t> *out_value, const char *v) {
     char *endptr = const_cast<char *>(v);
     while (v && *v != 0) {
       out_value->push_back(strtoull(v, &endptr, 10));
@@ -185,7 +190,8 @@ class MySQLRow {
     }
   }
 
-  void convert(helper::DateTime *out_value, const char *in_value) {
+  void convert([[maybe_unused]] unsigned field_index,
+               helper::DateTime *out_value, const char *in_value) {
     out_value->from_string(in_value);
   }
 

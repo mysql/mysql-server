@@ -146,7 +146,7 @@ void QueryEntryObject::on_reference_row(const Row &r) {
   entry::UniversalId reference_id;
   std::optional<entry::UniversalId> reduce_to_field_id;
 
-  helper::MySQLRow row(r);
+  helper::MySQLRow row(r, metadata_, no_od_metadata_);
   row.unserialize_with_converter(&reference_id, entry::UniversalId::from_raw);
   row.unserialize_with_converter(&reduce_to_field_id,
                                  entry::UniversalId::from_raw_optional);

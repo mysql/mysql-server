@@ -83,7 +83,7 @@ void QueryEntryFields::on_row(const Row &row) {
     }
   };
 
-  helper::MySQLRow mysql_row(row);
+  helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);
 
   auto &entry = parameters_.emplace_back();
 
