@@ -1,6 +1,7 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/have_lowercase0.inc
+--source include/have_innodb_16k.inc
 
 --echo # Scenario 1: Bug 33788578 for simple table
 --echo # 1.1: Redundant
