@@ -132,7 +132,7 @@ class MySQLRow {
     if (fields_) {
       if (field_index_ < no_of_fields_) {
         if (fields_[field_index_].type == MYSQL_TYPE_BIT) {
-          *out_value = in_value[0] != 0;
+          *out_value = *reinterpret_cast<const uint8_t *>(in_value) != 0;
           return;
         }
       }
