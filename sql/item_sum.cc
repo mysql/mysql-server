@@ -4453,8 +4453,9 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
   uint32 max_byte_length = min<uint64>(
       static_cast<uint64>(max_chars) * collation.collation->mbmaxlen,
       UINT_MAX32);
-  max_chars > CONVERT_IF_BIGGER_TO_BLOB ? set_data_type_blob(max_byte_length)
-                                        : set_data_type_string(max_chars);
+  max_chars > CONVERT_IF_BIGGER_TO_BLOB
+      ? set_data_type_blob(MYSQL_TYPE_LONG_BLOB, max_byte_length)
+      : set_data_type_string(max_chars);
 
   size_t offset;
   if (separator->needs_conversion(separator->length(), separator->charset(),
@@ -5487,19 +5488,15 @@ bool Item_lead_lag::resolve_type(THD *thd) {
   }
 
   if (param_type_uses_non_param(thd)) return true;
-  aggregate_type(make_array(args, arg_count));
+
+  if (aggregate_type(func_name(), args, arg_count)) return true;
+
   m_hybrid_type = Field::result_merge_type(data_type());
 
   if (arg_count == 2)
     set_nullable(args[1]->is_nullable() || args[0]->is_nullable());
   else
     set_nullable(true);  // No default value provided, so we get NULLs
-
-  if (m_hybrid_type == STRING_RESULT) {
-    if (aggregate_string_properties(func_name(), args, arg_count)) return true;
-  } else {
-    aggregate_num_type(m_hybrid_type, args, arg_count);
-  }
 
   if (orig_arg_count == 3)  // restore args array
   {

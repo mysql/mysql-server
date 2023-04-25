@@ -1395,10 +1395,35 @@ class Item : public Parse_tree_node {
     m_data_type = static_cast<uint8>(data_type);
   }
 
+  inline void set_data_type_null() {
+    set_data_type(MYSQL_TYPE_NULL);
+    collation.set(&my_charset_bin, DERIVATION_IGNORABLE);
+    max_length = 0;
+    set_nullable(true);
+  }
+
   inline void set_data_type_bool() {
     set_data_type(MYSQL_TYPE_LONGLONG);
     collation.set_numeric();
     max_length = 1;
+  }
+
+  /**
+    Set the data type of the Item to be a specific integer type
+
+    @param type          Integer type
+    @param unsigned_prop Whether the integer is signed or not
+    @param max_width     Maximum width of field in number of digits
+  */
+  inline void set_data_type_int(enum_field_types type, bool unsigned_prop,
+                                uint32 max_width) {
+    assert(type == MYSQL_TYPE_TINY || type == MYSQL_TYPE_SHORT ||
+           type == MYSQL_TYPE_INT24 || type == MYSQL_TYPE_LONG ||
+           type == MYSQL_TYPE_LONGLONG);
+    set_data_type(type);
+    collation.set_numeric();
+    unsigned_flag = unsigned_prop;
+    fix_char_length(max_width);
   }
 
   /**
@@ -1529,11 +1554,18 @@ class Item : public Parse_tree_node {
   /**
     Set the Item to be of BLOB type.
 
-    @param max_l Maximum number of bytes in data type
+    @param type   Actual blob data type
+    @param max_l  Maximum number of characters in data type
   */
-  inline void set_data_type_blob(uint32 max_l) {
-    set_data_type(MYSQL_TYPE_LONG_BLOB);
-    max_length = max_l;
+  inline void set_data_type_blob(enum_field_types type, uint32 max_l) {
+    assert(type == MYSQL_TYPE_TINY_BLOB || type == MYSQL_TYPE_BLOB ||
+           type == MYSQL_TYPE_MEDIUM_BLOB || type == MYSQL_TYPE_LONG_BLOB);
+    set_data_type(type);
+    ulonglong max_width = max_l * collation.collation->mbmaxlen;
+    if (max_width > Field::MAX_LONG_BLOB_WIDTH) {
+      max_width = Field::MAX_LONG_BLOB_WIDTH;
+    }
+    max_length = max_width;
     decimals = DECIMAL_NOT_SPECIFIED;
   }
 
@@ -1612,11 +1644,13 @@ class Item : public Parse_tree_node {
 
   /**
     Set the data type of the Item to be bit.
+
+    @param max_bits Maximum number of bits to store in this field.
   */
-  void set_data_type_bit() {
+  void set_data_type_bit(uint32 max_bits) {
     set_data_type(MYSQL_TYPE_BIT);
     collation.set_numeric();
-    fix_char_length(21);
+    max_length = max_bits;
     unsigned_flag = true;
   }
 
@@ -1653,7 +1687,7 @@ class Item : public Parse_tree_node {
   virtual Item_result cast_to_int_type() const { return result_type(); }
   virtual enum Type type() const = 0;
 
-  void aggregate_type(Bounds_checked_array<Item *> items);
+  bool aggregate_type(const char *name, Item **items, uint count);
 
   /*
     Return information about function monotonicity. See comment for
@@ -3320,12 +3354,15 @@ class Item : public Parse_tree_node {
   */
   bool can_be_substituted_for_gc(bool array = false) const;
 
-  void aggregate_decimal_properties(Item **item, uint nitems);
-  void aggregate_float_properties(Item **item, uint nitems);
-  void aggregate_char_length(Item **args, uint nitems);
-  void aggregate_temporal_properties(Item **item, uint nitems);
-  bool aggregate_string_properties(const char *name, Item **item, uint nitems);
-  void aggregate_num_type(Item_result result_type, Item **item, uint nitems);
+  void aggregate_float_properties(enum_field_types type, Item **items,
+                                  uint nitems);
+  void aggregate_decimal_properties(Item **items, uint nitems);
+  uint32 aggregate_char_width(Item **items, uint nitems);
+  void aggregate_temporal_properties(enum_field_types type, Item **items,
+                                     uint nitems);
+  bool aggregate_string_properties(enum_field_types type, const char *name,
+                                   Item **items, uint nitems);
+  void aggregate_bit_properties(Item **items, uint nitems);
 
   /**
     This function applies only to Item_field objects referred to by an Item_ref
@@ -4521,12 +4558,9 @@ class Item_null : public Item_basic_constant {
   typedef Item_basic_constant super;
 
   void init() {
-    set_nullable(true);
+    set_data_type_null();
     null_value = true;
-    set_data_type(MYSQL_TYPE_NULL);
-    max_length = 0;
     fixed = true;
-    collation.set(&my_charset_bin, DERIVATION_IGNORABLE);
   }
 
  protected:

@@ -1548,6 +1548,12 @@ class Item_func_min_max : public Item_func_numhybrid {
     '95-05-05'.
   */
   Item *temporal_item;
+
+  /**
+    Fractional seconds precision to use when converting a time or timestamp
+    expression into a string.
+  */
+  uint8 fsp_for_string;
   /**
     Compare arguments as datetime values.
 

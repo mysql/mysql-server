@@ -3413,14 +3413,10 @@ bool Item_func_if::resolve_type_inner(THD *thd) {
   arg_count++;
 
   set_nullable(args[1]->is_nullable() || args[2]->is_nullable());
-  aggregate_type(make_array(args + 1, 2));
+  if (aggregate_type(func_name(), args + 1, 2)) return true;
+
   cached_result_type = Field::result_merge_type(data_type());
 
-  if (cached_result_type == STRING_RESULT) {
-    if (aggregate_string_properties(func_name(), args + 1, 2)) return true;
-  } else {
-    aggregate_num_type(cached_result_type, args + 1, 2);
-  }
   return false;
 }
 
@@ -3928,13 +3924,10 @@ bool Item_func_case::resolve_type_inner(THD *thd) {
 
   if (else_expr_num != -1) agg[nagg++] = args[else_expr_num];
 
-  aggregate_type(make_array(agg, nagg));
-  assert(data_type() != MYSQL_TYPE_INVALID);
+  if (aggregate_type(func_name(), agg, nagg)) return true;
 
   cached_result_type = Field::result_merge_type(data_type());
   if (cached_result_type == STRING_RESULT) {
-    /* Note: String result type is the same for CASE and COALESCE. */
-    if (aggregate_string_properties(func_name(), agg, nagg)) return true;
     /*
       Copy all THEN and ELSE items back to args[] array.
       Some of the items might have been changed to Item_func_conv_charset.
@@ -3944,10 +3937,7 @@ bool Item_func_case::resolve_type_inner(THD *thd) {
 
     if (else_expr_num != -1)
       change_item_tree_if_needed(&args[else_expr_num], agg[nagg++]);
-  } else {
-    aggregate_num_type(cached_result_type, agg, nagg);
   }
-
   /*
     Aggregate first expression and all WHEN expression types
     and collations when string comparison
@@ -4165,13 +4155,9 @@ bool Item_func_coalesce::resolve_type(THD *thd) {
 
 bool Item_func_coalesce::resolve_type_inner(THD *thd) {
   if (param_type_uses_non_param(thd)) return true;
-  aggregate_type(make_array(args, arg_count));
+  if (aggregate_type(func_name(), args, arg_count)) return true;
+
   hybrid_type = Field::result_merge_type(data_type());
-  if (hybrid_type == STRING_RESULT) {
-    if (aggregate_string_properties(func_name(), args, arg_count)) return true;
-  } else {
-    aggregate_num_type(hybrid_type, args, arg_count);
-  }
   for (uint i = 0; i < arg_count; i++) {
     // A non-nullable argument guarantees a non-NULL result
     if (!args[i]->is_nullable()) {

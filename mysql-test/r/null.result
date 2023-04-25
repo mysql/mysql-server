@@ -363,25 +363,19 @@ Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a futur
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 INSERT INTO t1 (a, b) VALUES (0, 0);
 CREATE TABLE t2 SELECT IFNULL(a, b) FROM t1;
-Warnings:
-Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 DESCRIBE t2;
 Field	Type	Null	Key	Default	Extra
-IFNULL(a, b)	decimal(1,0) unsigned	YES		NULL	
+IFNULL(a, b)	decimal(1,0)	YES		NULL	
 DROP TABLE t2;
 CREATE TABLE t2 SELECT IFNULL(a, NULL) FROM t1;
-Warnings:
-Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 DESCRIBE t2;
 Field	Type	Null	Key	Default	Extra
-IFNULL(a, NULL)	decimal(1,0) unsigned	YES		NULL	
+IFNULL(a, NULL)	decimal(1,0)	YES		NULL	
 DROP TABLE t2;
 CREATE TABLE t2 SELECT IFNULL(NULL, b) FROM t1;
-Warnings:
-Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 DESCRIBE t2;
 Field	Type	Null	Key	Default	Extra
-IFNULL(NULL, b)	decimal(1,0) unsigned	YES		NULL	
+IFNULL(NULL, b)	decimal(1,0)	YES		NULL	
 DROP TABLE t1, t2;
 # End of 5.0 tests
 #

@@ -1036,7 +1036,7 @@ class Item_load_file final : public Item_str_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1)) return true;
     collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
-    set_data_type_blob(MAX_BLOB_WIDTH);
+    set_data_type_blob(MYSQL_TYPE_LONG_BLOB, MAX_BLOB_WIDTH);
     set_nullable(true);
     return false;
   }

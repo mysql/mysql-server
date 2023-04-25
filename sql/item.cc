@@ -563,44 +563,55 @@ type_conversion_status Item::save_str_value_in_field(Field *field,
 /**
   Aggregates data types from array of items into current item
 
+  @param name   name of function that performs type aggregation
   @param items  array of items to aggregate the type from
+  @param count  number of items to aggregate
+
+  @returns false on success, true on error
 
   This function aggregates all type information from the array of items.
   Found type is supposed to be used later as the result data type
   of a multi-argument function.
   Aggregation itself is performed partially by the Field::field_type_merge()
   function.
+
+  The function is used when resolving the result type of
+  - expressions from set operations UNION, INTERSECT and EXCEPT.
+  - functions CASE, COALESCE, IF, IFNULL and NULLIF.
+  - functions LEAST and GREATEST.
+  - LEAD and LAG.
 */
 
-void Item::aggregate_type(Bounds_checked_array<Item *> items) {
+bool Item::aggregate_type(const char *name, Item **items, uint count) {
   uint itemno = 0;
-  const uint count = items.size();
+
   while (itemno < count && items[itemno]->data_type() == MYSQL_TYPE_NULL)
     itemno++;
 
-  if (itemno == count)  // All items have NULL type, consolidated type is NULL
-  {
-    set_data_type(MYSQL_TYPE_NULL);
-    return;
+  if (itemno == count) {  // All items have NULL type, consolidated type is NULL
+    set_data_type_null();
+    return false;
   }
 
   assert(items[itemno]->result_type() != ROW_RESULT);
 
   enum_field_types new_type = real_data_type(items[itemno]);
-  uint8 new_dec = items[itemno]->decimals;
+  uint32 new_length = items[itemno]->max_length;
   bool new_unsigned = items[itemno]->unsigned_flag;
   bool mixed_signs = false;
 
+  // Aggregate the resulting data type and calculate properties for integers
   for (itemno = itemno + 1; itemno < count; itemno++) {
     // Do not aggregate items with NULL type
     if (items[itemno]->data_type() == MYSQL_TYPE_NULL) continue;
     assert(items[itemno]->result_type() != ROW_RESULT);
     new_type = Field::field_type_merge(new_type, real_data_type(items[itemno]));
     mixed_signs |= (new_unsigned != items[itemno]->unsigned_flag);
-    new_dec = max<uint8>(new_dec, items[itemno]->decimals);
+    new_length = max<uint32>(new_length, items[itemno]->max_length);
   }
   if (mixed_signs && is_integer_type(new_type)) {
     bool bump_range = false;
+    new_unsigned = false;
     for (uint i = 0; i < count; i++)
       bump_range |= (items[i]->unsigned_flag &&
                      (items[i]->data_type() == new_type ||
@@ -628,11 +639,101 @@ void Item::aggregate_type(Bounds_checked_array<Item *> items) {
     }
   }
 
-  set_data_type(real_type_to_type(new_type));
-  decimals = new_dec;
-  unsigned_flag = new_unsigned && !mixed_signs;
-  max_length = 0;
-  return;
+  // Operate on "new" types only
+  new_type = real_type_to_type(new_type);
+
+  // Calculate remaining type properties and set complete data type
+  switch (new_type) {
+    case MYSQL_TYPE_NULL:
+      set_data_type_null();
+      break;
+
+    case MYSQL_TYPE_BOOL:
+      set_data_type_bool();
+      break;
+
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_INT24:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+      set_data_type_int(new_type, new_unsigned, new_length);
+      break;
+
+    case MYSQL_TYPE_NEWDECIMAL:
+      aggregate_decimal_properties(items, count);
+      break;
+
+    case MYSQL_TYPE_FLOAT:
+    case MYSQL_TYPE_DOUBLE:
+      aggregate_float_properties(new_type, items, count);
+      break;
+
+    case MYSQL_TYPE_DATE:
+      set_data_type_date();
+      break;
+
+    case MYSQL_TYPE_TIME: {
+      uint8 fsp = 0;
+      for (uint i = 0; i < count; i++) {
+        fsp = max(fsp, items[i]->decimals);
+      }
+      set_data_type_time(fsp);
+      break;
+    }
+    case MYSQL_TYPE_DATETIME: {
+      uint8 fsp = 0;
+      for (uint i = 0; i < count; i++) {
+        fsp = max(fsp, items[i]->decimals);
+      }
+      set_data_type_datetime(fsp);
+      break;
+    }
+    case MYSQL_TYPE_TIMESTAMP: {
+      uint8 fsp = 0;
+      for (uint i = 0; i < count; i++) {
+        fsp = max(fsp, items[i]->decimals);
+      }
+      set_data_type_timestamp(fsp);
+      break;
+    }
+    case MYSQL_TYPE_YEAR:
+      set_data_type_year();
+      break;
+
+    case MYSQL_TYPE_BIT:
+      aggregate_bit_properties(items, count);
+      break;
+
+    case MYSQL_TYPE_GEOMETRY: {
+      set_data_type_geometry();
+      // @note: We do not set any geometry subtype here
+      break;
+    }
+    case MYSQL_TYPE_JSON:
+      set_data_type_json();
+      break;
+
+    case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_ENUM:
+      if (aggregate_string_properties(new_type, name, items, count))
+        return true;
+      break;
+
+    default:
+      assert(false);
+      set_data_type(new_type);
+      break;
+  }
+
+  assert(data_type() != MYSQL_TYPE_INVALID);
+  return false;
 }
 
 bool Item::itemize(Parse_context *pc, Item **res) {
@@ -3752,7 +3853,7 @@ bool Item_param::propagate_type(THD *, const Type_properties &type) {
       unsigned_flag = type.m_unsigned_flag;
       break;
     case MYSQL_TYPE_BIT:
-      set_data_type_bit();
+      set_data_type_bit(64);
       break;
     case MYSQL_TYPE_YEAR:
       set_data_type_year();
@@ -7581,9 +7682,14 @@ bool Item::can_be_substituted_for_gc(bool array) const {
 }
 
 /**
-  Set the maximum number of characters required by any of the items in args.
+  Calculate the maximum number of characters required by any of the items.
+
+  @param items   arguments to calculate max width for
+  @param nitems   number of arguments
+
+  @returns max width in number of characters
 */
-void Item::aggregate_char_length(Item **args, uint nitems) {
+uint32 Item::aggregate_char_width(Item **items, uint nitems) {
   uint32 char_length = 0;
   /*
     To account for character sets with different number of bytes per character,
@@ -7593,84 +7699,88 @@ void Item::aggregate_char_length(Item **args, uint nitems) {
   */
   bool bin_charset = collation.collation == &my_charset_bin;
   for (uint i = 0; i < nitems; i++)
-    char_length = max(char_length, bin_charset ? args[i]->max_length
-                                               : args[i]->max_char_length());
-  if (char_length * collation.collation->mbmaxlen > max_length)
-    fix_char_length(char_length);
+    char_length = max(char_length, bin_charset ? items[i]->max_length
+                                               : items[i]->max_char_length());
+  return char_length;
 }
 
 /**
   Set max_length and decimals of function if function is floating point and
   result length/precision depends on argument ones.
 
-  @param item    Argument array.
+  @param type    The float type (float or double precision)
+  @param items   Argument array.
   @param nitems  Number of arguments in the array.
 */
-void Item::aggregate_float_properties(Item **item, uint nitems) {
-  assert(result_type() == REAL_RESULT);
-  uint32 length = 0;
-  uint8 decimals_cnt = 0;
-  uint32 maxl = 0;
+void Item::aggregate_float_properties(enum_field_types type, Item **items,
+                                      uint nitems) {
+  uint32 int_part = 0;
+  uint8 deci = 0;
   for (uint i = 0; i < nitems; i++) {
-    if (decimals_cnt != DECIMAL_NOT_SPECIFIED) {
-      decimals_cnt = max(decimals_cnt, item[i]->decimals);
-      length = max(length, (item[i]->max_length - item[i]->decimals));
+    if (items[i]->decimals == DECIMAL_NOT_SPECIFIED) {
+      deci = DECIMAL_NOT_SPECIFIED;
     }
-    maxl = max(maxl, item[i]->max_length);
+    if (deci != DECIMAL_NOT_SPECIFIED) {
+      deci = max(deci, items[i]->decimals);
+      int_part = max(int_part, items[i]->max_length - items[i]->decimals);
+    }
   }
-  if (decimals_cnt != DECIMAL_NOT_SPECIFIED) {
-    maxl = length;
-    length += decimals_cnt;
-    if (length < maxl)  // If previous operation gave overflow
-      maxl = UINT_MAX32;
+  unsigned_flag = false;
+  if (type == MYSQL_TYPE_FLOAT)
+    set_data_type_float();
+  else
+    set_data_type_double();
+  if (deci != DECIMAL_NOT_SPECIFIED) {
+    if (UINT_MAX32 - int_part < deci)
+      max_length = UINT_MAX32;
     else
-      maxl = length;
+      max_length = int_part + deci;
+    decimals = deci;
   }
-
-  this->max_length = maxl;
-  this->decimals = decimals_cnt;
 }
 
 /**
-  Set precision and decimals of function when this depends on arguments'
-  values for these quantities.
+  Set data type, precision and scale of item of type decimal from list of items.
 
-  @param item    Argument array.
+  @param items   Argument array.
   @param nitems  Number of arguments in the array.
 */
-void Item::aggregate_decimal_properties(Item **item, uint nitems) {
-  assert(result_type() == DECIMAL_RESULT);
-  int max_int_part = 0;
-  uint8 decimal_cnt = 0;
+
+void Item::aggregate_decimal_properties(Item **items, uint nitems) {
+  uint8 int_part = 0;
+  uint8 scale = 0;
   for (uint i = 0; i < nitems; i++) {
-    decimal_cnt = max(decimal_cnt, item[i]->decimals);
-    max_int_part = max(max_int_part, item[i]->decimal_int_part());
+    scale = max(scale, items[i]->decimals);
+    int_part = max(int_part, static_cast<uint8>(items[i]->decimal_int_part()));
   }
-  int precision = min(max_int_part + decimal_cnt, DECIMAL_MAX_PRECISION);
-  set_data_type_decimal(precision, decimal_cnt);
+  uint8 precision = min(int_part + scale, DECIMAL_MAX_PRECISION);
+
+  unsigned_flag = false;
+  set_data_type_decimal(precision, scale);
 }
 
 /**
-  Set fractional seconds precision for temporal functions.
+  Set data type and fractional seconds precision for temporal functions.
 
-  @param item    Argument array
+  @param type    Temporal data type
+  @param items   Argument array
   @param nitems  Number of arguments in the array.
 */
-void Item::aggregate_temporal_properties(Item **item, uint nitems) {
-  assert(result_type() == STRING_RESULT);
+void Item::aggregate_temporal_properties(enum_field_types type, Item **items,
+                                         uint nitems) {
   uint8 decimal_cnt = 0;
 
-  switch (data_type()) {
+  switch (type) {
     case MYSQL_TYPE_DATETIME:
       for (uint i = 0; i < nitems; i++)
-        decimal_cnt = max(decimal_cnt, uint8(item[i]->datetime_precision()));
+        decimal_cnt = max(decimal_cnt, uint8(items[i]->datetime_precision()));
       decimal_cnt = min(decimal_cnt, uint8(DATETIME_MAX_DECIMALS));
       set_data_type_datetime(decimal_cnt);
       break;
 
     case MYSQL_TYPE_TIMESTAMP:
       for (uint i = 0; i < nitems; i++)
-        decimal_cnt = max(decimal_cnt, uint8(item[i]->datetime_precision()));
+        decimal_cnt = max(decimal_cnt, uint8(items[i]->datetime_precision()));
       decimal_cnt = min(decimal_cnt, uint8(DATETIME_MAX_DECIMALS));
       set_data_type_timestamp(decimal_cnt);
       break;
@@ -7687,7 +7797,7 @@ void Item::aggregate_temporal_properties(Item **item, uint nitems) {
 
     case MYSQL_TYPE_TIME:
       for (uint i = 0; i < nitems; i++)
-        decimal_cnt = max(decimal_cnt, uint8(item[i]->time_precision()));
+        decimal_cnt = max(decimal_cnt, uint8(items[i]->time_precision()));
       decimal_cnt = min(decimal_cnt, uint8(DATETIME_MAX_DECIMALS));
       set_data_type_time(decimal_cnt);
       break;
@@ -7705,76 +7815,70 @@ void Item::aggregate_temporal_properties(Item **item, uint nitems) {
   Aggregate string properties (character set, collation and maximum length) for
   string function.
 
+  @param type        String data type
   @param name        Name of function
   @param items       Argument array.
   @param nitems      Number of arguments.
 
-  @retval            False on success, true on error.
+  @returns           False on success, true on error.
 */
-bool Item::aggregate_string_properties(const char *name, Item **items,
-                                       uint nitems) {
-  assert(result_type() == STRING_RESULT);
+bool Item::aggregate_string_properties(enum_field_types type, const char *name,
+                                       Item **items, uint nitems) {
   if (agg_item_charsets_for_string_result(collation, name, items, nitems, 1))
     return true;
-  if (is_temporal_type(data_type())) {
-    /*
-      aggregate_temporal_properties() will set collation to numeric, causing
-      the character set to be explicitly set to latin1, which may not match the
-      aggregated character set. The collation must therefore be restored after
-      the temporal properties have been computed.
-    */
-    auto aggregated_collation = collation;
-    aggregate_temporal_properties(items, nitems);
-    collation.set(aggregated_collation);
-    /*
-      Set max_length again as the aggregated character set may have different
-      number of bytes per character than latin1.
-    */
-    fix_char_length(max_length);
-  } else
-    decimals = min(decimals, uint8(DECIMAL_NOT_SPECIFIED));
-  aggregate_char_length(items, nitems);
+
+  // Calculate maximum width in number of characters
+  uint32 char_width = aggregate_char_width(items, nitems);
 
   /*
     If the resulting data type is a fixed length character or binary string
     and the result maximum length in characters is longer than the MySQL
     maximum CHAR/BINARY size, convert to a variable-sized type.
   */
-  if (data_type() == MYSQL_TYPE_STRING &&
-      max_char_length() > MAX_FIELD_CHARLENGTH)
-    set_data_type(MYSQL_TYPE_VARCHAR);
+  if (type == MYSQL_TYPE_STRING && char_width > MAX_FIELD_CHARLENGTH)
+    type = MYSQL_TYPE_VARCHAR;
 
+  switch (type) {
+    case MYSQL_TYPE_STRING:
+      set_data_type_char(char_width);
+      break;
+    case MYSQL_TYPE_VARCHAR:
+      set_data_type_string(char_width);
+      break;
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+      set_data_type_blob(type, char_width);
+      break;
+
+    case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_ENUM:
+      set_data_type(type);
+      decimals = DECIMAL_NOT_SPECIFIED;
+      fix_char_length(char_width);
+      break;
+
+    default:
+      assert(false);
+      set_data_type(type);
+      break;
+  }
   return false;
 }
 
 /**
-  This function is used to resolve type for numeric result type of CASE,
-  COALESCE, IF and LEAD/LAG. COALESCE is a CASE abbreviation according to the
-  standard.
+  Set data type and properties of a BIT column
 
-  @param result_type The desired result type
-  @param item        The arguments of func
-  @param nitems      The number of arguments
+  @param items   Items to aggregate bit properties from
+  @param nitems  Number of items
 */
-void Item::aggregate_num_type(Item_result result_type, Item **item,
-                              uint nitems) {
-  collation.set_numeric();
-  switch (result_type) {
-    case DECIMAL_RESULT:
-      aggregate_decimal_properties(item, nitems);
-      break;
-    case REAL_RESULT:
-      aggregate_float_properties(item, nitems);
-      break;
-    case INT_RESULT:
-    case STRING_RESULT:
-      aggregate_char_length(item, nitems);
-      decimals = 0;
-      break;
-    case ROW_RESULT:
-    default:
-      assert(0);
+void Item::aggregate_bit_properties(Item **items, uint nitems) {
+  uint32 max_bits = 0;
+  for (uint i = 0; i < nitems; i++) {
+    max_bits = max(max_bits, items[i]->max_length);
   }
+  set_data_type_bit(max_bits);
 }
 
 /**
@@ -10351,11 +10455,10 @@ bool Item_aggregate_type::join_types(THD *thd, Item *item) {
     original Item tree.
   */
   Item **args = new (thd->mem_root) Item *[2] { item_copy, item };
-  aggregate_type(make_array(&args[0], 2));
+  if (aggregate_type("UNION", args, 2)) return true;
 
   Item_result merge_type = Field::result_merge_type(data_type());
   if (merge_type == STRING_RESULT) {
-    if (aggregate_string_properties("UNION", args, 2)) return true;
     /*
       For geometry columns, we must also merge subtypes. If the
       subtypes are different, use GEOMETRY.
@@ -10364,8 +10467,7 @@ bool Item_aggregate_type::join_types(THD *thd, Item *item) {
         (item->data_type() != MYSQL_TYPE_GEOMETRY ||
          geometry_type != item->get_geometry_type()))
       geometry_type = Field::GEOM_GEOMETRY;
-  } else
-    aggregate_num_type(merge_type, args, 2);
+  }
 
   // Note: when called to join the types of a set operation's select list, the
   // below line is correct only if we have no INTERSECT or EXCEPT in the query

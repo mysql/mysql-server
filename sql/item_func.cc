@@ -1493,10 +1493,8 @@ void Item_num_op::set_numeric_type(void) {
       type codes, we should never get to here when both fields are temporal.
     */
     assert(!args[0]->is_temporal() || !args[1]->is_temporal());
-    set_data_type(MYSQL_TYPE_DOUBLE);
+    aggregate_float_properties(MYSQL_TYPE_DOUBLE, args, arg_count);
     hybrid_type = REAL_RESULT;
-    aggregate_float_properties(args, arg_count);
-    max_length = float_length(decimals);
   } else if (r0 == DECIMAL_RESULT || r1 == DECIMAL_RESULT) {
     set_data_type(MYSQL_TYPE_NEWDECIMAL);
     hybrid_type = DECIMAL_RESULT;
@@ -3741,7 +3739,7 @@ static int temporal_rank(enum_field_types type) {
 
 bool Item_func_min_max::resolve_type_inner(THD *thd) {
   if (param_type_uses_non_param(thd)) return true;
-  aggregate_type(make_array(args, arg_count));
+  if (aggregate_type(func_name(), args, arg_count)) return true;
   hybrid_type = Field::result_merge_type(data_type());
   if (hybrid_type == STRING_RESULT) {
     /*
@@ -3749,6 +3747,7 @@ bool Item_func_min_max::resolve_type_inner(THD *thd) {
       must be set for correct conversion from temporal values to various result
       types.
     */
+    fsp_for_string = 0;
     for (uint i = 0; i < arg_count; i++) {
       if (args[i]->is_temporal()) {
         /*
@@ -3757,26 +3756,41 @@ bool Item_func_min_max::resolve_type_inner(THD *thd) {
           most general and detailed data type to which other temporal types can
           be converted without loss of information.
         */
-        if (!temporal_item || (temporal_rank(args[i]->data_type()) >
-                               temporal_rank(temporal_item->data_type())))
+        if (temporal_item == nullptr ||
+            temporal_rank(args[i]->data_type()) >
+                temporal_rank(temporal_item->data_type()))
           temporal_item = args[i];
       }
     }
     /*
-      If one or more, but not all, of the arguments have a temporal data type,
-      the data type of this item must be set temporarily to ensure that the
-      various aggregate functions derive the correct properties.
+      Calculate a correct datetime precision, also including  values that are
+      converted from decimal and float numbers, and possibly adjust the
+      maximum length of the resulting string accordingly.
     */
-    enum_field_types tmp_data_type = (!is_temporal() && has_temporal_arg())
-                                         ? temporal_item->data_type()
-                                         : data_type();
-    enum_field_types aggregated_data_type = data_type();
-    set_data_type(tmp_data_type);
-    if (aggregate_string_properties(func_name(), args, arg_count)) return true;
-    set_data_type(aggregated_data_type);
-  } else
-    aggregate_num_type(hybrid_type, args, arg_count);
-
+    if (temporal_item != nullptr) {
+      if (temporal_item->data_type() == MYSQL_TYPE_TIME) {
+        for (uint i = 0; i < arg_count; i++)
+          fsp_for_string =
+              max<uint8>(fsp_for_string, args[i]->time_precision());
+      } else if (temporal_item->data_type() == MYSQL_TYPE_DATETIME ||
+                 temporal_item->data_type() == MYSQL_TYPE_TIMESTAMP) {
+        for (uint i = 0; i < arg_count; i++)
+          fsp_for_string =
+              max<uint8>(fsp_for_string, args[i]->datetime_precision());
+      }
+      if (temporal_item->data_type() != MYSQL_TYPE_DATE && fsp_for_string > 0) {
+        uint32 new_size = 0;
+        if (temporal_item->data_type() == MYSQL_TYPE_DATETIME ||
+            temporal_item->data_type() == MYSQL_TYPE_TIMESTAMP)
+          new_size = MAX_DATETIME_WIDTH + 1 + fsp_for_string;
+        else if (temporal_item->data_type() == MYSQL_TYPE_TIME)
+          new_size = MAX_TIME_WIDTH + 1 + fsp_for_string;
+        if (new_size > max_char_length()) {
+          set_data_type_string(new_size);
+        }
+      }
+    }
+  }
   /*
   LEAST and GREATEST convert JSON values to strings before they are
   compared, so their JSON nature is lost. Raise a warning to
@@ -3842,7 +3856,7 @@ String *Item_func_min_max::str_op(String *str) {
       MYSQL_TIME ltime;
       enum_field_types field_type = temporal_item->data_type();
       TIME_from_longlong_packed(&ltime, field_type, result);
-      null_value = my_TIME_to_str(&ltime, str, decimals);
+      null_value = my_TIME_to_str(&ltime, str, fsp_for_string);
       if (null_value) return nullptr;
       if (str->needs_conversion(collation.collation)) {
         uint errors = 0;
