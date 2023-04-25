@@ -82,6 +82,12 @@ bool opt_sporadic_binlog_dump_fail = false;
 
 malloc_unordered_map<uint32, unique_ptr_my_free<REPLICA_INFO>> slave_list{
     key_memory_REPLICA_INFO};
+
+resource_blocker::Resource &get_dump_thread_resource() {
+  static resource_blocker::Resource dump_thread_resource;
+  return dump_thread_resource;
+}
+
 extern TYPELIB binlog_checksum_typelib;
 
 #define get_object(p, obj, msg)                  \
@@ -99,6 +105,29 @@ extern TYPELIB binlog_checksum_typelib;
     strmake(obj, (char *)p, len);                \
     p += len;                                    \
   }
+
+// returns true if user successfully acquired a resource and false otherwise.
+// In case of failure to use a resource, it concatenates all blocking reeasons
+// and reports all as my_message.
+static bool check_and_report_dump_thread_blocked(
+    resource_blocker::User &rpl_user) {
+  if (rpl_user) {
+    return true;
+  }
+  const auto reasons = rpl_user.block_reasons();
+  std::string all_msgs;
+  bool first = true;
+  for (const auto &reason : reasons) {
+    if (first) {
+      first = false;
+    } else {
+      all_msgs.append(" ");
+    }
+    all_msgs.append(reason);
+  }
+  my_message(ER_SOURCE_FATAL_ERROR_READING_BINLOG, all_msgs.c_str(), MYF(0));
+  return false;
+}
 
 /**
   Register slave in 'slave_list' hash table.
@@ -119,6 +148,14 @@ int register_replica(THD *thd, uchar *packet, size_t packet_length) {
 
   if (check_access(thd, REPL_SLAVE_ACL, any_db, nullptr, nullptr, false, false))
     return 1;
+
+  thd->rpl_thd_ctx.dump_thread_user =
+      resource_blocker::User(get_dump_thread_resource());
+  // failed to create a user, resource is blocked
+  if (!check_and_report_dump_thread_blocked(
+          thd->rpl_thd_ctx.dump_thread_user)) {
+    return 1;
+  }
 
   unique_ptr_my_free<REPLICA_INFO> si((REPLICA_INFO *)my_malloc(
       key_memory_REPLICA_INFO, sizeof(REPLICA_INFO), MYF(MY_WME)));
@@ -905,6 +942,17 @@ bool com_binlog_dump(THD *thd, char *packet, size_t packet_length) {
   thd->enable_slow_log = opt_log_slow_admin_statements;
   if (check_global_access(thd, REPL_SLAVE_ACL)) return false;
 
+  // if we first registered a replica, user will already be initialized and
+  // using a resource
+  if (!thd->rpl_thd_ctx.dump_thread_user) {
+    thd->rpl_thd_ctx.dump_thread_user =
+        resource_blocker::User(get_dump_thread_resource());
+    // failed to create a user, resource is blocked
+    if (!check_and_report_dump_thread_blocked(
+            thd->rpl_thd_ctx.dump_thread_user)) {
+      return false;
+    }
+  }
   /*
     4 bytes is too little, but changing the protocol would break
     compatibility.  This has been fixed in the new protocol. @see
@@ -955,6 +1003,18 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length) {
   thd->status_var.com_other++;
   thd->enable_slow_log = opt_log_slow_admin_statements;
   if (check_global_access(thd, REPL_SLAVE_ACL)) return false;
+
+  // if we first registered a replica, user will already be initialized and
+  // using a resource
+  if (!thd->rpl_thd_ctx.dump_thread_user) {
+    thd->rpl_thd_ctx.dump_thread_user =
+        resource_blocker::User(get_dump_thread_resource());
+    // failed to create a user, resource is blocked
+    if (!check_and_report_dump_thread_blocked(
+            thd->rpl_thd_ctx.dump_thread_user)) {
+      return false;
+    }
+  }
 
   READ_INT(flags, 2);
   READ_INT(thd->server_id, 4);

@@ -33,6 +33,7 @@
 #include "libbinlogevents/include/compression/factory.h"
 #include "sql/binlog/group_commit/bgc_ticket.h"
 #include "sql/memory/aligned_atomic.h"
+#include "sql/resource_blocker.h"  // resource_blocker::User
 #include "sql/system_variables.h"
 
 #include <functional>
@@ -408,6 +409,8 @@ class Rpl_thd_context {
     // end
     TX_RPL_STAGE_END  // Not used
   };
+
+  resource_blocker::User dump_thread_user;
 
  private:
   Session_consistency_gtids_ctx m_session_gtids_ctx;
