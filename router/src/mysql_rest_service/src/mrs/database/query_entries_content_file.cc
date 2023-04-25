@@ -70,7 +70,7 @@ void QueryEntriesContentFile::query_entries(MySQLSession *session) {
 void QueryEntriesContentFile::on_row(const Row &row) {
   entries.emplace_back();
 
-  helper::MySQLRow mysql_row(row);
+  helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);
   auto &entry = entries.back();
 
   mysql_row.unserialize_with_converter(&entry.id, entry::UniversalId::from_raw);
