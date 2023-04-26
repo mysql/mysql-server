@@ -89,7 +89,7 @@ ADD_CUSTOM_COMMAND(
 MYSQL_ADD_EXECUTABLE(gen_keyword_list
   gen_keyword_list.cc
   DEPENDENCIES GenServerSource
-  LINK_LIBRARIES ext::icu
+  LINK_LIBRARIES ext::icu ${CMAKE_DL_LIBS}
   SKIP_INSTALL
   )
 
