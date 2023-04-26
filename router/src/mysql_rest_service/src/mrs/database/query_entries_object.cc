@@ -127,7 +127,7 @@ void QueryEntryObject::on_reference_row(const Row &r) {
       }
 
       rapidjson::Document doc = helper::json::text_to_document(value);
-      if (!doc.IsObject()) {
+      if (!doc.IsArray()) {
         throw std::runtime_error("bad metadata");
       }
 
