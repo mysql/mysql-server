@@ -1402,6 +1402,8 @@ void THD::release_resources() {
   delete events_cache_;
   events_cache_ = nullptr;
 
+  release_external_store();
+
   if (current_thd == this) restore_globals();
 
   mysql_mutex_lock(&LOCK_status);
