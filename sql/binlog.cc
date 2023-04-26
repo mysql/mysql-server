@@ -8188,6 +8188,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
   if (thd->lex->sql_command ==
       SQLCOM_XA_COMMIT) {  // XA commit must be written to the binary log prior
                            // to retrieving cache manager
+    DBUG_EXECUTE_IF("simulate_xa_commit_log_abort", { return RESULT_ABORTED; });
     if (this->write_xa_to_cache(thd)) return RESULT_ABORTED;
   }
 
@@ -8257,6 +8258,8 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
     stmt_stuff_logged = true;
   }
 
+  bool one_phase = get_xa_opt(thd) == XA_ONE_PHASE;
+
   /*
     We commit the transaction if:
      - We are not in a transaction and committing a statement, or
@@ -8268,7 +8271,6 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
     const bool real_trans =
         (all || !trn_ctx->is_active(Transaction_ctx::SESSION));
 
-    bool one_phase = get_xa_opt(thd) == XA_ONE_PHASE;
     bool is_loggable_xa = is_loggable_xa_prepare(thd);
 
     /*
@@ -8373,7 +8375,9 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
              is_atomic_ddl)) ||
         DBUG_EVALUATE_IF("simulate_failure_in_before_commit_hook", true,
                          false)) {
-      trx_coordinator::rollback_in_engines(thd, all);
+      if (!(thd->lex->sql_command == SQLCOM_XA_COMMIT && !one_phase)) {
+        trx_coordinator::rollback_in_engines(thd, all);
+      }
       gtid_state->update_on_rollback(thd);
       thd_get_cache_mngr(thd)->reset();
       // Reset the thread OK status before changing the outcome.
@@ -8391,7 +8395,9 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
             ->is_transaction_rollback() ||
         (DBUG_EVALUATE_IF("simulate_transaction_rollback_request", true,
                           false))) {
-      trx_coordinator::rollback_in_engines(thd, all);
+      if (!(thd->lex->sql_command == SQLCOM_XA_COMMIT && !one_phase)) {
+        trx_coordinator::rollback_in_engines(thd, all);
+      }
       gtid_state->update_on_rollback(thd);
       thd_get_cache_mngr(thd)->reset();
       if (thd->get_stmt_da()->is_ok())
@@ -8400,7 +8406,13 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
       return RESULT_ABORTED;
     }
 
-    if (ordered_commit(thd, all, skip_commit)) return RESULT_INCONSISTENT;
+    if (DBUG_EVALUATE_IF("simulate_xa_commit_log_inconsistency", true, false) ||
+        ordered_commit(thd, all, skip_commit)) {
+      thd_get_cache_mngr(thd)->reset();
+      if (thd->get_stmt_da()->is_ok())
+        thd->get_stmt_da()->reset_diagnostics_area();
+      return RESULT_INCONSISTENT;
+    }
 
     DBUG_EXECUTE_IF("ensure_binlog_cache_is_reset", {
       /* Assert that binlog cache is reset at commit time. */

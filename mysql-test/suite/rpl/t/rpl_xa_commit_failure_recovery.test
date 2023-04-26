@@ -1,0 +1,158 @@
+# === Purpose ===
+#
+# Check XA transactions can be recovered after a failure occurs on XA COMMIT and the server restarts.
+#
+# === Requirements ===
+#
+# R1. XA transaction must be recoverable after a server restart when XA COMMIT/ROLLBACK fails.
+#
+# === Implementation ===
+#
+# 1. Detached XA transaction recovery after XA commit abort
+# 2. Detached XA transaction recovery after XA commit inconsistency
+# 3. Attached XA transaction recovery after XA commit abort
+# 4. Attached XA transaction recovery after XA commit inconsistency
+#
+# === References ===
+#
+# BUG#33650776 Failure of XA COMMIT of prepared txn, can result in txn rollback
+#
+--let $rpl_server_count= 1
+--let $rpl_topology= none
+--source include/rpl_init.inc
+
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # Initialization
+--echo #
+
+CALL mtr.add_suppression("Found 1 prepared XA transactions");
+CREATE TABLE t1 (col1 INT);
+
+--let $test_number = 1
+while ($test_number <= 4)
+{
+  if ($test_number == 1)
+  {
+    --echo #
+    --echo # Dettached XA transaction RESULT_ABORTED
+    --echo #
+
+    SET SESSION xa_detach_on_prepare = ON;
+    --let $xa_commit_failure_debug_point = simulate_xa_commit_log_abort
+  }
+  if ($test_number == 2)
+  {
+    --echo #
+    --echo # Dettached XA transaction RESULT_INCONSISTENT
+    --echo #
+
+    SET SESSION xa_detach_on_prepare = ON;
+    --let $xa_commit_failure_debug_point = simulate_xa_commit_log_inconsistency
+  }
+  if ($test_number == 3)
+  {
+    --echo #
+    --echo # Attached XA transaction RESULT_ABORTED
+    --echo #
+
+    SET SESSION xa_detach_on_prepare = OFF;
+    --let $xa_commit_failure_debug_point = simulate_xa_commit_log_abort
+  }
+  if ($test_number == 4)
+  {
+    --echo #
+    --echo # Attached XA transaction RESULT_INCONSISTENT
+    --echo #
+
+    SET SESSION xa_detach_on_prepare = OFF;
+    --let $xa_commit_failure_debug_point = simulate_xa_commit_log_inconsistency
+  }
+
+  #
+  # XA transaction
+  #
+  XA START '1';
+  INSERT INTO t1 VALUES (1);
+  XA END '1';
+  XA PREPARE '1';
+
+  #
+  # Check the transaction can be recovered
+  #
+  --let $xid_data = 1
+  --let $expected_prepared_xa_count = 1
+  --source extra/xa_crash_safe_tests/assert_xa_recover.inc
+
+  #
+  # XA commit failure, add debug point
+  #
+  --let $debug_point = $xa_commit_failure_debug_point
+  --source include/add_debug_point.inc
+
+  --error ER_XA_RETRY
+  XA COMMIT '1';
+
+  --let $debug_point = $xa_commit_failure_debug_point
+  --source include/remove_debug_point.inc
+
+  #
+  # Check value is not present. The check is in separate
+  # connection so that attached transaction can be verified.
+  #
+  --let $rpl_connection_name= server_1
+  --source include/rpl_connection.inc
+
+  --let $assert_text = Transaction is not committed thus the table is empty.
+  --let $assert_cond = "[SELECT COUNT(*) FROM t1]" = "0"
+  --source include/assert.inc
+
+  --let $rpl_connection_name= default
+  --source include/rpl_connection.inc
+
+  #
+  # Start server and recover XA transaction
+  #
+  --source include/rpl_restart_server.inc
+
+  #
+  # Check the transaction can still be recovered after restart
+  #
+  --let $xid_data = 1
+  --let $expected_prepared_xa_count = 1
+  --source extra/xa_crash_safe_tests/assert_xa_recover.inc
+
+  #
+  # Now the transaction should commit
+  #
+  XA COMMIT '1';
+
+  #
+  # Check the transaction is no longer in XA RECOVER
+  #
+  --let $xid_data = 1
+  --let $expected_prepared_xa_count = 0
+  --source extra/xa_crash_safe_tests/assert_xa_recover.inc
+
+  #
+  # Check value is present
+  #
+  --let $assert_text = Transaction is committed thus the table is not empty.
+  --let $assert_cond = "[SELECT COUNT(*) FROM t1]" = "1"
+  --source include/assert.inc
+
+  #
+  # Cleanup subtest
+  #
+  DELETE FROM t1 WHERE col1 = 1;
+
+  --inc $test_number
+}
+
+--echo #
+--echo # Cleanup
+--echo #
+
+DROP TABLE t1;

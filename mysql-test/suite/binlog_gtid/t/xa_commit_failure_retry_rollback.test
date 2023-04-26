@@ -1,0 +1,429 @@
+# === Purpose ===
+#
+# Check XA transaction commit error can be retried or rolled back.
+#
+# === Requirements ===
+#
+# R1. XA transaction which has failed during commit can be retried again
+#     or rollbacked.
+#
+# === Implementation ===
+#
+# 1. Check failed XA commit followed by retry
+#  1.1. Prepare an XA transaction
+#  1.2. Simulate error during XA COMMIT
+#  1.3. Validate that the failed XA COMMIT did not alter the state of the server, binlog, GTIDs, or XIDs.
+#  1.4. Execute XA COMMIT without simulated error
+#  1.5. Validate that the successful XA COMMIT altered the state of the server, binlog, GTIDs, and XIDs as expected.
+# 2. Check failed XA commit followed by retry with specified GTID
+#  2.1. Repeat steps 1.1-1.5, but use a specified GTID for the failing XA COMMIT.
+# 3. Check failed XA commit followed by rollback
+#  3.1. Repeat steps 1.1-1.5, but in step 1.5 use XA ROLLBACK instead of XA COMMIT.
+# 4. Check failed XA commit followed by rollback with specified GTID
+#  4.1. Repeat steps 1.1-1.5, but use a specified GTID for the failing XA COMMIT
+#       and in step 1.5 use XA ROLLBACK instead of XA COMMIT.
+#
+# === References ===
+#
+# BUG#33650776 Failure of XA COMMIT of prepared txn, can result in txn rollback
+#
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+#
+# Procedure commit_failure_check.inc
+#
+# Purpose: Check transaction commit failure is handled properly:
+#          - global.gtid_owned is empty
+#          - session.gtid_owned is empty
+#          - global.executed_gtid is not modified
+#          - table is not modified
+#          - XID can be recovered
+#          - binary log is not updated
+#
+# Usage:
+#         --source include/save_binlog_position.inc
+#         --let $before_binlog_position = $binlog_position
+#         --let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+#
+#          COMMIT FAILURE
+#
+#         --let $commit_value = value_not_to_be_in_table
+#         --source $commit_failure_check
+#
+--let $commit_failure_check = $MYSQL_TMP_DIR/commit_failure_check.inc
+--write_file $commit_failure_check END_OF_PROCEDURE
+
+# global.gtid_owned is empty
+--let $assert_text = GLOBAL.GTID_OWNED is empty
+--let $assert_cond = "[SELECT @@global.gtid_owned]" = ""
+--source include/assert.inc
+
+# session.gtid_owned is empty
+--let $assert_text = SESSION.GTID_OWNED is empty
+--let $assert_cond = "[SELECT @@session.gtid_owned]" = ""
+--source include/assert.inc
+
+# GTID_EXECUTED has not been updated
+--let $after_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+--let $assert_text = GTID_EXECUTED has not been updated
+--let $assert_cond = "$before_gtid_executed" = "$after_gtid_executed"
+--source include/assert.inc
+
+# Value is not present in the table
+--let $assert_text = Value is not present in the table
+--let $assert_cond = "[SELECT COUNT(*) FROM t1 WHERE c = $commit_value]" = "0"
+--source include/assert.inc
+
+# XA retry is possible
+SET SESSION gtid_next = 'AUTOMATIC';
+--let $pending = query_get_value(XA RECOVER, data, 1)
+--let $assert_text= XA transaction is pending
+--let $assert_cond= "$pending" = "1"
+--source include/assert.inc
+
+# Binary log has not been updated
+--source include/save_binlog_position.inc
+--let $assert_text = Binary log has not been updated
+--let $assert_cond = "$before_binlog_position" = "$binlog_position"
+--source include/assert.inc
+END_OF_PROCEDURE
+
+#
+# Procedure commit_success_check.inc
+#
+# Purpose: Check transaction commit success is handled properly:
+#          - global.gtid_owned is empty
+#          - session.gtid_owned is empty
+#          - global.executed_gtid is modified
+#          - table is modified
+#          - XID cannot be recovered
+#          - binary log is updated
+#
+# Usage:
+#         --source include/save_binlog_position.inc
+#         --let $before_binlog_position = $binlog_position
+#         --let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+#
+#          COMMIT SUCCESS
+#
+#         --let $commit_value = value_to_be_in_table
+#         --source $commit_success_check
+#
+--let $commit_success_check = $MYSQL_TMP_DIR/commit_success_check.inc
+--write_file $commit_success_check END_OF_PROCEDURE
+
+# global.gtid_owned is empty
+--let $assert_text = GLOBAL.GTID_OWNED is empty
+--let $assert_cond = "[SELECT @@global.gtid_owned]" = ""
+--source include/assert.inc
+
+# session.gtid_owned is empty
+--let $assert_text = SESSION.GTID_OWNED is empty
+--let $assert_cond = "[SELECT @@session.gtid_owned]" = ""
+--source include/assert.inc
+
+# GTID_EXECUTED has been updated
+--let $after_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+--let $assert_text = GTID_EXECUTED has been updated
+--let $assert_cond = "$before_gtid_executed" <> "$after_gtid_executed"
+--source include/assert.inc
+
+# Value is present in the table
+--let $assert_text = Value is present in the table
+--let $assert_cond = "[SELECT COUNT(*) FROM t1 WHERE c = $commit_value]" = "1"
+--source include/assert.inc
+
+# XA retry is not possible
+SET SESSION gtid_next = 'AUTOMATIC';
+--let $pending = query_get_value(XA RECOVER, data, 1)
+--let $assert_text= XA transaction is not pending
+--let $assert_cond= "$pending" = "No such row"
+--source include/assert.inc
+
+# XID is not available
+--error ER_XAER_NOTA
+XA COMMIT '1';
+
+# Binary log has been updated
+--source include/save_binlog_position.inc
+--let $assert_text = Binary log has been updated
+--let $assert_cond = "$before_binlog_position" <> "$binlog_position"
+--source include/assert.inc
+END_OF_PROCEDURE
+
+#
+# Procedure rollback_success_check.inc
+#
+# Purpose: Check transaction successful rollback is handled properly:
+#          - global.gtid_owned is empty
+#          - session.gtid_owned is empty
+#          - global.executed_gtid is modified
+#          - table is not modified
+#          - XID cannot be recovered
+#          - binary log is updated
+#
+# Usage:
+#         --source include/save_binlog_position.inc
+#         --let $before_binlog_position = $binlog_position
+#         --let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+#
+#          ROLLBACK
+#
+#         --let $commit_value = value_not_to_be_in_table
+#         --source $rollback_success_check
+#
+--let $rollback_success_check = $MYSQL_TMP_DIR/rollback_success_check.inc
+--write_file $rollback_success_check END_OF_PROCEDURE
+
+# global.gtid_owned is empty
+--let $assert_text = GLOBAL.GTID_OWNED is empty
+--let $assert_cond = "[SELECT @@global.gtid_owned]" = ""
+--source include/assert.inc
+
+# session.gtid_owned is empty
+--let $assert_text = SESSION.GTID_OWNED is empty
+--let $assert_cond = "[SELECT @@session.gtid_owned]" = ""
+--source include/assert.inc
+
+# GTID_EXECUTED has been updated as rollback writes GTID
+--let $after_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+--let $assert_text = GTID_EXECUTED has been updated
+--let $assert_cond = "$before_gtid_executed" <> "$after_gtid_executed"
+--source include/assert.inc
+
+# Value is not present in the table
+--let $assert_text = Value is not present in the table
+--let $assert_cond = "[SELECT COUNT(*) FROM t1 WHERE c = $commit_value]" = "0"
+--source include/assert.inc
+
+# XA retry is not possible
+SET SESSION gtid_next = 'AUTOMATIC';
+--let $pending = query_get_value(XA RECOVER, data, 1)
+--let $assert_text= XA transaction is not pending
+--let $assert_cond= "$pending" = "No such row"
+--source include/assert.inc
+
+# XID is not available
+--error ER_XAER_NOTA
+XA COMMIT '1';
+
+# Binary log has been updated
+--source include/save_binlog_position.inc
+--let $assert_text = Binary log has been updated
+--let $assert_cond = "$before_binlog_position" <> "$binlog_position"
+--source include/assert.inc
+END_OF_PROCEDURE
+
+--echo #
+--echo # Initialization
+--echo #
+
+SET SESSION xa_detach_on_prepare = ON;
+
+CREATE TABLE t1 (c int);
+INSERT INTO t1 VALUES (1), (2), (3);
+
+--echo #
+--echo # 1. Check failed XA commit followed by retry
+--echo #
+
+--echo # 1.1. Prepare transaction
+
+XA START '1';
+INSERT INTO t1 VALUES (4);
+XA END '1';
+XA PREPARE '1';
+
+--echo # 1.2. Commit results in error
+
+--source include/save_binlog_position.inc
+--let $before_binlog_position = $binlog_position
+--let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+
+--let $debug_point = simulate_failure_in_before_commit_hook
+--source include/add_debug_point.inc
+
+--error ER_RUN_HOOK_ERROR
+XA COMMIT '1';
+
+--echo # 1.3 Validate that the failed XA COMMIT did not alter
+--echo #     the state of the server, binlog, GTIDs, or XIDs.
+
+--let $commit_value = 4
+--source $commit_failure_check
+--source include/remove_debug_point.inc
+
+--echo # 1.4. Now the commit should succeed
+
+--source include/save_binlog_position.inc
+--let $before_binlog_position = $binlog_position
+--let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+
+XA COMMIT '1';
+
+--echo # 1.5. Transaction has modified server state
+
+--let $commit_value = 4
+--source $commit_success_check
+
+--echo #
+--echo # 2. Check failed XA commit followed by retry with specified GTID
+--echo #
+
+--echo # 2.1. Prepare transaction
+
+# Assign GTID to gtid_next
+--let $server_uuid = `SELECT @@global.server_uuid`
+--replace_result $server_uuid UUID
+--eval SET SESSION gtid_next = '$server_uuid:100'
+
+# Check GTID is assigned to gtid_owned
+--let $assert_text = Check GTID has been assigned to gtid_owned
+--let $assert_cond = "[SELECT @@session.gtid_owned]" = "$server_uuid:100"
+--source include/assert.inc
+
+XA START '1';
+INSERT INTO t1 VALUES (6);
+XA END '1';
+XA PREPARE '1';
+
+# Check gtid_owned is empty
+--let $assert_text = Check GTID has not been assigned to gtid_owned
+--let $assert_cond = "[SELECT @@session.gtid_owned]" = ""
+--source include/assert.inc
+
+# Assign GTID to gtid_next
+--replace_result $server_uuid UUID
+--eval SET SESSION gtid_next = '$server_uuid:101'
+
+--echo # 2.2. Execute commit with failure
+
+--source include/save_binlog_position.inc
+--let $before_binlog_position = $binlog_position
+--let $before_gtid_executed =  `SELECT @@GLOBAL.gtid_executed`
+
+--let $debug_point = simulate_failure_in_before_commit_hook
+--source include/add_debug_point.inc
+
+--error ER_RUN_HOOK_ERROR
+XA COMMIT '1';
+
+--echo # 2.3. Validate that the failed XA COMMIT did not alter
+--echo #      the state of the server, binlog, GTIDs, or XIDs.
+
+--let $commit_value = 6
+--source $commit_failure_check
+--source include/remove_debug_point.inc
+
+--echo # 2.4. Execute commit without failure
+
+--source include/save_binlog_position.inc
+--let $before_binlog_position = $binlog_position
+--let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+
+XA COMMIT '1';
+
+--echo # 2.5. Check transaction has updated server state
+
+--let $commit_value = 6
+--source $commit_success_check
+
+--echo #
+--echo # 3. Check failed XA commit followed by rollback
+--echo #
+
+--echo # 3.1. Prepare transaction for failed commit followed by rollback
+
+XA START '1';
+INSERT INTO t1 VALUES (5);
+XA END '1';
+XA PREPARE '1';
+
+--echo # 3.2. Commit results in error and rollback is possible
+
+--source include/save_binlog_position.inc
+--let $before_binlog_position = $binlog_position
+--let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+
+--let $debug_point = simulate_failure_in_before_commit_hook
+--source include/add_debug_point.inc
+
+--error ER_RUN_HOOK_ERROR
+XA COMMIT '1';
+
+--echo # 3.3. Check transaction did not modify server state
+
+--let $commit_value = 5
+--source $commit_failure_check
+--source include/remove_debug_point.inc
+
+--echo # 3.4. Rollback transaction
+
+--source include/save_binlog_position.inc
+--let $before_binlog_position = $binlog_position
+--let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+
+XA ROLLBACK '1';
+
+--echo # 3.5. Check rollback
+
+--let $commit_value = 5
+--source $rollback_success_check
+
+--echo #
+--echo # 4. Check failed XA commit followed by rollback with specified GTID
+--echo #
+
+--echo # 4.1. Prepare transaction with an assigned GTID
+
+--replace_result $server_uuid UUID
+--eval SET SESSION gtid_next = '$server_uuid:105'
+
+XA START '1';
+INSERT INTO t1 VALUES (7);
+XA END '1';
+XA PREPARE '1';
+
+--echo # 4.2. Fail transaction
+
+--replace_result $server_uuid UUID
+--eval SET SESSION gtid_next = '$server_uuid:106'
+
+--source include/save_binlog_position.inc
+--let $before_binlog_position = $binlog_position
+--let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+
+--let $debug_point = simulate_failure_in_before_commit_hook
+--source include/add_debug_point.inc
+
+--error ER_RUN_HOOK_ERROR
+XA COMMIT '1';
+
+--echo # 4.3. Check the transaction has not updated server state
+
+--let $commit_value = 7
+--source $commit_failure_check
+--source include/remove_debug_point.inc
+
+--echo # 4.4. Rollback transaction
+
+--source include/save_binlog_position.inc
+--let $before_binlog_position = $binlog_position
+--let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+
+XA ROLLBACK '1';
+
+--echo # 4.5. Check successful rollback
+
+--let $commit_value = 7
+--source $rollback_success_check
+
+--echo #
+--echo # Cleanup
+--echo #
+
+DROP TABLE t1;
+--remove_file $commit_failure_check
+--remove_file $commit_success_check
+--remove_file $rollback_success_check

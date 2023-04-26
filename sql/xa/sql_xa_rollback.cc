@@ -30,7 +30,8 @@
 #include "sql/sql_class.h"           // THD
 #include "sql/tc_log.h"              // tc_log
 #include "sql/transaction.h"  // trans_reset_one_shot_chistics, trans_track_end_trx
-#include "sql/transaction_info.h"  // Transaction_ctx
+#include "sql/transaction_info.h"      // Transaction_ctx
+#include "sql/xa/transaction_cache.h"  // xa::Transaction_cache
 
 Sql_cmd_xa_rollback::Sql_cmd_xa_rollback(xid_t *xid_arg)
     : Sql_cmd_xa_second_phase{xid_arg} {}
@@ -145,6 +146,9 @@ bool Sql_cmd_xa_rollback::process_detached_xa_rollback(THD *thd) {
   // This is normally done in ha_rollback_trans, but since we do not call this
   // for an external rollback we need to do it explicitly here.
   this->m_detached_trx_context->push_unsafe_rollback_warnings(thd);
+
+  assert(this->m_detached_trx_context != nullptr);
+  xa::Transaction_cache::remove(this->m_detached_trx_context.get());
   this->cleanup_context(thd);
 
   return this->m_result;

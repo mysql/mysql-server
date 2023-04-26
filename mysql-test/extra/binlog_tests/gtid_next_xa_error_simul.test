@@ -95,7 +95,7 @@ if (!$one_phase)
     {
       --connection conn_err_simul
         BEGIN;
-          --eval INSERT INTO mysql.gtid_executed VALUES ('$uuida',$xid,$xid)
+          --eval INSERT INTO mysql.gtid_executed VALUES ('$uuida',$xid,$xid,'')
 
       --source include/rpl_connection_master.inc
         --disable_query_log
@@ -223,7 +223,7 @@ if ($error_simul == "at_commit")
      # simulate prepare error
      --connection conn_err_simul
      BEGIN;
-       --eval INSERT INTO mysql.gtid_executed VALUES ('$uuidb',$xid,$xid)
+       --eval INSERT INTO mysql.gtid_executed VALUES ('$uuidb',$xid,$xid,'')
 
      --source include/rpl_connection_master.inc
      --disable_query_log

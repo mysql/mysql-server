@@ -74,23 +74,4 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo # 4. Clean up.
 DROP TABLE t1;
 
---source include/restart_mysqld.inc
-
-# This is a temporal workaround for the bug#26962434 (XA INCONSISTENCIES AFTER
-# XA COMMIT ERROR). The workaround suppresses a warning about presence of a
-# prepared XA transaction after server restart and rolls back a prepared XA
-# transaction that  possibly left on Windows platform after XA COMMIT
-# had failed.
-
-# XA ROLLBACK is run in order to finalise XA transaction so that information
-# about this XA transaction wouldn't appear in subsequent test cases where
-# server is restared. Since the test fails on windows and runs successfully
-# on Unix the directive --error added that expects both success and error code
-# ER_XAER_NOTA from invocation of XA ROLLBACK. Added XA ROLLBACK fails on Unix
-# since there isn't any prepared XA transaction with specified xid (and this is
-# expected and correct behaviour) and successes on Windows where prepared XA
-# transaction with xid value 'xid1' exists after server restart
-# (this is incorrect behaviour that must be fixed later).
-CALL mtr.add_suppression("Found 1 prepared XA transactions");
---error 0,ER_XAER_NOTA
 XA ROLLBACK 'xid1';

@@ -1,0 +1,339 @@
+# === Purpose ===
+#
+# Check XA transaction commit error is the same in attached and detached transactions.
+#
+# When other bugs are fixed all error cases (simulate_failure_in_before_commit_hook,
+# simulate_transaction_rollback_request) should return ER_XA_RETRY error code
+# and remain transaction in prepared state.
+#
+# === Requirements ===
+#
+# R1. XA transaction commit errors must be the same for both detached and attached transactions.
+# R2. Failed XA commit must remain transaction in XA PREPARED state.
+#
+# === Implementation ===
+#
+# 1. Create table so that XA transaction can be executed
+# 2. Execute XA prepare and fail XA commit
+# 2.1 With GTID in AUTOMATIC mode
+# 2.2 With GTID explicitly assigned
+# 3. Check that:
+# 3.1. Variable GLOBAL.GTID_OWNED is empty
+# 3.2. Variable SESSION.GTID_OWNED is empty
+# 3.3. The transaction can still be recovered after failed commit
+# 3.4. GTID_EXECUTED has not been updated
+# 3.5. Binary log has not been updated
+# 3.6. The transaction is not committed thus the table is empty
+# 3.7. The transaction cannot be recovered after rollback
+#
+# === References ===
+#
+# BUG#33650776 Failure of XA COMMIT of prepared txn, can result in txn rollback
+#
+
+#
+# Procedure fail_xa_commit.inc
+#
+# Purpose: Test one scenario where XA COMMIT fails.
+#
+# Usage:
+#
+# --let $debug_point = NAME
+# --let $error_code = NAME
+# --let $one_phase = 0|1
+# --let $commit_gtid = AUTOMATIC|UUID
+# --let $gtid_no = initial value
+# --source $fail_xa_commit
+--let $fail_xa_commit = $MYSQL_TMP_DIR/fail_xa_commit.inc
+--let $scenario_number = 0
+--write_file $fail_xa_commit END_OF_PROCEDURE
+  --inc $scenario_number
+  if ($commit_gtid == AUTOMATIC)
+  {
+    --let $echo_current_uuid = 'AUTOMATIC'
+  }
+  if ($commit_gtid != AUTOMATIC)
+  {
+    --inc $gtid_no
+    --let $echo_current_uuid = 'commit_gtid:$gtid_no'
+  }
+  --let $xa_detach_on_prepare = `SELECT @@SESSION.xa_detach_on_prepare`
+  --echo ==== Scenario $scenario_number: xa_detach_on_prepare $xa_detach_on_prepare, one_phase $one_phase, fail at $debug_point, expect $error_code, UUID: $echo_current_uuid ====
+
+  if ($one_phase == 0)
+  {
+    SET SESSION gtid_next = AUTOMATIC;
+  }
+  if ($one_phase == 1)
+  {
+    if ($commit_gtid == AUTOMATIC)
+    {
+      SET SESSION gtid_next = AUTOMATIC;
+    }
+    if ($commit_gtid != AUTOMATIC)
+    {
+      --replace_result $commit_gtid UUID
+      --eval SET SESSION gtid_next = '$commit_gtid:$gtid_no'
+    }
+  }
+
+  XA START '1';
+  INSERT INTO t1 VALUES (1);
+  XA END '1';
+  if ($one_phase == 0)
+  {
+    XA PREPARE '1';
+  }
+
+  --source include/save_binlog_position.inc
+  --let $start_position = $binlog_position
+
+  --let $before_gtid_executed = `SELECT @@global.gtid_executed`
+
+  if ($one_phase == 0)
+  {
+    if ($commit_gtid != AUTOMATIC)
+    {
+      --replace_result $commit_gtid UUID
+      --eval SET SESSION gtid_next = '$commit_gtid:$gtid_no'
+    }
+  }
+
+  --source include/add_debug_point.inc
+  if ($one_phase == 0)
+  {
+    --error $error_code
+    XA COMMIT '1';
+  }
+  if ($one_phase == 1)
+  {
+    --error $error_code
+    XA COMMIT '1' ONE PHASE;
+  }
+  --source include/remove_debug_point.inc
+
+  --let $assert_text = Check GLOBAL.GTID_OWNED is empty
+  --let $assert_cond = "[SELECT @@global.gtid_owned]" = ""
+  --source include/assert.inc
+
+  --let $assert_text = Check SESSION.GTID_OWNED is empty
+  --let $assert_cond = "[SELECT @@session.gtid_owned]" = ""
+  --source include/assert.inc
+
+  SET SESSION gtid_next = AUTOMATIC;
+
+  # Check the transaction can still be recovered after failed commit
+  # in case of PREPARE, COMMIT, ROLLBACK
+  if ($one_phase == 0)
+  {
+    --let $expected_prepared_xa_count = 1
+  }
+  # Check the transaction is rolled back and cannot be recovered
+  # in case of COMMIT ONE_PHASE
+  if ($one_phase == 1)
+  {
+    --let $expected_prepared_xa_count = 0
+  }
+  --let $xid_data = 1
+  --source extra/xa_crash_safe_tests/assert_xa_recover.inc
+
+  --let $after_gtid_executed = `SELECT @@global.gtid_executed`
+  --let $assert_text = GTID_EXECUTED has not been updated
+  --let $assert_cond = "$before_gtid_executed" = "$after_gtid_executed"
+  --source include/assert.inc
+
+  # Binary log has not been updated
+  --source include/save_binlog_position.inc
+  --let $assert_text = Binary log has not been updated
+  --let $assert_cond = "$start_position" = "$binlog_position"
+  --source include/assert.inc
+
+  --let $rpl_connection_name = server_1
+  --source include/rpl_connection.inc
+
+  --let $assert_text = Transaction is not committed thus the table is empty.
+  --let $assert_cond = "[SELECT COUNT(*) FROM t1]" = "0"
+  --source include/assert.inc
+
+  --let $rpl_connection_name = default
+  --source include/rpl_connection.inc
+
+  if ($one_phase == 0)
+  {
+    XA ROLLBACK '1';
+
+    # Check the transaction cannot be recovered after rollback
+    --let $xid_data = 1
+    --let $expected_prepared_xa_count = 0
+    --source extra/xa_crash_safe_tests/assert_xa_recover.inc
+  }
+END_OF_PROCEDURE
+
+#
+# Test rpl_xa_commit_failure.test
+#
+--let $rpl_server_count= 1
+--let $rpl_topology= none
+--source include/rpl_init.inc
+
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # Initialization
+--echo #
+
+CREATE TABLE t1 (c int);
+
+--let $gtid_next_mode = 1
+while ($gtid_next_mode <= 2)
+{
+  if ($gtid_next_mode == 1)
+  {
+    --let $commit_gtid = AUTOMATIC
+  }
+  if ($gtid_next_mode == 2)
+  {
+    --let $commit_gtid = `SELECT @@global.server_uuid`
+    --let $gtid_no = 100
+  }
+
+  # Dettached XA transaction breakpoint simulate_xa_commit_log_abort
+  # so that binlog.commit returns RESULT_ABORTED
+  SET SESSION xa_detach_on_prepare = ON;
+  --let $one_phase = 0
+  --let $error_code = ER_XA_RETRY
+  --let $debug_point = simulate_xa_commit_log_abort
+  --source $fail_xa_commit
+
+  # Attached XA transaction breakpoint simulate_xa_commit_log_abort
+  # so that binlog.commit returns RESULT_ABORTED 
+  SET SESSION xa_detach_on_prepare = OFF;
+  --let $one_phase = 0
+  --let $error_code = ER_XA_RETRY
+  --let $debug_point = simulate_xa_commit_log_abort
+  --source $fail_xa_commit
+
+  # Dettached XA transaction breakpoint simulate_xa_commit_log_inconsistency
+  # so that binlog.commit returns RESULT_INCONSISTENT
+  SET SESSION xa_detach_on_prepare = ON;
+  --let $one_phase = 0
+  --let $error_code = ER_XA_RETRY
+  --let $debug_point = simulate_xa_commit_log_inconsistency
+  --source $fail_xa_commit
+
+  # Attached XA transaction breakpoint simulate_xa_commit_log_inconsistency
+  # so that binlog.commit returns RESULT_INCONSISTENT 
+  SET SESSION xa_detach_on_prepare = OFF;
+  --let $one_phase = 0
+  --let $error_code = ER_XA_RETRY
+  --let $debug_point = simulate_xa_commit_log_inconsistency
+  --source $fail_xa_commit
+
+  # Dettached XA transaction breakpoint simulate_failure_in_before_commit_hook
+  # so that binlog.commit returns RESULT_ABORTED
+  SET SESSION xa_detach_on_prepare = ON;
+  --let $one_phase = 0
+  --let $error_code = ER_RUN_HOOK_ERROR
+  --let $debug_point = simulate_failure_in_before_commit_hook
+  --source $fail_xa_commit
+
+  # Attached XA transaction breakpoint simulate_failure_in_before_commit_hook
+  # so that binlog.commit returns RESULT_ABORTED
+  SET SESSION xa_detach_on_prepare = OFF;
+  --let $one_phase = 0
+  --let $error_code = ER_RUN_HOOK_ERROR
+  --let $debug_point = simulate_failure_in_before_commit_hook
+  --source $fail_xa_commit
+
+  # Dettached XA transaction breakpoint simulate_transaction_rollback_request
+  # so that binlog.commit returns RESULT_ABORTED
+  SET SESSION xa_detach_on_prepare = ON;
+  --let $one_phase = 0
+  --let $error_code = ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+  --let $debug_point = simulate_transaction_rollback_request
+  --source $fail_xa_commit
+
+  # Attached XA transaction breakpoint simulate_transaction_rollback_request
+  # so that binlog.commit returns RESULT_ABORTED
+  SET SESSION xa_detach_on_prepare = OFF;
+  --let $one_phase = 0
+  --let $error_code = ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+  --let $debug_point = simulate_transaction_rollback_request
+  --source $fail_xa_commit
+
+  # Now testing the same failure points with ONE PHASE
+
+  # Dettached XA transaction breakpoint simulate_xa_commit_log_abort
+  # so that binlog.commit returns RESULT_ABORTED
+  SET SESSION xa_detach_on_prepare = ON;
+  --let $one_phase = 1
+  --let $error_code = ER_XA_RBROLLBACK
+  --let $debug_point = simulate_xa_commit_log_abort
+  --source $fail_xa_commit
+
+  # Attached XA transaction breakpoint simulate_xa_commit_log_abort
+  # so that binlog.commit returns RESULT_ABORTED
+  SET SESSION xa_detach_on_prepare = OFF;
+  --let $one_phase = 1
+  --let $error_code = ER_XA_RBROLLBACK
+  --let $debug_point = simulate_xa_commit_log_abort
+  --source $fail_xa_commit
+
+  # Dettached XA transaction breakpoint simulate_xa_commit_log_inconsistency
+  # so that binlog.commit returns RESULT_INCONSISTENT
+  SET SESSION xa_detach_on_prepare = ON;
+  --let $one_phase = 1
+  --let $error_code = ER_XA_RBROLLBACK
+  --let $debug_point = simulate_xa_commit_log_inconsistency
+  --source $fail_xa_commit
+
+  # Attached XA transaction breakpoint simulate_xa_commit_log_inconsistency
+  # so that binlog.commit returns RESULT_INCONSISTENT
+  SET SESSION xa_detach_on_prepare = OFF;
+  --let $one_phase = 1
+  --let $error_code = ER_XA_RBROLLBACK
+  --let $debug_point = simulate_xa_commit_log_inconsistency
+  --source $fail_xa_commit
+
+  # Dettached XA transaction breakpoint simulate_failure_in_before_commit_hook
+  # so that binlog.commit returns RESULT_ABORTED
+  SET SESSION xa_detach_on_prepare = ON;
+  --let $one_phase = 1
+  --let $error_code = ER_RUN_HOOK_ERROR
+  --let $debug_point = simulate_failure_in_before_commit_hook
+  --source $fail_xa_commit
+
+  # Attached XA transaction breakpoint simulate_failure_in_before_commit_hook
+  # so that binlog.commit returns RESULT_ABORTED
+  SET SESSION xa_detach_on_prepare = OFF;
+  --let $one_phase = 1
+  --let $error_code = ER_RUN_HOOK_ERROR
+  --let $debug_point = simulate_failure_in_before_commit_hook
+  --source $fail_xa_commit
+
+  # Dettached XA transaction breakpoint simulate_transaction_rollback_request
+  # so that binlog.commit returns RESULT_ABORTED
+  SET SESSION xa_detach_on_prepare = ON;
+  --let $one_phase = 1
+  --let $error_code = ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+  --let $debug_point = simulate_transaction_rollback_request
+  --source $fail_xa_commit
+
+  # Attached XA transaction breakpoint simulate_transaction_rollback_request
+  # so that binlog.commit returns RESULT_ABORTED
+  SET SESSION xa_detach_on_prepare = OFF;
+  --let $one_phase = 1
+  --let $error_code = ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+  --let $debug_point = simulate_transaction_rollback_request
+  --source $fail_xa_commit
+
+ --inc $gtid_next_mode
+}
+
+--echo #
+--echo # Cleanup
+--echo #
+
+DROP TABLE t1;
+--remove_file $fail_xa_commit

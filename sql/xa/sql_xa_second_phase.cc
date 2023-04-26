@@ -29,7 +29,6 @@
 #include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
 #include "sql/sql_class.h"                         // THD
 #include "sql/transaction_info.h"                  // Transaction_ctx
-#include "sql/xa/transaction_cache.h"              // xa::Transaction_cache
 
 Sql_cmd_xa_second_phase::Sql_cmd_xa_second_phase(xid_t *xid_arg)
     : m_xid(xid_arg) {}
@@ -166,7 +165,6 @@ void Sql_cmd_xa_second_phase::exit_commit_order(THD *thd) const {
 }
 
 void Sql_cmd_xa_second_phase::cleanup_context(THD *thd) const {
-  assert(this->m_detached_trx_context != nullptr);
   auto thd_xs = thd->get_transaction()->xid_state();
 
   // Restoring the binlogged status of the thd_xid_state after borrowing it
@@ -176,7 +174,6 @@ void Sql_cmd_xa_second_phase::cleanup_context(THD *thd) const {
   MDL_context_backup_manager::instance().delete_backup(
       this->m_xid->key(), this->m_xid->key_length());
 
-  xa::Transaction_cache::remove(this->m_detached_trx_context.get());
   gtid_state_commit_or_rollback(thd, this->m_need_clear_owned_gtid,
                                 !this->m_result);
 }

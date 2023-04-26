@@ -32,7 +32,8 @@
 #include "sql/sql_lex.h"                  // struct LEX
 #include "sql/tc_log.h"                   // tc_log
 #include "sql/transaction.h"  // trans_reset_one_shot_chistics, trans_track_end_trx
-#include "sql/transaction_info.h"  // Transaction_ctx
+#include "sql/transaction_info.h"      // Transaction_ctx
+#include "sql/xa/transaction_cache.h"  // xa::Transaction_cache
 
 namespace {
 /**
@@ -97,6 +98,14 @@ bool Sql_cmd_xa_commit::process_attached_xa_commit(THD *thd) const {
   auto xid_state = thd->get_transaction()->xid_state();
 
   if (xid_state->xa_trans_rolled_back()) {
+    /*
+       This occurs when the transaction has experienced an MDL deadlock. That
+       will make the transaction rollback, but keep the XA context open. The XA
+       context is only closed at this time (actually at the time of the next XA
+       statement after the deadlock).  Since deadlock necessarily happens when
+       the transaction is waiting to get a lock, this is only reached before the
+       XA prepare. So it is correct to rollback here.
+    */
     xa_trans_force_rollback(thd);
     res = thd->is_error();
   } else if (xid_state->has_state(XID_STATE::XA_IDLE) &&
@@ -148,24 +157,53 @@ bool Sql_cmd_xa_commit::process_attached_xa_commit(THD *thd) const {
       CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_commit_xa_trx");
       DEBUG_SYNC(thd, "trans_xa_commit_after_acquire_commit_lock");
 
-      if (tc_log != nullptr)
-        res = tc_log->commit(thd, /* all */ true);
-      else
-        res = ha_commit_low(thd, /* all */ true);
-
       DBUG_EXECUTE_IF("simulate_xa_commit_log_failure", { res = true; });
 
-      if (res)
-        my_error(ER_XAER_RMERR, MYF(0));  // todo/fixme: consider to rollback it
+      if (tc_log == nullptr) {
+        res = res || ha_commit_low(thd, /* all */ true);
+        if (res) {
+          gtid_state_commit_or_rollback(thd, true, false);
+          my_error(ER_XA_RETRY, MYF(0));
+          return true;
+        }
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-      else {
-        /*
-          Since we don't call ha_commit_trans() for prepared transactions,
-          we need to explicitly mark the transaction as committed.
-        */
-        MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
+        else {
+          /*
+            Since we don't call ha_commit_trans() for prepared transactions,
+            we need to explicitly mark the transaction as committed.
+          */
+          MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
+        }
+#endif
+      } else {
+        TC_LOG::enum_result result =
+            (res ? TC_LOG::enum_result::RESULT_ABORTED
+                 : tc_log->commit(thd, /* all */ true));
+        switch (result) {
+          case TC_LOG::enum_result::RESULT_SUCCESS: {
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+            /*
+              Since we don't call ha_commit_trans() for prepared transactions,
+              we need to explicitly mark the transaction as committed.
+            */
+            MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
+#endif
+            break;
+          }
+          case TC_LOG::enum_result::RESULT_ABORTED:
+          case TC_LOG::enum_result::RESULT_INCONSISTENT: {
+            /*
+               Despite the result being inconsistent
+               it should be up to the user to either retry
+               or rollback the transaction on their own.
+             */
+            gtid_state_commit_or_rollback(thd, true, false);
+            my_error(ER_XA_RETRY, MYF(0));
+            return true;
+          }
+        }
       }
-
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
       thd->m_transaction_psi = nullptr;
 #endif
     }
@@ -196,17 +234,46 @@ bool Sql_cmd_xa_commit::process_detached_xa_commit(THD *thd) {
   this->setup_thd_context(thd);
   if (this->enter_commit_order(thd)) return true;
 
+  TC_LOG::enum_result result = TC_LOG::enum_result::RESULT_SUCCESS;
+
   CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_commit_xa_trx");
   this->assign_xid_to_thd(thd);
+
   if (!this->m_result) {
-    if (tc_log == nullptr)
+    if (tc_log == nullptr) {
       this->m_result = trx_coordinator::commit_detached_by_xid(thd);
-    else
-      this->m_result = tc_log->commit(thd, /* all */ true);
-  } else
+      result = (this->m_result ? TC_LOG::enum_result::RESULT_ABORTED
+                               : TC_LOG::enum_result::RESULT_SUCCESS);
+    } else {
+      result = tc_log->commit(thd, /* all */ true);
+      switch (result) {
+        case TC_LOG::enum_result::RESULT_SUCCESS: {
+          this->m_result = false;
+          break;
+        }
+        case TC_LOG::enum_result::RESULT_ABORTED:
+        case TC_LOG::enum_result::RESULT_INCONSISTENT: {
+          // Despite the result being inconsistent
+          // it should be up to the user to either retry
+          // or rollback the transaction on their own.
+          this->m_result = true;
+          gtid_state_commit_or_rollback(thd, true, false);
+          my_error(ER_XA_RETRY, MYF(0));
+          break;
+        }
+      }
+    }
+  } else {
     ::force_rollback(thd);
+    result = TC_LOG::enum_result::RESULT_SUCCESS;
+  }
 
   this->exit_commit_order(thd);
+
+  if (result == TC_LOG::enum_result::RESULT_SUCCESS) {
+    assert(this->m_detached_trx_context != nullptr);
+    xa::Transaction_cache::remove(this->m_detached_trx_context.get());
+  }
   this->cleanup_context(thd);
 
   return this->m_result;

@@ -30,11 +30,10 @@ ERROR HY000: Error on observer while running replication hook 'before_commit'.
 SHOW ERRORS;
 Level	Code	Message
 Error	3100	Error on observer while running replication hook 'before_commit'.
+Error	3197	The resource manager is not able to commit the transaction branch at this time. Please retry later.
 SET @@GLOBAL.DEBUG= @debug_save;
 
 ############################################################
 # 4. Clean up.
 DROP TABLE t1;
-# restart
-CALL mtr.add_suppression("Found 1 prepared XA transactions");
 XA ROLLBACK 'xid1';

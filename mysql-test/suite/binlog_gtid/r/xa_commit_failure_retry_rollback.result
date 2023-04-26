@@ -1,0 +1,166 @@
+#
+# Initialization
+#
+SET SESSION xa_detach_on_prepare = ON;
+CREATE TABLE t1 (c int);
+INSERT INTO t1 VALUES (1), (2), (3);
+#
+# 1. Check failed XA commit followed by retry
+#
+# 1.1. Prepare transaction
+XA START '1';
+INSERT INTO t1 VALUES (4);
+XA END '1';
+XA PREPARE '1';
+# 1.2. Commit results in error
+include/save_binlog_position.inc
+# Adding debug point 'simulate_failure_in_before_commit_hook' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
+# 1.3 Validate that the failed XA COMMIT did not alter
+#     the state of the server, binlog, GTIDs, or XIDs.
+include/assert.inc [GLOBAL.GTID_OWNED is empty]
+include/assert.inc [SESSION.GTID_OWNED is empty]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/assert.inc [Value is not present in the table]
+SET SESSION gtid_next = 'AUTOMATIC';
+include/assert.inc [XA transaction is pending]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+# Removing debug point 'simulate_failure_in_before_commit_hook' from @@GLOBAL.debug
+# 1.4. Now the commit should succeed
+include/save_binlog_position.inc
+XA COMMIT '1';
+# 1.5. Transaction has modified server state
+include/assert.inc [GLOBAL.GTID_OWNED is empty]
+include/assert.inc [SESSION.GTID_OWNED is empty]
+include/assert.inc [GTID_EXECUTED has been updated]
+include/assert.inc [Value is present in the table]
+SET SESSION gtid_next = 'AUTOMATIC';
+include/assert.inc [XA transaction is not pending]
+XA COMMIT '1';
+ERROR XAE04: XAER_NOTA: Unknown XID
+include/save_binlog_position.inc
+include/assert.inc [Binary log has been updated]
+#
+# 2. Check failed XA commit followed by retry with specified GTID
+#
+# 2.1. Prepare transaction
+SET SESSION gtid_next = 'UUID:100';
+include/assert.inc [Check GTID has been assigned to gtid_owned]
+XA START '1';
+INSERT INTO t1 VALUES (6);
+XA END '1';
+XA PREPARE '1';
+include/assert.inc [Check GTID has not been assigned to gtid_owned]
+SET SESSION gtid_next = 'UUID:101';
+# 2.2. Execute commit with failure
+include/save_binlog_position.inc
+# Adding debug point 'simulate_failure_in_before_commit_hook' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
+# 2.3. Validate that the failed XA COMMIT did not alter
+#      the state of the server, binlog, GTIDs, or XIDs.
+include/assert.inc [GLOBAL.GTID_OWNED is empty]
+include/assert.inc [SESSION.GTID_OWNED is empty]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/assert.inc [Value is not present in the table]
+SET SESSION gtid_next = 'AUTOMATIC';
+include/assert.inc [XA transaction is pending]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+# Removing debug point 'simulate_failure_in_before_commit_hook' from @@GLOBAL.debug
+# 2.4. Execute commit without failure
+include/save_binlog_position.inc
+XA COMMIT '1';
+# 2.5. Check transaction has updated server state
+include/assert.inc [GLOBAL.GTID_OWNED is empty]
+include/assert.inc [SESSION.GTID_OWNED is empty]
+include/assert.inc [GTID_EXECUTED has been updated]
+include/assert.inc [Value is present in the table]
+SET SESSION gtid_next = 'AUTOMATIC';
+include/assert.inc [XA transaction is not pending]
+XA COMMIT '1';
+ERROR XAE04: XAER_NOTA: Unknown XID
+include/save_binlog_position.inc
+include/assert.inc [Binary log has been updated]
+#
+# 3. Check failed XA commit followed by rollback
+#
+# 3.1. Prepare transaction for failed commit followed by rollback
+XA START '1';
+INSERT INTO t1 VALUES (5);
+XA END '1';
+XA PREPARE '1';
+# 3.2. Commit results in error and rollback is possible
+include/save_binlog_position.inc
+# Adding debug point 'simulate_failure_in_before_commit_hook' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
+# 3.3. Check transaction did not modify server state
+include/assert.inc [GLOBAL.GTID_OWNED is empty]
+include/assert.inc [SESSION.GTID_OWNED is empty]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/assert.inc [Value is not present in the table]
+SET SESSION gtid_next = 'AUTOMATIC';
+include/assert.inc [XA transaction is pending]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+# Removing debug point 'simulate_failure_in_before_commit_hook' from @@GLOBAL.debug
+# 3.4. Rollback transaction
+include/save_binlog_position.inc
+XA ROLLBACK '1';
+# 3.5. Check rollback
+include/assert.inc [GLOBAL.GTID_OWNED is empty]
+include/assert.inc [SESSION.GTID_OWNED is empty]
+include/assert.inc [GTID_EXECUTED has been updated]
+include/assert.inc [Value is not present in the table]
+SET SESSION gtid_next = 'AUTOMATIC';
+include/assert.inc [XA transaction is not pending]
+XA COMMIT '1';
+ERROR XAE04: XAER_NOTA: Unknown XID
+include/save_binlog_position.inc
+include/assert.inc [Binary log has been updated]
+#
+# 4. Check failed XA commit followed by rollback with specified GTID
+#
+# 4.1. Prepare transaction with an assigned GTID
+SET SESSION gtid_next = 'UUID:105';
+XA START '1';
+INSERT INTO t1 VALUES (7);
+XA END '1';
+XA PREPARE '1';
+# 4.2. Fail transaction
+SET SESSION gtid_next = 'UUID:106';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_failure_in_before_commit_hook' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
+# 4.3. Check the transaction has not updated server state
+include/assert.inc [GLOBAL.GTID_OWNED is empty]
+include/assert.inc [SESSION.GTID_OWNED is empty]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/assert.inc [Value is not present in the table]
+SET SESSION gtid_next = 'AUTOMATIC';
+include/assert.inc [XA transaction is pending]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+# Removing debug point 'simulate_failure_in_before_commit_hook' from @@GLOBAL.debug
+# 4.4. Rollback transaction
+include/save_binlog_position.inc
+XA ROLLBACK '1';
+# 4.5. Check successful rollback
+include/assert.inc [GLOBAL.GTID_OWNED is empty]
+include/assert.inc [SESSION.GTID_OWNED is empty]
+include/assert.inc [GTID_EXECUTED has been updated]
+include/assert.inc [Value is not present in the table]
+SET SESSION gtid_next = 'AUTOMATIC';
+include/assert.inc [XA transaction is not pending]
+XA COMMIT '1';
+ERROR XAE04: XAER_NOTA: Unknown XID
+include/save_binlog_position.inc
+include/assert.inc [Binary log has been updated]
+#
+# Cleanup
+#
+DROP TABLE t1;

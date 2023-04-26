@@ -1,0 +1,106 @@
+include/rpl_init.inc [topology=none]
+#
+# Initialization
+#
+CALL mtr.add_suppression("Found 1 prepared XA transactions");
+CREATE TABLE t1 (col1 INT);
+#
+# Dettached XA transaction RESULT_ABORTED
+#
+SET SESSION xa_detach_on_prepare = ON;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+# Adding debug point 'simulate_xa_commit_log_abort' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: The resource manager is not able to commit the transaction branch at this time. Please retry later.
+# Removing debug point 'simulate_xa_commit_log_abort' from @@GLOBAL.debug
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+include/rpl_restart_server.inc [server_number=1]
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+XA COMMIT '1';
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [Transaction is committed thus the table is not empty.]
+DELETE FROM t1 WHERE col1 = 1;
+#
+# Dettached XA transaction RESULT_INCONSISTENT
+#
+SET SESSION xa_detach_on_prepare = ON;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+# Adding debug point 'simulate_xa_commit_log_inconsistency' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: The resource manager is not able to commit the transaction branch at this time. Please retry later.
+# Removing debug point 'simulate_xa_commit_log_inconsistency' from @@GLOBAL.debug
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+include/rpl_restart_server.inc [server_number=1]
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+XA COMMIT '1';
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [Transaction is committed thus the table is not empty.]
+DELETE FROM t1 WHERE col1 = 1;
+#
+# Attached XA transaction RESULT_ABORTED
+#
+SET SESSION xa_detach_on_prepare = OFF;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+# Adding debug point 'simulate_xa_commit_log_abort' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: The resource manager is not able to commit the transaction branch at this time. Please retry later.
+# Removing debug point 'simulate_xa_commit_log_abort' from @@GLOBAL.debug
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+include/rpl_restart_server.inc [server_number=1]
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+XA COMMIT '1';
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [Transaction is committed thus the table is not empty.]
+DELETE FROM t1 WHERE col1 = 1;
+#
+# Attached XA transaction RESULT_INCONSISTENT
+#
+SET SESSION xa_detach_on_prepare = OFF;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+# Adding debug point 'simulate_xa_commit_log_inconsistency' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: The resource manager is not able to commit the transaction branch at this time. Please retry later.
+# Removing debug point 'simulate_xa_commit_log_inconsistency' from @@GLOBAL.debug
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+include/rpl_restart_server.inc [server_number=1]
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+XA COMMIT '1';
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [Transaction is committed thus the table is not empty.]
+DELETE FROM t1 WHERE col1 = 1;
+#
+# Cleanup
+#
+DROP TABLE t1;

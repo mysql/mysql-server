@@ -1,0 +1,753 @@
+include/rpl_init.inc [topology=none]
+#
+# Initialization
+#
+CREATE TABLE t1 (c int);
+SET SESSION xa_detach_on_prepare = ON;
+==== Scenario 1: xa_detach_on_prepare 1, one_phase 0, fail at simulate_xa_commit_log_abort, expect ER_XA_RETRY, UUID: 'AUTOMATIC' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_xa_commit_log_abort' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: The resource manager is not able to commit the transaction branch at this time. Please retry later.
+# Removing debug point 'simulate_xa_commit_log_abort' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+XA ROLLBACK '1';
+include/assert.inc [No XA transactions in PREPARED state]
+SET SESSION xa_detach_on_prepare = OFF;
+==== Scenario 2: xa_detach_on_prepare 0, one_phase 0, fail at simulate_xa_commit_log_abort, expect ER_XA_RETRY, UUID: 'AUTOMATIC' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_xa_commit_log_abort' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: The resource manager is not able to commit the transaction branch at this time. Please retry later.
+# Removing debug point 'simulate_xa_commit_log_abort' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+XA ROLLBACK '1';
+include/assert.inc [No XA transactions in PREPARED state]
+SET SESSION xa_detach_on_prepare = ON;
+==== Scenario 3: xa_detach_on_prepare 1, one_phase 0, fail at simulate_xa_commit_log_inconsistency, expect ER_XA_RETRY, UUID: 'AUTOMATIC' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_xa_commit_log_inconsistency' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: The resource manager is not able to commit the transaction branch at this time. Please retry later.
+# Removing debug point 'simulate_xa_commit_log_inconsistency' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+XA ROLLBACK '1';
+include/assert.inc [No XA transactions in PREPARED state]
+SET SESSION xa_detach_on_prepare = OFF;
+==== Scenario 4: xa_detach_on_prepare 0, one_phase 0, fail at simulate_xa_commit_log_inconsistency, expect ER_XA_RETRY, UUID: 'AUTOMATIC' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_xa_commit_log_inconsistency' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: The resource manager is not able to commit the transaction branch at this time. Please retry later.
+# Removing debug point 'simulate_xa_commit_log_inconsistency' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+XA ROLLBACK '1';
+include/assert.inc [No XA transactions in PREPARED state]
+SET SESSION xa_detach_on_prepare = ON;
+==== Scenario 5: xa_detach_on_prepare 1, one_phase 0, fail at simulate_failure_in_before_commit_hook, expect ER_RUN_HOOK_ERROR, UUID: 'AUTOMATIC' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_failure_in_before_commit_hook' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
+# Removing debug point 'simulate_failure_in_before_commit_hook' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+XA ROLLBACK '1';
+include/assert.inc [No XA transactions in PREPARED state]
+SET SESSION xa_detach_on_prepare = OFF;
+==== Scenario 6: xa_detach_on_prepare 0, one_phase 0, fail at simulate_failure_in_before_commit_hook, expect ER_RUN_HOOK_ERROR, UUID: 'AUTOMATIC' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_failure_in_before_commit_hook' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
+# Removing debug point 'simulate_failure_in_before_commit_hook' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+XA ROLLBACK '1';
+include/assert.inc [No XA transactions in PREPARED state]
+SET SESSION xa_detach_on_prepare = ON;
+==== Scenario 7: xa_detach_on_prepare 1, one_phase 0, fail at simulate_transaction_rollback_request, expect ER_TRANSACTION_ROLLBACK_DURING_COMMIT, UUID: 'AUTOMATIC' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_transaction_rollback_request' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
+# Removing debug point 'simulate_transaction_rollback_request' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+XA ROLLBACK '1';
+include/assert.inc [No XA transactions in PREPARED state]
+SET SESSION xa_detach_on_prepare = OFF;
+==== Scenario 8: xa_detach_on_prepare 0, one_phase 0, fail at simulate_transaction_rollback_request, expect ER_TRANSACTION_ROLLBACK_DURING_COMMIT, UUID: 'AUTOMATIC' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_transaction_rollback_request' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
+# Removing debug point 'simulate_transaction_rollback_request' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+XA ROLLBACK '1';
+include/assert.inc [No XA transactions in PREPARED state]
+SET SESSION xa_detach_on_prepare = ON;
+==== Scenario 9: xa_detach_on_prepare 1, one_phase 1, fail at simulate_xa_commit_log_abort, expect ER_XA_RBROLLBACK, UUID: 'AUTOMATIC' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_xa_commit_log_abort' to @@GLOBAL.debug
+XA COMMIT '1' ONE PHASE;
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+# Removing debug point 'simulate_xa_commit_log_abort' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+SET SESSION xa_detach_on_prepare = OFF;
+==== Scenario 10: xa_detach_on_prepare 0, one_phase 1, fail at simulate_xa_commit_log_abort, expect ER_XA_RBROLLBACK, UUID: 'AUTOMATIC' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_xa_commit_log_abort' to @@GLOBAL.debug
+XA COMMIT '1' ONE PHASE;
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+# Removing debug point 'simulate_xa_commit_log_abort' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+SET SESSION xa_detach_on_prepare = ON;
+==== Scenario 11: xa_detach_on_prepare 1, one_phase 1, fail at simulate_xa_commit_log_inconsistency, expect ER_XA_RBROLLBACK, UUID: 'AUTOMATIC' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_xa_commit_log_inconsistency' to @@GLOBAL.debug
+XA COMMIT '1' ONE PHASE;
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+# Removing debug point 'simulate_xa_commit_log_inconsistency' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+SET SESSION xa_detach_on_prepare = OFF;
+==== Scenario 12: xa_detach_on_prepare 0, one_phase 1, fail at simulate_xa_commit_log_inconsistency, expect ER_XA_RBROLLBACK, UUID: 'AUTOMATIC' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_xa_commit_log_inconsistency' to @@GLOBAL.debug
+XA COMMIT '1' ONE PHASE;
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+# Removing debug point 'simulate_xa_commit_log_inconsistency' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+SET SESSION xa_detach_on_prepare = ON;
+==== Scenario 13: xa_detach_on_prepare 1, one_phase 1, fail at simulate_failure_in_before_commit_hook, expect ER_RUN_HOOK_ERROR, UUID: 'AUTOMATIC' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_failure_in_before_commit_hook' to @@GLOBAL.debug
+XA COMMIT '1' ONE PHASE;
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
+# Removing debug point 'simulate_failure_in_before_commit_hook' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+SET SESSION xa_detach_on_prepare = OFF;
+==== Scenario 14: xa_detach_on_prepare 0, one_phase 1, fail at simulate_failure_in_before_commit_hook, expect ER_RUN_HOOK_ERROR, UUID: 'AUTOMATIC' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_failure_in_before_commit_hook' to @@GLOBAL.debug
+XA COMMIT '1' ONE PHASE;
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
+# Removing debug point 'simulate_failure_in_before_commit_hook' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+SET SESSION xa_detach_on_prepare = ON;
+==== Scenario 15: xa_detach_on_prepare 1, one_phase 1, fail at simulate_transaction_rollback_request, expect ER_TRANSACTION_ROLLBACK_DURING_COMMIT, UUID: 'AUTOMATIC' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_transaction_rollback_request' to @@GLOBAL.debug
+XA COMMIT '1' ONE PHASE;
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
+# Removing debug point 'simulate_transaction_rollback_request' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+SET SESSION xa_detach_on_prepare = OFF;
+==== Scenario 16: xa_detach_on_prepare 0, one_phase 1, fail at simulate_transaction_rollback_request, expect ER_TRANSACTION_ROLLBACK_DURING_COMMIT, UUID: 'AUTOMATIC' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_transaction_rollback_request' to @@GLOBAL.debug
+XA COMMIT '1' ONE PHASE;
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
+# Removing debug point 'simulate_transaction_rollback_request' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+SET SESSION xa_detach_on_prepare = ON;
+==== Scenario 17: xa_detach_on_prepare 1, one_phase 0, fail at simulate_xa_commit_log_abort, expect ER_XA_RETRY, UUID: 'commit_gtid:101' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/save_binlog_position.inc
+SET SESSION gtid_next = 'UUID:101';
+# Adding debug point 'simulate_xa_commit_log_abort' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: The resource manager is not able to commit the transaction branch at this time. Please retry later.
+# Removing debug point 'simulate_xa_commit_log_abort' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+XA ROLLBACK '1';
+include/assert.inc [No XA transactions in PREPARED state]
+SET SESSION xa_detach_on_prepare = OFF;
+==== Scenario 18: xa_detach_on_prepare 0, one_phase 0, fail at simulate_xa_commit_log_abort, expect ER_XA_RETRY, UUID: 'commit_gtid:102' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/save_binlog_position.inc
+SET SESSION gtid_next = 'UUID:102';
+# Adding debug point 'simulate_xa_commit_log_abort' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: The resource manager is not able to commit the transaction branch at this time. Please retry later.
+# Removing debug point 'simulate_xa_commit_log_abort' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+XA ROLLBACK '1';
+include/assert.inc [No XA transactions in PREPARED state]
+SET SESSION xa_detach_on_prepare = ON;
+==== Scenario 19: xa_detach_on_prepare 1, one_phase 0, fail at simulate_xa_commit_log_inconsistency, expect ER_XA_RETRY, UUID: 'commit_gtid:103' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/save_binlog_position.inc
+SET SESSION gtid_next = 'UUID:103';
+# Adding debug point 'simulate_xa_commit_log_inconsistency' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: The resource manager is not able to commit the transaction branch at this time. Please retry later.
+# Removing debug point 'simulate_xa_commit_log_inconsistency' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+XA ROLLBACK '1';
+include/assert.inc [No XA transactions in PREPARED state]
+SET SESSION xa_detach_on_prepare = OFF;
+==== Scenario 20: xa_detach_on_prepare 0, one_phase 0, fail at simulate_xa_commit_log_inconsistency, expect ER_XA_RETRY, UUID: 'commit_gtid:104' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/save_binlog_position.inc
+SET SESSION gtid_next = 'UUID:104';
+# Adding debug point 'simulate_xa_commit_log_inconsistency' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: The resource manager is not able to commit the transaction branch at this time. Please retry later.
+# Removing debug point 'simulate_xa_commit_log_inconsistency' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+XA ROLLBACK '1';
+include/assert.inc [No XA transactions in PREPARED state]
+SET SESSION xa_detach_on_prepare = ON;
+==== Scenario 21: xa_detach_on_prepare 1, one_phase 0, fail at simulate_failure_in_before_commit_hook, expect ER_RUN_HOOK_ERROR, UUID: 'commit_gtid:105' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/save_binlog_position.inc
+SET SESSION gtid_next = 'UUID:105';
+# Adding debug point 'simulate_failure_in_before_commit_hook' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
+# Removing debug point 'simulate_failure_in_before_commit_hook' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+XA ROLLBACK '1';
+include/assert.inc [No XA transactions in PREPARED state]
+SET SESSION xa_detach_on_prepare = OFF;
+==== Scenario 22: xa_detach_on_prepare 0, one_phase 0, fail at simulate_failure_in_before_commit_hook, expect ER_RUN_HOOK_ERROR, UUID: 'commit_gtid:106' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/save_binlog_position.inc
+SET SESSION gtid_next = 'UUID:106';
+# Adding debug point 'simulate_failure_in_before_commit_hook' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
+# Removing debug point 'simulate_failure_in_before_commit_hook' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+XA ROLLBACK '1';
+include/assert.inc [No XA transactions in PREPARED state]
+SET SESSION xa_detach_on_prepare = ON;
+==== Scenario 23: xa_detach_on_prepare 1, one_phase 0, fail at simulate_transaction_rollback_request, expect ER_TRANSACTION_ROLLBACK_DURING_COMMIT, UUID: 'commit_gtid:107' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/save_binlog_position.inc
+SET SESSION gtid_next = 'UUID:107';
+# Adding debug point 'simulate_transaction_rollback_request' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
+# Removing debug point 'simulate_transaction_rollback_request' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+XA ROLLBACK '1';
+include/assert.inc [No XA transactions in PREPARED state]
+SET SESSION xa_detach_on_prepare = OFF;
+==== Scenario 24: xa_detach_on_prepare 0, one_phase 0, fail at simulate_transaction_rollback_request, expect ER_TRANSACTION_ROLLBACK_DURING_COMMIT, UUID: 'commit_gtid:108' ====
+SET SESSION gtid_next = AUTOMATIC;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/save_binlog_position.inc
+SET SESSION gtid_next = 'UUID:108';
+# Adding debug point 'simulate_transaction_rollback_request' to @@GLOBAL.debug
+XA COMMIT '1';
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
+# Removing debug point 'simulate_transaction_rollback_request' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [1 XA transaction(s) in PREPARED state]
+include/assert.inc [XA transaction  is in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+XA ROLLBACK '1';
+include/assert.inc [No XA transactions in PREPARED state]
+SET SESSION xa_detach_on_prepare = ON;
+==== Scenario 25: xa_detach_on_prepare 1, one_phase 1, fail at simulate_xa_commit_log_abort, expect ER_XA_RBROLLBACK, UUID: 'commit_gtid:109' ====
+SET SESSION gtid_next = 'UUID:109';
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_xa_commit_log_abort' to @@GLOBAL.debug
+XA COMMIT '1' ONE PHASE;
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+# Removing debug point 'simulate_xa_commit_log_abort' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+SET SESSION xa_detach_on_prepare = OFF;
+==== Scenario 26: xa_detach_on_prepare 0, one_phase 1, fail at simulate_xa_commit_log_abort, expect ER_XA_RBROLLBACK, UUID: 'commit_gtid:110' ====
+SET SESSION gtid_next = 'UUID:110';
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_xa_commit_log_abort' to @@GLOBAL.debug
+XA COMMIT '1' ONE PHASE;
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+# Removing debug point 'simulate_xa_commit_log_abort' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+SET SESSION xa_detach_on_prepare = ON;
+==== Scenario 27: xa_detach_on_prepare 1, one_phase 1, fail at simulate_xa_commit_log_inconsistency, expect ER_XA_RBROLLBACK, UUID: 'commit_gtid:111' ====
+SET SESSION gtid_next = 'UUID:111';
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_xa_commit_log_inconsistency' to @@GLOBAL.debug
+XA COMMIT '1' ONE PHASE;
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+# Removing debug point 'simulate_xa_commit_log_inconsistency' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+SET SESSION xa_detach_on_prepare = OFF;
+==== Scenario 28: xa_detach_on_prepare 0, one_phase 1, fail at simulate_xa_commit_log_inconsistency, expect ER_XA_RBROLLBACK, UUID: 'commit_gtid:112' ====
+SET SESSION gtid_next = 'UUID:112';
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_xa_commit_log_inconsistency' to @@GLOBAL.debug
+XA COMMIT '1' ONE PHASE;
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+# Removing debug point 'simulate_xa_commit_log_inconsistency' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+SET SESSION xa_detach_on_prepare = ON;
+==== Scenario 29: xa_detach_on_prepare 1, one_phase 1, fail at simulate_failure_in_before_commit_hook, expect ER_RUN_HOOK_ERROR, UUID: 'commit_gtid:113' ====
+SET SESSION gtid_next = 'UUID:113';
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_failure_in_before_commit_hook' to @@GLOBAL.debug
+XA COMMIT '1' ONE PHASE;
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
+# Removing debug point 'simulate_failure_in_before_commit_hook' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+SET SESSION xa_detach_on_prepare = OFF;
+==== Scenario 30: xa_detach_on_prepare 0, one_phase 1, fail at simulate_failure_in_before_commit_hook, expect ER_RUN_HOOK_ERROR, UUID: 'commit_gtid:114' ====
+SET SESSION gtid_next = 'UUID:114';
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_failure_in_before_commit_hook' to @@GLOBAL.debug
+XA COMMIT '1' ONE PHASE;
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
+# Removing debug point 'simulate_failure_in_before_commit_hook' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+SET SESSION xa_detach_on_prepare = ON;
+==== Scenario 31: xa_detach_on_prepare 1, one_phase 1, fail at simulate_transaction_rollback_request, expect ER_TRANSACTION_ROLLBACK_DURING_COMMIT, UUID: 'commit_gtid:115' ====
+SET SESSION gtid_next = 'UUID:115';
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_transaction_rollback_request' to @@GLOBAL.debug
+XA COMMIT '1' ONE PHASE;
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
+# Removing debug point 'simulate_transaction_rollback_request' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+SET SESSION xa_detach_on_prepare = OFF;
+==== Scenario 32: xa_detach_on_prepare 0, one_phase 1, fail at simulate_transaction_rollback_request, expect ER_TRANSACTION_ROLLBACK_DURING_COMMIT, UUID: 'commit_gtid:116' ====
+SET SESSION gtid_next = 'UUID:116';
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+include/save_binlog_position.inc
+# Adding debug point 'simulate_transaction_rollback_request' to @@GLOBAL.debug
+XA COMMIT '1' ONE PHASE;
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
+# Removing debug point 'simulate_transaction_rollback_request' from @@GLOBAL.debug
+include/assert.inc [Check GLOBAL.GTID_OWNED is empty]
+include/assert.inc [Check SESSION.GTID_OWNED is empty]
+SET SESSION gtid_next = AUTOMATIC;
+include/assert.inc [No XA transactions in PREPARED state]
+include/assert.inc [GTID_EXECUTED has not been updated]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+[connection server_1]
+include/assert.inc [Transaction is not committed thus the table is empty.]
+[connection default]
+#
+# Cleanup
+#
+DROP TABLE t1;

@@ -199,14 +199,12 @@ INSERT INTO t1 VALUES (1);
 XA END 'xid1';
 XA PREPARE 'xid1';
 SET @@session.debug= '+d,simulate_xa_commit_log_failure';
---error ER_XAER_RMERR
+--error ER_XA_RETRY
 XA COMMIT 'xid1';
 # Without a patch for the bug#20488921 execution of the following SET statement
 # led to an assert firing.
 SET @@session.debug= '-d,simulate_xa_commit_log_failure';
-# The following statement is just to check that there isn't any XA transaction
-# independently from its state.
-INSERT INTO t1 VALUES (2);
+XA COMMIT 'xid1';
 
 DROP TABLE t1;
 --replace_result $CURSESS_xa_detach_on_prepare OLD_VALUE_xa_detach_on_prepare

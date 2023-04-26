@@ -61,9 +61,10 @@
 if (!$rpl_skip_log_bin)
 {
   --source include/have_debug.inc
-  --source include/have_binlog_format_statement.inc
+  --source include/have_binlog_format_row.inc
+
   # --log-bin ON specific error simulation
-  call mtr.add_suppression("The transaction owned GTID is already in the gtid_executed table");
+  CALL mtr.add_suppression("The transaction owned GTID is already in the gtid_executed table");
   CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 }
 
@@ -154,6 +155,7 @@ while ($i < 2)
   --source extra/binlog_tests/gtid_next_xa.test
   --let $one_phase =
 
+  # Subtest identifiers 14 or 31
   # Commit 1 phase or Rollback simulated error case
   --let $one_phase = one phase
   --let $error_simul = at_commit
@@ -165,18 +167,21 @@ while ($i < 2)
 
   # Regular 2 phase cases with simulated error
 
+  # Subtest identifiers 15 or 32
   --let $error_simul = at_prepare
   --let $gtid1= $uuida:$xid
   --let $gtid2= $uuidb:$xid
   --source extra/binlog_tests/gtid_next_xa_error_simul.test
   --let $error_simul=
 
+  # Subtest identifiers 16 or 33
   --let $error_simul = at_commit
   --let $gtid1= $uuida:$xid
   --let $gtid2= $uuidb:$xid
   --source extra/binlog_tests/gtid_next_xa_error_simul.test
   --let $error_simul=
 
+  # Subtest identifiers 17 or 34
   --let $do_shutdown_after_prepare = 1
   --let $error_simul = at_commit
   --let $gtid1= $uuida:$xid

@@ -1,0 +1,201 @@
+# ==== Purpose ====
+#
+# Verify that XA COMMIT handles commit errors correctly. In particular, this
+# checks the case that a replicated XA COMMIT waits on the preceding
+# transaction to commit, and then the preceding transaction fails.
+#
+# ==== Requirements ====
+#
+# R1. If a replicated XA COMMIT is waiting for the preceding transaction to commit,
+#     and then the preceding transaction fails,
+#     then the XA COMMIT should fail, leave the XA transaction in prepared state,
+#     release ownership of its GTID, leave the table unchanged, not update
+#     gtid_executed, not write the binary log, and fail any following transaction
+#     that is waiting to commit after XA COMMIT.
+#
+# ==== Implementation ====
+#
+# - Execute transactions T1, T2, and T3 in parallel on source. T2 is XA COMMIT.
+#   But before that:
+#   - On the replica, commit a transaction that will conflict with T1,
+#     so that T1 will fail when it executes.
+#   - On the replica, begin a transaction that will block T1 from
+#     executing, allowing T2 and T3 to execute first, so that T2 and T3 both
+#     reach the state where they wait for the preceding transaction to commit.
+# - As soon as both T2 and T3 have reached the state where they wait for the
+#   preceding transaction to commit, rollback the transaction that blocks T1
+#   from executing.
+# - Now T1 will reach the error condition. It fails, and then signals
+#   T2 to fail. T2 then rolls back and signals T3 to fail. T3 rolls back.
+#   Eventually all the applier threads stop.
+# - Verify that the requirements hold.
+#
+# In order to make T1, T2, and T3 execute in parallel on the replica, they
+# have to commit together on the source. To enforce that, we use a debug
+# sync point that makes T1 wait just after it has become the leader of BGC.
+# Then we execute T2 up to the same point, which makes it the second member
+# of the same commit group. Then we execute T3 up to the same point, which
+# makes it the third member of the same group. Then we release all there
+# threads, which deterministically makes T1, as the leader of the group,
+# perform the full commit, and generate commit timestamps that make the
+# transactions parallelizable on the replica.
+
+--source include/have_binlog_format_row.inc
+--source include/have_debug_sync.inc
+--let $rpl_extra_connections_per_server = 3
+--source include/master-slave.inc
+
+--disable_query_log
+CALL mtr.add_suppression("Replica SQL for channel '': Worker 1 failed executing transaction .* handler error HA_ERR_FOUND_DUPP_KEY;.*");
+CALL mtr.add_suppression("Replica SQL for channel '': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+CALL mtr.add_suppression("Replica SQL for channel '': Worker 2 failed executing transaction .* an error when replica-preserve-commit-order was enabled.*");
+--enable_query_log
+
+SET @@session.xa_detach_on_prepare = 1;
+CREATE TABLE t1 (a INT PRIMARY KEY);
+XA START 'T2';
+INSERT INTO t1 VALUES (1);
+XA END 'T2';
+XA PREPARE 'T2';
+
+--source include/sync_slave_sql_with_master.inc
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+# Replica: Insert a row that conflicts with transaction T1.
+# So, once T1 gets replicated and starts to execute, it will stop with an error.
+INSERT INTO t1 VALUES (2);
+
+# Replica: Save global.gtid_executed
+--let $before_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+
+# Replica: Save binlog position so that after rollback
+# we can check it is not modified
+--source include/save_binlog_position.inc
+--let $start_position = $binlog_position
+
+# Replica: start a transaction that will block T1.
+# So, once T1 gets replicated, it will pause, waiting to acquire GTID ownership, before executing the transaction.
+# Thus we allow T2 to execute before T1 detects the error.
+eval SET @@gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+BEGIN;
+
+--let $rpl_connection_name= default
+--source include/rpl_connection.inc
+# Source: execute transaction T1 up to the point it enters BGC
+--let $sync_point = bgc_after_enrolling_for_flush_stage
+--let $statement_connection = server_1_1
+--let $statement = SET @@gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1'; INSERT INTO t1 VALUES (2)
+--source include/execute_to_sync_point.inc
+
+# Source: execute transaction T2 up to the point it enters BGC.
+# Now T1 and T2 are in the same commit group.
+# So they will be considered to be parallelizable.
+--let $sync_point = bgc_after_enrolling_for_flush_stage
+--let $statement_connection = server_1_2
+--let $statement = SET @@gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2'; XA COMMIT 'T2'
+--source include/execute_to_sync_point.inc
+
+# Source: execute transaction T3 up to the point it enters BGC.
+# Now T1 and T2 and T3 are in the same commit group.
+# So they will be considered to be parallelizable.
+--let $sync_point = bgc_after_enrolling_for_flush_stage
+--let $statement_connection = server_1_3
+--let $statement = SET @@gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:3'; INSERT INTO t1 VALUES (3);
+--source include/execute_to_sync_point.inc
+
+# Source: resume transaction T1
+--let $sync_point = bgc_after_enrolling_for_flush_stage
+--let $statement_connection = server_1_1
+--let $statement = SET @@gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1'; INSERT INTO t1 VALUES (2)
+--let $skip_reap = 1
+--source include/execute_from_sync_point.inc
+
+# Source: resume transaction T2
+--let $sync_point = bgc_after_enrolling_for_flush_stage
+--let $statement_connection = server_1_2
+--let $statement = SET @@gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2'; XA COMMIT 'T2'
+--let $skip_reap = 1
+--source include/execute_from_sync_point.inc
+
+# Source: resume transaction T3
+--let $sync_point = bgc_after_enrolling_for_flush_stage
+--let $statement_connection = server_1_3
+--let $statement = SET @@gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:3'; INSERT INTO t1 VALUES (3);
+--let $skip_reap = 1
+--source include/execute_from_sync_point.inc
+
+# Let both transactions finish on the source.
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+--reap
+
+--let $rpl_connection_name= server_1_2
+--source include/rpl_connection.inc
+--reap
+
+--let $rpl_connection_name= server_1_3
+--source include/rpl_connection.inc
+--reap
+
+--let $rpl_connection_name= server_2_2
+--source include/rpl_connection.inc
+
+# Let T2 execute
+let $wait_condition =
+  SELECT count(*) = 2
+    FROM performance_schema.threads
+    WHERE PROCESSLIST_STATE="Waiting for preceding transaction to commit";
+--source include/wait_condition.inc
+
+# Unblock T1
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+ROLLBACK;
+SET @@gtid_next = 'AUTOMATIC';
+
+# Let T1 fail
+--let $slave_sql_errno = convert_error(ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR)
+--source include/wait_for_slave_sql_error.inc
+
+# Replica: Check requirements
+
+# Check that the state is as expected
+--let $assert_cond = "[SELECT @@global.gtid_owned]" = ""
+--let $assert_text = gtid_owned should be empty
+--source include/assert.inc
+
+# Variable global.gtid_executed has not been updated
+--let $after_gtid_executed = `SELECT @@GLOBAL.gtid_executed`
+--let $assert_text = GTID_EXECUTED has not been updated
+--let $assert_cond = "$before_gtid_executed" = "$after_gtid_executed"
+--source include/assert.inc
+
+# Transaction 'T2' is in prepared state
+XA RECOVER;
+
+# Table has not been updated
+--let $assert_cond = [SELECT COUNT(*) FROM t1] = 1
+--let $assert_text = t1 should have 1 row
+--source include/assert.inc
+
+# Binary log has not been updated
+--source include/save_binlog_position.inc
+--let $assert_text = Binary log has not been updated
+--let $assert_cond = "$start_position" = "$binlog_position"
+--source include/assert.inc
+
+# Cleanup
+
+# Replica: Delete conflicting row
+DELETE FROM t1 WHERE a = 2;
+
+--source include/stop_slave.inc
+RESET REPLICA;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+--source include/rpl_end.inc

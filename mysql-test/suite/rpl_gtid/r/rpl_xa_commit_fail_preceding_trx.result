@@ -1,0 +1,47 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+SET @@session.xa_detach_on_prepare = 1;
+CREATE TABLE t1 (a INT PRIMARY KEY);
+XA START 'T2';
+INSERT INTO t1 VALUES (1);
+XA END 'T2';
+XA PREPARE 'T2';
+include/sync_slave_sql_with_master.inc
+[connection server_2]
+INSERT INTO t1 VALUES (2);
+include/save_binlog_position.inc
+SET @@gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+BEGIN;
+[connection default]
+[START] SET @@gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1'; INSERT INTO t1 VALUES (2);
+[START] SET @@gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2'; XA COMMIT 'T2';
+[START] SET @@gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:3'; INSERT INTO t1 VALUES (3);;
+[END] SET @@gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1'; INSERT INTO t1 VALUES (2);
+[END] SET @@gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2'; XA COMMIT 'T2';
+[END] SET @@gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:3'; INSERT INTO t1 VALUES (3);;
+[connection server_1_1]
+[connection server_1_2]
+[connection server_1_3]
+[connection server_2_2]
+[connection server_2]
+ROLLBACK;
+SET @@gtid_next = 'AUTOMATIC';
+include/wait_for_slave_sql_error.inc [errno=3030]
+include/assert.inc [gtid_owned should be empty]
+include/assert.inc [GTID_EXECUTED has not been updated]
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	T2
+include/assert.inc [t1 should have 1 row]
+include/save_binlog_position.inc
+include/assert.inc [Binary log has not been updated]
+DELETE FROM t1 WHERE a = 2;
+include/stop_slave.inc
+RESET REPLICA;
+include/start_slave.inc
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

@@ -99,9 +99,9 @@ XA END 'xid1';
 XA PREPARE 'xid1';
 SET @@session.debug= '+d,simulate_xa_commit_log_failure';
 XA COMMIT 'xid1';
-ERROR XAE03: XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency
+ERROR HY000: The resource manager is not able to commit the transaction branch at this time. Please retry later.
 SET @@session.debug= '-d,simulate_xa_commit_log_failure';
-INSERT INTO t1 VALUES (2);
+XA COMMIT 'xid1';
 DROP TABLE t1;
 SET SESSION xa_detach_on_prepare = OLD_VALUE_xa_detach_on_prepare;
 #
