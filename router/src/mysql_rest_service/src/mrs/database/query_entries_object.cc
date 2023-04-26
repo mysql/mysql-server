@@ -132,11 +132,8 @@ void QueryEntryObject::on_reference_row(const Row &r) {
       }
 
       out->clear();
-      for (auto m = doc.MemberBegin(); m != doc.MemberEnd(); ++m) {
-        if (!m->value.IsString()) {
-          throw std::runtime_error("bad metadata");
-        }
-        out->emplace_back(m->name.GetString(), m->value.GetString());
+      for (const auto &col : doc.GetArray()) {
+        out->emplace_back(col["base"].GetString(), col["ref"].GetString());
       }
     }
   };
