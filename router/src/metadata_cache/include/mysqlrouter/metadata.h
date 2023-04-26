@@ -89,6 +89,7 @@ class METADATA_CACHE_EXPORT MetaData {
   virtual mysqlrouter::ClusterType get_cluster_type() = 0;
 
   virtual auth_credentials_t fetch_auth_credentials(
+      const metadata_cache::metadata_server_t &md_server,
       const mysqlrouter::TargetCluster &target_cluster) = 0;
 
   virtual std::optional<std::chrono::seconds>

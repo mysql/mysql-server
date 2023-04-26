@@ -635,6 +635,7 @@ mysqlrouter::ClusterType GRClusterMetadata::get_cluster_type() {
 }
 
 GRClusterMetadata::auth_credentials_t GRClusterMetadata::fetch_auth_credentials(
+    const metadata_cache::metadata_server_t &md_server,
     const mysqlrouter::TargetCluster &target_cluster) {
   if (!metadata_backend_) return {};
   switch (metadata_backend_->get_cluster_type()) {
@@ -644,7 +645,7 @@ GRClusterMetadata::auth_credentials_t GRClusterMetadata::fetch_auth_credentials(
           "version 1.0");
       return {};
     default:
-      return ClusterMetadata::fetch_auth_credentials(target_cluster);
+      return ClusterMetadata::fetch_auth_credentials(md_server, target_cluster);
   }
 }
 

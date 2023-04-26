@@ -126,10 +126,12 @@ class METADATA_CACHE_EXPORT GRClusterMetadata : public ClusterMetadata {
    *
    * @param target_cluster information about the Cluster that this information
    * is retrieved for
+   * @param md_server address of the metadata server to get the data from
    *
    * @returns authentication data of the rest users stored in the metadata
    */
   auth_credentials_t fetch_auth_credentials(
+      const metadata_cache::metadata_server_t &md_server,
       const mysqlrouter::TargetCluster &target_cluster) override;
 
  protected:

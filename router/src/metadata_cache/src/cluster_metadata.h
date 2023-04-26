@@ -98,10 +98,8 @@ class METADATA_CACHE_EXPORT ClusterMetadata : public MetaData {
 
   /** @brief Disconnects from the Metadata server
    *
-   * This is a no-op, as MySQLSession object used underneath for
-   * connection handling employs RAII, making this method unnecessary.
    */
-  void disconnect() noexcept override {}
+  void disconnect() noexcept override { metadata_connection_.reset(); }
 
   /** @brief Gets the object representing the session to the metadata server
    */
@@ -119,6 +117,7 @@ class METADATA_CACHE_EXPORT ClusterMetadata : public MetaData {
       const unsigned router_id) override;
 
   auth_credentials_t fetch_auth_credentials(
+      const metadata_cache::metadata_server_t &md_server,
       const mysqlrouter::TargetCluster &target_cluster) override;
 
   std::optional<metadata_cache::metadata_server_t> find_rw_server(

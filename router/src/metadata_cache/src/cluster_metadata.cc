@@ -385,10 +385,19 @@ static std::string get_limit_target_cluster_clause(
 }
 
 ClusterMetadata::auth_credentials_t ClusterMetadata::fetch_auth_credentials(
+    const metadata_cache::metadata_server_t &md_server,
     const mysqlrouter::TargetCluster &target_cluster) {
   ClusterMetadata::auth_credentials_t auth_credentials;
-  if (!metadata_connection_) {
-    return auth_credentials;
+
+  auto connection = std::make_unique<MySQLSession>(
+      std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
+  if (!do_connect(*connection, md_server)) {
+    log_debug(
+        "Could not connect to the metadata server '%s' when trying to fetch "
+        "auth credentials",
+        md_server.str().c_str());
+
+    return {};
   }
 
   const std::string query =
@@ -396,7 +405,7 @@ ClusterMetadata::auth_credentials_t ClusterMetadata::fetch_auth_credentials(
       "FROM mysql_innodb_cluster_metadata.v2_router_rest_accounts WHERE "
       "cluster_id="s +
       get_limit_target_cluster_clause(target_cluster, get_cluster_type(),
-                                      *metadata_connection_);
+                                      *connection.get());
 
   auto result_processor =
       [&auth_credentials](const MySQLSession::Row &row) -> bool {
@@ -421,7 +430,7 @@ ClusterMetadata::auth_credentials_t ClusterMetadata::fetch_auth_credentials(
     return true;
   };
 
-  metadata_connection_->query(query, result_processor);
+  connection->query(query, result_processor);
   return auth_credentials;
 }
 

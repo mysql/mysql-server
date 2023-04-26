@@ -114,6 +114,8 @@ void MetadataCache::refresh_thread() {
       on_refresh_failed(true);
     }
 
+    meta_data_->disconnect();
+
     if (refresh_ok) {
       if (!ready_announced_) {
         ready_announced_ = true;
@@ -615,11 +617,15 @@ MetadataCache::get_rest_user_auth_data(const std::string &user) {
 }
 
 bool MetadataCache::update_auth_cache() {
-  if (meta_data_ && auth_metadata_fetch_enabled_) {
+  if (meta_data_ && auth_metadata_fetch_enabled_ &&
+      !cluster_topology_.metadata_servers.empty()) {
     try {
-      rest_auth_([this](auto &rest_auth) {
+      const metadata_cache::metadata_server_t md_server =
+          cluster_topology_.metadata_servers[0];
+
+      rest_auth_([this, md_server](auto &rest_auth) {
         rest_auth.rest_auth_data_ =
-            meta_data_->fetch_auth_credentials(target_cluster_);
+            meta_data_->fetch_auth_credentials(md_server, target_cluster_);
         rest_auth.last_credentials_update_ = std::chrono::system_clock::now();
       });
       return true;
