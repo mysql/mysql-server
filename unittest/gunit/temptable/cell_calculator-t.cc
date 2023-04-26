@@ -39,6 +39,11 @@ class Table_wrapper {
   static const uint32 FIELD_STRING_PAD_LENGTH = 20 * 4;
   static const uint32 FIELD_STRING_NOPAD_LENGTH = 20 * 4;
 
+  // Use this to allocate buffer for storing numeric values. Buffer should be
+  // at least size of double, otherwise, gcc12 raises a false alarm with an
+  // array-bound error. See Bug#35327995.
+  static const uint32 NUMERIC_MAX_LENGTH = 8;
+
   Table_wrapper();
 
   Field_short *get_field_short();
@@ -47,7 +52,7 @@ class Table_wrapper {
 
   Field_string *get_field_string_nopad();
 
-  void store_short_value(std::array<uchar, FIELD_SHORT_LENGTH> &storage,
+  void store_short_value(std::array<uchar, NUMERIC_MAX_LENGTH> &storage,
                          short value);
 
  private:
@@ -135,7 +140,7 @@ uchar Table_wrapper::get_null_bit(int bit) { return bit % 8; }
 
 /* must mimic the Field_short::store() */
 void Table_wrapper::store_short_value(
-    std::array<uchar, Table_wrapper::FIELD_SHORT_LENGTH> &storage,
+    std::array<uchar, Table_wrapper::NUMERIC_MAX_LENGTH> &storage,
     short value) {
 #ifdef WORDS_BIGENDIAN
   if (m_table.s->db_low_byte_first)
@@ -150,14 +155,16 @@ void Table_wrapper::store_short_value(
 TEST(CellCalculator, NullEmpty) {
   Table_wrapper table;
 
-  std::array<uchar, Table_wrapper::FIELD_SHORT_LENGTH> value;
+  std::array<uchar, Table_wrapper::NUMERIC_MAX_LENGTH> value;
 
   table.store_short_value(value, 0x1234);
 
-  temptable::Cell cell_valid(false, value.size(), value.data());
+  temptable::Cell cell_valid(false, Table_wrapper::FIELD_SHORT_LENGTH,
+                             value.data());
   temptable::Cell cell_empty(false, 0, value.data());
   temptable::Cell cell_null1(true, 0, nullptr);
-  temptable::Cell cell_null2(true, value.size(), value.data());
+  temptable::Cell cell_null2(true, Table_wrapper::FIELD_SHORT_LENGTH,
+                             value.data());
 
   KEY_PART_INFO key;
   key.init_from_field(table.get_field_short());
@@ -180,20 +187,24 @@ TEST(CellCalculator, NullEmpty) {
 TEST(CellCalculator, Short) {
   Table_wrapper table;
 
-  std::array<uchar, Table_wrapper::FIELD_SHORT_LENGTH> value1a;
-  std::array<uchar, Table_wrapper::FIELD_SHORT_LENGTH> value1b;
-  std::array<uchar, Table_wrapper::FIELD_SHORT_LENGTH> value2a;
-  std::array<uchar, Table_wrapper::FIELD_SHORT_LENGTH> value2b;
+  std::array<uchar, Table_wrapper::NUMERIC_MAX_LENGTH> value1a;
+  std::array<uchar, Table_wrapper::NUMERIC_MAX_LENGTH> value1b;
+  std::array<uchar, Table_wrapper::NUMERIC_MAX_LENGTH> value2a;
+  std::array<uchar, Table_wrapper::NUMERIC_MAX_LENGTH> value2b;
 
   table.store_short_value(value1a, 0x1234);
   table.store_short_value(value1b, 0x1234);
   table.store_short_value(value2a, 0x4321);
   table.store_short_value(value2b, 0x4321);
 
-  temptable::Cell cell1a(false, value1a.size(), value1a.data());
-  temptable::Cell cell1b(false, value1b.size(), value1b.data());
-  temptable::Cell cell2a(false, value2a.size(), value2a.data());
-  temptable::Cell cell2b(false, value2b.size(), value2b.data());
+  temptable::Cell cell1a(false, Table_wrapper::FIELD_SHORT_LENGTH,
+                         value1a.data());
+  temptable::Cell cell1b(false, Table_wrapper::FIELD_SHORT_LENGTH,
+                         value1b.data());
+  temptable::Cell cell2a(false, Table_wrapper::FIELD_SHORT_LENGTH,
+                         value2a.data());
+  temptable::Cell cell2b(false, Table_wrapper::FIELD_SHORT_LENGTH,
+                         value2b.data());
 
   /* check for field */
 

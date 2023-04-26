@@ -45,9 +45,6 @@ TARGET_LINK_LIBRARIES(merge_temptable_tests-t
   server_unittest_library
   )
 
-# Revert this line after fixing BUG#35327995
-TARGET_COMPILE_OPTIONS(merge_temptable_tests-t PUBLIC -Wno-array-bounds)
-
 # Download TBB from https://www.threadingbuildingblocks.org
 #SET(TBB_INCDIR /path/to/tbb43_20150611oss/include)
 #SET(TBB_LIBDIR /path/to/tbb43_20150611oss/build/linux_intel64_gcc_cc4.9.1_libc2.12_kernel2.6.39_release)

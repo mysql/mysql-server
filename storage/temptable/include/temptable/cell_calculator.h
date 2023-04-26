@@ -184,6 +184,7 @@ inline size_t Cell_calculator::hash(const Cell &cell) const {
   /* For approximate types, 0.0 and -0.0 may have different bit patterns. Treat
    * all such patterns as belonging to a single value. */
   if (m_is_floating_point) {
+    assert(data_length == 4 || data_length == 8);
     const double val = data_length == 4 ? float4get(data) : float8get(data);
     if (val == 0.0) return s_zero_hash;
     return murmur3_32(data, data_length, 0);
