@@ -522,7 +522,14 @@ static void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps) {
   bitmap_init(&table->cond_set,
               (my_bitmap_map *)(bitmaps + bitmap_buffer_size(field_count) * 2),
               field_count);
-  /* write_set and all_set are copies of read_set */
+
+  // Establish the other sets as copies of read_set. Temporary tables are
+  // generally created with all relevant columns, so all fields can be marked in
+  // read_set. (An exception to this is temporary tables for materialized
+  // derived tables, which are instantiated with all the columns of the derived
+  // table, even if they are not needed in the outer query block. Currently, all
+  // columns get marked as read here, even those that are not required.)
+  table->read_set_internal = table->def_read_set;
   table->def_write_set = table->def_read_set;
   table->s->all_set = table->def_read_set;
   bitmap_set_all(&table->s->all_set);

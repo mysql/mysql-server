@@ -147,6 +147,7 @@ class Fake_TABLE : public TABLE {
     EXPECT_EQ(0, bitmap_init(write_set, &write_set_buf, s->fields));
     EXPECT_EQ(0, bitmap_init(read_set, &read_set_buf, s->fields));
     EXPECT_EQ(0, bitmap_init(&tmp_set, &tmp_set_buf, s->fields));
+    read_set_internal = *read_set;
 
     const_table = false;
     pos_in_table_list->set_tableno(highest_table_id);

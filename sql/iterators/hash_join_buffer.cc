@@ -44,7 +44,6 @@
 #include "sql/psi_memory_key.h"
 #include "sql/sql_class.h"
 #include "sql/sql_executor.h"
-#include "sql/sql_join_buffer.h"
 #include "sql/sql_optimizer.h"
 #include "sql/table.h"
 #include "tables_contained_in.h"

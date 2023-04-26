@@ -2183,7 +2183,7 @@ uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length) {
   return total_length;
 }
 
-bool SortWillBeOnRowId(TABLE *table) {
+bool SortWillBeOnRowId(const TABLE *table) {
   if (table->pos_in_table_list &&
       table->pos_in_table_list->is_fulltext_searched()) {
     // MATCH() (except in “boolean mode”) doesn't use the actual value,
@@ -2199,7 +2199,8 @@ bool SortWillBeOnRowId(TABLE *table) {
 
   for (Field **pfield = table->field; *pfield != nullptr; ++pfield) {
     Field *field = *pfield;
-    if (!bitmap_is_set(table->read_set, field->field_index())) continue;
+    if (!bitmap_is_set(&table->read_set_internal, field->field_index()))
+      continue;
 
     // Having large blobs in addon fields could be very inefficient,
     // but small blobs are OK (where “small” is a bit fuzzy, and relative
@@ -2273,7 +2274,7 @@ Addon_fields *Filesort::get_addon_fields(
   *plength = *ppackable_length = 0;
   *addon_fields_status = Addon_fields_status::unknown_status;
 
-  for (TABLE *table : tables) {
+  for (const TABLE *table : tables) {
     if (table->is_nullable()) {
       null_fields++;
     }
@@ -2287,7 +2288,8 @@ Addon_fields *Filesort::get_addon_fields(
     }
     for (Field **pfield = table->field; *pfield != nullptr; ++pfield) {
       Field *field = *pfield;
-      if (!bitmap_is_set(table->read_set, field->field_index())) continue;
+      if (!bitmap_is_set(&table->read_set_internal, field->field_index()))
+        continue;
 
       const uint field_length = field->max_packed_col_length();
       AddWithSaturate(field_length, &total_length);
@@ -2341,10 +2343,11 @@ Addon_fields *Filesort::get_addon_fields(
 
   m_sort_param.addon_fields->set_first_addon_relative_offset(length);
   Addon_fields_array::iterator addonf = m_sort_param.addon_fields->begin();
-  for (TABLE *table : tables) {
+  for (const TABLE *table : tables) {
     for (Field **pfield = table->field; *pfield != nullptr; ++pfield) {
       Field *field = *pfield;
-      if (!bitmap_is_set(table->read_set, field->field_index())) continue;
+      if (!bitmap_is_set(&table->read_set_internal, field->field_index()))
+        continue;
       assert(addonf != m_sort_param.addon_fields->end());
 
       addonf->field = field;

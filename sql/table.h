@@ -1604,11 +1604,16 @@ struct TABLE {
   MY_BITMAP def_fields_set_during_insert;
 
   /**
-    Set over all columns that the optimizer intends to read. This is used
-    for two purposes: First, to tell the storage engine which ones it needs
-    to populate. (In particular, NDB can save a lot of bandwidth here.)
-    Second, functions that need to store and restore rows, such as hash join
-    or filesort, need to know which ones to keep.
+    The read set contains the set of columns that the execution engine needs to
+    process the query. In particular, it is used to tell the storage engine
+    which columns are needed. For virtual generated columns, the underlying base
+    columns are also added, since they are required in order to calculate the
+    virtual generated columns.
+
+    Internal operations in the execution engine that need to move rows between
+    buffers, such as aggregation, sorting, hash join and set operations, should
+    rather use read_set_internal, since the virtual generated columns have
+    already been calculated when the row was read from the storage engine.
 
     Set during resolving; every field that gets resolved, sets its own bit
     in the read set. In some cases, we switch the read set around during
@@ -1623,6 +1628,22 @@ struct TABLE {
   MY_BITMAP *read_set{nullptr};
 
   MY_BITMAP *write_set{nullptr};
+
+  /**
+    A bitmap of fields that are explicitly referenced by the query. This is
+    mostly the same as read_set, but it does not include base columns of
+    referenced virtual generated columns unless the base columns are referenced
+    explicitly in the query.
+
+    This is the read set that should be used for determining which columns to
+    store in join buffers, aggregation buffers, sort buffers, or similar
+    operations internal to the execution engine. Both because it is unnecessary
+    to store the implicitly read base columns in the buffer, since they won't
+    ever be read out of the buffer anyways, and because the base columns may not
+    even be possible to read, if a covering index scan is used and the index
+    only contains the virtual column and not all its base columns.
+  */
+  MY_BITMAP read_set_internal;
 
   /**
     A pointer to the bitmap of table fields (columns), which are explicitly set
@@ -3921,8 +3942,7 @@ class Table_ref {
   MY_BITMAP lock_partitions_saved;
   MY_BITMAP read_set_saved;
   MY_BITMAP write_set_saved;
-  my_bitmap_map read_set_small[bitmap_buffer_size(64) / sizeof(my_bitmap_map)];
-  my_bitmap_map write_set_small[bitmap_buffer_size(64) / sizeof(my_bitmap_map)];
+  MY_BITMAP read_set_internal_saved;
 };
 
 /*

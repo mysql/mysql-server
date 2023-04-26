@@ -555,7 +555,6 @@ SET(SQL_SHARED_SOURCES
   sql_help.cc
   sql_import.cc
   sql_insert.cc
-  sql_join_buffer.cc
   sql_lex.cc
   sql_lex_hash.cc
   sql_lex_hints.cc
