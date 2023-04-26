@@ -210,24 +210,6 @@ class DynamicRangeIterator final : public TableRowIterator {
   bool m_quick_traced_before = false;
 
   ha_rows *const m_examined_rows;
-
-  /**
-    Read set to be used when range optimizer picks covering index. This
-    read set is same as what filter_gcol_for_dynamic_range_scan()
-    sets up after filtering out the base columns for virtually generated
-    columns from the original table read set. By filtering out the base
-    columns, it avoids addition of unneeded columns for hash join/BKA.
-  */
-  MY_BITMAP *m_read_set_without_base_columns;
-
-  /**
-    Read set to be used when range optimizer picks a non-covering index
-    or when table scan gets picked. It is setup by adding base columns
-    to the read set setup by filter_gcol_for_dynamic_range_scan().
-    add_virtual_gcol_base_cols() adds the base columns when initializing
-    this iterator.
-  */
-  MY_BITMAP m_read_set_with_base_columns;
 };
 
 /**
@@ -320,16 +302,6 @@ class AlternativeIterator final : public RowIterator {
 
   // The underlying table.
   TABLE *const m_table;
-
-  /**
-    A read set we can use when we fall back to table scans,
-    to get the base columns we need for virtual generated columns.
-    See add_virtual_gcol_base_cols().
-   */
-  MY_BITMAP m_table_scan_read_set;
-
-  /// The original value of table->read_set.
-  MY_BITMAP *m_original_read_set;
 };
 
 #endif  // SQL_ITERATORS_REF_ROW_ITERATORS_H_

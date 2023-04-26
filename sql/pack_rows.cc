@@ -36,11 +36,13 @@ namespace pack_rows {
 
 Column::Column(Field *field) : field(field), field_type(field->real_type()) {}
 
-// Take in a QEP_TAB and extract the columns that are needed to satisfy the SQL
-// query (determined by the read set of the table).
-Table::Table(TABLE *table) : table(table), columns(PSI_NOT_INSTRUMENTED) {
+// Take in a TABLE and extract the columns that are needed to satisfy the SQL
+// query (determined by the read set for internal operations in the execution
+// engine).
+Table::Table(TABLE *table_arg)
+    : table(table_arg), columns(PSI_NOT_INSTRUMENTED) {
   for (uint i = 0; i < table->s->fields; ++i) {
-    if (bitmap_is_set(table->read_set, i)) {
+    if (bitmap_is_set(&table->read_set_internal, i)) {
       columns.emplace_back(table->field[i]);
     }
   }

@@ -4643,10 +4643,16 @@ static TABLE *create_schema_table(THD *thd, Table_ref *table_list) {
             query_block->active_options() | TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR,
             table_list->alias)))
     return nullptr;
+
+  // create_tmp_table() makes read_set and write_set share the same buffer, so
+  // they are always identical, and always have all bits set. For information
+  // schema tables we need to distinguish between read and write, so break the
+  // link between them here.
   my_bitmap_map *bitmaps =
       (my_bitmap_map *)thd->alloc(bitmap_buffer_size(field_count));
   bitmap_init(&table->def_read_set, bitmaps, field_count);
   table->read_set = &table->def_read_set;
+  table->read_set_internal = table->def_read_set;
   bitmap_clear_all(table->read_set);
   return table;
 }

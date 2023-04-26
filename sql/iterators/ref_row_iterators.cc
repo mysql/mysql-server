@@ -58,7 +58,6 @@
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"
-#include "sql/sql_join_buffer.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"  // JOIN
@@ -480,11 +479,7 @@ DynamicRangeIterator::DynamicRangeIterator(THD *thd, TABLE *table,
       m_qep_tab(qep_tab),
       m_mem_root(key_memory_test_quick_select_exec,
                  thd->variables.range_alloc_block_size),
-      m_examined_rows(examined_rows),
-      m_read_set_without_base_columns(table->read_set) {
-  add_virtual_gcol_base_cols(table, thd->mem_root,
-                             &m_read_set_with_base_columns);
-}
+      m_examined_rows(examined_rows) {}
 
 DynamicRangeIterator::~DynamicRangeIterator() {
   // This is owned by our MEM_ROOT.
@@ -575,29 +570,13 @@ bool DynamicRangeIterator::Init() {
     return false;
   }
 
-  // Create the required Iterator based on the strategy chosen. Also set the
-  // read set to be used while accessing the table. Unlike a regular range
-  // scan, as the access strategy keeps changing for a dynamic range scan,
-  // optimizer cannot know if the read set should include base columns of
-  // virtually generated columns or not. As a result, this Iterator maintains
-  // two different read sets, to be used once the access strategy is chosen
-  // here.
+  // Create the required Iterator based on the strategy chosen.
   if (qck) {
     m_iterator = std::move(qck);
-    // If the range optimizer chose index merge scan or a range scan with
-    // covering index, use the read set without base columns. Otherwise we use
-    // the read set with base columns included.
-    if (used_index(range_scan) == MAX_KEY ||
-        table()->covering_keys.is_set(used_index(range_scan)))
-      table()->read_set = m_read_set_without_base_columns;
-    else
-      table()->read_set = &m_read_set_with_base_columns;
   } else {
     m_iterator = NewIterator<TableScanIterator>(
         thd(), &m_mem_root, table(), m_qep_tab->position()->rows_fetched,
         m_examined_rows);
-    // For a table scan, include base columns in read set.
-    table()->read_set = &m_read_set_with_base_columns;
   }
   return m_iterator->Init();
 }
@@ -790,8 +769,7 @@ AlternativeIterator::AlternativeIterator(
     : RowIterator(thd),
       m_source_iterator(std::move(source)),
       m_table_scan_iterator(std::move(table_scan_iterator)),
-      m_table(table),
-      m_original_read_set(table->read_set) {
+      m_table(table) {
   for (unsigned key_part_idx = 0; key_part_idx < ref->key_parts;
        ++key_part_idx) {
     bool *cond_guard = ref->cond_guards[key_part_idx];
@@ -800,17 +778,13 @@ AlternativeIterator::AlternativeIterator(
     }
   }
   assert(!m_applicable_cond_guards.empty());
-
-  add_virtual_gcol_base_cols(table, thd->mem_root, &m_table_scan_read_set);
 }
 
 bool AlternativeIterator::Init() {
   m_iterator = m_source_iterator.get();
-  m_table->read_set = m_original_read_set;
   for (bool *cond_guard : m_applicable_cond_guards) {
     if (!*cond_guard) {
       m_iterator = m_table_scan_iterator.get();
-      m_table->read_set = &m_table_scan_read_set;
       break;
     }
   }

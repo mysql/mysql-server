@@ -977,4 +977,21 @@ SELECT * FROM t WHERE REVERSE(vc) BETWEEN 'c' AND 'e';
 
 DROP TABLE t;
 
+if ($support_virtual_index) {
+--echo #
+--echo # Bug#35178672: Assertion `dptr <= buffer->ptr() +
+--echo #               buffer->alloced_length()' failed.
+--echo #
+CREATE TABLE t (
+  pk INT PRIMARY KEY AUTO_INCREMENT,
+  x VARCHAR(1) NOT NULL,
+  gc VARCHAR(2) GENERATED ALWAYS AS (CONCAT(x, x)),
+  KEY (gc)
+);
+INSERT INTO t (pk, x) VALUES (1, 'a'), (2, 'b'), (3, 'c');
+SELECT COUNT(*) FROM t GROUP BY gc;
+SELECT gc FROM t ORDER BY HEX(gc);
+DROP TABLE t;
+}
+
 --echo #
