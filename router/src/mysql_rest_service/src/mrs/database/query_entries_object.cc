@@ -28,11 +28,18 @@
 #include <utility>
 #include "helper/json/text_to.h"
 #include "helper/mysql_row.h"
+#include "mrs/interface/rest_error.h"
 
 #include "mysqld_error.h"
 
+#include "mysql/harness/logging/logging.h"
+
+IMPORT_LOG_FUNCTIONS()
+
 namespace mrs {
 namespace database {
+
+using RestError = mrs::interface::RestError;
 
 void QueryEntryObject::query_entries(MySQLSession *session,
                                      const std::string &schema_name,
@@ -128,11 +135,22 @@ void QueryEntryObject::on_reference_row(const Row &r) {
 
       rapidjson::Document doc = helper::json::text_to_document(value);
       if (!doc.IsArray()) {
-        throw std::runtime_error("bad metadata");
+        throw RestError("Column 'metadata', must be an array");
       }
 
       out->clear();
       for (const auto &col : doc.GetArray()) {
+        if (!col.IsObject())
+          throw RestError("Column 'metadata', element must be an object.");
+        if (!col.HasMember("base") || !col["base"].IsString())
+          throw RestError(
+              "Column 'metadata', element must contain 'base' field with "
+              "string value.");
+        if (!col.HasMember("ref") || !col["ref"].IsString())
+          throw RestError(
+              "Column 'metadata', element must contain 'ref' field with string "
+              "value.");
+
         out->emplace_back(col["base"].GetString(), col["ref"].GetString());
       }
     }
@@ -212,7 +230,18 @@ void QueryEntryObject::on_field_row(const Row &r) {
   }
 
   std::shared_ptr<Object> parent_object = m_objects[parent_reference_id];
+  if (!parent_object) {
+    log_debug("No parent_object found, refereed by parent_reference_id:%s",
+              to_string(parent_reference_id).c_str());
+    return;
+  }
+
   auto table = m_tables[parent_reference_id];
+  if (!table) {
+    log_debug("No table found, refereed by parent_reference_id:%s",
+              to_string(parent_reference_id).c_str());
+    return;
+  }
 
   if (represents_reference_id) {
     std::shared_ptr<entry::FieldSource> reference =
@@ -228,8 +257,13 @@ void QueryEntryObject::on_field_row(const Row &r) {
     // placeholder and isn't included in the output object
     if (unnest) {
       // fields in the unnested object must be added to this object
+      auto &obj = m_objects[*represents_reference_id];
+      if (!obj) {
+        log_debug("Object with 'represents_reference_id', not found.");
+        return;
+      }
 
-      for (auto f : m_objects[*represents_reference_id]->fields) {
+      for (auto f : obj->fields) {
         parent_object->fields.push_back(f);
       }
       m_objects[*represents_reference_id] = parent_object;

@@ -51,6 +51,8 @@ void JsonQueryBuilder::process_object(std::shared_ptr<entry::Object> object,
   }
 
   for (const auto &f : object->fields) {
+    if (!f.get())
+      continue;  // Should not happen, if so then objects are filled wrongly
     add_field(m_base_tables.back(), *f);
   }
 }
