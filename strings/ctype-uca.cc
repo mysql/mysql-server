@@ -4321,7 +4321,15 @@ static bool init_weight_level(CHARSET_INFO *cs, MY_COLL_RULES *rules, int level,
     that appear in the rules, and put all contractions into contraction list.
   */
   for (r = rules->rule; r < rlast; r++) {
-    if (apply_one_rule(cs, rules, r, level, dst)) return true;
+    if (apply_one_rule(cs, rules, r, level, dst)) {
+      loader->mem_free(dst->lengths);
+      loader->mem_free(dst->weights);
+      delete dst->m_allocated_weights;
+      dst->lengths = nullptr;
+      dst->weights = nullptr;
+      dst->m_allocated_weights = nullptr;
+      return true;
+    }
   }
   return false;
 }
