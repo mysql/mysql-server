@@ -752,6 +752,7 @@ class Item_func_make_set final : public Item_str_func {
   Item *transform(Item_transformer transformer, uchar *arg) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
+  Item *get_item() { return item; }
 };
 
 class Item_func_format final : public Item_str_ascii_func {
