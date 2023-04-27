@@ -23,7 +23,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef LANGUAGE_SERVICE_GUARD
 #define LANGUAGE_SERVICE_GUARD
 
-#include <mysql/components/service.h>
+#include "mysql/components/service.h"
+#include "mysql/components/services/bits/thd.h"
 
 /**
   The handle is created by the caller of
@@ -33,6 +34,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   external_program_execution service API's methods.
 */
 DEFINE_SERVICE_HANDLE(external_program_handle);
+
+/**
+  The handle is an opaque pointer to a sp_head item.
+*/
 DEFINE_SERVICE_HANDLE(stored_program_handle);
 
 /**
@@ -88,12 +93,17 @@ DECLARE_BOOL_METHOD(init, (stored_program_handle sp,
 /**
   Deinits and cleans up stored program state.
 
-  @param [in, out] lang_sp The stored program state to clean up.
+  @param [in] thd     (optional) The THD this stored program was attached to.
+  @param [in] lang_sp (optional) The stored program state to clean up.
+  @param [in] sp      (optional) The stored program used for associating
+                                 language sp state when lang_sp was created.
+  @note: At least one of lang_sp or sp should be provided.
   @returns status of de-initialization
     @retval false Success
     @retval true  Error
 */
-DECLARE_BOOL_METHOD(deinit, (external_program_handle lang_sp));
+DECLARE_BOOL_METHOD(deinit, (MYSQL_THD thd, external_program_handle lang_sp,
+                             stored_program_handle sp));
 
 /**
   Parse given external program

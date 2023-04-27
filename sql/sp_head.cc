@@ -1927,7 +1927,9 @@ sp_head::~sp_head() {
 
   my_service<SERVICE_TYPE(external_program_execution)> service(
       "external_program_execution", srv_registry);
-  if (service.is_valid()) service->deinit(this->m_language_stored_program);
+  if (service.is_valid())
+    service->deinit(nullptr, this->m_language_stored_program,
+                    reinterpret_cast<stored_program_handle>(this));
   this->m_language_stored_program = nullptr;
 }
 
