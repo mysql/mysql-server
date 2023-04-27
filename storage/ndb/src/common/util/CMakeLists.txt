@@ -84,6 +84,13 @@ FOREACH(tests BaseString Bitmask SparseBitmask Parser HashMap2 LinkedStack
   NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbgeneral)
 ENDFOREACH(tests)
 
+# This looks like a gcc bug, there *are* ATTRIBUTE_FORMAT annotations for
+# cstrbuf::appendf()
+IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)
+  TARGET_COMPILE_OPTIONS(cstrbuf-t PRIVATE
+    "-Wno-error=suggest-attribute=format")
+ENDIF()
+
 NDB_ADD_TEST(ndb_version-t version.cpp LIBS ndbgeneral)
 
 FOREACH(tests
