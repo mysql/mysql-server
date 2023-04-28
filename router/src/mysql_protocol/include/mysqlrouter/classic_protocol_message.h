@@ -137,9 +137,16 @@ class Greeting {
   constexpr uint8_t protocol_version() const noexcept {
     return protocol_version_;
   }
+  void protocol_version(uint8_t val) { protocol_version_ = val; }
+
   constexpr string_type version() const { return version_; }
+  void version(string_type val) { version_ = val; }
+
   constexpr string_type auth_method_name() const { return auth_method_name_; }
+  void auth_method_name(string_type val) { auth_method_name_ = val; }
   constexpr string_type auth_method_data() const { return auth_method_data_; }
+  void auth_method_data(string_type val) { auth_method_data_ = val; }
+
   classic_protocol::capabilities::value_type capabilities() const noexcept {
     return capabilities_;
   }
@@ -149,10 +156,17 @@ class Greeting {
   }
 
   constexpr uint8_t collation() const noexcept { return collation_; }
+  void collation(uint8_t val) { collation_ = val; }
+
   constexpr classic_protocol::status::value_type status_flags() const noexcept {
     return status_flags_;
   }
+  void status_flags(classic_protocol::status::value_type val) {
+    status_flags_ = val;
+  }
+
   constexpr uint32_t connection_id() const noexcept { return connection_id_; }
+  void connection_id(uint32_t val) { connection_id_ = val; }
 
  private:
   uint8_t protocol_version_;
