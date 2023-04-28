@@ -2734,7 +2734,8 @@ TEST_P(StatsUpdatesFrequencyTest, Verify) {
                                metadata_server_ports, EXIT_SUCCESS,
                                /*wait_for_notify_ready=*/30s);
 
-  EXPECT_TRUE(wait_for_transaction_count_increase(primary_node_http_port, 20));
+  // the tests assume we run for about 2 seconds
+  std::this_thread::sleep_for(2s);
 
   // initial update should always be done once
   const int attributes_upd_count =
