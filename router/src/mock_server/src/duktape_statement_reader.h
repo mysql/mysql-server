@@ -60,18 +60,9 @@ class DuktapeStatementReaderFactory {
 
     std::vector<AsyncNotice> get_async_notices() override { return {}; }
 
-    stdx::expected<classic_protocol::message::server::Greeting, std::error_code>
-    server_greeting(bool /* with_tls */) override {
-      return stdx::make_unexpected(
-          make_error_code(std::errc::no_such_file_or_directory));
-    }
-
-    stdx::expected<handshake_data, ErrorResponse> handshake() override {
+    stdx::expected<handshake_data, ErrorResponse> handshake(
+        bool /* is_greeting */) override {
       return stdx::make_unexpected(ErrorResponse(1064, what_, "HY000"));
-    }
-
-    std::chrono::microseconds server_greeting_exec_time() override {
-      return {};
     }
 
     void set_session_ssl_info(const SSL * /* ssl */) override {}
@@ -120,16 +111,17 @@ class DuktapeStatementReader : public StatementReaderBase {
 
   std::vector<AsyncNotice> get_async_notices() override;
 
+  stdx::expected<handshake_data, ErrorResponse> handshake(
+      bool with_tls) override;
+
+ private:
   stdx::expected<classic_protocol::message::server::Greeting, std::error_code>
-  server_greeting(bool with_tls) override;
+  server_greeting();
 
-  stdx::expected<handshake_data, ErrorResponse> handshake() override;
-
-  std::chrono::microseconds server_greeting_exec_time() override;
+  std::chrono::microseconds server_greeting_exec_time();
 
   void set_session_ssl_info(const SSL *ssl) override;
 
- private:
   struct Pimpl;
   std::unique_ptr<Pimpl> pimpl_;
   bool has_notices_{false};

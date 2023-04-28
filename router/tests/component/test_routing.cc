@@ -641,8 +641,11 @@ TEST_F(RouterMaxConnectionsTest, RoutingTooManyServerConnections) {
   // launch the server mock
   launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
 
-  const std::string routing_section = get_static_routing_section(
-      "basic", router_port, {server_port}, "classic");
+  const std::string routing_section =
+      get_static_routing_section("basic", router_port, {server_port}, "classic",
+                                 {
+                                     {"connect_retry_timeout", "0"},
+                                 });
 
   TempDirectory conf_dir("conf");
   std::string conf_file = create_config_file(conf_dir.name(), routing_section);

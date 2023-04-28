@@ -121,7 +121,8 @@ class MySQLServerMockSessionClassic : public MySQLServerMockSession {
   void send_response_then_disconnect();
   void finish();
 
-  bool authenticate(const std::vector<uint8_t> &client_auth_method_data);
+  stdx::expected<void, ErrorResponse> authenticate(
+      const std::vector<uint8_t> &client_auth_method_data);
 
   MySQLClassicProtocol protocol_;
 
