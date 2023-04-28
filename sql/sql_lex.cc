@@ -1856,6 +1856,12 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
               my_isdigit(cs, (version_str[2] = lip->yyPeekn(2))) &&
               my_isdigit(cs, (version_str[3] = lip->yyPeekn(3))) &&
               my_isdigit(cs, (version_str[4] = lip->yyPeekn(4)))) {
+            if (!my_isspace(cs, lip->yyPeekn(5))) {
+              push_warning(thd, Sql_condition::SL_WARNING,
+                           ER_WARN_NO_SPACE_VERSION_COMMENT,
+                           ER_THD(thd, ER_WARN_NO_SPACE_VERSION_COMMENT));
+            }
+
             version_str[5] = 0;
             ulong version;
             version = strtol(version_str, nullptr, 10);
