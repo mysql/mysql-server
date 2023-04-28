@@ -1494,7 +1494,7 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
                  exceptions.find(setvar->m_var_tracker.get_var_name()) ==
                      exceptions.end()) {
         /* SET = DEFAULT for a CHARPTR variable, check the default value */
-        auto f = [&error, thd](const System_variable_tracker &, sys_var *lvar) {
+        auto f = [&error](const System_variable_tracker &, sys_var *lvar) {
           assert(lvar->show_type() == SHOW_CHAR_PTR);
           char *ptr = (char *)(intptr)lvar->get_option()->def_value;
           if (!ptr) {
