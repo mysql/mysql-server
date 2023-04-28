@@ -1924,6 +1924,9 @@ static void init_restore()
     if (g_cluster_connection->connect(opt_connect_retries - 1,
             opt_connect_retry_delay, 1) != 0)
     {
+      err << "Could not connect to cluster: '"
+          << g_cluster_connection->get_latest_error() << " - "
+          << g_cluster_connection->get_latest_error_msg() << "'" << endl;
       delete g_cluster_connection;
       g_cluster_connection = NULL;
       exitHandler(NdbToolsProgramExitCode::FAILED);
