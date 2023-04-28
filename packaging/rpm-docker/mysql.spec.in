@@ -533,6 +533,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_enterprise_encryption.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_masking_functions.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_scheduler.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
 %endif # aws_sdk

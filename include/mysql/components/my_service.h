@@ -105,6 +105,19 @@ class my_service {
     return static_cast<const my_h_service_imp *>(this->m_service) != nullptr;
   }
 
+  /**
+    Unties and returns the underlying service handle.
+
+    It will not be released by the destructor.
+
+    @retval the handle
+  */
+  TService *untie() {
+    TService *save = reinterpret_cast<TService *>(m_service);
+    m_service = nullptr;
+    return save;
+  }
+
  private:
   my_h_service m_service;
   SERVICE_TYPE(registry) * m_registry;

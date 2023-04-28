@@ -421,6 +421,7 @@ MySQL clients support the protocol:
   @page PAGE_TESTING_TOOLS Testing Tools
 
   - @subpage PAGE_MYSQL_TEST_RUN
+  - @subpage PAGE_COMPONENT_MOCK_UNIT_TEST_TOOLS
 */
 
 /**
