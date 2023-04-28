@@ -434,6 +434,45 @@ TEST(MessageServerError, short_sql_state) {
 
 // server::Greeting
 
+TEST(MessageServerGreeting, construct) {
+  classic_protocol::message::server::Greeting msg{
+      0x0a, "8.0.12", 1,    "012345678901234567",
+      0,    0xff,     0x10, "mysql_native_password"};
+
+  EXPECT_EQ(msg.protocol_version(), 10);
+  EXPECT_EQ(msg.version(), "8.0.12");
+  EXPECT_EQ(msg.connection_id(), 1);
+  EXPECT_EQ(msg.auth_method_data(), "012345678901234567");
+  EXPECT_EQ(msg.capabilities(), 0);
+  EXPECT_EQ(msg.collation(), 0xff);
+  EXPECT_EQ(msg.status_flags(), 0x10);
+  EXPECT_EQ(msg.auth_method_name(), "mysql_native_password");
+}
+
+TEST(MessageServerGreeting, setter) {
+  classic_protocol::message::server::Greeting msg{
+      0x0a, "8.0.12", 1,    "012345678901234567",
+      0,    0xff,     0x10, "mysql_native_password"};
+
+  msg.protocol_version(0x09);
+  msg.version("8.0.13");
+  msg.connection_id(2);
+  msg.auth_method_data("012345678901234568");
+  msg.capabilities(1);
+  msg.collation(0x0);
+  msg.status_flags(0x11);
+  msg.auth_method_name("mysql_old_password");
+
+  EXPECT_EQ(msg.protocol_version(), 9);
+  EXPECT_EQ(msg.version(), "8.0.13");
+  EXPECT_EQ(msg.connection_id(), 2);
+  EXPECT_EQ(msg.auth_method_data(), "012345678901234568");
+  EXPECT_EQ(msg.capabilities(), 1);
+  EXPECT_EQ(msg.collation(), 0x0);
+  EXPECT_EQ(msg.status_flags(), 0x11);
+  EXPECT_EQ(msg.auth_method_name(), "mysql_old_password");
+}
+
 using CodecMessageServerGreetingTest =
     CodecTest<classic_protocol::message::server::Greeting>;
 
