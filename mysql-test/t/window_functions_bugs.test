@@ -1179,3 +1179,47 @@ ORDER BY ( EXPORT_SET( c2,
 SET SQL_MODE=default;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#35340987 Prepared SELECT returns different results on
+--echo #              consecutive executions.
+--echo #
+CREATE TABLE t(i INT);
+INSERT INTO t(i) VALUES (100), (101);
+
+PREPARE stmt1 FROM "
+  SELECT a.i, (LAST_VALUE(a.i) OVER outer_window) = a.i AS result
+  FROM (SELECT LAG(i) OVER inner_window AS i_lag,
+               i AS i
+        FROM t
+        WINDOW inner_window AS (ORDER BY i) ) AS a
+  WINDOW outer_window AS (ORDER BY a.i)";
+
+EXECUTE stmt1;
+EXECUTE stmt1;
+
+DROP PREPARE stmt1;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#35380604 issue with window functions in stored procedures
+--echo #
+CREATE TABLE table1(id INT);
+INSERT INTO table1 VALUES(1),(2),(3),(4),(5),(6);
+DELIMITER $;
+CREATE PROCEDURE test2()
+BEGIN
+SELECT COUNT(*) OVER (ROWS BETWEEN 5 PRECEDING AND 5 FOLLOWING) AS a,
+COUNT(*) OVER (ROWS BETWEEN 5 PRECEDING AND 5 FOLLOWING) + 1 AS "a+1",
+COUNT(*) OVER (ROWS BETWEEN 5 PRECEDING AND 5 FOLLOWING) - 1 AS "a-1",
+COUNT(*) OVER () AS b,
+COUNT(*) OVER () + 1 AS "b+1",
+COUNT(*) OVER () - 1 AS "b-1" FROM table1 ;
+END $
+DELIMITER ;$
+
+CALL test2();
+CALL test2();
+
+DROP PROCEDURE test2;
+DROP TABLE table1;
