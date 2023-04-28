@@ -8178,8 +8178,9 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
         */
         if (!my_strcasecmp(system_charset_info, item_field->field_name,
                            find_ident->field_name) &&
-            !my_strcasecmp(table_alias_charset, item_field->table_name,
-                           find_ident->table_name) &&
+            (item_field->table_name != nullptr &&
+             !my_strcasecmp(table_alias_charset, item_field->table_name,
+                            find_ident->table_name)) &&
             (find_ident->db_name == nullptr ||
              (item_field->db_name != nullptr &&
               !strcmp(item_field->db_name, find_ident->db_name)))) {

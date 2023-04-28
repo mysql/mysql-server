@@ -2310,3 +2310,6 @@ Warnings:
 Note	1003	/* select#1 */ select (/* select#4 */ select (`test`.`t`.`f` = 1) AS `f` from `test`.`t`) AS `f` from `test`.`t` `t1` join `test`.`t` where false
 DROP VIEW v;
 DROP TABLE t;
+# Bug#35338776: Failure in find_item_in_list with unknown column 
+SELECT(SELECT SIN(a.c7)),c7;
+ERROR 42S22: Unknown column 'a.c7' in 'field list'
