@@ -94,12 +94,14 @@ SELECT HEX(code) FROM t1 WHERE
 --echo # Test for differences between upper(ucs2_to_utf8mb4(_ucs2 x)) and gb18030_to_utf8mb4(upper(ucs2_to_gb18030(_ucs2 x)) for BMP
 
 SELECT HEX(code), UPPER(CAST(code AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_520_ci), CONVERT(UPPER(CONVERT(code USING gb18030)) USING utf8mb4) FROM t1 WHERE
-UPPER(CAST(code AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_520_ci) <> CONVERT(UPPER(CONVERT(code USING gb18030)) USING utf8mb4) AND (code < 0xD800 OR code >= 0xE000);
+(code < 0xD800 OR code >= 0xE000) AND
+UPPER(CAST(code AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_520_ci) <> CONVERT(UPPER(CONVERT(code USING gb18030)) USING utf8mb4);
 
 --echo # Test for differences between lower(ucs2_to_utf8mb4(_ucs2 x)) and gb18030_to_utf8mb4(lower(ucs2_to_gb18030(_ucs2 x)) for BMP
 
 SELECT HEX(code), LOWER(CAST(code AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_520_ci), CONVERT(UPPER(CONVERT(code USING gb18030)) USING utf8mb4) FROM t1 WHERE
-LOWER(CAST(code AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_520_ci) <> CONVERT(LOWER(CONVERT(code USING gb18030)) USING utf8mb4) AND (code < 0xD800 OR code >= 0xE000);
+(code < 0xD800 OR code >= 0xE000) AND
+LOWER(CAST(code AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_520_ci) <> CONVERT(LOWER(CONVERT(code USING gb18030)) USING utf8mb4);
 
 #####################################################################
 
