@@ -2522,6 +2522,10 @@ bool Item_in_subselect::fix_fields(THD *thd, Item **ref) {
     used_tables_cache = left_expr->used_tables();
   }
 
+  if (left_expr->is_nullable()) {
+    set_nullable(true);
+  }
+
   if (Item_subselect::fix_fields(thd, ref)) return true;
 
   return false;

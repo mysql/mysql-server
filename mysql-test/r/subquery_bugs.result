@@ -2313,3 +2313,10 @@ DROP TABLE t;
 # Bug#35338776: Failure in find_item_in_list with unknown column 
 SELECT(SELECT SIN(a.c7)),c7;
 ERROR 42S22: Unknown column 'a.c7' in 'field list'
+#
+# Bug#34940790: Item_func_st_srid_observer::val_int():
+#               Assertion `is_nullable()' failed.
+#
+SELECT CAST(NULL < ANY (VALUES ROW(1), ROW(2)) AS SIGNED);
+CAST(NULL < ANY (VALUES ROW(1), ROW(2)) AS SIGNED)
+NULL

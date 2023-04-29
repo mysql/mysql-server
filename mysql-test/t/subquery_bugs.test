@@ -1949,3 +1949,8 @@ DROP TABLE t;
 --error ER_BAD_FIELD_ERROR
 SELECT(SELECT SIN(a.c7)),c7;
 
+--echo #
+--echo # Bug#34940790: Item_func_st_srid_observer::val_int():
+--echo #               Assertion `is_nullable()' failed.
+--echo #
+SELECT CAST(NULL < ANY (VALUES ROW(1), ROW(2)) AS SIGNED);
