@@ -49,18 +49,26 @@ CREATE TABLE IF NOT EXISTS `basic_schema`.`table3` (
   `cdecimal` DECIMAL(5,2),
   `cenum` ENUM('value1','value2','value3'),
   `cset` SET('value1','value2','value3'),
+  `cbit` BIT,
+  `cbit1` BIT(1),
+  `cbit10` BIT(10),
+  `ctinyint` TINYINT,
+  `cmediumint` MEDIUMINT,
+  `cblob` BLOB,
   PRIMARY KEY (`id`));
 
 INSERT INTO `basic_schema`.`table3` 
   VALUES(1, "first row", "numeric zeros", "2020-12-01 12:01:50", "2020-12-01 12:01:50",
   "2020-12-01", "12:01:50", "2020",
-  0, 0, 0, 0, 0, 0, "value1", ""),
+  0, 0, 0, 0, 0, 0, "value1", "", b'0', b'0', b'0000000000',0,0, ""),
   (2, "second row", "numeric min", "2020-12-02 12:02:50", "2020-12-02 12:02:50",
   "2020-12-02", "12:02:50", "2021",
-    -32768, -9223372036854775808, 0, -999.9999, -999.9999, -999.99, "value1", "value1"),
+    -32768, -9223372036854775808, 0, -999.9999, -999.9999, -999.99, "value1", "value1",
+    b'0', b'0', b'0000000000',-128,-8388608, "1"),
   (3, "thrid row", "numeric max", "2020-12-03 12:03:50", "2020-12-03 12:03:50",
   "2020-12-03", "12:03:50", "2022",
-    32767, 9223372036854775807, b'111', 999.9999, 999.9999, 999.99, "value3", "value1,value2,value3");
+    32767, 9223372036854775807, b'111', 999.9999, 999.9999, 999.99, "value3", "value1,value2,value3"
+    , b'1', b'1', b'1111111111',127, 8388607, x'0011ab0000122333');
 
 
 DROP procedure IF EXISTS `procedure1`;
@@ -79,6 +87,117 @@ BEGIN
    UNION
    select 3, "ccc","DDD", CONVERT("1977-11-08",DATETIME);
 END;$$
+
+CREATE PROCEDURE proc_int()
+BEGIN
+  SELECT id FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_varchar()
+BEGIN
+  SELECT cvarchar FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_text()
+BEGIN
+  SELECT ctext FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_datetime()
+BEGIN
+  SELECT cdatetime FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_timestamp()
+BEGIN
+  SELECT ctimestamp FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_date()
+BEGIN
+  SELECT cdate FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_time()
+BEGIN
+  SELECT ctime FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_year()
+BEGIN
+  SELECT cyear FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_smallint()
+BEGIN
+  SELECT csmallint FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_bigint()
+BEGIN
+  SELECT cbigint FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_bin()
+BEGIN
+  SELECT cbin FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_float()
+BEGIN
+  SELECT cfloat FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_double()
+BEGIN
+  SELECT cdouble FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_decimal()
+BEGIN
+  SELECT cdecimal FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_enum()
+BEGIN
+  SELECT cenum FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_set()
+BEGIN
+  SELECT cset FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_bit()
+BEGIN
+  SELECT cbit FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_bit1()
+BEGIN
+  SELECT cbit FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_bit10()
+BEGIN
+  SELECT cbit10 FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_tinyint()
+BEGIN
+  SELECT ctinyint FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_mediumint()
+BEGIN
+  SELECT cmediumint FROM `basic_schema`.`table3`;
+END;$$
+
+CREATE PROCEDURE proc_blob()
+BEGIN
+  SELECT cblob FROM `basic_schema`.`table3`;
+END;$$
+
 
 --enable_query_log
 --enable_result_log

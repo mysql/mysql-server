@@ -87,7 +87,7 @@ void QueryRestSPMedia::query_entries(
   response.assign((*result.get())[0], result->get_data_size(0));
 }
 
-void QueryRestSPMedia::on_row(const mrs::database::Query::Row &) {}
+void QueryRestSPMedia::on_row(const ResultRow &) {}
 
 void QueryRestSPMedia::on_metadata(unsigned int, MYSQL_FIELD *) {}
 

@@ -37,7 +37,7 @@ uint64_t QueryAuditLogMaxId::query_max_id(MySQLSession *session) {
   return max_;
 }
 
-void QueryAuditLogMaxId::on_row(const Row &r) {
+void QueryAuditLogMaxId::on_row(const ResultRow &r) {
   if (r.size() < 1) return;
 
   char *end;

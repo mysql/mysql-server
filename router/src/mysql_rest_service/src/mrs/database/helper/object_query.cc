@@ -28,9 +28,14 @@
 #include <set>
 #include <string>
 #include <vector>
+#include "helper/string/contains.h"
 #include "mysql/harness/utility/string.h"
 
 #include <iostream>
+
+#include "mysql/harness/logging/logging.h"
+
+IMPORT_LOG_FUNCTIONS()
 
 namespace mrs {
 namespace database {
@@ -51,8 +56,10 @@ void JsonQueryBuilder::process_object(std::shared_ptr<entry::Object> object,
   }
 
   for (const auto &f : object->fields) {
-    if (!f.get())
-      continue;  // Should not happen, if so then objects are filled wrongly
+    if (!f.get()) {
+      log_debug("While building field list, detected field not initialized.");
+      continue;
+    }
     add_field(m_base_tables.back(), *f);
   }
 }
@@ -146,6 +153,20 @@ mysqlrouter::sqlstring JsonQueryBuilder::make_subquery(
   }
 }
 
+static mysqlrouter::sqlstring get_field_format(const std::string &data_type) {
+  if (helper::starts_with(data_type, "bit")) {
+    if (data_type.length() == 3 ||
+        helper::contains(data_type.c_str() + 3, "(1)"))
+      return {"?, !.! is true"};
+    return {"?, TO_BASE64(!.!)"};
+  }
+  if (helper::starts_with(data_type, "binary") ||
+      helper::starts_with(data_type, "blob"))
+    return {"?, TO_BASE64(!.!)"};
+
+  return {"?, !.!"};
+}
+
 void JsonQueryBuilder::add_field(std::shared_ptr<entry::FieldSource> base_table,
                                  const entry::ObjectField &field) {
   if (!m_filter.is_included(m_path_prefix, field.name)) return;
@@ -158,7 +179,7 @@ void JsonQueryBuilder::add_field(std::shared_ptr<entry::FieldSource> base_table,
     m_select_items.append_preformatted_sep(", ", item);
     m_select_items.append_preformatted(make_subquery(base_table, field));
   } else {
-    auto item = mysqlrouter::sqlstring("?, !.!");
+    auto item = get_field_format(field.db_datatype);
     item << field.name << field.source->table_alias << field.db_name;
     m_select_items.append_preformatted_sep(", ", item);
 
@@ -173,7 +194,7 @@ void JsonQueryBuilder::add_field_value(
     m_select_items.append_preformatted_sep(", ",
                                            make_subquery(base_table, field));
   } else {
-    auto item = mysqlrouter::sqlstring("!.!");
+    auto item = get_field_format(field.db_datatype);
     item << field.source->table_alias << field.db_name;
     m_select_items.append_preformatted_sep(", ", item);
 

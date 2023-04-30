@@ -34,7 +34,7 @@ void QueryState::query_state(MySQLSession *session) {
   execute(session);
 }
 
-void QueryState::on_row(const Row &r) {
+void QueryState::on_row(const ResultRow &r) {
   if (r.size() < 1) return;
 
   auto state_new = atoi(r[0]) ? stateOn : stateOff;

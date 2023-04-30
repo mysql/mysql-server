@@ -155,7 +155,7 @@ bool QueryEntryAuthUser::update_user(MySQLSession *session,
   return true;
 }
 
-void QueryEntryAuthUser::on_row(const Row &row) {
+void QueryEntryAuthUser::on_row(const ResultRow &row) {
   if (row.size() < 1) return;
 
   helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);

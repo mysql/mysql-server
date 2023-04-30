@@ -31,11 +31,18 @@
 
 namespace helper {
 
-enum ColumnJsonTypes { kNull, kBool, kString, kNumeric, kJson };
+enum JsonType { kNull, kBool, kString, kNumeric, kJson, kBlob };
+struct ColumnType {
+  enum_field_types type_mysql{MYSQL_TYPE_NULL};
+  JsonType type_json{JsonType::kNull};
+  uint64_t length{0};
+};
 
-ColumnJsonTypes from_mysql_column_string_type(const char *type);
-ColumnJsonTypes from_mysql_column_type(enum_field_types type);
-std::string to_string(ColumnJsonTypes type);
+JsonType from_mysql_column_string_type(const char *type);
+ColumnType from_mysql_txt_column_type(const char *type);
+uint64_t from_mysql_column_type_length(const char *type);
+JsonType from_mysql_column_type(const MYSQL_FIELD *type);
+std::string to_string(JsonType type);
 
 }  // namespace helper
 

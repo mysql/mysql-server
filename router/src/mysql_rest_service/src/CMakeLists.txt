@@ -39,6 +39,7 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   helper/json/to_sqlstring.cc
   helper/token/jwt.cc
   helper/mysql_column_types.cc
+  helper/mysql_numeric_value.cc
   mrs/database/query_statistics.cc
   mrs/authentication/helper/crypto.cc
   mrs/authentication/helper/http_result.cc

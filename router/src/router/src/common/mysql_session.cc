@@ -580,9 +580,19 @@ char *allocate_buffer(MYSQL_BIND *bind) {
   return buffer;
 }
 
+class StmtResultRow : public MySQLSession::ResultRow {
+ public:
+  StmtResultRow(MySQLSession::Row row, unsigned long *sizes)
+      : ResultRow(row), sizes_{sizes} {}
+  virtual size_t get_data_size(size_t i) const override { return sizes_[i]; }
+
+ private:
+  unsigned long *sizes_;
+};
+
 void MySQLSession::prepare_execute(uint64_t ps_id,
                                    std::vector<enum_field_types> pt,
-                                   const RowProcessor &processor,
+                                   const ResultRowProcessor &processor,
                                    const FieldValidator &validator) {
   std::vector<std::unique_ptr<char[]>> buffers;
   std::unique_ptr<MYSQL_BIND[]> ps_params{new MYSQL_BIND[pt.size() + 1]};
@@ -651,7 +661,8 @@ void MySQLSession::prepare_execute(uint64_t ps_id,
                         ? nullptr
                         : reinterpret_cast<const char *>(my_bind[i].buffer);
       }
-      if (!processor(outrow)) break;
+      StmtResultRow stmt_result{outrow, length.get()};
+      if (!processor(stmt_result)) break;
     }
     mysql_free_result(rs_metadata);
     for (unsigned int i = 0; i < nfields; ++i) {
@@ -694,6 +705,33 @@ void MySQLSession::execute(const std::string &q) {
 void MySQLSession::query(
     const std::string &q, const RowProcessor &processor,
     const FieldValidator &validator /*=null_field_validator*/) {
+  ResultRowProcessor callback = [&processor](const ResultRow &rr) {
+    return processor(rr.row_);
+  };
+  query(q, callback, validator);
+}
+
+class RealResultRow : public MySQLSession::ResultRow {
+ public:
+  RealResultRow(MySQLSession::Row row, MYSQL_RES *res, bool delete_res = true)
+      : ResultRow(std::move(row)), res_(res), delete_res_{delete_res} {}
+
+  ~RealResultRow() override {
+    if (delete_res_) mysql_free_result(res_);
+  }
+  size_t get_data_size(size_t i) const override {
+    log_debug("Session::get_data_size");
+    return mysql_fetch_lengths(res_)[i];
+  }
+
+ private:
+  MYSQL_RES *res_;
+  bool delete_res_;
+};
+
+void MySQLSession::query(const std::string &q,
+                         const ResultRowProcessor &processor,
+                         const FieldValidator &validator) {
   auto query_res = logged_real_query(q);
 
   if (!query_res) {
@@ -723,24 +761,10 @@ void MySQLSession::query(
     for (unsigned int i = 0; i < nfields; i++) {
       outrow[i] = row[i];
     }
-    if (!processor(outrow)) break;
+    RealResultRow result{outrow, res, false};
+    if (!processor(result)) break;
   }
 }
-
-class RealResultRow : public MySQLSession::ResultRow {
- public:
-  RealResultRow(MySQLSession::Row row, MYSQL_RES *res)
-      : ResultRow(std::move(row)), res_(res) {}
-
-  ~RealResultRow() override { mysql_free_result(res_); }
-
-  size_t get_data_size(size_t i) const override {
-    return mysql_fetch_lengths(res_)[i];
-  }
-
- private:
-  MYSQL_RES *res_;
-};
 
 std::unique_ptr<MySQLSession::ResultRow> MySQLSession::query_one(
     const std::string &q,

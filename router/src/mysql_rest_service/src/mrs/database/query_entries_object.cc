@@ -116,14 +116,14 @@ void QueryEntryObject::query_entries(MySQLSession *session,
   assert(m_pending_reduce_to_field.empty());
 }
 
-void QueryEntryObject::on_row(const Row &r) {
+void QueryEntryObject::on_row(const ResultRow &r) {
   if (m_loading_references)
     on_reference_row(r);
   else
     on_field_row(r);
 }
 
-void QueryEntryObject::on_reference_row(const Row &r) {
+void QueryEntryObject::on_reference_row(const ResultRow &r) {
   class ColumnMappingConverter {
    public:
     void operator()(entry::JoinedTable::ColumnMapping *out,
@@ -196,7 +196,7 @@ void QueryEntryObject::on_reference_row(const Row &r) {
 // unnest 1:n
 // unnest n:m
 
-void QueryEntryObject::on_field_row(const Row &r) {
+void QueryEntryObject::on_field_row(const ResultRow &r) {
   auto field = std::make_shared<entry::ObjectField>();
 
   helper::MySQLRow row(r, metadata_, no_od_metadata_);

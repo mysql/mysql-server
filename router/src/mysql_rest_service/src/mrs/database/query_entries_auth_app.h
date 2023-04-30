@@ -49,7 +49,7 @@ class QueryEntriesAuthApp : protected Query {
 
  protected:
   uint64_t audit_log_id_{0};
-  void on_row(const Row &r) override;
+  void on_row(const ResultRow &r) override;
 };
 
 }  // namespace database

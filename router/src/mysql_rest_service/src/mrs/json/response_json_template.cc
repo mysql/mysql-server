@@ -26,6 +26,12 @@
 
 #include <limits>
 
+#include "mysqlrouter/base64.h"
+
+#include "mysql/harness/logging/logging.h"
+
+IMPORT_LOG_FUNCTIONS()
+
 namespace mrs {
 namespace json {
 
@@ -89,8 +95,8 @@ void ResponseJsonTemplate::end() {
   if (!limit_not_set_) {
     json_root_->member_add_value("limit", limit_);
     json_root_->member_add_value("offset", offset_);
-    json_root_->member_add_value("hasMore", has_more_,
-                                 helper::ColumnJsonTypes::kBool);
+    json_root_->member_add_value("hasMore", has_more_ ? "true" : "false",
+                                 helper::JsonType::kBool);
   }
   json_root_->member_add_value("count", std::min(limit_, pushed_documents_));
   {
@@ -133,8 +139,8 @@ const char *not_null(const char *v) {
 }
 
 bool ResponseJsonTemplate::push_json_document(
-    const std::vector<const char *> &values,
-    const std::vector<helper::Column> &columns, const char *ignore_column) {
+    const ResultRow &values, const std::vector<helper::Column> &columns,
+    const char *ignore_column) {
   assert(began_ == true);
   assert(values.size() == columns.size());
   if (!count_check_if_push_is_allowed()) return false;
@@ -146,8 +152,29 @@ bool ResponseJsonTemplate::push_json_document(
       ignore_column = nullptr;
       continue;
     }
-    serializer_.member_add_value(columns[idx].name, values[idx],
-                                 columns[idx].type_json);
+
+    switch (columns[idx].type_json) {
+      case helper::JsonType::kBool:
+        serializer_.member_add_value(
+            columns[idx].name,
+            (*reinterpret_cast<const uint8_t *>(values[idx]) != 0) ? "true"
+                                                                   : "false",
+            columns[idx].type_json);
+        break;
+      case helper::JsonType::kBlob:
+        log_debug("values.get_data_size(idx=%i) = %i", (int)idx,
+                  (int)values.get_data_size(idx));
+        serializer_.member_add_value(
+            columns[idx].name,
+            Base64::encode(
+                std::string_view(values[idx], values.get_data_size(idx)))
+                .c_str(),
+            columns[idx].type_json);
+        break;
+      default:
+        serializer_.member_add_value(columns[idx].name, values[idx],
+                                     columns[idx].type_json);
+    }
   }
 
   return true;
@@ -157,7 +184,7 @@ bool ResponseJsonTemplate::push_json_document(const char *doc) {
   assert(began_ == true);
   if (!count_check_if_push_is_allowed()) return false;
 
-  serializer_.add_value(doc, helper::ColumnJsonTypes::kJson);
+  serializer_.add_value(doc, helper::JsonType::kJson);
 
   return true;
 }

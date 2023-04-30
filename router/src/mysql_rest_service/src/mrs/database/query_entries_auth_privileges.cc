@@ -73,7 +73,7 @@ void QueryEntriesAuthPrivileges::query_user(
   execute(session);
 }
 
-void QueryEntriesAuthPrivileges::on_row(const Row &r) {
+void QueryEntriesAuthPrivileges::on_row(const ResultRow &r) {
   helper::MySQLRow row{r, metadata_, no_od_metadata_};
   entry::AuthPrivilege entry;
 

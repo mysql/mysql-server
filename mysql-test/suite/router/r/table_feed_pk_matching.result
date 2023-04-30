@@ -1,0 +1,500 @@
+# MySQL Rest Service schema created.
+# MySQL Rest Service, server accounts configured.
+# mysqlrouter_keyring
+#  * "set" root password ""
+# mysqlrouter_keyring
+#  * set rest-user jwt_secret "secret12345"
+# Generating config into generated_router_1.cnf
+#  * https
+#  * MySQL Rest Service
+# Connection "router.1" active
+# restart:generated_router_1.cnf
+# DB `pk_types_schema` - created
+
+
+## I. Verify JSON encoding of different times of data, returned in FEED response
+#
+# 1. Verify generation of JSON boolean from bit and bit(1)
+# 2. Verify generation of JSON string with base64 data from bit(10) and binary
+# 3. Verify generation of JSON string from VARCHAR(X), SET, ENUM
+# 4. Verify generation of JSON string with date from DATE, TIME, YEAR, DATETIME,TIMESTAMP
+# 5. Verify generation of JSON number/float from FLOAT, DOUBLE, DECIMAL
+# 6. Verify generation of JSON number from INTEGER, BIGINT, SMALLINT, TINYINT, MEDIUMINT
+#
+#
+# Registred SERVICE at path: /svc
+# Registred DB_SCHEMA at path: /svc/pk
+# Registred DB_OBJECT at path: /svc/pk/int
+# Registred DB_OBJECT at path: /svc/pk/tinyint
+# Registred DB_OBJECT at path: /svc/pk/smallint
+# Registred DB_OBJECT at path: /svc/pk/mediumint
+# Registred DB_OBJECT at path: /svc/pk/bigint
+# Registred DB_OBJECT at path: /svc/pk/decimal
+# Registred DB_OBJECT at path: /svc/pk/float
+# Registred DB_OBJECT at path: /svc/pk/double
+# Registred DB_OBJECT at path: /svc/pk/bit
+# Registred DB_OBJECT at path: /svc/pk/bit1
+# Registred DB_OBJECT at path: /svc/pk/bit8
+# Registred DB_OBJECT at path: /svc/pk/bin
+# Registred DB_OBJECT at path: /svc/pk/varchar20
+# Registred DB_OBJECT at path: /svc/pk/enum
+# Registred DB_OBJECT at path: /svc/pk/set
+# Registred DB_OBJECT at path: /svc/pk/datetime
+# Registred DB_OBJECT at path: /svc/pk/timestamp
+# Registred DB_OBJECT at path: /svc/pk/date
+# Registred DB_OBJECT at path: /svc/pk/time
+# Registred DB_OBJECT at path: /svc/pk/year
+
+#
+# I.1
+GET /svc/pk/bit/0
+{
+    "id": false,
+    "links": [
+        {
+            "href": "/svc/pk/bit/0"
+        }
+    ]
+}
+OK
+GET /svc/pk/bit/1
+{
+    "id": true,
+    "links": [
+        {
+            "href": "/svc/pk/bit/1"
+        }
+    ]
+}
+OK
+GET /svc/pk/bit/0
+{
+    "id": false,
+    "links": [
+        {
+            "href": "/svc/pk/bit/0"
+        }
+    ]
+}
+OK
+GET /svc/pk/bit1/1
+{
+    "id": true,
+    "links": [
+        {
+            "href": "/svc/pk/bit1/1"
+        }
+    ]
+}
+OK
+GET /svc/pk/bit1/true
+{
+    "id": true,
+    "links": [
+        {
+            "href": "/svc/pk/bit1/1"
+        }
+    ]
+}
+OK
+GET /svc/pk/bit1/True
+{
+    "id": true,
+    "links": [
+        {
+            "href": "/svc/pk/bit1/1"
+        }
+    ]
+}
+OK
+GET /svc/pk/bit1/false
+{
+    "id": false,
+    "links": [
+        {
+            "href": "/svc/pk/bit1/0"
+        }
+    ]
+}
+OK
+
+#
+# I.2
+GET /svc/pk/bit8/AA==
+{
+    "id": "AA==",
+    "links": [
+        {
+            "href": "/svc/pk/bit8/AA=="
+        }
+    ]
+}
+OK
+GET /svc/pk/bit8/AQ==
+{
+    "id": "AQ==",
+    "links": [
+        {
+            "href": "/svc/pk/bit8/AQ=="
+        }
+    ]
+}
+OK
+GET /svc/pk/bin/AAAA
+{
+    "id": "AAAA",
+    "links": [
+        {
+            "href": "/svc/pk/bin/AAAA"
+        }
+    ]
+}
+OK
+GET /svc/pk/bin/BwAA
+{
+    "id": "BwAA",
+    "links": [
+        {
+            "href": "/svc/pk/bin/BwAA"
+        }
+    ]
+}
+OK
+
+#
+# I.3
+GET /svc/pk/set/value1
+{
+    "id": "value1",
+    "links": [
+        {
+            "href": "/svc/pk/set/value1"
+        }
+    ]
+}
+OK
+GET /svc/pk/set/value1,value2,value3
+{
+    "id": "value1,value2,value3",
+    "links": [
+        {
+            "href": "/svc/pk/set/value1,value2,value3"
+        }
+    ]
+}
+OK
+GET /svc/pk/enum/value1
+{
+    "id": "value1",
+    "links": [
+        {
+            "href": "/svc/pk/enum/value1"
+        }
+    ]
+}
+OK
+GET /svc/pk/enum/value3
+{
+    "id": "value3",
+    "links": [
+        {
+            "href": "/svc/pk/enum/value3"
+        }
+    ]
+}
+OK
+GET /svc/pk/varchar20/123456
+{
+    "id": "123456",
+    "links": [
+        {
+            "href": "/svc/pk/varchar20/123456"
+        }
+    ]
+}
+OK
+
+#
+# I.4
+GET /svc/pk/date/2020-12-01
+{
+    "id": "2020-12-01",
+    "links": [
+        {
+            "href": "/svc/pk/date/2020-12-01"
+        }
+    ]
+}
+OK
+GET /svc/pk/date/2020-12-03
+{
+    "id": "2020-12-03",
+    "links": [
+        {
+            "href": "/svc/pk/date/2020-12-03"
+        }
+    ]
+}
+OK
+GET /svc/pk/time/12:01:50
+{
+    "id": "12:01:50.000000",
+    "links": [
+        {
+            "href": "/svc/pk/time/12:01:50"
+        }
+    ]
+}
+OK
+GET /svc/pk/time/12:01:51
+{
+    "id": "12:01:51.000000",
+    "links": [
+        {
+            "href": "/svc/pk/time/12:01:51"
+        }
+    ]
+}
+OK
+GET /svc/pk/time/12:01:51.0000
+{
+    "id": "12:01:51.000000",
+    "links": [
+        {
+            "href": "/svc/pk/time/12:01:51.0000"
+        }
+    ]
+}
+OK
+GET /svc/pk/year/2020
+{
+    "id": 2020,
+    "links": [
+        {
+            "href": "/svc/pk/year/2020"
+        }
+    ]
+}
+OK
+GET /svc/pk/year/2022
+{
+    "id": 2022,
+    "links": [
+        {
+            "href": "/svc/pk/year/2022"
+        }
+    ]
+}
+OK
+GET /svc/pk/datetime/2020-12-01 12:01:50.000000
+{
+    "id": "2020-12-01 12:01:50.000000",
+    "links": [
+        {
+            "href": "/svc/pk/datetime/2020-12-01 12:01:50.000000"
+        }
+    ]
+}
+OK
+GET /svc/pk/datetime/2020-12-01 12:01:50
+{
+    "id": "2020-12-01 12:01:50.000000",
+    "links": [
+        {
+            "href": "/svc/pk/datetime/2020-12-01 12:01:50"
+        }
+    ]
+}
+OK
+GET /svc/pk/datetime/2020-12-02 12:01:50
+{
+    "id": "2020-12-02 12:01:50.000000",
+    "links": [
+        {
+            "href": "/svc/pk/datetime/2020-12-02 12:01:50"
+        }
+    ]
+}
+OK
+GET /svc/pk/timestamp/2020-12-02 12:01:50.000000
+{
+    "id": "2020-12-02 12:01:50.000000",
+    "links": [
+        {
+            "href": "/svc/pk/timestamp/2020-12-02 12:01:50.000000"
+        }
+    ]
+}
+OK
+GET /svc/pk/timestamp/2020-12-03 12:01:50
+{
+    "id": "2020-12-03 12:01:50.000000",
+    "links": [
+        {
+            "href": "/svc/pk/timestamp/2020-12-03 12:01:50"
+        }
+    ]
+}
+OK
+
+#
+# I.5
+GET /svc/pk/float/0
+{
+    "id": 0.0,
+    "links": [
+        {
+            "href": "/svc/pk/float/0"
+        }
+    ]
+}
+OK
+GET /svc/pk/double/-999.9999
+{
+    "id": -999.9999,
+    "links": [
+        {
+            "href": "/svc/pk/double/-999.9999"
+        }
+    ]
+}
+OK
+GET /svc/pk/decimal/-999.99
+{
+    "id": -999.99,
+    "links": [
+        {
+            "href": "/svc/pk/decimal/-999.99"
+        }
+    ]
+}
+OK
+
+#
+# I.6
+GET /svc/pk/int/-2147483648
+{
+    "id": -2147483648,
+    "links": [
+        {
+            "href": "/svc/pk/int/-2147483648"
+        }
+    ]
+}
+OK
+GET /svc/pk/int/0
+{
+    "id": 0,
+    "links": [
+        {
+            "href": "/svc/pk/int/0"
+        }
+    ]
+}
+OK
+GET /svc/pk/int/2147483647
+{
+    "id": 2147483647,
+    "links": [
+        {
+            "href": "/svc/pk/int/2147483647"
+        }
+    ]
+}
+OK
+GET /svc/pk/smallint/-32768
+{
+    "id": -32768,
+    "links": [
+        {
+            "href": "/svc/pk/smallint/-32768"
+        }
+    ]
+}
+OK
+GET /svc/pk/smallint/0
+{
+    "id": 0,
+    "links": [
+        {
+            "href": "/svc/pk/smallint/0"
+        }
+    ]
+}
+OK
+GET /svc/pk/smallint/32767
+{
+    "id": 32767,
+    "links": [
+        {
+            "href": "/svc/pk/smallint/32767"
+        }
+    ]
+}
+OK
+GET /svc/pk/tinyint/-128
+{
+    "id": -128,
+    "links": [
+        {
+            "href": "/svc/pk/tinyint/-128"
+        }
+    ]
+}
+OK
+GET /svc/pk/tinyint/0
+{
+    "id": 0,
+    "links": [
+        {
+            "href": "/svc/pk/tinyint/0"
+        }
+    ]
+}
+OK
+GET /svc/pk/tinyint/127
+{
+    "id": 127,
+    "links": [
+        {
+            "href": "/svc/pk/tinyint/127"
+        }
+    ]
+}
+OK
+GET /svc/pk/mediumint/-8388608
+{
+    "id": -8388608,
+    "links": [
+        {
+            "href": "/svc/pk/mediumint/-8388608"
+        }
+    ]
+}
+OK
+GET /svc/pk/mediumint/0
+{
+    "id": 0,
+    "links": [
+        {
+            "href": "/svc/pk/mediumint/0"
+        }
+    ]
+}
+OK
+GET /svc/pk/mediumint/8388607
+{
+    "id": 8388607,
+    "links": [
+        {
+            "href": "/svc/pk/mediumint/8388607"
+        }
+    ]
+}
+OK
+DROP SCHEMA pk_types_schema;
+DROP SCHEMA mysql_rest_service_metadata;
+DROP ROLE mysql_rest_service_admin;
+DROP ROLE mysql_rest_service_schema_admin;
+DROP ROLE mysql_rest_service_meta_provider;
+DROP ROLE mysql_rest_service_data_provider;

@@ -66,7 +66,7 @@ class RequestHandlerJsonSimpleObjectBasicAuthorization
   void before_send(HttpRequest *request) override {
     std::string basic = "Basic ";
     std::string authentication = entry_.app_id + ":" + entry_.app_token;
-    basic += Base64::encode({authentication.begin(), authentication.end()});
+    basic += Base64::encode(authentication);
     request->get_output_headers().add("authorization", basic.c_str());
   }
 

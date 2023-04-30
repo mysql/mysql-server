@@ -52,7 +52,7 @@ void QueryAuditLogEntries::build_query(
   query_ << allowed_tables;
 }
 
-void QueryAuditLogEntries::on_row(const Row &row) {
+void QueryAuditLogEntries::on_row(const ResultRow &row) {
   entries.emplace_back();
 
   helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);

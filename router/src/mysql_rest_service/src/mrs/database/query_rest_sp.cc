@@ -79,11 +79,11 @@ void QueryRestSP::push_cached() {
     for (auto &item : flush_copy_) {
       r.push_back(item ? item.value().c_str() : nullptr);
     }
-    response_template.push_json_document(r, columns_, ignore_column_);
+    push_to_document(r);
   }
 }
 
-void QueryRestSP::on_row(const Row &r) {
+void QueryRestSP::on_row(const ResultRow &r) {
   auto should_cache = flush();
   ++items;
   ++items_in_resultset_;
@@ -91,6 +91,7 @@ void QueryRestSP::on_row(const Row &r) {
   if (should_cache) {
     flush_copy_.clear();
     flush_copy_.reserve(r.size());
+
     for (auto item : r) {
       if (item)
         flush_copy_.emplace_back(item);
@@ -99,6 +100,10 @@ void QueryRestSP::on_row(const Row &r) {
     }
     return;
   }
+  push_to_document(r);
+}
+
+void QueryRestSP::push_to_document(const ResultRow &r) {
   response_template.push_json_document(r, columns_, ignore_column_);
 }
 

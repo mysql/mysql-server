@@ -41,7 +41,7 @@ class QueryState : private Query {
  private:
   State state_{stateOff};
   bool changed_{true};
-  void on_row(const Row &r) override;
+  void on_row(const ResultRow &r) override;
 };
 
 }  // namespace database

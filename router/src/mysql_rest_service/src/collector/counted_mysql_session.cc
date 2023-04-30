@@ -54,7 +54,7 @@ uint64_t CountedMySQLSession::prepare(const std::string &query) {
 
 void CountedMySQLSession::prepare_execute(uint64_t ps_id,
                                           std::vector<enum_field_types> pt,
-                                          const RowProcessor &processor,
+                                          const ResultRowProcessor &processor,
                                           const FieldValidator &validator) {
   mrs::Counter<kEntityCounterMySQLPrepareExecute>::increment();
   MySQLSession::prepare_execute(ps_id, pt, processor, validator);
@@ -71,7 +71,7 @@ void CountedMySQLSession::execute(const std::string &query) {
 }
 
 void CountedMySQLSession::query(const std::string &query,
-                                const RowProcessor &processor,
+                                const ResultRowProcessor &processor,
                                 const FieldValidator &validator) {
   mrs::Counter<kEntityCounterMySQLQueries>::increment();
   MySQLSession::query(query, processor, validator);

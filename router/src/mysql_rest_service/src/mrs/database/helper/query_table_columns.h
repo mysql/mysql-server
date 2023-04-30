@@ -46,7 +46,7 @@ class QueryTableColumns : private Query {
   VectorOfColumns columns;
 
  private:
-  void on_row(const Row &r) override;
+  void on_row(const ResultRow &r) override;
 };
 
 }  // namespace database

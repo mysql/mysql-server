@@ -47,7 +47,7 @@ class QueryEntryAuthUser : private QueryLog {
   virtual const AuthUser &get_user();
 
  private:
-  void on_row(const Row &r) override;
+  void on_row(const ResultRow &r) override;
 
   int loaded_{0};
   AuthUser user_data_;

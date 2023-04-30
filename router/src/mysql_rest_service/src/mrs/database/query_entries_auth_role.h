@@ -40,7 +40,7 @@ class QueryEntriesAuthRole : public Query {
   std::vector<entry::AuthRole> result;
 
  private:
-  void on_row(const mrs::database::Query::Row &r) override;
+  void on_row(const ResultRow &r) override;
 };
 
 }  // namespace database

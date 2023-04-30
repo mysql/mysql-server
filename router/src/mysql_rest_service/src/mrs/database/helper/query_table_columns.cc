@@ -52,7 +52,7 @@ void QueryTableColumns::query_entries(MySQLSession *session,
   execute(session);
 }
 
-void QueryTableColumns::on_row(const Row &r) {
+void QueryTableColumns::on_row(const ResultRow &r) {
   using namespace std::string_literals;
   log_debug("Column %s %s %s (is_primary %s)", r[0], r[1], r[3],
             ("PRI"s == r[3] ? "yes" : "no"));

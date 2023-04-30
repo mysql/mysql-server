@@ -39,7 +39,7 @@ class QueryEntryContentFile : public Query {
   std::string result;
 
  private:
-  void on_row(const mrs::database::Query::Row &r) override;
+  void on_row(const ResultRow &r) override;
 
   uint64_t query_before_file_id_{0};
   bool received_{false};

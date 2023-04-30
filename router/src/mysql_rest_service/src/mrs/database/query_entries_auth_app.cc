@@ -66,7 +66,7 @@ void QueryEntriesAuthApp::query_entries(MySQLSession *session) {
   audit_log_id_ = audit_log_id;
 }
 
-void QueryEntriesAuthApp::on_row(const Row &row) {
+void QueryEntriesAuthApp::on_row(const ResultRow &row) {
   entries.emplace_back();
 
   helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);

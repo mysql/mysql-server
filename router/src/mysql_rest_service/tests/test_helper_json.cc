@@ -54,14 +54,13 @@ TEST(Json, SerializerToText_simple_values) {
   ASSERT_EQ("\"\"", SerializerToText().add_value("").get_result());
   ASSERT_EQ("100", (SerializerToText() << 100).get_result());
   ASSERT_EQ("\"100\"", SerializerToText().add_value("100").get_result());
-  ASSERT_EQ(
-      "100",
-      SerializerToText().add_value("100", ColumnJsonTypes::kJson).get_result());
+  ASSERT_EQ("100",
+            SerializerToText().add_value("100", JsonType::kJson).get_result());
   ASSERT_EQ("false", (SerializerToText() << false).get_result());
   ASSERT_EQ("true", (SerializerToText() << true).get_result());
-  ASSERT_EQ("null", SerializerToText()
-                        .add_value(nullptr, ColumnJsonTypes::kNull)
-                        .get_result());
+  ASSERT_EQ(
+      "null",
+      SerializerToText().add_value(nullptr, JsonType::kNull).get_result());
 }
 
 TEST(Json, SerializerToText_object_empty) {

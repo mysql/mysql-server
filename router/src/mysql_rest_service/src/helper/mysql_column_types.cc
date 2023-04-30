@@ -34,8 +34,55 @@ IMPORT_LOG_FUNCTIONS()
 
 namespace helper {
 
-ColumnJsonTypes from_mysql_column_type(enum_field_types type) {
-  switch (type) {
+static const auto &get_txt_type_mapping() {
+  const static std::map<std::string, ColumnType> map{
+      {"boolean", {MYSQL_TYPE_BOOL, helper::JsonType::kBool}},
+      {"bit", {MYSQL_TYPE_BIT, helper::JsonType::kBlob}},
+
+      {"json", {MYSQL_TYPE_JSON, helper::JsonType::kJson}},
+
+      {"tinyint", {MYSQL_TYPE_TINY, helper::JsonType::kNumeric}},
+      {"smallint", {MYSQL_TYPE_SHORT, helper::JsonType::kNumeric}},
+      {"int", {MYSQL_TYPE_LONG, helper::JsonType::kNumeric}},
+      {"float", {MYSQL_TYPE_FLOAT, helper::JsonType::kNumeric}},
+      {"double", {MYSQL_TYPE_DOUBLE, helper::JsonType::kNumeric}},
+      {"bigint", {MYSQL_TYPE_LONGLONG, helper::JsonType::kNumeric}},
+      {"mediumint", {MYSQL_TYPE_INT24, helper::JsonType::kNumeric}},
+      {"decimal", {MYSQL_TYPE_DECIMAL, helper::JsonType::kNumeric}},
+
+      {"null", {MYSQL_TYPE_NULL, helper::JsonType::kNull}},
+
+      {"char", {MYSQL_TYPE_VARCHAR, helper::JsonType::kString}},
+      {"set", {MYSQL_TYPE_SET, helper::JsonType::kString}},
+      {"enum", {MYSQL_TYPE_ENUM, helper::JsonType::kString}},
+      {"text", {MYSQL_TYPE_STRING, helper::JsonType::kString}},
+      {"longtext", {MYSQL_TYPE_STRING, helper::JsonType::kString}},
+      {"mediumtext", {MYSQL_TYPE_STRING, helper::JsonType::kString}},
+      {"tinytext", {MYSQL_TYPE_STRING, helper::JsonType::kString}},
+      {"varchar", {MYSQL_TYPE_VARCHAR, helper::JsonType::kString}},
+
+      {"geometry", {MYSQL_TYPE_GEOMETRY, helper::JsonType::kString}},
+
+      {"timestamp", {MYSQL_TYPE_TIMESTAMP, helper::JsonType::kString}},
+      {"date", {MYSQL_TYPE_DATE, helper::JsonType::kString}},
+      {"time", {MYSQL_TYPE_TIME, helper::JsonType::kString}},
+      {"datetime", {MYSQL_TYPE_DATETIME, helper::JsonType::kString}},
+      {"year", {MYSQL_TYPE_YEAR, helper::JsonType::kString}},
+
+      {"binary", {MYSQL_TYPE_BLOB, helper::JsonType::kBlob}},
+      {"tinyblob", {MYSQL_TYPE_TINY_BLOB, helper::JsonType::kBlob}},
+      {"mediumblob", {MYSQL_TYPE_MEDIUM_BLOB, helper::JsonType::kBlob}},
+      {"longblob", {MYSQL_TYPE_LONG_BLOB, helper::JsonType::kBlob}},
+      {"blob", {MYSQL_TYPE_BLOB, helper::JsonType::kBlob}},
+  };
+
+  return map;
+}
+
+JsonType from_mysql_column_type(const MYSQL_FIELD *field) {
+  log_debug("field->type:%i", (int)field->type);
+  log_debug("field->charsetnr:%i", (int)field->charsetnr);
+  switch (field->type) {
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_TINY:
@@ -45,12 +92,12 @@ ColumnJsonTypes from_mysql_column_type(enum_field_types type) {
     case MYSQL_TYPE_DOUBLE:
     case MYSQL_TYPE_LONGLONG:
     case MYSQL_TYPE_INT24:
-      return helper::ColumnJsonTypes::kNumeric;
+      return helper::JsonType::kNumeric;
 
     case MYSQL_TYPE_TYPED_ARRAY:
     case MYSQL_TYPE_INVALID:
     case MYSQL_TYPE_NULL:
-      return helper::ColumnJsonTypes::kNull;
+      return helper::JsonType::kNull;
 
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_DATE:
@@ -61,14 +108,16 @@ ColumnJsonTypes from_mysql_column_type(enum_field_types type) {
     case MYSQL_TYPE_TIME2:
     case MYSQL_TYPE_TIMESTAMP2:
     case MYSQL_TYPE_DATETIME2:
-      return helper::ColumnJsonTypes::kString;
+      return helper::JsonType::kString;
 
     case MYSQL_TYPE_BIT:
+      if (field->length != 1) return helper::JsonType::kBlob;
+      [[fallthrough]];
     case MYSQL_TYPE_BOOL:
-      return helper::ColumnJsonTypes::kBool;
+      return helper::JsonType::kBool;
 
     case MYSQL_TYPE_JSON:
-      return helper::ColumnJsonTypes::kJson;
+      return helper::JsonType::kJson;
 
     case MYSQL_TYPE_VARCHAR:
     case MYSQL_TYPE_SET:
@@ -76,16 +125,19 @@ ColumnJsonTypes from_mysql_column_type(enum_field_types type) {
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_STRING:
-      return helper::ColumnJsonTypes::kString;
+      if (field->charsetnr == 63 || IS_BLOB(field->flags))
+        return helper::JsonType::kBlob;
+      return helper::JsonType::kString;
 
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_BLOB:
-      return helper::ColumnJsonTypes::kString;
+      if (field->charsetnr == 63) return helper::JsonType::kBlob;
+      return helper::JsonType::kString;
   }
 
-  return helper::ColumnJsonTypes::kNull;
+  return helper::JsonType::kNull;
 }
 
 void remove_suffix_after(std::string_view &v, char c) {
@@ -93,59 +145,33 @@ void remove_suffix_after(std::string_view &v, char c) {
   if (position != v.npos) v.remove_suffix(v.size() - position);
 }
 
-ColumnJsonTypes from_mysql_column_string_type(const char *t) {
-  const static std::map<std::string, ColumnJsonTypes> map{
-      {"boolean", helper::ColumnJsonTypes::kBool},
-      {"bit", helper::ColumnJsonTypes::kBool},
-
-      {"json", helper::ColumnJsonTypes::kJson},
-
-      {"tinyint", helper::ColumnJsonTypes::kNumeric},
-      {"smallint", helper::ColumnJsonTypes::kNumeric},
-      {"int", helper::ColumnJsonTypes::kNumeric},
-      {"float", helper::ColumnJsonTypes::kNumeric},
-      {"double", helper::ColumnJsonTypes::kNumeric},
-      {"bigint", helper::ColumnJsonTypes::kNumeric},
-      {"mediumint", helper::ColumnJsonTypes::kNumeric},
-      {"decimal", helper::ColumnJsonTypes::kNumeric},
-
-      {"null", helper::ColumnJsonTypes::kNull},
-
-      {"char", helper::ColumnJsonTypes::kString},
-      {"set", helper::ColumnJsonTypes::kString},
-      {"enum", helper::ColumnJsonTypes::kString},
-      {"text", helper::ColumnJsonTypes::kString},
-      {"longtext", helper::ColumnJsonTypes::kString},
-      {"mediumtext", helper::ColumnJsonTypes::kString},
-      {"tinytext", helper::ColumnJsonTypes::kString},
-      {"varchar", helper::ColumnJsonTypes::kString},
-
-      {"geometry", helper::ColumnJsonTypes::kString},
-
-      {"timestamp", helper::ColumnJsonTypes::kString},
-      {"date", helper::ColumnJsonTypes::kString},
-      {"time", helper::ColumnJsonTypes::kString},
-      {"datetime", helper::ColumnJsonTypes::kString},
-      {"year", helper::ColumnJsonTypes::kString},
-
-      {"tinyblob", helper::ColumnJsonTypes::kString},
-      {"mediumblob", helper::ColumnJsonTypes::kString},
-      {"longblob", helper::ColumnJsonTypes::kString},
-      {"blob", helper::ColumnJsonTypes::kString},
-  };
+ColumnType from_mysql_txt_column_type(const char *t) {
+  const auto &map = get_txt_type_mapping();
   std::string_view type{t, strlen(t)};
   remove_suffix_after(type, ' ');
   remove_suffix_after(type, '(');
 
   std::string type_string{type.begin(), type.end()};
   auto it = map.find(type_string);
-  if (it != map.end()) return it->second;
+  if (map.end() == it) return {};
 
-  log_debug("Unsupported type: %s, returning null", type_string.c_str());
-  return helper::ColumnJsonTypes::kNull;
+  auto result = it->second;
+
+  auto num = strstr(t, "(");
+  if (num) {
+    result.length = atoi(++num);
+  }
+
+  if (result.type_mysql == MYSQL_TYPE_BIT &&
+      (result.length == 1 || result.length == 0))
+    result.type_json = JsonType::kBool;
+
+  return result;
 }
 
-std::string to_string(ColumnJsonTypes type) {
+uint64_t from_mysql_column_type_length(const char *) { return 0; }
+
+std::string to_string(JsonType type) {
   switch (type) {
     case kNull:
       return "null";
@@ -157,6 +183,8 @@ std::string to_string(ColumnJsonTypes type) {
       return "numeric";
     case kJson:
       return "json";
+    case kBlob:
+      return "blob";
   }
   return "null";
 }

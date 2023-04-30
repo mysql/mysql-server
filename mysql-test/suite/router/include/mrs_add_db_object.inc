@@ -64,8 +64,11 @@ eval  INSERT INTO mysql_rest_service_metadata.db_object(
 --let $_path=`SELECT CONCAT(s.url_context_root, db.request_path, o.request_path) FROM mysql_rest_service_metadata.db_object as o JOIN mysql_rest_service_metadata.db_schema as db on db.id=o.db_schema_id JOIN mysql_rest_service_metadata.service as s ON  s.id = db.service_id  WHERE o.id=$mrs_sql_id_variable;`
 --echo # Registred DB_OBJECT at path: $_path
 
+
 if (!$mrs_add_db_object_do_not_auto_register_columns)
 {
+ if ($mrs_add_db_object_type=="TABLE")
+ {
     if (!$mrs_sql_id_variable_ob)
     {
       --let $mrs_sql_id_variable_ob=@object_id
@@ -75,11 +78,11 @@ if (!$mrs_add_db_object_do_not_auto_register_columns)
     eval INSERT INTO mysql_rest_service_metadata.object(id, db_object_id, name) VALUES($mrs_sql_id_variable_ob, $mrs_sql_id_variable, "$mrs_add_db_object");
     eval INSERT INTO mysql_rest_service_metadata.object_field(id, name, object_id, enabled, position, db_column)
            SELECT mysql_rest_service_metadata.get_sequence_id(), z.cname, $mrs_sql_id_variable_ob, true, z.pos, z.js
-           FROM (SELECT COLUMN_NAME as cname, ORDINAL_POSITION as pos, JSON_SET("{}","$.name",column_name,"$.datatype",data_type, "$.auto_inc", EXTRA like "%auto_increment%", "$.not_null", is_NULLABLE <> "YES", "$.is_primary", COLUMN_KEY like "%PRI%") as js FROM information_schema.columns where TABLE_SCHEMA="$_schema_name" and TABLE_NAME="$mrs_add_db_object") as z;
-}
+           FROM (SELECT COLUMN_NAME as cname, ORDINAL_POSITION as pos, JSON_SET("{}","$.name",column_name,"$.datatype",COLUMN_TYPE, "$.auto_inc", EXTRA like "%auto_increment%", "$.not_null", is_NULLABLE <> "YES", "$.is_primary", COLUMN_KEY like "%PRI%") as js FROM information_schema.columns where TABLE_SCHEMA="$_schema_name" and TABLE_NAME="$mrs_add_db_object") as z;
+ }
 
-if ($mrs_add_db_object_type=="PROCEDURE")
-{
+ if ($mrs_add_db_object_type=="PROCEDURE")
+ {
     --let $_schema_name=`SELECT name FROM mysql_rest_service_metadata.db_schema WHERE id=$mrs_schema_id_sql_variable`
 
     eval INSERT INTO `mysql_rest_service_metadata`.`field` (`id`, `db_object_id`, `position`, `name`, `bind_field_name`, `datatype`, `mode`)
@@ -101,6 +104,7 @@ if ($mrs_add_db_object_type=="PROCEDURE")
     PARAMETER_MODE 
      FROM information_schema.PARAMETERS
      WHERE SPECIFIC_NAME="$mrs_add_db_object" and SPECIFIC_SCHEMA="$_schema_name";
+ }
 }
 
 --enable_query_log

@@ -77,7 +77,7 @@ void HandlerIsAuthorized::fill_the_user_data(
   auto roles_array = ojson->member_add_array("roles");
   for (const auto &r : roles) {
     roles_array->add_value(database::entry::to_string(r).c_str(),
-                           helper::ColumnJsonTypes::kJson);
+                           helper::JsonType::kJson);
   }
 }
 
