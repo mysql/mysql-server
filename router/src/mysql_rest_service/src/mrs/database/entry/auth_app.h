@@ -65,7 +65,7 @@ class AuthApp {
 inline helper::json::SerializerToText &operator<<(
     helper::json::SerializerToText &stt, const UniversalId &id) {
   stt.add_value(reinterpret_cast<const char *>(&id.raw[0]), id.k_size,
-                helper::ColumnJsonTypes::kString);
+                helper::JsonType::kString);
   return stt;
 }
 

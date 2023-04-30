@@ -48,7 +48,7 @@ void Query::query(MySQLSession *session, const std::string &q) {
   try {
     session->query(
         q,
-        [this](const auto &r) {
+        [this](const Row &r) {
           on_row(r);
           return true;
         },
@@ -108,7 +108,7 @@ void Query::prepare_and_execute(MySQLSession *session, const std::string &q,
   }
 }
 
-void Query::on_row([[maybe_unused]] const Row &r) {}
+void Query::on_row([[maybe_unused]] const ResultRow &r) {}
 
 void Query::on_metadata(unsigned number, MYSQL_FIELD *fields) {
   metadata_ = fields;

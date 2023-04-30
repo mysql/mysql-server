@@ -61,10 +61,11 @@ class QueryRestSP : private QueryLog {
   std::vector<std::optional<std::string>> flush_copy_;
   std::string url_;
 
+  void push_to_document(const ResultRow &r);
   bool flush(const bool is_last = false);
   void push_cached();
 
-  void on_row(const Row &r) override;
+  void on_row(const ResultRow &r) override;
   void on_metadata(unsigned int number, MYSQL_FIELD *fields) override;
 };
 

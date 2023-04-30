@@ -46,7 +46,7 @@ class QueryEntriesContentFile : protected Query {
   VectorOfPaths entries;
 
  protected:
-  void on_row(const Row &row) override;
+  void on_row(const ResultRow &row) override;
 
   uint64_t audit_log_id_;
 };

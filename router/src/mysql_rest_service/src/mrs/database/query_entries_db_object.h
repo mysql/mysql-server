@@ -52,7 +52,7 @@ class QueryEntryDbObject : protected Query {
   VectorOfPathEntries entries;
 
  protected:
-  void on_row(const Row &r) override;
+  void on_row(const ResultRow &r) override;
 
   uint64_t audit_log_id_{0};
 };

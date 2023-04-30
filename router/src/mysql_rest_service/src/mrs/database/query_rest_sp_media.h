@@ -53,7 +53,7 @@ class QueryRestSPMedia : private QueryLog {
   uint64_t items;
 
  private:
-  void on_row(const Query::Row &r) override;
+  void on_row(const ResultRow &r) override;
   void on_metadata(unsigned int number, MYSQL_FIELD *fields) override;
 };
 

@@ -39,10 +39,10 @@ namespace helper {
 
 class MySQLRow {
  public:
-  using Row = mysqlrouter::MySQLSession::Row;
+  using ResultRow = mysqlrouter::MySQLSession::ResultRow;
 
  public:
-  MySQLRow(const Row &row, MYSQL_FIELD *fields, unsigned number)
+  MySQLRow(const ResultRow &row, MYSQL_FIELD *fields, unsigned number)
       : row_{row}, fields_{fields}, no_of_fields_{number} {}
 
   void skip(uint32_t to_skip = 1) { field_index_ += to_skip; }
@@ -199,7 +199,7 @@ class MySQLRow {
 
  public:
   uint32_t field_index_{0};
-  const Row &row_;
+  const ResultRow &row_;
   MYSQL_FIELD *fields_;
   unsigned no_of_fields_;
 };

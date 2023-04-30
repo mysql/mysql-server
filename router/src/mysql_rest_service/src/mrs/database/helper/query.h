@@ -35,6 +35,7 @@ class Query {
  public:
   using MySQLSession = mysqlrouter::MySQLSession;
   using Row = MySQLSession::Row;
+  using ResultRow = MySQLSession::ResultRow;
 
  public:
   virtual ~Query() = default;
@@ -48,7 +49,7 @@ class Query {
   std::unique_ptr<MySQLSession::ResultRow> query_one(MySQLSession *session,
                                                      const std::string &q);
 
-  virtual void on_row(const Row &r);
+  virtual void on_row(const ResultRow &r);
   virtual void on_metadata(unsigned number, MYSQL_FIELD *fields);
 
   mysqlrouter::sqlstring query_;

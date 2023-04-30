@@ -18,8 +18,11 @@ UPDATE `mysql_rest_service_metadata`.`object_field` SET enabled=(name="id" or na
 GET /svc/basic/t1/1
 {
     "id": 1,
-    "cbin": "base64:type254:MAAA",
+    "cbin": "MAAA",
+    "cbit": false,
     "cset": "",
+    "cbit1": false,
+    "cblob": "",
     "cdate": "2020-12-01",
     "cenum": "value1",
     "ctext": "numeric zeros",
@@ -31,13 +34,16 @@ GET /svc/basic/t1/1
             "href": "/svc/basic/t1/1"
         }
     ],
+    "cbit10": "AAA=",
     "cfloat": 0.0,
     "cbigint": 0,
     "cdouble": 0.0,
     "cdecimal": 0.0,
+    "ctinyint": 0,
     "cvarchar": "first row",
     "cdatetime": "2020-12-01 12:01:50.000000",
     "csmallint": 0,
+    "cmediumint": 0,
     "ctimestamp": "2020-12-01 12:01:50.000000"
 }
 OK
@@ -56,6 +62,9 @@ OK
 GET /svc/basic/t1/3?f=!cbin,!cset,!cenum,!ctext,!ctime,!cdate,!cfloat,!cdouble,!cdatetime,!ctimestamp
 {
     "id": 3,
+    "cbit": true,
+    "cbit1": true,
+    "cblob": "ABGrAAASIzM=",
     "cyear": 2022,
     "links": [
         {
@@ -63,10 +72,13 @@ GET /svc/basic/t1/3?f=!cbin,!cset,!cenum,!ctext,!ctime,!cdate,!cfloat,!cdouble,!
             "href": "/svc/basic/t1/3"
         }
     ],
+    "cbit10": "A/8=",
     "cbigint": 9223372036854775807,
     "cdecimal": 999.99,
+    "ctinyint": 127,
     "cvarchar": "thrid row",
-    "csmallint": 32767
+    "csmallint": 32767,
+    "cmediumint": 8388607
 }
 OK
 GET /svc/basic/t2/1

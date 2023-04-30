@@ -43,7 +43,7 @@ class QueryEntriesAuthPrivileges : public Query {
                           Privileges *out_privileges);
 
  private:
-  void on_row(const Row &r) override;
+  void on_row(const ResultRow &r) override;
 
   Privileges *privileges_{nullptr};
 };

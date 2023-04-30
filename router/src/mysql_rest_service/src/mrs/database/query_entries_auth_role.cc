@@ -42,7 +42,7 @@ void QueryEntriesAuthRole::query_role(MySQLSession *session,
   Query::execute(session);
 }
 
-void QueryEntriesAuthRole::on_row(const mrs::database::Query::Row &r) {
+void QueryEntriesAuthRole::on_row(const ResultRow &r) {
   auto &role = result.emplace_back();
   helper::MySQLRow mysql_row(r, metadata_, no_od_metadata_);
 

@@ -59,7 +59,7 @@ void QueryRestTable::query_entries(
   response = serializer_.get_result();
 }
 
-void QueryRestTable::on_row(const Row &r) {
+void QueryRestTable::on_row(const ResultRow &r) {
   serializer_.push_json_document(r[0]);
   ++items;
 }
@@ -225,8 +225,10 @@ void QueryRestTable::build_query(
   query_ =
       mysqlrouter::sqlstring("SELECT JSON_OBJECT(?) as doc FROM ? ? LIMIT ?,?");
   std::vector<mysqlrouter::sqlstring> json_object_fields;
+
   if (!qb.select_items().is_empty())
     json_object_fields.push_back(qb.select_items());
+
   if (primary.empty()) {
     static mysqlrouter::sqlstring empty_links{"'links', JSON_ARRAY()"};
     json_object_fields.push_back(empty_links);
@@ -237,6 +239,7 @@ void QueryRestTable::build_query(
     fmt << url << primary;
     json_object_fields.push_back(fmt);
   }
+
   query_ << json_object_fields;
   query_ << qb.from_clause();
   query_ << where << offset << limit;

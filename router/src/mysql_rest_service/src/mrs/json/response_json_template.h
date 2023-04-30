@@ -30,6 +30,7 @@
 
 #include "helper/json/serializer_to_text.h"
 #include "helper/mysql_column.h"
+#include "mysqlrouter/mysql_session.h"
 
 namespace mrs {
 namespace json {
@@ -37,13 +38,14 @@ namespace json {
 class ResponseJsonTemplate {
  public:
   using JsonSerializer = helper::json::SerializerToText;
+  using ResultRow = mysqlrouter::MySQLSession::ResultRow;
 
  public:
   void begin(const std::string &url, const std::string &items_name);
   void begin(uint32_t offset, uint32_t limit, bool is_default_limit,
              const std::string &url);
   bool push_json_document(const char *document);
-  bool push_json_document(const std::vector<const char *> &values,
+  bool push_json_document(const ResultRow &values,
                           const std::vector<helper::Column> &columns,
                           const char *ignore_column = nullptr);
   void end();

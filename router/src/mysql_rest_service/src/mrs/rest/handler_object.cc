@@ -40,6 +40,7 @@
 #include "helper/json/to_sqlstring.h"
 #include "helper/json/to_string.h"
 #include "helper/media_detector.h"
+#include "helper/mysql_numeric_value.h"
 #include "mrs/database/helper/object_query.h"
 #include "mrs/database/query_rest_sp_media.h"
 #include "mrs/database/query_rest_table.h"
@@ -88,32 +89,47 @@ class JsonKeyIterator
   }
 };
 
-mysqlrouter::sqlstring rest_param_to_sql_value(const std::string &value) {
-  if (value.empty()) return {};
+mysqlrouter::sqlstring rest_param_to_sql_value(const helper::Column &pk,
+                                               const std::string &pk_value) {
+  using helper::get_type_inside_text;
+  using helper::JsonType;
+  if (pk_value.empty()) return {};
 
-  auto it = value.begin();
-  bool is_negative = ('-' == *it);
-  bool is_number = isdigit(*it) || is_negative;
+  auto type = get_type_inside_text(pk_value);
 
-  mysqlrouter::sqlstring result{"?"};
-  ++it;
-  while (is_number && it != value.end()) {
-    is_number = isdigit(*(it++));
-  }
-
-  if (is_number) {
-    if (is_negative) {
-      auto i = strtoll(value.c_str(), nullptr, 10);
-      result << i;
-    } else {
-      auto i = strtoull(value.c_str(), nullptr, 10);
-      result << i;
+  switch (pk.type_json) {
+    case JsonType::kNumeric: {
+      mysqlrouter::sqlstring result{pk_value.c_str()};
+      return result;
     }
-  } else {
-    result << value;
+    case JsonType::kBool: {
+      if (helper::kDataInteger == type) {
+        if (atoi(pk_value.c_str()) > 0) return mysqlrouter::sqlstring{"true"};
+        return mysqlrouter::sqlstring{"false"};
+      }
+      auto v = mysql_harness::make_lower(pk_value);
+      if (v == "true") return mysqlrouter::sqlstring{"true"};
+
+      return mysqlrouter::sqlstring{"false"};
+    }
+    case JsonType::kBlob: {
+      mysqlrouter::sqlstring result{"FROM_BASE64(?)"};
+      result << pk_value;
+      return result;
+    }
+    case JsonType::kString: {
+      mysqlrouter::sqlstring result{"?"};
+      result << pk_value;
+      return result;
+    }
+
+    case JsonType::kJson:
+    case JsonType::kNull:
+    default:
+      return {};
   }
 
-  return result;
+  return {};
 }
 
 template <typename Function>
@@ -239,8 +255,8 @@ void HandlerObject::authorization(rest::RequestContext *ctxt) {
 
 HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
   auto &requests_uri = ctxt->request->get_uri();
-  mysqlrouter::sqlstring pk_value =
-      rest_param_to_sql_value(get_path_after_object_name(requests_uri));
+  mysqlrouter::sqlstring pk_value = rest_param_to_sql_value(
+      route_->get_cached_primary(), get_path_after_object_name(requests_uri));
   auto session =
       get_session(ctxt->sql_session_cache.get(), route_->get_cache());
   auto object = route_->get_cached_object();
@@ -316,8 +332,9 @@ HttpResult HandlerObject::handle_get(rest::RequestContext *ctxt) {
   if (!route_->get_cached_primary().name.empty()) {
     if (raw_value.empty()) {
       database::QueryRestTableSingleRow rest;
+      log_debug("Rest select single row %s", pk_value.str().c_str());
       rest.query_entries(session.get(), object, field_filter,
-                         route_->get_cached_primary().name, pk_value,
+                         route_->get_cached_primary(), pk_value,
                          route_->get_rest_url());
 
       if (rest.response.empty()) throw http::Error(HttpStatusCode::NotFound);
@@ -392,10 +409,14 @@ HttpResult HandlerObject::handle_post(
 
     assert(pk.size() == 1);
 
+    helper::Column c{};
+    c.is_primary = true;
+    c.type = MYSQL_TYPE_STRING;
+    c.type_json = helper::JsonType::kString;
+    c.name = pk.begin()->first;
     fetch_one.query_entries(session.get(), object,
                             database::ObjectFieldFilter::from_object(*object),
-                            pk.begin()->first, pk.begin()->second,
-                            route_->get_rest_url());
+                            c, pk.begin()->second, route_->get_rest_url());
     Counter<kEntityCounterRestReturnedItems>::increment(fetch_one.items);
 
     return std::move(fetch_one.response);
@@ -447,6 +468,7 @@ HttpResult HandlerObject::handle_put([
   using namespace helper::json::sql;  // NOLINT(build/namespaces)
 
   auto pk_value = rest_param_to_sql_value(
+      route_->get_cached_primary(),
       get_path_after_object_name(ctxt->request->get_uri()));
 
   auto &input_buffer = ctxt->request->get_input_buffer();
@@ -491,10 +513,14 @@ HttpResult HandlerObject::handle_put([
   if (!route_->get_cached_primary().name.empty()) {
     database::QueryRestTableSingleRow fetch_one;
 
+    helper::Column c{};
+    c.is_primary = true;
+    c.type = MYSQL_TYPE_STRING;
+    c.type_json = helper::JsonType::kString;
+    c.name = pk.begin()->first;
     fetch_one.query_entries(session.get(), object,
                             database::ObjectFieldFilter::from_object(*object),
-                            pk.begin()->first, pk.begin()->second,
-                            route_->get_rest_url());
+                            c, pk.begin()->second, route_->get_rest_url());
 
     Counter<kEntityCounterRestAffectedItems>::increment(fetch_one.items);
     return std::move(fetch_one.response);

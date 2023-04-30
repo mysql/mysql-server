@@ -45,7 +45,7 @@ class QueryUuid : private Query {
 
  private:
   void on_metadata(unsigned number, MYSQL_FIELD *fields) override;
-  void on_row(const Row &r) override;
+  void on_row(const ResultRow &r) override;
   std::array<uint8_t, 16> uuid_;
 };
 

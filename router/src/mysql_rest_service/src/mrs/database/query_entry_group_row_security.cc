@@ -46,7 +46,7 @@ QueryEntryGroupRowSecurity::get_result() {
   return row_group_security_;
 }
 
-void QueryEntryGroupRowSecurity::on_row(const Row &row) {
+void QueryEntryGroupRowSecurity::on_row(const ResultRow &row) {
   if (row.size() < 1) return;
 
   helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);

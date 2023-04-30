@@ -30,6 +30,7 @@
 #include <string>
 #include <vector>
 
+#include "helper/mysql_column.h"
 #include "mrs/database/entry/object.h"
 #include "mrs/database/helper/object_query.h"
 #include "mrs/database/helper/query.h"
@@ -41,12 +42,13 @@ class QueryRestTableSingleRow : private QueryLog {
  public:
   using Object = entry::Object;
   using ObjectField = entry::ObjectField;
+  using Column = helper::Column;
 
  public:
   virtual void query_entries(MySQLSession *session,
                              std::shared_ptr<database::entry::Object> object,
                              const ObjectFieldFilter &field_filter,
-                             const std::string &primary_key,
+                             const Column &primary_key,
                              const mysqlrouter::sqlstring &pri_value,
                              const std::string &url_route);
 
@@ -59,10 +61,10 @@ class QueryRestTableSingleRow : private QueryLog {
   uint64_t items;
 
  private:
-  void on_row(const Row &r) override;
+  void on_row(const ResultRow &r) override;
   void build_query(std::shared_ptr<database::entry::Object> object,
                    const ObjectFieldFilter &field_filter,
-                   const std::string &primary_key,
+                   const Column &primary_key,
                    const mysqlrouter::sqlstring &pri_value,
                    const std::string &url_route);
   void build_query_last_inserted(

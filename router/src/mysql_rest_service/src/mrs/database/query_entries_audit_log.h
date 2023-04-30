@@ -46,7 +46,7 @@ class QueryAuditLogEntries : private Query {
  private:
   void build_query(const std::vector<std::string> &allowed_tables,
                    const uint64_t audit_log_id);
-  void on_row(const Row &r) override;
+  void on_row(const ResultRow &r) override;
 
   uint64_t max_id_;
 };

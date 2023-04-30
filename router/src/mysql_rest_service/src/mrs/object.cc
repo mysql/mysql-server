@@ -137,7 +137,7 @@ const std::string &Object::get_rest_canonical_path() {
 void Object::update_variables() {
   const static std::string k_metadata = "/metadata-catalog";
   rest_path_ = "^" + pe_.service_path + pe_.schema_path + pe_.object_path +
-               "(/[0-9]*/?)?$";
+               "(/([0-9]|[a-z]|[A-Z]|[-._~!$&'()*+,;=:@%]| )*/?)?$";
   rest_canonical_path_ = "^" + pe_.service_path + pe_.schema_path + k_metadata +
                          pe_.object_path + "/?$";
   rest_path_raw_ = pe_.service_path + pe_.schema_path + pe_.object_path;

@@ -29,9 +29,14 @@
 
 namespace helper {
 
-template <typename SubStrType>
-bool contains(const std::string &value, SubStrType &&sst) {
-  return value.npos != value.find(sst);
+inline bool is_empty(const std::string &str) { return str.empty(); }
+inline bool is_empty(const char *str) { return *str == 0; }
+inline const char *cstr(const char *str) { return str; }
+inline const char *cstr(const std::string &str) { return str.c_str(); }
+
+template <typename String1, typename String2>
+bool contains(const String1 &value, const String2 &sst) {
+  return nullptr != strstr(cstr(value), cstr(sst));
 }
 
 inline bool ends_with(const std::string &value, const std::string &sst) {
@@ -42,10 +47,32 @@ inline bool ends_with(const std::string &value, const std::string &sst) {
   return value.length() - pos == sst.length();
 }
 
-inline bool starts_with(const std::string &value, const std::string &sst) {
-  if (sst.empty()) return false;
+template <typename String>
+bool index(const std::string &value, const String &inside, uint32_t *idx) {
+  auto pos = value.find(inside);
 
-  return 0 == value.find(sst);
+  if (value.npos == pos) return false;
+  if (idx) *idx = static_cast<uint32_t>(pos);
+
+  return true;
+}
+
+inline bool index(const char *value, const char *inside, uint32_t *idx) {
+  auto ptr = strstr(value, inside);
+  if (nullptr == ptr) return false;
+  if (idx) *idx = reinterpret_cast<intptr_t>(value - ptr);
+  return true;
+}
+
+template <typename String1, typename String2>
+bool starts_with(const String1 &value, const String2 &sst) {
+  if (is_empty(sst)) return false;
+
+  uint32_t idx;
+  if (index(value, sst, &idx)) {
+    return idx == 0;
+  }
+  return false;
 }
 
 }  // namespace helper

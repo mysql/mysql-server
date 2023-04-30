@@ -36,7 +36,7 @@ class QueryAuditLogMaxId : private Query {
   uint64_t query_max_id(MySQLSession *session);
 
  private:
-  void on_row(const Row &r) override;
+  void on_row(const ResultRow &r) override;
 
   uint64_t max_;
 };

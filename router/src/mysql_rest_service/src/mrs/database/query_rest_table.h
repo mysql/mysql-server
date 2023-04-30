@@ -73,7 +73,7 @@ class QueryRestTable : private QueryLog {
   json::ResponseJsonTemplate serializer_;
   mysqlrouter::sqlstring where_;
 
-  void on_row(const Row &r) override;
+  void on_row(const ResultRow &r) override;
 
   const mysqlrouter::sqlstring &build_where(
       const RowUserOwnership &row_user, UserId *user_id,

@@ -39,14 +39,14 @@ class CountedMySQLSession : public mysqlrouter::MySQLSession {
   void reset() override;
   uint64_t prepare(const std::string &query) override;
   void prepare_execute(uint64_t ps_id, std::vector<enum_field_types> pt,
-                       const RowProcessor &processor,
+                       const ResultRowProcessor &processor,
                        const FieldValidator &validator) override;
   void prepare_remove(uint64_t ps_id) override;
 
   void execute(
       const std::string &query) override;  // throws Error, std::logic_error
 
-  void query(const std::string &query, const RowProcessor &processor,
+  void query(const std::string &query, const ResultRowProcessor &processor,
              const FieldValidator &validator)
       override;  // throws Error, std::logic_error
   std::unique_ptr<MySQLSession::ResultRow> query_one(

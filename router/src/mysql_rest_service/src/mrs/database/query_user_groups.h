@@ -53,7 +53,7 @@ class QueryUserGroups : private Query {
   }
 
  private:
-  void on_row(const Row &r) override {
+  void on_row(const ResultRow &r) override {
     if (r[0]) set_->insert(entry::UniversalId::from_cstr(r[0], 16));
   }
   Set *set_;

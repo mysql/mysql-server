@@ -47,7 +47,7 @@ bool QueryEntryFields::query_parameters(MySQLSession *session,
 
 QueryEntryFields::Fields &QueryEntryFields::get_result() { return parameters_; }
 
-void QueryEntryFields::on_row(const Row &row) {
+void QueryEntryFields::on_row(const ResultRow &row) {
   using Field = mrs::database::entry::Field;
   using DataType = Field::DataType;
   using Mode = Field::Mode;

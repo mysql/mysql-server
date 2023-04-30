@@ -43,7 +43,7 @@ class QueryEntryFields : private Query {
   virtual Fields &get_result();
 
  private:
-  void on_row(const Row &r) override;
+  void on_row(const ResultRow &r) override;
 
   Fields parameters_;
 };

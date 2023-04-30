@@ -51,10 +51,10 @@ class QueryEntryObject : private QueryLog {
   std::shared_ptr<Object> object;
 
  private:
-  void on_row(const Row &r) override;
+  void on_row(const ResultRow &r) override;
 
-  void on_reference_row(const Row &r);
-  void on_field_row(const Row &r);
+  void on_reference_row(const ResultRow &r);
+  void on_field_row(const ResultRow &r);
 
   bool m_loading_references;
 

@@ -136,12 +136,12 @@ class SerializerToText {
   Array add_array() { return Array(this); }
 
   SerializerToText &operator<<(const char *value) {
-    add_value(value, ColumnJsonTypes::kString);
+    add_value(value, JsonType::kString);
     return *this;
   }
 
   SerializerToText &operator<<(const std::string &value) {
-    add_value(value.c_str(), value.length(), ColumnJsonTypes::kString);
+    add_value(value.c_str(), value.length(), JsonType::kString);
     return *this;
   }
 
@@ -171,36 +171,32 @@ class SerializerToText {
   }
 
   SerializerToText &add_value(const char *value,
-                              ColumnJsonTypes ct = ColumnJsonTypes::kString) {
+                              JsonType ct = JsonType::kString) {
     return add_value(value, value ? strlen(value) : 0, ct);
   }
 
-  SerializerToText &add_value(const char *value, uint32_t length,
-                              ColumnJsonTypes ct) {
+  SerializerToText &add_value(const char *value, uint32_t length, JsonType ct) {
     if (!value) {
       writer_.Null();
       return *this;
     }
 
     switch (ct) {
-      case ColumnJsonTypes::kBool: {
-        bool bvalue = atoi(value);
-        writer_.Bool(bvalue);
+      case JsonType::kJson:
+      case JsonType::kBool: {
+        writer_.RawValue(value, length, rapidjson::kObjectType);
       } break;
 
-      case ColumnJsonTypes::kJson:
-        writer_.RawValue(value, length, rapidjson::kObjectType);
-        break;
-
-      case ColumnJsonTypes::kNull:
+      case JsonType::kNull:
         writer_.Null();
         break;
 
-      case ColumnJsonTypes::kNumeric:
+      case JsonType::kNumeric:
         writer_.RawValue(value, length, rapidjson::kNumberType);
         break;
 
-      case ColumnJsonTypes::kString:
+      case JsonType::kBlob:
+      case JsonType::kString:
         writer_.String(value, length);
         break;
     }
@@ -222,7 +218,7 @@ class SerializerToText {
 
   template <typename Str1, typename Str2>
   SerializerToText &member_add_value(const Str1 &key, const Str2 &value,
-                                     ColumnJsonTypes ct) {
+                                     JsonType ct) {
     add_member_impl(get_raw(key), get_raw(value), ct);
     return *this;
   }
@@ -237,7 +233,7 @@ class SerializerToText {
   SerializerToText &member_add_value(const Str1 &key, const char *str,
                                      uint32_t len) {
     writer_.Key(key);
-    add_value(str, len, helper::ColumnJsonTypes::kString);
+    add_value(str, len, helper::JsonType::kString);
     return *this;
   }
 
@@ -268,7 +264,7 @@ class SerializerToText {
     }
   }
 
-  void add_member_impl(const char *key, const char *value, ColumnJsonTypes ct) {
+  void add_member_impl(const char *key, const char *value, JsonType ct) {
     writer_.Key(key);
     add_value(value, ct);
   }

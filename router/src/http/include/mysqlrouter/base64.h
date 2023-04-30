@@ -30,12 +30,20 @@
 #include <algorithm>  // min
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>  // index_sequence
 #include <vector>
 
 enum class Base64Endianess { LITTLE, BIG };
+
+namespace mysqlrouter {
+inline const char *begin(const char *const c) { return c; }
+inline const char *end(const char *const c) { return c + strlen(c); }
+inline size_t size(const char *const c) { return strlen(c); }
+}  // namespace mysqlrouter
 
 /**
  * Generic Base64 codec.
@@ -230,9 +238,43 @@ class Base64Impl {
   template <Base64Endianess endianess, bool PaddingMandatory, char PaddingChar>
   static std::string encode(const std::vector<uint8_t> &data,
                             const alphabet_type &alphabet) {
+    return encode_impl<endianess, PaddingMandatory, PaddingChar>(data,
+                                                                 alphabet);
+  }
+
+  template <Base64Endianess endianess, bool PaddingMandatory, char PaddingChar>
+  static std::string encode(const std::string &data,
+                            const alphabet_type &alphabet) {
+    return encode_impl<endianess, PaddingMandatory, PaddingChar>(data,
+                                                                 alphabet);
+  }
+
+  template <Base64Endianess endianess, bool PaddingMandatory, char PaddingChar>
+  static std::string encode(const std::string_view &data,
+                            const alphabet_type &alphabet) {
+    return encode_impl<endianess, PaddingMandatory, PaddingChar>(data,
+                                                                 alphabet);
+  }
+
+  template <Base64Endianess endianess, bool PaddingMandatory, char PaddingChar>
+  static std::string encode(const char *data, const alphabet_type &alphabet) {
+    return encode_impl<endianess, PaddingMandatory, PaddingChar>(data,
+                                                                 alphabet);
+  }
+
+ private:
+  template <Base64Endianess endianess, bool PaddingMandatory, char PaddingChar,
+            typename T>
+  static std::string encode_impl(const T &data, const alphabet_type &alphabet) {
     std::string out;
+    using mysqlrouter::begin;
+    using mysqlrouter::end;
+    using mysqlrouter::size;
+    using std::begin;
+    using std::end;
+    using std::size;
     // ensure we have enough space
-    out.resize((data.size() + 2) / 3 * 4);
+    out.resize((size(data) + 2) / 3 * 4);
 
     constexpr unsigned int shift_pos_0 =
         endianess == Base64Endianess::BIG ? 16 : 0;
@@ -242,8 +284,8 @@ class Base64Impl {
         endianess == Base64Endianess::BIG ? 0 : 16;
 
     auto out_it = out.begin();
-    auto data_it = data.begin();
-    const auto data_end_it = data.end();
+    auto data_it = begin(data);
+    const auto data_end_it = end(data);
     while (const size_t data_left = std::distance(data_it, data_end_it)) {
       // consume 3 bytes, if we have them
       uint32_t v = 0;
@@ -255,14 +297,14 @@ class Base64Impl {
           padding_pos = 2;  // out-byte 2 and 3 are padding
           break;
         case 2:
-          v |= (*(data_it++)) << shift_pos_0;
-          v |= (*(data_it++)) << shift_pos_1;
+          v |= (static_cast<uint8_t>(*(data_it++))) << shift_pos_0;
+          v |= (static_cast<uint8_t>(*(data_it++))) << shift_pos_1;
           padding_pos = 3;  // out-byte 3 is padding
           break;
         default:
-          v |= (*(data_it++)) << shift_pos_0;
-          v |= (*(data_it++)) << shift_pos_1;
-          v |= (*(data_it++)) << shift_pos_2;
+          v |= (static_cast<uint8_t>(*(data_it++))) << shift_pos_0;
+          v |= (static_cast<uint8_t>(*(data_it++))) << shift_pos_1;
+          v |= (static_cast<uint8_t>(*(data_it++))) << shift_pos_2;
           break;
       }
 
@@ -526,6 +568,21 @@ class Base64Base {
    * encode binary to base64.
    */
   static std::string encode(const std::vector<uint8_t> &decoded) {
+    return Base64Impl::encode<E, PaddingMandatory, PaddingChar>(
+        decoded, Alphabet::alphabet);
+  }
+
+  static std::string encode(const std::string_view &decoded) {
+    return Base64Impl::encode<E, PaddingMandatory, PaddingChar>(
+        decoded, Alphabet::alphabet);
+  }
+
+  static std::string encode(const std::string &decoded) {
+    return Base64Impl::encode<E, PaddingMandatory, PaddingChar>(
+        decoded, Alphabet::alphabet);
+  }
+
+  static std::string encode(const char *decoded) {
     return Base64Impl::encode<E, PaddingMandatory, PaddingChar>(
         decoded, Alphabet::alphabet);
   }

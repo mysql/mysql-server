@@ -155,8 +155,11 @@ class ROUTER_LIB_EXPORT MySQLSession {
  public:
   static constexpr int kDefaultConnectTimeout = 5;
   static constexpr int kDefaultReadTimeout = 30;
+  class ResultRow;
   typedef std::vector<const char *> Row;
   typedef std::function<bool(const Row &)> RowProcessor;
+  typedef std::function<bool(const ResultRow &)> ResultRowProcessor;
+
   typedef std::function<void(unsigned, MYSQL_FIELD *)> FieldValidator;
 
   // text representations of SSL modes
@@ -288,13 +291,33 @@ class ROUTER_LIB_EXPORT MySQLSession {
 
   class ResultRow {
    public:
+    class RowIt {
+     public:
+      RowIt(const ResultRow *parent, uint32_t idx = 0)
+          : idx_{idx}, parent_{parent} {}
+      const char *operator*() const { return (*parent_)[idx_]; }
+      void operator++() { ++idx_; }
+
+      bool operator!=(const RowIt &other) const {
+        if (parent_ != other.parent_) return false;
+        return idx_ != other.idx_;
+      }
+
+     private:
+      uint32_t idx_{0};
+      const ResultRow *parent_;
+    };
     ResultRow(Row row) : row_{std::move(row)} {}
     virtual ~ResultRow() = default;
     size_t size() const { return row_.size(); }
+    RowIt begin() const { return RowIt(this, 0); }
+    RowIt end() const { return RowIt(this, size()); }
     const char *&operator[](size_t i) { return row_[i]; }
+    const char *operator[](size_t i) const { return row_[i]; }
     virtual size_t get_data_size(size_t i) const { return strlen(row_[i]); }
 
    private:
+    friend class MySQLSession;
     Row row_;
   };
 
@@ -424,18 +447,21 @@ class ROUTER_LIB_EXPORT MySQLSession {
   virtual uint64_t prepare(const std::string &query);
   virtual void prepare_execute(
       uint64_t ps_id, std::vector<enum_field_types> pt,
-      const RowProcessor &processor,
+      const ResultRowProcessor &processor,
       const FieldValidator &validator /*= null_field_validator*/);
   virtual void prepare_remove(uint64_t ps_id);
   virtual void execute(
       const std::string &query);  // throws Error, std::logic_error
   virtual void query(
-      const std::string &query, const RowProcessor &processor,
+      const std::string &query, const ResultRowProcessor &processor,
       const FieldValidator &validator);  // throws Error, std::logic_error
   virtual std::unique_ptr<MySQLSession::ResultRow> query_one(
       const std::string &query,
       const FieldValidator &validator);  // throws Error
                                          //
+  void query(
+      const std::string &query, const RowProcessor &processor,
+      const FieldValidator &validator);  // throws Error, std::logic_error
   void query(const std::string &stmt, const RowProcessor &processor) {
     return query(stmt, processor, [](unsigned, MYSQL_FIELD *) {});
   }

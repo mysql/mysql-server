@@ -45,7 +45,7 @@ class QueryEntryGroupRowSecurity : private Query {
   virtual RowGroupsSecurity &get_result();
 
  private:
-  void on_row(const Row &r) override;
+  void on_row(const ResultRow &r) override;
 
   std::vector<entry::RowGroupOwnership> row_group_security_;
 };

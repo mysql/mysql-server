@@ -51,8 +51,7 @@ namespace database {
 
 void QueryRestTableSingleRow::query_entries(
     MySQLSession *session, std::shared_ptr<database::entry::Object> object,
-    const ObjectFieldFilter &field_filter,
-    [[maybe_unused]] const std::string &primary_key,
+    const ObjectFieldFilter &field_filter, const Column &primary_key,
     const mysqlrouter::sqlstring &pri_value, const std::string &url_route) {
   response = "";
   items = 0;
@@ -72,7 +71,7 @@ void QueryRestTableSingleRow::query_last_inserted(
   execute(session);
 }
 
-void QueryRestTableSingleRow::on_row(const Row &r) {
+void QueryRestTableSingleRow::on_row(const ResultRow &r) {
   if (!response.empty())
     throw std::runtime_error(
         "Querying single row, from a table. Received multiple.");
@@ -82,20 +81,35 @@ void QueryRestTableSingleRow::on_row(const Row &r) {
 
 void QueryRestTableSingleRow::build_query(
     std::shared_ptr<database::entry::Object> object,
-    const ObjectFieldFilter &field_filter, const std::string &primary_key,
+    const ObjectFieldFilter &field_filter, const Column &primary_key,
     const mysqlrouter::sqlstring &pri_value, const std::string &url_route) {
   JsonQueryBuilder qb(field_filter);
   qb.process_object(object);
 
   std::vector<mysqlrouter::sqlstring> fields;
   if (!qb.select_items().is_empty()) fields.push_back(qb.select_items());
-  fields.emplace_back(
-      "'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', "
-      "'href', CONCAT(?,'/',?)))");
+  if (primary_key.type_json == helper::JsonType::kBlob)
+    fields.emplace_back(
+        "'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', "
+        "'href', CONCAT(?,'/',TO_BASE64(?))))");
+  else
+    fields.emplace_back(
+        "'links', JSON_ARRAY(JSON_OBJECT('rel', 'self', "
+        "'href', CONCAT(?,'/',?)))");
   fields.back() << url_route << pri_value;
 
   query_ = "SELECT JSON_OBJECT(?) FROM ? WHERE !=?;";
-  query_ << fields << qb.from_clause() << primary_key << pri_value;
+  query_ << fields << qb.from_clause();
+  bool is_bit_blob = (primary_key.type == MYSQL_TYPE_BIT &&
+                      primary_key.type_json == helper::JsonType::kBlob);
+  if (is_bit_blob) {
+    mysqlrouter::sqlstring column{"cast(! as BINARY)"};
+    column << primary_key.name;
+    query_ << column;
+  } else {
+    query_ << primary_key.name;
+  }
+  query_ << pri_value;
 }
 
 void QueryRestTableSingleRow::build_query_last_inserted(
