@@ -126,6 +126,8 @@ struct Row {
   /** Destructor. */
   ~Row() = default;
 
+  Row &operator=(const Row &) = default;
+
   /** Build a row from a raw record.
   @param[in,out] ctx            DDL context.
   @param[in,out] index          Index the record belongs to.
