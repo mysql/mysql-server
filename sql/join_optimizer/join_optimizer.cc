@@ -3352,7 +3352,8 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
  */
 AccessPath *DeduplicateForSemijoin(THD *thd, AccessPath *path,
                                    Item **semijoin_group,
-                                   int semijoin_group_size) {
+                                   int semijoin_group_size,
+                                   std::string *trace) {
   AccessPath *dedup_path;
   if (semijoin_group_size == 0) {
     dedup_path = NewLimitOffsetAccessPath(thd, path, /*limit=*/1, /*offset=*/0,
@@ -3363,7 +3364,9 @@ AccessPath *DeduplicateForSemijoin(THD *thd, AccessPath *path,
     dedup_path = NewRemoveDuplicatesAccessPath(thd, path, semijoin_group,
                                                semijoin_group_size);
     CopyBasicProperties(*path, dedup_path);
-    // TODO(sgunders): Model the actual reduction in rows somehow.
+    dedup_path->set_num_output_rows(EstimateAggregateRows(
+        path->num_output_rows(),
+        {semijoin_group, static_cast<size_t>(semijoin_group_size)}, trace));
     dedup_path->cost += kAggregateOneRowCost * path->num_output_rows();
   }
   return dedup_path;
@@ -3518,8 +3521,9 @@ void CostingReceiver::ProposeHashJoin(
     // NOTE: We purposefully don't overwrite left_path here, so that we
     // don't have to worry about copying ordering_state etc.
     CommitBitsetsToHeap(left_path);
-    join_path.hash_join().outer = DeduplicateForSemijoin(
-        m_thd, left_path, edge->semijoin_group, edge->semijoin_group_size);
+    join_path.hash_join().outer =
+        DeduplicateForSemijoin(m_thd, left_path, edge->semijoin_group,
+                               edge->semijoin_group_size, m_trace);
   }
 
   // TODO(sgunders): Consider removing redundant join conditions.
@@ -4008,8 +4012,9 @@ void CostingReceiver::ProposeNestedLoopJoin(
 
     // NOTE: We purposefully don't overwrite left_path here, so that we
     // don't have to worry about copying ordering_state etc.
-    join_path.nested_loop_join().outer = DeduplicateForSemijoin(
-        m_thd, left_path, edge->semijoin_group, edge->semijoin_group_size);
+    join_path.nested_loop_join().outer =
+        DeduplicateForSemijoin(m_thd, left_path, edge->semijoin_group,
+                               edge->semijoin_group_size, m_trace);
   } else if (edge->expr->type == RelationalExpression::STRAIGHT_INNER_JOIN) {
     join_path.nested_loop_join().join_type = JoinType::INNER;
   } else {

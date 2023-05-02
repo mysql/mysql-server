@@ -120,6 +120,16 @@ void EstimateSortCost(AccessPath *path);
 void EstimateMaterializeCost(THD *thd, AccessPath *path);
 
 /**
+   Estimate the number of output rows for an aggregate operation.
+   @param child_rows The number of input rows.
+   @param aggregate_terms The terms that we aggregate on.
+   @param trace Optimizer trace.
+   @returns The estimated number of output rows.
+*/
+double EstimateAggregateRows(
+    double child_rows, Bounds_checked_array<const Item *const> aggregate_terms,
+    std::string *trace = nullptr);
+/**
    Estimate costs and result row count for an aggregate operation.
    @param[in,out] path The AGGREGATE path.
    @param[in] query_block The Query_block to which 'path' belongs.
@@ -138,13 +148,19 @@ void EstimateLimitOffsetCost(AccessPath *path);
 
 inline double FindOutputRowsForJoin(double left_rows, double right_rows,
                                     const JoinPredicate *edge) {
-  double fanout = right_rows * edge->selectivity;
+  const auto aggregated_right_rows = [&]() {
+    return EstimateAggregateRows(
+        right_rows,
+        {edge->semijoin_group, static_cast<size_t>(edge->semijoin_group_size)});
+  };
+
+  double fanout;
   if (edge->expr->type == RelationalExpression::LEFT_JOIN) {
     // For outer joins, every outer row produces at least one row (if none
     // are matching, we get a NULL-complemented row).
     // Note that this can cause inconsistent row counts; see bug #33550360
     // and/or JoinHypergraph::has_reordered_left_joins.
-    fanout = std::max(fanout, 1.0);
+    fanout = std::max(right_rows * edge->selectivity, 1.0);
   } else if (edge->expr->type == RelationalExpression::SEMIJOIN) {
     // Semi- and antijoin estimation is pretty tricky, since we want isn't
     // really selectivity; we want the probability that at least one row
@@ -154,13 +170,25 @@ inline double FindOutputRowsForJoin(double left_rows, double right_rows,
     // at selectivity 1.0 (ie., each outer row generates at most one inner row).
     // Note that this can cause inconsistent row counts; see bug #33550360 and
     // CostingReceiver::has_semijoin_with_possibly_clamped_child.
-    fanout = std::min(fanout, 1.0);
+    //
+    // Note that 'edge->selecivity' may be too high. For a query like:
+    //
+    // SELECT 1 FROM t1 WHERE EXISTS (SELECT 1 FROM t2 WHERE t1.a=t2.b)
+    //
+    // we calculate the selectivity of the predicate t1.a=t2.b as the highest
+    // of the individual selecivities of t1.a and t2.b (see
+    // EstimateSelectivity(). But the selectivity of t2.b is irrelevant here. So
+    // if we could extract the selectivity of t1.a, we would get a better
+    // estimate.
+    fanout = std::min(1.0, aggregated_right_rows() * edge->selectivity);
   } else if (edge->expr->type == RelationalExpression::ANTIJOIN) {
     // Antijoin are estimated as simply the opposite of semijoin (see above),
     // but wrongly estimating 0 rows (or, of course, a negative amount) could be
     // really bad, so we assume at least 10% coming out as a fudge factor.
     // It's better to estimate too high than too low here.
-    fanout = std::max(1.0 - fanout, 0.1);
+    fanout = std::max(1.0 - aggregated_right_rows() * edge->selectivity, 0.1);
+  } else {
+    fanout = right_rows * edge->selectivity;
   }
   return left_rows * fanout;
 }

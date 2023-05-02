@@ -172,9 +172,10 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN format=TREE SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
 EXPLAIN
--> Nested loop semijoin  (cost=0.313..1.25 rows=4)
-    -> Index scan on t1 using PRIMARY  (cost=0.0626..0.25 rows=4)
-    -> Index lookup on t2 using i1 (i=t1.i)  (cost=0.25..0.25 rows=1)
+-> Nested loop inner join  (cost=0.576..1.15 rows=2)
+    -> Remove duplicates from input grouped on t2.i  (cost=0.326..0.651 rows=2)
+        -> Index scan on t2 using i1  (cost=0.0628..0.251 rows=4)
+    -> Single-row index lookup on t1 using PRIMARY (i=t2.i)  (cost=0.25..0.25 rows=1)
 
 EXPLAIN format=JSON SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
 EXPLAIN
@@ -182,36 +183,48 @@ EXPLAIN
   "query": "/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where multiple equal(`test`.`t1`.`i`, `test`.`t2`.`i`)",
   "inputs": [
     {
-      "covering": false,
-      "operation": "Index scan on t1 using PRIMARY",
-      "index_name": "PRIMARY",
-      "table_name": "t1",
-      "access_type": "index",
-      "estimated_rows": 4.0,
-      "index_access_type": "index_scan",
-      "estimated_total_cost": 0.25025,
-      "estimated_first_row_cost": 0.0625625
+      "inputs": [
+        {
+          "covering": false,
+          "operation": "Index scan on t2 using i1",
+          "index_name": "i1",
+          "table_name": "t2",
+          "access_type": "index",
+          "estimated_rows": 4.0,
+          "index_access_type": "index_scan",
+          "estimated_total_cost": 0.25100671140939596,
+          "estimated_first_row_cost": 0.06275167785234899
+        }
+      ],
+      "operation": "Remove duplicates from input grouped on t2.i",
+      "access_type": "remove_duplicates_from_groups",
+      "group_items": [
+        "t2.i"
+      ],
+      "estimated_rows": 2.0,
+      "estimated_total_cost": 0.651006711409396,
+      "estimated_first_row_cost": 0.325503355704698
     },
     {
       "covering": false,
-      "operation": "Index lookup on t2 using i1 (i=t1.i)",
-      "index_name": "i1",
-      "table_name": "t2",
+      "operation": "Single-row index lookup on t1 using PRIMARY (i=t2.i)",
+      "index_name": "PRIMARY",
+      "table_name": "t1",
       "access_type": "index",
       "estimated_rows": 1.0,
-      "lookup_condition": "i=t1.i",
+      "lookup_condition": "i=t2.i",
       "index_access_type": "index_lookup",
       "estimated_total_cost": 0.25,
       "estimated_first_row_cost": 0.25
     }
   ],
-  "join_type": "semijoin",
-  "operation": "Nested loop semijoin",
+  "join_type": "inner join",
+  "operation": "Nested loop inner join",
   "access_type": "join",
-  "estimated_rows": 4.0,
+  "estimated_rows": 2.0,
   "join_algorithm": "nested_loop",
-  "estimated_total_cost": 1.2502499999999999,
-  "estimated_first_row_cost": 0.31256249999999997
+  "estimated_total_cost": 1.151006711409396,
+  "estimated_first_row_cost": 0.575503355704698
 }
 DROP TABLE t1,t2;
 set optimizer_switch=@old_opt_switch;
@@ -299,10 +312,10 @@ WHERE NOT EXISTS( SELECT alias2.col_varchar_key FROM t1 AS alias2
 WHERE alias2.col_varchar_key >= t1.col_varchar)
 GROUP BY field1;
 EXPLAIN
--> Group (no aggregates)  (cost=1.59..1.59 rows=0.9)
-    -> Nested loop inner join  (cost=1.5..1.5 rows=0.9)
-        -> Sort: t1.col_varchar_key  (cost=1.25..1.25 rows=0.3)
-            -> Hash antijoin (no condition), extra conditions: (alias2.col_varchar_key >= t1.col_varchar)  (cost=1.15..1.15 rows=0.3)
+-> Group (no aggregates)  (cost=1.93..2.27 rows=1.95)
+    -> Nested loop inner join  (cost=1.65..1.89 rows=3.8)
+        -> Sort: t1.col_varchar_key  (cost=1.57..1.57 rows=1.27)
+            -> Hash antijoin (no condition), extra conditions: (alias2.col_varchar_key >= t1.col_varchar)  (cost=1.15..1.32 rows=1.27)
                 -> Table scan on t1  (cost=0.0833..0.25 rows=3)
                 -> Hash
                     -> Table scan on alias2  (cost=0.0833..0.25 rows=3)
@@ -346,14 +359,14 @@ EXPLAIN
               "join_type": "antijoin",
               "operation": "Hash antijoin (no condition), extra conditions: (alias2.col_varchar_key >= t1.col_varchar)",
               "access_type": "join",
-              "estimated_rows": 0.30000000000000004,
+              "estimated_rows": 1.2681224262534148,
               "hash_condition": [],
               "join_algorithm": "hash",
               "extra_condition": [
                 "(alias2.col_varchar_key >= t1.col_varchar)"
               ],
-              "estimated_total_cost": 1.151,
-              "estimated_first_row_cost": 1.151
+              "estimated_total_cost": 1.3155808124630806,
+              "estimated_first_row_cost": 1.1537120680255923
             }
           ],
           "operation": "Sort: t1.col_varchar_key",
@@ -361,9 +374,9 @@ EXPLAIN
           "sort_fields": [
             "t1.col_varchar_key"
           ],
-          "estimated_rows": 0.30000000000000004,
-          "estimated_total_cost": 1.2510000000000001,
-          "estimated_first_row_cost": 1.2510000000000001
+          "estimated_rows": 1.2681224262534148,
+          "estimated_total_cost": 1.5692052977137636,
+          "estimated_first_row_cost": 1.5692052977137636
         },
         {
           "operation": "Table scan on alias1",
@@ -377,19 +390,19 @@ EXPLAIN
       "join_type": "inner join",
       "operation": "Nested loop inner join",
       "access_type": "join",
-      "estimated_rows": 0.9000000000000001,
+      "estimated_rows": 3.8043672787602443,
       "join_algorithm": "nested_loop",
-      "estimated_total_cost": 1.5010000000000001,
-      "estimated_first_row_cost": 1.5010000000000001
+      "estimated_total_cost": 1.8862359042771173,
+      "estimated_first_row_cost": 1.6525386310470969
     }
   ],
   "group_by": true,
   "functions": [],
   "operation": "Group (no aggregates)",
   "access_type": "aggregate",
-  "estimated_rows": 0.9000000000000001,
-  "estimated_total_cost": 1.5910000000000002,
-  "estimated_first_row_cost": 1.5910000000000002
+  "estimated_rows": 1.9504787306608202,
+  "estimated_total_cost": 2.2666726321531416,
+  "estimated_first_row_cost": 1.9267930650015805
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.col_varchar' of SELECT #2 was resolved in SELECT #1

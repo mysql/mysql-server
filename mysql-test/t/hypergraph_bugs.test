@@ -413,6 +413,45 @@ DROP TABLE t1,t2,num;
 
 
 --echo #
+--echo # Bug#34764211: Too high row estimate for semijoin
+--echo #
+
+CREATE TABLE num16 (n INT);
+INSERT INTO num16 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15);
+
+CREATE TABLE t1(
+  a INT PRIMARY KEY,
+  b INT,
+  c INT
+);
+
+INSERT INTO t1 SELECT n, n%4, n%4 FROM num16;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b, c;
+ANALYZE TABLE t1;
+
+# Semijoin. We estimate the row count as:
+# CARD(x1) * MIN(1.0, CARD(x2 GROUP BY b) * SELECTIVITY(predicate))
+# and use the histogram on 'b' to estimate CARD(x2 GROUP BY b).
+#
+# The 'x2.c<2' term is there to ensure that
+# CARD(x2 GROUP BY b) * SELECTIVITY(predicate) < 1.0
+# (Otherwise, the fix for Bug#34764211 would have no effect on the row estimate
+# for this query.)
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 x1 WHERE EXISTS
+(SELECT * FROM t1 x2 WHERE x1.b=x2.b AND x2.c<2);
+
+# Antijoin. We estimate the row count as:
+# CARD(x1) * MAX(0.1, 1.0 - CARD(x2 GROUP BY b) * SELECTIVITY(predicate))
+# and use the histogram on 'b' to estimate CARD(x2 GROUP BY b).
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 x1 WHERE NOT EXISTS
+(SELECT * FROM t1 x2 WHERE x1.b=x2.b AND x2.c<2);
+
+DROP TABLE num16, t1;
+
+--echo #
 --echo # Bug#35000554: assertion error in EstimateAggregateNoRollupRows()
 --echo #
 

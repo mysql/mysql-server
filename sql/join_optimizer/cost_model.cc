@@ -259,7 +259,7 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path) {
 namespace {
 
 /// Array of aggregation terms.
-using TermArray = Mem_root_array<const Item *>;
+using TermArray = Bounds_checked_array<const Item *const>;
 
 /**
    This class finds disjoint sets of aggregation terms that form prefixes of
@@ -270,7 +270,7 @@ class AggregateRowEstimator {
  public:
   /// @param terms The aggregation terms.
   /// @param trace Append optimizer trace text to this if non-null.
-  AggregateRowEstimator(const TermArray &terms, string *trace);
+  AggregateRowEstimator(TermArray terms, string *trace);
 
   // No copying of this type.
   AggregateRowEstimator(const AggregateRowEstimator &) = delete;
@@ -321,7 +321,7 @@ class AggregateRowEstimator {
   };
 
   ///  The aggregation terms.
-  const TermArray *m_terms;
+  TermArray m_terms;
 
   /// The set of terms mapped to an index so far.
   MutableOverflowBitset m_consumed_terms;
@@ -335,10 +335,10 @@ class AggregateRowEstimator {
   /// Find an Item_field pointing to 'field' in 'm_terms', if there is one.
   /// @param field The field we look for.
   /// @returns An iterator to the position of 'field' in m_terms, or
-  /// m_terms->cend().
+  /// m_terms.cend().
   TermArray::const_iterator FindField(const Field *field) const {
     return std::find_if(
-        m_terms->cbegin(), m_terms->cend(), [field](const Item *item) {
+        m_terms.cbegin(), m_terms.cend(), [field](const Item *item) {
           assert(field != nullptr);
           return item->type() == Item::FIELD_ITEM &&
                  down_cast<const Item_field *>(item)->field == field;
@@ -346,9 +346,8 @@ class AggregateRowEstimator {
   }
 };
 
-AggregateRowEstimator::AggregateRowEstimator(const TermArray &terms,
-                                             string *trace)
-    : m_terms{&terms},
+AggregateRowEstimator::AggregateRowEstimator(TermArray terms, string *trace)
+    : m_terms{terms},
       m_consumed_terms{current_thd->mem_root, terms.size()},
       m_trace(trace) {
   /* Find keys (indexes) for which:
@@ -395,7 +394,7 @@ AggregateRowEstimator::AggregateRowEstimator(const TermArray &terms,
 double AggregateRowEstimator::MakeNextEstimate() {
   // Pick the longest prefix until we have used all terms or m_prefixes,
   // or until all prefixes have length==0.
-  while (m_terms->size() >
+  while (m_terms.size() >
              static_cast<size_t>(PopulationCount(m_consumed_terms)) &&
          !m_prefixes.empty()) {
     // Find the longest prefix.
@@ -418,7 +417,7 @@ double AggregateRowEstimator::MakeNextEstimate() {
         For each KEY_PART, check if there is still a corresponding aggregation
         item in m_terms.
       */
-      if (IsBitSet(FindField(field) - m_terms->cbegin(), m_consumed_terms)) {
+      if (IsBitSet(FindField(field) - m_terms.cbegin(), m_consumed_terms)) {
         // We did not find it, so it must have been removed when we examined
         // some earlier key. We can thus only use the prefix 0..key_part_no of
         // this key.
@@ -444,7 +443,7 @@ double AggregateRowEstimator::MakeNextEstimate() {
         // row count from a single term.
         m_consumed_terms.SetBit(
             FindField(prefix->m_key->key_part[key_part_no].field) -
-            m_terms->begin());
+            m_terms.begin());
       }
 
       assert(prefix->m_key->records_per_key(prefix->m_length - 1) !=
@@ -528,7 +527,7 @@ string AggregateRowEstimator::Prefix::Print() const {
 @param trace Append optimizer trace text to this if non-null.
 @returns The row estimate for the aggregate operation.
 */
-double EstimateAggregateNoRollupRows(const TermArray &terms, double child_rows,
+double EstimateAggregateNoRollupRows(TermArray terms, double child_rows,
                                      string *trace) {
   // Estimated number of output rows.
   double output_rows = 1.0;
@@ -717,7 +716,7 @@ double EstimateRollupRowsPrimitively(double aggregate_rows,
   @param trace Optimizer trace.
   @return Estimated number of rollup rows.
 */
-double EstimateRollupRowsAdvanced(double aggregate_rows, TermArray &&terms,
+double EstimateRollupRowsAdvanced(double aggregate_rows, TermArray terms,
                                   string *trace) {
   // Make a more accurate rollup row calculation for larger sets.
   double rollup_rows = 1.0;
@@ -759,7 +758,7 @@ double EstimateAggregateRows(const AccessPath *child,
   }
 
   // The aggregation terms.
-  TermArray terms(current_thd->mem_root);
+  Mem_root_array<const Item *> terms(current_thd->mem_root);
   double output_rows;
 
   if (query_block->is_implicitly_grouped()) {
@@ -781,16 +780,8 @@ double EstimateAggregateRows(const AccessPath *child,
       }
     }
 
-    // Do a simple but fast calculation of the row estimate if child_rows is
-    // less than this.
-    constexpr double simple_limit = 10.0;
-
-    output_rows = SmoothTransition(
-        [&](double input_rows) { return std::sqrt(input_rows); },
-        [&](double input_rows) {
-          return EstimateAggregateNoRollupRows(terms, input_rows, trace);
-        },
-        simple_limit, simple_limit * 1.1, child_rows);
+    output_rows = ::EstimateAggregateRows(
+        child_rows, TermArray(terms.data(), terms.size()), trace);
   }
 
   if (rollup) {
@@ -803,8 +794,8 @@ double EstimateAggregateRows(const AccessPath *child,
         },
         [&](double aggregate_rows) {
           assert(terms.size() == term_count);
-          return EstimateRollupRowsAdvanced(aggregate_rows, std::move(terms),
-                                            trace);
+          return EstimateRollupRowsAdvanced(
+              aggregate_rows, TermArray(terms.data(), terms.size()), trace);
         },
         simple_rollup_limit, simple_rollup_limit * 1.1, output_rows);
   }
@@ -813,6 +804,25 @@ double EstimateAggregateRows(const AccessPath *child,
 }
 
 }  // Anonymous namespace.
+
+double EstimateAggregateRows(double child_rows, TermArray aggregate_terms,
+                             string *trace) {
+  if (child_rows < 1.0) {
+    return child_rows;
+  } else {
+    // Do a simple but fast calculation of the row estimate if child_rows is
+    // less than this.
+    constexpr double simple_limit = 10.0;
+
+    return SmoothTransition(
+        [&](double input_rows) { return std::sqrt(input_rows); },
+        [&](double input_rows) {
+          return EstimateAggregateNoRollupRows(aggregate_terms, input_rows,
+                                               trace);
+        },
+        simple_limit, simple_limit * 1.1, child_rows);
+  }
+}
 
 void EstimateAggregateCost(AccessPath *path, const Query_block *query_block,
                            string *trace) {
