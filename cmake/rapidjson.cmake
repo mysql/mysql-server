@@ -86,6 +86,10 @@ MACRO (MYSQL_CHECK_RAPIDJSON)
 
   IF (WITH_RAPIDJSON STREQUAL "bundled")
     SET(RAPIDJSON_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/extra/rapidjson/include)
+    # We must include this first, in case we use other Homebrew libraries.
+    IF(APPLE)
+      INCLUDE_DIRECTORIES(BEFORE SYSTEM ${RAPIDJSON_INCLUDE_DIR})
+    ENDIF()
   ELSEIF(WITH_RAPIDJSON STREQUAL "system")
     FIND_SYSTEM_RAPIDJSON()
     IF (NOT SYSTEM_RAPIDJSON_FOUND)
