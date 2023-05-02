@@ -2491,6 +2491,13 @@ void THD::set_query(LEX_CSTRING query_arg) {
   mysql_mutex_lock(&LOCK_thd_query);
   m_query_string = query_arg;
   mysql_mutex_unlock(&LOCK_thd_query);
+
+  /* Set the query for display in the PERFORMANCE_SCHEMA.THREADS table.
+   * We must not call set_query_for_display(..), because this will additionally overwrite
+   * performance_schema.events_statements_history.SQL_TEXT and cause it to appear
+   * as NULL.
+   */
+  set_query_for_display_in_pfs_threads(query_arg.str, query_arg.length);
 }
 
 /**
