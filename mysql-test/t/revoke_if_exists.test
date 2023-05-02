@@ -4,6 +4,7 @@
 --echo #            in REVOKE statement
 --echo #
 
+--source include/have_log_bin.inc
 CREATE DATABASE wl14690;
 CREATE USER u1,u2,u3,u4;
 CREATE ROLE r1,r2;

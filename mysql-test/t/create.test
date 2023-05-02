@@ -2378,8 +2378,8 @@ SHOW CREATE TABLE t1;
 # off, cf. Bug#35328161 Inconsequent type derivation when using
 # @variable and binlog off.
 # Accept both results until the bug is fixed.
---replace_regex /\ text/ longtext/
 CREATE TABLE t2 AS SELECT @max_error_count UNION SELECT 'a';
+--replace_regex /\ text/ longtext/
 SHOW CREATE TABLE t2;
 DROP TABLE t1, t2;
 

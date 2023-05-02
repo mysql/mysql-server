@@ -121,6 +121,7 @@ have_innodb_4k.inc
 have_innodb_64k.inc
 have_innodb_8k.inc
 have_innodb_max_16k.inc
+have_innodb_min_16k.inc
 have_innodb_min_8k.inc
 not_have_innodb_4k.inc
 
