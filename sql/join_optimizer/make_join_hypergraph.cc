@@ -1532,6 +1532,17 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
     table_filters->push_back(cond);
     return;
   }
+
+  // Conditions are usually not attempted pushed down if they reference tables
+  // outside of the subtree, so check that here. We do however allow multiple
+  // equalities, as they are easily concretized into single equalities
+  // referencing only the subtree. We also allow non-deterministic predicates to
+  // be attempted pushed, but only in order to check if a partial pushdown of
+  // non-deterministic parts is possible. The non-determinstic predicate itself
+  // will be kept in the WHERE clause, even if parts of it is pushed down.
+  assert(IsMultipleEquals(cond) ||
+         IsSubset(cond->used_tables() & ~PSEUDO_TABLE_BITS,
+                  expr->tables_in_subtree));
   const table_map used_tables =
       cond->used_tables() & (expr->tables_in_subtree | RAND_TABLE_BIT);
 
@@ -1793,8 +1804,12 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
                                       down_cast<Item_equal *>(cond), *expr)) {
       expr->join_conditions.push_back(
           ConcretizeMultipleEquals(down_cast<Item_equal *>(cond), *expr));
-    } else {
+    } else if (IsSubset(used_tables, expr->tables_in_subtree)) {
       expr->join_conditions.push_back(cond);
+    } else {
+      if (remaining_parts != nullptr) {
+        remaining_parts->push_back(cond);
+      }
     }
   }
   if (need_flatten) {

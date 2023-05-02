@@ -194,6 +194,17 @@ void SortNodes(JoinHypergraph *graph) {
   }
 }
 
+vector<Item *> GetWhereConditions(const JoinHypergraph &graph) {
+  vector<Item *> where_conditions;
+  for (const Predicate &predicate :
+       make_array(graph.predicates.data(), graph.num_where_predicates)) {
+    if (!predicate.was_join_condition) {
+      where_conditions.push_back(predicate.condition);
+    }
+  }
+  return where_conditions;
+}
+
 }  // namespace
 
 using MakeHypergraphTest = OptimizerTestBase;
@@ -1514,8 +1525,75 @@ TEST_F(MakeHypergraphTest, EqualityPropagationExpandsTopConjunction) {
   EXPECT_EQ("(t1.x = t2.x)",
             ItemsToString(graph.edges[0].expr->equijoin_conditions));
   EXPECT_EQ("(none)", ItemsToString(graph.edges[0].expr->join_conditions));
-  ASSERT_EQ(1, graph.num_where_predicates);
-  EXPECT_EQ("(t1.x < 10)", ItemToString(graph.predicates[0].condition));
+  EXPECT_EQ("(t1.x < 10)", ItemsToString(GetWhereConditions(graph)));
+}
+
+TEST_F(MakeHypergraphTest, PartialPushdownOfNonDeterministicPredicate) {
+  // The non-deterministic predicate referring to t1 and t2, which is
+  // ((RAND() < 0.5 AND t2.y = t3.y) OR t2.y = 1), cannot be pushed down as a
+  // join condition because non-deterministic predicates need to be evaluated at
+  // the latest possible point. We can however push down parts of it, namely
+  // ((t2.y = t3.y) or (t2.y = 1)). Since it is only partially pushed down, the
+  // full predicate must stay in the WHERE clause.
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2, t3 WHERE t1.x = t2.x AND t2.x = t3.x AND "
+      "((RAND() < 0.5 AND t1.y = t2.y) OR t1.y = 1)",
+      /*nullable=*/false);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->m_table_nest,
+                             &query_block->cond_value));
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  bool always_false = false;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph, &always_false));
+  EXPECT_FALSE(always_false);
+
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
+  EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
+
+  SortNodes(&graph);
+
+  ASSERT_EQ(3, graph.nodes.size());
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+
+  ASSERT_EQ(3, graph.edges.size());
+
+  // t1-t2. In addition to the equijoin condition, it should have a partial
+  // pushdown of the deterministic parts of the non-deterministic predicate to
+  // the join condition. (Used to get the full non-deterministic predicate.)
+  EXPECT_EQ(TableBitmap(0), graph.graph.edges[0].left);
+  EXPECT_EQ(TableBitmap(1), graph.graph.edges[0].right);
+  EXPECT_EQ("(t1.x = t2.x)",
+            ItemsToString(graph.edges[0].expr->equijoin_conditions));
+  EXPECT_EQ("((t1.y = t2.y) or (t1.y = 1))",
+            ItemsToString(graph.edges[0].expr->join_conditions));
+
+  // t2-t3. Simple edge with an equijoin condition.
+  EXPECT_EQ(TableBitmap(1), graph.graph.edges[2].left);
+  EXPECT_EQ(TableBitmap(2), graph.graph.edges[2].right);
+  EXPECT_EQ("(t2.x = t3.x)",
+            ItemsToString(graph.edges[1].expr->equijoin_conditions));
+  EXPECT_EQ("(none)", ItemsToString(graph.edges[1].expr->join_conditions));
+
+  // t1-t3. Simple edge with an equijoin condition.
+  EXPECT_EQ(TableBitmap(0), graph.graph.edges[4].left);
+  EXPECT_EQ(TableBitmap(2), graph.graph.edges[4].right);
+  EXPECT_EQ("(t1.x = t3.x)",
+            ItemsToString(graph.edges[2].expr->equijoin_conditions));
+  EXPECT_EQ("(none)", ItemsToString(graph.edges[2].expr->join_conditions));
+
+  // The full non-deterministic predicate should be left in the WHERE clause to
+  // filter out the additional rows that were let through by the join condition.
+  EXPECT_EQ("(((rand() < 0.5) and (t1.y = t2.y)) or (t1.y = 1))",
+            ItemsToString(GetWhereConditions(graph)));
 }
 
 // Sets up a nonsensical query, but the point is that the multiple equality
