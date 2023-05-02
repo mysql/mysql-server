@@ -80,7 +80,8 @@ ENDMACRO()
 MACRO (MYSQL_CHECK_RAPIDJSON)
   IF (NOT WITH_RAPIDJSON OR
       NOT WITH_RAPIDJSON STREQUAL "system")
-    SET(WITH_RAPIDJSON "bundled")
+    SET(WITH_RAPIDJSON "bundled"
+      CACHE STRING "By default use bundled rapidjson on this platform")
   ENDIF()
 
   IF (WITH_RAPIDJSON STREQUAL "bundled")
