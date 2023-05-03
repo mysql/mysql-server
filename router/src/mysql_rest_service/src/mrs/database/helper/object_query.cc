@@ -153,18 +153,19 @@ mysqlrouter::sqlstring JsonQueryBuilder::make_subquery(
   }
 }
 
-static mysqlrouter::sqlstring get_field_format(const std::string &data_type) {
+static mysqlrouter::sqlstring get_field_format(const std::string &data_type,
+                                               bool value_only) {
   if (helper::starts_with(data_type, "bit")) {
     if (data_type.length() == 3 ||
         helper::contains(data_type.c_str() + 3, "(1)"))
-      return {"?, !.! is true"};
-    return {"?, TO_BASE64(!.!)"};
+      return {value_only ? "!.! is true" : "?, !.! is true"};
+    return {value_only ? "TO_BASE64(!.!)" : "?, TO_BASE64(!.!)"};
   }
   if (helper::starts_with(data_type, "binary") ||
       helper::starts_with(data_type, "blob"))
-    return {"?, TO_BASE64(!.!)"};
+    return {value_only ? "TO_BASE64(!.!)" : "?, TO_BASE64(!.!)"};
 
-  return {"?, !.!"};
+  return {value_only ? "!.!" : "?, !.!"};
 }
 
 void JsonQueryBuilder::add_field(std::shared_ptr<entry::FieldSource> base_table,
@@ -179,7 +180,7 @@ void JsonQueryBuilder::add_field(std::shared_ptr<entry::FieldSource> base_table,
     m_select_items.append_preformatted_sep(", ", item);
     m_select_items.append_preformatted(make_subquery(base_table, field));
   } else {
-    auto item = get_field_format(field.db_datatype);
+    auto item = get_field_format(field.db_datatype, false);
     item << field.name << field.source->table_alias << field.db_name;
     m_select_items.append_preformatted_sep(", ", item);
 
@@ -194,7 +195,7 @@ void JsonQueryBuilder::add_field_value(
     m_select_items.append_preformatted_sep(", ",
                                            make_subquery(base_table, field));
   } else {
-    auto item = get_field_format(field.db_datatype);
+    auto item = get_field_format(field.db_datatype, true);
     item << field.source->table_alias << field.db_name;
     m_select_items.append_preformatted_sep(", ", item);
 
