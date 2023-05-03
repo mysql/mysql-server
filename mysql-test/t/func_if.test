@@ -299,3 +299,15 @@ DROP TABLE t;
 
 DO CAST(UNIX_TIMESTAMP(IF('',3,13339)) AS UNSIGNED);
 DO CAST(UNIX_TIMESTAMP(CASE 1 WHEN 1 THEN 42 ELSE 42 END) AS UNSIGNED);
+
+--echo # Bug#35323398: Assertion 'scale >= 0 && precision > 0 and
+--echo #               scale <= precision' failed
+
+SELECT AVG(NULLIF(YEAR('2001-01-01'),10));
+
+CREATE TABLE t1(y YEAR);
+INSERT INTO t1 VALUES(2001);
+
+SELECT AVG(NULLIF(y, 10)) FROM t1;
+
+DROP TABLE t1;

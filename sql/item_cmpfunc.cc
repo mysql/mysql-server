@@ -3534,6 +3534,7 @@ bool Item_func_nullif::resolve_type_inner(THD *thd) {
     set_data_type_string(args[0]->max_length);
     if (agg_arg_charsets_for_comparison(cmp.cmp_collation, args, arg_count))
       return true;
+    cached_result_type = STRING_RESULT;
   }
   return false;
 }

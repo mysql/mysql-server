@@ -343,3 +343,14 @@ Warning	1292	Incorrect datetime value: '13339'
 DO CAST(UNIX_TIMESTAMP(CASE 1 WHEN 1 THEN 42 ELSE 42 END) AS UNSIGNED);
 Warnings:
 Warning	1292	Incorrect datetime value: '42'
+# Bug#35323398: Assertion 'scale >= 0 && precision > 0 and
+#               scale <= precision' failed
+SELECT AVG(NULLIF(YEAR('2001-01-01'),10));
+AVG(NULLIF(YEAR('2001-01-01'),10))
+2001
+CREATE TABLE t1(y YEAR);
+INSERT INTO t1 VALUES(2001);
+SELECT AVG(NULLIF(y, 10)) FROM t1;
+AVG(NULLIF(y, 10))
+2001
+DROP TABLE t1;
