@@ -11733,6 +11733,17 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
   /* If set, secondary_load value will not be updated, and also no bin log
    * entries will be recorded. */
   bool skip_metadata_update = false;
+
+  // Partitioned Load/Unload
+  if (table_list->table->part_info != nullptr) {
+    table_list->partition_names = nullptr;
+
+    if (m_alter_info->partition_names.elements > 0 &&
+        !(m_alter_info->flags & Alter_info::ALTER_ALL_PARTITION)) {
+      table_list->partition_names = &m_alter_info->partition_names;
+    }
+  }
+
   // Initiate loading into or unloading from secondary engine.
   if (is_load) {
     DEBUG_SYNC(thd, "before_secondary_engine_load_table");
