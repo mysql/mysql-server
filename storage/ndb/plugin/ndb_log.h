@@ -33,10 +33,7 @@
 unsigned ndb_log_get_verbose_level(void);
 
 /*
-  Write messages to the MySQL Servers error log(s)
-
-  NOTE! Messages will always be prefixed with "NDB:" and
-  "NDB <prefix>:" if one of the prefix functions are used
+  Submiot messages to the MySQL Servers logging interface
 */
 void ndb_log_info(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
 
@@ -55,20 +52,6 @@ enum ndb_log_loglevel {
 void ndb_log_print(enum ndb_log_loglevel loglevel, const char *prefix,
                    const char *fmt, va_list va_args)
     MY_ATTRIBUTE((format(printf, 3, 0)));
-
-/*
-  @brief Write potentially long message to standard error.
-
-  @note The above ndb_log* functions all have limitations in terms
-  of how long messages they can write to the MySQL Server error log.
-  When it's necessary to write something which is known to be longer
-  than the limit(normally 512 bytes), this function can be used instead.
-
-  @param[in]  fmt    printf-like format string
-  @param[in]  ...    Variable arguments matching format string
-*/
-void ndb_log_error_dump(const char *fmt, ...)
-    MY_ATTRIBUTE((format(printf, 1, 2)));
 
 /*
   @brief All the logs printed before the error log has been opened are

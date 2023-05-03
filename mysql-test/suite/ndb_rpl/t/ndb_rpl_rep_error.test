@@ -9,15 +9,15 @@
 # Need suppressions on all servers where warnings/errors can be seen.
 --disable_query_log
 --connection server1
-call mtr.add_suppression("NDB: .*Bad schema for mysql.ndb_replication table.*");
-call mtr.add_suppression("NDB Replica: .* unknown conflict resolution function .*");
-call mtr.add_suppression("NDB Replica: .* missing function argument .*");
-call mtr.add_suppression("NDB Replica: .* missing \'\\)\' .*");
+call mtr.add_suppression(".*Bad schema for mysql.ndb_replication table.*");
+call mtr.add_suppression("Replica: .* unknown conflict resolution function .*");
+call mtr.add_suppression("Replica: .* missing function argument .*");
+call mtr.add_suppression("Replica: .* missing \'\\)\' .*");
 --connection server2
-call mtr.add_suppression("NDB: .*Bad schema for mysql.ndb_replication table.*");
-call mtr.add_suppression("NDB Replica: .* unknown conflict resolution function .*");
-call mtr.add_suppression("NDB Replica: .* missing function argument .*");
-call mtr.add_suppression("NDB Replica: .* missing \'\\)\' .*");
+call mtr.add_suppression(".*Bad schema for mysql.ndb_replication table.*");
+call mtr.add_suppression("Replica: .* unknown conflict resolution function .*");
+call mtr.add_suppression("Replica: .* missing function argument .*");
+call mtr.add_suppression("Replica: .* missing \'\\)\' .*");
 --connection default
 --enable_query_log
 
@@ -133,7 +133,7 @@ show warnings;
 drop table test.t1;
 
 --let server_num=1.1
---let $pattern=%NDB Binlog: logging%
+--let $pattern=%Binlog: logging%
 --let $limit=1
 --source suite/ndb_rpl/t/show_mysqld_warnings.inc
 
@@ -170,7 +170,7 @@ CREATE TABLE mysql.ndb_replication
 
 # Non existant conflict_fn
 # gives error when creating table
-#call mtr.add_suppression("NDB Replica: .* unknown conflict resolution function .*");
+#call mtr.add_suppression("Replica: .* unknown conflict resolution function .*");
 
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$X(X)");
 --error ER_CONFLICT_FN_PARSE_ERROR
@@ -180,7 +180,7 @@ delete from mysql.ndb_replication;
 
 # Column type cannot be used for this function
 --disable_query_log
-call mtr.add_suppression("NDB Replica: .* has wrong datatype.*");
+call mtr.add_suppression("Replica: .* has wrong datatype.*");
 --enable_query_log
 
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X)");
@@ -191,7 +191,7 @@ delete from mysql.ndb_replication;
 
 # Too few arguments
 # gives error when creating table
-#call mtr.add_suppression("NDB Replica: .* missing function argument .*");
+#call mtr.add_suppression("Replica: .* missing function argument .*");
 
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX()");
 --error ER_CONFLICT_FN_PARSE_ERROR
@@ -201,7 +201,7 @@ delete from mysql.ndb_replication;
 
 # Too many arguments
 # gives error when creating table
-#call mtr.add_suppression("NDB Replica: .* missing \')\' .*");
+#call mtr.add_suppression("Replica: .* missing \')\' .*");
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X Y)");
 --error ER_CONFLICT_FN_PARSE_ERROR
 create table t1 (a int key, X int) engine ndb;

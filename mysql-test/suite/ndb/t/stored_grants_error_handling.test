@@ -16,7 +16,8 @@ GRANT ALL PRIVILEGES ON *.* to "mcmd"@"localhost";
 --exec $NDB_DELETE_ALL -d mysql ndb_sql_metadata
 
 # Now grant again
-CALL mtr.add_suppression("NDB: Error 626, Tuple did not exist");
+--disable_query_log ONCE
+CALL mtr.add_suppression("Error 626, Tuple did not exist");
 GRANT ALL PRIVILEGES ON *.* to "mcmd"@"localhost";
 
 #

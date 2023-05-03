@@ -17,7 +17,6 @@ include/sync_slave_sql_with_master.inc
 select count(*) from t1;
 count(*)
 4
-call mtr.add_suppression(".*NDB Replica: SQL thread attempting to apply new epoch.*while lower received epoch.*has not been committed.*");
 # Add rows on replica, used for causing uniqueness violation
 insert into t1 values (2001,2001,1001);
 insert into t1 values (2002,2002,1002);

@@ -59,7 +59,7 @@ GRANT NDB_STORED_USER ON *.* TO mcm0765@localhost;
 call mtr.add_suppression("cluster disconnect An incident event has been written");
 --connection default
 call mtr.add_suppression("cluster disconnect An incident event has been written");
-call mtr.add_suppression("NDB: Failed to distribute");
+call mtr.add_suppression("Failed to distribute");
 DROP USER mcm0765@localhost;
 set global debug= @save_debug;
 remove_file $NDB_TOOLS_OUTPUT;

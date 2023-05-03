@@ -63,12 +63,18 @@ save_master_pos;
 -- let $assert_cond= $before_writes < $after_writes
 -- source include/assert.inc
 
--- echo
--- let $server_num=1.1
--- let $pattern=%NDB Binlog: Binary log cache data overflowed to disk%
--- let $limit=1
--- let $replace_expr=/to disk [0-9]+\ time\(s\)/to disk/
--- source suite/ndb_rpl/t/show_mysqld_warnings.inc
+--echo # Check that error log contains message indicating cache spill
+--disable_query_log ONCE
+SELECT DATA as "Error log message"
+  FROM performance_schema.error_log
+  WHERE SUBSYSTEM = "NDB" AND
+     DATA REGEXP "Binary log cache data overflowed to disk"
+  ORDER BY LOGGED DESC
+  LIMIT 1;
+
+# Supress the provoked message
+--disable_query_log ONCE
+call mtr.add_suppression(".*Binary log cache data overflowed to disk.*");
 
 -- echo
 

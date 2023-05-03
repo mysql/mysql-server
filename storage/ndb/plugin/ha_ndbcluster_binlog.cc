@@ -395,7 +395,7 @@ static int ndbcluster_binlog_index_purge_file(THD *thd, const char *filename) {
   int stack_base = 0;
   THD *tmp_thd = ndb_create_thd((char *)&stack_base);
   if (!tmp_thd) {
-    ndb_log_warning("NDB Binlog: Failed to purge: '%s' (create THD failed)",
+    ndb_log_warning("Binlog: Failed to purge: '%s' (create THD failed)",
                     filename);
     return 0;
   }
@@ -403,7 +403,7 @@ static int ndbcluster_binlog_index_purge_file(THD *thd, const char *filename) {
   int error = 0;
   if (ndbcluster_binlog_index_remove_file(tmp_thd, filename)) {
     // Failed to delete rows from table
-    ndb_log_warning("NDB Binlog: Failed to purge: '%s'", filename);
+    ndb_log_warning("Binlog: Failed to purge: '%s'", filename);
     error = 1;  // Failed
   }
   delete tmp_thd;
@@ -1131,14 +1131,17 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
     m_thd->killed = THD::KILL_QUERY;
   }
 
-  ndb_log_verbose(19, "Distribution of '%s' - started!", op_name.c_str());
   if (ndb_log_get_verbose_level() >= 19) {
-    ndb_log_error_dump("Schema_op {");
-    ndb_log_error_dump("type: %d", type);
+    const char *line_separator = "\n";
+    std::stringstream ss;
+    ss << "Schema_op { " << line_separator;
+    ss << "  type: " << type << ", " << line_separator;
     // ACL statements may contain passwords, so skip logging them here
     if (type != SOT_ACL_STATEMENT && type != SOT_ACL_STATEMENT_REFRESH)
-      ndb_log_error_dump("query: '%s'", query);
-    ndb_log_error_dump("}");
+      ss << "  query: '" << query << "'" << line_separator;
+    ss << "}";
+    ndb_log_info("Distribution of '%s' - started! %s", op_name.c_str(),
+                 ss.str().c_str());
   }
 
   // Wait for participants to complete the schema change
@@ -3119,8 +3122,8 @@ class Ndb_schema_event_handler {
     if (found_local_tables) {
       /* Tables exists as a local table, print error and leave it */
       ndb_log_warning(
-          "NDB Binlog: Skipping drop database '%s' since "
-          "it contained local tables "
+          "Binlog: Skipping drop database '%s' since "
+          "it contained local tables, "
           "binlog schema event '%s' from node %d. ",
           schema->db, schema->query, schema->node_id);
       m_schema_op_result.set_result(
@@ -4014,7 +4017,7 @@ class Ndb_schema_event_handler {
   */
   void handle_cluster_failure(Ndb *s_ndb, NdbEventOperation *pOp) const {
     if (ndb_binlog_tables_inited && ndb_binlog_running)
-      ndb_log_verbose(1, "NDB Binlog: util tables need to reinitialize");
+      ndb_log_verbose(1, "Binlog: util tables need to reinitialize");
 
     // Indicate util tables not ready
     mysql_mutex_lock(&injector_data_mutex);
@@ -4238,7 +4241,7 @@ class Ndb_schema_event_handler {
       ndb_log_info(" - schema operation active on '%s.%s'", schema_object->db(),
                    schema_object->name());
       if (ndb_log_get_verbose_level() > 30) {
-        ndb_log_error_dump("%s", schema_object->to_string().c_str());
+        ndb_log_info("%s", schema_object->to_string().c_str());
       }
 
       // Check if schema operation has timed out
@@ -4419,9 +4422,9 @@ class Ndb_binlog_index_table_util {
         MYSQL_LOCK_IGNORE_TIMEOUT; /* Wait for lock "infinitely" */
     if (open_and_lock_tables(thd, &tables, flags)) {
       if (thd->killed)
-        DBUG_PRINT("error", ("NDB Binlog: Opening ndb_binlog_index: killed"));
+        DBUG_PRINT("error", ("Opening ndb_binlog_index: killed"));
       else
-        ndb_log_error("NDB Binlog: Opening ndb_binlog_index: %d, '%s'",
+        ndb_log_error("Binlog: Opening ndb_binlog_index: %d, '%s'",
                       thd->get_stmt_da()->mysql_errno(),
                       thd->get_stmt_da()->message_text());
       thd_proc_info(thd, save_proc_info);
@@ -4457,11 +4460,9 @@ class Ndb_binlog_index_table_util {
 
     if (open_binlog_index_table(thd, &ndb_binlog_index)) {
       if (thd->killed)
-        DBUG_PRINT(
-            "error",
-            ("NDB Binlog: Unable to lock table ndb_binlog_index, killed"));
+        DBUG_PRINT("error", ("Unable to lock table ndb_binlog_index, killed"));
       else
-        ndb_log_error("NDB Binlog: Unable to lock table ndb_binlog_index");
+        ndb_log_error("Binlog: Unable to lock table ndb_binlog_index");
       error = -1;
       goto add_ndb_binlog_index_err;
     }
@@ -4539,7 +4540,7 @@ class Ndb_binlog_index_table_util {
       if (DBUG_EVALUATE_IF("ndb_injector_binlog_index_write_fail_random", true,
                            false)) {
         if ((((uint32)rand()) % 10) == 9) {
-          ndb_log_error("NDB Binlog: Injecting random write failure");
+          ndb_log_error("Binlog: Injecting random write failure");
           error =
               ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0]);
         }
@@ -4547,7 +4548,7 @@ class Ndb_binlog_index_table_util {
 
       if (error) {
         ndb_log_error(
-            "NDB Binlog: Failed writing to ndb_binlog_index for "
+            "Binlog: Failed writing to ndb_binlog_index for "
             "epoch %u/%u orig_server_id %u orig_epoch %u/%u "
             "with error %d.",
             uint(epoch >> 32), uint(epoch), orig_server_id,
@@ -4567,7 +4568,7 @@ class Ndb_binlog_index_table_util {
 
           bool error_row = (row == (cursor->next));
           ndb_log_error(
-              "NDB Binlog: Writing row (%s) to ndb_binlog_index - %s", tmp,
+              "Binlog: Writing row (%s) to ndb_binlog_index - %s", tmp,
               (error_row ? "ERROR" : (seen_error_row ? "Discarded" : "OK")));
           seen_error_row |= error_row;
 
@@ -4601,7 +4602,7 @@ class Ndb_binlog_index_table_util {
         */
         error = thd->get_stmt_da()->mysql_errno();
         ndb_log_error(
-            "NDB Binlog: Failed committing transaction to "
+            "Binlog: Failed committing transaction to "
             "ndb_binlog_index with error %d.",
             error);
         trans_rollback_stmt(thd);
@@ -4642,7 +4643,7 @@ class Ndb_binlog_index_table_util {
     const int retry_result = write_rows_impl(new_thd, rows);
     if (retry_result) {
       ndb_log_error(
-          "NDB Binlog: Failed writing to ndb_binlog_index table "
+          "Binlog: Failed writing to ndb_binlog_index table "
           "while retrying after kill during shutdown");
       assert(false);  // Crash in debug compile
     }
@@ -4902,7 +4903,7 @@ bool Ndb_binlog_client::read_replication_info(
       push_warning_printf(m_thd, Sql_condition::SL_WARNING,
                           ER_NDB_REPLICATION_SCHEMA_ERROR,
                           ER_THD(m_thd, ER_NDB_REPLICATION_SCHEMA_ERROR), msg);
-      ndb_log_warning("NDB Binlog: %s", msg);
+      ndb_log_warning("Binlog: %s", msg);
     }
   } else {
     /* When rep_tab_reader.lookup() returns with non-zero error code,
@@ -4910,7 +4911,7 @@ bool Ndb_binlog_client::read_replication_info(
     const char *msg = rep_tab_reader.get_warning_message();
     assert(msg);
     my_error(ER_NDB_REPLICATION_SCHEMA_ERROR, MYF(0), msg);
-    ndb_log_warning("NDB Binlog: %s", msg);
+    ndb_log_warning("Binlog: %s", msg);
     return true;
   }
 
@@ -4927,9 +4928,8 @@ bool Ndb_binlog_client::read_replication_info(
         Log as well, useful for contexts where the thd's stack of
         warnings are ignored
       */
-      ndb_log_warning(
-          "NDB Replica: Table %s.%s : Parse error on conflict fn : %s", db,
-          table_name, msgbuf);
+      ndb_log_warning("Replica: Table %s.%s : Parse error on conflict fn : %s",
+                      db, table_name, msgbuf);
 
       return true;
     }
@@ -4972,15 +4972,15 @@ int Ndb_binlog_client::apply_replication_info(
                           share->table_name, share->get_binlog_use_update(),
                           ndbtab, tmp_buf, sizeof(tmp_buf), conflict_fn, args,
                           num_args) == 0) {
-      ndb_log_verbose(1, "NDB Replica: %s", tmp_buf);
+      ndb_log_verbose(1, "Replica: %s", tmp_buf);
     } else {
       /*
         Dump setup failure message to error log
         for cases where thd warning stack is
         ignored
       */
-      ndb_log_warning("NDB Replica: Table %s.%s : %s", share->db,
-                      share->table_name, tmp_buf);
+      ndb_log_warning("Replica: Table %s.%s : %s", share->db, share->table_name,
+                      tmp_buf);
 
       push_warning_printf(m_thd, Sql_condition::SL_WARNING,
                           ER_CONFLICT_FN_PARSE_ERROR,
@@ -5035,7 +5035,7 @@ static int ndbcluster_setup_binlog_for_share(THD *thd, Ndb *ndb,
   if (ndbtab == nullptr) {
     const NdbError &ndb_error = ndbtab_g.getNdbError();
     ndb_log_verbose(1,
-                    "NDB Binlog: Failed to open table '%s' from NDB, "
+                    "Binlog: Failed to open table '%s' from NDB, "
                     "error: '%d - %s'",
                     share->key_string(), ndb_error.code, ndb_error.message);
     return -1;  // error
@@ -5044,7 +5044,7 @@ static int ndbcluster_setup_binlog_for_share(THD *thd, Ndb *ndb,
   if (binlog_client.read_and_apply_replication_info(ndb, share, ndbtab,
                                                     ::server_id)) {
     ndb_log_error(
-        "NDB Binlog: Failed to read and apply replication "
+        "Binlog: Failed to read and apply replication "
         "info for table '%s'",
         share->key_string());
     return -1;
@@ -5512,7 +5512,7 @@ int Ndb_binlog_client::create_event_op(NDB_SHARE *share,
   }
 
   // This MySQL Server are now logging changes for the table
-  ndb_log_verbose(1, "NDB Binlog: logging %s (%s,%s)", share->key_string(),
+  ndb_log_verbose(1, "Binlog: logging %s (%s,%s)", share->key_string(),
                   share->get_binlog_full() ? "FULL" : "UPDATED",
                   share->get_binlog_use_update() ? "USE_UPDATE" : "USE_WRITE");
 
@@ -5526,7 +5526,7 @@ void Ndb_binlog_client::drop_events_for_table(THD *thd, Ndb *ndb,
   DBUG_PRINT("enter", ("db: %s, tabname: %s", db, table_name));
 
   if (DBUG_EVALUATE_IF("ndb_skip_drop_event", true, false)) {
-    ndb_log_verbose(1, "NDB Binlog: skipping drop event on '%s.%s'", db,
+    ndb_log_verbose(1, "Binlog: skipping drop event on '%s.%s'", db,
                     table_name);
     return;
   }
@@ -5552,7 +5552,7 @@ void Ndb_binlog_client::drop_events_for_table(THD *thd, Ndb *ndb,
                         dict->getNdbError().message, "NDB");
 
     ndb_log_error(
-        "NDB Binlog: Unable to drop event for '%s.%s' from NDB, "
+        "Binlog: Unable to drop event for '%s.%s' from NDB, "
         "event_name: '%s' error: '%d - %s'",
         db, table_name, event_name.c_str(), dict->getNdbError().code,
         dict->getNdbError().message);
@@ -7557,7 +7557,7 @@ restart_cluster_failure:
   ndb_binlog_is_ready = true;
   mysql_mutex_unlock(&injector_data_mutex);
 
-  log_verbose(1, "ndb tables writable");
+  log_verbose(1, "NDB tables writable");
   ndb_tdc_close_cached_tables();
 
   thd->reset_db(EMPTY_CSTR);

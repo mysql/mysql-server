@@ -29,9 +29,9 @@ call mtr.add_suppression("Failed to remove table definition");
 call mtr.add_suppression("Failed to update table definition");
 call mtr.add_suppression("Failed to rename table definition");
 call mtr.add_suppression("Removing the renamed table");
-call mtr.add_suppression("NDB: Distribution of CREATE TABLE");
-call mtr.add_suppression("NDB: Distribution of TRUNCATE TABLE");
-call mtr.add_suppression("NDB: Distribution of ALTER TABLE");
+call mtr.add_suppression("Distribution of CREATE TABLE");
+call mtr.add_suppression("Distribution of TRUNCATE TABLE");
+call mtr.add_suppression("Distribution of ALTER TABLE");
 --enable_query_log
 
 --connection mysqld2

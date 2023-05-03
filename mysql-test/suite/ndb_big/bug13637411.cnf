@@ -18,9 +18,6 @@ ndb-cluster-connection-pool=1
 ndb-force-send=1
 ndb-use-exact-count=0
 ndb-extra-logging=1
-# Set error log verbosity to max, otherwise info messages
-# are filtered away
-log-error-verbosity=3
 ndb-autoincrement-prefetch-sz=256
 ndb-wait-connected=600
 ndb-wait-setup=300

@@ -34,6 +34,7 @@
 
 class NdbRecAttr;
 class Thd_ndb;
+class THD;
 namespace dd {
 class Table;
 }
@@ -63,7 +64,7 @@ class Ndb_util_table {
                  bool hidden, bool create_events = true);
   ~Ndb_util_table();
 
-  const class THD *get_thd() const;
+  const THD *get_thd() const;
   Ndb *get_ndb() const;
 
   bool check_column_exist(const char *name) const;
@@ -212,7 +213,7 @@ class Ndb_util_table {
            and setup NDB binlog events if enabled
     @return true on success
    */
-  bool create_or_upgrade(class THD *, bool upgrade_allowed);
+  bool create_or_upgrade(THD *, bool upgrade_allowed);
 
   /**
     @brief Check if table exists in NDB

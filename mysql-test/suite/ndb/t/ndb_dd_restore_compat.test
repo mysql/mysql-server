@@ -15,10 +15,10 @@ SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
 SET GLOBAL ndb_metadata_check = true;
 SET GLOBAL ndb_metadata_check_interval = 0;
 # Suppress expected errors
-call mtr.add_suppression("NDB: Table upgrade required");
-call mtr.add_suppression("NDB: Table definition contains obsolete data types");
-call mtr.add_suppression("NDB: Failed to migrate table");
-call mtr.add_suppression("NDB: Got error '10923: Table definition contains obsolete data types");
+call mtr.add_suppression("Table upgrade required");
+call mtr.add_suppression("Table definition contains obsolete data types");
+call mtr.add_suppression("Failed to migrate table");
+call mtr.add_suppression("Got error '10923: Table definition contains obsolete data types");
 --enable_query_log
 
 # Wait until the following 3 object changes are detected:

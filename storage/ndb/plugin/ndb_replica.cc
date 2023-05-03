@@ -311,7 +311,7 @@ static int replica_applier_start(Binlog_relay_IO_param *param) {
   const std::string channel_name(param->channel_name);
   if (channel_name != "") {
     ndb_log_error(
-        "NDB Replica: Multi source replication is not supported when "
+        "Replica: Multi source replication is not supported when "
         "replicating to NDB. Only the default channel (with name = '') can be "
         "used");
     return 1;
@@ -319,7 +319,7 @@ static int replica_applier_start(Binlog_relay_IO_param *param) {
 
   // Note! The 'param->server_id' is the server_id of this server
   if (!ndb_replica->start_channel(channel_name, param->server_id)) {
-    ndb_log_error("NDB Replica: Failed to create channel '%s'",
+    ndb_log_error("Replica: Failed to create channel '%s'",
                   param->channel_name);
     return 1;
   }
@@ -339,7 +339,7 @@ static int replica_applier_start(Binlog_relay_IO_param *param) {
 static int replica_applier_stop(Binlog_relay_IO_param *param, bool) {
   DBUG_TRACE;
   if (!ndb_replica->stop_channel(param->channel_name)) {
-    ndb_log_error("NDB Replica: Failed to remove channel '%s'",
+    ndb_log_error("Replica: Failed to remove channel '%s'",
                   param->channel_name);
     return 1;
   }
@@ -357,8 +357,7 @@ static int replica_reset(Binlog_relay_IO_param *param) {
   DBUG_TRACE;
 
   if (!ndb_replica->reset_channel(param->channel_name)) {
-    ndb_log_error("NDB Replica: Failed to reset channel '%s'",
-                  param->channel_name);
+    ndb_log_error("Replica: Failed to reset channel '%s'", param->channel_name);
     return 1;
   }
 

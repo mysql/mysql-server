@@ -234,7 +234,7 @@ SHOW CREATE TABLE bit1;
 # types which have been removed in 8.0. The upgrade of the table 
 # metadata is not supported
 --disable_query_log
-call mtr.add_suppression("NDB: Table upgrade required");
+call mtr.add_suppression("Table upgrade required");
 --enable_query_log
 --error ER_NO_SUCH_TABLE
 SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;

@@ -178,7 +178,7 @@ INSERT INTO global_suppressions VALUES
  ("unknown option '--loose-"),
  ("unknown variable 'loose-"),
  ("Setting lower_case_table_names=2"),
- ("NDB Binlog:"),
+ ("\\[NDB\\] Binlog:"),
  ("Neither --relay-log nor --relay-log-index were used"),
  ("Query partially completed"),
  ("Replica SQL thread is stopped because UNTIL condition"),

@@ -43,10 +43,12 @@ enable_query_log;
 select count(*) from t1;
 
 # Errors from epoch sequence checking :
-call mtr.add_suppression(".*NDB Replica: SQL thread stopped as attempting to apply new epoch.*while lower received epoch.*has not been committed.*");
+--disable_query_log
+call mtr.add_suppression("Replica: SQL thread stopped as attempting to apply new epoch.*while lower received epoch.*has not been committed.*");
 call mtr.add_suppression(".*Could not execute Write_rows event on table.*");
 call mtr.add_suppression(".*Replica: Got error 173 'Unknown error code' from NDBCLUSTER.*");
 call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
+--enable_query_log
 
 --echo Make a replica side change
 --echo This can cause uniqueness violations when we replicate data
@@ -102,8 +104,10 @@ set global ndb_applier_allow_skip_epoch = 1;
 show variables like 'ndb_applier_allow_skip_epoch';
 
 # Warning from epoch sequence checking when --ndb-applier-allow-skip-epoch is set
-call mtr.add_suppression(".*NDB Replica: SQL thread attempting to apply new epoch.*while lower received epoch.*has not been committed.*");
+--disable_query_log
+call mtr.add_suppression("Replica: SQL thread attempting to apply new epoch.*while lower received epoch.*has not been committed.*");
 call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
+--enable_query_log
 
 --connection master
 --echo Cause a conflict

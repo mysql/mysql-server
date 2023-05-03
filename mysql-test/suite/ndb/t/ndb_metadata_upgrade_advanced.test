@@ -151,9 +151,9 @@ DROP TABLE t3;
 
 --disable_query_log
 # Suppress expected warnings due to missing indexes
-CALL mtr.add_suppression("NDB: Metadata check has failed");
-CALL mtr.add_suppression("NDB: The NDB Dictionary table definition is not identical");
-CALL mtr.add_suppression("NDB: Diff in 'index_count'");
+CALL mtr.add_suppression("Metadata check has failed");
+CALL mtr.add_suppression("The NDB Dictionary table definition is not identical");
+CALL mtr.add_suppression("Diff in 'index_count'");
 # Set low interval so changes are detected quickly
 SET @old_ndb_metadata_check = @@global.ndb_metadata_check;
 SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;

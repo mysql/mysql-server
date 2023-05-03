@@ -798,14 +798,14 @@ bool Ndb_dd_client::install_table(
         m_thd, *install_table.get(), dd::String_type(schema_name));
 
     ndb_log_error("Failed to store table: '%s.%s'", schema_name, table_name);
-    ndb_log_error_dump("sdi for new table: %s",
-                       ndb_dd_sdi_prettify(new_table_sdi).c_str());
+    ndb_log_error("sdi for new table: %s",
+                  ndb_dd_sdi_prettify(new_table_sdi).c_str());
 
     if (old_table_def) {
       const dd::sdi_t old_table_sdi = ndb_dd_sdi_serialize(
           m_thd, *old_table_def, dd::String_type(schema_name));
-      ndb_log_error_dump("sdi for existing table: %s",
-                         ndb_dd_sdi_prettify(old_table_sdi).c_str());
+      ndb_log_error("sdi for existing table: %s",
+                    ndb_dd_sdi_prettify(old_table_sdi).c_str());
     }
     DBUG_ABORT();
     return false;
