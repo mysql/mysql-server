@@ -97,7 +97,7 @@ class Item_row : public Item {
     */
     set_data_type(MYSQL_TYPE_INVALID);
   }
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 
   enum Type type() const override { return ROW_ITEM; }
   void illegal_method_call(const char *) const MY_ATTRIBUTE((cold));

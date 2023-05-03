@@ -208,7 +208,7 @@ class PT_order_expr : public Parse_tree_node, public ORDER {
     direction = (dir == ORDER_DESC) ? ORDER_DESC : ORDER_ASC;
   }
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_order_list : public Parse_tree_node {
@@ -218,8 +218,8 @@ class PT_order_list : public Parse_tree_node {
   SQL_I_List<ORDER> value;
 
  public:
-  bool contextualize(Parse_context *pc) override {
-    if (super::contextualize(pc)) return true;
+  bool do_contextualize(Parse_context *pc) override {
+    if (super::do_contextualize(pc)) return true;
     for (ORDER *o = value.first; o != nullptr; o = o->next) {
       if (static_cast<PT_order_expr *>(o)->contextualize(pc)) return true;
     }
@@ -237,8 +237,8 @@ class PT_gorder_list : public PT_order_list {
   typedef PT_order_list super;
 
  public:
-  bool contextualize(Parse_context *pc) override {
-    return super::contextualize(pc);
+  bool do_contextualize(Parse_context *pc) override {
+    return super::do_contextualize(pc);
   }
 };
 
@@ -340,7 +340,7 @@ class PT_with_clause : public Parse_tree_node {
   PT_with_clause(const PT_with_list *l, bool r)
       : m_list(l), m_recursive(r), m_most_inner_in_parsing(nullptr) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
   /**
     Looks up a table reference into the list of CTEs.
@@ -383,7 +383,7 @@ class PT_select_item_list : public PT_item_list {
   typedef PT_item_list super;
 
  public:
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_limit_clause : public Parse_tree_node {
@@ -395,7 +395,7 @@ class PT_limit_clause : public Parse_tree_node {
   PT_limit_clause(const Limit_options &limit_options_arg)
       : limit_options(limit_options_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
   friend class PT_query_expression;
 };
 
@@ -439,7 +439,7 @@ class PT_table_factor_table_ident : public PT_table_reference {
         opt_table_alias(opt_table_alias_arg.str),
         opt_key_definition(opt_key_definition_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_json_table_column : public Parse_tree_node {
@@ -459,7 +459,7 @@ class PT_table_factor_function : public PT_table_reference {
         m_nested_columns(nested_cols),
         m_table_alias(table_alias) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
  private:
   Item *m_expr;
@@ -478,7 +478,7 @@ class PT_table_reference_list_parens : public PT_table_reference {
       const Mem_root_array_YY<PT_table_reference *> table_list)
       : table_list(table_list) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_derived_table : public PT_table_reference {
@@ -489,7 +489,7 @@ class PT_derived_table : public PT_table_reference {
                    const LEX_CSTRING &table_alias,
                    Create_col_name_list *column_names);
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
  private:
   bool m_lateral;
@@ -506,7 +506,7 @@ class PT_table_factor_joined_table : public PT_table_reference {
   PT_table_factor_joined_table(PT_joined_table *joined_table)
       : m_joined_table(joined_table) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
  private:
   PT_joined_table *m_joined_table;
@@ -557,7 +557,7 @@ class PT_joined_table : public PT_table_reference {
     m_right_pt_table = table;
   }
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
   /// This class is being inherited, it should thus be abstract.
   ~PT_joined_table() override = 0;
@@ -577,7 +577,7 @@ class PT_cross_join : public PT_joined_table {
                 PT_table_reference *tab2_node_arg)
       : PT_joined_table(tab1_node_arg, join_pos_arg, Type_arg, tab2_node_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_joined_table_on : public PT_joined_table {
@@ -590,7 +590,7 @@ class PT_joined_table_on : public PT_joined_table {
                      PT_table_reference *tab2_node_arg, Item *on_arg)
       : super(tab1_node_arg, join_pos_arg, type, tab2_node_arg), on(on_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_joined_table_using : public PT_joined_table {
@@ -612,7 +612,7 @@ class PT_joined_table_using : public PT_joined_table {
       : PT_joined_table_using(tab1_node_arg, join_pos_arg, type, tab2_node_arg,
                               nullptr) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_group : public Parse_tree_node {
@@ -625,7 +625,7 @@ class PT_group : public Parse_tree_node {
   PT_group(PT_order_list *group_list_arg, olap_type olap_arg)
       : group_list(group_list_arg), olap(olap_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_order : public Parse_tree_node {
@@ -636,7 +636,7 @@ class PT_order : public Parse_tree_node {
   explicit PT_order(PT_order_list *order_list_arg)
       : order_list(order_list_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_locking_clause : public Parse_tree_node {
@@ -644,7 +644,7 @@ class PT_locking_clause : public Parse_tree_node {
   PT_locking_clause(Lock_strength strength, Locked_row_action action)
       : m_lock_strength(strength), m_locked_row_action(action) {}
 
-  bool contextualize(Parse_context *pc) final;
+  bool do_contextualize(Parse_context *pc) final;
 
   virtual bool set_lock_for_tables(Parse_context *pc) = 0;
 
@@ -712,7 +712,7 @@ class PT_locking_clause_list : public Parse_tree_node {
     return m_locking_clauses.push_back(locking_clause);
   }
 
-  bool contextualize(Parse_context *pc) override {
+  bool do_contextualize(Parse_context *pc) override {
     for (auto locking_clause : m_locking_clauses)
       if (locking_clause->contextualize(pc)) return true;
     return false;
@@ -786,7 +786,7 @@ class PT_set_scoped_system_variable : public Parse_tree_node {
         m_name{name},
         m_opt_expr{opt_expr} {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
  private:
   const POS m_pos;
@@ -809,7 +809,7 @@ class PT_set_variable : public PT_option_value_no_option_type {
         m_expr_pos{expr_pos},
         m_opt_expr{opt_expr} {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
  private:
   const POS m_pos;
@@ -831,7 +831,7 @@ class PT_option_value_no_option_type_user_var
                                           Item *expr_arg)
       : name(name_arg), expr(expr_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_set_system_variable : public PT_option_value_no_option_type {
@@ -847,7 +847,7 @@ class PT_set_system_variable : public PT_option_value_no_option_type {
         m_name{name},
         m_opt_expr{opt_expr} {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
  private:
   const enum_var_type m_scope;
@@ -867,7 +867,7 @@ class PT_option_value_no_option_type_charset
   PT_option_value_no_option_type_charset(const CHARSET_INFO *opt_charset_arg)
       : opt_charset(opt_charset_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_option_value_no_option_type_names
@@ -879,7 +879,7 @@ class PT_option_value_no_option_type_names
  public:
   explicit PT_option_value_no_option_type_names(const POS &pos) : pos(pos) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_set_names : public PT_option_value_no_option_type {
@@ -893,7 +893,7 @@ class PT_set_names : public PT_option_value_no_option_type {
                const CHARSET_INFO *opt_collation_arg)
       : opt_charset(opt_charset_arg), opt_collation(opt_collation_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_start_option_value_list : public Parse_tree_node {};
@@ -920,7 +920,7 @@ class PT_option_value_no_option_type_password
         random_password_generator(random_password),
         expr_pos(expr_pos_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_option_value_no_option_type_password_for
@@ -948,7 +948,7 @@ class PT_option_value_no_option_type_password_for
         random_password_generator(random_pass),
         expr_pos(expr_pos_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_option_value_type : public Parse_tree_node {
@@ -962,7 +962,7 @@ class PT_option_value_type : public Parse_tree_node {
                        PT_set_scoped_system_variable *value_arg)
       : type(type_arg), value(value_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_option_value_list_head : public Parse_tree_node {
@@ -980,7 +980,7 @@ class PT_option_value_list_head : public Parse_tree_node {
         value(value_arg),
         value_pos(value_pos_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_option_value_list : public PT_option_value_list_head {
@@ -994,10 +994,10 @@ class PT_option_value_list : public PT_option_value_list_head {
                        const POS &tail_pos)
       : super(delimiter_pos_arg, tail, tail_pos), head(head_arg) {}
 
-  bool contextualize(Parse_context *pc) override {
+  bool do_contextualize(Parse_context *pc) override {
     uchar dummy;
     if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, &dummy)) return true;
-    return head->contextualize(pc) || super::contextualize(pc);
+    return head->contextualize(pc) || super::do_contextualize(pc);
   }
 };
 
@@ -1014,7 +1014,7 @@ class PT_start_option_value_list_no_type : public PT_start_option_value_list {
                                      PT_option_value_list_head *tail_arg)
       : head(head_arg), head_pos(head_pos_arg), tail(tail_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_transaction_characteristic : public Parse_tree_node {
@@ -1027,7 +1027,7 @@ class PT_transaction_characteristic : public Parse_tree_node {
   PT_transaction_characteristic(const char *name_arg, int32 value_arg)
       : name(name_arg), value(value_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_transaction_access_mode : public PT_transaction_characteristic {
@@ -1057,8 +1057,8 @@ class PT_transaction_characteristics : public Parse_tree_node {
                                  PT_transaction_characteristic *opt_tail_arg)
       : head(head_arg), opt_tail(opt_tail_arg) {}
 
-  bool contextualize(Parse_context *pc) override {
-    return (super::contextualize(pc) || head->contextualize(pc) ||
+  bool do_contextualize(Parse_context *pc) override {
+    return (super::do_contextualize(pc) || head->contextualize(pc) ||
             (opt_tail != nullptr && opt_tail->contextualize(pc)));
   }
 };
@@ -1076,7 +1076,7 @@ class PT_start_option_value_list_transaction
       const POS &end_pos_arg)
       : characteristics(characteristics_arg), end_pos(end_pos_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_start_option_value_list_following_option_type
@@ -1096,7 +1096,7 @@ class PT_start_option_value_list_following_option_type_eq
       PT_option_value_list_head *opt_tail_arg)
       : head(head_arg), head_pos(head_pos_arg), opt_tail(opt_tail_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_start_option_value_list_following_option_type_transaction
@@ -1113,7 +1113,7 @@ class PT_start_option_value_list_following_option_type_transaction
       : characteristics(characteristics_arg),
         characteristics_pos(characteristics_pos_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_start_option_value_list_type : public PT_start_option_value_list {
@@ -1128,7 +1128,7 @@ class PT_start_option_value_list_type : public PT_start_option_value_list {
       PT_start_option_value_list_following_option_type *list_arg)
       : type(type_arg), list(list_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_set : public Parse_tree_node {
@@ -1141,7 +1141,7 @@ class PT_set : public Parse_tree_node {
   PT_set(const POS &set_pos_arg, PT_start_option_value_list *list_arg)
       : set_pos(set_pos_arg), list(list_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_into_destination : public Parse_tree_node {
@@ -1152,7 +1152,7 @@ class PT_into_destination : public Parse_tree_node {
   PT_into_destination(const POS &pos) : m_pos(pos) {}
 
  public:
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_into_destination_outfile final : public PT_into_destination {
@@ -1169,7 +1169,7 @@ class PT_into_destination_outfile final : public PT_into_destination {
     m_exchange.line.merge_line_separators(line_term_arg);
   }
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
  private:
   sql_exchange m_exchange;
@@ -1182,7 +1182,7 @@ class PT_into_destination_dumpfile final : public PT_into_destination {
   PT_into_destination_dumpfile(const POS &pos, const LEX_STRING &file_name_arg)
       : PT_into_destination(pos), m_exchange(file_name_arg.str, true) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
  private:
   sql_exchange m_exchange;
@@ -1220,7 +1220,7 @@ class PT_select_sp_var : public PT_select_var {
   bool is_local() const override { return true; }
   uint get_offset() const override { return offset; }
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_select_var_list : public PT_into_destination {
@@ -1231,7 +1231,7 @@ class PT_select_var_list : public PT_into_destination {
 
   List<PT_select_var> value;
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
   bool push_back(PT_select_var *var) { return value.push_back(var); }
 };
@@ -1404,7 +1404,7 @@ class PT_query_specification : public PT_query_primary {
         opt_having_clause(nullptr),
         opt_window_clause(nullptr) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
   bool has_into_clause() const override { return opt_into1 != nullptr; }
   bool has_trailing_into_clause() const override {
@@ -1433,7 +1433,7 @@ class PT_table_value_constructor : public PT_query_primary {
   explicit PT_table_value_constructor(PT_insert_values_list *row_value_list_arg)
       : row_value_list(row_value_list_arg) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
   bool has_into_clause() const override { return false; }
   bool has_trailing_into_clause() const override { return false; }
@@ -1476,7 +1476,7 @@ class PT_query_expression final : public PT_query_expression_body {
   explicit PT_query_expression(PT_query_expression_body *body)
       : PT_query_expression(body, nullptr, nullptr) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
   bool is_set_operation() const override { return m_body->is_set_operation(); }
 
@@ -1572,8 +1572,9 @@ class PT_locking final : public PT_query_expression_body {
              PT_locking_clause_list *locking_clauses)
       : m_query_expression{qe}, m_locking_clauses{locking_clauses} {}
 
-  bool contextualize(Parse_context *pc) override {
-    return (super::contextualize(pc) || m_query_expression->contextualize(pc) ||
+  bool do_contextualize(Parse_context *pc) override {
+    return (super::do_contextualize(pc) ||
+            m_query_expression->contextualize(pc) ||
             m_locking_clauses->contextualize(pc));
   }
 
@@ -1619,7 +1620,7 @@ class PT_subquery : public Parse_tree_node {
         query_block(nullptr),
         m_is_derived_table(false) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
   Query_block *value() { return query_block; }
 };
@@ -1667,7 +1668,7 @@ class PT_union : public PT_set_operation {
 
  public:
   using PT_set_operation::PT_set_operation;
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_except : public PT_set_operation {
@@ -1675,7 +1676,7 @@ class PT_except : public PT_set_operation {
 
  public:
   using PT_set_operation::PT_set_operation;
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_intersect : public PT_set_operation {
@@ -1683,7 +1684,7 @@ class PT_intersect : public PT_set_operation {
 
  public:
   using PT_set_operation::PT_set_operation;
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 class PT_select_stmt : public Parse_tree_root {
@@ -1841,7 +1842,7 @@ class PT_insert_values_list : public Parse_tree_node {
  public:
   explicit PT_insert_values_list(MEM_ROOT *mem_root) : many_values(mem_root) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
   bool push_back(mem_root_deque<Item *> *x) {
     many_values.push_back(x);
@@ -2074,7 +2075,7 @@ class PT_key_part_specification : public Parse_tree_node {
     @retval true on error
     @retval false on success
   */
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
   /**
     Get the indexed expression. The caller must ensure that has_expression()
@@ -2160,7 +2161,7 @@ class PT_index_option : public PT_base_index_option {
   /// @param option_value The value of the option.
   PT_index_option(Option_type option_value) : m_option_value(option_value) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override {
+  bool do_contextualize(Table_ddl_parse_context *pc) override {
     pc->key_create_info->*Property = m_option_value;
     return false;
   }
@@ -2180,7 +2181,7 @@ class PT_traceable_index_option : public PT_base_index_option {
   PT_traceable_index_option(Option_type option_value)
       : m_option_value(option_value) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override {
+  bool do_contextualize(Table_ddl_parse_context *pc) override {
     pc->key_create_info->*Property = m_option_value;
     pc->key_create_info->*Property_is_explicit = true;
     return false;
@@ -2265,7 +2266,7 @@ class PT_inline_index_definition : public PT_table_constraint_def {
         m_columns(cols),
         m_options(options) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
  private:
   keytype m_keytype;
@@ -2295,7 +2296,7 @@ class PT_foreign_key_definition : public PT_table_constraint_def {
         m_fk_update_opt(fk_update_opt),
         m_fk_delete_opt(fk_delete_opt) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
  private:
   const LEX_STRING m_constraint_name;
@@ -2333,8 +2334,8 @@ class PT_create_table_option : public PT_ddl_table_option {
  public:
   ~PT_create_table_option() override = 0;  // Force abstract class declaration
 
-  bool contextualize(Table_ddl_parse_context *pc) override {
-    if (super::contextualize(pc)) return true;
+  bool do_contextualize(Table_ddl_parse_context *pc) override {
+    if (super::do_contextualize(pc)) return true;
     pc->alter_info->flags |= Alter_info::ALTER_OPTIONS;
     return false;
   }
@@ -2356,8 +2357,8 @@ class PT_traceable_create_table_option : public PT_create_table_option {
  public:
   explicit PT_traceable_create_table_option(Option_type value) : value(value) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override {
-    if (super::contextualize(pc)) return true;
+  bool do_contextualize(Table_ddl_parse_context *pc) override {
+    if (super::do_contextualize(pc)) return true;
     pc->create_info->*Property = value;
     pc->create_info->used_fields |= Property_flag;
     return false;
@@ -2494,8 +2495,8 @@ class PT_ternary_create_table_option : public PT_create_table_option {
   explicit PT_ternary_create_table_option(Ternary_option value)
       : value(value) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override {
-    if (super::contextualize(pc)) return true;
+  bool do_contextualize(Table_ddl_parse_context *pc) override {
+    if (super::do_contextualize(pc)) return true;
     pc->create_info->table_options &= ~(Yes | No);
     switch (value) {
       case Ternary_option::ON:
@@ -2561,8 +2562,8 @@ class PT_bool_create_table_option : public PT_create_table_option {
  public:
   explicit PT_bool_create_table_option(bool value) : value(value) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override {
-    if (super::contextualize(pc)) return true;
+  bool do_contextualize(Table_ddl_parse_context *pc) override {
+    if (super::do_contextualize(pc)) return true;
     pc->create_info->table_options &= ~(Yes | No);
     pc->create_info->table_options |= value ? Yes : No;
     pc->create_info->used_fields |= Property_flag;
@@ -2618,7 +2619,7 @@ class PT_create_table_engine_option : public PT_create_table_option {
   explicit PT_create_table_engine_option(const LEX_CSTRING &engine)
       : engine(engine) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 };
 
 /**
@@ -2636,7 +2637,7 @@ class PT_create_table_secondary_engine_option : public PT_create_table_option {
       const LEX_CSTRING &secondary_engine)
       : m_secondary_engine(secondary_engine) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
  private:
   const LEX_CSTRING m_secondary_engine{nullptr, 0};
@@ -2663,7 +2664,7 @@ class PT_create_stats_auto_recalc_option : public PT_create_table_option {
   */
   PT_create_stats_auto_recalc_option(Ternary_option value) : value(value) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 };
 
 /**
@@ -2691,7 +2692,7 @@ class PT_create_stats_stable_pages : public PT_create_table_option {
   */
   PT_create_stats_stable_pages() : value(0) {}  // DEFAULT
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 };
 
 class PT_create_union_option : public PT_create_table_option {
@@ -2703,7 +2704,7 @@ class PT_create_union_option : public PT_create_table_option {
   explicit PT_create_union_option(const Mem_root_array<Table_ident *> *tables)
       : tables(tables) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 };
 
 class PT_create_storage_option : public PT_create_table_option {
@@ -2714,8 +2715,8 @@ class PT_create_storage_option : public PT_create_table_option {
  public:
   explicit PT_create_storage_option(ha_storage_media value) : value(value) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override {
-    if (super::contextualize(pc)) return true;
+  bool do_contextualize(Table_ddl_parse_context *pc) override {
+    if (super::do_contextualize(pc)) return true;
     pc->create_info->storage_media = value;
     return false;
   }
@@ -2732,7 +2733,7 @@ class PT_create_table_default_charset : public PT_create_table_option {
     assert(value != nullptr);
   }
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 };
 
 class PT_create_table_default_collation : public PT_create_table_option {
@@ -2746,7 +2747,7 @@ class PT_create_table_default_collation : public PT_create_table_option {
     assert(value != nullptr);
   }
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 };
 
 class PT_check_constraint final : public PT_table_constraint_def {
@@ -2761,7 +2762,7 @@ class PT_check_constraint final : public PT_table_constraint_def {
   }
   void set_column_name(const LEX_STRING &name) { cc_spec.column_name = name; }
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 };
 
 class PT_column_def : public PT_table_element {
@@ -2783,7 +2784,7 @@ class PT_column_def : public PT_table_element {
         opt_column_constraint(opt_column_constraint),
         opt_place(opt_place) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 };
 
 /**
@@ -3775,7 +3776,7 @@ class PT_alter_table_action : public PT_ddl_table_option {
       : flag(flag) {}
 
  public:
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
  protected:
   /**
@@ -3806,8 +3807,8 @@ class PT_alter_table_add_column final : public PT_alter_table_action {
         m_column_def(field_ident, field_def, opt_column_constraint, opt_place) {
   }
 
-  bool contextualize(Table_ddl_parse_context *pc) override {
-    return super::contextualize(pc) || m_column_def.contextualize(pc);
+  bool do_contextualize(Table_ddl_parse_context *pc) override {
+    return super::do_contextualize(pc) || m_column_def.contextualize(pc);
   }
 
  private:
@@ -3822,8 +3823,8 @@ class PT_alter_table_add_columns final : public PT_alter_table_action {
       const Mem_root_array<PT_table_element *> *columns)
       : super(Alter_info::ALTER_ADD_COLUMN), m_columns(columns) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override {
-    if (super::contextualize(pc)) return true;
+  bool do_contextualize(Table_ddl_parse_context *pc) override {
+    if (super::do_contextualize(pc)) return true;
 
     for (auto *column : *m_columns)
       if (column->contextualize(pc)) return true;
@@ -3842,8 +3843,8 @@ class PT_alter_table_add_constraint final : public PT_alter_table_action {
   explicit PT_alter_table_add_constraint(PT_table_constraint_def *constraint)
       : super(Alter_info::ALTER_ADD_INDEX), m_constraint(constraint) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override {
-    return super::contextualize(pc) || m_constraint->contextualize(pc);
+  bool do_contextualize(Table_ddl_parse_context *pc) override {
+    return super::do_contextualize(pc) || m_constraint->contextualize(pc);
   }
 
  private:
@@ -3869,7 +3870,7 @@ class PT_alter_table_change_column final : public PT_alter_table_action {
                                const char *opt_place)
       : PT_alter_table_change_column(name, name, field_def, opt_place) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
  private:
   const LEX_STRING m_old_name;
@@ -3888,8 +3889,8 @@ class PT_alter_table_drop : public PT_alter_table_action {
       : super(alter_info_flag), m_alter_drop(drop_type, name) {}
 
  public:
-  bool contextualize(Table_ddl_parse_context *pc) override {
-    return (super::contextualize(pc) ||
+  bool do_contextualize(Table_ddl_parse_context *pc) override {
+    return (super::do_contextualize(pc) ||
             pc->alter_info->drop_list.push_back(&m_alter_drop));
   }
 
@@ -3951,8 +3952,8 @@ class PT_alter_table_enforce_constraint : public PT_alter_table_action {
             Alter_constraint_enforcement::Type::ANY_CONSTRAINT, name,
             is_enforced) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override {
-    return (super::contextualize(pc) ||
+  bool do_contextualize(Table_ddl_parse_context *pc) override {
+    return (super::do_contextualize(pc) ||
             pc->alter_info->alter_constraint_enforcement_list.push_back(
                 &m_constraint_enforcement));
   }
@@ -3980,10 +3981,10 @@ class PT_alter_table_enable_keys final : public PT_alter_table_action {
   explicit PT_alter_table_enable_keys(bool enable)
       : super(Alter_info::ALTER_KEYS_ONOFF), m_enable(enable) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override {
+  bool do_contextualize(Table_ddl_parse_context *pc) override {
     pc->alter_info->keys_onoff =
         m_enable ? Alter_info::ENABLE : Alter_info::DISABLE;
-    return super::contextualize(pc);
+    return super::do_contextualize(pc);
   }
 
  private:
@@ -3999,7 +4000,7 @@ class PT_alter_table_set_default final : public PT_alter_table_action {
         m_name(col_name),
         m_expr(opt_default_expr) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
  private:
   const char *m_name;
@@ -4014,8 +4015,8 @@ class PT_alter_table_column_visibility final : public PT_alter_table_action {
       : super(Alter_info::ALTER_COLUMN_VISIBILITY),
         m_alter_column(col_name, is_visible) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override {
-    return (super::contextualize(pc) ||
+  bool do_contextualize(Table_ddl_parse_context *pc) override {
+    return (super::do_contextualize(pc) ||
             pc->alter_info->alter_list.push_back(&m_alter_column));
   }
 
@@ -4031,8 +4032,8 @@ class PT_alter_table_index_visible final : public PT_alter_table_action {
       : super(Alter_info::ALTER_INDEX_VISIBILITY),
         m_alter_index_visibility(name, visible) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override {
-    return (super::contextualize(pc) ||
+  bool do_contextualize(Table_ddl_parse_context *pc) override {
+    return (super::do_contextualize(pc) ||
             pc->alter_info->alter_index_visibility_list.push_back(
                 &m_alter_index_visibility));
   }
@@ -4048,7 +4049,7 @@ class PT_alter_table_rename final : public PT_alter_table_action {
   explicit PT_alter_table_rename(const Table_ident *ident)
       : super(Alter_info::ALTER_RENAME), m_ident(ident) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
   bool is_rename_table() const override { return true; }
 
@@ -4063,8 +4064,8 @@ class PT_alter_table_rename_key final : public PT_alter_table_action {
   PT_alter_table_rename_key(const char *from, const char *to)
       : super(Alter_info::ALTER_RENAME_INDEX), m_rename_key(from, to) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override {
-    return super::contextualize(pc) ||
+  bool do_contextualize(Table_ddl_parse_context *pc) override {
+    return super::do_contextualize(pc) ||
            pc->alter_info->alter_rename_key_list.push_back(&m_rename_key);
   }
 
@@ -4079,8 +4080,8 @@ class PT_alter_table_rename_column final : public PT_alter_table_action {
   PT_alter_table_rename_column(const char *from, const char *to)
       : super(Alter_info::ALTER_CHANGE_COLUMN), m_rename_column(from, to) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override {
-    return super::contextualize(pc) ||
+  bool do_contextualize(Table_ddl_parse_context *pc) override {
+    return super::do_contextualize(pc) ||
            pc->alter_info->alter_list.push_back(&m_rename_column);
   }
 
@@ -4098,7 +4099,7 @@ class PT_alter_table_convert_to_charset final : public PT_alter_table_action {
         m_charset(charset),
         m_collation(opt_collation) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
  private:
   const CHARSET_INFO *const m_charset;
@@ -4119,7 +4120,7 @@ class PT_alter_table_order final : public PT_alter_table_action {
   explicit PT_alter_table_order(PT_order_list *order)
       : super(Alter_info::ALTER_ORDER), m_order(order) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
  private:
   PT_order_list *const m_order;
@@ -4132,7 +4133,7 @@ class PT_alter_table_partition_by final : public PT_alter_table_action {
   explicit PT_alter_table_partition_by(PT_partition *partition)
       : super(Alter_info::ALTER_PARTITION), m_partition(partition) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
  private:
   PT_partition *const m_partition;
@@ -4172,7 +4173,7 @@ class PT_alter_table_add_partition : public PT_alter_table_standalone_action {
       : super(Alter_info::ALTER_ADD_PARTITION),
         m_no_write_to_binlog(no_write_to_binlog) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
   Sql_cmd *make_cmd(Table_ddl_parse_context *pc) final {
     return new (pc->mem_root) Sql_cmd_alter_table(pc->alter_info);
@@ -4200,7 +4201,7 @@ class PT_alter_table_add_partition_def_list final
       const Mem_root_array<PT_part_definition *> *def_list)
       : super(no_write_to_binlog), m_def_list(def_list) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
  private:
   const Mem_root_array<PT_part_definition *> *m_def_list;
@@ -4230,7 +4231,7 @@ class PT_alter_table_drop_partition final
   explicit PT_alter_table_drop_partition(const List<String> &partitions)
       : super(Alter_info::ALTER_DROP_PARTITION), m_partitions(partitions) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
   Sql_cmd *make_cmd(Table_ddl_parse_context *pc) final {
     return new (pc->mem_root) Sql_cmd_alter_table(pc->alter_info);
@@ -4250,13 +4251,13 @@ class PT_alter_table_partition_list_or_all
       const List<String> *opt_partition_list)
       : super(alter_info_flag), m_opt_partition_list(opt_partition_list) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override {
+  bool do_contextualize(Table_ddl_parse_context *pc) override {
     assert(pc->alter_info->partition_names.is_empty());
     if (m_opt_partition_list == nullptr)
       pc->alter_info->flags |= Alter_info::ALTER_ALL_PARTITION;
     else
       pc->alter_info->partition_names = *m_opt_partition_list;
-    return super::contextualize(pc);
+    return super::do_contextualize(pc);
   }
 
  private:
@@ -4273,7 +4274,7 @@ class PT_alter_table_rebuild_partition final
       : super(Alter_info::ALTER_REBUILD_PARTITION, opt_partition_list),
         m_no_write_to_binlog(no_write_to_binlog) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
   Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override {
     return new (pc->mem_root) Sql_cmd_alter_table(pc->alter_info);
@@ -4293,7 +4294,7 @@ class PT_alter_table_optimize_partition final
       : super(Alter_info::ALTER_ADMIN_PARTITION, opt_partition_list),
         m_no_write_to_binlog(no_write_to_binlog) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
   Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override {
     return new (pc->mem_root)
@@ -4314,7 +4315,7 @@ class PT_alter_table_analyze_partition
       : super(Alter_info::ALTER_ADMIN_PARTITION, opt_partition_list),
         m_no_write_to_binlog(no_write_to_binlog) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
   Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override {
     return new (pc->mem_root)
         Sql_cmd_alter_table_analyze_partition(pc->thd, pc->alter_info);
@@ -4335,7 +4336,7 @@ class PT_alter_table_check_partition
         m_flags(flags),
         m_sql_flags(sql_flags) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
   Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override {
     return new (pc->mem_root)
@@ -4360,7 +4361,7 @@ class PT_alter_table_repair_partition
         m_flags(flags),
         m_sql_flags(sql_flags) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
   Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override {
     return new (pc->mem_root)
@@ -4383,7 +4384,7 @@ class PT_alter_table_coalesce_partition final
         m_no_write_to_binlog(no_write_to_binlog),
         m_num_parts(num_parts) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
   Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override {
     return new (pc->mem_root) Sql_cmd_alter_table(pc->alter_info);
@@ -4406,7 +4407,7 @@ class PT_alter_table_truncate_partition
                   Alter_info::ALTER_TRUNCATE_PARTITION),
               opt_partition_list) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
   Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override {
     return new (pc->mem_root)
@@ -4423,7 +4424,7 @@ class PT_alter_table_reorganize_partition final
       : super(Alter_info::ALTER_TABLE_REORG),
         m_no_write_to_binlog(no_write_to_binlog) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
   Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override {
     return new (pc->mem_root) Sql_cmd_alter_table(pc->alter_info);
@@ -4447,7 +4448,7 @@ class PT_alter_table_reorganize_partition_into final
         m_partition_names(partition_names),
         m_into(into) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
   Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override {
     return new (pc->mem_root) Sql_cmd_alter_table(pc->alter_info);
@@ -4473,7 +4474,7 @@ class PT_alter_table_exchange_partition final
         m_table_name(table_name),
         m_validation(validation) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
   Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override {
     return new (pc->mem_root)
@@ -4742,7 +4743,7 @@ class PT_assign_to_keycache final : public Table_ddl_node {
   PT_assign_to_keycache(Table_ident *table, List<Index_hint> *index_hints)
       : m_table(table), m_index_hints(index_hints) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
  private:
   Table_ident *m_table;
@@ -4756,7 +4757,7 @@ class PT_adm_partition final : public Table_ddl_node {
   explicit PT_adm_partition(List<String> *opt_partitions)
       : m_opt_partitions(opt_partitions) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
  private:
   List<String> *m_opt_partitions;
@@ -4809,7 +4810,7 @@ class PT_preload_keys final : public Table_ddl_node {
         m_opt_cache_key_list(opt_cache_key_list),
         m_ignore_leaves(ignore_leaves) {}
 
-  bool contextualize(Table_ddl_parse_context *pc) override;
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
 
  private:
   Table_ident *m_table;
@@ -4856,7 +4857,7 @@ class PT_json_table_column_for_ordinality final : public PT_json_table_column {
  public:
   explicit PT_json_table_column_for_ordinality(LEX_STRING name);
   ~PT_json_table_column_for_ordinality() override;
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
   Json_table_column *get_column() override { return m_column.get(); }
 
  private:
@@ -4873,7 +4874,7 @@ class PT_json_table_column_with_path final : public PT_json_table_column {
       PT_type *type, const CHARSET_INFO *collation);
   ~PT_json_table_column_with_path() override;
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
   Json_table_column *get_column() override { return m_column.get(); }
 
@@ -4893,7 +4894,7 @@ class PT_json_table_column_with_nested_path final
       Item *path, Mem_root_array<PT_json_table_column *> *nested_cols)
       : m_path(path), m_nested_columns(nested_cols) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
   Json_table_column *get_column() override { return m_column; }
 
@@ -4922,9 +4923,9 @@ class PT_alter_tablespace_option final
  public:
   explicit PT_alter_tablespace_option(Option_type value) : m_value(value) {}
 
-  bool contextualize(Alter_tablespace_parse_context *pc) override {
+  bool do_contextualize(Alter_tablespace_parse_context *pc) override {
     pc->*Option = m_value;
-    return super::contextualize(pc);
+    return super::do_contextualize(pc);
   }
 
  private:
@@ -4977,7 +4978,7 @@ class PT_alter_tablespace_option_nodegroup final
   explicit PT_alter_tablespace_option_nodegroup(option_type nodegroup_id)
       : m_nodegroup_id(nodegroup_id) {}
 
-  bool contextualize(Alter_tablespace_parse_context *pc) override;
+  bool do_contextualize(Alter_tablespace_parse_context *pc) override;
 
  private:
   const option_type m_nodegroup_id;
@@ -4993,8 +4994,9 @@ class PT_alter_tablespace_option_comment final
   explicit PT_alter_tablespace_option_comment(option_type comment)
       : m_comment(comment) {}
 
-  bool contextualize(Alter_tablespace_parse_context *pc) override {
-    if (super::contextualize(pc)) return true; /* purecov: inspected */  // OOM
+  bool do_contextualize(Alter_tablespace_parse_context *pc) override {
+    if (super::do_contextualize(pc))
+      return true; /* purecov: inspected */  // OOM
 
     if (pc->ts_comment.str) {
       my_error(ER_FILEGROUP_OPTION_ONLY_ONCE, MYF(0), "COMMENT");
@@ -5018,8 +5020,9 @@ class PT_alter_tablespace_option_engine final
   explicit PT_alter_tablespace_option_engine(option_type engine_name)
       : m_engine_name(engine_name) {}
 
-  bool contextualize(Alter_tablespace_parse_context *pc) override {
-    if (super::contextualize(pc)) return true; /* purecov: inspected */  // OOM
+  bool do_contextualize(Alter_tablespace_parse_context *pc) override {
+    if (super::do_contextualize(pc))
+      return true; /* purecov: inspected */  // OOM
 
     if (pc->engine_name.str) {
       my_error(ER_FILEGROUP_OPTION_ONLY_ONCE, MYF(0), "STORAGE ENGINE");
@@ -5044,8 +5047,9 @@ class PT_alter_tablespace_option_file_block_size final
       option_type file_block_size)
       : m_file_block_size(file_block_size) {}
 
-  bool contextualize(Alter_tablespace_parse_context *pc) override {
-    if (super::contextualize(pc)) return true; /* purecov: inspected */  // OOM
+  bool do_contextualize(Alter_tablespace_parse_context *pc) override {
+    if (super::do_contextualize(pc))
+      return true; /* purecov: inspected */  // OOM
 
     if (pc->file_block_size != 0) {
       my_error(ER_FILEGROUP_OPTION_ONLY_ONCE, MYF(0), "FILE_BLOCK_SIZE");

@@ -95,9 +95,9 @@
 using std::max;
 using std::min;
 
-bool Item_sum::itemize(Parse_context *pc, Item **res) {
+bool Item_sum::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (Item_result_field::itemize(pc, res)) return true;
+  if (Item_result_field::do_itemize(pc, res)) return true;
 
   if (m_window) {
     if (m_window->contextualize(pc)) return true; /* purecov: inspected */
@@ -3867,9 +3867,9 @@ double Item_variance_field::val_real() {
 ** Functions to handle dynamic loadable aggregates
 ****************************************************************************/
 
-bool Item_udf_sum::itemize(Parse_context *pc, Item **res) {
+bool Item_udf_sum::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->set_has_udf();
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_UDF);
   pc->thd->lex->safe_to_cache_query = false;
@@ -4231,9 +4231,9 @@ Item_func_group_concat::Item_func_group_concat(
   }
 }
 
-bool Item_func_group_concat::itemize(Parse_context *pc, Item **res) {
+bool Item_func_group_concat::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   context = pc->thd->lex->current_context();
   return false;
 }

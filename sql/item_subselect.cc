@@ -1473,9 +1473,9 @@ Item_in_subselect::Item_in_subselect(const POS &pos, Item *left_exp,
   reset();
 }
 
-bool Item_in_subselect::itemize(Parse_context *pc, Item **res) {
+bool Item_in_subselect::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res) || left_expr->itemize(pc, &left_expr) ||
+  if (super::do_itemize(pc, res) || left_expr->itemize(pc, &left_expr) ||
       pt_subselect->contextualize(pc))
     return true;
   Query_block *query_block = pt_subselect->value();

@@ -289,7 +289,7 @@ class Item_func_aes_encrypt final : public Item_str_func {
   Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d,
                         Item *e, Item *f)
       : Item_str_func(pos, a, b, c, d, e, f) {}
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *) override;
   bool resolve_type(THD *) override;
   const char *func_name() const override { return "aes_encrypt"; }
@@ -311,7 +311,7 @@ class Item_func_aes_decrypt : public Item_str_func {
   Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d,
                         Item *e, Item *f)
       : Item_str_func(pos, a, b, c, d, e, f) {}
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *) override;
   bool resolve_type(THD *thd) override;
   const char *func_name() const override { return "aes_decrypt"; }
@@ -326,7 +326,7 @@ class Item_func_random_bytes : public Item_str_func {
  public:
   Item_func_random_bytes(const POS &pos, Item *a) : Item_str_func(pos, a) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   bool resolve_type(THD *thd) override;
   String *val_str(String *a) override;
 
@@ -607,7 +607,7 @@ class Item_func_database : public Item_func_sysconst {
  public:
   explicit Item_func_database(const POS &pos) : Item_func_sysconst(pos) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 
   String *val_str(String *) override;
   bool resolve_type(THD *) override {
@@ -642,7 +642,7 @@ class Item_func_user : public Item_func_sysconst {
     return INNER_TABLE_BIT;
   }
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 
   bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
@@ -680,7 +680,7 @@ class Item_func_current_user : public Item_func_user {
  public:
   explicit Item_func_current_user(const POS &pos) : super(pos) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return "current_user"; }
   const Name_string fully_qualified_func_name() const override {
     return NAME_STRING("current_user()");
@@ -721,7 +721,7 @@ class Item_func_make_set final : public Item_str_func {
   Item_func_make_set(const POS &pos, Item *a, PT_item_list *opt_list)
       : Item_str_func(pos, opt_list), item(a) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *str) override;
   bool fix_fields(THD *thd, Item **ref) override {
     assert(fixed == 0);
@@ -1027,7 +1027,7 @@ class Item_load_file final : public Item_str_func {
  public:
   Item_load_file(const POS &pos, Item *a) : Item_str_func(pos, a) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *) override;
   const char *func_name() const override { return "load_file"; }
   table_map get_initial_pseudo_tables() const override {
@@ -1100,7 +1100,7 @@ class Item_func_set_collation final : public Item_str_func {
                           const LEX_STRING &collation_string_arg)
       : super(pos, a, nullptr), collation_string(collation_string_arg) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *) override;
   bool resolve_type(THD *) override;
   bool eq(const Item *item, bool binary_cmp) const override;
@@ -1163,7 +1163,7 @@ class Item_func_weight_string final : public Item_str_func {
         result_length(result_length_arg),
         as_binary(as_binary_arg) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 
   const char *func_name() const override { return "weight_string"; }
   bool eq(const Item *item, bool binary_cmp) const override;
@@ -1236,7 +1236,7 @@ class Item_func_uuid final : public Item_str_func {
   Item_func_uuid() : Item_str_func() {}
   explicit Item_func_uuid(const POS &pos) : Item_str_func(pos) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   table_map get_initial_pseudo_tables() const override {
     return RAND_TABLE_BIT;
   }

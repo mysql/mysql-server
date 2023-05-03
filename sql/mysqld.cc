@@ -537,7 +537,7 @@ MySQL clients support the protocol:
   - contextualize the parse tree for the CREATE TABLE statement.
   - build a @ref HA_CREATE_INFO structure to represent the table DDL.
   - resolve the storage engine name to an actual @ref handlerton pointer,
-    in @ref PT_create_table_engine_option::contextualize()
+    in @ref PT_create_table_engine_option::do_contextualize()
 
   @section CREATE_TABLE_RUNTIME Runtime execution
 

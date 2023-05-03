@@ -235,8 +235,8 @@ class PT_check_constraint_column_attr : public PT_column_attr_base {
     return (check_const_list->push_back(&col_cc_spec));
   }
 
-  bool contextualize(Column_parse_context *pc) override {
-    return (super::contextualize(pc) ||
+  bool do_contextualize(Column_parse_context *pc) override {
+    return (super::do_contextualize(pc) ||
             col_cc_spec.check_expr->itemize(pc, &col_cc_spec.check_expr));
   }
 };
@@ -317,12 +317,12 @@ class PT_default_column_attr : public PT_column_attr_base {
   explicit PT_default_column_attr(Item *item) : item(item) {}
   void apply_default_value(Item **value) const override { *value = item; }
 
-  bool contextualize(Column_parse_context *pc) override {
+  bool do_contextualize(Column_parse_context *pc) override {
     if (pc->is_generated) {
       my_error(ER_WRONG_USAGE, MYF(0), "DEFAULT", "generated column");
       return true;
     }
-    return super::contextualize(pc) || item->itemize(pc, &item);
+    return super::do_contextualize(pc) || item->itemize(pc, &item);
   }
   void apply_type_flags(ulong *type_flags) const override {
     if (item->type() == Item::NULL_ITEM) *type_flags |= EXPLICIT_NULL_FLAG;
@@ -344,12 +344,12 @@ class PT_on_update_column_attr : public PT_column_attr_base {
   explicit PT_on_update_column_attr(uint8 precision) : precision(precision) {}
   void apply_on_update_value(Item **value) const override { *value = item; }
 
-  bool contextualize(Column_parse_context *pc) override {
+  bool do_contextualize(Column_parse_context *pc) override {
     if (pc->is_generated) {
       my_error(ER_WRONG_USAGE, MYF(0), "ON UPDATE", "generated column");
       return true;
     }
-    if (super::contextualize(pc)) return true;
+    if (super::do_contextualize(pc)) return true;
 
     item = new (pc->thd->mem_root) Item_func_now_local(precision);
     return item == nullptr;
@@ -368,12 +368,12 @@ class PT_auto_increment_column_attr : public PT_column_attr_base {
   void apply_type_flags(ulong *type_flags) const override {
     *type_flags |= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG;
   }
-  bool contextualize(Column_parse_context *pc) override {
+  bool do_contextualize(Column_parse_context *pc) override {
     if (pc->is_generated) {
       my_error(ER_WRONG_USAGE, MYF(0), "AUTO_INCREMENT", "generated column");
       return true;
     }
-    return super::contextualize(pc);
+    return super::do_contextualize(pc);
   }
 };
 
@@ -392,13 +392,13 @@ class PT_serial_default_value_column_attr : public PT_column_attr_base {
   void apply_alter_info_flags(ulonglong *flags) const override {
     *flags |= Alter_info::ALTER_ADD_INDEX;
   }
-  bool contextualize(Column_parse_context *pc) override {
+  bool do_contextualize(Column_parse_context *pc) override {
     if (pc->is_generated) {
       my_error(ER_WRONG_USAGE, MYF(0), "SERIAL DEFAULT VALUE",
                "generated column");
       return true;
     }
-    return super::contextualize(pc);
+    return super::do_contextualize(pc);
   }
 };
 
@@ -420,12 +420,12 @@ class PT_column_format_column_attr : public PT_column_attr_base {
     *type_flags &= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
     *type_flags |= format << FIELD_FLAGS_COLUMN_FORMAT;
   }
-  bool contextualize(Column_parse_context *pc) override {
+  bool do_contextualize(Column_parse_context *pc) override {
     if (pc->is_generated) {
       my_error(ER_WRONG_USAGE, MYF(0), "COLUMN_FORMAT", "generated column");
       return true;
     }
-    return super::contextualize(pc);
+    return super::do_contextualize(pc);
   }
 };
 
@@ -447,12 +447,12 @@ class PT_storage_media_column_attr : public PT_column_attr_base {
     *type_flags &= ~(FIELD_FLAGS_STORAGE_MEDIA_MASK);
     *type_flags |= media << FIELD_FLAGS_STORAGE_MEDIA;
   }
-  bool contextualize(Column_parse_context *pc) override {
+  bool do_contextualize(Column_parse_context *pc) override {
     if (pc->is_generated) {
       my_error(ER_WRONG_USAGE, MYF(0), "STORAGE", "generated column");
       return true;
     }
-    return super::contextualize(pc);
+    return super::do_contextualize(pc);
   }
 };
 
@@ -485,7 +485,7 @@ class PT_generated_default_val_column_attr : public PT_column_attr_base {
     *default_value_expression = &m_default_value_expression;
   }
 
-  bool contextualize(Column_parse_context *pc) override {
+  bool do_contextualize(Column_parse_context *pc) override {
     // GC and default value expressions are mutually exclusive and thus only
     // one is allowed to be present on the same column definition.
     if (pc->is_generated) {
@@ -493,7 +493,7 @@ class PT_generated_default_val_column_attr : public PT_column_attr_base {
       return true;
     }
     Parse_context expr_pc(pc->thd, pc->select);
-    return super::contextualize(pc) ||
+    return super::do_contextualize(pc) ||
            m_default_value_expression.expr_item->itemize(
                &expr_pc, &m_default_value_expression.expr_item);
   }
@@ -765,8 +765,8 @@ class PT_timestamp_type : public PT_type {
   const char *get_dec() const override { return dec; }
   ulong get_type_flags() const override { return type_flags; }
 
-  bool contextualize(Parse_context *pc) override {
-    if (super::contextualize(pc)) return true;
+  bool do_contextualize(Parse_context *pc) override {
+    if (super::do_contextualize(pc)) return true;
     /*
       TIMESTAMP fields are NOT NULL by default, unless the variable
       explicit_defaults_for_timestamp is true.
@@ -910,8 +910,9 @@ class PT_field_def_base : public Parse_tree_node {
         type_node(type_node) {}
 
  public:
-  bool contextualize(Parse_context *pc) override {
-    if (super::contextualize(pc) || type_node->contextualize(pc)) return true;
+  bool do_contextualize(Parse_context *pc) override {
+    if (super::do_contextualize(pc) || type_node->contextualize(pc))
+      return true;
 
     type = type_node->type;
     type_flags = type_node->get_type_flags();
@@ -964,9 +965,9 @@ class PT_field_def : public PT_field_def_base {
                Mem_root_array<PT_column_attr_base *> *opt_attrs)
       : super(type_node_arg), opt_attrs(opt_attrs) {}
 
-  bool contextualize(Parse_context *pc_arg) override {
+  bool do_contextualize(Parse_context *pc_arg) override {
     Column_parse_context pc(pc_arg->thd, pc_arg->select, false);
-    if (super::contextualize(&pc) || contextualize_attrs(&pc, opt_attrs))
+    if (super::do_contextualize(&pc) || contextualize_attrs(&pc, opt_attrs))
       return true;
 
     move_cf_appliers(pc_arg, &pc);
@@ -995,9 +996,9 @@ class PT_generated_field_def : public PT_field_def_base {
         expr(expr),
         opt_attrs(opt_attrs) {}
 
-  bool contextualize(Parse_context *pc_arg) override {
+  bool do_contextualize(Parse_context *pc_arg) override {
     Column_parse_context pc(pc_arg->thd, pc_arg->select, true);
-    if (super::contextualize(&pc) || contextualize_attrs(&pc, opt_attrs) ||
+    if (super::do_contextualize(&pc) || contextualize_attrs(&pc, opt_attrs) ||
         expr->itemize(&pc, &expr))
       return true;
 

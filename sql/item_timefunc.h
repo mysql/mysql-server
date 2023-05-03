@@ -255,7 +255,7 @@ class Item_func_week final : public Item_int_func {
   Item_func_week(Item *a, Item *b) : Item_int_func(a, b) {}
   Item_func_week(const POS &pos, Item *a, Item *b) : super(pos, a, b) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 
   longlong val_int() override;
   const char *func_name() const override { return "week"; }
@@ -411,7 +411,7 @@ class Item_func_unix_timestamp final : public Item_timeval_func {
   const char *func_name() const override { return "unix_timestamp"; }
   enum Functype functype() const override { return UNIX_TIMESTAMP_FUNC; }
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   enum_monotonicity_info get_monotonicity_info() const override;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp) override;
   bool check_partition_func_processor(uchar *) override { return false; }
@@ -1023,7 +1023,7 @@ class Item_func_curtime : public Item_time_func {
     decimals = dec_arg;
   }
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 
   /// This function must assign a new value for each execution
   table_map get_initial_pseudo_tables() const override {
@@ -1078,7 +1078,7 @@ class Item_func_curdate : public Item_date_func {
  public:
   explicit Item_func_curdate(const POS &pos) : Item_date_func(pos) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 
   /// This function must assign a new value for each execution
   table_map get_initial_pseudo_tables() const override {
@@ -1188,7 +1188,7 @@ class Item_func_now_utc final : public Item_func_now {
   Item_func_now_utc(const POS &pos, uint8 dec_arg)
       : Item_func_now(pos, dec_arg) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 
   const char *func_name() const override { return "utc_timestamp"; }
 };

@@ -530,7 +530,7 @@ class Item_sum : public Item_func {
   /// Copy constructor, need to perform subqueries with temporary tables
   Item_sum(THD *thd, const Item_sum *item);
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   Type type() const override { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func() const = 0;
 
@@ -1944,7 +1944,7 @@ class Item_udf_sum : public Item_sum {
     if (udf.m_original && udf.is_initialized()) udf.free_handler();
   }
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return udf.name(); }
   bool fix_fields(THD *thd, Item **ref) override {
     assert(fixed == 0);
@@ -2157,7 +2157,7 @@ class Item_func_group_concat final : public Item_sum {
     assert(original != nullptr || unique_filter == nullptr);
   }
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   void cleanup() override;
 
   enum Sumfunctype sum_func() const override { return GROUP_CONCAT_FUNC; }

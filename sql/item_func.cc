@@ -354,9 +354,9 @@ Item_func::Item_func(THD *thd, const Item_func *item)
   std::copy_n(item->args, arg_count, args);
 }
 
-bool Item_func::itemize(Parse_context *pc, Item **res) {
+bool Item_func::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (Item_result_field::itemize(pc, res)) return true;
+  if (Item_result_field::do_itemize(pc, res)) return true;
   const bool no_named_params = !may_have_named_parameters();
   for (size_t i = 0; i < arg_count; i++) {
     add_accum_properties(args[i]);
@@ -1450,9 +1450,9 @@ String *Item_int_func::val_str(String *str) {
   return str;
 }
 
-bool Item_func_connection_id::itemize(Parse_context *pc, Item **res) {
+bool Item_func_connection_id::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->safe_to_cache_query = false;
   return false;
 }
@@ -3583,9 +3583,9 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value) {
   return nullptr;
 }
 
-bool Item_func_rand::itemize(Parse_context *pc, Item **res) {
+bool Item_func_rand::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   /*
     When RAND() is binlogged, the seed is binlogged too.  So the
     sequence of random numbers is the same on a replication slave as
@@ -4929,9 +4929,9 @@ bool udf_handler::get_and_convert_string(uint index) {
   return false;
 }
 
-bool Item_udf_func::itemize(Parse_context *pc, Item **res) {
+bool Item_udf_func::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->set_has_udf();
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_UDF);
   pc->thd->lex->safe_to_cache_query = false;
@@ -5037,9 +5037,9 @@ String *Item_func_udf_str::val_str(String *str) {
   return res;
 }
 
-bool Item_source_pos_wait::itemize(Parse_context *pc, Item **res) {
+bool Item_source_pos_wait::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   pc->thd->lex->safe_to_cache_query = false;
   return false;
@@ -5340,9 +5340,9 @@ static bool check_and_convert_ull_name(char *buff, const String *org_name) {
   return false;
 }
 
-bool Item_func_get_lock::itemize(Parse_context *pc, Item **res) {
+bool Item_func_get_lock::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
   return false;
@@ -5445,9 +5445,9 @@ longlong Item_func_get_lock::val_int() {
   return 1;
 }
 
-bool Item_func_release_lock::itemize(Parse_context *pc, Item **res) {
+bool Item_func_release_lock::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
   return false;
@@ -5513,9 +5513,9 @@ longlong Item_func_release_lock::val_int() {
   return 1;
 }
 
-bool Item_func_release_all_locks::itemize(Parse_context *pc, Item **res) {
+bool Item_func_release_all_locks::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
   return false;
@@ -5544,9 +5544,9 @@ longlong Item_func_release_all_locks::val_int() {
   return result;
 }
 
-bool Item_func_is_free_lock::itemize(Parse_context *pc, Item **res) {
+bool Item_func_is_free_lock::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
   return false;
@@ -5590,9 +5590,9 @@ longlong Item_func_is_free_lock::val_int() {
   return (get_owner_visitor.get_owner_id() == 0);
 }
 
-bool Item_func_is_used_lock::itemize(Parse_context *pc, Item **res) {
+bool Item_func_is_used_lock::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
   return false;
@@ -5635,9 +5635,9 @@ longlong Item_func_is_used_lock::val_int() {
   return thread_id;
 }
 
-bool Item_func_last_insert_id::itemize(Parse_context *pc, Item **res) {
+bool Item_func_last_insert_id::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->safe_to_cache_query = false;
   pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
   return false;
@@ -5664,9 +5664,9 @@ longlong Item_func_last_insert_id::val_int() {
       thd->read_first_successful_insert_id_in_prev_stmt());
 }
 
-bool Item_func_benchmark::itemize(Parse_context *pc, Item **res) {
+bool Item_func_benchmark::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
   return false;
 }
@@ -5772,9 +5772,9 @@ void item_func_sleep_free() {
   }
 }
 
-bool Item_func_sleep::itemize(Parse_context *pc, Item **res) {
+bool Item_func_sleep::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
   return false;
@@ -7389,9 +7389,9 @@ void Item_func_get_system_var::cleanup() {
   cached_strval.mem_free();
 }
 
-bool Item_func_match::itemize(Parse_context *pc, Item **res) {
+bool Item_func_match::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res) || against->itemize(pc, &against)) return true;
+  if (super::do_itemize(pc, res) || against->itemize(pc, &against)) return true;
   add_accum_properties(against);
 
   pc->select->add_ftfunc_to_list(this);
@@ -7943,9 +7943,9 @@ Item *get_system_variable(Parse_context *pc, enum_var_type scope,
   return new Item_func_get_system_var(var_tracker, resolved_scope);
 }
 
-bool Item_func_row_count::itemize(Parse_context *pc, Item **res) {
+bool Item_func_row_count::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
 
   LEX *lex = pc->thd->lex;
   lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
@@ -7976,9 +7976,9 @@ Item_func_sp::Item_func_sp(const POS &pos, const LEX_STRING &db_name,
       sp_name(to_lex_cstring(db_name), fn_name, use_explicit_name);
 }
 
-bool Item_func_sp::itemize(Parse_context *pc, Item **res) {
+bool Item_func_sp::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   if (m_name == nullptr) return true;  // OOM
 
   THD *thd = pc->thd;
@@ -8298,9 +8298,9 @@ Item_result Item_func_sp::result_type() const {
   return sp_result_field->result_type();
 }
 
-bool Item_func_found_rows::itemize(Parse_context *pc, Item **res) {
+bool Item_func_found_rows::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   pc->thd->lex->safe_to_cache_query = false;
   push_warning(current_thd, Sql_condition::SL_WARNING,
@@ -8470,9 +8470,9 @@ void uuid_short_init() {
       ((((ulonglong)server_id) << 56) + (((ulonglong)server_start_time) << 24));
 }
 
-bool Item_func_uuid_short::itemize(Parse_context *pc, Item **res) {
+bool Item_func_uuid_short::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   pc->thd->lex->safe_to_cache_query = false;
   return false;
@@ -8486,9 +8486,9 @@ longlong Item_func_uuid_short::val_int() {
   return (longlong)val;
 }
 
-bool Item_func_version::itemize(Parse_context *pc, Item **res) {
+bool Item_func_version::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   return false;
 }

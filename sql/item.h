@@ -1111,7 +1111,7 @@ class Item : public Parse_tree_node {
     Hide the contextualize*() functions: call/override the itemize()
     in Item class tree instead.
   */
-  bool contextualize(Parse_context *) override {
+  bool do_contextualize(Parse_context *) override {
     assert(0);
     return true;
   }
@@ -1142,6 +1142,12 @@ class Item : public Parse_tree_node {
    */
   static bool bit_func_returns_binary(const Item *a, const Item *b);
 
+  /**
+    The core function that does the actual itemization. itemize() is just a
+    wrapper over this.
+  */
+  virtual bool do_itemize(Parse_context *pc, Item **res);
+
  public:
   /**
     The same as contextualize() but with additional parameter
@@ -1150,6 +1156,9 @@ class Item : public Parse_tree_node {
     constructor): we can access/change parser contexts from the itemize()
     function.
 
+    Derived classes should not override this. If needed, they should
+    override do_itemize().
+
     @param        pc    current parse context
     @param  [out] res   pointer to "this" or to a newly allocated
                         replacement object to use in the Item tree instead
@@ -1157,7 +1166,12 @@ class Item : public Parse_tree_node {
     @retval false       success
     @retval true        syntax/OOM/etc error
   */
-  virtual bool itemize(Parse_context *pc, Item **res);
+  virtual bool itemize(Parse_context *pc, Item **res) final {
+    // Json parse tree related things to be done pre-do_itemize().
+    if (do_itemize(pc, res)) return true;
+    // Json parse tree related things to be done post-do_itemize().
+    return false;
+  }
 
   void rename(char *new_name);
   void init_make_field(Send_field *tmp_field, enum enum_field_types type);
@@ -3860,7 +3874,7 @@ class Item_name_const final : public Item {
  public:
   Item_name_const(const POS &pos, Item *name_arg, Item *val);
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   bool fix_fields(THD *, Item **) override;
 
   enum Type type() const override;
@@ -4065,7 +4079,7 @@ class Item_ident : public Item {
         cached_table(item->cached_table),
         depended_from(item->depended_from) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 
   const char *full_name() const override;
   void set_orignal_db_name(const char *name_arg) { m_orig_db_name = name_arg; }
@@ -4318,7 +4332,7 @@ class Item_field : public Item_ident {
              Field *field);
   Item_field(Field *field);
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 
   enum Type type() const override { return FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const override;
@@ -4528,7 +4542,7 @@ class Item_asterisk : public Item_field {
                 const char *opt_table_name)
       : super(pos, opt_schema_name, opt_table_name, "*") {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   bool fix_fields(THD *, Item **) override {
     assert(false);  // should never happen: see setup_wild()
     return true;
@@ -4778,7 +4792,7 @@ class Item_param final : public Item, private Settable_routine_parameter {
 
   Item_param(const POS &pos, MEM_ROOT *root, uint pos_in_query_arg);
 
-  bool itemize(Parse_context *pc, Item **item) override;
+  bool do_itemize(Parse_context *pc, Item **item) override;
 
   Item_result result_type() const override { return m_result_type; }
   enum Type type() const override { return PARAM_ITEM; }
@@ -6457,7 +6471,7 @@ class Item_default_value final : public Item_field {
  public:
   Item_default_value(const POS &pos, Item *a = nullptr)
       : super(pos, nullptr, nullptr, nullptr), arg(a) {}
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   enum Type type() const override { return DEFAULT_VALUE_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const override;
   bool fix_fields(THD *, Item **) override;
@@ -6533,9 +6547,9 @@ class Item_insert_value final : public Item_field {
         arg(a),
         m_is_values_function(false) {}
 
-  bool itemize(Parse_context *pc, Item **res) override {
+  bool do_itemize(Parse_context *pc, Item **res) override {
     if (skip_itemize(res)) return false;
-    return Item_field::itemize(pc, res) || arg->itemize(pc, &arg);
+    return Item_field::do_itemize(pc, res) || arg->itemize(pc, &arg);
   }
 
   enum Type type() const override { return INSERT_VALUE_ITEM; }

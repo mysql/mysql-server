@@ -74,7 +74,7 @@ class PT_handler_read_base : public Parse_tree_root {
         m_opt_limit_clause(opt_limit_clause) {}
 
  protected:
-  bool contextualize(Parse_context *pc);
+  bool do_contextualize(Parse_context *pc);
 
  private:
   const LEX_CSTRING m_table;

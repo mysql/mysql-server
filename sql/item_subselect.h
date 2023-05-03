@@ -645,7 +645,7 @@ class Item_in_subselect : public Item_exists_subselect {
         pushed_cond_guards(nullptr),
         upper_item(nullptr) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 
   void cleanup() override;
   subs_type substype() const override { return IN_SUBS; }

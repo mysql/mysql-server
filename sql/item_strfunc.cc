@@ -572,9 +572,9 @@ class iv_argument {
   }
 };
 
-bool Item_func_aes_encrypt::itemize(Parse_context *pc, Item **res) {
+bool Item_func_aes_encrypt::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   /* Unsafe for SBR since result depends on a session variable */
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   /* Not safe to cache either */
@@ -646,9 +646,9 @@ bool Item_func_aes_encrypt::resolve_type(THD *thd) {
   return false;
 }
 
-bool Item_func_aes_decrypt::itemize(Parse_context *pc, Item **res) {
+bool Item_func_aes_decrypt::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   /* Unsafe for SBR since result depends on a session variable */
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   /* Not safe to cache either */
@@ -710,9 +710,9 @@ bool Item_func_aes_decrypt::resolve_type(THD *thd) {
   return false;
 }
 
-bool Item_func_random_bytes::itemize(Parse_context *pc, Item **res) {
+bool Item_func_random_bytes::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
 
   /* it is unsafe for SBR since it uses crypto random from the ssl library */
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
@@ -1927,9 +1927,9 @@ Item *Item_func_sysconst::safe_charset_converter(THD *thd,
   return conv;
 }
 
-bool Item_func_database::itemize(Parse_context *pc, Item **res) {
+bool Item_func_database::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
 
   pc->thd->lex->safe_to_cache_query = false;
   return false;
@@ -2010,9 +2010,9 @@ bool Item_func_user::evaluate(const char *user, const char *host) {
   return false;
 }
 
-bool Item_func_user::itemize(Parse_context *pc, Item **res) {
+bool Item_func_user::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
 
   LEX *lex = pc->thd->lex;
   lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
@@ -2020,9 +2020,9 @@ bool Item_func_user::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool Item_func_current_user::itemize(Parse_context *pc, Item **res) {
+bool Item_func_current_user::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
 
   context = pc->thd->lex->current_context();
   return false;
@@ -2380,14 +2380,14 @@ String *Item_func_elt::val_str(String *str) {
   return result;
 }
 
-bool Item_func_make_set::itemize(Parse_context *pc, Item **res) {
+bool Item_func_make_set::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   /*
     We have to itemize() the "item" before the super::itemize() call there since
     this reflects the "natural" order of former semantic action code execution
     in the original parser:
   */
-  return item->itemize(pc, &item) || super::itemize(pc, res);
+  return item->itemize(pc, &item) || super::do_itemize(pc, res);
 }
 
 void Item_func_make_set::split_sum_func(THD *thd, Ref_item_array ref_item_array,
@@ -3061,14 +3061,14 @@ void Item_func_conv_charset::print(const THD *thd, String *str,
   str->append(')');
 }
 
-bool Item_func_set_collation::itemize(Parse_context *pc, Item **res) {
+bool Item_func_set_collation::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   THD *thd = pc->thd;
   args[1] = new (pc->mem_root) Item_string(
       collation_string.str, collation_string.length, thd->charset());
   if (args[1] == nullptr) return true;
 
-  return super::itemize(pc, res);
+  return super::do_itemize(pc, res);
 }
 
 String *Item_func_set_collation::val_str(String *str) {
@@ -3170,7 +3170,7 @@ String *Item_func_collation::val_str(String *str) {
   return str;
 }
 
-bool Item_func_weight_string::itemize(Parse_context *pc, Item **res) {
+bool Item_func_weight_string::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   if (as_binary) {
     if (args[0]->itemize(pc, &args[0])) return true;
@@ -3178,7 +3178,7 @@ bool Item_func_weight_string::itemize(Parse_context *pc, Item **res) {
         current_thd, args[0], num_codepoints, &my_charset_bin);
     if (args[0] == nullptr) return true;
   }
-  return super::itemize(pc, res);
+  return super::do_itemize(pc, res);
 }
 
 void Item_func_weight_string::print(const THD *thd, String *str,
@@ -3639,9 +3639,9 @@ bool Item_charset_conversion::resolve_type(THD *thd) {
   return false;
 }
 
-bool Item_load_file::itemize(Parse_context *pc, Item **res) {
+bool Item_load_file::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
   return false;
@@ -4190,9 +4190,9 @@ bool Item_func_uuid::resolve_type(THD *) {
   return false;
 }
 
-bool Item_func_uuid::itemize(Parse_context *pc, Item **res) {
+bool Item_func_uuid::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   pc->thd->lex->safe_to_cache_query = false;
   return false;

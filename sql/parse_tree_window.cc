@@ -31,8 +31,8 @@
 #include "sql/sql_lex.h"     // Query_block
 #include "sql/window_lex.h"  // WBT_VALUE_FOLLOWING
 
-bool PT_window::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_window::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   if (m_partition_by != nullptr) {
     if (m_partition_by->contextualize(pc)) return true;
@@ -55,8 +55,8 @@ bool PT_window::contextualize(Parse_context *pc) {
   return false;
 }
 
-bool PT_window_list::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_window_list::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   uint count = pc->select->m_windows.elements;
   List_iterator<Window> wi(m_windows);

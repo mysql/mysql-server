@@ -406,7 +406,7 @@ class Item_func_icu_version final : public Item_static_string_func {
  public:
   explicit Item_func_icu_version(const POS &pos);
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 };
 
 #if defined(__GNUC__) && !defined(__clang__)

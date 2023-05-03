@@ -245,7 +245,7 @@ class Item_func_geometry_from_text : public Item_geometry_func {
                                Item *option, Functype functype)
       : Item_geometry_func(pos, a, srid, option), m_functype(functype) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override;
   String *val_str(String *) override;
   bool resolve_type(THD *thd) override {
@@ -312,7 +312,7 @@ class Item_func_geometry_from_wkb : public Item_geometry_func {
                               Functype functype)
       : Item_geometry_func(pos, a, srid, option), m_functype(functype) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override;
   String *val_str(String *) override;
 };

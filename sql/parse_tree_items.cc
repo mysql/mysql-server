@@ -164,8 +164,8 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
   return result;
 }
 
-bool PTI_comp_op::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res) || left->itemize(pc, &left) ||
+bool PTI_comp_op::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res) || left->itemize(pc, &left) ||
       right->itemize(pc, &right))
     return true;
 
@@ -173,8 +173,8 @@ bool PTI_comp_op::itemize(Parse_context *pc, Item **res) {
   return *res == nullptr;
 }
 
-bool PTI_comp_op_all::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res) || left->itemize(pc, &left) ||
+bool PTI_comp_op_all::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res) || left->itemize(pc, &left) ||
       subselect->contextualize(pc))
     return true;
 
@@ -183,9 +183,9 @@ bool PTI_comp_op_all::itemize(Parse_context *pc, Item **res) {
   return *res == nullptr;
 }
 
-bool PTI_function_call_nonkeyword_sysdate::itemize(Parse_context *pc,
-                                                   Item **res) {
-  if (super::itemize(pc, res)) return true;
+bool PTI_function_call_nonkeyword_sysdate::do_itemize(Parse_context *pc,
+                                                      Item **res) {
+  if (super::do_itemize(pc, res)) return true;
 
   /*
     Unlike other time-related functions, SYSDATE() is
@@ -207,8 +207,8 @@ bool PTI_function_call_nonkeyword_sysdate::itemize(Parse_context *pc,
   return false;
 }
 
-bool PTI_udf_expr::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res) || expr->itemize(pc, &expr)) return true;
+bool PTI_udf_expr::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res) || expr->itemize(pc, &expr)) return true;
   /*
    Use Item::name as a storage for the attribute value of user
    defined function argument. It is safe to use Item::name
@@ -232,9 +232,9 @@ bool PTI_udf_expr::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool PTI_function_call_generic_ident_sys::itemize(Parse_context *pc,
-                                                  Item **res) {
-  if (super::itemize(pc, res)) return true;
+bool PTI_function_call_generic_ident_sys::do_itemize(Parse_context *pc,
+                                                     Item **res) {
+  if (super::do_itemize(pc, res)) return true;
 
   THD *thd = pc->thd;
   udf = nullptr;
@@ -273,8 +273,8 @@ bool PTI_function_call_generic_ident_sys::itemize(Parse_context *pc,
   return *res == nullptr || (*res)->itemize(pc, res);
 }
 
-bool PTI_function_call_generic_2d::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res)) return true;
+bool PTI_function_call_generic_2d::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res)) return true;
 
   /*
     The following in practice calls:
@@ -301,8 +301,8 @@ bool PTI_function_call_generic_2d::itemize(Parse_context *pc, Item **res) {
   return *res == nullptr || (*res)->itemize(pc, res);
 }
 
-bool PTI_text_literal_nchar_string::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res)) return true;
+bool PTI_text_literal_nchar_string::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res)) return true;
 
   uint repertoire = is_7bit ? MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
   assert(my_charset_is_ascii_based(national_charset_info));
@@ -311,30 +311,30 @@ bool PTI_text_literal_nchar_string::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool PTI_singlerow_subselect::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res) || subselect->contextualize(pc)) return true;
+bool PTI_singlerow_subselect::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res) || subselect->contextualize(pc)) return true;
   *res = new (pc->mem_root) Item_singlerow_subselect(subselect->value());
   pc->select->n_scalar_subqueries++;
   return *res == nullptr;
 }
 
-bool PTI_exists_subselect::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res) || subselect->contextualize(pc)) return true;
+bool PTI_exists_subselect::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res) || subselect->contextualize(pc)) return true;
   *res = new (pc->mem_root) Item_exists_subselect(subselect->value());
   return *res == nullptr;
 }
 
-bool PTI_handle_sql2003_note184_exception::itemize(Parse_context *pc,
-                                                   Item **res) {
-  if (super::itemize(pc, res) || left->itemize(pc, &left) ||
+bool PTI_handle_sql2003_note184_exception::do_itemize(Parse_context *pc,
+                                                      Item **res) {
+  if (super::do_itemize(pc, res) || left->itemize(pc, &left) ||
       right->itemize(pc, &right))
     return true;
   *res = handle_sql2003_note184_exception(pc, left, is_negation, right);
   return *res == nullptr;
 }
 
-bool PTI_expr_with_alias::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res) || expr->itemize(pc, &expr)) return true;
+bool PTI_expr_with_alias::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res) || expr->itemize(pc, &expr)) return true;
 
   if (alias.str) {
     if (pc->thd->lex->sql_command == SQLCOM_CREATE_VIEW &&
@@ -351,8 +351,8 @@ bool PTI_expr_with_alias::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool PTI_simple_ident_ident::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res)) return true;
+bool PTI_simple_ident_ident::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res)) return true;
 
   THD *thd = pc->thd;
   LEX *lex = thd->lex;
@@ -386,8 +386,8 @@ bool PTI_simple_ident_ident::itemize(Parse_context *pc, Item **res) {
   return *res == nullptr;
 }
 
-bool PTI_simple_ident_q_3d::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res)) return true;
+bool PTI_simple_ident_q_3d::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res)) return true;
 
   THD *thd = pc->thd;
   const char *schema =
@@ -407,7 +407,7 @@ bool PTI_simple_ident_q_3d::itemize(Parse_context *pc, Item **res) {
   return (*res)->itemize(pc, res);
 }
 
-bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res) {
+bool PTI_simple_ident_q_2d::do_itemize(Parse_context *pc, Item **res) {
   THD *thd = pc->thd;
   LEX *lex = thd->lex;
   sp_head *sp = lex->sphead;
@@ -420,7 +420,7 @@ bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res) {
   if (sp && sp->m_type == enum_sp_type::TRIGGER &&
       (!my_strcasecmp(system_charset_info, table, "NEW") ||
        !my_strcasecmp(system_charset_info, table, "OLD"))) {
-    if (Parse_tree_item::itemize(pc, res)) return true;
+    if (Parse_tree_item::do_itemize(pc, res)) return true;
 
     bool new_row = (table[0] == 'N' || table[0] == 'n');
 
@@ -454,13 +454,13 @@ bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res) {
 
     *res = trg_fld;
   } else {
-    if (super::itemize(pc, res)) return true;
+    if (super::do_itemize(pc, res)) return true;
   }
   return false;
 }
 
-bool PTI_simple_ident_nospvar_ident::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res)) return true;
+bool PTI_simple_ident_nospvar_ident::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res)) return true;
 
   if ((pc->select->parsing_place != CTX_HAVING) ||
       (pc->select->get_in_sum_expr() > 0)) {
@@ -472,22 +472,23 @@ bool PTI_simple_ident_nospvar_ident::itemize(Parse_context *pc, Item **res) {
   return (*res)->itemize(pc, res);
 }
 
-bool PTI_truth_transform::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res) || expr->itemize(pc, &expr)) return true;
+bool PTI_truth_transform::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res) || expr->itemize(pc, &expr)) return true;
 
   *res = change_truth_value_of_condition(pc, expr, truth_test);
   return *res == nullptr;
 }
 
-bool PTI_function_call_nonkeyword_now::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res)) return true;
+bool PTI_function_call_nonkeyword_now::do_itemize(Parse_context *pc,
+                                                  Item **res) {
+  if (super::do_itemize(pc, res)) return true;
 
   pc->thd->lex->safe_to_cache_query = false;
   return false;
 }
 
-bool PTI_text_literal_text_string::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res)) return true;
+bool PTI_text_literal_text_string::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res)) return true;
 
   THD *thd = pc->thd;
   LEX_STRING tmp;
@@ -507,9 +508,9 @@ bool PTI_text_literal_text_string::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool PTI_text_literal_concat::itemize(Parse_context *pc, Item **res) {
+bool PTI_text_literal_concat::do_itemize(Parse_context *pc, Item **res) {
   Item *tmp_head;
-  if (super::itemize(pc, res) || head->itemize(pc, &tmp_head)) return true;
+  if (super::do_itemize(pc, res) || head->itemize(pc, &tmp_head)) return true;
 
   assert(tmp_head->type() == STRING_ITEM);
   Item_string *head_str = down_cast<Item_string *>(tmp_head);
@@ -524,16 +525,16 @@ bool PTI_text_literal_concat::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool PTI_temporal_literal::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res)) return true;
+bool PTI_temporal_literal::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res)) return true;
 
   *res = create_temporal_literal(pc->thd, literal.str, literal.length, cs,
                                  field_type, true);
   return *res == nullptr;
 }
 
-bool PTI_variable_aux_set_var::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res)) return true;
+bool PTI_variable_aux_set_var::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res)) return true;
 
   LEX *lex = pc->thd->lex;
   if (!lex->parsing_options.allows_variable) {
@@ -544,8 +545,8 @@ bool PTI_variable_aux_set_var::itemize(Parse_context *pc, Item **res) {
   return lex->set_var_list.push_back(this);
 }
 
-bool PTI_user_variable::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res)) return true;
+bool PTI_user_variable::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res)) return true;
 
   LEX *lex = pc->thd->lex;
   if (!lex->parsing_options.allows_variable) {
@@ -556,8 +557,8 @@ bool PTI_user_variable::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool PTI_get_system_variable::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res)) return true;
+bool PTI_get_system_variable::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res)) return true;
 
   LEX *lex = pc->thd->lex;
   if (!lex->parsing_options.allows_variable) {
@@ -580,22 +581,22 @@ bool PTI_get_system_variable::itemize(Parse_context *pc, Item **res) {
   return *res == nullptr;
 }
 
-bool PTI_count_sym::itemize(Parse_context *pc, Item **res) {
+bool PTI_count_sym::do_itemize(Parse_context *pc, Item **res) {
   args[0] = new (pc->mem_root) Item_int(int32{0}, 1);
   if (args[0] == nullptr) return true;
-  return super::itemize(pc, res);
+  return super::do_itemize(pc, res);
 }
 
-bool PTI_in_sum_expr::itemize(Parse_context *pc, Item **res) {
+bool PTI_in_sum_expr::do_itemize(Parse_context *pc, Item **res) {
   pc->select->in_sum_expr++;
-  if (super::itemize(pc, res) || expr->itemize(pc, &expr)) return true;
+  if (super::do_itemize(pc, res) || expr->itemize(pc, &expr)) return true;
   pc->select->in_sum_expr--;
   *res = expr;
   return false;
 }
 
-bool PTI_odbc_date::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res) || expr->itemize(pc, &expr)) return true;
+bool PTI_odbc_date::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res) || expr->itemize(pc, &expr)) return true;
 
   *res = nullptr;
   /*
@@ -632,8 +633,8 @@ bool PTI_odbc_date::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool PTI_int_splocal::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res)) return true;  // OOM
+bool PTI_int_splocal::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res)) return true;  // OOM
 
   LEX *const lex = pc->thd->lex;
   sp_head *const sp = lex->sphead;
@@ -656,16 +657,16 @@ bool PTI_int_splocal::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool PTI_limit_option_ident::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res)) return true;
+bool PTI_limit_option_ident::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res)) return true;
   auto *v = down_cast<Item_splocal *>(*res);
   v->limit_clause_param = true;
   return false;
 }
 
-bool PTI_limit_option_param_marker::itemize(Parse_context *pc, Item **res) {
+bool PTI_limit_option_param_marker::do_itemize(Parse_context *pc, Item **res) {
   Item *tmp_param;
-  if (super::itemize(pc, res) || param_marker->itemize(pc, &tmp_param))
+  if (super::do_itemize(pc, res) || param_marker->itemize(pc, &tmp_param))
     return true;
 
   /*
@@ -682,8 +683,8 @@ bool PTI_limit_option_param_marker::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool PTI_context::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res)) return true;
+bool PTI_context::do_itemize(Parse_context *pc, Item **res) {
+  if (super::do_itemize(pc, res)) return true;
 
   pc->select->parsing_place = m_parsing_place;
 

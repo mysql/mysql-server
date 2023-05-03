@@ -320,9 +320,9 @@ Item_func_icu_version::Item_func_icu_version(const POS &pos)
                               strlen(icu_version_string()), system_charset_info,
                               DERIVATION_SYSCONST) {}
 
-bool Item_func_icu_version::itemize(Parse_context *pc, Item **res) {
+bool Item_func_icu_version::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   return false;
 }

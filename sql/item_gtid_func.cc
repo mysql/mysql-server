@@ -32,9 +32,10 @@
 
 using std::max;
 
-bool Item_wait_for_executed_gtid_set::itemize(Parse_context *pc, Item **res) {
+bool Item_wait_for_executed_gtid_set::do_itemize(Parse_context *pc,
+                                                 Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   /*
     It is unsafe because the return value depends on timing. If the timeout
     happens, the return value is different from the one in which the function
@@ -141,9 +142,9 @@ Item_master_gtid_set_wait::Item_master_gtid_set_wait(const POS &pos, Item *a,
                        "WAIT_FOR_EXECUTED_GTID_SET");
 }
 
-bool Item_master_gtid_set_wait::itemize(Parse_context *pc, Item **res) {
+bool Item_master_gtid_set_wait::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   pc->thd->lex->safe_to_cache_query = false;
   return false;

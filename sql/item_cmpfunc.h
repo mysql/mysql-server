@@ -715,7 +715,7 @@ class Item_func_xor final : public Item_bool_func2 {
 
   enum Functype functype() const override { return XOR_FUNC; }
   const char *func_name() const override { return "xor"; }
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   void apply_is_true() override {}
   Item *truth_transformer(THD *, Bool_test) override;
@@ -1397,7 +1397,7 @@ class Item_func_interval final : public Item_int_func {
     allowed_arg_cols = 0;  // Fetch this value from first argument
   }
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   bool resolve_type(THD *) override;
   const char *func_name() const override { return "interval"; }
@@ -2454,7 +2454,7 @@ class Item_cond : public Item_bool_func {
     list.prepend(nlist);
   }
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 
   bool fix_fields(THD *, Item **ref) override;
   void fix_after_pullout(Query_block *parent_query_block,

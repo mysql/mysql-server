@@ -168,13 +168,6 @@ class Parse_tree_node_tmpl {
 #endif  // NDEBUG
   }
 
- public:
-  virtual ~Parse_tree_node_tmpl() = default;
-
-#ifndef NDEBUG
-  bool is_contextualized() const { return contextualized; }
-#endif  // NDEBUG
-
   /**
     Do all context-sensitive things and mark the node as contextualized
 
@@ -183,7 +176,7 @@ class Parse_tree_node_tmpl {
     @retval     false   success
     @retval     true    syntax/OOM/etc error
   */
-  virtual bool contextualize(Context *pc) {
+  virtual bool do_contextualize(Context *pc) {
     uchar dummy;
     if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, &dummy)) return true;
 
@@ -192,6 +185,22 @@ class Parse_tree_node_tmpl {
     contextualized = true;
 #endif  // NDEBUG
 
+    return false;
+  }
+
+ public:
+  virtual ~Parse_tree_node_tmpl() = default;
+
+#ifndef NDEBUG
+  bool is_contextualized() const { return contextualized; }
+#endif  // NDEBUG
+
+  // Derived classes should not override this. If needed, they should override
+  // do_contextualize().
+  virtual bool contextualize(Context *pc) final {
+    // Json parse tree related things to be done pre-do_contextualize().
+    if (do_contextualize(pc)) return true;
+    // Json parse tree related things to be done post-do_contextualize().
     return false;
   }
 

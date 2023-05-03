@@ -117,7 +117,7 @@ bool contextualize_safe(Context *pc, mem_root_deque<Item *> *list) {
 }
 
 /**
-  Convenience function that calls Parse_tree_node::contextualize() on each of
+  Convenience function that calls Parse_tree_node::do_contextualize() on each of
   the nodes that are non-NULL, stopping when a call returns true.
 */
 template <typename Context, typename Node, typename... Nodes>
@@ -182,8 +182,9 @@ bool PT_joined_table::contextualize_tabs(Parse_context *pc) {
   return false;
 }
 
-bool PT_option_value_no_option_type_charset::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_option_value_no_option_type_charset::do_contextualize(
+    Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   THD *thd = pc->thd;
   LEX *lex = thd->lex;
@@ -199,8 +200,8 @@ bool PT_option_value_no_option_type_charset::contextualize(Parse_context *pc) {
   return false;
 }
 
-bool PT_option_value_no_option_type_names::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_option_value_no_option_type_names::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   THD *thd = pc->thd;
   LEX *lex = thd->lex;
@@ -215,8 +216,8 @@ bool PT_option_value_no_option_type_names::contextualize(Parse_context *pc) {
   return true;  // always fails with an error
 }
 
-bool PT_set_names::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_set_names::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   THD *thd = pc->thd;
   LEX *lex = thd->lex;
@@ -248,8 +249,8 @@ bool PT_set_names::contextualize(Parse_context *pc) {
   return false;
 }
 
-bool PT_group::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_group::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   Query_block *select = pc->select;
   select->parsing_place = CTX_GROUP_BY;
@@ -284,8 +285,8 @@ bool PT_group::contextualize(Parse_context *pc) {
   return false;
 }
 
-bool PT_order::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_order::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   pc->select->parsing_place = CTX_ORDER_BY;
   pc->thd->where = "global ORDER clause";
@@ -301,8 +302,9 @@ bool PT_order::contextualize(Parse_context *pc) {
   return false;
 }
 
-bool PT_order_expr::contextualize(Parse_context *pc) {
-  return super::contextualize(pc) || item_initial->itemize(pc, &item_initial);
+bool PT_order_expr::do_contextualize(Parse_context *pc) {
+  return super::do_contextualize(pc) ||
+         item_initial->itemize(pc, &item_initial);
 }
 
 /**
@@ -496,8 +498,8 @@ static bool add_system_variable_assignment(THD *thd, LEX_CSTRING prefix,
   return lex->var_list.push_back(var);
 }
 
-bool PT_set_variable::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc) || itemize_safe(pc, &m_opt_expr)) {
+bool PT_set_variable::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc) || itemize_safe(pc, &m_opt_expr)) {
     return true;
   }
   const bool is_1d_name = m_opt_prefix.str == nullptr;
@@ -578,9 +580,9 @@ bool PT_set_variable::contextualize(Parse_context *pc) {
                                         lex->option_type, m_opt_expr);
 }
 
-bool PT_option_value_no_option_type_password_for::contextualize(
+bool PT_option_value_no_option_type_password_for::do_contextualize(
     Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+  if (super::do_contextualize(pc)) return true;
 
   THD *thd = pc->thd;
   LEX *lex = thd->lex;
@@ -624,8 +626,9 @@ bool PT_option_value_no_option_type_password_for::contextualize(
   return false;
 }
 
-bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_option_value_no_option_type_password::do_contextualize(
+    Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   THD *thd = pc->thd;
   LEX *lex = thd->lex;
@@ -676,12 +679,12 @@ PT_key_part_specification::PT_key_part_specification(
       m_column_name(column_name),
       m_prefix_length(prefix_length) {}
 
-bool PT_key_part_specification::contextualize(Parse_context *pc) {
-  return super::contextualize(pc) || itemize_safe(pc, &m_expression);
+bool PT_key_part_specification::do_contextualize(Parse_context *pc) {
+  return super::do_contextualize(pc) || itemize_safe(pc, &m_expression);
 }
 
-bool PT_select_sp_var::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_select_sp_var::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   LEX *lex = pc->thd->lex;
 #ifndef NDEBUG
@@ -967,8 +970,8 @@ Sql_cmd *PT_update::make_cmd(THD *thd) {
   return new (thd->mem_root) Sql_cmd_update(is_multitable, &value_list->value);
 }
 
-bool PT_insert_values_list::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_insert_values_list::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
   for (List_item *item_list : many_values) {
     for (auto it = item_list->begin(); it != item_list->end(); ++it) {
       if ((*it)->itemize(pc, &*it)) return true;
@@ -1160,8 +1163,8 @@ Sql_cmd *PT_call::make_cmd(THD *thd) {
   return new (thd->mem_root) Sql_cmd_call(proc_name, proc_args);
 }
 
-bool PT_query_specification::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_query_specification::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
   pc->m_stack.push_back(QueryLevel(pc->mem_root, SC_QUERY_SPECIFICATION));
   pc->select->parsing_place = CTX_SELECT_LIST;
 
@@ -1223,7 +1226,7 @@ bool PT_query_specification::contextualize(Parse_context *pc) {
   return (opt_hints != nullptr ? opt_hints->contextualize(pc) : false);
 }
 
-bool PT_table_value_constructor::contextualize(Parse_context *pc) {
+bool PT_table_value_constructor::do_contextualize(Parse_context *pc) {
   pc->m_stack.push_back(QueryLevel(pc->mem_root, SC_TABLE_VALUE_CONSTRUCTOR));
 
   if (row_value_list->contextualize(pc)) return true;
@@ -1271,8 +1274,8 @@ bool PT_query_expression::contextualize_order_and_limit(Parse_context *pc) {
   return false;
 }
 
-bool PT_table_factor_function::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc) || m_expr->itemize(pc, &m_expr)) return true;
+bool PT_table_factor_function::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc) || m_expr->itemize(pc, &m_expr)) return true;
 
   if (m_path->itemize(pc, &m_path)) return true;
 
@@ -1320,7 +1323,7 @@ PT_derived_table::PT_derived_table(bool lateral, PT_subquery *subquery,
   m_subquery->m_is_derived_table = true;
 }
 
-bool PT_derived_table::contextualize(Parse_context *pc) {
+bool PT_derived_table::do_contextualize(Parse_context *pc) {
   Query_block *outer_query_block = pc->select;
 
   outer_query_block->parsing_place = CTX_DERIVED;
@@ -1365,8 +1368,8 @@ bool PT_derived_table::contextualize(Parse_context *pc) {
   return false;
 }
 
-bool PT_table_factor_joined_table::contextualize(Parse_context *pc) {
-  if (Parse_tree_node::contextualize(pc)) return true;
+bool PT_table_factor_joined_table::do_contextualize(Parse_context *pc) {
+  if (Parse_tree_node::do_contextualize(pc)) return true;
 
   Query_block *outer_query_block = pc->select;
   if (outer_query_block->init_nested_join(pc->thd)) return true;
@@ -1645,7 +1648,7 @@ bool PT_set_operation::contextualize_setop(Parse_context *pc,
                                            Query_term_type setop_type,
                                            Surrounding_context context) {
   pc->m_stack.push_back(QueryLevel(pc->mem_root, context));
-  if (super::contextualize(pc)) return true;
+  if (super::do_contextualize(pc)) return true;
 
   if (m_lhs->contextualize(pc)) return true;
 
@@ -1682,17 +1685,17 @@ bool PT_set_operation::contextualize_setop(Parse_context *pc,
   return false;
 }
 
-bool PT_union::contextualize(Parse_context *pc) {
+bool PT_union::do_contextualize(Parse_context *pc) {
   return contextualize_setop(pc, QT_UNION,
                              m_is_distinct ? SC_UNION_DISTINCT : SC_UNION_ALL);
 }
 
-bool PT_except::contextualize(Parse_context *pc [[maybe_unused]]) {
+bool PT_except::do_contextualize(Parse_context *pc [[maybe_unused]]) {
   return contextualize_setop(
       pc, QT_EXCEPT, m_is_distinct ? SC_EXCEPT_DISTINCT : SC_EXCEPT_ALL);
 }
 
-bool PT_intersect::contextualize(Parse_context *pc [[maybe_unused]]) {
+bool PT_intersect::do_contextualize(Parse_context *pc [[maybe_unused]]) {
   return contextualize_setop(
       pc, QT_INTERSECT,
       m_is_distinct ? SC_INTERSECT_DISTINCT : SC_INTERSECT_ALL);
@@ -1772,8 +1775,8 @@ Sql_cmd *PT_create_index_stmt::make_cmd(THD *thd) {
   return new (thd->mem_root) Sql_cmd_create_index(&m_alter_info);
 }
 
-bool PT_inline_index_definition::contextualize(Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_inline_index_definition::do_contextualize(Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   if (setup_index(m_keytype, m_name, m_type, m_columns, m_options, pc))
     return true;
@@ -1784,8 +1787,8 @@ bool PT_inline_index_definition::contextualize(Table_ddl_parse_context *pc) {
   return false;
 }
 
-bool PT_foreign_key_definition::contextualize(Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_foreign_key_definition::do_contextualize(Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   THD *const thd = pc->thd;
   LEX *const lex = thd->lex;
@@ -1928,8 +1931,8 @@ PT_common_table_expr::PT_common_table_expr(
   m_postparse.name = m_name;
 }
 
-bool PT_with_clause::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true; /* purecov: inspected */
+bool PT_with_clause::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true; /* purecov: inspected */
   // WITH complements a query expression (a unit).
   pc->select->master_query_expression()->m_with_clause = this;
   return false;
@@ -1992,8 +1995,9 @@ void PT_common_table_expr::print(const THD *thd, String *str,
   if (!found) str->length(len);  // don't print a useless CTE definition
 }
 
-bool PT_create_table_engine_option::contextualize(Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_create_table_engine_option::do_contextualize(
+    Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   pc->create_info->used_fields |= HA_CREATE_USED_ENGINE;
   const bool is_temp_table = pc->create_info->options & HA_LEX_CREATE_TMP_TABLE;
@@ -2001,18 +2005,18 @@ bool PT_create_table_engine_option::contextualize(Table_ddl_parse_context *pc) {
                         &pc->create_info->db_type);
 }
 
-bool PT_create_table_secondary_engine_option::contextualize(
+bool PT_create_table_secondary_engine_option::do_contextualize(
     Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+  if (super::do_contextualize(pc)) return true;
 
   pc->create_info->used_fields |= HA_CREATE_USED_SECONDARY_ENGINE;
   pc->create_info->secondary_engine = m_secondary_engine;
   return false;
 }
 
-bool PT_create_stats_auto_recalc_option::contextualize(
+bool PT_create_stats_auto_recalc_option::do_contextualize(
     Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+  if (super::do_contextualize(pc)) return true;
 
   switch (value) {
     case Ternary_option::ON:
@@ -2031,16 +2035,17 @@ bool PT_create_stats_auto_recalc_option::contextualize(
   return false;
 }
 
-bool PT_create_stats_stable_pages::contextualize(Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_create_stats_stable_pages::do_contextualize(
+    Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   pc->create_info->stats_sample_pages = value;
   pc->create_info->used_fields |= HA_CREATE_USED_STATS_SAMPLE_PAGES;
   return false;
 }
 
-bool PT_create_union_option::contextualize(Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_create_union_option::do_contextualize(Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   THD *const thd = pc->thd;
   LEX *const lex = thd->lex;
@@ -2089,9 +2094,9 @@ bool set_default_charset(HA_CREATE_INFO *create_info,
   return false;
 }
 
-bool PT_create_table_default_charset::contextualize(
+bool PT_create_table_default_charset::do_contextualize(
     Table_ddl_parse_context *pc) {
-  return (super::contextualize(pc) ||
+  return (super::do_contextualize(pc) ||
           set_default_charset(pc->create_info, value));
 }
 
@@ -2110,13 +2115,13 @@ bool set_default_collation(HA_CREATE_INFO *create_info,
   return false;
 }
 
-bool PT_create_table_default_collation::contextualize(
+bool PT_create_table_default_collation::do_contextualize(
     Table_ddl_parse_context *pc) {
-  return (super::contextualize(pc) ||
+  return (super::do_contextualize(pc) ||
           set_default_collation(pc->create_info, value));
 }
 
-bool PT_locking_clause::contextualize(Parse_context *pc) {
+bool PT_locking_clause::do_contextualize(Parse_context *pc) {
   LEX *lex = pc->thd->lex;
 
   if (lex->is_explain()) return false;
@@ -2152,7 +2157,7 @@ bool PT_query_block_locking_clause::set_lock_for_tables(Parse_context *pc) {
   return false;
 }
 
-bool PT_column_def::contextualize(Table_ddl_parse_context *pc) {
+bool PT_column_def::do_contextualize(Table_ddl_parse_context *pc) {
   // Since Alter_info objects are allocated on a mem_root and never
   // destroyed we (move)-assign an empty vector to cf_appliers to
   // ensure any dynamic memory is released. This must be done whenever
@@ -2162,7 +2167,7 @@ bool PT_column_def::contextualize(Table_ddl_parse_context *pc) {
     pc->alter_info->cf_appliers = decltype(pc->alter_info->cf_appliers)();
   });
 
-  if (super::contextualize(pc) || field_def->contextualize(pc) ||
+  if (super::do_contextualize(pc) || field_def->contextualize(pc) ||
       contextualize_safe(pc, opt_column_constraint))
     return true;
 
@@ -2908,7 +2913,8 @@ Sql_cmd *PT_show_warnings::make_cmd(THD *thd) {
   return &m_sql_cmd;
 }
 
-bool PT_alter_table_change_column::contextualize(Table_ddl_parse_context *pc) {
+bool PT_alter_table_change_column::do_contextualize(
+    Table_ddl_parse_context *pc) {
   // Since Alter_info objects are allocated on a mem_root and never
   // destroyed we (move)-assign an empty vector to cf_appliers to
   // ensure any dynamic memory is released. This must be done whenever
@@ -2918,7 +2924,8 @@ bool PT_alter_table_change_column::contextualize(Table_ddl_parse_context *pc) {
     pc->alter_info->cf_appliers = decltype(pc->alter_info->cf_appliers)();
   });
 
-  if (super::contextualize(pc) || m_field_def->contextualize(pc)) return true;
+  if (super::do_contextualize(pc) || m_field_def->contextualize(pc))
+    return true;
   pc->alter_info->flags |= m_field_def->alter_info_flags;
   dd::Column::enum_hidden_type field_hidden_type =
       (m_field_def->type_flags & FIELD_IS_INVISIBLE)
@@ -2936,8 +2943,8 @@ bool PT_alter_table_change_column::contextualize(Table_ddl_parse_context *pc) {
       field_hidden_type);
 }
 
-bool PT_alter_table_rename::contextualize(Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;  // OOM
+bool PT_alter_table_rename::do_contextualize(Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;  // OOM
 
   if (m_ident->db.str) {
     LEX_STRING db_str = to_lex_string(m_ident->db);
@@ -2962,9 +2969,9 @@ bool PT_alter_table_rename::contextualize(Table_ddl_parse_context *pc) {
   return false;
 }
 
-bool PT_alter_table_convert_to_charset::contextualize(
+bool PT_alter_table_convert_to_charset::do_contextualize(
     Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;  // OOM
+  if (super::do_contextualize(pc)) return true;  // OOM
 
   const CHARSET_INFO *const cs =
       m_charset ? m_charset : pc->thd->variables.collation_database;
@@ -2994,9 +3001,9 @@ bool PT_alter_table_convert_to_charset::contextualize(
   return false;
 }
 
-bool PT_alter_table_add_partition_def_list::contextualize(
+bool PT_alter_table_add_partition_def_list::do_contextualize(
     Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+  if (super::do_contextualize(pc)) return true;
 
   Partition_parse_context part_pc(pc->thd, &m_part_info,
                                   is_add_or_reorganize_partition());
@@ -3008,9 +3015,9 @@ bool PT_alter_table_add_partition_def_list::contextualize(
   return false;
 }
 
-bool PT_alter_table_reorganize_partition_into::contextualize(
+bool PT_alter_table_reorganize_partition_into::do_contextualize(
     Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+  if (super::do_contextualize(pc)) return true;
 
   LEX *const lex = pc->thd->lex;
   lex->no_write_to_binlog = m_no_write_to_binlog;
@@ -3029,9 +3036,9 @@ bool PT_alter_table_reorganize_partition_into::contextualize(
   return false;
 }
 
-bool PT_alter_table_exchange_partition::contextualize(
+bool PT_alter_table_exchange_partition::do_contextualize(
     Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+  if (super::do_contextualize(pc)) return true;
 
   pc->alter_info->with_validation = m_validation;
 
@@ -3245,8 +3252,8 @@ Sql_cmd *PT_truncate_table_stmt::make_cmd(THD *thd) {
   return &m_cmd_truncate_table;
 }
 
-bool PT_assign_to_keycache::contextualize(Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_assign_to_keycache::do_contextualize(Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   if (!pc->select->add_table_to_list(pc->thd, m_table, nullptr, 0, TL_READ,
                                      MDL_SHARED_READ, m_index_hints))
@@ -3254,7 +3261,7 @@ bool PT_assign_to_keycache::contextualize(Table_ddl_parse_context *pc) {
   return false;
 }
 
-bool PT_adm_partition::contextualize(Table_ddl_parse_context *pc) {
+bool PT_adm_partition::do_contextualize(Table_ddl_parse_context *pc) {
   pc->alter_info->flags |= Alter_info::ALTER_ADMIN_PARTITION;
 
   assert(pc->alter_info->partition_names.is_empty());
@@ -3371,14 +3378,14 @@ PT_json_table_column_for_ordinality::PT_json_table_column_for_ordinality(
 PT_json_table_column_for_ordinality::~PT_json_table_column_for_ordinality() =
     default;
 
-bool PT_json_table_column_for_ordinality::contextualize(Parse_context *pc) {
+bool PT_json_table_column_for_ordinality::do_contextualize(Parse_context *pc) {
   assert(m_column == nullptr);
   m_column = make_unique_destroy_only<Json_table_column>(
       pc->mem_root, enum_jt_column::JTC_ORDINALITY);
   if (m_column == nullptr) return true;
   m_column->init_for_tmp_table(MYSQL_TYPE_LONGLONG, 10, 0, true, true, 8,
                                m_name);
-  return super::contextualize(pc);
+  return super::do_contextualize(pc);
 }
 
 PT_json_table_column_with_path::PT_json_table_column_with_path(
@@ -3408,8 +3415,8 @@ static bool check_unsupported_json_table_default(const Item *item) {
   return false;
 }
 
-bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc) || m_type->contextualize(pc)) return true;
+bool PT_json_table_column_with_path::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc) || m_type->contextualize(pc)) return true;
 
   if (m_column->m_path_string->itemize(pc, &m_column->m_path_string))
     return true;
@@ -3449,8 +3456,9 @@ bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
   return false;
 }
 
-bool PT_json_table_column_with_nested_path::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;  // OOM
+bool PT_json_table_column_with_nested_path::do_contextualize(
+    Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;  // OOM
 
   if (m_path->itemize(pc, &m_path)) return true;
 
@@ -3593,14 +3601,14 @@ Sql_cmd *PT_load_table::make_cmd(THD *thd) {
   return &m_cmd;
 }
 
-bool PT_select_item_list::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_select_item_list::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
   pc->select->fields = value;
   return false;
 }
 
-bool PT_limit_clause::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_limit_clause::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   if (limit_options.is_offset_first && limit_options.opt_offset != nullptr &&
       limit_options.opt_offset->itemize(pc, &limit_options.opt_offset))
@@ -3619,8 +3627,8 @@ bool PT_limit_clause::contextualize(Parse_context *pc) {
   return false;
 }
 
-bool PT_table_factor_table_ident::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_table_factor_table_ident::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   THD *thd = pc->thd;
   Yacc_state *yyps = &thd->m_parser_state->m_yacc;
@@ -3630,11 +3638,12 @@ bool PT_table_factor_table_ident::contextualize(Parse_context *pc) {
       opt_key_definition, opt_use_partition, nullptr, pc);
   if (m_table_ref == nullptr) return true;
   if (pc->select->add_joined_table(m_table_ref)) return true;
+
   return false;
 }
 
-bool PT_table_reference_list_parens::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc) || contextualize_array(pc, &table_list))
+bool PT_table_reference_list_parens::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc) || contextualize_array(pc, &table_list))
     return true;
 
   assert(table_list.size() >= 2);
@@ -3642,8 +3651,8 @@ bool PT_table_reference_list_parens::contextualize(Parse_context *pc) {
   return m_table_ref == nullptr;
 }
 
-bool PT_joined_table::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc) || contextualize_tabs(pc)) return true;
+bool PT_joined_table::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc) || contextualize_tabs(pc)) return true;
 
   if (m_type & JTT_NATURAL)
     m_left_table_ref->add_join_natural(m_right_table_ref);
@@ -3653,13 +3662,13 @@ bool PT_joined_table::contextualize(Parse_context *pc) {
   return false;
 }
 
-bool PT_cross_join::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_cross_join::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
   m_table_ref = pc->select->nest_last_join(pc->thd);
   return m_table_ref == nullptr;
 }
 
-bool PT_joined_table_on::contextualize(Parse_context *pc) {
+bool PT_joined_table_on::do_contextualize(Parse_context *pc) {
   if (this->contextualize_tabs(pc)) return true;
 
   if (push_new_name_resolution_context(pc, this->m_left_table_ref,
@@ -3671,7 +3680,7 @@ bool PT_joined_table_on::contextualize(Parse_context *pc) {
   Query_block *sel = pc->select;
   sel->parsing_place = CTX_ON;
 
-  if (super::contextualize(pc) || on->itemize(pc, &on)) return true;
+  if (super::do_contextualize(pc) || on->itemize(pc, &on)) return true;
   if (!on->is_bool_func()) {
     on = make_condition(pc, on);
     if (on == nullptr) return true;
@@ -3683,11 +3692,12 @@ bool PT_joined_table_on::contextualize(Parse_context *pc) {
   assert(sel->parsing_place == CTX_ON);
   sel->parsing_place = CTX_NONE;
   m_table_ref = pc->select->nest_last_join(pc->thd);
+
   return m_table_ref == nullptr;
 }
 
-bool PT_joined_table_using::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_joined_table_using::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   m_left_table_ref->add_join_natural(m_right_table_ref);
   m_table_ref = pc->select->nest_last_join(pc->thd);
@@ -3720,8 +3730,8 @@ bool PT_table_locking_clause::raise_error(int error) {
   return true;
 }
 
-bool PT_set_scoped_system_variable::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc) || itemize_safe(pc, &m_opt_expr)) {
+bool PT_set_scoped_system_variable::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc) || itemize_safe(pc, &m_opt_expr)) {
     return true;
   }
 
@@ -3762,8 +3772,9 @@ bool PT_set_scoped_system_variable::contextualize(Parse_context *pc) {
                                         pc->thd->lex->option_type, m_opt_expr);
 }
 
-bool PT_option_value_no_option_type_user_var::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc) || expr->itemize(pc, &expr)) return true;
+bool PT_option_value_no_option_type_user_var::do_contextualize(
+    Parse_context *pc) {
+  if (super::do_contextualize(pc) || expr->itemize(pc, &expr)) return true;
 
   THD *thd = pc->thd;
   Item_func_set_user_var *item =
@@ -3774,8 +3785,8 @@ bool PT_option_value_no_option_type_user_var::contextualize(Parse_context *pc) {
   return thd->lex->var_list.push_back(var);
 }
 
-bool PT_set_system_variable::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc) || itemize_safe(pc, &m_opt_expr)) {
+bool PT_set_system_variable::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc) || itemize_safe(pc, &m_opt_expr)) {
     return true;
   }
 
@@ -3797,13 +3808,13 @@ bool PT_set_system_variable::contextualize(Parse_context *pc) {
                                         m_opt_expr);
 }
 
-bool PT_option_value_type::contextualize(Parse_context *pc) {
+bool PT_option_value_type::do_contextualize(Parse_context *pc) {
   pc->thd->lex->option_type = type;
-  return super::contextualize(pc) || value->contextualize(pc);
+  return super::do_contextualize(pc) || value->contextualize(pc);
 }
 
-bool PT_option_value_list_head::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_option_value_list_head::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   THD *thd = pc->thd;
 #ifndef NDEBUG
@@ -3822,8 +3833,8 @@ bool PT_option_value_list_head::contextualize(Parse_context *pc) {
   return false;
 }
 
-bool PT_start_option_value_list_no_type::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc) || head->contextualize(pc)) return true;
+bool PT_start_option_value_list_no_type::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc) || head->contextualize(pc)) return true;
 
   if (sp_create_assignment_instr(pc->thd, head_pos.raw.end)) return true;
   assert(pc->thd->lex->query_block == pc->thd->lex->current_query_block());
@@ -3834,8 +3845,8 @@ bool PT_start_option_value_list_no_type::contextualize(Parse_context *pc) {
   return false;
 }
 
-bool PT_transaction_characteristic::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_transaction_characteristic::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   THD *thd = pc->thd;
   LEX *lex = thd->lex;
@@ -3853,8 +3864,9 @@ bool PT_transaction_characteristic::contextualize(Parse_context *pc) {
   return lex->var_list.push_back(var);
 }
 
-bool PT_start_option_value_list_transaction::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_start_option_value_list_transaction::do_contextualize(
+    Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   THD *thd = pc->thd;
   thd->lex->option_type = OPT_DEFAULT;
@@ -3867,9 +3879,9 @@ bool PT_start_option_value_list_transaction::contextualize(Parse_context *pc) {
   return false;
 }
 
-bool PT_start_option_value_list_following_option_type_eq::contextualize(
+bool PT_start_option_value_list_following_option_type_eq::do_contextualize(
     Parse_context *pc) {
-  if (super::contextualize(pc) || head->contextualize(pc)) return true;
+  if (super::do_contextualize(pc) || head->contextualize(pc)) return true;
 
   if (sp_create_assignment_instr(pc->thd, head_pos.raw.end)) return true;
   assert(pc->thd->lex->query_block == pc->thd->lex->current_query_block());
@@ -3881,8 +3893,8 @@ bool PT_start_option_value_list_following_option_type_eq::contextualize(
 }
 
 bool PT_start_option_value_list_following_option_type_transaction::
-    contextualize(Parse_context *pc) {
-  if (super::contextualize(pc) || characteristics->contextualize(pc))
+    do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc) || characteristics->contextualize(pc))
     return true;
 
   if (sp_create_assignment_instr(pc->thd, characteristics_pos.raw.end))
@@ -3893,13 +3905,13 @@ bool PT_start_option_value_list_following_option_type_transaction::
   return false;
 }
 
-bool PT_start_option_value_list_type::contextualize(Parse_context *pc) {
+bool PT_start_option_value_list_type::do_contextualize(Parse_context *pc) {
   pc->thd->lex->option_type = type;
-  return super::contextualize(pc) || list->contextualize(pc);
+  return super::do_contextualize(pc) || list->contextualize(pc);
 }
 
-bool PT_set::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_set::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   THD *thd = pc->thd;
   LEX *lex = thd->lex;
@@ -3915,8 +3927,8 @@ bool PT_set::contextualize(Parse_context *pc) {
   return list->contextualize(pc);
 }
 
-bool PT_into_destination::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_into_destination::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   LEX *lex = pc->thd->lex;
   if (!pc->thd->lex->parsing_options.allows_select_into) {
@@ -3930,8 +3942,8 @@ bool PT_into_destination::contextualize(Parse_context *pc) {
   return false;
 }
 
-bool PT_into_destination_outfile::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_into_destination_outfile::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   LEX *lex = pc->thd->lex;
   lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
@@ -3939,8 +3951,8 @@ bool PT_into_destination_outfile::contextualize(Parse_context *pc) {
   return lex->result == nullptr;
 }
 
-bool PT_into_destination_dumpfile::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_into_destination_dumpfile::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   LEX *lex = pc->thd->lex;
   lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
@@ -3948,8 +3960,8 @@ bool PT_into_destination_dumpfile::contextualize(Parse_context *pc) {
   return lex->result == nullptr;
 }
 
-bool PT_select_var_list::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_select_var_list::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   List_iterator<PT_select_var> it(value);
   PT_select_var *var;
@@ -3968,13 +3980,13 @@ bool PT_select_var_list::contextualize(Parse_context *pc) {
   return false;
 }
 
-bool PT_query_expression::contextualize(Parse_context *pc) {
+bool PT_query_expression::do_contextualize(Parse_context *pc) {
   pc->m_stack.push_back(
       QueryLevel(pc->mem_root, SC_QUERY_EXPRESSION, m_order != nullptr));
   if (contextualize_safe(pc, m_with_clause))
     return true; /* purecov: inspected */
 
-  if (Parse_tree_node::contextualize(pc) || m_body->contextualize(pc))
+  if (Parse_tree_node::do_contextualize(pc) || m_body->contextualize(pc))
     return true;
 
   QueryLevel ql = pc->m_stack.back();
@@ -4084,11 +4096,12 @@ bool PT_query_expression::contextualize(Parse_context *pc) {
       pc->m_stack.back().m_elts.push_back(ex);
     } break;
   }
+
   return false;
 }
 
-bool PT_subquery::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_subquery::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   LEX *lex = pc->thd->lex;
   if (!lex->expr_allows_subselect || lex->sql_command == SQLCOM_PURGE) {
@@ -4291,8 +4304,8 @@ Sql_cmd *PT_alter_instance::make_cmd(THD *thd) {
   return &sql_cmd;
 }
 
-bool PT_check_constraint::contextualize(Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc) ||
+bool PT_check_constraint::do_contextualize(Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc) ||
       cc_spec.check_expr->itemize(pc, &cc_spec.check_expr))
     return true;
 
@@ -4384,14 +4397,14 @@ Sql_cmd *PT_show_grants::make_cmd(THD *thd) {
   return &sql_cmd;
 }
 
-bool PT_alter_table_action::contextualize(Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_alter_table_action::do_contextualize(Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
   pc->alter_info->flags |= flag;
   return false;
 }
 
-bool PT_alter_table_set_default::contextualize(Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc) || itemize_safe(pc, &m_expr)) return true;
+bool PT_alter_table_set_default::do_contextualize(Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc) || itemize_safe(pc, &m_expr)) return true;
   Alter_column *alter_column;
   if (m_expr == nullptr || m_expr->basic_const_item()) {
     Item *actual_expr = m_expr;
@@ -4424,20 +4437,23 @@ bool PT_alter_table_set_default::contextualize(Table_ddl_parse_context *pc) {
   return false;
 }
 
-bool PT_alter_table_order::contextualize(Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc) || m_order->contextualize(pc)) return true;
+bool PT_alter_table_order::do_contextualize(Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc) || m_order->contextualize(pc)) return true;
   pc->select->order_list = m_order->value;
   return false;
 }
 
-bool PT_alter_table_partition_by::contextualize(Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc) || m_partition->contextualize(pc)) return true;
+bool PT_alter_table_partition_by::do_contextualize(
+    Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc) || m_partition->contextualize(pc))
+    return true;
   pc->thd->lex->part_info = &m_partition->part_info;
   return false;
 }
 
-bool PT_alter_table_add_partition::contextualize(Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_alter_table_add_partition::do_contextualize(
+    Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   LEX *const lex = pc->thd->lex;
   lex->no_write_to_binlog = m_no_write_to_binlog;
@@ -4446,38 +4462,39 @@ bool PT_alter_table_add_partition::contextualize(Table_ddl_parse_context *pc) {
   return false;
 }
 
-bool PT_alter_table_drop_partition::contextualize(Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+bool PT_alter_table_drop_partition::do_contextualize(
+    Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
 
   assert(pc->alter_info->partition_names.is_empty());
   pc->alter_info->partition_names = m_partitions;
   return false;
 }
 
-bool PT_alter_table_rebuild_partition::contextualize(
+bool PT_alter_table_rebuild_partition::do_contextualize(
     Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+  if (super::do_contextualize(pc)) return true;
   pc->thd->lex->no_write_to_binlog = m_no_write_to_binlog;
   return false;
 }
 
-bool PT_alter_table_optimize_partition::contextualize(
+bool PT_alter_table_optimize_partition::do_contextualize(
     Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+  if (super::do_contextualize(pc)) return true;
   pc->thd->lex->no_write_to_binlog = m_no_write_to_binlog;
   return false;
 }
 
-bool PT_alter_table_analyze_partition::contextualize(
+bool PT_alter_table_analyze_partition::do_contextualize(
     Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+  if (super::do_contextualize(pc)) return true;
   pc->thd->lex->no_write_to_binlog = m_no_write_to_binlog;
   return false;
 }
 
-bool PT_alter_table_check_partition::contextualize(
+bool PT_alter_table_check_partition::do_contextualize(
     Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+  if (super::do_contextualize(pc)) return true;
 
   LEX *const lex = pc->thd->lex;
   lex->check_opt.flags |= m_flags;
@@ -4485,9 +4502,9 @@ bool PT_alter_table_check_partition::contextualize(
   return false;
 }
 
-bool PT_alter_table_repair_partition::contextualize(
+bool PT_alter_table_repair_partition::do_contextualize(
     Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+  if (super::do_contextualize(pc)) return true;
 
   LEX *const lex = pc->thd->lex;
   lex->no_write_to_binlog = m_no_write_to_binlog;
@@ -4498,31 +4515,31 @@ bool PT_alter_table_repair_partition::contextualize(
   return false;
 }
 
-bool PT_alter_table_coalesce_partition::contextualize(
+bool PT_alter_table_coalesce_partition::do_contextualize(
     Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+  if (super::do_contextualize(pc)) return true;
 
   pc->thd->lex->no_write_to_binlog = m_no_write_to_binlog;
   pc->alter_info->num_parts = m_num_parts;
   return false;
 }
 
-bool PT_alter_table_truncate_partition::contextualize(
+bool PT_alter_table_truncate_partition::do_contextualize(
     Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+  if (super::do_contextualize(pc)) return true;
   return false;
 }
 
-bool PT_alter_table_reorganize_partition::contextualize(
+bool PT_alter_table_reorganize_partition::do_contextualize(
     Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+  if (super::do_contextualize(pc)) return true;
   pc->thd->lex->part_info = &m_partition_info;
   pc->thd->lex->no_write_to_binlog = m_no_write_to_binlog;
   return false;
 }
 
-bool PT_preload_keys::contextualize(Table_ddl_parse_context *pc) {
-  if (super::contextualize(pc) ||
+bool PT_preload_keys::do_contextualize(Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc) ||
       !pc->select->add_table_to_list(
           pc->thd, m_table, nullptr,
           m_ignore_leaves ? TL_OPTION_IGNORE_LEAVES : 0, TL_READ,
@@ -4534,9 +4551,9 @@ bool PT_preload_keys::contextualize(Table_ddl_parse_context *pc) {
 Alter_tablespace_parse_context::Alter_tablespace_parse_context(THD *thd)
     : thd(thd), mem_root(thd->mem_root) {}
 
-bool PT_alter_tablespace_option_nodegroup::contextualize(
+bool PT_alter_tablespace_option_nodegroup::do_contextualize(
     Alter_tablespace_parse_context *pc) {
-  if (super::contextualize(pc)) return true; /* purecov: inspected */  // OOM
+  if (super::do_contextualize(pc)) return true; /* purecov: inspected */  // OOM
 
   if (pc->nodegroup_id != UNDEF_NODEGROUP) {
     my_error(ER_FILEGROUP_OPTION_ONLY_ONCE, MYF(0), "NODEGROUP");
@@ -4618,8 +4635,8 @@ class PT_attribute : public BASE {
 
  public:
   PT_attribute(ATTRIBUTE a, CFP cfp) : m_attr{a}, m_cfp{cfp} {}
-  bool contextualize(typename BASE::context_t *pc) override {
-    return BASE::contextualize(pc) || m_cfp(m_attr, pc);
+  bool do_contextualize(typename BASE::context_t *pc) override {
+    return BASE::do_contextualize(pc) || m_cfp(m_attr, pc);
   }
 };
 

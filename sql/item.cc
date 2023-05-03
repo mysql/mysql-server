@@ -736,9 +736,9 @@ bool Item::aggregate_type(const char *name, Item **items, uint count) {
   return false;
 }
 
-bool Item::itemize(Parse_context *pc, Item **res) {
+bool Item::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::contextualize(pc)) return true;
+  if (super::do_contextualize(pc)) return true;
 
   // Add item to global list
   pc->thd->add_item(this);
@@ -886,9 +886,9 @@ Item *Item::transform(Item_transformer transformer, uchar *arg) {
   return (this->*transformer)(arg);
 }
 
-bool Item_ident::itemize(Parse_context *pc, Item **res) {
+bool Item_ident::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   context = pc->thd->lex->current_context();
   return false;
 }
@@ -2061,9 +2061,9 @@ Item_name_const::Item_name_const(const POS &pos, Item *name_arg, Item *val)
   set_nullable(true);
 }
 
-bool Item_name_const::itemize(Parse_context *pc, Item **res) {
+bool Item_name_const::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res) || value_item->itemize(pc, &value_item) ||
+  if (super::do_itemize(pc, res) || value_item->itemize(pc, &value_item) ||
       name_item->itemize(pc, &name_item))
     return true;
   /*
@@ -2885,9 +2885,9 @@ Item_field::Item_field(const POS &pos, const char *db_arg,
   collation.set(DERIVATION_IMPLICIT);
 }
 
-bool Item_field::itemize(Parse_context *pc, Item **res) {
+bool Item_field::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   Query_block *const select = pc->select;
   if (select->parsing_place != CTX_HAVING) select->select_n_where_fields++;
   return false;
@@ -3736,9 +3736,9 @@ Item_param::Item_param(const POS &pos, MEM_ROOT *root, uint pos_in_query_arg)
   set_nullable(true);  // All parameters are nullable
 }
 
-bool Item_param::itemize(Parse_context *pc, Item **res) {
+bool Item_param::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
 
   /*
     see commentaries in PTI_limit_option_param_marker::itemize()
@@ -8939,9 +8939,9 @@ Item *Item_view_ref::replace_view_refs_with_clone(uchar *arg) {
       current_thd, ref_item());
 }
 
-bool Item_default_value::itemize(Parse_context *pc, Item **res) {
+bool Item_default_value::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
 
   if (arg != nullptr) {
     if (arg->itemize(pc, &arg)) return true;
@@ -10990,13 +10990,13 @@ Item_field *FindEqualField(Item_field *item_field, table_map reachable_tables,
   return item_field;
 }
 
-bool Item_asterisk::itemize(Parse_context *pc, Item **res) {
+bool Item_asterisk::do_itemize(Parse_context *pc, Item **res) {
   assert(pc->select->parsing_place == CTX_SELECT_LIST);
 
   if (skip_itemize(res)) {
     return false;
   }
-  if (super::itemize(pc, res)) {
+  if (super::do_itemize(pc, res)) {
     return true;
   }
   pc->select->with_wild++;

@@ -2683,10 +2683,10 @@ bool Item_func_opt_neg::eq(const Item *item, bool binary_cmp) const {
   return AllItemsAreEqual(args, item_func->arguments(), arg_count, binary_cmp);
 }
 
-bool Item_func_interval::itemize(Parse_context *pc, Item **res) {
+bool Item_func_interval::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   if (row == nullptr ||  // OOM in constructor
-      super::itemize(pc, res))
+      super::do_itemize(pc, res))
     return true;
   assert(row == args[0]);  // row->itemize() is not needed
   return false;
@@ -5423,9 +5423,9 @@ Item *make_condition(Parse_context *pc, Item *item) {
   class: we need to overload this function to run a contextualization
   the Item_cond::list items.
 */
-bool Item_cond::itemize(Parse_context *pc, Item **res) {
+bool Item_cond::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
 
   List_iterator<Item> li(list);
   Item *item;
@@ -6425,9 +6425,9 @@ void Item_func_like::print(const THD *thd, String *str,
   str->append(')');
 }
 
-bool Item_func_xor::itemize(Parse_context *pc, Item **res) {
+bool Item_func_xor::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
 
   if (!args[0]->is_bool_func()) {
     args[0] = make_condition(pc, args[0]);

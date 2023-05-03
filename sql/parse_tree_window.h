@@ -49,7 +49,7 @@ class PT_window : public Parse_tree_node, public Window {
 
   PT_window(Item_string *name) : Window(name) {}
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 };
 
 /**
@@ -63,7 +63,7 @@ class PT_window_list : public Parse_tree_node {
  public:
   PT_window_list() = default;
 
-  bool contextualize(Parse_context *pc) override;
+  bool do_contextualize(Parse_context *pc) override;
 
   bool push_back(PT_window *w) { return m_windows.push_back(w); }
 };

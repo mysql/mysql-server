@@ -50,9 +50,10 @@ extern bool pfs_enabled;
 
 /** ps_current_thread_id() */
 
-bool Item_func_pfs_current_thread_id::itemize(Parse_context *pc, Item **res) {
+bool Item_func_pfs_current_thread_id::do_itemize(Parse_context *pc,
+                                                 Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->safe_to_cache_query = false; /* result can vary */
   return false;
 }
@@ -91,9 +92,9 @@ longlong Item_func_pfs_current_thread_id::val_int() {
 
 /** ps_thread_id() */
 
-bool Item_func_pfs_thread_id::itemize(Parse_context *pc, Item **res) {
+bool Item_func_pfs_thread_id::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->safe_to_cache_query = false; /* result can vary */
   return false;
 }

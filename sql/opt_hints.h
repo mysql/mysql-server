@@ -381,8 +381,8 @@ class Opt_hints_qb : public Opt_hints {
   ulonglong join_order_hints_ignored;
 
   /*
-    PT_qb_level_hint::contextualize sets subquery/semijoin_hint during parsing.
-    it also registers join order hints during parsing.
+    PT_qb_level_hint::do_contextualize sets subquery/semijoin_hint during
+    parsing. it also registers join order hints during parsing.
   */
   friend class PT_qb_level_hint;
 

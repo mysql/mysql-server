@@ -74,9 +74,9 @@ Item_row::Item_row(Item *head, const mem_root_deque<Item *> &tail)
   }
 }
 
-bool Item_row::itemize(Parse_context *pc, Item **res) {
+bool Item_row::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   for (uint i = 0; i < arg_count; i++) {
     if (items[i]->itemize(pc, &items[i])) return true;
   }

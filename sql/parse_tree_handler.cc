@@ -74,7 +74,7 @@ Sql_cmd *PT_handler_close::make_cmd(THD *thd) {
   return &m_cmd;
 }
 
-bool PT_handler_read_base::contextualize(Parse_context *pc) {
+bool PT_handler_read_base::do_contextualize(Parse_context *pc) {
   THD *const thd = pc->thd;
   LEX *const lex = thd->lex;
   Query_block *const select = lex->current_query_block();
@@ -123,7 +123,7 @@ Sql_cmd *PT_handler_table_scan::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_HA_READ;
 
   Parse_context pc(thd, thd->lex->current_query_block());
-  if (super::contextualize(&pc)) return nullptr;
+  if (super::do_contextualize(&pc)) return nullptr;
 
   return new (thd->mem_root)
       Sql_cmd_handler_read(m_direction, nullptr, nullptr, HA_READ_KEY_EXACT);
@@ -133,7 +133,7 @@ Sql_cmd *PT_handler_index_scan::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_HA_READ;
 
   Parse_context pc(thd, thd->lex->current_query_block());
-  if (super::contextualize(&pc)) return nullptr;
+  if (super::do_contextualize(&pc)) return nullptr;
 
   return new (thd->mem_root)
       Sql_cmd_handler_read(m_direction, m_index, nullptr, HA_READ_KEY_EXACT);
@@ -144,7 +144,7 @@ Sql_cmd *PT_handler_index_range_scan::make_cmd(THD *thd) {
 
   thd->lex->expr_allows_subselect = false;
   Parse_context pc(thd, thd->lex->current_query_block());
-  if (m_keypart_values->contextualize(&pc) || super::contextualize(&pc))
+  if (m_keypart_values->contextualize(&pc) || super::do_contextualize(&pc))
     return nullptr;
   thd->lex->expr_allows_subselect = true;
 

@@ -450,7 +450,7 @@ class Item_func : public Item_result_field {
     return nullptr;
   }
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 
   bool fix_fields(THD *, Item **ref) override;
   bool fix_func_arg(THD *, Item **arg);
@@ -1000,7 +1000,7 @@ class Item_func_connection_id final : public Item_int_func {
   table_map get_initial_pseudo_tables() const override {
     return INNER_TABLE_BIT;
   }
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return "connection_id"; }
   bool resolve_type(THD *thd) override;
   bool fix_fields(THD *thd, Item **ref) override;
@@ -1430,7 +1430,7 @@ class Item_func_rand final : public Item_real_func {
   Item_func_rand(const POS &pos, Item *a) : Item_real_func(pos, a) {}
   explicit Item_func_rand(const POS &pos) : Item_real_func(pos) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   double val_real() override;
   const char *func_name() const override { return "rand"; }
   /**
@@ -2025,7 +2025,7 @@ class Item_func_last_insert_id final : public Item_int_func {
   explicit Item_func_last_insert_id(const POS &pos) : Item_int_func(pos) {}
   Item_func_last_insert_id(const POS &pos, Item *a) : Item_int_func(pos, a) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "last_insert_id"; }
 
@@ -2059,7 +2059,7 @@ class Item_func_benchmark final : public Item_int_func {
     return RAND_TABLE_BIT;
   }
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "benchmark"; }
   bool resolve_type(THD *thd) override {
@@ -2089,7 +2089,7 @@ class Item_func_sleep final : public Item_int_func {
  public:
   Item_func_sleep(const POS &pos, Item *a) : Item_int_func(pos, a) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return "sleep"; }
   /**
     This function is non-deterministic and hence depends on the
@@ -2128,7 +2128,7 @@ class Item_udf_func : public Item_func {
   }
   ~Item_udf_func() override = default;
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return udf.name(); }
   enum Functype functype() const override { return UDF_FUNC; }
   table_map get_initial_pseudo_tables() const override {
@@ -2280,7 +2280,7 @@ class Item_func_get_lock final : public Item_int_func {
   Item_func_get_lock(const POS &pos, Item *a, Item *b)
       : Item_int_func(pos, a, b) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "get_lock"; }
   bool resolve_type(THD *thd) override {
@@ -2307,7 +2307,7 @@ class Item_func_release_lock final : public Item_int_func {
 
  public:
   Item_func_release_lock(const POS &pos, Item *a) : Item_int_func(pos, a) {}
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 
   longlong val_int() override;
   const char *func_name() const override { return "release_lock"; }
@@ -2332,7 +2332,7 @@ class Item_func_release_all_locks final : public Item_int_func {
 
  public:
   explicit Item_func_release_all_locks(const POS &pos) : Item_int_func(pos) {}
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 
   longlong val_int() override;
   const char *func_name() const override { return "release_all_locks"; }
@@ -2364,7 +2364,7 @@ class Item_source_pos_wait : public Item_int_func {
   Item_source_pos_wait(const POS &pos, Item *a, Item *b, Item *c, Item *d)
       : Item_int_func(pos, a, b, c, d) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "source_pos_wait"; }
   bool resolve_type(THD *thd) override {
@@ -3445,7 +3445,7 @@ class Item_func_match final : public Item_real_func {
     null_on_null = false;
   }
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 
   void cleanup() override {
     DBUG_TRACE;
@@ -3693,7 +3693,7 @@ class Item_func_is_free_lock final : public Item_int_func {
  public:
   Item_func_is_free_lock(const POS &pos, Item *a) : Item_int_func(pos, a) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "is_free_lock"; }
   bool resolve_type(THD *thd) override {
@@ -3720,7 +3720,7 @@ class Item_func_is_used_lock final : public Item_int_func {
  public:
   Item_func_is_used_lock(const POS &pos, Item *a) : Item_int_func(pos, a) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "is_used_lock"; }
   bool resolve_type(THD *thd) override {
@@ -3745,7 +3745,7 @@ class Item_func_row_count final : public Item_int_func {
  public:
   explicit Item_func_row_count(const POS &pos) : Item_int_func(pos) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 
   longlong val_int() override;
   const char *func_name() const override { return "row_count"; }
@@ -3797,7 +3797,7 @@ class Item_func_sp final : public Item_func {
                const LEX_STRING &fn_name, bool use_explicit_name,
                PT_item_list *opt_list);
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   /**
     Must not be called before the procedure is resolved,
     i.e. @c init_result_field().
@@ -3853,7 +3853,7 @@ class Item_func_found_rows final : public Item_int_func {
  public:
   explicit Item_func_found_rows(const POS &pos) : Item_int_func(pos) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "found_rows"; }
   bool resolve_type(THD *) override {
@@ -3877,7 +3877,7 @@ class Item_func_uuid_short final : public Item_int_func {
  public:
   Item_func_uuid_short(const POS &pos) : Item_int_func(pos) {}
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return "uuid_short"; }
   longlong val_int() override;
   bool resolve_type(THD *) override {
@@ -3905,7 +3905,7 @@ class Item_func_version final : public Item_static_string_func {
  public:
   explicit Item_func_version(const POS &pos);
 
-  bool itemize(Parse_context *pc, Item **res) override;
+  bool do_itemize(Parse_context *pc, Item **res) override;
 };
 
 /**

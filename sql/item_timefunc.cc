@@ -1368,7 +1368,7 @@ static uint week_mode(uint mode) {
   return week_format;
 }
 
-bool Item_func_week::itemize(Parse_context *pc, Item **res) {
+bool Item_func_week::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   if (args[1] == nullptr) {
     THD *thd = pc->thd;
@@ -1376,7 +1376,7 @@ bool Item_func_week::itemize(Parse_context *pc, Item **res) {
         Item_int(NAME_STRING("0"), thd->variables.default_week_format, 1);
     if (args[1] == nullptr) return true;
   }
-  return super::itemize(pc, res);
+  return super::do_itemize(pc, res);
 }
 
 bool Item_func_week::resolve_type(THD *thd) {
@@ -1660,9 +1660,9 @@ String *Item_timeval_func::val_str(String *str) {
   return str;
 }
 
-bool Item_func_unix_timestamp::itemize(Parse_context *pc, Item **res) {
+bool Item_func_unix_timestamp::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   if (arg_count == 0) pc->thd->lex->safe_to_cache_query = false;
   return false;
 }
@@ -1966,9 +1966,9 @@ String *MYSQL_TIME_cache::val_str(String *str) {
 
 /* CURDATE() and UTC_DATE() */
 
-bool Item_func_curdate::itemize(Parse_context *pc, Item **res) {
+bool Item_func_curdate::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->safe_to_cache_query = false;
   return false;
 }
@@ -2012,9 +2012,9 @@ String *Item_func_curdate::val_str(String *str) {
 
 /* CURTIME() and UTC_TIME() */
 
-bool Item_func_curtime::itemize(Parse_context *pc, Item **res) {
+bool Item_func_curtime::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->safe_to_cache_query = false;
   return false;
 }
@@ -2088,9 +2088,9 @@ void Item_func_now_local::store_in(Field *field) {
 
 Time_zone *Item_func_now_local::time_zone() { return current_thd->time_zone(); }
 
-bool Item_func_now_utc::itemize(Parse_context *pc, Item **res) {
+bool Item_func_now_utc::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   pc->thd->lex->safe_to_cache_query = false;
   return false;
 }

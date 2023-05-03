@@ -109,8 +109,8 @@ class PT_item_list : public Parse_tree_node {
 
   mem_root_deque<Item *> value;
 
-  bool contextualize(Parse_context *pc) override {
-    if (super::contextualize(pc)) return true;
+  bool do_contextualize(Parse_context *pc) override {
+    if (super::do_contextualize(pc)) return true;
     for (Item *&item : value) {
       if (item->itemize(pc, &item)) return true;
     }

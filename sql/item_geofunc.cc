@@ -312,9 +312,9 @@ bool Item_geometry_func::resolve_type(THD *) {
   return false;
 }
 
-bool Item_func_geometry_from_text::itemize(Parse_context *pc, Item **res) {
+bool Item_func_geometry_from_text::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   assert(arg_count == 1 || arg_count == 2 || arg_count == 3);
   if (arg_count == 1)
     pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_RAND);
@@ -572,9 +572,9 @@ String *Item_func_geometry_from_text::val_str(String *str) {
   return str;
 }
 
-bool Item_func_geometry_from_wkb::itemize(Parse_context *pc, Item **res) {
+bool Item_func_geometry_from_wkb::do_itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (super::do_itemize(pc, res)) return true;
   assert(arg_count == 1 || arg_count == 2 || arg_count == 3);
   if (arg_count == 1)
     pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_RAND);
