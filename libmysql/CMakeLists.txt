@@ -197,6 +197,9 @@ SET(CLIENT_SOURCES
   ../sql/auth/sha2_password_common.cc
 )
 
+DOWNGRADE_OPENSSL3_DEPRECATION_WARNINGS(
+    ../sql-common/client_authentication.cc)
+
 IF (WIN32 AND OPENSSL_APPLINK_C)
   SET_SOURCE_FILES_PROPERTIES(
     ../sql-common/client_authentication.cc

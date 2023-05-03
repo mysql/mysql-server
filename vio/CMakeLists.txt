@@ -31,6 +31,10 @@ SET(VIO_SOURCES
   viosslfactories.c
 )
 
+DOWNGRADE_OPENSSL3_DEPRECATION_WARNINGS(
+  viossl.c
+  viosslfactories.c)
+
 IF(WIN32)
   LIST(APPEND VIO_SOURCES
     viopipe.c
