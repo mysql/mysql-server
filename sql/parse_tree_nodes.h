@@ -4772,11 +4772,18 @@ class PT_alter_table_secondary_load final
     : public PT_alter_table_standalone_action {
   using super = PT_alter_table_standalone_action;
 
+  const List<String> *opt_use_partition = nullptr;
+
  public:
-  explicit PT_alter_table_secondary_load(const POS &pos)
-      : super(pos, Alter_info::ALTER_SECONDARY_LOAD) {}
+  explicit PT_alter_table_secondary_load(
+      const POS &pos, const List<String> *opt_use_partition = nullptr)
+      : super(pos, Alter_info::ALTER_SECONDARY_LOAD),
+        opt_use_partition{opt_use_partition} {}
 
   Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override {
+    if (opt_use_partition != nullptr)
+      pc->alter_info->partition_names = *opt_use_partition;
+
     return new (pc->mem_root) Sql_cmd_secondary_load_unload(pc->alter_info);
   }
 };
@@ -4785,11 +4792,18 @@ class PT_alter_table_secondary_unload final
     : public PT_alter_table_standalone_action {
   using super = PT_alter_table_standalone_action;
 
+  const List<String> *opt_use_partition = nullptr;
+
  public:
-  explicit PT_alter_table_secondary_unload(const POS &pos)
-      : super(pos, Alter_info::ALTER_SECONDARY_UNLOAD) {}
+  explicit PT_alter_table_secondary_unload(
+      const POS &pos, const List<String> *opt_use_partition = nullptr)
+      : super(pos, Alter_info::ALTER_SECONDARY_UNLOAD),
+        opt_use_partition{opt_use_partition} {}
 
   Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override {
+    if (opt_use_partition != nullptr)
+      pc->alter_info->partition_names = *opt_use_partition;
+
     return new (pc->mem_root) Sql_cmd_secondary_load_unload(pc->alter_info);
   }
 };
