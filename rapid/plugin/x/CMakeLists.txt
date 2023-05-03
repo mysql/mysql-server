@@ -27,6 +27,9 @@ IF(SSL_DEFINES)
   ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
 
+DOWNGRADE_OPENSSL3_DEPRECATION_WARNINGS(
+    mysqlxtest_src/mysql41_hash.cc)
+
 # Note that no COMPONENTS option is to be used for header only components,
 # it would try to find a library
 SET(Boost_USE_STATIC_LIBS OFF)

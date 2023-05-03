@@ -2999,6 +2999,18 @@ sub environment_setup {
   my $pathsep= ":";
   $pathsep= ";" if IS_WINDOWS && ! IS_CYGWIN;
   $ENV{'PATH'}= "$ENV{'PATH'}".$pathsep.$perldir;
+
+  # ----------------------------------------------------
+  # openssl3 helper
+  # ----------------------------------------------------
+  # Provide path to openssl configuration file allowing old TLSv1.0 and TLSv1.1.
+  # In tests that need it add to test cnf-file:
+  #
+  #   [ENV]
+  #   OPENSSL_CONF=@env.OPENSSL3_LEGACY_TLS_CNF
+  #
+  $ENV{'OPENSSL3_LEGACY_TLS_CNF'}=
+    native_path(${glob_mysql_test_dir}."/include/openssl3_legacy_tls.cnf");
 }
 
 

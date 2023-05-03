@@ -1,0 +1,11 @@
+# Allow ciphers by default treated as unsecure in OpenSSL 3.0 to allow use of
+# legacy TLSv1.0 and TLSv1.1.
+# Configuration file should also work for OpenSSL 1.1.1 but will not work with
+# for example OpenSSL 1.0.
+openssl_conf = openssl_sect
+[ openssl_sect ]
+ssl_conf = ssl_sect
+[ssl_sect]
+system_default = system_default_sect
+[system_default_sect]
+CipherString = DEFAULT:@SECLEVEL=0
