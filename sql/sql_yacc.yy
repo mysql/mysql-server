@@ -8741,13 +8741,13 @@ standalone_alter_commands:
           {
             $$= NEW_PTN PT_alter_table_import_partition_tablespace(@$, $3);
           }
-        | SECONDARY_LOAD_SYM
+        | SECONDARY_LOAD_SYM opt_use_partition
           {
-            $$= NEW_PTN PT_alter_table_secondary_load(@$);
+            $$= NEW_PTN PT_alter_table_secondary_load(@$, $2);
           }
-        | SECONDARY_UNLOAD_SYM
+        | SECONDARY_UNLOAD_SYM opt_use_partition
           {
-            $$= NEW_PTN PT_alter_table_secondary_unload(@$);
+            $$= NEW_PTN PT_alter_table_secondary_unload(@$, $2);
           }
         ;
 

@@ -1910,11 +1910,6 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
                                       const dd::Table *tab_obj) {
   if (tab_obj->partition_type() == dd::Table::PT_NONE) return false;
 
-  // The DD only has information about how the table is partitioned in
-  // the primary storage engine, so don't use this information for
-  // tables in a secondary storage engine.
-  if (share->is_secondary_engine()) return false;
-
   partition_info *part_info;
   part_info = new (&share->mem_root) partition_info;
 
