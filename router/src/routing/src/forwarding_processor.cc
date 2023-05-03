@@ -26,6 +26,8 @@
 
 #include <memory>  // make_unique
 
+#include <openssl/ssl.h>  // SSL_set_msg_callback_arg
+
 #include "classic_connect.h"
 #include "classic_connection_base.h"
 #include "classic_forwarder.h"
@@ -89,6 +91,10 @@ ForwardingProcessor::pool_server_connection() {
     if (auto pool = pools.get(ConnectionPoolComponent::default_pool_name())) {
       auto ssl_mode = server_conn.ssl_mode();
 
+      if (auto *server_ssl = socket_splicer->server_channel()->ssl()) {
+        SSL_set_msg_callback_arg(server_ssl, nullptr);
+      }
+
       auto is_full_res = pool->add_if_not_full(make_pooled_connection(
           std::exchange(socket_splicer->server_conn(),
                         TlsSwitchableConnection{
@@ -100,6 +106,11 @@ ForwardingProcessor::pool_server_connection() {
       if (is_full_res) {
         // pool is full, restore the connection.
         server_conn = make_connection_from_pooled(std::move(*is_full_res));
+
+        if (auto *server_ssl = socket_splicer->server_channel()->ssl()) {
+          SSL_set_msg_callback_arg(server_ssl, connection());
+        }
+
         return {false};
       }
     }

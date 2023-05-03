@@ -395,7 +395,9 @@ ClientGreetor::client_greeting() {
 static void ssl_msg_cb(int write_p, int version, int content_type,
                        const void *buf, size_t len, SSL *ssl [[maybe_unused]],
                        void *arg) {
-  auto *conn = reinterpret_cast<MysqlRoutingClassicConnectionBase *>(arg);
+  if (arg == nullptr) return;
+
+  auto *conn = static_cast<MysqlRoutingClassicConnectionBase *>(arg);
 
   auto &tr = conn->tracer();
   if (!tr) return;

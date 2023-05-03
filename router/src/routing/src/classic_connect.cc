@@ -333,6 +333,11 @@ ConnectProcessor::from_pool() {
           trace_span_end(ev);
         }
 
+        // update the msg-tracer callback to the new connection.
+        if (auto *server_ssl = socket_splicer->server_channel()->ssl()) {
+          SSL_set_msg_callback_arg(server_ssl, connection());
+        }
+
         stage(Stage::Connected);
         return Result::Again;
       }
