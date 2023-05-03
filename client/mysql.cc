@@ -2328,6 +2328,7 @@ static int read_and_execute(bool interactive) {
             break;
           default:
             assert(false);
+            prompt = "    -> ";
         }
       }
 
