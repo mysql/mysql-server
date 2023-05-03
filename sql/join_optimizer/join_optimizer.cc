@@ -6902,7 +6902,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
            sort_ahead_orderings) {
         LogicalOrderings::StateIndex ordering_state = orderings.ApplyFDs(
             orderings.SetOrder(sort_ahead_ordering.ordering_idx), fd_set);
-        if (!orderings.DoesFollowOrder(ordering_state, group_by_ordering_idx)) {
+        if (sort_ahead_ordering.ordering_idx != group_by_ordering_idx &&
+            !orderings.DoesFollowOrder(ordering_state, group_by_ordering_idx)) {
           continue;
         }
         if (sort_ahead_ordering.aggregates_required) {

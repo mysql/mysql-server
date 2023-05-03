@@ -51,7 +51,7 @@
 CREATE TABLE t (x INTEGER);
 INSERT INTO t VALUES (1), (2), (3);
 ANALYZE TABLE t;
---replace_regex / *\(cost=.*//
+--replace_regex $elide_metrics
 EXPLAIN FORMAT=TREE
  SELECT DISTINCT MIN(t2.x), t1.x
  FROM t t1 JOIN t t2 USING (x)
@@ -316,3 +316,42 @@ EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY a,c3;
 
 DROP VIEW num1000;
 DROP TABLE num10, t1, t2;
+
+--echo #
+--echo # Bug#34844509: Assertion `receiver.HasSecondaryEngineCostHook()' failed
+--echo #
+
+CREATE TABLE t (
+col1 INT, col2 INT, col3 INT, col4 INT, col5 INT, col6 INT,
+col7 INT, col8 INT, col9 INT, col10 INT, col11 INT, col12 INT,
+col13 INT, col14 INT, col15 INT, col16 INT, col17 INT, col18 INT,
+col19 INT, col20 INT, col21 INT, col22 INT, col23 INT, col24 INT,
+col25 INT, col26 INT, col27 INT, col28 INT, col29 INT, col30 INT,
+col31 INT, col32 INT, col33 INT, col34 INT, col35 INT, col36 INT,
+col37 INT, col38 INT, col39 INT, col40 INT, col41 INT, col42 INT,
+col43 INT, col44 INT, col45 INT, col46 INT, col47 INT, col48 INT,
+col49 INT, col50 INT, col51 INT, col52 INT, col53 INT, col54 INT,
+col55 INT, col56 INT, col57 INT, col58 INT, col59 INT, col60 INT,
+col61 INT, col62 INT, col63 INT, col64 INT,
+KEY (col1, col2), KEY (col2, col3), KEY (col3), KEY (col4), KEY (col5),
+KEY (col6), KEY (col7), KEY (col8), KEY (col9), KEY (col10),
+KEY (col11), KEY (col12), KEY (col13), KEY (col14), KEY (col15),
+KEY (col16), KEY (col17), KEY (col18), KEY (col19), KEY (col20),
+KEY (col21), KEY (col22), KEY (col23), KEY (col24), KEY (col25),
+KEY (col26), KEY (col27), KEY (col28), KEY (col29), KEY (col30),
+KEY (col31), KEY (col32), KEY (col33), KEY (col34), KEY (col35),
+KEY (col36), KEY (col37), KEY (col38), KEY (col39), KEY (col40),
+KEY (col41), KEY (col42), KEY (col43), KEY (col44), KEY (col45),
+KEY (col46), KEY (col47), KEY (col48), KEY (col49), KEY (col50),
+KEY (col51), KEY (col52), KEY (col53), KEY (col54), KEY (col55),
+KEY (col56), KEY (col57), KEY (col58), KEY (col59), KEY (col60),
+KEY (col61), KEY (col62), KEY (col63), KEY (col64));
+
+ANALYZE TABLE t;
+
+--source include/turn_off_only_full_group_by.inc
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT DISTINCT * FROM t GROUP BY col1 + col2;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+
+DROP TABLE t;

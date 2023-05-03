@@ -421,3 +421,42 @@ EXPLAIN
 
 DROP VIEW num1000;
 DROP TABLE num10, t1, t2;
+#
+# Bug#34844509: Assertion `receiver.HasSecondaryEngineCostHook()' failed
+#
+CREATE TABLE t (
+col1 INT, col2 INT, col3 INT, col4 INT, col5 INT, col6 INT,
+col7 INT, col8 INT, col9 INT, col10 INT, col11 INT, col12 INT,
+col13 INT, col14 INT, col15 INT, col16 INT, col17 INT, col18 INT,
+col19 INT, col20 INT, col21 INT, col22 INT, col23 INT, col24 INT,
+col25 INT, col26 INT, col27 INT, col28 INT, col29 INT, col30 INT,
+col31 INT, col32 INT, col33 INT, col34 INT, col35 INT, col36 INT,
+col37 INT, col38 INT, col39 INT, col40 INT, col41 INT, col42 INT,
+col43 INT, col44 INT, col45 INT, col46 INT, col47 INT, col48 INT,
+col49 INT, col50 INT, col51 INT, col52 INT, col53 INT, col54 INT,
+col55 INT, col56 INT, col57 INT, col58 INT, col59 INT, col60 INT,
+col61 INT, col62 INT, col63 INT, col64 INT,
+KEY (col1, col2), KEY (col2, col3), KEY (col3), KEY (col4), KEY (col5),
+KEY (col6), KEY (col7), KEY (col8), KEY (col9), KEY (col10),
+KEY (col11), KEY (col12), KEY (col13), KEY (col14), KEY (col15),
+KEY (col16), KEY (col17), KEY (col18), KEY (col19), KEY (col20),
+KEY (col21), KEY (col22), KEY (col23), KEY (col24), KEY (col25),
+KEY (col26), KEY (col27), KEY (col28), KEY (col29), KEY (col30),
+KEY (col31), KEY (col32), KEY (col33), KEY (col34), KEY (col35),
+KEY (col36), KEY (col37), KEY (col38), KEY (col39), KEY (col40),
+KEY (col41), KEY (col42), KEY (col43), KEY (col44), KEY (col45),
+KEY (col46), KEY (col47), KEY (col48), KEY (col49), KEY (col50),
+KEY (col51), KEY (col52), KEY (col53), KEY (col54), KEY (col55),
+KEY (col56), KEY (col57), KEY (col58), KEY (col59), KEY (col60),
+KEY (col61), KEY (col62), KEY (col63), KEY (col64));
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT DISTINCT * FROM t GROUP BY col1 + col2;
+EXPLAIN
+-> Sort with duplicate removal: t.col1, t.col2, t.col3, t.col4, t.col5, t.col6, t.col7, t.col8, t.col9, t.col10, t.col11, t.col12, t.col13, t.col14, t.col15, t.col16, t.col17, t.col18, t.col19, t.col20, t.col21, t.col22, t.col23, t.col24, t.col25, t.col26, t.col27, t.col28, t.col29, t.col30, t.col31, t.col32, t.col33, t.col34, t.col35, t.col36, t.col37, t.col38, t.col39, t.col40, t.col41, t.col42, t.col43, t.col44, t.col45, t.col46, t.col47, t.col48, t.col49, t.col50, t.col51, t.col52, t.col53, t.col54, t.col55, t.col56, t.col57, t.col58, t.col59, t.col60, t.col61, t.col62, t.col63, t.col64  (rows=1)
+    -> Group (no aggregates)  (rows=1)
+        -> Sort: (t.col1 + t.col2)  (rows=1)
+            -> Table scan on t  (rows=1)
+
+DROP TABLE t;
