@@ -84,7 +84,7 @@ static ORDER *clone(THD *thd, ORDER *order) {
   ORDER *clone = nullptr;
   ORDER **prev_next = &clone;
   for (; order != nullptr; order = order->next) {
-    ORDER *o = new (thd->mem_root) PT_order_expr(nullptr, ORDER_ASC);
+    ORDER *o = new (thd->mem_root) PT_order_expr(POS(), nullptr, ORDER_ASC);
     std::memcpy(o, order, sizeof(*order));
     *prev_next = o;
     prev_next = &o->next;

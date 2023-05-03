@@ -62,7 +62,7 @@ Select_lex_builder::Select_lex_builder(const POS *pc, THD *thd)
 bool Select_lex_builder::add_to_select_item_list(Item *expr) {
   // Prepare list if not exist.
   if (!m_select_item_list) {
-    m_select_item_list = new (m_thd->mem_root) PT_select_item_list();
+    m_select_item_list = new (m_thd->mem_root) PT_select_item_list(*m_pos);
 
     if (m_select_item_list == nullptr) return true;
   }
@@ -147,8 +147,9 @@ bool Select_lex_builder::add_from_item(const LEX_CSTRING &schema_name,
   if (table_ident == nullptr) return true;
 
   /* ... FROM schame_name.<table_name> ... */
-  PT_table_factor_table_ident *table_factor = new (m_thd->mem_root)
-      PT_table_factor_table_ident(table_ident, nullptr, NULL_CSTR, nullptr);
+  PT_table_factor_table_ident *table_factor =
+      new (m_thd->mem_root) PT_table_factor_table_ident(
+          *m_pos, table_ident, nullptr, NULL_CSTR, nullptr);
   if (table_factor == nullptr) return true;
 
   if (m_table_reference_list.push_back(table_factor)) return true;
@@ -249,7 +250,7 @@ bool Select_lex_builder::add_condition(Item *a) {
 bool Select_lex_builder::add_order_by(const LEX_CSTRING &field_name) {
   /* ... ORDER BY <field_name> ASC... */
   if (!m_order_by_list) {
-    m_order_by_list = new (m_thd->mem_root) PT_order_list();
+    m_order_by_list = new (m_thd->mem_root) PT_order_list(*m_pos);
     if (m_order_by_list == nullptr) return true;
   }
 
@@ -259,7 +260,7 @@ bool Select_lex_builder::add_order_by(const LEX_CSTRING &field_name) {
   if (ident_field == nullptr) return true;
 
   PT_order_expr *expression =
-      new (m_thd->mem_root) PT_order_expr(ident_field, ORDER_ASC);
+      new (m_thd->mem_root) PT_order_expr(*m_pos, ident_field, ORDER_ASC);
   m_order_by_list->push_back(expression);
 
   return expression == nullptr;
@@ -271,14 +272,14 @@ bool Select_lex_builder::add_order_by(const LEX_CSTRING &field_name) {
 */
 PT_derived_table *Select_lex_builder::prepare_derived_table(
     const LEX_CSTRING &table_alias) {
-  PT_query_primary *query_specification =
-      new (m_thd->mem_root) PT_query_specification(
-          options, m_select_item_list, m_table_reference_list, m_where_clause);
+  PT_query_primary *query_specification = new (m_thd->mem_root)
+      PT_query_specification(*m_pos, options, m_select_item_list,
+                             m_table_reference_list, m_where_clause);
 
   if (query_specification == nullptr) return nullptr;
 
   PT_query_expression *query_expression =
-      new (m_thd->mem_root) PT_query_expression(query_specification);
+      new (m_thd->mem_root) PT_query_expression(*m_pos, query_specification);
   if (query_expression == nullptr) return nullptr;
 
   PT_subquery *sub_query =
@@ -288,7 +289,7 @@ PT_derived_table *Select_lex_builder::prepare_derived_table(
   Create_col_name_list column_names;
   column_names.init(m_thd->mem_root);
   PT_derived_table *derived_table = new (m_thd->mem_root)
-      PT_derived_table(false, sub_query, table_alias, &column_names);
+      PT_derived_table(*m_pos, false, sub_query, table_alias, &column_names);
 
   return derived_table;
 }
@@ -298,19 +299,19 @@ PT_derived_table *Select_lex_builder::prepare_derived_table(
   added to this Select_lex_builder.
 */
 Query_block *Select_lex_builder::prepare_query_block() {
-  PT_query_specification *query_specification =
-      new (m_thd->mem_root) PT_query_specification(
-          options, m_select_item_list, m_table_reference_list, m_where_clause);
+  PT_query_specification *query_specification = new (m_thd->mem_root)
+      PT_query_specification(*m_pos, options, m_select_item_list,
+                             m_table_reference_list, m_where_clause);
   if (query_specification == nullptr) return nullptr;
 
   PT_order *pt_order_by = nullptr;
   if (m_order_by_list) {
-    pt_order_by = new (m_thd->mem_root) PT_order(m_order_by_list);
+    pt_order_by = new (m_thd->mem_root) PT_order(*m_pos, m_order_by_list);
     if (pt_order_by == nullptr) return nullptr;
   }
 
   PT_query_expression *query_expression = new (m_thd->mem_root)
-      PT_query_expression(query_specification, pt_order_by, nullptr);
+      PT_query_expression(*m_pos, query_specification, pt_order_by, nullptr);
   if (query_expression == nullptr) return nullptr;
 
   LEX *lex = m_thd->lex;

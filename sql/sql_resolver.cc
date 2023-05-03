@@ -6936,7 +6936,8 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
           in_select = selected_field;
           selected_field_in_group_by = true;
         }
-        ORDER *o = new (thd->mem_root) PT_order_expr(in_select, ORDER_ASC);
+        ORDER *o =
+            new (thd->mem_root) PT_order_expr(POS(), in_select, ORDER_ASC);
         if (o == nullptr) return true;
         o->direction = ORDER_NOT_RELEVANT;  // ignored by constructur
         o->in_field_list = true;

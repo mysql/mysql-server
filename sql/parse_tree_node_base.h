@@ -143,11 +143,12 @@ class Parse_tree_node_tmpl {
 
 #ifndef NDEBUG
  private:
-  bool contextualized;  // true if the node object is contextualized
-#endif                  // NDEBUG
+  bool contextualized = false;  // true if the node object is contextualized
+#endif                          // NDEBUG
 
  public:
   typedef Context context_t;
+  POS m_pos;
 
   static void *operator new(size_t size, MEM_ROOT *mem_root,
                             const std::nothrow_t &arg
@@ -162,10 +163,17 @@ class Parse_tree_node_tmpl {
                               const std::nothrow_t &) noexcept {}
 
  protected:
-  Parse_tree_node_tmpl() {
-#ifndef NDEBUG
-    contextualized = false;
-#endif  // NDEBUG
+  Parse_tree_node_tmpl() = delete;
+
+  explicit Parse_tree_node_tmpl(const POS &pos) : m_pos(pos) {}
+
+  explicit Parse_tree_node_tmpl(const POS &start_pos, const POS &end_pos) {
+    // Range of this item list should be from first character position of
+    // start_pos to the last character position of end_pos.
+    m_pos.cpp.start = start_pos.cpp.start;
+    m_pos.cpp.end = end_pos.cpp.end;
+    m_pos.raw.start = start_pos.raw.start;
+    m_pos.raw.end = end_pos.raw.end;
   }
 
   /**

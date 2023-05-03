@@ -59,7 +59,9 @@ class PT_hint : public Parse_tree_node {
   bool state;                // true if hints is on, false otherwise
  public:
   PT_hint(opt_hints_enum hint_type_arg, bool switch_state_arg)
-      : hint_type(hint_type_arg), state(switch_state_arg) {}
+      : Parse_tree_node(POS()) /* TODO: handle position in hints */,
+        hint_type(hint_type_arg),
+        state(switch_state_arg) {}
 
   opt_hints_enum type() const { return hint_type; }
   bool switch_on() const { return state; }
@@ -100,7 +102,8 @@ class PT_hint_list : public Parse_tree_node {
   Mem_root_array<PT_hint *> hints;
 
  public:
-  explicit PT_hint_list(MEM_ROOT *mem_root) : hints(mem_root) {}
+  explicit PT_hint_list(MEM_ROOT *mem_root)
+      : super(POS()) /* TODO: handle position of hints */, hints(mem_root) {}
 
   /**
     Function handles list of the hints we get after

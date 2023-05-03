@@ -51,7 +51,7 @@ class ISNativeFuncTest : public ::testing::Test {
 TEST_F(ISNativeFuncTest, AllNullArguments) {
   Item *item = nullptr;
   Item_null *null = new (thd()->mem_root) Item_null();
-  PT_item_list *null_list = new (thd()->mem_root) PT_item_list;
+  PT_item_list *null_list = new (thd()->mem_root) PT_item_list(POS());
   auto prepare_null_list = [null_list, null](int cnt) {
     for (int i = 0; i < cnt; i++) null_list->push_front(null);
     return null_list;

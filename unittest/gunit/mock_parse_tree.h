@@ -57,12 +57,13 @@ inline Item *make_fixed_literal(THD *thd, const char *pattern) {
 
 class Mock_pt_item_list : public PT_item_list {
  public:
-  Mock_pt_item_list(std::initializer_list<const char *> strings) {
+  Mock_pt_item_list(std::initializer_list<const char *> strings)
+      : PT_item_list(POS()) {
     for (auto string : strings) push_back(new Mock_text_literal(string));
   }
 
   template <typename T>
-  Mock_pt_item_list(T t) {
+  explicit Mock_pt_item_list(T t) : PT_item_list(POS()) {
     push_back(t);
   }
 

@@ -3406,7 +3406,7 @@ create_table_stmt:
           CREATE opt_temporary TABLE_SYM opt_if_not_exists table_ident
           '(' table_element_list ')' opt_create_table_options_etc
           {
-            $$= NEW_PTN PT_create_table_stmt(YYMEM_ROOT, $2, $4, $5,
+            $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $2, $4, $5,
                                              $7,
                                              $9.opt_create_table_options,
                                              $9.opt_partitioning,
@@ -3416,7 +3416,7 @@ create_table_stmt:
         | CREATE opt_temporary TABLE_SYM opt_if_not_exists table_ident
           opt_create_table_options_etc
           {
-            $$= NEW_PTN PT_create_table_stmt(YYMEM_ROOT, $2, $4, $5,
+            $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $2, $4, $5,
                                              NULL,
                                              $6.opt_create_table_options,
                                              $6.opt_partitioning,
@@ -3426,19 +3426,19 @@ create_table_stmt:
         | CREATE opt_temporary TABLE_SYM opt_if_not_exists table_ident
           LIKE table_ident
           {
-            $$= NEW_PTN PT_create_table_stmt(YYMEM_ROOT, $2, $4, $5, $7);
+            $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $2, $4, $5, $7);
           }
         | CREATE opt_temporary TABLE_SYM opt_if_not_exists table_ident
           '(' LIKE table_ident ')'
           {
-            $$= NEW_PTN PT_create_table_stmt(YYMEM_ROOT, $2, $4, $5, $8);
+            $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $2, $4, $5, $8);
           }
         ;
 
 create_role_stmt:
           CREATE ROLE_SYM opt_if_not_exists role_list
           {
-            $$= NEW_PTN PT_create_role(!!$3, $4);
+            $$= NEW_PTN PT_create_role(@$, !!$3, $4);
           }
         ;
 
@@ -3448,7 +3448,7 @@ create_resource_group_stmt:
           opt_resource_group_vcpu_list opt_resource_group_priority
           opt_resource_group_enable_disable
           {
-            $$= NEW_PTN PT_create_resource_group(to_lex_cstring($4), $7, $8, $9,
+            $$= NEW_PTN PT_create_resource_group(@$, to_lex_cstring($4), $7, $8, $9,
                                                  $10.is_default ? true :
                                                  $10.value);
           }
@@ -3564,12 +3564,12 @@ create_srs_stmt:
           CREATE OR_SYM REPLACE_SYM SPATIAL_SYM REFERENCE_SYM SYSTEM_SYM
           real_ulonglong_num srs_attributes
           {
-            $$= NEW_PTN PT_create_srs($7, *$8, true, false);
+            $$= NEW_PTN PT_create_srs(@$, $7, *$8, true, false);
           }
         | CREATE SPATIAL_SYM REFERENCE_SYM SYSTEM_SYM opt_if_not_exists
           real_ulonglong_num srs_attributes
           {
-            $$= NEW_PTN PT_create_srs($6, *$7, false, $5);
+            $$= NEW_PTN PT_create_srs(@$, $6, *$7, false, $5);
           }
         ;
 
@@ -3649,7 +3649,7 @@ create_index_stmt:
           ON_SYM table_ident '(' key_list_with_expression ')' opt_index_options
           opt_index_lock_and_algorithm
           {
-            $$= NEW_PTN PT_create_index_stmt(YYMEM_ROOT, $2, $4, $5,
+            $$= NEW_PTN PT_create_index_stmt(@$, YYMEM_ROOT, $2, $4, $5,
                                              $7, $9, $11,
                                              $12.algo.get_or_default(),
                                              $12.lock.get_or_default());
@@ -3657,7 +3657,7 @@ create_index_stmt:
         | CREATE FULLTEXT_SYM INDEX_SYM ident ON_SYM table_ident
           '(' key_list_with_expression ')' opt_fulltext_index_options opt_index_lock_and_algorithm
           {
-            $$= NEW_PTN PT_create_index_stmt(YYMEM_ROOT, KEYTYPE_FULLTEXT, $4,
+            $$= NEW_PTN PT_create_index_stmt(@$, YYMEM_ROOT, KEYTYPE_FULLTEXT, $4,
                                              NULL, $6, $8, $10,
                                              $11.algo.get_or_default(),
                                              $11.lock.get_or_default());
@@ -3665,7 +3665,7 @@ create_index_stmt:
         | CREATE SPATIAL_SYM INDEX_SYM ident ON_SYM table_ident
           '(' key_list_with_expression ')' opt_spatial_index_options opt_index_lock_and_algorithm
           {
-            $$= NEW_PTN PT_create_index_stmt(YYMEM_ROOT, KEYTYPE_SPATIAL, $4,
+            $$= NEW_PTN PT_create_index_stmt(@$, YYMEM_ROOT, KEYTYPE_SPATIAL, $4,
                                              NULL, $6, $8, $10,
                                              $11.algo.get_or_default(),
                                              $11.lock.get_or_default());
@@ -3996,7 +3996,7 @@ sp_suid:
 call_stmt:
           CALL_SYM sp_name opt_paren_expr_list
           {
-            $$= NEW_PTN PT_call($2, $3);
+            $$= NEW_PTN PT_call(@$, $2, $3);
           }
         ;
 
@@ -6077,14 +6077,14 @@ lg_undofile:
 ts_option_initial_size:
           INITIAL_SIZE_SYM opt_equal size_number
           {
-            $$= NEW_PTN PT_alter_tablespace_option_initial_size($3);
+            $$= NEW_PTN PT_alter_tablespace_option_initial_size(@$, $3);
           }
         ;
 
 ts_option_autoextend_size:
           option_autoextend_size
           {
-            $$ = NEW_PTN PT_alter_tablespace_option_autoextend_size($1);
+            $$ = NEW_PTN PT_alter_tablespace_option_autoextend_size(@$, $1);
           }
         ;
 
@@ -6095,74 +6095,74 @@ option_autoextend_size:
 ts_option_max_size:
           MAX_SIZE_SYM opt_equal size_number
           {
-            $$= NEW_PTN PT_alter_tablespace_option_max_size($3);
+            $$= NEW_PTN PT_alter_tablespace_option_max_size(@$, $3);
           }
         ;
 
 ts_option_extent_size:
           EXTENT_SIZE_SYM opt_equal size_number
           {
-            $$= NEW_PTN PT_alter_tablespace_option_extent_size($3);
+            $$= NEW_PTN PT_alter_tablespace_option_extent_size(@$, $3);
           }
         ;
 
 ts_option_undo_buffer_size:
           UNDO_BUFFER_SIZE_SYM opt_equal size_number
           {
-            $$= NEW_PTN PT_alter_tablespace_option_undo_buffer_size($3);
+            $$= NEW_PTN PT_alter_tablespace_option_undo_buffer_size(@$, $3);
           }
         ;
 
 ts_option_redo_buffer_size:
           REDO_BUFFER_SIZE_SYM opt_equal size_number
           {
-            $$= NEW_PTN PT_alter_tablespace_option_redo_buffer_size($3);
+            $$= NEW_PTN PT_alter_tablespace_option_redo_buffer_size(@$, $3);
           }
         ;
 
 ts_option_nodegroup:
           NODEGROUP_SYM opt_equal real_ulong_num
           {
-            $$= NEW_PTN PT_alter_tablespace_option_nodegroup($3);
+            $$= NEW_PTN PT_alter_tablespace_option_nodegroup(@$, $3);
           }
         ;
 
 ts_option_comment:
           COMMENT_SYM opt_equal TEXT_STRING_sys
           {
-            $$= NEW_PTN PT_alter_tablespace_option_comment($3);
+            $$= NEW_PTN PT_alter_tablespace_option_comment(@$, $3);
           }
         ;
 
 ts_option_engine:
           opt_storage ENGINE_SYM opt_equal ident_or_text
           {
-            $$= NEW_PTN PT_alter_tablespace_option_engine(to_lex_cstring($4));
+            $$= NEW_PTN PT_alter_tablespace_option_engine(@$, to_lex_cstring($4));
           }
         ;
 
 ts_option_file_block_size:
           FILE_BLOCK_SIZE_SYM opt_equal size_number
           {
-            $$= NEW_PTN PT_alter_tablespace_option_file_block_size($3);
+            $$= NEW_PTN PT_alter_tablespace_option_file_block_size(@$, $3);
           }
         ;
 
 ts_option_wait:
           WAIT_SYM
           {
-            $$= NEW_PTN PT_alter_tablespace_option_wait_until_completed(true);
+            $$= NEW_PTN PT_alter_tablespace_option_wait_until_completed(@$, true);
           }
         | NO_WAIT_SYM
           {
-            $$= NEW_PTN PT_alter_tablespace_option_wait_until_completed(false);
+            $$= NEW_PTN PT_alter_tablespace_option_wait_until_completed(@$, false);
           }
         ;
 
 ts_option_encryption:
           ENCRYPTION_SYM opt_equal TEXT_STRING_sys
           {
-            $$= NEW_PTN PT_alter_tablespace_option_encryption($3);
+            $$= NEW_PTN PT_alter_tablespace_option_encryption(@$, $3);
           }
         ;
 
@@ -6312,34 +6312,34 @@ partition_clause:
           PARTITION_SYM BY part_type_def opt_num_parts opt_sub_part
           opt_part_defs
           {
-            $$= NEW_PTN PT_partition($3, $4, $5, @6, $6);
+            $$= NEW_PTN PT_partition(@$, $3, $4, $5, @6, $6);
           }
         ;
 
 part_type_def:
           opt_linear KEY_SYM opt_key_algo '(' opt_name_list ')'
           {
-            $$= NEW_PTN PT_part_type_def_key($1, $3, $5);
+            $$= NEW_PTN PT_part_type_def_key(@$, $1, $3, $5);
           }
         | opt_linear HASH_SYM '(' bit_expr ')'
           {
-            $$= NEW_PTN PT_part_type_def_hash($1, @4, $4);
+            $$= NEW_PTN PT_part_type_def_hash(@$, $1, @4, $4);
           }
         | RANGE_SYM '(' bit_expr ')'
           {
-            $$= NEW_PTN PT_part_type_def_range_expr(@3, $3);
+            $$= NEW_PTN PT_part_type_def_range_expr(@$, @3, $3);
           }
         | RANGE_SYM COLUMNS '(' name_list ')'
           {
-            $$= NEW_PTN PT_part_type_def_range_columns($4);
+            $$= NEW_PTN PT_part_type_def_range_columns(@$, $4);
           }
         | LIST_SYM '(' bit_expr ')'
           {
-            $$= NEW_PTN PT_part_type_def_list_expr(@3, $3);
+            $$= NEW_PTN PT_part_type_def_list_expr(@$, @3, $3);
           }
         | LIST_SYM COLUMNS '(' name_list ')'
           {
-            $$= NEW_PTN PT_part_type_def_list_columns($4);
+            $$= NEW_PTN PT_part_type_def_list_columns(@$, $4);
           }
         ;
 
@@ -6384,12 +6384,12 @@ opt_sub_part:
         | SUBPARTITION_SYM BY opt_linear HASH_SYM '(' bit_expr ')'
           opt_num_subparts
           {
-            $$= NEW_PTN PT_sub_partition_by_hash($3, @6, $6, $8);
+            $$= NEW_PTN PT_sub_partition_by_hash(@$, $3, @6, $6, $8);
           }
         | SUBPARTITION_SYM BY opt_linear KEY_SYM opt_key_algo
           '(' name_list ')' opt_num_subparts
           {
-            $$= NEW_PTN PT_sub_partition_by_key($3, $5, $7, $9);
+            $$= NEW_PTN PT_sub_partition_by_key(@$, $3, $5, $7, $9);
           }
         ;
 
@@ -6451,7 +6451,7 @@ part_def_list:
 part_definition:
           PARTITION_SYM ident opt_part_values opt_part_options opt_sub_partition
           {
-            $$= NEW_PTN PT_part_definition(@0, $2, $3.type, $3.values, @3,
+            $$= NEW_PTN PT_part_definition(@$, @0, $2, $3.type, $3.values, @3,
                                            $4, $5, @5);
           }
         ;
@@ -6481,11 +6481,11 @@ part_func_max:
 part_values_in:
           part_value_item_list_paren
           {
-            $$= NEW_PTN PT_part_values_in_item(@1, $1);
+            $$= NEW_PTN PT_part_values_in_item(@$, @1, $1);
           }
         | '(' part_value_list ')'
           {
-            $$= NEW_PTN PT_part_values_in_list(@3, $2);
+            $$= NEW_PTN PT_part_values_in_list(@$, @3, $2);
           }
         ;
 
@@ -6519,7 +6519,7 @@ part_value_item_list_paren:
           }
           part_value_item_list ')'
           {
-            $$= NEW_PTN PT_part_value_item_list_paren($3, @4);
+            $$= NEW_PTN PT_part_value_item_list_paren(@$, $3, @4);
           }
         ;
 
@@ -6539,8 +6539,8 @@ part_value_item_list:
         ;
 
 part_value_item:
-          MAX_VALUE_SYM { $$= NEW_PTN PT_part_value_item_max(@1); }
-        | bit_expr      { $$= NEW_PTN PT_part_value_item_expr(@1, $1); }
+          MAX_VALUE_SYM { $$= NEW_PTN PT_part_value_item_max(@$); }
+        | bit_expr      { $$= NEW_PTN PT_part_value_item_expr(@$, $1); }
         ;
 
 
@@ -6567,7 +6567,7 @@ sub_part_list:
 sub_part_definition:
           SUBPARTITION_SYM ident_or_text opt_part_options
           {
-            $$= NEW_PTN PT_subpartition(@1, $2.str, $3);
+            $$= NEW_PTN PT_subpartition(@$, @1, $2.str, $3);
           }
         ;
 
@@ -6593,21 +6593,21 @@ part_option_list:
 
 part_option:
           TABLESPACE_SYM opt_equal ident
-          { $$= NEW_PTN PT_partition_tablespace($3.str); }
+          { $$= NEW_PTN PT_partition_tablespace(@$, $3.str); }
         | opt_storage ENGINE_SYM opt_equal ident_or_text
-          { $$= NEW_PTN PT_partition_engine(to_lex_cstring($4)); }
+          { $$= NEW_PTN PT_partition_engine(@$, to_lex_cstring($4)); }
         | NODEGROUP_SYM opt_equal real_ulong_num
-          { $$= NEW_PTN PT_partition_nodegroup($3); }
+          { $$= NEW_PTN PT_partition_nodegroup(@$, $3); }
         | MAX_ROWS opt_equal real_ulonglong_num
-          { $$= NEW_PTN PT_partition_max_rows($3); }
+          { $$= NEW_PTN PT_partition_max_rows(@$, $3); }
         | MIN_ROWS opt_equal real_ulonglong_num
-          { $$= NEW_PTN PT_partition_min_rows($3); }
+          { $$= NEW_PTN PT_partition_min_rows(@$, $3); }
         | DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
-          { $$= NEW_PTN PT_partition_data_directory($4.str); }
+          { $$= NEW_PTN PT_partition_data_directory(@$, $4.str); }
         | INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
-          { $$= NEW_PTN PT_partition_index_directory($4.str); }
+          { $$= NEW_PTN PT_partition_index_directory(@$, $4.str); }
         | COMMENT_SYM opt_equal TEXT_STRING_sys
-          { $$= NEW_PTN PT_partition_comment($3.str); }
+          { $$= NEW_PTN PT_partition_comment(@$, $3.str); }
         ;
 
 /*
@@ -6719,23 +6719,23 @@ opt_comma:
 create_table_option:
           ENGINE_SYM opt_equal ident_or_text
           {
-            $$= NEW_PTN PT_create_table_engine_option(to_lex_cstring($3));
+            $$= NEW_PTN PT_create_table_engine_option(@$, to_lex_cstring($3));
           }
         | SECONDARY_ENGINE_SYM opt_equal NULL_SYM
           {
-            $$= NEW_PTN PT_create_table_secondary_engine_option();
+            $$= NEW_PTN PT_create_table_secondary_engine_option(@$);
           }
         | SECONDARY_ENGINE_SYM opt_equal ident_or_text
           {
-            $$= NEW_PTN PT_create_table_secondary_engine_option(to_lex_cstring($3));
+            $$= NEW_PTN PT_create_table_secondary_engine_option(@$, to_lex_cstring($3));
           }
         | MAX_ROWS opt_equal ulonglong_num
           {
-            $$= NEW_PTN PT_create_max_rows_option($3);
+            $$= NEW_PTN PT_create_max_rows_option(@$, $3);
           }
         | MIN_ROWS opt_equal ulonglong_num
           {
-            $$= NEW_PTN PT_create_min_rows_option($3);
+            $$= NEW_PTN PT_create_min_rows_option(@$, $3);
           }
         | AVG_ROW_LENGTH opt_equal ulonglong_num
           {
@@ -6748,39 +6748,39 @@ create_table_option:
               );
               MYSQL_YYABORT;
             }
-            $$= NEW_PTN PT_create_avg_row_length_option($3);
+            $$= NEW_PTN PT_create_avg_row_length_option(@$, $3);
           }
         | PASSWORD opt_equal TEXT_STRING_sys
           {
-            $$= NEW_PTN PT_create_password_option($3.str);
+            $$= NEW_PTN PT_create_password_option(@$, $3.str);
           }
         | COMMENT_SYM opt_equal TEXT_STRING_sys
           {
-            $$= NEW_PTN PT_create_commen_option($3);
+            $$= NEW_PTN PT_create_commen_option(@$, $3);
           }
         | COMPRESSION_SYM opt_equal TEXT_STRING_sys
           {
-            $$= NEW_PTN PT_create_compress_option($3);
+            $$= NEW_PTN PT_create_compress_option(@$, $3);
           }
         | ENCRYPTION_SYM opt_equal TEXT_STRING_sys
           {
-            $$= NEW_PTN PT_create_encryption_option($3);
+            $$= NEW_PTN PT_create_encryption_option(@$, $3);
           }
         | AUTO_INC opt_equal ulonglong_num
           {
-            $$= NEW_PTN PT_create_auto_increment_option($3);
+            $$= NEW_PTN PT_create_auto_increment_option(@$, $3);
           }
         | PACK_KEYS_SYM opt_equal ternary_option
           {
-            $$= NEW_PTN PT_create_pack_keys_option($3);
+            $$= NEW_PTN PT_create_pack_keys_option(@$, $3);
           }
         | STATS_AUTO_RECALC_SYM opt_equal ternary_option
           {
-            $$= NEW_PTN PT_create_stats_auto_recalc_option($3);
+            $$= NEW_PTN PT_create_stats_auto_recalc_option(@$, $3);
           }
         | STATS_PERSISTENT_SYM opt_equal ternary_option
           {
-            $$= NEW_PTN PT_create_stats_persistent_option($3);
+            $$= NEW_PTN PT_create_stats_persistent_option(@$, $3);
           }
         | STATS_SAMPLE_PAGES_SYM opt_equal ulong_num
           {
@@ -6798,67 +6798,67 @@ create_table_option:
               "The valid range for stats_sample_pages is [1, 65535]. Error");
               MYSQL_YYABORT;
             }
-            $$= NEW_PTN PT_create_stats_stable_pages($3);
+            $$= NEW_PTN PT_create_stats_stable_pages(@$, $3);
           }
         | STATS_SAMPLE_PAGES_SYM opt_equal DEFAULT_SYM
           {
-            $$= NEW_PTN PT_create_stats_stable_pages;
+            $$= NEW_PTN PT_create_stats_stable_pages(@$);
           }
         | CHECKSUM_SYM opt_equal ulong_num
           {
-            $$= NEW_PTN PT_create_checksum_option($3);
+            $$= NEW_PTN PT_create_checksum_option(@$, $3);
           }
         | TABLE_CHECKSUM_SYM opt_equal ulong_num
           {
-            $$= NEW_PTN PT_create_checksum_option($3);
+            $$= NEW_PTN PT_create_checksum_option(@$, $3);
           }
         | DELAY_KEY_WRITE_SYM opt_equal ulong_num
           {
-            $$= NEW_PTN PT_create_delay_key_write_option($3);
+            $$= NEW_PTN PT_create_delay_key_write_option(@$, $3);
           }
         | ROW_FORMAT_SYM opt_equal row_types
           {
-            $$= NEW_PTN PT_create_row_format_option($3);
+            $$= NEW_PTN PT_create_row_format_option(@$, $3);
           }
         | UNION_SYM opt_equal '(' opt_table_list ')'
           {
-            $$= NEW_PTN PT_create_union_option($4);
+            $$= NEW_PTN PT_create_union_option(@$, $4);
           }
         | default_charset
           {
-            $$= NEW_PTN PT_create_table_default_charset($1);
+            $$= NEW_PTN PT_create_table_default_charset(@$, $1);
           }
         | default_collation
           {
-            $$= NEW_PTN PT_create_table_default_collation($1);
+            $$= NEW_PTN PT_create_table_default_collation(@$, $1);
           }
         | INSERT_METHOD opt_equal merge_insert_types
           {
-            $$= NEW_PTN PT_create_insert_method_option($3);
+            $$= NEW_PTN PT_create_insert_method_option(@$, $3);
           }
         | DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
           {
-            $$= NEW_PTN PT_create_data_directory_option($4.str);
+            $$= NEW_PTN PT_create_data_directory_option(@$, $4.str);
           }
         | INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
           {
-            $$= NEW_PTN PT_create_index_directory_option($4.str);
+            $$= NEW_PTN PT_create_index_directory_option(@$, $4.str);
           }
         | TABLESPACE_SYM opt_equal ident
           {
-            $$= NEW_PTN PT_create_tablespace_option($3.str);
+            $$= NEW_PTN PT_create_tablespace_option(@$, $3.str);
           }
         | STORAGE_SYM DISK_SYM
           {
-            $$= NEW_PTN PT_create_storage_option(HA_SM_DISK);
+            $$= NEW_PTN PT_create_storage_option(@$, HA_SM_DISK);
           }
         | STORAGE_SYM MEMORY_SYM
           {
-            $$= NEW_PTN PT_create_storage_option(HA_SM_MEMORY);
+            $$= NEW_PTN PT_create_storage_option(@$, HA_SM_MEMORY);
           }
         | CONNECTION_SYM opt_equal TEXT_STRING_sys
           {
-            $$= NEW_PTN PT_create_connection_option($3);
+            $$= NEW_PTN PT_create_connection_option(@$, $3);
           }
         | KEY_BLOCK_SIZE opt_equal ulonglong_num
           {
@@ -6872,11 +6872,11 @@ create_table_option:
             }
 
             $$= NEW_PTN
-            PT_create_key_block_size_option(static_cast<std::uint32_t>($3));
+            PT_create_key_block_size_option(@$, static_cast<std::uint32_t>($3));
           }
         | START_SYM TRANSACTION_SYM
           {
-            $$= NEW_PTN PT_create_start_transaction_option(true);
+            $$= NEW_PTN PT_create_start_transaction_option(@$, true);
 	  }
         | ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
           {
@@ -6888,7 +6888,7 @@ create_table_option:
           }
         | option_autoextend_size
           {
-            $$ = NEW_PTN PT_create_ts_autoextend_size_option($1);
+            $$ = NEW_PTN PT_create_ts_autoextend_size_option(@$, $1);
           }
         ;
 
@@ -6967,7 +6967,7 @@ table_element:
 column_def:
           ident field_def opt_references
           {
-            $$= NEW_PTN PT_column_def($1, $2, $3);
+            $$= NEW_PTN PT_column_def(@$, $1, $2, $3);
           }
         ;
 
@@ -6984,19 +6984,19 @@ table_constraint_def:
           key_or_index opt_index_name_and_type '(' key_list_with_expression ')'
           opt_index_options
           {
-            $$= NEW_PTN PT_inline_index_definition(KEYTYPE_MULTIPLE,
+            $$= NEW_PTN PT_inline_index_definition(@$, KEYTYPE_MULTIPLE,
                                                    $2.name, $2.type, $4, $6);
           }
         | FULLTEXT_SYM opt_key_or_index opt_ident '(' key_list_with_expression ')'
           opt_fulltext_index_options
           {
-            $$= NEW_PTN PT_inline_index_definition(KEYTYPE_FULLTEXT, $3, NULL,
+            $$= NEW_PTN PT_inline_index_definition(@$, KEYTYPE_FULLTEXT, $3, NULL,
                                                    $5, $7);
           }
         | SPATIAL_SYM opt_key_or_index opt_ident '(' key_list_with_expression ')'
           opt_spatial_index_options
           {
-            $$= NEW_PTN PT_inline_index_definition(KEYTYPE_SPATIAL, $3, NULL, $5, $7);
+            $$= NEW_PTN PT_inline_index_definition(@$, KEYTYPE_SPATIAL, $3, NULL, $5, $7);
           }
         | opt_constraint_name constraint_key_type opt_index_name_and_type
           '(' key_list_with_expression ')' opt_index_options
@@ -7006,11 +7006,11 @@ table_constraint_def:
               by default.
             */
             LEX_STRING name= $3.name.str != NULL ? $3.name : $1;
-            $$= NEW_PTN PT_inline_index_definition($2, name, $3.type, $5, $7);
+            $$= NEW_PTN PT_inline_index_definition(@$, $2, name, $3.type, $5, $7);
           }
         | opt_constraint_name FOREIGN KEY_SYM opt_ident '(' key_list ')' references
           {
-            $$= NEW_PTN PT_foreign_key_definition($1, $4, $6, $8.table_name,
+            $$= NEW_PTN PT_foreign_key_definition(@$, $1, $4, $6, $8.table_name,
                                                   $8.reference_list,
                                                   $8.fk_match_option,
                                                   $8.fk_update_opt,
@@ -7018,7 +7018,7 @@ table_constraint_def:
           }
         | opt_constraint_name check_constraint opt_constraint_enforcement
           {
-            $$= NEW_PTN PT_check_constraint($1, $2, $3);
+            $$= NEW_PTN PT_check_constraint(@$, $1, $2, $3);
             if ($$ == nullptr) MYSQL_YYABORT; // OOM
           }
         ;
@@ -7049,7 +7049,7 @@ constraint_enforcement:
 field_def:
           type opt_column_attribute_list
           {
-            $$= NEW_PTN PT_field_def($1, $2);
+            $$= NEW_PTN PT_field_def(@$, $1, $2);
           }
         | type opt_collate opt_generated_always
           AS '(' expr ')'
@@ -7068,7 +7068,7 @@ field_def:
                   opt_attrs->push_back(collation))
                 MYSQL_YYABORT; // OOM
             }
-            $$= NEW_PTN PT_generated_field_def($1, $6, $8, opt_attrs);
+            $$= NEW_PTN PT_generated_field_def(@$, $1, $6, $8, opt_attrs);
           }
         ;
 
@@ -7086,40 +7086,40 @@ opt_stored_attribute:
 type:
           int_type opt_field_length field_options
           {
-            $$= NEW_PTN PT_numeric_type(YYTHD, $1, $2, $3);
+            $$= NEW_PTN PT_numeric_type(@$, YYTHD, $1, $2, $3);
           }
         | real_type opt_precision field_options
           {
-            $$= NEW_PTN PT_numeric_type(YYTHD, $1, $2.length, $2.dec, $3);
+            $$= NEW_PTN PT_numeric_type(@$, YYTHD, $1, $2.length, $2.dec, $3);
           }
         | numeric_type float_options field_options
           {
-            $$= NEW_PTN PT_numeric_type(YYTHD, $1, $2.length, $2.dec, $3);
+            $$= NEW_PTN PT_numeric_type(@$, YYTHD, $1, $2.length, $2.dec, $3);
           }
         | BIT_SYM %prec KEYWORD_USED_AS_KEYWORD
           {
-            $$= NEW_PTN PT_bit_type;
+            $$= NEW_PTN PT_bit_type(@$);
           }
         | BIT_SYM field_length
           {
-            $$= NEW_PTN PT_bit_type($2);
+            $$= NEW_PTN PT_bit_type(@$, $2);
           }
         | BOOL_SYM
           {
-            $$= NEW_PTN PT_boolean_type;
+            $$= NEW_PTN PT_boolean_type(@$);
           }
         | BOOLEAN_SYM
           {
-            $$= NEW_PTN PT_boolean_type;
+            $$= NEW_PTN PT_boolean_type(@$);
           }
         | CHAR_SYM field_length opt_charset_with_opt_binary
           {
-            $$= NEW_PTN PT_char_type(Char_type::CHAR, $2, $3.charset,
+            $$= NEW_PTN PT_char_type(@$, Char_type::CHAR, $2, $3.charset,
                                      $3.force_binary);
           }
         | CHAR_SYM opt_charset_with_opt_binary
           {
-            $$= NEW_PTN PT_char_type(Char_type::CHAR, $2.charset,
+            $$= NEW_PTN PT_char_type(@$, Char_type::CHAR, $2.charset,
                                      $2.force_binary);
           }
         | nchar field_length opt_bin_mod
@@ -7128,7 +7128,7 @@ type:
               get_bin_collation(national_charset_info) : national_charset_info;
             if (cs == NULL)
               MYSQL_YYABORT;
-            $$= NEW_PTN PT_char_type(Char_type::CHAR, $2, cs);
+            $$= NEW_PTN PT_char_type(@$, Char_type::CHAR, $2, cs);
             warn_about_deprecated_national(YYTHD);
           }
         | nchar opt_bin_mod
@@ -7137,20 +7137,20 @@ type:
               get_bin_collation(national_charset_info) : national_charset_info;
             if (cs == NULL)
               MYSQL_YYABORT;
-            $$= NEW_PTN PT_char_type(Char_type::CHAR, cs);
+            $$= NEW_PTN PT_char_type(@$, Char_type::CHAR, cs);
             warn_about_deprecated_national(YYTHD);
           }
         | BINARY_SYM field_length
           {
-            $$= NEW_PTN PT_char_type(Char_type::CHAR, $2, &my_charset_bin);
+            $$= NEW_PTN PT_char_type(@$, Char_type::CHAR, $2, &my_charset_bin);
           }
         | BINARY_SYM
           {
-            $$= NEW_PTN PT_char_type(Char_type::CHAR, &my_charset_bin);
+            $$= NEW_PTN PT_char_type(@$, Char_type::CHAR, &my_charset_bin);
           }
         | varchar field_length opt_charset_with_opt_binary
           {
-            $$= NEW_PTN PT_char_type(Char_type::VARCHAR, $2, $3.charset,
+            $$= NEW_PTN PT_char_type(@$, Char_type::VARCHAR, $2, $3.charset,
                                      $3.force_binary);
           }
         | nvarchar field_length opt_bin_mod
@@ -7159,12 +7159,12 @@ type:
               get_bin_collation(national_charset_info) : national_charset_info;
             if (cs == NULL)
               MYSQL_YYABORT;
-            $$= NEW_PTN PT_char_type(Char_type::VARCHAR, $2, cs);
+            $$= NEW_PTN PT_char_type(@$, Char_type::VARCHAR, $2, cs);
             warn_about_deprecated_national(YYTHD);
           }
         | VARBINARY_SYM field_length
           {
-            $$= NEW_PTN PT_char_type(Char_type::VARCHAR, $2, &my_charset_bin);
+            $$= NEW_PTN PT_char_type(@$, Char_type::VARCHAR, $2, &my_charset_bin);
           }
         | YEAR_SYM opt_field_length field_options
           {
@@ -7187,110 +7187,110 @@ type:
                            ER_THD(YYTHD, ER_WARN_DEPRECATED_YEAR_UNSIGNED));
             }
             // We can ignore field length and UNSIGNED/ZEROFILL attributes here.
-            $$= NEW_PTN PT_year_type;
+            $$= NEW_PTN PT_year_type(@$);
           }
         | DATE_SYM
           {
-            $$= NEW_PTN PT_date_type;
+            $$= NEW_PTN PT_date_type(@$);
           }
         | TIME_SYM type_datetime_precision
           {
-            $$= NEW_PTN PT_time_type(Time_type::TIME, $2);
+            $$= NEW_PTN PT_time_type(@$, Time_type::TIME, $2);
           }
         | TIMESTAMP_SYM type_datetime_precision
           {
-            $$= NEW_PTN PT_timestamp_type($2);
+            $$= NEW_PTN PT_timestamp_type(@$, $2);
           }
         | DATETIME_SYM type_datetime_precision
           {
-            $$= NEW_PTN PT_time_type(Time_type::DATETIME, $2);
+            $$= NEW_PTN PT_time_type(@$, Time_type::DATETIME, $2);
           }
         | TINYBLOB_SYM
           {
-            $$= NEW_PTN PT_blob_type(Blob_type::TINY, &my_charset_bin);
+            $$= NEW_PTN PT_blob_type(@$, Blob_type::TINY, &my_charset_bin);
           }
         | BLOB_SYM opt_field_length
           {
-            $$= NEW_PTN PT_blob_type($2);
+            $$= NEW_PTN PT_blob_type(@$, $2);
           }
         | spatial_type
         | MEDIUMBLOB_SYM
           {
-            $$= NEW_PTN PT_blob_type(Blob_type::MEDIUM, &my_charset_bin);
+            $$= NEW_PTN PT_blob_type(@$, Blob_type::MEDIUM, &my_charset_bin);
           }
         | LONGBLOB_SYM
           {
-            $$= NEW_PTN PT_blob_type(Blob_type::LONG, &my_charset_bin);
+            $$= NEW_PTN PT_blob_type(@$, Blob_type::LONG, &my_charset_bin);
           }
         | LONG_SYM VARBINARY_SYM
           {
-            $$= NEW_PTN PT_blob_type(Blob_type::MEDIUM, &my_charset_bin);
+            $$= NEW_PTN PT_blob_type(@$, Blob_type::MEDIUM, &my_charset_bin);
           }
         | LONG_SYM varchar opt_charset_with_opt_binary
           {
-            $$= NEW_PTN PT_blob_type(Blob_type::MEDIUM, $3.charset,
+            $$= NEW_PTN PT_blob_type(@$, Blob_type::MEDIUM, $3.charset,
                                      $3.force_binary);
           }
         | TINYTEXT_SYN opt_charset_with_opt_binary
           {
-            $$= NEW_PTN PT_blob_type(Blob_type::TINY, $2.charset,
+            $$= NEW_PTN PT_blob_type(@$, Blob_type::TINY, $2.charset,
                                      $2.force_binary);
           }
         | TEXT_SYM opt_field_length opt_charset_with_opt_binary
           {
-            $$= NEW_PTN PT_char_type(Char_type::TEXT, $2, $3.charset,
+            $$= NEW_PTN PT_char_type(@$, Char_type::TEXT, $2, $3.charset,
                                      $3.force_binary);
           }
         | MEDIUMTEXT_SYM opt_charset_with_opt_binary
           {
-            $$= NEW_PTN PT_blob_type(Blob_type::MEDIUM, $2.charset,
+            $$= NEW_PTN PT_blob_type(@$, Blob_type::MEDIUM, $2.charset,
                                      $2.force_binary);
           }
         | LONGTEXT_SYM opt_charset_with_opt_binary
           {
-            $$= NEW_PTN PT_blob_type(Blob_type::LONG, $2.charset,
+            $$= NEW_PTN PT_blob_type(@$, Blob_type::LONG, $2.charset,
                                      $2.force_binary);
           }
         | ENUM_SYM '(' string_list ')' opt_charset_with_opt_binary
           {
-            $$= NEW_PTN PT_enum_type($3, $5.charset, $5.force_binary);
+            $$= NEW_PTN PT_enum_type(@$, $3, $5.charset, $5.force_binary);
           }
         | SET_SYM '(' string_list ')' opt_charset_with_opt_binary
           {
-            $$= NEW_PTN PT_set_type($3, $5.charset, $5.force_binary);
+            $$= NEW_PTN PT_set_type(@$, $3, $5.charset, $5.force_binary);
           }
         | LONG_SYM opt_charset_with_opt_binary
           {
-            $$= NEW_PTN PT_blob_type(Blob_type::MEDIUM, $2.charset,
+            $$= NEW_PTN PT_blob_type(@$, Blob_type::MEDIUM, $2.charset,
                                      $2.force_binary);
           }
         | SERIAL_SYM
           {
-            $$= NEW_PTN PT_serial_type;
+            $$= NEW_PTN PT_serial_type(@$);
           }
         | JSON_SYM
           {
-            $$= NEW_PTN PT_json_type;
+            $$= NEW_PTN PT_json_type(@$);
           }
         ;
 
 spatial_type:
           GEOMETRY_SYM
-          { $$= NEW_PTN PT_spacial_type(Field::GEOM_GEOMETRY); }
+          { $$= NEW_PTN PT_spacial_type(@$, Field::GEOM_GEOMETRY); }
         | GEOMETRYCOLLECTION_SYM
-          { $$= NEW_PTN PT_spacial_type(Field::GEOM_GEOMETRYCOLLECTION); }
+          { $$= NEW_PTN PT_spacial_type(@$, Field::GEOM_GEOMETRYCOLLECTION); }
         | POINT_SYM
-          { $$= NEW_PTN PT_spacial_type(Field::GEOM_POINT); }
+          { $$= NEW_PTN PT_spacial_type(@$, Field::GEOM_POINT); }
         | MULTIPOINT_SYM
-          { $$= NEW_PTN PT_spacial_type(Field::GEOM_MULTIPOINT); }
+          { $$= NEW_PTN PT_spacial_type(@$, Field::GEOM_MULTIPOINT); }
         | LINESTRING_SYM
-          { $$= NEW_PTN PT_spacial_type(Field::GEOM_LINESTRING); }
+          { $$= NEW_PTN PT_spacial_type(@$, Field::GEOM_LINESTRING); }
         | MULTILINESTRING_SYM
-          { $$= NEW_PTN PT_spacial_type(Field::GEOM_MULTILINESTRING); }
+          { $$= NEW_PTN PT_spacial_type(@$, Field::GEOM_MULTILINESTRING); }
         | POLYGON_SYM
-          { $$= NEW_PTN PT_spacial_type(Field::GEOM_POLYGON); }
+          { $$= NEW_PTN PT_spacial_type(@$, Field::GEOM_POLYGON); }
         | MULTIPOLYGON_SYM
-          { $$= NEW_PTN PT_spacial_type(Field::GEOM_MULTIPOLYGON); }
+          { $$= NEW_PTN PT_spacial_type(@$, Field::GEOM_MULTIPOLYGON); }
         ;
 
 nchar:
@@ -7482,63 +7482,63 @@ column_attribute_list:
 column_attribute:
           NULL_SYM
           {
-            $$= NEW_PTN PT_null_column_attr;
+            $$= NEW_PTN PT_null_column_attr(@$);
           }
         | not NULL_SYM
           {
-            $$= NEW_PTN PT_not_null_column_attr;
+            $$= NEW_PTN PT_not_null_column_attr(@$);
           }
         | not SECONDARY_SYM
           {
-            $$= NEW_PTN PT_secondary_column_attr;
+            $$= NEW_PTN PT_secondary_column_attr(@$);
           }
         | DEFAULT_SYM now_or_signed_literal
           {
-            $$= NEW_PTN PT_default_column_attr($2);
+            $$= NEW_PTN PT_default_column_attr(@$, $2);
           }
         | DEFAULT_SYM '(' expr ')'
           {
-            $$= NEW_PTN PT_generated_default_val_column_attr($3);
+            $$= NEW_PTN PT_generated_default_val_column_attr(@$, $3);
           }
         | ON_SYM UPDATE_SYM now
           {
-            $$= NEW_PTN PT_on_update_column_attr(static_cast<uint8>($3));
+            $$= NEW_PTN PT_on_update_column_attr(@$, static_cast<uint8>($3));
           }
         | AUTO_INC
           {
-            $$= NEW_PTN PT_auto_increment_column_attr;
+            $$= NEW_PTN PT_auto_increment_column_attr(@$);
           }
         | SERIAL_SYM DEFAULT_SYM VALUE_SYM
           {
-            $$= NEW_PTN PT_serial_default_value_column_attr;
+            $$= NEW_PTN PT_serial_default_value_column_attr(@$);
           }
         | opt_primary KEY_SYM
           {
-            $$= NEW_PTN PT_primary_key_column_attr;
+            $$= NEW_PTN PT_primary_key_column_attr(@$);
           }
         | UNIQUE_SYM
           {
-            $$= NEW_PTN PT_unique_key_column_attr;
+            $$= NEW_PTN PT_unique_key_column_attr(@$);
           }
         | UNIQUE_SYM KEY_SYM
           {
-            $$= NEW_PTN PT_unique_key_column_attr;
+            $$= NEW_PTN PT_unique_key_column_attr(@$);
           }
         | COMMENT_SYM TEXT_STRING_sys
           {
-            $$= NEW_PTN PT_comment_column_attr(to_lex_cstring($2));
+            $$= NEW_PTN PT_comment_column_attr(@$, to_lex_cstring($2));
           }
         | COLLATE_SYM collation_name
           {
-            $$= NEW_PTN PT_collate_column_attr(@2, $2);
+            $$= NEW_PTN PT_collate_column_attr(@$, $2);
           }
         | COLUMN_FORMAT_SYM column_format
           {
-            $$= NEW_PTN PT_column_format_column_attr($2);
+            $$= NEW_PTN PT_column_format_column_attr(@$, $2);
           }
         | STORAGE_SYM storage_media
           {
-            $$= NEW_PTN PT_storage_media_column_attr($2);
+            $$= NEW_PTN PT_storage_media_column_attr(@$, $2);
           }
         | SRID_SYM real_ulonglong_num
           {
@@ -7547,12 +7547,12 @@ column_attribute:
               my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "SRID", "SRID");
               MYSQL_YYABORT;
             }
-            $$= NEW_PTN PT_srid_column_attr(static_cast<gis::srid_t>($2));
+            $$= NEW_PTN PT_srid_column_attr(@$, static_cast<gis::srid_t>($2));
           }
         | opt_constraint_name check_constraint
           /* See the next branch for [NOT] ENFORCED. */
           {
-            $$= NEW_PTN PT_check_constraint_column_attr($1, $2);
+            $$= NEW_PTN PT_check_constraint_column_attr(@$, $1, $2);
           }
         | constraint_enforcement
           /*
@@ -7565,7 +7565,7 @@ column_attribute:
                   [NOT] ENFORCED sequences.
           */
           {
-            $$ = NEW_PTN PT_constraint_enforcement_attr($1);
+            $$ = NEW_PTN PT_constraint_enforcement_attr(@$, $1);
           }
         | ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
           {
@@ -7577,7 +7577,7 @@ column_attribute:
           }
         | visibility
           {
-            $$ = NEW_PTN PT_column_visibility_attr($1);
+            $$ = NEW_PTN PT_column_visibility_attr(@$, $1);
           }
         ;
 
@@ -7921,7 +7921,7 @@ fulltext_index_option:
               MYSQL_YYABORT;
             }
             else
-              $$= NEW_PTN PT_fulltext_index_parser_name(to_lex_cstring($3));
+              $$= NEW_PTN PT_fulltext_index_parser_name(@$, to_lex_cstring($3));
           }
         ;
 
@@ -7976,14 +7976,14 @@ index_option:
 
 // These options are common for all index types.
 common_index_option:
-          KEY_BLOCK_SIZE opt_equal ulong_num { $$= NEW_PTN PT_block_size($3); }
+          KEY_BLOCK_SIZE opt_equal ulong_num { $$= NEW_PTN PT_block_size(@$, $3); }
         | COMMENT_SYM TEXT_STRING_sys
           {
-            $$= NEW_PTN PT_index_comment(to_lex_cstring($2));
+            $$= NEW_PTN PT_index_comment(@$, to_lex_cstring($2));
           }
         | visibility
           {
-            $$= NEW_PTN PT_index_visibility($1);
+            $$= NEW_PTN PT_index_visibility(@$, $1);
           }
         | ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
           {
@@ -8014,8 +8014,8 @@ common_index_option:
 */
 opt_index_name_and_type:
           opt_ident                  { $$= {$1, NULL}; }
-        | opt_ident USING index_type { $$= {$1, NEW_PTN PT_index_type($3)}; }
-        | ident TYPE_SYM index_type  { $$= {$1, NEW_PTN PT_index_type($3)}; }
+        | opt_ident USING index_type { $$= {$1, NEW_PTN PT_index_type(@$, $3)}; }
+        | ident TYPE_SYM index_type  { $$= {$1, NEW_PTN PT_index_type(@$, $3)}; }
         ;
 
 opt_index_type_clause:
@@ -8024,8 +8024,8 @@ opt_index_type_clause:
         ;
 
 index_type_clause:
-          USING index_type    { $$= NEW_PTN PT_index_type($2); }
-        | TYPE_SYM index_type { $$= NEW_PTN PT_index_type($2); }
+          USING index_type    { $$= NEW_PTN PT_index_type(@$, $2); }
+        | TYPE_SYM index_type { $$= NEW_PTN PT_index_type(@$, $2); }
         ;
 
 visibility:
@@ -8058,7 +8058,7 @@ key_list:
 key_part:
           ident opt_ordering_direction
           {
-            $$= NEW_PTN PT_key_part_specification(to_lex_cstring($1), $2, 0);
+            $$= NEW_PTN PT_key_part_specification(@$, to_lex_cstring($1), $2, 0);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -8069,7 +8069,7 @@ key_part:
             {
               my_error(ER_KEY_PART_0, MYF(0), $1.str);
             }
-            $$= NEW_PTN PT_key_part_specification(to_lex_cstring($1), $5,
+            $$= NEW_PTN PT_key_part_specification(@$, to_lex_cstring($1), $5,
                                                   key_part_length);
             if ($$ == NULL)
               MYSQL_YYABORT; /* purecov: deadcode */
@@ -8096,7 +8096,7 @@ key_part_with_expression:
           key_part
         | '(' expr ')' opt_ordering_direction
           {
-            $$= NEW_PTN PT_key_part_specification($2, $4);
+            $$= NEW_PTN PT_key_part_specification(@$, $2, $4);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -8129,6 +8129,7 @@ alter_table_stmt:
           ALTER TABLE_SYM table_ident opt_alter_table_actions
           {
             $$= NEW_PTN PT_alter_table_stmt(
+                  @$,
                   YYMEM_ROOT,
                   $3,
                   $4.actions,
@@ -8139,6 +8140,7 @@ alter_table_stmt:
         | ALTER TABLE_SYM table_ident standalone_alter_table_action
           {
             $$= NEW_PTN PT_alter_table_standalone_stmt(
+                  @$,
                   YYMEM_ROOT,
                   $3,
                   $4.action,
@@ -8447,7 +8449,7 @@ alter_user_stmt:
               MYSQL_YYABORT;
             List<LEX_USER> *role_list= new (YYMEM_ROOT) List<LEX_USER>;
             auto *tmp=
-                NEW_PTN PT_alter_user_default_role(Lex->drop_if_exists,
+                NEW_PTN PT_alter_user_default_role(@$, Lex->drop_if_exists,
                                                    users, role_list,
                                                    role_enum::ROLE_ALL);
               MAKE_CMD(tmp);
@@ -8459,7 +8461,7 @@ alter_user_stmt:
               MYSQL_YYABORT;
             List<LEX_USER> *role_list= new (YYMEM_ROOT) List<LEX_USER>;
             auto *tmp=
-                NEW_PTN PT_alter_user_default_role(Lex->drop_if_exists,
+                NEW_PTN PT_alter_user_default_role(@$, Lex->drop_if_exists,
                                                    users, role_list,
                                                    role_enum::ROLE_NONE);
               MAKE_CMD(tmp);
@@ -8470,7 +8472,7 @@ alter_user_stmt:
             if (users == NULL || users->push_back($2))
               MYSQL_YYABORT;
             auto *tmp=
-              NEW_PTN PT_alter_user_default_role(Lex->drop_if_exists,
+              NEW_PTN PT_alter_user_default_role(@$, Lex->drop_if_exists,
                                                  users, $5,
                                                  role_enum::ROLE_NAME);
             MAKE_CMD(tmp);
@@ -8499,7 +8501,7 @@ alter_resource_group_stmt:
           opt_resource_group_priority opt_resource_group_enable_disable
           opt_force
           {
-            $$= NEW_PTN PT_alter_resource_group(to_lex_cstring($4),
+            $$= NEW_PTN PT_alter_resource_group(@$, to_lex_cstring($4),
                                                 $5, $6, $7, $8);
           }
         ;
@@ -8787,11 +8789,11 @@ standalone_alter_table_action:
 alter_table_partition_options:
           partition_clause
           {
-            $$= NEW_PTN PT_alter_table_partition_by($1);
+            $$= NEW_PTN PT_alter_table_partition_by(@$, $1);
           }
         | REMOVE_SYM PARTITIONING_SYM
           {
-            $$= NEW_PTN PT_alter_table_remove_partitioning;
+            $$= NEW_PTN PT_alter_table_remove_partitioning(@$);
           }
         ;
 
@@ -8818,11 +8820,11 @@ opt_alter_command_list:
 standalone_alter_commands:
           DISCARD_SYM TABLESPACE_SYM
           {
-            $$= NEW_PTN PT_alter_table_discard_tablespace;
+            $$= NEW_PTN PT_alter_table_discard_tablespace(@$);
           }
         | IMPORT TABLESPACE_SYM
           {
-            $$= NEW_PTN PT_alter_table_import_tablespace;
+            $$= NEW_PTN PT_alter_table_import_tablespace(@$);
           }
 /*
   This part was added for release 5.1 by Mikael Ronström.
@@ -8833,86 +8835,86 @@ standalone_alter_commands:
 */
         | ADD PARTITION_SYM opt_no_write_to_binlog
           {
-            $$= NEW_PTN PT_alter_table_add_partition($3);
+            $$= NEW_PTN PT_alter_table_add_partition(@$, $3);
           }
         | ADD PARTITION_SYM opt_no_write_to_binlog '(' part_def_list ')'
           {
-            $$= NEW_PTN PT_alter_table_add_partition_def_list($3, $5);
+            $$= NEW_PTN PT_alter_table_add_partition_def_list(@$, $3, $5);
           }
         | ADD PARTITION_SYM opt_no_write_to_binlog PARTITIONS_SYM real_ulong_num
           {
-            $$= NEW_PTN PT_alter_table_add_partition_num($3, $5);
+            $$= NEW_PTN PT_alter_table_add_partition_num(@$, $3, $5);
           }
         | DROP PARTITION_SYM ident_string_list
           {
-            $$= NEW_PTN PT_alter_table_drop_partition(*$3);
+            $$= NEW_PTN PT_alter_table_drop_partition(@$, *$3);
           }
         | REBUILD_SYM PARTITION_SYM opt_no_write_to_binlog
           all_or_alt_part_name_list
           {
-            $$= NEW_PTN PT_alter_table_rebuild_partition($3, $4);
+            $$= NEW_PTN PT_alter_table_rebuild_partition(@$, $3, $4);
           }
         | OPTIMIZE PARTITION_SYM opt_no_write_to_binlog
           all_or_alt_part_name_list
           {
-            $$= NEW_PTN PT_alter_table_optimize_partition($3, $4);
+            $$= NEW_PTN PT_alter_table_optimize_partition(@$, $3, $4);
           }
         | ANALYZE_SYM PARTITION_SYM opt_no_write_to_binlog
           all_or_alt_part_name_list
           {
-            $$= NEW_PTN PT_alter_table_analyze_partition($3, $4);
+            $$= NEW_PTN PT_alter_table_analyze_partition(@$, $3, $4);
           }
         | CHECK_SYM PARTITION_SYM all_or_alt_part_name_list opt_mi_check_types
           {
-            $$= NEW_PTN PT_alter_table_check_partition($3,
+            $$= NEW_PTN PT_alter_table_check_partition(@$, $3,
                                                        $4.flags, $4.sql_flags);
           }
         | REPAIR PARTITION_SYM opt_no_write_to_binlog
           all_or_alt_part_name_list
           opt_mi_repair_types
           {
-            $$= NEW_PTN PT_alter_table_repair_partition($3, $4,
+            $$= NEW_PTN PT_alter_table_repair_partition(@$, $3, $4,
                                                         $5.flags, $5.sql_flags);
           }
         | COALESCE PARTITION_SYM opt_no_write_to_binlog real_ulong_num
           {
-            $$= NEW_PTN PT_alter_table_coalesce_partition($3, $4);
+            $$= NEW_PTN PT_alter_table_coalesce_partition(@$, $3, $4);
           }
         | TRUNCATE_SYM PARTITION_SYM all_or_alt_part_name_list
           {
-            $$= NEW_PTN PT_alter_table_truncate_partition($3);
+            $$= NEW_PTN PT_alter_table_truncate_partition(@$, $3);
           }
         | REORGANIZE_SYM PARTITION_SYM opt_no_write_to_binlog
           {
-            $$= NEW_PTN PT_alter_table_reorganize_partition($3);
+            $$= NEW_PTN PT_alter_table_reorganize_partition(@$, $3);
           }
         | REORGANIZE_SYM PARTITION_SYM opt_no_write_to_binlog
           ident_string_list INTO '(' part_def_list ')'
           {
-            $$= NEW_PTN PT_alter_table_reorganize_partition_into($3, *$4, $7);
+            $$= NEW_PTN PT_alter_table_reorganize_partition_into(@$, $3, *$4, $7);
           }
         | EXCHANGE_SYM PARTITION_SYM ident
           WITH TABLE_SYM table_ident opt_with_validation
           {
-            $$= NEW_PTN PT_alter_table_exchange_partition($3, $6, $7);
+            $$= NEW_PTN PT_alter_table_exchange_partition(@$, $3, $6, $7);
           }
         | DISCARD_SYM PARTITION_SYM all_or_alt_part_name_list
           TABLESPACE_SYM
           {
-            $$= NEW_PTN PT_alter_table_discard_partition_tablespace($3);
+            $$= NEW_PTN PT_alter_table_discard_partition_tablespace(@$, $3);
           }
         | IMPORT PARTITION_SYM all_or_alt_part_name_list
           TABLESPACE_SYM
           {
-            $$= NEW_PTN PT_alter_table_import_partition_tablespace($3);
+            $$= NEW_PTN PT_alter_table_import_partition_tablespace(@$, $3);
           }
         | SECONDARY_LOAD_SYM
           {
-            $$= NEW_PTN PT_alter_table_secondary_load;
+            $$= NEW_PTN PT_alter_table_secondary_load(@$);
           }
         | SECONDARY_UNLOAD_SYM
           {
-            $$= NEW_PTN PT_alter_table_secondary_unload;
+            $$= NEW_PTN PT_alter_table_secondary_unload(@$);
           }
         ;
 
@@ -8985,115 +8987,116 @@ alter_commands_modifier_list:
 alter_list_item:
           ADD opt_column ident field_def opt_references opt_place
           {
-            $$= NEW_PTN PT_alter_table_add_column($3, $4, $5, $6);
+            $$= NEW_PTN PT_alter_table_add_column(@$, $3, $4, $5, $6);
           }
         | ADD opt_column '(' table_element_list ')'
           {
-            $$= NEW_PTN PT_alter_table_add_columns($4);
+            $$= NEW_PTN PT_alter_table_add_columns(@$, $4);
           }
         | ADD table_constraint_def
           {
-            $$= NEW_PTN PT_alter_table_add_constraint($2);
+            $$= NEW_PTN PT_alter_table_add_constraint(@$, $2);
           }
         | CHANGE opt_column ident ident field_def opt_place
           {
-            $$= NEW_PTN PT_alter_table_change_column($3, $4, $5, $6);
+            $$= NEW_PTN PT_alter_table_change_column(@$, $3, $4, $5, $6);
           }
         | MODIFY_SYM opt_column ident field_def opt_place
           {
-            $$= NEW_PTN PT_alter_table_change_column($3, $4, $5);
+            $$= NEW_PTN PT_alter_table_change_column(@$, $3, $4, $5);
           }
         | DROP opt_column ident opt_restrict
           {
             // Note: opt_restrict ($4) is ignored!
-            $$= NEW_PTN PT_alter_table_drop_column($3.str);
+            $$= NEW_PTN PT_alter_table_drop_column(@$, $3.str);
           }
         | DROP FOREIGN KEY_SYM ident
           {
-            $$= NEW_PTN PT_alter_table_drop_foreign_key($4.str);
+            $$= NEW_PTN PT_alter_table_drop_foreign_key(@$, $4.str);
           }
         | DROP PRIMARY_SYM KEY_SYM
           {
-            $$= NEW_PTN PT_alter_table_drop_key(primary_key_name);
+            $$= NEW_PTN PT_alter_table_drop_key(@$, primary_key_name);
           }
         | DROP key_or_index ident
           {
-            $$= NEW_PTN PT_alter_table_drop_key($3.str);
+            $$= NEW_PTN PT_alter_table_drop_key(@$, $3.str);
           }
         | DROP CHECK_SYM ident
           {
-            $$= NEW_PTN PT_alter_table_drop_check_constraint($3.str);
+            $$= NEW_PTN PT_alter_table_drop_check_constraint(@$, $3.str);
           }
         | DROP CONSTRAINT ident
           {
-            $$= NEW_PTN PT_alter_table_drop_constraint($3.str);
+            $$= NEW_PTN PT_alter_table_drop_constraint(@$, $3.str);
           }
         | DISABLE_SYM KEYS
           {
-            $$= NEW_PTN PT_alter_table_enable_keys(false);
+            $$= NEW_PTN PT_alter_table_enable_keys(@$, false);
           }
         | ENABLE_SYM KEYS
           {
-            $$= NEW_PTN PT_alter_table_enable_keys(true);
+            $$= NEW_PTN PT_alter_table_enable_keys(@$, true);
           }
         | ALTER opt_column ident SET_SYM DEFAULT_SYM signed_literal_or_null
           {
-            $$= NEW_PTN PT_alter_table_set_default($3.str, $6);
+            $$= NEW_PTN PT_alter_table_set_default(@$, $3.str, $6);
           }
         |  ALTER opt_column ident SET_SYM DEFAULT_SYM '(' expr ')'
           {
-            $$= NEW_PTN PT_alter_table_set_default($3.str, $7);
+            $$= NEW_PTN PT_alter_table_set_default(@$, $3.str, $7);
           }
         | ALTER opt_column ident DROP DEFAULT_SYM
           {
-            $$= NEW_PTN PT_alter_table_set_default($3.str, NULL);
+            $$= NEW_PTN PT_alter_table_set_default(@$, $3.str, NULL);
           }
 
         | ALTER opt_column ident SET_SYM visibility
           {
-            $$= NEW_PTN PT_alter_table_column_visibility($3.str, $5);
+            $$= NEW_PTN PT_alter_table_column_visibility(@$, $3.str, $5);
           }
         | ALTER INDEX_SYM ident visibility
           {
-            $$= NEW_PTN PT_alter_table_index_visible($3.str, $4);
+            $$= NEW_PTN PT_alter_table_index_visible(@$, $3.str, $4);
           }
         | ALTER CHECK_SYM ident constraint_enforcement
           {
-            $$ = NEW_PTN PT_alter_table_enforce_check_constraint($3.str, $4);
+            $$ = NEW_PTN PT_alter_table_enforce_check_constraint(@$, $3.str, $4);
           }
         | ALTER CONSTRAINT ident constraint_enforcement
           {
-            $$ = NEW_PTN PT_alter_table_enforce_constraint($3.str, $4);
+            $$ = NEW_PTN PT_alter_table_enforce_constraint(@$, $3.str, $4);
           }
         | RENAME opt_to table_ident
           {
-            $$= NEW_PTN PT_alter_table_rename($3);
+            $$= NEW_PTN PT_alter_table_rename(@$, $3);
           }
         | RENAME key_or_index ident TO_SYM ident
           {
-            $$= NEW_PTN PT_alter_table_rename_key($3.str, $5.str);
+            $$= NEW_PTN PT_alter_table_rename_key(@$, $3.str, $5.str);
           }
         | RENAME COLUMN_SYM ident TO_SYM ident
           {
-            $$= NEW_PTN PT_alter_table_rename_column($3.str, $5.str);
+            $$= NEW_PTN PT_alter_table_rename_column(@$, $3.str, $5.str);
           }
         | CONVERT_SYM TO_SYM character_set charset_name opt_collate
           {
-            $$= NEW_PTN PT_alter_table_convert_to_charset($4, $5);
+            $$= NEW_PTN PT_alter_table_convert_to_charset(@$, $4, $5);
           }
         | CONVERT_SYM TO_SYM character_set DEFAULT_SYM opt_collate
           {
             $$ = NEW_PTN PT_alter_table_convert_to_charset(
+                @$,
                 YYTHD->variables.collation_database,
                 $5 ? $5 : YYTHD->variables.collation_database);
           }
         | FORCE_SYM
           {
-            $$= NEW_PTN PT_alter_table_force;
+            $$= NEW_PTN PT_alter_table_force(@$);
           }
         | ORDER_SYM BY alter_order_list
           {
-            $$= NEW_PTN PT_alter_table_order($3);
+            $$= NEW_PTN PT_alter_table_order(@$, $3);
           }
         ;
 
@@ -9536,7 +9539,7 @@ repair_table_stmt:
           REPAIR opt_no_write_to_binlog table_or_tables
           table_list opt_mi_repair_types
           {
-            $$= NEW_PTN PT_repair_table_stmt(YYMEM_ROOT, $2, $4,
+            $$= NEW_PTN PT_repair_table_stmt(@$, YYMEM_ROOT, $2, $4,
                                              $5.flags, $5.sql_flags);
           }
         ;
@@ -9566,11 +9569,11 @@ analyze_table_stmt:
           opt_histogram
           {
             if ($5.param) {
-              $$= NEW_PTN PT_analyze_table_stmt(YYMEM_ROOT, $2, $4,
+              $$= NEW_PTN PT_analyze_table_stmt(@$, YYMEM_ROOT, $2, $4,
                                                 $5.command, $5.param->num_buckets,
                                                 $5.columns, $5.param->data);
             } else {
-              $$= NEW_PTN PT_analyze_table_stmt(YYMEM_ROOT, $2, $4,
+              $$= NEW_PTN PT_analyze_table_stmt(@$, YYMEM_ROOT, $2, $4,
                                                 $5.command, 0,
                                                 $5.columns, {nullptr, 0});
             }
@@ -9642,7 +9645,7 @@ binlog_base64_event:
 check_table_stmt:
           CHECK_SYM table_or_tables table_list opt_mi_check_types
           {
-            $$= NEW_PTN PT_check_table_stmt(YYMEM_ROOT, $3,
+            $$= NEW_PTN PT_check_table_stmt(@$, YYMEM_ROOT, $3,
                                             $4.flags, $4.sql_flags);
           }
         ;
@@ -9679,7 +9682,7 @@ mi_check_type:
 optimize_table_stmt:
           OPTIMIZE opt_no_write_to_binlog table_or_tables table_list
           {
-            $$= NEW_PTN PT_optimize_table_stmt(YYMEM_ROOT, $2, $4);
+            $$= NEW_PTN PT_optimize_table_stmt(@$, YYMEM_ROOT, $2, $4);
           }
         ;
 
@@ -9736,12 +9739,12 @@ table_to_table:
 keycache_stmt:
           CACHE_SYM INDEX_SYM keycache_list IN_SYM key_cache_name
           {
-            $$= NEW_PTN PT_cache_index_stmt(YYMEM_ROOT, $3, $5);
+            $$= NEW_PTN PT_cache_index_stmt(@$, YYMEM_ROOT, $3, $5);
           }
         | CACHE_SYM INDEX_SYM table_ident adm_partition opt_cache_key_list
           IN_SYM key_cache_name
           {
-            $$= NEW_PTN PT_cache_index_partitions_stmt(YYMEM_ROOT,
+            $$= NEW_PTN PT_cache_index_partitions_stmt(@$, YYMEM_ROOT,
                                                        $3, $4, $5, $7);
           }
         ;
@@ -9764,7 +9767,7 @@ keycache_list:
 assign_to_keycache:
           table_ident opt_cache_key_list
           {
-            $$= NEW_PTN PT_assign_to_keycache($1, $2);
+            $$= NEW_PTN PT_assign_to_keycache(@$, $1, $2);
           }
         ;
 
@@ -9777,11 +9780,11 @@ preload_stmt:
           LOAD INDEX_SYM INTO CACHE_SYM
           table_ident adm_partition opt_cache_key_list opt_ignore_leaves
           {
-            $$= NEW_PTN PT_load_index_partitions_stmt(YYMEM_ROOT, $5,$6, $7, $8);
+            $$= NEW_PTN PT_load_index_partitions_stmt(@$, YYMEM_ROOT, $5,$6, $7, $8);
           }
         | LOAD INDEX_SYM INTO CACHE_SYM preload_list
           {
-            $$= NEW_PTN PT_load_index_stmt(YYMEM_ROOT, $5);
+            $$= NEW_PTN PT_load_index_stmt(@$, YYMEM_ROOT, $5);
           }
         ;
 
@@ -9803,14 +9806,14 @@ preload_list:
 preload_keys:
           table_ident opt_cache_key_list opt_ignore_leaves
           {
-            $$= NEW_PTN PT_preload_keys($1, $2, $3);
+            $$= NEW_PTN PT_preload_keys(@$, $1, $2, $3);
           }
         ;
 
 adm_partition:
           PARTITION_SYM '(' all_or_alt_part_name_list ')'
           {
-            $$= NEW_PTN PT_adm_partition($3);
+            $$= NEW_PTN PT_adm_partition(@$, $3);
           }
         ;
 
@@ -9833,11 +9836,11 @@ opt_ignore_leaves:
 select_stmt:
           query_expression
           {
-            $$ = NEW_PTN PT_select_stmt($1);
+            $$ = NEW_PTN PT_select_stmt(@$, $1);
           }
         | query_expression locking_clause_list
           {
-            $$ = NEW_PTN PT_select_stmt(NEW_PTN PT_locking($1, $2),
+            $$ = NEW_PTN PT_select_stmt(@$, NEW_PTN PT_locking(@$, $1, $2),
                                         nullptr, true);
           }
         | select_stmt_with_into
@@ -9879,18 +9882,19 @@ select_stmt_with_into:
           '(' select_stmt_with_into ')'
           {
             $$ = $2;
+            $$->m_pos = @$;
           }
         | query_expression into_clause
           {
-            $$ = NEW_PTN PT_select_stmt($1, $2);
+            $$ = NEW_PTN PT_select_stmt(@$, $1, $2);
           }
         | query_expression into_clause locking_clause_list
           {
-            $$ = NEW_PTN PT_select_stmt(NEW_PTN PT_locking($1, $3), $2, true);
+            $$ = NEW_PTN PT_select_stmt(@$, NEW_PTN PT_locking(@$, $1, $3), $2, true);
           }
         | query_expression locking_clause_list into_clause
           {
-            $$ = NEW_PTN PT_select_stmt(NEW_PTN PT_locking($1, $2), $3);
+            $$ = NEW_PTN PT_select_stmt(@$, NEW_PTN PT_locking(@$, $1, $2), $3);
           }
         ;
 
@@ -9931,14 +9935,14 @@ query_expression:
           opt_order_clause
           opt_limit_clause
           {
-            $$ = NEW_PTN PT_query_expression($1.body, $2, $3);
+            $$ = NEW_PTN PT_query_expression(@$, $1.body, $2, $3);
           }
         | with_clause
           query_expression_body
           opt_order_clause
           opt_limit_clause
           {
-            $$= NEW_PTN PT_query_expression($1, $2.body, $3, $4);
+            $$= NEW_PTN PT_query_expression(@$, $1, $2.body, $3, $4);
           }
         ;
 
@@ -9953,24 +9957,30 @@ query_expression_body:
           }
         | query_expression_body UNION_SYM union_option query_expression_body
           {
-            $$ = {NEW_PTN PT_union($1.body, $3, $4.body, $4.is_parenthesized),
+            $$ = {NEW_PTN PT_union(@$, $1.body, $3, $4.body, $4.is_parenthesized),
                   false};
           }
         | query_expression_body EXCEPT_SYM union_option query_expression_body
           {
-            $$ = {NEW_PTN PT_except($1.body, $3, $4.body, $4.is_parenthesized),
+            $$ = {NEW_PTN PT_except(@$, $1.body, $3, $4.body, $4.is_parenthesized),
                   false};
           }
         | query_expression_body INTERSECT_SYM union_option query_expression_body
           {
-            $$ = {NEW_PTN PT_intersect($1.body, $3, $4.body, $4.is_parenthesized),
+            $$ = {NEW_PTN PT_intersect(@$, $1.body, $3, $4.body, $4.is_parenthesized),
                   false};
           }
         ;
 
 query_expression_parens:
-          '(' query_expression_parens ')'                       { $$ = $2; }
-        | '(' query_expression_with_opt_locking_clauses')'      { $$ = $2; }
+          '(' query_expression_parens ')'
+          { $$ = $2;
+            $$->m_pos = @$;
+          }
+        | '(' query_expression_with_opt_locking_clauses')'
+          { $$ = $2;
+            $$->m_pos = @$;
+          }
         ;
 
 query_primary:
@@ -9981,16 +9991,17 @@ query_primary:
           }
         | table_value_constructor
           {
-            $$= NEW_PTN PT_table_value_constructor($1);
+            $$= NEW_PTN PT_table_value_constructor(@$, $1);
           }
         | explicit_table
           {
-            auto item_list= NEW_PTN PT_select_item_list;
-            auto asterisk= NEW_PTN Item_asterisk(@$, nullptr, nullptr);
+            // Pass empty position because asterisk is not user-supplied.
+            auto item_list= NEW_PTN PT_select_item_list(POS());
+            auto asterisk= NEW_PTN Item_asterisk(POS(), nullptr, nullptr);
             if (item_list == nullptr || asterisk == nullptr ||
                 item_list->push_back(asterisk))
               MYSQL_YYABORT;
-            $$= NEW_PTN PT_explicit_table({}, item_list, $1);
+            $$= NEW_PTN PT_explicit_table(@$, {}, item_list, $1);
           }
         ;
 
@@ -10006,6 +10017,7 @@ query_specification:
           opt_window_clause
           {
             $$= NEW_PTN PT_query_specification(
+                                      @$,
                                       $1,  // SELECT_SYM
                                       $2,  // select_options
                                       $3,  // select_item_list
@@ -10027,6 +10039,7 @@ query_specification:
           opt_window_clause
           {
             $$= NEW_PTN PT_query_specification(
+                                      @$,
                                       $1,  // SELECT_SYM
                                       $2,  // select_options
                                       $3,  // select_item_list
@@ -10081,7 +10094,7 @@ explicit_table:
           {
             $$.init(YYMEM_ROOT);
             auto table= NEW_PTN
-                PT_table_factor_table_ident($2, nullptr, NULL_CSTR, nullptr);
+                PT_table_factor_table_ident(@$, $2, nullptr, NULL_CSTR, nullptr);
             if ($$.push_back(table))
               MYSQL_YYABORT; // OOM
           }
@@ -10126,7 +10139,7 @@ locking_clause_list:
           }
         | locking_clause
           {
-            $$= NEW_PTN PT_locking_clause_list(YYTHD->mem_root);
+            $$= NEW_PTN PT_locking_clause_list(@$, YYTHD->mem_root);
             if ($$ == nullptr || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -10135,15 +10148,15 @@ locking_clause_list:
 locking_clause:
           FOR_SYM lock_strength opt_locked_row_action
           {
-            $$= NEW_PTN PT_query_block_locking_clause($2, $3);
+            $$= NEW_PTN PT_query_block_locking_clause(@$, $2, $3);
           }
         | FOR_SYM lock_strength table_locking_list opt_locked_row_action
           {
-            $$= NEW_PTN PT_table_locking_clause($2, $3, $4);
+            $$= NEW_PTN PT_table_locking_clause(@$, $2, $3, $4);
           }
         | LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
           {
-            $$= NEW_PTN PT_query_block_locking_clause(Lock_strength::SHARE);
+            $$= NEW_PTN PT_query_block_locking_clause(@$, Lock_strength::SHARE);
           }
         ;
 
@@ -10172,17 +10185,18 @@ select_item_list:
             if ($1 == NULL || $1->push_back($3))
               MYSQL_YYABORT;
             $$= $1;
+            $$->m_pos = @$;
           }
         | select_item
           {
-            $$= NEW_PTN PT_select_item_list;
+            $$= NEW_PTN PT_select_item_list(@$);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT;
           }
         | '*'
           {
             Item *item = NEW_PTN Item_asterisk(@$, nullptr, nullptr);
-            $$ = NEW_PTN PT_select_item_list;
+            $$ = NEW_PTN PT_select_item_list(@$);
             if ($$ == nullptr || item == nullptr || $$->push_back(item))
               MYSQL_YYABORT;
           }
@@ -10217,6 +10231,7 @@ expr:
             $$= flatten_associative_operator<Item_cond_or,
                                              Item_func::COND_OR_FUNC>(
                                                  YYMEM_ROOT, @$, $1, $3);
+            $$->m_pos = @$;
           }
         | expr XOR expr %prec XOR
           {
@@ -10228,6 +10243,7 @@ expr:
             $$= flatten_associative_operator<Item_cond_and,
                                              Item_func::COND_AND_FUNC>(
                                                  YYMEM_ROOT, @$, $1, $3);
+            $$->m_pos = @$;
           }
         | NOT_SYM expr %prec NOT_SYM
           {
@@ -10363,7 +10379,7 @@ predicate:
           }
         | bit_expr REGEXP bit_expr
           {
-            auto args= NEW_PTN PT_item_list;
+            auto args= NEW_PTN PT_item_list(@$);
             args->push_back($1);
             args->push_back($3);
 
@@ -10371,7 +10387,7 @@ predicate:
           }
         | bit_expr not REGEXP bit_expr
           {
-            auto args= NEW_PTN PT_item_list;
+            auto args= NEW_PTN PT_item_list(@$);
             args->push_back($1);
             args->push_back($4);
             Item *item= NEW_PTN Item_func_regexp_like(@$, args);
@@ -11055,7 +11071,7 @@ opt_udf_expr_list:
 udf_expr_list:
           udf_expr
           {
-            $$= NEW_PTN PT_item_list;
+            $$= NEW_PTN PT_item_list(@$);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT;
           }
@@ -11064,6 +11080,9 @@ udf_expr_list:
             if ($1 == NULL || $1->push_back($3))
               MYSQL_YYABORT;
             $$= $1;
+            // This will override earlier udf_expr_list, until
+            // we get the whole location.
+            $$->m_pos = @$;
           }
         ;
 
@@ -11221,7 +11240,7 @@ window_func_call:       // Window functions which do not exist as set functions
           }
         | LEAD_SYM '(' expr opt_lead_lag_info ')' opt_null_treatment windowing_clause
           {
-            PT_item_list *args= NEW_PTN PT_item_list;
+            PT_item_list *args= NEW_PTN PT_item_list(@expr, @opt_lead_lag_info);
             if (args == NULL || args->push_back($3))
               MYSQL_YYABORT; // OOM
             if ($4.offset != NULL && args->push_back($4.offset))
@@ -11232,7 +11251,7 @@ window_func_call:       // Window functions which do not exist as set functions
           }
         | LAG_SYM '(' expr opt_lead_lag_info ')' opt_null_treatment windowing_clause
           {
-            PT_item_list *args= NEW_PTN PT_item_list;
+            PT_item_list *args= NEW_PTN PT_item_list(@expr, @opt_lead_lag_info);
             if (args == NULL || args->push_back($3))
               MYSQL_YYABORT; // OOM
             if ($4.offset != NULL && args->push_back($4.offset))
@@ -11251,7 +11270,7 @@ window_func_call:       // Window functions which do not exist as set functions
           }
         | NTH_VALUE_SYM '(' expr ',' simple_expr ')' opt_from_first_last opt_null_treatment windowing_clause
           {
-            PT_item_list *args= NEW_PTN PT_item_list;
+            PT_item_list *args= NEW_PTN PT_item_list(@expr, @simple_expr);
             if (args == NULL ||
                 args->push_back($3) ||
                 args->push_back($5))
@@ -11351,7 +11370,7 @@ windowing_clause:
 window_name_or_spec:
           window_name
           {
-            $$= NEW_PTN PT_window($1);
+            $$= NEW_PTN PT_window(@$, $1);
           }
         | window_spec
           {
@@ -11370,6 +11389,7 @@ window_spec:
           '(' window_spec_details ')'
           {
             $$= $2;
+            $$->m_pos = @$;
           }
         ;
 
@@ -11382,14 +11402,14 @@ window_spec_details:
              auto frame= $4;
              if (!frame) // build an equivalent frame spec
              {
-               auto start_bound= NEW_PTN PT_border(WBT_UNBOUNDED_PRECEDING);
-               auto end_bound= NEW_PTN PT_border($3 ? WBT_CURRENT_ROW :
+               auto start_bound= NEW_PTN PT_border(POS(), WBT_UNBOUNDED_PRECEDING);
+               auto end_bound= NEW_PTN PT_border(POS(), $3 ? WBT_CURRENT_ROW :
                  WBT_UNBOUNDED_FOLLOWING);
-               auto bounds= NEW_PTN PT_borders(start_bound, end_bound);
-               frame= NEW_PTN PT_frame(WFU_RANGE, bounds, nullptr);
+               auto bounds= NEW_PTN PT_borders(POS(), start_bound, end_bound);
+               frame= NEW_PTN PT_frame(POS(), WFU_RANGE, bounds, nullptr);
                frame->m_originally_absent= true;
              }
-             $$= NEW_PTN PT_window($2, $3, frame, $1);
+             $$= NEW_PTN PT_window(POS(), $2, $3, frame, $1);
            }
          ;
 
@@ -11435,15 +11455,15 @@ opt_window_frame_clause:
           window_frame_extent
           opt_window_frame_exclusion
           {
-            $$= NEW_PTN PT_frame($1, $2, $3);
+            $$= NEW_PTN PT_frame(@$, $1, $2, $3);
           }
         ;
 
 window_frame_extent:
           window_frame_start
           {
-            auto end_bound= NEW_PTN PT_border(WBT_CURRENT_ROW);
-            $$= NEW_PTN PT_borders($1, end_bound);
+            auto end_bound= NEW_PTN PT_border(@$, WBT_CURRENT_ROW);
+            $$= NEW_PTN PT_borders(@$, $1, end_bound);
           }
         | window_frame_between
           {
@@ -11454,30 +11474,30 @@ window_frame_extent:
 window_frame_start:
           UNBOUNDED_SYM PRECEDING_SYM
           {
-            $$= NEW_PTN PT_border(WBT_UNBOUNDED_PRECEDING);
+            $$= NEW_PTN PT_border(@$, WBT_UNBOUNDED_PRECEDING);
           }
         | NUM_literal PRECEDING_SYM
           {
-            $$= NEW_PTN PT_border(WBT_VALUE_PRECEDING, $1);
+            $$= NEW_PTN PT_border(@$, WBT_VALUE_PRECEDING, $1);
           }
         | param_marker PRECEDING_SYM
           {
-            $$= NEW_PTN PT_border(WBT_VALUE_PRECEDING, $1);
+            $$= NEW_PTN PT_border(@$, WBT_VALUE_PRECEDING, $1);
           }
         | INTERVAL_SYM expr interval PRECEDING_SYM
           {
-            $$= NEW_PTN PT_border(WBT_VALUE_PRECEDING, $2, $3);
+            $$= NEW_PTN PT_border(@$, WBT_VALUE_PRECEDING, $2, $3);
           }
         | CURRENT_SYM ROW_SYM
           {
-            $$= NEW_PTN PT_border(WBT_CURRENT_ROW);
+            $$= NEW_PTN PT_border(@$, WBT_CURRENT_ROW);
           }
         ;
 
 window_frame_between:
           BETWEEN_SYM window_frame_bound AND_SYM window_frame_bound
           {
-            $$= NEW_PTN PT_borders($2, $4);
+            $$= NEW_PTN PT_borders(@$, $2, $4);
           }
         ;
 
@@ -11488,19 +11508,19 @@ window_frame_bound:
           }
         | UNBOUNDED_SYM FOLLOWING_SYM
           {
-            $$= NEW_PTN PT_border(WBT_UNBOUNDED_FOLLOWING);
+            $$= NEW_PTN PT_border(@$, WBT_UNBOUNDED_FOLLOWING);
           }
         | NUM_literal FOLLOWING_SYM
           {
-            $$= NEW_PTN PT_border(WBT_VALUE_FOLLOWING, $1);
+            $$= NEW_PTN PT_border(@$, WBT_VALUE_FOLLOWING, $1);
           }
         | param_marker FOLLOWING_SYM
           {
-            $$= NEW_PTN PT_border(WBT_VALUE_FOLLOWING, $1);
+            $$= NEW_PTN PT_border(@$, WBT_VALUE_FOLLOWING, $1);
           }
         | INTERVAL_SYM expr interval FOLLOWING_SYM
           {
-            $$= NEW_PTN PT_border(WBT_VALUE_FOLLOWING, $2, $3);
+            $$= NEW_PTN PT_border(@$, WBT_VALUE_FOLLOWING, $2, $3);
           }
         ;
 
@@ -11511,18 +11531,18 @@ opt_window_frame_exclusion:
           }
         | EXCLUDE_SYM CURRENT_SYM ROW_SYM
           {
-            $$= NEW_PTN PT_exclusion(WFX_CURRENT_ROW);
+            $$= NEW_PTN PT_exclusion(@$, WFX_CURRENT_ROW);
           }
         | EXCLUDE_SYM GROUP_SYM
           {
-            $$= NEW_PTN PT_exclusion(WFX_GROUP);
+            $$= NEW_PTN PT_exclusion(@$, WFX_GROUP);
           }
         | EXCLUDE_SYM TIES_SYM
           {
-            $$= NEW_PTN PT_exclusion(WFX_TIES);
+            $$= NEW_PTN PT_exclusion(@$, WFX_TIES);
           }
         | EXCLUDE_SYM NO_SYM OTHERS_SYM
-          { $$= NEW_PTN PT_exclusion(WFX_NO_OTHERS);
+          { $$= NEW_PTN PT_exclusion(@$, WFX_NO_OTHERS);
           }
         ;
 
@@ -11586,10 +11606,13 @@ gorder_list:
           {
             $1->push_back($3);
             $$= $1;
+            // This will override earlier list, until
+            // we get the whole location.
+            $$->m_pos = @$;
           }
         | order_expr
           {
-            $$= NEW_PTN PT_gorder_list();
+            $$= NEW_PTN PT_gorder_list(@$);
             if ($$ == NULL)
               MYSQL_YYABORT;
             $$->push_back($1);
@@ -11782,7 +11805,7 @@ opt_expr_list:
 expr_list:
           expr
           {
-            $$= NEW_PTN PT_item_list;
+            $$= NEW_PTN PT_item_list(@$);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT;
           }
@@ -11791,6 +11814,7 @@ expr_list:
             if ($1 == NULL || $1->push_back($3))
               MYSQL_YYABORT;
             $$= $1;
+            $$->m_pos = @$;
           }
         ;
 
@@ -11802,7 +11826,7 @@ ident_list_arg:
 ident_list:
           simple_ident
           {
-            $$= NEW_PTN PT_item_list;
+            $$= NEW_PTN PT_item_list(@$);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT;
           }
@@ -11811,6 +11835,9 @@ ident_list:
             if ($1 == NULL || $1->push_back($3))
               MYSQL_YYABORT;
             $$= $1;
+            // This will override location of earlier list, until we get the
+            // whole location.
+            $$->m_pos = @$;
           }
         ;
 
@@ -11941,25 +11968,25 @@ esc_table_reference:
 joined_table:
           table_reference inner_join_type table_reference ON_SYM expr
           {
-            $$= NEW_PTN PT_joined_table_on($1, @2, $2, $3, $5);
+            $$= NEW_PTN PT_joined_table_on(@$, $1, @2, $2, $3, $5);
           }
         | table_reference inner_join_type table_reference USING
           '(' using_list ')'
           {
-            $$= NEW_PTN PT_joined_table_using($1, @2, $2, $3, $6);
+            $$= NEW_PTN PT_joined_table_using(@$, $1, @2, $2, $3, $6);
           }
         | table_reference outer_join_type table_reference ON_SYM expr
           {
-            $$= NEW_PTN PT_joined_table_on($1, @2, $2, $3, $5);
+            $$= NEW_PTN PT_joined_table_on(@$, $1, @2, $2, $3, $5);
           }
         | table_reference outer_join_type table_reference USING '(' using_list ')'
           {
-            $$= NEW_PTN PT_joined_table_using($1, @2, $2, $3, $6);
+            $$= NEW_PTN PT_joined_table_using(@$, $1, @2, $2, $3, $6);
           }
         | table_reference inner_join_type table_reference
           %prec CONDITIONLESS_JOIN
           {
-            auto this_cross_join= NEW_PTN PT_cross_join($1, @2, $2, NULL);
+            auto this_cross_join= NEW_PTN PT_cross_join(@$, $1, @2, $2, NULL);
 
             if ($3 == NULL)
               MYSQL_YYABORT; // OOM
@@ -11968,7 +11995,7 @@ joined_table:
           }
         | table_reference natural_join_type table_factor
           {
-            $$= NEW_PTN PT_joined_table_using($1, @2, $2, $3);
+            $$= NEW_PTN PT_joined_table_using(@$, $1, @2, $2, $3);
           }
         ;
 
@@ -12042,9 +12069,9 @@ table_factor:
         | single_table_parens
         | derived_table { $$ = $1; }
         | joined_table_parens
-          { $$= NEW_PTN PT_table_factor_joined_table($1); }
+          { $$= NEW_PTN PT_table_factor_joined_table(@$, $1); }
         | table_reference_list_parens
-          { $$= NEW_PTN PT_table_reference_list_parens($1); }
+          { $$= NEW_PTN PT_table_reference_list_parens(@$, $1); }
         | table_function { $$ = $1; }
         ;
 
@@ -12066,7 +12093,7 @@ single_table_parens:
 single_table:
           table_ident opt_use_partition opt_table_alias opt_key_definition
           {
-            $$= NEW_PTN PT_table_factor_table_ident($1, $2, $3, $4);
+            $$= NEW_PTN PT_table_factor_table_ident(@$, $1, $2, $3, $4);
           }
         ;
 
@@ -12087,7 +12114,7 @@ derived_table:
               my_message(ER_DERIVED_MUST_HAVE_ALIAS,
                          ER_THD(YYTHD, ER_DERIVED_MUST_HAVE_ALIAS), MYF(0));
 
-            $$= NEW_PTN PT_derived_table(false, $1, $2, &$3);
+            $$= NEW_PTN PT_derived_table(@$, false, $1, $2, &$3);
           }
         | LATERAL_SYM table_subquery opt_table_alias opt_derived_column_list
           {
@@ -12095,7 +12122,7 @@ derived_table:
               my_message(ER_DERIVED_MUST_HAVE_ALIAS,
                          ER_THD(YYTHD, ER_DERIVED_MUST_HAVE_ALIAS), MYF(0));
 
-            $$= NEW_PTN PT_derived_table(true, $2, $3, &$4);
+            $$= NEW_PTN PT_derived_table(@$, true, $2, $3, &$4);
           }
         ;
 
@@ -12111,7 +12138,7 @@ table_function:
               MYSQL_YYABORT;
             }
 
-            $$= NEW_PTN PT_table_factor_function($3, $5, $6, to_lex_string($8));
+            $$= NEW_PTN PT_table_factor_function(@$, $3, $5, $6, to_lex_string($8));
           }
         ;
 
@@ -12140,7 +12167,7 @@ columns_list:
 jt_column:
           ident FOR_SYM ORDINALITY_SYM
           {
-            $$= NEW_PTN PT_json_table_column_for_ordinality($1);
+            $$= NEW_PTN PT_json_table_column_for_ordinality(@$, $1);
           }
         | ident type opt_collate jt_column_type PATH_SYM text_literal
           opt_on_empty_or_error_json_table
@@ -12149,12 +12176,12 @@ jt_column:
                 YYMEM_ROOT, $4, $6, $7.error.type, $7.error.default_string,
                 $7.empty.type, $7.empty.default_string);
             if (column == nullptr) MYSQL_YYABORT;  // OOM
-            $$ = NEW_PTN PT_json_table_column_with_path(std::move(column), $1,
+            $$ = NEW_PTN PT_json_table_column_with_path(@$, std::move(column), $1,
                                                         $2, $3);
           }
         | NESTED_SYM PATH_SYM text_literal columns_clause
           {
-            $$= NEW_PTN PT_json_table_column_with_nested_path($3, $4);
+            $$= NEW_PTN PT_json_table_column_with_nested_path(@$, $3, $4);
           }
         ;
 
@@ -12411,11 +12438,11 @@ opt_having_clause:
 with_clause:
           WITH with_list
           {
-            $$= NEW_PTN PT_with_clause($2, false);
+            $$= NEW_PTN PT_with_clause(@$, $2, false);
           }
         | WITH RECURSIVE_SYM with_list
           {
-            $$= NEW_PTN PT_with_clause($3, true);
+            $$= NEW_PTN PT_with_clause(@$, $3, true);
           }
         ;
 
@@ -12424,10 +12451,11 @@ with_list:
           {
             if ($1->push_back($3))
               MYSQL_YYABORT;
+            $$->m_pos = @$;
           }
         | common_table_expr
           {
-            $$= NEW_PTN PT_with_list(YYTHD->mem_root);
+            $$= NEW_PTN PT_with_list(@$, YYTHD->mem_root);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT;    /* purecov: inspected */
           }
@@ -12442,7 +12470,7 @@ common_table_expr:
             if (subq_text.str == NULL)
               MYSQL_YYABORT;   /* purecov: inspected */
             uint subq_text_offset= @4.cpp.start - YYLIP->get_cpp_buf();
-            $$= NEW_PTN PT_common_table_expr($1, subq_text, subq_text_offset,
+            $$= NEW_PTN PT_common_table_expr(@$, $1, subq_text, subq_text_offset,
                                              $4, &$2, YYTHD->mem_root);
             if ($$ == NULL)
               MYSQL_YYABORT;   /* purecov: inspected */
@@ -12494,7 +12522,7 @@ opt_window_clause:
 window_definition_list:
           window_definition
           {
-            $$= NEW_PTN PT_window_list();
+            $$= NEW_PTN PT_window_list(@$);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -12503,6 +12531,7 @@ window_definition_list:
             if ($1->push_back($3))
               MYSQL_YYABORT; // OOM
             $$= $1;
+            $$->m_pos = @$;
           }
         ;
 
@@ -12510,6 +12539,7 @@ window_definition:
           window_name AS window_spec
           {
             $$= $3;
+            $$->m_pos = @$;
             if ($$ == NULL)
               MYSQL_YYABORT; // OOM
             $$->set_name($1);
@@ -12524,7 +12554,7 @@ opt_group_clause:
           %empty { $$= NULL; }
         | GROUP_SYM BY group_list olap_opt
           {
-            $$= NEW_PTN PT_group($3, $4);
+            $$= NEW_PTN PT_group(@$, $3, $4);
           }
         ;
 
@@ -12533,10 +12563,11 @@ group_list:
           {
             $1->push_back($3);
             $$= $1;
+            $$->m_pos = @$;
           }
         | grouping_expr
           {
-            $$= NEW_PTN PT_order_list();
+            $$= NEW_PTN PT_order_list(@$);
             if ($$ == NULL)
               MYSQL_YYABORT;
             $$->push_back($1);
@@ -12565,10 +12596,11 @@ alter_order_list:
           {
             $$= $1;
             $$->push_back($3);
+            $$->m_pos = @$;
           }
         | alter_order_item
           {
-            $$= NEW_PTN PT_order_list();
+            $$= NEW_PTN PT_order_list(@$);
             if ($$ == NULL)
               MYSQL_YYABORT;
             $$->push_back($1);
@@ -12578,7 +12610,7 @@ alter_order_list:
 alter_order_item:
           simple_ident_nospvar opt_ordering_direction
           {
-            $$= NEW_PTN PT_order_expr($1, $2);
+            $$= NEW_PTN PT_order_expr(@$, $1, $2);
           }
         ;
 
@@ -12590,7 +12622,7 @@ opt_order_clause:
 order_clause:
           ORDER_SYM BY order_list
           {
-            $$= NEW_PTN PT_order($3);
+            $$= NEW_PTN PT_order(@$, $3);
           }
         ;
 
@@ -12599,10 +12631,11 @@ order_list:
           {
             $1->push_back($3);
             $$= $1;
+            $$->m_pos = @$;
           }
         | order_expr
           {
-            $$= NEW_PTN PT_order_list();
+            $$= NEW_PTN PT_order_list(@$);
             if ($$ == NULL)
               MYSQL_YYABORT;
             $$->push_back($1);
@@ -12627,7 +12660,7 @@ opt_limit_clause:
 limit_clause:
           LIMIT limit_options
           {
-            $$= NEW_PTN PT_limit_clause($2);
+            $$= NEW_PTN PT_limit_clause(@$, $2);
           }
         ;
 
@@ -12741,11 +12774,11 @@ select_var_list:
 select_var_ident:
           '@' ident_or_text
           {
-            $$= NEW_PTN PT_select_var($2);
+            $$= NEW_PTN PT_select_var(@$, $2);
           }
         | ident_or_text
           {
-            $$= NEW_PTN PT_select_sp_var($1);
+            $$= NEW_PTN PT_select_sp_var(@$, $1);
           }
         ;
 
@@ -12777,9 +12810,9 @@ into_destination:
 do_stmt:
           DO_SYM select_item_list
           {
-            $$= NEW_PTN PT_select_stmt(SQLCOM_DO,
-                  NEW_PTN PT_query_expression(
-                    NEW_PTN PT_query_specification({}, $2)));
+            $$= NEW_PTN PT_select_stmt(@$, SQLCOM_DO,
+                  NEW_PTN PT_query_expression(@$,
+                    NEW_PTN PT_query_specification(@$, {}, $2)));
           }
         ;
 
@@ -12806,7 +12839,7 @@ drop_table_stmt:
 drop_index_stmt:
           DROP INDEX_SYM ident ON_SYM table_ident opt_index_lock_and_algorithm
           {
-            $$= NEW_PTN PT_drop_index_stmt(YYMEM_ROOT, $3.str, $5,
+            $$= NEW_PTN PT_drop_index_stmt(@$, YYMEM_ROOT, $3.str, $5,
                                            $6.algo.get_or_default(),
                                            $6.lock.get_or_default());
           }
@@ -12883,7 +12916,7 @@ drop_function_stmt:
 drop_resource_group_stmt:
           DROP RESOURCE_SYM GROUP_SYM ident opt_force
           {
-            $$= NEW_PTN PT_drop_resource_group(to_lex_cstring($4), $5);
+            $$= NEW_PTN PT_drop_resource_group(@$, to_lex_cstring($4), $5);
           }
          ;
 
@@ -13023,14 +13056,14 @@ drop_server_stmt:
 drop_srs_stmt:
           DROP SPATIAL_SYM REFERENCE_SYM SYSTEM_SYM if_exists real_ulonglong_num
           {
-            $$= NEW_PTN PT_drop_srs($6, $5);
+            $$= NEW_PTN PT_drop_srs(@$, $6, $5);
           }
         ;
 
 drop_role_stmt:
           DROP ROLE_SYM if_exists role_list
           {
-            $$= NEW_PTN PT_drop_role($3, $4);
+            $$= NEW_PTN PT_drop_role(@$, $3, $4);
           }
         ;
 
@@ -13120,7 +13153,7 @@ insert_stmt:
           {
             DBUG_EXECUTE_IF("bug29614521_simulate_oom",
                              DBUG_SET("+d,simulate_out_of_memory"););
-            $$= NEW_PTN PT_insert(false, $1, $2, $3, $5, $6,
+            $$= NEW_PTN PT_insert(@$, false, $1, $2, $3, $5, $6,
                                   $7.column_list, $7.row_value_list,
                                   NULL,
                                   $8.table_alias, $8.column_list,
@@ -13139,10 +13172,10 @@ insert_stmt:
           opt_values_reference         /* #9 */
           opt_insert_update_list       /* #10 */
           {
-            PT_insert_values_list *one_row= NEW_PTN PT_insert_values_list(YYMEM_ROOT);
+            PT_insert_values_list *one_row= NEW_PTN PT_insert_values_list(@$, YYMEM_ROOT);
             if (one_row == NULL || one_row->push_back(&$8.value_list->value))
               MYSQL_YYABORT; // OOM
-            $$= NEW_PTN PT_insert(false, $1, $2, $3, $5, $6,
+            $$= NEW_PTN PT_insert(@$, false, $1, $2, $3, $5, $6,
                                   $8.column_list, one_row,
                                   NULL,
                                   $9.table_alias, $9.column_list,
@@ -13157,7 +13190,7 @@ insert_stmt:
           insert_query_expression      /* #7 */
           opt_insert_update_list       /* #8 */
           {
-            $$= NEW_PTN PT_insert(false, $1, $2, $3, $5, $6,
+            $$= NEW_PTN PT_insert(@$, false, $1, $2, $3, $5, $6,
                                   $7.column_list, NULL,
                                   $7.insert_query_expression,
                                   NULL_CSTR, NULL,
@@ -13173,7 +13206,7 @@ replace_stmt:
           opt_use_partition             /* #5 */
           insert_from_constructor       /* #6 */
           {
-            $$= NEW_PTN PT_insert(true, $1, $2, false, $4, $5,
+            $$= NEW_PTN PT_insert(@$, true, $1, $2, false, $4, $5,
                                   $6.column_list, $6.row_value_list,
                                   NULL,
                                   NULL_CSTR, NULL,
@@ -13187,10 +13220,10 @@ replace_stmt:
           SET_SYM                       /* #6 */
           update_list                   /* #7 */
           {
-            PT_insert_values_list *one_row= NEW_PTN PT_insert_values_list(YYMEM_ROOT);
+            PT_insert_values_list *one_row= NEW_PTN PT_insert_values_list(@$, YYMEM_ROOT);
             if (one_row == NULL || one_row->push_back(&$7.value_list->value))
               MYSQL_YYABORT; // OOM
-            $$= NEW_PTN PT_insert(true, $1, $2, false, $4, $5,
+            $$= NEW_PTN PT_insert(@$, true, $1, $2, false, $4, $5,
                                   $7.column_list, one_row,
                                   NULL,
                                   NULL_CSTR, NULL,
@@ -13203,7 +13236,7 @@ replace_stmt:
           opt_use_partition             /* #5 */
           insert_query_expression       /* #6 */
           {
-            $$= NEW_PTN PT_insert(true, $1, $2, false, $4, $5,
+            $$= NEW_PTN PT_insert(@$, true, $1, $2, false, $4, $5,
                                   $6.column_list, NULL,
                                   $6.insert_query_expression,
                                   NULL_CSTR, NULL,
@@ -13247,12 +13280,13 @@ opt_INTO:
 insert_from_constructor:
           insert_values
           {
-            $$.column_list= NEW_PTN PT_item_list;
+            // No position because there is no column list.
+            $$.column_list= NEW_PTN PT_item_list(POS());
             $$.row_value_list= $1;
           }
         | '(' ')' insert_values
           {
-            $$.column_list= NEW_PTN PT_item_list;
+            $$.column_list= NEW_PTN PT_item_list(POS()); // No position.
             $$.row_value_list= $3;
           }
         | '(' insert_columns ')' insert_values
@@ -13265,12 +13299,12 @@ insert_from_constructor:
 insert_query_expression:
           query_expression_with_opt_locking_clauses
           {
-            $$.column_list= NEW_PTN PT_item_list;
+            $$.column_list= NEW_PTN PT_item_list(POS()); // No column list.
             $$.insert_query_expression= $1;
           }
         | '(' ')' query_expression_with_opt_locking_clauses
           {
-            $$.column_list= NEW_PTN PT_item_list;
+            $$.column_list= NEW_PTN PT_item_list(POS()); // No column list.
             $$.insert_query_expression= $3;
           }
         | '(' insert_columns ')' query_expression_with_opt_locking_clauses
@@ -13286,10 +13320,11 @@ insert_columns:
             if ($$->push_back($3))
               MYSQL_YYABORT;
             $$= $1;
+            $$->m_pos = @$;
           }
         | insert_column
           {
-            $$= NEW_PTN PT_item_list;
+            $$= NEW_PTN PT_item_list(@$);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT;
           }
@@ -13306,7 +13341,7 @@ query_expression_with_opt_locking_clauses:
           query_expression                      { $$ = $1; }
         | query_expression locking_clause_list
           {
-            $$ = NEW_PTN PT_locking($1, $2);
+            $$ = NEW_PTN PT_locking(@$, $1, $2);
           }
         ;
 
@@ -13320,10 +13355,11 @@ values_list:
           {
             if ($$->push_back(&$3->value))
               MYSQL_YYABORT;
+            $$->m_pos = @$;
           }
         | row_value
           {
-            $$= NEW_PTN PT_insert_values_list(YYMEM_ROOT);
+            $$= NEW_PTN PT_insert_values_list(@$, YYMEM_ROOT);
             if ($$ == NULL || $$->push_back(&$1->value))
               MYSQL_YYABORT;
           }
@@ -13335,10 +13371,11 @@ values_row_list:
           {
             if ($$->push_back(&$3->value))
               MYSQL_YYABORT;
+            $$->m_pos = @$;
           }
         | row_value_explicit
           {
-            $$= NEW_PTN PT_insert_values_list(YYMEM_ROOT);
+            $$= NEW_PTN PT_insert_values_list(@$, YYMEM_ROOT);
             if ($$ == nullptr || $$->push_back(&$1->value))
               MYSQL_YYABORT;
           }
@@ -13365,7 +13402,7 @@ row_value_explicit:
 opt_values:
           %empty
           {
-            $$= NEW_PTN PT_item_list;
+            $$= NEW_PTN PT_item_list(POS());
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -13378,10 +13415,11 @@ values:
             if ($1->push_back($3))
               MYSQL_YYABORT;
             $$= $1;
+            $$->m_pos = @$;
           }
         | expr_or_default
           {
-            $$= NEW_PTN PT_item_list;
+            $$= NEW_PTN PT_item_list(@$);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT;
           }
@@ -13439,7 +13477,7 @@ update_stmt:
           opt_order_clause      /* #8 */
           opt_simple_limit      /* #9 */
           {
-            $$= NEW_PTN PT_update($1, $2, $3, $4, $5, $7.column_list, $7.value_list,
+            $$= NEW_PTN PT_update(@$, $1, $2, $3, $4, $5, $7.column_list, $7.value_list,
                                   $8, $9, $10);
           }
         ;
@@ -13459,8 +13497,8 @@ update_list:
           }
         | update_elem
           {
-            $$.column_list= NEW_PTN PT_item_list;
-            $$.value_list= NEW_PTN PT_item_list;
+            $$.column_list= NEW_PTN PT_item_list(@$);
+            $$.value_list= NEW_PTN PT_item_list(@$);
             if ($$.column_list == NULL || $$.value_list == NULL ||
                 $$.column_list->push_back($1.column) ||
                 $$.value_list->push_back($1.value))
@@ -13495,7 +13533,7 @@ delete_stmt:
           opt_order_clause
           opt_simple_limit
           {
-            $$= NEW_PTN PT_delete($1, $2, $3, $5, $6, $7, $8, $9, $10);
+            $$= NEW_PTN PT_delete(@$, $1, $2, $3, $5, $6, $7, $8, $9, $10);
           }
         | opt_with_clause
           DELETE_SYM
@@ -13505,7 +13543,7 @@ delete_stmt:
           table_reference_list
           opt_where_clause
           {
-            $$= NEW_PTN PT_delete($1, $2, $3, $4, $6, $7);
+            $$= NEW_PTN PT_delete(@$, $1, $2, $3, $4, $6, $7);
           }
         | opt_with_clause
           DELETE_SYM
@@ -13516,7 +13554,7 @@ delete_stmt:
           table_reference_list
           opt_where_clause
           {
-            $$= NEW_PTN PT_delete($1, $2, $3, $5, $7, $8);
+            $$= NEW_PTN PT_delete(@$, $1, $2, $3, $5, $7, $8);
           }
         ;
 
@@ -13539,7 +13577,7 @@ opt_delete_option:
 truncate_stmt:
           TRUNCATE_SYM opt_table table_ident
           {
-            $$= NEW_PTN PT_truncate_table_stmt($3);
+            $$= NEW_PTN PT_truncate_table_stmt(@$, $3);
           }
         ;
 
@@ -14001,7 +14039,7 @@ describe_stmt:
 explain_stmt:
           describe_command opt_explain_options explainable_stmt
           {
-            $$= NEW_PTN PT_explain($2.explain_format_type, $2.is_analyze,
+            $$= NEW_PTN PT_explain(@$, $2.explain_format_type, $2.is_analyze,
                                    $2.is_explicit, $3,
                                    /*explain_into_variable_name=*/std::nullopt);
           }
@@ -14032,7 +14070,7 @@ explain_stmt:
                                     "TRADITIONAL");
               }
             }
-            $$= NEW_PTN PT_explain($2.explain_format_type, $2.is_analyze,
+            $$= NEW_PTN PT_explain(@$, $2.explain_format_type, $2.is_analyze,
                                    $2.is_explicit, $6, to_string_view($5));
           }
         ;
@@ -14045,7 +14083,7 @@ explainable_stmt:
         | delete_stmt
         | FOR_SYM CONNECTION_SYM real_ulong_num
           {
-            $$= NEW_PTN PT_explain_for_connection(static_cast<my_thread_id>($3));
+            $$= NEW_PTN PT_explain_for_connection(@$, static_cast<my_thread_id>($3));
           }
         ;
 
@@ -14419,7 +14457,7 @@ load_stmt:
           opt_load_data_set_spec        /* 21 */
           opt_load_algorithm            /* 22 */
           {
-            $$= NEW_PTN PT_load_table($2,  // data_or_xml
+            $$= NEW_PTN PT_load_table(@$, $2,  // data_or_xml
                                       $3,  // load_data_lock
                                       $5,  // opt_local
                                       $6,  // source type
@@ -14590,10 +14628,11 @@ fields_or_vars:
             $$= $1;
             if ($$->push_back($3))
               MYSQL_YYABORT; // OOM
+            $$->m_pos = @$;
           }
         | field_or_var
           {
-            $$= NEW_PTN PT_item_list;
+            $$= NEW_PTN PT_item_list(@$);
             if ($$ == nullptr || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -14623,12 +14662,12 @@ load_data_set_list:
           }
         | load_data_set_elem
           {
-            $$.set_var_list= NEW_PTN PT_item_list;
+            $$.set_var_list= NEW_PTN PT_item_list(@$);
             if ($$.set_var_list == nullptr ||
                 $$.set_var_list->push_back($1.set_var))
               MYSQL_YYABORT; // OOM
 
-            $$.set_expr_list= NEW_PTN PT_item_list;
+            $$.set_expr_list= NEW_PTN PT_item_list(@$);
             if ($$.set_expr_list == nullptr ||
                 $$.set_expr_list->push_back($1.set_expr))
               MYSQL_YYABORT; // OOM
@@ -14869,14 +14908,14 @@ table_wild:
 order_expr:
           expr opt_ordering_direction
           {
-            $$= NEW_PTN PT_order_expr($1, $2);
+            $$= NEW_PTN PT_order_expr(@$, $1, $2);
           }
         ;
 
 grouping_expr:
           expr
           {
-            $$= NEW_PTN PT_order_expr($1, ORDER_NOT_RELEVANT);
+            $$= NEW_PTN PT_order_expr(@$, $1, ORDER_NOT_RELEVANT);
           }
         ;
 
@@ -15784,7 +15823,7 @@ ident_keywords_ambiguous_4_system_variables:
 set:
           SET_SYM start_option_value_list
           {
-            $$= NEW_PTN PT_set(@1, $2);
+            $$= NEW_PTN PT_set(@$, @1, $2);
           }
         ;
 
@@ -15793,19 +15832,19 @@ set:
 start_option_value_list:
           option_value_no_option_type option_value_list_continued
           {
-            $$= NEW_PTN PT_start_option_value_list_no_type($1, @1, $2);
+            $$= NEW_PTN PT_start_option_value_list_no_type(@$, $1, @1, $2);
           }
         | TRANSACTION_SYM transaction_characteristics
           {
-            $$= NEW_PTN PT_start_option_value_list_transaction($2, @2);
+            $$= NEW_PTN PT_start_option_value_list_transaction(@$, $2, @2);
           }
         | option_type start_option_value_list_following_option_type
           {
-            $$= NEW_PTN PT_start_option_value_list_type($1, $2);
+            $$= NEW_PTN PT_start_option_value_list_type(@$, $1, $2);
           }
         | PASSWORD equal TEXT_STRING_password opt_replace_password opt_retain_current_password
           {
-            $$= NEW_PTN PT_option_value_no_option_type_password($3.str, $4.str,
+            $$= NEW_PTN PT_option_value_no_option_type_password(@$, $3.str, $4.str,
                                                                 $5,
                                                                 false,
                                                                 @4);
@@ -15813,14 +15852,14 @@ start_option_value_list:
         | PASSWORD TO_SYM RANDOM_SYM opt_replace_password opt_retain_current_password
           {
             // RANDOM PASSWORD GENERATION AND RETURN RESULT SET...
-            $$= NEW_PTN PT_option_value_no_option_type_password($3.str, $4.str,
+            $$= NEW_PTN PT_option_value_no_option_type_password(@$, $3.str, $4.str,
                                                                 $5,
                                                                 true,
                                                                 @4);
           }
         | PASSWORD FOR_SYM user equal TEXT_STRING_password opt_replace_password opt_retain_current_password
           {
-            $$= NEW_PTN PT_option_value_no_option_type_password_for($3, $5.str,
+            $$= NEW_PTN PT_option_value_no_option_type_password_for(@$, $3, $5.str,
                                                                     $6.str,
                                                                     $7,
                                                                     false,
@@ -15829,7 +15868,7 @@ start_option_value_list:
         | PASSWORD FOR_SYM user TO_SYM RANDOM_SYM opt_replace_password opt_retain_current_password
           {
             // RANDOM PASSWORD GENERATION AND RETURN RESULT SET...
-            $$= NEW_PTN PT_option_value_no_option_type_password_for($3, $5.str,
+            $$= NEW_PTN PT_option_value_no_option_type_password_for(@$, $3, $5.str,
                                                                     $6.str,
                                                                     $7,
                                                                     true,
@@ -15840,36 +15879,36 @@ start_option_value_list:
 set_role_stmt:
           SET_SYM ROLE_SYM role_list
           {
-            $$= NEW_PTN PT_set_role($3);
+            $$= NEW_PTN PT_set_role(@$, $3);
           }
         | SET_SYM ROLE_SYM NONE_SYM
           {
-            $$= NEW_PTN PT_set_role(role_enum::ROLE_NONE);
+            $$= NEW_PTN PT_set_role(@$, role_enum::ROLE_NONE);
             Lex->sql_command= SQLCOM_SET_ROLE;
           }
         | SET_SYM ROLE_SYM DEFAULT_SYM
           {
-            $$= NEW_PTN PT_set_role(role_enum::ROLE_DEFAULT);
+            $$= NEW_PTN PT_set_role(@$, role_enum::ROLE_DEFAULT);
             Lex->sql_command= SQLCOM_SET_ROLE;
           }
         | SET_SYM DEFAULT_SYM ROLE_SYM role_list TO_SYM role_list
           {
-            $$= NEW_PTN PT_alter_user_default_role(false, $6, $4,
+            $$= NEW_PTN PT_alter_user_default_role(@$, false, $6, $4,
                                                     role_enum::ROLE_NAME);
           }
         | SET_SYM DEFAULT_SYM ROLE_SYM NONE_SYM TO_SYM role_list
           {
-            $$= NEW_PTN PT_alter_user_default_role(false, $6, NULL,
+            $$= NEW_PTN PT_alter_user_default_role(@$, false, $6, NULL,
                                                    role_enum::ROLE_NONE);
           }
         | SET_SYM DEFAULT_SYM ROLE_SYM ALL TO_SYM role_list
           {
-            $$= NEW_PTN PT_alter_user_default_role(false, $6, NULL,
+            $$= NEW_PTN PT_alter_user_default_role(@$, false, $6, NULL,
                                                    role_enum::ROLE_ALL);
           }
         | SET_SYM ROLE_SYM ALL opt_except_role_list
           {
-            $$= NEW_PTN PT_set_role(role_enum::ROLE_ALL, $4);
+            $$= NEW_PTN PT_set_role(@$, role_enum::ROLE_ALL, $4);
             Lex->sql_command= SQLCOM_SET_ROLE;
           }
         ;
@@ -15882,11 +15921,11 @@ opt_except_role_list:
 set_resource_group_stmt:
           SET_SYM RESOURCE_SYM GROUP_SYM ident
           {
-            $$= NEW_PTN PT_set_resource_group(to_lex_cstring($4), nullptr);
+            $$= NEW_PTN PT_set_resource_group(@$, to_lex_cstring($4), nullptr);
           }
         | SET_SYM RESOURCE_SYM GROUP_SYM ident FOR_SYM thread_id_list_options
           {
-            $$= NEW_PTN PT_set_resource_group(to_lex_cstring($4), $6);
+            $$= NEW_PTN PT_set_resource_group(@$, to_lex_cstring($4), $6);
           }
        ;
 
@@ -15914,14 +15953,14 @@ start_option_value_list_following_option_type:
           option_value_following_option_type option_value_list_continued
           {
             $$=
-              NEW_PTN PT_start_option_value_list_following_option_type_eq($1,
+              NEW_PTN PT_start_option_value_list_following_option_type_eq(@$, $1,
                                                                           @1,
                                                                           $2);
           }
         | TRANSACTION_SYM transaction_characteristics
           {
             $$= NEW_PTN
-              PT_start_option_value_list_following_option_type_transaction($2,
+              PT_start_option_value_list_following_option_type_transaction(@$, $2,
                                                                            @2);
           }
         ;
@@ -15936,11 +15975,11 @@ option_value_list_continued:
 option_value_list:
           option_value
           {
-            $$= NEW_PTN PT_option_value_list_head(@0, $1, @1);
+            $$= NEW_PTN PT_option_value_list_head(@$, @0, $1, @1);
           }
         | option_value_list ',' option_value
           {
-            $$= NEW_PTN PT_option_value_list($1, @2, $3, @3);
+            $$= NEW_PTN PT_option_value_list(@$, $1, @2, $3, @3);
           }
         ;
 
@@ -15948,7 +15987,7 @@ option_value_list:
 option_value:
           option_type option_value_following_option_type
           {
-            $$= NEW_PTN PT_option_value_type($1, $2);
+            $$= NEW_PTN PT_option_value_type(@$, $1, $2);
           }
         | option_value_no_option_type { $$= $1; }
         ;
@@ -15989,7 +16028,7 @@ option_value_following_option_type:
           lvalue_variable equal set_expr_or_default
           {
             $$ = NEW_PTN PT_set_scoped_system_variable(
-                @1, $1.prefix, $1.name, $3);
+                @$, @1, $1.prefix, $1.name, $3);
           }
         ;
 
@@ -15997,36 +16036,36 @@ option_value_following_option_type:
 option_value_no_option_type:
           lvalue_variable equal set_expr_or_default
           {
-            $$ = NEW_PTN PT_set_variable(@1, $1.prefix, $1.name, @3, $3);
+            $$ = NEW_PTN PT_set_variable(@$, @1, $1.prefix, $1.name, @3, $3);
           }
         | '@' ident_or_text equal expr
           {
-            $$= NEW_PTN PT_option_value_no_option_type_user_var($2, $4);
+            $$= NEW_PTN PT_option_value_no_option_type_user_var(@$, $2, $4);
           }
         | '@' '@' opt_set_var_ident_type lvalue_variable equal
           set_expr_or_default
           {
             $$ = NEW_PTN PT_set_system_variable(
-                $3, @4, $4.prefix, $4.name, $6);
+                @$, $3, @4, $4.prefix, $4.name, $6);
           }
         | character_set old_or_new_charset_name_or_default
           {
-            $$= NEW_PTN PT_option_value_no_option_type_charset($2);
+            $$= NEW_PTN PT_option_value_no_option_type_charset(@$, $2);
           }
         | NAMES_SYM equal expr
           {
             /*
               Bad syntax, always fails with an error
             */
-            $$= NEW_PTN PT_option_value_no_option_type_names(@2);
+            $$= NEW_PTN PT_option_value_no_option_type_names(@$, @2);
           }
         | NAMES_SYM charset_name opt_collate
           {
-            $$= NEW_PTN PT_set_names($2, $3);
+            $$= NEW_PTN PT_set_names(@$, $2, $3);
           }
         | NAMES_SYM DEFAULT_SYM
           {
-            $$ = NEW_PTN PT_set_names(nullptr, nullptr);
+            $$ = NEW_PTN PT_set_names(@$, nullptr, nullptr);
           }
         ;
 
@@ -16073,18 +16112,18 @@ rvalue_system_variable:
 transaction_characteristics:
           transaction_access_mode opt_isolation_level
           {
-            $$= NEW_PTN PT_transaction_characteristics($1, $2);
+            $$= NEW_PTN PT_transaction_characteristics(@$, $1, $2);
           }
         | isolation_level opt_transaction_access_mode
           {
-            $$= NEW_PTN PT_transaction_characteristics($1, $2);
+            $$= NEW_PTN PT_transaction_characteristics(@$, $1, $2);
           }
         ;
 
 transaction_access_mode:
           transaction_access_mode_types
           {
-            $$= NEW_PTN PT_transaction_access_mode($1);
+            $$= NEW_PTN PT_transaction_access_mode(@$, $1);
           }
         ;
 
@@ -16096,7 +16135,7 @@ opt_transaction_access_mode:
 isolation_level:
           ISOLATION LEVEL_SYM isolation_types
           {
-            $$= NEW_PTN PT_isolation_level($3);
+            $$= NEW_PTN PT_isolation_level(@$, $3);
           }
         ;
 
@@ -16267,11 +16306,11 @@ alter_instance_action:
           {
             if (is_identifier($2, "INNODB"))
             {
-              $$= NEW_PTN PT_alter_instance(ROTATE_INNODB_MASTER_KEY, EMPTY_CSTR);
+              $$= NEW_PTN PT_alter_instance(@$, ROTATE_INNODB_MASTER_KEY, EMPTY_CSTR);
             }
             else if (is_identifier($2, "BINLOG"))
             {
-              $$= NEW_PTN PT_alter_instance(ROTATE_BINLOG_MASTER_KEY, EMPTY_CSTR);
+              $$= NEW_PTN PT_alter_instance(@$, ROTATE_BINLOG_MASTER_KEY, EMPTY_CSTR);
             }
             else
             {
@@ -16281,17 +16320,17 @@ alter_instance_action:
           }
         | RELOAD TLS_SYM
           {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring("mysql_main"));
+            $$ = NEW_PTN PT_alter_instance(@$, ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring("mysql_main"));
           }
         | RELOAD TLS_SYM NO_SYM ROLLBACK_SYM ON_SYM ERROR_SYM
           {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring("mysql_main"));
+            $$ = NEW_PTN PT_alter_instance(@$, ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring("mysql_main"));
           }
         | RELOAD TLS_SYM FOR_SYM CHANNEL_SYM ident {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring($5));
+            $$ = NEW_PTN PT_alter_instance(@$, ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring($5));
           }
         | RELOAD TLS_SYM FOR_SYM CHANNEL_SYM ident NO_SYM ROLLBACK_SYM ON_SYM ERROR_SYM {
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring($5));
+            $$ = NEW_PTN PT_alter_instance(@$, ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring($5));
           }
         | ENABLE_SYM ident ident
           {
@@ -16306,7 +16345,7 @@ alter_instance_action:
               YYTHD->syntax_error_at(@3);
               MYSQL_YYABORT;
             }
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_ENABLE_INNODB_REDO, EMPTY_CSTR);
+            $$ = NEW_PTN PT_alter_instance(@$, ALTER_INSTANCE_ENABLE_INNODB_REDO, EMPTY_CSTR);
           }
         | DISABLE_SYM ident ident
           {
@@ -16321,10 +16360,10 @@ alter_instance_action:
               YYTHD->syntax_error_at(@3);
               MYSQL_YYABORT;
             }
-            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_DISABLE_INNODB_REDO, EMPTY_CSTR);
+            $$ = NEW_PTN PT_alter_instance(@$, ALTER_INSTANCE_DISABLE_INNODB_REDO, EMPTY_CSTR);
           }
         | RELOAD KEYRING_SYM {
-            $$ = NEW_PTN PT_alter_instance(RELOAD_KEYRING, EMPTY_CSTR);
+            $$ = NEW_PTN PT_alter_instance(@$, RELOAD_KEYRING, EMPTY_CSTR);
           }
         ;
 
@@ -16403,7 +16442,7 @@ revoke:
           {
             Lex->grant_if_exists = $2;
             Lex->ignore_unknown_user = $6;
-            auto *tmp= NEW_PTN PT_revoke_roles($3, $5);
+            auto *tmp= NEW_PTN PT_revoke_roles(@$, $3, $5);
             MAKE_CMD(tmp);
           }
         | REVOKE if_exists role_or_privilege_list ON_SYM opt_acl_type grant_ident FROM user_list opt_ignore_unknown_user
@@ -16466,7 +16505,7 @@ revoke:
 grant:
           GRANT role_or_privilege_list TO_SYM user_list opt_with_admin_option
           {
-            auto *tmp= NEW_PTN PT_grant_roles($2, $4, $5);
+            auto *tmp= NEW_PTN PT_grant_roles(@$, $2, $4, $5);
             MAKE_CMD(tmp);
           }
         | GRANT role_or_privilege_list ON_SYM opt_acl_type grant_ident TO_SYM user_list
@@ -16545,53 +16584,53 @@ role_or_privilege:
           role_ident_or_text opt_column_list
           {
             if ($2 == NULL)
-              $$= NEW_PTN PT_role_or_dynamic_privilege(@1, $1);
+              $$= NEW_PTN PT_role_or_dynamic_privilege(@$, @1, $1);
             else
-              $$= NEW_PTN PT_dynamic_privilege(@1, $1);
+              $$= NEW_PTN PT_dynamic_privilege(@$, @1, $1);
           }
         | role_ident_or_text '@' ident_or_text
-          { $$= NEW_PTN PT_role_at_host(@1, $1, $3); }
+          { $$= NEW_PTN PT_role_at_host(@$, @1, $1, $3); }
         | SELECT_SYM opt_column_list
-          { $$= NEW_PTN PT_static_privilege(@1, SELECT_ACL, $2); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, SELECT_ACL, $2); }
         | INSERT_SYM opt_column_list
-          { $$= NEW_PTN PT_static_privilege(@1, INSERT_ACL, $2); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, INSERT_ACL, $2); }
         | UPDATE_SYM opt_column_list
-          { $$= NEW_PTN PT_static_privilege(@1, UPDATE_ACL, $2); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, UPDATE_ACL, $2); }
         | REFERENCES opt_column_list
-          { $$= NEW_PTN PT_static_privilege(@1, REFERENCES_ACL, $2); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, REFERENCES_ACL, $2); }
         | DELETE_SYM
-          { $$= NEW_PTN PT_static_privilege(@1, DELETE_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, DELETE_ACL); }
         | USAGE
-          { $$= NEW_PTN PT_static_privilege(@1, 0); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, 0); }
         | INDEX_SYM
-          { $$= NEW_PTN PT_static_privilege(@1, INDEX_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, INDEX_ACL); }
         | ALTER
-          { $$= NEW_PTN PT_static_privilege(@1, ALTER_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, ALTER_ACL); }
         | CREATE
-          { $$= NEW_PTN PT_static_privilege(@1, CREATE_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, CREATE_ACL); }
         | DROP
-          { $$= NEW_PTN PT_static_privilege(@1, DROP_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, DROP_ACL); }
         | EXECUTE_SYM
-          { $$= NEW_PTN PT_static_privilege(@1, EXECUTE_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, EXECUTE_ACL); }
         | RELOAD
-          { $$= NEW_PTN PT_static_privilege(@1, RELOAD_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, RELOAD_ACL); }
         | SHUTDOWN
-          { $$= NEW_PTN PT_static_privilege(@1, SHUTDOWN_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, SHUTDOWN_ACL); }
         | PROCESS
-          { $$= NEW_PTN PT_static_privilege(@1, PROCESS_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, PROCESS_ACL); }
         | FILE_SYM
-          { $$= NEW_PTN PT_static_privilege(@1, FILE_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, FILE_ACL); }
         | GRANT OPTION
           {
-            $$= NEW_PTN PT_static_privilege(@1, GRANT_ACL);
+            $$= NEW_PTN PT_static_privilege(@$, @1, GRANT_ACL);
             Lex->grant_privilege= true;
           }
         | SHOW DATABASES
-          { $$= NEW_PTN PT_static_privilege(@1, SHOW_DB_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, SHOW_DB_ACL); }
         | SUPER_SYM
           {
             /* DEPRECATED */
-            $$= NEW_PTN PT_static_privilege(@1, SUPER_ACL);
+            $$= NEW_PTN PT_static_privilege(@$, @1, SUPER_ACL);
             if (Lex->grant != GLOBAL_ACLS)
             {
               /*
@@ -16603,33 +16642,33 @@ role_or_privilege:
             }
           }
         | CREATE TEMPORARY TABLES
-          { $$= NEW_PTN PT_static_privilege(@1, CREATE_TMP_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, CREATE_TMP_ACL); }
         | LOCK_SYM TABLES
-          { $$= NEW_PTN PT_static_privilege(@1, LOCK_TABLES_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, LOCK_TABLES_ACL); }
         | REPLICATION SLAVE
-          { $$= NEW_PTN PT_static_privilege(@1, REPL_SLAVE_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, REPL_SLAVE_ACL); }
         | REPLICATION CLIENT_SYM
-          { $$= NEW_PTN PT_static_privilege(@1, REPL_CLIENT_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, REPL_CLIENT_ACL); }
         | CREATE VIEW_SYM
-          { $$= NEW_PTN PT_static_privilege(@1, CREATE_VIEW_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, CREATE_VIEW_ACL); }
         | SHOW VIEW_SYM
-          { $$= NEW_PTN PT_static_privilege(@1, SHOW_VIEW_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, SHOW_VIEW_ACL); }
         | CREATE ROUTINE_SYM
-          { $$= NEW_PTN PT_static_privilege(@1, CREATE_PROC_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, CREATE_PROC_ACL); }
         | ALTER ROUTINE_SYM
-          { $$= NEW_PTN PT_static_privilege(@1, ALTER_PROC_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, ALTER_PROC_ACL); }
         | CREATE USER
-          { $$= NEW_PTN PT_static_privilege(@1, CREATE_USER_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, CREATE_USER_ACL); }
         | EVENT_SYM
-          { $$= NEW_PTN PT_static_privilege(@1, EVENT_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, EVENT_ACL); }
         | TRIGGER_SYM
-          { $$= NEW_PTN PT_static_privilege(@1, TRIGGER_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, TRIGGER_ACL); }
         | CREATE TABLESPACE_SYM
-          { $$= NEW_PTN PT_static_privilege(@1, CREATE_TABLESPACE_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, CREATE_TABLESPACE_ACL); }
         | CREATE ROLE_SYM
-          { $$= NEW_PTN PT_static_privilege(@1, CREATE_ROLE_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, CREATE_ROLE_ACL); }
         | DROP ROLE_SYM
-          { $$= NEW_PTN PT_static_privilege(@1, DROP_ROLE_ACL); }
+          { $$= NEW_PTN PT_static_privilege(@$, @1, DROP_ROLE_ACL); }
         ;
 
 opt_with_admin_option:
@@ -18151,7 +18190,7 @@ install_stmt:
           }
         | INSTALL_SYM COMPONENT_SYM TEXT_STRING_sys_list opt_install_set_value_list
           {
-            $$ = NEW_PTN PT_install_component(YYTHD, $3, $4);
+            $$ = NEW_PTN PT_install_component(@$, YYTHD, $3, $4);
           }
         ;
 

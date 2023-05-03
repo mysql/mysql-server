@@ -29,8 +29,8 @@
   Helper class for the MY_SQL_PARSER_LTYPE
 */
 struct Symbol_location {
-  const char *start;  // token start
-  const char *end;    // the 1st byte after the token
+  const char *start = nullptr;  // token start
+  const char *end = nullptr;    // the 1st byte after the token
 
   bool is_empty() const { return length() == 0; }
   size_t length() const { return static_cast<size_t>(end - start); }

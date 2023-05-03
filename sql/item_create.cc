@@ -129,7 +129,7 @@ namespace {
   @see Function_factory::create_func()
 */
 constexpr auto MAX_ARGLIST_SIZE =
-    std::numeric_limits<decltype(PT_item_list().elements())>::max();
+    std::numeric_limits<decltype(PT_item_list(POS()).elements())>::max();
 
 /**
   Instantiates a function class with the list of arguments.

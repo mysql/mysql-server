@@ -391,7 +391,7 @@ class Item_xpath_cast_number : public Item_real_func {
 class Item_nodeset_context_cache : public Item_nodeset_func {
   bool m_is_empty;
   uint32 m_num;
-  uint32 m_pos;
+  uint32 m_position;
   size_t m_size;
 
  public:
@@ -399,16 +399,16 @@ class Item_nodeset_context_cache : public Item_nodeset_func {
       : Item_nodeset_func(pxml_arg, cs),
         m_is_empty(true),
         m_num(0),
-        m_pos(0),
+        m_position(0),
         m_size(0) {}
   void val_nodeset(XPathFilter *nodeset) const override {
     nodeset->clear();
     if (!m_is_empty)
-      nodeset->push_back({m_num, m_pos, static_cast<uint>(m_size)});
+      nodeset->push_back({m_num, m_position, static_cast<uint>(m_size)});
   }
   void set_element(uint32 num, uint32 pos, size_t size) {
     m_num = num;
-    m_pos = pos;
+    m_position = pos;
     m_size = size;
     m_is_empty = false;
   }

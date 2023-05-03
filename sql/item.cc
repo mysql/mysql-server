@@ -137,7 +137,8 @@ void item_init(void) {
 }
 
 Item::Item()
-    : next_free(nullptr),
+    : super(POS()),
+      next_free(nullptr),
       str_value(),
       collation(&my_charset_bin, DERIVATION_COERCIBLE),
       item_name(),
@@ -164,7 +165,8 @@ Item::Item()
 }
 
 Item::Item(THD *thd, const Item *item)
-    : next_free(nullptr),
+    : super(POS()),
+      next_free(nullptr),
       str_value(item->str_value),
       collation(item->collation),
       item_name(item->item_name),
@@ -191,8 +193,9 @@ Item::Item(THD *thd, const Item *item)
   thd->add_item(this);
 }
 
-Item::Item(const POS &)
-    : next_free(nullptr),
+Item::Item(const POS &pos)
+    : super(pos),
+      next_free(nullptr),
       str_value(),
       collation(&my_charset_bin, DERIVATION_COERCIBLE),
       item_name(),

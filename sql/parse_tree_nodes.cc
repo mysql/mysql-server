@@ -211,7 +211,7 @@ bool PT_option_value_no_option_type_names::do_contextualize(Parse_context *pc) {
   if (pctx && pctx->find_variable(names.str, names.length, false))
     my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), names.str);
   else
-    error(pc, pos);
+    error(pc, m_error_pos);
 
   return true;  // always fails with an error
 }
@@ -668,13 +668,16 @@ bool PT_option_value_no_option_type_password::do_contextualize(
   return false;
 }
 
-PT_key_part_specification::PT_key_part_specification(Item *expression,
+PT_key_part_specification::PT_key_part_specification(const POS &pos,
+                                                     Item *expression,
                                                      enum_order order)
-    : m_expression(expression), m_order(order) {}
+    : super(pos), m_expression(expression), m_order(order) {}
 
 PT_key_part_specification::PT_key_part_specification(
-    const LEX_CSTRING &column_name, enum_order order, int prefix_length)
-    : m_expression(nullptr),
+    const POS &pos, const LEX_CSTRING &column_name, enum_order order,
+    int prefix_length)
+    : super(pos),
+      m_expression(nullptr),
       m_order(order),
       m_column_name(column_name),
       m_prefix_length(prefix_length) {}
@@ -1313,10 +1316,12 @@ bool PT_table_factor_function::do_contextualize(Parse_context *pc) {
   return false;
 }
 
-PT_derived_table::PT_derived_table(bool lateral, PT_subquery *subquery,
+PT_derived_table::PT_derived_table(const POS &pos, bool lateral,
+                                   PT_subquery *subquery,
                                    const LEX_CSTRING &table_alias,
                                    Create_col_name_list *column_names)
-    : m_lateral(lateral),
+    : super(pos),
+      m_lateral(lateral),
       m_subquery(subquery),
       m_table_alias(table_alias.str),
       column_names(*column_names) {
@@ -1915,10 +1920,11 @@ bool PT_with_list::push_back(PT_common_table_expr *el) {
 }
 
 PT_common_table_expr::PT_common_table_expr(
-    const LEX_STRING &name, const LEX_STRING &subq_text, uint subq_text_offs,
-    PT_subquery *subq_node, const Create_col_name_list *column_names,
-    MEM_ROOT *mem_root)
-    : m_name(name),
+    const POS &pos, const LEX_STRING &name, const LEX_STRING &subq_text,
+    uint subq_text_offs, PT_subquery *subq_node,
+    const Create_col_name_list *column_names, MEM_ROOT *mem_root)
+    : super(pos),
+      m_name(name),
       m_subq_text(subq_text),
       m_subq_text_offset(subq_text_offs),
       m_subq_node(subq_node),
@@ -3372,8 +3378,8 @@ Item *PT_border::build_addop(Item_cache *order_expr, bool prec, bool asc,
 }
 
 PT_json_table_column_for_ordinality::PT_json_table_column_for_ordinality(
-    LEX_STRING name)
-    : m_name(name.str) {}
+    const POS &pos, LEX_STRING name)
+    : super(pos), m_name(name.str) {}
 
 PT_json_table_column_for_ordinality::~PT_json_table_column_for_ordinality() =
     default;
@@ -3389,9 +3395,10 @@ bool PT_json_table_column_for_ordinality::do_contextualize(Parse_context *pc) {
 }
 
 PT_json_table_column_with_path::PT_json_table_column_with_path(
-    unique_ptr_destroy_only<Json_table_column> column, LEX_STRING name,
-    PT_type *type, const CHARSET_INFO *collation)
-    : m_column(std::move(column)),
+    const POS &pos, unique_ptr_destroy_only<Json_table_column> column,
+    LEX_STRING name, PT_type *type, const CHARSET_INFO *collation)
+    : super(pos),
+      m_column(std::move(column)),
       m_name(name.str),
       m_type(type),
       m_collation(collation) {}
@@ -3749,7 +3756,7 @@ bool PT_set_scoped_system_variable::do_contextualize(Parse_context *pc) {
         {"GLOBAL" | "SESSION" | "PERSIST" | ...} {"NEW" | "OLD"} "."  <name>
   */
   if (is_any_transition_variable_prefix(*pc, m_opt_prefix)) {
-    error(pc, m_pos);
+    error(pc, m_varpos);
     return true;
   }
 
@@ -3764,7 +3771,7 @@ bool PT_set_scoped_system_variable::do_contextualize(Parse_context *pc) {
           variables is too strict, so a warning may be a better alternative.
   */
   if (is_1d_name && find_sp_variable(*pc, m_name) != nullptr) {
-    error(pc, m_pos);
+    error(pc, m_varpos);
     return true;
   }
 
@@ -4105,7 +4112,7 @@ bool PT_subquery::do_contextualize(Parse_context *pc) {
 
   LEX *lex = pc->thd->lex;
   if (!lex->expr_allows_subselect || lex->sql_command == SQLCOM_PURGE) {
-    error(pc, pos);
+    error(pc, m_pos);
     return true;
   }
 
@@ -4332,12 +4339,12 @@ Sql_cmd *PT_set_role::make_cmd(THD *thd) {
 }
 
 LEX_USER *PT_role_or_privilege::get_user(THD *thd) {
-  thd->syntax_error_at(pos, "Illegal authorization identifier");
+  thd->syntax_error_at(m_errpos, "Illegal authorization identifier");
   return nullptr;
 }
 
 Privilege *PT_role_or_privilege::get_privilege(THD *thd) {
-  thd->syntax_error_at(pos, "Illegal privilege identifier");
+  thd->syntax_error_at(m_errpos, "Illegal privilege identifier");
   return nullptr;
 }
 
@@ -4634,7 +4641,7 @@ class PT_attribute : public BASE {
   CFP m_cfp;
 
  public:
-  PT_attribute(ATTRIBUTE a, CFP cfp) : m_attr{a}, m_cfp{cfp} {}
+  PT_attribute(ATTRIBUTE a, CFP cfp) : BASE(POS()), m_attr{a}, m_cfp{cfp} {}
   bool do_contextualize(typename BASE::context_t *pc) override {
     return BASE::do_contextualize(pc) || m_cfp(m_attr, pc);
   }
@@ -4806,9 +4813,9 @@ PT_base_index_option *make_index_secondary_engine_attribute(MEM_ROOT *mem_root,
 }
 
 PT_install_component::PT_install_component(
-    THD *thd, const Mem_root_array_YY<LEX_STRING> urns,
+    const POS &pos, THD *thd, const Mem_root_array_YY<LEX_STRING> urns,
     List<PT_install_component_set_element> *set_elements)
-    : m_urns(urns), m_set_elements(set_elements) {
+    : Parse_tree_root(pos), m_urns(urns), m_set_elements(set_elements) {
   const char *prefix = "file://component_";
   const auto prefix_len = sizeof("file://component_") - 1;
 

@@ -41,6 +41,11 @@
   Build a replacement query for SHOW STATUS.
   When the parser accepts the following syntax:
 
+  TODO: pos parameter is probably not required. For PT_* class construction,
+  pos is required only for json parse tree generation, which we are not doing
+  here. For PTI_* class construction, pos parameter is just a dummy parameter;
+  so we can just generate one here rather than getting it from the caller.
+
   <code>
     SHOW GLOBAL STATUS
   </code>
@@ -129,7 +134,7 @@ static Query_block *build_query(const POS &pos, THD *thd,
 
   /* ... VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value ... */
   PT_select_item_list *item_list;
-  item_list = new (thd->mem_root) PT_select_item_list();
+  item_list = new (thd->mem_root) PT_select_item_list(pos);
   if (item_list == nullptr) return nullptr;
   item_list->push_back(expr_name);
   item_list->push_back(expr_value);
@@ -157,8 +162,8 @@ static Query_block *build_query(const POS &pos, THD *thd,
 
   /* ... FROM performance_schema.<table_name> ... */
   PT_table_factor_table_ident *table_factor;
-  table_factor = new (thd->mem_root)
-      PT_table_factor_table_ident(table_ident, nullptr, NULL_CSTR, nullptr);
+  table_factor = new (thd->mem_root) PT_table_factor_table_ident(
+      pos, table_ident, nullptr, NULL_CSTR, nullptr);
   if (table_factor == nullptr) return nullptr;
 
   Mem_root_array_YY<PT_table_reference *> table_reference_list;
@@ -170,14 +175,14 @@ static Query_block *build_query(const POS &pos, THD *thd,
    * performance_schema.<table_name> */
   PT_query_primary *query_specification;
   query_specification =
-      new (thd->mem_root) PT_query_specification(options, item_list,
+      new (thd->mem_root) PT_query_specification(pos, options, item_list,
                                                  table_reference_list,  // from
                                                  nullptr);              // where
   if (query_specification == nullptr) return nullptr;
 
   PT_query_expression *query_expression;
   query_expression =
-      new (thd->mem_root) PT_query_expression(query_specification);
+      new (thd->mem_root) PT_query_expression(pos, query_specification);
   if (query_expression == nullptr) return nullptr;
 
   PT_subquery *sub_query;
@@ -188,7 +193,7 @@ static Query_block *build_query(const POS &pos, THD *thd,
   column_names.init(thd->mem_root);
   PT_derived_table *derived_table;
   derived_table = new (thd->mem_root)
-      PT_derived_table(false, sub_query, table_name, &column_names);
+      PT_derived_table(pos, false, sub_query, table_name, &column_names);
   if (derived_table == nullptr) return nullptr;
 
   Mem_root_array_YY<PT_table_reference *> table_reference_list1;
@@ -201,7 +206,7 @@ static Query_block *build_query(const POS &pos, THD *thd,
   if (ident_star == nullptr) return nullptr;
 
   PT_select_item_list *item_list1;
-  item_list1 = new (thd->mem_root) PT_select_item_list();
+  item_list1 = new (thd->mem_root) PT_select_item_list(pos);
   if (item_list1 == nullptr) return nullptr;
   item_list1->push_back(ident_star);
 
@@ -244,14 +249,14 @@ static Query_block *build_query(const POS &pos, THD *thd,
   /* SELECT * FROM (SELECT ...) derived_table [ WHERE <cond> ] */
   PT_query_specification *query_specification2;
   query_specification2 =
-      new (thd->mem_root) PT_query_specification(options, item_list1,
+      new (thd->mem_root) PT_query_specification(pos, options, item_list1,
                                                  table_reference_list1,  // from
                                                  where_clause);  // where
   if (query_specification2 == nullptr) return nullptr;
 
   PT_query_expression *query_expression2;
   query_expression2 =
-      new (thd->mem_root) PT_query_expression(query_specification2);
+      new (thd->mem_root) PT_query_expression(pos, query_specification2);
   if (query_expression2 == nullptr) return nullptr;
 
   LEX *lex = thd->lex;

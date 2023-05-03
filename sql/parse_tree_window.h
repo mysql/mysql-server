@@ -39,15 +39,15 @@ class PT_window : public Parse_tree_node, public Window {
   typedef Parse_tree_node super;
 
  public:
-  PT_window(PT_order_list *partition_by, PT_order_list *order_by,
-            PT_frame *frame)
-      : Window(partition_by, order_by, frame) {}
+  PT_window(const POS &pos, PT_order_list *partition_by,
+            PT_order_list *order_by, PT_frame *frame)
+      : super(pos), Window(partition_by, order_by, frame) {}
 
-  PT_window(PT_order_list *partition_by, PT_order_list *order_by,
-            PT_frame *frame, Item_string *inherit)
-      : Window(partition_by, order_by, frame, inherit) {}
+  PT_window(const POS &pos, PT_order_list *partition_by,
+            PT_order_list *order_by, PT_frame *frame, Item_string *inherit)
+      : super(pos), Window(partition_by, order_by, frame, inherit) {}
 
-  PT_window(Item_string *name) : Window(name) {}
+  PT_window(const POS &pos, Item_string *name) : super(pos), Window(name) {}
 
   bool do_contextualize(Parse_context *pc) override;
 };
@@ -61,7 +61,7 @@ class PT_window_list : public Parse_tree_node {
   List<Window> m_windows;
 
  public:
-  PT_window_list() = default;
+  explicit PT_window_list(const POS &pos) : super(pos) {}
 
   bool do_contextualize(Parse_context *pc) override;
 

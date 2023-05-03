@@ -177,7 +177,7 @@ class ItemFilterTest : public ::testing::Test {
       TestFailLinePrinter called_from_line) {
     SCOPED_TRACE(called_from_line);
 
-    PT_item_list *list = new (thd()->mem_root) PT_item_list;
+    PT_item_list *list = new (thd()->mem_root) PT_item_list(POS());
     list->value = lst;
     Item_func_in *in_item = new Item_func_in(POS(), list, false);
     Parse_context pc(thd(), thd()->lex->current_query_block());

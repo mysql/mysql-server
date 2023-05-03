@@ -65,7 +65,7 @@ bool PT_subpartition::do_contextualize(Partition_parse_context *pc) {
       the second partition (the current partition processed
       have already been put into the partitions list.
     */
-    error(pc, pos, ER_THD(pc->thd, ER_PARTITION_WRONG_NO_SUBPART_ERROR));
+    error(pc, m_errpos, ER_THD(pc->thd, ER_PARTITION_WRONG_NO_SUBPART_ERROR));
     return true;
   }
 
@@ -105,7 +105,7 @@ bool PT_part_value_item_max::do_contextualize(Partition_parse_context *pc) {
   if (super::do_contextualize(pc)) return true;
 
   if (pc->part_info->part_type == partition_type::LIST) {
-    error(pc, pos, ER_THD(pc->thd, ER_MAXVALUE_IN_VALUES_IN));
+    error(pc, m_pos, ER_THD(pc->thd, ER_MAXVALUE_IN_VALUES_IN));
     return true;
   }
   if (pc->add_max_value()) return true;
@@ -119,7 +119,7 @@ bool PT_part_value_item_expr::do_contextualize(Partition_parse_context *pc) {
   if (super::do_contextualize(pc) || expr->itemize(pc, &expr)) return true;
 
   if (!lex->safe_to_cache_query) {
-    error(pc, pos, ER_THD(pc->thd, ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
+    error(pc, m_pos, ER_THD(pc->thd, ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
     return true;
   }
   if (pc->add_column_list_value(pc->thd, expr)) return true;
@@ -170,7 +170,7 @@ bool PT_part_values_in_item::do_contextualize(Partition_parse_context *pc) {
     if (!pc->is_add_or_reorganize_partition || part_info->num_columns == 0 ||
         part_info->num_columns > MAX_REF_PARTS) {
       part_info->print_debug("Kilroy III", nullptr);
-      error(pc, pos, ER_THD(pc->thd, ER_PARTITION_COLUMN_LIST_ERROR));
+      error(pc, m_errpos, ER_THD(pc->thd, ER_PARTITION_COLUMN_LIST_ERROR));
       return true;
     }
     /*
@@ -193,7 +193,7 @@ bool PT_part_values_in_list::do_contextualize(Partition_parse_context *pc) {
   }
 
   if (pc->part_info->num_columns < 2U) {
-    error(pc, pos, ER_THD(pc->thd, ER_ROW_SINGLE_PARTITION_FIELD_ERROR));
+    error(pc, m_errpos, ER_THD(pc->thd, ER_ROW_SINGLE_PARTITION_FIELD_ERROR));
     return true;
   }
   return false;
@@ -230,12 +230,14 @@ bool PT_part_definition::do_contextualize(Partition_parse_context *pc) {
       if (part_info->part_type == partition_type::NONE)
         part_info->part_type = partition_type::HASH;
       else if (part_info->part_type == partition_type::RANGE) {
-        errorf(&ppc, pos, ER_THD(pc->thd, ER_PARTITION_REQUIRES_VALUES_ERROR),
-               "RANGE", "LESS THAN");
+        errorf(&ppc, m_errpos,
+               ER_THD(pc->thd, ER_PARTITION_REQUIRES_VALUES_ERROR), "RANGE",
+               "LESS THAN");
         return true;
       } else if (part_info->part_type == partition_type::LIST) {
-        errorf(&ppc, pos, ER_THD(pc->thd, ER_PARTITION_REQUIRES_VALUES_ERROR),
-               "LIST", "IN");
+        errorf(&ppc, m_errpos,
+               ER_THD(pc->thd, ER_PARTITION_REQUIRES_VALUES_ERROR), "LIST",
+               "IN");
         return true;
       }
     } break;
@@ -272,7 +274,7 @@ bool PT_part_definition::do_contextualize(Partition_parse_context *pc) {
     } break;
     default:
       assert(false);
-      error(&ppc, pos, ER_THD(pc->thd, ER_UNKNOWN_ERROR));
+      error(&ppc, m_errpos, ER_THD(pc->thd, ER_UNKNOWN_ERROR));
       return true;
   }
 

@@ -83,7 +83,8 @@ struct Column_parse_context : public Parse_context {
 */
 class PT_column_attr_base : public Parse_tree_node_tmpl<Column_parse_context> {
  protected:
-  PT_column_attr_base() = default;
+  explicit PT_column_attr_base(const POS &pos)
+      : Parse_tree_node_tmpl<Column_parse_context>(pos) {}
 
  public:
   typedef decltype(Alter_info::flags) alter_info_flags_t;
@@ -144,6 +145,7 @@ class PT_column_attr_base : public Parse_tree_node_tmpl<Column_parse_context> {
 */
 class PT_null_column_attr : public PT_column_attr_base {
  public:
+  explicit PT_null_column_attr(const POS &pos) : PT_column_attr_base(pos) {}
   void apply_type_flags(ulong *type_flags) const override {
     *type_flags &= ~NOT_NULL_FLAG;
     *type_flags |= EXPLICIT_NULL_FLAG;
@@ -156,6 +158,8 @@ class PT_null_column_attr : public PT_column_attr_base {
   @ingroup ptn_column_attrs
 */
 class PT_not_null_column_attr : public PT_column_attr_base {
+ public:
+  explicit PT_not_null_column_attr(const POS &pos) : PT_column_attr_base(pos) {}
   void apply_type_flags(ulong *type_flags) const override {
     *type_flags |= NOT_NULL_FLAG;
   }
@@ -168,6 +172,8 @@ class PT_not_null_column_attr : public PT_column_attr_base {
 */
 class PT_secondary_column_attr : public PT_column_attr_base {
  public:
+  explicit PT_secondary_column_attr(const POS &pos)
+      : PT_column_attr_base(pos) {}
   void apply_type_flags(unsigned long *type_flags) const override {
     *type_flags |= NOT_SECONDARY_FLAG;
   }
@@ -180,6 +186,9 @@ class PT_secondary_column_attr : public PT_column_attr_base {
 */
 class PT_unique_key_column_attr : public PT_column_attr_base {
  public:
+  explicit PT_unique_key_column_attr(const POS &pos)
+      : PT_column_attr_base(pos) {}
+
   void apply_type_flags(ulong *type_flags) const override {
     *type_flags |= UNIQUE_FLAG;
   }
@@ -196,6 +205,9 @@ class PT_unique_key_column_attr : public PT_column_attr_base {
 */
 class PT_primary_key_column_attr : public PT_column_attr_base {
  public:
+  explicit PT_primary_key_column_attr(const POS &pos)
+      : PT_column_attr_base(pos) {}
+
   void apply_type_flags(ulong *type_flags) const override {
     *type_flags |= PRI_KEY_FLAG | NOT_NULL_FLAG;
   }
@@ -215,7 +227,9 @@ class PT_check_constraint_column_attr : public PT_column_attr_base {
   Sql_check_constraint_spec col_cc_spec;
 
  public:
-  explicit PT_check_constraint_column_attr(LEX_STRING &name, Item *expr) {
+  explicit PT_check_constraint_column_attr(const POS &pos, LEX_STRING &name,
+                                           Item *expr)
+      : super(pos) {
     col_cc_spec.name = name;
     col_cc_spec.check_expr = expr;
   }
@@ -248,8 +262,8 @@ class PT_check_constraint_column_attr : public PT_column_attr_base {
 */
 class PT_constraint_enforcement_attr : public PT_column_attr_base {
  public:
-  explicit PT_constraint_enforcement_attr(bool enforced)
-      : m_enforced(enforced) {}
+  explicit PT_constraint_enforcement_attr(const POS &pos, bool enforced)
+      : PT_column_attr_base(pos), m_enforced(enforced) {}
 
   bool has_constraint_enforcement() const override { return true; }
 
@@ -268,8 +282,8 @@ class PT_comment_column_attr : public PT_column_attr_base {
   const LEX_CSTRING comment;
 
  public:
-  explicit PT_comment_column_attr(const LEX_CSTRING &comment)
-      : comment(comment) {}
+  explicit PT_comment_column_attr(const POS &pos, const LEX_CSTRING &comment)
+      : PT_column_attr_base(pos), comment(comment) {}
 
   void apply_comment(LEX_CSTRING *to) const override { *to = comment; }
 };
@@ -282,7 +296,7 @@ class PT_comment_column_attr : public PT_column_attr_base {
 class PT_collate_column_attr : public PT_column_attr_base {
  public:
   explicit PT_collate_column_attr(const POS &pos, const CHARSET_INFO *collation)
-      : m_pos(pos), m_collation(collation) {
+      : PT_column_attr_base(pos), m_collation(collation) {
     assert(m_collation != nullptr);
   }
 
@@ -297,7 +311,6 @@ class PT_collate_column_attr : public PT_column_attr_base {
   }
 
  private:
-  const POS m_pos;
   const CHARSET_INFO *const m_collation;
 };
 
@@ -314,7 +327,8 @@ class PT_default_column_attr : public PT_column_attr_base {
   Item *item;
 
  public:
-  explicit PT_default_column_attr(Item *item) : item(item) {}
+  explicit PT_default_column_attr(const POS &pos, Item *item)
+      : super(pos), item(item) {}
   void apply_default_value(Item **value) const override { *value = item; }
 
   bool do_contextualize(Column_parse_context *pc) override {
@@ -338,10 +352,11 @@ class PT_on_update_column_attr : public PT_column_attr_base {
   typedef PT_column_attr_base super;
 
   const uint8 precision;
-  Item *item;
+  Item *item = nullptr;
 
  public:
-  explicit PT_on_update_column_attr(uint8 precision) : precision(precision) {}
+  explicit PT_on_update_column_attr(const POS &pos, uint8 precision)
+      : super(pos), precision(precision) {}
   void apply_on_update_value(Item **value) const override { *value = item; }
 
   bool do_contextualize(Column_parse_context *pc) override {
@@ -365,6 +380,9 @@ class PT_auto_increment_column_attr : public PT_column_attr_base {
   typedef PT_column_attr_base super;
 
  public:
+  explicit PT_auto_increment_column_attr(const POS &pos)
+      : PT_column_attr_base(pos) {}
+
   void apply_type_flags(ulong *type_flags) const override {
     *type_flags |= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG;
   }
@@ -386,6 +404,8 @@ class PT_serial_default_value_column_attr : public PT_column_attr_base {
   typedef PT_column_attr_base super;
 
  public:
+  explicit PT_serial_default_value_column_attr(const POS &pos) : super(pos) {}
+
   void apply_type_flags(ulong *type_flags) const override {
     *type_flags |= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNIQUE_FLAG;
   }
@@ -413,8 +433,9 @@ class PT_column_format_column_attr : public PT_column_attr_base {
   column_format_type format;
 
  public:
-  explicit PT_column_format_column_attr(column_format_type format)
-      : format(format) {}
+  explicit PT_column_format_column_attr(const POS &pos,
+                                        column_format_type format)
+      : super(pos), format(format) {}
 
   void apply_type_flags(ulong *type_flags) const override {
     *type_flags &= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
@@ -440,8 +461,8 @@ class PT_storage_media_column_attr : public PT_column_attr_base {
   ha_storage_media media;
 
  public:
-  explicit PT_storage_media_column_attr(ha_storage_media media)
-      : media(media) {}
+  explicit PT_storage_media_column_attr(const POS &pos, ha_storage_media media)
+      : super(pos), media(media) {}
 
   void apply_type_flags(ulong *type_flags) const override {
     *type_flags &= ~(FIELD_FLAGS_STORAGE_MEDIA_MASK);
@@ -463,7 +484,8 @@ class PT_srid_column_attr : public PT_column_attr_base {
   gis::srid_t m_srid;
 
  public:
-  explicit PT_srid_column_attr(gis::srid_t srid) : m_srid(srid) {}
+  explicit PT_srid_column_attr(const POS &pos, gis::srid_t srid)
+      : super(pos), m_srid(srid) {}
 
   void apply_srid_modifier(std::optional<gis::srid_t> *srid) const override {
     *srid = m_srid;
@@ -475,7 +497,8 @@ class PT_generated_default_val_column_attr : public PT_column_attr_base {
   typedef PT_column_attr_base super;
 
  public:
-  PT_generated_default_val_column_attr(Item *expr) {
+  explicit PT_generated_default_val_column_attr(const POS &pos, Item *expr)
+      : super(pos) {
     m_default_value_expression.expr_item = expr;
     m_default_value_expression.set_field_stored(true);
   }
@@ -508,9 +531,11 @@ class PT_generated_default_val_column_attr : public PT_column_attr_base {
   @ingroup ptn_column_attrs
 */
 class PT_column_visibility_attr : public PT_column_attr_base {
+  typedef PT_column_attr_base super;
+
  public:
-  explicit PT_column_visibility_attr(bool is_visible)
-      : m_is_visible(is_visible) {}
+  explicit PT_column_visibility_attr(const POS &pos, bool is_visible)
+      : super(pos), m_is_visible(is_visible) {}
   void apply_type_flags(unsigned long *type_flags) const override {
     *type_flags &= ~FIELD_IS_INVISIBLE;
     if (!m_is_visible) *type_flags |= FIELD_IS_INVISIBLE;
@@ -532,7 +557,8 @@ class PT_type : public Parse_tree_node {
   const enum_field_types type;
 
  protected:
-  explicit PT_type(enum_field_types type) : type(type) {}
+  explicit PT_type(const POS &pos, enum_field_types type)
+      : Parse_tree_node(pos), type(type) {}
 
  public:
   virtual ulong get_type_flags() const { return 0; }
@@ -562,9 +588,9 @@ class PT_numeric_type : public PT_type {
   using Parent_type = std::remove_const<decltype(PT_type::type)>::type;
 
  public:
-  PT_numeric_type(THD *thd, Numeric_type type_arg, const char *length,
-                  const char *dec, ulong options)
-      : PT_type(static_cast<Parent_type>(type_arg)),
+  PT_numeric_type(const POS &pos, THD *thd, Numeric_type type_arg,
+                  const char *length, const char *dec, ulong options)
+      : PT_type(pos, static_cast<Parent_type>(type_arg)),
         length(length),
         dec(dec),
         options(options) {
@@ -581,9 +607,9 @@ class PT_numeric_type : public PT_type {
                    ER_THD(thd, ER_WARN_DEPRECATED_FLOAT_UNSIGNED));
     }
   }
-  PT_numeric_type(THD *thd, Int_type type_arg, const char *length,
-                  ulong options)
-      : PT_type(static_cast<enum_field_types>(type_arg)),
+  PT_numeric_type(const POS &pos, THD *thd, Int_type type_arg,
+                  const char *length, ulong options)
+      : PT_type(pos, static_cast<enum_field_types>(type_arg)),
         length(length),
         dec(nullptr),
         options(options) {
@@ -612,9 +638,10 @@ class PT_bit_type : public PT_type {
   const char *length;
 
  public:
-  PT_bit_type() : PT_type(MYSQL_TYPE_BIT), length("1") {}
-  explicit PT_bit_type(const char *length)
-      : PT_type(MYSQL_TYPE_BIT), length(length) {}
+  explicit PT_bit_type(const POS &pos)
+      : PT_type(pos, MYSQL_TYPE_BIT), length("1") {}
+  explicit PT_bit_type(const POS &pos, const char *length)
+      : PT_type(pos, MYSQL_TYPE_BIT), length(length) {}
 
   const char *get_length() const override { return length; }
 };
@@ -626,7 +653,7 @@ class PT_bit_type : public PT_type {
 */
 class PT_boolean_type : public PT_type {
  public:
-  PT_boolean_type() : PT_type(MYSQL_TYPE_TINY) {}
+  explicit PT_boolean_type(const POS &pos) : PT_type(pos, MYSQL_TYPE_TINY) {}
   const char *get_length() const override { return "1"; }
 };
 
@@ -644,17 +671,17 @@ class PT_char_type : public PT_type {
   using Parent_type = std::remove_const<decltype(PT_type::type)>::type;
 
  public:
-  PT_char_type(Char_type char_type, const char *length,
+  PT_char_type(const POS &pos, Char_type char_type, const char *length,
                const CHARSET_INFO *charset, bool force_binary = false)
-      : PT_type(static_cast<Parent_type>(char_type)),
+      : PT_type(pos, static_cast<Parent_type>(char_type)),
         length(length),
         charset(charset),
         force_binary(force_binary) {
     assert(charset == nullptr || !force_binary);
   }
-  PT_char_type(Char_type char_type, const CHARSET_INFO *charset,
+  PT_char_type(const POS &pos, Char_type char_type, const CHARSET_INFO *charset,
                bool force_binary = false)
-      : PT_char_type(char_type, "1", charset, force_binary) {}
+      : PT_char_type(pos, char_type, "1", charset, force_binary) {}
   ulong get_type_flags() const override {
     return force_binary ? BINCMP_FLAG : 0;
   }
@@ -684,16 +711,16 @@ class PT_blob_type : public PT_type {
   using Parent_type = std::remove_const<decltype(PT_type::type)>::type;
 
  public:
-  PT_blob_type(Blob_type blob_type, const CHARSET_INFO *charset,
+  PT_blob_type(const POS &pos, Blob_type blob_type, const CHARSET_INFO *charset,
                bool force_binary = false)
-      : PT_type(static_cast<Parent_type>(blob_type)),
+      : PT_type(pos, static_cast<Parent_type>(blob_type)),
         length(nullptr),
         charset(charset),
         force_binary(force_binary) {
     assert(charset == nullptr || !force_binary);
   }
-  explicit PT_blob_type(const char *length)
-      : PT_type(MYSQL_TYPE_BLOB),
+  explicit PT_blob_type(const POS &pos, const char *length)
+      : PT_type(pos, MYSQL_TYPE_BLOB),
         length(length),
         charset(&my_charset_bin),
         force_binary(false) {}
@@ -712,7 +739,7 @@ class PT_blob_type : public PT_type {
 */
 class PT_year_type : public PT_type {
  public:
-  PT_year_type() : PT_type(MYSQL_TYPE_YEAR) {}
+  explicit PT_year_type(const POS &pos) : PT_type(pos, MYSQL_TYPE_YEAR) {}
 };
 
 /**
@@ -722,7 +749,7 @@ class PT_year_type : public PT_type {
 */
 class PT_date_type : public PT_type {
  public:
-  PT_date_type() : PT_type(MYSQL_TYPE_DATE) {}
+  explicit PT_date_type(const POS &pos) : PT_type(pos, MYSQL_TYPE_DATE) {}
 };
 
 enum class Time_type : ulong {
@@ -741,8 +768,8 @@ class PT_time_type : public PT_type {
   using Parent_type = std::remove_const<decltype(PT_type::type)>::type;
 
  public:
-  PT_time_type(Time_type time_type, const char *dec)
-      : PT_type(static_cast<Parent_type>(time_type)), dec(dec) {}
+  PT_time_type(const POS &pos, Time_type time_type, const char *dec)
+      : PT_type(pos, static_cast<Parent_type>(time_type)), dec(dec) {}
 
   const char *get_dec() const override { return dec; }
 };
@@ -759,8 +786,8 @@ class PT_timestamp_type : public PT_type {
   ulong type_flags;
 
  public:
-  explicit PT_timestamp_type(const char *dec)
-      : super(MYSQL_TYPE_TIMESTAMP2), dec(dec), type_flags(0) {}
+  explicit PT_timestamp_type(const POS &pos, const char *dec)
+      : super(pos, MYSQL_TYPE_TIMESTAMP2), dec(dec), type_flags(0) {}
 
   const char *get_dec() const override { return dec; }
   ulong get_type_flags() const override { return type_flags; }
@@ -797,8 +824,8 @@ class PT_spacial_type : public PT_type {
   Field::geometry_type geo_type;
 
  public:
-  explicit PT_spacial_type(Field::geometry_type geo_type)
-      : PT_type(MYSQL_TYPE_GEOMETRY), geo_type(geo_type) {}
+  explicit PT_spacial_type(const POS &pos, Field::geometry_type geo_type)
+      : PT_type(pos, MYSQL_TYPE_GEOMETRY), geo_type(geo_type) {}
 
   const CHARSET_INFO *get_charset() const override { return &my_charset_bin; }
   uint get_uint_geom_type() const override { return geo_type; }
@@ -816,9 +843,9 @@ class PT_enum_type_tmpl : public PT_type {
   using Parent_type = std::remove_const<decltype(PT_type::type)>::type;
 
  public:
-  PT_enum_type_tmpl(List<String> *interval_list, const CHARSET_INFO *charset,
-                    bool force_binary)
-      : PT_type(static_cast<Parent_type>(enum_type)),
+  PT_enum_type_tmpl(const POS &pos, List<String> *interval_list,
+                    const CHARSET_INFO *charset, bool force_binary)
+      : PT_type(pos, static_cast<Parent_type>(enum_type)),
         interval_list(interval_list),
         charset(charset),
         force_binary(force_binary) {
@@ -848,7 +875,7 @@ typedef PT_enum_type_tmpl<Enum_type::SET> PT_set_type;
 
 class PT_serial_type : public PT_type {
  public:
-  PT_serial_type() : PT_type(MYSQL_TYPE_LONGLONG) {}
+  explicit PT_serial_type(const POS &pos) : PT_type(pos, MYSQL_TYPE_LONGLONG) {}
 
   ulong get_type_flags() const override {
     return AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNSIGNED_FLAG | UNIQUE_FLAG;
@@ -863,7 +890,7 @@ class PT_serial_type : public PT_type {
 */
 class PT_json_type : public PT_type {
  public:
-  PT_json_type() : PT_type(MYSQL_TYPE_JSON) {}
+  explicit PT_json_type(const POS &pos) : PT_type(pos, MYSQL_TYPE_JSON) {}
   const CHARSET_INFO *get_charset() const override { return &my_charset_bin; }
 };
 
@@ -877,37 +904,30 @@ class PT_field_def_base : public Parse_tree_node {
   typedef decltype(Alter_info::flags) alter_info_flags_t;
 
  public:
-  enum_field_types type;
-  ulong type_flags;
-  const char *length;
-  const char *dec;
-  const CHARSET_INFO *charset;
-  bool has_explicit_collation;
-  uint uint_geom_type;
-  List<String> *interval_list;
-  alter_info_flags_t alter_info_flags;
-  LEX_CSTRING comment;
-  Item *default_value;
-  Item *on_update_value;
-  Value_generator *gcol_info;
+  enum_field_types type = MYSQL_TYPE_INVALID;
+  ulong type_flags = 0;
+  const char *length = nullptr;
+  const char *dec = nullptr;
+  const CHARSET_INFO *charset = nullptr;
+  bool has_explicit_collation = false;
+  uint uint_geom_type = 0;
+  List<String> *interval_list = nullptr;
+  alter_info_flags_t alter_info_flags = 0;
+  LEX_CSTRING comment = EMPTY_CSTR;
+  Item *default_value = nullptr;
+  Item *on_update_value = nullptr;
+  Value_generator *gcol_info = nullptr;
   /// Holds the expression to generate default values
-  Value_generator *default_val_info;
-  std::optional<gis::srid_t> m_srid;
+  Value_generator *default_val_info = nullptr;
+  std::optional<gis::srid_t> m_srid{};
   // List of column check constraint's specification.
-  Sql_check_constraint_spec_list *check_const_spec_list{nullptr};
+  Sql_check_constraint_spec_list *check_const_spec_list = nullptr;
 
  protected:
   PT_type *type_node;
 
-  explicit PT_field_def_base(PT_type *type_node)
-      : has_explicit_collation(false),
-        alter_info_flags(0),
-        comment(EMPTY_CSTR),
-        default_value(nullptr),
-        on_update_value(nullptr),
-        gcol_info(nullptr),
-        default_val_info(nullptr),
-        type_node(type_node) {}
+  explicit PT_field_def_base(const POS &pos, PT_type *type_node)
+      : super(pos), type_node(type_node) {}
 
  public:
   bool do_contextualize(Parse_context *pc) override {
@@ -961,9 +981,9 @@ class PT_field_def : public PT_field_def_base {
   Mem_root_array<PT_column_attr_base *> *opt_attrs;
 
  public:
-  PT_field_def(PT_type *type_node_arg,
+  PT_field_def(const POS &pos, PT_type *type_node_arg,
                Mem_root_array<PT_column_attr_base *> *opt_attrs)
-      : super(type_node_arg), opt_attrs(opt_attrs) {}
+      : super(pos, type_node_arg), opt_attrs(opt_attrs) {}
 
   bool do_contextualize(Parse_context *pc_arg) override {
     Column_parse_context pc(pc_arg->thd, pc_arg->select, false);
@@ -988,10 +1008,10 @@ class PT_generated_field_def : public PT_field_def_base {
   Mem_root_array<PT_column_attr_base *> *opt_attrs;
 
  public:
-  PT_generated_field_def(PT_type *type_node_arg, Item *expr,
+  PT_generated_field_def(const POS &pos, PT_type *type_node_arg, Item *expr,
                          Virtual_or_stored virtual_or_stored,
                          Mem_root_array<PT_column_attr_base *> *opt_attrs)
-      : super(type_node_arg),
+      : super(pos, type_node_arg),
         virtual_or_stored(virtual_or_stored),
         expr(expr),
         opt_attrs(opt_attrs) {}

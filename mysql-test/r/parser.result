@@ -2471,14 +2471,14 @@ x VARCHAR(10)
 COLLATE ascii_bin
 COLLATE ascii_bin
 );
-ERROR 42000: Multiple COLLATE clauses near 'ascii_bin
+ERROR 42000: Multiple COLLATE clauses near 'COLLATE ascii_bin
 )' at line 4
 CREATE TABLE t2 (
 x VARCHAR(10)
 COLLATE ascii_bin
 COLLATE ascii_general_ci
 );
-ERROR 42000: Multiple COLLATE clauses near 'ascii_general_ci
+ERROR 42000: Multiple COLLATE clauses near 'COLLATE ascii_general_ci
 )' at line 4
 CREATE TABLE t3 (
 x VARCHAR(10)
@@ -2486,7 +2486,7 @@ COLLATE ascii_bin
 NOT NULL
 COLLATE ascii_bin
 );
-ERROR 42000: Multiple COLLATE clauses near 'ascii_bin
+ERROR 42000: Multiple COLLATE clauses near 'COLLATE ascii_bin
 )' at line 5
 CREATE TABLE t3 (
 x VARCHAR(10)
@@ -2504,7 +2504,7 @@ GENERATED ALWAYS AS(NULL)
 COLLATE ascii_bin
 COLLATE ascii_bin
 );
-ERROR 42000: Multiple COLLATE clauses near 'ascii_bin
+ERROR 42000: Multiple COLLATE clauses near 'COLLATE ascii_bin
 )' at line 5
 #
 # Bug#28961997: REMOVE PARENTHESES INFORMATION FROM AST
