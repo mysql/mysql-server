@@ -449,16 +449,16 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
           NO_DEFAULT_PATH
           PATHS "/usr/bin")
       ELSEIF(LINUX_SUSE_15)
-        FIND_PROGRAM(ALTERNATIVE_GCC gcc-9
+        FIND_PROGRAM(ALTERNATIVE_GCC gcc-12
           NO_DEFAULT_PATH
           PATHS "/usr/bin")
-        FIND_PROGRAM(ALTERNATIVE_GPP g++-9
+        FIND_PROGRAM(ALTERNATIVE_GPP g++-12
           NO_DEFAULT_PATH
           PATHS "/usr/bin")
-        FIND_PROGRAM(GCC_AR_EXECUTABLE gcc-ar-9
+        FIND_PROGRAM(GCC_AR_EXECUTABLE gcc-ar-12
           NO_DEFAULT_PATH
           PATHS "/usr/bin")
-        FIND_PROGRAM(GCC_RANLIB_EXECUTABLE gcc-ranlib-9
+        FIND_PROGRAM(GCC_RANLIB_EXECUTABLE gcc-ranlib-12
           NO_DEFAULT_PATH
           PATHS "/usr/bin")
       ENDIF()
