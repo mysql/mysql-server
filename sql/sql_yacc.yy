@@ -10231,7 +10231,7 @@ expr:
             $$= flatten_associative_operator<Item_cond_or,
                                              Item_func::COND_OR_FUNC>(
                                                  YYMEM_ROOT, @$, $1, $3);
-            $$->m_pos = @$;
+            if ($$ != nullptr) $$->m_pos = @$;
           }
         | expr XOR expr %prec XOR
           {
@@ -10243,7 +10243,7 @@ expr:
             $$= flatten_associative_operator<Item_cond_and,
                                              Item_func::COND_AND_FUNC>(
                                                  YYMEM_ROOT, @$, $1, $3);
-            $$->m_pos = @$;
+            if ($$ != nullptr) $$->m_pos = @$;
           }
         | NOT_SYM expr %prec NOT_SYM
           {
@@ -12539,9 +12539,9 @@ window_definition:
           window_name AS window_spec
           {
             $$= $3;
-            $$->m_pos = @$;
             if ($$ == NULL)
               MYSQL_YYABORT; // OOM
+            $$->m_pos = @$;
             $$->set_name($1);
           }
         ;

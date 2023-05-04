@@ -1142,6 +1142,13 @@ do convert(@a using latin1);
 # should return TRUE.
 SELECT CAST(1111111111111111 AS FLOAT) = CAST(1111111111111110 AS FLOAT) AS eq;
 
+--echo #
+--echo # Bug#35357954: Mysql server crash, segmentation fault :
+--echo #      my_sql_parser_parse at sql_yacc.cc
+--echo #
+--error ER_TOO_BIG_PRECISION
+select CAST( 1 AS FLOAT ( 54 ) ) and CAST( 1 AS FLOAT ( 54 ) );
+
 # Converting the FLOAT to other types should not keep the full DOUBLE precision.
 SELECT CAST(CAST(1111111111111111 AS FLOAT) AS CHAR) AS v;
 SELECT CAST(CAST(1111111111111111 AS FLOAT) AS SIGNED) AS v;
