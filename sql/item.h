@@ -1166,12 +1166,18 @@ class Item : public Parse_tree_node {
     @retval false       success
     @retval true        syntax/OOM/etc error
   */
+  // Visual Studio with MSVC_CPPCHECK=ON gives warning C26435:
+  // Function <fun> should specify exactly one of
+  //    'virtual', 'override', or 'final'
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(26435)
   virtual bool itemize(Parse_context *pc, Item **res) final {
     // Json parse tree related things to be done pre-do_itemize().
     if (do_itemize(pc, res)) return true;
     // Json parse tree related things to be done post-do_itemize().
     return false;
   }
+  MY_COMPILER_DIAGNOSTIC_POP()
 
   void rename(char *new_name);
   void init_make_field(Send_field *tmp_field, enum enum_field_types type);

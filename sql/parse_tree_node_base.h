@@ -205,12 +205,18 @@ class Parse_tree_node_tmpl {
 
   // Derived classes should not override this. If needed, they should override
   // do_contextualize().
+  // Visual Studio with MSVC_CPPCHECK=ON gives warning C26435:
+  // Function <fun> should specify exactly one of
+  //    'virtual', 'override', or 'final'
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(26435)
   virtual bool contextualize(Context *pc) final {
     // Json parse tree related things to be done pre-do_contextualize().
     if (do_contextualize(pc)) return true;
     // Json parse tree related things to be done post-do_contextualize().
     return false;
   }
+  MY_COMPILER_DIAGNOSTIC_POP()
 
   /**
     syntax_error() function replacement for deferred reporting of syntax
