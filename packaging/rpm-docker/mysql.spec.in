@@ -509,9 +509,12 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql
 %attr(644, root, root) %{_datadir}/mysql-*/uninstall_rewriter.sql
 
-%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt69l
-%{_libdir}/mysql/private/icudt69l/unames.icu
-%{_libdir}/mysql/private/icudt69l/brkitr
+%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt73l
+%{_libdir}/mysql/private/icudt73l/cnvalias.icu
+%{_libdir}/mysql/private/icudt73l/uemoji.icu
+%{_libdir}/mysql/private/icudt73l/ulayout.icu
+%{_libdir}/mysql/private/icudt73l/unames.icu
+%{_libdir}/mysql/private/icudt73l/brkitr
 
 %if 0%{?commercial}
 %if 0%{?with_meb}

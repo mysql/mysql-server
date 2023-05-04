@@ -62,8 +62,11 @@ usr/share/man/man8/mysqld.8
 usr/lib/mysql/private/libprotobuf-lite.so.3.19.4
 usr/lib/mysql/private/libprotobuf.so.3.19.4
 # private data files
-usr/lib/mysql/private/icudt69l/unames.icu
-usr/lib/mysql/private/icudt69l/brkitr/*
+usr/lib/mysql/private/icudt73l/cnvalias.icu
+usr/lib/mysql/private/icudt73l/uemoji.icu
+usr/lib/mysql/private/icudt73l/ulayout.icu
+usr/lib/mysql/private/icudt73l/unames.icu
+usr/lib/mysql/private/icudt73l/brkitr/*
 # plugins
 usr/lib/mysql/plugin/component_log_filter_dragnet.so
 usr/lib/mysql/plugin/component_log_sink_json.so
