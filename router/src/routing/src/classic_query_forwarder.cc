@@ -735,7 +735,6 @@ static stdx::expected<void, std::error_code> show_warnings(
 class Name_string {
  public:
   explicit Name_string(const char *name) : name_(name) {}
-  Name_string(std::string name) : name_(name.c_str()) {}
 
   bool eq(const char *rhs) {
     /*
@@ -816,18 +815,16 @@ static stdx::expected<void, std::error_code> execute_command_router_set(
   auto *src_channel = socket_splicer->client_channel();
   auto *src_protocol = connection->client_protocol();
 
-  if (Name_string(cmd.name()).eq("trace")) {
+  if (Name_string(cmd.name().c_str()).eq("trace")) {
     return execute_command_router_set_trace(connection, cmd);
-  } else {
-    auto send_res =
-        ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-            src_channel, src_protocol,
-            {ER_UNKNOWN_SYSTEM_VARIABLE,
-             "Unknown Router system variable '" + cmd.name() + "'", "HY000"});
-    if (!send_res) return stdx::make_unexpected(send_res.error());
-
-    return {};
   }
+
+  auto send_res =
+      ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+          src_channel, src_protocol,
+          {ER_UNKNOWN_SYSTEM_VARIABLE,
+           "Unknown Router system variable '" + cmd.name() + "'", "HY000"});
+  if (!send_res) return stdx::make_unexpected(send_res.error());
 
   return {};
 }
