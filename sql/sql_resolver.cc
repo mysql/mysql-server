@@ -6874,6 +6874,10 @@ bool Query_block::transform_subquery_to_derived(
     leaf->next_leaf = tl;
 
     // Adjust table no and map
+    if (leaf_table_count >= MAX_TABLES) {
+      my_error(ER_TOO_MANY_TABLES, MYF(0), static_cast<int>(MAX_TABLES));
+      return true;
+    }
     tl->set_tableno(leaf_table_count);
 
     tl->embedding->nested_join->query_block_id =
