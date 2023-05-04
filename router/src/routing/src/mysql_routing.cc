@@ -82,7 +82,7 @@
 #include "x_connection.h"
 
 using mysql_harness::utility::string_format;
-using routing::AccessMode;
+using routing::Mode;
 using routing::RoutingStrategy;
 IMPORT_LOG_FUNCTIONS()
 
@@ -120,7 +120,7 @@ MySQLRouting::MySQLRouting(const RoutingConfig &routing_config,
                client_ssl_ctx, dest_ssl_ctx),
       io_ctx_{io_ctx},
       routing_strategy_(routing_config.routing_strategy),
-      access_mode_(routing_config.mode),
+      mode_(routing_config.mode),
       max_connections_(set_max_connections(routing_config.max_connections)),
       service_tcp_(io_ctx_)
 #if !defined(_WIN32)
@@ -162,7 +162,7 @@ void MySQLRouting::run(mysql_harness::PluginFuncEnv *env) {
                get_routing_strategy_name(routing_strategy_).c_str());
     else
       log_info("[%s] started: routing mode = %s", context_.get_name().c_str(),
-               get_access_mode_name(access_mode_).c_str());
+               get_mode_name(mode_).c_str());
   }
 #ifndef _WIN32
   if (context_.get_bind_named_socket().is_set()) {
@@ -983,7 +983,7 @@ void MySQLRouting::set_destinations_from_uri(const mysqlrouter::URI &uri) {
 
     destination_ = std::make_unique<DestMetadataCacheGroup>(
         io_ctx_, uri.host, routing_strategy_, uri.query,
-        context_.get_protocol(), access_mode_);
+        context_.get_protocol(), mode_);
   } else {
     throw std::runtime_error(string_format(
         "Invalid URI scheme; expecting: 'metadata-cache' is: '%s'",
@@ -994,11 +994,11 @@ void MySQLRouting::set_destinations_from_uri(const mysqlrouter::URI &uri) {
 namespace {
 
 routing::RoutingStrategy get_default_routing_strategy(
-    const routing::AccessMode access_mode) {
-  switch (access_mode) {
-    case routing::AccessMode::kReadOnly:
+    const routing::Mode mode) {
+  switch (mode) {
+    case routing::Mode::kReadOnly:
       return routing::RoutingStrategy::kRoundRobin;
-    case routing::AccessMode::kReadWrite:
+    case routing::Mode::kReadWrite:
       return routing::RoutingStrategy::kFirstAvailable;
     default:;  // fall-through
   }
@@ -1034,7 +1034,7 @@ void MySQLRouting::set_destinations_from_csv(const std::string &csv) {
   // if no routing_strategy is defined for standalone routing
   // we set the default based on the mode
   if (routing_strategy_ == RoutingStrategy::kUndefined) {
-    routing_strategy_ = get_default_routing_strategy(access_mode_);
+    routing_strategy_ = get_default_routing_strategy(mode_);
   }
 
   is_destination_standalone_ = true;
@@ -1098,7 +1098,7 @@ int MySQLRouting::set_max_connections(int maximum) {
   return max_connections_;
 }
 
-routing::AccessMode MySQLRouting::get_mode() const { return access_mode_; }
+routing::Mode MySQLRouting::get_mode() const { return mode_; }
 
 routing::RoutingStrategy MySQLRouting::get_routing_strategy() const {
   return routing_strategy_;

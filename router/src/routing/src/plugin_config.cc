@@ -41,7 +41,7 @@
 #include "mysql/harness/string_utils.h"  // trim
 #include "mysql/harness/utility/string.h"
 #include "mysql_router_thread.h"  // kDefaultStackSizeInKiloByte
-#include "mysqlrouter/routing.h"  // AccessMode
+#include "mysqlrouter/routing.h"  // Mode
 #include "mysqlrouter/routing_component.h"
 #include "mysqlrouter/supported_routing_options.h"
 #include "mysqlrouter/uri.h"
@@ -77,9 +77,9 @@ class ProtocolOption {
 
 class ModeOption {
  public:
-  routing::AccessMode operator()(const std::optional<std::string> &value,
-                                 const std::string &option_desc) {
-    if (!value) return routing::AccessMode::kUndefined;
+  routing::Mode operator()(const std::optional<std::string> &value,
+                           const std::string &option_desc) {
+    if (!value) return routing::Mode::kUndefined;
 
     if (value->empty()) {
       throw std::invalid_argument(option_desc + " needs a value");
@@ -91,9 +91,9 @@ class ModeOption {
                    ::tolower);
 
     // if the mode is given it still needs to be valid
-    routing::AccessMode result = routing::get_access_mode(lc_value);
-    if (result == routing::AccessMode::kUndefined) {
-      const std::string valid = routing::get_access_mode_names();
+    routing::Mode result = routing::get_mode(lc_value);
+    if (result == routing::Mode::kUndefined) {
+      const std::string valid = routing::get_mode_names();
       throw std::invalid_argument(option_desc + " is invalid; valid are " +
                                   valid + " (was '" + value.value() + "')");
     }
@@ -103,7 +103,7 @@ class ModeOption {
 
 class RoutingStrategyOption {
  public:
-  RoutingStrategyOption(routing::AccessMode mode, bool is_metadata_cache)
+  RoutingStrategyOption(routing::Mode mode, bool is_metadata_cache)
       : mode_{mode}, is_metadata_cache_{is_metadata_cache} {}
 
   routing::RoutingStrategy operator()(const std::optional<std::string> &value,
@@ -113,7 +113,7 @@ class RoutingStrategyOption {
       // this is fine as long as mode is set which means that we deal with an
       // old configuration which we still want to support
 
-      if (mode_ == routing::AccessMode::kUndefined) {
+      if (mode_ == routing::Mode::kUndefined) {
         throw std::invalid_argument(option_desc + " is required");
       }
 
@@ -140,7 +140,7 @@ class RoutingStrategyOption {
   }
 
  private:
-  routing::AccessMode mode_;
+  routing::Mode mode_;
   bool is_metadata_cache_;
 };
 

@@ -212,7 +212,7 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
 
   routing::RoutingStrategy get_routing_strategy() const override;
 
-  routing::AccessMode get_mode() const override;
+  routing::Mode get_mode() const override;
 
   std::vector<mysql_harness::TCPAddress> get_destinations() const override;
 
@@ -309,8 +309,8 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
   /** @brief Routing strategy to use when getting next destination */
   routing::RoutingStrategy routing_strategy_;
 
-  /** @brief Access mode of the servers in the routing */
-  routing::AccessMode access_mode_;
+  /** @brief mode of the servers in the routing */
+  routing::Mode mode_;
 
   /** @brief Maximum active connections
    *

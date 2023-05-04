@@ -93,8 +93,8 @@ std::string MySQLRoutingAPI::get_routing_strategy() const {
 
 std::string MySQLRoutingAPI::get_mode() const {
   const auto mode = r_->get_mode();
-  if (mode == routing::AccessMode::kUndefined) return "";
-  return routing::get_access_mode_name(mode);
+  if (mode == routing::Mode::kUndefined) return "";
+  return routing::get_mode_name(mode);
 }
 
 std::string MySQLRoutingAPI::get_destination_replicaset_name() const {

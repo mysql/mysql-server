@@ -33,13 +33,12 @@
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/stdx/expected_ostream.h"
-#include "mysql_routing.h"  // AccessMode
+#include "mysql_routing.h"  // Mode
 #include "test/helpers.h"   // init_test_logger
 
 using namespace std::chrono_literals;
 
 using ::testing::Eq;
-using ::testing::Return;
 using ::testing::StrEq;
 
 class RoutingTests : public ::testing::Test {
@@ -47,28 +46,27 @@ class RoutingTests : public ::testing::Test {
   net::io_context io_ctx_;
 };
 
-TEST_F(RoutingTests, AccessModes) {
-  using routing::AccessMode;
+TEST_F(RoutingTests, Modes) {
+  using routing::Mode;
 
-  ASSERT_EQ(static_cast<int>(AccessMode::kReadWrite), 1);
-  ASSERT_EQ(static_cast<int>(AccessMode::kReadOnly), 2);
+  ASSERT_EQ(static_cast<int>(Mode::kReadWrite), 1);
+  ASSERT_EQ(static_cast<int>(Mode::kReadOnly), 2);
 }
 
-TEST_F(RoutingTests, AccessModeLiteralNames) {
-  using routing::AccessMode;
-  using routing::get_access_mode;
+TEST_F(RoutingTests, ModeLiteralNames) {
+  using routing::get_mode;
+  using routing::Mode;
 
-  ASSERT_THAT(get_access_mode("read-write"), Eq(AccessMode::kReadWrite));
-  ASSERT_THAT(get_access_mode("read-only"), Eq(AccessMode::kReadOnly));
+  ASSERT_THAT(get_mode("read-write"), Eq(Mode::kReadWrite));
+  ASSERT_THAT(get_mode("read-only"), Eq(Mode::kReadOnly));
 }
 
-TEST_F(RoutingTests, GetAccessLiteralName) {
-  using routing::AccessMode;
-  using routing::get_access_mode_name;
+TEST_F(RoutingTests, GetLiteralName) {
+  using routing::get_mode_name;
+  using routing::Mode;
 
-  ASSERT_THAT(get_access_mode_name(AccessMode::kReadWrite),
-              StrEq("read-write"));
-  ASSERT_THAT(get_access_mode_name(AccessMode::kReadOnly), StrEq("read-only"));
+  ASSERT_THAT(get_mode_name(Mode::kReadWrite), StrEq("read-write"));
+  ASSERT_THAT(get_mode_name(Mode::kReadOnly), StrEq("read-only"));
 }
 
 TEST_F(RoutingTests, Defaults) {
@@ -177,7 +175,7 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
     RoutingConfig conf_classic;
     conf_classic.routing_strategy = routing::RoutingStrategy::kNextAvailable;
     conf_classic.bind_address = mysql_harness::TCPAddress{address, 3306};
-    conf_classic.mode = routing::AccessMode::kReadWrite;
+    conf_classic.mode = routing::Mode::kReadWrite;
     conf_classic.protocol = Protocol::Type::kClassicProtocol;
     conf_classic.connect_timeout = 1;
     MySQLRouting routing_classic(conf_classic, io_ctx_);
@@ -191,7 +189,7 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
     RoutingConfig conf_x;
     conf_x.routing_strategy = routing::RoutingStrategy::kNextAvailable;
     conf_x.bind_address = mysql_harness::TCPAddress{address, 33060};
-    conf_x.mode = routing::AccessMode::kReadWrite;
+    conf_x.mode = routing::Mode::kReadWrite;
     conf_x.protocol = Protocol::Type::kXProtocol;
     conf_x.connect_timeout = 1;
     MySQLRouting routing_x(conf_x, io_ctx_);

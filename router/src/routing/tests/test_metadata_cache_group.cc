@@ -204,7 +204,7 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnPrimaries) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -237,7 +237,7 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSinglePrimary) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -269,7 +269,7 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnNoPrimary) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -299,7 +299,7 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSecondaries) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -333,7 +333,7 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSingleSecondary) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -365,7 +365,7 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnNoSecondary) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -396,7 +396,7 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailablePrimaryAndSecondary) {
       mysqlrouter::URI(
           "metadata-cache://cache-name/default?role=PRIMARY_AND_SECONDARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -432,7 +432,7 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackUnavailableServer) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kRoundRobinWithFallback,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -477,7 +477,7 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnPrimaries) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -533,7 +533,7 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSinglePrimary) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -565,7 +565,7 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinPrimaryMissing) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -593,7 +593,7 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSecondaries) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -649,7 +649,7 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSingleSecondary) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -681,7 +681,7 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinSecondaryMissing) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -710,7 +710,7 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinPrimaryAndSecondary) {
       mysqlrouter::URI(
           "metadata-cache://cache-name/default?role=PRIMARY_AND_SECONDARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -767,7 +767,7 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackBasicScenario) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kRoundRobinWithFallback,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -809,7 +809,7 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackSingleSecondary) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kRoundRobinWithFallback,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -842,7 +842,7 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackNoSecondary) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kRoundRobinWithFallback,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -878,7 +878,7 @@ TEST_F(DestMetadataCacheTest,
           mysqlrouter::URI(
               "metadata-cache://cache-name/default?role=PRIMARY_AND_SECONDARY")
               .query,
-          BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+          BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
           &metadata_cache_api_),
       std::runtime_error,
       "Strategy 'round-robin-with-fallback' is supported only for SECONDARY "
@@ -894,7 +894,7 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsBasic) {
       mysqlrouter::URI("metadata-cache://cache-name/"
                        "default?role=SECONDARY&allow_primary_reads=yes")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadOnly,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -949,7 +949,7 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsNoSecondary) {
       mysqlrouter::URI("metadata-cache://cache-name/"
                        "default?role=SECONDARY&allow_primary_reads=yes")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadOnly,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -980,7 +980,7 @@ TEST_F(DestMetadataCacheTest, PrimaryDefault) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadWrite,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -1020,7 +1020,7 @@ TEST_F(DestMetadataCacheTest, SecondaryDefault) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadOnly,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -1063,7 +1063,7 @@ TEST_F(DestMetadataCacheTest, PrimaryAndSecondaryDefault) {
       mysqlrouter::URI(
           "metadata-cache://cache-name/default?role=PRIMARY_AND_SECONDARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadOnly,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -1127,7 +1127,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoPrimary) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadWrite,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -1177,7 +1177,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodes2Primaries) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadWrite,
       &metadata_cache_api_);
 
   InstanceVector instances{
@@ -1235,7 +1235,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoSecondaries) {
       io_ctx_, "cache-name", routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadOnly,
       &metadata_cache_api_);
 
   InstanceVector instances{
@@ -1291,7 +1291,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
           "metadata-cache://cache-name/"
           "default?role=SECONDARY&disconnect_on_promoted_to_primary=yes")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadOnly,
       &metadata_cache_api_);
 
   InstanceVector instances{
@@ -1352,7 +1352,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromotedTwice) {
                        "default?role=SECONDARY&disconnect_on_promoted_to_"
                        "primary=no&disconnect_on_promoted_to_primary=yes")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadOnly,
       &metadata_cache_api_);
 
   InstanceVector instances{
@@ -1404,7 +1404,7 @@ TEST_F(DestMetadataCacheTest,
       io_ctx_, "cache-name", routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadOnly,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -1456,7 +1456,7 @@ TEST_F(DestMetadataCacheTest,
           "metadata-cache://cache-name/"
           "default?role=SECONDARY&disconnect_on_metadata_unavailable=yes")
           .query,
-      BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
+      BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadOnly,
       &metadata_cache_api_);
 
   fill_instance_vector({
@@ -1504,7 +1504,7 @@ TEST_F(DestMetadataCacheTest, InvalidServerNodeRole) {
           io_ctx_, "cache-name", routing::RoutingStrategy::kRoundRobin,
           mysqlrouter::URI("metadata-cache://cache-name/default?role=INVALID")
               .query,
-          BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+          BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
           &metadata_cache_api_),
       std::runtime_error,
       "The role in '?role=INVALID' does not contain one of the valid role "
@@ -1520,7 +1520,7 @@ TEST_F(DestMetadataCacheTest, UnsupportedRoutingStrategy) {
                                                      // cache
           mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
               .query,
-          BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+          BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
           &metadata_cache_api_),
       std::runtime_error, "Unsupported routing strategy: next-available");
 }
@@ -1532,7 +1532,7 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsWithPrimaryRouting) {
           mysqlrouter::URI("metadata-cache://cache-name/"
                            "default?role=PRIMARY&allow_primary_reads=yes")
               .query,
-          BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
+          BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadWrite,
           &metadata_cache_api_),
       std::runtime_error,
       "allow_primary_reads is supported only for SECONDARY routing");
@@ -1545,7 +1545,7 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsWithRoutingStrategy) {
           mysqlrouter::URI("metadata-cache://cache-name/"
                            "default?role=SECONDARY&allow_primary_reads=yes")
               .query,
-          BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+          BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
           &metadata_cache_api_),
       std::runtime_error,
       "allow_primary_reads is only supported for backward compatibility: "
@@ -1560,7 +1560,7 @@ TEST_F(DestMetadataCacheTest, RoundRobinWitFallbackStrategyWithPrimaryRouting) {
           routing::RoutingStrategy::kRoundRobinWithFallback,
           mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
               .query,
-          BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
+          BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
           &metadata_cache_api_),
       std::runtime_error,
       "Strategy 'round-robin-with-fallback' is supported only for SECONDARY "
@@ -1573,7 +1573,7 @@ TEST_F(DestMetadataCacheTest, ModeWithStrategy) {
           io_ctx_, "cache-name", routing::RoutingStrategy::kFirstAvailable,
           mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
               .query,
-          BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
+          BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadWrite,
           &metadata_cache_api_),
       std::runtime_error,
       "option 'mode' is not allowed together with 'routing_strategy' option");
@@ -1585,7 +1585,7 @@ TEST_F(DestMetadataCacheTest, RolePrimaryWrongMode) {
           io_ctx_, "cache-name", routing::RoutingStrategy::kUndefined,
           mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
               .query,
-          BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
+          BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadOnly,
           &metadata_cache_api_),
       std::runtime_error, "mode 'read-only' is not valid for 'role=PRIMARY'");
 }
@@ -1596,7 +1596,7 @@ TEST_F(DestMetadataCacheTest, RoleSecondaryWrongMode) {
           io_ctx_, "cache-name", routing::RoutingStrategy::kUndefined,
           mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
               .query,
-          BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
+          BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadWrite,
           &metadata_cache_api_),
       std::runtime_error,
       "mode 'read-write' is not valid for 'role=SECONDARY'");
@@ -1609,7 +1609,7 @@ TEST_F(DestMetadataCacheTest, RolePrimaryAndSecondaryWrongMode) {
           mysqlrouter::URI(
               "metadata-cache://cache-name/default?role=PRIMARY_AND_SECONDARY")
               .query,
-          BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
+          BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadWrite,
           &metadata_cache_api_),
       std::runtime_error,
       "mode 'read-write' is not valid for 'role=PRIMARY_AND_SECONDARY'");

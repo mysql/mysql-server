@@ -28,7 +28,7 @@
 #include <string>
 
 #include "mysql/harness/filesystem.h"  // Path
-#include "mysqlrouter/routing.h"       // RoutingStrategy, AccessMode
+#include "mysqlrouter/routing.h"       // RoutingStrategy, Mode
 #include "protocol/protocol.h"         // Protocol::Type
 #include "ssl_mode.h"
 #include "tcp_address.h"
@@ -44,8 +44,7 @@ class RoutingConfig {
   mysql_harness::TCPAddress bind_address;  //!< IP address to bind to
   mysql_harness::Path named_socket;  //!< unix domain socket path to bind to
   int connect_timeout{};             //!< connect-timeout in seconds
-  routing::AccessMode mode{
-      routing::AccessMode::kUndefined};  //!< read-only/read-write
+  routing::Mode mode{routing::Mode::kUndefined};  //!< read-only/read-write
   routing::RoutingStrategy routing_strategy{
       routing::RoutingStrategy::kUndefined};  //!< routing strategy (next-avail,
                                               //!< ...)
