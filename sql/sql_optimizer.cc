@@ -464,7 +464,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
   if (query_expression()->select_limit_cnt == 0 && !calc_found_rows) {
     zero_result_cause = "Zero limit";
     best_rowcount = 0;
-    create_access_paths_for_zero_rows();
+    set_root_access_path(create_access_paths_for_zero_rows());
     goto setup_subq_exit;
   }
 
@@ -478,7 +478,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
     if (query_block->cond_value == Item::COND_FALSE) {
       zero_result_cause = "Impossible WHERE";
       best_rowcount = 0;
-      create_access_paths_for_zero_rows();
+      set_root_access_path(create_access_paths_for_zero_rows());
       goto setup_subq_exit;
     }
   }
@@ -492,7 +492,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
     if (query_block->having_value == Item::COND_FALSE) {
       zero_result_cause = "Impossible HAVING";
       best_rowcount = 0;
-      create_access_paths_for_zero_rows();
+      set_root_access_path(create_access_paths_for_zero_rows());
       goto setup_subq_exit;
     }
   }
@@ -563,7 +563,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
         // It was detected that the result tables are empty
         DBUG_PRINT("info", ("No matching min/max row"));
         zero_result_cause = "No matching min/max row";
-        create_access_paths_for_zero_rows();
+        set_root_access_path(create_access_paths_for_zero_rows());
         goto setup_subq_exit;
     }
   }
@@ -701,7 +701,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
   if (zero_result_cause != nullptr) {  // Can be set by make_join_plan().
-    create_access_paths_for_zero_rows();
+    set_root_access_path(create_access_paths_for_zero_rows());
     goto setup_subq_exit;
   }
 
@@ -780,7 +780,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
     if (thd->is_error()) return true;
 
     zero_result_cause = "Impossible WHERE noticed after reading const tables";
-    create_access_paths_for_zero_rows();
+    set_root_access_path(create_access_paths_for_zero_rows());
     goto setup_subq_exit;
   }
 
@@ -832,7 +832,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
       having_cond = new Item_func_false();
       zero_result_cause =
           "Impossible HAVING noticed after reading const tables";
-      create_access_paths_for_zero_rows();
+      set_root_access_path(create_access_paths_for_zero_rows());
       goto setup_subq_exit;
     }
   }
@@ -1109,19 +1109,19 @@ void JOIN::change_to_access_path_without_in2exists() {
   }
 }
 
-void JOIN::create_access_paths_for_zero_rows() {
+AccessPath *JOIN::create_access_paths_for_zero_rows() const {
+  assert(zero_result_cause != nullptr);
+  AccessPath *path;
   if (send_row_on_empty_set()) {
     // Aggregate no rows into an aggregate row.
-    m_root_access_path =
-        NewZeroRowsAggregatedAccessPath(thd, zero_result_cause);
-    m_root_access_path =
-        attach_access_paths_for_having_and_limit(m_root_access_path);
+    path = NewZeroRowsAggregatedAccessPath(thd, zero_result_cause);
+    path = attach_access_paths_for_having_and_limit(path);
   } else {
     // Send no row at all (so also no need to check HAVING or LIMIT).
-    m_root_access_path = NewZeroRowsAccessPath(thd, zero_result_cause);
+    path = NewZeroRowsAccessPath(thd, zero_result_cause);
   }
-  m_root_access_path =
-      attach_access_path_for_update_or_delete(m_root_access_path);
+  path = attach_access_path_for_update_or_delete(path);
+  return path;
 }
 
 /**

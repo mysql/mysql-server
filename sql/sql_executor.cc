@@ -2912,7 +2912,8 @@ static table_map get_update_or_delete_target_tables(const JOIN *join) {
 
 // If this is the top-level query block of a multi-table UPDATE or multi-table
 // DELETE statement, wrap the path in an UPDATE_ROWS or DELETE_ROWS path.
-AccessPath *JOIN::attach_access_path_for_update_or_delete(AccessPath *path) {
+AccessPath *JOIN::attach_access_path_for_update_or_delete(
+    AccessPath *path) const {
   if (thd->lex->m_sql_cmd == nullptr) {
     // It is not an UPDATE or DELETE statement.
     return path;
@@ -3298,7 +3299,8 @@ AccessPath *JOIN::create_root_access_path_for_join() {
   return path;
 }
 
-AccessPath *JOIN::attach_access_paths_for_having_and_limit(AccessPath *path) {
+AccessPath *JOIN::attach_access_paths_for_having_and_limit(
+    AccessPath *path) const {
   // Attach HAVING and LIMIT if needed.
   // NOTE: We can have HAVING even without GROUP BY, although it's not very
   // useful.

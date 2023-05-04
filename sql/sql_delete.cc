@@ -1267,7 +1267,7 @@ table_map GetImmediateDeleteTables(const JOIN *join, table_map delete_tables) {
   // in which case join order optimization is short-circuited. See
   // JOIN::create_access_paths_for_zero_rows().
   if (join->thd->lex->using_hypergraph_optimizer) {
-    assert(join->root_access_path()->type == AccessPath::ZERO_ROWS);
+    assert(join->zero_result_cause != nullptr);
     return 0;
   }
 

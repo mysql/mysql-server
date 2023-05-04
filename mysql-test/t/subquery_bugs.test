@@ -1954,3 +1954,12 @@ SELECT(SELECT SIN(a.c7)),c7;
 --echo #               Assertion `is_nullable()' failed.
 --echo #
 SELECT CAST(NULL < ANY (VALUES ROW(1), ROW(2)) AS SIGNED);
+
+--echo #
+--echo # Bug#35168738: Result diff seen with hypergraph off and on
+--echo #               (different number of rows)
+--echo #
+CREATE TABLE t (x INT);
+SELECT 1 WHERE 7 IN
+(SELECT COUNT(*) FROM t AS t1, t AS t2 WHERE t1.x = t2.x AND t1.x < t2.x);
+DROP TABLE t;

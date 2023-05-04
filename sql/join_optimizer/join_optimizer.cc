@@ -5515,8 +5515,7 @@ void EnableFullTextCoveringIndexes(const Query_block *query_block) {
 AccessPath *CreateZeroRowsForEmptyJoin(JOIN *join, const char *cause) {
   join->zero_result_cause = cause;
   join->needs_finalize = true;
-  join->create_access_paths_for_zero_rows();
-  return join->root_access_path();
+  return join->create_access_paths_for_zero_rows();
 }
 
 /**

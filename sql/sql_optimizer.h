@@ -1046,15 +1046,15 @@ class JOIN {
     WHERE 1=2). This will normally yield no output rows, but if we have implicit
     aggregation, it might yield a single one.
    */
-  void create_access_paths_for_zero_rows();
+  AccessPath *create_access_paths_for_zero_rows() const;
 
  private:
   void create_access_paths_for_index_subquery();
 
   /** @{ Helpers for create_access_paths. */
   AccessPath *create_root_access_path_for_join();
-  AccessPath *attach_access_paths_for_having_and_limit(AccessPath *path);
-  AccessPath *attach_access_path_for_update_or_delete(AccessPath *path);
+  AccessPath *attach_access_paths_for_having_and_limit(AccessPath *path) const;
+  AccessPath *attach_access_path_for_update_or_delete(AccessPath *path) const;
   /** @} */
 
   /**

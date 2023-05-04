@@ -2320,3 +2320,12 @@ ERROR 42S22: Unknown column 'a.c7' in 'field list'
 SELECT CAST(NULL < ANY (VALUES ROW(1), ROW(2)) AS SIGNED);
 CAST(NULL < ANY (VALUES ROW(1), ROW(2)) AS SIGNED)
 NULL
+#
+# Bug#35168738: Result diff seen with hypergraph off and on
+#               (different number of rows)
+#
+CREATE TABLE t (x INT);
+SELECT 1 WHERE 7 IN
+(SELECT COUNT(*) FROM t AS t1, t AS t2 WHERE t1.x = t2.x AND t1.x < t2.x);
+1
+DROP TABLE t;
