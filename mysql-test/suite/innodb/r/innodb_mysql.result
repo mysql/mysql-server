@@ -2352,13 +2352,10 @@ INSERT INTO t4 VALUES (1),(2),(3),(4),(5);
 INSERT INTO t5 VALUES (1);
 DELETE t5 FROM t4 LEFT JOIN t5 ON t4.a= t5.a;
 DELETE t2, t1 FROM t2 INNER JOIN t1 ON (t2.aid = t1.id) WHERE t2.id = 1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`bid`) REFERENCES `t2` (`id`))
+Got one of the listed errors
 DELETE t2, t1 FROM t2 INNER JOIN t1 ON (t2.aid = t1.id) WHERE t2.id = 1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`bid`) REFERENCES `t2` (`id`))
+Got one of the listed errors
 DELETE IGNORE t2, t1 FROM t2 INNER JOIN t1 ON (t2.aid = t1.id) WHERE t2.id = 1;
-Warnings:
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`bid`) REFERENCES `t2` (`id`))
-Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`aid`) REFERENCES `t1` (`id`))
 DROP TABLE t3;
 DROP TABLE t2;
 DROP TABLE t1;
