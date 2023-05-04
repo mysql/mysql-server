@@ -34,6 +34,7 @@
 #include <vector>
 
 #include "context.h"
+#include "dest_metadata_cache.h"  // get_server_role_from_uri
 #include "hostname_validator.h"
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
@@ -97,6 +98,30 @@ class ModeOption {
       throw std::invalid_argument(option_desc + " is invalid; valid are " +
                                   valid + " (was '" + value.value() + "')");
     }
+    return result;
+  }
+};
+
+class AccessModeOption {
+ public:
+  routing::AccessMode operator()(const std::optional<std::string> &value,
+                                 const std::string &option_desc) {
+    if (!value.has_value() || value->empty()) {
+      return routing::AccessMode::kUndefined;
+    }
+
+    std::string lc_value{value.value()};
+
+    std::transform(lc_value.begin(), lc_value.end(), lc_value.begin(),
+                   ::tolower);
+
+    routing::AccessMode result = routing::get_access_mode(lc_value);
+    if (result == routing::AccessMode::kUndefined) {
+      const std::string valid = routing::get_access_mode_names();
+      throw std::invalid_argument(option_desc + " is invalid; valid are " +
+                                  valid + " (was '" + value.value() + "')");
+    }
+
     return result;
   }
 };
@@ -518,6 +543,56 @@ RoutingPluginConfig::RoutingPluginConfig(
       get_option(section, "connect_retry_timeout",
                  mysql_harness::MilliSecondsOption{0, 3600});
 
+  GET_OPTION_CHECKED(access_mode, section, "access_mode", AccessModeOption{});
+  GET_OPTION_CHECKED(wait_for_my_writes, section, "wait_for_my_writes",
+                     BoolOption{});
+  GET_OPTION_CHECKED(
+      wait_for_my_writes_timeout, section, "wait_for_my_writes_timeout",
+      mysql_harness::DurationOption<std::chrono::seconds>(0, 3600));
+
+  if (access_mode == routing::AccessMode::kAuto) {
+    if (!metadata_cache_) {
+      throw std::invalid_argument(
+          "'access_mode=auto' requires 'destinations=metadata-cache:...'");
+    }
+    auto uri =
+        mysqlrouter::URI(destinations,  // raises URIError when URI is invalid
+                         false          // allow_path_rootless
+        );
+
+    auto server_role = get_server_role_from_uri(uri.query);
+    if (server_role !=
+        DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary) {
+      throw std::invalid_argument(
+          "'access_mode=auto' requires that "
+          "the 'role' in 'destinations=metadata-cache:...?role=...' is "
+          "'PRIMARY_AND_SECONDARY'");
+    }
+
+    if (protocol != Protocol::Type::kClassicProtocol) {
+      throw std::invalid_argument(
+          "'access_mode=auto' is only supported with 'protocol=classic'");
+    }
+
+    if (source_ssl_mode == SslMode::kPassthrough) {
+      throw std::invalid_argument(
+          "'access_mode=auto' is not supported with "
+          "'client_ssl_mode=PASSTHROUGH'");
+    }
+
+    if (source_ssl_mode == SslMode::kPreferred &&
+        dest_ssl_mode == SslMode::kAsClient) {
+      throw std::invalid_argument(
+          "'access_mode=auto' is not supported with "
+          "'client_ssl_mode=PREFERRED' and 'server_ssl_mode=AS_CLIENT'");
+    }
+
+    if (!connection_sharing) {
+      throw std::invalid_argument(
+          "'access_mode=auto' requires 'connection_sharing=1'");
+    }
+  }
+
   using namespace std::string_literals;
 
   // either bind_address or socket needs to be set, or both
@@ -597,6 +672,9 @@ std::string RoutingPluginConfig::get_default(const std::string &option) const {
        std::to_string(routing::kDefaultSslSessionCacheTimeout.count())},
       {"connect_retry_timeout",
        std::to_string(routing::kDefaultConnectRetryTimeout.count())},
+      {"wait_for_my_writes", std::to_string(routing::kDefaultWaitForMyWrites)},
+      {"wait_for_my_writes_timeout",
+       std::to_string(routing::kDefaultWaitForMyWritesTimeout.count())},
   };
 
   const auto it = defaults.find(option);

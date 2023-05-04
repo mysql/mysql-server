@@ -33,6 +33,7 @@
 #include "mysql_routing.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/metadata_cache.h"
+#include "mysqlrouter/routing_export.h"
 #include "mysqlrouter/uri.h"
 #include "tcp_address.h"
 
@@ -205,5 +206,8 @@ class DestMetadataCacheGroup final
   // MUST take the RouteDestination Mutex
   size_t start_pos_{};
 };
+
+ROUTING_EXPORT DestMetadataCacheGroup::ServerRole get_server_role_from_uri(
+    const mysqlrouter::URIQuery &uri);
 
 #endif  // ROUTING_DEST_METADATA_CACHE_INCLUDED

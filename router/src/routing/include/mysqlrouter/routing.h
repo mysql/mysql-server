@@ -119,6 +119,16 @@ constexpr const std::chrono::seconds kDefaultSslSessionCacheTimeout{300};
  */
 constexpr const std::chrono::seconds kDefaultConnectRetryTimeout{7};
 
+/**
+ * Default Wait For My Writes timeout.
+ */
+constexpr const bool kDefaultWaitForMyWrites{true};
+
+/**
+ * Default Wait For My Writes timeout.
+ */
+constexpr const std::chrono::seconds kDefaultWaitForMyWritesTimeout{2};
+
 /** @brief Modes supported by Routing plugin */
 enum class RoutingMode {
   kUndefined = 0,
@@ -133,6 +143,11 @@ enum class RoutingMode {
 // documented symbol 'bool dblwr::Mode::is_atomic' was not declared or defined.
 using Mode = RoutingMode;
 
+enum class AccessMode {
+  kUndefined = 0,
+  kAuto = 1,
+};
+
 /** @brief Routing strategies supported by Routing plugin */
 enum class RoutingStrategy {
   kUndefined = 0,
@@ -143,7 +158,7 @@ enum class RoutingStrategy {
 };
 
 /**
- * Get comma separated list of all access mode names.
+ * Get comma separated list of all mode names.
  */
 std::string ROUTING_EXPORT get_mode_names();
 
@@ -151,7 +166,7 @@ std::string ROUTING_EXPORT get_mode_names();
  * Returns Mode for its literal representation.
  *
  * If no Mode is found for given string,
- * Mode::kUndefined is returned.
+ * AccessMode::kUndefined is returned.
  *
  * @param value literal representation of the access mode
  * @return Mode for the given string or Mode::kUndefined
@@ -159,15 +174,43 @@ std::string ROUTING_EXPORT get_mode_names();
 Mode ROUTING_EXPORT get_mode(const std::string &value);
 
 /**
+ * Returns literal name of given mode.
+ *
+ * Returns literal name of given mode as a std:string. When
+ * the mode is not found, empty string is returned.
+ *
+ * @param mode mode to look up
+ * @return Name of mode as std::string or empty string
+ */
+std::string ROUTING_EXPORT get_mode_name(Mode mode) noexcept;
+
+/**
+ * Get comma separated list of all access mode names.
+ */
+std::string ROUTING_EXPORT get_access_mode_names();
+
+/**
+ * Returns AccessMode for its literal representation.
+ *
+ * If no AccessMode is found for given string,
+ * Mode::kUndefined is returned.
+ *
+ * @param value literal representation of the access mode
+ * @return AccessMode for the given string or AccessMode::kUndefined
+ */
+AccessMode ROUTING_EXPORT get_access_mode(const std::string &value);
+
+/**
  * Returns literal name of given access mode.
  *
  * Returns literal name of given access mode as a std:string. When
  * the access mode is not found, empty string is returned.
  *
- * @param access_mode  mode to look up
+ * @param access_mode  access_mode to look up
  * @return Name of access mode as std::string or empty string
  */
-std::string ROUTING_EXPORT get_mode_name(Mode access_mode) noexcept;
+std::string ROUTING_EXPORT
+get_access_mode_name(AccessMode access_mode) noexcept;
 
 /** @brief Get comma separated list of all routing stategy names
  *         for a given routing type (metadata cache or static)

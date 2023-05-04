@@ -362,6 +362,9 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
   /** @brief mode of the servers in the routing */
   routing::Mode mode_;
 
+  /** @brief access_mode of the servers in the routing */
+  routing::AccessMode access_mode_;
+
   /** @brief Maximum active connections
    *
    * Maximum number of incoming connections that will be accepted

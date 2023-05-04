@@ -66,6 +66,7 @@ const constexpr std::array<
         {"PRIMARY_AND_SECONDARY",
          DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary},
     }};
+}
 
 DestMetadataCacheGroup::ServerRole get_server_role_from_uri(
     const mysqlrouter::URIQuery &uri) {
@@ -102,6 +103,7 @@ DestMetadataCacheGroup::ServerRole get_server_role_from_uri(
   return role_it->second;
 }
 
+namespace {
 std::string get_server_role_name(
     const DestMetadataCacheGroup::ServerRole role) {
   auto role_it =

@@ -75,6 +75,29 @@ ROUTING_EXPORT std::string get_mode_name(Mode mode) noexcept {
   return kModeNames[static_cast<int>(mode)];
 }
 
+static const std::array<const char *, 2> kAccessModeNames{{
+    nullptr,
+    "auto",
+}};
+
+ROUTING_EXPORT AccessMode get_access_mode(const std::string &value) {
+  for (unsigned int i = 1; i < kAccessModeNames.size(); ++i)
+    if (kAccessModeNames[i] == value) return static_cast<AccessMode>(i);
+  return AccessMode::kUndefined;
+}
+
+ROUTING_EXPORT std::string get_access_mode_names() {
+  // +1 to skip undefined
+  return mysql_harness::serial_comma(kAccessModeNames.begin() + 1,
+                                     kAccessModeNames.end());
+}
+
+ROUTING_EXPORT std::string get_access_mode_name(AccessMode mode) noexcept {
+  if (mode == AccessMode::kUndefined) return "<not-set>";
+
+  return kAccessModeNames[static_cast<int>(mode)];
+}
+
 // keep in-sync with enum RoutingStrategy
 static const std::array<const char *, 5> kRoutingStrategyNames{{
     nullptr,

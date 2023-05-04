@@ -175,7 +175,7 @@ class DurationOption : public DoubleOption {
                            const std::string &option_desc) {
     double result = __base::operator()(value, option_desc);
 
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
+    return std::chrono::duration_cast<duration_type>(
         std::chrono::duration<double>(result));
   }
 };

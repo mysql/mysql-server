@@ -90,6 +90,13 @@ class RoutingConfig {
   std::chrono::milliseconds
       connect_retry_timeout{};  //!< timeout of retrying after a transient
                                 //!< connect-failure.
+  routing::AccessMode access_mode{
+      routing::AccessMode::kUndefined};  //!< read_write,read_only,auto
+
+  bool wait_for_my_writes;
+  std::chrono::seconds
+      wait_for_my_writes_timeout{};  //!< how long to wait for writes to be
+                                     //!< applied before reads.
 };
 
 #endif  // ROUTING_CONFIG_INCLUDED

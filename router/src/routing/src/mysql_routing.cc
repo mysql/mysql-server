@@ -649,12 +649,11 @@ MySQLRouting::MySQLRouting(const RoutingConfig &routing_config,
                            const std::string &route_name,
                            TlsServerContext *client_ssl_ctx,
                            DestinationTlsContext *dest_ssl_ctx)
-    : context_(routing_config, route_name,
-
-               client_ssl_ctx, dest_ssl_ctx),
+    : context_(routing_config, route_name, client_ssl_ctx, dest_ssl_ctx),
       io_ctx_{io_ctx},
       routing_strategy_(routing_config.routing_strategy),
       mode_(routing_config.mode),
+      access_mode_(routing_config.access_mode),
       max_connections_(set_max_connections(routing_config.max_connections)) {
   validate_destination_connect_timeout(
       std::chrono::milliseconds{routing_config.connect_timeout * 1000});
@@ -1090,8 +1089,17 @@ void MySQLRouting::set_destinations_from_csv(const std::string &csv) {
                                                context_.get_protocol());
 
   // Fall back to comma separated list of MySQL servers
+  //
+  // dests = dest *["," dest]
+  // dest = host [":" port]
+  // host = hostname-or-address
+  // port = NUM+
+  //
+  //
+  //
   while (std::getline(ss, part, ',')) {
     mysql_harness::trim(part);
+
     auto make_res = mysql_harness::make_tcp_address(part);
     if (!make_res) {
       throw std::runtime_error(
