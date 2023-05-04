@@ -1,4 +1,6 @@
 --source include/big_test.inc
+--source include/have_innodb_16k.inc
+
 # Test crashes during upgrade of the InnoDB redo log.
 
 # Avoid CrashReporter popup on Mac
