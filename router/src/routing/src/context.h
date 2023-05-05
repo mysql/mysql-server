@@ -165,6 +165,10 @@ class MySQLRoutingContext {
     return routing_config_.connection_sharing_delay;
   }
 
+  routing::AccessMode access_mode() const {
+    return routing_config_.access_mode;
+  }
+
  private:
   const RoutingConfig routing_config_;
 

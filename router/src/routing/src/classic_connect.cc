@@ -36,6 +36,8 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/utility/string.h"  // join
 #include "mysqlrouter/connection_pool_component.h"
+#include "mysqlrouter/datatypes.h"
+#include "mysqlrouter/routing.h"
 #include "mysqlrouter/routing_component.h"
 #include "mysqlrouter/utils.h"  // to_string
 #include "processor.h"
@@ -127,6 +129,20 @@ static stdx::expected<std::error_code, std::error_code> sock_error_code(
   return {};
 }
 
+// skip destinations which don't matched the current expected server-mode.
+static bool skip_destination(MysqlRoutingClassicConnectionBase *conn,
+                             Destination *destination) {
+  if (conn->context().access_mode() != routing::AccessMode::kAuto) return false;
+
+  const auto conn_server_mode = conn->expected_server_mode();
+  const auto dest_server_mode = destination->server_mode();
+
+  return ((conn_server_mode == mysqlrouter::ServerMode::ReadOnly &&
+           dest_server_mode == mysqlrouter::ServerMode::ReadWrite) ||
+          (conn_server_mode == mysqlrouter::ServerMode::ReadWrite &&
+           dest_server_mode == mysqlrouter::ServerMode::ReadOnly));
+}
+
 stdx::expected<Processor::Result, std::error_code>
 ConnectProcessor::init_destination() {
   std::vector<std::string> dests;
@@ -147,10 +163,43 @@ ConnectProcessor::init_destination() {
                            mysql_harness::join(dests, ","));
   }
 
+  // adjust the expected-server-mode depending if we have:
+  //
+  // - RW, RO
+  // - only RW (multi-primary)
+  // - only RO (replica of replicaset)
+  if (connection()->context().access_mode() == routing::AccessMode::kAuto) {
+    bool has_read_only{false};
+    bool has_read_write{false};
+
+    for (auto const &dest : destinations_) {
+      if (dest->server_mode() == mysqlrouter::ServerMode::ReadOnly) {
+        has_read_only = true;
+      }
+      if (dest->server_mode() == mysqlrouter::ServerMode::ReadWrite) {
+        has_read_write = true;
+      }
+    }
+
+    if (has_read_only && !has_read_write) {
+      connection()->expected_server_mode(mysqlrouter::ServerMode::ReadOnly);
+    } else if (!has_read_only && has_read_write) {
+      connection()->expected_server_mode(mysqlrouter::ServerMode::ReadWrite);
+    }
+  }
+
   destinations_it_ = destinations_.begin();
 
   if (destinations_it_ != destinations_.end()) {
     const auto &destination = *destinations_it_;
+
+    if (connection()->context().access_mode() == routing::AccessMode::kAuto) {
+      if (skip_destination(connection(), destination.get())) {
+        stage(Stage::NextDestination);
+
+        return Result::Again;
+      }
+    }
 
     stage(is_destination_good(destination->hostname(), destination->port())
               ? Stage::Resolve
@@ -338,6 +387,19 @@ ConnectProcessor::from_pool() {
         if (connection()->server_protocol() != nullptr) {
           connection()->server_protocol()->seq_id(0xff);
         }
+
+        if (connection()->expected_server_mode() ==
+            mysqlrouter::ServerMode::Unavailable) {
+          const auto *dest = destinations_it_->get();
+          // before the first query, the server-mode is not set, remember it
+          // now.
+          connection()->expected_server_mode(dest->server_mode());
+        }
+
+        // set destination-id to get the "trace_set_connection_attributes"
+        // right.
+        connection()->destination_id(
+            destination_id_from_endpoint(*endpoints_it_));
 
         if (auto *ev = trace_event_socket_from_pool_) {
           trace_set_connection_attributes(ev);
@@ -667,6 +729,11 @@ ConnectProcessor::next_destination() {
     if (destinations_it_ == std::end(destinations_)) break;
 
     const auto &destination = *destinations_it_;
+
+    // for read-only connections, skip the writable destinations,
+    // for read-write connections, skip the read-only destinations.
+    if (skip_destination(connection(), destination.get())) continue;
+
     if (is_destination_good(destination->hostname(), destination->port())) {
       break;
     }
@@ -682,6 +749,15 @@ ConnectProcessor::next_destination() {
     if (refresh_res) {
       destinations_ = std::move(refresh_res.value());
 
+      stage(Stage::InitDestination);
+      return Result::Again;
+    } else if (connection()->context().access_mode() ==
+                   routing::AccessMode::kAuto &&
+               connection()->expected_server_mode() ==
+                   mysqlrouter::ServerMode::ReadOnly) {
+      // if we want a RO connections but there are only primaries, take a
+      // primary.
+      connection()->expected_server_mode(mysqlrouter::ServerMode::ReadWrite);
       stage(Stage::InitDestination);
       return Result::Again;
     } else {
@@ -702,15 +778,20 @@ ConnectProcessor::connected() {
     trace_span_end(ev);
   }
 
-  // remember the destination we connected too for connection-sharing.
+  const auto *dest = destinations_it_->get();
+
+  // remember the destination and its server-mode for connection-sharing.
+  if (connection()->expected_server_mode() ==
+      mysqlrouter::ServerMode::Unavailable) {
+    // before the first query, the server-mode is not set, remember it now.
+    connection()->expected_server_mode(dest->server_mode());
+  }
+
   connection()->destination_id(destination_id_from_endpoint(*endpoints_it_));
 
-  {
-    const auto &dest = (*destinations_it_);
-
-    connection()->context().shared_quarantine().update(
-        {dest->hostname(), dest->port()}, true);
-  }
+  // mark destination as reachable.
+  connection()->context().shared_quarantine().update(
+      {dest->hostname(), dest->port()}, true);
 
   // back to the caller.
   stage(Stage::Done);

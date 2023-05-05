@@ -53,6 +53,7 @@
 #include "mysqlrouter/classic_protocol_codec_error.h"
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/connection_base.h"
+#include "mysqlrouter/routing.h"
 #include "openssl_msg.h"
 #include "openssl_version.h"
 #include "processor.h"
@@ -826,6 +827,7 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::accepted() {
     tr.trace(Tracer::Event().stage("client::greeting::client_done"));
   }
 
+  auto *src_protocol = connection()->client_protocol();
   auto *dst_protocol = connection()->server_protocol();
 
   stage(Stage::Authenticated);
@@ -850,6 +852,19 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::accepted() {
                                (dest_ssl_mode == SslMode::kAsClient &&
                                 (source_ssl_mode == SslMode::kPreferred ||
                                  source_ssl_mode == SslMode::kRequired)));
+
+    if (connection()->context().access_mode() == routing::AccessMode::kAuto &&
+        !src_protocol->password().has_value()) {
+      // by default, authentication can be done on any server if rw-splitting is
+      // enabled.
+      //
+      // But if there is no password yet, router may also not get it in the
+      // authentication round, which would mean that the connection can't be
+      // shared and switched to the read-write server when needed.
+      //
+      // Therefore, force authentication on a read-write server
+      connection()->expected_server_mode(mysqlrouter::ServerMode::ReadWrite);
+    }
 
     connection()->push_processor(std::make_unique<LazyConnector>(
         connection(), true /* in handshake */,
