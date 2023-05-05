@@ -392,37 +392,36 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
                              cluster_nodes_ports[expected_node_id]);
     }
   } else {
-    // for round-robin we can't be sure which server will be the starting one
-    // on Solaris wait_for_port_ready() causes the router to switch to the next
-    // server while on other OSes it does not. We check it the round robin is
-    // done on provided set of ids.
-    const auto &expected_nodes = test_params.expected_node_connections;
-    std::string node_port;
-    size_t first_port_id{0};
-    for (size_t i = 0; i < expected_nodes.size() + 1;
-         ++i) {  // + 1 to check that after
-                 // full round it starts from beginning
-      ASSERT_NO_FATAL_FAILURE(
-          connect_client_and_query_port(router_port, node_port));
-      if (i == 0) {  // first-connection
-        const auto &real_port_iter =
-            std::find(cluster_nodes_ports.begin(), cluster_nodes_ports.end(),
-                      static_cast<uint16_t>(std::atoi(node_port.c_str())));
-        ASSERT_NE(real_port_iter, cluster_nodes_ports.end());
-        auto port_id_ = real_port_iter - std::begin(cluster_nodes_ports);
+    const auto expected_nodes = test_params.expected_node_connections;
 
-        EXPECT_TRUE(std::find(expected_nodes.begin(), expected_nodes.end(),
-                              port_id_) != expected_nodes.end());
-        first_port_id =
-            std::find(expected_nodes.begin(), expected_nodes.end(), port_id_) -
-            expected_nodes.begin();
-      } else {
-        const auto current_idx = (first_port_id + i) % expected_nodes.size();
-        const auto expected_node_id = expected_nodes[current_idx];
-        EXPECT_EQ(std::to_string(cluster_nodes_ports[expected_node_id]),
-                  node_port);
-      }
+    std::vector<std::string> expected_ports;
+    expected_ports.reserve(expected_nodes.size() * 2);
+
+    // run two rounds to see if it loops around.
+
+    for (auto expected_node_ndx : expected_nodes) {
+      auto port_str = std::to_string(cluster_nodes_ports[expected_node_ndx]);
+
+      expected_ports.push_back(port_str);
+      expected_ports.push_back(port_str);
     }
+
+    std::vector<std::string> connected_ports;
+    for (size_t i = 0; i < expected_nodes.size() * 2; ++i) {
+      MySQLSession client;
+
+      ASSERT_NO_THROW(client.connect("127.0.0.1", router_port, "username",
+                                     "password", "", ""));
+
+      const auto result = client.query_one("select @@port");
+      ASSERT_TRUE(result);
+      ASSERT_THAT(*result, testing::SizeIs(1));
+
+      connected_ports.push_back((*result)[0]);
+    }
+
+    EXPECT_THAT(connected_ports,
+                testing::UnorderedElementsAreArray(expected_ports));
   }
 
   ASSERT_THAT(router.kill(), testing::Eq(0));
@@ -430,10 +429,10 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
 
 INSTANTIATE_TEST_SUITE_P(
     MetadataCacheRoutingStrategy, RouterRoutingStrategyMetadataCache,
-    // node_id=0 is PRIARY, node_id=1..3 are SECONDARY
+    // node_id=0 is PRIMARY, node_id=1..3 are SECONDARY
     ::testing::Values(
         // test round-robin on SECONDARY servers
-        // we expect 1->2->3->1 for 4 consecutive connections
+        // we expect 1 connection to node-1, node-2 and node-3
         MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
                                 "SECONDARY", "round-robin", "", {1, 2, 3},
                                 /*round-robin=*/true),
@@ -444,7 +443,7 @@ INSTANTIATE_TEST_SUITE_P(
                                 /*round-robin=*/true),
 
         // test first-available on SECONDARY servers
-        // we expect 1->1->1 for 3 consecutive connections
+        // we expect 3 connections to node 1.
         MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
                                 "SECONDARY", "first-available", "", {1, 1, 1}),
 
@@ -453,7 +452,7 @@ INSTANTIATE_TEST_SUITE_P(
                                 "first-available", "", {1, 1, 1}),
 
         // *basic* test round-robin-with-fallback
-        // we expect 1->2->3->1 for 4 consecutive connections
+        // we expect 1 connection to node-1, node-2 and node-3
         // as there are SECONDARY servers available (PRIMARY id=0 should not be
         // used)
         MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
@@ -468,7 +467,7 @@ INSTANTIATE_TEST_SUITE_P(
 
         // test round-robin on PRIMARY_AND_SECONDARY
         // we expect the primary to participate in the round-robin from the
-        // beginning we expect 0->1->2->3->0 for 5 consecutive connections
+        // beginning. 1 connection to node-0, node-1, node-2 and node-3.
         MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
                                 "PRIMARY_AND_SECONDARY", "round-robin", "",
                                 {0, 1, 2, 3},
@@ -482,7 +481,7 @@ INSTANTIATE_TEST_SUITE_P(
 
         // test round-robin with allow-primary-reads=yes
         // this should work similar to PRIMARY_AND_SECONDARY
-        // we expect 0->1->2->3->0 for 5 consecutive connections
+        // we expect 1 connection to node-0, node-1, node-2 and node-3
         MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
                                 "SECONDARY&allow_primary_reads=yes", "",
                                 "read-only", {0, 1, 2, 3},
@@ -495,7 +494,7 @@ INSTANTIATE_TEST_SUITE_P(
                                 /*round-robin=*/true),
 
         // test first-available on PRIMARY
-        // we expect 0->0->0 for 2 consecutive connections
+        // we expect all connection to node-0
         MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
                                 "PRIMARY", "first-available", "", {0, 0}),
 
@@ -504,8 +503,7 @@ INSTANTIATE_TEST_SUITE_P(
                                 "first-available", "", {0, 0}),
 
         // test round-robin on PRIMARY
-        // there is single primary so we expect 0->0->0 for 2 consecutive
-        // connections
+        // there is single primary so we expect all connections to node-0
         MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
                                 "PRIMARY", "round-robin", "", {0, 0}),
 
@@ -1223,10 +1221,27 @@ TEST_P(UnreachableDestinationQuarantineOptions, Test) {
 
   for (size_t i = 1; i <= threshold; ++i) {
     // first node is down so we expect it to be skipped and 2 consecutive
-    // connections to be routed to nodes 2 and 3.
+    // connections to be routed only to nodes 2 and 3.
 
-    make_new_connection_ok(classic_RO_bind_port, cluster_nodes_ports[2]);
-    make_new_connection_ok(classic_RO_bind_port, cluster_nodes_ports[3]);
+    std::vector<std::string> connected_ports;
+
+    for (size_t rounds = 0; rounds < 4; ++rounds) {
+      MySQLSession client;
+
+      ASSERT_NO_THROW(client.connect("127.0.0.1", classic_RO_bind_port,
+                                     "username", "password", "", ""));
+
+      const auto result = client.query_one("select @@port");
+      ASSERT_TRUE(result);
+      ASSERT_THAT(*result, testing::SizeIs(1));
+
+      connected_ports.push_back((*result)[0]);
+    }
+
+    // connect only to nodes 2 and 3.
+    EXPECT_THAT(connected_ports, ::testing::Each(::testing::AnyOf(
+                                     std::to_string(cluster_nodes_ports[2]),
+                                     std::to_string(cluster_nodes_ports[3]))));
 
     // the node should be quarantined only after reaching a threshold
     const std::string log_content = router.get_logfile_content();

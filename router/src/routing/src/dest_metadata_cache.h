@@ -161,15 +161,16 @@ class DestMetadataCacheGroup final
    * secondaries (false).
    *
    */
-  std::pair<AllowedNodes, bool> get_available(
+  std::pair<metadata_cache::cluster_nodes_list_t, bool> get_available(
       const metadata_cache::cluster_nodes_list_t &instances,
       bool for_new_connections = true) const;
 
-  AllowedNodes get_available_primaries(
+  metadata_cache::cluster_nodes_list_t get_available_primaries(
       const metadata_cache::cluster_nodes_list_t &managed_servers) const;
 
-  Destinations balance(const AllowedNodes &all_replicaset_nodes,
-                       bool primary_fallback);
+  Destinations balance(
+      const metadata_cache::cluster_nodes_list_t &all_replicaset_nodes,
+      bool primary_fallback);
 
   routing::RoutingStrategy routing_strategy_;
 
@@ -205,6 +206,8 @@ class DestMetadataCacheGroup final
 
   // MUST take the RouteDestination Mutex
   size_t start_pos_{};
+  size_t ro_start_pos_{};
+  size_t rw_start_pos_{};
 };
 
 ROUTING_EXPORT DestMetadataCacheGroup::ServerRole get_server_role_from_uri(

@@ -90,7 +90,7 @@ inline std::error_code make_error_code(metadata_errc e) noexcept {
   return std::error_code(static_cast<int>(e), metadata_cache_category());
 }
 
-enum class ServerMode { ReadWrite, ReadOnly, Unavailable };
+using ServerMode = mysqlrouter::ServerMode;
 enum class ServerRole { Primary, Secondary, Unavailable };
 
 /** @class ManagedInstance

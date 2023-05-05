@@ -31,6 +31,7 @@
 #include <string>        // string
 #include <system_error>  // error_code
 
+#include "mysqlrouter/datatypes.h"  // ServerMode
 #include "tcp_address.h"
 
 /**
@@ -80,6 +81,15 @@ class Destination {
    */
   virtual void connect_status(std::error_code /* ec */) {}
 
+  /**
+   * server-mode of the destination.
+   *
+   * may be: unavailable, read-only or read-write.
+   */
+  virtual mysqlrouter::ServerMode server_mode() const {
+    return mysqlrouter::ServerMode::Unavailable;
+  }
+
  private:
   const std::string id_;
   const std::string hostname_;
@@ -109,10 +119,12 @@ class Destinations {
   /**
    * emplace a Destination at the back of the container.
    */
+  // clang-format off
   template <class... Args>
   auto emplace_back(Args &&... args) {
     return destinations_.emplace_back(std::forward<Args>(args)...);
   }
+  // clang-format on
 
   void push_back(value_type &&v) { destinations_.push_back(std::move(v)); }
 

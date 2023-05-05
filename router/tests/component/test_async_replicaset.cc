@@ -54,6 +54,8 @@ using mysqlrouter::ClusterType;
 using mysqlrouter::MySQLSession;
 using namespace std::chrono_literals;
 
+using testing::ElementsAre;
+
 Path g_origin_path;
 
 namespace {
@@ -1425,22 +1427,44 @@ TEST_P(NodeUnavailableTest, NodeUnavailable) {
 
   SCOPED_TRACE(
       "// Make 3 RO connections, even though one of the secondaries is down "
-      "each of them should be successfull");
-  for (size_t i = 0; i < 3; ++i) {
-    uint16_t expected_port{0};
-    if (routing_strategy == "round-robin" ||
-        routing_strategy == "round-robin-with-fallback") {
-      // for round-robin we should round-robin on nodes with id 2 and 3
-      // (0-based)
-      expected_port = cluster_nodes_ports[2 + i % 2];
-    } else {
-      ASSERT_STREQ(routing_strategy.c_str(), "first-available");
-      // for fiirst-available we should go with the node id = 2 each time as the
-      // node id = 1 is not available
-      expected_port = cluster_nodes_ports[2];
-    }
+      "each of them should be successful");
 
-    /*auto client_ro =*/make_new_connection_ok(router_port_ro, expected_port);
+  std::vector<std::string> connected_ports;
+
+  // make 3 connections.
+  for (int ndx = 0; ndx < 4; ++ndx) {
+    MySQLSession session;
+
+    ASSERT_NO_THROW(session.connect("127.0.0.1", router_port_ro, "username",
+                                    "password", "", ""));
+
+    auto result = session.query_one("select @@port");
+    ASSERT_TRUE(result);
+    ASSERT_NE((*result)[0], nullptr);
+
+    connected_ports.push_back((*result)[0]);
+  }
+
+  if (routing_strategy == "first-available") {
+    auto node_2 = std::to_string(cluster_nodes_ports[2]);
+
+    EXPECT_THAT(connected_ports,
+                ElementsAre(node_2,  //
+                            node_2,  //
+                            node_2,  //
+                            node_2)  //
+    );
+  } else if (routing_strategy == "round-robin" ||
+             routing_strategy == "round-robin-with-fallback") {
+    auto node_2 = std::to_string(cluster_nodes_ports[2]);
+    auto node_3 = std::to_string(cluster_nodes_ports[3]);
+
+    EXPECT_THAT(connected_ports,
+                ElementsAre(node_2,  // try [1], fallover to [2]
+                            node_2,  // use [2]
+                            node_3,  // use [3]
+                            node_2   // use [2]
+                            ));
   }
 }
 

@@ -51,6 +51,8 @@ struct UserCredentials {
   std::string password;
 };
 
+enum class ServerMode { ReadWrite, ReadOnly, Unavailable };
+
 }  // namespace mysqlrouter
 
 #endif  // MYSQLROUTER_UTILS_INCLUDED

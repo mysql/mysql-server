@@ -42,6 +42,7 @@ using metadata_cache::ServerRole;
 using InstanceVector = std::vector<metadata_cache::ManagedInstance>;
 
 using ::testing::_;
+using ::testing::ElementsAre;
 
 using namespace std::chrono_literals;
 
@@ -713,50 +714,29 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinPrimaryAndSecondary) {
       BaseProtocol::Type::kClassicProtocol, routing::Mode::kUndefined,
       &metadata_cache_api_);
 
+  Destination w1("W1", "W1", 3307);
+  Destination r1("R1", "R1", 3308);
+  Destination r2("R2", "R2", 3309);
+
   fill_instance_vector({
-      {GR, "uuid1", ServerMode::ReadWrite, ServerRole::Primary, "3307", 3307,
-       33061},
-      {GR, "uuid2", ServerMode::ReadOnly, ServerRole::Secondary, "3308", 3308,
-       33062},
-      {GR, "uuid3", ServerMode::ReadOnly, ServerRole::Secondary, "3309", 3309,
-       33063},
+      {GR, "uuid1", ServerMode::ReadWrite, ServerRole::Primary, w1.hostname(),
+       w1.port(), 33061},
+      {GR, "uuid2", ServerMode::ReadOnly, ServerRole::Secondary, r1.hostname(),
+       r1.port(), 33062},
+      {GR, "uuid3", ServerMode::ReadOnly, ServerRole::Secondary, r2.hostname(),
+       r2.port(), 33063},
   });
 
   // all nodes
-  {
-    auto actual = dest.destinations();
-    EXPECT_THAT(actual,
-                ::testing::ElementsAre(Destination("3307", "3307", 3307),
-                                       Destination("3308", "3308", 3308),
-                                       Destination("3309", "3309", 3309)));
-  }
+  EXPECT_THAT(dest.destinations(), ElementsAre(w1, r1, r2));
 
   // round-robin should change the order.
-  {
-    auto actual = dest.destinations();
-    EXPECT_THAT(actual,
-                ::testing::ElementsAre(Destination("3308", "3308", 3308),
-                                       Destination("3309", "3309", 3309),
-                                       Destination("3307", "3307", 3307)));
-  }
-
-  // round-robin should change the order.
-  {
-    auto actual = dest.destinations();
-    EXPECT_THAT(actual,
-                ::testing::ElementsAre(Destination("3309", "3309", 3309),
-                                       Destination("3307", "3307", 3307),
-                                       Destination("3308", "3308", 3308)));
-  }
-
-  // round-robin should change the order.
-  {
-    auto actual = dest.destinations();
-    EXPECT_THAT(actual,
-                ::testing::ElementsAre(Destination("3307", "3307", 3307),
-                                       Destination("3308", "3308", 3308),
-                                       Destination("3309", "3309", 3309)));
-  }
+  EXPECT_THAT(dest.destinations(), ElementsAre(r2, r1, w1));
+  EXPECT_THAT(dest.destinations(), ElementsAre(r1, r2, w1));
+  EXPECT_THAT(dest.destinations(), ElementsAre(w1, r2, r1));
+  EXPECT_THAT(dest.destinations(), ElementsAre(r1, r2, w1));
+  EXPECT_THAT(dest.destinations(), ElementsAre(r2, r1, w1));
+  EXPECT_THAT(dest.destinations(), ElementsAre(w1, r1, r2));
 }
 
 /*****************************************/
@@ -897,50 +877,28 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsBasic) {
       BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadOnly,
       &metadata_cache_api_);
 
+  Destination w1("W1", "W1", 3306);
+  Destination r1("R1", "R1", 3307);
+  Destination r2("R2", "R2", 3308);
+
   fill_instance_vector({
-      {GR, "uuid1", ServerMode::ReadWrite, ServerRole::Primary, "3306", 3306,
-       33060},
-      {GR, "uuid2", ServerMode::ReadOnly, ServerRole::Secondary, "3307", 3307,
-       33061},
-      {GR, "uuid2", ServerMode::ReadOnly, ServerRole::Secondary, "3308", 3308,
-       33062},
+      {GR, "uuid1", ServerMode::ReadWrite, ServerRole::Primary, w1.hostname(),
+       w1.port(), 33060},
+      {GR, "uuid2", ServerMode::ReadOnly, ServerRole::Secondary, r1.hostname(),
+       r1.port(), 33061},
+      {GR, "uuid3", ServerMode::ReadOnly, ServerRole::Secondary, r2.hostname(),
+       r2.port(), 33062},
   });
 
   // we expect round-robin on all the servers (PRIMARY and SECONDARY)
-  {
-    auto actual = dest.destinations();
-    EXPECT_THAT(actual,
-                ::testing::ElementsAre(Destination("3306", "3306", 3306),
-                                       Destination("3307", "3307", 3307),
-                                       Destination("3308", "3308", 3308)));
-  }
-
-  // round-robin should change the order.
-  {
-    auto actual = dest.destinations();
-    EXPECT_THAT(actual,
-                ::testing::ElementsAre(Destination("3307", "3307", 3307),
-                                       Destination("3308", "3308", 3308),
-                                       Destination("3306", "3306", 3306)));
-  }
-
-  // round-robin should change the order.
-  {
-    auto actual = dest.destinations();
-    EXPECT_THAT(actual,
-                ::testing::ElementsAre(Destination("3308", "3308", 3308),
-                                       Destination("3306", "3306", 3306),
-                                       Destination("3307", "3307", 3307)));
-  }
-
-  // round-robin should change the order.
-  {
-    auto actual = dest.destinations();
-    EXPECT_THAT(actual,
-                ::testing::ElementsAre(Destination("3306", "3306", 3306),
-                                       Destination("3307", "3307", 3307),
-                                       Destination("3308", "3308", 3308)));
-  }
+  //
+  EXPECT_THAT(dest.destinations(), ElementsAre(w1, r1, r2));
+  EXPECT_THAT(dest.destinations(), ElementsAre(r2, r1, w1));
+  EXPECT_THAT(dest.destinations(), ElementsAre(r1, r2, w1));
+  EXPECT_THAT(dest.destinations(), ElementsAre(w1, r2, r1));
+  EXPECT_THAT(dest.destinations(), ElementsAre(r1, r2, w1));
+  EXPECT_THAT(dest.destinations(), ElementsAre(r2, r1, w1));
+  EXPECT_THAT(dest.destinations(), ElementsAre(w1, r1, r2));
 }
 
 TEST_F(DestMetadataCacheTest, AllowPrimaryReadsNoSecondary) {
@@ -1066,51 +1024,39 @@ TEST_F(DestMetadataCacheTest, PrimaryAndSecondaryDefault) {
       BaseProtocol::Type::kClassicProtocol, routing::Mode::kReadOnly,
       &metadata_cache_api_);
 
+  Destination w1("W1", "W1", 3306);
+  Destination r1("R1", "R1", 3307);
+  Destination r2("R2", "R2", 3308);
+
   fill_instance_vector({
-      {GR, "uuid1", ServerMode::ReadWrite, ServerRole::Primary, "3306", 3306,
-       33060},
-      {GR, "uuid2", ServerMode::ReadOnly, ServerRole::Secondary, "3307", 3307,
-       33061},
-      {GR, "uuid3", ServerMode::ReadOnly, ServerRole::Secondary, "3308", 3308,
-       33062},
+      {GR, "uuid1", ServerMode::ReadWrite, ServerRole::Primary, w1.hostname(),
+       w1.port(), 33060},
+      {GR, "uuid2", ServerMode::ReadOnly, ServerRole::Secondary, r1.hostname(),
+       r1.port(), 33061},
+      {GR, "uuid3", ServerMode::ReadOnly, ServerRole::Secondary, r2.hostname(),
+       r2.port(), 33062},
   });
 
   // default for PRIMARY_AND_SECONDARY should be round-robin on ReadOnly and
   // ReadWrite servers
-  {
-    auto actual = dest.destinations();
-    EXPECT_THAT(actual,
-                ::testing::ElementsAre(Destination("3306", "3306", 3306),
-                                       Destination("3307", "3307", 3307),
-                                       Destination("3308", "3308", 3308)));
-  }
+  //
+  // RW and RO servers are rotated independently.
 
-  // .. rotate
-  {
-    auto actual = dest.destinations();
-    EXPECT_THAT(actual,
-                ::testing::ElementsAre(Destination("3307", "3307", 3307),
-                                       Destination("3308", "3308", 3308),
-                                       Destination("3306", "3306", 3306)));
-  }
-
-  // ... rotate
-  {
-    auto actual = dest.destinations();
-    EXPECT_THAT(actual,
-                ::testing::ElementsAre(Destination("3308", "3308", 3308),
-                                       Destination("3306", "3306", 3306),
-                                       Destination("3307", "3307", 3307)));
-  }
-
-  // ... and back
-  {
-    auto actual = dest.destinations();
-    EXPECT_THAT(actual,
-                ::testing::ElementsAre(Destination("3306", "3306", 3306),
-                                       Destination("3307", "3307", 3307),
-                                       Destination("3308", "3308", 3308)));
-  }
+  // input:       -> start-group -> output
+  // [w1, r1, r2] -> Write          [w1], [r1, r2]
+  // [r1, r2, w1] -> Read           [r2, r1], [w1]
+  // [r2, w1, r1] -> Read           [r1, r2], [w1]
+  // [w1, r1, r2] -> Write          [w1], [r2, r1]
+  //
+  //  ^^ start group ^
+  //
+  EXPECT_THAT(dest.destinations(), ElementsAre(w1, r1, r2));
+  EXPECT_THAT(dest.destinations(), ElementsAre(r2, r1, w1));
+  EXPECT_THAT(dest.destinations(), ElementsAre(r1, r2, w1));
+  EXPECT_THAT(dest.destinations(), ElementsAre(w1, r2, r1));
+  EXPECT_THAT(dest.destinations(), ElementsAre(r1, r2, w1));
+  EXPECT_THAT(dest.destinations(), ElementsAre(r2, r1, w1));
+  EXPECT_THAT(dest.destinations(), ElementsAre(w1, r1, r2));
 }
 
 /*****************************************/
