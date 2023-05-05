@@ -698,13 +698,13 @@ sub mtr_report_stats ($$;$) {
     # Print the list of tests that failed in a format that can be copy
     # pasted to rerun only failing tests.
     if (%seen) {
-      summary_print("Failing test(s): " . join(" ", keys %seen) . "\n\n");
+      summary_print("Failing test(s): " . join(" ", sort keys %seen) . "\n\n");
     }
 
     # Print unstable tests, if any
     if (%seen_unstable) {
       summary_print("Unstable test(s)(failures/attempts): " .
-                join(" ", map { $_ . $seen_unstable{$_} } keys %seen_unstable) .
+                join(" ", map { $_ . $seen_unstable{$_} } sort keys %seen_unstable) .
                 "\n\n");
     }
 
