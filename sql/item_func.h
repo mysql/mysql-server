@@ -270,6 +270,7 @@ class Item_func : public Item_result_field {
     YEAR_FUNC,
     YEARWEEK_FUNC,
     MAKEDATE_FUNC,
+    MAKETIME_FUNC,
     MONTH_FUNC,
     MONTHNAME_FUNC,
     DAY_FUNC,
@@ -303,7 +304,13 @@ class Item_func : public Item_result_field {
     MEMBER_OF_FUNC,
     STRCMP_FUNC,
     TRUE_FUNC,
-    FALSE_FUNC
+    FALSE_FUNC,
+    SYSDATE_FUNC,
+    TIMEDIFF_FUNC,
+    PERIODADD_FUNC,
+    PERIODDIFF_FUNC,
+    SEC_TO_TIME_FUNC,
+    GET_FORMAT_FUNC
   };
   enum optimize_type {
     OPTIMIZE_NONE,

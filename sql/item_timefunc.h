@@ -68,6 +68,7 @@ class Item_func_period_add final : public Item_int_func {
       : Item_int_func(pos, a, b) {}
   longlong val_int() override;
   const char *func_name() const override { return "period_add"; }
+  enum Functype functype() const override { return PERIODADD_FUNC; }
   bool resolve_type(THD *thd) override;
 };
 
@@ -77,6 +78,7 @@ class Item_func_period_diff final : public Item_int_func {
       : Item_int_func(pos, a, b) {}
   longlong val_int() override;
   const char *func_name() const override { return "period_diff"; }
+  enum Functype functype() const override { return PERIODDIFF_FUNC; }
   bool resolve_type(THD *thd) override;
 };
 
@@ -1204,6 +1206,7 @@ class Item_func_sysdate_local final : public Item_datetime_func {
   }
   const char *func_name() const override { return "sysdate"; }
   bool resolve_type(THD *) override;
+  enum Functype functype() const override { return SYSDATE_FUNC; }
   bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date) override;
   /**
     This function is non-deterministic and hence depends on the 'RAND'
@@ -1302,6 +1305,7 @@ class Item_func_sec_to_time final : public Item_time_func {
     return false;
   }
   const char *func_name() const override { return "sec_to_time"; }
+  enum Functype functype() const override { return SEC_TO_TIME_FUNC; }
   bool get_time(MYSQL_TIME *ltime) override;
 };
 
@@ -1553,6 +1557,7 @@ class Item_func_timediff final : public Item_time_func {
   Item_func_timediff(const POS &pos, Item *a, Item *b)
       : Item_time_func(pos, a, b) {}
   const char *func_name() const override { return "timediff"; }
+  enum Functype functype() const override { return TIMEDIFF_FUNC; }
   bool resolve_type(THD *thd) override {
     /*
       This function can operate on two TIME, or on two DATETIME (no mix).
@@ -1584,6 +1589,7 @@ class Item_func_maketime final : public Item_time_func {
     return false;
   }
   const char *func_name() const override { return "maketime"; }
+  enum Functype functype() const override { return MAKETIME_FUNC; }
   bool get_time(MYSQL_TIME *ltime) override;
 };
 
@@ -1636,6 +1642,7 @@ class Item_func_get_format final : public Item_str_ascii_func {
       : Item_str_ascii_func(pos, a), type(type_arg) {}
   String *val_str_ascii(String *str) override;
   const char *func_name() const override { return "get_format"; }
+  enum Functype functype() const override { return GET_FORMAT_FUNC; }
   bool resolve_type(THD *) override {
     set_nullable(true);
     set_data_type_string(17, default_charset());
@@ -1643,6 +1650,8 @@ class Item_func_get_format final : public Item_str_ascii_func {
   }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
+
+  enum_mysql_timestamp_type timestamp_type() const { return type; }
 };
 
 class Item_func_str_to_date final : public Item_temporal_hybrid_func {
