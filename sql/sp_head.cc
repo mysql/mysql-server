@@ -2526,14 +2526,14 @@ bool sp_head::init_external_routine(
   }
 
   if (m_language_stored_program == nullptr) {
-    if (service->init(reinterpret_cast<stored_program_handle>(this),
+    if (service->init(reinterpret_cast<stored_program_handle>(this), -1,
                       &m_language_stored_program)) {
       my_error(ER_LANGUAGE_COMPONENT_UNSUPPORTED_LANGUAGE, MYF(0),
                m_chistics->language.str);
       m_language_stored_program = nullptr;
       return true;
     }
-    if (service->parse(m_language_stored_program)) return true;
+    if (service->parse(m_language_stored_program, -1)) return true;
   }
   return false;
 }
@@ -2701,7 +2701,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       my_service<SERVICE_TYPE(external_program_execution)> service(
           "external_program_execution", srv_registry);
       if (!(err_status = init_external_routine(service))) {
-        err_status = service->execute(m_language_stored_program);
+        err_status = service->execute(m_language_stored_program, -1);
       }
     }
   }
@@ -2914,7 +2914,7 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
       my_service<SERVICE_TYPE(external_program_execution)> service(
           "external_program_execution", srv_registry);
       if (!(err_status = init_external_routine(service))) {
-        err_status = service->execute(m_language_stored_program);
+        err_status = service->execute(m_language_stored_program, -1);
       }
     }
   }

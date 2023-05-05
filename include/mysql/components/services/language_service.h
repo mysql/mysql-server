@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef LANGUAGE_SERVICE_GUARD
 #define LANGUAGE_SERVICE_GUARD
 
+#include <cstdint>
 #include "mysql/components/service.h"
 #include "mysql/components/services/bits/thd.h"
 
@@ -82,12 +83,13 @@ BEGIN_SERVICE_DEFINITION(external_program_execution)
 
   @param [in]  sp       The stored program used for associating
                         language sp state.
+  @param [in]  query_id The ID of the statement being executed.
   @param [out] lang_sp  external program pointer if created, nullptr otherwise.
   @return status of initialization
     @retval false Success
     @retval true  Error
 */
-DECLARE_BOOL_METHOD(init, (stored_program_handle sp,
+DECLARE_BOOL_METHOD(init, (stored_program_handle sp, int64_t query_id,
                            external_program_handle *lang_sp));
 
 /**
@@ -108,22 +110,25 @@ DECLARE_BOOL_METHOD(deinit, (MYSQL_THD thd, external_program_handle lang_sp,
 /**
   Parse given external program
 
-  @param [in] lang_sp The stored program state
+  @param [in] lang_sp  The stored program state.
+  @param [in] query_id The ID of the statement being executed.
   @returns Status of parsing
     @retval false Success
     @retval true  Error
 */
-DECLARE_BOOL_METHOD(parse, (external_program_handle lang_sp));
+DECLARE_BOOL_METHOD(parse, (external_program_handle lang_sp, int64_t query_id));
 
 /**
   Execute given external program
 
-  @param [in] lang_sp The stored program state
+  @param [in] lang_sp  The stored program state.
+  @param [in] query_id The ID of the statement being executed.
   @returns Status of execution
     @retval false Success
     @retval true  Error
 */
-DECLARE_BOOL_METHOD(execute, (external_program_handle lang_sp));
+DECLARE_BOOL_METHOD(execute,
+                    (external_program_handle lang_sp, int64_t query_id));
 
 END_SERVICE_DEFINITION(external_program_execution)
 
