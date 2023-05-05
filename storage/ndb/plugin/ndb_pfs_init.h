@@ -41,5 +41,6 @@ void ndb_pfs_deinit();
 
 // Keys registered for instrumented memory
 extern PSI_memory_key key_memory_thd_ndb_batch_mem_root;
+extern PSI_memory_key key_memory_ndb_dd_client_mem_root;
 
 #endif

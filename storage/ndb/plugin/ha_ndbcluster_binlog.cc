@@ -6005,6 +6005,8 @@ void Ndb_binlog_thread::inject_incident(
     Uint64 gap_epoch) const {
   DBUG_TRACE;
 
+  Ndb_thd_memory_guard inject_incident_guard(thd);
+
   const char *reason = "problem";
   if (event_type == NdbDictionary::Event::TE_INCONSISTENT) {
     reason = "missing data";
@@ -7297,7 +7299,6 @@ void Ndb_binlog_thread::do_run() {
 
   log_info("Started");
 
-  Ndb_binlog_setup binlog_setup(thd);
   Ndb_schema_dist_data schema_dist_data;
 
 restart_cluster_failure:
@@ -7390,6 +7391,9 @@ restart_cluster_failure:
   recall_pending_purges(thd);
 
   {
+    Ndb_binlog_setup binlog_setup(thd);
+    Ndb_thd_memory_guard binlog_setup_guard(thd);
+
     log_verbose(1, "Wait for cluster to start");
     thd->set_proc_info("Waiting for ndbcluster to start");
 
