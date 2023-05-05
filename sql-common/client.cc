@@ -4895,9 +4895,11 @@ int mysql_get_socket_descriptor(MYSQL *mysql) {
       <td>Value of the 1st client attribute</td></tr>
   <tr><td colspan="3">.. (if more data in length of all key-values, more keys and values parts)</td></tr>
   <tr><td colspan="3">}</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_ZSTD_COMPRESSION_ALGORITHM {</td></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
     <td>zstd_compression_level</td>
     <td>compression level for zstd compression algorithm</td></tr>
+  <tr><td colspan="3">}</td></tr>
   </table>
 
   Example
