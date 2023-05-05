@@ -1,0 +1,14 @@
+#
+# Bug #35336317: Deprecate mysql_native_password
+#
+include/assert_grep.inc [There shouldn't be a warning when no user authenticated with native]
+CREATE USER bug35336317@localhost IDENTIFIED WITH 'mysql_native_password';
+include/assert_grep.inc [There should be one warning from CREATE USER]
+# connect mysql_native_user
+include/assert_grep.inc [There should be a 2nd warning when authenticating mysql_native_password]
+ALTER USER bug35336317@localhost IDENTIFIED WITH 'mysql_native_password' BY 'foo';
+include/assert_grep.inc [There should be a 3nd warning from ALTER USER]
+SET PASSWORD FOR bug35336317@localhost = 'baz';
+include/assert_grep.inc [And a 4th warning from SET PASSWORD]
+DROP USER bug35336317@localhost;
+# End of 8.0 tests
