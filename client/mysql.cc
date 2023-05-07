@@ -4909,7 +4909,9 @@ static int com_status(String *buffer [[maybe_unused]],
     tee_fprintf(stdout, "TCP port:\t\t%d\n", mysql.port);
   else
     tee_fprintf(stdout, "UNIX socket:\t\t%s\n", mysql.unix_socket);
-  if (mysql.net.compress) tee_fprintf(stdout, "Protocol:\t\tCompressed\n");
+  if (mysql.net.compress) tee_fprintf(stdout,
+		  "Protocol:\t\tCompressed, algorithms: %s, zstd level: %d\n",
+		  opt_compress_algorithm, opt_zstd_compress_level);
   if (opt_binhex) tee_fprintf(stdout, "Binary data as:\t\tHexadecimal\n");
   if (mysql_get_ssl_session_reused(&mysql))
     tee_fprintf(stdout, "SSL session reused:\ttrue\n");
