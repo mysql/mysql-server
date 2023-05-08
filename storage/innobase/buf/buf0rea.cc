@@ -630,8 +630,8 @@ void buf_read_ibuf_merge_pages(bool sync, const space_id_t *space_ids,
   }
 }
 
-void buf_read_recv_pages(bool sync, space_id_t space_id,
-                         const page_no_t *page_nos, ulint n_stored) {
+void buf_read_recv_pages(space_id_t space_id, const page_no_t *page_nos,
+                         ulint n_stored) {
   ulint count;
   fil_space_t *space = fil_space_get(space_id);
 
@@ -693,13 +693,8 @@ void buf_read_recv_pages(bool sync, space_id_t space_id,
 
     dberr_t err;
 
-    if ((i + 1 == n_stored) && sync) {
-      buf_read_page_low(&err, true, 0, BUF_READ_ANY_PAGE, cur_page_id,
-                        page_size, true);
-    } else {
-      buf_read_page_low(&err, false, IORequest::DO_NOT_WAKE, BUF_READ_ANY_PAGE,
-                        cur_page_id, page_size, true);
-    }
+    buf_read_page_low(&err, false, IORequest::DO_NOT_WAKE, BUF_READ_ANY_PAGE,
+                      cur_page_id, page_size, true);
   }
 
   os_aio_simulated_wake_handler_threads();
