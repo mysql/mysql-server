@@ -225,7 +225,6 @@ int ndb_file::truncate(ndb_off_t end) const
   }
   return 0;
 }
-
 int ndb_file::allocate() const
 {
   ndb_off_t size = get_size();
@@ -236,20 +235,23 @@ int ndb_file::allocate() const
 #ifdef HAVE_XFS_XFS_H
   if (::platform_test_xfs_fd(m_handle))
   {
-    std::printf("Using xfsctl(XFS_IOC_RESVSP64) to allocate disk space");
+    std::printf("Using xfsctl(XFS_IOC_RESVSP64) to allocate disk space"
+                ", size: %lu\n", size);
     xfs_flock64_t fl;
     fl.l_whence= 0;
     fl.l_start= 0;
     fl.l_len= (ndb_off_t)size;
     if (::xfsctl(NULL, m_handle, XFS_IOC_RESVSP64, &fl) < 0)
     {
-      std::printf("failed to optimally allocate disk space");
+      std::printf("failed to optimally allocate disk space\n");
       return -1;
     }
     return 0;
   }
 #endif
 #ifdef HAVE_POSIX_FALLOCATE
+  std::printf("Using posix_fallocate to allocate disk space"
+              ", size: %llu\n", size);
   return ::posix_fallocate(m_handle, 0, size);
 #else
   errno = ENOSPC;
@@ -535,3 +537,30 @@ int ndb_file::reopen_with_sync(const char name[])
 
   return 0;
 }
+
+int ndb_file::init_zero(ndb_off_t data_size, ndb_off_t offset) const
+{
+#ifdef HAVE_XFS_XFS_H
+  if (::platform_test_xfs_fd(m_handle))
+  {
+    std::printf("Using xfsctl(XFS_IOC_ZERO_RANGE) to zero disk space,"
+                " data_size: %lu, offset: %lu\n", data_size, offset);
+    xfs_flock64_t fl;
+    fl.l_whence= 0;
+    fl.l_start= (off64_t)start_offset;
+    fl.l_len= (off64_t)data_size;
+    if (::xfsctl(NULL, m_handle, XFS_IOC_ZERO_RANGE, &fl) < 0)
+    {
+      std::printf("failed to optimally zero disk space\n");
+      return -1;
+    }
+  }
+#endif
+#ifdef HAVE_FALLOCATE
+  std::printf("Using fallocate to zero disk space, data_size: %llu,"
+              " offset: %llu\n", data_size, offset);
+  return fallocate(m_handle, FALLOC_FL_ZERO_RANGE, offset, data_size);
+#endif
+  return -1;
+}
+

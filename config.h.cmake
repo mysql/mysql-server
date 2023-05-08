@@ -1,4 +1,5 @@
 /* Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2023, 2023, Hopsworks and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -73,6 +74,7 @@
 #cmakedefine HAVE_CHOWN 1
 #cmakedefine HAVE_CUSERID 1
 #cmakedefine HAVE_DIRECTIO 1
+#cmakedefine HAVE_FALLOCATE 1
 #cmakedefine HAVE_FTRUNCATE 1
 #cmakedefine HAVE_FCHMOD 1
 #cmakedefine HAVE_FCNTL 1

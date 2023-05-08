@@ -2002,7 +2002,7 @@ Ndbfs::get_filename(Uint32 fd) const
   return "";
 }
 
-void Ndbfs::callFSWRITEREQ(BlockReference ref, FsReadWriteReq* req) const
+Uint32 Ndbfs::callFSWRITEREQ(BlockReference ref, FsReadWriteReq* req) const
 {
   Uint32 block = refToMain(ref);
   Uint32 instance = refToInstance(ref);
@@ -2017,17 +2017,18 @@ void Ndbfs::callFSWRITEREQ(BlockReference ref, FsReadWriteReq* req) const
   switch (block)
   {
   case DBLQH:
-    static_cast<Dblqh*>(rec_block)->execFSWRITEREQ(req);
+    return static_cast<Dblqh*>(rec_block)->execFSWRITEREQ(req);
     break;
   case TSMAN:
-    static_cast<Tsman*>(rec_block)->execFSWRITEREQ(req);
+    return static_cast<Tsman*>(rec_block)->execFSWRITEREQ(req);
     break;
   case LGMAN:
-    static_cast<Lgman*>(rec_block)->execFSWRITEREQ(req);
+    return static_cast<Lgman*>(rec_block)->execFSWRITEREQ(req);
     break;
   default:
     ndbabort();
   }
+  return 0;
 }
 
 #if defined(VM_TRACE) || defined(ERROR_INSERT) || !defined(NDEBUG)

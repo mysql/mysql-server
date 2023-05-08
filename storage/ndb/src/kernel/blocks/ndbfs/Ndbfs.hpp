@@ -1,5 +1,6 @@
 /*
    Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2023, 2023, Hopsworks and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +54,7 @@ public:
 
   static Uint32 translateErrno(int aErrno);
 
-  void callFSWRITEREQ(BlockReference ref, FsReadWriteReq* req) const;
+  Uint32 callFSWRITEREQ(BlockReference ref, FsReadWriteReq* req) const;
 protected:
   BLOCK_DEFINES(Ndbfs);
 

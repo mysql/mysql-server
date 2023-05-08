@@ -178,6 +178,10 @@ public:
    * Reserve disk blocks for entire file.
    */
   int allocate() const;
+  /*
+   * Zero all disk pages allocated by allocate (avoid headers)
+   */
+  int init_zero(ndb_off_t data_size, ndb_off_t offset) const;
 
   int set_block_size_and_alignment(size_t size, size_t alignment);
   bool have_direct_io_support() const;

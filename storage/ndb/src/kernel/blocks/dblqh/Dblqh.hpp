@@ -2982,7 +2982,8 @@ private:
   }
 
 public:
-  void execFSWRITEREQ(const FsReadWriteReq*) const /* called direct cross threads from Ndbfs */;
+  /* called direct cross threads from Ndbfs */
+  Uint32 execFSWRITEREQ(const FsReadWriteReq*) const;
   void execLQH_WRITELOG_REQ(Signal* signal);
   void execTUP_ATTRINFO(Signal* signal);
   void execREAD_PSEUDO_REQ(Uint32 opPtrI, Uint32 attrId, Uint32* out, Uint32 out_words);

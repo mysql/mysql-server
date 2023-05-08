@@ -1097,7 +1097,7 @@ Tsman::open_file(Signal* signal,
   return 0;
 }
 
-void
+Uint32
 Tsman::execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross threads from Ndbfs */
 {
   /**
@@ -1133,12 +1133,20 @@ Tsman::execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross th
   Uint32 size = ptr.p->m_extent_size;
   Uint32 extent_pages = ptr.p->m_create.m_extent_pages;
   Uint32 datapages = ptr.p->m_create.m_data_pages;
+  Uint32 init_zero = req->data.zeroPageIndicator.initZero;
 
   bool v2 = (ptr.p->m_ndb_version >= NDB_DISK_V2);
   Uint32 header_words = File_formats::Datafile::extent_header_words(size, v2);
   Uint32 per_page = File_formats::Datafile::extent_page_words(v2) / header_words;
   Uint32 extents = datapages/size;
 
+  if ((init_zero == 0) &&
+      page_no > 0 &&
+      ((page_no - 1) >= extent_pages))
+  {
+    /* No need to write to page, it is already zero:ed */
+    return 2;
+  }
   client_lock(0);
   if (page_no == 0)
   {
@@ -1238,6 +1246,7 @@ Tsman::execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross th
     page_header->m_page_type = File_formats::PT_Unallocated;
   }
   client_unlock(0);
+  return 0;
 }
 
 void
@@ -1509,7 +1518,7 @@ Tsman::execFSREADCONF(Signal* signal){
     if(page->m_extent_headers_per_page != per_page)
       break;
     
-    osError = 10;    
+    osError = 10;
     Uint32 extents = page->m_data_pages / ptr.p->m_extent_size;
     if(page->m_extent_count != extents)
       break;

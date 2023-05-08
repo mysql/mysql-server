@@ -343,6 +343,7 @@ class ndbxfrm_file
   int read_forward(ndbxfrm_output_iterator* out);
   int read_backward(ndbxfrm_output_reverse_iterator* out);
   ndb_off_t move_to_end();
+  ndb_off_t get_payload_start() const;
 
  private:
   // file fixed properties
@@ -480,4 +481,8 @@ inline bool ndbxfrm_file::is_definite_offset(ndb_off_t offset)
   return (offset != INDEFINITE_OFFSET);
 }
 
+inline ndb_off_t ndbxfrm_file::get_payload_start() const
+{
+  return m_payload_start;
+}
 #endif

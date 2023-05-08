@@ -1,4 +1,5 @@
 # Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+# Copyright (c) 2023, 2023, Hopsworks and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -231,6 +232,7 @@ CHECK_FUNCTION_EXISTS (index HAVE_INDEX)
 CHECK_FUNCTION_EXISTS (chown HAVE_CHOWN)
 CHECK_FUNCTION_EXISTS (cuserid HAVE_CUSERID)
 CHECK_FUNCTION_EXISTS (directio HAVE_DIRECTIO)
+CHECK_FUNCTION_EXISTS (fallocate HAVE_FALLOCATE)
 CHECK_FUNCTION_EXISTS (ftruncate HAVE_FTRUNCATE)
 CHECK_FUNCTION_EXISTS (fchmod HAVE_FCHMOD)
 CHECK_FUNCTION_EXISTS (fcntl HAVE_FCNTL)
