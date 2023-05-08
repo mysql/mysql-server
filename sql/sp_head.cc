@@ -3072,11 +3072,19 @@ void sp_head::set_info(longlong created, longlong modified,
   m_modified = modified;
   m_chistics = (st_sp_chistics *)memdup_root(&main_mem_root, (char *)chistics,
                                              sizeof(*chistics));
+
+  if (m_chistics->language.length == 0)
+    m_chistics->language.str = nullptr;
+  else
+    m_chistics->language.str = strmake_root(
+        &main_mem_root, m_chistics->language.str, m_chistics->language.length);
+
   if (m_chistics->comment.length == 0)
     m_chistics->comment.str = nullptr;
   else
     m_chistics->comment.str = strmake_root(
         &main_mem_root, m_chistics->comment.str, m_chistics->comment.length);
+
   m_sql_mode = sql_mode;
 }
 

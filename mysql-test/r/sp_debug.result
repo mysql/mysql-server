@@ -289,3 +289,30 @@ Warnings:
 Warning	4005	User 'usr_definer'@'localhost' is referenced as a definer account in a stored routine.
 DROP ROLE role_show_routine;
 DROP SCHEMA testdb;
+#
+# Bug#35067523: heap-use-after-free in sp_head::is_sql when calling stored function
+#
+#
+CREATE FUNCTION f1() RETURNS INT return 1;
+CREATE PROCEDURE p1() SELECT 1;
+SET SESSION DEBUG='+d,simulate_dd_elements_cache_full';
+# DD object for routines f1 and p1 are not cached in the DD caches.
+# sp_head object is created from the DD object, and it is cached.
+SELECT f1();
+f1()
+1
+CALL p1();
+1
+1
+# Subsequent calls to routines uses sp_head cached.
+# Without fix, member of sp_head referring to language in DD object,
+# instead of creating copy of it, results in the issue reported.
+SELECT f1();
+f1()
+1
+CALL p1();
+1
+1
+SET SESSION DEBUG='-d,simulate_dd_elements_cache_full';
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
