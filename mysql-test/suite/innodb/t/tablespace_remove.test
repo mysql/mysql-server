@@ -4,6 +4,7 @@
 # 
 # Crash between MLOG_FILE_RENAME is written to redo and the file is removed.
 
+--source include/have_innodb_max_16k.inc
 --source include/not_valgrind.inc
 
 # the DBUG_EXECUTE_IF() macro needs a debug server.
