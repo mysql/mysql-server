@@ -131,13 +131,13 @@ class GraphSimplifier {
 
   // How many steps we've (successfully) done and not undone.
   int num_steps_done() const {
-    assert(m_done_steps.size() < std::numeric_limits<int>::max());
+    assert(m_done_steps.size() < size_t{std::numeric_limits<int>::max()});
     return static_cast<int>(m_done_steps.size());
   }
 
   // How many steps we've undone.
   int num_steps_undone() const {
-    assert(m_undone_steps.size() < std::numeric_limits<int>::max());
+    assert(m_undone_steps.size() < size_t{std::numeric_limits<int>::max()});
     return static_cast<int>(m_undone_steps.size());
   }
 
