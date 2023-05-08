@@ -183,10 +183,20 @@ return unix_timestamp();
 end|
 ERROR HY000: You do not have the SUPER privilege and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)
 set @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 set global log_bin_trust_function_creators=0;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 set global log_bin_trust_function_creators=1;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 set @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 set global log_bin_trust_function_creators=1;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 create function fn2()
 returns int
 no sql
@@ -575,7 +585,11 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `mysqltest`; SELECT `mysqltest2`.`f1`()
 master-bin.000001	#	Query	#	#	COMMIT
 set @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 set @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 drop database mysqltest;
 drop database mysqltest2;
 use test;

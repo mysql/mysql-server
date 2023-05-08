@@ -560,7 +560,8 @@ The following options may be given as the first argument:
  logging. Note that if ALL connections to this server
  ALWAYS use row-based binary logging, the security issues
  do not exist and the binary logging cannot break, so you
- can safely set this to TRUE
+ can safely set this to TRUE. This variable is deprecated
+ and will be removed in a future version.
  --log-bin-use-v1-row-events 
  If equal to 1 then version 1 row events are written to a
  row based binary log.  If equal to 0, then the latest
@@ -614,7 +615,8 @@ The following options may be given as the first argument:
  log_slow_replica_statements instead.
  --log-statements-unsafe-for-binlog 
  Log statements considered unsafe when using statement
- based binary logging.
+ based binary logging. This variable is deprecated and
+ will be removed in a future version.
  (Defaults to on; use --skip-log-statements-unsafe-for-binlog to disable.)
  --log-tc=name       Path to transaction coordinator log (used for
  transactions that affect more than one storage engine,

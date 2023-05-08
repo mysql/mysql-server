@@ -84,6 +84,9 @@ ERROR HY000: Variable 'log_bin_basename' is a read only variable
 SET PERSIST log_bin_index = @@GLOBAL.log_bin_index;
 ERROR HY000: Variable 'log_bin_index' is a read only variable
 SET PERSIST log_bin_trust_function_creators = @@GLOBAL.log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SET PERSIST log_bin_use_v1_row_events = @@GLOBAL.log_bin_use_v1_row_events;
 ERROR HY000: Variable 'log_bin_use_v1_row_events' is a non persistent variable
 SET PERSIST log_replica_updates = @@GLOBAL.log_replica_updates;
@@ -96,6 +99,9 @@ Warnings:
 Warning	1287	'@@log_slow_slave_statements' is deprecated and will be removed in a future release. Please use log_slow_replica_statements instead.
 Warning	1287	'@@log_slow_slave_statements' is deprecated and will be removed in a future release. Please use log_slow_replica_statements instead.
 SET PERSIST log_statements_unsafe_for_binlog = @@GLOBAL.log_statements_unsafe_for_binlog;
+Warnings:
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
+Warning	1287	'@@log_statements_unsafe_for_binlog' is deprecated and will be removed in a future release.
 SET PERSIST master_info_repository = @@GLOBAL.master_info_repository;
 Warnings:
 Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.

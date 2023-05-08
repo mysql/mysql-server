@@ -268,7 +268,11 @@ convert_tz(NULL, NULL, NULL)
 NULL
 drop table t1;
 SET @old_log_bin_trust_function_creators = @@global.log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 SET GLOBAL log_bin_trust_function_creators = 1;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 create table t1 (ldt datetime, udt datetime);
 create function f1(i datetime) returns datetime
 return convert_tz(i, 'UTC', 'Europe/Moscow');
@@ -284,6 +288,8 @@ ldt	ldt2
 drop table t1;
 drop function f1;
 SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
+Warnings:
+Warning	1287	'@@log_bin_trust_function_creators' is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (t TIMESTAMP);
 INSERT INTO t1 VALUES (NULL), (NULL);
