@@ -2112,6 +2112,7 @@ EXPLAIN
 
 SET @a = 2;
 SET @b = '2023-05-06 16:49:45';
+SET timestamp=UNIX_TIMESTAMP('2023-05-06 16:49:45');
 EXECUTE stmt USING @a, @b;
 EXPLAIN
 -> Table scan on dt  (rows=2)
@@ -2121,6 +2122,7 @@ EXPLAIN
         -> Filter: (t1.f1 = 0)  (rows=1)
             -> Table scan on t1  (rows=1)
 
+SET timestamp=default;
 DROP TABLE t1;
 #
 # Bug#34298238: Assertion `cond->is_bool_func()' failed in MySQL 8.0.29
