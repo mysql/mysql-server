@@ -237,6 +237,7 @@ struct RouterAttributes {
   std::string metadata_user_name;
   std::string rw_classic_port;
   std::string ro_classic_port;
+  std::string rw_split_classic_port;
   std::string rw_x_port;
   std::string ro_x_port;
 };

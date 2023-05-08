@@ -271,11 +271,12 @@ bool ClusterMetadata::update_router_attributes(
     query =
         "UPDATE mysql_innodb_cluster_metadata.routers "
         "SET attributes = "
-        "JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET( "
+        "JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET( "
         "IF(attributes IS NULL, '{}', attributes), "
         "'$.version', ?), "
         "'$.RWEndpoint', ?), "
         "'$.ROEndpoint', ?), "
+        "'$.RWSplitEndpoint', ?), "
         "'$.RWXEndpoint', ?), "
         "'$.ROXEndpoint', ?), "
         "'$.MetadataUser', ?) "
@@ -284,10 +285,11 @@ bool ClusterMetadata::update_router_attributes(
     query =
         "UPDATE mysql_innodb_cluster_metadata.v2_routers "
         "SET version = ?, last_check_in = NOW(), attributes = "
-        "JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET( "
+        "JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET( "
         "IF(attributes IS NULL, '{}', attributes), "
         "'$.RWEndpoint', ?), "
         "'$.ROEndpoint', ?), "
+        "'$.RWSplitEndpoint', ?), "
         "'$.RWXEndpoint', ?), "
         "'$.ROXEndpoint', ?), "
         "'$.MetadataUser', ?) "
@@ -296,8 +298,8 @@ bool ClusterMetadata::update_router_attributes(
 
   const auto &ra{router_attributes};
   query << MYSQL_ROUTER_VERSION << ra.rw_classic_port << ra.ro_classic_port
-        << ra.rw_x_port << ra.ro_x_port << ra.metadata_user_name << router_id
-        << sqlstring::end;
+        << ra.rw_split_classic_port << ra.rw_x_port << ra.ro_x_port
+        << ra.metadata_user_name << router_id << sqlstring::end;
 
   connection->execute(query);
 

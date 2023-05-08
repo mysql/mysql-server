@@ -67,13 +67,17 @@ static metadata_cache::RouterAttributes get_router_attributes(
       const auto protocol = routing_section->get("protocol");
       const auto destinations = routing_section->get("destinations");
 
-      const bool is_rw =
-          mysql_harness::utility::ends_with(destinations, "PRIMARY");
-      const bool is_ro =
-          mysql_harness::utility::ends_with(destinations, "SECONDARY");
+      const bool is_rw_split = routing_section->has("access_mode") &&
+                               routing_section->get("access_mode") == "auto";
+      const bool is_rw = !is_rw_split && mysql_harness::utility::ends_with(
+                                             destinations, "PRIMARY");
+      const bool is_ro = !is_rw_split && mysql_harness::utility::ends_with(
+                                             destinations, "SECONDARY");
 
       if (protocol == "classic") {
-        if (is_rw)
+        if (is_rw_split)
+          result.rw_split_classic_port = port;
+        else if (is_rw)
           result.rw_classic_port = port;
         else if (is_ro)
           result.ro_classic_port = port;

@@ -124,8 +124,10 @@ class ConfigGenerator {
 
     Endpoint rw_endpoint;
     Endpoint ro_endpoint;
+    Endpoint rw_split_endpoint;
     Endpoint rw_x_endpoint;
     Endpoint ro_x_endpoint;
+    bool disable_rw_split_endpoint{false};
 
     std::string override_logdir;
     std::string override_logfilename;

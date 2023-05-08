@@ -103,6 +103,7 @@ var defaults = {
   router_version: "",
   router_rw_classic_port: "",
   router_ro_classic_port: "",
+  router_rw_split_classic_port: "",
   router_rw_x_port: "",
   router_ro_x_port: "",
   router_metadata_user: "",
@@ -560,9 +561,9 @@ function get_response(stmt_key, options) {
     case "router_update_routers_in_metadata_v1":
       return {
         "stmt_regex":
-            "^UPDATE mysql_innodb_cluster_metadata\\.routers SET attributes =    " +
-            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
-            "'\\$\\.version', '.*'\\),    '\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    " +
+            "^UPDATE mysql_innodb_cluster_metadata\\.routers SET attributes = " +
+            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
+            "'\\$\\.version', '.*'\\),    '\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWSplitEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    " +
             "'\\$\\.ROXEndpoint', '.*'\\),    '\\$.MetadataUser', 'mysql_router.*'\\),    '\\$.bootstrapTargetType', '.*'\\) " +
             "WHERE router_id = .*",
         "ok": {}
@@ -570,9 +571,9 @@ function get_response(stmt_key, options) {
     case "router_update_routers_in_metadata":
       return {
         "stmt_regex":
-            "^UPDATE mysql_innodb_cluster_metadata\\.v2_routers SET attributes =    " +
-            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
-            "'\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    " +
+            "^UPDATE mysql_innodb_cluster_metadata\\.v2_routers SET attributes = " +
+            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
+            "'\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWSplitEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    " +
             "'\\$\\.ROXEndpoint', '.*'\\),    '\\$\\.MetadataUser', '.*'\\),    '\\$\\.bootstrapTargetType', '.*'\\), " +
             "version = '.*', cluster_id = '.*' " +
             "WHERE router_id = .*",
@@ -581,9 +582,9 @@ function get_response(stmt_key, options) {
     case "router_clusterset_update_routers_in_metadata":
       return {
         "stmt_regex":
-            "^UPDATE mysql_innodb_cluster_metadata\\.v2_routers SET attributes =    " +
-            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
-            "'\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    " +
+            "^UPDATE mysql_innodb_cluster_metadata\\.v2_routers SET attributes = " +
+            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
+            "'\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWSplitEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    " +
             "'\\$\\.ROXEndpoint', '.*'\\),    '\\$\\.MetadataUser', '.*'\\),    '\\$\\.bootstrapTargetType', '.*'\\), " +
             "version = '.*', clusterset_id = '.*' " +
             "WHERE router_id = .*",
@@ -845,9 +846,9 @@ function get_response(stmt_key, options) {
     case "router_update_attributes_v1":
       return {
         "stmt_regex": "UPDATE mysql_innodb_cluster_metadata\\.routers" +
-            " SET attributes = JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(" +
+            " SET attributes = JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(" +
             " IF\\(attributes IS NULL, '\\{\\}', attributes\\), '\\$\\.version', '.*'\\)," +
-            " '\\$\\.RWEndpoint', '.*'\\), '\\$\\.ROEndpoint', '.*'\\), '\\$\\.RWXEndpoint', '.*'\\)," +
+            " '\\$\\.RWEndpoint', '.*'\\), '\\$\\.ROEndpoint', '.*'\\), '\\$\\.RWSplitEndpoint', '.*'\\), '\\$\\.RWXEndpoint', '.*'\\)," +
             " '\\$\\.ROXEndpoint', '.*'\\), '\\$\\.MetadataUser', '.*'\\) WHERE router_id = " +
             options.router_id,
         "ok": {}
@@ -856,14 +857,16 @@ function get_response(stmt_key, options) {
       // the exact match, not regex
       return {
         "stmt": "UPDATE mysql_innodb_cluster_metadata.routers" +
-            " SET attributes = JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(" +
+            " SET attributes = JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(" +
             " IF(attributes IS NULL, '{}', attributes)," +
             " '$.version', '" + options.router_version +
             "'), '$.RWEndpoint', '" + options.router_rw_classic_port +
             "'), '$.ROEndpoint', '" + options.router_ro_classic_port +
-            "'), '$.RWXEndpoint', '" + options.router_rw_x_port +
-            "'), '$.ROXEndpoint', '" + options.router_ro_x_port +
-            "'), '$.MetadataUser', '" + options.router_metadata_user +
+            "'), '$.RWSplitEndpoint', '" +
+            options.router_rw_split_classic_port + "'), '$.RWXEndpoint', '" +
+            options.router_rw_x_port + "'), '$.ROXEndpoint', '" +
+            options.router_ro_x_port + "'), '$.MetadataUser', '" +
+            options.router_metadata_user +
             "') WHERE router_id = " + options.router_id,
         "ok": {}
       };
@@ -890,9 +893,9 @@ function get_response(stmt_key, options) {
     case "router_update_attributes_v2":
       return {
         "stmt_regex": "UPDATE mysql_innodb_cluster_metadata\\.v2_routers" +
-            " SET version = .*, last_check_in = NOW\\(\\), attributes = JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(" +
+            " SET version = .*, last_check_in = NOW\\(\\), attributes = JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(" +
             " IF\\(attributes IS NULL, '\\{\\}', attributes\\)," +
-            " '\\$\\.RWEndpoint', '.*'\\), '\\$\\.ROEndpoint', '.*'\\), '\\$\\.RWXEndpoint', '.*'\\)," +
+            " '\\$\\.RWEndpoint', '.*'\\), '\\$\\.ROEndpoint', '.*'\\), '\\$\\.RWSplitEndpoint', '.*'\\), '\\$\\.RWXEndpoint', '.*'\\)," +
             " '\\$\\.ROXEndpoint', '.*'\\), '\\$\\.MetadataUser', '.*'\\) WHERE router_id = .*",
         "ok": {}
       };
@@ -901,13 +904,15 @@ function get_response(stmt_key, options) {
         "stmt": "UPDATE mysql_innodb_cluster_metadata.v2_routers" +
             " SET version = '" + options.router_version +
             "', last_check_in = NOW()" +
-            ", attributes = JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(" +
+            ", attributes = JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(" +
             " IF(attributes IS NULL, '{}', attributes)," +
             " '$.RWEndpoint', '" + options.router_rw_classic_port +
             "'), '$.ROEndpoint', '" + options.router_ro_classic_port +
-            "'), '$.RWXEndpoint', '" + options.router_rw_x_port +
-            "'), '$.ROXEndpoint', '" + options.router_ro_x_port +
-            "'), '$.MetadataUser', '" + options.router_metadata_user +
+            "'), '$.RWSplitEndpoint', '" +
+            options.router_rw_split_classic_port + "'), '$.RWXEndpoint', '" +
+            options.router_rw_x_port + "'), '$.ROXEndpoint', '" +
+            options.router_ro_x_port + "'), '$.MetadataUser', '" +
+            options.router_metadata_user +
             "') WHERE router_id = " + options.router_id,
         "ok": {}
       };

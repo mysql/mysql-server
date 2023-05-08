@@ -202,6 +202,17 @@ destinations=metadata-cache://mycluster/?role=SECONDARY
 routing_strategy=round-robin-with-fallback
 protocol=classic
 
+[routing:bootstrap_rw_split]
+bind_address=0.0.0.0
+bind_port=6450
+destinations=metadata-cache://mycluster/?role=PRIMARY_AND_SECONDARY
+routing_strategy=round-robin
+protocol=classic
+connection_sharing=1
+client_ssl_mode=PREFERRED
+server_ssl_mode=PREFERRED
+access_mode=auto
+
 [routing:bootstrap_x_rw]
 bind_address=0.0.0.0
 bind_port=6448
@@ -242,6 +253,17 @@ bind_port=6447
 destinations=metadata-cache://mycluster/?role=SECONDARY
 routing_strategy=round-robin-with-fallback
 protocol=classic
+
+[routing:bootstrap_rw_split]
+bind_address=0.0.0.0
+bind_port=6450
+destinations=metadata-cache://mycluster/?role=PRIMARY_AND_SECONDARY
+routing_strategy=round-robin
+protocol=classic
+connection_sharing=1
+client_ssl_mode=PREFERRED
+server_ssl_mode=PREFERRED
+access_mode=auto
 
 [routing:bootstrap_x_rw]
 bind_address=0.0.0.0

@@ -45,6 +45,10 @@ if (mysqld.global.router_ro_classic_port === undefined) {
   mysqld.global.router_ro_classic_port = "";
 }
 
+if (mysqld.global.router_rw_split_classic_port === undefined) {
+  mysqld.global.router_rw_split_classic_port = "";
+}
+
 if (mysqld.global.router_rw_x_port === undefined) {
   mysqld.global.router_rw_x_port = "";
 }

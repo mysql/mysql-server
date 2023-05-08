@@ -68,6 +68,7 @@
 #include "mysql/harness/vt100.h"
 #include "mysqld_error.h"
 #include "mysqlrouter/default_paths.h"
+#include "mysqlrouter/supported_connection_pool_options.h"
 #include "mysqlrouter/supported_http_options.h"
 #include "mysqlrouter/supported_metadata_cache_options.h"
 #include "mysqlrouter/supported_rest_options.h"
@@ -86,8 +87,10 @@ IMPORT_LOG_FUNCTIONS()
 
 static const int kDefaultRWPort = 6446;
 static const int kDefaultROPort = 6447;
+static const int kDefaultRWSplitPort = 6450;
 static const char *kRWSocketName = "mysql.sock";
 static const char *kROSocketName = "mysqlro.sock";
+static const char *kRWSplitSocketName = "mysqlsplit.sock";
 
 // these were defaults for the pre-8.0.24, we still use them for compatibility
 // (--conf-base-port=0 or bootstrapping over the existing configuration)
@@ -885,6 +888,10 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
     options.bind_address = user_options.at("bind-address");
   }
 
+  if (user_options.find("disable-rw-split") != user_options.end()) {
+    options.disable_rw_split_endpoint = true;
+  }
+
   // if not given as a parameter we want consecutive numbers starting with 6446
   bool use_default_ports{false};
   if (base_port == kBasePortDefault) {
@@ -902,12 +909,19 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
         base_port == kBasePortLegacyDefault ? kDefaultRWPort : base_port;
     options.ro_endpoint.port =
         base_port == kBasePortLegacyDefault ? kDefaultROPort : base_port + 1;
+    if (!options.disable_rw_split_endpoint)
+      options.rw_split_endpoint.port = base_port == kBasePortLegacyDefault
+                                           ? kDefaultRWSplitPort
+                                           : base_port + 4;
   }
 
   // x protocol endpoints
   if (use_sockets) {
     options.rw_x_endpoint.socket = kRWXSocketName;
     options.ro_x_endpoint.socket = kROXSocketName;
+    if (!options.disable_rw_split_endpoint) {
+      options.rw_split_endpoint.socket = kRWSplitSocketName;
+    }
   }
   if (!skip_tcp) {
     // if "base-port" param was not provided AND we are overwriting an
@@ -1801,6 +1815,7 @@ std::tuple<std::string> ConfigGenerator::try_bootstrap_deployment(
 
   const std::string rw_endpoint = str(options.rw_endpoint);
   const std::string ro_endpoint = str(options.ro_endpoint);
+  const std::string rw_split_endpoint = str(options.rw_split_endpoint);
   const std::string rw_x_endpoint = str(options.rw_x_endpoint);
   const std::string ro_x_endpoint = str(options.ro_x_endpoint);
   const std::string target_cluster =
@@ -1815,8 +1830,8 @@ std::tuple<std::string> ConfigGenerator::try_bootstrap_deployment(
           : cluster_info.cluster_id;
 
   metadata_->update_router_info(router_id, cluster_id, target_cluster,
-                                rw_endpoint, ro_endpoint, rw_x_endpoint,
-                                ro_x_endpoint, username);
+                                rw_endpoint, ro_endpoint, rw_split_endpoint,
+                                rw_x_endpoint, ro_x_endpoint, username);
 
   transaction.commit();
 
@@ -2149,20 +2164,44 @@ void add_endpoint_option(ConfigSectionPrinter &routing_section,
   }
 }
 
+enum class EndpointMode {
+  kEndpointModeRW,
+  kEndpointModeRO,
+  kEndpointModeRWSplit
+};
+
 void add_metadata_cache_routing_section(
-    std::ostream &config_file, bool is_classic, bool is_writable,
+    std::ostream &config_file, bool is_classic,
+    const EndpointMode endpoint_mode,
     const ConfigGenerator::Options::Endpoint endpoint,
     const ConfigGenerator::Options &options, const std::string &metadata_key,
     const std::string &cluster_name,
     const std::map<std::string, std::string> &config_cmdln_options) {
   if (!endpoint) return;
 
-  const std::string key_suffix =
-      std::string(is_classic ? "" : "_x") + (is_writable ? "_rw" : "_ro");
-  const std::string role = is_writable ? "PRIMARY" : "SECONDARY";
-  const std::string strategy =
-      is_writable ? "first-available" : "round-robin-with-fallback";
+  std::string role, strategy;
+  std::string key_suffix = std::string(is_classic ? "" : "_x");
+
+  switch (endpoint_mode) {
+    case EndpointMode::kEndpointModeRW:
+      role = "PRIMARY";
+      strategy = "first-available";
+      key_suffix += "_rw";
+      break;
+    case EndpointMode::kEndpointModeRO:
+      role = "SECONDARY";
+      strategy = "round-robin-with-fallback";
+      key_suffix += "_ro";
+      break;
+    case EndpointMode::kEndpointModeRWSplit:
+      role = "PRIMARY_AND_SECONDARY";
+      strategy = "round-robin";
+      key_suffix += "_rw_split";
+      break;
+  }
+
   const std::string protocol = is_classic ? "classic" : "x";
+
   // kept for backward compatibility, always empty
   const std::string metadata_replicaset{""};
 
@@ -2177,6 +2216,16 @@ void add_metadata_cache_routing_section(
                           routing_supported_options);
   ADD_CONFIG_LINE_CHECKED(routing_section, "protocol", protocol,
                           routing_supported_options);
+  if (endpoint_mode == EndpointMode::kEndpointModeRWSplit) {
+    ADD_CONFIG_LINE_CHECKED(routing_section, "connection_sharing", "1",
+                            routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(routing_section, "client_ssl_mode", "PREFERRED",
+                            routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(routing_section, "server_ssl_mode", "PREFERRED",
+                            routing_supported_options);
+    ADD_CONFIG_LINE_CHECKED(routing_section, "access_mode", "auto",
+                            routing_supported_options);
+  }
 }
 
 /**
@@ -2404,6 +2453,8 @@ void ConfigGenerator::create_config(
                             routing_supported_options);
     ADD_CONFIG_LINE_CHECKED(default_section, "unknown_config_option", "error",
                             loader_supported_options);
+    ADD_CONFIG_LINE_CHECKED(default_section, "max_idle_server_connections",
+                            "64", connection_pool_supported_options);
   }
 
   save_initial_dynamic_state(state_file, *metadata_.get(), cluster_specific_id_,
@@ -2492,17 +2543,21 @@ void ConfigGenerator::create_config(
   // The cert and key options passed to bootstrap if for the bootstrap
   // connection itself.
 
-  auto add_mdc_rt_sect = [&](bool is_classic, bool is_writable,
+  auto add_mdc_rt_sect = [&](bool is_classic, EndpointMode endpoint_mode,
                              Options::Endpoint endpoint) {
-    add_metadata_cache_routing_section(config_file, is_classic, is_writable,
+    add_metadata_cache_routing_section(config_file, is_classic, endpoint_mode,
                                        endpoint, options,
                                        kDefaultMetadataCacheSectionKey,
                                        cluster_info.name, config_cmdln_options);
   };
-  add_mdc_rt_sect(true, true, options.rw_endpoint);
-  add_mdc_rt_sect(true, false, options.ro_endpoint);
-  add_mdc_rt_sect(false, true, options.rw_x_endpoint);
-  add_mdc_rt_sect(false, false, options.ro_x_endpoint);
+  add_mdc_rt_sect(true, EndpointMode::kEndpointModeRW, options.rw_endpoint);
+  add_mdc_rt_sect(true, EndpointMode::kEndpointModeRO, options.ro_endpoint);
+  if (!options.disable_rw_split_endpoint) {
+    add_mdc_rt_sect(true, EndpointMode::kEndpointModeRWSplit,
+                    options.rw_split_endpoint);
+  }
+  add_mdc_rt_sect(false, EndpointMode::kEndpointModeRW, options.rw_x_endpoint);
+  add_mdc_rt_sect(false, EndpointMode::kEndpointModeRO, options.ro_x_endpoint);
 
   if (!options.disable_rest) {
     add_rest_section(config_file, options, default_paths, config_cmdln_options,
@@ -2591,11 +2646,13 @@ std::string ConfigGenerator::get_bootstrap_report_text(
      << "' can be reached by connecting to:\n"
      << std::endl;
 
-  auto dump_sockets = [&ss, &hostname](const std::string &section,
-                                       const std::string &socketsdir,
-                                       const Options::Endpoint &rw_endpoint,
-                                       const Options::Endpoint &ro_endpoint) {
-    if (rw_endpoint || ro_endpoint) {
+  auto dump_sockets = [&ss, &hostname](
+                          const std::string &section,
+                          const std::string &socketsdir,
+                          const Options::Endpoint &rw_endpoint,
+                          const Options::Endpoint &ro_endpoint,
+                          const Options::Endpoint &rw_split_endpoint) {
+    if (rw_endpoint || ro_endpoint || rw_split_endpoint) {
       ss << "## " << section << "\n\n";
       if (rw_endpoint) {
         ss << "- Read/Write Connections: ";
@@ -2625,14 +2682,31 @@ std::string ConfigGenerator::get_bootstrap_report_text(
 
         ss << std::endl;
       }
+
+      if (rw_split_endpoint) {
+        ss << "- Read/Write Split Connections: ";
+        if (rw_split_endpoint.port > 0) {
+          ss << hostname << ":" << rw_split_endpoint.port;
+        }
+        if (!rw_split_endpoint.socket.empty()) {
+          if (rw_split_endpoint.port > 0) {
+            ss << ", ";
+          }
+          ss << socketsdir << "/" << rw_split_endpoint.socket;
+        }
+        ss << std::endl;
+      }
+
       ss << std::endl;
     }
   };
 
   dump_sockets("MySQL Classic protocol", options.socketsdir,
-               options.rw_endpoint, options.ro_endpoint);
+               options.rw_endpoint, options.ro_endpoint,
+               options.disable_rw_split_endpoint ? Options::Endpoint{}
+                                                 : options.rw_split_endpoint);
   dump_sockets("MySQL X protocol", options.socketsdir, options.rw_x_endpoint,
-               options.ro_x_endpoint);
+               options.ro_x_endpoint, Options::Endpoint{});
 
   return ss.str();
 }

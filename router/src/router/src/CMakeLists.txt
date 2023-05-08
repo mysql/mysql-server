@@ -123,6 +123,7 @@ TARGET_INCLUDE_DIRECTORIES(router_frontend_lib
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/include/
   ${PROJECT_SOURCE_DIR}/src/http/include/
   ${PROJECT_SOURCE_DIR}/src/rest_api/include/
+  ${PROJECT_SOURCE_DIR}/src/connection_pool/include/
 )
 
 MYSQL_ADD_EXECUTABLE(mysqlrouter
