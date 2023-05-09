@@ -1687,7 +1687,7 @@ IF(WITH_LTO)
 ENDIF(WITH_LTO)
 
 IF(APPLE)
-  OPTION(WITH_DEVELOPER_ENTILEMENTS "Add developer entitlements" OFF)
+  OPTION(WITH_DEVELOPER_ENTITLEMENTS "Add developer entitlements" OFF)
 ENDIF()
 
 # Explicit list of all -DWITH_XXX=system possibilities
