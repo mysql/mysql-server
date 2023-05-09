@@ -574,6 +574,10 @@ SEL_TREE *tree_and(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2) {
 
   /* ok, both trees are index_merge trees */
   imerge_list_and_list(&tree1->merges, &tree2->merges);
+  // An index merge is a union/OR, so it cannot exactly represent an
+  // intersection/AND.
+  tree1->inexact |= !tree1->merges.is_empty();
+
   return tree1;
 }
 

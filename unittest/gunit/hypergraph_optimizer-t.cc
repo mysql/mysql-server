@@ -5441,6 +5441,37 @@ TEST_F(HypergraphOptimizerTest, DontSubsumeRangePredicateInIndexMerge) {
       ItemToString(root->filter().condition));
 }
 
+TEST_F(HypergraphOptimizerTest, DontSubsumeConjunctionOfIndexMerges) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE "
+      "(t1.x < 0 OR t1.y < 0) OR "
+      "((t1.x > 100 OR t1.y > 0) AND (t1.y <> 1 OR t1.z > 0))",
+      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 10000;
+  t1->file->stats.data_file_length = 1e6;
+  CreateOrderedIndex({t1->field[0]});
+  CreateOrderedIndex({t1->field[1]});
+  CreateOrderedIndex({t1->field[2]});
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Since an index merge plan cannot exactly represent the predicate due to the
+  // AND inside the OR, there must be a filter on top of the index merge.
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ(
+      "((t1.x < 0) or (t1.y < 0) or "
+      "(((t1.x > 100) or (t1.y > 0)) and ((t1.y <> 1) or (t1.z > 0))))",
+      ItemToString(root->filter().condition));
+  EXPECT_EQ(AccessPath::INDEX_MERGE, root->filter().child->type);
+}
+
 TEST_F(HypergraphOptimizerTest, IndexMergePrefersNonCPKToOrderByPrimaryKey) {
   for (bool order_by : {false, true}) {
     SCOPED_TRACE(order_by ? "With ORDER BY" : "Without ORDER BY");
