@@ -475,3 +475,26 @@ INSERT INTO v1 VALUES(5) AS c(a);
 SELECT * FROM v1;
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#35363550 Confusing time values
+--echo #
+
+# First row's single column's value should be NULL since WHEN clause
+# doesn't match and the CASE has no ELSE. Server asserted in debug
+# builds and gave wrong results in release builds
+VALUES ROW(CASE 1 WHEN 2
+           THEN
+              TIME '0:0:0.3'
+           END),
+       ROW(TIME '0:0:0.2');
+
+VALUES ROW(CASE 1 WHEN 2
+           THEN
+               TIME '0:0:0'
+           END),
+       ROW(TIME '0:0:0');
+
+# Last row's single column's value was NULL before fix.
+VALUES ROW(NULL),
+       ROW(TIME '-719:0:0.2323049640');

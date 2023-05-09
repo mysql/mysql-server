@@ -675,3 +675,27 @@ NULL
 5
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug#35363550 Confusing time values
+#
+VALUES ROW(CASE 1 WHEN 2
+THEN
+TIME '0:0:0.3'
+           END),
+ROW(TIME '0:0:0.2');
+column_0
+NULL
+00:00:00.2
+VALUES ROW(CASE 1 WHEN 2
+THEN
+TIME '0:0:0'
+           END),
+ROW(TIME '0:0:0');
+column_0
+NULL
+00:00:00
+VALUES ROW(NULL),
+ROW(TIME '-719:0:0.2323049640');
+column_0
+NULL
+-719:00:00.232304

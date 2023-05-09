@@ -10751,7 +10751,9 @@ bool Item_values_column::get_date(MYSQL_TIME *ltime,
 bool Item_values_column::get_time(MYSQL_TIME *ltime) {
   assert(fixed);
   assert(m_value_ref != nullptr);
-  return m_value_ref->get_time(ltime);
+  const bool result = m_value_ref->get_time(ltime);
+  null_value = m_value_ref->null_value;
+  return result;
 }
 
 void Item_values_column::add_used_tables(Item *value) {
