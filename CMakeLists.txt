@@ -2009,6 +2009,15 @@ IF(LINUX)
   HAVE_PTHREAD_SETNAME_NP)
 ENDIF()
 
+# Cannot use system tirpc with custom OpenSSL
+IF(WITH_SSL_PATH AND (LINUX_RHEL8 OR LINUX_RHEL9))
+  SET(WITH_TIRPC "bundled")
+ENDIF()
+
+IF(WITH_TIRPC STREQUAL "bundled")
+  ADD_SUBDIRECTORY(extra/tirpc)
+ENDIF()
+
 IF(WITH_PROTOBUF STREQUAL "bundled" OR WITH_FIDO STREQUAL "bundled")
   # Protobuf library is a target, installed to <root>/${INSTALL_PRIV_LIBDIR}
   # INSTALL_RPATH must be set for all binaries linking with libprotobuf.
