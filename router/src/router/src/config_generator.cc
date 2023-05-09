@@ -309,7 +309,6 @@ bool ConfigGenerator::check_target(
     bool allow_no_metadata) {
   schema_version_ =
       mysqlrouter::get_metadata_schema_version(mysql_, allow_no_metadata);
-  if (schema_version_.major == 0) return false;
 
   if (schema_version_ == mysqlrouter::kUpgradeInProgressMetadataVersion) {
     throw std::runtime_error(

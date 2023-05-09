@@ -1075,12 +1075,10 @@ std::string MySQLRouterConf::get_bootstrap_socket() const {
 }
 
 void MySQLRouterConf::connect() {
-  auto bootstrap_socket = get_bootstrap_socket();
-  target_uri_ = parse_server_uri(bootstrap_uri_, bootstrap_socket);
-
   // connect to (what should be a) metadata server
-  mysql_ = std::make_unique<MySQLSession>(
-      std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
+  if (!mysql_)
+    mysql_ = std::make_unique<MySQLSession>(
+        std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
   try {
     // throws std::logic_error, std::runtime_error, Error(runtime_error)
     set_ssl_options(mysql_.get(), bootstrap_options_);
@@ -1119,7 +1117,9 @@ std::string MySQLRouterConf::bootstrap(
                        ", Router bootstrap skipped\n\n";
   };
 
-  if (!mysql_) connect();
+  if (!mysql_)
+    mysql_ = std::make_unique<MySQLSession>(
+        std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
 
   mysqlrouter::ConfigGenerator config_gen(
       out_stream_, err_stream_
@@ -1129,11 +1129,15 @@ std::string MySQLRouterConf::bootstrap(
                           : mysqlrouter::SysUserOperations::instance()
 #endif
   );
+  auto bootstrap_socket = get_bootstrap_socket();
+  target_uri_ = parse_server_uri(bootstrap_uri_, bootstrap_socket);
+
   config_gen.init(
       bootstrap_options_, target_uri_, mysql_.get(), get_connect_timeout(),
       get_read_timeout());  // throws MySQLSession::Error, std::runtime_error,
                             // std::out_of_range, std::logic_error
 
+  connect();
   bool standalone =
       !config_gen.check_target(bootstrap_options_, allow_standalone);
 
