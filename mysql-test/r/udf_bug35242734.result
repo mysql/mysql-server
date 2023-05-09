@@ -1,0 +1,15 @@
+# Verifying RESTART using mysqld_safe as supervisor process.
+INSERT INTO mysql.func(name, ret, dl, type) VALUES ('udf_test', 0, 'should_not_parse.so', 'function');
+USE mysql;
+SELECT udf_test('test');
+ERROR 42000: FUNCTION mysql.udf_test does not exist
+SELECT * from mysql.func;
+name	ret	dl	type
+udf_test	0	should_not_parse.so	function
+# Executing a sql command after RESTART.
+SELECT * from mysql.func;
+name	ret	dl	type
+udf_test	0	should_not_parse.so	function
+SELECT udf_test('test');
+ERROR 42000: FUNCTION mysql.udf_test does not exist
+DELETE FROM mysql.func WHERE name='udf_test';

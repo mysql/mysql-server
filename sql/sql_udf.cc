@@ -315,7 +315,7 @@ void udf_read_functions_table() {
         // Print warning to log
         LogErr(ERROR_LEVEL, ER_FAILED_TO_OPEN_SHARED_LIBRARY, tmp->dl,
                error_number, errmsg);
-        // Keep the udf in the hash so that we can remove it later
+        udf_hash_delete(tmp);
         continue;
       }
       new_dl = true;
