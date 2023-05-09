@@ -30,6 +30,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include <openssl/bio.h>
@@ -48,6 +49,7 @@
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/classic_protocol_message.h"
+#include "mysqlrouter/classic_protocol_session_track.h"
 
 namespace server_mock {
 
@@ -56,12 +58,25 @@ namespace server_mock {
  **/
 using RowValueType = std::vector<std::optional<std::string>>;
 
+using session_tracker_field =
+    std::variant<classic_protocol::session_track::TransactionCharacteristics,
+                 classic_protocol::session_track::TransactionState,
+                 classic_protocol::session_track::SystemVariable,
+                 classic_protocol::session_track::Schema,
+                 classic_protocol::session_track::State,
+                 classic_protocol::session_track::Gtid>;
+
+std::string encode_session_trackers(
+    const std::vector<session_tracker_field> &trackers);
+
 /** @brief Keeps result data for single SQL statement that returns
  *         resultset.
  **/
 struct ResultsetResponse {
   std::vector<classic_protocol::message::server::ColumnMeta> columns;
   std::vector<RowValueType> rows;
+
+  classic_protocol::message::server::Eof end_of_rows;
 };
 
 using OkResponse = classic_protocol::message::server::Ok;
@@ -103,15 +118,7 @@ class ProtocolBase {
   virtual void encode_error(const ErrorResponse &resp) = 0;
 
   // throws std::system_error
-  virtual void encode_ok(const uint64_t affected_rows = 0,
-                         const uint64_t last_insert_id = 0,
-                         const uint16_t server_status = 0,
-                         const uint16_t warning_count = 0) = 0;
-
-  void encode_ok(const OkResponse &resp) {
-    encode_ok(resp.affected_rows(), resp.last_insert_id(),
-              resp.status_flags().to_ulong(), resp.warning_count());
-  }
+  virtual void encode_ok(const OkResponse &resp) = 0;
 
   // throws std::system_error
   virtual void encode_resultset(const ResultsetResponse &response) = 0;

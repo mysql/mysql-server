@@ -718,10 +718,7 @@ void MySQLXProtocol::encode_error(const ErrorResponse &err) {
   encode_message(Mysqlx::ServerMessages::ERROR, err_msg);
 }
 
-void MySQLXProtocol::encode_ok(
-    const uint64_t /*affected_rows*/,  // TODO: notice with this data?
-    const uint64_t /*last_insert_id*/, const uint16_t /*server_status*/,
-    const uint16_t /*warning_count*/) {
+void MySQLXProtocol::encode_ok(const OkResponse & /* msg */) {
   Mysqlx::Sql::StmtExecuteOk ok_msg;
   encode_message(Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK, ok_msg);
 }
@@ -757,7 +754,7 @@ void MySQLXProtocol::encode_resultset(const ResultsetResponse &response) {
 
   Mysqlx::Resultset::FetchDone fetch_done_msg;
   encode_message(Mysqlx::ServerMessages::RESULTSET_FETCH_DONE, fetch_done_msg);
-  encode_ok();
+  encode_ok({});
 }
 
 }  // namespace server_mock

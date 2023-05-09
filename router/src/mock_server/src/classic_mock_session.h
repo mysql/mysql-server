@@ -51,10 +51,7 @@ class MySQLClassicProtocol : public ProtocolBase {
   void encode_error(const ErrorResponse &msg) override;
 
   // throws std::system_error
-  void encode_ok(const uint64_t affected_rows = 0,
-                 const uint64_t last_insert_id = 0,
-                 const uint16_t server_status = 0,
-                 const uint16_t warning_count = 0) override;
+  void encode_ok(const OkResponse &msg) override;
 
   // throws std::system_error
   void encode_resultset(const ResultsetResponse &response) override;

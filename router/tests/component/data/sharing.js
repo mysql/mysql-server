@@ -88,7 +88,42 @@ function increment_event(event_name) {
         -1) {
       increment_event(statement_sql_set_option);
 
-      return {ok: {status: 1 << 14}};
+      // the trackers that are needed for connection-sharing.
+      return {
+        ok: {
+          session_trackers: [
+            {
+              type: "system_variable",
+              name: "session_track_system_variables",
+              value: "*"
+            },
+            {
+              type: "system_variable",
+              name: "session_track_gtids",
+              value: "OWN_GTID"
+            },
+            {
+              type: "system_variable",
+              name: "session_track_transaction_info",
+              value: "CHARACTERISTICS"
+            },
+            {
+              type: "system_variable",
+              name: "session_track_state_change",
+              value: "ON"
+            },
+            {
+              type: "system_variable",
+              name: "session_track_state_change",
+              value: "ON"
+            },
+            {
+              type: "trx_characteristics",
+              value: "",
+            },
+          ]
+        }
+      };
     } else {
       increment_event(statement_unknown_command);
 
