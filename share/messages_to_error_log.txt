@@ -7695,7 +7695,7 @@ ER_IB_MSG_720
   eng "Log block %lu at lsn %llu has valid header, but checksum field contains %lu, should be %lu."
 
 ER_IB_MSG_RECOVERY_SKIPPED_IN_READ_ONLY_MODE
-  eng "Recovery skipped, --innodb-read-only set!"
+  eng "Skipped necessary redo log applying, --innodb-read-only set!"
 
 ER_IB_MSG_722
   eng "Log scan progressed past the checkpoint LSN %llu."

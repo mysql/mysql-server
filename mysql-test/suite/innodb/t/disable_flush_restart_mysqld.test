@@ -1,0 +1,44 @@
+--source include/have_debug.inc
+
+CREATE TABLE t1(EmpId INT, Name Varchar(20), PRIMARY KEY(EmpId));
+CREATE TABLE t2(DeptId INT, Dept Varchar(20), PRIMARY KEY(DeptId));
+
+INSERT INTO t1 VALUES(9000, "Andrew");
+INSERT INTO t2 VALUES(101, "CS");
+
+#Ensure flushed_lsn in tablespace matches the checkpoint_lsn,
+#fil_write_flushed_lsn() called from checkpoint_now_set():
+SET GLOBAL innodb_log_checkpoint_now = ON;
+
+#Ensure no more checkpoints are made afterwards, so that the
+#flushed_lsn == checkpoint_lsn after restart.
+SET GLOBAL innodb_checkpoint_disabled = ON;
+
+INSERT INTO t1 VALUES(9010, "Rustam");
+INSERT INTO t2 VALUES(102, "ECE");
+INSERT INTO t2 VALUES(103, "EEE");
+
+UPDATE t2 SET Dept = "CSE" where DeptId = 101;
+
+--source include/kill_mysqld.inc
+
+-- echo # Verify
+let MYSQLD_LOG_1 = $MYSQLTEST_VARDIR/log/disable_flush_restart_mysqld-1.log;
+--error 1, 42
+--exec $MYSQLD_CMD $args --innodb-read-only --log-error=$MYSQLD_LOG_1
+let SEARCH_FILE = $MYSQLD_LOG_1;
+
+let SEARCH_PATTERN = Skipped necessary redo log applying, --innodb-read-only set!;
+#Expected : found
+--source include/search_pattern.inc
+
+let SEARCH_PATTERN = Can\'t initiate database recovery, running in read-only-mode;
+#Expected : found
+
+--source include/search_pattern.inc
+-- echo # Cleanup...
+
+--source include/start_mysqld.inc
+DROP TABLE t1,t2;
+
+--remove_file $MYSQLD_LOG_1

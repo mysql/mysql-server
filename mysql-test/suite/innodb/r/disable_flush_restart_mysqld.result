@@ -1,0 +1,17 @@
+CREATE TABLE t1(EmpId INT, Name Varchar(20), PRIMARY KEY(EmpId));
+CREATE TABLE t2(DeptId INT, Dept Varchar(20), PRIMARY KEY(DeptId));
+INSERT INTO t1 VALUES(9000, "Andrew");
+INSERT INTO t2 VALUES(101, "CS");
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+INSERT INTO t1 VALUES(9010, "Rustam");
+INSERT INTO t2 VALUES(102, "ECE");
+INSERT INTO t2 VALUES(103, "EEE");
+UPDATE t2 SET Dept = "CSE" where DeptId = 101;
+# Kill the server
+# Verify
+Pattern "Skipped necessary redo log applying, --innodb-read-only set!" found
+Pattern "Can\'t initiate database recovery, running in read-only-mode" found
+# Cleanup...
+# restart
+DROP TABLE t1,t2;
