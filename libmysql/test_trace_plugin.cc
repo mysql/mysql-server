@@ -158,7 +158,7 @@ struct st_trace_data {
 
 static bool logger_enabled = false;
 
-#define LOGGER(M) const ::test_trace::Logger logger(M);
+#define LOGGER(M) ::test_trace::Logger logger(M);
 #define LOG(ARGS)    \
   do {               \
     logger.log ARGS; \
