@@ -1209,7 +1209,7 @@ dberr_t dd_tablespace_rename(dd::Object_id dd_space_id, bool is_system_cs,
   }
 
   bool fail = client->update(new_space);
-  ut_ad(!fail);
+  DBUG_EXECUTE_IF("dictionary_client_update_fail_in_rename", fail = true;);
   dd::rename_tablespace_mdl_hook(thd, src_ticket, dst_ticket);
 
   return fail ? DB_ERROR : DB_SUCCESS;

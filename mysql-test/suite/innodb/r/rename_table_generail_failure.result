@@ -1,0 +1,5 @@
+CREATE TABLE t1 (c0 int unsigned NOT NULL PRIMARY KEY);
+SET DEBUG='+d,dictionary_client_update_fail_in_rename';
+RENAME TABLE t1 TO t2;
+ERROR HY000: Error on rename of './test/t1' to './test/t2' (errno: 168 - Unknown (generic) error from engine)
+DROP TABLE t1;

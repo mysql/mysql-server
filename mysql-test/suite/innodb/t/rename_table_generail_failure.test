@@ -1,0 +1,9 @@
+-- source include/have_debug.inc
+
+CREATE TABLE t1 (c0 int unsigned NOT NULL PRIMARY KEY);
+
+SET DEBUG='+d,dictionary_client_update_fail_in_rename';
+-- error 1025
+RENAME TABLE t1 TO t2;
+
+DROP TABLE t1;
