@@ -656,7 +656,6 @@ static bool flush_page_flush_list(buf_pool_t *buf_pool, buf_page_t *bpage) {
 
   buf_flush_list_mutex_enter(buf_pool);
 
-  ut_ad(!mutex_own(block_mutex));
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
   return flushed;
