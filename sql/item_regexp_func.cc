@@ -158,8 +158,17 @@ bool Item_func_regexp::set_pattern() {
 bool Item_func_regexp_instr::fix_fields(THD *thd, Item **arguments) {
   if (Item_func_regexp::fix_fields(thd, arguments)) return true;
 
-  if (return_option().has_value() && return_option() != 0 &&
-      return_option() != 1) {
+  const int the_index = retopt_arg_pos();
+  if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
+    if (!args[the_index]->const_item()) {
+      return false;
+    }
+  }
+
+  std::optional<int> retopt = return_option();
+  if (current_thd->is_error()) return true;
+
+  if (retopt.has_value() && retopt != 0 && retopt != 1) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0),
              "regexp_instr: return_option must be 1 or 0.");
     return true;
@@ -182,6 +191,12 @@ longlong Item_func_regexp_instr::val_int() {
   std::optional<int> pos = position();
   std::optional<int> occ = occurrence();
   std::optional<int> retopt = return_option();
+
+  if (retopt.has_value() && retopt != 0 && retopt != 1) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0),
+             "regexp_instr: return_option must be 1 or 0.");
+    return error_int();
+  }
 
   if (set_pattern() || !pos.has_value() || !occ.has_value() ||
       !retopt.has_value()) {

@@ -1032,3 +1032,48 @@ SELECT 'A' collate utf8mb4_0900_as_cs regexp '\\p{Lowercase_letter}';
 
 SELECT 'a' collate utf8mb4_0900_as_cs regexp '\\p{Uppercase_letter}';
 SELECT 'A' collate utf8mb4_0900_as_cs regexp '\\p{Uppercase_letter}';
+
+--echo #
+--echo # Bug#35367340 Assertion `!thd->is_error()' failed|sql/sql_base.cc
+--echo #
+
+CREATE TABLE t1 (
+  col_datetime DATETIME DEFAULT NULL,
+  col_date DATE DEFAULT NULL
+);
+
+INSERT INTO t1 VALUES ('1981-09-28 23:58:32','2016-04-27');
+
+CREATE TABLE t2 (
+  col_varchar_key VARCHAR(1) DEFAULT NULL,
+  col_int INT DEFAULT NULL,
+  col_varchar VARCHAR(1) DEFAULT NULL
+);
+
+INSERT INTO t2 VALUES (NULL,42,'a');
+
+--error ER_TRUNCATED_WRONG_VALUE
+UPDATE t1 SET col_datetime = 8
+WHERE (col_date) IN
+( SELECT
+  REGEXP_INSTR( col_varchar_key, '[a-z]+' , 385025119 , 1, 'm' )
+  FROM t2
+);
+
+--error ER_WRONG_ARGUMENTS
+UPDATE t1 SET col_datetime = 8
+WHERE (col_date) IN
+( SELECT
+  REGEXP_INSTR( col_varchar_key, '[a-z]+' , 385025119 , 1, col_int )
+  FROM t2
+);
+
+--error ER_TRUNCATED_WRONG_VALUE
+UPDATE t1 SET col_datetime = 8
+WHERE (col_date) IN
+( SELECT
+  REGEXP_INSTR( col_varchar_key, '[a-z]+' , 385025119 , 1, col_varchar )
+  FROM t2
+);
+
+DROP TABLE t1, t2;

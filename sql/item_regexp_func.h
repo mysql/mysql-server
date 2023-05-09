@@ -249,7 +249,7 @@ class Item_func_regexp_instr : public Item_func_regexp {
     const int the_index = retopt_arg_pos();
     if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
       const int value = args[the_index]->val_int();
-      if (args[the_index]->null_value)
+      if (args[the_index]->null_value || current_thd->is_error())
         return std::optional<int>();
       else
         return value;
