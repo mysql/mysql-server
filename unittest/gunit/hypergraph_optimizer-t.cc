@@ -5041,6 +5041,32 @@ TEST_F(HypergraphOptimizerTest, ImpossibleRangeInJoinWithFilterAndAggregation) {
   EXPECT_EQ(AccessPath::ZERO_ROWS_AGGREGATED, root->type);
 }
 
+TEST_F(HypergraphOptimizerTest, FullTableCoveringIndexScan) {
+  Query_block *query_block = ParseAndResolve("SELECT 1 FROM t1",
+                                             /*nullable=*/false);
+
+  // Set up a covering index with much smaller data volume than the table.
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 100000;
+  t1->file->stats.data_file_length = 100e6;
+  t1->file->stats.block_size = 4096;
+  const int index = t1->create_index(t1->field[0], nullptr, /*unique=*/true);
+  t1->covering_keys.clear_all();
+  t1->covering_keys.set_bit(index);
+  t1->s->key_info = t1->key_info;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::INDEX_SCAN, root->type);
+  EXPECT_STREQ("t1", root->index_scan().table->alias);
+  EXPECT_EQ(index, root->index_scan().idx);
+}
+
 TEST_F(HypergraphOptimizerTest, SimpleRangeScan) {
   Query_block *query_block = ParseAndResolve("SELECT 1 FROM t1 WHERE t1.x < 3",
                                              /*nullable=*/false);

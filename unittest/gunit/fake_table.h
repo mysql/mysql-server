@@ -302,6 +302,11 @@ class Fake_TABLE : public TABLE {
     }
     key->name = "unittest_index";
 
+    for (const KEY_PART_INFO &key_part :
+         make_array(key->key_part, key->actual_key_parts)) {
+      key->key_length += key_part.length;
+    }
+
     ++s->keys;
     s->visible_indexes.set_bit(index_id);
     s->keys_in_use.set_bit(index_id);

@@ -51,7 +51,7 @@ count(*)
 1
 EXPLAIN SELECT a, b, c, d FROM t WHERE a > 2 AND d >= 98;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	PRIMARY,b	b	8	NULL	833	80.00	Using where; Using index for skip scan
+1	SIMPLE	t	NULL	range	PRIMARY,b	PRIMARY	4	NULL	1250	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` > 2) and (`test`.`t`.`d` >= 98))
 SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%prefix_not_const_equality%';
@@ -156,7 +156,7 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
                 "range_analysis": {
                   "table_scan": {
                     "rows": 2500,
-                    "cost": 254.1
+                    "cost": 256.35
                   },
                   "potential_range_indexes": [
                     {
@@ -265,7 +265,7 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
                         "index_only": true,
                         "in_memory": 1,
                         "rows": 750,
-                        "cost": 79.0151,
+                        "cost": 79.0093,
                         "chosen": true
                       },
                       {
@@ -455,7 +455,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 2500,
-                    "cost": 254.1
+                    "cost": 256.35
                   },
                   "potential_range_indexes": [
                     {
@@ -537,7 +537,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3	{
                         "index_only": true,
                         "in_memory": 1,
                         "rows": 250,
-                        "cost": 25.345,
+                        "cost": 25.3431,
                         "chosen": false,
                         "cause": "cost"
                       },
@@ -738,7 +738,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 2500,
-                    "cost": 254.1
+                    "cost": 256.35
                   },
                   "potential_range_indexes": [
                     {
@@ -821,7 +821,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3	{
                         "index_only": true,
                         "in_memory": 1,
                         "rows": 250,
-                        "cost": 25.345,
+                        "cost": 25.3431,
                         "chosen": true
                       },
                       {
@@ -845,7 +845,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3	{
                       ]
                     },
                     "rows_for_plan": 250,
-                    "cost_for_plan": 25.345,
+                    "cost_for_plan": 25.3431,
                     "chosen": true
                   }
                 }
@@ -997,7 +997,7 @@ EXPLAIN SELECT b FROM t WHERE d < 2	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 2500,
-                    "cost": 254.1
+                    "cost": 256.35
                   },
                   "potential_range_indexes": [
                     {

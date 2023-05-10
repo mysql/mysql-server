@@ -270,7 +270,7 @@ EXPLAIN
 EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.bi=x2.bi;
 EXPLAIN
 -> Nested loop inner join  (rows=40000) (actual rows=40000 loops=1)
-    -> Table scan on x2  (rows=1000) (actual rows=1000 loops=1)
+    -> Covering index scan on x2 using ix2  (rows=1000) (actual rows=1000 loops=1)
     -> Index lookup on x1 using ix2 (bi=x2.bi)  (rows=40) (actual rows=40 loops=1000)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE ah=b;

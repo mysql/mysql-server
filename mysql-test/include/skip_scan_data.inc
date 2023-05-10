@@ -43,6 +43,12 @@ INSERT INTO t SELECT a.a, b.a, c.a, d.a, d.a FROM a, b, c, d
 
 DROP TEMPORARY TABLE a, b, c, d;
 
+# The cost estimates vary slightly between runs. Add extra data to the
+# table to increase the difference in cost between a table scan and an
+# index scan, so that the choice between those scans is less likely to
+# change because of small variations in statistics.
+ALTER TABLE t ADD COLUMN data VARCHAR(50) DEFAULT (REPEAT('x', 50));
+
 --enable_query_log
 
 ANALYZE TABLE t;

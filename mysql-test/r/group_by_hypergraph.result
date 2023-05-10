@@ -393,7 +393,7 @@ EXPLAIN
 -> Group (no aggregates)  (rows=5) (actual rows=5 loops=1)
     -> Nested loop inner join  (rows=10000) (actual rows=10000 loops=1)
         -> Covering index scan on t2 using PRIMARY  (rows=10) (actual rows=10 loops=1)
-        -> Table scan on t1  (rows=1000) (actual rows=1000 loops=10)
+        -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=10)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY c2;
 EXPLAIN
@@ -401,7 +401,7 @@ EXPLAIN
     -> Nested loop inner join  (rows=10000) (actual rows=10000 loops=1)
         -> Sort: t2.c2  (rows=10) (actual rows=10 loops=1)
             -> Table scan on t2  (rows=10) (actual rows=10 loops=1)
-        -> Table scan on t1  (rows=1000) (actual rows=1000 loops=10)
+        -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=10)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY c3;
 EXPLAIN
@@ -409,7 +409,7 @@ EXPLAIN
     -> Nested loop inner join  (rows=10000) (actual rows=10000 loops=1)
         -> Sort: t2.c3  (rows=10) (actual rows=10 loops=1)
             -> Table scan on t2  (rows=10) (actual rows=10 loops=1)
-        -> Table scan on t1  (rows=1000) (actual rows=1000 loops=10)
+        -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=10)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY a,c3;
 EXPLAIN
@@ -417,7 +417,7 @@ EXPLAIN
     -> Sort: t1.a, t2.c3  (rows=10000) (actual rows=10000 loops=1)
         -> Nested loop inner join  (rows=10000) (actual rows=10000 loops=1)
             -> Table scan on t2  (rows=10) (actual rows=10 loops=1)
-            -> Table scan on t1  (rows=1000) (actual rows=1000 loops=10)
+            -> Index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=10)
 
 DROP VIEW num1000;
 DROP TABLE num10, t1, t2;

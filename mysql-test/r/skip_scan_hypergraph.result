@@ -27,7 +27,7 @@ set optimizer_switch = 'skip_scan=off';
 EXPLAIN FORMAT=TREE SELECT b, d FROM t WHERE d < 2;
 EXPLAIN
 -> Filter: (t.d < 2)  (rows=833)
-    -> Table scan on t  (rows=2500)
+    -> Index scan on t using b  (rows=2500)
 
 FLUSH STATUS;
 SELECT b, d FROM t WHERE d < 2;
@@ -36,10 +36,10 @@ Variable_name	Value
 Handler_read_first	1
 Handler_read_key	1
 Handler_read_last	0
-Handler_read_next	0
+Handler_read_next	2500
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	2501
+Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
 EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ b, d FROM t WHERE d < 2;
 EXPLAIN
@@ -77,7 +77,7 @@ set optimizer_switch = 'skip_scan=off';
 EXPLAIN FORMAT=TREE SELECT b, d FROM t WHERE d > 4;
 EXPLAIN
 -> Filter: (t.d > 4)  (rows=833)
-    -> Table scan on t  (rows=2500)
+    -> Index scan on t using b  (rows=2500)
 
 FLUSH STATUS;
 SELECT b, d FROM t WHERE d > 4;
@@ -86,10 +86,10 @@ Variable_name	Value
 Handler_read_first	1
 Handler_read_key	1
 Handler_read_last	0
-Handler_read_next	0
+Handler_read_next	2500
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	2501
+Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
 EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ b, d FROM t WHERE d > 4;
 EXPLAIN
@@ -596,7 +596,7 @@ set optimizer_switch = 'skip_scan=off';
 EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a = b AND d >= 98;
 EXPLAIN
 -> Filter: ((t.a = t.b) and (t.d >= 98))  (rows=167)
-    -> Table scan on t  (rows=2500)
+    -> Index scan on t using b  (rows=2500)
 
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = b AND d >= 98;
@@ -605,10 +605,10 @@ Variable_name	Value
 Handler_read_first	1
 Handler_read_key	1
 Handler_read_last	0
-Handler_read_next	0
+Handler_read_next	2500
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	2501
+Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
 EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a = b AND d >= 98;
 EXPLAIN
@@ -1083,7 +1083,7 @@ EXPLAIN FORMAT=TREE SELECT count(*) FROM t WHERE d < 2;;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Filter: (t.d < 2)  (rows=833)
-        -> Table scan on t  (rows=2500)
+        -> Index scan on t using b  (rows=2500)
 
 FLUSH STATUS;
 SELECT count(*) FROM t WHERE d < 2;;
@@ -1092,10 +1092,10 @@ Variable_name	Value
 Handler_read_first	1
 Handler_read_key	1
 Handler_read_last	0
-Handler_read_next	0
+Handler_read_next	2500
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	2501
+Handler_read_rnd_next	0
 include/diff_tables.inc [test.skip_scan, test.no_skip_scan]
 EXPLAIN FORMAT=TREE SELECT /*+ SKIP_SCAN(t) */ count(*) FROM t WHERE d < 2;;
 EXPLAIN

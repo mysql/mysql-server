@@ -606,6 +606,11 @@ secondary_engine_check_optimizer_request_t SecondaryEngineStateCheckHook(
   return secondary_engine->secondary_engine_check_optimizer_request;
 }
 
+bool IsClusteredPrimaryKey(unsigned key_index, const TABLE &table) {
+  return key_index == table.s->primary_key &&
+         table.file->primary_key_is_clustered();
+}
+
 /// Returns the MATCH function of a predicate that can be pushed down to a
 /// full-text index. This can be done if the predicate is a MATCH function,
 /// or in some cases (see IsSargableFullTextIndexPredicate() for details)
@@ -821,16 +826,23 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
         continue;
       }
       const int order = reverse ? reverse_order : forward_order;
-      if (order != 0) {
+      const int key_idx = order_info.key_idx;
+      // An index scan is more interesting than a table scan if it follows an
+      // interesting order that can be used to avoid a sort later, or if it is
+      // covering so that it can reduce the volume of data to read. A scan of a
+      // clustered primary index reads as much data as a table scan, so it is
+      // not considered unless it follows an interesting order.
+      if (order != 0 || (table->covering_keys.is_set(key_idx) &&
+                         !IsClusteredPrimaryKey(key_idx, *table))) {
         if (ProposeIndexScan(table, node_idx, range_optimizer_row_estimate,
-                             order_info.key_idx, reverse, order)) {
+                             key_idx, reverse, order)) {
           return true;
         }
       }
 
       // Propose ref access using only sargable predicates that reference no
       // other table.
-      if (ProposeRefAccess(table, node_idx, order_info.key_idx,
+      if (ProposeRefAccess(table, node_idx, key_idx,
                            range_optimizer_row_estimate, reverse,
                            /*allowed_parameter_tables=*/0, order)) {
         return true;
@@ -852,8 +864,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
       table_map want_parameter_tables = 0;
       for (const SargablePredicate &sp :
            m_graph->nodes[node_idx].sargable_predicates) {
-        if (sp.field->table == table &&
-            sp.field->part_of_key.is_set(order_info.key_idx) &&
+        if (sp.field->table == table && sp.field->part_of_key.is_set(key_idx) &&
             !Overlaps(sp.other_side->used_tables(),
                       PSEUDO_TABLE_BITS | table->pos_in_table_list->map())) {
           want_parameter_tables |= sp.other_side->used_tables();
@@ -861,7 +872,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
       }
       for (table_map allowed_parameter_tables :
            NonzeroSubsetsOf(want_parameter_tables)) {
-        if (ProposeRefAccess(table, node_idx, order_info.key_idx,
+        if (ProposeRefAccess(table, node_idx, key_idx,
                              range_optimizer_row_estimate, reverse,
                              allowed_parameter_tables, order)) {
           return true;
@@ -1210,8 +1221,7 @@ AccessPath *FindCheapestIndexRangeScan(THD *thd, SEL_TREE *tree,
     }
     const bool is_preferred_cpk =
         prefer_clustered_primary_key_scan &&
-        param->table->file->primary_key_is_clustered() &&
-        param->real_keynr[idx] == param->table->s->primary_key;
+        IsClusteredPrimaryKey(param->real_keynr[idx], *param->table);
     if (!is_preferred_cpk && cost.total_cost() > best_cost) {
       continue;
     }
@@ -1705,8 +1715,7 @@ void CostingReceiver::ProposeIndexMerge(
     num_output_rows += path->num_output_rows();
 
     if (allow_clustered_primary_key_scan &&
-        table->file->primary_key_is_clustered() &&
-        path->index_range_scan().index == table->s->primary_key) {
+        IsClusteredPrimaryKey(path->index_range_scan().index, *table)) {
       assert(!*has_clustered_primary_key_scan);
       *has_clustered_primary_key_scan = true;
     } else {
@@ -2490,7 +2499,7 @@ bool CostingReceiver::ProposeIndexScan(
   path.type = AccessPath::INDEX_SCAN;
   path.index_scan().table = table;
   path.index_scan().idx = key_idx;
-  path.index_scan().use_order = true;
+  path.index_scan().use_order = ordering_idx != 0;
   path.index_scan().reverse = reverse;
   path.count_examined_rows = true;
   path.ordering_state = m_orderings->SetOrder(ordering_idx);
@@ -2510,8 +2519,7 @@ bool CostingReceiver::ProposeIndexScan(
   //
   // Note that this will give somewhat more access paths than is
   // required in some cases.
-  if (table->s->primary_key == key_idx &&
-      table->file->primary_key_is_clustered()) {
+  if (IsClusteredPrimaryKey(key_idx, *table)) {
     cost = table->file->table_scan_cost().total_cost() * 1.001;
   } else if (table->covering_keys.is_set(key_idx)) {
     // The index is covering, so we can do an index-only scan.
