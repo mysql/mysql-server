@@ -1,0 +1,19 @@
+--echo #
+--echo # Bug#35304195: ssl_session_data_print creates world readable files by default
+--echo #
+
+--source include/not_windows.inc
+
+# print SSL session .pem contents to file
+let SESSION_FILE=$MYSQLTEST_VARDIR/tmp/ssldata.pem;
+exec $MYSQL --ssl-mode=required -e "ssl_session_data_print $SESSION_FILE" 2>&1 > /dev/null;
+
+# assert the file has correct access permissions (0600)
+--perl
+use strict;
+my $mode = (stat($ENV{SESSION_FILE}))[2];
+my $perm = sprintf "%04o", ($mode & 07777);
+die "Invalid permission $perm for $ENV{SESSION_FILE}" unless $perm == '0600';
+EOF
+
+--remove_file $SESSION_FILE

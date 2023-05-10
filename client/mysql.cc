@@ -4617,34 +4617,42 @@ static int com_ssl_session_data_print(String *buffer [[maybe_unused]],
   char msgbuf[256];
   char *param = get_arg(line, false);
   const char *err_text = nullptr;
-  FILE *fo = nullptr;
-  void *data = nullptr;
+  File fo = -1;
+  char *data = nullptr;
+  const bool use_outfile = (param != nullptr);
 
-  if (param) {
-    if (nullptr == (fo = fopen(param, "w"))) {
+  if (use_outfile) {
+    // result file is access protected (0600)
+    const MY_MODE file_creation_mode = get_file_perm(USER_READ | USER_WRITE);
+    const int access_flags = O_WRONLY | O_TRUNC | O_CREAT;
+
+    fo = my_create(param, file_creation_mode, access_flags, MYF(0));
+    if (fo == -1) {
       err_text = "Failed to open the output file";
       goto end;
     }
-  } else
-    fo = stdout;
+  } else {
+    fo = my_fileno(stdout);
+  }
 
-  data = mysql_get_ssl_session_data(&mysql, 0, nullptr);
+  data =
+      reinterpret_cast<char *>(mysql_get_ssl_session_data(&mysql, 0, nullptr));
   if (!data) {
     err_text = nullptr;
     put_error(&mysql);
     goto end;
   }
-  if (0 > fputs(reinterpret_cast<char *>(data), fo)) {
+  if (my_write(fo, (uchar *)data, strlen(data), MYF(0)) == MY_FILE_ERROR) {
     snprintf(msgbuf, sizeof(msgbuf), "Write of session data failed: %d (%s)",
              errno, strerror(errno));
     err_text = &msgbuf[0];
     goto end;
   }
-  if (fo == stdout) fputs("\n", fo);
+  if (!use_outfile && fo != -1) my_write(fo, (const uchar *)"\n", 1, MYF(0));
 
 end:
   if (data) mysql_free_ssl_session_data(&mysql, data);
-  if (fo && fo != stdout) fclose(fo);
+  if (use_outfile && fo != -1) (void)my_close(fo, MYF(0));
   if (err_text) return put_info(err_text, INFO_ERROR);
   return 0;
 }
