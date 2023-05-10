@@ -7998,8 +7998,11 @@ Field *Field_varstring::new_key_field(MEM_ROOT *root,
 
 uint Field_varstring::is_equal(Create_field *new_field)
 {
-  if (new_field->sql_type == real_type() &&
-      new_field->charset == field_charset)
+  if ( (new_field->sql_type == real_type() &&
+        new_field->charset == field_charset) || 
+       (new_field->chaset == &my_charset_utf8mb4_bin &&
+	field_charset == &my_charset_utf8_bin)
+      )
   {
     if (new_field->length == max_display_length())
       return IS_EQUAL_YES;
