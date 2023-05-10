@@ -273,6 +273,8 @@ static table_map GetNullableEqRefTables(const AccessPath *root_path) {
   return tables;
 }
 
+namespace {
+
 // Mirrors QEP_TAB::pfs_batch_update(), with one addition:
 // If there is more than one table, batch mode will be handled by the join
 // iterators on the probe side, so joins will return false.
@@ -304,6 +306,17 @@ bool ShouldEnableBatchMode(AccessPath *path) {
   }
 }
 
+/**
+  If the path is a FILTER path marked that subqueries are to be materialized,
+  do so. If not, do nothing.
+
+  It is important that this is not called until the entire plan is ready;
+  not just when planning a single query block. The reason is that a query
+  block A with materializable subqueries may itself be part of a materializable
+  subquery B, so if one calls this when planning A, the subqueries in A will
+  irrevocably be materialized, even if that is not the optimal plan given B.
+  Thus, this is done when creating iterators.
+ */
 bool FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path) {
   if (path->type != AccessPath::FILTER ||
       !path->filter().materialize_subqueries) {
@@ -315,6 +328,10 @@ bool FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path) {
           return false;
         }
         Item_in_subselect *item_subs = down_cast<Item_in_subselect *>(item);
+        if (item_subs->strategy == Subquery_strategy::SUBQ_MATERIALIZATION) {
+          // This subquery is already set up for materialization.
+          return false;
+        }
         Query_block *qb = item_subs->query_expr()->first_query_block();
         if (!item_subs->subquery_allows_materialization(thd, qb,
                                                         join->query_block)) {
@@ -327,8 +344,6 @@ bool FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path) {
         return false;
       });
 }
-
-namespace {
 
 struct IteratorToBeCreated {
   AccessPath *path;

@@ -1705,19 +1705,6 @@ AccessPath *NewUpdateRowsAccessPath(THD *thd, AccessPath *child,
  */
 void FindTablesToGetRowidFor(AccessPath *path);
 
-/**
-  If the path is a FILTER path marked that subqueries are to be materialized,
-  do so. If not, do nothing.
-
-  It is important that this is not called until the entire plan is ready;
-  not just when planning a single query block. The reason is that a query
-  block A with materializable subqueries may itself be part of a materializable
-  subquery B, so if one calls this when planning A, the subqueries in A will
-  irrevocably be materialized, even if that is not the optimal plan given B.
-  Thus, this is done when creating iterators.
- */
-bool FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path);
-
 unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     THD *thd, MEM_ROOT *mem_root, AccessPath *path, JOIN *join,
     bool eligible_for_batch_mode);
