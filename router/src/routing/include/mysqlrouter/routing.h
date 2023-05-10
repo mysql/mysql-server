@@ -115,11 +115,18 @@ constexpr const unsigned int kDefaultSslSessionCacheSize{1024};
 constexpr const std::chrono::seconds kDefaultSslSessionCacheTimeout{300};
 
 /** @brief Modes supported by Routing plugin */
-enum class Mode {
+enum class RoutingMode {
   kUndefined = 0,
   kReadWrite = 1,
   kReadOnly = 2,
 };
+
+// the declaration of RoutingMode and then renaming to Mode works around a bug
+// in doxygen which otherwise reports:
+//
+// storage/innobase/include/buf0dblwr.h:365: warning:
+// documented symbol 'bool dblwr::Mode::is_atomic' was not declared or defined.
+using Mode = RoutingMode;
 
 /** @brief Routing strategies supported by Routing plugin */
 enum class RoutingStrategy {
