@@ -134,7 +134,8 @@ using NodeGuard = Scope_guard<DestroyNodes>;
     snprintf(alias, 20, "t%d", i + 1);
     table->alias = alias;
 
-    g->nodes.push_back(JoinHypergraph::Node{table, {}, {}});
+    g->nodes.push_back(
+        JoinHypergraph::Node{table, {}, {}, new (mem_root) CompanionSet()});
     g->graph.AddNode();
   }
 

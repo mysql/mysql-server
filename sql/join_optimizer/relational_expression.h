@@ -27,6 +27,7 @@
 
 #include "sql/item.h"
 #include "sql/join_optimizer/bit_utils.h"
+#include "sql/join_optimizer/estimate_selectivity.h"
 #include "sql/join_optimizer/node_map.h"
 #include "sql/join_optimizer/overflow_bitset.h"
 #include "sql/join_type.h"
@@ -35,6 +36,7 @@
 
 struct AccessPath;
 class Item_eq_base;
+class Item_func_eq;
 
 // Some information about each predicate that the join optimizer would like to
 // have available in order to avoid computing it anew for each use of that
@@ -63,6 +65,68 @@ struct ConflictRule {
 };
 
 /**
+   RelationalExpression objects in the same companion set are those
+   that are inner-joined against each other; we use this to see in
+   what parts of the graph we allow cycles. (Within companion sets, we
+   are also allowed to add Cartesian products if we deem that an
+   advantage, but we don't do it currently.) Tables may be alone in
+   their companion sets. Companion sets are also used when calculating
+   selectivity for equijoin predicates using multi-field indexes,
+   @see EstimateEqualPredicateSelectivity()).
+*/
+class CompanionSet final {
+ public:
+  CompanionSet() = default;
+
+  explicit CompanionSet(THD *thd) : m_equal_terms(thd->mem_root) {}
+
+  ///  No copying.
+  CompanionSet(const CompanionSet &) = delete;
+  CompanionSet &operator=(const CompanionSet &) = delete;
+
+  /// Add the set of equal fields specified by 'func_eq'.
+  void AddEquijoinCondition(THD *thd, const Item_func_eq &eq);
+
+  /**
+     If 'field' is part of an equijoin predicate in this CompanionSet, return a
+     table_map of the tables involved in that predicate. Otherwise, return 0.
+  */
+  table_map GetEqualityMap(const Field &field) const;
+
+  /// For tracing and debugging.
+  /// @returns A string representation like "{{t1.f1, t2.f2}, {t2.f3, t3.f4}}".
+  std::string ToString() const;
+
+ private:
+  using FieldArray = Mem_root_array<const Field *>;
+
+  /**
+     This represents equality between a set of fields, i.e.
+     "t1.f1=t2.f2...=tN.fN".
+   */
+  struct EqualTerm {
+    /// The fields that are equal to each other.
+    FieldArray *fields;
+
+    /// A map of all tables in 'fields'.
+    table_map tables;
+  };
+
+  /**
+     The set of sets of fields in equijoin predicates in this companion set.
+     (@see EstimateEqualPredicateSelectivity() to see how this is utilized.)
+     For example, if we have:
+
+     SELECT ... FROM t1, t2, t3 WHERE t1.x=t2.x AND t2.x=t3.x AND t2.y=t3.y
+
+     m_equal_terms will contain:
+
+     {{t1.x, t2.x, t3.x}, {t2.y, t3.y}}
+   */
+  Mem_root_array<EqualTerm> m_equal_terms;
+};
+
+/**
   Represents an expression tree in the relational algebra of joins.
   Expressions are either tables, or joins of two expressions.
   (Joins can have join conditions, but more general filters are
@@ -78,13 +142,6 @@ struct ConflictRule {
   of pushdown).
  */
 struct RelationalExpression {
-  explicit RelationalExpression(THD *thd)
-      : multi_children(thd->mem_root),
-        join_conditions(thd->mem_root),
-        equijoin_conditions(thd->mem_root),
-        properties_for_join_conditions(thd->mem_root),
-        properties_for_equijoin_conditions(thd->mem_root) {}
-
   enum Type {
     INNER_JOIN = static_cast<int>(JoinType::INNER),
     LEFT_JOIN = static_cast<int>(JoinType::OUTER),
@@ -112,6 +169,14 @@ struct RelationalExpression {
 
     TABLE = 100
   } type;
+
+  explicit RelationalExpression(THD *thd)
+      : multi_children(thd->mem_root),
+        join_conditions(thd->mem_root),
+        equijoin_conditions(thd->mem_root),
+        properties_for_join_conditions(thd->mem_root),
+        properties_for_equijoin_conditions(thd->mem_root) {}
+
   table_map tables_in_subtree;
 
   // Exactly the same as tables_in_subtree, just with node indexes instead of
@@ -122,16 +187,9 @@ struct RelationalExpression {
   // If type == TABLE.
   const Table_ref *table;
   Mem_root_array<Item *> join_conditions_pushable_to_this;
-  // Tables in the same companion set are those that are inner-joined
-  // against each other; we use this to see in what parts of the graph
-  // we allow cycles. (Within companion sets, we are also allowed to
-  // add Cartesian products if we deem that an advantage, but we don't
-  // do it currently.) -1 means that the table is not part of a companion
-  // set, e.g. because it only participates in outer joins. Tables may
-  // also be alone in their companion sets, which essentially means
-  // the same thing as -1. The companion sets are just opaque identifiers;
-  // the number itself doesn't mean much.
-  int companion_set{-1};
+
+  // The CompanionSet that this object is part of.
+  CompanionSet *companion_set{nullptr};
 
   // If type != TABLE. Note that equijoin_conditions will be split off
   // from join_conditions fairly late (at CreateHashJoinConditions()),
@@ -213,5 +271,48 @@ void ForEachOperator(RelationalExpression *expr, Func &&func) {
   }
   func(expr);
 }
+
+/// The collection of CompanionSet objects for a given JoinHypergraph.
+class CompanionSetCollection final {
+ public:
+  CompanionSetCollection(THD *thd, struct RelationalExpression *root) {
+    Compute(thd, root, nullptr);
+  }
+
+  /// No copying.
+  CompanionSetCollection(const CompanionSetCollection &) = delete;
+  CompanionSetCollection &operator=(const CompanionSetCollection &) = delete;
+
+  CompanionSet *Find(table_map tables) { return FindInternal(tables); }
+
+  const CompanionSet *Find(table_map tables) const {
+    return FindInternal(tables);
+  }
+
+  /// For trace and debugging.
+  std::string ToString() const;
+
+ private:
+  /// A mapping from table number to CompanionSet.
+  std::array<CompanionSet *, MAX_TABLES> m_table_num_to_companion_set{nullptr};
+
+  /**
+      Compute the CompanionSet of 'expr' and all of its descendants.
+      @param thd The current thread.
+      @param expr Compute CompanionSet of this  and all of its descendants.
+      @param current_set The CompanionSet to which 'expr' will belong, or
+     nullptr if 'expr' is the root of a new set.
+  */
+  void Compute(THD *thd, RelationalExpression *expr, CompanionSet *current_set);
+
+  /**
+     For a given set of tables, find the CompanionSet they are part of
+     Returns nullptr if the tables are in different (i.e., incompatible)
+     CompanionSet instances.  If so, a condition using this set of
+     tables can _not_ induce a new (cycle) edge in the hypergraph, as
+     there are non-inner joins in the way.
+  */
+  CompanionSet *FindInternal(table_map tables) const;
+};
 
 #endif  // SQL_JOIN_OPTIMIZER_RELATIONAL_EXPRESSION_H

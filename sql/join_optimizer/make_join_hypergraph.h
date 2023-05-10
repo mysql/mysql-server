@@ -33,6 +33,7 @@
 #include "sql/mem_root_array.h"
 #include "sql/sql_const.h"
 
+class CompanionSet;
 class Field;
 class Item;
 class JOIN;
@@ -116,6 +117,8 @@ struct JoinHypergraph {
     // the first time, we will evaluate all of these and consider
     // creating access paths that exploit these predicates.
     Mem_root_array<SargablePredicate> sargable_predicates;
+
+    const CompanionSet *companion_set;
   };
   Mem_root_array<Node> nodes;
 

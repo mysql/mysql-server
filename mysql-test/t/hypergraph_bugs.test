@@ -27,7 +27,7 @@ eval EXECUTE stmt;
 # plan i.e it should be using multiple equalities that are established during
 # optimization.
 SELECT
-IF(TRACE LIKE '%Left join (extra join condition = (t1.a = 5) AND (t2.a = 5))%',
+IF(TRACE LIKE '%Left join [companion set %] (extra join condition = (t1.a = 5) AND (t2.a = 5))%',
    'OK', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 eval PREPARE stmt FROM "$query";
@@ -506,3 +506,142 @@ ANALYZE TABLE t2;
 EXPLAIN ANALYZE SELECT 1 FROM t2 WHERE a=b;
 
 DROP TABLE t2;
+
+--echo #
+--echo # Bug#35129863 Hypergraph: Multi-field indexes ignored in some
+--echo # selectivity estimates
+--echo #
+
+CREATE TABLE num10 (n INT PRIMARY KEY);
+INSERT INTO num10 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t1(
+  a INT,
+  b INT,
+  c INT,
+  d INT,
+  e INT,
+  f INT,
+  g INT,
+  h INT,
+  v VARCHAR(5),
+  PRIMARY KEY(a,b,c),
+  KEY k1 (e,f,g),
+  UNIQUE KEY k2(h)
+);
+
+INSERT INTO t1
+  SELECT k%25, k%50, k, k, k%25, k%50, k, k, CAST( k%25 AS CHAR(5))
+  FROM (select x1.n*10+x2.n k from num10 x1, num10 x2) d1;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a, b,c,d,e,f,g,v;
+ANALYZE TABLE t1;
+
+# Since [a,b] is a prefix of the primary key, we use the selectivity of this prefix instead
+# of multiplying individual sekectivities of each field.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.b=x2.b;
+
+# [a,b,c] is also a prefix of the primary key.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2, t1 x3
+  WHERE x1.a=x2.a AND x1.b=x2.b AND x2.c=x3.c AND x2.d=x3.d;
+
+# Prefix of k1.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.e=x2.e AND x1.f=x2.f;
+
+# Prefix of k1.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.e=x2.e AND x1.f=x2.f AND x1.g=x2.g;
+
+# 'a' and 'e' are prefixes of two separate keys, so we multiply the selectivity of each.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.e=x2.e;
+
+# [a,b] and [e,f] are index prefixes. Multiply the selectivity of each prefix.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.b=x2.b
+   AND x1.e=x2.e AND x1.f=x2.f;
+
+# [x2.a, x2.b] form an index prefix, but they are joined with different tables
+# (x1 and x3). Therefore we derive the selectivity for x2.a from the
+# primary key, and the selectivty of x2.b from the histogram for that field.
+# And then we multiply these selectivities.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2, t1 x3 WHERE x1.a=x2.a AND x2.b=x3.b;
+
+# Mix of field=field and field=constant
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.b=8;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.b=x2.b
+   AND x1.c=8;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.b=7
+   AND x1.c=8;
+
+# Join on entire primary key.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2 WHERE x1.a=x2.a AND x1.b=x2.b
+   AND x1.c=x2.c;
+
+# field=field on single table.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 WHERE a=b;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 WHERE a=b AND c=d;
+
+# Cycle x1->x2->x3 in predicate.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3
+  WHERE x1.a=x2.a AND x2.b=x3.b AND x3.c=x1.c;
+
+# Cap on most selective unique key (k2).
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 JOIN num10 ON h=n;
+
+# Cap on unique key k2 takes priority over [t1.a,t1.b] index prefix.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2, t1 x3 WHERE
+  x1.a=x2.a AND x1.b=x2.b AND x1.b=x3.h;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 x1, t1 x2, t1 x3
+  WHERE x1.a=x2.c AND x1.b=x2.b AND x2.b=x3.b;
+
+# x3.a is missing on the inner side of the left join. Therefore we use
+# histograms rather than the [x3.a, x3.b] index prefix for finding the
+# selectivity of x3.b=x1.d.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT * FROM t1 x1 LEFT JOIN
+  (t1 x2 JOIN t1 x3 ON x2.a=x3.a AND x2.b=x3.b) ON x3.b=x1.d;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM  t1 x1
+WHERE 3 IN (SELECT x2.b FROM t1 x2 LEFT JOIN t1 x3 ON x2.c=x3.a AND x2.d=x3.b);
+
+# Implicit cast from VARCHAR to INT.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 x1 JOIN t1 x2 ON x1.a=x2.v AND x1.b=x2.b;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2, t1 x3
+WHERE x1.a=x2.c AND x2.c=x3.v AND x1.b=x3.f;
+
+CREATE TABLE t2(x INT, y INT, z INT, KEY (x, y), KEY(y, x));
+
+INSERT INTO t2(x, y) VALUES (1, 1), (2, 2), (3, 3), (4, 4);
+
+CREATE TABLE t3 AS SELECT * FROM t2;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t2 JOIN t3 USING (x, y);
+
+ANALYZE TABLE t2,t3;
+
+DROP TABLE t1, t2, t3, num10;
+

@@ -37,6 +37,7 @@
 #include "sql/item_func.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/print_utils.h"
+#include "sql/join_optimizer/relational_expression.h"
 #include "sql/key.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
@@ -46,18 +47,247 @@
 
 using std::string;
 
+namespace {
+
 /**
-  Estimate the selectivity of (equi)joining a given field to any other
-  field. Use cardinality information from indexes, if possible.
-  Otherwise, use a histogram if there is one. Assumes equal
-  distribution and zero correlation between the two fields, so if
+   Return the selectivity of 'field' derived from a histogram, or -1.0 if there
+   was no histogram.
+*/
+double HistogramSelectivity(const Field &field, string *trace) {
+  const histograms::Histogram *const histogram =
+      field.table->find_histogram(field.field_index());
+
+  if (histogram != nullptr && !empty(*histogram)) {
+    /*
+      Assume that we do "SELECT ... FROM ... WHERE tab.field=<expression>".
+      And there is a histogram on 'tab.field' indicating that there are
+      N distinct values for that field. Then we estimate the selectivity
+      to be 'fraction of non-null values'/N.
+    */
+    const double selectivity =
+        histogram->get_non_null_values_fraction() /
+        std::max<double>(1.0, histogram->get_num_distinct_values());
+
+    if (trace != nullptr) {
+      std::ostringstream stream;
+      stream << " - estimating selectivity " << selectivity << " for field "
+             << field.table->alias << "." << field.field_name
+             << " from histogram showing "
+             << histogram->get_num_distinct_values()
+             << " distinct values and non-null fraction "
+             << histogram->get_non_null_values_fraction() << ".\n";
+
+      *trace += stream.str();
+    }
+    return selectivity;
+  } else {
+    return -1.0;
+  }
+}
+
+/**
+  Check if there is a unique index on key number 'key_no' of
+  'field'. If so, use it to calculate an upper bound on the
+  selectivity of 'field' (i.e. 1/'number of rows in table') and return
+  that. If there is no such index, return 1.0.
+*/
+double KeyCap(const Field &field, uint key_no, string *trace) {
+  assert(key_no < field.table->s->keys);
+  const KEY &key = field.table->key_info[key_no];
+
+  // This is a less precise version of the single-row check in
+  // CostingReceiver::ProposeRefAccess(). If true, we know that this index
+  // can at most have selectivity 1/N, and we can use that as a global cap.
+  // Importantly, unlike the capping in the EQ_REF code, this capping is
+  // consistent between nested-loop index plans and hash join. Ideally, we'd
+  // also support multi-predicate selectivities here and get rid of the
+  // entire EQ_REF-specific code, but that requires a more holistic
+  // selectivity handling (for multipart indexes) and pulling out some of
+  // the sargable code for precise detection of null-rejecting predicates.
+  if (!field.key_start.is_set(key_no) ||
+      !Overlaps(actual_key_flags(&key), HA_NOSAME) ||
+      key.actual_key_parts != 1) {
+    return 1.0;
+  }
+
+  const double field_cap =
+      1.0 / std::max<double>(1.0, field.table->file->stats.records);
+
+  if (trace != nullptr) {
+    *trace += StringPrintf(
+        " - capping selectivity to %g since index is unique\n", field_cap);
+  }
+
+  return field_cap;
+}
+
+/**
+  Check if there is a unique index on 'field'. If so, use it to calculate an
+  upper bound on the selectivity of field (i.e. 1/'number of rows in table'). If
+  there is no such index, return 1.0.
+*/
+double FindSelectivityCap(const Field &field, string *trace) {
+  for (uint i = 0; i < field.table->s->keys; i++) {
+    const double key_cap = KeyCap(field, i, trace);
+
+    if (key_cap < 1.0) {
+      return key_cap;
+    }
+  }
+
+  return 1.0;
+}
+
+/**
+   Check if any other key in 'keys' starts with the same 'prefix_length'
+   fields as the last key.
+   @param keys The set of keys to examine.
+   @param prefix_length The length of the key prefix to examine.
+   @returns true if there is another key starting with the same prefix.
+*/
+bool HasEarlierPermutedPrefix(Bounds_checked_array<const KEY> keys,
+                              uint prefix_length) {
+  const KEY &target{keys[keys.size() - 1]};
+
+  // Check if 'field' is present in 'target'.
+  const auto field_in_target = [&](const Field &field) {
+    return std::any_of(target.key_part, target.key_part + prefix_length,
+                       [&](const KEY_PART_INFO &target_part) {
+                         return &field == target_part.field;
+                       });
+  };
+
+  // Check if all fields 0..prefix_length-1 in 'key' are present in 'target'.
+  const auto key_matches = [&](const KEY &key) {
+    return std::all_of(key.key_part, key.key_part + prefix_length,
+                       [&](const KEY_PART_INFO &part) {
+                         return field_in_target(*part.field);
+                       });
+  };
+
+  return std::any_of(keys.cbegin(), keys.cend() - 1, [&](const KEY &key) {
+    return key.user_defined_key_parts >= prefix_length &&
+           // Without records_per_key, we cannot use it to calculate
+           // selectivity.
+           key.has_records_per_key(prefix_length - 1) && key_matches(key);
+  });
+}
+
+/// Return type for EstimateSelectivityFromIndexStatistics().
+struct KeySelectivityResult {
+  /// The estimated selectivity (or -1.0 if there was no suitable index).
+  double selectivity;
+
+  /// The length of the index prefix from which we derived the selectivity.
+  uint prefix_length;
+};
+
+/// The set of fields that are equal in an equijoin predicate.
+using EqualFieldArray = Bounds_checked_array<const Field *const>;
+
+/*
+  Check if there is a prefix of 'key' where:
+  * 'equal_field' is the last key field in the prefix.
+  * equal_field->table and another table t2 in 'companion_set' are
+  joined on each field of the prefix.
+
+  If so, we assume that the projection from t2 corresponding to the
+  prefix is evenly distributed over the corresponding projection
+  from equal_field->table. If equal_field is field N in the prefix,
+  we then calculate its selectivity as:
+
+  records_per_key(N) / records_per_key(N-1)
+
+  Note that this will give a larger and hopefully more accurate
+  selectivity value than just dividing 1 by the number of distinct
+  values for 'equal_field' (derived from a histogram), as we now
+  exploit the correlation between the fields in the prefix.
+*/
+KeySelectivityResult EstimateSelectivityFromIndexStatistics(
+    const Field &equal_field, const CompanionSet &companion_set,
+    const TABLE &table, uint key_no, string *trace) {
+  const KEY &key = table.key_info[key_no];
+  table_map joined_tables{~PSEUDO_TABLE_BITS};
+
+  /*
+    Now loop over the fields in 'key' until either of:
+    1) The current field does not have records_per_key statistics.
+    2) We no longer have two tables in companion_set joined on every key
+         field so far.
+    3) We find the key field.
+    4) We reach the end.
+
+    In case 3, we can use this key to estimate the selectivity of equal_terms.
+  */
+  for (uint part_no = 0; part_no < key.user_defined_key_parts; part_no++) {
+    if (!key.has_records_per_key(part_no)) {
+      assert(part_no > 0);
+      break;
+    }
+
+    const Field &key_field = *key.key_part[part_no].field;
+    joined_tables &= companion_set.GetEqualityMap(key_field);
+
+    /*
+      Check that at least two tables are joined on each key field up
+      to field part_no.  "part_no > 0" covers the case of equality
+      between two fields from the same table, since these may not be
+      present in companion_set. Then we still want to use the first
+      key field.
+    */
+    if (part_no > 0 && !AreMultipleBitsSet(joined_tables)) {
+      break;
+    }
+
+    if (&equal_field == &key_field &&
+        !HasEarlierPermutedPrefix(
+            Bounds_checked_array<const KEY>(table.key_info, key_no + 1),
+            part_no + 1)) {
+      const double field_selectivity = [&]() {
+        if (part_no == 0) {
+          if (key.table->file->stats.records == 0) {
+            return 1.0;
+          } else {
+            // We need std::min() since records_per_key() and stats.records
+            // may be updated at different points in time.
+            return std::min(1.0, double{key.records_per_key(part_no)} /
+                                     key.table->file->stats.records);
+          }
+        } else {
+          return double{key.records_per_key(part_no)} /
+                 key.records_per_key(part_no - 1);
+        }
+      }();
+
+      if (trace != nullptr) {
+        std::ostringstream stream;
+        stream << " - found " << (part_no + 1)
+               << "-field prefix of candidate index " << key.name
+               << " with selectivity " << field_selectivity
+               << " for last field " << key_field.table->alias << "."
+               << key_field.field_name << "\n";
+        *trace += stream.str();
+      }
+
+      return {field_selectivity, part_no + 1};
+    }
+  }  // for (uint part_no = 0; part_no < key.user_defined_key_parts; part_no++)
+
+  return {-1.0, 0};
+}
+
+/**
+  Estimate the selectivity of (equi)joining a set of fields.
+  Use cardinality information from indexes, if possible.
+  Otherwise, use histograms, if available. Assumes equal
+  distribution and zero correlation between pairs of fields, so if
   there are e.g. 100 records and 4 distinct values (A,B,C,D) for the
   field, it assumes 25% of the values will be A, 25% B, etc. (equal
   distribution), and thus, when joining a row from some other table
   against this one, 25% of the records will match (equal distribution,
   zero correlation).
 
-  If there are multiple ones, we choose the one with the largest
+  If there are multiple indexes, we choose the one with the largest
   selectivity (least selective). There are two main reasons for this:
 
    - Databases generally tend to underestimate join cardinality
@@ -71,100 +301,65 @@ using std::string;
 
   Returns -1.0 if no index or no histogram was found. Lifted from
   Item_equal::get_filtering_effect.
- */
-static double EstimateFieldSelectivity(Field *field, double *selectivity_cap,
-                                       string *trace) {
-  const TABLE *table = field->table;
+
+  @param[in] equal_fields  The equijoined fields for which we calculate
+  selectivity.
+  @param[in] companion_set The CompanionSet of the join.
+  @param[in,out] trace Optimizer trace.
+  @returns The estimated selectivity of 'field' (or -1.0 if there was no
+  suitable index or histogram).
+*/
+double EstimateEqualPredicateSelectivity(const EqualFieldArray &equal_fields,
+                                         const CompanionSet &companion_set,
+                                         string *trace) {
+  uint longest_prefix = 0;
   double selectivity = -1.0;
-  for (uint j = 0; j < table->s->keys; j++) {
-    KEY *key = &table->key_info[j];
+  double selectivity_cap = 1.0;
 
-    if (field->key_start.is_set(j)) {
-      if (key->has_records_per_key(0)) {
-        double field_selectivity =
-            static_cast<double>(table->key_info[j].records_per_key(0)) /
-            table->file->stats.records;
-        if (trace != nullptr) {
-          *trace +=
-              StringPrintf(" - found candidate index %s with selectivity %f\n",
-                           table->key_info[j].name, field_selectivity);
-        }
-        selectivity = std::max(selectivity, field_selectivity);
+  for (const Field *equal_field : equal_fields) {
+    for (uint key_no = 0; key_no < equal_field->table->s->keys; key_no++) {
+      const KEY &key = equal_field->table->key_info[key_no];
+      KeySelectivityResult key_data{-1.0, 0};
+
+      const double key_cap = KeyCap(*equal_field, key_no, trace);
+      if (key_cap < 1.0) {
+        key_data = {key_cap, 1};
+      } else if (key.has_records_per_key(0)) {
+        key_data = EstimateSelectivityFromIndexStatistics(
+            *equal_field, companion_set, *equal_field->table, key_no, trace);
       }
 
-      // This is a less precise version of the single-row check in
-      // CostingReceiver::ProposeRefAccess(). If true, we know that this index
-      // can at most have selectivity 1/N, and we can use that as a global cap.
-      // Importantly, unlike the capping in the EQ_REF code, this capping is
-      // consistent between nested-loop index plans and hash join. Ideally, we'd
-      // also support multi-predicate selectivities here and get rid of the
-      // entire EQ_REF-specific code, but that requires a more holistic
-      // selectivity handling (for multipart indexes) and pulling out some of
-      // the sargable code for precise detection of null-rejecting predicates.
-      //
-      // Note that since we're called only for field = field here, which
-      // is null-rejecting, we don't have a check for HA_NULL_PART_KEY.
-      const bool single_row = Overlaps(actual_key_flags(key), HA_NOSAME) &&
-                              key->actual_key_parts == 1;
-      if (single_row) {
-        if (trace != nullptr) {
-          *trace += StringPrintf(
-              " - capping selectivity to %f since index is unique\n",
-              1.0 / table->file->stats.records);
-        }
-        *selectivity_cap =
-            std::min(*selectivity_cap, 1.0 / table->file->stats.records);
+      selectivity_cap = std::min(selectivity_cap, key_cap);
+
+      if (key_data.prefix_length > longest_prefix) {
+        longest_prefix = key_data.prefix_length;
+        selectivity = key_data.selectivity;
+      } else if (key_data.prefix_length == longest_prefix) {
+        selectivity = std::max(selectivity, key_data.selectivity);
       }
     }
   }
 
-  // Look for a histogram if there was no suitable index.
-  if (selectivity == -1.0) {
-    const histograms::Histogram *const histogram =
-        field->table->find_histogram(field->field_index());
-
-    if (histogram != nullptr && !empty(*histogram)) {
-      /*
-        Assume that we do "SELECT ... FROM ... WHERE tab.field=<expression>".
-        And there is a histogram on 'tab.field' indicating that there are
-        N distinct values for that field. Then we estimate the selectivity
-        to be <fraction of non-null values>/N.
-      */
-      selectivity = histogram->get_non_null_values_fraction() /
-                    std::max<double>(1.0, histogram->get_num_distinct_values());
-
-      if (trace != nullptr) {
-        std::ostringstream stream;
-        stream << " - estimating selectivity " << selectivity << " for field "
-               << field->table->alias << "." << field->field_name
-               << " from histogram showing "
-               << histogram->get_num_distinct_values()
-               << " distinct values and non-null fraction "
-               << histogram->get_non_null_values_fraction() << ".\n";
-
-        *trace += stream.str();
-      }
+  if (selectivity >= 0.0) {
+    selectivity = std::min(selectivity, selectivity_cap);
+  } else {
+    // Look for histograms if there was no suitable index.
+    for (const Field *field : equal_fields) {
+      selectivity = std::max(selectivity, HistogramSelectivity(*field, trace));
     }
   }
 
-  /*
-    Since rec_per_key and rows_per_table are calculated at
-    different times, their values may not be in synch and thus
-    it is possible that selectivity is greater than 1.0 if
-    rec_per_key is outdated. Force the filter to 1.0 in such
-    cases.
-   */
-  return std::min(selectivity, 1.0);
+  return selectivity;
 }
+
+}  // Anonymous namespace.
 
 /**
   For the given condition, to try estimate its filtering selectivity,
   on a 0..1 scale (where 1.0 lets all records through).
-
-  TODO(sgunders): In some cases, composite indexes might allow us to do better
-  for joins with multiple predicates.
  */
-double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
+double EstimateSelectivity(THD *thd, Item *condition,
+                           const CompanionSet &companion_set, string *trace) {
   // If the item is a true constant, we can say immediately whether it passes
   // or filters all rows. (Actually, calling get_filtering_effect() below
   // would crash if used_tables() is zero, which it is for const items.)
@@ -172,10 +367,8 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
     return (condition->val_int() != 0) ? 1.0 : 0.0;
   }
 
-  // For field = field (e.g. t1.x = t2.y), we try to use index information
-  // to find a better selectivity estimate. We look for indexes on both
-  // fields, and pick the least selective (see EstimateFieldSelectivity()
-  // for why).
+  // For field = field (e.g. t1.x = t2.y), we try to use index
+  // information or histograms to find a better selectivity estimate.
   // TODO(khatlen): Do the same for field <=> field?
   double selectivity_cap = 1.0;
   if (is_function_of_type(condition, Item_func::EQ_FUNC)) {
@@ -190,18 +383,17 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
       Item *right = eq->arguments()[1];
       if (left->type() == Item::FIELD_ITEM &&
           right->type() == Item::FIELD_ITEM) {
-        double selectivity = -1.0;
-        for (Field *field : {down_cast<Item_field *>(left)->field,
-                             down_cast<Item_field *>(right)->field}) {
-          selectivity = std::max(
-              selectivity,
-              EstimateFieldSelectivity(field, &selectivity_cap, trace));
-        }
+        const Field *fields[] = {down_cast<Item_field *>(left)->field,
+                                 down_cast<Item_field *>(right)->field};
+
+        double selectivity = EstimateEqualPredicateSelectivity(
+            EqualFieldArray(fields, array_elements(fields)), companion_set,
+            trace);
+
         if (selectivity >= 0.0) {
-          selectivity = std::min(selectivity, selectivity_cap);
           if (trace != nullptr) {
             *trace += StringPrintf(
-                " - used an index or a histogram for %s, selectivity = %.3f\n",
+                " - used an index or a histogram for %s, selectivity = %g\n",
                 ItemToString(condition).c_str(), selectivity);
           }
           return selectivity;
@@ -209,18 +401,16 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
       } else if (left->type() == Item::FIELD_ITEM) {
         // field = <anything> (except field = field).
         //
-        // We ignore the estimated selectivity (the item itself will do index
-        // dives if possible, that should be better than what we will get from
-        // our field = field estimation), but we want to get the cap if there's
-        // a unique index, as this will make us get consistent (if not always
-        // correct!) row estimates for all EQ_REF accesses over single-column
-        // indexes.
-        EstimateFieldSelectivity(down_cast<Item_field *>(left)->field,
-                                 &selectivity_cap, trace);
+        // See if we can derive an upper limit on selectivity from a unique
+        // index on this field.
+        selectivity_cap = std::min(
+            selectivity_cap,
+            FindSelectivityCap(*down_cast<Item_field *>(left)->field, trace));
       } else if (right->type() == Item::FIELD_ITEM) {
         // Same, for <anything> = field.
-        EstimateFieldSelectivity(down_cast<Item_field *>(right)->field,
-                                 &selectivity_cap, trace);
+        selectivity_cap = std::min(
+            selectivity_cap,
+            FindSelectivityCap(*down_cast<Item_field *>(right)->field, trace));
       }
     }
   }
@@ -260,25 +450,26 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
 
     // These should have been expanded early, before we get here.
     assert(equal->const_arg() == nullptr);
-
-    double selectivity = -1.0;
-    for (Item_field &field : equal->get_fields()) {
-      selectivity = std::max(
-          selectivity,
-          EstimateFieldSelectivity(field.field, &selectivity_cap, trace));
+    Prealloced_array<const Field *, 4> fields{PSI_NOT_INSTRUMENTED};
+    for (const Item_field &item : equal->get_fields()) {
+      fields.push_back(item.field);
     }
+
+    double selectivity = EstimateEqualPredicateSelectivity(
+        EqualFieldArray(&fields[0], fields.size()), companion_set, trace);
+
     if (selectivity >= 0.0) {
-      selectivity = std::min(selectivity, selectivity_cap);
       if (trace != nullptr) {
         *trace += StringPrintf(
-            " - used an index or a histogram for %s, selectivity = %.3f\n",
+            " - used an index or a histogram for %s, selectivity = %g\n",
             ItemToString(condition).c_str(), selectivity);
       }
       return selectivity;
     }
   }
 
-  // Index information did not help us, so use Item::get_filtering_effect().
+  // Neither index information nor histograms could help us, so use
+  // Item::get_filtering_effect().
   //
   // There is a challenge in that the Item::get_filtering_effect() API
   // is intrinsically locked to the old join optimizer's way of thinking,
@@ -301,7 +492,7 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
 
   selectivity = std::min(selectivity, selectivity_cap);
   if (trace != nullptr) {
-    *trace += StringPrintf(" - fallback selectivity for %s = %.3f\n",
+    *trace += StringPrintf(" - fallback selectivity for %s = %g\n",
                            ItemToString(condition).c_str(), selectivity);
   }
   return selectivity;

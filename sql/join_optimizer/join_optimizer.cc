@@ -4814,7 +4814,8 @@ AccessPath *CostingReceiver::ProposeAccessPath(
           }
         }
         if (!has_known_row_count_inconsistency_bugs) {
-          assert(false);
+          assert(false &&
+                 "Inconsistent row counts for different AccessPath objects.");
         }
         break;
       }
@@ -5615,7 +5616,7 @@ void ApplyHavingCondition(THD *thd, Item *having_cond, Query_block *query_block,
     filter_path.filter().materialize_subqueries = false;
     filter_path.set_num_output_rows(
         root_path->num_output_rows() *
-        EstimateSelectivity(thd, having_cond, trace));
+        EstimateSelectivity(thd, having_cond, CompanionSet(), trace));
 
     const FilterCost filter_cost = EstimateFilterCost(
         thd, root_path->num_output_rows(), having_cond, query_block);
@@ -6355,6 +6356,7 @@ static bool CompatibleTypesForIndexLookup(Item_func_eq *eq_item, Field *field,
      only for join conditions.
  */
 static void PossiblyAddSargableCondition(THD *thd, Item *item,
+                                         const CompanionSet &companion_set,
                                          TABLE *force_table,
                                          int predicate_index,
                                          bool is_join_condition,
@@ -6434,7 +6436,7 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       // to it in bitmaps.
       Predicate p;
       p.condition = eq_item;
-      p.selectivity = EstimateSelectivity(thd, eq_item, trace);
+      p.selectivity = EstimateSelectivity(thd, eq_item, companion_set, trace);
       p.used_nodes =
           GetNodeMapFromTableMap(eq_item->used_tables() & ~PSEUDO_TABLE_BITS,
                                  graph->table_num_to_node_num);
@@ -6474,9 +6476,11 @@ void FindSargablePredicates(THD *thd, string *trace, JoinHypergraph *graph) {
   if (trace != nullptr) {
     *trace += "\n";
   }
+
   for (unsigned i = 0; i < graph->num_where_predicates; ++i) {
     if (IsSingleBitSet(graph->predicates[i].total_eligibility_set)) {
       PossiblyAddSargableCondition(thd, graph->predicates[i].condition,
+                                   CompanionSet(),
                                    /*force_table=*/nullptr, i,
                                    /*is_join_condition=*/false, graph, trace);
     }
@@ -6486,7 +6490,8 @@ void FindSargablePredicates(THD *thd, string *trace, JoinHypergraph *graph) {
       const auto it = graph->sargable_join_predicates.find(cond);
       int predicate_index =
           (it == graph->sargable_join_predicates.end()) ? -1 : it->second;
-      PossiblyAddSargableCondition(thd, cond, node.table, predicate_index,
+      PossiblyAddSargableCondition(thd, cond, *node.companion_set, node.table,
+                                   predicate_index,
                                    /*is_join_condition=*/true, graph, trace);
     }
   }
@@ -6515,7 +6520,8 @@ static void CacheCostInfoForJoinConditions(THD *thd,
     edge.expr->properties_for_join_conditions.init(thd->mem_root);
     for (Item_eq_base *cond : edge.expr->equijoin_conditions) {
       CachedPropertiesForPredicate properties;
-      properties.selectivity = EstimateSelectivity(thd, cond, trace);
+      properties.selectivity =
+          EstimateSelectivity(thd, cond, *edge.expr->companion_set, trace);
       properties.contained_subqueries.init(thd->mem_root);
       FindContainedSubqueries(
           cond, query_block, [&properties](const ContainedSubquery &subquery) {
@@ -6541,7 +6547,8 @@ static void CacheCostInfoForJoinConditions(THD *thd,
     }
     for (Item *cond : edge.expr->join_conditions) {
       CachedPropertiesForPredicate properties;
-      properties.selectivity = EstimateSelectivity(thd, cond, trace);
+      properties.selectivity =
+          EstimateSelectivity(thd, cond, CompanionSet(), trace);
       properties.contained_subqueries.init(thd->mem_root);
       FindContainedSubqueries(
           cond, query_block, [&properties](const ContainedSubquery &subquery) {

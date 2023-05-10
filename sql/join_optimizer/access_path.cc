@@ -1375,14 +1375,16 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
       filter_cost +=
           EstimateFilterCost(thd, filter_rows, condition, join->query_block)
               .cost_if_not_materialized;
-      filter_rows *= EstimateSelectivity(thd, condition, /*trace=*/nullptr);
+      filter_rows *= EstimateSelectivity(thd, condition, *expr->companion_set,
+                                         /*trace=*/nullptr);
     }
     for (Item *condition : expr->join_conditions) {
       items.push_back(condition);
       filter_cost +=
           EstimateFilterCost(thd, filter_rows, condition, join->query_block)
               .cost_if_not_materialized;
-      filter_rows *= EstimateSelectivity(thd, condition, /*trace=*/nullptr);
+      filter_rows *= EstimateSelectivity(thd, condition, *expr->companion_set,
+                                         /*trace=*/nullptr);
     }
     assert(!items.is_empty());
 
