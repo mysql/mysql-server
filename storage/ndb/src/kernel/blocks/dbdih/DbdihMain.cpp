@@ -1752,6 +1752,12 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     
   case ZNDB_SPH4:
     jam();
+    {
+      /* Calculate GCP stop timer now */
+      m_gcp_monitor.m_gcp_save.m_need_max_lag_recalc = true;
+      m_gcp_monitor.m_micro_gcp.m_need_max_lag_recalc = true;
+      setGCPStopTimeouts(signal);
+    }
     cmasterTakeOverNode = ZNIL;
     switch(typestart){
     case NodeState::ST_INITIAL_START:
@@ -1927,10 +1933,12 @@ Dbdih::execNODE_START_REP(Signal* signal)
       c_dictLockSlavePtrI_nodeRestart = RNIL;
     }
   }
+
   // Request max lag recalculation to reflect new cluster scale
   // after a node start
   m_gcp_monitor.m_gcp_save.m_need_max_lag_recalc = true;
   m_gcp_monitor.m_micro_gcp.m_need_max_lag_recalc = true;
+  if (! isMaster()) { setGCPStopTimeouts(signal); }
 }
 
 void
@@ -9703,6 +9711,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   // after a node failure
   m_gcp_monitor.m_gcp_save.m_need_max_lag_recalc = true;
   m_gcp_monitor.m_micro_gcp.m_need_max_lag_recalc = true;
+  if (! isMaster()) { setGCPStopTimeouts(signal); }
 
   /**
    * Need to check if a node failed that was part of LCP. In this
@@ -24029,7 +24038,7 @@ void Dbdih::initCommonData()
     m_gcp_monitor.m_savedMaxCommitLag = 0;
 #endif
 
-    // These will be set when nodes reach state 'started'.
+    // These will be set when nodes reach state start phase 4.
     m_gcp_monitor.m_micro_gcp.m_max_lag_ms = 0;
     m_gcp_monitor.m_gcp_save.m_max_lag_ms = 0;
   }
